@@ -23,6 +23,11 @@ class TestDistURL:
         url = DistURL("http://a/py.tar.gz#egg=py-dev")
         assert url.eggfragment == "py-dev"
 
+    def test_geturl_nofrag(self):
+        url = DistURL("http://a/py.tar.gz#egg=py-dev")
+        assert url.geturl_nofragment() == "http://a/py.tar.gz"
+
+
 class TestIndexParsing:
     simplepy = DistURL("http://pypi.python.org/simple/py/")
 
@@ -80,6 +85,34 @@ class TestIndexParsing:
         assert links[0].url == \
                 "http://pypi.python.org/pkg/py-1.4.12.zip#md5=12ab"
         assert links[1].url == "http://pylib.org/py-1.1.zip"
+
+    def test_releasefile_md5_matching_and_ordering(self):
+        """ check that md5-links win over non-md5 links anywhere.
+        And otherwise the links from the index page win over scraped ones.
+        """
+        result = parse_index(self.simplepy,
+            """<a href="../../pkg/py-1.4.12.zip#md5=12ab">qwe</a>
+               <a href="../../pkg/py-1.4.11.zip">qwe</a>
+               <a href="../../pkg/py-1.4.10.zip#md5=2222">qwe</a>
+               <a href="http://pylib.org" rel="homepage">whatever</a>
+               <a href="http://pylib2.org" rel="download">whatever2</a>
+        """)
+        assert len(result.releaselinks) == 3
+        assert len(result.scrapelinks) == 2
+        result.parse_index(DistURL("http://pylib.org"), """
+               <a href="http://pylib.org/py-1.4.12.zip" /a>
+               <a href="http://pylib.org/py-1.4.11.zip#md5=1111" /a>
+               <a href="http://pylib.org/py-1.4.10.zip#md5=12ab" /a>
+        """, scrape=False)
+        assert len(result.scrapelinks) == 2
+        assert len(result.releaselinks) == 3
+        link1, link2, link3 = result.releaselinks
+        assert link1.url == \
+                "http://pypi.python.org/pkg/py-1.4.12.zip#md5=12ab"
+        assert link2.url == \
+                "http://pylib.org/py-1.4.11.zip#md5=1111"
+        assert link3.url == \
+                "http://pypi.python.org/pkg/py-1.4.10.zip#md5=2222"
 
 
 class TestFSCache:

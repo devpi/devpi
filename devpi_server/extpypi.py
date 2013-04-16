@@ -48,6 +48,11 @@ class DistURL:
     def __eq__(self, other):
         return self.url == getattr(other, "url", other)
 
+    def geturl_nofragment(self):
+        """ return url without fragment """
+        scheme, netloc, url, params, query, ofragment = self._parsed
+        return DistURL(urlutil.urlunsplit((scheme, netloc, url, query, "")))
+
     @property
     def pkgname_and_version(self):
         return guess_pkgname_and_version(self.basename)
@@ -103,8 +108,20 @@ class IndexParser:
 
     def __init__(self, projectname):
         self.projectname = projectname
-        self.releaselinks = set()
+        self.basename2link = {}
         self.scrapelinks = set()
+
+    def _mergelink_ifbetter(self, newurl):
+        entry = self.basename2link.get(newurl.basename)
+        if entry is None or (not entry.md5 and newurl.md5):
+            self.basename2link[newurl.basename] = newurl
+
+    @property
+    def releaselinks(self):
+        """ return sorted releaselinks list """
+        l = list(self.basename2link.values())
+        l.sort(reverse=True)
+        return l
 
     def parse_index(self, disturl, html, scrape=True):
         for a in BeautifulSoup(html).findAll("a"):
@@ -113,11 +130,11 @@ class IndexParser:
             projectname = re.split(r"-\d+", nameversion)[0]
             if ext in self.ALLOWED_ARCHIVE_EXTS and \
                projectname == self.projectname:
-                self.releaselinks.add(newurl)
+                self._mergelink_ifbetter(newurl)
                 continue
             if scrape:
                 if newurl.eggfragment:
-                    self.releaselinks.add(newurl)
+                    self.basename2link[newurl] = newurl
                 else:
                     for rel in a.get("rel", []):
                         if rel in ("homepage", "download"):
