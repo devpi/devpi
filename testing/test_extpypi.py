@@ -1,7 +1,7 @@
 
 import pytest
 from devpi_server.extpypi import (DistURL, parse_index, HTTPCacheAdapter,
-     FSCache)
+     FSCache, ExtDB)
 
 class TestDistURL:
     def test_basename(self):
@@ -33,6 +33,11 @@ class TestIndexParsing:
         assert link.basename == "py-1.4.12.zip"
         assert link.md5 == "12ab"
 
+    def test_parse_index_simple_nomatch(self):
+        result = parse_index(self.simplepy,
+            """<a href="../../pkg/py-1.3.html">qwe</a>""")
+        assert not result.releaselinks
+
     @pytest.mark.parametrize("rel", ["homepage", "download"])
     def test_parse_index_with_rel(self, rel):
         result = parse_index(self.simplepy, """
@@ -42,10 +47,11 @@ class TestIndexParsing:
                <a href="http://pylib2.org/py-1.0.zip" rel="%s">whatever2</a>
         """ % (rel,rel, rel))
         assert len(result.releaselinks) == 1
-        assert result.releaselinks[0] == "http://pylib2.org/py-1.0.zip"
+        link, = result.releaselinks
+        assert link == "http://pylib2.org/py-1.0.zip"
         assert len(result.scrapelinks) == 2
-        assert result.scrapelinks[0] == "http://pylib.org"
-        assert result.scrapelinks[1] == "http://pylib2.org"
+        assert result.scrapelinks == \
+                    set(["http://pylib.org", "http://pylib2.org"])
 
     def test_parse_index_with_egg(self):
         # XXX re-check with exact setuptools egg parsing logic
@@ -64,13 +70,16 @@ class TestIndexParsing:
         """)
         assert len(result.releaselinks) == 1
         assert len(result.scrapelinks) == 2
-        result.parse_index(result.scrapelinks[0], """
+        result.parse_index(DistURL("http://pylib.org"), """
                <a href="http://pylib.org/py-1.1.zip" /a>
                <a href="http://pylib.org/other" rel="download" /a>
         """, scrape=False)
         assert len(result.scrapelinks) == 2
         assert len(result.releaselinks) == 2
-        assert result.releaselinks[1] == "http://pylib.org/py-1.1.zip"
+        links = list(result.releaselinks)
+        assert links[0].url == \
+                "http://pypi.python.org/pkg/py-1.4.12.zip#md5=12ab"
+        assert links[1].url == "http://pylib.org/py-1.1.zip"
 
 
 class TestFSCache:
@@ -148,4 +157,58 @@ class TestHTTPCacheAdapter:
                 self.status_code = 301
         httpcache = HTTPCacheAdapter(cache, httpget)
         assert httpcache.get("http://whatever") == 301
+
+class TestExtPYPIDB:
+    @pytest.fixture
+    def extdb(self, redis, tmpdir):
+        redis.flushdb()
+        cache = FSCache(tmpdir, redis)
+        url2response = {}
+        def httpget(url):
+            class response:
+                def __init__(self, url):
+                    self.__dict__.update(url2response.get(url))
+                    self.url = url
+            return response(url)
+
+        httpcache = HTTPCacheAdapter(cache, httpget)
+        extdb = ExtDB("https://pypi.python.org/simple/", httpcache)
+        extdb.url2response = url2response
+        return extdb
+
+    def test_parse_project_nomd5(self, extdb):
+        extdb.url2response["https://pypi.python.org/simple/pytest/"] = dict(
+            status_code=200,
+            text='<a href="../../pkg/pytest-1.0.zip#md5=123" />')
+        links = extdb.getreleaselinks("pytest")
+        link, = links
+        assert link.url == "https://pypi.python.org/pkg/pytest-1.0.zip#md5=123"
+        assert link.md5 == "123"
+
+    def test_parse_and_scrape(self, extdb):
+        extdb.url2response["https://pypi.python.org/simple/pytest/"] = dict(
+            status_code=200, text='''
+                <a href="../../pkg/pytest-1.0.zip#md5=123" />
+                <a rel="download" href="https://download.com/index.html" />
+            ''')
+        extdb.url2response["https://download.com/index.html"] = dict(
+            status_code=200, text = '''
+                <a href="pytest-1.1.tar.gz" />
+            ''')
+        links = extdb.getreleaselinks("pytest")
+        assert len(links) == 2
+        assert links[0].url == "https://download.com/pytest-1.1.tar.gz"
+
+    def test_parse_and_scrape_not_found(self, extdb):
+        extdb.url2response["https://pypi.python.org/simple/pytest/"] = dict(
+            status_code=200, text='''
+                <a href="../../pkg/pytest-1.0.zip#md5=123" />
+                <a rel="download" href="https://download.com/index.html" />
+            ''')
+        extdb.url2response["https://download.com/index.html"] = dict(
+            status_code=404, text = 'not found')
+        links = extdb.getreleaselinks("pytest")
+        assert len(links) == 1
+        assert links[0].url == \
+                "https://pypi.python.org/pkg/pytest-1.0.zip#md5=123"
 
