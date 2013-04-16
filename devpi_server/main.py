@@ -3,8 +3,9 @@ recursive cache of pypi.python.org packages.
 """
 
 import argparse
-import sys
-
+import os, sys
+import py
+import requests
 
 class ConvertAddr(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
@@ -20,7 +21,6 @@ class ConvertAddr(argparse.Action):
                 parts[1] = int(parts[1])
         setattr(namespace, self.dest, tuple(parts))
 
-
 def parse_args(argv):
     argv = map(str, argv)
     parser = argparse.ArgumentParser(prog=argv[0])
@@ -34,27 +34,10 @@ def parse_args(argv):
         default="~/.devpi/data",
         help="data directory, where database and packages are stored",
     )
-
-    parser.add_argument("projectname", type=str, nargs=1,
-        help="projectname for which index is looked up at pypi.python.org",
-    )
     return parser.parse_args(argv[1:])
 
 def main(argv=None):
     if argv is None:
         argv = sys.argv
     args = parse_args(argv)
-
-    target = py.path.local(os.path.expanduser(args.datadir))
-    fscache = FileSystemCache(target.join("httpcache"))
-    def httpget(url):
-        return requests.get(url, allow_redirects=False)
-    http = HTTPCacheAdapter(fscache, httpget)
-    from devpi_server.extpypi import parse_index
-    url = "https://pypi.python.org/simple/%s/" % args.projectname[0]
-    print "retrieving index", url
-    r = http.gethtml(url)
-    result = parse_index(r.url, r)
-    print "%d releaselinks %d scrapelinks" %(len(result.releaselinks),
-                                             len(result.scrapelinks))
-    print result.scrapelinks
+    print args

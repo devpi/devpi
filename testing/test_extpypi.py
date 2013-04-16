@@ -1,7 +1,7 @@
 
 import pytest
 from devpi_server.extpypi import (DistURL, parse_index, HTTPCacheAdapter,
-     FileSystemCache)
+     FSCache)
 
 class TestDistURL:
     def test_basename(self):
@@ -23,7 +23,7 @@ class TestDistURL:
         url = DistURL("http://a/py.tar.gz#egg=py-dev")
         assert url.eggfragment == "py-dev"
 
-class TestParser:
+class TestIndexParsing:
     simplepy = DistURL("http://pypi.python.org/simple/py/")
 
     def test_parse_index_simple(self):
@@ -73,23 +73,56 @@ class TestParser:
         assert result.releaselinks[1] == "http://pylib.org/py-1.1.zip"
 
 
-class SimpleCache(dict):
-    set = dict.__setitem__
+class TestFSCache:
+    #@pytest.mark.parametrize("item", [
+    #    "something",
+    #    [301, "redirect"],
+    #    {"code": 301, "content": "hello"},
+    #    404,
+    #])
+    def test_setbody(self, tmpdir, redis):
+        cache = FSCache(tmpdir, redis)
+        assert cache.get("http://whatever/this") is None
+        r = cache.setbody("http://whatever/this", "hello")
+        assert r.status_code == 200
+        assert r.text == "hello"
+        assert r.url == "http://whatever/this"
+
+    def test_setmeta(self, tmpdir, redis):
+        cache = FSCache(tmpdir, redis)
+        r = cache.setmeta("http://whatever/that", status_code=404)
+        assert r.status_code == 404
+        assert r.text is None
+        assert r.url == "http://whatever/that"
+        r = cache.setmeta("http://whatever/that", status_code=301,
+                          nextlocation="http://whatever/that/this")
+        assert r.status_code == 301
+        assert r.text is None
+        assert r.url == "http://whatever/that"
+        assert r.nextlocation == "http://whatever/that/this"
+
+
 
 class TestHTTPCacheAdapter:
-    def test_httpcacheget_ok(self):
+    @pytest.fixture
+    def cache(self, tmpdir, redis):
+        return FSCache(tmpdir, redis)
+
+    @pytest.mark.parametrize("target", ["http://hello", "http://hello/"])
+    def test_httpcacheget_ok(self, cache, target):
         class httpget:
             def __init__(self, url):
                 self.url = url
                 self.status_code = 200
                 self.text = "hello"
-        httpcache = HTTPCacheAdapter(SimpleCache(), httpget)
-        text = httpcache.gethtml("http://hello")
+        httpcache = HTTPCacheAdapter(cache, httpget)
+        response = httpcache.get(target)
+        assert response.status_code == 200
+        assert response.text == "hello"
         del httpcache.httpget
-        assert text == "hello"
-        assert httpcache.gethtml("http://hello") == "hello"
+        assert httpcache.get(target).text == "hello"
 
-    def test_httpcacheget_redirect_ok(self):
+    def test_httpcacheget_redirect_ok(self, cache):
         class httpget:
             def __init__(self, url):
                 self.url = url
@@ -101,32 +134,18 @@ class TestHTTPCacheAdapter:
                     self.text = "redirected"
                 else:
                     assert 0
-        httpcache = HTTPCacheAdapter(SimpleCache(), httpget)
-        text = httpcache.gethtml("http://hello/world")
+        httpcache = HTTPCacheAdapter(cache, httpget)
+        text = httpcache.get("http://hello/world").text
         assert text == "redirected"
-        del httpcache.httpget
-        assert httpcache.gethtml("http://hello/world") == "redirected"
+        del httpcache.httpget  # make sure we don't trigger network anymore
+        assert httpcache.get("http://hello/world").text == "redirected"
 
-    def test_httpcacheget_redirect_max(self):
+    def test_httpcacheget_redirect_max(self, cache):
         class httpget:
             def __init__(self, url):
                 self.url = url
                 self.headers = {"location": "/redirect"}
                 self.status_code = 301
-        httpcache = HTTPCacheAdapter(SimpleCache(), httpget)
-        assert httpcache.gethtml("whatever") == 301
-
-class TestFileSystemCache:
-
-    @pytest.mark.parametrize("item", [
-        "something",
-        [301, "redirect"],
-        {"code": 301, "content": "hello"},
-        404,
-    ])
-    def test_getset_text(self, tmpdir, item):
-        cache = FileSystemCache(tmpdir)
-        assert cache.get("http://whatever/this") is None
-        cache.set("http://whatever/this", item)
-        assert cache.get("http://whatever/this") == item
+        httpcache = HTTPCacheAdapter(cache, httpget)
+        assert httpcache.get("http://whatever") == 301
 

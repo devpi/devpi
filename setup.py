@@ -1,8 +1,13 @@
 #! /usr/bin/env python
 
+import sys
 from setuptools import setup
 
 if __name__ == "__main__":
+    install_requires = ["beautifulsoup4>=4.1.3", "redis>=2.7.2"]
+    if sys.version_info < (2,7):
+        install_requires.append("argparse")
+
     setup(
       name="devpi-server",
       description="devpi caching indexes server",
@@ -18,7 +23,7 @@ if __name__ == "__main__":
         "Intended Audience :: System Administrators",
         "License :: OSI Approved :: BSD License",
         ],
-      install_requires=["beautifulsoup4", "argparse"],
+      install_requires=install_requires,
       entry_points = {'console_scripts':
-            ["devpi-server = devpi_server.main:main"]},
+            ["devpi-extpypi = devpi_server.extpypi:main"]},
       )
