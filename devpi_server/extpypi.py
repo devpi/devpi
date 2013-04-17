@@ -153,13 +153,9 @@ def parse_index(disturl, html, scrape=True):
 class HTTPCacheAdapter:
     _REDIRECTCODES = (301, 302, 303, 307)
 
-    def __init__(self, cache, httpget=None, maxredirect=10):
+    def __init__(self, cache, httpget, maxredirect=10):
         assert maxredirect >= 0
         self.cache = cache
-        if httpget is None:
-            import requests
-            def httpget(url):
-                return requests.get(url, allow_redirects=False)
         self.httpget = httpget
         self.maxredirect = maxredirect
 
@@ -279,12 +275,6 @@ def server_addoptions(parser):
             default="https://pypi.python.org/",
             help="base url of main remote pypi server (without simple/)")
 
-    parser.add_argument("--datadir", type=str, metavar="DIR",
-            default="~/.devpi/httpcachedata")
-
-    parser.add_argument("--redisport", type=int,
-            default=6379,
-            help="redis server port number")
 
 @hookimpl(tryfirst=True)
 def server_mainloop(config):
@@ -292,9 +282,8 @@ def server_mainloop(config):
     if projectname is None:
         return
 
+    extdb = config.hook.resource_extdb(config=config)
     now = py.std.time.time()
-    extdb = config.hook.extdb(config=config)
-
     for link in extdb.getreleaselinks(projectname=projectname):
         print link
     elapsed = py.std.time.time() - now
@@ -302,19 +291,22 @@ def server_mainloop(config):
     return True
 
 @hookimpl()
-def extdb(config):
-    httpcache = config.hook.httpcache(config=config)
+def resource_extdb(config):
+    httpcache = config.hook.resource_httpcache(config=config)
     upstreamurl = config.args.pypiurl + "simple/"
     return ExtDB(upstreamurl, httpcache)
 
 @hookimpl()
-def httpcache(config):
-    redis = config.hook.redis(config=config)
+def resource_httpcache(config):
+    redis = config.hook.resource_redis(config=config)
     target = py.path.local(os.path.expanduser(config.args.datadir))
     fscache = FSCache(target.join("httpcache"), redis)
-    return HTTPCacheAdapter(fscache)
+    httpget = config.hook.resource_httpget(config=config)
+    return HTTPCacheAdapter(fscache, httpget)
 
 @hookimpl()
-def redis(config):
-    import redis
-    return redis.StrictRedis(port=config.args.redisport)
+def resource_httpget(config):
+    import requests
+    def httpget(url):
+        return requests.get(url, allow_redirects=False)
+    return httpget
