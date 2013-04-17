@@ -5,7 +5,6 @@ recursive cache of pypi.python.org packages.
 import argparse
 import os, sys
 import py
-import requests
 
 class ConvertAddr(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):

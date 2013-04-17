@@ -54,8 +54,8 @@ class TestIndexParsing:
         assert len(result.releaselinks) == 1
         link, = result.releaselinks
         assert link == "http://pylib2.org/py-1.0.zip"
-        assert len(result.scrapelinks) == 2
-        assert result.scrapelinks == \
+        assert len(result.crawllinks) == 2
+        assert result.crawllinks == \
                     set(["http://pylib.org", "http://pylib2.org"])
 
     def test_parse_index_with_egg(self):
@@ -74,12 +74,12 @@ class TestIndexParsing:
                <a href="http://pylib2.org" rel="download">whatever2</a>
         """)
         assert len(result.releaselinks) == 1
-        assert len(result.scrapelinks) == 2
+        assert len(result.crawllinks) == 2
         result.parse_index(DistURL("http://pylib.org"), """
                <a href="http://pylib.org/py-1.1.zip" /a>
                <a href="http://pylib.org/other" rel="download" /a>
         """, scrape=False)
-        assert len(result.scrapelinks) == 2
+        assert len(result.crawllinks) == 2
         assert len(result.releaselinks) == 2
         links = list(result.releaselinks)
         assert links[0].url == \
@@ -98,13 +98,13 @@ class TestIndexParsing:
                <a href="http://pylib2.org" rel="download">whatever2</a>
         """)
         assert len(result.releaselinks) == 3
-        assert len(result.scrapelinks) == 2
+        assert len(result.crawllinks) == 2
         result.parse_index(DistURL("http://pylib.org"), """
                <a href="http://pylib.org/py-1.4.12.zip" /a>
                <a href="http://pylib.org/py-1.4.11.zip#md5=1111" /a>
                <a href="http://pylib.org/py-1.4.10.zip#md5=12ab" /a>
         """, scrape=False)
-        assert len(result.scrapelinks) == 2
+        assert len(result.crawllinks) == 2
         assert len(result.releaselinks) == 3
         link1, link2, link3 = result.releaselinks
         assert link1.url == \

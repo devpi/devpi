@@ -109,7 +109,7 @@ class IndexParser:
     def __init__(self, projectname):
         self.projectname = projectname
         self.basename2link = {}
-        self.scrapelinks = set()
+        self.crawllinks = set()
 
     def _mergelink_ifbetter(self, newurl):
         entry = self.basename2link.get(newurl.basename)
@@ -138,7 +138,7 @@ class IndexParser:
                 else:
                     for rel in a.get("rel", []):
                         if rel in ("homepage", "download"):
-                            self.scrapelinks.add(newurl)
+                            self.crawllinks.add(newurl)
 
 def parse_index(disturl, html, scrape=True):
     if not isinstance(disturl, DistURL):
@@ -153,6 +153,7 @@ class HTTPCacheAdapter:
     _REDIRECTCODES = (301, 302, 303, 307)
 
     def __init__(self, cache, httpget=None, maxredirect=10):
+        assert maxredirect >= 0
         self.cache = cache
         if httpget is None:
             import requests
@@ -160,7 +161,6 @@ class HTTPCacheAdapter:
                 return requests.get(url, allow_redirects=False)
         self.httpget = httpget
         self.maxredirect = maxredirect
-        assert self.maxredirect >= 0
 
     def get(self, url):
         """ return unicode html text from http requests
@@ -256,10 +256,10 @@ class ExtDB:
         response = self.httpcache.get(url)
         assert response.status_code == 200
         result = parse_index(response.url, response.text)
-        for scrapeurl in result.scrapelinks:
-            print "visiting scrapeurl", scrapeurl
-            response = self.httpcache.get(scrapeurl.url)
-            print "scrapeurl", scrapeurl, response.status_code
+        for crawlurl in result.crawllinks:
+            print "visiting crawlurl", crawlurl
+            response = self.httpcache.get(crawlurl.url)
+            print "crawlurl", crawlurl, response.status_code
             if response.status_code == 200:
                 result.parse_index(DistURL(response.url), response.text)
         releaselinks = list(result.releaselinks)
