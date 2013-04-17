@@ -13,6 +13,7 @@ from devpi.util import version as verlib
 from bs4 import BeautifulSoup
 import posixpath
 import pkg_resources
+from devpi_server.plugin import hookimpl
 
 
 def cached_property(f):
@@ -255,6 +256,7 @@ class ExtDB:
         print "visiting index", url
         response = self.httpcache.get(url)
         assert response.status_code == 200
+        assert response.text is not None, response.text
         result = parse_index(response.url, response.text)
         for crawlurl in result.crawllinks:
             print "visiting crawlurl", crawlurl
@@ -266,38 +268,53 @@ class ExtDB:
         releaselinks.sort(reverse=True)
         return releaselinks
 
-def parse_args(argv):
-    import argparse
-    argv = map(str, argv)
-    parser = argparse.ArgumentParser(prog=argv[0])
 
-    parser.add_argument("--data", metavar="DIR", type=str, dest="datadir",
-        default="~/.devpi/data",
-        help="data directory, where database and packages are stored",
-    )
+@hookimpl()
+def server_addoptions(parser):
+    parser.add_argument("--pypilookup", metavar="NAME", type=str,
+            default=None,
+            help="lookup specified project on pypi upstream server")
 
-    parser.add_argument("projectname", type=str, nargs="+",
-        help="projectname for which index is looked up at pypi.python.org",
-    )
-    return parser.parse_args(argv[1:])
+    parser.add_argument("--pypiurl", metavar="url", type=str,
+            default="https://pypi.python.org/",
+            help="base url of main remote pypi server (without simple/)")
 
-def main(argv=None):
-    import redis
-    client = redis.StrictRedis()
-    if argv is None:
-        argv = sys.argv
-    args = parse_args(argv)
+    parser.add_argument("--datadir", type=str, metavar="DIR",
+            default="~/.devpi/httpcachedata")
 
-    from devpi_server.extpypi import FSCache, HTTPCacheAdapter
-    target = py.path.local(os.path.expanduser(args.datadir))
-    fscache = FSCache(target.join("httpcache"), client)
-    http = HTTPCacheAdapter(fscache)
-    extdb = ExtDB("https://pypi.python.org/simple/", http)
-    import time
-    now = time.time()
-    for name in args.projectname:
-        links = extdb.getreleaselinks(name)
-        for link in links:
-            print link
-    elapsed = time.time() - now
+    parser.add_argument("--redisport", type=int,
+            default=6379,
+            help="redis server port number")
+
+@hookimpl(tryfirst=True)
+def server_mainloop(config):
+    projectname = config.args.pypilookup
+    if projectname is None:
+        return
+
+    now = py.std.time.time()
+    extdb = config.hook.extdb(config=config)
+
+    for link in extdb.getreleaselinks(projectname=projectname):
+        print link
+    elapsed = py.std.time.time() - now
     print "retrieval took %.3f seconds" % elapsed
+    return True
+
+@hookimpl()
+def extdb(config):
+    httpcache = config.hook.httpcache(config=config)
+    upstreamurl = config.args.pypiurl + "simple/"
+    return ExtDB(upstreamurl, httpcache)
+
+@hookimpl()
+def httpcache(config):
+    redis = config.hook.redis(config=config)
+    target = py.path.local(os.path.expanduser(config.args.datadir))
+    fscache = FSCache(target.join("httpcache"), redis)
+    return HTTPCacheAdapter(fscache)
+
+@hookimpl()
+def redis(config):
+    import redis
+    return redis.StrictRedis(port=config.args.redisport)

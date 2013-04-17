@@ -25,5 +25,5 @@ if __name__ == "__main__":
         ],
       install_requires=install_requires,
       entry_points = {'console_scripts':
-            ["devpi-extpypi = devpi_server.extpypi:main"]},
+            ["devpi-server = devpi_server.main:main"]},
       )
