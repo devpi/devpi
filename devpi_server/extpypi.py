@@ -159,7 +159,7 @@ class HTTPCacheAdapter:
         self.httpget = httpget
         self.maxredirect = maxredirect
 
-    def get(self, url):
+    def get(self, url, refresh=False):
         """ return unicode html text from http requests
         or integer status_code if we didn't get a 200
         or we had too many redirects.
@@ -167,13 +167,22 @@ class HTTPCacheAdapter:
         counter = 0
         while counter <= self.maxredirect:
             counter += 1
-            cacheresponse = self.cache.get(url)
-            if cacheresponse is not None:
-                if cacheresponse.status_code in self._REDIRECTCODES:
-                    url = cacheresponse.nextlocation
-                    continue
-                return cacheresponse
+            if not refresh:
+                cacheresponse = self.cache.get(url)
+                if cacheresponse is not None:
+                    if cacheresponse.status_code in self._REDIRECTCODES:
+                        url = cacheresponse.nextlocation
+                        continue
+                    return cacheresponse
+            # we create an empty cache entry so that
+            # the concurrently running changelogscanner can update
+            # the entry already if it runs in-between
             response = self.httpget(url)
+            if not refresh:
+                cached_response = self.cache.get(url)
+                if cached_response is not None:
+                    # changelog already updated
+                    return cached_response
             if response.status_code == 200:
                 return self.cache.setbody(url, response.text)
             elif response.status_code in self._REDIRECTCODES:
@@ -241,29 +250,106 @@ class FSCache:
         self.redis.hmset(self.METAPREFIX + path, mapping)
         return self.get(url)
 
+class XMLProxy:
+    def __init__(self, url):
+        import xmlrpclib
+        self._proxy = xmlrpclib.ServerProxy(url)
+
+    def changelog_last_serial(self):
+        return self._proxy.changelog_last_serial()
+
+    def changelog_since_serial(self, serial):
+        return self._proxy.changelog_since_serial(serial)
+
 
 class ExtDB:
-    def __init__(self, upstreamurl, httpcache):
-        self.upstreamurl = upstreamurl
+    def __init__(self, url_base, httpcache):
+        self.url_base = url_base
+        self.url_simple = url_base + "simple/"
+        self.url_xmlrpc = url_base + "pypi"
         self.httpcache = httpcache
+        self.redis = httpcache.cache.redis
+        self.PROJECTS = "projects:" + url_base
 
-    def getreleaselinks(self, projectname):
-        url = self.upstreamurl + projectname + "/"
+    def iscontained(self, projectname):
+        return self.redis.hexists(self.PROJECTS, projectname)
+
+    def getprojectnames(self):
+        keyvals = self.redis.hgetall(self.PROJECTS)
+        return set([key for key,val in keyvals.items() if val])
+
+    def getreleaselinks(self, projectname, refresh=False):
+        if not refresh:
+            res = self.redis.hget(self.PROJECTS, projectname)
+            if res:
+                dumplinks = json.loads(res)
+                return [DistURL(x) for x in dumplinks]
+        # mark it as being accessed if it hasn't already
+        self.redis.hsetnx(self.PROJECTS, projectname, "")
+
+        url = self.url_simple + projectname + "/"
         print "visiting index", url
-        response = self.httpcache.get(url)
-        assert response.status_code == 200
+        response = self.httpcache.get(url, refresh=refresh)
+        if response.status_code != 200:
+            return None
         assert response.text is not None, response.text
         result = parse_index(response.url, response.text)
         for crawlurl in result.crawllinks:
             print "visiting crawlurl", crawlurl
-            response = self.httpcache.get(crawlurl.url)
+            response = self.httpcache.get(crawlurl.url, refresh=refresh)
             print "crawlurl", crawlurl, response.status_code
             if response.status_code == 200:
                 result.parse_index(DistURL(response.url), response.text)
         releaselinks = list(result.releaselinks)
         releaselinks.sort(reverse=True)
+        dumplist = [x.url for x in releaselinks]
+        self.redis.hset(self.PROJECTS, projectname, json.dumps(dumplist))
         return releaselinks
 
+class RefreshManager:
+    def __init__(self, extdb, xom):
+        self.extdb = extdb
+        self.xom = xom
+        self.redis = extdb.httpcache.cache.redis
+        self.PYPISERIAL = "pypiserial:" + extdb.url_base
+        self.INVALIDSET = "invalid:" + extdb.url_base
+
+    def spawned_pypichanges(self, proxy, proxysleep):
+        redis = self.redis
+        current_serial = redis.get(self.PYPISERIAL)
+        if current_serial is None:
+            current_serial = proxy.changelog_last_serial()
+            redis.set(self.PYPISERIAL, current_serial)
+        else:
+            current_serial = int(current_serial)
+        while 1:
+            changelog = proxy.changelog_since_serial(current_serial)
+            if changelog:
+                self.mark_refresh(changelog)
+                current_serial += len(changelog)
+                redis.set(self.PYPISERIAL, current_serial)
+            proxysleep()
+
+    def mark_refresh(self, changelog):
+        projectnames = set([x[0] for x in changelog])
+        redis = self.redis
+        for name in projectnames:
+            if self.extdb.iscontained(name):
+                redis.sadd(self.INVALIDSET, name)
+
+    def spawned_refreshprojects(self, invalidationsleep):
+        """ Invalidation task for re-freshing project indexes. """
+        # note that this is written such that it could
+        # be killed and restarted anytime without loosing
+        # refreshing tasks (but possibly performing them twice)
+        while 1:
+            names = self.redis.smembers(self.INVALIDSET)
+            if not names:
+                invalidationsleep()
+                continue
+            for name in names:
+                self.extdb.getreleaselinks(name, refresh=True)
+                self.redis.srem(self.INVALIDSET, name)
 
 @hookimpl()
 def server_addoptions(parser):
@@ -271,41 +357,50 @@ def server_addoptions(parser):
             default=None,
             help="lookup specified project on pypi upstream server")
 
-    parser.add_argument("--pypiurl", metavar="url", type=str,
+    parser.add_argument("--refresh", action="store_true",
+            default=None,
+            help="enabled resfreshing")
+
+    parser.add_argument("--url_base", metavar="url", type=str,
             default="https://pypi.python.org/",
             help="base url of main remote pypi server (without simple/)")
 
 
 @hookimpl(tryfirst=True)
-def server_mainloop(config):
-    projectname = config.args.pypilookup
+def server_mainloop(xom):
+    """ entry point for showing release links via --pypilookup """
+    projectname = xom.config.args.pypilookup
     if projectname is None:
         return
 
-    extdb = config.hook.resource_extdb(config=config)
+    extdb = xom.hook.resource_extdb(xom=xom)
     now = py.std.time.time()
-    for link in extdb.getreleaselinks(projectname=projectname):
-        print link
+    links = extdb.getreleaselinks(projectname=projectname,
+                                  refresh=xom.config.args.refresh)
+    for link in links:
+        print link.url
     elapsed = py.std.time.time() - now
     print "retrieval took %.3f seconds" % elapsed
     return True
 
 @hookimpl()
-def resource_extdb(config):
-    httpcache = config.hook.resource_httpcache(config=config)
-    upstreamurl = config.args.pypiurl + "simple/"
-    return ExtDB(upstreamurl, httpcache)
+def resource_extdb(xom):
+    httpcache = xom.hook.resource_httpcache(xom=xom)
+    extdb = ExtDB(xom.config.args.url_base, httpcache)
+    #extdb.scanner = pypichangescan(config.args.url_base+"pypi", httpcache)
+    return extdb
+
 
 @hookimpl()
-def resource_httpcache(config):
-    redis = config.hook.resource_redis(config=config)
-    target = py.path.local(os.path.expanduser(config.args.datadir))
+def resource_httpcache(xom):
+    redis = xom.hook.resource_redis(xom=xom)
+    target = py.path.local(os.path.expanduser(xom.config.args.datadir))
     fscache = FSCache(target.join("httpcache"), redis)
-    httpget = config.hook.resource_httpget(config=config)
+    httpget = xom.hook.resource_httpget(xom=xom)
     return HTTPCacheAdapter(fscache, httpget)
 
 @hookimpl()
-def resource_httpget(config):
+def resource_httpget(xom):
     import requests
     def httpget(url):
         return requests.get(url, allow_redirects=False)

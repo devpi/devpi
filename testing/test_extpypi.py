@@ -1,7 +1,7 @@
 
 import pytest
-from devpi_server.extpypi import (DistURL, parse_index, HTTPCacheAdapter,
-     FSCache, ExtDB)
+from devpi_server.extpypi import *
+import mock
 
 class TestDistURL:
     def test_basename(self):
@@ -124,7 +124,8 @@ class TestFSCache:
     #])
     def test_setbody(self, tmpdir, redis):
         cache = FSCache(tmpdir, redis)
-        assert cache.get("http://whatever/this") is None
+        empty = cache.get("http://whatever/this")
+        assert empty is None
         r = cache.setbody("http://whatever/this", "hello")
         assert r.status_code == 200
         assert r.text == "hello"
@@ -205,7 +206,7 @@ class TestExtPYPIDB:
             return response(url)
 
         httpcache = HTTPCacheAdapter(cache, httpget)
-        extdb = ExtDB("https://pypi.python.org/simple/", httpcache)
+        extdb = ExtDB("https://pypi.python.org/", httpcache)
         extdb.url2response = url2response
         return extdb
 
@@ -232,6 +233,19 @@ class TestExtPYPIDB:
         assert len(links) == 2
         assert links[0].url == "https://download.com/pytest-1.1.tar.gz"
 
+        # check refresh
+        extdb.url2response["https://pypi.python.org/simple/pytest/"] = dict(
+            status_code=200, text='''
+                <a href="../../pkg/pytest-1.0.1.zip#md5=456" />
+                <a href="../../pkg/pytest-1.0.zip#md5=123" />
+                <a rel="download" href="https://download.com/index.html" />
+            ''')
+        assert len(extdb.getreleaselinks("pytest")) == 2  # no refresh
+        links = extdb.getreleaselinks("pytest", refresh=True)
+        assert len(links) == 3
+        assert links[1].url == \
+                "https://pypi.python.org/pkg/pytest-1.0.1.zip#md5=456"
+
     def test_parse_and_scrape_not_found(self, extdb):
         extdb.url2response["https://pypi.python.org/simple/pytest/"] = dict(
             status_code=200, text='''
@@ -245,3 +259,65 @@ class TestExtPYPIDB:
         assert links[0].url == \
                 "https://pypi.python.org/pkg/pytest-1.0.zip#md5=123"
 
+    def test_getprojectnames(self, extdb):
+        extdb.url2response["https://pypi.python.org/simple/proj1/"] = dict(
+            status_code=200, text='''
+                <a href="../../pkg/proj1-1.0.zip#md5=123" /> ''')
+        extdb.url2response["https://pypi.python.org/simple/proj2/"] = dict(
+            status_code=200, text='''
+                <a href="../../pkg/proj2-1.0.zip#md5=123" /> ''')
+        extdb.url2response["https://pypi.python.org/simple/proj3/"] = dict(
+            status_code=404)
+        assert len(extdb.getreleaselinks("proj1")) == 1
+        assert len(extdb.getreleaselinks("proj2")) == 1
+        assert extdb.getreleaselinks("proj3") is None
+        names = extdb.getprojectnames()
+        assert names == set(["proj1", "proj2"])
+
+
+def raising():
+    raise ValueError(42)
+
+class TestRefreshManager:
+    extdb = TestExtPYPIDB.extdb
+
+    @pytest.fixture
+    def refreshmanager(self, request, extdb, xom):
+        rf = RefreshManager(extdb, xom)
+        request.addfinalizer(xom.kill_spawned)
+        return rf
+
+    def test_pypichanges_nochanges(self, extdb, refreshmanager):
+        refreshmanager.redis.delete(refreshmanager.PYPISERIAL, 10)
+        proxy = mock.create_autospec(XMLProxy)
+        proxy.changelog_last_serial.return_value = 10
+        proxy.changelog_since_serial.return_value = []
+        with pytest.raises(ValueError):
+            refreshmanager.spawned_pypichanges(proxy, proxysleep=raising)
+        proxy.changelog_last_serial.assert_called_once_with()
+        val = refreshmanager.redis.get(refreshmanager.PYPISERIAL)
+        assert int(val) == 10
+
+    def test_pypichanges_changes(self, extdb, refreshmanager, monkeypatch):
+        refreshmanager.redis.set(refreshmanager.PYPISERIAL, 10)
+        monkeypatch.setattr(extdb.httpcache, "get", lambda *x,**y: raising())
+        pytest.raises(ValueError, lambda: extdb.getreleaselinks("pytest"))
+        proxy = mock.create_autospec(XMLProxy)
+        proxy.changelog_since_serial.return_value = [
+            ["pylib", 11], ["pytest", 12]]
+        with pytest.raises(ValueError):
+            refreshmanager.spawned_pypichanges(proxy, proxysleep=raising)
+        assert not proxy.changelog_last_serial.called
+        val = refreshmanager.redis.get(refreshmanager.PYPISERIAL)
+        assert int(val) == 12
+        invalid = refreshmanager.redis.smembers(refreshmanager.INVALIDSET)
+        assert invalid == set(["pytest"])
+
+    def test_refreshprojects(self, redis, extdb, refreshmanager, monkeypatch):
+        redis.sadd(refreshmanager.INVALIDSET, "pytest")
+        m = mock.Mock()
+        monkeypatch.setattr(extdb, "getreleaselinks", m)
+        with pytest.raises(ValueError):
+            refreshmanager.spawned_refreshprojects(invalidationsleep=raising)
+        m.assert_called_once_with("pytest", refresh=True)
+        assert not redis.smembers(refreshmanager.INVALIDSET)

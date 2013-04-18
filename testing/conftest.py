@@ -1,4 +1,6 @@
 
+from devpi_server.main import XOM
+
 import pytest
 import py
 
@@ -25,5 +27,17 @@ def redis(xprocess):
 
     redislogfile = xprocess.ensure("redis", prepare_redis)
     client = redis.StrictRedis(port=port)
-    client.flushdb()  # empty the current DB
     return client
+
+#@pytest.fixture(autouse=True)
+#def clean_redis(request):
+#    if 0 and "redis" in request.fixturenames:
+#        redis = request.getfuncargvalue("redis")
+#        redis.flushdb()
+
+@pytest.fixture
+def xom(request):
+    from devpi_server.main import preparexom
+    xom = preparexom(["devpi-server"])
+    request.addfinalizer(xom.kill_spawned)
+    return xom
