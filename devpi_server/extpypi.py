@@ -150,12 +150,10 @@ def parse_index(disturl, html, scrape=True):
     return parser
 
 
-class HTTPCacheAdapter:
-    _REDIRECTCODES = (301, 302, 303, 307)
-
-    def __init__(self, cache, httpget, maxredirect=10):
+class HTMLCache:
+    def __init__(self, redis, httpget, maxredirect=10):
         assert maxredirect >= 0
-        self.cache = cache
+        self.redis = redis
         self.httpget = httpget
         self.maxredirect = maxredirect
 
@@ -167,88 +165,66 @@ class HTTPCacheAdapter:
         counter = 0
         while counter <= self.maxredirect:
             counter += 1
-            if not refresh:
-                cacheresponse = self.cache.get(url)
-                if cacheresponse is not None:
-                    if cacheresponse.status_code in self._REDIRECTCODES:
-                        url = cacheresponse.nextlocation
-                        continue
-                    return cacheresponse
-            # we create an empty cache entry so that
-            # the concurrently running changelogscanner can update
-            # the entry already if it runs in-between
-            response = self.httpget(url)
-            if not refresh:
-                cached_response = self.cache.get(url)
-                if cached_response is not None:
-                    # changelog already updated
-                    return cached_response
-            if response.status_code == 200:
-                return self.cache.setbody(url, response.text)
-            elif response.status_code in self._REDIRECTCODES:
-                location = response.headers["location"]
-                newurl = urlutil.joinpath(url, location)
-                # we store a list because of better json-idempotence
-                self.cache.setmeta(url, status_code=response.status_code,
-                                   nextlocation=newurl)
-                url = newurl
-            else:
-                return self.cache.setmeta(url, status_code=response.status_code)
-        return response.status_code
+            cacheresponse = self.gethtmlcache(url)
+            if refresh or not cacheresponse:
+                response = self.httpget(url)
+                cacheresponse.setnewreponse(response)
+            url = cacheresponse.nextlocation
+            if url is not None:
+                continue
+            return cacheresponse
+        return cacheresponse.status_code
 
+    def gethtmlcache(self, url):
+        rediskey = "htmlcache:" + url
+        return HTMLCacheResponse(self.redis, rediskey, url)
 
-class FSCacheResponse(object):
-    def __init__(self, url, status_code, nextlocation=None, contentpath=None):
+def propmapping(name, type=None):
+    if type is None:
+        def fget(self):
+            return self._mapping.get(name)
+    else:
+        def fget(self):
+            x = self._mapping.get(name)
+            if x is not None:
+                x = type(x)
+            return x
+    fget.__name__ = name
+    return property(fget)
+
+class HTMLCacheResponse(object):
+    _REDIRECTCODES = (301, 302, 303, 307)
+
+    def __init__(self, redis, rediskey, url):
         self.url = url
-        self.status_code = status_code
-        self.nextlocation = nextlocation
-        self.contentpath = contentpath
+        self.redis = redis
+        self.rediskey = rediskey
+        self._mapping = redis.hgetall(rediskey)
+
+    def __nonzero__(self):
+        return bool(self._mapping)
+
+    status_code = propmapping("status_code", int)
+    nextlocation = propmapping("nextlocation")
+    content = propmapping("content")
 
     @property
     def text(self):
-        try:
-            with self.contentpath.open("rb") as f:
-                return f.read().decode("utf-8")
-        except (AttributeError, py.error.ENOENT):
-            return None
+        """ return unicode content or None if it doesn't exist. """
+        content = self.content
+        if content is not None:
+            return content.decode("utf8")
 
+    def setnewreponse(self, response):
+        mapping = dict(status_code = response.status_code)
+        if response.status_code in self._REDIRECTCODES:
+            mapping["nextlocation"] = urlutil.joinpath(self.url,
+                                                  response.headers["location"])
+        elif response.status_code == 200:
+            mapping["content"] = response.text.encode("utf8")
+        self.redis.hmset(self.rediskey, mapping)
+        self._mapping = mapping
 
-class FSCache:
-
-    METAPREFIX = "cache:"
-
-    def __init__(self, basedir, redis):
-        self.basedir = basedir
-        self.redis = redis
-
-    def get(self, url):
-        path = urlutil.url2path(url)
-        mapping = self.redis.hgetall(self.METAPREFIX + path)
-        if not mapping:
-            return None
-        #print "redis-got", mapping
-        contentpath = self.basedir.join(path + "--body")
-        return FSCacheResponse(url=url,
-                               status_code=int(mapping['status_code']),
-                               nextlocation=mapping.get("nextlocation"),
-                               contentpath=contentpath)
-
-    def setbody(self, url, body):
-        path = urlutil.url2path(url)
-        contentpath = self.basedir.join(path + "--body")
-        contentpath.dirpath().ensure(dir=1)
-        with contentpath.open("wb") as f:
-            f.write(body.encode("utf-8"))
-        self.redis.hmset(self.METAPREFIX + path, dict(status_code=200))
-        return FSCacheResponse(url, status_code=200, contentpath=contentpath)
-
-    def setmeta(self, url, status_code, nextlocation=None):
-        path = urlutil.url2path(url)
-        mapping = dict(status_code = status_code)
-        if nextlocation is not None:
-            mapping["nextlocation"] = nextlocation
-        self.redis.hmset(self.METAPREFIX + path, mapping)
-        return self.get(url)
 
 class XMLProxy:
     def __init__(self, url):
@@ -263,12 +239,12 @@ class XMLProxy:
 
 
 class ExtDB:
-    def __init__(self, url_base, httpcache):
+    def __init__(self, url_base, htmlcache):
         self.url_base = url_base
         self.url_simple = url_base + "simple/"
         self.url_xmlrpc = url_base + "pypi"
-        self.httpcache = httpcache
-        self.redis = httpcache.cache.redis
+        self.htmlcache = htmlcache
+        self.redis = htmlcache.redis
         self.PROJECTS = "projects:" + url_base
 
     def iscontained(self, projectname):
@@ -289,14 +265,14 @@ class ExtDB:
 
         url = self.url_simple + projectname + "/"
         print "visiting index", url
-        response = self.httpcache.get(url, refresh=refresh)
+        response = self.htmlcache.get(url, refresh=refresh)
         if response.status_code != 200:
             return None
         assert response.text is not None, response.text
         result = parse_index(response.url, response.text)
         for crawlurl in result.crawllinks:
             print "visiting crawlurl", crawlurl
-            response = self.httpcache.get(crawlurl.url, refresh=refresh)
+            response = self.htmlcache.get(crawlurl.url, refresh=refresh)
             print "crawlurl", crawlurl, response.status_code
             if response.status_code == 200:
                 result.parse_index(DistURL(response.url), response.text)
@@ -310,7 +286,7 @@ class RefreshManager:
     def __init__(self, extdb, xom):
         self.extdb = extdb
         self.xom = xom
-        self.redis = extdb.httpcache.cache.redis
+        self.redis = extdb.htmlcache.redis
         self.PYPISERIAL = "pypiserial:" + extdb.url_base
         self.INVALIDSET = "invalid:" + extdb.url_base
 
@@ -385,19 +361,18 @@ def server_mainloop(xom):
 
 @hookimpl()
 def resource_extdb(xom):
-    httpcache = xom.hook.resource_httpcache(xom=xom)
-    extdb = ExtDB(xom.config.args.url_base, httpcache)
-    #extdb.scanner = pypichangescan(config.args.url_base+"pypi", httpcache)
+    htmlcache = xom.hook.resource_htmlcache(xom=xom)
+    extdb = ExtDB(xom.config.args.url_base, htmlcache)
+    #extdb.scanner = pypichangescan(config.args.url_base+"pypi", htmlcache)
     return extdb
 
 
 @hookimpl()
-def resource_httpcache(xom):
+def resource_htmlcache(xom):
     redis = xom.hook.resource_redis(xom=xom)
     target = py.path.local(os.path.expanduser(xom.config.args.datadir))
-    fscache = FSCache(target.join("httpcache"), redis)
     httpget = xom.hook.resource_httpget(xom=xom)
-    return HTTPCacheAdapter(fscache, httpget)
+    return HTMLCache(redis, httpget)
 
 @hookimpl()
 def resource_httpget(xom):

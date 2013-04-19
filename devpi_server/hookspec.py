@@ -22,8 +22,8 @@ def resource_extdb(xom):
     """ return ExtDB instance with support for release links. """
 
 @hookdecl(firstresult=True)
-def resource_httpcache(xom):
-    """ return httpcache object for performing cached http lookups. """
+def resource_htmlcache(xom):
+    """ return htmlcache object for performing cached http lookups. """
 
 @hookdecl(firstresult=True)
 def resource_httpget(xom):

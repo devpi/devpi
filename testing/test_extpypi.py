@@ -115,57 +115,72 @@ class TestIndexParsing:
                 "http://pypi.python.org/pkg/py-1.4.10.zip#md5=2222"
 
 
-class TestFSCache:
+class TestHTMLCacheResponse:
     #@pytest.mark.parametrize("item", [
     #    "something",
     #    [301, "redirect"],
     #    {"code": 301, "content": "hello"},
     #    404,
     #])
-    def test_setbody(self, tmpdir, redis):
-        cache = FSCache(tmpdir, redis)
-        empty = cache.get("http://whatever/this")
-        assert empty is None
-        r = cache.setbody("http://whatever/this", "hello")
-        assert r.status_code == 200
-        assert r.text == "hello"
-        assert r.url == "http://whatever/this"
 
-    def test_setmeta(self, tmpdir, redis):
-        cache = FSCache(tmpdir, redis)
-        r = cache.setmeta("http://whatever/that", status_code=404)
-        assert r.status_code == 404
-        assert r.text is None
-        assert r.url == "http://whatever/that"
-        r = cache.setmeta("http://whatever/that", status_code=301,
-                          nextlocation="http://whatever/that/this")
+    def test_basic(self, redis):
+        redis.flushdb()
+        url = "https://something/simple/pytest/"
+        r = HTMLCacheResponse(redis, "cache:" + url, url)
+        assert not r
+        class PseudoResponse:
+            status_code = 200
+            text = py.builtin._totext("hello")
+
+        r.setnewreponse(PseudoResponse)
+        assert r
+        assert r.status_code == 200
+        assert r.text == py.builtin._totext("hello")
+        assert py.builtin._istext(r.text)
+
+        r = HTMLCacheResponse(redis, "cache:" + url, url)
+        assert r
+        assert r.status_code == 200
+        assert r.text == py.builtin._totext("hello")
+        assert py.builtin._istext(r.text)
+
+    def test_redirect(self, redis):
+        url = "https://something/simple/pytest"
+        r = HTMLCacheResponse(redis, "cache:" + url, url)
+        assert not r
+        class PseudoResponse:
+            status_code = 301
+            headers = {"location": "/simple/pytest/"}
+        r.setnewreponse(PseudoResponse)
+        assert r
         assert r.status_code == 301
         assert r.text is None
-        assert r.url == "http://whatever/that"
-        assert r.nextlocation == "http://whatever/that/this"
+        assert r.nextlocation == url + "/"
+
+        r = HTMLCacheResponse(redis, "cache:" + url, url)
+        assert r
+        assert r.status_code == 301
+        assert r.text is None
+        assert r.nextlocation == url + "/"
 
 
-
-class TestHTTPCacheAdapter:
-    @pytest.fixture
-    def cache(self, tmpdir, redis):
-        return FSCache(tmpdir, redis)
+class TestHTMLCache:
 
     @pytest.mark.parametrize("target", ["http://hello", "http://hello/"])
-    def test_httpcacheget_ok(self, cache, target):
+    def test_htmlcacheget_ok(self, redis, target):
         class httpget:
             def __init__(self, url):
                 self.url = url
                 self.status_code = 200
                 self.text = "hello"
-        httpcache = HTTPCacheAdapter(cache, httpget)
-        response = httpcache.get(target)
+        htmlcache = HTMLCache(redis, httpget)
+        response = htmlcache.get(target)
         assert response.status_code == 200
         assert response.text == "hello"
-        del httpcache.httpget
-        assert httpcache.get(target).text == "hello"
+        del htmlcache.httpget
+        assert htmlcache.get(target).text == "hello"
 
-    def test_httpcacheget_redirect_ok(self, cache):
+    def test_htmlcacheget_redirect_ok(self, redis):
         class httpget:
             def __init__(self, url):
                 self.url = url
@@ -177,26 +192,25 @@ class TestHTTPCacheAdapter:
                     self.text = "redirected"
                 else:
                     assert 0
-        httpcache = HTTPCacheAdapter(cache, httpget)
-        text = httpcache.get("http://hello/world").text
+        htmlcache = HTMLCache(redis, httpget)
+        text = htmlcache.get("http://hello/world").text
         assert text == "redirected"
-        del httpcache.httpget  # make sure we don't trigger network anymore
-        assert httpcache.get("http://hello/world").text == "redirected"
+        del htmlcache.httpget  # make sure we don't trigger network anymore
+        assert htmlcache.get("http://hello/world").text == "redirected"
 
-    def test_httpcacheget_redirect_max(self, cache):
+    def test_htmlcacheget_redirect_max(self, redis):
         class httpget:
             def __init__(self, url):
                 self.url = url
                 self.headers = {"location": "/redirect"}
                 self.status_code = 301
-        httpcache = HTTPCacheAdapter(cache, httpget)
-        assert httpcache.get("http://whatever") == 301
+        htmlcache = HTMLCache(redis, httpget)
+        assert htmlcache.get("http://whatever") == 301
 
 class TestExtPYPIDB:
     @pytest.fixture
     def extdb(self, redis, tmpdir):
         redis.flushdb()
-        cache = FSCache(tmpdir, redis)
         url2response = {}
         def httpget(url):
             class response:
@@ -205,8 +219,8 @@ class TestExtPYPIDB:
                     self.url = url
             return response(url)
 
-        httpcache = HTTPCacheAdapter(cache, httpget)
-        extdb = ExtDB("https://pypi.python.org/", httpcache)
+        htmlcache = HTMLCache(redis, httpget)
+        extdb = ExtDB("https://pypi.python.org/", htmlcache)
         extdb.url2response = url2response
         return extdb
 
@@ -300,7 +314,7 @@ class TestRefreshManager:
 
     def test_pypichanges_changes(self, extdb, refreshmanager, monkeypatch):
         refreshmanager.redis.set(refreshmanager.PYPISERIAL, 10)
-        monkeypatch.setattr(extdb.httpcache, "get", lambda *x,**y: raising())
+        monkeypatch.setattr(extdb.htmlcache, "get", lambda *x,**y: raising())
         pytest.raises(ValueError, lambda: extdb.getreleaselinks("pytest"))
         proxy = mock.create_autospec(XMLProxy)
         proxy.changelog_since_serial.return_value = [
