@@ -27,6 +27,12 @@ class TestDistURL:
         url = DistURL("http://a/py.tar.gz#egg=py-dev")
         assert url.geturl_nofragment() == "http://a/py.tar.gz"
 
+    def test_url_nofrag(self):
+        url = DistURL("http://a/py.tar.gz#egg=py-dev")
+        res = url.url_nofrag
+        assert not isinstance(res, DistURL)
+        assert res == "http://a/py.tar.gz"
+
 
 class TestIndexParsing:
     simplepy = DistURL("http://pypi.python.org/simple/py/")
@@ -230,8 +236,9 @@ class TestExtPYPIDB:
             text='<a href="../../pkg/pytest-1.0.zip#md5=123" />')
         links = extdb.getreleaselinks("pytest")
         link, = links
-        assert link.url == "https://pypi.python.org/pkg/pytest-1.0.zip#md5=123"
+        assert link.url == "https://pypi.python.org/pkg/pytest-1.0.zip"
         assert link.md5 == "123"
+        assert link.relpath.endswith("/pytest-1.0.zip")
 
     def test_parse_and_scrape(self, extdb):
         extdb.url2response["https://pypi.python.org/simple/pytest/"] = dict(
@@ -246,6 +253,7 @@ class TestExtPYPIDB:
         links = extdb.getreleaselinks("pytest")
         assert len(links) == 2
         assert links[0].url == "https://download.com/pytest-1.1.tar.gz"
+        assert links[0].relpath.endswith("/pytest-1.1.tar.gz")
 
         # check refresh
         extdb.url2response["https://pypi.python.org/simple/pytest/"] = dict(
@@ -257,8 +265,8 @@ class TestExtPYPIDB:
         assert len(extdb.getreleaselinks("pytest")) == 2  # no refresh
         links = extdb.getreleaselinks("pytest", refresh=True)
         assert len(links) == 3
-        assert links[1].url == \
-                "https://pypi.python.org/pkg/pytest-1.0.1.zip#md5=456"
+        assert links[1].url == "https://pypi.python.org/pkg/pytest-1.0.1.zip"
+        assert links[1].relpath.endswith("/pytest-1.0.1.zip")
 
     def test_parse_and_scrape_not_found(self, extdb):
         extdb.url2response["https://pypi.python.org/simple/pytest/"] = dict(
@@ -271,7 +279,7 @@ class TestExtPYPIDB:
         links = extdb.getreleaselinks("pytest")
         assert len(links) == 1
         assert links[0].url == \
-                "https://pypi.python.org/pkg/pytest-1.0.zip#md5=123"
+                "https://pypi.python.org/pkg/pytest-1.0.zip"
 
     def test_getprojectnames(self, extdb):
         extdb.url2response["https://pypi.python.org/simple/proj1/"] = dict(
@@ -287,6 +295,57 @@ class TestExtPYPIDB:
         assert extdb.getreleaselinks("proj3") is None
         names = extdb.getprojectnames()
         assert names == set(["proj1", "proj2"])
+
+class TestReleaseFileStore:
+    @pytest.fixture
+    def store(self, redis, tmpdir):
+        return ReleaseFileStore(redis, tmpdir)
+
+    def test_canonical_path(self, store):
+        canonical_relpath = store.canonical_relpath
+        link = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=123")
+        relpath = canonical_relpath(link)
+        parts = relpath.split("/")
+        assert len(parts[0]) == store.HASHDIRLEN
+        assert parts[1] == "pytest-1.2.zip"
+        link = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip")
+        relpath2 = canonical_relpath(link)
+        assert relpath2 == relpath
+        link = DistURL("https://pypi.python.org/pkg/pytest-1.3.zip")
+        relpath3 = canonical_relpath(link)
+        assert relpath3 != relpath
+        assert relpath3.endswith("/pytest-1.3.zip")
+
+    def test_getentry_fromlink_and_maplink(self, store):
+        link = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=123")
+        relpath = store.canonical_relpath(link)
+        entry = store.getentry_fromlink(link)
+        assert entry.relpath == relpath
+
+    def test_maplink(self, store):
+        link = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=123")
+        entry1 = store.maplink(link, refresh=False)
+        entry2 = store.maplink(link, refresh=False)
+        assert entry1 and entry2
+        assert entry1 == entry2
+        assert entry1.relpath.endswith("/pytest-1.2.zip")
+        assert entry1.md5 == "123"
+
+    def test_relpathentry(self, store):
+        link = DistURL("http://pypi.python.org/pkg/pytest-1.3.zip")
+        entry = store.getentry_fromlink(link)
+        assert not entry
+        entry.set(dict(url=link.url, md5="1" * 16))
+        assert entry
+        assert entry.url == link.url
+        assert entry.md5 == "1" * 16
+
+        # reget
+        entry = store.getentry_fromlink(link)
+        assert entry
+        assert entry.url == link.url
+        assert entry.md5 == "1" * 16
+
 
 
 def raising():

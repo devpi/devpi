@@ -14,6 +14,7 @@ from bs4 import BeautifulSoup
 import posixpath
 import pkg_resources
 from devpi_server.plugin import hookimpl
+from hashlib import md5
 
 
 def cached_property(f):
@@ -53,6 +54,10 @@ class DistURL:
         """ return url without fragment """
         scheme, netloc, url, params, query, ofragment = self._parsed
         return DistURL(urlutil.urlunsplit((scheme, netloc, url, query, "")))
+
+    @property
+    def url_nofrag(self):
+        return self.geturl_nofragment().url
 
     @property
     def pkgname_and_version(self):
@@ -246,20 +251,26 @@ class ExtDB:
         self.htmlcache = htmlcache
         self.redis = htmlcache.redis
         self.PROJECTS = "projects:" + url_base
+        self.releasefilestore = ReleaseFileStore(self.redis, None)
 
     def iscontained(self, projectname):
         return self.redis.hexists(self.PROJECTS, projectname)
 
     def getprojectnames(self):
+        """ return list of all projects which have been served. """
         keyvals = self.redis.hgetall(self.PROJECTS)
         return set([key for key,val in keyvals.items() if val])
 
     def getreleaselinks(self, projectname, refresh=False):
+        """ return all releaselinks from the index and referenced scrape
+        pages.  If refresh is True, re-get all index and scrape pages.
+        """
         if not refresh:
             res = self.redis.hget(self.PROJECTS, projectname)
             if res:
-                dumplinks = json.loads(res)
-                return [DistURL(x) for x in dumplinks]
+                relpaths = json.loads(res)
+                return [self.releasefilestore.getentry(relpath)
+                            for relpath in relpaths]
         # mark it as being accessed if it hasn't already
         self.redis.hsetnx(self.PROJECTS, projectname, "")
 
@@ -278,9 +289,62 @@ class ExtDB:
                 result.parse_index(DistURL(response.url), response.text)
         releaselinks = list(result.releaselinks)
         releaselinks.sort(reverse=True)
-        dumplist = [x.url for x in releaselinks]
+        entries = [self.releasefilestore.maplink(link, refresh=refresh)
+                        for link in releaselinks]
+        dumplist = [entry.relpath for entry in entries]
         self.redis.hset(self.PROJECTS, projectname, json.dumps(dumplist))
-        return releaselinks
+        return entries
+
+
+class ReleaseFileStore:
+    HASHDIRLEN = 2
+
+    def __init__(self, redis, basedir):
+        self.redis = redis
+        self.basedir = basedir
+
+    def maplink(self, link, refresh):
+        entry = self.getentry_fromlink(link)
+        if not entry or refresh:
+            mapping = dict(url=link.url_nofrag, md5=link.md5)
+            entry.set(mapping)
+        return entry
+
+    def canonical_relpath(self, link):
+        m = md5(link.url_nofrag)
+        return "%s/%s" %(m.hexdigest()[:self.HASHDIRLEN], link.basename)
+
+    def getentry_fromlink(self, link):
+        return self.getentry(self.canonical_relpath(link))
+
+    def getentry(self, relpath):
+        return RelPathEntry(self.redis, relpath)
+
+
+class RelPathEntry(object):
+    SITEPATH = "s:"
+
+    def __init__(self, redis, relpath):
+        self.redis = redis
+        self.relpath = relpath
+        self._mapping = redis.hgetall(self.SITEPATH + relpath)
+
+    def __nonzero__(self):
+        return bool(self._mapping)
+
+    def __eq__(self, other):
+        return (self.relpath == other.relpath and
+                self._mapping == other._mapping)
+
+    url = propmapping("url")
+    md5 = propmapping("md5")
+    #download = propmapping("download")
+
+    def set(self, mapping):
+        self.redis.hmset(self.SITEPATH + self.relpath, mapping)
+        self._mapping = mapping
+
+
 
 class RefreshManager:
     def __init__(self, extdb, xom):
@@ -354,7 +418,8 @@ def server_mainloop(xom):
     links = extdb.getreleaselinks(projectname=projectname,
                                   refresh=xom.config.args.refresh)
     for link in links:
-        print link.url
+        print link.relpath, link.md5
+        #print "   ", link.url
     elapsed = py.std.time.time() - now
     print "retrieval took %.3f seconds" % elapsed
     return True
