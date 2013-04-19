@@ -244,14 +244,14 @@ class XMLProxy:
 
 
 class ExtDB:
-    def __init__(self, url_base, htmlcache):
+    def __init__(self, url_base, htmlcache, releasefilestore):
         self.url_base = url_base
         self.url_simple = url_base + "simple/"
         self.url_xmlrpc = url_base + "pypi"
         self.htmlcache = htmlcache
         self.redis = htmlcache.redis
         self.PROJECTS = "projects:" + url_base
-        self.releasefilestore = ReleaseFileStore(self.redis, None)
+        self.releasefilestore = releasefilestore
 
     def iscontained(self, projectname):
         return self.redis.hexists(self.PROJECTS, projectname)
@@ -427,7 +427,9 @@ def server_mainloop(xom):
 @hookimpl()
 def resource_extdb(xom):
     htmlcache = xom.hook.resource_htmlcache(xom=xom)
-    extdb = ExtDB(xom.config.args.url_base, htmlcache)
+    target = py.path.local(os.path.expanduser(xom.config.args.datadir))
+    releasefilestore = ReleaseFileStore(htmlcache.redis, target)
+    extdb = ExtDB(xom.config.args.url_base, htmlcache, releasefilestore)
     #extdb.scanner = pypichangescan(config.args.url_base+"pypi", htmlcache)
     return extdb
 
@@ -435,7 +437,6 @@ def resource_extdb(xom):
 @hookimpl()
 def resource_htmlcache(xom):
     redis = xom.hook.resource_redis(xom=xom)
-    target = py.path.local(os.path.expanduser(xom.config.args.datadir))
     httpget = xom.hook.resource_httpget(xom=xom)
     return HTMLCache(redis, httpget)
 

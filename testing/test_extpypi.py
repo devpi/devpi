@@ -226,7 +226,8 @@ class TestExtPYPIDB:
             return response(url)
 
         htmlcache = HTMLCache(redis, httpget)
-        extdb = ExtDB("https://pypi.python.org/", htmlcache)
+        releasefilestore = ReleaseFileStore(redis, tmpdir)
+        extdb = ExtDB("https://pypi.python.org/", htmlcache, releasefilestore)
         extdb.url2response = url2response
         return extdb
 
