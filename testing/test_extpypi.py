@@ -215,20 +215,12 @@ class TestHTMLCache:
 
 class TestExtPYPIDB:
     @pytest.fixture
-    def extdb(self, redis, tmpdir):
+    def extdb(self, redis, tmpdir, httpget):
         redis.flushdb()
-        url2response = {}
-        def httpget(url):
-            class response:
-                def __init__(self, url):
-                    self.__dict__.update(url2response.get(url))
-                    self.url = url
-            return response(url)
-
         htmlcache = HTMLCache(redis, httpget)
         releasefilestore = ReleaseFileStore(redis, tmpdir)
         extdb = ExtDB("https://pypi.python.org/", htmlcache, releasefilestore)
-        extdb.url2response = url2response
+        extdb.url2response = httpget.url2response
         return extdb
 
     def test_parse_project_nomd5(self, extdb):
@@ -346,6 +338,37 @@ class TestReleaseFileStore:
         assert entry
         assert entry.url == link.url
         assert entry.md5 == "1" * 16
+
+    def test_iterfile(self, store, httpget):
+        link = DistURL("http://pypi.python.org/pkg/pytest-1.4.zip")
+        entry = store.getentry_fromlink(link)
+        assert not entry.md5
+        entry.set(dict(url=link.url))
+        headers={"content-length": "3",
+                 "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
+                 "content-type": "application/zip"}
+        def iter_content(chunksize):
+            yield py.builtin.bytes("12")
+            yield py.builtin.bytes("3")
+
+        httpget.url2response[link.url] = dict(status_code=200,
+                headers=headers, iter_content = iter_content)
+        rheaders, riter = store.iterfile(entry.relpath, httpget)
+        assert rheaders["content-length"] == "3"
+        assert rheaders["content-type"] == "application/zip"
+        assert rheaders["last-modified"] == headers["last-modified"]
+        bytes = py.builtin.bytes().join(riter)
+        assert bytes == py.builtin.bytes("123")
+
+        # reget entry and check about content
+        entry = store.getentry_fromlink(link)
+        assert entry
+        assert entry.md5 == md5(bytes).hexdigest()
+        assert entry.headers == headers
+        rheaders, riter = store.iterfile(entry.relpath, None)
+        assert rheaders == headers
+        bytes = py.builtin.bytes().join(riter)
+        assert bytes == py.builtin.bytes("123")
 
 
 

@@ -318,15 +318,61 @@ class ReleaseFileStore:
         return self.getentry(self.canonical_relpath(link))
 
     def getentry(self, relpath):
-        return RelPathEntry(self.redis, relpath)
+        return RelPathEntry(self.redis, relpath, self.basedir)
+
+    def iterfile(self, relpath, httpget, chunksize=8192):
+        entry = self.getentry(relpath)
+        target = entry.filepath
+        if entry.headers is None:
+            # we get and cache the file and some http headers from remote
+            r = httpget(entry.url, allow_redirects=True)
+            assert r.status_code == 200
+            headers = {}
+            # we assume these headers to be present and forward them
+            headers["last-modified"] = r.headers["last-modified"]
+            headers["content-length"] = r.headers["content-length"]
+            headers["content-type"] = r.headers["content-type"]
+            target.dirpath().ensure(dir=1)
+            def iter_and_cache():
+                tmp_target = target + "-tmp"
+                hash = md5()
+                with tmp_target.open("wb") as f:
+                    for x in r.iter_content(chunksize):
+                        assert x
+                        f.write(x)
+                        hash.update(x)
+                        yield x
+                tmp_target.move(target)
+                hexdigest = hash.hexdigest()
+                entry.set(dict(md5=hash.hexdigest(),
+                          _headers=json.dumps(headers)))
+            iterable = iter_and_cache()
+        else:
+            # serve previously cached file and http headers
+            headers = entry.headers
+            def iterfile():
+                hash = md5()
+                with target.open("rb") as f:
+                    for x in f.read(chunksize):
+                        hash.update(x)
+                        yield x
+                if hash.hexdigest() != entry.md5:
+                    raise ValueError("integrity error, md5 mismatch")
+            iterable = iterfile()
+        #entry.incdownloads()
+        return headers, iterable
+
+
+
 
 
 class RelPathEntry(object):
     SITEPATH = "s:"
 
-    def __init__(self, redis, relpath):
+    def __init__(self, redis, relpath, basedir):
         self.redis = redis
         self.relpath = relpath
+        self.filepath = basedir.join(self.relpath)
         self._mapping = redis.hgetall(self.SITEPATH + relpath)
 
     def __nonzero__(self):
@@ -338,11 +384,17 @@ class RelPathEntry(object):
 
     url = propmapping("url")
     md5 = propmapping("md5")
+    _headers = propmapping("_headers")
     #download = propmapping("download")
+
+    @property
+    def headers(self):
+        if self._headers is not None:
+            return json.loads(self._headers)
 
     def set(self, mapping):
         self.redis.hmset(self.SITEPATH + self.relpath, mapping)
-        self._mapping = mapping
+        self._mapping.update(mapping)
 
 
 
@@ -390,6 +442,11 @@ class RefreshManager:
             for name in names:
                 self.extdb.getreleaselinks(name, refresh=True)
                 self.redis.srem(self.INVALIDSET, name)
+
+def parse_http_date_to_posix(date):
+    time = parse_date(date)
+    ### DST?
+    return (time - datetime.datetime(1970, 1, 1)).total_seconds()
 
 @hookimpl()
 def server_addoptions(parser):
@@ -443,6 +500,6 @@ def resource_htmlcache(xom):
 @hookimpl()
 def resource_httpget(xom):
     import requests
-    def httpget(url):
-        return requests.get(url, allow_redirects=False)
+    def httpget(url, allow_redirects=False):
+        return requests.get(url, allow_redirects=allow_redirects, stream=True)
     return httpget

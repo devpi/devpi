@@ -41,3 +41,16 @@ def xom(request):
     xom = preparexom(["devpi-server"])
     request.addfinalizer(xom.kill_spawned)
     return xom
+
+@pytest.fixture
+def httpget():
+    url2response = {}
+    def httpget(url, allow_redirects=False):
+        class response:
+            def __init__(self, url):
+                self.__dict__.update(url2response.get(url))
+                self.url = url
+                self.allow_redirects = allow_redirects
+        return response(url)
+    httpget.url2response = url2response
+    return httpget
