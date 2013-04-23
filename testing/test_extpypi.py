@@ -353,7 +353,7 @@ class TestReleaseFileStore:
 
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, iter_content = iter_content)
-        rheaders, riter = store.iterfile(entry.relpath, httpget)
+        rheaders, riter = store.iterfile(entry.relpath, httpget, chunksize=1)
         assert rheaders["content-length"] == "3"
         assert rheaders["content-type"] == "application/zip"
         assert rheaders["last-modified"] == headers["last-modified"]
@@ -365,7 +365,7 @@ class TestReleaseFileStore:
         assert entry
         assert entry.md5 == md5(bytes).hexdigest()
         assert entry.headers == headers
-        rheaders, riter = store.iterfile(entry.relpath, None)
+        rheaders, riter = store.iterfile(entry.relpath, None, chunksize=1)
         assert rheaders == headers
         bytes = py.builtin.bytes().join(riter)
         assert bytes == py.builtin.bytes("123")

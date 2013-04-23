@@ -9,13 +9,15 @@ import os, sys
 import py
 import json
 from devpi.util import url as urlutil
-from devpi.util import version as verlib
 from bs4 import BeautifulSoup
 import posixpath
 import pkg_resources
 from devpi_server.plugin import hookimpl
 from hashlib import md5
+import logging
+log = logging.getLogger(__name__)
 
+import json
 
 def cached_property(f):
     """returns a cached property that is calculated by function f"""
@@ -275,16 +277,16 @@ class ExtDB:
         self.redis.hsetnx(self.PROJECTS, projectname, "")
 
         url = self.url_simple + projectname + "/"
-        print "visiting index", url
+        log.debug("visiting index %s", url)
         response = self.htmlcache.get(url, refresh=refresh)
         if response.status_code != 200:
             return None
         assert response.text is not None, response.text
         result = parse_index(response.url, response.text)
         for crawlurl in result.crawllinks:
-            print "visiting crawlurl", crawlurl
+            log.debug("visiting crawlurl %s", crawlurl)
             response = self.htmlcache.get(crawlurl.url, refresh=refresh)
-            print "crawlurl", crawlurl, response.status_code
+            log.debug("crawlurl %s %s", crawlurl, response.status_code)
             if response.status_code == 200:
                 result.parse_index(DistURL(response.url), response.text)
         releaselinks = list(result.releaselinks)
@@ -332,11 +334,15 @@ class ReleaseFileStore:
             headers["last-modified"] = r.headers["last-modified"]
             headers["content-length"] = r.headers["content-length"]
             headers["content-type"] = r.headers["content-type"]
+            log.info("cache-streaming remote: %s headers: %r" %(
+                        r.url, headers))
             target.dirpath().ensure(dir=1)
             def iter_and_cache():
                 tmp_target = target + "-tmp"
                 hash = md5()
                 with tmp_target.open("wb") as f:
+                    #log.debug("serving %d remote chunk %s" % (len(x),
+                    #                                         relpath))
                     for x in r.iter_content(chunksize):
                         assert x
                         f.write(x)
@@ -344,8 +350,9 @@ class ReleaseFileStore:
                         yield x
                 tmp_target.move(target)
                 hexdigest = hash.hexdigest()
-                entry.set(dict(md5=hash.hexdigest(),
+                entry.set(dict(md5=hexdigest,
                           _headers=json.dumps(headers)))
+                log.info("finished getting remote %r", entry.url)
             iterable = iter_and_cache()
         else:
             # serve previously cached file and http headers
@@ -353,13 +360,20 @@ class ReleaseFileStore:
             def iterfile():
                 hash = md5()
                 with target.open("rb") as f:
-                    for x in f.read(chunksize):
+                    while 1:
+                        x = f.read(chunksize)
+                        if not x:
+                            break
+                        #log.debug("serving chunk %s" % relpath)
                         hash.update(x)
                         yield x
                 if hash.hexdigest() != entry.md5:
-                    raise ValueError("integrity error, md5 mismatch")
+                    raise ValueError("stored md5 %r does not match real %r" %(
+                                     entry.md5, hash.hexdigest() ))
             iterable = iterfile()
         #entry.incdownloads()
+        log.info("starting file iteration: %s (size %s)" % (
+                entry.relpath, headers["content-length"]))
         return headers, iterable
 
 
@@ -374,6 +388,10 @@ class RelPathEntry(object):
         self.relpath = relpath
         self.filepath = basedir.join(self.relpath)
         self._mapping = redis.hgetall(self.SITEPATH + relpath)
+
+    @property
+    def basename(self):
+        return self.relpath.split("/")[1]
 
     def __nonzero__(self):
         return bool(self._mapping)
@@ -500,6 +518,7 @@ def resource_htmlcache(xom):
 @hookimpl()
 def resource_httpget(xom):
     import requests
+    session = requests.session()
     def httpget(url, allow_redirects=False):
-        return requests.get(url, allow_redirects=allow_redirects, stream=True)
+        return session.get(url, allow_redirects=allow_redirects, stream=True)
     return httpget
