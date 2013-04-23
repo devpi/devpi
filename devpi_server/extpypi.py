@@ -229,6 +229,9 @@ class HTMLCacheResponse(object):
                                                   response.headers["location"])
         elif response.status_code == 200:
             mapping["content"] = response.text.encode("utf8")
+        elif response.status_code < 0:
+            # fatal response (no network, DNS problems etc) -> don't cache
+            return
         self.redis.hmset(self.rediskey, mapping)
         self._mapping = mapping
 
@@ -515,12 +518,22 @@ def resource_htmlcache(xom):
     httpget = xom.hook.resource_httpget(xom=xom)
     return HTMLCache(redis, httpget)
 
+class FatalResponse:
+    status_code = -1
+
+    def __init__(self, excinfo=None):
+        self.excinfo = excinfo
+
 @hookimpl()
 def resource_httpget(xom):
-    import requests
+    import requests.exceptions
     session = requests.session()
     def httpget(url, allow_redirects):
-        return session.get(url, allow_redirects=allow_redirects, stream=True)
+        try:
+            return session.get(url, stream=True,
+                               allow_redirects=allow_redirects)
+        except requests.exceptions.RequestException:
+            return FatalResponse(sys.exc_info())
     return httpget
 
 

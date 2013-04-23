@@ -150,6 +150,11 @@ class TestHTMLCacheResponse:
         assert r.text == py.builtin._totext("hello")
         assert py.builtin._istext(r.text)
 
+        r.setnewreponse(FatalResponse())
+        r = HTMLCacheResponse(redis, "cache:" + url, url)
+        assert r.status_code == 200
+
+
     def test_redirect(self, redis):
         url = "https://something/simple/pytest"
         r = HTMLCacheResponse(redis, "cache:" + url, url)
@@ -168,7 +173,6 @@ class TestHTMLCacheResponse:
         assert r.status_code == 301
         assert r.text is None
         assert r.nextlocation == url + "/"
-
 
 class TestHTMLCache:
 
@@ -374,7 +378,6 @@ class TestReleaseFileStore:
         assert bytes == py.builtin.bytes("123")
 
 
-
 def raising():
     raise ValueError(42)
 
@@ -421,3 +424,11 @@ class TestRefreshManager:
             refreshmanager.spawned_refreshprojects(invalidationsleep=raising)
         m.assert_called_once_with("pytest", refresh=True)
         assert not redis.smembers(refreshmanager.INVALIDSET)
+
+
+def test_requests_httpget_negative_status_code(xom):
+    httpget = resource_httpget(xom)
+    r = httpget("http://notexists.qwe", allow_redirects=False)
+    assert r.status_code == -1
+    r = httpget("http://notexists.qwe", allow_redirects=False)
+    assert r.status_code == -1
