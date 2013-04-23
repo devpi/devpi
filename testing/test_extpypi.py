@@ -175,7 +175,8 @@ class TestHTMLCache:
     @pytest.mark.parametrize("target", ["http://hello", "http://hello/"])
     def test_htmlcacheget_ok(self, redis, target):
         class httpget:
-            def __init__(self, url):
+            def __init__(self, url, allow_redirects):
+                assert not allow_redirects
                 self.url = url
                 self.status_code = 200
                 self.text = "hello"
@@ -188,7 +189,8 @@ class TestHTMLCache:
 
     def test_htmlcacheget_redirect_ok(self, redis):
         class httpget:
-            def __init__(self, url):
+            def __init__(self, url, allow_redirects):
+                assert not allow_redirects
                 self.url = url
                 if url == "http://hello/world":
                     self.status_code = 301
@@ -206,7 +208,8 @@ class TestHTMLCache:
 
     def test_htmlcacheget_redirect_max(self, redis):
         class httpget:
-            def __init__(self, url):
+            def __init__(self, url, allow_redirects):
+                assert not allow_redirects
                 self.url = url
                 self.headers = {"location": "/redirect"}
                 self.status_code = 301

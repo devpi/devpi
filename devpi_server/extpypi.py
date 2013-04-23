@@ -174,7 +174,7 @@ class HTMLCache:
             counter += 1
             cacheresponse = self.gethtmlcache(url)
             if refresh or not cacheresponse:
-                response = self.httpget(url)
+                response = self.httpget(url, allow_redirects=False)
                 cacheresponse.setnewreponse(response)
             url = cacheresponse.nextlocation
             if url is not None:
@@ -519,6 +519,11 @@ def resource_htmlcache(xom):
 def resource_httpget(xom):
     import requests
     session = requests.session()
-    def httpget(url, allow_redirects=False):
+    def httpget(url, allow_redirects):
         return session.get(url, allow_redirects=allow_redirects, stream=True)
     return httpget
+
+
+#def mirroring_httpget_releasefile(httpget):
+#    def mirror_httpget(url, allow_redirects=False):
+
