@@ -28,6 +28,7 @@ class IndexParser:
         self.projectname = projectname.lower()
         self.basename2link = {}
         self.crawllinks = set()
+        self.egglinks = []
 
     def _mergelink_ifbetter(self, newurl):
         entry = self.basename2link.get(newurl.basename)
@@ -40,7 +41,7 @@ class IndexParser:
         """ return sorted releaselinks list """
         l = list(self.basename2link.values())
         l.sort(reverse=True)
-        return l
+        return self.egglinks + l
 
     def parse_index(self, disturl, html, scrape=True):
         for a in BeautifulSoup(html).findAll("a"):
@@ -49,7 +50,10 @@ class IndexParser:
             if scrape and eggfragment:
                 filename = eggfragment.replace("_", "-")
                 if filename.lower().startswith(self.projectname + "-"):
-                    self.basename2link[newurl] = newurl
+                    # XXX seems we have to maintain a particular
+                    # order to keep pip/easy_install happy with some
+                    # packages (e.g. nose)
+                    self.egglinks.insert(0, newurl)
                     #log.debug("add egg link %s", newurl)
                 else:
                     log.debug("skip egg link %s (projectname: %s)",

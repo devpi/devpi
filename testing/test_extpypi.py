@@ -54,6 +54,22 @@ class TestIndexParsing:
         assert link.eggfragment == "py-dev"
         assert link2.basename == "py-1.0.zip"
 
+    def test_parse_index_with_two_eggs_ordering(self):
+        # it seems that pip/easy_install in some cases
+        # rely on the exact ordering of eggs in the html page
+        # for example with nose, there are two eggs and the second/last
+        # one is chosen due to the internal pip/easy_install algorithm
+        result = parse_index(self.simplepy,
+            """<a href="http://bb.org/download/py.zip#egg=py-dev" /a>
+               <a href="http://other/master#egg=py-dev" /a>
+        """)
+        assert len(result.releaselinks) == 2
+        link1, link2 = result.releaselinks
+        assert link1.basename == "master"
+        assert link1.eggfragment == "py-dev"
+        assert link2.basename == "py.zip"
+        assert link2.eggfragment == "py-dev"
+
     def test_releasefile_and_scrape(self):
         result = parse_index(self.simplepy,
             """<a href="../../pkg/py-1.4.12.zip#md5=12ab">qwe</a>
