@@ -21,3 +21,5 @@ def main(global_config, **settings):
                      factory=xom_factory)
     config.scan()
     return config.make_wsgi_app()
+
+
