@@ -29,11 +29,11 @@ def redis(xprocess):
     client = redis.StrictRedis(port=port)
     return client
 
-#@pytest.fixture(autouse=True)
-#def clean_redis(request):
-#    if 0 and "redis" in request.fixturenames:
-#        redis = request.getfuncargvalue("redis")
-#        redis.flushdb()
+@pytest.fixture(autouse=True)
+def clean_redis(request):
+    if request.cls and getattr(request.cls, "cleanredis", False):
+        redis = request.getfuncargvalue("redis")
+        redis.flushdb()
 
 @pytest.fixture
 def xom(request):
@@ -57,7 +57,7 @@ def httpget():
 
 @pytest.fixture
 def filestore(redis, tmpdir):
-    from devpi_server.extpypi import ReleaseFileStore
+    from devpi_server.filestore import ReleaseFileStore
     return ReleaseFileStore(redis, tmpdir)
 
 @pytest.fixture
