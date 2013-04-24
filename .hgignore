@@ -31,4 +31,5 @@ env/
 .pytest
 .devpy
 .xprocess
+htmlcov
 play
