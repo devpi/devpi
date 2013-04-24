@@ -34,14 +34,16 @@ class TestIndexParsing:
                     set(["http://pylib.org", "http://pylib2.org"])
 
     def test_parse_index_with_egg(self):
-        # XXX re-check with exact setuptools egg parsing logic
         result = parse_index(self.simplepy,
             """<a href="http://bb.org/download/py.zip#egg=py-dev" /a>
-               <a href="http://bb.org/download/py-1.0.zip" /a>""")
+               <a href="http://bb.org/download/py-1.0.zip" /a>
+               <a href="http://bb.org/download/py.zip#egg=something-dev" /a>
+        """)
         assert len(result.releaselinks) == 2
         link, link2 = result.releaselinks
         assert link.basename == "py.zip"
         assert link.eggfragment == "py-dev"
+        assert link2.basename == "py-1.0.zip"
 
     def test_releasefile_and_scrape(self):
         result = parse_index(self.simplepy,

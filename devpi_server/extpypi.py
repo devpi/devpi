@@ -44,6 +44,15 @@ class IndexParser:
     def parse_index(self, disturl, html, scrape=True):
         for a in BeautifulSoup(html).findAll("a"):
             newurl = disturl.joinpath(a.get("href"))
+            eggfragment = newurl.eggfragment
+            if scrape and eggfragment:
+                filename = eggfragment.replace("_", "-")
+                if filename.startswith(self.projectname + "-"):
+                    self.basename2link[newurl] = newurl
+                else:
+                    log.debug("skip egg link %s (projectname: %s)",
+                              newurl, self.projectname)
+                continue
             nameversion, ext = newurl.splitext_archive()
             projectname = re.split(r'-\d+', nameversion)[0]
             if ext in self.ALLOWED_ARCHIVE_EXTS and \
@@ -51,19 +60,9 @@ class IndexParser:
                 self._mergelink_ifbetter(newurl)
                 continue
             if scrape:
-                eggfragment = newurl.eggfragment
-                if eggfragment:
-                    # egglinks are not proxied
-                    filename = eggfragment.replace("_", "-")
-                    if not filename.startswith(self.projectname + "-"):
-                        log.debug("skip egg link %s (projectname: %s)",
-                                  newurl, self.projectname)
-                    else:
-                        self.basename2link[newurl] = newurl
-                else:
-                    for rel in a.get("rel", []):
-                        if rel in ("homepage", "download"):
-                            self.crawllinks.add(newurl)
+                for rel in a.get("rel", []):
+                    if rel in ("homepage", "download"):
+                        self.crawllinks.add(newurl)
 
 def parse_index(disturl, html, scrape=True):
     if not isinstance(disturl, DistURL):
