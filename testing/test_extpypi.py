@@ -13,6 +13,15 @@ class TestIndexParsing:
         assert link.basename == "py-1.4.12.zip"
         assert link.md5 == "12ab"
 
+    def test_parse_index_simple_nocase(self):
+        simplepy = DistURL("http://pypi.python.org/simple/Py/")
+        result = parse_index(simplepy,
+            """<a href="../../pkg/py-1.4.12.zip#md5=12ab">qwe</a>
+               <a href="../../pkg/PY-1.4.13.zip">qwe</a>
+               <a href="../../pkg/pyzip#egg=py-dev">qwe</a>
+        """)
+        assert len(result.releaselinks) == 3
+
     def test_parse_index_simple_nomatch(self):
         result = parse_index(self.simplepy,
             """<a href="../../pkg/py-1.3.html">qwe</a>""")

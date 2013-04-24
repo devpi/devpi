@@ -25,7 +25,7 @@ class IndexParser:
     ALLOWED_ARCHIVE_EXTS = ".egg .tar.gz .tar.bz2 .tar .tgz .zip".split()
 
     def __init__(self, projectname):
-        self.projectname = projectname
+        self.projectname = projectname.lower()
         self.basename2link = {}
         self.crawllinks = set()
 
@@ -33,6 +33,7 @@ class IndexParser:
         entry = self.basename2link.get(newurl.basename)
         if entry is None or (not entry.md5 and newurl.md5):
             self.basename2link[newurl.basename] = newurl
+            log.debug("adding link %s", newurl)
 
     @property
     def releaselinks(self):
@@ -47,16 +48,18 @@ class IndexParser:
             eggfragment = newurl.eggfragment
             if scrape and eggfragment:
                 filename = eggfragment.replace("_", "-")
-                if filename.startswith(self.projectname + "-"):
+                if filename.lower().startswith(self.projectname + "-"):
                     self.basename2link[newurl] = newurl
+                    #log.debug("add egg link %s", newurl)
                 else:
                     log.debug("skip egg link %s (projectname: %s)",
                               newurl, self.projectname)
                 continue
             nameversion, ext = newurl.splitext_archive()
             projectname = re.split(r'-\d+', nameversion)[0]
-            if ext in self.ALLOWED_ARCHIVE_EXTS and \
-               projectname == self.projectname:
+            #log.debug("checking %s, projectname %r", newurl, self.projectname)
+            if ext.lower() in self.ALLOWED_ARCHIVE_EXTS and \
+               projectname.lower() == self.projectname:
                 self._mergelink_ifbetter(newurl)
                 continue
             if scrape:
