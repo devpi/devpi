@@ -14,8 +14,14 @@ def my_view(request):
 def extpypi_simple(request):
     projectname = request.matchdict.get("projectname")
     entries = request.context.extdb.getreleaselinks(projectname)
-    links = [("/pkg/%s#md5=%s" % (entry.relpath, entry.md5), entry.basename)
-                for entry in entries]
+    links = []
+    for entry in entries:
+        href = "/pkg/" + entry.relpath
+        if entry.eggfragment:
+            href += "#egg=%s" % entry.eggfragment
+        elif entry.md5:
+            href += "#md5=%s" % entry.md5
+        links.append((href, entry.basename))
     return {"projectlinks": links, "projectname": projectname}
 
 @view_config(route_name="pkgserve")

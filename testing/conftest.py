@@ -54,3 +54,18 @@ def httpget():
         return response(url)
     httpget.url2response = url2response
     return httpget
+
+@pytest.fixture
+def filestore(redis, tmpdir):
+    from devpi_server.extpypi import ReleaseFileStore
+    return ReleaseFileStore(redis, tmpdir)
+
+@pytest.fixture
+def extdb(redis, filestore, httpget):
+    from devpi_server.extpypi import HTMLCache, ExtDB
+    redis.flushdb()
+    htmlcache = HTMLCache(redis, httpget)
+    extdb = ExtDB("https://pypi.python.org/", htmlcache, filestore)
+    extdb.url2response = httpget.url2response
+    return extdb
+

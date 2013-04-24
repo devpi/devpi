@@ -8,111 +8,20 @@ import re
 import os, sys
 import py
 import json
-from devpi.util import url as urlutil
-from bs4 import BeautifulSoup
-import posixpath
-import pkg_resources
 from devpi_server.plugin import hookimpl
 from hashlib import md5
+from bs4 import BeautifulSoup
+
+from .urlutil import DistURL, joinpath
+
 import logging
 log = logging.getLogger(__name__)
 
 import json
 
-def cached_property(f):
-    """returns a cached property that is calculated by function f"""
-    def get(self):
-        try:
-            return self._property_cache[f]
-        except AttributeError:
-            self._property_cache = {}
-            x = self._property_cache[f] = f(self)
-            return x
-        except KeyError:
-            x = self._property_cache[f] = f(self)
-            return x
-    return property(get)
-
-_releasefile_suffix_rx = re.compile(r"(\.zip|\.tar\.gz|\.tgz|\.tar\.bz2|-py[23]\.\d-.*|\.win-amd64-py[23]\.\d\..*|\.win32-py[23]\.\d\..*)$", re.IGNORECASE)
-
-def guess_pkgname_and_version(path):
-    path = os.path.basename(path)
-    pkgname = re.split(r"-\d+", path, 1)[0]
-    version = path[len(pkgname) + 1:]
-    version = _releasefile_suffix_rx.sub("", version)
-    return pkgname, version
-
-class DistURL:
-    def __init__(self, url):
-        self.url = url
-
-    def __repr__(self):
-        return "<DistURL url=%r>" % (self.url, )
-
-    def __eq__(self, other):
-        return self.url == getattr(other, "url", other)
-
-    def geturl_nofragment(self):
-        """ return url without fragment """
-        scheme, netloc, url, params, query, ofragment = self._parsed
-        return DistURL(urlutil.urlunsplit((scheme, netloc, url, query, "")))
-
-    @property
-    def url_nofrag(self):
-        return self.geturl_nofragment().url
-
-    @property
-    def pkgname_and_version(self):
-        return guess_pkgname_and_version(self.basename)
-
-    @property
-    def easyversion(self):
-        return pkg_resources.parse_version(self.pkgname_and_version[1])
-
-    def __cmp__(self, other):
-        """ sorting as defined by UpstreamCache.getpackagelinks() """
-        return cmp(self.easyversion, other.easyversion)
-
-    def __hash__(self):
-        return hash(self.url)
-
-    def splitext(self):
-        base, ext = posixpath.splitext(self.basename)
-        if base.lower().endswith('.tar'):
-            ext = base[-4:] + ext
-            base = base[:-4]
-        return base, ext
-
-    @cached_property
-    def _parsed(self):
-        return urlutil.urlparse(self.url)
-
-    @property
-    def basename(self):
-        return posixpath.basename(self._parsed.path)
-
-    @property
-    def parentbasename(self):
-        return posixpath.basename(posixpath.dirname(self._parsed.path))
-
-    @property
-    def eggfragment(self):
-        frag = self._parsed.fragment
-        if frag.startswith("egg="):
-            return frag[4:]
-
-    @property
-    def md5(self):
-        val = self._parsed.fragment
-        if val.startswith("md5="):
-            return val[4:]
-
-    def makeurl(self, url):
-        newurl = urlutil.joinpath(self.url, url)
-        return DistURL(newurl)
 
 class IndexParser:
-    ALLOWED_ARCHIVE_EXTS = ".tar.gz .tar.bz2 .tar .tgz .zip".split()
+    ALLOWED_ARCHIVE_EXTS = ".egg .tar.gz .tar.bz2 .tar .tgz .zip".split()
 
     def __init__(self, projectname):
         self.projectname = projectname
@@ -133,16 +42,23 @@ class IndexParser:
 
     def parse_index(self, disturl, html, scrape=True):
         for a in BeautifulSoup(html).findAll("a"):
-            newurl = disturl.makeurl(a.get("href"))
-            nameversion, ext = newurl.splitext()
-            projectname = re.split(r"-\d+", nameversion)[0]
+            newurl = disturl.joinpath(a.get("href"))
+            nameversion, ext = newurl.splitext_archive()
+            projectname = re.split(r'-\d+', nameversion)[0]
             if ext in self.ALLOWED_ARCHIVE_EXTS and \
                projectname == self.projectname:
                 self._mergelink_ifbetter(newurl)
                 continue
             if scrape:
-                if newurl.eggfragment:
-                    self.basename2link[newurl] = newurl
+                eggfragment = newurl.eggfragment
+                if eggfragment:
+                    # egglinks are not proxied
+                    filename = eggfragment.replace("_", "-")
+                    if not filename.startswith(self.projectname + "-"):
+                        log.debug("skip egg link %s (projectname: %s)",
+                                  newurl, self.projectname)
+                    else:
+                        self.basename2link[newurl] = newurl
                 else:
                     for rel in a.get("rel", []):
                         if rel in ("homepage", "download"):
@@ -225,7 +141,7 @@ class HTMLCacheResponse(object):
     def setnewreponse(self, response):
         mapping = dict(status_code = response.status_code)
         if response.status_code in self._REDIRECTCODES:
-            mapping["nextlocation"] = urlutil.joinpath(self.url,
+            mapping["nextlocation"] = joinpath(self.url,
                                                   response.headers["location"])
         elif response.status_code == 200:
             mapping["content"] = response.text.encode("utf8")
@@ -308,16 +224,25 @@ class ReleaseFileStore:
         self.redis = redis
         self.basedir = basedir
 
-    def maplink(self, link, refresh):
+    def maplink(self, link, refresh=False):
         entry = self.getentry_fromlink(link)
         if not entry or refresh:
-            mapping = dict(url=link.url_nofrag, md5=link.md5)
+            mapping = dict(url=link.url_nofrag)
+            if link.md5:
+                mapping["md5"] = link.md5
+            if link.eggfragment:
+                mapping["eggfragment"] = link.eggfragment
             entry.set(mapping)
         return entry
 
     def canonical_relpath(self, link):
-        m = md5(link.url_nofrag)
-        return "%s/%s" %(m.hexdigest()[:self.HASHDIRLEN], link.basename)
+        if link.eggfragment:
+            m = md5(link.url)
+            basename = link.eggfragment
+        else:
+            m = md5(link.url_nofrag)
+            basename = link.basename
+        return "%s/%s" %(m.hexdigest()[:self.HASHDIRLEN], basename)
 
     def getentry_fromlink(self, link):
         return self.getentry(self.canonical_relpath(link))
@@ -328,10 +253,9 @@ class ReleaseFileStore:
     def iterfile(self, relpath, httpget, chunksize=8192):
         entry = self.getentry(relpath)
         target = entry.filepath
-        if entry.headers is None:
+        if entry.headers is None or entry.eggfragment:
             # we get and cache the file and some http headers from remote
             r = httpget(entry.url, allow_redirects=True)
-            assert r.status_code == 200
             headers = {}
             # we assume these headers to be present and forward them
             headers["last-modified"] = r.headers["last-modified"]
@@ -390,11 +314,18 @@ class RelPathEntry(object):
         self.redis = redis
         self.relpath = relpath
         self.filepath = basedir.join(self.relpath)
-        self._mapping = redis.hgetall(self.SITEPATH + relpath)
+        self._mapping = redis.hgetall(self.rediskey)
+
+    @property
+    def rediskey(self):
+        return self.SITEPATH + self.relpath
 
     @property
     def basename(self):
-        return self.relpath.split("/")[1]
+        try:
+            return self._mapping["basename"]
+        except KeyError:
+            return self.relpath.split("/")[1]
 
     def __nonzero__(self):
         return bool(self._mapping)
@@ -406,6 +337,7 @@ class RelPathEntry(object):
     url = propmapping("url")
     md5 = propmapping("md5")
     _headers = propmapping("_headers")
+    eggfragment = propmapping("eggfragment")  # for #egg= links
     #download = propmapping("download")
 
     @property
@@ -414,7 +346,7 @@ class RelPathEntry(object):
             return json.loads(self._headers)
 
     def set(self, mapping):
-        self.redis.hmset(self.SITEPATH + self.relpath, mapping)
+        self.redis.hmset(self.rediskey, mapping)
         self._mapping.update(mapping)
 
 
