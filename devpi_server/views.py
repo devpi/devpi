@@ -1,5 +1,6 @@
 from pyramid.view import view_config
 from pyramid.response import Response
+from pyramid.exceptions import HTTPNotFound
 
 from logging import getLogger
 log = getLogger(__name__)

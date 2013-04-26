@@ -15,7 +15,7 @@ def caplog(caplog):
             msgrex = re.compile(msgrex)
         recs = []
         for rec in caplog.records():
-            if msgrex is not None and not msgrex.search(rec.msg):
+            if msgrex is not None and not msgrex.search(rec.getMessage()):
                 continue
             recs.append(rec)
         return recs
