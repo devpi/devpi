@@ -3,7 +3,24 @@ from devpi_server.main import XOM
 
 import pytest
 import py
+import re
+import logging
 
+@pytest.fixture()
+def caplog(caplog):
+    """ shadow the pytest-capturelog funcarg to provide some defaults. """
+    caplog.setLevel(logging.DEBUG)
+    def getrecords(msgrex=None):
+        if msgrex is not None:
+            msgrex = re.compile(msgrex)
+        recs = []
+        for rec in caplog.records():
+            if msgrex is not None and not msgrex.search(rec.msg):
+                continue
+            recs.append(rec)
+        return recs
+    caplog.getrecords = getrecords
+    return caplog
 
 @pytest.fixture(scope="session")
 def redis(xprocess):
@@ -39,7 +56,7 @@ def clean_redis(request):
 def xom(request):
     from devpi_server.main import preparexom
     xom = preparexom(["devpi-server"])
-    request.addfinalizer(xom.kill_spawned)
+    request.addfinalizer(xom.shutdown)
     return xom
 
 @pytest.fixture

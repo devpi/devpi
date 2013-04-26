@@ -2,6 +2,7 @@
 import pytest
 from devpi_server.extpypi import *
 import mock
+import time
 
 class TestIndexParsing:
     simplepy = DistURL("http://pypi.python.org/simple/py/")
@@ -293,7 +294,7 @@ class TestRefreshManager:
     @pytest.fixture
     def refreshmanager(self, request, extdb, xom):
         rf = RefreshManager(extdb, xom)
-        request.addfinalizer(xom.kill_spawned)
+        #request.addfinalizer(xom.kill_spawned)
         return rf
 
     def test_pypichanges_nochanges(self, extdb, refreshmanager):
@@ -330,6 +331,7 @@ class TestRefreshManager:
             refreshmanager.spawned_refreshprojects(invalidationsleep=raising)
         m.assert_called_once_with("pytest", refresh=True)
         assert not redis.smembers(refreshmanager.INVALIDSET)
+
 
 
 def test_requests_httpget_negative_status_code(xom):

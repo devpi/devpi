@@ -2,8 +2,8 @@
 from hashlib import md5
 import json
 from .types import propmapping
-import logging
-log = logging.getLogger(__name__)
+from logging import getLogger
+log = getLogger(__name__)
 
 class ReleaseFileStore:
     HASHDIRLEN = 2

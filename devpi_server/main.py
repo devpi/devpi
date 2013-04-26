@@ -2,13 +2,14 @@
 recursive cache of pypi.python.org packages.
 """
 
-import eventlet
 import os, sys
 import py
 from devpi_server.plugin import hookimpl
+import threading
+from logging import getLogger
+log = getLogger(__name__)
 
 def main(argv=None):
-    eventlet.monkey_patch()
     xom = preparexom(argv)
     return xom.hook.server_cmdline_main(xom=xom)
 
@@ -38,21 +39,40 @@ class Config:
         self.args = args
 
 class XOM:
+    class Exiting(SystemExit):
+        pass
+
     def __init__(self, pm, config):
         self.pm = pm
         self.hook = pm.hook
         self.config = config
         self._spawned = []
+        self._shutdown = threading.Event()
 
-    def kill_spawned(self):
-        for x in self._spawned:
-            x.kill()
-
-    def spawn(self, func):
-        return eventlet.spawn(func)
+    def shutdown(self):
+        self._shutdown.set()
 
     def sleep(self, secs):
-        eventlet.sleep(secs)
+        if self._shutdown.wait(secs):
+            raise self.Exiting()
+
+    def spawn(self, func, args=(), kwargs={}):
+        def logging_spawn():
+            self._spawned.append(thread)
+            log.debug("execution starts %s %s %s", func, args, kwargs)
+            try:
+                log.debug("calling")
+                func(*args, **kwargs)
+            except self.Exiting:
+                log.debug("received Exiting signal")
+            finally:
+                log.debug("execution finished %s", func)
+            self._spawned.remove(thread)
+
+        thread = threading.Thread(target=logging_spawn)
+        thread.setDaemon(True)
+        thread.start()
+        return thread
 
 
 @hookimpl()
@@ -77,6 +97,7 @@ def server_cmdline_main(xom):
     return xom.hook.server_mainloop(xom=xom)
     #finally:
     #    config.hook.server_unconfigure(config=config)
+
 
 
 

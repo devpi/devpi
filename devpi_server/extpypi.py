@@ -15,8 +15,8 @@ from bs4 import BeautifulSoup
 
 from .urlutil import DistURL, joinpath
 
-import logging
-log = logging.getLogger(__name__)
+from logging import getLogger
+log = getLogger(__name__)
 
 import json
 
@@ -221,6 +221,7 @@ class RefreshManager:
         self.INVALIDSET = "invalid:" + extdb.url_base
 
     def spawned_pypichanges(self, proxy, proxysleep):
+        log.debug("spawned_pypichanges starting")
         redis = self.redis
         current_serial = redis.get(self.PYPISERIAL)
         if current_serial is None:
@@ -229,8 +230,10 @@ class RefreshManager:
         else:
             current_serial = int(current_serial)
         while 1:
+            log.debug("checking remote changelog [%s]...", current_serial)
             changelog = proxy.changelog_since_serial(current_serial)
             if changelog:
+                log.debug("got changelog of size %d" %(len(changelog),))
                 self.mark_refresh(changelog)
                 current_serial += len(changelog)
                 redis.set(self.PYPISERIAL, current_serial)
@@ -239,9 +242,17 @@ class RefreshManager:
     def mark_refresh(self, changelog):
         projectnames = set([x[0] for x in changelog])
         redis = self.redis
+        notcontained = set()
         for name in projectnames:
             if self.extdb.iscontained(name):
+                log.debug("marking invalid %r", name)
                 redis.sadd(self.INVALIDSET, name)
+            else:
+                notcontained.add(name)
+        if notcontained:
+            log.debug("ignoring changed projects: %r", notcontained)
+
+
 
     def spawned_refreshprojects(self, invalidationsleep):
         """ Invalidation task for re-freshing project indexes. """
@@ -268,7 +279,7 @@ def server_addoptions(parser):
             default=None,
             help="lookup specified project on pypi upstream server")
 
-    parser.add_argument("--refresh", action="store_true",
+    parser.add_argument("--refresher", action="store_true",
             default=None,
             help="enabled resfreshing")
 
@@ -294,6 +305,7 @@ def server_mainloop(xom):
     elapsed = py.std.time.time() - now
     print "retrieval took %.3f seconds" % elapsed
     return True
+
 
 @hookimpl()
 def resource_extdb(xom):

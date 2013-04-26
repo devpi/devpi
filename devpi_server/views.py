@@ -1,8 +1,8 @@
 from pyramid.view import view_config
 from pyramid.response import Response
 
-import logging
-log = logging.getLogger(__name__)
+from logging import getLogger
+log = getLogger(__name__)
 
 from pyramid.view import notfound_view_config, view_config
 @notfound_view_config(append_slash=True)
