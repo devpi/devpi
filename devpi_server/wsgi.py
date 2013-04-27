@@ -14,9 +14,10 @@ def configure_xom(argv=None):
     xom.httpget = xom.extdb.htmlcache.httpget
     return xom
 
-def main(global_config, **settings):
+def main(**settings):
     """ This function returns a Pyramid WSGI application.
     """
+    log.info("creating application")
     xom = configure_xom()
     def xom_factory(request):
         return xom
@@ -38,8 +39,9 @@ workers = []
 
 def post_fork(server, worker):
     # this hook is called by gunicorn in a freshly forked worker process
+    import logging
     workers.append(worker)
-    log.info("post_fork %s %s pid %s", server, worker, os.getpid())
+    log.debug("post_fork %s %s pid %s", server, worker, os.getpid())
     #log.info("vars %r", vars(worker))
 
 def start_background_tasks_if_not_in_arbiter(xom):
@@ -56,3 +58,4 @@ def start_background_tasks_if_not_in_arbiter(xom):
     xom.spawn(refresher.spawned_refreshprojects,
               args=(lambda: xom.sleep(5),))
 
+application = main()
