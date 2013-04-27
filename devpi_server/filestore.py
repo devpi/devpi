@@ -25,10 +25,10 @@ class ReleaseFileStore:
 
     def canonical_relpath(self, link):
         if link.eggfragment:
-            m = md5(link.url)
+            m = md5(link.url.encode("utf8"))
             basename = link.eggfragment
         else:
-            m = md5(link.url_nofrag)
+            m = md5(link.url_nofrag.encode("utf8"))
             basename = link.basename
         return "%s/%s" %(m.hexdigest()[:self.HASHDIRLEN], basename)
 

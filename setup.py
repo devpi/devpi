@@ -9,11 +9,8 @@ if __name__ == "__main__":
     README = open(os.path.join(here, 'README.txt')).read()
     CHANGES = open(os.path.join(here, 'CHANGES.txt')).read()
 
-    install_requires = [
-            "beautifulsoup4>=4.1.3", "redis>=2.7.2",
-            'pyramid', 'pyramid_debugtoolbar',
-            'gunicorn',
-    ]
+    install_requires = ["beautifulsoup4>=4.1.3", "requests",
+                        "redis>=2.7.2", "bottle"]
     #if sys.version_info < (2,7):
     #    install_requires.append("argparse")
 

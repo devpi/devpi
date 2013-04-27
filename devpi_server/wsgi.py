@@ -1,8 +1,70 @@
-from pyramid.config import Configurator
+"""
+
+devpi_server wsgi application creation.
+In order to work nicely with different wsgi servers:
+
+- don't instantiate resources/database connections during
+  creation of the wsgi app
+
+"""
+from devpi_server.types import lazydecorator
+from bottle import Bottle, response
 
 import os
 from logging import getLogger
 log = getLogger(__name__)
+
+from py.xml import html
+
+def simple_html_body(title, bodytags):
+    return html.html(
+        html.head(
+            html.title(title)
+        ),
+        html.body(
+            html.h1(title),
+            *bodytags
+        )
+    )
+
+route = lazydecorator()
+
+class PyPIView:
+    def __init__(self, extdb):
+        self.extdb = extdb
+
+    @route("/ext/pypi/<projectname>")
+    @route("/ext/pypi/<projectname>/")
+    def extpypi_simple(self, projectname):
+        entries = self.extdb.getreleaselinks(projectname)
+        links = []
+        for entry in entries:
+            href = "/pkg/" + entry.relpath
+            if entry.eggfragment:
+                href += "#egg=%s" % entry.eggfragment
+            elif entry.md5:
+                href += "#md5=%s" % entry.md5
+            links.append((href, entry.basename))
+
+        # construct html
+        body = []
+        for entry in links:
+            body.append(html.a(entry[1], href=entry[0]))
+            body.append(html.br())
+        return simple_html_body("links for %s" % projectname, body).unicode()
+
+class PkgView:
+    def __init__(self, filestore, httpget):
+        self.filestore = filestore
+        self.httpget = httpget
+
+    @route("/pkg/<relpath:re:.*>")
+    def pkgserv(self, relpath):
+        headers, itercontent = self.filestore.iterfile(relpath, self.httpget)
+        response.content_type = headers["content-type"]
+        response.content_length = headers["content-length"]
+        for x in itercontent:
+            yield x
 
 def configure_xom(argv=None):
     from devpi_server.main import preparexom
@@ -14,24 +76,17 @@ def configure_xom(argv=None):
     xom.httpget = xom.extdb.htmlcache.httpget
     return xom
 
-def main(**settings):
-    """ This function returns a Pyramid WSGI application.
-    """
-    log.info("creating application")
+def create_app():
+    import os
+    log.info("creating application %s", os.getpid())
     xom = configure_xom()
-    def xom_factory(request):
-        return xom
-    start_background_tasks_if_not_in_arbiter(xom)
-    config = Configurator(settings=settings)
-    config.add_static_view('static', 'static', cache_max_age=3600)
-    config.add_route('home', '/')
-    config.add_route('extpypi_simple', '/extpypi/simple/{projectname}/',
-                     factory=xom_factory)
-    config.add_route('pkgserve', '/pkg/*relpath',
-                     factory=xom_factory)
-    config.scan()
-    return config.make_wsgi_app()
-
+    #start_background_tasks_if_not_in_arbiter(xom)
+    app = Bottle()
+    pypiview = PyPIView(xom.extdb)
+    route.discover_and_call(pypiview, app.route)
+    pkgview = PkgView(xom.releasefilestore, xom.httpget)
+    route.discover_and_call(pkgview, app.route)
+    return app
 
 # this flag indicates if we are running in the gunicorn master server
 # if so, we don't start background tasks
@@ -39,7 +94,6 @@ workers = []
 
 def post_fork(server, worker):
     # this hook is called by gunicorn in a freshly forked worker process
-    import logging
     workers.append(worker)
     log.debug("post_fork %s %s pid %s", server, worker, os.getpid())
     #log.info("vars %r", vars(worker))
@@ -58,4 +112,46 @@ def start_background_tasks_if_not_in_arbiter(xom):
     xom.spawn(refresher.spawned_refreshprojects,
               args=(lambda: xom.sleep(5),))
 
-application = main()
+default_logging_config = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'standard': {
+            'format': '%(asctime)s [%(levelname)-5.5s] %(name)s: %(message)s'
+        },
+    },
+    'handlers': {
+        'default': {
+            'level':'DEBUG',
+            'class':'logging.StreamHandler',
+            'formatter': 'standard',
+        },
+    },
+    'loggers': {
+        '': {
+            'handlers': ['default'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'devpi_server': {
+            'handlers': ['default'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+    }
+}
+
+if __name__ == "__main__":
+    import logging.config
+    logging.config.dictConfig(default_logging_config, )
+    from bottle import run
+    app = create_app()
+    app.run(debug=True, port=3141)
+    run(app="devpi_server.wsgi:create_app()",
+        reloader=True, debug=True, port=3141)
+
+#else:
+#    def app(environ, start_response, started=[]):
+#        if not started:
+#            started.append(create_app())
+#        return started[0](environ, start_response)

@@ -92,12 +92,4 @@ def resource_redis(xom):
 
 @hookimpl(tryfirst=True)
 def server_cmdline_main(xom):
-    #config.hook.server_configure(config=config)
-    #try:
     return xom.hook.server_mainloop(xom=xom)
-    #finally:
-    #    config.hook.server_unconfigure(config=config)
-
-
-
-

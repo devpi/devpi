@@ -16,6 +16,7 @@ from bs4 import BeautifulSoup
 from .urlutil import DistURL, joinpath
 
 from logging import getLogger
+assert __name__ == "devpi_server.extpypi"
 log = getLogger(__name__)
 
 import json
