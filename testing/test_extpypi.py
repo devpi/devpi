@@ -281,7 +281,7 @@ class TestExtPYPIDB:
             status_code=404)
         assert len(extdb.getreleaselinks("proj1")) == 1
         assert len(extdb.getreleaselinks("proj2")) == 1
-        assert extdb.getreleaselinks("proj3") is None
+        assert extdb.getreleaselinks("proj3") == 404
         names = extdb.getprojectnames()
         assert names == set(["proj1", "proj2"])
 
@@ -334,10 +334,13 @@ class TestRefreshManager:
 
 
 
-def test_requests_httpget_negative_status_code(xom):
+def test_requests_httpget_negative_status_code(xom, monkeypatch):
+    import requests.exceptions
+    def r(*a, **k):
+        raise requests.exceptions.RequestException()
+
+    monkeypatch.setattr(requests, "get", r)
     httpget = resource_httpget(xom)
-    r = httpget("http://notexists.qwe", allow_redirects=False)
-    assert r.status_code == -1
     r = httpget("http://notexists.qwe", allow_redirects=False)
     assert r.status_code == -1
 

@@ -8,37 +8,12 @@ b = py.builtin.bytes
 class TestReleaseFileStore:
     cleanredis = True
 
-    def test_canonical_path(self, filestore):
-        canonical_relpath = filestore.canonical_relpath
-        link = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=123")
-        relpath = canonical_relpath(link)
-        parts = relpath.split("/")
-        assert len(parts[0]) == filestore.HASHDIRLEN
-        assert parts[1] == "pytest-1.2.zip"
-        link = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip")
-        relpath2 = canonical_relpath(link)
-        assert relpath2 == relpath
-        link = DistURL("https://pypi.python.org/pkg/pytest-1.3.zip")
-        relpath3 = canonical_relpath(link)
-        assert relpath3 != relpath
-        assert relpath3.endswith("/pytest-1.3.zip")
-
-    def test_canonical_path_egg(self, filestore):
-        canonical_relpath = filestore.canonical_relpath
-        link = DistURL("https://pypi.python.org/master#egg=pytest-dev")
-        relpath = canonical_relpath(link)
-        parts = relpath.split("/")
-        assert len(parts[0]) == filestore.HASHDIRLEN
-        assert parts[1] == "pytest-dev"
-        link = DistURL("https://pypi.python.org/master#egg=pytest-dev")
-        relpath2 = canonical_relpath(link)
-
-
     def test_getentry_fromlink_and_maplink(self, filestore):
         link = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=123")
-        relpath = filestore.canonical_relpath(link)
-        entry = filestore.getentry_fromlink(link)
-        assert entry.relpath == relpath
+        entry1 = filestore.maplink(link)
+        entry2 = filestore.getentry_fromlink(link)
+        assert entry1.relpath == entry2.relpath
+        assert entry1.basename == "pytest-1.2.zip"
 
     def test_maplink(self, filestore, redis):
         link = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=123")
@@ -59,8 +34,6 @@ class TestReleaseFileStore:
         headers, itercontent = filestore.iterfile_local(entry1, 1)
         assert itercontent is None
 
-
-
     def test_invalidate_cache(self, filestore):
         link = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip")
         entry1 = filestore.maplink(link, refresh=False)
@@ -74,16 +47,16 @@ class TestReleaseFileStore:
         entry1 = filestore.maplink(link, refresh=False)
         entry2 = filestore.maplink(link, refresh=False)
         assert entry1 == entry2
-        assert entry1.relpath.endswith("/pytest-dev")
+        assert entry1.relpath.endswith("/master")
+        assert entry1.eggfragment == "pytest-dev"
         assert not entry1.md5
         assert entry1.url == link.url_nofrag
-        assert entry1.eggfragment == "pytest-dev"
 
     def test_relpathentry(self, filestore):
         link = DistURL("http://pypi.python.org/pkg/pytest-1.7.zip")
         entry = filestore.getentry_fromlink(link)
         assert not entry.iscached()
-        entry.set(url=link.url, md5="1" * 16)
+        entry.set(md5="1" * 16)
         assert not entry.iscached()
         entry.filepath.ensure()
         assert entry.iscached()

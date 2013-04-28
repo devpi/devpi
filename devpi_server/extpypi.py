@@ -197,7 +197,7 @@ class ExtDB:
         log.debug("visiting index %s", url)
         response = self.htmlcache.get(url, refresh=refresh)
         if response.status_code != 200:
-            return None
+            return response.status_code
         assert response.text is not None, response.text
         result = parse_index(response.url, response.text)
         for crawlurl in result.crawllinks:
@@ -207,7 +207,6 @@ class ExtDB:
             if response.status_code == 200:
                 result.parse_index(DistURL(response.url), response.text)
         releaselinks = list(result.releaselinks)
-        releaselinks.sort(reverse=True)
         entries = [self.releasefilestore.maplink(link, refresh=refresh)
                         for link in releaselinks]
         dumplist = [entry.relpath for entry in entries]
@@ -336,11 +335,10 @@ class FatalResponse:
 @hookimpl()
 def resource_httpget(xom):
     import requests.exceptions
-    session = requests.session()
     def httpget(url, allow_redirects):
         try:
-            return session.get(url, stream=True,
-                               allow_redirects=allow_redirects)
+            return requests.get(url, stream=True,
+                                allow_redirects=allow_redirects)
         except requests.exceptions.RequestException:
             return FatalResponse(sys.exc_info())
     return httpget

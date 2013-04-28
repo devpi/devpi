@@ -90,3 +90,22 @@ def test_splitext_archive(releasename, expected):
     assert url.splitext_archive() == expected
 
 
+
+#
+# test torelpath/fromrelpath
+#
+
+@pytest.mark.parametrize("url", [
+    "http://codespeak.net", "https://codespeak.net",
+    "http://codespeak.net/path",
+    "http://codespeak.net:3123/path",
+    "https://codespeak.net:80/path",
+])
+def test_canonical_url_path_mappings(url):
+    url = DistURL(url)
+    path = url.torelpath()
+    assert path[0] != "/"
+    assert os.path.normpath(path) == path
+    back_url = DistURL.fromrelpath(path)
+    assert url == back_url
+

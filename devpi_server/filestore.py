@@ -1,5 +1,20 @@
 """
 
+Module for storing release files in the file system and metadata in Redis.
+
+
+Entry.md5      the md5 as specified by a package index or after first retrieval
+Entry.relpath  is typically a slash separated path with two parts:
+
+a) nomd5/basename means that the index did not define a md5
+b) <md5>/basename gurantees that basename content resolved to the <md5>
+
+If a release file is indexed without a MD5, it is first
+put into the nomd5/* directory.  After it was received once,
+it is put into the according <md5>/basename directory.
+
+
+ filesystem States related to RelPathEntries
 project-1.0.zip#md5=123123
 -> entry.md5 = 123123
 -> entry.relpath = 123123/project-1.0.zip
@@ -12,6 +27,7 @@ and break the stream.
 from hashlib import md5
 import py
 from .types import propmapping
+from .urlutil import DistURL
 from logging import getLogger
 log = getLogger(__name__)
 
@@ -24,26 +40,18 @@ class ReleaseFileStore:
 
     def maplink(self, link, refresh=False):
         entry = self.getentry_fromlink(link)
-        if not entry.url or refresh or not entry.iscached():
-            mapping = dict(url=link.url_nofrag)
-            if link.md5:
-                mapping["md5"] = link.md5
-            if link.eggfragment:
-                mapping["eggfragment"] = link.eggfragment
-            entry.set(**mapping)
+        mapping = {}
+        if link.eggfragment and not entry.eggfragment:
+            mapping["eggfragment"] = link.eggfragment
+        elif link.md5 and not entry.md5:
+            mapping["md5"] = link.md5
+        else:
+            return entry
+        entry.set(**mapping)
         return entry
 
-    def canonical_relpath(self, link):
-        if link.eggfragment:
-            m = md5(link.url.encode("utf8"))
-            basename = link.eggfragment
-        else:
-            m = md5(link.url_nofrag.encode("utf8"))
-            basename = link.basename
-        return "%s/%s" %(m.hexdigest()[:self.HASHDIRLEN], basename)
-
     def getentry_fromlink(self, link):
-        return self.getentry(self.canonical_relpath(link))
+        return self.getentry(link.torelpath())
 
     def getentry(self, relpath):
         return RelPathEntry(self.redis, relpath, self.basedir)
@@ -94,6 +102,7 @@ class ReleaseFileStore:
     def iterfile_remote(self, entry, httpget, chunksize):
         # we get and cache the file and some http headers from remote
         r = httpget(entry.url, allow_redirects=True)
+        assert r.status_code >= 0, r.status_code
         entry.sethttpheaders(r.headers)
         # XXX check if we still have the file locally
         log.info("cache-streaming remote: %s", r.url)
@@ -134,15 +143,19 @@ class ReleaseFileStore:
 class RelPathEntry(object):
     SITEPATH = "s:"
 
-    _attr = set("md5 url eggfragment size last_modified "
-                "content_type".split())
+    _attr = set("md5 eggfragment size last_modified content_type".split())
 
     def __init__(self, redis, relpath, basedir):
         self.redis = redis
         self.relpath = relpath
         self.filepath = basedir.join(self.relpath)
+        self.disturl = DistURL.fromrelpath(relpath)
         self.rediskey = self.SITEPATH + self.relpath
         self._mapping = redis.hgetall(self.rediskey)
+
+    @property
+    def url(self):
+        return self.disturl.url
 
     def gethttpheaders(self):
         headers = {"last-modified": self.last_modified,
@@ -169,10 +182,7 @@ class RelPathEntry(object):
 
     @property
     def basename(self):
-        try:
-            return self._mapping["basename"]
-        except KeyError:
-            return self.relpath.split("/")[1]
+        return self.disturl.basename
 
     def iscached(self):
         # compare md5 hash if exists with self.filepath

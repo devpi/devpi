@@ -107,3 +107,18 @@ class DistURL:
     def joinpath(self, url):
         newurl = joinpath(self.url, url)
         return DistURL(newurl)
+
+    def torelpath(self):
+        """ return scheme/netloc/path/fragment into a canonical relative
+        filepath.  Only the scheme, netlocation and path are mapped,
+        fragments and queries are ignored.
+        """
+        parsed = self._parsed
+        assert parsed.scheme in ("http", "https")
+        return "%s/%s%s" % (parsed.scheme, parsed.netloc, parsed.path)
+
+    @classmethod
+    def fromrelpath(cls, relpath):
+        """ return url from canonical relative path. """
+        scheme, netlocpath = relpath.split("/", 1)
+        return cls(scheme + "://" + netlocpath)

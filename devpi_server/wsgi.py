@@ -36,9 +36,11 @@ class PyPIView:
     @route("/ext/pypi/<projectname>")
     @route("/ext/pypi/<projectname>/")
     def extpypi_simple(self, projectname):
-        entries = self.extdb.getreleaselinks(projectname)
+        result = self.extdb.getreleaselinks(projectname)
+        if isinstance(result, int):
+            raise BadGateway()
         links = []
-        for entry in entries:
+        for entry in result:
             href = "/pkg/" + entry.relpath
             if entry.eggfragment:
                 href += "#egg=%s" % entry.eggfragment
@@ -70,6 +72,7 @@ def configure_xom(argv=None):
     from devpi_server.main import preparexom
     if argv is None:
         argv = ["devpi_server"]
+    log.info("setting up resources %s", os.getpid())
     xom = preparexom(["devpi_server"])
     xom.extdb = xom.hook.resource_extdb(xom=xom)
     xom.releasefilestore = xom.extdb.releasefilestore
@@ -145,9 +148,7 @@ if __name__ == "__main__":
     import logging.config
     logging.config.dictConfig(default_logging_config, )
     from bottle import run
-    app = create_app()
-    app.run(debug=True, port=3141)
-    run(app="devpi_server.wsgi:create_app()",
+    run(app="devpi_server.wsgi:create_app()", server="eventlet",
         reloader=True, debug=True, port=3141)
 
 #else:
