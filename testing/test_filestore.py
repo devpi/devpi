@@ -40,7 +40,7 @@ class TestReleaseFileStore:
         entry = filestore.getentry_fromlink(link)
         assert entry.relpath == relpath
 
-    def test_maplink(self, filestore):
+    def test_maplink(self, filestore, redis):
         link = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=123")
         entry1 = filestore.maplink(link, refresh=False)
         entry2 = filestore.maplink(link, refresh=False)
@@ -48,6 +48,18 @@ class TestReleaseFileStore:
         assert entry1 == entry2
         assert entry1.relpath.endswith("/pytest-1.2.zip")
         assert entry1.md5 == "123"
+
+    def test_maplink_file_there_but_no_entry(self, filestore, redis):
+        link = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=123")
+        entry1 = filestore.maplink(link, refresh=False)
+        assert entry1.filepath.ensure()
+        redis.delete(entry1.rediskey)
+        entry1 = filestore.maplink(link, refresh=False)
+        assert entry1.url == link.url_nofrag
+        headers, itercontent = filestore.iterfile_local(entry1, 1)
+        assert itercontent is None
+
+
 
     def test_invalidate_cache(self, filestore):
         link = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip")

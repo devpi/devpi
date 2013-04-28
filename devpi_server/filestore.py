@@ -1,4 +1,14 @@
+"""
 
+project-1.0.zip#md5=123123
+-> entry.md5 = 123123
+-> entry.relpath = 123123/project-1.0.zip
+
+when streamed via remote url and file does not have correct md5,
+we invalidate the project so that its md5/links will be loaded again
+and break the stream.
+
+"""
 from hashlib import md5
 import py
 from .types import propmapping
@@ -14,7 +24,7 @@ class ReleaseFileStore:
 
     def maplink(self, link, refresh=False):
         entry = self.getentry_fromlink(link)
-        if not entry.iscached() or refresh:
+        if not entry.url or refresh or not entry.iscached():
             mapping = dict(url=link.url_nofrag)
             if link.md5:
                 mapping["md5"] = link.md5
@@ -85,6 +95,7 @@ class ReleaseFileStore:
         # we get and cache the file and some http headers from remote
         r = httpget(entry.url, allow_redirects=True)
         entry.sethttpheaders(r.headers)
+        # XXX check if we still have the file locally
         log.info("cache-streaming remote: %s", r.url)
         target = entry.filepath
         target.dirpath().ensure(dir=1)
@@ -164,6 +175,12 @@ class RelPathEntry(object):
             return self.relpath.split("/")[1]
 
     def iscached(self):
+        # compare md5 hash if exists with self.filepath
+        # XXX move file store scheme to have md5 hash within the filename
+        # but a filename should only contain the md5 hash if it is verified
+        # i.e. we maintain an invariant that <md5>/filename has a content
+        # that matches the md5 hash. It is therefore possible that a
+        # entry.md5 is set, but entry.relpath
         return self.filepath.check()
 
     def __eq__(self, other):

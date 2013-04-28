@@ -36,6 +36,8 @@ class IndexParser:
         if entry is None or (not entry.md5 and newurl.md5):
             self.basename2link[newurl.basename] = newurl
             log.debug("adding link %s", newurl)
+        else:
+            log.debug("ignoring candidate link %s", newurl)
 
     @property
     def releaselinks(self):
