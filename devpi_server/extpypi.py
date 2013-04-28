@@ -8,7 +8,6 @@ import re
 import os, sys
 import py
 import json
-from devpi_server.plugin import hookimpl
 from devpi_server.types import propmapping
 from hashlib import md5
 from bs4 import BeautifulSoup
@@ -275,75 +274,10 @@ def parse_http_date_to_posix(date):
     ### DST?
     return (time - datetime.datetime(1970, 1, 1)).total_seconds()
 
-@hookimpl()
-def server_addoptions(parser):
-    parser.add_argument("--pypilookup", metavar="NAME", type=str,
-            default=None,
-            help="lookup specified project on pypi upstream server")
-
-    parser.add_argument("--refresher", action="store_true",
-            default=None,
-            help="enabled resfreshing")
-
-    parser.add_argument("--url_base", metavar="url", type=str,
-            default="https://pypi.python.org/",
-            help="base url of main remote pypi server (without simple/)")
-
-
-@hookimpl(tryfirst=True)
-def server_mainloop(xom):
-    """ entry point for showing release links via --pypilookup """
-    projectname = xom.config.args.pypilookup
-    if projectname is None:
-        return
-
-    extdb = xom.hook.resource_extdb(xom=xom)
-    now = py.std.time.time()
-    links = extdb.getreleaselinks(projectname=projectname,
-                                  refresh=xom.config.args.refresh)
-    for link in links:
-        print link.relpath, link.md5
-        #print "   ", link.url
-    elapsed = py.std.time.time() - now
-    print "retrieval took %.3f seconds" % elapsed
-    return True
-
-
-@hookimpl()
-def resource_extdb(xom):
-    from devpi_server.filestore import ReleaseFileStore
-    htmlcache = xom.hook.resource_htmlcache(xom=xom)
-    target = py.path.local(os.path.expanduser(xom.config.args.datadir))
-    releasefilestore = ReleaseFileStore(htmlcache.redis, target)
-    extdb = ExtDB(xom.config.args.url_base, htmlcache, releasefilestore)
-    #extdb.scanner = pypichangescan(config.args.url_base+"pypi", htmlcache)
-    return extdb
-
-
-@hookimpl()
-def resource_htmlcache(xom):
-    redis = xom.hook.resource_redis(xom=xom)
-    httpget = xom.hook.resource_httpget(xom=xom)
-    return HTMLCache(redis, httpget)
 
 class FatalResponse:
     status_code = -1
 
     def __init__(self, excinfo=None):
         self.excinfo = excinfo
-
-@hookimpl()
-def resource_httpget(xom):
-    import requests.exceptions
-    def httpget(url, allow_redirects):
-        try:
-            return requests.get(url, stream=True,
-                                allow_redirects=allow_redirects)
-        except requests.exceptions.RequestException:
-            return FatalResponse(sys.exc_info())
-    return httpget
-
-
-#def mirroring_httpget_releasefile(httpget):
-#    def mirror_httpget(url, allow_redirects=False):
 

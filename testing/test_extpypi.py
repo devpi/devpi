@@ -334,6 +334,7 @@ class TestRefreshManager:
 
 
 
+@pytest.mark.xfail
 def test_requests_httpget_negative_status_code(xom, monkeypatch):
     import requests.exceptions
     def r(*a, **k):

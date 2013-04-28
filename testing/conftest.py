@@ -54,8 +54,9 @@ def clean_redis(request):
 
 @pytest.fixture
 def xom(request):
-    from devpi_server.main import preparexom
-    xom = preparexom(["devpi-server"])
+    from devpi_server.main import parseoptions, XOM
+    config = parseoptions(["devpi-server"])
+    xom = XOM(config)
     request.addfinalizer(xom.shutdown)
     return xom
 
