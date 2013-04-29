@@ -37,6 +37,7 @@ class XOM:
         log.debug("shutdown procedure finished")
 
     def addshutdownfunc(self, name, shutdownfunc):
+        log.debug("appending shutdown func %s", name)
         self._shutdownfuncs.append((name, shutdownfunc))
 
     def sleep(self, secs):
@@ -61,9 +62,11 @@ class XOM:
         thread.start()
         return thread
 
-    def startprocess(self, name, preparefunc, restart=True):
+    def startprocess(self, name, preparefunc, restart=False):
         pid, logfile = self._xprocess.ensure(name, preparefunc,
                                              restart=restart)
+        #log.info("logfile %s", logfile.name)
+        #log.info("logfile content %r", open(logfile.name).read())
         def killproc():
             try:
                 py.process.kill(pid)
@@ -82,6 +85,7 @@ class XOM:
     def redis(self):
         import redis
         client = redis.StrictRedis(port=self.config.args.redisport)
+        #self.addshutdownfunc("shutdown redis", client.shutdown)
         return client
 
     @cached_property
@@ -118,7 +122,6 @@ class XOM:
         from devpi_server.views import PyPIView, PkgView, route
         from bottle import Bottle
         log.info("creating application in process %s", os.getpid())
-        #start_background_tasks_if_not_in_arbiter(xom)
         app = Bottle(catchall=catchall)
         pypiview = PyPIView(self.extdb)
         route.discover_and_call(pypiview, app.route)
@@ -208,10 +211,11 @@ def get_logging_config(debug=True):
 def bottle_run(xom):
     from logging.config import dictConfig
     dictConfig(get_logging_config(xom.config.args.debug))
-    from bottle import run
-    app = xom.create_app()
     workers.append(1)
     start_background_tasks_if_not_in_arbiter(xom)
-    ret = app.run(reloader=False, port=3141)
+    app = xom.create_app()
+    port = xom.config.args.port
+    ret = app.run(server=xom.config.args.bottleserver,
+                  reloader=False, port=port)
     xom.shutdown()
     return ret

@@ -21,8 +21,9 @@ and provides features not found in any other PyPI server:
 
     Do not run devpi-server openly on the internet without consulting
     a lawyer because its caching functionality might be seen as 
-    "re-distribution" if everyone can access it for which you may 
-    not have the appropriate rights.
+    "re-distribution" for which you may not have the rights.
+    Caching packages for an organisations or an individuals purposes is already
+    done today by tools like pip and unlikely to give reason for troubles.
 
 devpi-server is a WSGI application currently implemented with Bottle
 and maintains caching state in Redis and the file system.

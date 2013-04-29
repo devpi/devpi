@@ -1,12 +1,12 @@
 dir {libredis}
-#pidfile {pidfile}
+pidfile {pidfile}
 daemonize {daemonize}
 dbfilename dump.rdb
 port {port}
 bind 127.0.0.1
 timeout 0
 loglevel notice
-databases 16
+databases 1
 save 900 1
 save 300 10
 save 60 10000
@@ -16,7 +16,7 @@ rdbchecksum yes
 slave-serve-stale-data yes
 slave-read-only yes
 slave-priority 100
-appendonly no
+appendonly yes
 appendfsync everysec
 no-appendfsync-on-rewrite no
 auto-aof-rewrite-percentage 100

@@ -12,6 +12,10 @@ def addoptions(parser):
             default="~/.devpi/serverdata",
             help="data directory for devpi-server")
 
+    group.addoption("--port",  type=int,
+            default=3141,
+            help="port to listen for http requests")
+
     group.addoption("--redisport", type=int, metavar="PORT",
             default=3142,
             help="redis server port number")
@@ -21,8 +25,12 @@ def addoptions(parser):
             default="auto",
             help="whether to start redis as a sub process")
 
+    group.addoption("--bottleserver", metavar="TYPE",
+            default="wsgiref",
+            help="bottle server class, you may try eventlet or others")
+
     group.addoption("--debug", action="store_true",
-            help="run wsgi application with debug logging,")
+            help="run wsgi application with debug logging")
 
     group = parser.getgroup("upstream", "pypi upstream options")
     group.addoption("--pypiurl", metavar="url", type=str,
@@ -32,7 +40,6 @@ def addoptions(parser):
     group.addoption("--refresh", type=float, metavar="SECS",
             default=60,
             help="periodically pull changes from pypi.python.org")
-
 
 def parseoptions(argv):
     if argv is None:

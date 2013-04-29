@@ -124,7 +124,7 @@ class XProcess:
                     pass
                 # wait?
             controldir = info.controldir
-            controldir.remove()
+            #controldir.remove()
             controldir.ensure(dir=1)
             wait, args = preparefunc(controldir)
             args = [str(x) for x in args]
@@ -135,12 +135,13 @@ class XProcess:
                 kwargs["creationflags"] = 0x08
             else:
                 kwargs["close_fds"] = True
+                kwargs["preexec_fn"] = os.setpgrp  # no CONTROL-C
             popen = Popen(args, cwd=str(controldir),
                           stdout=stdout, stderr=STDOUT,
                           **kwargs)
-            pid = popen.pid
-            self.log.debug("process %r started pid=%s", name, pid)
+            info.pid = pid = popen.pid
             info.pidpath.write(str(pid))
+            self.log.debug("process %r started pid=%s", name, pid)
             stdout.close()
         f = info.logpath.open()
         if not restart:
