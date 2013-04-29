@@ -1,6 +1,7 @@
 
 import pytest
 from devpi_server.extpypi import *
+from devpi_server.main import FatalResponse
 import mock
 import time
 
@@ -152,6 +153,15 @@ class TestHTMLCacheResponse:
         r = HTMLCacheResponse(redis, "cache:" + url, url)
         assert r.status_code == 200
 
+    def test_fatal_response_first_is_cached(self, redis):
+        redis.flushdb()
+        url = "https://something/simple/pytest/"
+        r = HTMLCacheResponse(redis, "cache:" + url, url)
+        class PseudoResponse:
+            status_code = -1
+        r.setnewreponse(PseudoResponse)
+        assert r
+        assert r.status_code == -1
 
     def test_redirect(self, redis):
         url = "https://something/simple/pytest"
@@ -345,24 +355,3 @@ def test_requests_httpget_negative_status_code(xom, monkeypatch):
     r = httpget("http://notexists.qwe", allow_redirects=False)
     assert r.status_code == -1
 
-@pytest.mark.xfail(reason="functional redis other than testing redis")
-def test_simple_project_egg(extdb, filestore):
-    from pyramid.request import Request
-    from devpi_server.wsgi import main
-    link = DistURL("http://p/master#egg=pytest-dev")
-    entry = filestore.maplink(link)
-    entry = filestore.getentry(entry.relpath)
-    print entry._mapping, entry.relpath
-    req = Request.blank("/pkg/%s" % entry.relpath)
-
-    headers={"content-length": "3",
-             "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
-             "content-type": "application/zip"}
-    def iter_content(chunksize):
-        yield py.builtin.bytes("12")
-        yield py.builtin.bytes("3")
-    extdb.url2response[entry.url] = dict(status_code=200,
-                headers=headers, iter_content=iter_content)
-    app = main(None)
-    r = req.get_response(app)
-    assert 0

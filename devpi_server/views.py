@@ -1,7 +1,7 @@
 
 from py.xml import html
 from devpi_server.types import lazydecorator
-from bottle import response, request
+from bottle import response, request, abort
 
 def simple_html_body(title, bodytags):
     return html.html(
@@ -27,7 +27,13 @@ class PyPIView:
         # route's slash
         result = self.extdb.getreleaselinks(projectname)
         if isinstance(result, int):
-            raise BadGateway()
+            if result == 404:
+                abort(404, "no such project")
+            if result >= 500:
+                abort(502, "upstream server has internal error")
+            if result < 0:
+                abort(502, "upstream server not reachable")
+
         links = []
         for entry in result:
             href = "/pkg/" + entry.relpath

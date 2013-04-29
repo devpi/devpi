@@ -98,7 +98,7 @@ class HTMLCache:
         while counter <= self.maxredirect:
             counter += 1
             cacheresponse = self.gethtmlcache(url)
-            if refresh or not cacheresponse:
+            if refresh or not cacheresponse or cacheresponse.status_code >= 400:
                 response = self.httpget(url, allow_redirects=False)
                 cacheresponse.setnewreponse(response)
             url = cacheresponse.nextlocation
@@ -142,8 +142,9 @@ class HTMLCacheResponse(object):
                                                   response.headers["location"])
         elif response.status_code == 200:
             mapping["content"] = response.text.encode("utf8")
-        elif response.status_code < 0:
+        elif response.status_code < 0 and self.status_code == 200:
             # fatal response (no network, DNS problems etc) -> don't cache
+            # if we already have a good status_code
             return
         self.redis.hmset(self.rediskey, mapping)
         self._mapping = mapping
@@ -196,6 +197,7 @@ class ExtDB:
         log.debug("visiting index %s", url)
         response = self.htmlcache.get(url, refresh=refresh)
         if response.status_code != 200:
+            assert response.status_code
             return response.status_code
         assert response.text is not None, response.text
         result = parse_index(response.url, response.text)
@@ -274,10 +276,4 @@ def parse_http_date_to_posix(date):
     ### DST?
     return (time - datetime.datetime(1970, 1, 1)).total_seconds()
 
-
-class FatalResponse:
-    status_code = -1
-
-    def __init__(self, excinfo=None):
-        self.excinfo = excinfo
 

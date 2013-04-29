@@ -27,6 +27,7 @@ def addoptions(parser):
             default="https://pypi.python.org/",
             help="base url of main remote pypi server (without simple/)")
 
+
 def main(argv=None):
     config = parseoptions(argv)
     xom = XOM(config)
@@ -97,27 +98,32 @@ class XOM:
         return ExtDB(self.config.args.url_base, htmlcache,
                      self.releasefilestore)
 
-    @cached_property
-    def httpget(self):
+    def httpget(self, url, allow_redirects):
         import requests.exceptions
-        def httpget(url, allow_redirects):
-            try:
-                return requests.get(url, stream=True,
-                                    allow_redirects=allow_redirects)
-            except requests.exceptions.RequestException:
-                return FatalResponse(sys.exc_info())
-        return httpget
+        try:
+            return requests.get(url, stream=True,
+                                allow_redirects=allow_redirects)
+        except requests.exceptions.RequestException:
+            return FatalResponse(sys.exc_info())
 
-    def create_app(self):
+    def create_app(self, catchall=True):
         from devpi_server.views import PyPIView, PkgView, route
         log.info("creating application in process %s", os.getpid())
         #start_background_tasks_if_not_in_arbiter(xom)
-        app = Bottle()
+        app = Bottle(catchall=catchall)
         pypiview = PyPIView(self.extdb)
         route.discover_and_call(pypiview, app.route)
         pkgview = PkgView(self.releasefilestore, self.httpget)
         route.discover_and_call(pkgview, app.route)
         return app
+
+
+class FatalResponse:
+    status_code = -1
+
+    def __init__(self, excinfo=None):
+        self.excinfo = excinfo
+
 
 
 # this flag indicates if we are running in the gunicorn master server

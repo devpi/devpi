@@ -64,5 +64,9 @@ def cached_property(f):
         except KeyError:
             x = self._property_cache[f] = f(self)
             return x
-    return property(get)
+    def set(self, val):
+        propcache = self.__dict__.setdefault("_property_cache", {})
+        propcache[f] = val
+
+    return property(get, set)
 

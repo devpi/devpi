@@ -6,6 +6,14 @@ import py
 import re
 import logging
 
+import mimetypes
+
+log = logging.getLogger(__name__)
+
+def pytest_addoption(parser):
+    parser.addoption("--catchall", action="store_true", default=False,
+        help="run bottle apps in catchall mode to see exceptions")
+
 @pytest.fixture()
 def caplog(caplog):
     """ shadow the pytest-capturelog funcarg to provide some defaults. """
@@ -44,6 +52,7 @@ def redis(xprocess):
 
     redislogfile = xprocess.ensure("redis", prepare_redis)
     client = redis.StrictRedis(port=port)
+    client.port = port
     return client
 
 @pytest.fixture(autouse=True)
@@ -53,25 +62,61 @@ def clean_redis(request):
         redis.flushdb()
 
 @pytest.fixture
-def xom(request):
+def xom(request, redis):
     from devpi_server.main import parseoptions, XOM
-    config = parseoptions(["devpi-server"])
+    config = parseoptions(["devpi-server", "--redisport", str(redis.port)])
     xom = XOM(config)
     request.addfinalizer(xom.shutdown)
     return xom
 
 @pytest.fixture
-def httpget():
+def httpget(pypiurls):
     url2response = {}
-    def httpget(url, allow_redirects=False):
-        class response:
-            def __init__(self, url):
-                self.__dict__.update(url2response.get(url))
-                self.url = url
-                self.allow_redirects = allow_redirects
-        return response(url)
-    httpget.url2response = url2response
-    return httpget
+    class MockHTTPGet:
+        def __init__(self):
+            self.url2response = {}
+
+        def __call__(self, url, allow_redirects=False):
+            class mockresponse:
+                def __init__(xself, url):
+                    fakeresponse = self.url2response.get(url)
+                    if fakeresponse is None:
+                        fakeresponse = dict(status_code = 404)
+                    xself.__dict__.update(fakeresponse)
+                    xself.url = url
+                    xself.allow_redirects = allow_redirects
+                def __repr__(xself):
+                    return "<mockresponse %s url=%s>" % (xself.status_code,
+                                                         xself.url)
+            r = mockresponse(url)
+            log.debug("returning %s", r)
+            return r
+
+        def mockresponse(self, url, **kw):
+            if "status_code" not in kw:
+                kw["status_code"] = 200
+            log.debug("set mocking response %s %s", url, kw)
+            self.url2response[url] = kw
+
+        def setextsimple(self, name, text=None, **kw):
+            return self.mockresponse(pypiurls.simple + name + "/",
+                                      text=text, **kw)
+
+        def setextfile(self, path, content, **kw):
+            headers = {"content-length": len(content),
+                       "content-type": mimetypes.guess_type(path),
+                       "last-modified": "today",}
+            if path.startswith("/") and pypiurls.base.endswith("/"):
+                path = path.lstrip("/")
+            def iter_content(chunksize):
+                yield content
+            return self.mockresponse(pypiurls.base + path,
+                                      iter_content=iter_content,
+                                      headers=headers,
+                                      **kw)
+
+
+    return MockHTTPGet()
 
 @pytest.fixture
 def filestore(redis, tmpdir):
@@ -86,4 +131,12 @@ def extdb(redis, filestore, httpget):
     extdb = ExtDB("https://pypi.python.org/", htmlcache, filestore)
     extdb.url2response = httpget.url2response
     return extdb
+
+@pytest.fixture
+def pypiurls(xom):
+    class PyPIURL:
+        def __init__(self):
+            self.base = xom.config.args.url_base
+            self.simple = self.base + "simple/"
+    return PyPIURL()
 
