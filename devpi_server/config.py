@@ -1,27 +1,37 @@
 import sys
 import optparse
+from logging import getLogger
+
+import py
+from devpi_server.types import canraise
+log = getLogger(__name__)
 
 def addoptions(parser):
     group = parser.getgroup("main", "main options")
     group.addoption("--datadir", type=str, metavar="DIR",
-            default="~/.devpi/httpcachedata",
-            help="data directory for httpcache")
+            default="~/.devpi/serverdata",
+            help="data directory for devpi-server")
 
     group.addoption("--redisport", type=int, metavar="PORT",
-            default=6379,
+            default=3142,
             help="redis server port number")
 
+    group.addoption("--redismode", metavar="auto|manual",
+            action="store", choices=("auto", "manual"),
+            default="auto",
+            help="whether to start redis as a sub process")
+
+    group.addoption("--debug", action="store_true",
+            help="run wsgi application with debug logging,")
+
+    group = parser.getgroup("upstream", "pypi upstream options")
     group.addoption("--pypiurl", metavar="url", type=str,
             default="https://pypi.python.org/",
             help="base url of remote pypi server")
 
-    group.addoption("--debug", action="store_true",
-            help="run wsgi application with debug logging")
-
-    group = parser.getgroup("refresh", "cache refreshing options")
     group.addoption("--refresh", type=float, metavar="SECS",
             default=60,
-            help="periodically refresh pypi.python.org cache seconds")
+            help="periodically pull changes from pypi.python.org")
 
 
 def parseoptions(argv):
@@ -34,9 +44,32 @@ def parseoptions(argv):
     config = Config(options)
     return config
 
+class ConfigurationError(Exception):
+    """ incorrect configuration or environment settings. """
+
+@canraise(ConfigurationError)
+def configure_redis_start(port):
+    from pkg_resources import resource_string
+    templatestring = resource_string("devpi_server.cfg",
+                                     "redis.conf.template")
+    redis_server = py.path.local.sysfind("redis-server")
+    if redis_server is None:
+        raise ConfigurationError("'redis-server' binary not found in PATH")
+    def prepare_redis(cwd):
+        content = templatestring.format(libredis=cwd,
+                          daemonize="no",
+                          port=port, pidfile=cwd.join("_pid_from_redis"))
+        target = cwd.join("redis.conf")
+        target.write(content)
+        log.debug("wrote redis configuration at %s", target)
+        return (".*ready to accept connections on port %s.*" % port,
+                [str(redis_server), "redis.conf"])
+    return prepare_redis
+
 class Config:
     def __init__(self, args):
         self.args = args
+
 
 class MyOptionParser(optparse.OptionParser):
     def __init__(self, parser):

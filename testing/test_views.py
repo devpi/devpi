@@ -25,11 +25,11 @@ def testapp(request, xom):
 
 def test_simple_project(pypiurls, httpget, testapp):
     name = "qpwoei"
-    r = testapp.get("/ext/pypi/" + name)
+    r = testapp.get("/ext/pypi/simple/" + name)
     assert r.status_code == 404
     path = "/%s-1.0.zip" % name
     httpget.setextsimple(name, text='<a href="%s"/>' % path)
-    r = testapp.get("/ext/pypi/%s" % name)
+    r = testapp.get("/ext/pypi/simple/%s" % name)
     assert r.status_code == 200
     links = BeautifulSoup(r.text).findAll("a")
     assert len(links) == 1
@@ -38,10 +38,10 @@ def test_simple_project(pypiurls, httpget, testapp):
 def test_simple_list(pypiurls, httpget, testapp):
     httpget.setextsimple("hello1", text="<html/>")
     httpget.setextsimple("hello2", text="<html/>")
-    assert testapp.get("/ext/pypi/hello1").status_code == 200
-    assert testapp.get("/ext/pypi/hello2").status_code == 200
-    assert testapp.get("/ext/pypi/hello3").status_code == 404
-    r = testapp.get("/ext/pypi/")
+    assert testapp.get("/ext/pypi/simple/hello1").status_code == 200
+    assert testapp.get("/ext/pypi/simple/hello2").status_code == 200
+    assert testapp.get("/ext/pypi/simple/hello3").status_code == 404
+    r = testapp.get("/ext/pypi/simple/")
     assert r.status_code == 200
     links = BeautifulSoup(r.text).findAll("a")
     assert len(links) == 2
@@ -53,13 +53,13 @@ def test_simple_list(pypiurls, httpget, testapp):
 def test_upstream_not_reachable(pypiurls, httpget, testapp, xom, code):
     name = "whatever%d" % (code + 1)
     httpget.setextsimple(name, status_code = code)
-    r = testapp.get("/ext/pypi/%s" % name)
+    r = testapp.get("/ext/pypi/simple/%s" % name)
     assert r.status_code == 502
 
 def test_pkgserv(pypiurls, httpget, testapp):
     httpget.setextsimple("package", '<a href="/package-1.0.zip" />')
     httpget.setextfile("/package-1.0.zip", "123")
-    r = testapp.get("/ext/pypi/package")
+    r = testapp.get("/ext/pypi/simple/package")
     assert r.status_code == 200
     r = testapp.get(getfirstlink(r.text).get("href"))
     assert r.body == "123"

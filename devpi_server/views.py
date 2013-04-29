@@ -20,8 +20,8 @@ class PyPIView:
     def __init__(self, extdb):
         self.extdb = extdb
 
-    @route("/ext/pypi/<projectname>")
-    @route("/ext/pypi/<projectname>/")
+    @route("/ext/pypi/simple/<projectname>")
+    @route("/ext/pypi/simple/<projectname>/")
     def extpypi_simple(self, projectname):
         # we only serve absolute links so we don't care about the
         # route's slash
@@ -50,7 +50,7 @@ class PyPIView:
             body.append(html.br())
         return simple_html_body("links for %s" % projectname, body).unicode()
 
-    @route("/ext/pypi/")
+    @route("/ext/pypi/simple/")
     def extpypi_list(self):
         names = self.extdb.getprojectnames()
         body = []

@@ -1,8 +1,8 @@
 dir {libredis}
 #pidfile {pidfile}
-daemonize no
+daemonize {daemonize}
 dbfilename dump.rdb
-port 6400
+port {port}
 bind 127.0.0.1
 timeout 0
 loglevel notice

@@ -1,12 +1,12 @@
 
-from devpi_server.main import XOM
-
-import pytest
-import py
 import re
 import logging
-
 import mimetypes
+import pytest
+import py
+from devpi_server.main import XOM
+from devpi_server.config import configure_redis_start
+
 
 log = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ def pytest_addoption(parser):
 
 @pytest.fixture()
 def caplog(caplog):
-    """ shadow the pytest-capturelog funcarg to provide some defaults. """
+    """ enrich the pytest-capturelog funcarg. """
     caplog.setLevel(logging.DEBUG)
     def getrecords(msgrex=None):
         if msgrex is not None:
@@ -35,25 +35,17 @@ def redis(xprocess):
     """ return a session-wide StrictRedis connection which is connected
     to an externally started redis server instance
     (through the xprocess plugin)"""
-    redis = pytest.importorskip("redis", "2.7.2")
-    conftemplate = py.path.local(__file__).dirpath("redis.conf.template")
-    assert conftemplate.check()
-    redispath = py.path.local.sysfind("redis-server")
-    if not redispath:
-        pytest.skip("command not found: redis-server")
+    redis = pytest.importorskip("redis")
     port = 6400
-    def prepare_redis(cwd):
-        templatestring = conftemplate.read()
-        content = templatestring.format(libredis=cwd,
-                          port=port, pidfile=cwd.join("_pid_from_redis"))
-        cwd.join("redis.conf").write(content)
-        return (".*ready to accept connections on port %s.*" % port,
-                ["redis-server", "redis.conf"])
-
+    try:
+        prepare_redis = configure_redis_start(port=port)
+    except configure_redis_start.Error:
+        pytest.skip("command not found: redis-server")
     redislogfile = xprocess.ensure("redis", prepare_redis)
     client = redis.StrictRedis(port=port)
     client.port = port
     return client
+
 
 @pytest.fixture(autouse=True)
 def clean_redis(request):

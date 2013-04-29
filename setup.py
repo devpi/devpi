@@ -3,7 +3,6 @@
 import os, sys
 from setuptools import setup, find_packages
 
-
 if __name__ == "__main__":
     here = os.path.abspath(os.path.dirname(__file__))
     README = open(os.path.join(here, 'README.rst')).read()

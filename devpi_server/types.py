@@ -1,3 +1,4 @@
+import functools
 
 def propmapping(name, type=None):
     if type is None:
@@ -11,6 +12,12 @@ def propmapping(name, type=None):
             return x
     fget.__name__ = name
     return property(fget)
+
+def canraise(Error):
+    def wrap(func):
+        func.Error = Error
+        return func
+    return wrap
 
 class lazydecorator:
     """ lazydecorator (c) holger krekel, 2013, License: MIT """

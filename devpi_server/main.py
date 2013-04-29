@@ -9,8 +9,7 @@ import threading
 from logging import getLogger
 log = getLogger(__name__)
 
-import redis
-from bottle import Bottle, response
+from pkg_resources import resource_string
 from devpi_server.types import cached_property
 from devpi_server.config import parseoptions
 
@@ -27,9 +26,18 @@ class XOM:
         self.config = config
         self._spawned = []
         self._shutdown = threading.Event()
+        self._shutdownfuncs = []
 
     def shutdown(self):
+        log.debug("shutting down")
         self._shutdown.set()
+        for name, func in reversed(self._shutdownfuncs):
+            log.info("shutdown: %s", name)
+            func()
+        log.debug("shutdown procedure finished")
+
+    def addshutdownfunc(self, name, shutdownfunc):
+        self._shutdownfuncs.append((name, shutdownfunc))
 
     def sleep(self, secs):
         self._shutdown.wait(secs)
@@ -53,16 +61,38 @@ class XOM:
         thread.start()
         return thread
 
+    def startprocess(self, name, preparefunc, restart=True):
+        pid, logfile = self._xprocess.ensure(name, preparefunc,
+                                             restart=restart)
+        def killproc():
+            try:
+                py.process.kill(pid)
+            except OSError:
+                pass
+        self.addshutdownfunc("kill %s server pid %s" % (name, pid), killproc)
+        return pid, logfile
+
+    @cached_property
+    def _xprocess(self):
+        from devpi_server.vendor.xprocess import XProcess
+        return XProcess(self.config, self.datadir, log=log)
+
+
     @cached_property
     def redis(self):
         import redis
-        return redis.StrictRedis(port=self.config.args.redisport)
+        client = redis.StrictRedis(port=self.config.args.redisport)
+        return client
+
+    @cached_property
+    def datadir(self):
+        return py.path.local(os.path.expanduser(self.config.args.datadir))
+
 
     @cached_property
     def releasefilestore(self):
         from devpi_server.filestore import ReleaseFileStore
-        target = py.path.local(os.path.expanduser(self.config.args.datadir))
-        return ReleaseFileStore(self.redis, target)
+        return ReleaseFileStore(self.redis, self.datadir)
 
     @cached_property
     def extdb(self):
@@ -86,6 +116,7 @@ class XOM:
 
     def create_app(self, catchall=True):
         from devpi_server.views import PyPIView, PkgView, route
+        from bottle import Bottle
         log.info("creating application in process %s", os.getpid())
         #start_background_tasks_if_not_in_arbiter(xom)
         app = Bottle(catchall=catchall)
@@ -118,7 +149,9 @@ def start_background_tasks_if_not_in_arbiter(xom):
     log.debug("checking if running in worker %s", os.getpid())
     if not workers:
         return
-    log.info("starting background tasks in pid %s", os.getpid())
+    log.info("starting background tasks from process %s", os.getpid())
+    if xom.config.args.redismode == "auto":
+        start_redis_server(xom)
     from devpi_server.extpypi import RefreshManager, XMLProxy
     xom.proxy = XMLProxy(xom.config.args.pypiurl + "pypi/")
     refresher = RefreshManager(xom.extdb, xom)
@@ -127,6 +160,14 @@ def start_background_tasks_if_not_in_arbiter(xom):
     log.debug("returning from background task starting")
     xom.spawn(refresher.spawned_refreshprojects,
               args=(lambda: xom.sleep(5),))
+
+def start_redis_server(xom):
+    from devpi_server.config import configure_redis_start
+    port = xom.config.args.redisport
+    prepare_redis = configure_redis_start(port)
+    pid, logfile = xom.startprocess("redis", prepare_redis)
+    log.info("started redis-server pid %s on port %s", pid, port)
+
 
 def get_logging_config(debug=True):
     if debug:
@@ -171,4 +212,6 @@ def bottle_run(xom):
     app = xom.create_app()
     workers.append(1)
     start_background_tasks_if_not_in_arbiter(xom)
-    return app.run(reloader=False, port=3141)
+    ret = app.run(reloader=False, port=3141)
+    xom.shutdown()
+    return ret

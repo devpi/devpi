@@ -11,6 +11,15 @@ class TestXOM:
         xom.sleep(10)
         assert l == [10]
 
+    def test_shutdownfunc_lifo(self, xom, caplog):
+        l = []
+        xom.addshutdownfunc("hello", lambda: l.append(1))
+        xom.addshutdownfunc("world", lambda: l.append(2))
+        xom.shutdown()
+        assert l == [2,1]
+        assert caplog.getrecords(".*hello.*")
+        assert caplog.getrecords(".*world.*")
+
     def test_spawn(self, xom, caplog):
         l = []
         thread = xom.spawn(lambda: l.append(1))

@@ -248,16 +248,18 @@ class RefreshManager:
         projectnames = set([x[0] for x in changelog])
         redis = self.redis
         notcontained = set()
+        changed = set()
         for name in projectnames:
             if self.extdb.iscontained(name):
                 log.debug("marking invalid %r", name)
+                changed.add(name)
                 redis.sadd(self.INVALIDSET, name)
             else:
                 notcontained.add(name)
         if notcontained:
-            log.debug("ignoring changed projects: %r", notcontained)
-
-
+            log.info("ignoring changed projects: %r", notcontained)
+        if changed:
+            log.info("invalidated projects: %r", changed)
 
     def spawned_refreshprojects(self, invalidationsleep):
         """ Invalidation task for re-freshing project indexes. """
@@ -269,6 +271,7 @@ class RefreshManager:
             if not names:
                 invalidationsleep()
                 continue
+            log.info("picking up invalidated projects %r", names)
             for name in names:
                 self.extdb.getreleaselinks(name, refresh=True)
                 self.redis.srem(self.INVALIDSET, name)
