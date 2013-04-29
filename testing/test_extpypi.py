@@ -293,7 +293,7 @@ class TestExtPYPIDB:
         assert len(extdb.getreleaselinks("proj2")) == 1
         assert extdb.getreleaselinks("proj3") == 404
         names = extdb.getprojectnames()
-        assert names == set(["proj1", "proj2"])
+        assert names == ["proj1", "proj2"]
 
 
 def raising():

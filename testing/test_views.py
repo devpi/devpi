@@ -17,11 +17,15 @@ def httpget(request, xom, httpget, monkeypatch):
 def testapp(request, xom):
     from webtest import TestApp
     app = xom.create_app(catchall=request.config.option.catchall)
-    return TestApp(app)
+    testapp = TestApp(app)
+    oldget = testapp.get
+    testapp.get = lambda path, expect_errors=True: \
+                        oldget(path, expect_errors=expect_errors)
+    return testapp
 
 def test_simple_project(pypiurls, httpget, testapp):
     name = "qpwoei"
-    r = testapp.get("/ext/pypi/" + name, expect_errors=True)
+    r = testapp.get("/ext/pypi/" + name)
     assert r.status_code == 404
     path = "/%s-1.0.zip" % name
     httpget.setextsimple(name, text='<a href="%s"/a>' % path)
@@ -31,11 +35,25 @@ def test_simple_project(pypiurls, httpget, testapp):
     assert len(links) == 1
     assert links[0].get("href").endswith(path)
 
+def test_simple_list(pypiurls, httpget, testapp):
+    httpget.setextsimple("hello1", text="<html/>")
+    httpget.setextsimple("hello2", text="<html/>")
+    assert testapp.get("/ext/pypi/hello1").status_code == 200
+    assert testapp.get("/ext/pypi/hello2").status_code == 200
+    assert testapp.get("/ext/pypi/hello3").status_code == 404
+    r = testapp.get("/ext/pypi/")
+    assert r.status_code == 200
+    links = BeautifulSoup(r.text).findAll("a")
+    assert len(links) == 2
+    hrefs = [a.get("href") for a in links]
+    assert hrefs == ["hello1/", "hello2/"]
+
+
 @pytest.mark.parametrize("code", [-1, 500, 501, 502, 503])
 def test_upstream_not_reachable(pypiurls, httpget, testapp, xom, code):
     name = "whatever%d" % (code + 1)
     httpget.setextsimple(name, status_code = code)
-    r = testapp.get("/ext/pypi/%s" % name, expect_errors=True)
+    r = testapp.get("/ext/pypi/%s" % name)
     assert r.status_code == 502
 
 def test_pkgserv(pypiurls, httpget, testapp):

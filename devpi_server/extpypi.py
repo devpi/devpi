@@ -178,7 +178,9 @@ class ExtDB:
     def getprojectnames(self):
         """ return list of all projects which have been served. """
         keyvals = self.redis.hgetall(self.PROJECTS)
-        return set([key for key,val in keyvals.items() if val])
+        l = [key for key,val in keyvals.items() if val]
+        l.sort()
+        return l
 
     def getreleaselinks(self, projectname, refresh=False):
         """ return all releaselinks from the index and referenced scrape

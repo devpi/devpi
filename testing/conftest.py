@@ -57,7 +57,8 @@ def redis(xprocess):
 
 @pytest.fixture(autouse=True)
 def clean_redis(request):
-    if request.cls and getattr(request.cls, "cleanredis", False):
+    if "redis" in request.fixturenames:
+    #if request.cls and getattr(request.cls, "cleanredis", False):
         redis = request.getfuncargvalue("redis")
         redis.flushdb()
 

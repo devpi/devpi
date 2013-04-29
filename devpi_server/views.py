@@ -50,6 +50,16 @@ class PyPIView:
             body.append(html.br())
         return simple_html_body("links for %s" % projectname, body).unicode()
 
+    @route("/ext/pypi/")
+    def extpypi_list(self):
+        names = self.extdb.getprojectnames()
+        body = []
+        for name in names:
+            body.append(html.a(name, href=name + "/"))
+            body.append(html.br())
+        return simple_html_body("list of accessed projects", body).unicode()
+
+
 class PkgView:
     def __init__(self, filestore, httpget):
         self.filestore = filestore
