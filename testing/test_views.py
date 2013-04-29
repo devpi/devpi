@@ -28,7 +28,7 @@ def test_simple_project(pypiurls, httpget, testapp):
     r = testapp.get("/ext/pypi/" + name)
     assert r.status_code == 404
     path = "/%s-1.0.zip" % name
-    httpget.setextsimple(name, text='<a href="%s"/a>' % path)
+    httpget.setextsimple(name, text='<a href="%s"/>' % path)
     r = testapp.get("/ext/pypi/%s" % name)
     assert r.status_code == 200
     links = BeautifulSoup(r.text).findAll("a")

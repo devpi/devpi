@@ -6,7 +6,7 @@ from setuptools import setup, find_packages
 
 if __name__ == "__main__":
     here = os.path.abspath(os.path.dirname(__file__))
-    README = open(os.path.join(here, 'README.txt')).read()
+    README = open(os.path.join(here, 'README.rst')).read()
     CHANGES = open(os.path.join(here, 'CHANGES.txt')).read()
 
     install_requires = ["beautifulsoup4>=4.1.3", "requests",
@@ -38,7 +38,5 @@ if __name__ == "__main__":
       entry_points = {
         'console_scripts':
                     ["devpi-server = devpi_server.main:main"],
-        'paste.app_factory':
-                    ["main = devpi_server.wsgi:main"],
       })
 

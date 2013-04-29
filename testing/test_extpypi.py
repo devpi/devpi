@@ -46,9 +46,9 @@ class TestIndexParsing:
 
     def test_parse_index_with_egg(self):
         result = parse_index(self.simplepy,
-            """<a href="http://bb.org/download/py.zip#egg=py-dev" /a>
-               <a href="http://bb.org/download/py-1.0.zip" /a>
-               <a href="http://bb.org/download/py.zip#egg=something-dev" /a>
+            """<a href="http://bb.org/download/py.zip#egg=py-dev" />
+               <a href="http://bb.org/download/py-1.0.zip" />
+               <a href="http://bb.org/download/py.zip#egg=something-dev" />
         """)
         assert len(result.releaselinks) == 2
         link, link2 = result.releaselinks
@@ -62,8 +62,8 @@ class TestIndexParsing:
         # for example with nose, there are two eggs and the second/last
         # one is chosen due to the internal pip/easy_install algorithm
         result = parse_index(self.simplepy,
-            """<a href="http://bb.org/download/py.zip#egg=py-dev" /a>
-               <a href="http://other/master#egg=py-dev" /a>
+            """<a href="http://bb.org/download/py.zip#egg=py-dev" />
+               <a href="http://other/master#egg=py-dev" />
         """)
         assert len(result.releaselinks) == 2
         link1, link2 = result.releaselinks
@@ -81,8 +81,8 @@ class TestIndexParsing:
         assert len(result.releaselinks) == 1
         assert len(result.crawllinks) == 2
         result.parse_index(DistURL("http://pylib.org"), """
-               <a href="http://pylib.org/py-1.1.egg" /a>
-               <a href="http://pylib.org/other" rel="download" /a>
+               <a href="http://pylib.org/py-1.1.egg" />
+               <a href="http://pylib.org/other" rel="download" />
         """, scrape=False)
         assert len(result.crawllinks) == 2
         assert len(result.releaselinks) == 2
@@ -105,9 +105,9 @@ class TestIndexParsing:
         assert len(result.releaselinks) == 3
         assert len(result.crawllinks) == 2
         result.parse_index(DistURL("http://pylib.org"), """
-               <a href="http://pylib.org/py-1.4.12.zip" /a>
-               <a href="http://pylib.org/py-1.4.11.zip#md5=1111" /a>
-               <a href="http://pylib.org/py-1.4.10.zip#md5=12ab" /a>
+               <a href="http://pylib.org/py-1.4.12.zip" />
+               <a href="http://pylib.org/py-1.4.11.zip#md5=1111" />
+               <a href="http://pylib.org/py-1.4.10.zip#md5=12ab" />
         """, scrape=False)
         assert len(result.crawllinks) == 2
         assert len(result.releaselinks) == 3
@@ -343,15 +343,12 @@ class TestRefreshManager:
         assert not redis.smembers(refreshmanager.INVALIDSET)
 
 
-
-@pytest.mark.xfail
 def test_requests_httpget_negative_status_code(xom, monkeypatch):
     import requests.exceptions
     def r(*a, **k):
         raise requests.exceptions.RequestException()
 
-    monkeypatch.setattr(requests, "get", r)
-    httpget = resource_httpget(xom)
-    r = httpget("http://notexists.qwe", allow_redirects=False)
+    monkeypatch.setattr(xom._httpsession, "get", r)
+    r = xom.httpget("http://notexists.qwe", allow_redirects=False)
     assert r.status_code == -1
 

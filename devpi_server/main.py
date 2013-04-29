@@ -32,7 +32,8 @@ class XOM:
         self._shutdown.set()
 
     def sleep(self, secs):
-        if self._shutdown.wait(secs):
+        self._shutdown.wait(secs)
+        if self._shutdown.is_set():
             raise self.Exiting()
 
     def spawn(self, func, args=(), kwargs={}):
@@ -70,12 +71,17 @@ class XOM:
         return ExtDB(self.config.args.pypiurl, htmlcache,
                      self.releasefilestore)
 
+    @cached_property
+    def _httpsession(self):
+        import requests
+        return requests.session()
+
     def httpget(self, url, allow_redirects):
-        import requests.exceptions
+        from requests.exceptions import RequestException
         try:
-            return requests.get(url, stream=True,
-                                allow_redirects=allow_redirects)
-        except requests.exceptions.RequestException:
+            return self._httpsession.get(url, stream=True,
+                                         allow_redirects=allow_redirects)
+        except RequestException:
             return FatalResponse(sys.exc_info())
 
     def create_app(self, catchall=True):
