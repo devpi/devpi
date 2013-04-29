@@ -15,6 +15,15 @@ def addoptions(parser):
             default="https://pypi.python.org/",
             help="base url of remote pypi server")
 
+    group.addoption("--debug", action="store_true",
+            help="run wsgi application with debug logging")
+
+    group = parser.getgroup("refresh", "cache refreshing options")
+    group.addoption("--refresh", type=float, metavar="SECS",
+            default=60,
+            help="periodically refresh pypi.python.org cache seconds")
+
+
 def parseoptions(argv):
     if argv is None:
         argv = sys.argv
@@ -110,7 +119,8 @@ class OptionGroup:
     def addoption(self, *optnames, **attrs):
         """ add an option to this group. """
         #if "default" in attrs and attrs.get("action") == "store":
-        attrs["help"] += " [%s]" % attrs["default"]
+        if attrs.get("action") != "store_true":
+            attrs["help"] += " [%s]" % attrs["default"]
         option = optparse.Option(*optnames, **attrs)
         self._addoption_instance(option, shortupper=False)
 

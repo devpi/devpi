@@ -115,7 +115,7 @@ def post_fork(server, worker):
     #log.info("vars %r", vars(worker))
 
 def start_background_tasks_if_not_in_arbiter(xom):
-    log.info("checking if running in worker %s", os.getpid())
+    log.debug("checking if running in worker %s", os.getpid())
     if not workers:
         return
     log.info("starting background tasks in pid %s", os.getpid())
@@ -123,45 +123,52 @@ def start_background_tasks_if_not_in_arbiter(xom):
     xom.proxy = XMLProxy(xom.config.args.pypiurl + "pypi/")
     refresher = RefreshManager(xom.extdb, xom)
     xom.spawn(refresher.spawned_pypichanges,
-              args=(xom.proxy, lambda: xom.sleep(5)))
-    log.info("returning from background task starting")
+              args=(xom.proxy, lambda: xom.sleep(xom.config.args.refresh)))
+    log.debug("returning from background task starting")
     xom.spawn(refresher.spawned_refreshprojects,
               args=(lambda: xom.sleep(5),))
 
-default_logging_config = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'standard': {
-            'format': '%(asctime)s [%(levelname)-5.5s] %(name)s: %(message)s'
+def get_logging_config(debug=True):
+    if debug:
+        loglevel = "DEBUG"
+    else:
+        loglevel = "INFO"
+
+    default_logging_config = {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'formatters': {
+            'standard': {
+                'format': '%(asctime)s [%(levelname)-5.5s] %(name)s: %(message)s'
+            },
         },
-    },
-    'handlers': {
-        'default': {
-            'level':'DEBUG',
-            'class':'logging.StreamHandler',
-            'formatter': 'standard',
+        'handlers': {
+            'default': {
+                'level': loglevel,
+                'class':'logging.StreamHandler',
+                'formatter': 'standard',
+            },
         },
-    },
-    'loggers': {
-        '': {
-            'handlers': ['default'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-        'devpi_server': {
-            'handlers': ['default'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
+        'loggers': {
+            '': {
+                'handlers': ['default'],
+                'level': loglevel,
+                'propagate': False,
+            },
+            'devpi_server': {
+                'handlers': ['default'],
+                'level': loglevel,
+                'propagate': False,
+            },
+        }
     }
-}
+    return default_logging_config
 
 def bottle_run(xom):
     from logging.config import dictConfig
-    dictConfig(default_logging_config)
+    dictConfig(get_logging_config(xom.config.args.debug))
     from bottle import run
     app = xom.create_app()
     workers.append(1)
     start_background_tasks_if_not_in_arbiter(xom)
-    return app.run(reloader=False, debug=True, port=3141)
+    return app.run(reloader=False, port=3141)
