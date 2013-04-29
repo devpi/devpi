@@ -11,8 +11,6 @@ if __name__ == "__main__":
 
     install_requires = ["beautifulsoup4>=4.1.3", "requests",
                         "redis>=2.7.2", "bottle"]
-    #if sys.version_info < (2,7):
-    #    install_requires.append("argparse")
 
     setup(
       name="devpi-server",

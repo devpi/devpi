@@ -137,7 +137,7 @@ def extdb(redis, filestore, httpget):
 def pypiurls(xom):
     class PyPIURL:
         def __init__(self):
-            self.base = xom.config.args.url_base
+            self.base = xom.config.args.pypiurl
             self.simple = self.base + "simple/"
     return PyPIURL()
 

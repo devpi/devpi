@@ -6,46 +6,18 @@ recursive cache of pypi.python.org packages.
 import os, sys
 import py
 import threading
-import argparse
 from logging import getLogger
 log = getLogger(__name__)
 
 import redis
 from bottle import Bottle, response
 from devpi_server.types import cached_property
-
-def addoptions(parser):
-    parser.add_argument("--datadir", type=str, metavar="DIR",
-            default="~/.devpi/httpcachedata",
-            help="data directory for httpcache")
-
-    parser.add_argument("--redisport", type=int, metavar="PORT",
-            default=6379,
-            help="redis server port number")
-
-    parser.add_argument("--url_base", metavar="url", type=str,
-            default="https://pypi.python.org/",
-            help="base url of main remote pypi server (without simple/)")
-
+from devpi_server.config import parseoptions
 
 def main(argv=None):
     config = parseoptions(argv)
     xom = XOM(config)
     return bottle_run(xom)
-
-def parseoptions(argv):
-    if argv is None:
-        argv = sys.argv
-    argv = map(str, argv)
-    parser = argparse.ArgumentParser(prog=argv[0])
-    addoptions(parser)
-    args = parser.parse_args(argv[1:])
-    config = Config(args)
-    return config
-
-class Config:
-    def __init__(self, args):
-        self.args = args
 
 class XOM:
     class Exiting(SystemExit):
@@ -66,13 +38,13 @@ class XOM:
     def spawn(self, func, args=(), kwargs={}):
         def logging_spawn():
             self._spawned.append(thread)
-            log.debug("execution starts %s %s %s", func, args, kwargs)
+            log.debug("execution starts %s", func.__name__)
             try:
                 func(*args, **kwargs)
             except self.Exiting:
                 log.debug("received Exiting signal")
             finally:
-                log.debug("execution finished %s", func)
+                log.debug("execution finished %s", func.__name__)
             self._spawned.remove(thread)
 
         thread = threading.Thread(target=logging_spawn)
@@ -95,7 +67,7 @@ class XOM:
     def extdb(self):
         from devpi_server.extpypi import ExtDB, HTMLCache
         htmlcache = HTMLCache(self.redis, self.httpget)
-        return ExtDB(self.config.args.url_base, htmlcache,
+        return ExtDB(self.config.args.pypiurl, htmlcache,
                      self.releasefilestore)
 
     def httpget(self, url, allow_redirects):
@@ -142,7 +114,7 @@ def start_background_tasks_if_not_in_arbiter(xom):
         return
     log.info("starting background tasks in pid %s", os.getpid())
     from devpi_server.extpypi import RefreshManager, XMLProxy
-    xom.proxy = XMLProxy("http://pypi.python.org/pypi/")
+    xom.proxy = XMLProxy(xom.config.args.pypiurl + "pypi/")
     refresher = RefreshManager(xom.extdb, xom)
     xom.spawn(refresher.spawned_pypichanges,
               args=(xom.proxy, lambda: xom.sleep(5)))

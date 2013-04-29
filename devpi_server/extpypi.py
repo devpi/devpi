@@ -150,7 +150,7 @@ class HTMLCacheResponse(object):
         self._mapping = mapping
 
 
-class XMLProxy:
+class XMLProxy(object):
     def __init__(self, url):
         import xmlrpclib
         self._proxy = xmlrpclib.ServerProxy(url)
@@ -226,7 +226,7 @@ class RefreshManager:
         self.INVALIDSET = "invalid:" + extdb.url_base
 
     def spawned_pypichanges(self, proxy, proxysleep):
-        log.debug("spawned_pypichanges starting")
+        log.debug("spawned_pypichanges starting %s")
         redis = self.redis
         current_serial = redis.get(self.PYPISERIAL)
         if current_serial is None:
