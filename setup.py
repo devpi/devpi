@@ -16,7 +16,7 @@ if __name__ == "__main__":
       description="devpi-server: reliable fast pypi.python.org caching server",
       keywords="pypi cache server wsgi",
       long_description=README + '\n\n' + CHANGES,
-      version='0.7.dev7',
+      version='0.7',
       maintainer="Holger Krekel",
       maintainer_email="holger@merlinux.eu",
       packages=find_packages(),

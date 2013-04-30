@@ -4,12 +4,13 @@ from logging import getLogger
 
 import py
 from devpi_server.types import canraise
+import devpi_server
 log = getLogger(__name__)
 
 def addoptions(parser):
     group = parser.getgroup("main", "main options")
     group.addoption("--version", action="store_true",
-            help="show devpi_version")
+            help="show devpi_version (%s)" % devpi_server.__version__)
 
     group.addoption("--datadir", type=str, metavar="DIR",
             default="~/.devpi/serverdata",
@@ -64,7 +65,11 @@ def configure_redis_start(port):
                                      "redis.conf.template")
     redis_server = py.path.local.sysfind("redis-server")
     if redis_server is None:
-        raise ConfigurationError("'redis-server' binary not found in PATH")
+        if sys.platform == "win32":
+            redis_server = py.path.local.sysfind("redis-server",
+                    paths= [r"c:\\Program Files\redis"])
+        if redis_server is None:
+            raise ConfigurationError("'redis-server' binary not found in PATH")
     def prepare_redis(cwd):
         content = templatestring.format(libredis=cwd,
                           daemonize="no",
