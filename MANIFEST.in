@@ -1,2 +1,3 @@
 include *.txt *.ini *.cfg *.rst
 recursive-include devpi_server *.template  *.ico *.png *.css *.gif *.jpg *.pt *.txt *.mak *.mako *.js *.html *.xml
+recursive-include testing *.py

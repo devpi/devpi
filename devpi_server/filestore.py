@@ -134,6 +134,10 @@ class ReleaseFileStore:
             if err is not None:
                 log.error(err)
                 raise err
+            try:
+                target.remove()
+            except py.error.ENOENT:
+                pass
             tmp_target.move(target)
             entry.set(md5=digest, size=filesize)
             log.info("finished getting remote %r", entry.url)

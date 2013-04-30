@@ -105,7 +105,7 @@ def test_canonical_url_path_mappings(url):
     url = DistURL(url)
     path = url.torelpath()
     assert path[0] != "/"
-    assert os.path.normpath(path) == path
+    assert posixpath.normpath(path) == path
     back_url = DistURL.fromrelpath(path)
     assert url == back_url
 
