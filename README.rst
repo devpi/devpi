@@ -49,6 +49,36 @@ according entry in your ``$HOME/.pip/pip.conf`` (posix) or
     [global]
     index-url == http://localhost:3141/ext/pypi/simple/
 
+Example timing
+----------------
+
+Here is a little screen session when using a fresh ``devpi-server``
+instance, installing itself in a fresh virtualenv::
+
+    hpk@teta:~/p/devpi-server$ virtualenv devpi >/dev/null
+    hpk@teta:~/p/devpi-server$ source devpi/bin/activate
+    (devpi) hpk@teta:~/p/devpi-server$ time pip install -q \
+                -i http://localhost:3141/ext/pypi/simple/ devpi-server 
+
+    real 21.971s
+    user 1.564s
+    system 0.420s
+
+So that took 21 seconds.  Now lets remove the virtualenv, recreate
+it and install a second time::
+
+    (devpi) hpk@teta:~/p/devpi-server$ rm -rf devpi
+    (devpi) hpk@teta:~/p/devpi-server$ virtualenv devpi  >/dev/null
+    (devpi)hpk@teta:~/p/devpi-server$ time pip install -q -i http://localhost:3141/ext/pypi/simple/ devpi-server 
+
+    real 1.716s
+    user 1.152s
+    system 0.472s
+
+Ok, that was more than 10 times faster.  The install of ``devpi-server``
+(0.7) involves five packages btw: ``beautifulsoup4, bottle, py, redis,
+requests``.
+
 
 Compatibility
 --------------------
