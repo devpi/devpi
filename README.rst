@@ -7,14 +7,14 @@ used by pip or easy_install.  ``devpi-server`` offers features
 not found in other PyPI proxy servers:
 
 - transparent caching of pypi.python.org index and release files 
-  on demand, including indexes and files from 3rd party sites.  
+  on first access, including indexes and files from 3rd party sites.  
 
 - pip/easy_install/buildout are shielded from the typical 
   client-side crawling, thus providing lightning-fast and 
-  reliable installation.
+  reliable installation (on second access of a package).
 
-- ``devpi-server`` automatically updates its main index cache 
-  using pypi's changelog protocol, making sure you'll always
+- ``devpi-server`` moreover automatically updates its main index 
+  cache using pypi's changelog protocol, making sure you'll always
   see an up-to-date view of what's available.
 
 devpi-server is designed to satisfy all needs arising from 
@@ -44,7 +44,7 @@ To avoid having to re-type the URL, you can configure pip by either
 setting the environment variable ``PIP_INDEX_URL`` to 
 ``http://localhost:3141/ext/pypi/simple/`` or by putting an 
 according entry in your ``$HOME/.pip/pip.conf`` (posix) or 
-``$HOME/pip/pip.conf``::
+``$HOME/pip/pip.conf`` (windows)::
 
     [global]
     index-url == http://localhost:3141/ext/pypi/simple/
@@ -70,7 +70,7 @@ By default, devpi-server configures and starts its own redis instance.
 For this it needs to find a ``redis-server`` executable.  On windows it 
 will, in addition to the PATH variable, also check for 
 ``c:\\program files\redis\redis-server.exe`` which is the default
-install location for the `windows redis fork installer <https://github.com/rgl/redis/downloads>`. 
+install location for the `windows redis fork installer <https://github.com/rgl/redis/downloads>`_. 
 
 In a consolidated setting you might want to use the ``--redismode=manual``
 and ``--redisport NUM`` options to rather control the setup of redis 
