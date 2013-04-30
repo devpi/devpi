@@ -1,21 +1,26 @@
-devpi-server: on-demand deep pypi.python.org cache
-===========================================================
+devpi-server: lightning-fast pypi.python.org proxy
+===============================================================
 
-devpi-server puts an end to unreliable installs of pypi-indexed
-packages.  It acts as a caching proxy frontend for pypi.python.org
-and provides features not found in any other PyPI proxy server:
+``devpi-server`` is an easy-to-use caching proxy server for
+pypi.python.org, providing fast and reliable installs when
+used by pip or easy_install.  ``devpi-server`` offers features
+not found in other PyPI proxy servers:
 
-- caches pypi.python.org index and release file information on demand,
-  including indexes and files from 3rd party sites.  
+- transparent caching of pypi.python.org index and release files 
+  on demand, including indexes and files from 3rd party sites.  
 
-- allows pip/easy_install/buildout to avoid all client-side crawling,
-  thus providing lightning-fast and reliable installation.
+- pip/easy_install/buildout are shielded from the typical 
+  client-side crawling, thus providing lightning-fast and 
+  reliable installation.
 
-- automatically updates its cache using pypi's changelog protocol
+- ``devpi-server`` automatically updates its main index cache 
+  using pypi's changelog protocol, making sure you'll always
+  see an up-to-date view of what's available.
 
 devpi-server is designed to satisfy all needs arising from 
 pip/easy_install installation operations and can thus act
 as the sole entry point for all package installation interactions.
+It will manage all outbound traffic for installing packages.
 
 Getting started 
 ----------------------------
@@ -50,9 +55,9 @@ Compatibility
 
 ``devpi-server`` works with python2.6 and python2.7 on both
 Linux and Windows environments.  Windows support is somewhat
-experiment -- better don't run a company wide server with it.  
+experimental -- better don't run a company wide server with it.  
 OSX is untested as of now but no issues are expected -- please 
-report if it works for you.
+report back how things work in reality.
 
 ``devpi-server`` requires ``redis-server`` with versions
 2.4 or later.  Earlier versions may or may not work (untested).
@@ -67,7 +72,7 @@ will, in addition to the PATH variable, also check for
 ``c:\\program files\redis\redis-server.exe`` which is the default
 install location for the `windows redis fork installer <https://github.com/rgl/redis/downloads>`. 
 
-In a production setting you might want to use the ``--redismode=manual``
+In a consolidated setting you might want to use the ``--redismode=manual``
 and ``--redisport NUM`` options to rather control the setup of redis 
 yourself.  You might also want to use the ``--datadir`` option to
 specify where release files will be cached.
@@ -123,12 +128,15 @@ Project status and next steps
 It is is tested through tox and has all of its automated pytest suite 
 passing for python2.7 and python2.6 on Ubuntu 12.04 and Windows 7.
 
-``devpi-server`` is actively developed and will see more releases in 2013,
-in particular for supporting private indexes. You are very welcome
-to join, discuss and contribute:
+``devpi-server`` is actively developed and is bound to see more releases 
+in 2013, in particular for supporting private indexes and a new development
+and testing workflow system. You are very welcome to join, discuss 
+and contribute:
 
 * mailing list: https://groups.google.com/d/forum/devpi-dev
 
 * repository: http://bitbucket.org/hpk42/devpi-server
 
-* Bugtracker: http://bitbucket.org/hpk42/devpi-server/issues
+* issues: http://bitbucket.org/hpk42/devpi-server/issues
+
+* irc: for now on #pylib on irc.freenode.net.
