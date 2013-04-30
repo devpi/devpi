@@ -1,7 +1,7 @@
 
 from py.xml import html
 from devpi_server.types import lazydecorator
-from bottle import response, request, abort
+from bottle import response, request, abort, redirect
 
 def simple_html_body(title, bodytags):
     return html.html(
@@ -19,6 +19,11 @@ route = lazydecorator()
 class PyPIView:
     def __init__(self, extdb):
         self.extdb = extdb
+
+    @route("/")
+    @route("/ext/pypi/")
+    def extpypi_redirect(self):
+        redirect("/ext/pypi/simple/")
 
     @route("/ext/pypi/simple/<projectname>")
     @route("/ext/pypi/simple/<projectname>/")

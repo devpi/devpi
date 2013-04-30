@@ -34,9 +34,15 @@ can use the following index url with pip or easy_install::
     pip install -i http://localhost:3141/ext/pypi/simple/ ...
     easy_install -i http://localhost:3141/ext/pypi/simple/ ...
 
+With pip, you can also set the environment variable
+``PIP_INDEX_URL`` to ``http://localhost:3141/ext/pypi/simple/``
+to avoid having to re-type the index url or put an according
+entry in your ``.pip/pip.conf`` file.
+
 By default, devpi-server configures and starts its own redis instance. 
 In a production setting you might want to use the ``--redismode=manual``
 option to control the setup of redis yourself.
+
 
 command line options 
 ---------------------
