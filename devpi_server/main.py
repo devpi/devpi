@@ -12,9 +12,14 @@ log = getLogger(__name__)
 from pkg_resources import resource_string
 from devpi_server.types import cached_property
 from devpi_server.config import parseoptions
+import devpi_server
 
 def main(argv=None):
+    """ devpi-server command line entry point. """
     config = parseoptions(argv)
+    if config.args.version:
+        print (devpi_server.__version__)
+        raise SystemExit(0)
     xom = XOM(config)
     return bottle_run(xom)
 
@@ -148,6 +153,23 @@ def post_fork(server, worker):
     log.debug("post_fork %s %s pid %s", server, worker, os.getpid())
     #log.info("vars %r", vars(worker))
 
+def make_application():
+    ### unused function for creating an app
+    config = parseoptions(["--redismode=manual", "--redisport=6379"])
+    xom = XOM(config)
+    from logging.config import dictConfig
+    dictConfig(get_logging_config(xom.config.args.debug))
+    start_background_tasks_if_not_in_arbiter(xom)
+    app = xom.create_app()
+    return app
+
+def application(environ, start_response, app=[]):
+    """ entry point for wsgi-servers who need an application object
+    in a module. """
+    if not app:
+        app.append(make_application())
+    return app[0](environ, start_response)
+
 def start_background_tasks_if_not_in_arbiter(xom):
     log.debug("checking if running in worker %s", os.getpid())
     if not workers:
@@ -170,7 +192,6 @@ def start_redis_server(xom):
     prepare_redis = configure_redis_start(port)
     pid, logfile = xom.startprocess("redis", prepare_redis)
     log.info("started redis-server pid %s on port %s", pid, port)
-
 
 def get_logging_config(debug=True):
     if debug:

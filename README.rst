@@ -1,29 +1,17 @@
 devpi-server: on-demand deep pypi.python.org cache
 ===========================================================
 
-devpi-server is **meant to be run in company environments**
-which want to speed up and robustify installing Python packages.
-
 devpi-server acts as a caching proxy frontend for pypi.python.org
 and provides features not found in any other PyPI server:
 
-- caches index and release file information including
-  those from 3rd party sites and "#egg=" development eggs
+- caches pypi.python.org index and release file information on demand,
+  including indexes and files from 3rd party sites.
 
 - allows pip/easy_install/buildout to avoid all client-side crawling,
-  thus providing lightning-fast and offline installation the second
-  time you install a project
+  thus providing lightning-fast and reliable installation.
 
 - automatically updates its cache using pypi's changelog protocol
 
-
-.. warning::
-
-    Do not run devpi-server openly on the internet without consulting
-    a lawyer because its caching functionality might be seen as 
-    "re-distribution" for which you may not have the rights.
-    Caching packages for an organisations or an individuals purposes is already
-    done today by tools like pip and unlikely to give reason for troubles.
 
 devpi-server is a WSGI application currently implemented with Bottle
 and maintains caching state in Redis and the file system.
@@ -36,37 +24,40 @@ Simply install ``devpi-server`` via for example::
 
     pip install devpi-server
 
-Make sure you have ``redis`` installed and issue::
+Make sure you have the ``redis-server`` binary available and issue::
 
     devpi-server
 
 after which a http server is running on ``localhost:3141`` and you
-can use this index url with pip or easy_install::
+can use the following index url with pip or easy_install::
 
     pip install -i http://localhost:3141/ext/pypi/simple/ ...
     easy_install -i http://localhost:3141/ext/pypi/simple/ ...
 
-The redis server will by default run on port 6400.
+By default, devpi-server configures and starts its own redis instance. 
+In a production setting you might want to use the ``--redismode=manual``
+option to control the setup of redis yourself.
+
+command line options 
+---------------------
+
+A list of all devpi-server options::
+
+    $ devpi-server -h
 
 
 Project status and next steps
 -----------------------------
 
-``devpi-server`` is considered beta because it's a first release
-and has so far only been used by its author :)
+``devpi-server`` is considered beta because it's just an initial release.
 
-``devpi-server`` is tested through tox and has all of its automated 
-pytest suite passing for python2.7 and python2.6 on Ubuntu 12.04.  
-It should only require a little bit of effort to make it work on python3.
+It is is tested through tox and has all of its automated pytest suite 
+passing for python2.7 and python2.6 on Ubuntu 12.04.  
 
 ``devpi-server`` is actively developed and will see more releases in 2013,
+in particular for supporting private indexes. You are very welcome
+to join and contribute:
 
-
-Contact points
----------------
-
-mailing list: XXX
-repository: http://bitbucket.org/hpk42/devpi-server
-Bugtracker: http://bitbucket.org/hpk42/devpi-server/issues
-
-
+* mailing list: 
+* repository: http://bitbucket.org/hpk42/devpi-server
+* Bugtracker: http://bitbucket.org/hpk42/devpi-server/issues

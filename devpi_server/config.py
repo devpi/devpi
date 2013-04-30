@@ -8,6 +8,9 @@ log = getLogger(__name__)
 
 def addoptions(parser):
     group = parser.getgroup("main", "main options")
+    group.addoption("--version", action="store_true",
+            help="show devpi_version")
+
     group.addoption("--datadir", type=str, metavar="DIR",
             default="~/.devpi/serverdata",
             help="data directory for devpi-server")

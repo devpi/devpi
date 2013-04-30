@@ -8,14 +8,15 @@ if __name__ == "__main__":
     README = open(os.path.join(here, 'README.rst')).read()
     CHANGES = open(os.path.join(here, 'CHANGES.txt')).read()
 
-    install_requires = ["beautifulsoup4>=4.1.3", "requests",
+    install_requires = ["py", "beautifulsoup4>=4.1.3", "requests",
                         "redis>=2.7.2", "bottle"]
 
     setup(
       name="devpi-server",
-      description="devpi caching indexes server",
+      description="devpi-server: reliable fast pypi.python.org caching server",
+      keywords="pypi cache server wsgi",
       long_description=README + '\n\n' + CHANGES,
-      version='0.6.dev10',
+      version='0.7.dev1',
       maintainer="Holger Krekel",
       maintainer_email="holger@merlinux.eu",
       packages=find_packages(),
