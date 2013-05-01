@@ -333,6 +333,45 @@ class TestRefreshManager:
         invalid = refreshmanager.redis.smembers(refreshmanager.INVALIDSET)
         assert invalid == set(["pytest"])
 
+    def test_changelog_since_serial_nonetwork(self, extdb, refreshmanager,
+                                           monkeypatch, caplog):
+        from xmlrpclib import ProtocolError, ServerProxy
+        got = []
+        refreshmanager.redis.set(refreshmanager.PYPISERIAL, 10)
+        def raise_xmlrpcish(since_int):
+            got.append(since_int)
+            raise ProtocolError("http://pypi.python.org/pypi", 503, "", {})
+        serverproxy = mock.Mock()
+        serverproxy.changelog_since_serial.side_effect = raise_xmlrpcish
+        xmlproxy = XMLProxy(serverproxy)
+        with pytest.raises(ValueError):
+            refreshmanager.spawned_pypichanges(xmlproxy, proxysleep=raising)
+        with pytest.raises(ValueError):
+            refreshmanager.spawned_pypichanges(xmlproxy, proxysleep=raising)
+        assert got == [10,10]
+        assert caplog.getrecords(".*since_serial.*protocol error.*")
+
+    def test_changelog_last_serial_nonetwork(self, extdb, refreshmanager,
+                                           monkeypatch, caplog):
+        from xmlrpclib import ProtocolError, ServerProxy
+        def raise_xmlrpcish():
+            raise ProtocolError("http://pypi.python.org/pypi", 503, "", {})
+
+        proxyanswers = [None]
+        loops = []
+        def proxysleep():
+            loops.append(1)
+            if not proxyanswers.pop():
+                raise ValueError
+
+        serverproxy = mock.Mock()
+        serverproxy.changelog_last_serial.side_effect = raise_xmlrpcish
+        xmlproxy = XMLProxy(serverproxy)
+        with pytest.raises(ValueError):
+            refreshmanager.spawned_pypichanges(xmlproxy, proxysleep=raising)
+        assert not refreshmanager.redis.exists(refreshmanager.PYPISERIAL)
+        assert caplog.getrecords(".*protocol error.*")
+
     def test_refreshprojects(self, redis, extdb, refreshmanager, monkeypatch):
         redis.sadd(refreshmanager.INVALIDSET, "pytest")
         m = mock.Mock()

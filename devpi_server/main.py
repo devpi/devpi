@@ -178,7 +178,8 @@ def start_background_tasks_if_not_in_arbiter(xom):
     if xom.config.args.redismode == "auto":
         start_redis_server(xom)
     from devpi_server.extpypi import RefreshManager, XMLProxy
-    xom.proxy = XMLProxy(xom.config.args.pypiurl + "pypi/")
+    from xmlrpclib import ServerProxy
+    xom.proxy = XMLProxy(ServerProxy(xom.config.args.pypiurl + "pypi/"))
     refresher = RefreshManager(xom.extdb, xom)
     xom.spawn(refresher.spawned_pypichanges,
               args=(xom.proxy, lambda: xom.sleep(xom.config.args.refresh)))

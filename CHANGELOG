@@ -1,7 +1,8 @@
 0.8.dev
 ------------------------------
 
-- 
+- fix issue4: keep the "changelog" thread active across
+  network/reachability errors.  Thanks Laurent Brack.
 
 0.7
 ---

@@ -8,6 +8,7 @@ import re
 import os, sys
 import py
 import json
+import xmlrpclib
 from devpi_server.types import propmapping
 from hashlib import md5
 from bs4 import BeautifulSoup
@@ -151,16 +152,23 @@ class HTMLCacheResponse(object):
 
 
 class XMLProxy(object):
-    def __init__(self, url):
-        import xmlrpclib
-        self._proxy = xmlrpclib.ServerProxy(url)
+    def __init__(self, proxy):
+        self._proxy = proxy
 
     def changelog_last_serial(self):
-        return self._proxy.changelog_last_serial()
+        return self._execute("changelog_last_serial")
 
     def changelog_since_serial(self, serial):
-        return self._proxy.changelog_since_serial(serial)
+        return self._execute("changelog_since_serial", serial)
 
+    def _execute(self, method, *args):
+        try:
+            return getattr(self._proxy, method)(*args)
+        except xmlrpclib.ProtocolError:
+            exc = sys.exc_info()[1]
+            log.warn("%s: http protocol error %s with %s",
+                      method, exc.errcode, exc.url)
+            return None
 
 class ExtDB:
     def __init__(self, url_base, htmlcache, releasefilestore):
@@ -226,15 +234,18 @@ class RefreshManager:
         self.INVALIDSET = "invalid:" + extdb.url_base
 
     def spawned_pypichanges(self, proxy, proxysleep):
-        log.debug("spawned_pypichanges starting %s")
+        log.debug("spawned_pypichanges starting")
         redis = self.redis
         current_serial = redis.get(self.PYPISERIAL)
-        if current_serial is None:
-            current_serial = proxy.changelog_last_serial()
-            redis.set(self.PYPISERIAL, current_serial)
-        else:
-            current_serial = int(current_serial)
         while 1:
+            if current_serial is None:
+                current_serial = proxy.changelog_last_serial()
+                if current_serial is None:
+                    proxysleep()
+                    continue
+                redis.set(self.PYPISERIAL, current_serial)
+            else:
+                current_serial = int(current_serial)
             log.debug("checking remote changelog [%s]...", current_serial)
             changelog = proxy.changelog_since_serial(current_serial)
             if changelog:
