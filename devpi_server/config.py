@@ -21,10 +21,6 @@ def addoptions(parser):
             default=3141,
             help="port to listen for http requests")
 
-    group.addoption("--redisport", type=int, metavar="PORT",
-            default=3142,
-            help="redis server port number")
-
     group = parser.addgroup("upstream", "pypi upstream options")
     group.addoption("--pypiurl", metavar="url", type=str,
             default="https://pypi.python.org/",
@@ -49,6 +45,10 @@ def addoptions(parser):
             action="store", choices=("auto", "manual"),
             default="auto",
             help="whether to start redis as a sub process")
+
+    group.addoption("--redisport", type=int, metavar="PORT",
+            default=3142,
+            help="redis server port number")
 
     group.addoption("--bottleserver", metavar="TYPE",
             default="wsgiref",
