@@ -164,10 +164,11 @@ class XMLProxy(object):
     def _execute(self, method, *args):
         try:
             return getattr(self._proxy, method)(*args)
-        except xmlrpclib.ProtocolError:
+        except KeyboardInterrupt:
+            raise
+        except Exception:
             exc = sys.exc_info()[1]
-            log.warn("%s: http protocol error %s with %s",
-                      method, exc.errcode, exc.url)
+            log.warn("%s: error %s with remote %s", method, exc, self._proxy)
             return None
 
 class ExtDB:

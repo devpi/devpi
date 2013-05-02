@@ -333,14 +333,26 @@ class TestRefreshManager:
         invalid = refreshmanager.redis.smembers(refreshmanager.INVALIDSET)
         assert invalid == set(["pytest"])
 
+    @pytest.fixture(params=["protocol", "socket"])
+    def raise_error(self, request):
+        import socket
+        from xmlrpclib import ProtocolError
+        if request.param == "protocol":
+            exc = ProtocolError("http://pypi.python.org/pypi", 503, "", {})
+        else:
+            exc = socket.error(111)
+        def raise_error():
+            raise exc
+        return raise_error
+
     def test_changelog_since_serial_nonetwork(self, extdb, refreshmanager,
-                                           monkeypatch, caplog):
-        from xmlrpclib import ProtocolError, ServerProxy
+                    raise_error, monkeypatch, caplog):
+        from xmlrpclib import ServerProxy
         got = []
         refreshmanager.redis.set(refreshmanager.PYPISERIAL, 10)
         def raise_xmlrpcish(since_int):
             got.append(since_int)
-            raise ProtocolError("http://pypi.python.org/pypi", 503, "", {})
+            raise_error()
         serverproxy = mock.Mock()
         serverproxy.changelog_since_serial.side_effect = raise_xmlrpcish
         xmlproxy = XMLProxy(serverproxy)
@@ -349,13 +361,11 @@ class TestRefreshManager:
         with pytest.raises(ValueError):
             refreshmanager.spawned_pypichanges(xmlproxy, proxysleep=raising)
         assert got == [10,10]
-        assert caplog.getrecords(".*since_serial.*protocol error.*")
+        assert caplog.getrecords(".*since_serial.*error.*")
 
     def test_changelog_last_serial_nonetwork(self, extdb, refreshmanager,
-                                           monkeypatch, caplog):
+            raise_error, monkeypatch, caplog):
         from xmlrpclib import ProtocolError, ServerProxy
-        def raise_xmlrpcish():
-            raise ProtocolError("http://pypi.python.org/pypi", 503, "", {})
 
         proxyanswers = [None]
         loops = []
@@ -365,12 +375,12 @@ class TestRefreshManager:
                 raise ValueError
 
         serverproxy = mock.Mock()
-        serverproxy.changelog_last_serial.side_effect = raise_xmlrpcish
+        serverproxy.changelog_last_serial.side_effect = raising
         xmlproxy = XMLProxy(serverproxy)
         with pytest.raises(ValueError):
             refreshmanager.spawned_pypichanges(xmlproxy, proxysleep=raising)
         assert not refreshmanager.redis.exists(refreshmanager.PYPISERIAL)
-        assert caplog.getrecords(".*protocol error.*")
+        assert caplog.getrecords(".*error.*")
 
     def test_refreshprojects(self, redis, extdb, refreshmanager, monkeypatch):
         redis.sadd(refreshmanager.INVALIDSET, "pytest")
