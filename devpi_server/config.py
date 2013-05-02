@@ -144,11 +144,13 @@ def gendeploy(config, etc, redis=None, logdir=None, tw=None):
     supervisorport = httpport - 1
 
     tw.line("creating etc/ directory for supervisor configuration", bold=True)
-    redisdir = getpath(config.args.datadir).ensure("redis", dir=1)
-    logdir = etc.ensure("log", dir=1)
+    datadir = getpath(config.args.datadir)
+    redisdir = datadir.ensure("redis", dir=1)
+    logdir = datadir.ensure("log", dir=1)
     render(tw, etc, "supervisord.conf", port=supervisorport,
            devpiport=str(httpport),
            redisport=str(redisport),
+           logdir=logdir,
            datadir=getpath(config.args.datadir))
     render(tw, etc, "redis-devpi.conf", libredis=redisdir, port=redisport)
     render(tw, etc, "nginx-devpi.conf", format=1, port=str(httpport),

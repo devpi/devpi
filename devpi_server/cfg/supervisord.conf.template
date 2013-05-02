@@ -2,7 +2,7 @@
 port = {port}
  
 [supervisord]
-logfile=%(here)s/log/supervisord.log 
+logfile={logdir}/supervisord.log
 logfile_maxbytes=50MB           
 logfile_backups=5 
 loglevel=info           ; info, debug, warn, trace
@@ -11,7 +11,7 @@ pidfile=%(here)s/supervisord.pid
 nodaemon=false          ; run supervisord as a daemon
 minfds=1024             ; number of startup file descriptors
 minprocs=200            ; number of process descriptors
-childlogdir=%(here)s/log/   ; where child log files will live
+childlogdir={logdir}   ; where child log files will live
  
 [rpcinterface:supervisor]
 supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
