@@ -1,10 +1,17 @@
 0.8.dev
 ------------------------------
 
+- introduce "--gendeploy" for generating a "etc" directory
+  which contains supervisord configuration for running devpi-server
+  and redis as two supervised processes, as well as an example
+  nginx-devpi.conf for configuring an nginx site pointing to the service.
+
 - fix issue4: keep the "changelog" thread active across
   network/reachability errors.  Thanks Laurent Brack.
 
-- use argparse instead of optparse, simplify option parsing
+- use argparse instead of optparse, simplify and group options
+
+- fix python2.6 and simplify logging configuration
 
 0.7
 ---

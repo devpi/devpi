@@ -1,0 +1,42 @@
+[inet_http_server]
+port = {port}
+ 
+[supervisord]
+logfile=%(here)s/log/supervisord.log 
+logfile_maxbytes=50MB           
+logfile_backups=5 
+loglevel=info           ; info, debug, warn, trace
+redirect_stderr = True
+pidfile=%(here)s/supervisord.pid 
+nodaemon=false          ; run supervisord as a daemon
+minfds=1024             ; number of startup file descriptors
+minprocs=200            ; number of process descriptors
+childlogdir=%(here)s/log/   ; where child log files will live
+ 
+[rpcinterface:supervisor]
+supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
+ 
+[supervisorctl]
+serverurl=http://localhost:{port}
+
+# if you have a system-wide supervisord installation 
+# you might move the below actual program definitions 
+# to a global /etc/supervisord/conf.d/devpi-server.conf
+# and modify paths for the redis-devpi.conf 
+
+[program:devpi-redis]
+command=redis-server %(here)s/redis-devpi.conf
+redirect_stderr = True
+priority=100   
+startsecs = 5
+#set a user if we run as root
+#user = devpi
+
+[program:devpi-server]
+command=devpi-server --redisport={redisport} --redismode=manual --datadir={datadir} --refresh=60 --port={devpiport}
+priority=999
+startsecs = 5
+redirect_stderr = True
+#set a user if we run as root
+#user = devpi
+

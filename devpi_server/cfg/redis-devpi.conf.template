@@ -1,6 +1,5 @@
 dir {libredis}
-pidfile {pidfile}
-daemonize {daemonize}
+daemonize no
 dbfilename dump.rdb
 port {port}
 bind 127.0.0.1

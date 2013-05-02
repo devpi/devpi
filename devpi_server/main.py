@@ -9,9 +9,8 @@ import threading
 from logging import getLogger
 log = getLogger(__name__)
 
-from pkg_resources import resource_string
 from devpi_server.types import cached_property
-from devpi_server.config import parseoptions
+from devpi_server.config import parseoptions, gendeploy, configure_logging
 import devpi_server
 
 def main(argv=None):
@@ -19,9 +18,19 @@ def main(argv=None):
     config = parseoptions(argv)
     if config.args.version:
         print (devpi_server.__version__)
-        raise SystemExit(0)
+        return
+
+    configure_logging(config)
+
+    if config.args.gendeploy:
+        etc = py.path.local("etc").ensure(dir=1)
+        gendeploy(config, etc)
+        return
+
     xom = XOM(config)
     return bottle_run(xom)
+
+
 
 class XOM:
     class Exiting(SystemExit):
@@ -157,8 +166,6 @@ def make_application():
     ### unused function for creating an app
     config = parseoptions(["--redismode=manual", "--redisport=6379"])
     xom = XOM(config)
-    from logging.config import dictConfig
-    dictConfig(get_logging_config(xom.config.args.debug))
     start_background_tasks_if_not_in_arbiter(xom)
     app = xom.create_app()
     return app
@@ -194,45 +201,7 @@ def start_redis_server(xom):
     pid, logfile = xom.startprocess("redis", prepare_redis)
     log.info("started redis-server pid %s on port %s", pid, port)
 
-def get_logging_config(debug=True):
-    if debug:
-        loglevel = "DEBUG"
-    else:
-        loglevel = "INFO"
-
-    default_logging_config = {
-        'version': 1,
-        'disable_existing_loggers': False,
-        'formatters': {
-            'standard': {
-                'format': '%(asctime)s [%(levelname)-5.5s] %(name)s: %(message)s'
-            },
-        },
-        'handlers': {
-            'default': {
-                'level': loglevel,
-                'class':'logging.StreamHandler',
-                'formatter': 'standard',
-            },
-        },
-        'loggers': {
-            '': {
-                'handlers': ['default'],
-                'level': loglevel,
-                'propagate': False,
-            },
-            'devpi_server': {
-                'handlers': ['default'],
-                'level': loglevel,
-                'propagate': False,
-            },
-        }
-    }
-    return default_logging_config
-
 def bottle_run(xom):
-    from logging.config import dictConfig
-    dictConfig(get_logging_config(xom.config.args.debug))
     workers.append(1)
     start_background_tasks_if_not_in_arbiter(xom)
     app = xom.create_app()
