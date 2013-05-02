@@ -4,6 +4,8 @@
 - fix issue4: keep the "changelog" thread active across
   network/reachability errors.  Thanks Laurent Brack.
 
+- use argparse instead of optparse, simplify option parsing
+
 0.7
 ---
 
