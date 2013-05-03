@@ -4,7 +4,7 @@ import logging
 import mimetypes
 import pytest
 import py
-from devpi_server.main import XOM
+from devpi_server.main import XOM, PYPIURL
 from devpi_server.config import configure_redis_start
 
 
@@ -129,7 +129,7 @@ def extdb(redis, filestore, httpget):
 def pypiurls(xom):
     class PyPIURL:
         def __init__(self):
-            self.base = xom.config.args.pypiurl
+            self.base = PYPIURL
             self.simple = self.base + "simple/"
     return PyPIURL()
 

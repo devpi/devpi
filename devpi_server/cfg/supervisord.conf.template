@@ -1,13 +1,13 @@
-[inet_http_server]
-port = {port}
+[unix_http_server]
+file = %(here)s/../supervisor.socket
  
 [supervisord]
 logfile={logdir}/supervisord.log
+pidfile={venvdir}/supervisord.pid
 logfile_maxbytes=50MB           
 logfile_backups=5 
 loglevel=info           ; info, debug, warn, trace
 redirect_stderr = True
-pidfile=%(here)s/supervisord.pid 
 nodaemon=false          ; run supervisord as a daemon
 minfds=1024             ; number of startup file descriptors
 minprocs=200            ; number of process descriptors
@@ -17,7 +17,7 @@ childlogdir={logdir}   ; where child log files will live
 supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
  
 [supervisorctl]
-serverurl=http://localhost:{port}
+serverurl=unix://%(here)s/../supervisor.socket
 
 # if you have a system-wide supervisord installation 
 # you might move the below actual program definitions 
@@ -28,15 +28,11 @@ serverurl=http://localhost:{port}
 command=redis-server %(here)s/redis-devpi.conf
 redirect_stderr = True
 priority=100   
-startsecs = 5
-#set a user if we run as root
-#user = devpi
+startsecs = 1
 
 [program:devpi-server]
 command=devpi-server --redisport={redisport} --redismode=manual --datadir={datadir} --refresh=60 --port={devpiport}
 priority=999
-startsecs = 5
+startsecs = 1
 redirect_stderr = True
-#set a user if we run as root
-#user = devpi
 

@@ -1,7 +1,7 @@
-dir {libredis}
+dir {redisdir}
 daemonize no
 dbfilename dump.rdb
-port {port}
+port {redisport}
 bind 127.0.0.1
 timeout 0
 loglevel notice
@@ -13,5 +13,5 @@ slave-serve-stale-data yes
 appendonly yes
 appendfsync everysec
 no-appendfsync-on-rewrite no
-auto-aof-rewrite-percentage 100
-auto-aof-rewrite-min-size 64mb
+#auto-aof-rewrite-percentage 100
+#auto-aof-rewrite-min-size 64mb

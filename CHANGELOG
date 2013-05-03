@@ -1,10 +1,10 @@
-0.8.dev
+0.8
 ------------------------------
 
-- introduce "--gendeploy" for generating a "etc" directory
-  which contains supervisord configuration for running devpi-server
-  and redis as two supervised processes, as well as an example
-  nginx-devpi.conf for configuring an nginx site pointing to the service.
+- introduce "--gendeploy=TARGETDIR" for generating a virtualenv
+  directory with supervisor-based configuration in TARGETDIR/etc
+  and a TARGETDIR/bin/devpi-ctl helper to control the running
+  of devpi-server and redis-server processes.
 
 - fix issue4: keep the "changelog" thread active across
   network/reachability errors.  Thanks Laurent Brack.

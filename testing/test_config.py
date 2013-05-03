@@ -1,7 +1,7 @@
 import pytest
+import py
 
-from devpi_server.config import MyArgumentParser, gendeploy, parseoptions
-
+from devpi_server.config import MyArgumentParser, parseoptions
 
 class TestParser:
 
@@ -45,16 +45,3 @@ class TestParser:
         p = sub.add_parser("hello")
         assert isinstance(p, MyArgumentParser)
 
-def test_gendeploy(tmpdir):
-    config = parseoptions(["x", "--port=3200"])
-    gendeploy(config, tmpdir)
-    assert tmpdir.check()
-    sup = tmpdir.join("supervisord.conf").read()
-    redis = tmpdir.join("redis-devpi.conf").read()
-    nginx = tmpdir.join("nginx-devpi.conf").read()
-    assert "port = 3199" in sup
-    assert "--port=3200" in sup
-    assert "--redisport=3201" in sup
-    assert "port 3201" in redis
-    assert "port 3201" in redis
-    assert "proxy_pass http://localhost:3200" in nginx

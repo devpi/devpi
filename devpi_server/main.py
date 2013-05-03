@@ -10,8 +10,12 @@ from logging import getLogger
 log = getLogger(__name__)
 
 from devpi_server.types import cached_property
-from devpi_server.config import parseoptions, gendeploy, configure_logging
+from devpi_server.config import parseoptions, gendeploycfg, configure_logging
+from devpi_server.config import getpath
 import devpi_server
+
+PYPIURL = "https://pypi.python.org/"
+PYPIURL_XMLRPC = "https://pypi.python.org/pypi/"
 
 def main(argv=None):
     """ devpi-server command line entry point. """
@@ -23,14 +27,34 @@ def main(argv=None):
     configure_logging(config)
 
     if config.args.gendeploy:
-        etc = py.path.local("etc").ensure(dir=1)
-        gendeploy(config, etc)
-        return
+        return gendeploy(config)
 
     xom = XOM(config)
     return bottle_run(xom)
 
+def gendeploy(config):
+    if sys.platform == "win32":
+        tw.line("cannot run --gendeploy on windows due to "
+                "depending on supervisor.", red=True)
+        return 1
+    tw = py.io.TerminalWriter()
+    tw.cwd = py.path.local()
+    target = getpath(config.args.gendeploy)
+    tw.line("installing virtualenv to %s" %(target), bold=True)
+    try:
+        del os.environ["PYTHONDONTWRITEBYTECODE"]
+    except KeyError:
+        pass
+    subproc(tw, ["virtualenv", str(target)])
+    pip = py.path.local.sysfind("pip", paths=[target.join("bin")])
+    tw.line("installing devpi-server and supervisor", bold=True)
+    subproc(tw, [pip, "install", "devpi-server", "supervisor"])
+    tw.line("generating configuration")
+    gendeploycfg(config, target, tw=tw)
 
+def subproc(tw, args):
+    import subprocess
+    return subprocess.check_call([str(x) for x in args])
 
 class XOM:
     class Exiting(SystemExit):
@@ -116,8 +140,7 @@ class XOM:
     def extdb(self):
         from devpi_server.extpypi import ExtDB, HTMLCache
         htmlcache = HTMLCache(self.redis, self.httpget)
-        return ExtDB(self.config.args.pypiurl, htmlcache,
-                     self.releasefilestore)
+        return ExtDB(PYPIURL, htmlcache, self.releasefilestore)
 
     @cached_property
     def _httpsession(self):
@@ -186,7 +209,7 @@ def start_background_tasks_if_not_in_arbiter(xom):
         start_redis_server(xom)
     from devpi_server.extpypi import RefreshManager, XMLProxy
     from xmlrpclib import ServerProxy
-    xom.proxy = XMLProxy(ServerProxy(xom.config.args.pypiurl + "pypi/"))
+    xom.proxy = XMLProxy(ServerProxy(PYPIURL_XMLRPC))
     refresher = RefreshManager(xom.extdb, xom)
     xom.spawn(refresher.spawned_pypichanges,
               args=(xom.proxy, lambda: xom.sleep(xom.config.args.refresh)))
@@ -206,6 +229,11 @@ def bottle_run(xom):
     start_background_tasks_if_not_in_arbiter(xom)
     app = xom.create_app()
     port = xom.config.args.port
+    log.info("devpi-server version: %s", devpi_server.__version__)
+    log.info("serving index url: http://localhost:%s/ext/pypi/simple/",
+             xom.config.args.port)
+    log.info("bug tracker: https://bitbucket.org/hpk42/devpi-server/issues")
+    log.info("IRC: #devpi on irc.freenode.net")
     ret = app.run(server=xom.config.args.bottleserver,
                   reloader=False, port=port)
     xom.shutdown()

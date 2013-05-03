@@ -1,0 +1,12 @@
+server {
+    # substitute with your servername or add devpi.localhost to
+    # /etc/hosts in a line similar to this:
+    # 127.0.0.1 localhost devpi.localhost
+    server_name devpi.localhost;
+    listen 80;
+    root %(datadir)s;  # arbitrary for now
+    location / {
+        proxy_pass http://localhost:%(port)s;
+        proxy_set_header  X-Real-IP $remote_addr;
+    }   
+} 
