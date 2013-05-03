@@ -54,7 +54,11 @@ def parseoptions(argv, addoptions=addoptions):
     if argv is None:
         argv = sys.argv
     argv = map(str, argv)
-    parser = MyArgumentParser()
+    parser = MyArgumentParser(
+        description="Start an index server acting as a cache for "
+                    "pypi.python.org, suitable for pip/easy_install usage. "
+                    "The server automatically refreshes the cache of all "
+                    "indexes which have changed on the pypi.python.org side.")
     addoptions(parser)
     args = parser.parse_args(argv[1:])
     config = Config(args)

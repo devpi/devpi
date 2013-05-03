@@ -26,7 +26,7 @@ used by pip or easy_install.
   reliable installation (on second access of a package).
   And repeatable offline installs.
 
-- ``devpi-server --gendeploy=TARGEDIR`` creates a zero-configuration
+- ``devpi-server --gendeploy=TARGETDIR`` creates a zero-configuration
   deployment for your (unixish) laptop or a server, fully contained in 
   a virtualenv_ directory, controlled by ``TARGETDIR/bin/devpi-ctl``,
   a thin wrapper around a dedicated supervisord_.  You'll also find
@@ -109,7 +109,7 @@ deploying permanently on your laptop
 -----------------------------------------------------------
 
 devpi-server is not only a fast pypi cache but since version 0.8 it
-comes with a reliable zero-configuration way to deploy permanently on a
+comes with a zero-configuration way to deploy permanently on a
 laptop or even a server.  If you type::
 
     $ devpi-server --gendeploy=TARGETDIR [--port=httpport] [--redisport=port]
