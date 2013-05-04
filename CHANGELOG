@@ -1,3 +1,8 @@
+0.8.2.dev
+------------------------------
+
+- remove superflous include lines in MANIFEST.in
+
 0.8.1
 ------------------------------
 
@@ -10,7 +15,8 @@
 - refactor --gendeploy related code to be in gendeploy.py
 
 - fix: fixate path of devpi-server in gendeployed configuration
-  to point to the freshly installed devpi-server
+  to point to the freshly installed devpi-server. also add
+  a note to the README.
 
 0.8
 ------------------------------
