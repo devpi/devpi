@@ -29,10 +29,12 @@ command=redis-server %(here)s/redis-devpi.conf
 redirect_stderr = True
 priority=100   
 startsecs = 1
+autostart=False
 
 [program:devpi-server]
 command=devpi-server --redisport={redisport} --redismode=manual --datadir={datadir} --refresh=60 --port={devpiport}
 priority=999
 startsecs = 1
 redirect_stderr = True
+autostart=False
 

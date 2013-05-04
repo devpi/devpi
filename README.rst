@@ -3,7 +3,7 @@ devpi-server: lightning-fast pypi.python.org proxy
 
 * issues: https://bitbucket.org/hpk42/devpi-server/issues
 
-* IRC: #devpi on irc.freenode.net.
+* IRC: #pylib on irc.freenode.net.
 
 * repository: https://bitbucket.org/hpk42/devpi-server
 
@@ -172,7 +172,7 @@ Other than a few automatically installed python dependencies,
 
 - ``python2.6`` or ``python2.7``.  
 
-- ``redis-server`` version 2.4 or later.  Earlier versions may or 
+- ``redis-server`` version 2.2 or later.  Earlier versions may or 
   may not work (untested).  By default, devpi-server configures and
   starts its own redis instance.  For this it needs to find a
   ``redis-server`` executable.  On windows it will, in addition to the
@@ -215,7 +215,7 @@ Project status and next steps
 ``devpi-server`` is considered beta because it just saw the first releases
 and still needs more diverse testing.
 
-It is is tested through tox and has all of its automated pytest suite 
+It is tested through tox and has all of its automated pytest suite 
 passing for python2.7 and python2.6 on Ubuntu 12.04 and Windows 7.
 
 ``devpi-server`` is actively developed and bound to see more releases 
