@@ -32,7 +32,7 @@ startsecs = 1
 autostart=False
 
 [program:devpi-server]
-command=devpi-server --redisport={redisport} --redismode=manual --datadir={datadir} --refresh=60 --port={devpiport}
+command={venvdir}/bin/devpi-server --redisport={redisport} --redismode=manual --datadir={datadir} --refresh=60 --port={devpiport}
 priority=999
 startsecs = 1
 redirect_stderr = True

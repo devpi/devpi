@@ -9,6 +9,9 @@
 
 - refactor --gendeploy related code to be in gendeploy.py
 
+- fix: fixate path of devpi-server in gendeployed configuration
+  to point to the freshly installed devpi-server
+
 0.8
 ------------------------------
 

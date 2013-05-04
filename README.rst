@@ -136,6 +136,10 @@ In fact, ``devpi-ctl`` is just a thin wrapper around ``supervisorctl``
 which picks up the right configuration files and ensures its ``supervisord`` 
 instance is running.  
 
+You can now **uninstall devpi-server from the environment where you
+issued ``--gendeploy`` because the created environment contains all that
+is needed**.
+
 Lastly, if you want to have things running at system startup and you are using
 a standard cron, a modified copy of your user crontab has been amended which
 you may inspect and install with:
