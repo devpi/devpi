@@ -2,7 +2,7 @@
 import os
 import subprocess
 from mock import Mock
-from devpi_server.config import create_devpictl, gendeploycfg, create_crontab
+from devpi_server.gendeploy import create_devpictl, gendeploycfg, create_crontab
 from devpi_server.config import parseoptions
 from devpi_server.ctl import ensure_supervisor_started, devpictl
 import py

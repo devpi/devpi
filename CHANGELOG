@@ -1,3 +1,14 @@
+0.8.1
+------------------------------
+
+- fix: change gendeployed supervisord.conf  to not autostart
+  processes on "devpi-ctl" invocations.  "devpi-ctl help"
+  would autostart the processes after a shutdown which is
+  not very intuitive.  This is actually compatible with the 
+  documentation.
+
+- refactor --gendeploy related code to be in gendeploy.py
+
 0.8
 ------------------------------
 

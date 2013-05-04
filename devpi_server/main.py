@@ -10,8 +10,7 @@ from logging import getLogger
 log = getLogger(__name__)
 
 from devpi_server.types import cached_property
-from devpi_server.config import parseoptions, gendeploycfg, configure_logging
-from devpi_server.config import getpath
+from devpi_server.config import parseoptions, configure_logging
 import devpi_server
 
 PYPIURL = "https://pypi.python.org/"
@@ -24,37 +23,15 @@ def main(argv=None):
         print (devpi_server.__version__)
         return
 
-    configure_logging(config)
 
     if config.args.gendeploy:
+        from devpi_server.gendeploy import gendeploy
         return gendeploy(config)
 
+    configure_logging(config)
     xom = XOM(config)
     return bottle_run(xom)
 
-def gendeploy(config):
-    if sys.platform == "win32":
-        tw.line("cannot run --gendeploy on windows due to "
-                "depending on supervisor.", red=True)
-        return 1
-    tw = py.io.TerminalWriter()
-    tw.cwd = py.path.local()
-    target = getpath(config.args.gendeploy)
-    tw.line("installing virtualenv to %s" %(target), bold=True)
-    try:
-        del os.environ["PYTHONDONTWRITEBYTECODE"]
-    except KeyError:
-        pass
-    subproc(tw, ["virtualenv", str(target)])
-    pip = py.path.local.sysfind("pip", paths=[target.join("bin")])
-    tw.line("installing devpi-server and supervisor", bold=True)
-    subproc(tw, [pip, "install", "devpi-server", "supervisor"])
-    tw.line("generating configuration")
-    gendeploycfg(config, target, tw=tw)
-
-def subproc(tw, args):
-    import subprocess
-    return subprocess.check_call([str(x) for x in args])
 
 class XOM:
     class Exiting(SystemExit):
