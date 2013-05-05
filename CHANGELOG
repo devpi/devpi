@@ -3,6 +3,8 @@
 
 - remove superflous include lines in MANIFEST.in
 
+- require minimal versions for deps
+
 0.8.1
 ------------------------------
 
