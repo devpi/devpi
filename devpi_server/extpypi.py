@@ -63,9 +63,10 @@ class IndexParser:
                               newurl, self.projectname)
                 continue
             nameversion, ext = newurl.splitext_archive()
-            projectname = re.split(r'-\d+', nameversion)[0]
-            #log.debug("checking %s, projectname %r", newurl, self.projectname)
-            if ext.lower() in self.ALLOWED_ARCHIVE_EXTS and \
+            parts = re.split(r'-\d+', nameversion)
+            projectname = parts[0]
+            #log.debug("checking %s, projectname %r, nameversion %s", newurl, self.projectname, nameversion)
+            if len(parts) > 1 and ext.lower() in self.ALLOWED_ARCHIVE_EXTS and \
                projectname.lower() == self.projectname:
                 self._mergelink_ifbetter(newurl)
                 continue

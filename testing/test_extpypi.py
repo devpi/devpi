@@ -72,6 +72,12 @@ class TestIndexParsing:
         assert link2.basename == "py.zip"
         assert link2.eggfragment == "py-dev"
 
+    def test_parse_index_with_matchingprojectname_no_version(self):
+        result = parse_index(self.simplepy,
+            """<a href="http://bb.org/download/py.zip" />
+            <a href="http://bb.org/download/py-1.0.zip" />""")
+        assert len(result.releaselinks) == 1
+
     def test_releasefile_and_scrape(self):
         result = parse_index(self.simplepy,
             """<a href="../../pkg/py-1.4.12.zip#md5=12ab">qwe</a>
