@@ -2,11 +2,12 @@
 ------------------------------
 
 - fix issue6 - some edge cases for link parsing uncovered
-  by BeautifulSoup and CouchApp installs.
+  by BeautifulSoup and CouchApp installs. Thanks Anton Baklanov.
+
+- require minimal versions for deps, thanks Andi Albrecht
 
 - remove superflous include lines in MANIFEST.in
 
-- require minimal versions for deps
 
 0.8.1
 ------------------------------
