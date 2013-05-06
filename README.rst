@@ -151,7 +151,7 @@ from a permanently fast ``pip`` installation experience, including
 when on travel with your laptop.
 
 But wait, what if you want to install this on a server in your company?
-If you are using `nginx_`, you may::
+If you are using nginx_, you may::
 
     modify and copy TARGETDIR/etc/nginx-devpi.conf to
     /etc/nginx/sites-enabled/
