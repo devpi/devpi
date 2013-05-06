@@ -191,27 +191,41 @@ command line options
 A list of all devpi-server options::
 
     $ devpi-server -h
-    Usage: devpi-server [options]
+    usage: devpi-server [-h] [--version] [--datadir DIR] [--port PORT]
+                        [--refresh SECS] [--gendeploy DIR]
+                        [--redismode auto|manual] [--redisport PORT]
+                        [--bottleserver TYPE] [--debug]
     
-    Options:
+    Start an index server acting as a cache for pypi.python.org, suitable for
+    pip/easy_install usage. The server automatically refreshes the cache of all
+    indexes which have changed on the pypi.python.org side.
+    
+    optional arguments:
       -h, --help            show this help message and exit
     
-      main options:
-        --version           show devpi_version (0.7)
-        --datadir=DIR       data directory for devpi-server [~/.devpi/serverdata]
-        --port=PORT         port to listen for http requests [3141]
-        --redisport=PORT    redis server port number [3142]
-        --redismode=auto|manual
-                            whether to start redis as a sub process [auto]
-        --bottleserver=TYPE
-                            bottle server class, you may try eventlet or others
-                            [wsgiref]
-        --debug             run wsgi application with debug logging
+    main:
+      main options
     
-      pypi upstream options:
-        --pypiurl=url       base url of remote pypi server
-                            [https://pypi.python.org/]
-        --refresh=SECS      periodically pull changes from pypi.python.org [60]
+      --version             show devpi_version (0.8.2)
+      --datadir DIR         data directory for devpi-server [~/.devpi/serverdata]
+      --port PORT           port to listen for http requests [3141]
+      --refresh SECS        interval for consulting changelog api of
+                            pypi.python.org [60]
+    
+    deploy:
+      deployment options
+    
+      --gendeploy DIR       (unix only) generate a pre-configured self-contained
+                            virtualenv directory which puts devpi-server and
+                            redis-server under supervisor control. Also provides
+                            nginx/cron files to help with permanent deployment.
+      --redismode auto|manual
+                            whether to start redis as a sub process [auto]
+      --redisport PORT      redis server port number [3142]
+      --bottleserver TYPE   bottle server class, you may try eventlet or others
+                            [wsgiref]
+      --debug               run wsgi application with debug logging
+
 
 Project status and next steps
 -----------------------------
