@@ -31,6 +31,8 @@ def test_gendeploycfg(tmpdir):
         assert "port 3205" in redis
         assert "port 3205" in redis
         assert "proxy_pass http://localhost:3200" in nginx
+    else:
+        pytest.skip('test user has no crontab')
 
 def test_create_devpictl(tmpdir):
     tw = py.io.TerminalWriter()
@@ -53,7 +55,7 @@ def test_create_crontab(tmpdir, monkeypatch):
         assert expect in cron
         assert "@reboot" in tmpdir.join("crontab").read()
     else:
-        assert cron == ""
+        pytest.skip('crontab not installed')
 
 def test_ensure_supervisor_started(tmpdir, monkeypatch):
     m = Mock()
