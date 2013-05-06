@@ -116,7 +116,7 @@ def gendeploy(config):
     subproc(tw, ["virtualenv", str(target)])
     pip = py.path.local.sysfind("pip", paths=[target.join("bin")])
     tw.line("installing devpi-server and supervisor", bold=True)
-    subproc(tw, [pip, "install", "devpi-server", "supervisor"])
+    subproc(tw, [pip, "install", "devpi-server>=0.8.2", "supervisor"])
     tw.line("generating configuration")
     gendeploycfg(config, target, tw=tw)
 

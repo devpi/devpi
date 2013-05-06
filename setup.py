@@ -9,7 +9,7 @@ if __name__ == "__main__":
     CHANGES = open(os.path.join(here, 'CHANGELOG')).read()
 
     install_requires = ["py>=1.4.13",
-                        "beautifulsoup4>=4.1.3",
+                        "pip>=1.3.1",
                         "requests>=1.2.0",
                         "virtualenv>=1.9.1",
                         "redis>=2.7.2",
@@ -22,7 +22,7 @@ if __name__ == "__main__":
       description="devpi-server: reliable fast pypi.python.org caching server",
       keywords="pypi cache server wsgi",
       long_description=README + '\n\n' + CHANGES,
-      version='0.8.2',
+      version='0.8.3.dev1',
       maintainer="Holger Krekel",
       maintainer_email="holger@merlinux.eu",
       packages=find_packages(),

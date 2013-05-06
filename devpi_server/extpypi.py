@@ -12,6 +12,7 @@ import xmlrpclib
 from devpi_server.types import propmapping
 from hashlib import md5
 from bs4 import BeautifulSoup
+from pip.index import HTMLPage
 
 from .urlutil import DistURL, joinpath
 
@@ -47,8 +48,11 @@ class IndexParser:
         return self.egglinks + l
 
     def parse_index(self, disturl, html, scrape=True):
-        for a in BeautifulSoup(html).findAll("a"):
-            newurl = disturl.joinpath(a.get("href"))
+        p = HTMLPage(html, disturl.url)
+        seen = set()
+        for link in p.links:
+            #newurl = disturl.joinpath(a.get("href"))
+            newurl = DistURL(link.url)
             eggfragment = newurl.eggfragment
             if scrape and eggfragment:
                 filename = eggfragment.replace("_", "-")
@@ -57,7 +61,6 @@ class IndexParser:
                     # order to keep pip/easy_install happy with some
                     # packages (e.g. nose)
                     self.egglinks.insert(0, newurl)
-                    #log.debug("add egg link %s", newurl)
                 else:
                     log.debug("skip egg link %s (projectname: %s)",
                               newurl, self.projectname)
@@ -69,11 +72,12 @@ class IndexParser:
             if len(parts) > 1 and ext.lower() in self.ALLOWED_ARCHIVE_EXTS and \
                projectname.lower() == self.projectname:
                 self._mergelink_ifbetter(newurl)
+                seen.add(newurl.url)
                 continue
-            if scrape:
-                for rel in a.get("rel", []):
-                    if rel in ("homepage", "download"):
-                        self.crawllinks.add(newurl)
+        if scrape:
+            for link in p.rel_links():
+                if link.url not in seen:
+                    self.crawllinks.add(DistURL(link.url))
 
 def parse_index(disturl, html, scrape=True):
     if not isinstance(disturl, DistURL):
