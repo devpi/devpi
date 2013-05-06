@@ -1,10 +1,10 @@
-0.8.2.dev
+0.8.2
 ------------------------------
 
 - fix issue6 - some edge cases for link parsing uncovered
   by BeautifulSoup and CouchApp installs. Thanks Anton Baklanov.
 
-- require minimal versions for deps, thanks Andi Albrecht
+- fix issue5 - require minimal versions for deps, thanks Andi Albrecht
 
 - remove superflous include lines in MANIFEST.in
 
