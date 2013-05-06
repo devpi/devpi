@@ -11,18 +11,26 @@ import pytest
 pytestmark = pytest.mark.skipif("sys.platform == 'win32'")
 
 def test_gendeploycfg(tmpdir):
-    config = parseoptions(["x", "--port=3200", "--redisport=3205",
-                           "--datadir=%s" % tmpdir])
-    gendeploycfg(config, tmpdir)
-    assert tmpdir.check()
-    sup = tmpdir.join("etc/supervisord.conf").read()
-    redis = tmpdir.join("etc/redis-devpi.conf").read()
-    nginx = tmpdir.join("etc/nginx-devpi.conf").read()
-    assert "--port=3200" in sup
-    assert "--redisport=3205" in sup
-    assert "port 3205" in redis
-    assert "port 3205" in redis
-    assert "proxy_pass http://localhost:3200" in nginx
+    def crontab_exists(p):
+        try:
+            p.sysexec("-l")
+        except py.process.cmdexec.Error:
+            return None
+        return p
+
+    if py.path.local.sysfind("crontab", checker=crontab_exists):
+        config = parseoptions(["x", "--port=3200", "--redisport=3205",
+                               "--datadir=%s" % tmpdir])
+        gendeploycfg(config, tmpdir)
+        assert tmpdir.check()
+        sup = tmpdir.join("etc/supervisord.conf").read()
+        redis = tmpdir.join("etc/redis-devpi.conf").read()
+        nginx = tmpdir.join("etc/nginx-devpi.conf").read()
+        assert "--port=3200" in sup
+        assert "--redisport=3205" in sup
+        assert "port 3205" in redis
+        assert "port 3205" in redis
+        assert "proxy_pass http://localhost:3200" in nginx
 
 def test_create_devpictl(tmpdir):
     tw = py.io.TerminalWriter()
