@@ -31,7 +31,7 @@ def caplog(caplog):
     return caplog
 
 @pytest.fixture(scope="session")
-def redis(xprocess):
+def redis(request, xprocess):
     """ return a session-wide StrictRedis connection which is connected
     to an externally started redis server instance
     (through the xprocess plugin)"""
@@ -41,7 +41,13 @@ def redis(xprocess):
         prepare_redis = configure_redis_start(port=port)
     except configure_redis_start.Error:
         pytest.skip("command not found: redis-server")
-    redislogfile = xprocess.ensure("redis", prepare_redis)
+    pid, redislogfile = xprocess.ensure("redis", prepare_redis)
+    def kill():
+        try:
+            py.process.kill(pid)
+        except OSError:
+            pass
+    request.addfinalizer(kill)
     client = redis.StrictRedis(port=port)
     client.port = port
     return client
