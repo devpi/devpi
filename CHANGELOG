@@ -1,9 +1,9 @@
-0.8.3.dev
+0.8.3
 ----------------
 
 - use pip's link parser rather than beautifulsoup
   to benefit from link parsing code tested out 
-  and maintained in the wild
+  and maintained in the wild.  Adapt README.
 
 - skip a test if crontab command is not present
   (thanks Markus Zapke-Gruendemann)

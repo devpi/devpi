@@ -21,9 +21,9 @@ used by pip or easy_install.
   changelog protocol, making sure you'll always see an up-to-date 
   view of what's available.
 
-- pip/easy_install/buildout are shielded from the typical 
-  client-side crawling, thus providing lightning-fast and 
-  reliable installation (on second access of a package).
+- server-side crawling using pip's link extraction allows client-side
+  pip/easy_install/buildout tools to avoid all crawling, thus providing 
+  lightning-fast and reliable installation (on second access of a package).
   And repeatable offline installs.
 
 - ``devpi-server --gendeploy=TARGETDIR`` creates a zero-configuration
@@ -32,6 +32,9 @@ used by pip or easy_install.
   a thin wrapper around a dedicated supervisord_.  You'll also find
   templates for nginx_ and a user crontab to start permanent deployment 
   at system boot time under a nice looking URL.  
+
+- ``devpi-server`` contains an extensive automated test suite
+  to help continued improvements without regressions.
 
 To summarize, devpi-server aims to help you and your company handle 
 all installation interactions with pypi.python.org in the most
