@@ -1,9 +1,9 @@
-
+import mock
+import py
 import pytest
+
 from devpi_server.extpypi import *
 from devpi_server.main import FatalResponse
-import mock
-import time
 
 class TestIndexParsing:
     simplepy = DistURL("http://pypi.python.org/simple/py/")

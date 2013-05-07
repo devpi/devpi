@@ -4,23 +4,18 @@ Implementation of the database layer for PyPI Package serving and
 testresult storage.
 
 """
-import re
-import os, sys
-import py
 import json
-import xmlrpclib
-from devpi_server.types import propmapping
-from hashlib import md5
-from bs4 import BeautifulSoup
+import re
+import sys
+
 from pip.index import HTMLPage
 
+from .types import propmapping
 from .urlutil import DistURL, joinpath
 
 from logging import getLogger
 assert __name__ == "devpi_server.extpypi"
 log = getLogger(__name__)
-
-import json
 
 
 class IndexParser:
