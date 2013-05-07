@@ -286,10 +286,3 @@ class RefreshManager:
             for name in names:
                 self.extdb.getreleaselinks(name, refresh=True)
                 self.redis.srem(self.INVALIDSET, name)
-
-def parse_http_date_to_posix(date):
-    time = parse_date(date)
-    ### DST?
-    return (time - datetime.datetime(1970, 1, 1)).total_seconds()
-
-
