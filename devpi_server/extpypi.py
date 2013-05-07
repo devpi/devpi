@@ -51,7 +51,6 @@ class IndexParser:
         p = HTMLPage(html, disturl.url)
         seen = set()
         for link in p.links:
-            #newurl = disturl.joinpath(a.get("href"))
             newurl = DistURL(link.url)
             eggfragment = newurl.eggfragment
             if scrape and eggfragment:
