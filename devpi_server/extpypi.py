@@ -81,6 +81,11 @@ def parse_index(disturl, html, scrape=True):
     parser.parse_index(disturl, html, scrape=scrape)
     return parser
 
+def httpget_should_retry(cacheresponse):
+    if not cacheresponse:
+        return True
+    code = cacheresponse.status_code
+    return code < 200 or code >= 400
 
 class HTMLCache:
     def __init__(self, redis, httpget, maxredirect=10):
@@ -98,7 +103,7 @@ class HTMLCache:
         while counter <= self.maxredirect:
             counter += 1
             cacheresponse = self.gethtmlcache(url)
-            if refresh or not cacheresponse or cacheresponse.status_code >= 400:
+            if refresh or httpget_should_retry(cacheresponse):
                 response = self.httpget(url, allow_redirects=False)
                 cacheresponse.setnewreponse(response)
             url = cacheresponse.nextlocation

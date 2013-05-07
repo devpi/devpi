@@ -5,6 +5,7 @@ import os
 import subprocess
 
 from devpi_server.config import render, getpath
+import devpi_server
 
 def gendeploycfg(config, venvdir, tw=None):
     """ generate etc/ structure with supervisord.conf for running
@@ -116,7 +117,8 @@ def gendeploy(config):
     subproc(tw, ["virtualenv", str(target)])
     pip = py.path.local.sysfind("pip", paths=[target.join("bin")])
     tw.line("installing devpi-server and supervisor", bold=True)
-    subproc(tw, [pip, "install", "devpi-server>=0.8.2", "supervisor"])
+    version = devpi_server.__version__
+    subproc(tw, [pip, "install", "devpi-server>=%s" % version, "supervisor"])
     tw.line("generating configuration")
     gendeploycfg(config, target, tw=tw)
 

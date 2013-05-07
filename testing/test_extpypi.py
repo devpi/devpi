@@ -202,8 +202,28 @@ class TestHTMLCache:
         response = htmlcache.get(target)
         assert response.status_code == 200
         assert response.text == "hello"
-        del htmlcache.httpget
+        htmlcache.httpget = None
         assert htmlcache.get(target).text == "hello"
+
+    @pytest.mark.parametrize("code", [-1, 404, 501, 502])
+    def test_htmlcacheget_offline_then_online(self, redis, code):
+        target = "http://whatever.com"
+        class httpget_offline:
+            def __init__(self, url, allow_redirects):
+                self.url = url
+                self.status_code = code
+        htmlcache = HTMLCache(redis, httpget_offline)
+        response = htmlcache.get(target)
+        assert response.status_code == code
+
+        class httpget_online:
+            def __init__(self, url, allow_redirects):
+                self.url = url
+                self.status_code = 200
+                self.text = "hello"
+        htmlcache = HTMLCache(redis, httpget_online)
+        response = htmlcache.get(target)
+        assert response.status_code == 200
 
     def test_htmlcacheget_redirect_ok(self, redis):
         class httpget:
