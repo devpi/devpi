@@ -102,14 +102,14 @@ def create_devpictl(tw, tmpdir, redisport, httpport):
 
 
 def gendeploy(config):
+    tw = py.io.TerminalWriter()
+    tw.cwd = py.path.local()
     if sys.platform == "win32":
         tw.line("cannot run --gendeploy on windows due to "
                 "depending on supervisor.", red=True)
         return 1
-    tw = py.io.TerminalWriter()
-    tw.cwd = py.path.local()
     target = getpath(config.args.gendeploy)
-    tw.line("installing virtualenv to %s" %(target), bold=True)
+    tw.line("installing virtualenv to %s" % (target), bold=True)
     try:
         del os.environ["PYTHONDONTWRITEBYTECODE"]
     except KeyError:
