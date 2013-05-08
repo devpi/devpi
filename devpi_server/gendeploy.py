@@ -7,6 +7,7 @@ import subprocess
 from devpi_server.config import render, getpath
 import devpi_server
 
+
 def gendeploycfg(config, venvdir, tw=None):
     """ generate etc/ structure with supervisord.conf for running
     devpi-server and redis under supervisor control. """
@@ -57,6 +58,7 @@ def gendeploycfg(config, venvdir, tw=None):
     """) % locals())
     tw.line("may quick pypi installations be with you :)", bold=True)
 
+
 def create_crontab(tw, etc, devpictl):
     crontab = py.path.local.sysfind("crontab")
     if crontab is None:
@@ -81,7 +83,6 @@ def create_crontab(tw, etc, devpictl):
     """ % crontabpath)
 
 
-
 def create_devpictl(tw, tmpdir, redisport, httpport):
     devpiserver = tmpdir.join("bin", "devpi-server")
     if not devpiserver.check():
@@ -95,10 +96,9 @@ def create_devpictl(tw, tmpdir, redisport, httpport):
                       httpport=httpport, devpictlpy=devpictlpy)
     tw.line("wrote %s" % devpictl, bold=True)
     s = py.std.stat
-    setmode = s.S_IXUSR # | s.S_IXGRP | s.S_IXOTH
+    setmode = s.S_IXUSR  # | s.S_IXGRP | s.S_IXOTH
     devpictl.chmod(devpictl.stat().mode | setmode)
     return devpictl
-
 
 
 def gendeploy(config):
@@ -121,6 +121,7 @@ def gendeploy(config):
     subproc(tw, [pip, "install", "devpi-server>=%s" % version, "supervisor"])
     tw.line("generating configuration")
     gendeploycfg(config, target, tw=tw)
+
 
 def subproc(tw, args):
     return subprocess.check_call([str(x) for x in args])
