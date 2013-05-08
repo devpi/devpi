@@ -1,14 +1,17 @@
-
 import os
 import subprocess
+
 from mock import Mock
-from devpi_server.gendeploy import create_devpictl, gendeploycfg, create_crontab
-from devpi_server.config import parseoptions
-from devpi_server.ctl import ensure_supervisor_started, devpictl
 import py
 import pytest
 
+from devpi_server.config import parseoptions
+from devpi_server.ctl import ensure_supervisor_started, devpictl
+from devpi_server.gendeploy import (create_devpictl, gendeploycfg,
+    create_crontab)
+
 pytestmark = pytest.mark.skipif("sys.platform == 'win32'")
+
 
 def test_gendeploycfg(tmpdir):
     def crontab_exists(p):
@@ -34,6 +37,7 @@ def test_gendeploycfg(tmpdir):
     else:
         pytest.skip('test user has no crontab')
 
+
 def test_create_devpictl(tmpdir):
     tw = py.io.TerminalWriter()
     devpiserver = tmpdir.ensure("bin", "devpi-server")
@@ -44,8 +48,9 @@ def test_create_devpictl(tmpdir):
     firstline = devpictl.readlines(cr=0)[0]
     assert firstline == "FIRST LINE"
 
+
 def test_create_crontab(tmpdir, monkeypatch):
-    monkeypatch.setattr(py.path.local, "sysexec", lambda x,y: "")
+    monkeypatch.setattr(py.path.local, "sysexec", lambda x, y: "")
     tw = py.io.TerminalWriter()
     devpictl = tmpdir.join("devpi-ctl")
     if py.path.local.sysfind("crontab"):
@@ -57,6 +62,7 @@ def test_create_crontab(tmpdir, monkeypatch):
     else:
         pytest.skip('crontab not installed')
 
+
 def test_ensure_supervisor_started(tmpdir, monkeypatch):
     m = Mock()
     monkeypatch.setattr(subprocess, "check_call", m)
@@ -65,12 +71,14 @@ def test_ensure_supervisor_started(tmpdir, monkeypatch):
     ensure_supervisor_started(tmpdir, supconfig)
     m.assert_called_once()
 
+
 def test_ensure_supervisor_started_exists(tmpdir, monkeypatch):
     m = Mock()
     monkeypatch.setattr(subprocess, "check_call", m)
     tmpdir.join("supervisord.pid").write(os.getpid())
     ensure_supervisor_started(tmpdir, None)
     assert not m.called
+
 
 def test_devpictl(tmpdir, monkeypatch):
     m = Mock()
