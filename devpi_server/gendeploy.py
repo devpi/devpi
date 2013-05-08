@@ -123,5 +123,4 @@ def gendeploy(config):
     gendeploycfg(config, target, tw=tw)
 
 def subproc(tw, args):
-    import subprocess
     return subprocess.check_call([str(x) for x in args])
