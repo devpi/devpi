@@ -95,9 +95,10 @@ class HTMLCache:
         self.maxredirect = maxredirect
 
     def get(self, url, refresh=False):
-        """ return unicode html text from http requests
-        or integer status_code if we didn't get a 200
-        or we had too many redirects.
+        """ return response object from http get request.
+
+        response.status_code will be -1 if there was a connection
+        error or -2 if there were too many redirects.
         """
         counter = 0
         while counter <= self.maxredirect:
@@ -219,9 +220,11 @@ class ExtDB:
         for crawlurl in result.crawllinks:
             log.debug("visiting crawlurl %s", crawlurl)
             response = self.htmlcache.get(crawlurl.url, refresh=refresh)
-            log.debug("crawlurl %s %s", crawlurl, response.status_code)
+            log.debug("crawlurl %s %s", crawlurl, response)
+            assert hasattr(response, "status_code")
             if response.status_code == 200:
-                result.parse_index(DistURL(response.url), response.text)
+                result.parse_index(DistURL(response.url), response.text,
+                                   scrape=False)
         releaselinks = list(result.releaselinks)
         entries = [self.releasefilestore.maplink(link, refresh=refresh)
                         for link in releaselinks]

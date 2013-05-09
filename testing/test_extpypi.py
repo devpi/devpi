@@ -293,18 +293,34 @@ class TestExtPYPIDB:
         assert links[1].url == "https://pypi.python.org/pkg/pytest-1.0.1.zip"
         assert links[1].relpath.endswith("/pytest-1.0.1.zip")
 
-    def test_parse_and_scrape_not_found(self, extdb):
+    @pytest.mark.parametrize("errorcode", [404, -1, -2])
+    def test_parse_and_scrape_error(self, extdb, errorcode):
         extdb.url2response["https://pypi.python.org/simple/pytest/"] = dict(
             status_code=200, text='''
                 <a href="../../pkg/pytest-1.0.zip#md5=123" />
                 <a rel="download" href="https://download.com/index.html" />
             ''')
         extdb.url2response["https://download.com/index.html"] = dict(
-            status_code=404, text = 'not found')
+            status_code=errorcode, text = 'not found')
         links = extdb.getreleaselinks("pytest")
         assert len(links) == 1
         assert links[0].url == \
                 "https://pypi.python.org/pkg/pytest-1.0.zip"
+
+    def test_scrape_not_recursive(self, extdb):
+        extdb.url2response["https://pypi.python.org/simple/pytest/"] = dict(
+            status_code=200, text='''
+                <a rel="download" href="https://download.com/index.html" />
+            ''')
+        extdb.url2response["https://download.com/index.html"] = dict(
+            status_code=200, text = '''
+                <a href="../../pkg/pytest-1.0.zip#md5=123" />
+                <a rel="download" href="http://whatever.com" />'''
+        )
+        extdb.url2response["https://whatever.com"] = dict(
+            status_code=200, text = '<a href="pytest-1.1.zip#md5=123" />')
+        links = extdb.getreleaselinks("pytest")
+        assert len(links) == 1
 
     def test_getprojectnames(self, extdb):
         extdb.url2response["https://pypi.python.org/simple/proj1/"] = dict(
