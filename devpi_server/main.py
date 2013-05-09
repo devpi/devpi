@@ -115,20 +115,20 @@ class XOM:
 
     @cached_property
     def extdb(self):
-        from devpi_server.extpypi import ExtDB, HTMLCache
-        htmlcache = HTMLCache(self.redis, self.httpget)
-        return ExtDB(PYPIURL, htmlcache, self.releasefilestore)
+        from devpi_server.extpypi import ExtDB
+        return ExtDB(PYPIURL, self.redis, self.httpget, self.releasefilestore)
 
     @cached_property
     def _httpsession(self):
         import requests
         return requests.session()
 
-    def httpget(self, url, allow_redirects):
+    def httpget(self, url, allow_redirects, timeout=30):
         from requests.exceptions import RequestException
         try:
             return self._httpsession.get(url, stream=True,
-                                         allow_redirects=allow_redirects)
+                                         allow_redirects=allow_redirects,
+                                         timeout=timeout)
         except RequestException:
             return FatalResponse(sys.exc_info())
 

@@ -124,10 +124,9 @@ def filestore(redis, tmpdir):
 
 @pytest.fixture
 def extdb(redis, filestore, httpget):
-    from devpi_server.extpypi import HTMLCache, ExtDB
+    from devpi_server.extpypi import ExtDB
     redis.flushdb()
-    htmlcache = HTMLCache(redis, httpget)
-    extdb = ExtDB("https://pypi.python.org/", htmlcache, filestore)
+    extdb = ExtDB("https://pypi.python.org/", redis, httpget, filestore)
     extdb.url2response = httpget.url2response
     return extdb
 

@@ -1,8 +1,12 @@
-0.8.5.dev1
+0.8.5.dev2
 ----------------
 
-- re-fix issue6: tests and fixes for problems, uncovered
-  by failing installs for icalendar and django-debug-toolbar
+- re-fix issue6: tests and fixes for django-debug-toolbar
+  where recursive scraping was accidentally triggered
+
+- remove fine-grained http caching because caching on the
+  index level seems enough.  This avoids an issues that
+  occured when installing icalendar.
 
 - fix transition from going offline to online for
   not yet cached projects by re-trying cached
