@@ -63,7 +63,15 @@ def create_crontab(tw, etc, devpictl):
     crontab = py.path.local.sysfind("crontab")
     if crontab is None:
         return ""
-    oldcrontab = crontab.sysexec("-l")
+    try:
+        oldcrontab = crontab.sysexec("-l")
+    except py.process.cmdexec.Error:
+        err = """
+            The current user has no crontab configured.
+            Please run "crontab -e" to create a new crontab.
+            Then execute "devpi-server --gendeploy" again.
+        """
+        raise EnvironmentError(py.std.textwrap.dedent(err))
     for line in oldcrontab.split("\n"):
         if line.strip()[:1] != "#" and "devpi-ctl" in line:
             return ""
