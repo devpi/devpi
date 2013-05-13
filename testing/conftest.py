@@ -46,7 +46,11 @@ def redis(request, xprocess):
         try:
             py.process.kill(pid)
         except OSError:
-            pass
+            import inspect
+            warn_lineno = inspect.currentframe().f_lineno - 3
+            import warnings
+            msg = "Failed to kill redis instance (pid %d)" % pid
+            warnings.warn_explicit(msg, RuntimeWarning, __file__, warn_lineno)
     request.addfinalizer(kill)
     client = redis.StrictRedis(port=port)
     client.port = port
