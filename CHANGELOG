@@ -4,14 +4,16 @@
 - re-fix issue6: tests and fixes for django-debug-toolbar
   where recursive scraping was accidentally triggered
 
-- remove fine-grained http caching because caching on the
-  index level seems enough.  This avoids an issues that
-  occured when installing icalendar.
+- remove fine-grained http caching for now because caching 
+  on the index level seems enough.  This avoids an issues that
+  occured when installing icalendar.  
 
 - fix transition from going offline to online for
   not yet cached projects by re-trying cached
   http gets which caused a <200 or >=400 http 
   status code.  
+
+- added a note to README for how to upgrade
 
 0.8.4
 ----------------

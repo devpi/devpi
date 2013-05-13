@@ -107,13 +107,13 @@ Ok, that was more than 10 times faster.  The install of ``devpi-server``
 (0.7) involves five packages btw: ``beautifulsoup4, bottle, py, redis,
 requests``.
 
+.. _gendeploy:
 
 deploying permanently on your laptop
 -----------------------------------------------------------
 
-devpi-server is not only a fast pypi cache but since version 0.8 it
-comes with a zero-configuration way to deploy permanently on a
-laptop or even a server.  If you type::
+devpi-server comes with a zero-configuration way to deploy permanently on a
+laptop or even a server (see `upgrading gendeploy`_). If you type::
 
     $ devpi-server --gendeploy=TARGETDIR [--port=httpport] [--redisport=port]
 
@@ -139,9 +139,9 @@ In fact, ``devpi-ctl`` is just a thin wrapper around ``supervisorctl``
 which picks up the right configuration files and ensures its ``supervisord`` 
 instance is running.  
 
-You can now **uninstall devpi-server from the environment where you
-issued ``--gendeploy`` because the created environment contains all that
-is needed**.
+You can now uninstall devpi-server from the environment where you
+issued ``--gendeploy`` because the target environment is self-contained
+and does not depend on the original installation.
 
 Lastly, if you want to have things running at system startup and you are using
 a standard cron, a modified copy of your user crontab has been amended which
@@ -167,6 +167,24 @@ and read up on supervisor, you can modify the configuration to your liking.
 If you prefer different schemes of deployment you may consider it 
 "executable" documentation.
 
+.. _`upgrading gendeploy`:
+
+using gendeploy when upgrading
+-------------------------------------
+
+If you want to upgrade your devpi-server deployment which you previously
+did using gendeploy_, you can proceed like this::
+
+    # we assume you are in some virtualenv (not the target one)
+    # and have created a devpi-ctl alias as advised
+    
+    $ pip install -U devpi-server  
+    $ devpi-ctl shutdown
+    $ devpi-server --gendeploy=TARGETDIR [--port=...] [--redisport=...]
+    $ devpi-ctl start all 
+
+If you don't stop the running server, the re-creation of the 
+virtualenv is bound to fail.
 
 Compatibility and perequisites
 ---------------------------------
