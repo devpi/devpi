@@ -1,3 +1,9 @@
+0.8.6.dev
+----------------
+
+- if no crontab exists for a user, simply create one
+  instead of erroring out.  Thanks Andi Albrecht.
+
 0.8.5
 ----------------
 

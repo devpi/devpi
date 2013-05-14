@@ -52,14 +52,21 @@ def test_create_crontab(tmpdir, monkeypatch):
     else:
         pytest.skip('crontab not installed')
 
-
-def test_no_user_crontab(tmpdir, monkeypatch):
+def test_create_crontab_empty(tmpdir, monkeypatch):
     def sysexec_raise(x, y):
         raise py.process.cmdexec.Error(1, 2, x, "", "")
 
     monkeypatch.setattr(py.path.local, "sysexec", sysexec_raise)
-    with pytest.raises(EnvironmentError):
-        gendeploy.create_crontab(None, None, None)
+    tw = py.io.TerminalWriter()
+    devpictl = tmpdir.join("devpi-ctl")
+    if py.path.local.sysfind("crontab"):
+        cron = gendeploy.create_crontab(tw, tmpdir, devpictl)
+        assert cron
+        expect = "crontab %s" % tmpdir.join("crontab")
+        assert expect in cron
+        assert "@reboot" in tmpdir.join("crontab").read()
+    else:
+        pytest.skip('crontab not installed')
 
 
 def test_ensure_supervisor_started(tmpdir, monkeypatch):

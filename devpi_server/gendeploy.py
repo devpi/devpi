@@ -63,32 +63,29 @@ def create_crontab(tw, etc, devpictl):
     crontab = py.path.local.sysfind("crontab")
     if crontab is None:
         return ""
+    newcrontab = "@reboot %s start all\n" % devpictl
     try:
         oldcrontab = crontab.sysexec("-l")
     except py.process.cmdexec.Error:
-        err = """
-            The current user has no crontab configured.
-            Please run "crontab -e" to create a new crontab.
-            Then execute "devpi-server --gendeploy" again.
-        """
-        raise EnvironmentError(py.std.textwrap.dedent(err))
-    for line in oldcrontab.split("\n"):
-        if line.strip()[:1] != "#" and "devpi-ctl" in line:
-            return ""
-    newcrontab = (oldcrontab.rstrip() + "\n" +
-                  "@reboot %s start all\n" % devpictl)
+        based = ""
+    else:
+        for line in oldcrontab.split("\n"):
+            if line.strip()[:1] != "#" and "devpi-ctl" in line:
+                return ""
+        based = "(based on your current crontab)"
+        newcrontab = oldcrontab.rstrip() + "\n" + newcrontab
     crontabpath = etc.join("crontab")
     crontabpath.write(newcrontab)
     tw.line("wrote %s" % crontabpath, bold=True)
     return py.std.textwrap.dedent("""\
-        It seems you are using "cron", so we created a new copy of
-        your new user-crontab which starts devpi-server at boot. With:
+        It seems you are using "cron", so we created a crontab file
+        %s which starts devpi-server at boot. With:
 
             crontab %s
 
         you should be able to install the new crontab but please check it
         first.
-    """ % crontabpath)
+    """ % (based, crontabpath))
 
 
 def create_devpictl(tw, tmpdir, redisport, httpport):
