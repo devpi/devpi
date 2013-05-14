@@ -8,7 +8,7 @@ import json
 import re
 import sys
 
-from pip.index import HTMLPage
+from ._pip import HTMLPage
 
 from .types import propmapping
 from .urlutil import DistURL, joinpath
@@ -16,7 +16,6 @@ from .urlutil import DistURL, joinpath
 from logging import getLogger
 assert __name__ == "devpi_server.extpypi"
 log = getLogger(__name__)
-
 
 class IndexParser:
     ALLOWED_ARCHIVE_EXTS = ".egg .tar.gz .tar.bz2 .tar .tgz .zip".split()

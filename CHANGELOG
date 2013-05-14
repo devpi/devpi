@@ -18,6 +18,9 @@
 - remove general dependency on virtualenv which 
   is only needed for --gendeploy.  Adapt docs accordingly.
 
+- remove dependency on pip by shifting the relevant 
+  scraping bits directly to _pip.py
+
 0.8.4
 ----------------
 
