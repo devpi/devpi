@@ -130,6 +130,5 @@ def gendeploy(config):
     tw.line("generating configuration")
     gendeploycfg(config, target, tw=tw)
 
-
 def subproc(tw, args):
     return subprocess.check_call([str(x) for x in args])

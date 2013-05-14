@@ -11,7 +11,6 @@ if __name__ == "__main__":
     install_requires = ["py>=1.4.13",
                         "pip>=1.3.1",
                         "requests>=1.2.0",
-                        "virtualenv>=1.9.1",
                         "redis>=2.7.2",
                         "bottle>=0.11.6"]
     if sys.version_info < (2,7):

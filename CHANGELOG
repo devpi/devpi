@@ -15,6 +15,9 @@
 
 - added a note to README for how to upgrade
 
+- remove general dependency on virtualenv which 
+  is only needed for --gendeploy.  Adapt docs accordingly.
+
 0.8.4
 ----------------
 

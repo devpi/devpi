@@ -113,11 +113,17 @@ deploying permanently on your laptop
 -----------------------------------------------------------
 
 devpi-server comes with a zero-configuration way to deploy permanently on a
-laptop or even a server (see `upgrading gendeploy`_). If you type::
+laptop or even a server (see `upgrading gendeploy`_).  First, make sure
+you can invoke the ``virtualenv`` command::
+
+    $ virtualenv --version
+    1.9.1
+
+after which you can type::
 
     $ devpi-server --gendeploy=TARGETDIR [--port=httpport] [--redisport=port]
 
-You will have a fully self-contained directory (a virtualenv in fact) 
+and will have a fully self-contained directory (a virtualenv in fact) 
 which is configured for supervising a continued run of devpi-server.
 If you set an alias like this (in your ``.bashrc`` for permanence)::
 
