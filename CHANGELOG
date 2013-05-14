@@ -1,4 +1,4 @@
-0.8.5.dev2
+0.8.5
 ----------------
 
 - re-fix issue6: tests and fixes for django-debug-toolbar
@@ -6,14 +6,10 @@
 
 - remove fine-grained http caching for now because caching 
   on the index level seems enough.  This avoids an issues that
-  occured when installing icalendar.  
+  occured when installing icalendar and also some offline/online
+  state change issues.  
 
-- fix transition from going offline to online for
-  not yet cached projects by re-trying cached
-  http gets which caused a <200 or >=400 http 
-  status code.  
-
-- added a note to README for how to upgrade
+- added a note to README for how to upgrade --gendeploy installs
 
 - remove general dependency on virtualenv which 
   is only needed for --gendeploy.  Adapt docs accordingly.

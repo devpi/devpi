@@ -51,7 +51,8 @@ def redis(request, xprocess):
             import warnings
             msg = "Failed to kill redis instance (pid %d)" % pid
             warnings.warn_explicit(msg, RuntimeWarning, __file__, warn_lineno)
-    request.addfinalizer(kill)
+    if pid:
+        request.addfinalizer(kill)
     client = redis.StrictRedis(port=port)
     client.port = port
     return client
