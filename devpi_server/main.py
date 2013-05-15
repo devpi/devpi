@@ -210,7 +210,7 @@ def bottle_run(xom):
     log.info("serving index url: http://localhost:%s/ext/pypi/simple/",
              xom.config.args.port)
     log.info("bug tracker: https://bitbucket.org/hpk42/devpi-server/issues")
-    log.info("IRC: #devpi on irc.freenode.net")
+    log.info("IRC: #pylib on irc.freenode.net")
     ret = app.run(server=xom.config.args.bottleserver,
                   reloader=False, port=port)
     xom.shutdown()
