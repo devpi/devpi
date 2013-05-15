@@ -236,7 +236,7 @@ class TestRefreshManager:
         return rf
 
     def test_pypichanges_nochanges(self, extdb, refreshmanager):
-        refreshmanager.redis.delete(refreshmanager.PYPISERIAL, 10)
+        refreshmanager.redis.delete(refreshmanager.PYPISERIAL)
         proxy = mock.create_autospec(XMLProxy)
         proxy.changelog_last_serial.return_value = 10
         proxy.changelog_since_serial.return_value = []
