@@ -31,6 +31,16 @@ def main(argv=None):
     xom = XOM(config)
     return bottle_run(xom)
 
+def add_redis_keys(redis):
+
+    # pypi related
+    redis.HPYPIPROJECTS = "pypi:projects"
+    redis.PYPISERIAL = "pypi:serial"
+    redis.PYPIINVALID = "pypi:invalid"
+
+    # stage related
+    redis.HSTAGECONFIG = "ixconfig:{stage}"
+    redis.HSTAGEFILES = "files:{stage}"
 
 class XOM:
     class Exiting(SystemExit):
@@ -100,6 +110,7 @@ class XOM:
         import redis
         client = redis.StrictRedis(port=self.config.args.redisport)
         #self.addshutdownfunc("shutdown redis", client.shutdown)
+        add_redis_keys(client)
         return client
 
     @cached_property

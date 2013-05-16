@@ -105,24 +105,23 @@ class ExtDB:
         self.redis = xom.redis
         self.httpget = xom.httpget
         self.releasefilestore = xom.releasefilestore
-        self.HPROJECTS = "pypi:projects"
         self.releasefilestore = xom.releasefilestore
 
     def iscontained(self, projectname):
-        return self.redis.hexists(self.HPROJECTS, projectname)
+        return self.redis.hexists(self.redis.HPYPIPROJECTS, projectname)
 
     def getprojectnames(self):
         """ return list of all projects which have been served. """
-        keyvals = self.redis.hgetall(self.HPROJECTS)
+        keyvals = self.redis.hgetall(self.redis.HPYPIPROJECTS)
         l = [key for key,val in keyvals.items() if val]
         l.sort()
         return l
 
     def _dump_projectlinks(self, projectname, dumplist):
-        self.redis.hset(self.HPROJECTS, projectname, json.dumps(dumplist))
+        self.redis.hset(self.redis.HPYPIPROJECTS, projectname, json.dumps(dumplist))
 
     def _load_projectlinks(self, projectname):
-        res = self.redis.hget(self.HPROJECTS, projectname)
+        res = self.redis.hget(self.redis.HPYPIPROJECTS, projectname)
         if res:
             return json.loads(res)
         return None
@@ -140,7 +139,7 @@ class ExtDB:
         # the async changelog-checking might run any time and we need to
         # make sure it consider this project before we read pypi.
         # We therefore mark it as being accessed if it hasn't already
-        self.redis.hsetnx(self.HPROJECTS, projectname, "")
+        self.redis.hsetnx(self.redis.HPYPIPROJECTS, projectname, "")
 
         url = PYPIURL_SIMPLE + projectname + "/"
         log.debug("visiting index %s", url)
@@ -178,20 +177,18 @@ class RefreshManager:
         self.extdb = extdb
         self.xom = xom
         self.redis = extdb.redis
-        self.PYPISERIAL = "pypi:serial"
-        self.INVALIDSET = "pypi:invalid"
 
     def spawned_pypichanges(self, proxy, proxysleep):
         log.debug("spawned_pypichanges starting")
         redis = self.redis
-        current_serial = redis.get(self.PYPISERIAL)
+        current_serial = redis.get(redis.PYPISERIAL)
         while 1:
             if current_serial is None:
                 current_serial = proxy.changelog_last_serial()
                 if current_serial is None:
                     proxysleep()
                     continue
-                redis.set(self.PYPISERIAL, current_serial)
+                redis.set(redis.PYPISERIAL, current_serial)
             else:
                 current_serial = int(current_serial)
             log.debug("checking remote changelog [%s]...", current_serial)
@@ -200,7 +197,7 @@ class RefreshManager:
                 log.debug("got changelog of size %d" %(len(changelog),))
                 self.mark_refresh(changelog)
                 current_serial += len(changelog)
-                redis.set(self.PYPISERIAL, current_serial)
+                redis.set(redis.PYPISERIAL, current_serial)
             proxysleep()
 
     def mark_refresh(self, changelog):
@@ -212,7 +209,7 @@ class RefreshManager:
             if self.extdb.iscontained(name):
                 log.debug("marking invalid %r", name)
                 changed.add(name)
-                redis.sadd(self.INVALIDSET, name)
+                redis.sadd(redis.PYPIINVALID, name)
             else:
                 notcontained.add(name)
         if notcontained:
@@ -225,12 +222,13 @@ class RefreshManager:
         # note that this is written such that it could
         # be killed and restarted anytime without loosing
         # refreshing tasks (but possibly performing them twice)
+        redis = self.redis
         while 1:
-            names = self.redis.smembers(self.INVALIDSET)
+            names = redis.smembers(redis.PYPIINVALID)
             if not names:
                 invalidationsleep()
                 continue
             log.info("picking up invalidated projects %r", names)
             for name in names:
                 self.extdb.getreleaselinks(name, refresh=True)
-                self.redis.srem(self.INVALIDSET, name)
+                redis.srem(redis.PYPIINVALID, name)

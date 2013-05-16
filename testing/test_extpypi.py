@@ -235,19 +235,20 @@ class TestRefreshManager:
         #request.addfinalizer(xom.kill_spawned)
         return rf
 
-    def test_pypichanges_nochanges(self, extdb, refreshmanager):
-        refreshmanager.redis.delete(refreshmanager.PYPISERIAL)
+    def test_pypichanges_nochanges(self, extdb, redis, refreshmanager):
+        refreshmanager.redis.delete(redis.PYPISERIAL)
         proxy = mock.create_autospec(XMLProxy)
         proxy.changelog_last_serial.return_value = 10
         proxy.changelog_since_serial.return_value = []
         with pytest.raises(ValueError):
             refreshmanager.spawned_pypichanges(proxy, proxysleep=raising)
         proxy.changelog_last_serial.assert_called_once_with()
-        val = refreshmanager.redis.get(refreshmanager.PYPISERIAL)
+        val = redis.get(redis.PYPISERIAL)
         assert int(val) == 10
 
-    def test_pypichanges_changes(self, extdb, refreshmanager, monkeypatch):
-        refreshmanager.redis.set(refreshmanager.PYPISERIAL, 10)
+    def test_pypichanges_changes(self, extdb, redis,
+                                 refreshmanager, monkeypatch):
+        refreshmanager.redis.set(redis.PYPISERIAL, 10)
         monkeypatch.setattr(extdb, "httpget", lambda *x,**y: raising())
         pytest.raises(ValueError, lambda: extdb.getreleaselinks("pytest"))
         proxy = mock.create_autospec(XMLProxy)
@@ -256,9 +257,9 @@ class TestRefreshManager:
         with pytest.raises(ValueError):
             refreshmanager.spawned_pypichanges(proxy, proxysleep=raising)
         assert not proxy.changelog_last_serial.called
-        val = refreshmanager.redis.get(refreshmanager.PYPISERIAL)
+        val = refreshmanager.redis.get(redis.PYPISERIAL)
         assert int(val) == 12
-        invalid = refreshmanager.redis.smembers(refreshmanager.INVALIDSET)
+        invalid = refreshmanager.redis.smembers(redis.PYPIINVALID)
         assert invalid == set(["pytest"])
 
     @pytest.fixture(params=["protocol", "socket"])
@@ -274,10 +275,11 @@ class TestRefreshManager:
         return raise_error
 
     def test_changelog_since_serial_nonetwork(self, extdb, refreshmanager,
+                    redis,
                     raise_error, monkeypatch, caplog):
         from xmlrpclib import ServerProxy
         got = []
-        refreshmanager.redis.set(refreshmanager.PYPISERIAL, 10)
+        redis.set(redis.PYPISERIAL, 10)
         def raise_xmlrpcish(since_int):
             got.append(since_int)
             raise_error()
@@ -307,30 +309,33 @@ class TestRefreshManager:
         xmlproxy = XMLProxy(serverproxy)
         with pytest.raises(ValueError):
             refreshmanager.spawned_pypichanges(xmlproxy, proxysleep=raising)
-        assert not refreshmanager.redis.exists(refreshmanager.PYPISERIAL)
+        assert not refreshmanager.redis.exists(extdb.redis.PYPISERIAL)
         assert caplog.getrecords(".*error.*")
 
     def test_refreshprojects(self, redis, extdb, refreshmanager, monkeypatch):
-        redis.sadd(refreshmanager.INVALIDSET, "pytest")
+        redis.sadd(redis.PYPIINVALID, "pytest")
         m = mock.Mock()
         monkeypatch.setattr(extdb, "getreleaselinks", m)
         with pytest.raises(ValueError):
             refreshmanager.spawned_refreshprojects(invalidationsleep=raising)
         m.assert_called_once_with("pytest", refresh=True)
-        assert not redis.smembers(refreshmanager.INVALIDSET)
+        assert not redis.smembers(redis.PYPIINVALID)
 
 
 def test_requests_httpget_negative_status_code(xom_notmocked, monkeypatch):
     import requests.exceptions
+    l = []
     def r(*a, **k):
+        l.append(1)
         raise requests.exceptions.RequestException()
 
     monkeypatch.setattr(xom_notmocked._httpsession, "get", r)
+    return
     r = xom_notmocked.httpget("http://notexists.qwe", allow_redirects=False)
     assert r.status_code == -1
+    assert l
 
 def test_requests_httpget_timeout(xom_notmocked, monkeypatch):
     r = xom_notmocked.httpget("http://notexists.qwe", allow_redirects=False,
                               timeout=0.001)
     assert r.status_code == -1
-

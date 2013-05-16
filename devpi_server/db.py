@@ -7,7 +7,6 @@ import logging
 
 log = logging.getLogger(__name__)
 
-
 class IndexConfig:
     """ Unserialized index configuration (using Python types). """
     def __init__(self, stagename, type="", bases="", volatile=False):
@@ -24,8 +23,6 @@ class IndexConfig:
         )
 
 class DB:
-    HCONFIG = "ixconfig:{stage}"
-    HFILES = "files:{stage}"
 
     def __init__(self, xom):
         self.xom = xom
@@ -35,7 +32,8 @@ class DB:
         return "%s/%s" % (user, index)
 
     def getindexconfig(self, stagename):
-        mapping = self.redis.hgetall(self.HCONFIG.format(stage=stagename))
+        redis = self.redis
+        mapping = redis.hgetall(redis.HSTAGECONFIG.format(stage=stagename))
         return IndexConfig(stagename=stagename, **mapping)
 
     def configure_index(self, stagename, type="private",
@@ -49,7 +47,8 @@ class DB:
             ixconfig.volatile = volatile
         mapping = ixconfig._getmapping()
         log.debug("configure_index %s: %s", stagename, mapping)
-        self.redis.hmset(self.HCONFIG.format(stage=stagename), mapping)
+        redis = self.redis
+        redis.hmset(redis.HSTAGECONFIG.format(stage=stagename), mapping)
 
     def op_with_bases(self, opname, stagename, **kw):
         ixconfig = self.getindexconfig(stagename)
@@ -75,7 +74,7 @@ class DB:
     def getreleaselinks_perstage(self, stagename, projectname):
         if stagename == "ext/pypi":
             return self.xom.extdb.getreleaselinks(projectname)
-        key = self.HFILES.format(stage=stagename)
+        key = self.redis.HSTAGEFILES.format(stage=stagename)
         val = self.redis.hget(key, projectname)
         if not val:
             return []
@@ -101,7 +100,7 @@ class DB:
         #if not ixconfig.type:
         #    return 404
         name, version = DistURL(filename).pkgname_and_version
-        key = self.HFILES.format(stage=stagename)
+        key = self.redis.HSTAGEFILES.format(stage=stagename)
         val = self.redis.hget(key, name)
         if val:
             files = json.loads(val)

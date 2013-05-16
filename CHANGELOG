@@ -1,8 +1,18 @@
-0.8.6.dev
+0.9.0.dev
 ----------------
+
+- XXX preliminarily introduce new int/dev, int/prod indexes where int/dev 
+  inherits packages from both int/prod and ext/pypi.  
+
+- XXX introduce preliminary support for client-side "devpi" workflow tool
+
+- allow uploads to int/dev
 
 - if no crontab exists for a user, simply create one
   instead of erroring out.  Thanks Andi Albrecht.
+
+- internal refactoring for better organisation of redis access
+
 
 0.8.5
 ----------------

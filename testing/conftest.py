@@ -4,7 +4,7 @@ import logging
 import mimetypes
 import pytest
 import py
-from devpi_server.main import XOM
+from devpi_server.main import XOM, add_redis_keys
 from devpi_server.config import configure_redis_start
 
 
@@ -55,6 +55,7 @@ def redis(request, xprocess):
         request.addfinalizer(kill)
     client = redis.StrictRedis(port=port)
     client.port = port
+    add_redis_keys(client)
     return client
 
 
