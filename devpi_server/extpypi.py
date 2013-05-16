@@ -101,40 +101,48 @@ class XMLProxy(object):
             return None
 
 class ExtDB:
-    def __init__(self, url_base, redis, httpget, releasefilestore):
-        self.redis = redis
-        self.httpget = httpget
-        self.url_base = url_base
-        self.url_simple = url_base + "simple/"
-        self.url_xmlrpc = url_base + "pypi"
-        self.PROJECTS = "projects:" + url_base
-        self.releasefilestore = releasefilestore
+    def __init__(self, xom):
+        self.redis = xom.redis
+        self.httpget = xom.httpget
+        self.releasefilestore = xom.releasefilestore
+        self.HPROJECTS = "pypi:projects"
+        self.releasefilestore = xom.releasefilestore
 
     def iscontained(self, projectname):
-        return self.redis.hexists(self.PROJECTS, projectname)
+        return self.redis.hexists(self.HPROJECTS, projectname)
 
     def getprojectnames(self):
         """ return list of all projects which have been served. """
-        keyvals = self.redis.hgetall(self.PROJECTS)
+        keyvals = self.redis.hgetall(self.HPROJECTS)
         l = [key for key,val in keyvals.items() if val]
         l.sort()
         return l
+
+    def _dump_projectlinks(self, projectname, dumplist):
+        self.redis.hset(self.HPROJECTS, projectname, json.dumps(dumplist))
+
+    def _load_projectlinks(self, projectname):
+        res = self.redis.hget(self.HPROJECTS, projectname)
+        if res:
+            return json.loads(res)
+        return None
 
     def getreleaselinks(self, projectname, refresh=False):
         """ return all releaselinks from the index and referenced scrape
         pages.  If refresh is True, re-get all index and scrape pages.
         """
         if not refresh:
-            res = self.redis.hget(self.PROJECTS, projectname)
-            if res:
-                relpaths = json.loads(res)
+            res = self._load_projectlinks(projectname)
+            if res is not None:
                 return [self.releasefilestore.getentry(relpath)
-                            for relpath in relpaths]
+                            for relpath in res]
 
-        # mark it as being accessed if it hasn't already
-        self.redis.hsetnx(self.PROJECTS, projectname, "")
+        # the async changelog-checking might run any time and we need to
+        # make sure it consider this project before we read pypi.
+        # We therefore mark it as being accessed if it hasn't already
+        self.redis.hsetnx(self.HPROJECTS, projectname, "")
 
-        url = self.url_simple + projectname + "/"
+        url = PYPIURL_SIMPLE + projectname + "/"
         log.debug("visiting index %s", url)
         response = self.httpget(url, allow_redirects=True)
         if response.status_code != 200:
@@ -159,17 +167,19 @@ class ExtDB:
         entries = [self.releasefilestore.maplink(link, refresh=refresh)
                         for link in releaselinks]
         dumplist = [entry.relpath for entry in entries]
-        self.redis.hset(self.PROJECTS, projectname, json.dumps(dumplist))
+        self._dump_projectlinks(projectname, dumplist)
         return entries
 
+PYPIURL_SIMPLE = "https://pypi.python.org/simple/"
+PYPIURL = "https://pypi.python.org/"
 
 class RefreshManager:
     def __init__(self, extdb, xom):
         self.extdb = extdb
         self.xom = xom
         self.redis = extdb.redis
-        self.PYPISERIAL = "pypiserial:" + extdb.url_base
-        self.INVALIDSET = "invalid:" + extdb.url_base
+        self.PYPISERIAL = "pypi:serial"
+        self.INVALIDSET = "pypi:invalid"
 
     def spawned_pypichanges(self, proxy, proxysleep):
         log.debug("spawned_pypichanges starting")

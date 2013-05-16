@@ -17,20 +17,21 @@ def simple_html_body(title, bodytags):
 route = lazydecorator()
 
 class PyPIView:
-    def __init__(self, extdb):
-        self.extdb = extdb
+    def __init__(self, xom):
+        self.xom = xom
+        self.db = xom.db
 
     @route("/")
     @route("/ext/pypi/")
     def extpypi_redirect(self):
         redirect("/ext/pypi/simple/")
 
-    @route("/ext/pypi/simple/<projectname>")
-    @route("/ext/pypi/simple/<projectname>/")
-    def extpypi_simple(self, projectname):
-        # we only serve absolute links so we don't care about the
-        # route's slash
-        result = self.extdb.getreleaselinks(projectname)
+    @route("/<user>/<index>/simple/<projectname>")
+    @route("/<user>/<index>/simple/<projectname>/")
+    def simple_list_project(self, user, index, projectname):
+        # we only serve absolute links so we don't care about the route's slash
+        stagename = self.db.getstagename(user, index)
+        result = self.db.getreleaselinks(stagename, projectname)
         if isinstance(result, int):
             if result == 404:
                 abort(404, "no such project")
@@ -55,9 +56,10 @@ class PyPIView:
             body.append(html.br())
         return simple_html_body("links for %s" % projectname, body).unicode()
 
-    @route("/ext/pypi/simple/")
-    def extpypi_list(self):
-        names = self.extdb.getprojectnames()
+    @route("/<user>/<index>/simple/")
+    def simple_list_all(self, user, index):
+        stagename = self.db.getstagename(user, index)
+        names = self.db.getprojectnames(stagename)
         body = []
         for name in names:
             body.append(html.a(name, href=name + "/"))

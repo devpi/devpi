@@ -1,27 +1,6 @@
 """
-
-Module for storing release files in the file system and metadata in Redis.
-
-
-Entry.md5      the md5 as specified by a package index or after first retrieval
-Entry.relpath  is typically a slash separated path with two parts:
-
-a) nomd5/basename means that the index did not define a md5
-b) <md5>/basename gurantees that basename content resolved to the <md5>
-
-If a release file is indexed without a MD5, it is first
-put into the nomd5/* directory.  After it was received once,
-it is put into the according <md5>/basename directory.
-
-
- filesystem States related to RelPathEntries
-project-1.0.zip#md5=123123
--> entry.md5 = 123123
--> entry.relpath = 123123/project-1.0.zip
-
-when streamed via remote url and file does not have correct md5,
-we invalidate the project so that its md5/links will be loaded again
-and break the stream.
+Module for handling storage and proxy-streaming and caching of release files
+for all indexes.
 
 """
 from hashlib import md5
@@ -32,8 +11,6 @@ from logging import getLogger
 log = getLogger(__name__)
 
 class ReleaseFileStore:
-    HASHDIRLEN = 2
-
     def __init__(self, redis, basedir):
         self.redis = redis
         self.basedir = basedir
@@ -145,8 +122,6 @@ class ReleaseFileStore:
 
 
 class RelPathEntry(object):
-    SITEPATH = "s:"
-
     _attr = set("md5 eggfragment size last_modified content_type".split())
 
     def __init__(self, redis, relpath, basedir):
@@ -154,8 +129,8 @@ class RelPathEntry(object):
         self.relpath = relpath
         self.filepath = basedir.join(self.relpath)
         self.disturl = DistURL.fromrelpath(relpath)
-        self.rediskey = self.SITEPATH + self.relpath
-        self._mapping = redis.hgetall(self.rediskey)
+        self.HSITEPATH = "s:" + self.relpath
+        self._mapping = redis.hgetall(self.HSITEPATH)
 
     @property
     def url(self):
@@ -174,7 +149,7 @@ class RelPathEntry(object):
                  content_type = headers["content-type"])
 
     def invalidate_cache(self):
-        self.redis.hdel(self.rediskey, "_headers")
+        self.redis.hdel(self.HSITEPATH, "_headers")
         try:
             del self._mapping["_headers"]
         except KeyError:
@@ -208,7 +183,7 @@ class RelPathEntry(object):
             if val is not None:
                 mapping[name] = str(val)
         self._mapping.update(mapping)
-        self.redis.hmset(self.rediskey, mapping)
+        self.redis.hmset(self.HSITEPATH, mapping)
 
 for _ in RelPathEntry._attr:
     setattr(RelPathEntry, _, propmapping(_))

@@ -4,7 +4,7 @@ import logging
 import mimetypes
 import pytest
 import py
-from devpi_server.main import XOM, PYPIURL
+from devpi_server.main import XOM
 from devpi_server.config import configure_redis_start
 
 
@@ -66,10 +66,25 @@ def clean_redis(request):
         redis.flushdb()
 
 @pytest.fixture
-def xom(request, redis):
+def xom_notmocked(request, redis):
     from devpi_server.main import parseoptions, XOM
     config = parseoptions(["devpi-server", "--redisport", str(redis.port)])
     xom = XOM(config)
+    request.addfinalizer(xom.shutdown)
+    return xom
+
+@pytest.fixture
+def xom(request, redis, filestore, httpget):
+    from devpi_server.main import parseoptions, XOM
+    from devpi_server.extpypi import ExtDB
+    config = parseoptions(["devpi-server", "--redisport", str(redis.port)])
+    xom = XOM(config)
+    xom.redis = redis
+    xom.filestore = filestore
+    xom.redis.flushdb()
+    xom.httpget = httpget
+    xom.extdb = ExtDB(xom=xom)
+    xom.extdb.url2response = httpget.url2response
     request.addfinalizer(xom.shutdown)
     return xom
 
@@ -128,18 +143,15 @@ def filestore(redis, tmpdir):
     return ReleaseFileStore(redis, tmpdir)
 
 @pytest.fixture
-def extdb(redis, filestore, httpget):
-    from devpi_server.extpypi import ExtDB
-    redis.flushdb()
-    extdb = ExtDB("https://pypi.python.org/", redis, httpget, filestore)
-    extdb.url2response = httpget.url2response
-    return extdb
+def extdb(xom):
+    return xom.extdb
 
 @pytest.fixture
-def pypiurls(xom):
+def pypiurls():
+    from devpi_server.extpypi import PYPIURL_SIMPLE, PYPIURL
     class PyPIURL:
         def __init__(self):
             self.base = PYPIURL
-            self.simple = self.base + "simple/"
+            self.simple = PYPIURL_SIMPLE
     return PyPIURL()
 

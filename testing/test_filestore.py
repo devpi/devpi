@@ -28,7 +28,7 @@ class TestReleaseFileStore:
         link = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=123")
         entry1 = filestore.maplink(link, refresh=False)
         assert entry1.filepath.ensure()
-        redis.delete(entry1.rediskey)
+        redis.delete(entry1.HSITEPATH)
         entry1 = filestore.maplink(link, refresh=False)
         assert entry1.url == link.url_nofrag
         headers, itercontent = filestore.iterfile_local(entry1, 1)

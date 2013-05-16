@@ -320,17 +320,17 @@ class TestRefreshManager:
         assert not redis.smembers(refreshmanager.INVALIDSET)
 
 
-def test_requests_httpget_negative_status_code(xom, monkeypatch):
+def test_requests_httpget_negative_status_code(xom_notmocked, monkeypatch):
     import requests.exceptions
     def r(*a, **k):
         raise requests.exceptions.RequestException()
 
-    monkeypatch.setattr(xom._httpsession, "get", r)
-    r = xom.httpget("http://notexists.qwe", allow_redirects=False)
+    monkeypatch.setattr(xom_notmocked._httpsession, "get", r)
+    r = xom_notmocked.httpget("http://notexists.qwe", allow_redirects=False)
     assert r.status_code == -1
 
-def test_requests_httpget_timeout(xom, monkeypatch):
-    r = xom.httpget("http://notexists.qwe", allow_redirects=False,
-                    timeout=0.001)
+def test_requests_httpget_timeout(xom_notmocked, monkeypatch):
+    r = xom_notmocked.httpget("http://notexists.qwe", allow_redirects=False,
+                              timeout=0.001)
     assert r.status_code == -1
 

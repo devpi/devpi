@@ -13,7 +13,6 @@ from devpi_server.types import cached_property
 from devpi_server.config import parseoptions, configure_logging
 import devpi_server
 
-PYPIURL = "https://pypi.python.org/"
 PYPIURL_XMLRPC = "https://pypi.python.org/pypi/"
 
 def main(argv=None):
@@ -107,7 +106,6 @@ class XOM:
     def datadir(self):
         return py.path.local(os.path.expanduser(self.config.args.datadir))
 
-
     @cached_property
     def releasefilestore(self):
         from devpi_server.filestore import ReleaseFileStore
@@ -116,7 +114,12 @@ class XOM:
     @cached_property
     def extdb(self):
         from devpi_server.extpypi import ExtDB
-        return ExtDB(PYPIURL, self.redis, self.httpget, self.releasefilestore)
+        return ExtDB(xom=self)
+
+    @cached_property
+    def db(self):
+        from devpi_server.db import DB
+        return DB(self)
 
     @cached_property
     def _httpsession(self):
@@ -137,7 +140,7 @@ class XOM:
         from bottle import Bottle
         log.info("creating application in process %s", os.getpid())
         app = Bottle(catchall=catchall)
-        pypiview = PyPIView(self.extdb)
+        pypiview = PyPIView(self)
         route.discover_and_call(pypiview, app.route)
         pkgview = PkgView(self.releasefilestore, self.httpget)
         route.discover_and_call(pkgview, app.route)
