@@ -13,7 +13,7 @@ if __name__ == "__main__":
                         "redis>=2.7.2",
                         "bottle>=0.11.6"]
     if sys.version_info < (2,7):
-        install_requires.append("argparse")
+        install_requires.append("argparse>=1.2.1")
 
     setup(
       name="devpi-server",

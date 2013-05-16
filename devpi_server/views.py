@@ -26,6 +26,26 @@ class PyPIView:
     def extpypi_redirect(self):
         redirect("/ext/pypi/simple/")
 
+    #
+    # supplying basic API locations for all services
+    #
+
+    @route("/<user>/<index>/-api")
+    @route("/<user>/<index>/simple/-api")
+    def apiconfig(self, user, index):
+        root = "/"
+        apidict = {
+            "resultlog": "/resultlog",
+            "pypisubmit": "/%s/%s/pypi" % (user, index),
+            "pushrelease": "/%s/%s/push" % (user, index),
+            "simpleindex": "/%s/%s/simple/" % (user, index),
+        }
+        return apidict
+
+    #
+    # serving the simple pages for an index
+    #
+
     @route("/<user>/<index>/simple/<projectname>")
     @route("/<user>/<index>/simple/<projectname>/")
     def simple_list_project(self, user, index, projectname):

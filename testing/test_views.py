@@ -12,7 +12,6 @@ def httpget(request, xom, httpget, monkeypatch):
     assert xom.httpget == httpget
     return httpget
 
-
 @pytest.fixture
 def testapp(request, xom):
     from webtest import TestApp
@@ -63,3 +62,9 @@ def test_pkgserv(pypiurls, httpget, testapp):
     assert r.status_code == 200
     r = testapp.get(getfirstlink(r.text).get("href"))
     assert r.body == "123"
+
+def test_apiconfig(pypiurls, httpget, testapp):
+    r = testapp.get("/user/name/-api")
+    assert r.status_code == 200
+    for name in ("pushrelease", "simpleindex", "pypisubmit", "resultlog"):
+        assert "pushrelease" in r.json
