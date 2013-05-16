@@ -1,10 +1,6 @@
 
 import pytest
 
-@pytest.fixture
-def db(xom):
-    from devpi_server.db import DB
-    return DB(xom)
 
 def test_bases(db):
     db.setbases("somestage", "somebase")
@@ -47,3 +43,11 @@ class TestDB:
         assert entries == -1
         #entries = db.getprojectnames(stagename)
         #assert entries == -1
+
+    def test_store_and_get_releasefile(self, db):
+        stagename = "test/dev"
+        content = "123"
+        entry = db.store_releasefile(stagename, "some-1.0.zip", content)
+        entries = db.getreleaselinks(stagename, "some")
+        assert len(entries) == 1
+        assert entries[0].md5 == entry.md5

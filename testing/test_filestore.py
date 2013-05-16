@@ -93,7 +93,7 @@ class TestReleaseFileStore:
         # reget entry and check about content
         entry = filestore.getentry_fromlink(link)
         assert entry.iscached()
-        assert entry.md5 == md5(bytes).hexdigest()
+        assert entry.md5 == getmd5(bytes)
         assert entry.size == "3"
         rheaders, riter = filestore.iterfile(entry.relpath, None, chunksize=1)
         assert rheaders == headers
@@ -194,7 +194,7 @@ class TestReleaseFileStore:
         content = py.builtin.bytes("1234")
         entry.filepath.dirpath().ensure(dir=1)
         entry.filepath.write(content)
-        entry.set(md5=md5(content).hexdigest(), **testheaders)
+        entry.set(md5=getmd5(content), **testheaders)
 
         assert entry.iscached()
         assert entry.size == "3"
@@ -218,7 +218,7 @@ class TestReleaseFileStore:
         entry.filepath.ensure()
         testheaders={"size": "2", "content_type": "application/zip",
                  "last_modified": "Thu, 25 Nov 2010 20:00:27 GMT"}
-        digest = md5("12").hexdigest()
+        digest = getmd5("12")
         entry.set(md5=digest, **testheaders)
         assert entry.iscached()
         def iter_content(chunksize):
@@ -232,3 +232,12 @@ class TestReleaseFileStore:
         bytes = b().join(riter)
         assert bytes == b("12")
 
+    def test_store(self, filestore):
+        content = b("hello")
+        entry = filestore.store(None, "something-1.0.zip", content)
+        assert entry.md5 == getmd5(content)
+        entry2 = filestore.getentry(entry.relpath)
+        assert entry2.basename == "something-1.0.zip"
+        assert entry2.filepath.check()
+        assert entry2.md5 == entry.md5
+        assert entry2.last_modified

@@ -1,6 +1,8 @@
 
 import pytest
+import py
 from bs4 import BeautifulSoup
+from webtest.forms import Upload
 
 def getfirstlink(text):
     return BeautifulSoup(text).findAll("a")[0]
@@ -63,8 +65,20 @@ def test_pkgserv(pypiurls, httpget, testapp):
     r = testapp.get(getfirstlink(r.text).get("href"))
     assert r.body == "123"
 
-def test_apiconfig(pypiurls, httpget, testapp):
+def test_apiconfig(httpget, testapp):
     r = testapp.get("/user/name/-api")
     assert r.status_code == 200
     for name in ("pushrelease", "simpleindex", "pypisubmit", "resultlog"):
         assert "pushrelease" in r.json
+
+def test_upload(httpget, db, testapp):
+    db.setbases("user/name", "ext/pypi")
+    BytesIO = py.io.BytesIO
+    r = testapp.post("/user/name/pypi/",
+        {":action": "file_upload", "name": "pkg1", "version": "2.6",
+         "content": Upload("pkg1-2.6.tgz", "123")})
+    assert r.status_code == 200
+    r = testapp.get("/user/name/simple/pkg1/")
+    assert r.status_code == 200
+    a = getfirstlink(r.text)
+    assert "pkg1-2.6.tgz" in a.get("href")

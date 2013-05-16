@@ -36,7 +36,7 @@ def redis(request, xprocess):
     to an externally started redis server instance
     (through the xprocess plugin)"""
     redis = pytest.importorskip("redis")
-    port = 6400
+    port = 6500
     try:
         prepare_redis = configure_redis_start(port=port)
     except configure_redis_start.Error:
@@ -80,7 +80,7 @@ def xom(request, redis, filestore, httpget):
     config = parseoptions(["devpi-server", "--redisport", str(redis.port)])
     xom = XOM(config)
     xom.redis = redis
-    xom.filestore = filestore
+    xom.releasefilestore = filestore
     xom.redis.flushdb()
     xom.httpget = httpget
     xom.extdb = ExtDB(xom=xom)
@@ -155,3 +155,7 @@ def pypiurls():
             self.simple = PYPIURL_SIMPLE
     return PyPIURL()
 
+@pytest.fixture
+def db(xom):
+    from devpi_server.db import DB
+    return DB(xom)

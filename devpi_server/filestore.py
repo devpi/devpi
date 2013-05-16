@@ -3,7 +3,12 @@ Module for handling storage and proxy-streaming and caching of release files
 for all indexes.
 
 """
-from hashlib import md5
+import hashlib
+import posixpath
+from wsgiref.handlers import format_date_time
+from datetime import datetime
+from time import mktime
+
 import py
 from .types import propmapping
 from .urlutil import DistURL
@@ -25,6 +30,12 @@ class ReleaseFileStore:
         else:
             return entry
         entry.set(**mapping)
+        return entry
+
+    def mapfile(self, filename, md5):
+        relpath = "%s/%s" % (md5, filename)
+        entry = self.getentry(relpath)
+        entry.set(md5=md5, last_modified=http_date())
         return entry
 
     def getentry_fromlink(self, link):
@@ -87,7 +98,7 @@ class ReleaseFileStore:
         target.dirpath().ensure(dir=1)
         def iter_and_cache():
             tmp_target = target + "-tmp"
-            hash = md5()
+            hash = hashlib.md5()
             # XXX if we have concurrent processes they would overwrite
             # each other
             with tmp_target.open("wb") as f:
@@ -120,6 +131,19 @@ class ReleaseFileStore:
             log.info("finished getting remote %r", entry.url)
         return entry.gethttpheaders(), iter_and_cache()
 
+    def store(self, stagename, filename, content):
+        md5 = getmd5(content)
+        entry = self.mapfile(filename, md5)
+        entry.filepath.dirpath().ensure(dir=1)
+        with entry.filepath.open("wb") as f:
+            f.write(content)
+        #entry.set(stage=stagename)
+        return entry
+
+def getmd5(content):
+    md5 = hashlib.md5()
+    md5.update(content)
+    return md5.hexdigest()
 
 class RelPathEntry(object):
     _attr = set("md5 eggfragment size last_modified content_type".split())
@@ -128,13 +152,14 @@ class RelPathEntry(object):
         self.redis = redis
         self.relpath = relpath
         self.filepath = basedir.join(self.relpath)
-        self.disturl = DistURL.fromrelpath(relpath)
+        if relpath.split("/", 1)[0] in ("http", "https"):
+            disturl = DistURL.fromrelpath(relpath)
+            self.url = disturl.url
+            self.basename = disturl.basename
+        else:
+            self.basename = posixpath.basename(relpath)
         self.HSITEPATH = "s:" + self.relpath
         self._mapping = redis.hgetall(self.HSITEPATH)
-
-    @property
-    def url(self):
-        return self.disturl.url
 
     def gethttpheaders(self):
         headers = {"last-modified": self.last_modified,
@@ -158,10 +183,6 @@ class RelPathEntry(object):
             self.filepath.remove()
         except py.error.ENOENT:
             pass
-
-    @property
-    def basename(self):
-        return self.disturl.basename
 
     def iscached(self):
         # compare md5 hash if exists with self.filepath
@@ -187,3 +208,10 @@ class RelPathEntry(object):
 
 for _ in RelPathEntry._attr:
     setattr(RelPathEntry, _, propmapping(_))
+
+
+def http_date():
+    now = datetime.now()
+    stamp = mktime(now.timetuple())
+    return format_date_time(stamp)
+

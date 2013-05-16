@@ -2,6 +2,9 @@
 from py.xml import html
 from devpi_server.types import lazydecorator
 from bottle import response, request, abort, redirect
+import logging
+
+log = logging.getLogger(__name__)
 
 def simple_html_body(title, bodytags):
     return html.html(
@@ -31,6 +34,7 @@ class PyPIView:
     #
 
     @route("/<user>/<index>/-api")
+    @route("/<user>/<index>/pypi/-api")
     @route("/<user>/<index>/simple/-api")
     def apiconfig(self, user, index):
         root = "/"
@@ -85,6 +89,30 @@ class PyPIView:
             body.append(html.a(name, href=name + "/"))
             body.append(html.br())
         return simple_html_body("list of accessed projects", body).unicode()
+
+    @route("/<user>/<index>/pypi", method="POST")
+    @route("/<user>/<index>/pypi/", method="POST")
+    def upload(self, user, index):
+        try:
+            action = request.forms[":action"]
+        except KeyError:
+            abort(400, output=":action field not found")
+        stagename = self.db.getstagename(user, index)
+        if action == "submit":
+            return ""
+        elif action == "file_upload":
+            try:
+                content = request.files["content"]
+            except KeyError:
+                abort(400, "content file field not found")
+            #name = request.forms.get("name")
+            #version = request.forms.get("version")
+            self.db.store_releasefile(stagename,
+                                      content.filename,
+                                      content.value)
+        else:
+            abort(400, output="action %r not supported" % action)
+        return ""
 
 
 class PkgView:
