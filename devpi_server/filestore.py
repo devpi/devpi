@@ -137,7 +137,7 @@ class ReleaseFileStore:
         entry.filepath.dirpath().ensure(dir=1)
         with entry.filepath.open("wb") as f:
             f.write(content)
-        #entry.set(stage=stagename)
+        entry.set(md5=md5, size=len(content))
         return entry
 
 def getmd5(content):

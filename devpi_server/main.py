@@ -118,8 +118,10 @@ class XOM:
 
     @cached_property
     def db(self):
-        from devpi_server.db import DB
-        return DB(self)
+        from devpi_server.db import DB, set_default_indexes
+        db = DB(self)
+        set_default_indexes(db)
+        return db
 
     @cached_property
     def _httpsession(self):
@@ -207,7 +209,7 @@ def start_redis_server(xom):
 def bottle_run(xom):
     workers.append(1)
     start_background_tasks_if_not_in_arbiter(xom)
-    app = xom.create_app()
+    app = xom.create_app(catchall=not xom.config.args.debug)
     port = xom.config.args.port
     log.info("devpi-server version: %s", devpi_server.__version__)
     log.info("serving index url: http://localhost:%s/ext/pypi/simple/",

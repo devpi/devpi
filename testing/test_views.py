@@ -72,7 +72,7 @@ def test_apiconfig(httpget, testapp):
         assert "pushrelease" in r.json
 
 def test_upload(httpget, db, testapp):
-    db.setbases("user/name", "ext/pypi")
+    db.configure_index("user/name", bases=("ext/pypi",))
     BytesIO = py.io.BytesIO
     r = testapp.post("/user/name/pypi/",
         {":action": "file_upload", "name": "pkg1", "version": "2.6",

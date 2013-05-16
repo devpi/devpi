@@ -232,12 +232,19 @@ class TestReleaseFileStore:
         bytes = b().join(riter)
         assert bytes == b("12")
 
-    def test_store(self, filestore):
+    def test_store_and_iter(self, filestore):
         content = b("hello")
         entry = filestore.store(None, "something-1.0.zip", content)
         assert entry.md5 == getmd5(content)
+        assert entry.iscached()
         entry2 = filestore.getentry(entry.relpath)
         assert entry2.basename == "something-1.0.zip"
+        assert entry2.iscached()
         assert entry2.filepath.check()
         assert entry2.md5 == entry.md5
         assert entry2.last_modified
+        headers, iterable = filestore.iterfile(entry.relpath, httpget=None)
+        assert b("").join(iterable) == content
+
+
+

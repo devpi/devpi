@@ -7,6 +7,22 @@ import logging
 
 log = logging.getLogger(__name__)
 
+
+class IndexConfig:
+    """ Unserialized index configuration (using Python types). """
+    def __init__(self, stagename, type="", bases="", volatile=False):
+        self.stagename = stagename
+        self.type = type
+        self.bases = tuple([x for x in bases.split(",") if x])
+        self.volatile = bool(int(volatile))
+
+    def _getmapping(self):
+        """ serialize into key/value strings. """
+        return dict(type=self.type,
+                    volatile=str(int(bool(self.volatile))),
+                    bases=",".join(self.bases),
+        )
+
 class DB:
     HCONFIG = "ixconfig:{stage}"
     HFILES = "files:{stage}"
@@ -14,27 +30,35 @@ class DB:
     def __init__(self, xom):
         self.xom = xom
         self.redis = xom.redis
-        # XXX set some defaults
-        if not self.getbases("~hpk42/dev"):
-            self.setbases("~hpk42/dev", "ext/pypi")
 
     def getstagename(self, user, index):
         return "%s/%s" % (user, index)
 
-    def getbases(self, stagename):
-        bases = self.redis.hget(self.HCONFIG.format(stage=stagename),  "bases")
-        if bases:
-            return tuple(bases.split(","))
-        return ()
+    def getindexconfig(self, stagename):
+        mapping = self.redis.hgetall(self.HCONFIG.format(stage=stagename))
+        return IndexConfig(stagename=stagename, **mapping)
 
-    def setbases(self, stagename, bases):
-        self.redis.hset(self.HCONFIG.format(stage=stagename), "bases", bases)
+    def configure_index(self, stagename, type="private",
+                        bases=(), volatile=None):
+        ixconfig = self.getindexconfig(stagename)
+        if type:
+            ixconfig.type = type
+        if bases is not None:
+            ixconfig.bases =  bases
+        if volatile is not None:
+            ixconfig.volatile = volatile
+        mapping = ixconfig._getmapping()
+        log.debug("configure_index %s: %s", stagename, mapping)
+        self.redis.hmset(self.HCONFIG.format(stage=stagename), mapping)
 
     def op_with_bases(self, opname, stagename, **kw):
+        ixconfig = self.getindexconfig(stagename)
+        if not ixconfig.type:
+            return 404
         op = getattr(self, opname)
         op_perstage = getattr(self, opname + "_perstage")
         entries = op_perstage(stagename, **kw)
-        for base in self.getbases(stagename):
+        for base in ixconfig.bases:
             base_entries = op(base, **kw)
             if isinstance(base_entries, int):
                 if base_entries == 404:
@@ -73,6 +97,9 @@ class DB:
 
     def store_releasefile(self, stagename, filename, content):
         assert stagename != "ext/pypi"
+        ixconfig = self.getindexconfig(stagename)
+        #if not ixconfig.type:
+        #    return 404
         name, version = DistURL(filename).pkgname_and_version
         key = self.HFILES.format(stage=stagename)
         val = self.redis.hget(key, name)
@@ -80,9 +107,19 @@ class DB:
             files = json.loads(val)
         else:
             files = {}
-        assert filename not in files, (filename, files)
+        if not ixconfig.volatile and filename in files:
+            return 409
         entry = self.xom.releasefilestore.store(stagename, filename, content)
         files[filename] = entry.relpath
         self.redis.hset(key, name, json.dumps(files))
         log.info("%s: stored releasefile %s", stagename, entry.relpath)
         return entry
+
+
+def set_default_indexes(db):
+    PROD = "int/prod"
+    DEV = "int/dev"
+    PYPI = "ext/pypi"
+    db.configure_index(PYPI, bases=(), type="pypimirror", volatile=False)
+    db.configure_index(PROD, bases=(), type="private", volatile=False)
+    db.configure_index(DEV, bases=(PROD, PYPI), type="private", volatile=True)

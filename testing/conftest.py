@@ -157,5 +157,8 @@ def pypiurls():
 
 @pytest.fixture
 def db(xom):
-    from devpi_server.db import DB
-    return DB(xom)
+    from devpi_server.db import DB, set_default_indexes
+    db = DB(xom)
+    set_default_indexes(db)
+    return db
+

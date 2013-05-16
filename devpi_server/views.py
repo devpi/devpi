@@ -40,6 +40,7 @@ class PyPIView:
         root = "/"
         apidict = {
             "resultlog": "/resultlog",
+            "indexadmin": "/indexadmin",
             "pypisubmit": "/%s/%s/pypi" % (user, index),
             "pushrelease": "/%s/%s/push" % (user, index),
             "simpleindex": "/%s/%s/simple/" % (user, index),
@@ -49,6 +50,31 @@ class PyPIView:
     #
     # serving the simple pages for an index
     #
+
+    @route("/<user>/<index>/")
+    def indexroot(self, user, index):
+        stagename = self.db.getstagename(user, index)
+        ixconfig = self.db.getindexconfig(stagename)
+        if not ixconfig.type:
+            abort(404, "no such index")
+
+        bases = html.ul()
+        for base in ixconfig.bases:
+            bases.append(html.li(
+                html.a("%s" % base, href="/%s/" % base),
+                " (",
+                html.a("simple", href="/%s/simple/" % base),
+                " )",
+            ))
+        if bases:
+            bases = [html.h2("inherited bases"), bases]
+
+        return simple_html_body("%s index" % stagename, [
+            html.ul(
+                html.li(html.a("simple index", href="simple/")),
+            ),
+            bases,
+        ]).unicode()
 
     @route("/<user>/<index>/simple/<projectname>")
     @route("/<user>/<index>/simple/<projectname>/")
@@ -78,7 +104,8 @@ class PyPIView:
         for entry in links:
             body.append(html.a(entry[1], href=entry[0]))
             body.append(html.br())
-        return simple_html_body("links for %s" % projectname, body).unicode()
+        return simple_html_body("%s: links for %s" % (stagename, projectname),
+                                body).unicode()
 
     @route("/<user>/<index>/simple/")
     def simple_list_all(self, user, index):
@@ -88,7 +115,8 @@ class PyPIView:
         for name in names:
             body.append(html.a(name, href=name + "/"))
             body.append(html.br())
-        return simple_html_body("list of accessed projects", body).unicode()
+        return simple_html_body("%s: list of accessed projects" % stagename,
+                                body).unicode()
 
     @route("/<user>/<index>/pypi", method="POST")
     @route("/<user>/<index>/pypi/", method="POST")
