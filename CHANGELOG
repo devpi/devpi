@@ -1,6 +1,8 @@
 0.9.0.dev
 ----------------
 
+- prevent automatic decoding of gzip files in case of content encoding
+
 - XXX preliminarily introduce new int/dev, int/prod indexes where int/dev 
   inherits packages from both int/prod and ext/pypi.  
 

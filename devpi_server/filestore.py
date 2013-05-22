@@ -104,8 +104,10 @@ class ReleaseFileStore:
             with tmp_target.open("wb") as f:
                 #log.debug("serving %d remote chunk %s" % (len(x),
                 #                                         relpath))
-                for x in r.iter_content(chunksize):
-                    assert x
+                while 1:
+                    x = r.raw.read(chunksize)
+                    if not x:
+                        break
                     f.write(x)
                     hash.update(x)
                     yield x
@@ -116,7 +118,7 @@ class ReleaseFileStore:
                 err = ValueError(
                           "%s: got %s bytes of %r from remote, expected %s" % (
                           tmp_target, tmp_target.size(), r.url, entry.size))
-            if entry.md5 and digest != entry.md5:
+            if not entry.eggfragment and entry.md5 and digest != entry.md5:
                 err = ValueError("%s: md5 mismatch, got %s, expected %s",
                                  tmp_target, digest, entry.md5)
             if err is not None:

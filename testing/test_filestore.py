@@ -3,6 +3,8 @@ import pytest
 import py
 from devpi_server.urlutil import DistURL
 from devpi_server.filestore import *
+
+BytesIO = py.io.BytesIO
 b = py.builtin.bytes
 
 class TestReleaseFileStore:
@@ -76,12 +78,9 @@ class TestReleaseFileStore:
         headers={"content-length": "3",
                  "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
                  "content-type": "application/zip"}
-        def iter_content(chunksize):
-            yield b("12")
-            yield b("3")
 
         httpget.url2response[link.url] = dict(status_code=200,
-                headers=headers, iter_content = iter_content)
+                headers=headers, raw = BytesIO("123"))
         rheaders, riter = filestore.iterfile(entry.relpath,
                                              httpget, chunksize=1)
         assert rheaders["content-length"] == "3"
@@ -107,10 +106,8 @@ class TestReleaseFileStore:
         headers={"content-length": "3",
                  "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
                  "content-type": "application/zip"}
-        def iter_content(chunksize):
-            yield b("1")
         httpget.url2response[link.url] = dict(status_code=200,
-                headers=headers, iter_content=iter_content)
+                headers=headers, raw = BytesIO("1"))
         rheaders, riter = filestore.iterfile(entry.relpath,
                                              httpget, chunksize=3)
         assert rheaders["content-length"] == "3"
@@ -128,10 +125,8 @@ class TestReleaseFileStore:
                  "content-type": "application/zip"}
         entry.sethttpheaders(headers)
         assert entry.size is None
-        def iter_content(chunksize):
-            yield b("1")
         httpget.url2response[link.url] = dict(status_code=200,
-                headers=headers, iter_content=iter_content)
+                headers=headers, raw=BytesIO("1"))
         rheaders, riter = filestore.iterfile(entry.relpath,
                                              httpget, chunksize=3)
         received = b().join(riter)
@@ -146,10 +141,8 @@ class TestReleaseFileStore:
         headers={"content-length": "3",
                  "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
                  "content-type": "application/zip"}
-        def iter_content(chunksize):
-            yield b("123")
         httpget.url2response[link.url_nofrag] = dict(status_code=200,
-                headers=headers, iter_content=iter_content)
+                headers=headers, raw=BytesIO("123"))
         rheaders, riter = filestore.iterfile(entry.relpath,
                                              httpget, chunksize=3)
         excinfo = pytest.raises(ValueError, lambda: b().join(riter))
@@ -164,21 +157,15 @@ class TestReleaseFileStore:
         headers={"content-length": "4",
                  "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
                  "content-type": "application/zip"}
-        l = []
-        def iter_content(chunksize):
-            yield py.builtin.bytes("1234")
-            l.append(1)
 
-        httpget.url2response[entry.url] = dict(status_code=200,
-                headers=headers, iter_content = iter_content)
+        httpget.mockresponse(entry.url, headers=headers, raw=BytesIO("1234"))
         rheaders, riter = filestore.iterfile(entry.relpath, httpget,
                                              chunksize=10)
         assert py.builtin.bytes().join(riter) == py.builtin.bytes("1234")
-        assert len(l) == 1
+        httpget.mockresponse(entry.url, headers=headers, raw=BytesIO("3333"))
         rheaders, riter = filestore.iterfile(entry.relpath, httpget,
                                              chunksize=10)
-        assert py.builtin.bytes().join(riter) == py.builtin.bytes("1234")
-        assert len(l) == 2
+        assert py.builtin.bytes().join(riter) == py.builtin.bytes("3333")
         # XXX we could allow getting an old version if it exists
         # and a new request errors out
         #httpget.url2response[entry.url] = dict(status_code=500)
@@ -221,10 +208,8 @@ class TestReleaseFileStore:
         digest = getmd5("12")
         entry.set(md5=digest, **testheaders)
         assert entry.iscached()
-        def iter_content(chunksize):
-            yield b("12")
-        httpget.url2response[link.url] = dict(status_code=200,
-                headers=entry.gethttpheaders(), iter_content=iter_content)
+        httpget.mockresponse(link.url, headers=entry.gethttpheaders(),
+                             raw=BytesIO("12"))
         rheaders, riter = filestore.iterfile(entry.relpath,
                                              httpget, chunksize=1)
         assert rheaders["content-length"] == "2"

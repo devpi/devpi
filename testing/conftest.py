@@ -128,12 +128,10 @@ def httpget(pypiurls):
                        "last-modified": "today",}
             if path.startswith("/") and pypiurls.base.endswith("/"):
                 path = path.lstrip("/")
-            def iter_content(chunksize):
-                yield content
             return self.mockresponse(pypiurls.base + path,
-                                      iter_content=iter_content,
-                                      headers=headers,
-                                      **kw)
+                                     raw=py.io.BytesIO(content),
+                                     headers=headers,
+                                     **kw)
 
 
     return MockHTTPGet()
