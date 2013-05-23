@@ -9,6 +9,7 @@ if __name__ == "__main__":
     CHANGES = open(os.path.join(here, 'CHANGELOG')).read()
 
     install_requires = ["py>=1.4.13",
+                        "execnet>=1.1",
                         "requests>=1.2.0",
                         "redis>=2.7.2",
                         "bottle>=0.11.6"]

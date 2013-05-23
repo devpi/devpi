@@ -1,0 +1,164 @@
+import py
+import pytest
+import os
+
+from devpi_server.keyfs import KeyFS
+
+@pytest.fixture
+def keyfs(tmpdir):
+    return KeyFS(tmpdir)
+
+@pytest.fixture(params=["direct", "a/b/c", ])
+def key(request):
+    return request.param
+
+class TestKeyFS:
+
+    def test_getempty(self, keyfs):
+        assert keyfs._get("somekey", None) is None
+        pytest.raises(KeyError, lambda: keyfs._get("somekey"))
+
+    @pytest.mark.parametrize("val", ["", "val"])
+    def test_get_set_del_exists(self, keyfs, key, val):
+        assert not keyfs._exists(key)
+        keyfs._set(key, val)
+        assert keyfs._exists(key)
+        newval = keyfs._get(key)
+        assert val == newval
+        assert isinstance(newval, type(val))
+        assert keyfs._getpath(key).check()
+        assert keyfs._delete(key)
+        assert not keyfs._delete(key)
+        pytest.raises(KeyError, lambda: keyfs._get(key))
+
+    def test_set_twice_on_subdir(self, keyfs):
+        keyfs._set("a/b/c", "value")
+        keyfs._set("a/b/c", "value2")
+        assert keyfs._get("a/b/c") == "value2"
+
+    def test_tempfile(self, keyfs):
+        with keyfs.tempfile("abc") as f:
+            f.write("hello")
+        assert os.path.basename(f.name).startswith("abc")
+        assert os.path.exists(f.name)
+        assert f.key.exists()
+
+    def test_tempfile_movekey(self, keyfs):
+        with keyfs.tempfile("abc") as f:
+            f.write("x")
+        key = keyfs.addkey("abc", bytes)
+        assert f.key.exists()
+        f.key.move(key)
+        assert not f.key.exists()
+
+    def test_tempfile_movekey_typemismatch(self, keyfs):
+        with keyfs.tempfile("abc") as f:
+            f.write("x")
+        key = keyfs.addkey("abc", int)
+        assert f.key.exists()
+        with pytest.raises(TypeError):
+            f.key.move(key)
+
+    def test_destroyall(self, keyfs):
+        keyfs._set("hello/world", "World")
+        keyfs.destroyall()
+        assert not keyfs._exists("hello/world")
+
+    def test_getlock(self, keyfs):
+        lock1 = keyfs._getlock("hello/world")
+        lock2 = keyfs._getlock("hello/world")
+        assert lock1 == lock2
+        lock1.acquire()
+        lock1.acquire(0)
+
+
+@pytest.mark.parametrize(("type", "val"),
+        [(dict, {1:2}),
+         (set, set([1,2])),
+         (int, 3),
+         (tuple, (3,4)),
+         (str, "hello")])
+class Test_addkey_combinations:
+    def test_addkey(self, keyfs, key, type, val):
+        attr = keyfs.addkey(key, type)
+        assert not attr.exists()
+        assert attr.get() == type()
+        assert attr.get(val) == val
+        assert not attr.exists()
+        attr.set(val)
+        assert attr.exists()
+        assert attr.get() == val
+        attr.delete()
+        assert not attr.exists()
+        assert attr.get() == type()
+
+
+    def test_addkey_parametrized(self, keyfs, type, val):
+        pattr = keyfs.addkey_parametrized("hello/{some}", type)
+        attr = pattr(some="this")
+        assert not attr.exists()
+        assert attr.get() == type()
+        assert attr.get(val) == val
+        assert not attr.exists()
+        attr.set(val)
+        assert attr.exists()
+        assert attr.get() == val
+
+        attr2 = pattr(some="that")
+        assert not attr2.exists()
+        attr.delete()
+        assert not attr.exists()
+        assert attr.get() == type()
+
+    def test_addkey_parametrized_unicode(self, keyfs, type, val):
+        pattr = keyfs.addkey_parametrized("hello/{some}", type)
+        attr = pattr(some=py.builtin._totext(b'\xe4', "latin1"))
+        assert not attr.exists()
+        assert attr.get() == type()
+        assert attr.get(val) == val
+        assert not attr.exists()
+        attr.set(val)
+        assert attr.exists()
+        assert attr.get() == val
+
+class TestKey:
+    def test_addkey_type_mismatch(self, keyfs):
+        dictkey = keyfs.addkey("some", dict)
+        pytest.raises(TypeError, lambda: dictkey.set("hello"))
+        dictkey = keyfs.addkey_parametrized("{that}/some", dict)
+        pytest.raises(TypeError, lambda: dictkey(that="t").set("hello"))
+
+    def test_addkey_registered(self, keyfs):
+        key1 = keyfs.addkey("some1", dict)
+        key2 = keyfs.addkey("some2", list)
+        assert len(keyfs.keys) == 2
+        assert key1 in keyfs.keys
+        assert key2 in keyfs.keys
+
+    def test_addkey_parametrized_listkeys(self, keyfs):
+        key = keyfs.addkey_parametrized("{name}/some1/{other}", int)
+        pytest.raises(KeyError, lambda: key.listnames("name"))
+        pytest.raises(KeyError, lambda: key.listnames("other"))
+        key(name="this", other="1").set(1)
+        key(name="this", other="2").set(2)
+        key(name="that", other="0").set(1)
+        key(name="world", other="0").set(1)
+        names = key.listnames("other", name="this")
+        assert len(names) == 2
+        assert names == set(["1", "2"])
+
+    def test_locked_update(self, keyfs):
+        key1 = keyfs.addkey("some1", dict)
+        key2 = keyfs.addkey("some2", list)
+        with key1.locked_update() as d:
+            with key2.locked_update() as l:
+                l.append(1)
+                d["hello"] = l
+        assert key1.get()["hello"] == l
+
+    def test_filestore(self, keyfs):
+        key1 = keyfs.addkey("hello", bytes)
+        key1.set("hello")
+        key1.get() == "hello"
+        assert key1.filepath.size() == 5
+        assert key1.filepath.read() == "hello"
