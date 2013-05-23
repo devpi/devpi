@@ -34,7 +34,7 @@ def main(argv=None):
 def add_keys(keyfs):
 
     # pypi related
-    keyfs.HPYPIPROJECTS = keyfs.addkey_parametrized(
+    keyfs.HPYPIPROJECTS = keyfs.addkey(
                             "ext/pypi/links/{name}", list)
     keyfs.PYPISERIAL = keyfs.addkey("ext/pypi/serial", int)
     keyfs.PYPIINVALID = keyfs.addkey("ext/pypi/invalid", set)
@@ -43,13 +43,13 @@ def add_keys(keyfs):
     #keyfs.PYPIFILECACHE_META = keyfs.addkey("ext/pypi/c/{filename}.m", dict)
 
     # stage related
-    keyfs.HSTAGECONFIG = keyfs.addkey_parametrized("{stage}/ixconfig", dict)
-    keyfs.HSTAGEFILES = keyfs.addkey_parametrized("{stage}/files/{name}",
+    keyfs.HSTAGECONFIG = keyfs.addkey("{stage}/ixconfig", dict)
+    keyfs.HSTAGEFILES = keyfs.addkey("{stage}/files/{name}",
                                                     dict)
-    keyfs.STAGEFILE = keyfs.addkey_parametrized(
+    keyfs.STAGEFILE = keyfs.addkey(
                             "{stage}/pkg/{md5}/{filename}", bytes)
-    keyfs.PATHENTRY = keyfs.addkey_parametrized("{relpath}-meta", dict)
-    keyfs.FILEPATH = keyfs.addkey_parametrized("{relpath}", bytes)
+    keyfs.PATHENTRY = keyfs.addkey("{relpath}-meta", dict)
+    keyfs.FILEPATH = keyfs.addkey("{relpath}", bytes)
 
 class XOM:
     class Exiting(SystemExit):

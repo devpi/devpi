@@ -79,16 +79,15 @@ class KeyFS:
             self.basedir.remove()
 
     def addkey(self, key, type):
-        typedkey = TypedKey(self, key, type)
-        self.keys.append(typedkey)
-        return typedkey
+        if "{" in key:
+            key = PTypedKey(self, key, type)
+        else:
+            key = TypedKey(self, key, type)
+        self.keys.append(key)
+        return key
 
-    def addkey_parametrized(self, key, type):
-        pkey = PKey(self, key, type)
-        self.keys.append(pkey)
-        return pkey
 
-class PKey:
+class PTypedKey:
     def __init__(self, keyfs, key, type):
         self.keyfs = keyfs
         self.key = key
@@ -114,7 +113,7 @@ class PKey:
         return set(os.listdir(str(path)))
 
     def __repr__(self):
-        return "<PKey %r type %r>" %(self.key, self.type.__name__)
+        return "<PTypedKey %r type %r>" %(self.key, self.type.__name__)
 
 
 class TypedKey:

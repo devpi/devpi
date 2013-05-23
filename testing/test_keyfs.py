@@ -93,8 +93,8 @@ class Test_addkey_combinations:
         assert attr.get() == type()
 
 
-    def test_addkey_parametrized(self, keyfs, type, val):
-        pattr = keyfs.addkey_parametrized("hello/{some}", type)
+    def test_addkey(self, keyfs, type, val):
+        pattr = keyfs.addkey("hello/{some}", type)
         attr = pattr(some="this")
         assert not attr.exists()
         assert attr.get() == type()
@@ -110,8 +110,8 @@ class Test_addkey_combinations:
         assert not attr.exists()
         assert attr.get() == type()
 
-    def test_addkey_parametrized_unicode(self, keyfs, type, val):
-        pattr = keyfs.addkey_parametrized("hello/{some}", type)
+    def test_addkey_unicode(self, keyfs, type, val):
+        pattr = keyfs.addkey("hello/{some}", type)
         attr = pattr(some=py.builtin._totext(b'\xe4', "latin1"))
         assert not attr.exists()
         assert attr.get() == type()
@@ -125,7 +125,7 @@ class TestKey:
     def test_addkey_type_mismatch(self, keyfs):
         dictkey = keyfs.addkey("some", dict)
         pytest.raises(TypeError, lambda: dictkey.set("hello"))
-        dictkey = keyfs.addkey_parametrized("{that}/some", dict)
+        dictkey = keyfs.addkey("{that}/some", dict)
         pytest.raises(TypeError, lambda: dictkey(that="t").set("hello"))
 
     def test_addkey_registered(self, keyfs):
@@ -135,8 +135,8 @@ class TestKey:
         assert key1 in keyfs.keys
         assert key2 in keyfs.keys
 
-    def test_addkey_parametrized_listkeys(self, keyfs):
-        key = keyfs.addkey_parametrized("{name}/some1/{other}", int)
+    def test_addkey_listkeys(self, keyfs):
+        key = keyfs.addkey("{name}/some1/{other}", int)
         pytest.raises(KeyError, lambda: key.listnames("name"))
         pytest.raises(KeyError, lambda: key.listnames("other"))
         key(name="this", other="1").set(1)
