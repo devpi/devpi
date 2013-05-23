@@ -138,7 +138,7 @@ you have a tool at your finger tips for controlling devpi-server deployment::
 
     devpi-ctl stop all  # stop all processes
 
-    devpi-ctl start all # start devpi-server and redis-server
+    devpi-ctl start all # start devpi-server 
 
     devpi-ctl tail devpi-server  # look at current logs
     

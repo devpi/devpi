@@ -106,10 +106,3 @@ class DB:
             return entry
 
 
-def set_default_indexes(db):
-    PROD = "int/prod"
-    DEV = "int/dev"
-    PYPI = "ext/pypi"
-    db.configure_index(PYPI, bases=(), type="pypimirror", volatile=False)
-    db.configure_index(PROD, bases=(), type="private", volatile=False)
-    db.configure_index(DEV, bases=(PROD, PYPI), type="private", volatile=True)

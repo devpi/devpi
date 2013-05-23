@@ -118,7 +118,7 @@ class XOM:
 
     @cached_property
     def db(self):
-        from devpi_server.db import DB, set_default_indexes
+        from devpi_server.db import DB
         db = DB(self)
         set_default_indexes(db)
         return db
@@ -212,3 +212,11 @@ def bottle_run(xom):
                   reloader=False, port=port)
     xom.shutdown()
     return ret
+
+def set_default_indexes(db):
+    PROD = "int/prod"
+    DEV = "int/dev"
+    PYPI = "ext/pypi"
+    db.configure_index(PYPI, bases=(), type="pypimirror", volatile=False)
+    db.configure_index(PROD, bases=(), type="private", volatile=False)
+    db.configure_index(DEV, bases=(PROD, PYPI), type="private", volatile=True)

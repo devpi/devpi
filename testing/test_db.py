@@ -80,7 +80,7 @@ class TestDB:
 
 
 def test_setdefault_indexes(db):
-    from devpi_server.db import set_default_indexes
+    from devpi_server.main import set_default_indexes
     set_default_indexes(db)
     ixconfig = db.getindexconfig("ext/pypi")
     assert ixconfig.type == "pypimirror"
