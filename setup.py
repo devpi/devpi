@@ -11,7 +11,6 @@ if __name__ == "__main__":
     install_requires = ["py>=1.4.13",
                         "execnet>=1.1",
                         "requests>=1.2.0",
-                        "redis>=2.7.2",
                         "bottle>=0.11.6"]
     if sys.version_info < (2,7):
         install_requires.append("argparse>=1.2.1")
@@ -21,7 +20,7 @@ if __name__ == "__main__":
       description="devpi-server: reliable fast pypi.python.org caching server",
       keywords="pypi cache server wsgi",
       long_description=README + '\n\n' + CHANGES,
-      version='0.8.6.dev2',
+      version='0.9.0.dev1',
       maintainer="Holger Krekel",
       maintainer_email="holger@merlinux.eu",
       packages=find_packages(),

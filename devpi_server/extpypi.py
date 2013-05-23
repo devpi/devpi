@@ -102,28 +102,28 @@ class XMLProxy(object):
 
 class ExtDB:
     def __init__(self, xom):
-        self.redis = xom.redis
+        self.keyfs = xom.keyfs
         self.httpget = xom.httpget
         self.releasefilestore = xom.releasefilestore
-        self.releasefilestore = xom.releasefilestore
+        self._inprogress = set()
 
     def iscontained(self, projectname):
-        return self.redis.hexists(self.redis.HPYPIPROJECTS, projectname)
+        return (self.keyfs.HPYPIPROJECTS(name=projectname).exists() or
+                projectname in self._inprogress)
 
     def getprojectnames(self):
         """ return list of all projects which have been served. """
-        keyvals = self.redis.hgetall(self.redis.HPYPIPROJECTS)
-        l = [key for key,val in keyvals.items() if val]
+        l = list(self.keyfs.HPYPIPROJECTS.listnames("name"))
         l.sort()
         return l
 
     def _dump_projectlinks(self, projectname, dumplist):
-        self.redis.hset(self.redis.HPYPIPROJECTS, projectname, json.dumps(dumplist))
+        self.keyfs.HPYPIPROJECTS(name=projectname).set(dumplist)
 
     def _load_projectlinks(self, projectname):
-        res = self.redis.hget(self.redis.HPYPIPROJECTS, projectname)
+        res = self.keyfs.HPYPIPROJECTS(name=projectname).get(None)
         if res:
-            return json.loads(res)
+            return res
         return None
 
     def getreleaselinks(self, projectname, refresh=False):
@@ -138,8 +138,8 @@ class ExtDB:
 
         # the async changelog-checking might run any time and we need to
         # make sure it consider this project before we read pypi.
-        # We therefore mark it as being accessed if it hasn't already
-        self.redis.hsetnx(self.redis.HPYPIPROJECTS, projectname, "")
+        # We therefore mark it as being accessed
+        self._inprogress.add(projectname)
 
         url = PYPIURL_SIMPLE + projectname + "/"
         log.debug("visiting index %s", url)
@@ -167,6 +167,7 @@ class ExtDB:
                         for link in releaselinks]
         dumplist = [entry.relpath for entry in entries]
         self._dump_projectlinks(projectname, dumplist)
+        self._inprogress.remove(projectname)
         return entries
 
 PYPIURL_SIMPLE = "https://pypi.python.org/simple/"
@@ -176,45 +177,44 @@ class RefreshManager:
     def __init__(self, extdb, xom):
         self.extdb = extdb
         self.xom = xom
-        self.redis = extdb.redis
+        self.keyfs = xom.keyfs
 
     def spawned_pypichanges(self, proxy, proxysleep):
         log.debug("spawned_pypichanges starting")
-        redis = self.redis
-        current_serial = redis.get(redis.PYPISERIAL)
+        keyfs = self.keyfs
+        current_serial = keyfs.PYPISERIAL.get(None)
         while 1:
             if current_serial is None:
                 current_serial = proxy.changelog_last_serial()
                 if current_serial is None:
                     proxysleep()
                     continue
-                redis.set(redis.PYPISERIAL, current_serial)
-            else:
-                current_serial = int(current_serial)
+                keyfs.PYPISERIAL.set(current_serial)
             log.debug("checking remote changelog [%s]...", current_serial)
             changelog = proxy.changelog_since_serial(current_serial)
             if changelog:
                 log.debug("got changelog of size %d" %(len(changelog),))
                 self.mark_refresh(changelog)
                 current_serial += len(changelog)
-                redis.set(redis.PYPISERIAL, current_serial)
+                keyfs.PYPISERIAL.set(current_serial)
             proxysleep()
 
     def mark_refresh(self, changelog):
         projectnames = set([x[0] for x in changelog])
-        redis = self.redis
+        keyfs = self.keyfs
         notcontained = set()
         changed = set()
         for name in projectnames:
             if self.extdb.iscontained(name):
                 log.debug("marking invalid %r", name)
                 changed.add(name)
-                redis.sadd(redis.PYPIINVALID, name)
             else:
                 notcontained.add(name)
         if notcontained:
             log.info("ignoring changed projects: %r", notcontained)
         if changed:
+            with keyfs.PYPIINVALID.locked_update() as invalid:
+                invalid.update(changed)
             log.info("invalidated projects: %r", changed)
 
     def spawned_refreshprojects(self, invalidationsleep):
@@ -222,13 +222,15 @@ class RefreshManager:
         # note that this is written such that it could
         # be killed and restarted anytime without loosing
         # refreshing tasks (but possibly performing them twice)
-        redis = self.redis
+        keyfs = self.keyfs
         while 1:
-            names = redis.smembers(redis.PYPIINVALID)
+            names = keyfs.PYPIINVALID.get()
             if not names:
                 invalidationsleep()
                 continue
-            log.info("picking up invalidated projects %r", names)
-            for name in names:
-                self.extdb.getreleaselinks(name, refresh=True)
-                redis.srem(redis.PYPIINVALID, name)
+            log.info("refreshing invalidated projects %r", names)
+            with keyfs.PYPIINVALID.locked_update() as invalidset:
+                for name in names:
+                    x = self.extdb.getreleaselinks(name, refresh=True)
+                    if not isinstance(x, int):
+                        invalidset.remove(name)

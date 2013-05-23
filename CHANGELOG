@@ -1,6 +1,8 @@
 0.9.0.dev
 ----------------
 
+- use a filesystem based storage mechanism instead of redis
+
 - prevent automatic decoding of gzip files in case of content encoding
 
 - XXX preliminarily introduce new int/dev, int/prod indexes where int/dev 

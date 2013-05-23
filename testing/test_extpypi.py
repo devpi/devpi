@@ -235,20 +235,18 @@ class TestRefreshManager:
         #request.addfinalizer(xom.kill_spawned)
         return rf
 
-    def test_pypichanges_nochanges(self, extdb, redis, refreshmanager):
-        refreshmanager.redis.delete(redis.PYPISERIAL)
+    def test_pypichanges_nochanges(self, extdb, keyfs, refreshmanager):
         proxy = mock.create_autospec(XMLProxy)
         proxy.changelog_last_serial.return_value = 10
         proxy.changelog_since_serial.return_value = []
         with pytest.raises(ValueError):
             refreshmanager.spawned_pypichanges(proxy, proxysleep=raising)
         proxy.changelog_last_serial.assert_called_once_with()
-        val = redis.get(redis.PYPISERIAL)
-        assert int(val) == 10
+        assert keyfs.PYPISERIAL.get() == 10
 
-    def test_pypichanges_changes(self, extdb, redis,
+    def test_pypichanges_changes(self, extdb, keyfs,
                                  refreshmanager, monkeypatch):
-        refreshmanager.redis.set(redis.PYPISERIAL, 10)
+        keyfs.PYPISERIAL.set(10)
         monkeypatch.setattr(extdb, "httpget", lambda *x,**y: raising())
         pytest.raises(ValueError, lambda: extdb.getreleaselinks("pytest"))
         proxy = mock.create_autospec(XMLProxy)
@@ -257,9 +255,8 @@ class TestRefreshManager:
         with pytest.raises(ValueError):
             refreshmanager.spawned_pypichanges(proxy, proxysleep=raising)
         assert not proxy.changelog_last_serial.called
-        val = refreshmanager.redis.get(redis.PYPISERIAL)
-        assert int(val) == 12
-        invalid = refreshmanager.redis.smembers(redis.PYPIINVALID)
+        assert keyfs.PYPISERIAL.get() == 12
+        invalid = keyfs.PYPIINVALID.get()
         assert invalid == set(["pytest"])
 
     @pytest.fixture(params=["protocol", "socket"])
@@ -275,11 +272,10 @@ class TestRefreshManager:
         return raise_error
 
     def test_changelog_since_serial_nonetwork(self, extdb, refreshmanager,
-                    redis,
-                    raise_error, monkeypatch, caplog):
+                    keyfs, raise_error, monkeypatch, caplog):
         from xmlrpclib import ServerProxy
         got = []
-        redis.set(redis.PYPISERIAL, 10)
+        keyfs.PYPISERIAL.set(10)
         def raise_xmlrpcish(since_int):
             got.append(since_int)
             raise_error()
@@ -294,7 +290,7 @@ class TestRefreshManager:
         assert caplog.getrecords(".*since_serial.*error.*")
 
     def test_changelog_last_serial_nonetwork(self, extdb, refreshmanager,
-            raise_error, monkeypatch, caplog):
+            keyfs, raise_error, monkeypatch, caplog):
         from xmlrpclib import ProtocolError, ServerProxy
 
         proxyanswers = [None]
@@ -309,17 +305,19 @@ class TestRefreshManager:
         xmlproxy = XMLProxy(serverproxy)
         with pytest.raises(ValueError):
             refreshmanager.spawned_pypichanges(xmlproxy, proxysleep=raising)
-        assert not refreshmanager.redis.exists(extdb.redis.PYPISERIAL)
+        assert not keyfs.PYPISERIAL.exists()
         assert caplog.getrecords(".*error.*")
 
-    def test_refreshprojects(self, redis, extdb, refreshmanager, monkeypatch):
-        redis.sadd(redis.PYPIINVALID, "pytest")
+    def test_refreshprojects(self, keyfs, extdb, refreshmanager, monkeypatch):
+        keyfs.PYPIINVALID.set(set(["pytest"]))
+        assert "pytest" in keyfs.PYPIINVALID.get()
         m = mock.Mock()
         monkeypatch.setattr(extdb, "getreleaselinks", m)
+        m.return_value = []
         with pytest.raises(ValueError):
             refreshmanager.spawned_refreshprojects(invalidationsleep=raising)
         m.assert_called_once_with("pytest", refresh=True)
-        assert not redis.smembers(redis.PYPIINVALID)
+        assert not keyfs.PYPIINVALID.get()
 
 
 def test_requests_httpget_negative_status_code(xom_notmocked, monkeypatch):

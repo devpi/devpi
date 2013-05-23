@@ -8,7 +8,6 @@ BytesIO = py.io.BytesIO
 b = py.builtin.bytes
 
 class TestReleaseFileStore:
-    cleanredis = True
 
     def test_getentry_fromlink_and_maplink(self, filestore):
         link = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=123")
@@ -17,7 +16,7 @@ class TestReleaseFileStore:
         assert entry1.relpath == entry2.relpath
         assert entry1.basename == "pytest-1.2.zip"
 
-    def test_maplink(self, filestore, redis):
+    def test_maplink(self, filestore):
         link = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=123")
         entry1 = filestore.maplink(link, refresh=False)
         entry2 = filestore.maplink(link, refresh=False)
@@ -26,20 +25,18 @@ class TestReleaseFileStore:
         assert entry1.relpath.endswith("/pytest-1.2.zip")
         assert entry1.md5 == "123"
 
-    def test_maplink_file_there_but_no_entry(self, filestore, redis):
+    def test_maplink_file_there_but_no_entry(self, filestore, keyfs):
         link = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=123")
         entry1 = filestore.maplink(link, refresh=False)
-        assert entry1.filepath.ensure()
-        redis.delete(entry1.HSITEPATH)
-        entry1 = filestore.maplink(link, refresh=False)
-        assert entry1.url == link.url_nofrag
+        entry1.FILE.set("hello")
+        entry1.PATHENTRY.delete()
         headers, itercontent = filestore.iterfile_local(entry1, 1)
         assert itercontent is None
 
     def test_invalidate_cache(self, filestore):
         link = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip")
         entry1 = filestore.maplink(link, refresh=False)
-        entry1.filepath.ensure()
+        entry1.FILE.set("")
         assert entry1.iscached()
         entry1.invalidate_cache()
         assert not entry1.iscached()
@@ -60,7 +57,7 @@ class TestReleaseFileStore:
         assert not entry.iscached()
         entry.set(md5="1" * 16)
         assert not entry.iscached()
-        entry.filepath.ensure()
+        entry.FILE.set("")
         assert entry.iscached()
         assert entry.url == link.url
         assert entry.md5 == "1" * 16
@@ -179,8 +176,7 @@ class TestReleaseFileStore:
         testheaders = dict(size="3", content_type = "application/zip",
                            last_modified = "Thu, 25 Nov 2010 20:00:27 GMT")
         content = py.builtin.bytes("1234")
-        entry.filepath.dirpath().ensure(dir=1)
-        entry.filepath.write(content)
+        entry.FILE.set(content)
         entry.set(md5=getmd5(content), **testheaders)
 
         assert entry.iscached()
@@ -191,7 +187,7 @@ class TestReleaseFileStore:
         assert caplog.getrecords("size")
 
         entry.set(md5="wrongmd5", **testheaders)
-        entry.filepath.write(b("123"))
+        entry.FILE.set(b("123"))
         headers, iterable = filestore.iterfile_local(entry, 8192)
         assert headers is None and iterable is None
         assert caplog.getrecords("md5")
@@ -202,7 +198,7 @@ class TestReleaseFileStore:
             raise KeyError()
         link = DistURL("http://pypi.python.org/pkg/pytest-2.8.zip")
         entry = filestore.maplink(link, refresh=False)
-        entry.filepath.ensure()
+        entry.FILE.set("")
         testheaders={"size": "2", "content_type": "application/zip",
                  "last_modified": "Thu, 25 Nov 2010 20:00:27 GMT"}
         digest = getmd5("12")
@@ -219,13 +215,13 @@ class TestReleaseFileStore:
 
     def test_store_and_iter(self, filestore):
         content = b("hello")
-        entry = filestore.store(None, "something-1.0.zip", content)
+        entry = filestore.store("mystage", "something-1.0.zip", content)
         assert entry.md5 == getmd5(content)
         assert entry.iscached()
         entry2 = filestore.getentry(entry.relpath)
         assert entry2.basename == "something-1.0.zip"
         assert entry2.iscached()
-        assert entry2.filepath.check()
+        assert entry2.FILE.exists()
         assert entry2.md5 == entry.md5
         assert entry2.last_modified
         headers, iterable = filestore.iterfile(entry.relpath, httpget=None)

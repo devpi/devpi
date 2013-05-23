@@ -1,6 +1,4 @@
 
-import json
-
 from devpi_server.urlutil import DistURL
 
 import logging
@@ -26,14 +24,14 @@ class DB:
 
     def __init__(self, xom):
         self.xom = xom
-        self.redis = xom.redis
+        self.keyfs = xom.keyfs
 
     def getstagename(self, user, index):
         return "%s/%s" % (user, index)
 
     def getindexconfig(self, stagename):
-        redis = self.redis
-        mapping = redis.hgetall(redis.HSTAGECONFIG.format(stage=stagename))
+        keyfs = self.keyfs
+        mapping = keyfs.HSTAGECONFIG(stage=stagename).get()
         return IndexConfig(stagename=stagename, **mapping)
 
     def configure_index(self, stagename, type="private",
@@ -47,8 +45,8 @@ class DB:
             ixconfig.volatile = volatile
         mapping = ixconfig._getmapping()
         log.debug("configure_index %s: %s", stagename, mapping)
-        redis = self.redis
-        redis.hmset(redis.HSTAGECONFIG.format(stage=stagename), mapping)
+        keyfs = self.keyfs
+        keyfs.HSTAGECONFIG(stage=stagename).set(mapping)
 
     def op_with_bases(self, opname, stagename, **kw):
         ixconfig = self.getindexconfig(stagename)
@@ -74,11 +72,8 @@ class DB:
     def getreleaselinks_perstage(self, stagename, projectname):
         if stagename == "ext/pypi":
             return self.xom.extdb.getreleaselinks(projectname)
-        key = self.redis.HSTAGEFILES.format(stage=stagename)
-        val = self.redis.hget(key, projectname)
-        if not val:
-            return []
-        files = json.loads(val)
+        key = self.keyfs.HSTAGEFILES(stage=stagename, name=projectname)
+        files = key.get()
         entries = []
         for relpath in files.values():
             entries.append(self.xom.releasefilestore.getentry(relpath))
@@ -100,19 +95,15 @@ class DB:
         #if not ixconfig.type:
         #    return 404
         name, version = DistURL(filename).pkgname_and_version
-        key = self.redis.HSTAGEFILES.format(stage=stagename)
-        val = self.redis.hget(key, name)
-        if val:
-            files = json.loads(val)
-        else:
-            files = {}
-        if not ixconfig.volatile and filename in files:
-            return 409
-        entry = self.xom.releasefilestore.store(stagename, filename, content)
-        files[filename] = entry.relpath
-        self.redis.hset(key, name, json.dumps(files))
-        log.info("%s: stored releasefile %s", stagename, entry.relpath)
-        return entry
+        key = self.keyfs.HSTAGEFILES(stage=stagename, name=name)
+        with key.locked_update() as files:
+            if not ixconfig.volatile and filename in files:
+                return 409
+            entry = self.xom.releasefilestore.store(stagename,
+                                                    filename, content)
+            files[filename] = entry.relpath
+            log.info("%s: stored releasefile %s", stagename, entry.relpath)
+            return entry
 
 
 def set_default_indexes(db):

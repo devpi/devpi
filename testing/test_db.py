@@ -14,7 +14,7 @@ class TestDB:
         assert ixconfig.bases == ("int/dev",)
 
     @pytest.mark.parametrize("bases", ["", "ext/pypi"])
-    def test_empty(self, redis, db, bases):
+    def test_empty(self, db, bases):
         stagename = "hello/world"
         assert db.getreleaselinks(stagename, "someproject") == 404
         db.configure_index(stagename, bases=bases)
@@ -22,7 +22,7 @@ class TestDB:
         assert not db.getprojectnames(stagename)
 
     @pytest.mark.parametrize("bases", ["", "ext/pypi"])
-    def test_releaselinks(self, redis, db, bases):
+    def test_releaselinks(self, db, bases):
         stagename = "hello/world"
         db.configure_index(stagename, bases=bases)
         entries = db.getreleaselinks(stagename, "someproject")
@@ -30,7 +30,7 @@ class TestDB:
         entries = db.getprojectnames(stagename)
         assert not entries
 
-    def test_inheritance_simple(self, redis, httpget, db):
+    def test_inheritance_simple(self, httpget, db):
         stagename = "hello/world"
         db.configure_index(stagename, bases=("ext/pypi",))
         httpget.setextsimple("someproject",
@@ -39,7 +39,7 @@ class TestDB:
         assert len(entries) == 1
         assert db.getprojectnames(stagename) == ["someproject",]
 
-    def test_inheritance_error(self, redis, httpget, db):
+    def test_inheritance_error(self, httpget, db):
         stagename = "hello/world"
         db.configure_index(stagename, bases=("ext/pypi",))
         httpget.setextsimple("someproject", status_code = -1)
@@ -76,7 +76,7 @@ class TestDB:
         entry = db.store_releasefile(stagename, "some-1.0.zip", content2)
         entries = db.getreleaselinks(stagename, "some")
         assert len(entries) == 1
-        assert entries[0].filepath.read() == content2
+        assert entries[0].FILE.get() == content2
 
 
 def test_setdefault_indexes(db):

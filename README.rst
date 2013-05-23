@@ -48,7 +48,7 @@ Simply install ``devpi-server`` via for example::
     pip install devpi-server # or
     easy_install devpi-server
 
-Make sure you have the ``redis-server`` binary available and issue::
+And issue::
 
     devpi-server
 
@@ -104,8 +104,7 @@ it and install a second time::
     system 0.472s
 
 Ok, that was more than 10 times faster.  The install of ``devpi-server``
-(0.7) involves five packages btw: ``beautifulsoup4, bottle, py, redis,
-requests``.
+(0.9) involves three packages btw: ``bottle, py, requests``.
 
 .. _gendeploy:
 
@@ -121,7 +120,11 @@ you can invoke the ``virtualenv`` command::
 
 after which you can type::
 
-    $ devpi-server --gendeploy=TARGETDIR [--port=httpport] [--redisport=port]
+    $ devpi-server --gendeploy=TARGETDIR [--port=httpport] 
+    usage: devpi-server [-h] [--version] [--datadir DIR] [--port PORT]
+                        [--host HOST] [--refresh SECS] [--gendeploy DIR]
+                        [--bottleserver TYPE] [--debug]
+    devpi-server: error: unrecognized arguments: [--port=httpport]
 
 and will have a fully self-contained directory (a virtualenv in fact) 
 which is configured for supervising a continued run of devpi-server.
@@ -131,15 +134,17 @@ If you set an alias like this (in your ``.bashrc`` for permanence)::
 
 you have a tool at your finger tips for controlling devpi-server deployment::
 
-    $ devpi-ctl status    # look at status of devpi processes
+    devpi-ctl status    # look at status of devpi processes
 
-    $ devpi-ctl stop all  # stop all processes
+    devpi-ctl stop all  # stop all processes
 
-    $ devpi-ctl start all # start devpi-server and redis-server
+    devpi-ctl start all # start devpi-server and redis-server
 
-    $ devpi-ctl tail devpi-server  # look at current logs
+    devpi-ctl tail devpi-server  # look at current logs
+    
+    devpi-ctl shutdown  # shutdown all processes including supervisor
 
-    $ devpi-ctl shutdown  # shutdown all processes including supervisor
+    devpi-ctl status    # look at status of devpi processes
 
 In fact, ``devpi-ctl`` is just a thin wrapper around ``supervisorctl``
 which picks up the right configuration files and ensures its ``supervisord`` 
@@ -154,6 +159,7 @@ a standard cron, a modified copy of your user crontab has been amended which
 you may inspect and install with:
 
     $ crontab TARGETDIR/etc/crontab
+    TARGETDIR/etc/crontab: No such file or directory
 
 If you prepared your `pip configuration`_, you will now benefit
 from a permanently fast ``pip`` installation experience, including
@@ -186,7 +192,7 @@ did using gendeploy_, you can proceed like this::
     
     $ pip install -U devpi-server  
     $ devpi-ctl shutdown
-    $ devpi-server --gendeploy=TARGETDIR [--port=...] [--redisport=...]
+    $ devpi-server --gendeploy=TARGETDIR [--port=...] 
     $ devpi-ctl start all 
 
 If you don't stop the running server, the re-creation of the 
@@ -203,15 +209,6 @@ Other than a few automatically installed python dependencies,
 
 - ``python2.6`` or ``python2.7``.  
 
-- ``redis-server`` version 2.2 or later.  Earlier versions may or 
-  may not work (untested).  By default, devpi-server configures and
-  starts its own redis instance.  For this it needs to find a
-  ``redis-server`` executable.  On windows it will, in addition to the
-  PATH variable, also check for ``c:\\program
-  files\redis\redis-server.exe`` which is the default install location for
-  the `windows redis fork installer
-  <https://github.com/rgl/redis/downloads>`_. 
-
 command line options 
 ---------------------
 
@@ -219,8 +216,7 @@ A list of all devpi-server options::
 
     $ devpi-server -h
     usage: devpi-server [-h] [--version] [--datadir DIR] [--port PORT]
-                        [--refresh SECS] [--gendeploy DIR]
-                        [--redismode auto|manual] [--redisport PORT]
+                        [--host HOST] [--refresh SECS] [--gendeploy DIR]
                         [--bottleserver TYPE] [--debug]
     
     Start an index server acting as a cache for pypi.python.org, suitable for
@@ -228,31 +224,28 @@ A list of all devpi-server options::
     indexes which have changed on the pypi.python.org side.
     
     optional arguments:
-      -h, --help            show this help message and exit
+      -h, --help           show this help message and exit
     
     main:
       main options
     
-      --version             show devpi_version (0.8.2)
-      --datadir DIR         data directory for devpi-server [~/.devpi/serverdata]
-      --port PORT           port to listen for http requests [3141]
-      --refresh SECS        interval for consulting changelog api of
-                            pypi.python.org [60]
+      --version            show devpi_version (0.8.6.dev3)
+      --datadir DIR        data directory for devpi-server [~/.devpi/serverdata]
+      --port PORT          port to listen for http requests [3141]
+      --host HOST          domain/ip address to listen on [localhost]
+      --refresh SECS       interval for consulting changelog api of
+                           pypi.python.org [60]
     
     deploy:
       deployment options
     
-      --gendeploy DIR       (unix only) generate a pre-configured self-contained
-                            virtualenv directory which puts devpi-server and
-                            redis-server under supervisor control. Also provides
-                            nginx/cron files to help with permanent deployment.
-      --redismode auto|manual
-                            whether to start redis as a sub process [auto]
-      --redisport PORT      redis server port number [3142]
-      --bottleserver TYPE   bottle server class, you may try eventlet or others
-                            [wsgiref]
-      --debug               run wsgi application with debug logging
-
+      --gendeploy DIR      (unix only) generate a pre-configured self-contained
+                           virtualenv directory which puts devpi-server under
+                           supervisor control. Also provides nginx/cron files to
+                           help with permanent deployment.
+      --bottleserver TYPE  bottle server class, you may try eventlet or others
+                           [wsgiref]
+      --debug              run wsgi application with debug logging
 
 Project status and next steps
 -----------------------------

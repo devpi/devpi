@@ -22,17 +22,9 @@ serverurl=unix://%(here)s/../supervisor.socket
 # if you have a system-wide supervisord installation 
 # you might move the below actual program definitions 
 # to a global /etc/supervisord/conf.d/devpi-server.conf
-# and modify paths for the redis-devpi.conf 
-
-[program:devpi-redis]
-command=redis-server %(here)s/redis-devpi.conf
-redirect_stderr = True
-priority=100   
-startsecs = 1
-autostart=False
 
 [program:devpi-server]
-command={venvdir}/bin/devpi-server --redisport={redisport} --redismode=manual --datadir={datadir} --refresh=60 --port={devpiport}
+command={venvdir}/bin/devpi-server --datadir={datadir} --refresh=60 --port={devpiport}
 priority=999
 startsecs = 1
 redirect_stderr = True

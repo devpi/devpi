@@ -21,6 +21,10 @@ def addoptions(parser):
             default=3141,
             help="port to listen for http requests")
 
+    group.addoption("--host",  type=str,
+            default="localhost",
+            help="domain/ip address to listen on")
+
     group.addoption("--refresh", type=float, metavar="SECS",
             default=60,
             help="interval for consulting changelog api of pypi.python.org")
@@ -29,18 +33,9 @@ def addoptions(parser):
     group = parser.addgroup("deploy", "deployment options")
     group.addoption("--gendeploy", action="store", metavar="DIR",
             help="(unix only) generate a pre-configured self-contained "
-                 "virtualenv directory which puts devpi-server and "
-                 "redis-server under supervisor control.  Also provides "
+                 "virtualenv directory which puts devpi-server "
+                 "under supervisor control.  Also provides "
                  "nginx/cron files to help with permanent deployment. ")
-
-    group.addoption("--redismode", metavar="auto|manual",
-            action="store", choices=("auto", "manual"),
-            default="auto",
-            help="whether to start redis as a sub process")
-
-    group.addoption("--redisport", type=int, metavar="PORT",
-            default=3142,
-            help="redis server port number")
 
     group.addoption("--bottleserver", metavar="TYPE",
             default="wsgiref",
@@ -98,21 +93,6 @@ class MyArgumentParser(argparse.ArgumentParser):
 class ConfigurationError(Exception):
     """ incorrect configuration or environment settings. """
 
-@canraise(ConfigurationError)
-def configure_redis_start(port):
-    redis_server = py.path.local.sysfind("redis-server")
-    if redis_server is None:
-        if sys.platform == "win32":
-            redis_server = py.path.local.sysfind("redis-server",
-                    paths= [r"c:\\Program Files\redis"])
-        if redis_server is None:
-            raise ConfigurationError("'redis-server' binary not found in PATH")
-    def prepare_redis(cwd):
-        target = render(None, cwd, "redis-devpi.conf", redisdir=cwd,
-                        redisport=port)
-        return (".*ready to accept connections on port %s.*" % port,
-                [str(redis_server), str(target)])
-    return prepare_redis
 
 class Config:
     def __init__(self, args):

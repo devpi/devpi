@@ -5,6 +5,7 @@ for all indexes.
 """
 import hashlib
 import posixpath
+import os
 from wsgiref.handlers import format_date_time
 from datetime import datetime
 from time import mktime
@@ -12,13 +13,13 @@ from time import mktime
 import py
 from .types import propmapping
 from .urlutil import DistURL
+
 from logging import getLogger
 log = getLogger(__name__)
 
 class ReleaseFileStore:
-    def __init__(self, redis, basedir):
-        self.redis = redis
-        self.basedir = basedir
+    def __init__(self, keyfs):
+        self.keyfs = keyfs
 
     def maplink(self, link, refresh=False):
         entry = self.getentry_fromlink(link)
@@ -32,21 +33,14 @@ class ReleaseFileStore:
         entry.set(**mapping)
         return entry
 
-    def mapfile(self, filename, md5):
-        relpath = "%s/%s" % (md5, filename)
-        entry = self.getentry(relpath)
-        entry.set(md5=md5, last_modified=http_date())
-        return entry
-
     def getentry_fromlink(self, link):
         return self.getentry(link.torelpath())
 
     def getentry(self, relpath):
-        return RelPathEntry(self.redis, relpath, self.basedir)
+        return RelPathEntry(self.keyfs, relpath)
 
     def iterfile(self, relpath, httpget, chunksize=8192):
         entry = self.getentry(relpath)
-        target = entry.filepath
         cached = entry.iscached() and not entry.eggfragment
         if cached:
             headers, iterable = self.iterfile_local(entry, chunksize)
@@ -60,31 +54,23 @@ class ReleaseFileStore:
         return headers, iterable
 
     def iterfile_local(self, entry, chunksize):
-        target = entry.filepath
-        if not target.check():
-            error = "not exists"
-        #elif not entry.headers:
-        #    error = "no metainfo"
-        elif entry.size != str(target.size()):
+        error = None
+        content = entry.FILE.get()
+        if entry.size and int(entry.size) != len(content):
             error = "local size %s does not match header size %s" %(
-                     target.size(), entry.size)
-        elif entry.md5 and target.computehash() != entry.md5:
-            error = "md5 %s does not match expected %s" %(entry.md5,
-                target.computehash())
+                     len(content), entry.size)
         else:
-            error = None
+            if entry.md5:
+                md5 = getmd5(content)
+                if entry.md5 != md5:
+                    error = "got md5 %s expected %s" %(md5, entry.md5)
         if error is not None:
-            log.error("%s: %s -- invalidating cache", target, error)
+            log.error("%s: %s -- invalidating cache", entry.FILE.relpath, error)
             entry.invalidate_cache()
             return None, None
         # serve previously cached file and http headers
         def iterfile():
-            with target.open("rb") as f:
-                while 1:
-                    x = f.read(chunksize)
-                    if not x:
-                        break
-                    yield x
+            yield content
         return entry.gethttpheaders(), iterfile()
 
     def iterfile_remote(self, entry, httpget, chunksize):
@@ -93,53 +79,44 @@ class ReleaseFileStore:
         assert r.status_code >= 0, r.status_code
         entry.sethttpheaders(r.headers)
         # XXX check if we still have the file locally
-        log.info("cache-streaming remote: %s", r.url)
-        target = entry.filepath
-        target.dirpath().ensure(dir=1)
+        log.info("cache-streaming: %s, target %s", r.url, entry.FILE.relpath)
         def iter_and_cache():
-            tmp_target = target + "-tmp"
             hash = hashlib.md5()
-            # XXX if we have concurrent processes they would overwrite
-            # each other
-            with tmp_target.open("wb") as f:
-                #log.debug("serving %d remote chunk %s" % (len(x),
-                #                                         relpath))
+            with self.keyfs.tempfile(entry.basename) as tempfile:
                 while 1:
                     x = r.raw.read(chunksize)
                     if not x:
                         break
-                    f.write(x)
+                    tempfile.write(x)
                     hash.update(x)
                     yield x
             digest = hash.hexdigest()
             err = None
-            filesize = tmp_target.size()
+            filesize = os.stat(tempfile.name).st_size
             if entry.size and int(entry.size) != filesize:
                 err = ValueError(
                           "%s: got %s bytes of %r from remote, expected %s" % (
-                          tmp_target, tmp_target.size(), r.url, entry.size))
+                          tempfile.name, filesize, r.url, entry.size))
             if not entry.eggfragment and entry.md5 and digest != entry.md5:
                 err = ValueError("%s: md5 mismatch, got %s, expected %s",
-                                 tmp_target, digest, entry.md5)
+                                 tempfile.name, digest, entry.md5)
             if err is not None:
                 log.error(err)
                 raise err
-            try:
-                target.remove()
-            except py.error.ENOENT:
-                pass
-            tmp_target.move(target)
+            tempfile.key.move(entry.FILE)
             entry.set(md5=digest, size=filesize)
             log.info("finished getting remote %r", entry.url)
         return entry.gethttpheaders(), iter_and_cache()
 
     def store(self, stagename, filename, content):
         md5 = getmd5(content)
-        entry = self.mapfile(filename, md5)
-        entry.filepath.dirpath().ensure(dir=1)
-        with entry.filepath.open("wb") as f:
-            f.write(content)
-        entry.set(md5=md5, size=len(content))
+        key = self.keyfs.STAGEFILE(stage=stagename,
+                                    md5=md5,
+                                    filename=filename)
+        entry = self.getentry(key.relpath)
+        key.set(content)
+        entry.set(md5=md5, size=len(content),
+                  last_modified=http_date())
         return entry
 
 def getmd5(content):
@@ -150,18 +127,20 @@ def getmd5(content):
 class RelPathEntry(object):
     _attr = set("md5 eggfragment size last_modified content_type".split())
 
-    def __init__(self, redis, relpath, basedir):
-        self.redis = redis
+    def __init__(self, keyfs, relpath):
+        self.keyfs = keyfs
         self.relpath = relpath
-        self.filepath = basedir.join(self.relpath)
+        self.FILE = keyfs.FILEPATH(relpath=relpath)
         if relpath.split("/", 1)[0] in ("http", "https"):
             disturl = DistURL.fromrelpath(relpath)
             self.url = disturl.url
             self.basename = disturl.basename
         else:
             self.basename = posixpath.basename(relpath)
-        self.HSITEPATH = "s:" + self.relpath
-        self._mapping = redis.hgetall(self.HSITEPATH)
+        self.PATHENTRY = keyfs.PATHENTRY(relpath=relpath)
+        #log.debug("self.PATHENTRY %s", self.PATHENTRY.relpath)
+        #log.debug("self.FILE %s", self.FILE)
+        self._mapping = self.PATHENTRY.get()
 
     def gethttpheaders(self):
         headers = {"last-modified": self.last_modified,
@@ -176,15 +155,13 @@ class RelPathEntry(object):
                  content_type = headers["content-type"])
 
     def invalidate_cache(self):
-        self.redis.hdel(self.HSITEPATH, "_headers")
         try:
             del self._mapping["_headers"]
         except KeyError:
             pass
-        try:
-            self.filepath.remove()
-        except py.error.ENOENT:
-            pass
+        else:
+            self.PATHENTRY.set(self._mapping)
+        self.FILE.delete()
 
     def iscached(self):
         # compare md5 hash if exists with self.filepath
@@ -193,7 +170,7 @@ class RelPathEntry(object):
         # i.e. we maintain an invariant that <md5>/filename has a content
         # that matches the md5 hash. It is therefore possible that a
         # entry.md5 is set, but entry.relpath
-        return self.filepath.check()
+        return self.FILE.exists()
 
     def __eq__(self, other):
         return (self.relpath == other.relpath and
@@ -206,7 +183,7 @@ class RelPathEntry(object):
             if val is not None:
                 mapping[name] = str(val)
         self._mapping.update(mapping)
-        self.redis.hmset(self.HSITEPATH, mapping)
+        self.PATHENTRY.set(self._mapping)
 
 for _ in RelPathEntry._attr:
     setattr(RelPathEntry, _, propmapping(_))

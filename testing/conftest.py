@@ -4,8 +4,7 @@ import logging
 import mimetypes
 import pytest
 import py
-from devpi_server.main import XOM, add_redis_keys
-from devpi_server.config import configure_redis_start
+from devpi_server.main import XOM, add_keys
 
 
 log = logging.getLogger(__name__)
@@ -30,59 +29,22 @@ def caplog(caplog):
     caplog.getrecords = getrecords
     return caplog
 
-@pytest.fixture(scope="session")
-def redis(request, xprocess):
-    """ return a session-wide StrictRedis connection which is connected
-    to an externally started redis server instance
-    (through the xprocess plugin)"""
-    redis = pytest.importorskip("redis")
-    port = 6500
-    try:
-        prepare_redis = configure_redis_start(port=port)
-    except configure_redis_start.Error:
-        pytest.skip("command not found: redis-server")
-    pid, redislogfile = xprocess.ensure("redis", prepare_redis)
-    def kill():
-        try:
-            py.process.kill(pid)
-        except OSError:
-            import inspect
-            warn_lineno = inspect.currentframe().f_lineno - 3
-            import warnings
-            msg = "Failed to kill redis instance (pid %d)" % pid
-            warnings.warn_explicit(msg, RuntimeWarning, __file__, warn_lineno)
-    if pid:
-        request.addfinalizer(kill)
-    client = redis.StrictRedis(port=port)
-    client.port = port
-    add_redis_keys(client)
-    return client
-
-
-@pytest.fixture(autouse=True)
-def clean_redis(request):
-    if "redis" in request.fixturenames:
-    #if request.cls and getattr(request.cls, "cleanredis", False):
-        redis = request.getfuncargvalue("redis")
-        redis.flushdb()
-
 @pytest.fixture
-def xom_notmocked(request, redis):
+def xom_notmocked(request):
     from devpi_server.main import parseoptions, XOM
-    config = parseoptions(["devpi-server", "--redisport", str(redis.port)])
+    config = parseoptions(["devpi-server"])
     xom = XOM(config)
     request.addfinalizer(xom.shutdown)
     return xom
 
 @pytest.fixture
-def xom(request, redis, filestore, httpget):
+def xom(request, keyfs, filestore, httpget):
     from devpi_server.main import parseoptions, XOM
     from devpi_server.extpypi import ExtDB
-    config = parseoptions(["devpi-server", "--redisport", str(redis.port)])
+    config = parseoptions(["devpi-server"])
     xom = XOM(config)
-    xom.redis = redis
+    xom.keyfs = keyfs
     xom.releasefilestore = filestore
-    xom.redis.flushdb()
     xom.httpget = httpget
     xom.extdb = ExtDB(xom=xom)
     xom.extdb.url2response = httpget.url2response
@@ -137,9 +99,16 @@ def httpget(pypiurls):
     return MockHTTPGet()
 
 @pytest.fixture
-def filestore(redis, tmpdir):
+def filestore(keyfs):
     from devpi_server.filestore import ReleaseFileStore
-    return ReleaseFileStore(redis, tmpdir)
+    return ReleaseFileStore(keyfs)
+
+@pytest.fixture
+def keyfs(tmpdir):
+    from devpi_server.keyfs import KeyFS
+    keyfs = KeyFS(tmpdir.join("keyfs"))
+    add_keys(keyfs)
+    return keyfs
 
 @pytest.fixture
 def extdb(xom):

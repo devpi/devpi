@@ -10,7 +10,7 @@ import devpi_server
 
 def gendeploycfg(config, venvdir, tw=None):
     """ generate etc/ structure with supervisord.conf for running
-    devpi-server and redis under supervisor control. """
+    devpi-server under supervisor control. """
     if tw is None:
         tw = py.io.TerminalWriter()
         tw.cwd = py.path.local()
@@ -18,19 +18,16 @@ def gendeploycfg(config, venvdir, tw=None):
     tw.line("creating etc/ directory for supervisor configuration", bold=True)
     etc = venvdir.ensure("etc", dir=1)
     httpport = config.args.port
-    redisport = config.args.redisport
     datadir = venvdir.ensure("data", dir=1)
-    redisdir = datadir.ensure("redis", dir=1)
     logdir = venvdir.ensure("log", dir=1)
 
     render(tw, etc, "supervisord.conf", venvdir=venvdir,
-           devpiport=httpport, redisport=redisport,
+           devpiport=httpport,
            logdir=logdir, datadir=datadir)
-    render(tw, etc, "redis-devpi.conf", redisdir=redisdir, redisport=redisport)
     nginxconf = render(tw, etc, "nginx-devpi.conf", format=1, port=httpport,
                        datadir=datadir)
     indexurl = "http://localhost:%s/ext/pypi/simple/" % httpport
-    devpictl = create_devpictl(tw, venvdir, redisport, httpport)
+    devpictl = create_devpictl(tw, venvdir, httpport)
     cron = create_crontab(tw, etc, devpictl)
     tw.line("created and configured %s" % venvdir, bold=True)
     tw.line(py.std.textwrap.dedent("""\
@@ -88,7 +85,7 @@ def create_crontab(tw, etc, devpictl):
     """ % (based, crontabpath))
 
 
-def create_devpictl(tw, tmpdir, redisport, httpport):
+def create_devpictl(tw, tmpdir, httpport):
     devpiserver = tmpdir.join("bin", "devpi-server")
     if not devpiserver.check():
         tw.line("created fake devpictl", red=True)
@@ -97,7 +94,7 @@ def create_devpictl(tw, tmpdir, redisport, httpport):
 
     devpictlpy = py.path.local(__file__).dirpath("ctl.py").read()
     devpictl = render(tw, devpiserver.dirpath(), "devpi-ctl",
-                      firstline=firstline, redisport=redisport,
+                      firstline=firstline,
                       httpport=httpport, devpictlpy=devpictlpy)
     tw.line("wrote %s" % devpictl, bold=True)
     s = py.std.stat

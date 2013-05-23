@@ -31,16 +31,25 @@ def main(argv=None):
     xom = XOM(config)
     return bottle_run(xom)
 
-def add_redis_keys(redis):
+def add_keys(keyfs):
 
     # pypi related
-    redis.HPYPIPROJECTS = "pypi:projects"
-    redis.PYPISERIAL = "pypi:serial"
-    redis.PYPIINVALID = "pypi:invalid"
+    keyfs.HPYPIPROJECTS = keyfs.addkey_parametrized(
+                            "ext/pypi/links/{name}", list)
+    keyfs.PYPISERIAL = keyfs.addkey("ext/pypi/serial", int)
+    keyfs.PYPIINVALID = keyfs.addkey("ext/pypi/invalid", set)
+
+    #keyfs.PYPIFILECACHE = keyfs.addkey("ext/pypi/c/{filename}", file)
+    #keyfs.PYPIFILECACHE_META = keyfs.addkey("ext/pypi/c/{filename}.m", dict)
 
     # stage related
-    redis.HSTAGECONFIG = "ixconfig:{stage}"
-    redis.HSTAGEFILES = "files:{stage}"
+    keyfs.HSTAGECONFIG = keyfs.addkey_parametrized("{stage}/ixconfig", dict)
+    keyfs.HSTAGEFILES = keyfs.addkey_parametrized("{stage}/files/{name}",
+                                                    dict)
+    keyfs.STAGEFILE = keyfs.addkey_parametrized(
+                            "{stage}/pkg/{md5}/{filename}", bytes)
+    keyfs.PATHENTRY = keyfs.addkey_parametrized("{relpath}-meta", dict)
+    keyfs.FILEPATH = keyfs.addkey_parametrized("{relpath}", bytes)
 
 class XOM:
     class Exiting(SystemExit):
@@ -86,33 +95,6 @@ class XOM:
         thread.start()
         return thread
 
-    def startprocess(self, name, preparefunc, restart=False):
-        pid, logfile = self._xprocess.ensure(name, preparefunc,
-                                             restart=restart)
-        #log.info("logfile %s", logfile.name)
-        #log.info("logfile content %r", open(logfile.name).read())
-        def killproc():
-            try:
-                py.process.kill(pid)
-            except OSError:
-                pass
-        self.addshutdownfunc("kill %s server pid %s" % (name, pid), killproc)
-        return pid, logfile
-
-    @cached_property
-    def _xprocess(self):
-        from devpi_server.vendor.xprocess import XProcess
-        return XProcess(self.config, self.datadir, log=log)
-
-
-    @cached_property
-    def redis(self):
-        import redis
-        client = redis.StrictRedis(port=self.config.args.redisport)
-        #self.addshutdownfunc("shutdown redis", client.shutdown)
-        add_redis_keys(client)
-        return client
-
     @cached_property
     def datadir(self):
         return py.path.local(os.path.expanduser(self.config.args.datadir))
@@ -120,7 +102,14 @@ class XOM:
     @cached_property
     def releasefilestore(self):
         from devpi_server.filestore import ReleaseFileStore
-        return ReleaseFileStore(self.redis, self.datadir)
+        return ReleaseFileStore(self.keyfs)
+
+    @cached_property
+    def keyfs(self):
+        from devpi_server.keyfs import KeyFS
+        keyfs = KeyFS(self.datadir)
+        add_keys(keyfs)
+        return keyfs
 
     @cached_property
     def extdb(self):
@@ -180,7 +169,7 @@ def post_fork(server, worker):
 
 def make_application():
     ### unused function for creating an app
-    config = parseoptions(["--redismode=manual", "--redisport=6379"])
+    config = parseoptions()
     xom = XOM(config)
     start_background_tasks_if_not_in_arbiter(xom)
     app = xom.create_app()
@@ -198,8 +187,6 @@ def start_background_tasks_if_not_in_arbiter(xom):
     if not workers:
         return
     log.info("starting background tasks from process %s", os.getpid())
-    if xom.config.args.redismode == "auto":
-        start_redis_server(xom)
     from devpi_server.extpypi import RefreshManager, XMLProxy
     from xmlrpclib import ServerProxy
     xom.proxy = XMLProxy(ServerProxy(PYPIURL_XMLRPC))
@@ -210,24 +197,18 @@ def start_background_tasks_if_not_in_arbiter(xom):
     xom.spawn(refresher.spawned_refreshprojects,
               args=(lambda: xom.sleep(5),))
 
-def start_redis_server(xom):
-    from devpi_server.config import configure_redis_start
-    port = xom.config.args.redisport
-    prepare_redis = configure_redis_start(port)
-    pid, logfile = xom.startprocess("redis", prepare_redis)
-    log.info("started redis-server pid %s on port %s", pid, port)
-
 def bottle_run(xom):
     workers.append(1)
     start_background_tasks_if_not_in_arbiter(xom)
     app = xom.create_app(catchall=not xom.config.args.debug)
     port = xom.config.args.port
     log.info("devpi-server version: %s", devpi_server.__version__)
-    log.info("serving index url: http://localhost:%s/ext/pypi/simple/",
-             xom.config.args.port)
+    log.info("serving index url: http://%s:%s/ext/pypi/simple/",
+             xom.config.args.host, xom.config.args.port)
     log.info("bug tracker: https://bitbucket.org/hpk42/devpi-server/issues")
     log.info("IRC: #pylib on irc.freenode.net")
     ret = app.run(server=xom.config.args.bottleserver,
+                  host=xom.config.args.host,
                   reloader=False, port=port)
     xom.shutdown()
     return ret
