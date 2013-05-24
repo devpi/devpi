@@ -78,6 +78,27 @@ class TestDB:
         assert len(entries) == 1
         assert entries[0].FILE.get() == content2
 
+class TestUsers:
+    def test_create_and_validate(self, db):
+        assert not db.user_exists("user")
+        db.user_create("user", "password")
+        assert db.user_exists("user")
+        assert db.user_validate("user", "password")
+        assert not db.user_validate("user", "password2")
+
+    def test_create_and_delete(self, db):
+        db.user_create("user", "password")
+        db.user_delete("user")
+        assert not db.user_exists("user")
+        assert not db.user_validate("user", "password")
+
+    def test_create_and_list(self, db):
+        db.user_create("user1", "password")
+        db.user_create("user2", "password")
+        db.user_create("user3", "password")
+        assert db.user_list() == set("user1 user2 user3".split())
+        db.user_delete("user3")
+        assert db.user_list() == set("user1 user2".split())
 
 def test_setdefault_indexes(db):
     from devpi_server.main import set_default_indexes

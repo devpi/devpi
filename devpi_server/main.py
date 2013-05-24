@@ -32,10 +32,11 @@ def main(argv=None):
     return bottle_run(xom)
 
 def add_keys(keyfs):
+    # users
+    keyfs.USER = keyfs.addkey(".users/{name}", dict)
 
     # pypi related
-    keyfs.HPYPIPROJECTS = keyfs.addkey(
-                            "ext/pypi/links/{name}", list)
+    keyfs.HPYPIPROJECTS = keyfs.addkey("ext/pypi/links/{name}", list)
     keyfs.PYPISERIAL = keyfs.addkey("ext/pypi/serial", int)
     keyfs.PYPIINVALID = keyfs.addkey("ext/pypi/invalid", set)
 
@@ -46,8 +47,7 @@ def add_keys(keyfs):
     keyfs.HSTAGECONFIG = keyfs.addkey("{stage}/ixconfig", dict)
     keyfs.HSTAGEFILES = keyfs.addkey("{stage}/files/{name}",
                                                     dict)
-    keyfs.STAGEFILE = keyfs.addkey(
-                            "{stage}/pkg/{md5}/{filename}", bytes)
+    keyfs.STAGEFILE = keyfs.addkey("{stage}/pkg/{md5}/{filename}", bytes)
     keyfs.PATHENTRY = keyfs.addkey("{relpath}-meta", dict)
     keyfs.FILEPATH = keyfs.addkey("{relpath}", bytes)
 

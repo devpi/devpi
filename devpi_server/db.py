@@ -1,5 +1,7 @@
 
+import os
 from devpi_server.urlutil import DistURL
+import hashlib
 
 import logging
 
@@ -20,12 +22,42 @@ class IndexConfig:
                     bases=",".join(self.bases),
         )
 
+def getpwhash(password, salt):
+    hash = hashlib.sha256()
+    hash.update(salt)
+    hash.update(password)
+    return hash.hexdigest()
+
 class DB:
 
     def __init__(self, xom):
         self.xom = xom
         self.keyfs = xom.keyfs
 
+    # user handling
+    def user_create(self, user, password):
+        with self.keyfs.USER(name=user).locked_update() as userconfig:
+            userconfig["pwsalt"] = salt = os.urandom(16).encode("base_64")
+            userconfig["pwhash"] = getpwhash(password, salt)
+
+    def user_delete(self, user):
+        self.keyfs.USER(name=user).delete()
+
+    def user_exists(self, user):
+        return self.keyfs.USER(name=user).exists()
+
+    def user_list(self):
+        return self.keyfs.USER.listnames("name")
+
+    def user_validate(self, user, password):
+        userconfig = self.keyfs.USER(name=user).get(None)
+        if userconfig is None:
+            return False
+        salt = userconfig["pwsalt"]
+        pwhash = userconfig["pwhash"]
+        return getpwhash(password, salt) == pwhash
+
+    # stage handling
     def getstagename(self, user, index):
         return "%s/%s" % (user, index)
 
