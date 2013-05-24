@@ -7,11 +7,11 @@ class TestDB:
     def test_configure_index(self, db):
         stagename = "hello/world"
         ixconfig = db.getindexconfig(stagename)
-        assert not ixconfig.type
+        assert not ixconfig
         db.configure_index(stagename, bases=("int/dev",))
         ixconfig = db.getindexconfig(stagename)
-        assert ixconfig.type == "private"
-        assert ixconfig.bases == ("int/dev",)
+        assert ixconfig["type"] == "private"
+        assert ixconfig["bases"] == ("int/dev",)
 
     @pytest.mark.parametrize("bases", ["", "ext/pypi"])
     def test_empty(self, db, bases):
@@ -104,19 +104,14 @@ def test_setdefault_indexes(db):
     from devpi_server.main import set_default_indexes
     set_default_indexes(db)
     ixconfig = db.getindexconfig("ext/pypi")
-    assert ixconfig.type == "pypimirror"
+    assert ixconfig["type"] == "pypimirror"
 
     ixconfig = db.getindexconfig("int/dev")
-    assert ixconfig.type == "private"
-    assert ixconfig.bases == ("int/prod", "ext/pypi")
-    assert ixconfig.volatile
+    assert ixconfig["type"] == "private"
+    assert ixconfig["bases"] == ("int/prod", "ext/pypi")
+    assert ixconfig["volatile"]
 
     ixconfig = db.getindexconfig("int/prod")
-    assert ixconfig.type == "private"
-    assert ixconfig.bases == ()
-    assert not ixconfig.volatile
-
-
-
-
-
+    assert ixconfig["type"] == "private"
+    assert ixconfig["bases"] == ()
+    assert not ixconfig["volatile"]

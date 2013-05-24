@@ -7,21 +7,6 @@ import logging
 
 log = logging.getLogger(__name__)
 
-class IndexConfig:
-    """ Unserialized index configuration (using Python types). """
-    def __init__(self, stagename, type="", bases="", volatile=False):
-        self.stagename = stagename
-        self.type = type
-        self.bases = tuple([x for x in bases.split(",") if x])
-        self.volatile = bool(int(volatile))
-
-    def _getmapping(self):
-        """ serialize into key/value strings. """
-        return dict(type=self.type,
-                    volatile=str(int(bool(self.volatile))),
-                    bases=",".join(self.bases),
-        )
-
 def getpwhash(password, salt):
     hash = hashlib.sha256()
     hash.update(salt)
@@ -36,7 +21,7 @@ class DB:
 
     # user handling
     def user_create(self, user, password):
-        with self.keyfs.USER(name=user).locked_update() as userconfig:
+        with self.keyfs.USER(name=user).update() as userconfig:
             userconfig["pwsalt"] = salt = os.urandom(16).encode("base_64")
             userconfig["pwhash"] = getpwhash(password, salt)
 
@@ -62,32 +47,27 @@ class DB:
         return "%s/%s" % (user, index)
 
     def getindexconfig(self, stagename):
-        keyfs = self.keyfs
-        mapping = keyfs.HSTAGECONFIG(stage=stagename).get()
-        return IndexConfig(stagename=stagename, **mapping)
+        return self.keyfs.HSTAGECONFIG(stage=stagename).get()
 
     def configure_index(self, stagename, type="private",
                         bases=(), volatile=None):
-        ixconfig = self.getindexconfig(stagename)
-        if type:
-            ixconfig.type = type
-        if bases is not None:
-            ixconfig.bases =  bases
-        if volatile is not None:
-            ixconfig.volatile = volatile
-        mapping = ixconfig._getmapping()
-        log.debug("configure_index %s: %s", stagename, mapping)
-        keyfs = self.keyfs
-        keyfs.HSTAGECONFIG(stage=stagename).set(mapping)
+        with self.keyfs.HSTAGECONFIG(stage=stagename).update() as ixconfig:
+            if type:
+                ixconfig["type"] = type
+            if bases is not None:
+                ixconfig["bases"] = bases
+            if volatile is not None:
+                ixconfig["volatile"] = volatile
+            log.debug("configure_index %s: %s", stagename, ixconfig)
 
     def op_with_bases(self, opname, stagename, **kw):
         ixconfig = self.getindexconfig(stagename)
-        if not ixconfig.type:
+        if not ixconfig:
             return 404
         op = getattr(self, opname)
         op_perstage = getattr(self, opname + "_perstage")
         entries = op_perstage(stagename, **kw)
-        for base in ixconfig.bases:
+        for base in ixconfig["bases"]:
             base_entries = op(base, **kw)
             if isinstance(base_entries, int):
                 if base_entries == 404:
@@ -129,7 +109,7 @@ class DB:
         name, version = DistURL(filename).pkgname_and_version
         key = self.keyfs.HSTAGEFILES(stage=stagename, name=name)
         with key.locked_update() as files:
-            if not ixconfig.volatile and filename in files:
+            if not ixconfig.get("volatile") and filename in files:
                 return 409
             entry = self.xom.releasefilestore.store(stagename,
                                                     filename, content)

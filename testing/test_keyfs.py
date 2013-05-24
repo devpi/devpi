@@ -156,6 +156,31 @@ class TestKey:
                 d["hello"] = l
         assert key1.get()["hello"] == l
 
+    def test_locked_update_error(self, keyfs):
+        key1 = keyfs.addkey("some1", dict)
+        key1.set({1:2})
+        try:
+            with key1.locked_update() as d:
+                d["hello"] = "world"
+                raise ValueError()
+        except ValueError:
+            pass
+        assert key1.get() == {1:2}
+
+    def test_update(self, keyfs):
+        key1 = keyfs.addkey("some1", dict)
+        with key1.update() as d:
+            d["hello"] = 1
+        assert key1.get()["hello"] == 1
+        try:
+            with key1.update() as d:
+                d["hello"] = 2
+                raise ValueError()
+        except ValueError:
+            pass
+        assert key1.get()["hello"] == 1
+
+
     def test_filestore(self, keyfs):
         key1 = keyfs.addkey("hello", bytes)
         key1.set("hello")

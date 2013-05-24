@@ -169,6 +169,21 @@ class TypedKey:
     def locked_update(self):
         return LockedUpdate(self)
 
+    def update(self):
+        return Update(self)
+
+class Update:
+    def __init__(self, typedkey):
+        self.typedkey = typedkey
+
+    def __enter__(self):
+        self._val = val = self.typedkey.get()
+        return val
+
+    def __exit__(self, type, val, tb):
+        if not type:
+            self.typedkey.set(self._val)
+
 class LockedUpdate:
     def __init__(self, typedkey):
         self.typedkey = typedkey
@@ -184,5 +199,8 @@ class LockedUpdate:
             raise
 
     def __exit__(self, type, val, tb):
-        self.typedkey.set(self._val)
-        self.rlock.release()
+        try:
+            if not type:
+                self.typedkey.set(self._val)
+        finally:
+            self.rlock.release()
