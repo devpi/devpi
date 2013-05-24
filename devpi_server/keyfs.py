@@ -110,7 +110,12 @@ class PTypedKey:
             raise KeyError("%r does not end with %r" % (self.key, expected))
         basekey = self.key[:-len(expected)].format(**kw)
         path = self.keyfs._getpath(basekey)
-        return set(os.listdir(str(path)))
+        try:
+            return set(os.listdir(str(path)))
+        except OSError as e:
+            if e.errno == 2:
+                return set()
+            raise
 
     def __repr__(self):
         return "<PTypedKey %r type %r>" %(self.key, self.type.__name__)

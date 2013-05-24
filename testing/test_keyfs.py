@@ -139,6 +139,7 @@ class TestKey:
         key = keyfs.addkey("{name}/some1/{other}", int)
         pytest.raises(KeyError, lambda: key.listnames("name"))
         pytest.raises(KeyError, lambda: key.listnames("other"))
+        assert not key.listnames("other", name="this")
         key(name="this", other="1").set(1)
         key(name="this", other="2").set(2)
         key(name="that", other="0").set(1)

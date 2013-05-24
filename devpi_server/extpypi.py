@@ -101,6 +101,8 @@ class XMLProxy(object):
             return None
 
 class ExtDB:
+    name = "ext/pypi"
+
     def __init__(self, xom):
         self.keyfs = xom.keyfs
         self.httpget = xom.httpget

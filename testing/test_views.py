@@ -17,7 +17,7 @@ def httpget(request, xom, httpget, monkeypatch):
 @pytest.fixture
 def testapp(request, xom):
     from webtest import TestApp
-    app = xom.create_app(catchall=request.config.option.catchall)
+    app = xom.create_app(catchall=False) # request.config.option.catchall)
     testapp = TestApp(app)
     oldget = testapp.get
     testapp.get = lambda path, expect_errors=True: \
@@ -49,6 +49,10 @@ def test_simple_list(pypiurls, httpget, testapp):
     hrefs = [a.get("href") for a in links]
     assert hrefs == ["hello1/", "hello2/"]
 
+def test_index_root(pypiurls, httpget, testapp, xom):
+    xom.db.create_stage("user/index", bases=("ext/pypi",))
+    r = testapp.get("/user/index/")
+    assert r.status_code == 200
 
 @pytest.mark.parametrize("code", [-1, 500, 501, 502, 503])
 def test_upstream_not_reachable(pypiurls, httpget, testapp, xom, code):
@@ -72,7 +76,7 @@ def test_apiconfig(httpget, testapp):
         assert "pushrelease" in r.json
 
 def test_upload(httpget, db, testapp):
-    db.configure_index("user/name", bases=("ext/pypi",))
+    db.create_stage("user/name", bases=("ext/pypi",))
     BytesIO = py.io.BytesIO
     r = testapp.post("/user/name/pypi/",
         {":action": "file_upload", "name": "pkg1", "version": "2.6",

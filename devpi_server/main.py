@@ -44,12 +44,11 @@ def add_keys(keyfs):
     #keyfs.PYPIFILECACHE_META = keyfs.addkey("ext/pypi/c/{filename}.m", dict)
 
     # stage related
-    keyfs.HSTAGECONFIG = keyfs.addkey("{stage}/ixconfig", dict)
-    keyfs.HSTAGEFILES = keyfs.addkey("{stage}/files/{name}",
-                                                    dict)
+    keyfs.HSTAGEFILES = keyfs.addkey("{stage}/files/{name}", dict)
     keyfs.STAGEFILE = keyfs.addkey("{stage}/pkg/{md5}/{filename}", bytes)
     keyfs.PATHENTRY = keyfs.addkey("{relpath}-meta", dict)
     keyfs.FILEPATH = keyfs.addkey("{relpath}", bytes)
+
 
 class XOM:
     class Exiting(SystemExit):
@@ -217,6 +216,7 @@ def set_default_indexes(db):
     PROD = "int/prod"
     DEV = "int/dev"
     PYPI = "ext/pypi"
-    db.configure_index(PYPI, bases=(), type="pypimirror", volatile=False)
-    db.configure_index(PROD, bases=(), type="private", volatile=False)
-    db.configure_index(DEV, bases=(PROD, PYPI), type="private", volatile=True)
+    db.user_indexconfig_set(PYPI, bases=(), type="pypimirror", volatile=False)
+    db.user_indexconfig_set(PROD, bases=(), type="private", volatile=False)
+    db.user_indexconfig_set(DEV, bases=(PROD, PYPI), type="private",
+                            volatile=True)

@@ -1,104 +1,97 @@
 
 import pytest
 
+@pytest.fixture(params=[(), ("ext/pypi",)])
+def bases(request):
+    return request.param
 
-class TestDB:
 
-    def test_configure_index(self, db):
+class TestStage:
+    @pytest.fixture
+    def stage(self, request, db):
+        config = dict(user="hello", index="world", bases=(),
+                      type="private", volatile=True)
+        if "bases" in request.fixturenames:
+            config["bases"] = request.getfuncargvalue("bases")
+        db.user_indexconfig_set(**config)
+        return db.getstage(user=config["user"], index=config["index"])
+
+    def test_not_configured_index(self, db):
         stagename = "hello/world"
-        ixconfig = db.getindexconfig(stagename)
-        assert not ixconfig
-        db.configure_index(stagename, bases=("int/dev",))
-        ixconfig = db.getindexconfig(stagename)
-        assert ixconfig["type"] == "private"
-        assert ixconfig["bases"] == ("int/dev",)
+        assert not db.getindexconfig(stagename)
+        assert not db.getstage(stagename)
 
-    @pytest.mark.parametrize("bases", ["", "ext/pypi"])
-    def test_empty(self, db, bases):
-        stagename = "hello/world"
-        assert db.getreleaselinks(stagename, "someproject") == 404
-        db.configure_index(stagename, bases=bases)
-        assert not db.getreleaselinks(stagename, "someproject")
-        assert not db.getprojectnames(stagename)
+    def test_empty(self, stage, bases):
+        assert not stage.getreleaselinks("someproject")
+        assert not stage.getprojectnames()
 
-    @pytest.mark.parametrize("bases", ["", "ext/pypi"])
-    def test_releaselinks(self, db, bases):
-        stagename = "hello/world"
-        db.configure_index(stagename, bases=bases)
-        entries = db.getreleaselinks(stagename, "someproject")
-        assert not entries
-        entries = db.getprojectnames(stagename)
-        assert not entries
-
-    def test_inheritance_simple(self, httpget, db):
-        stagename = "hello/world"
-        db.configure_index(stagename, bases=("ext/pypi",))
+    def test_inheritance_simple(self, httpget, stage):
+        stage.configure(bases=("ext/pypi",))
         httpget.setextsimple("someproject",
             "<a href='someproject-1.0.zip' /a>")
-        entries = db.getreleaselinks(stagename, "someproject")
+        entries = stage.getreleaselinks("someproject")
         assert len(entries) == 1
-        assert db.getprojectnames(stagename) == ["someproject",]
+        assert stage.getprojectnames() == ["someproject",]
 
-    def test_inheritance_error(self, httpget, db):
-        stagename = "hello/world"
-        db.configure_index(stagename, bases=("ext/pypi",))
+    def test_inheritance_error(self, httpget, stage):
+        stage.configure(bases=("ext/pypi",))
         httpget.setextsimple("someproject", status_code = -1)
-        entries = db.getreleaselinks(stagename, "someproject")
+        entries = stage.getreleaselinks("someproject")
         assert entries == -1
-        #entries = db.getprojectnames(stagename)
+        #entries = stage.getprojectnames()
         #assert entries == -1
 
-    def test_store_and_get_releasefile(self, db):
-        stagename = "test/dev"
-        db.configure_index(stagename)
+    def test_store_and_get_releasefile(self, stage, bases):
         content = "123"
         content2 = "1234"
-        entry = db.store_releasefile(stagename, "some-1.0.zip", content)
-        entries = db.getreleaselinks(stagename, "some")
+        entry = stage.store_releasefile("some-1.0.zip", content)
+        entries = stage.getreleaselinks("some")
         assert len(entries) == 1
         assert entries[0].md5 == entry.md5
+        assert stage.getprojectnames() == ["some"]
 
-    def test_store_and_get_volatile(self, db):
-        stagename = "test/dev"
-        db.configure_index(stagename, volatile=False)
+    def test_store_and_get_volatile(self, stage):
+        stage.configure(volatile=False)
         content = "123"
         content2 = "1234"
-        entry = db.store_releasefile(stagename, "some-1.0.zip", content)
-        entries = db.getreleaselinks(stagename, "some")
-        assert len(entries) == 1
+        entry = stage.store_releasefile("some-1.0.zip", content)
+        assert len(stage.getreleaselinks("some")) == 1
 
         # rewrite  fails
-        entry = db.store_releasefile(stagename, "some-1.0.zip", content2)
+        entry = stage.store_releasefile("some-1.0.zip", content2)
         assert entry == 409
 
         # rewrite succeeds with volatile
-        db.configure_index(stagename, volatile=True)
-        entry = db.store_releasefile(stagename, "some-1.0.zip", content2)
-        entries = db.getreleaselinks(stagename, "some")
+        stage.configure(volatile=True)
+        entry = stage.store_releasefile("some-1.0.zip", content2)
+        entries = stage.getreleaselinks("some")
         assert len(entries) == 1
         assert entries[0].FILE.get() == content2
 
 class TestUsers:
     def test_create_and_validate(self, db):
         assert not db.user_exists("user")
-        db.user_create("user", "password")
+        db.user_setpassword("user", "password")
         assert db.user_exists("user")
         assert db.user_validate("user", "password")
         assert not db.user_validate("user", "password2")
 
     def test_create_and_delete(self, db):
-        db.user_create("user", "password")
+        db.user_setpassword("user", "password")
         db.user_delete("user")
         assert not db.user_exists("user")
         assert not db.user_validate("user", "password")
 
     def test_create_and_list(self, db):
-        db.user_create("user1", "password")
-        db.user_create("user2", "password")
-        db.user_create("user3", "password")
-        assert db.user_list() == set("user1 user2 user3".split())
+        baselist = db.user_list()
+        db.user_setpassword("user1", "password")
+        db.user_setpassword("user2", "password")
+        db.user_setpassword("user3", "password")
+        newusers = db.user_list().difference(baselist)
+        assert newusers == set("user1 user2 user3".split())
         db.user_delete("user3")
-        assert db.user_list() == set("user1 user2".split())
+        newusers = db.user_list().difference(baselist)
+        assert newusers == set("user1 user2".split())
 
 def test_setdefault_indexes(db):
     from devpi_server.main import set_default_indexes

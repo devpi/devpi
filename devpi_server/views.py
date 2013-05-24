@@ -24,6 +24,12 @@ class PyPIView:
         self.xom = xom
         self.db = xom.db
 
+    def getstage(self, user, index):
+        stage = self.db.getstage(user, index)
+        if not stage:
+            abort(404, "no such stage")
+        return stage
+
     @route("/")
     @route("/ext/pypi/")
     def extpypi_redirect(self):
@@ -53,13 +59,9 @@ class PyPIView:
 
     @route("/<user>/<index>/")
     def indexroot(self, user, index):
-        stagename = self.db.getstagename(user, index)
-        ixconfig = self.db.getindexconfig(stagename)
-        if not ixconfig.type:
-            abort(404, "no such index")
-
+        stage = self.getstage(user, index)
         bases = html.ul()
-        for base in ixconfig.bases:
+        for base in stage.ixconfig["bases"]:
             bases.append(html.li(
                 html.a("%s" % base, href="/%s/" % base),
                 " (",
@@ -69,7 +71,7 @@ class PyPIView:
         if bases:
             bases = [html.h2("inherited bases"), bases]
 
-        return simple_html_body("%s index" % stagename, [
+        return simple_html_body("%s index" % stage.name, [
             html.ul(
                 html.li(html.a("simple index", href="simple/")),
             ),
@@ -80,8 +82,8 @@ class PyPIView:
     @route("/<user>/<index>/simple/<projectname>/")
     def simple_list_project(self, user, index, projectname):
         # we only serve absolute links so we don't care about the route's slash
-        stagename = self.db.getstagename(user, index)
-        result = self.db.getreleaselinks(stagename, projectname)
+        stage = self.getstage(user, index)
+        result = stage.getreleaselinks(projectname)
         if isinstance(result, int):
             if result == 404:
                 abort(404, "no such project")
@@ -104,18 +106,18 @@ class PyPIView:
         for entry in links:
             body.append(html.a(entry[1], href=entry[0]))
             body.append(html.br())
-        return simple_html_body("%s: links for %s" % (stagename, projectname),
+        return simple_html_body("%s: links for %s" % (stage.name, projectname),
                                 body).unicode()
 
     @route("/<user>/<index>/simple/")
     def simple_list_all(self, user, index):
-        stagename = self.db.getstagename(user, index)
-        names = self.db.getprojectnames(stagename)
+        stage = self.getstage(user, index)
+        names = stage.getprojectnames()
         body = []
         for name in names:
             body.append(html.a(name, href=name + "/"))
             body.append(html.br())
-        return simple_html_body("%s: list of accessed projects" % stagename,
+        return simple_html_body("%s: list of accessed projects" % stage.name,
                                 body).unicode()
 
     @route("/<user>/<index>/pypi", method="POST")
@@ -125,7 +127,7 @@ class PyPIView:
             action = request.forms[":action"]
         except KeyError:
             abort(400, output=":action field not found")
-        stagename = self.db.getstagename(user, index)
+        stage = self.getstage(user, index)
         if action == "submit":
             return ""
         elif action == "file_upload":
@@ -135,9 +137,7 @@ class PyPIView:
                 abort(400, "content file field not found")
             #name = request.forms.get("name")
             #version = request.forms.get("version")
-            self.db.store_releasefile(stagename,
-                                      content.filename,
-                                      content.value)
+            stage.store_releasefile(content.filename, content.value)
         else:
             abort(400, output="action %r not supported" % action)
         return ""
