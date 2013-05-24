@@ -159,7 +159,7 @@ a standard cron, a modified copy of your user crontab has been amended which
 you may inspect and install with:
 
     $ crontab TARGETDIR/etc/crontab
-    TARGETDIR/etc/crontab: No such file or directory
+    
 
 If you prepared your `pip configuration`_, you will now benefit
 from a permanently fast ``pip`` installation experience, including
