@@ -108,9 +108,9 @@ class ReleaseFileStore:
             log.info("finished getting remote %r", entry.url)
         return entry.gethttpheaders(), iter_and_cache()
 
-    def store(self, stagename, filename, content):
+    def store(self, user, index, filename, content):
         md5 = getmd5(content)
-        key = self.keyfs.STAGEFILE(stage=stagename,
+        key = self.keyfs.STAGEFILE(user=user, index=index,
                                     md5=md5,
                                     filename=filename)
         entry = self.getentry(key.relpath)

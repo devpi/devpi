@@ -33,7 +33,7 @@ def main(argv=None):
 
 def add_keys(keyfs):
     # users
-    keyfs.USER = keyfs.addkey(".users/{name}", dict)
+    keyfs.USER = keyfs.addkey("{user}/.config", dict)
 
     # pypi related
     keyfs.HPYPIPROJECTS = keyfs.addkey("ext/pypi/links/{name}", list)
@@ -44,8 +44,8 @@ def add_keys(keyfs):
     #keyfs.PYPIFILECACHE_META = keyfs.addkey("ext/pypi/c/{filename}.m", dict)
 
     # stage related
-    keyfs.HSTAGEFILES = keyfs.addkey("{stage}/files/{name}", dict)
-    keyfs.STAGEFILE = keyfs.addkey("{stage}/pkg/{md5}/{filename}", bytes)
+    keyfs.HSTAGEFILES = keyfs.addkey("{user}/{index}/files/{name}", dict)
+    keyfs.STAGEFILE = keyfs.addkey("{user}/{index}/pkg/{md5}/{filename}", bytes)
     keyfs.PATHENTRY = keyfs.addkey("{relpath}-meta", dict)
     keyfs.FILEPATH = keyfs.addkey("{relpath}", bytes)
 

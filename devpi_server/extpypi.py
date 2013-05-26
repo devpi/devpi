@@ -115,9 +115,7 @@ class ExtDB:
 
     def getprojectnames(self):
         """ return list of all projects which have been served. """
-        l = list(self.keyfs.HPYPIPROJECTS.listnames("name"))
-        l.sort()
-        return l
+        return sorted(self.keyfs.HPYPIPROJECTS.listnames("name"))
 
     def _dump_projectlinks(self, projectname, dumplist):
         self.keyfs.HPYPIPROJECTS(name=projectname).set(dumplist)

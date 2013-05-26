@@ -23,21 +23,21 @@ class DB:
 
     # user handling
     def user_setpassword(self, user, password):
-        with self.keyfs.USER(name=user).update() as userconfig:
+        with self.keyfs.USER(user=user).update() as userconfig:
             userconfig["pwsalt"] = salt = os.urandom(16).encode("base_64")
             userconfig["pwhash"] = getpwhash(password, salt)
 
     def user_delete(self, user):
-        self.keyfs.USER(name=user).delete()
+        self.keyfs.USER(user=user).delete()
 
     def user_exists(self, user):
-        return self.keyfs.USER(name=user).exists()
+        return self.keyfs.USER(user=user).exists()
 
     def user_list(self):
-        return self.keyfs.USER.listnames("name")
+        return self.keyfs.USER.listnames("user")
 
     def user_validate(self, user, password):
-        userconfig = self.keyfs.USER(name=user).get(None)
+        userconfig = self.keyfs.USER(user=user).get(None)
         if userconfig is None:
             return False
         salt = userconfig["pwsalt"]
@@ -45,7 +45,7 @@ class DB:
         return getpwhash(password, salt) == pwhash
 
     def user_indexconfig_get(self, user, index):
-        userconfig = self.keyfs.USER(name=user).get()
+        userconfig = self.keyfs.USER(user=user).get()
         try:
             return userconfig["indexes"][index]
         except KeyError:
@@ -54,7 +54,7 @@ class DB:
     def user_indexconfig_set(self, user, index=None, **kw):
         if index is None:
             user, index = user.split("/")
-        with self.keyfs.USER(name=user).locked_update() as userconfig:
+        with self.keyfs.USER(user=user).locked_update() as userconfig:
             indexes = userconfig.setdefault("indexes", {})
             ixconfig = indexes.setdefault(index, {})
             ixconfig.update(kw)
@@ -124,7 +124,8 @@ class PrivateStage:
         return self.op_with_bases("getreleaselinks", projectname=projectname)
 
     def getreleaselinks_perstage(self, projectname):
-        key = self.keyfs.HSTAGEFILES(stage=self.name, name=projectname)
+        key = self.keyfs.HSTAGEFILES(user=self.user, index=self.index,
+                                     name=projectname)
         files = key.get()
         entries = []
         for relpath in files.values():
@@ -137,15 +138,17 @@ class PrivateStage:
         return self.op_with_bases("getprojectnames")
 
     def getprojectnames_perstage(self):
-        return sorted(self.keyfs.HSTAGEFILES.listnames("name", stage=self.name))
+        return sorted(self.keyfs.HSTAGEFILES.listnames("name",
+                            user=self.user, index=self.index))
 
     def store_releasefile(self, filename, content):
         name, version = DistURL(filename).pkgname_and_version
-        key = self.keyfs.HSTAGEFILES(stage=self.name, name=name)
+        key = self.keyfs.HSTAGEFILES(user=self.user, index=self.index,
+                                     name=name)
         with key.locked_update() as files:
             if not self.ixconfig.get("volatile") and filename in files:
                 return 409
-            entry = self.xom.releasefilestore.store(self.name,
+            entry = self.xom.releasefilestore.store(self.user, self.index,
                                                     filename, content)
             files[filename] = entry.relpath
             log.info("%s: stored releasefile %s", self.name, entry.relpath)

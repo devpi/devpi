@@ -12,6 +12,7 @@ from tempfile import NamedTemporaryFile
 from execnet import dumps, loads
 import os
 from os.path import basename, isabs, join
+from os import listdir
 
 _nodefault = object()
 
@@ -105,17 +106,34 @@ class PTypedKey:
         return TypedKey(self.keyfs, realkey, self.type)
 
     def listnames(self, __name, **kw):
-        expected = "/{" + __name + "}"
-        if not self.key.endswith(expected):
-            raise KeyError("%r does not end with %r" % (self.key, expected))
-        basekey = self.key[:-len(expected)].format(**kw)
-        path = self.keyfs._getpath(basekey)
-        try:
-            return set(os.listdir(str(path)))
-        except OSError as e:
-            if e.errno == 2:
-                return set()
-            raise
+        parts = self.key.split("/")
+        current = [self.keyfs.basedir]
+        expected = "{" + __name + "}"
+        position = -1
+        for i, part in enumerate(parts):
+            next = []
+            if part == expected:
+                assert position == -1
+                position = i
+                for p in current:
+                    next.extend(p.listdir())
+            else:
+                if "{" in part:
+                    part = part.format(**kw)
+                for p in current:
+                    try:
+                        next.extend(p.listdir(part))
+                    except py.error.ENOTDIR:
+                        pass
+            current = next
+        if position == -1:
+            return []
+        l = []
+        for x in current:
+            key = x.relto(self.keyfs.basedir)
+            parts = key.split("/")
+            l.append(parts[position])
+        return set(l)
 
     def __repr__(self):
         return "<PTypedKey %r type %r>" %(self.key, self.type.__name__)

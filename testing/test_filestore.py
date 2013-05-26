@@ -215,7 +215,7 @@ class TestReleaseFileStore:
 
     def test_store_and_iter(self, filestore):
         content = b("hello")
-        entry = filestore.store("mystage", "something-1.0.zip", content)
+        entry = filestore.store("user", "index", "something-1.0.zip", content)
         assert entry.md5 == getmd5(content)
         assert entry.iscached()
         entry2 = filestore.getentry(entry.relpath)
