@@ -328,12 +328,14 @@ def test_requests_httpget_negative_status_code(xom_notmocked, monkeypatch):
         raise requests.exceptions.RequestException()
 
     monkeypatch.setattr(xom_notmocked._httpsession, "get", r)
-    return
-    r = xom_notmocked.httpget("http://notexists.qwe", allow_redirects=False)
-    assert r.status_code == -1
-    assert l
 
 def test_requests_httpget_timeout(xom_notmocked, monkeypatch):
+    import requests.exceptions
+    def httpget(url, **kw):
+        assert kw["timeout"] == 1.2
+        raise requests.exceptions.Timeout()
+
+    monkeypatch.setattr(xom_notmocked._httpsession, "get", httpget)
     r = xom_notmocked.httpget("http://notexists.qwe", allow_redirects=False,
-                              timeout=0.001)
+                              timeout=1.2)
     assert r.status_code == -1
