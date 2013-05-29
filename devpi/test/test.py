@@ -93,7 +93,7 @@ class DevIndex:
         if venv is not None:
             toxargs.append("-e" + venv)
 
-        log.popen("%s$ %s" %(link.pkg.path_unpacked, " ".join(toxargs)))
+        log.info("%s$ %s" %(link.pkg.path_unpacked, " ".join(toxargs)))
         popen = Popen(toxargs, cwd=str(link.pkg.path_unpacked), env=env)
         popen.communicate()
         if popen.returncode != 0:

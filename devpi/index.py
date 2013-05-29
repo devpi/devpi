@@ -23,13 +23,19 @@ def getdict(keyvalues):
     d["upstreams"] = upstreams
     return d
 
-def create_index(hub, args):
-    d = dict(indexname=args.indexname[0],
-             **getdict(args.keyvalues))
-    r = hub.http_post(hub.config.indexadmin, d)
-    assert r.status_code == 201
+def create_index(hub, indexname):
+    url = hub.get_index_url(indexname)
+    hub.info("creating index: %s" % url)
+    r = hub.http.put(url)
+    if r.status_code == 201:
+        hub.info("index created: %s" % url)
+        for name, val in r.json().items():
+            hub.info("  %s = %s" % (name, val))
+    else:
+        hub.error("failed to create %r index, server returned %s: %s" %(
+                  indexname, r.status_code, r.reason))
+        return 1
 
-def main(hub, args):
-    if args.create:
-        create_index(hub, args)
+def indexadd(hub, args):
+    return create_index(hub, args.indexname)
 

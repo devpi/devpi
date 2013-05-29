@@ -4,8 +4,11 @@ import py
 import argparse
 import subprocess
 from devpi.util.lazydecorator import lazydecorator
-from devpi import log
+from devpi.util import url as urlutil
+from devpi import log, cached_property
 from devpi.use import Config
+import requests
+import json
 std = py.std
 subcommand = lazydecorator()
 
@@ -13,13 +16,19 @@ def main(argv=None):
     if argv is None:
         argv = list(sys.argv)
     args = parse_args(argv)
-    mod = __import__(args.mainloc, None, None, ["__doc__"])
+    mod = args.mainloc
+    func = "main"
+    if ":" in mod:
+        mod, func = mod.split(":")
+    mod = __import__(mod, None, None, ["__doc__"])
     hub = Hub(debug=args.debug)
     #log._setdefault(hub.getdefaultlog)
     #with log(info=hub.info, error=hub.error, debug=hub.debug):
-    return getattr(mod, "main")(hub, args)
+    return getattr(mod, func)(hub, args)
 
 class Hub:
+    LOGINPATH = py.path.local(os.path.expanduser("~/.devpi/login"))
+
     class Popen(std.subprocess.Popen):
         STDOUT = std.subprocess.STDOUT
         PIPE = std.subprocess.PIPE
@@ -33,6 +42,29 @@ class Hub:
         if cwd is None:
             cwd = py.path.local()
         self.cwd = cwd
+
+    @cached_property
+    def http(self):
+        session = requests.session()
+        if self.LOGINPATH.check():
+            data = json.loads(self.LOGINPATH.read())
+            session.auth = data["user"], data["password"]
+        return session
+
+    def update_auth(self, user, password):
+        self.http.auth = (user, password)
+        oldumask = os.umask(0077)
+        self.LOGINPATH.write(json.dumps(dict(user=user, password=password)))
+        os.umask(oldumask)
+
+    def get_index_url(self, indexname):
+        assert self.http.auth[0]
+        userurl = self.config.getuserurl(self.http.auth[0])
+        return urlutil.joinpath(userurl + "/", indexname)
+
+    def raw_input(self, msg):
+        return raw_input(msg)
+
 
     def getdir(self, name):
         return self._workdir.mkdir(name)
@@ -145,22 +177,26 @@ def use(parser):
         action="store", nargs="*",
         help="url for retrieving index API information. ")
 
-@subcommand("devpi.index")
-def index(parser):
+@subcommand("devpi.user:useradd")
+def useradd(parser):
+    """ add a new user with email """
+    parser.add_argument("username", type=str, action="store",
+        help="user name")
+    parser.add_argument("email", type=str, action="store",
+        help="valid email address")
+
+@subcommand("devpi.login")
+def login(parser):
+    """ login to devpi-server"""
+    parser.add_argument("username", action="store", default=None,
+                        help="username to use for login")
+
+@subcommand("devpi.index:indexadd")
+def indexadd(parser):
     """ create, delete and manage indexes. """
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("-c", "--create", action="store_true", dest="create",
-        help="create index ")
-    group.add_argument("--delete", action="store_true",
-        help="delete index")
-    group.add_argument("--configure", action="store_true", dest="configure",
-        help="configure index")
-    parser.add_argument("indexname", type=str,
-        action="store", nargs=1,
-        help="index name, specified as user/iname")
-    parser.add_argument("keyvalues", type=str,
-        action="store", nargs="*",
-        help="key=value configuration items")
+    parser.add_argument("indexname", type=str, action="store",
+        help="index name, specified as NAME")
+
 
 @subcommand("devpi.upload.upload")
 def upload(parser):

@@ -1,0 +1,37 @@
+
+
+Creating a user, an index and uploading to it
+--------------------------------------------------------
+
+The default access control of a devpi-server instance allows 
+users to register themselves and create and work
+with their user-specific indexes freely.  
+
+create bob as a new user::
+
+    $ devpi useradd bob bob@email.com  # email is required
+    enter password for bob : ***********
+    repeat password for bob: ***********
+    -> user "bob" created, with email bob@email.com
+
+login as bob::
+
+    $ devpi login bob
+    enter password for bob : ***********
+    -> user "bob" logged in, credentials stored (valid for 10 hours)
+
+create a "bob/dev" index and directly set it as your "current" index::
+
+    $ devpi indexadd --use dev
+    -> volatile index "bob/dev" created
+    -> upstreams: int/prod, ext/pypi
+    -> using index "bob/dev" as current index
+
+upload a package to your current "bob/dev" index:
+
+    $ devpi upload
+
+.. note::
+
+    Due to the ``volatile=True`` default of the ``indexadd`` command,
+    you can overwrite versions on upload.  This is useful if you don't 

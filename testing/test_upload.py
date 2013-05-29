@@ -95,11 +95,15 @@ def test_readpypirc(monkeypatch, tmpdir):
     from devpi.upload.setuppy import _prepare_distutils
     from distutils.config import PyPIRCCommand
     monkeypatch.setattr(sys, "argv", ["xxx", str(tmpdir), "http://something",
+                                      "user", "password",
                                       "register", "1"])
     _prepare_distutils()
     cmd = types.InstanceType(PyPIRCCommand)
     current = PyPIRCCommand._read_pypirc(cmd)
-    assert current["server"] == "devpiindex"
+    assert current["server"] == "devpi"
     assert current["repository"] == "http://something"
+    assert current["username"] == "user"
+    assert current["password"] == "password"
+    assert current["realm"] == "devpi"
     assert sys.argv == ["setup.py", "register", "1"]
 

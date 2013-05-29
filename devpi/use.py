@@ -16,17 +16,22 @@ class Config:
     CONFIGBASENAME = ".devpiconfig"
 
     def __init__(self, simpleindex="", pypisubmit="", pushrelease="",
-                       resultlog="", indexadmin="",
-                       upstreamurl="", venvdir=None, path=None):
+                       resultlog="", login="",
+                       venvdir=None, path=None):
         self.simpleindex = simpleindex
-        self.rooturl = urlutil.joinpath(simpleindex, "/")
-        self.indexadmin = indexadmin
+        self.login = login
         self.pypisubmit = pypisubmit
         self.pushrelease = pushrelease
         self.resultlog = resultlog
-        self.upstreamurl = upstreamurl
         self.venvdir = venvdir
         self.setpath(path)
+
+    @property
+    def rooturl(self):
+        return urlutil.joinpath(self.simpleindex, "/")
+
+    def getuserurl(self, user):
+        return urlutil.joinpath(self.rooturl, user)
 
     def setpath(self, path):
         if path and path.basename != self.CONFIGBASENAME:
@@ -44,8 +49,7 @@ class Config:
 
     def items(self):
         for name in ("simpleindex", "pypisubmit", "pushrelease",
-                     "indexadmin",
-                     "resultlog", "upstreamurl", "venvdir"):
+                     "login", "resultlog", "venvdir"):
             yield (name, getattr(self, name))
 
     def _normalize_url(self, url):
@@ -104,8 +108,7 @@ class Config:
         apidict = dict(simpleindex=self.simpleindex,
                        pypisubmit=self.pypisubmit,
                        pushrelease=self.pushrelease,
-                       indexadmin=self.indexadmin,
-                       upstreamurl=self.upstreamurl,
+                       login=self.login,
                        resultlog=self.resultlog,
                        venvdir=getattr(self.venvdir, "strpath", self.venvdir))
         p.write(py.std.json.dumps(apidict))
@@ -161,3 +164,17 @@ def main(hub, args):
     for name, value in config.items():
         hub.info("%16s: %s" %(name, value))
 
+    if hub.http.auth:
+        user, password = hub.http.auth
+        hub.info("currently logged in as: %s" % user)
+    else:
+        hub.info("not currently logged in")
+
+def parse_keyvalue_spec(keyvaluelist, keyset):
+    d = {}
+    for x in keyvaluelist:
+        key, val = x.split("=", 1)
+        if key not in keyset:
+            raise KeyError("invalid key: %s, allowed: %s" % (key, keyset))
+        d[key] = val
+    return d

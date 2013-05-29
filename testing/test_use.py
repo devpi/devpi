@@ -5,13 +5,14 @@ import py
 from devpi import use
 from devpi import log
 from devpi.main import Hub
+from devpi.use import parse_keyvalue_spec
 
 class TestUnit:
     def test_write_and_read(self, tmpdir):
         api = use.Config(pypisubmit="/post", pushrelease="/push",
                         simpleindex="/index",
-                        indexadmin="/indexadmin",
-                        resultlog="/", upstreamurl="http://upstream",
+                        login="/login",
+                        resultlog="/",
                         path=tmpdir)
         api.save()
         newapi = use.Config()
@@ -19,9 +20,8 @@ class TestUnit:
         assert newapi.pypisubmit == api.pypisubmit
         assert newapi.simpleindex == api.simpleindex
         assert newapi.resultlog == api.resultlog
-        assert newapi.upstreamurl == api.upstreamurl
         assert newapi.venvdir == api.venvdir
-        assert newapi.indexadmin == api.indexadmin
+        assert newapi.login == api.login
 
     def test_normalize_url(self, tmpdir):
         config = use.Config(simpleindex="http://my.serv/index1")
@@ -41,7 +41,7 @@ class TestUnit:
         api = dict(pypisubmit="/post", pushrelease="/push",
                    simpleindex="/index/",
                    resultlog="/resultlog/",
-                   upstreamurl="http://upstream.com/")
+                   )
         def urlopen(url):
             assert url == "http://world/this/-api"
             return py.io.BytesIO(py.std.json.dumps(api))
@@ -54,7 +54,6 @@ class TestUnit:
         assert newapi.pushrelease == "http://world/push"
         assert newapi.simpleindex == "http://world/index/"
         assert newapi.resultlog == "http://world/resultlog/"
-        assert newapi.upstreamurl == "http://upstream.com/"
         assert newapi.venvdir == None
 
         # delete it
@@ -81,4 +80,19 @@ class TestUnit:
         hub = Hub()
         venvpath = hub.path_venvbase.join(venvdir.basename)
         assert venvpath == venvdir
+
+
+
+@pytest.mark.parametrize("input expected".split(), [
+    (["hello=123", "world=42"], dict(hello="123", world="42")),
+    (["hello=123=1"], dict(hello="123=1"))
+    ])
+def test_parse_keyvalue_spec(input, expected):
+    result = parse_keyvalue_spec(input, "hello world".split())
+    assert result == expected
+
+def test_parse_keyvalue_spec_unknown_key():
+    pytest.raises(KeyError, lambda: parse_keyvalue_spec(["hello=3"], ["some"]))
+
+
 

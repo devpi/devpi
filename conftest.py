@@ -325,7 +325,7 @@ def mockhtml(monkeypatch):
 
 @pytest.fixture
 def create_venv(request, testdir, gentmp, monkeypatch):
-    monkeypatch.delenv("PYTHONDONTWRITEBYTECODE")
+    monkeypatch.delenv("PYTHONDONTWRITEBYTECODE", raising=False)
     th = request.config._tmpdirhandler
     backupenv = th.ensuretemp("venvbackup")
     venvdir = th.ensuretemp("venv")

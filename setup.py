@@ -16,7 +16,7 @@ if __name__ == "__main__":
       name="devpi",
       description="devpi: packaging workflow commands for Python developers",
       long_description=open("README.rst").read(),
-      version='0.7.0.dev1',
+      version='0.7.dev10',
       packages=["devpi", "devpi.util", "devpi.upload",
                 "devpi.test", "devpi.test.inject",
       ],

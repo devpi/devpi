@@ -27,6 +27,12 @@ def main(hub, args):
     exported = checkout.export(uploadbase)
     hub.info("hg-exported project to", exported)
 
+    if 0:
+        set_new_version(hub, args, exported)
+    exported.setup_register()
+    exported.setup_upload()
+
+def set_new_version(hub, args, exported):
     if args.setversion:
         newversion = verlib.Version(args.setversion)
         exported.change_versions(newversion)
@@ -52,8 +58,6 @@ def main(hub, args):
             newversion = version
             log.info("good, local", version, "newer than latest remote",
                      indexversion)
-    exported.setup_register()
-    exported.setup_upload()
 
 
 def setversion(s, newversion):
@@ -150,9 +154,10 @@ class Exported:
         hub = self.hub
         pypisubmit = self.hub.config.pypisubmit
         cwd = self.rootpath
+        user, password = self.hub.http.auth or ("test", "test")
         hub.debug("registering package at", cwd, "to", pypisubmit)
         out = hub.popen_output([sys.executable, fn_setup, cwd,
-             pypisubmit, "register", "-r", "devpi",],
+             pypisubmit, user, password, "register", "-r", "devpi",],
              cwd = self.rootpath)
         if "Server response (200): OK" in out:
             hub.info("release registered", "%s-%s" % self.name_and_version())
@@ -162,8 +167,10 @@ class Exported:
     def setup_upload(self):
         config = self.hub.config
         cwd = self.rootpath
+        user, password = self.hub.http.auth or ("test", "test")
         out = self.hub.popen_output(
             [sys.executable, fn_setup, cwd, config.pypisubmit,
+             user, password,
              "sdist", "upload", "-r", "devpi",],
             cwd=cwd)
         if "Server response (200): OK" in out:

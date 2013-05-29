@@ -19,3 +19,4 @@ class TestUnit:
         assert d["upstreams"] == []
 
         pytest.raises(KeyError, lambda: getdict(["qwe=qwe"]))
+
