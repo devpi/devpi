@@ -216,6 +216,8 @@ def set_default_indexes(db):
     PROD = "int/prod"
     DEV = "int/dev"
     PYPI = "ext/pypi"
+    if "admin" not in db.user_list():
+        db.user_setpassword("admin", "")
     db.user_indexconfig_set(PYPI, bases=(), type="pypimirror", volatile=False)
     db.user_indexconfig_set(PROD, bases=(), type="private", volatile=False)
     db.user_indexconfig_set(DEV, bases=(PROD, PYPI), type="private",

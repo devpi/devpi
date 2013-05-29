@@ -4,7 +4,7 @@ from logging import getLogger, basicConfig
 import argparse
 
 import py
-from devpi_server.types import canraise
+from devpi_server.types import canraise, cached_property
 import devpi_server
 log = getLogger(__name__)
 
@@ -29,13 +29,18 @@ def addoptions(parser):
             default=60,
             help="interval for consulting changelog api of pypi.python.org")
 
-
     group = parser.addgroup("deploy", "deployment options")
     group.addoption("--gendeploy", action="store", metavar="DIR",
             help="(unix only) generate a pre-configured self-contained "
                  "virtualenv directory which puts devpi-server "
                  "under supervisor control.  Also provides "
                  "nginx/cron files to help with permanent deployment. ")
+
+    group.addoption("--secretfile", type=str, metavar="path",
+            default="~/.devpiserver/secret",
+            help="file containing the server side secret used for user "
+                 "validation. If it does not exist, a random secret "
+                 "is generated on start up and used subsequently. ")
 
     group.addoption("--bottleserver", metavar="TYPE",
             default="wsgiref",
@@ -97,6 +102,14 @@ class ConfigurationError(Exception):
 class Config:
     def __init__(self, args):
         self.args = args
+        self.secretfile = py.path.local(os.path.expanduser(args.secretfile))
+
+    @cached_property
+    def secret(self):
+        if not self.secretfile.check():
+            self.secretfile.dirpath().ensure(dir=1)
+            self.secretfile.write(os.urandom(32).encode("base64"))
+        return self.secretfile.read()
 
 def configure_logging(config):
     if config.args.debug:

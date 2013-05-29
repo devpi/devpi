@@ -25,7 +25,9 @@ class DB:
     def user_setpassword(self, user, password):
         with self.keyfs.USER(user=user).update() as userconfig:
             userconfig["pwsalt"] = salt = os.urandom(16).encode("base_64")
-            userconfig["pwhash"] = getpwhash(password, salt)
+            userconfig["pwhash"] = hash = getpwhash(password, salt)
+            log.info("setting password for user %r", user)
+            return hash
 
     def user_delete(self, user):
         self.keyfs.USER(user=user).delete()
@@ -42,7 +44,9 @@ class DB:
             return False
         salt = userconfig["pwsalt"]
         pwhash = userconfig["pwhash"]
-        return getpwhash(password, salt) == pwhash
+        if getpwhash(password, salt) == pwhash:
+            return pwhash
+        return None
 
     def user_indexconfig_get(self, user, index):
         userconfig = self.keyfs.USER(user=user).get()
@@ -61,6 +65,7 @@ class DB:
             if not set(ixconfig) == _ixconfigattr:
                 raise ValueError("incomplete config: %s" % ixconfig)
             log.debug("configure_index %s/%s: %s", user, index, ixconfig)
+            return ixconfig
 
     # stage handling
 
@@ -153,5 +158,3 @@ class PrivateStage:
             files[filename] = entry.relpath
             log.info("%s: stored releasefile %s", self.name, entry.relpath)
             return entry
-
-

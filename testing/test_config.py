@@ -45,3 +45,25 @@ class TestParser:
         p = sub.add_parser("hello")
         assert isinstance(p, MyArgumentParser)
 
+class TestConfig:
+    def test_parse_secret(self, tmpdir):
+        p = tmpdir.join("secret")
+        secret = "qwoieuqwelkj123"
+        p.write(secret)
+        config = parseoptions(["devpi-server", "--secretfile=%s" % p])
+        assert config.secretfile == str(p)
+        assert config.secret == secret
+
+    def test_generated_secret_if_not_exists(self,
+                                            xom, tmpdir, monkeypatch):
+        config = xom.config
+        secfile = tmpdir.join("secret")
+        monkeypatch.setattr(config, "secretfile", secfile)
+        assert not secfile.check()
+        assert config.secret
+        assert config.secret == config.secretfile.read()
+        assert config.secretfile == secfile
+        #recs = caplog.getrecords()
+
+
+
