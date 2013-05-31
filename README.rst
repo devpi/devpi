@@ -257,7 +257,7 @@ It is tested through tox and has all of its automated pytest suite
 passing for python2.7 and python2.6 on Ubuntu 12.04 and Windows 7.
 
 ``devpi-server`` is actively developed and bound to see more releases 
-in 2013, in particular for supporting private indexes and a new development
+in 2013, in particular for supporting pypi indexes and a new development
 and testing workflow system.  You are very welcome to join, discuss 
 and contribute, see the top of of this page for contact channels.
 

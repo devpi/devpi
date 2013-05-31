@@ -24,10 +24,20 @@ class DB:
     # user handling
     def user_setpassword(self, user, password):
         with self.keyfs.USER(user=user).update() as userconfig:
-            userconfig["pwsalt"] = salt = os.urandom(16).encode("base_64")
-            userconfig["pwhash"] = hash = getpwhash(password, salt)
-            log.info("setting password for user %r", user)
+            return self._setpassword(userconfig, user, password)
+
+    def user_create(self, user, password, email):
+        with self.keyfs.USER(user=user).update() as userconfig:
+            hash = self._setpassword(userconfig, user, password)
+            userconfig["email"] = email
+            log.info("created user %r with email %r" %(user, email))
             return hash
+
+    def _setpassword(self, userconfig, user, password):
+        userconfig["pwsalt"] = salt = os.urandom(16).encode("base_64")
+        userconfig["pwhash"] = hash = getpwhash(password, salt)
+        log.info("setting password for user %r", user)
+        return hash
 
     def user_delete(self, user):
         self.keyfs.USER(user=user).delete()
@@ -48,6 +58,12 @@ class DB:
             return pwhash
         return None
 
+    def user_get(self, user):
+        d = self.keyfs.USER(user=user).get()
+        del d["pwsalt"]
+        del d["pwhash"]
+        return d
+
     def user_indexconfig_get(self, user, index):
         userconfig = self.keyfs.USER(user=user).get()
         try:
@@ -67,6 +83,16 @@ class DB:
             log.debug("configure_index %s/%s: %s", user, index, ixconfig)
             return ixconfig
 
+    def user_indexconfig_delete(self, user, index):
+        with self.keyfs.USER(user=user).locked_update() as userconfig:
+            indexes = userconfig.get("indexes") or {}
+            if index not in indexes:
+                log.info("index %s/%s not exists", user, index)
+                return False
+            del indexes[index]
+            log.info("deleted index %s/%s" %(user, index))
+            return True
+
     # stage handling
 
     def getstage(self, user, index=None):
@@ -75,7 +101,7 @@ class DB:
         ixconfig = self.user_indexconfig_get(user, index)
         if not ixconfig:
             return None
-        if ixconfig["type"] == "private":
+        if ixconfig["type"] == "pypi":
             return PrivateStage(self, user, index, ixconfig)
         elif ixconfig["type"] == "pypimirror":
             return self.xom.extdb
@@ -88,7 +114,7 @@ class DB:
         return self.user_indexconfig_get(user, index)
 
     def create_stage(self, user, index=None,
-                     type="private", bases=("/ext/pypi",),
+                     type="pypi", bases=("/ext/pypi",),
                      volatile=True):
         self.user_indexconfig_set(user, index, type=type, bases=bases,
                                   volatile=volatile)

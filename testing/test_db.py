@@ -1,20 +1,28 @@
 
 import pytest
 
-@pytest.fixture(params=[(), ("ext/pypi",)])
+@pytest.fixture(params=[(), ("root/pypi",)])
 def bases(request):
     return request.param
-
 
 class TestStage:
     @pytest.fixture
     def stage(self, request, db):
         config = dict(user="hello", index="world", bases=(),
-                      type="private", volatile=True)
+                      type="pypi", volatile=True)
         if "bases" in request.fixturenames:
             config["bases"] = request.getfuncargvalue("bases")
         db.user_indexconfig_set(**config)
         return db.getstage(user=config["user"], index=config["index"])
+
+    def test_create_and_delete(self, db):
+        db.user_indexconfig_set(user="hello", index="world", bases=(),
+                                type="pypi", volatile=False)
+        db.user_indexconfig_set(user="hello", index="world2", bases=(),
+                                type="pypi", volatile=False)
+        db.user_indexconfig_delete(user="hello", index="world2")
+        assert not db.user_indexconfig_get(user="hello", index="world2")
+        assert db.user_indexconfig_get(user="hello", index="world")
 
     def test_not_configured_index(self, db):
         stagename = "hello/world"
@@ -26,7 +34,7 @@ class TestStage:
         assert not stage.getprojectnames()
 
     def test_inheritance_simple(self, httpget, stage):
-        stage.configure(bases=("ext/pypi",))
+        stage.configure(bases=("root/pypi",))
         httpget.setextsimple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         entries = stage.getreleaselinks("someproject")
@@ -34,7 +42,7 @@ class TestStage:
         assert stage.getprojectnames() == ["someproject",]
 
     def test_inheritance_error(self, httpget, stage):
-        stage.configure(bases=("ext/pypi",))
+        stage.configure(bases=("root/pypi",))
         httpget.setextsimple("someproject", status_code = -1)
         entries = stage.getreleaselinks("someproject")
         assert entries == -1
@@ -71,8 +79,12 @@ class TestStage:
 class TestUsers:
     def test_create_and_validate(self, db):
         assert not db.user_exists("user")
-        db.user_setpassword("user", "password")
+        db.user_create("user", "password", email="some@email.com")
         assert db.user_exists("user")
+        userconfig = db.user_get("user")
+        assert userconfig["email"] == "some@email.com"
+        assert not set(userconfig).intersection(["pwsalt", "pwhash"])
+        userconfig = db.user_get("user")
         assert db.user_validate("user", "password")
         assert not db.user_validate("user", "password2")
 
@@ -96,15 +108,15 @@ class TestUsers:
 def test_setdefault_indexes(db):
     from devpi_server.main import set_default_indexes
     set_default_indexes(db)
-    ixconfig = db.getindexconfig("ext/pypi")
+    ixconfig = db.getindexconfig("root/pypi")
     assert ixconfig["type"] == "pypimirror"
 
-    ixconfig = db.getindexconfig("int/dev")
-    assert ixconfig["type"] == "private"
-    assert ixconfig["bases"] == ("int/prod", "ext/pypi")
+    ixconfig = db.getindexconfig("root/dev")
+    assert ixconfig["type"] == "pypi"
+    assert ixconfig["bases"] == ("root/prod",)
     assert ixconfig["volatile"]
 
-    ixconfig = db.getindexconfig("int/prod")
-    assert ixconfig["type"] == "private"
+    ixconfig = db.getindexconfig("root/prod")
+    assert ixconfig["type"] == "pypi"
     assert ixconfig["bases"] == ()
     assert not ixconfig["volatile"]

@@ -213,12 +213,11 @@ def bottle_run(xom):
     return ret
 
 def set_default_indexes(db):
-    PROD = "int/prod"
-    DEV = "int/dev"
-    PYPI = "ext/pypi"
-    if "admin" not in db.user_list():
-        db.user_setpassword("admin", "")
+    PROD = "root/prod"
+    PYPI = "root/pypi"
+    DEV = "root/dev"
+    if "root" not in db.user_list():
+        db.user_setpassword("root", "")
     db.user_indexconfig_set(PYPI, bases=(), type="pypimirror", volatile=False)
-    db.user_indexconfig_set(PROD, bases=(), type="private", volatile=False)
-    db.user_indexconfig_set(DEV, bases=(PROD, PYPI), type="private",
-                            volatile=True)
+    db.user_indexconfig_set(PROD, bases=(), type="pypi", volatile=False)
+    db.user_indexconfig_set(DEV, bases=(PROD,), type="pypi", volatile=True)

@@ -41,11 +41,11 @@ def testapp(request, xom):
 
 def test_simple_project(pypiurls, httpget, testapp):
     name = "qpwoei"
-    r = testapp.get("/ext/pypi/simple/" + name)
+    r = testapp.get("/root/pypi/simple/" + name)
     assert r.status_code == 404
     path = "/%s-1.0.zip" % name
     httpget.setextsimple(name, text='<a href="%s"/>' % path)
-    r = testapp.get("/ext/pypi/simple/%s" % name)
+    r = testapp.get("/root/pypi/simple/%s" % name)
     assert r.status_code == 200
     links = BeautifulSoup(r.text).findAll("a")
     assert len(links) == 1
@@ -54,10 +54,10 @@ def test_simple_project(pypiurls, httpget, testapp):
 def test_simple_list(pypiurls, httpget, testapp):
     httpget.setextsimple("hello1", text="<html/>")
     httpget.setextsimple("hello2", text="<html/>")
-    assert testapp.get("/ext/pypi/simple/hello1").status_code == 200
-    assert testapp.get("/ext/pypi/simple/hello2").status_code == 200
-    assert testapp.get("/ext/pypi/simple/hello3").status_code == 404
-    r = testapp.get("/ext/pypi/simple/")
+    assert testapp.get("/root/pypi/simple/hello1").status_code == 200
+    assert testapp.get("/root/pypi/simple/hello2").status_code == 200
+    assert testapp.get("/root/pypi/simple/hello3").status_code == 404
+    r = testapp.get("/root/pypi/simple/")
     assert r.status_code == 200
     links = BeautifulSoup(r.text).findAll("a")
     assert len(links) == 2
@@ -65,7 +65,7 @@ def test_simple_list(pypiurls, httpget, testapp):
     assert hrefs == ["hello1/", "hello2/"]
 
 def test_index_root(pypiurls, httpget, testapp, xom):
-    xom.db.create_stage("user/index", bases=("ext/pypi",))
+    xom.db.create_stage("user/index", bases=("root/pypi",))
     r = testapp.get("/user/index/")
     assert r.status_code == 200
 
@@ -73,13 +73,13 @@ def test_index_root(pypiurls, httpget, testapp, xom):
 def test_upstream_not_reachable(pypiurls, httpget, testapp, xom, code):
     name = "whatever%d" % (code + 1)
     httpget.setextsimple(name, status_code = code)
-    r = testapp.get("/ext/pypi/simple/%s" % name)
+    r = testapp.get("/root/pypi/simple/%s" % name)
     assert r.status_code == 502
 
 def test_pkgserv(pypiurls, httpget, testapp):
     httpget.setextsimple("package", '<a href="/package-1.0.zip" />')
     httpget.setextfile("/package-1.0.zip", "123")
-    r = testapp.get("/ext/pypi/simple/package")
+    r = testapp.get("/root/pypi/simple/package")
     assert r.status_code == 200
     r = testapp.get(getfirstlink(r.text).get("href"))
     assert r.body == "123"
@@ -111,12 +111,12 @@ class TestAdminLogin:
         r = testapp.post_json("/login", {"qwelk": ""}, expect_errors=True)
         assert r.status_code == 400
 
-    def test_login_admin_default(self, testapp):
-        r = testapp.post_json("/login", {"user": "admin", "password": "123"},
+    def test_login_root_default(self, testapp):
+        r = testapp.post_json("/login", {"user": "root", "password": "123"},
                               expect_errors=True)
         assert r.status_code == 401
         assert not testapp.auth
-        r = testapp.post_json("/login", {"user": "admin", "password": ""},
+        r = testapp.post_json("/login", {"user": "root", "password": ""},
                               expect_errors=True)
         assert r.status_code == 200
         assert "password" in r.json
@@ -133,13 +133,13 @@ class Mapp:
     def delete_user(self, user):
         self.testapp.delete_json("/%s" % user)
 
-    def login(self, user="admin", password=""):
+    def login(self, user="root", password=""):
         r = self.testapp.post_json("/login",
                                   {"user": user, "password": password})
         print "logging in as", user
         self.testapp.set_auth(user, r.json["password"])
 
-    def login_fails(self, user="admin", password=""):
+    def login_fails(self, user="root", password=""):
         r = self.testapp.post_json("/login",
             {"user": user, "password": password}, expect_errors=True)
         assert r.status_code >= 400
@@ -151,10 +151,13 @@ class Mapp:
     def change_password(self, user, password):
         auth = self.testapp.auth
         r = self.testapp.patch_json("/%s" % user, dict(password=password))
+        assert r.status_code == 200
         self.testapp.auth = (self.testapp.auth[0], r.json["password"])
 
-    def create_user(self, user, password):
-        self.testapp.put_json("/%s" % user, dict(password=password))
+    def create_user(self, user, password, email="hello@example.com"):
+        reqdict = dict(password=password, email=email)
+        r = self.testapp.put_json("/%s" % user, reqdict)
+        assert r.status_code == 201
 
     def create_and_login_user(self, user="someuser"):
         self.create_user(user, "123")
@@ -162,17 +165,17 @@ class Mapp:
 
     def create_index(self, indexname):
         user, password = self.testapp.auth
-        r = self.testapp.put_json("/%s/%s" % (user, indexname))
+        r = self.testapp.put_json("/%s/%s" % (user, indexname), {})
         assert r.status_code == 201
-        assert r.json["type"] == "private"
+        assert r.json["type"] == "pypi"
 
 
 
 class TestUserThings:
     def test_password_setting_admin(self, mapp):
-        mapp.login("admin", "")
-        mapp.change_password("admin", "p1oi2p3i")
-        mapp.login("admin", "p1oi2p3i")
+        mapp.login("root", "")
+        mapp.change_password("root", "p1oi2p3i")
+        mapp.login("root", "p1oi2p3i")
 
     def test_create_and_delete_user(self, mapp):
         password = "somepassword123123"
@@ -189,8 +192,7 @@ class TestUserThings:
 
     def test_create_and_list_user(self, mapp):
         d = mapp.getuserlist()
-        users = d["users"]
-        assert set(users) == set("admin int ext".split())
+        assert set(d) == set(["root"])
 
     def test_delete_not_existent(self, mapp):
         mapp.login()
@@ -203,3 +205,16 @@ class TestIndexThings:
     def test_create_index(self, mapp):
         mapp.create_and_login_user()
         mapp.create_index("dev")
+
+    @pytest.mark.parametrize(["input", "expected"], [
+        ({},
+            dict(type="pypi", volatile=True, bases=["root/dev", "root/pypi"])),
+        ({"volatile": "False"},
+            dict(type="pypi", volatile=False, bases=["root/dev", "root/pypi"])),
+        ({"volatile": "False", "bases": "root/pypi"},
+            dict(type="pypi", volatile=False, bases=["root/pypi"])),
+    ])
+    def test_kvdict(self, input, expected):
+        from devpi_server.views import getkvdict_index
+        result = getkvdict_index(input)
+        assert result == expected

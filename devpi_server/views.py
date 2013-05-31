@@ -2,6 +2,8 @@
 from py.xml import html
 from devpi_server.types import lazydecorator, cached_property
 from bottle import response, request, abort, redirect, HTTPError, auth_basic
+from bottle import BaseResponse, HTTPResponse
+import bottle
 import json
 import itsdangerous
 import logging
@@ -20,6 +22,13 @@ def simple_html_body(title, bodytags):
             *bodytags
         )
     )
+
+def abort(code, body):
+    if "application/json" in request.headers.get("Accept", ""):
+        d = dict(error=body)
+        raise HTTPResponse(body=json.dumps(d), status=code, headers=
+                        {"content-type": "application/json"})
+    bottle.abort(code, body)
 
 route = lazydecorator()
 
@@ -59,7 +68,7 @@ class PyPIView:
             abort(401, "invalid authentication for user %r" % authuser)
         if not val.startswith(authuser + "-"):
             abort(401, "mismatch credential for user %r" % authuser)
-        if authuser == "admin" or authuser == user:
+        if authuser == "root" or authuser == user:
             return
         abort(401, "user %r not authorized, requiring %r" % (authuser, user))
 
@@ -77,6 +86,9 @@ class PyPIView:
     #
     # index serving and upload
     #
+    @route("/ext/pypi<rest:re:.*>")
+    def extpypi_redirect(self, rest):
+        redirect("/root/pypi%s" % rest)
 
     @route("/<user>/<index>/simple/<projectname>")
     @route("/<user>/<index>/simple/<projectname>/")
@@ -140,18 +152,21 @@ class PyPIView:
             bases,
         ]).unicode()
 
-    @route("/<user>/<index>", method="PUT")
-    def index_create(self, user, index):
+    @route("/<user>/<index>", method=["PUT", "PATCH"])
+    def index_create_or_modify(self, user, index):
         ixconfig = self.db.user_indexconfig_get(user, index)
-        if ixconfig is not None:
+        if request.method == "PUT" and ixconfig is not None:
             abort(409, "index exists")
-        ixconfig = self.db.user_indexconfig_set(user, index,
-            type="private",
-            volatile=True,
-            bases=["int/dev"],
-        )
+        kvdict = getkvdict_index(getjson())
+        ixconfig = self.db.user_indexconfig_set(user, index, **kvdict)
         response.status = 201
+        response.content_type = "application/json"
         return ixconfig
+
+    @route("/<user>/<index>", method=["DELETE"])
+    def index_delete(self, user, index):
+        if not self.db.user_indexconfig_delete(user, index):
+            abort(404, "index %s/%s does not exist" % (user, index))
 
     @route("/<user>/<index>/pypi", method="POST")
     @route("/<user>/<index>/pypi/", method="POST")
@@ -243,32 +258,31 @@ class PyPIView:
 
     @route("/<user>", method="PUT")
     def user_create(self, user):
-        dict = getjson()
-        if "password" in dict:
+        kvdict = getjson()
+        if "password" in kvdict and "email" in kvdict:
             if self.db.user_exists(user):
                 abort(409, "user already exists")
-            hash = self.db.user_setpassword(user, dict["password"])
-            response.status = 201
-            return "user %r created" % user
-        abort(400, "could not decode")
+            hash = self.db.user_create(user, **kvdict)
+            abort(201, self.db.user_get(user))
+        abort(400, "password and email values need to be set")
 
     @route("/<user>", method="DELETE")
     def user_delete(self, user):
         self.require_user(user)
         if not self.db.user_exists(user):
-            abort(404, "used %r does not exist" % user)
+            abort(404, "user %r does not exist" % user)
         self.db.user_delete(user)
         return "user %r deleted" % user
 
     @route("/", method="GET")
     def user_list(self):
-        accept = request.headers.get("accept")
-        if accept is not None:
-            if accept.endswith("/json"):
-                l = list(self.db.user_list())
-                return {"users": l}
-        abort(404, "no resource found")
-
+        #accept = request.headers.get("accept")
+        #if accept is not None:
+        #    if accept.endswith("/json"):
+        d = {}
+        for user in self.db.user_list():
+            d[user] = self.db.user_get(user)
+        return d
 
 class PkgView:
     def __init__(self, filestore, httpget):
@@ -293,3 +307,16 @@ def getjson():
             abort(400, "Bad request: could not decode")
     return dict
 
+
+def getkvdict_index(req):
+    req_volatile = req.get("volatile")
+    kvdict = dict(volatile=True, type="pypi", bases=["root/dev", "root/pypi"])
+    if req_volatile is not None:
+        if req_volatile == False or req_volatile.lower() in ["false", "no"]:
+            kvdict["volatile"] = False
+    bases = req.get("bases")
+    if bases is not None and not isinstance(bases, list):
+        kvdict["bases"] = bases.split(",")
+    if "type" in req:
+        kvdict["type"] = req["type"]
+    return kvdict
