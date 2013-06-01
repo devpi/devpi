@@ -86,9 +86,9 @@ def test_pkgserv(pypiurls, httpget, testapp):
 
 def test_apiconfig(httpget, testapp):
     r = testapp.get("/user/name/-api")
-    assert r.status_code == 200
-    for name in "pushrelease simpleindex login pypisubmit resultlog".split():
-        assert name in r.json
+    assert r.status_code == 404
+    #for name in "pushrelease simpleindex login pypisubmit resultlog".split():
+    #    assert name in r.json
 
 def test_upload(httpget, db, mapp, testapp):
     mapp.create_and_login_user("user")
@@ -159,6 +159,11 @@ class Mapp:
         r = self.testapp.put_json("/%s" % user, reqdict)
         assert r.status_code == 201
 
+    def create_user_fails(self, user, password, email="hello@example.com"):
+        with pytest.raises(webtest.AppError) as excinfo:
+            self.create_user(user, password)
+        assert "409" in excinfo.value.args[0]
+
     def create_and_login_user(self, user="someuser"):
         self.create_user(user, "123")
         self.login(user, "123")
@@ -169,35 +174,35 @@ class Mapp:
         assert r.status_code == 201
         assert r.json["type"] == "pypi"
 
+    def delete_user_fails(self, username):
+        r = self.testapp.delete_json("/%s" % username, expect_errors=True)
+        assert r.status_code == 404
+
 
 
 class TestUserThings:
+    def test_create_and_delete_user(self, mapp):
+        password = "somepassword123123"
+        #self.login(testapp)
+        #self.login_fails(testapp, "hello", "qweqwe")
+        assert "hello" not in mapp.getuserlist()
+        mapp.create_user("hello", password)
+        mapp.create_user_fails("hello", password)
+        mapp.login_fails("hello", "qweqwe")
+        mapp.login("hello", password)
+        mapp.delete_user("hello")
+        mapp.login_fails("hello", password)
+        assert "hello" not in mapp.getuserlist()
+
+    def test_delete_not_existent(self, mapp):
+        mapp.login("root", "")
+        mapp.delete_user_fails("qlwkje")
+
     def test_password_setting_admin(self, mapp):
         mapp.login("root", "")
         mapp.change_password("root", "p1oi2p3i")
         mapp.login("root", "p1oi2p3i")
 
-    def test_create_and_delete_user(self, mapp):
-        password = "somepassword123123"
-        #self.login(testapp)
-        #self.login_fails(testapp, "hello", "qweqwe")
-        mapp.create_user("hello", password)
-        with pytest.raises(webtest.AppError) as excinfo:
-            mapp.create_user("hello", password)
-        assert "409" in excinfo.value.args[0]
-        mapp.login_fails("hello", "qweqwe")
-        mapp.login("hello", password)
-        mapp.delete_user("hello")
-        mapp.login_fails("hello", password)
-
-    def test_create_and_list_user(self, mapp):
-        d = mapp.getuserlist()
-        assert set(d) == set(["root"])
-
-    def test_delete_not_existent(self, mapp):
-        mapp.login()
-        r = mapp.testapp.delete_json("/qlwkje", expect_errors=True)
-        assert r.status_code == 404
 
 
 class TestIndexThings:

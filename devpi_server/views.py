@@ -30,6 +30,13 @@ def abort(code, body):
                         {"content-type": "application/json"})
     bottle.abort(code, body)
 
+def apireturn(code, body):
+    #if "application/json" in request.headers.get("Accept", ""):
+    d = dict(error=body)
+    raise HTTPResponse(body=json.dumps(d), status=code, headers=
+                    {"content-type": "application/json"})
+    #bottle.abort(403, "can only return application/json")
+
 route = lazydecorator()
 
 class Auth:
@@ -167,6 +174,7 @@ class PyPIView:
     def index_delete(self, user, index):
         if not self.db.user_indexconfig_delete(user, index):
             abort(404, "index %s/%s does not exist" % (user, index))
+        return {}
 
     @route("/<user>/<index>/pypi", method="POST")
     @route("/<user>/<index>/pypi/", method="POST")
@@ -221,6 +229,8 @@ class PyPIView:
     @route("/<user>/<index>/pypi/-api")
     @route("/<user>/<index>/simple/-api")
     def apiconfig(self, user, index):
+        if not self.db.user_indexconfig_get(user, index):
+            abort(404, "index %s/%s does not exist" %(user, index))
         root = "/"
         apidict = {
             "resultlog": "/resultlog",
@@ -272,7 +282,7 @@ class PyPIView:
         if not self.db.user_exists(user):
             abort(404, "user %r does not exist" % user)
         self.db.user_delete(user)
-        return "user %r deleted" % user
+        apireturn(200, "user %r deleted" % user)
 
     @route("/", method="GET")
     def user_list(self):
