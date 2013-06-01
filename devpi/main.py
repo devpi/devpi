@@ -168,13 +168,26 @@ def config(parser):
         action="store", nargs="*",
         help="url for retrieving index API information. ")
 
-@subcommand("devpi.user:useradd")
-def useradd(parser):
-    """ add a new user with email """
-    parser.add_argument("username", type=str, action="store",
+@subcommand("devpi.user")
+def user(parser):
+    """ add, remove, modify, list user configuration"""
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("-c", "--create", action="store_true",
+        help="create a user")
+    group.add_argument("-d", "--delete", action="store_true",
+        help="delete a user")
+    group.add_argument("-m", "--modify", action="store_true",
+        help="modify user settings")
+    group.add_argument("-l", "--list", action="store_true",
+        help="list existing users and their indexes")
+    parser.add_argument("-p", "--password", action="store", metavar="PASS",
+        type=str, default=None,
+        help="password for the given user")
+    parser.add_argument("username", type=str, action="store", nargs="?",
         help="user name")
-    parser.add_argument("email", type=str, action="store",
-        help="valid email address")
+    parser.add_argument("email", type=str, action="store", default=None,
+        nargs="?",
+        help="email address")
 
 @subcommand("devpi.login")
 def login(parser):
@@ -183,7 +196,7 @@ def login(parser):
                         help="username to use for login")
 
 @subcommand("devpi.index:indexadd")
-def indexadd(parser):
+def index(parser):
     """ create, delete and manage indexes. """
     parser.add_argument("indexname", type=str, action="store",
         help="index name, specified as NAME")

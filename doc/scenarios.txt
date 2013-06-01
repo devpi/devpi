@@ -9,7 +9,7 @@ with their user-specific indexes freely.
 
 create bob as a new user::
 
-    $ devpi useradd bob bob@email.com  # email is required
+    $ devpi user -c bob --email bob@email.com  # email is required
     enter password for bob : ***********
     repeat password for bob: ***********
     -> user "bob" created, with email bob@email.com
@@ -22,7 +22,7 @@ login as bob::
 
 create a "bob/dev" index and directly set it as your "current" index::
 
-    $ devpi indexadd --use dev
+    $ devpi index -c --use dev
     -> volatile index "bob/dev" created
     -> upstreams: int/prod, ext/pypi
     -> using index "bob/dev" as current index
@@ -34,4 +34,4 @@ upload a package to your current "bob/dev" index:
 .. note::
 
     Due to the ``volatile=True`` default of the ``indexadd`` command,
-    you can overwrite versions on upload.  This is useful if you don't 
+    the upload action can overwrite versions.  
