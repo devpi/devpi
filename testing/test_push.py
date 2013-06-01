@@ -3,7 +3,7 @@ import py
 import pytest
 import types
 from subprocess import check_call, Popen, check_output
-from devpi import use
+from devpi import config
 from devpi.main import Hub
 
 def runproc(cmd):
@@ -21,8 +21,11 @@ def test_main(monkeypatch, tmpdir):
         return r
     monkeypatch.setattr(py.std.requests, "post", mypost)
 
-    hub = Hub()
-    hub._config = use.Config(pushrelease="/push")
+    class args:
+        clientdir = tmpdir.join("client")
+
+    hub = Hub(args)
+    hub.config.reconfigure(dict(pushrelease="/push"))
     p = tmpdir.join("pypirc")
     p.write(py.std.textwrap.dedent("""
         [distutils]

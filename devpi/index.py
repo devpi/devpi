@@ -4,7 +4,6 @@ import py
 import json
 
 from devpi import log
-from devpi.use import getconfig
 
 DEFAULT_UPSTREAMS = ["int/dev", "ext/pypi"]
 

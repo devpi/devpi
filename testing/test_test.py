@@ -3,7 +3,7 @@ import py
 import pytest
 from devpi.util import url as urlutil
 from devpi.test.test import main
-from devpi import use
+from devpi import config
 
 pytest_plugins = "pytester"
 
@@ -15,8 +15,8 @@ def cmd_devpi(cmd_devpi, pypiserverprocess, testdir, monkeypatch):
     return cmd_devpi
     #cfg = pypiserverprocess.cfg
     #assert testdir.tmpdir == py.path.local()
-    #api = use.retrieve_api(cfg.url)
-    #use.write_api(testdir.tmpdir, api)
+    #api = config.retrieve_api(cfg.url)
+    #config.write_api(testdir.tmpdir, api)
 
 class TestFunctional:
     def test_main_nopackage(self, cmd_devpi):

@@ -2,7 +2,7 @@
 import urllib
 import pytest
 import py
-from devpi import use
+from devpi import config
 from devpi import log
 from devpi.main import Hub
 

@@ -2,42 +2,42 @@
 import urllib
 import pytest
 import py
-from devpi import use
+from devpi import config
 from devpi import log
 from devpi.main import Hub
-from devpi.use import parse_keyvalue_spec
+from devpi.config import main, Config
+from devpi.config import parse_keyvalue_spec
 
 class TestUnit:
     def test_write_and_read(self, tmpdir):
-        api = use.Config(pypisubmit="/post", pushrelease="/push",
-                        simpleindex="/index",
-                        login="/login",
-                        resultlog="/",
-                        path=tmpdir)
-        api.save()
-        newapi = use.Config()
-        newapi.configure_frompath(tmpdir)
-        assert newapi.pypisubmit == api.pypisubmit
-        assert newapi.simpleindex == api.simpleindex
-        assert newapi.resultlog == api.resultlog
-        assert newapi.venvdir == api.venvdir
-        assert newapi.login == api.login
+        path=tmpdir.join("config")
+        config = Config(path)
+        assert not config.simpleindex
+        config.reconfigure(dict(
+                pypisubmit="/post", pushrelease="/push",
+                simpleindex="/index",
+                login="/login",
+                resultlog="/"))
+        assert config.simpleindex
+        newconfig = Config(path)
+        assert newconfig.pypisubmit == config.pypisubmit
+        assert newconfig.simpleindex == config.simpleindex
+        assert newconfig.resultlog == config.resultlog
+        assert newconfig.venvdir == config.venvdir
+        assert newconfig.login == config.login
 
     def test_normalize_url(self, tmpdir):
-        config = use.Config(simpleindex="http://my.serv/index1")
+        config = Config(tmpdir.join("config"))
+        config.reconfigure(dict(simpleindex="http://my.serv/index1"))
         url = config._normalize_url("index2")
         assert url == "http://my.serv/index2/"
-
-    def test_empty_read(self, tmpdir):
-        res = use.Config()
-        res.configure_frompath(tmpdir)
-        assert res.path is None
 
     def test_main(self, tmpdir, monkeypatch):
         monkeypatch.chdir(tmpdir)
         class args:
             delete = False
             indexurl = ["http://world/this"]
+            clientdir = tmpdir
         api = dict(pypisubmit="/post", pushrelease="/push",
                    simpleindex="/index/",
                    resultlog="/resultlog/",
@@ -47,23 +47,22 @@ class TestUnit:
             return py.io.BytesIO(py.std.json.dumps(api))
 
         monkeypatch.setattr(urllib, "urlopen", urlopen)
-        use.main(Hub(debug=True), args)
-        newapi = use.Config.from_path(tmpdir)
-        assert newapi is not None
+        hub = Hub(args)
+        config.main(hub)
+        newapi = config.Config(hub.config.path)
         assert newapi.pypisubmit == "http://world/post"
         assert newapi.pushrelease == "http://world/push"
         assert newapi.simpleindex == "http://world/index/"
         assert newapi.resultlog == "http://world/resultlog/"
-        assert newapi.venvdir == None
+        assert not newapi.venvdir
 
         # delete it
         class args_delete:
             indexurl = None
             delete = True
-        use.main(Hub(debug=True), args_delete)
-        newapi = use.Config()
-        newapi.configure_frompath(tmpdir)
-        assert newapi.path is None
+            clientdir = args.clientdir
+        config.main(Hub(args_delete))
+        assert not hub.config.exists()
 
     def test_main_venvsetting(self, create_venv, tmpdir, monkeypatch):
         venvdir = create_venv()
@@ -71,13 +70,16 @@ class TestUnit:
         class args:
             delete = False
             indexurl = ["venv=%s" % venvdir]
-        use.main(Hub(), args)
-        config = use.Config.from_path()
+            clientdir = tmpdir.join("client")
+
+        hub = Hub(args)
+        main(hub)
+        config = Config(hub.config.path)
         assert config.venvdir == str(venvdir)
 
         # test via env
         monkeypatch.setenv("WORKON_HOME", venvdir.dirpath())
-        hub = Hub()
+        hub = Hub(args)
         venvpath = hub.path_venvbase.join(venvdir.basename)
         assert venvpath == venvdir
 
@@ -93,6 +95,5 @@ def test_parse_keyvalue_spec(input, expected):
 
 def test_parse_keyvalue_spec_unknown_key():
     pytest.raises(KeyError, lambda: parse_keyvalue_spec(["hello=3"], ["some"]))
-
 
 

@@ -3,7 +3,7 @@ import re
 import sys
 import py
 from devpi.upload.setuppy import __file__ as fn_setup
-from devpi.use import Config
+from devpi.config import Config
 from devpi import log
 from devpi.util import version as verlib
 from devpi import cached_property

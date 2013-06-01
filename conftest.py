@@ -282,11 +282,11 @@ def cmd_devpi(request, testdir):
     return doit
 
 @pytest.fixture
-def emptyhub(request):
+def emptyhub(request, tmpdir):
     from devpi.main import Hub
-    #from devpi.use import Config
-    #config = Config()
-    return Hub(debug=True)
+    class args:
+        clientdir = tmpdir.join("client")
+    return Hub(args)
 
 from _pytest.pytester import RunResult
 import subprocess

@@ -1,7 +1,7 @@
 
 from devpi.remoteindex import RemoteIndex, LinkSet
 from devpi.util import url as urlutil
-from devpi.use import Config
+from devpi.config import Config
 
 def test_linkset():
     links = urlutil.parselinks("""
@@ -13,10 +13,11 @@ def test_linkset():
     assert ls.getnewestversion("pkg").href.endswith("pkg-1.2.tar.gz")
 
 class TestRemoteIndex:
-    def test_basic(self, monkeypatch, gen):
+    def test_basic(self, monkeypatch, gen, tmpdir):
         md5 = gen.md5()
         indexurl = "http://my/simple/"
-        config = Config(simpleindex=indexurl)
+        config = Config(tmpdir.join("client"))
+        config.reconfigure(dict(simpleindex=indexurl))
         ri = RemoteIndex(config)
         def mockget(url):
             assert url.startswith(indexurl)
@@ -29,9 +30,10 @@ class TestRemoteIndex:
         link = ri.getbestlink("pkg")
         assert link.href == "http://my/pkg-1.2.tar.gz"
 
-    def test_receive_error(self, monkeypatch):
+    def test_receive_error(self, monkeypatch, tmpdir):
         indexurl = "http://my/simple/"
-        config = Config(simpleindex=indexurl)
+        config = Config(tmpdir.join("client"))
+        config.reconfigure(dict(simpleindex=indexurl))
         ri = RemoteIndex(config)
         def mockget(url):
             raise ri.ReceiveError(404)

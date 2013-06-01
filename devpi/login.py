@@ -5,7 +5,7 @@ import py
 import json
 
 from devpi import log
-from devpi.use import getconfig, parse_keyvalue_spec
+from devpi.config import getconfig, parse_keyvalue_spec
 
 
 def main(hub, args):

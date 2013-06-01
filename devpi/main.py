@@ -6,7 +6,7 @@ import subprocess
 from devpi.util.lazydecorator import lazydecorator
 from devpi.util import url as urlutil
 from devpi import log, cached_property
-from devpi.use import Config
+from devpi.config import Config
 import requests
 import json
 std = py.std
@@ -21,9 +21,7 @@ def main(argv=None):
     if ":" in mod:
         mod, func = mod.split(":")
     mod = __import__(mod, None, None, ["__doc__"])
-    hub = Hub(debug=args.debug)
-    #log._setdefault(hub.getdefaultlog)
-    #with log(info=hub.info, error=hub.error, debug=hub.debug):
+    hub = Hub(args)
     return getattr(mod, func)(hub, args)
 
 class Hub:
@@ -36,12 +34,14 @@ class Hub:
             cmds = [str(x) for x in cmds]
             std.subprocess.Popen.__init__(self, cmds, *args, **kwargs)
 
-    def __init__(self, cwd=None, debug=False):
+    def __init__(self, args):
         self._tw = py.io.TerminalWriter()
-        self._debug = debug
-        if cwd is None:
-            cwd = py.path.local()
-        self.cwd = cwd
+        self.args = args
+        self.cwd = py.path.local()
+
+    @property
+    def clientdir(self):
+        return py.path.local(self.args.clientdir)
 
     @cached_property
     def http(self):
@@ -78,13 +78,11 @@ class Hub:
             self.info("created workdir", self.__workdir)
             return self.__workdir
 
-    @property
+    @cached_property
     def config(self):
-        try:
-            return self._config
-        except AttributeError:
-            self._config = Config.from_path(self.cwd)
-            return self._config
+        self.clientdir.ensure(dir=1)
+        path = self.clientdir.join("config.json")
+        return Config(path)
 
     @property
     def remoteindex(self):
@@ -101,17 +99,6 @@ class Hub:
         if path is None:
             return
         return py.path.local(path)
-
-    def getdefaultlog(self, name):
-        if name in ("error", "fatal", "info"):
-            return getattr(self, name)
-        if self._debug:
-            def logdebug(*msg):
-                self.line("[debug:%s]" % name, *msg)
-        else:
-            def logdebug(*msg):
-                pass
-        return logdebug
 
     def popen_output(self, args, cwd=None):
         if isinstance(args, str):
@@ -151,12 +138,12 @@ class Hub:
 def parse_args(argv):
     argv = map(str, argv)
     parser = argparse.ArgumentParser(prog=argv[0])
+    add_generic_options(parser)
     subparsers = parser.add_subparsers()
 
     for func, args, kwargs in subcommand.discover(globals()):
         subparser = subparsers.add_parser(func.__name__, help=func.__doc__)
         subparser.Action = argparse.Action
-        add_generic_options(subparser)
         func(subparser)
         mainloc = args[0]
         subparser.set_defaults(mainloc=mainloc)
@@ -167,9 +154,13 @@ def parse_args(argv):
 def add_generic_options(parser):
     parser.add_argument("--debug", action="store_true",
         help="show debug messages")
+    parser.add_argument("--clientdir", action="store", metavar="DIR",
+        default=os.path.expanduser(os.environ.get("DEVPI_CLIENTDIR",
+                                                  "~/.devpi/client")),
+        help="directory for storing login and other state")
 
-@subcommand("devpi.use")
-def use(parser):
+@subcommand("devpi.config")
+def config(parser):
     """ show, create or delete configuration information. """
     parser.add_argument("--delete", action="store_true",
         help="delete currently stored API information")
