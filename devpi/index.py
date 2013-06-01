@@ -4,6 +4,8 @@ import py
 import json
 
 from devpi import log
+from devpi.config import parse_keyvalue_spec
+from devpi.util import url as urlutil
 
 DEFAULT_UPSTREAMS = ["int/dev", "ext/pypi"]
 
@@ -22,19 +24,38 @@ def getdict(keyvalues):
     d["upstreams"] = upstreams
     return d
 
-def create_index(hub, indexname):
+def index_create(hub, indexname, kvdict):
     url = hub.get_index_url(indexname)
-    hub.info("creating index: %s" % url)
-    r = hub.http.put(url)
-    if r.status_code == 201:
-        hub.info("index created: %s" % url)
-        for name, val in r.json().items():
-            hub.info("  %s = %s" % (name, val))
-    else:
-        hub.error("failed to create %r index, server returned %s: %s" %(
-                  indexname, r.status_code, r.reason))
-        return 1
+    stage = urlutil.getpath(url)
+    hub.http_api("put", url, kvdict,
+                 okmsg="index %r created" % stage,
+                 errmsg="failed to create index %r" % stage,
+    )
 
-def indexadd(hub, args):
-    return create_index(hub, args.indexname)
+def index_modify(hub, indexname, kvdict):
+    url = hub.get_index_url(indexname)
+    stage = urlutil.getpath(url)
+    hub.http_api("patch", url, kvdict,
+                 okmsg="index %r modified" % stage,
+                 errmsg="failed to modify index %r" % stage,
+    )
 
+def index_delete(hub, indexname):
+    url = hub.get_index_url(indexname)
+    stage = urlutil.getpath(url)
+    hub.http_api("delete", url, None,
+                 okmsg="index %r deleted" % stage,
+                 errmsg="failed to delete index %r" % stage,
+    )
+
+
+def main(hub, args):
+    hub.requires_login()
+    indexname = args.indexname
+    kvdict = parse_keyvalue_spec(args.keyvalues)
+    if args.create:
+        return index_create(hub, indexname, kvdict)
+    if args.modify:
+        return index_modify(hub, indexname, kvdict)
+    if args.delete:
+        return index_delete(hub, indexname)
