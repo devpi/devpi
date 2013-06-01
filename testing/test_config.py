@@ -32,56 +32,39 @@ class TestUnit:
         url = config._normalize_url("index2")
         assert url == "http://my.serv/index2/"
 
-    def test_main(self, tmpdir, monkeypatch):
+    def test_main(self, tmpdir, monkeypatch, cmd_devpi):
         monkeypatch.chdir(tmpdir)
-        class args:
-            delete = False
-            indexurl = ["http://world/this"]
-            clientdir = tmpdir
         api = dict(pypisubmit="/post", pushrelease="/push",
                    simpleindex="/index/",
                    resultlog="/resultlog/",
                    )
-        def urlopen(url):
-            assert url == "http://world/this/-api"
-            return py.io.BytesIO(py.std.json.dumps(api))
+        def http_api(*args, **kwargs):
+            return api
 
-        monkeypatch.setattr(urllib, "urlopen", urlopen)
-        hub = Hub(args)
-        config.main(hub)
-        newapi = config.Config(hub.config.path)
+        from devpi import main
+        monkeypatch.setattr(main.Hub, "http_api", http_api)
+        hub = cmd_devpi("config", "http://world/this")
+        newapi = hub.config
         assert newapi.pypisubmit == "http://world/post"
         assert newapi.pushrelease == "http://world/push"
         assert newapi.simpleindex == "http://world/index/"
         assert newapi.resultlog == "http://world/resultlog/"
         assert not newapi.venvdir
 
-        # delete it
-        class args_delete:
-            indexurl = None
-            delete = True
-            clientdir = args.clientdir
-        config.main(Hub(args_delete))
+        hub = cmd_devpi("config", "--delete")
         assert not hub.config.exists()
 
-    def test_main_venvsetting(self, create_venv, tmpdir, monkeypatch):
-        venvdir = create_venv()
+    def test_main_venvsetting(self, cmd_devpi, tmpdir, monkeypatch):
+        venvdir = tmpdir
         monkeypatch.chdir(tmpdir)
-        class args:
-            delete = False
-            indexurl = ["venv=%s" % venvdir]
-            clientdir = tmpdir.join("client")
-
-        hub = Hub(args)
-        main(hub)
+        hub = cmd_devpi("config", "venv=%s" % venvdir)
         config = Config(hub.config.path)
         assert config.venvdir == str(venvdir)
 
         # test via env
         monkeypatch.setenv("WORKON_HOME", venvdir.dirpath())
-        hub = Hub(args)
-        venvpath = hub.path_venvbase.join(venvdir.basename)
-        assert venvpath == venvdir
+        hub = cmd_devpi("config", "venv=%s" % venvdir.basename)
+        assert hub.config.venvdir == venvdir
 
 
 

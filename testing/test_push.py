@@ -52,8 +52,8 @@ def test_main(monkeypatch, tmpdir):
     assert req["password"] == "testp"
 
 class TestPush:
-    def test_help(self, cmd_devpi):
-        result = cmd_devpi("push", "-h")
+    def test_help(self, ext_devpi):
+        result = ext_devpi("push", "-h")
         assert result.ret == 0
         result.stdout.fnmatch_lines("""
             *release*

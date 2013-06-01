@@ -4,7 +4,7 @@ import py
 import json
 
 from devpi import log
-from devpi.config import getconfig, parse_keyvalue_spec
+from devpi.config import parse_keyvalue_spec
 
 def getnewpass(hub, username):
     for i in range(3):

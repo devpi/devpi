@@ -7,6 +7,9 @@ import py
 import sys
 import os
 
+from _pytest.pytester import RunResult
+import subprocess
+
 print_ = py.builtin.print_
 std = py.std
 
@@ -70,76 +73,68 @@ def Popen_module(request):
 def Popen(request):
     return PopenFactory(request.addfinalizer)
 
-class PyPIServerConfig:
-    def __init__(self, addrstring, datadir):
-        self.addrstring = addrstring
-        self.datadir = datadir
-        self.indexservername = "testindex"
-        self.stagename = "~test/dev"
-        self.user = "test"
-        self.password = "test"
+def get_pypirc_patcher(devpi):
+    hub = devpi("config")
+    user, password = hub.http.auth
+    pypisubmit = hub.config.pypisubmit
+    class overwrite:
+        def __enter__(self):
+            homedir = py.path.local._gethomedir()
+            self.pypirc = pypirc = homedir.join(".pypirc")
+            if pypirc.check():
+                save = pypirc.new(basename=pypirc.basename+".save")
+                pypirc.copy(save)
+                self.saved = save
+            else:
+                self.saved = None
+            content = textwrap.dedent("""
+                [distutils]
+                index-servers = testrepo
+                [testrepo]
+                repository: %s
+                username: %s
+                password: %s
+            """ % (pypisubmit, user, password))
+            print ("patching .pypirc content:\n%s" % content)
+            pypirc.write(content)
+            return "testrepo"
 
-    @property
-    def url(self, *args):
-        return "http://%s/%s/pypi/" % (self.addrstring, self.stagename)
-
-    @property
-    def url_root(self, *args):
-        return "http://%s/" % (self.addrstring, )
-
-    def patchpypirc(self):
-        cfg = self
-        class overwrite:
-            def __enter__(self):
-                homedir = py.path.local._gethomedir()
-                self.pypirc = pypirc = homedir.join(".pypirc")
-                if pypirc.check():
-                    save = pypirc.new(basename=pypirc.basename+".save")
-                    pypirc.copy(save)
-                    self.saved = save
-                else:
-                    self.saved = None
-                content = textwrap.dedent("""
-                    [distutils]
-                    index-servers = %s
-                    [%s]
-                    repository: %s
-                    username: %s
-                    password: %s
-                """ % (cfg.indexservername, cfg.indexservername,
-                       cfg.url, cfg.user, cfg.password))
-                print ("patching .pypirc content:\n%s" % content)
-                pypirc.write(content)
-
-            def __exit__(self, *args):
-                if self.saved is None:
-                    self.pypirc.remove()
-                else:
-                    self.saved.copy(self.pypirc)
-        return overwrite()
+        def __exit__(self, *args):
+            if self.saved is None:
+                self.pypirc.remove()
+            else:
+                self.saved.copy(self.pypirc)
+    return overwrite()
 
 @pytest.fixture(scope="session")
-def pypiserverprocess(request, xprocess, Popen_session):
+def port_of_liveserver(request, xprocess, Popen_session):
     if not request.config.option.slow:
         pytest.skip("not running functional tests, use --slow to do so.")
-    cfg = cfg2 = PyPIServerConfig("localhost:7999", None)
 
     def prepare_devpiserver(cwd):
-        cfg.datadir = datadir = cwd.join("data")
-        if not datadir.check():
-            datadir.mkdir()
+        datadir = cwd.join("data")
+        if datadir.check():
+            datadir.remove()
+        datadir.mkdir()
         return (".*Listening on.*",
-                ["devpi-server", "--data", datadir, "--port", 7999,
-                "--redisport", 7998])
+                ["devpi-server", "--data", datadir, "--port", 7999 ])
 
-    pid, logfile = xprocess.ensure("devpiserver", prepare_devpiserver,
+    pid, logfile = xprocess.ensure("devpi-server", prepare_devpiserver,
                                    restart=True)
     assert pid is not None
     request.addfinalizer(lambda: py.process.kill(pid))
-    class p:
-        cfg = cfg2
-    return p
+    return 7999
 
+@pytest.fixture
+def devpi(cmd_devpi, gen, port_of_liveserver):
+    user = gen.user()
+    cmd_devpi("config", "http://localhost:%s/root/dev" % port_of_liveserver)
+    cmd_devpi("user", "-c", user, "password=123", "email=123")
+    cmd_devpi("login", user, "--password", "123")
+    cmd_devpi("index", "-c", "dev")
+    cmd_devpi("config", "dev")
+    cmd_devpi.patched_pypirc = get_pypirc_patcher(cmd_devpi)
+    return cmd_devpi
 
 @pytest.fixture
 def initproj(request, tmpdir):
@@ -147,22 +142,19 @@ def initproj(request, tmpdir):
     return initproj(request, tmpdir)
 
 @pytest.fixture
-def create_and_upload(request, pypiserverprocess, initproj, Popen):
+def create_and_upload(request, devpi, initproj, Popen):
     def upload(name, filedefs=None):
         initproj(name, filedefs)
-        cfg = pypiserverprocess.cfg
-        url = cfg.url
         # we need to patch .pypirc
-        with pypiserverprocess.cfg.patchpypirc():
+        with devpi.patched_pypirc as reponame:
             popen = Popen([sys.executable, "setup.py",
-                           "register", "-r", cfg.indexservername])
+                           "register", "-r", reponame])
             popen.communicate()
             assert popen.returncode == 0
             popen = Popen([sys.executable, "setup.py", "sdist", "upload",
-                "-r", cfg.indexservername])
+                           "-r", reponame])
             popen.communicate()
             assert popen.returncode == 0
-        return pypiserverprocess.cfg.stagename
     return upload
 
 
@@ -176,6 +168,11 @@ class Gen:
         self._md5 = hashlib.md5()
         self._pkgname = 0
         self._version = 0
+        self._usernum = 0
+
+    def user(self):
+        self._usernum += 1
+        return "user%d" % self._usernum
 
     def md5(self, num=1):
         md5list = []
@@ -247,33 +244,13 @@ def pytest_runtest_makereport(__multicall__, item, call):
                 longrepr.addsection("%s log" %name, content)
     return report
 
-@pytest.fixture(scope="class")
-def stageapp(request):
-    from werkzeug.test import Client
-    from werkzeug.wrappers import Response
-    class ClientResponse(Response):
-        @property
-        def links(self):
-            return urlutil.parselinks(self.data)
-
-    from devpi.server.server import create_app
-    tmpdir = request.config._tmpdirhandler.mktemp("stageapp", numbered=True)
-    if "pypiserverprocess" in request.fixturenames:
-        url = request.getfuncargvalue("pypiserverprocess").cfg.url
-    else:
-        url = getattr(request.cls, "upstreamurl", "http://notexists.url")
-    app = create_app(tmpdir, url)
-    newapp = Client(app, response_wrapper=ClientResponse)
-    newapp.stageserver = app.stageserver
-    return newapp
-
-
 @pytest.fixture
-def cmd_devpi(request, testdir):
-    testdir.chdir()
+def ext_devpi(request, tmpdir, devpi):
     def doit(*args, **kwargs):
-        testdir.chdir()
-        result = runprocess(testdir.tmpdir, ["devpi"] + list(args))
+        tmpdir.chdir()
+        clientdir = devpi.clientdir
+        result = runprocess(tmpdir,
+            ["devpi", "--clientdir", devpi.clientdir] + list(args))
         ret = kwargs.get("ret", 0)
         if ret != result.ret:
             pytest.fail("expected %s, got %s returnvalue\n%s" % (
@@ -282,14 +259,43 @@ def cmd_devpi(request, testdir):
     return doit
 
 @pytest.fixture
+def out_devpi(devpi):
+    def out_devpi_func(*args):
+        cap = py.io.StdCaptureFD()
+        cap.startall()
+        now = std.time.time()
+        try:
+            devpi(*args)
+        finally:
+            out, err = cap.reset()
+            return RunResult(0, out.split("\n"), None, std.time.time()-now)
+    return out_devpi_func
+
+@pytest.fixture
+def cmd_devpi(tmpdir):
+    """ execute devpi subcommand in-process (with fresh init) """
+    clientdir = tmpdir.join("client")
+    from devpi.main import initmain
+    def run_devpi(*args):
+        tmpdir.chdir()
+        callargs = ["devpi", "--clientdir", clientdir] + list(args)
+        callargs = [str(x) for x in callargs]
+        print_("*** inline$ %s" % " ".join(callargs))
+        hub, method = initmain(callargs)
+        ret = method(hub, hub.args)
+        if ret:
+            raise SystemExit(ret)
+        return hub
+    run_devpi.clientdir = clientdir
+    return run_devpi
+
+@pytest.fixture
 def emptyhub(request, tmpdir):
     from devpi.main import Hub
     class args:
         clientdir = tmpdir.join("client")
     return Hub(args)
 
-from _pytest.pytester import RunResult
-import subprocess
 
 def runprocess(tmpdir, cmdargs):
     cmdargs = [str(x) for x in cmdargs]
@@ -324,7 +330,7 @@ def mockhtml(monkeypatch):
     return mockhtml
 
 @pytest.fixture
-def create_venv(request, testdir, gentmp, monkeypatch):
+def create_venv(request, testdir, monkeypatch):
     monkeypatch.delenv("PYTHONDONTWRITEBYTECODE", raising=False)
     th = request.config._tmpdirhandler
     backupenv = th.ensuretemp("venvbackup")
@@ -345,18 +351,9 @@ def create_venv(request, testdir, gentmp, monkeypatch):
             bindir = "bin"
         ac = venvdir.join(bindir, "activate_this.py")
         assert ac.check(), ac
-        print ac, os.environ["PATH"]
+        #print ac, os.environ["PATH"]
         execfile(str(ac), dict(__file__=str(ac)))
-        print ac, os.environ["PATH"]
+        #print ac, os.environ["PATH"]
         return venvdir
     return do_create_venv
 
-@pytest.fixture
-def gentmp(request):
-    """return a parametrizable temporary directory/file generator. """
-    def do_gendir(name=None, scope="function"):
-        node = request.node.getscopeitem(scope)
-        if name:
-            return basedir.ensure(name, dir=1)
-        return basedir
-    return do_gendir

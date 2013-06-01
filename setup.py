@@ -6,8 +6,7 @@ from setuptools import setup
 
 if __name__ == "__main__":
     install_requires=["tox>=1.4.3", "archive>=0.3",
-                      "beautifulsoup4", "pip>=1.3.1",
-                      "py>=1.4.14", "requests>=1.2.0",]
+                      "pip>=1.3.1", "py>=1.4.14", "requests>=1.2.2",]
 
     if sys.version_info < (2,7):
         install_requires.append("argparse>=1.2.1")

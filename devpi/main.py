@@ -15,18 +15,19 @@ subcommand = lazydecorator()
 def main(argv=None):
     if argv is None:
         argv = list(sys.argv)
+    hub, method = initmain(argv)
+    return method(hub, hub.args)
+
+def initmain(argv):
     args = parse_args(argv)
     mod = args.mainloc
     func = "main"
     if ":" in mod:
         mod, func = mod.split(":")
     mod = __import__(mod, None, None, ["__doc__"])
-    hub = Hub(args)
-    return getattr(mod, func)(hub, args)
+    return Hub(args), getattr(mod, func)
 
 class Hub:
-    LOGINPATH = py.path.local(os.path.expanduser("~/.devpi/login"))
-
     class Popen(std.subprocess.Popen):
         STDOUT = std.subprocess.STDOUT
         PIPE = std.subprocess.PIPE
@@ -48,39 +49,54 @@ class Hub:
     @cached_property
     def http(self):
         session = requests.session()
-        if self.LOGINPATH.check():
-            data = json.loads(self.LOGINPATH.read())
+        p = self.clientdir.join("login")
+        if p.check():
+            data = json.loads(p.read())
             session.auth = data["user"], data["password"]
         return session
 
-    def http_api(self, method, url, kvdict, okmsg, errmsg):
+    def http_api(self, method, url, kvdict=None, okmsg=None,
+                 errmsg=None, ret=False):
         methodexec = getattr(self.http, method)
         jsontype = "application/json"
         headers = {"Accept": jsontype, "content-type": jsontype}
-        if method != "delete":
-            r = methodexec(url, json.dumps(kvdict), headers=headers)
-        else:
+        if method in ("delete", "get"):
             r = methodexec(url, headers=headers)
+        else:
+            r = methodexec(url, json.dumps(kvdict), headers=headers)
         if r.status_code >= 200 and r.status_code < 300:
-            self.info(okmsg)
-            data = r.json()
+            if okmsg:
+                self.info(okmsg)
+            data = r.content
             if data:
-                for name, val in sorted(data.items()):
-                    self.info("   %s=%s" %(name, val))
+                data = json.loads(data)
+                if not ret:
+                    for name, val in sorted(data.items()):
+                        self.info("   %s=%s" %(name, val))
+                else:
+                    return data
         else:
             msg = "server returned %s: %s" % (r.status_code, r.reason)
-            self.error(errmsg + ". " + msg)
+            if errmsg:
+                self.error(errmsg + ". " + msg)
+            else:
+                self.error(msg)
             #if self.config.debug:
             #self.error("request was: %s %s %s" %(method.upper(), url, kvdict))
-            data = r.json()
-            if data and "error" in data:
-                self.error("server said: %s" % data["error"])
+            try:
+                data = r.json()
+            except ValueError:
+                pass
+            else:
+                if data and "error" in data:
+                    self.error("server said: %s" % data["error"])
             raise SystemExit(1)
 
     def update_auth(self, user, password):
         self.http.auth = (user, password)
         oldumask = os.umask(0077)
-        self.LOGINPATH.write(json.dumps(dict(user=user, password=password)))
+        self.clientdir.join("login").write(
+            json.dumps(dict(user=user, password=password)))
         os.umask(oldumask)
 
     def requires_login(self):
@@ -88,9 +104,11 @@ class Hub:
             self.fatal("you need to be logged in (use 'devpi login USER')")
 
     def get_index_url(self, indexname):
-        assert self.http.auth[0]
-        userurl = self.config.getuserurl(self.http.auth[0])
-        return urlutil.joinpath(userurl + "/", indexname)
+        if "/" not in indexname:
+            assert self.http.auth[0]
+            userurl = self.config.getuserurl(self.http.auth[0])
+            return urlutil.joinpath(userurl + "/", indexname)
+        return urlutil.joinpath(self.config.rooturl, indexname)
 
     def XXX_get_fq_index(self, indexname):
         parts = indexname.split("/", 1)
@@ -167,7 +185,7 @@ class Hub:
         self._tw.line(msg, **kwargs)
 
     def debug(self, *msg):
-        if self._debug:
+        if self.args.debug:
             self.line("[debug]", *msg)
 
     def error(self, *msg):
@@ -243,6 +261,8 @@ def list_(parser):
 @subcommand("devpi.login")
 def login(parser):
     """ login to devpi-server"""
+    parser.add_argument("--password", action="store", default=None,
+                        help="password to use for login (prompt if not set)")
     parser.add_argument("username", action="store", default=None,
                         help="username to use for login")
 

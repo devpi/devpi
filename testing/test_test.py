@@ -7,30 +7,20 @@ from devpi import config
 
 pytest_plugins = "pytester"
 
-@pytest.fixture
-def cmd_devpi(cmd_devpi, pypiserverprocess, testdir, monkeypatch):
-    assert testdir.tmpdir == py.path.local()
-    res = cmd_devpi("use", pypiserverprocess.cfg.url)
-    assert res.ret == 0
-    return cmd_devpi
-    #cfg = pypiserverprocess.cfg
-    #assert testdir.tmpdir == py.path.local()
-    #api = config.retrieve_api(cfg.url)
-    #config.write_api(testdir.tmpdir, api)
-
 class TestFunctional:
-    def test_main_nopackage(self, cmd_devpi):
-        result = cmd_devpi("test", "--debug", "notexists73", ret=1)
-        result.stdout.fnmatch_lines([
+    @pytest.mark.xfail(reason="output capturing for devpi calls")
+    def test_main_nopackage(self, out_devpi):
+        result = out_devpi("test", "--debug", "notexists73", ret=1)
+        result.fnmatch_lines([
             "*could not find/receive*",
         ])
 
-    def test_main_example(self, cmd_devpi, create_and_upload):
+    def test_main_example(self, out_devpi, create_and_upload):
         create_and_upload("exa-1.0", filedefs={
            "tox.ini": """
               [testenv]
               commands = python -c "print('ok')"
             """,
         })
-        result = cmd_devpi("test", "--debug", "exa")
+        result = out_devpi("test", "--debug", "exa")
         assert result.ret == 0

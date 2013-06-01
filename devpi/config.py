@@ -71,14 +71,12 @@ class Config(object):
             url = urlutil.joinpath(base, url)
         return url
 
-    def configure_fromurl(self, url):
-        url = self._normalize_url(url)
-        newurl = urlutil.joinpath(url, "-api")
-        log.debug("retrieving api configuration from %s", newurl)
-        f = py.std.urllib.urlopen(newurl)
-        data = py.std.json.loads(f.read())
+    def configure_fromurl(self, hub, url):
+        url = hub.get_index_url(url)
+        data = hub.http_api("get", url + "/-api", ret=True,
+                            errmsg="index %r" % url)
         for name in data:
-            data[name] = urlutil.joinpath(newurl, data[name])
+            data[name] = urlutil.joinpath(url, data[name])
         self.reconfigure(data)
 
     def getvenvbin(self, name):
@@ -107,7 +105,7 @@ def main(hub, args=None):
         msg = "config:"
     else:
         msg = "no config file, using empty defaults"
-    hub.info(msg, config.path)
+    hub.debug(msg, config.path)
 
     if args.indexurl:
         assert not args.delete
@@ -121,7 +119,7 @@ def main(hub, args=None):
                         hub.fatal("no virtualenv %r found" % venvname)
                 config.reconfigure(dict(venvdir=cand.strpath))
             else:
-                config.configure_fromurl(arg)
+                config.configure_fromurl(hub, arg)
     for name, value in config.items():
         hub.info("%16s: %s" %(name, value))
 
