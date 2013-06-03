@@ -5,6 +5,10 @@ import sys, os
 from setuptools import setup
 
 if __name__ == "__main__":
+    here = os.path.abspath(".")
+    README = open(os.path.join(here, 'README.rst')).read()
+    CHANGES = open(os.path.join(here, 'CHANGELOG')).read()
+
     install_requires=["tox>=1.4.3", "archive>=0.3",
                       "pip>=1.3.1", "py>=1.4.14", "requests>=1.2.2",]
 
