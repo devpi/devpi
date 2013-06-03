@@ -32,8 +32,15 @@ def user_delete(hub, user):
                  okmsg="deleted user %r" % user,
                  errmsg="failed to delete user %r" % user)
 
+def user_list(hub, user):
+    userdict = hub.http_api("get", hub.config.getuserurl(user), ret=True)
+    for name in userdict or []:
+        hub.line(name)
+
 def main(hub, args):
     username = args.username
+    if not args.list and not username:
+        hub.fatal("need to specify a username")
     kvdict = parse_keyvalue_spec(args.keyvalues)
     if args.create:
         return user_create(hub, username, kvdict)
@@ -41,5 +48,7 @@ def main(hub, args):
         return user_delete(hub, username)
     elif args.modify:
         return user_modify(hub, username, kvdict)
+    elif args.list:
+        return user_list(hub, username)
     else:
-        hub.fatal("need to specify -c|-d|-m")
+        hub.fatal("need to specify -c|-d|-m|-l")

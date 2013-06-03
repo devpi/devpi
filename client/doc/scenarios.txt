@@ -9,7 +9,7 @@ with their user-specific indexes freely.
 
 create bob as a new user::
 
-    $ devpi user -c bob --email bob@email.com  # email is required
+    $ devpi user -c bob email=bob@email.com  # email is required
     enter password for bob : ***********
     repeat password for bob: ***********
     -> user "bob" created, with email bob@email.com

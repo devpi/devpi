@@ -247,7 +247,9 @@ def user(parser):
         help="delete a user")
     group.add_argument("-m", "--modify", action="store_true",
         help="modify user settings")
-    parser.add_argument("username", type=str, action="store",
+    group.add_argument("-l", "--list", action="store_true",
+        help="list user names")
+    parser.add_argument("username", type=str, action="store", nargs="?",
         help="user name")
     parser.add_argument("keyvalues", nargs="*", type=str,
         help="key=value configuration item")
