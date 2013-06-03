@@ -1,0 +1,3 @@
+include CHANGELOG *.txt *.ini *.rst
+recursive-include devpi_server *.template 
+recursive-include testing *.py

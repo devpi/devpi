@@ -1,0 +1,32 @@
+[unix_http_server]
+file = %(here)s/../supervisor.socket
+ 
+[supervisord]
+logfile={logdir}/supervisord.log
+pidfile={venvdir}/supervisord.pid
+logfile_maxbytes=50MB           
+logfile_backups=5 
+loglevel=info           ; info, debug, warn, trace
+redirect_stderr = True
+nodaemon=false          ; run supervisord as a daemon
+minfds=1024             ; number of startup file descriptors
+minprocs=200            ; number of process descriptors
+childlogdir={logdir}   ; where child log files will live
+ 
+[rpcinterface:supervisor]
+supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
+ 
+[supervisorctl]
+serverurl=unix://%(here)s/../supervisor.socket
+
+# if you have a system-wide supervisord installation 
+# you might move the below actual program definitions 
+# to a global /etc/supervisord/conf.d/devpi-server.conf
+
+[program:devpi-server]
+command={venvdir}/bin/devpi-server --datadir={datadir} --refresh=60 --port={devpiport}
+priority=999
+startsecs = 1
+redirect_stderr = True
+autostart=False
+

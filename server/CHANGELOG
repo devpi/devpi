@@ -1,0 +1,98 @@
+0.9.0.dev
+----------------
+
+- use a filesystem based storage mechanism instead of redis
+
+- prevent automatic decoding of gzip files in case of content encoding
+
+- XXX preliminarily introduce new int/dev, int/prod indexes where int/dev 
+  inherits packages from both int/prod and ext/pypi.  
+
+- XXX introduce preliminary support for client-side "devpi" workflow tool
+
+- allow uploads to int/dev
+
+- if no crontab exists for a user, simply create one
+  instead of erroring out.  Thanks Andi Albrecht.
+
+- internal refactoring for better organisation of redis access
+
+
+0.8.5
+----------------
+
+- re-fix issue6: tests and fixes for django-debug-toolbar
+  where recursive scraping was accidentally triggered
+
+- remove fine-grained http caching for now because caching 
+  on the index level seems enough.  This avoids an issues that
+  occured when installing icalendar and also some offline/online
+  state change issues.  
+
+- added a note to README for how to upgrade --gendeploy installs
+
+- remove general dependency on virtualenv which 
+  is only needed for --gendeploy.  Adapt docs accordingly.
+
+- remove dependency on pip by shifting the relevant 
+  scraping bits directly to _pip.py
+
+0.8.4
+----------------
+
+- use pip's link parser rather than beautifulsoup
+  to benefit from link parsing code tested out 
+  and maintained in the wild.  Adapt README.
+
+- skip a test if crontab command is not present
+
+  (thanks Markus Zapke-Gruendemann)
+
+- release 0.8.3 is not useable
+
+0.8.2
+------------------------------
+
+- fix issue6 - some edge cases for link parsing uncovered
+  by BeautifulSoup and CouchApp installs. Thanks Anton Baklanov.
+
+- fix issue5 - require minimal versions for deps, thanks Andi Albrecht
+
+- remove superflous include lines in MANIFEST.in
+
+
+0.8.1
+------------------------------
+
+- fix: change gendeployed supervisord.conf  to not autostart
+  processes on "devpi-ctl" invocations.  "devpi-ctl help"
+  would autostart the processes after a shutdown which is
+  not very intuitive.  This is actually compatible with the 
+  documentation.
+
+- refactor --gendeploy related code to be in gendeploy.py
+
+- fix: fixate path of devpi-server in gendeployed configuration
+  to point to the freshly installed devpi-server. also add
+  a note to the README.
+
+0.8
+------------------------------
+
+- introduce "--gendeploy=TARGETDIR" for generating a virtualenv
+  directory with supervisor-based configuration in TARGETDIR/etc
+  and a TARGETDIR/bin/devpi-ctl helper to control the running
+  of devpi-server and redis-server processes.
+
+- fix issue4: keep the "changelog" thread active across
+  network/reachability errors.  Thanks Laurent Brack.
+
+- use argparse instead of optparse, simplify and group options
+
+- fix python2.6 and simplify logging configuration
+
+0.7
+---
+
+-  Initial release
+
