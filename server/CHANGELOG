@@ -1,7 +1,11 @@
 0.9.0.dev
 ----------------
 
-- use a filesystem based storage mechanism instead of redis
+- implement more precise pypi.python.org CDN/caching invalidation
+  technique, using the new experimental "X-PYPI-LAST-SERIAL" header
+  on simple pages.
+
+- use a filesystem based storage mechanism instead of Redis
 
 - prevent automatic decoding of gzip files in case of content encoding
 

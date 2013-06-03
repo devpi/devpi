@@ -127,9 +127,8 @@ class TestIndexParsing:
 
 class TestExtPYPIDB:
     def test_parse_project_nomd5(self, extdb):
-        extdb.url2response["https://pypi.python.org/simple/pytest/"] = dict(
-            status_code=200,
-            text='<a href="../../pkg/pytest-1.0.zip#md5=123" />')
+        extdb.setextsimple("pytest", text='''
+            <a href="../../pkg/pytest-1.0.zip#md5=123" />''')
         links = extdb.getreleaselinks("pytest")
         link, = links
         assert link.url == "https://pypi.python.org/pkg/pytest-1.0.zip"
@@ -137,11 +136,10 @@ class TestExtPYPIDB:
         assert link.relpath.endswith("/pytest-1.0.zip")
 
     def test_parse_and_scrape(self, extdb):
-        extdb.url2response["https://pypi.python.org/simple/pytest/"] = dict(
-            status_code=200, text='''
+        extdb.setextsimple("pytest", text='''
                 <a href="../../pkg/pytest-1.0.zip#md5=123" />
                 <a rel="download" href="https://download.com/index.html" />
-            ''')
+            ''', pypiserial=20)
         extdb.url2response["https://download.com/index.html"] = dict(
             status_code=200, text = '''
                 <a href="pytest-1.1.tar.gz" />
@@ -152,22 +150,39 @@ class TestExtPYPIDB:
         assert links[0].relpath.endswith("/pytest-1.1.tar.gz")
 
         # check refresh
-        extdb.url2response["https://pypi.python.org/simple/pytest/"] = dict(
-            status_code=200, text='''
+        extdb.setextsimple("pytest", text='''
                 <a href="../../pkg/pytest-1.0.1.zip#md5=456" />
                 <a href="../../pkg/pytest-1.0.zip#md5=123" />
                 <a rel="download" href="https://download.com/index.html" />
-            ''')
+            ''', pypiserial=25)
         assert len(extdb.getreleaselinks("pytest")) == 2  # no refresh
-        links = extdb.getreleaselinks("pytest", refresh=True)
+        links = extdb.getreleaselinks("pytest", refresh=25)
         assert len(links) == 3
         assert links[1].url == "https://pypi.python.org/pkg/pytest-1.0.1.zip"
         assert links[1].relpath.endswith("/pytest-1.0.1.zip")
 
+    def test_getreleaselinks_cache_refresh_semantics(self, extdb):
+        extdb.setextsimple("pytest", text='''
+                <a href="../../pkg/pytest-1.0.zip#md5=123" />
+                <a rel="download" href="https://download.com/index.html" />
+            ''', pypiserial=10)
+
+        # check getreleaselinks properly returns -2 on stale cache returns
+        ret = extdb.getreleaselinks("pytest", refresh=11)
+        assert ret == -2
+        ret = extdb.getreleaselinks("pytest", refresh=10)
+        assert len(ret) == 1
+
+        # disable httpget and see if we still get releaselinks for lower
+        # refresh serials
+        extdb.httpget = None
+        ret = extdb.getreleaselinks("pytest", refresh=9)
+        assert len(ret) == 1
+
+
     @pytest.mark.parametrize("errorcode", [404, -1, -2])
     def test_parse_and_scrape_error(self, extdb, errorcode):
-        extdb.url2response["https://pypi.python.org/simple/pytest/"] = dict(
-            status_code=200, text='''
+        extdb.setextsimple("pytest", text='''
                 <a href="../../pkg/pytest-1.0.zip#md5=123" />
                 <a rel="download" href="https://download.com/index.html" />
             ''')
@@ -179,8 +194,7 @@ class TestExtPYPIDB:
                 "https://pypi.python.org/pkg/pytest-1.0.zip"
 
     def test_scrape_not_recursive(self, extdb):
-        extdb.url2response["https://pypi.python.org/simple/pytest/"] = dict(
-            status_code=200, text='''
+        extdb.setextsimple("pytest", text='''
                 <a rel="download" href="https://download.com/index.html" />
             ''')
         extdb.url2response["https://download.com/index.html"] = dict(
@@ -209,12 +223,10 @@ class TestExtPYPIDB:
         assert len(links) == 1
 
     def test_getprojectnames(self, extdb):
-        extdb.url2response["https://pypi.python.org/simple/proj1/"] = dict(
-            status_code=200, text='''
-                <a href="../../pkg/proj1-1.0.zip#md5=123" /> ''')
-        extdb.url2response["https://pypi.python.org/simple/proj2/"] = dict(
-            status_code=200, text='''
-                <a href="../../pkg/proj2-1.0.zip#md5=123" /> ''')
+        extdb.setextsimple("proj1", text='''
+                           <a href="../../pkg/proj1-1.0.zip#md5=123" /> ''')
+        extdb.setextsimple("proj2", text='''
+                           <a href="../../pkg/proj2-1.0.zip#md5=123" /> ''')
         extdb.url2response["https://pypi.python.org/simple/proj3/"] = dict(
             status_code=404)
         assert len(extdb.getreleaselinks("proj1")) == 1
@@ -224,7 +236,7 @@ class TestExtPYPIDB:
         assert names == ["proj1", "proj2"]
 
 
-def raising():
+def raise_ValueError():
     raise ValueError(42)
 
 class TestRefreshManager:
@@ -240,24 +252,28 @@ class TestRefreshManager:
         proxy.changelog_last_serial.return_value = 10
         proxy.changelog_since_serial.return_value = []
         with pytest.raises(ValueError):
-            refreshmanager.spawned_pypichanges(proxy, proxysleep=raising)
+            refreshmanager.spawned_pypichanges(proxy,
+                                               proxysleep=raise_ValueError)
         proxy.changelog_last_serial.assert_called_once_with()
         assert keyfs.PYPISERIAL.get() == 10
 
     def test_pypichanges_changes(self, extdb, keyfs,
                                  refreshmanager, monkeypatch):
         keyfs.PYPISERIAL.set(10)
-        monkeypatch.setattr(extdb, "httpget", lambda *x,**y: raising())
+        monkeypatch.setattr(extdb, "httpget",
+                            lambda *x,**y: raise_ValueError())
         pytest.raises(ValueError, lambda: extdb.getreleaselinks("pytest"))
         proxy = mock.create_autospec(XMLProxy)
         proxy.changelog_since_serial.return_value = [
-            ["pylib", 11], ["pytest", 12]]
+            ["pylib", "1.4", 12123, 'new release', 11],
+            ["pytest", "2.0", 121231, 'new release', 12]]
         with pytest.raises(ValueError):
-            refreshmanager.spawned_pypichanges(proxy, proxysleep=raising)
+            refreshmanager.spawned_pypichanges(proxy,
+                                               proxysleep=raise_ValueError)
         assert not proxy.changelog_last_serial.called
         assert keyfs.PYPISERIAL.get() == 12
         invalid = keyfs.PYPIINVALID.get()
-        assert invalid == set(["pytest"])
+        assert invalid == {"pytest": 12}
 
     @pytest.fixture(params=["protocol", "socket"])
     def raise_error(self, request):
@@ -283,9 +299,11 @@ class TestRefreshManager:
         serverproxy.changelog_since_serial.side_effect = raise_xmlrpcish
         xmlproxy = XMLProxy(serverproxy)
         with pytest.raises(ValueError):
-            refreshmanager.spawned_pypichanges(xmlproxy, proxysleep=raising)
+            refreshmanager.spawned_pypichanges(xmlproxy,
+                                               proxysleep=raise_ValueError)
         with pytest.raises(ValueError):
-            refreshmanager.spawned_pypichanges(xmlproxy, proxysleep=raising)
+            refreshmanager.spawned_pypichanges(xmlproxy,
+                                               proxysleep=raise_ValueError)
         assert got == [10,10]
         assert caplog.getrecords(".*since_serial.*error.*")
 
@@ -301,23 +319,38 @@ class TestRefreshManager:
                 raise ValueError
 
         serverproxy = mock.Mock()
-        serverproxy.changelog_last_serial.side_effect = raising
+        serverproxy.changelog_last_serial.side_effect = raise_ValueError
         xmlproxy = XMLProxy(serverproxy)
         with pytest.raises(ValueError):
-            refreshmanager.spawned_pypichanges(xmlproxy, proxysleep=raising)
+            refreshmanager.spawned_pypichanges(xmlproxy,
+                                               proxysleep=raise_ValueError)
         assert not keyfs.PYPISERIAL.exists()
         assert caplog.getrecords(".*error.*")
 
     def test_refreshprojects(self, keyfs, extdb, refreshmanager, monkeypatch):
-        keyfs.PYPIINVALID.set(set(["pytest"]))
+        keyfs.PYPIINVALID.set({"pytest": 12})
         assert "pytest" in keyfs.PYPIINVALID.get()
         m = mock.Mock()
         monkeypatch.setattr(extdb, "getreleaselinks", m)
         m.return_value = []
         with pytest.raises(ValueError):
-            refreshmanager.spawned_refreshprojects(invalidationsleep=raising)
-        m.assert_called_once_with("pytest", refresh=True)
+            refreshmanager.spawned_refreshprojects(
+                invalidationsleep=raise_ValueError)
+        m.assert_called_once_with("pytest", refresh=12)
         assert not keyfs.PYPIINVALID.get()
+
+    def test_refreshprojects_stalecache(self, keyfs,
+                                        extdb, refreshmanager, monkeypatch):
+        keyfs.PYPIINVALID.set({"pytest": 13})
+        assert "pytest" in keyfs.PYPIINVALID.get()
+        m = mock.Mock()
+        monkeypatch.setattr(extdb, "getreleaselinks", m)
+        m.return_value = -2
+        with pytest.raises(ValueError):
+            refreshmanager.spawned_refreshprojects(
+                invalidationsleep=raise_ValueError)
+        m.assert_called_once_with("pytest", refresh=13)
+        assert keyfs.PYPIINVALID.get() == {"pytest": 13}
 
 
 def test_requests_httpget_negative_status_code(xom_notmocked, monkeypatch):

@@ -38,7 +38,7 @@ def add_keys(keyfs):
     # pypi related
     keyfs.HPYPIPROJECTS = keyfs.addkey("ext/pypi/links/{name}", list)
     keyfs.PYPISERIAL = keyfs.addkey("ext/pypi/serial", int)
-    keyfs.PYPIINVALID = keyfs.addkey("ext/pypi/invalid", set)
+    keyfs.PYPIINVALID = keyfs.addkey("ext/pypi/invalid", dict)
 
     #keyfs.PYPIFILECACHE = keyfs.addkey("ext/pypi/c/{filename}", file)
     #keyfs.PYPIFILECACHE_META = keyfs.addkey("ext/pypi/c/{filename}.m", dict)

@@ -117,24 +117,32 @@ class ExtDB:
         """ return list of all projects which have been served. """
         return sorted(self.keyfs.HPYPIPROJECTS.listnames("name"))
 
-    def _dump_projectlinks(self, projectname, dumplist):
-        self.keyfs.HPYPIPROJECTS(name=projectname).set(dumplist)
+    def _dump_projectlinks(self, projectname, dumplist, serial):
+        newlist = [serial] + dumplist
+        self.keyfs.HPYPIPROJECTS(name=projectname).set(newlist)
 
     def _load_projectlinks(self, projectname):
         res = self.keyfs.HPYPIPROJECTS(name=projectname).get(None)
         if res:
-            return res
-        return None
+            serial = res.pop(0)
+            assert isinstance(serial, int)
+            return serial, res
+        return None, None
 
-    def getreleaselinks(self, projectname, refresh=False):
+    def getreleaselinks(self, projectname, refresh=0):
         """ return all releaselinks from the index and referenced scrape
-        pages.  If refresh is True, re-get all index and scrape pages.
+        pages.   If we have cached entries return them if they relate to
+        at least the specified "refresh" serial number.  Otherwise
+        ask pypi.python.org for the simple page and process it if
+        it relates to at least the specified refresh serial.
+
+        If the pypi server cannot be reached return -1
+        If the cache is stale and could not be refreshed return -2.
         """
-        if not refresh:
-            res = self._load_projectlinks(projectname)
-            if res is not None:
-                return [self.releasefilestore.getentry(relpath)
-                            for relpath in res]
+        assert not isinstance(refresh, bool), repr(refresh)
+        serial, res = self._load_projectlinks(projectname)
+        if res is not None and serial >= refresh:
+            return [self.releasefilestore.getentry(relpath) for relpath in res]
 
         # the async changelog-checking might run any time and we need to
         # make sure it consider this project before we read pypi.
@@ -145,8 +153,14 @@ class ExtDB:
         log.debug("visiting index %s", url)
         response = self.httpget(url, allow_redirects=True)
         if response.status_code != 200:
-            assert response.status_code
             return response.status_code
+        serial = int(response.headers["X-PYPI-LAST-SERIAL"])
+        if not isinstance(refresh, bool) and isinstance(refresh, int):
+            if serial < refresh:
+                log.warn("%s: pypi returned serial %s, expected %s",
+                         projectname, serial, refresh)
+                return -2  # the page we got is not fresh enough
+        log.debug("%s: got response with serial %s" % (projectname, serial))
         assert response.text is not None, response.text
         result = parse_index(response.url, response.text)
         for crawlurl in result.crawllinks:
@@ -166,7 +180,7 @@ class ExtDB:
         entries = [self.releasefilestore.maplink(link, refresh=refresh)
                         for link in releaselinks]
         dumplist = [entry.relpath for entry in entries]
-        self._dump_projectlinks(projectname, dumplist)
+        self._dump_projectlinks(projectname, dumplist, serial)
         self._inprogress.remove(projectname)
         return entries
 
@@ -200,14 +214,14 @@ class RefreshManager:
             proxysleep()
 
     def mark_refresh(self, changelog):
-        projectnames = set([x[0] for x in changelog])
+        projectnames = [(x[0], x[-1]) for x in changelog]
         keyfs = self.keyfs
         notcontained = set()
-        changed = set()
-        for name in projectnames:
+        changed = {}
+        for name, serial in projectnames:
             if self.extdb.iscontained(name):
-                log.debug("marking invalid %r", name)
-                changed.add(name)
+                log.debug("invalidating %r with serial %s", name, serial)
+                changed[name] = serial
             else:
                 notcontained.add(name)
         if notcontained:
@@ -224,13 +238,12 @@ class RefreshManager:
         # refreshing tasks (but possibly performing them twice)
         keyfs = self.keyfs
         while 1:
-            names = keyfs.PYPIINVALID.get()
-            if not names:
-                invalidationsleep()
-                continue
-            log.info("refreshing invalidated projects %r", names)
-            with keyfs.PYPIINVALID.locked_update() as invalidset:
-                for name in names:
-                    x = self.extdb.getreleaselinks(name, refresh=True)
-                    if not isinstance(x, int):
-                        invalidset.remove(name)
+            name2serial = keyfs.PYPIINVALID.get()
+            if name2serial:
+                log.info("refreshing invalidated projects %r", name2serial)
+                with keyfs.PYPIINVALID.locked_update() as invalid:
+                    for name, serial in name2serial.items():
+                        x = self.extdb.getreleaselinks(name, refresh=serial)
+                        if not isinstance(x, int):
+                            del invalid[name]
+            invalidationsleep()

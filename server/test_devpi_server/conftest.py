@@ -47,6 +47,7 @@ def xom(request, keyfs, filestore, httpget):
     xom.releasefilestore = filestore
     xom.httpget = httpget
     xom.extdb = ExtDB(xom=xom)
+    xom.extdb.setextsimple = httpget.setextsimple
     xom.extdb.url2response = httpget.url2response
     request.addfinalizer(xom.shutdown)
     return xom
@@ -80,7 +81,9 @@ def httpget(pypiurls):
             log.debug("set mocking response %s %s", url, kw)
             self.url2response[url] = kw
 
-        def setextsimple(self, name, text=None, **kw):
+        def setextsimple(self, name, text=None, pypiserial=10000, **kw):
+            headers = kw.setdefault("headers", {})
+            headers["X-PYPI-LAST-SERIAL"] = pypiserial
             return self.mockresponse(pypiurls.simple + name + "/",
                                       text=text, **kw)
 
