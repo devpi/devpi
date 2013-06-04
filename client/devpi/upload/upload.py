@@ -93,7 +93,7 @@ class Checkout:
         if self.hashg:
             log.debug("detected hg, trying hg export")
             newrepo = basetemp.join(self.rootpath.basename)
-            out = self.hub.popen_output("hg st -nmardc .", cwd=self.rootpath)
+            out = self.hub.popen_output("hg st -nmac .", cwd=self.rootpath)
             num = 0
             for fn in out.split("\n"):
                 if fn.strip():

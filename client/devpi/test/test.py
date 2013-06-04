@@ -89,6 +89,7 @@ class DevIndex:
         log.debug("pytestplugin", x)
         toxargs = ["tox", "--installpkg", str(path_archive),
                    "-i ALL=%s" % self.config.simpleindex,
+                   "-v",
         ]
         if venv is not None:
             toxargs.append("-e" + venv)
