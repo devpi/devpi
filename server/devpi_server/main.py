@@ -44,7 +44,7 @@ def add_keys(keyfs):
     # type stage related
     keyfs.STAGELINKS = keyfs.addkey("{user}/{index}/links/{name}", dict)
     keyfs.STAGEFILE = keyfs.addkey("{user}/{index}/f/{md5}/{filename}", bytes)
-    keyfs.STAGEDOCS = keyfs.addkey("{user}/{index}/doc/{name}/{version}", "DIR")
+    keyfs.STAGEDOCS = keyfs.addkey("{user}/{index}/doc/{name}", "DIR")
     keyfs.PATHENTRY = keyfs.addkey("{relpath}-meta", dict)
     keyfs.FILEPATH = keyfs.addkey("{relpath}", bytes)
 

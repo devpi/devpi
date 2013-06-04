@@ -113,7 +113,7 @@ def test_upload_docs(httpget, db, mapp, testapp):
     mapp.create_index("name")
     content = create_zipfile({"index.html": "<html/>"})
     mapp.upload_doc("user", "name", "pkg1.zip", content, "pkg1", "2.6")
-    r = testapp.get("/user/name/doc/pkg1/2.6/index.html")
+    r = testapp.get("/user/name/doc/pkg1/index.html")
     assert r.status_code == 200
     #a = getfirstlink(r.text)
     #assert "pkg1-2.6.tgz" in a.get("href")

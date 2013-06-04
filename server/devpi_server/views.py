@@ -197,7 +197,7 @@ class PyPIView:
             else:
                 if len(content.value) > MAXDOCZIPSIZE:
                     abort(413, "zipfile too large")
-                stage.store_doczip(name, version, content.value)
+                stage.store_doczip(name, content.value)
         else:
             abort(400, "action %r not supported" % action)
         return ""
@@ -225,11 +225,10 @@ class PyPIView:
 
 
     # showing documentation about packages
-    @route("/<user>/<index>/doc/<name>/<version>/<relpath:re:.*>",
+    @route("/<user>/<index>/doc/<name>/<relpath:re:.*>",
            method="GET")
-    def doc_show(self, user, index, name, version, relpath):
-        key = self.db.keyfs.STAGEDOCS(user=user, index=index,
-                                name=name, version=version)
+    def doc_show(self, user, index, name, relpath):
+        key = self.db.keyfs.STAGEDOCS(user=user, index=index, name=name)
         if not key.filepath.check():
             abort(404, "no documentation available")
         if not relpath:

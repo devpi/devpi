@@ -69,7 +69,7 @@ class TestStage:
     def test_storedoczipfile(self, stage, bases):
         content = create_zipfile({"index.html": "<html/>",
             "_static": {}, "_templ": {"x.css": ""}})
-        filepath = stage.store_doczip("pkg1", "1.0", content)
+        filepath = stage.store_doczip("pkg1", content)
         assert filepath.join("index.html").check()
         assert filepath.join("_static").check(dir=1)
         assert filepath.join("_templ", "x.css").check(file=1)
@@ -77,9 +77,9 @@ class TestStage:
     def test_storedoczipfile(self, stage, bases):
         content = create_zipfile({"index.html": "<html/>",
             "_static": {}, "_templ": {"x.css": ""}})
-        filepath = stage.store_doczip("pkg1", "1.0", content)
+        filepath = stage.store_doczip("pkg1", content)
         content = create_zipfile({"nothing": "hello"})
-        filepath = stage.store_doczip("pkg1", "1.0", content)
+        filepath = stage.store_doczip("pkg1", content)
         assert filepath.join("nothing").check()
         assert not filepath.join("index.html").check()
         assert not filepath.join("_static").check()

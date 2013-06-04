@@ -189,12 +189,9 @@ class PrivateStage:
             log.info("%s: stored releasefile %s", self.name, entry.relpath)
             return entry
 
-    def store_doczip(self, name, version, content):
+    def store_doczip(self, name, content):
         assert content
-        if not version:
-            version = "cur"
-        key = self.keyfs.STAGEDOCS(user=self.user, index=self.index,
-                                   name=name, version=version)
+        key = self.keyfs.STAGEDOCS(user=self.user, index=self.index, name=name)
 
         # XXX collission checking
         #
