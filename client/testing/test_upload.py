@@ -1,4 +1,5 @@
 import sys
+import py
 import pytest
 import types
 from devpi.upload.upload import (setversion, Checkout, find_parent_subpath)
@@ -106,4 +107,14 @@ def test_readpypirc(monkeypatch, tmpdir):
     assert current["password"] == "password"
     assert current["realm"] == "devpi"
     assert sys.argv == ["setup.py", "register", "1"]
+
+class TestUploadFunctional:
+    def test_dryrun_all(self, initproj, devpi):
+        initproj("hello-1.0", {"doc": {
+            "conf.py": "",
+            "index.html": "<html/>"}})
+        assert py.path.local("setup.py").check()
+        devpi("upload", "--dryrun")
+        devpi("upload", "--dryrun", "--withdocs")
+        devpi("upload", "--dryrun", "--onlydocs")
 

@@ -209,3 +209,15 @@ class TestKey:
         key1.get() == "hello"
         assert key1.filepath.size() == 5
         assert key1.filepath.read() == "hello"
+
+    def test_dirkey(self, keyfs):
+        key1 = keyfs.addkey("somedir", "DIR")
+        assert not hasattr(key1, "get")
+        assert not hasattr(key1, "set")
+        assert not hasattr(key1, "delete")
+        assert not hasattr(key1, "exists")
+
+        assert key1.filepath.strpath.endswith("somedir")
+        assert key1.filepath.strpath.endswith(key1.relpath)
+
+

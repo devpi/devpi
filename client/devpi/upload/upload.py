@@ -27,37 +27,37 @@ def main(hub, args):
     exported = checkout.export(uploadbase)
     hub.info("hg-exported project to", exported)
 
-    if 0:
-        set_new_version(hub, args, exported)
-    exported.setup_register()
-    exported.setup_upload()
+    #set_new_version(hub, args, exported)
+    if not args.onlydocs:
+        exported.setup_register()
+        exported.setup_upload()
+    if args.onlydocs or args.withdocs:
+        exported.setup_upload_docs()
 
 def set_new_version(hub, args, exported):
     if args.setversion:
         newversion = verlib.Version(args.setversion)
         exported.change_versions(newversion)
-
-    pkgname, version = exported.name_and_version()
-    link = hub.remoteindex.getbestlink(pkgname)
-    if link is None:
-        log.info("no remote packages registered yet")
     else:
-        indexversion = verlib.Version.frombasename(link.basename)
-        if version < indexversion:
-            hub.fatal(pkgname, "local", version, "lower than index",
-                      indexversion)
-        elif version == indexversion:
-            if args.setversion:
-                hub.fatal("index already has %s-%s" %(pkgname, version))
-            newversion = version.autoinc()
-            exported.change_versions(newversion)
-                #["setup.py", pkgname + os.sep + "__init__.py"])
-            n,v = exported.name_and_version()
-            assert v == newversion, (str(v), str(newversion))
+        pkgname, version = exported.name_and_version()
+        link = hub.remoteindex.getbestlink(pkgname)
+        if link is None:
+            log.info("no remote packages registered yet")
         else:
-            newversion = version
-            log.info("good, local", version, "newer than latest remote",
-                     indexversion)
+            indexversion = verlib.Version.frombasename(link.basename)
+            if version < indexversion:
+                hub.fatal(pkgname, "local", version, "lower than index",
+                          indexversion)
+            elif version == indexversion:
+                newversion = version.autoinc()
+                exported.change_versions(newversion)
+                    #["setup.py", pkgname + os.sep + "__init__.py"])
+                n,v = exported.name_and_version()
+                assert v == newversion, (str(v), str(newversion))
+            else:
+                newversion = version
+                log.info("good, local", version, "newer than latest remote",
+                         indexversion)
 
 
 def setversion(s, newversion):
@@ -86,21 +86,26 @@ def find_parent_subpath(startpath, relpath, raising=True):
 class Checkout:
     def __init__(self, hub, somepath):
         self.hub = hub
-        self.rootpath = find_parent_subpath(somepath, ".hg").dirpath()
+        self.rootpath = find_parent_subpath(somepath, "setup.py").dirpath()
+        self.hashg = bool(find_parent_subpath(somepath, ".hg", raising=False))
 
     def export(self, basetemp):
-        newrepo = basetemp.join(self.rootpath.basename)
-        out = self.hub.popen_output("hg st -nmardc", cwd=self.rootpath)
-        num = 0
-        for fn in out.split("\n"):
-            if fn.strip():
-                source = self.rootpath.join(fn)
-                dest = newrepo.join(fn)
-                dest.dirpath().ensure(dir=1)
-                source.copy(dest)
-                num += 1
-        log.debug("copied", num, "files to", newrepo)
-        return Exported(self.hub, newrepo, self.rootpath)
+        if self.hashg:
+            log.debug("detected hg, trying hg export")
+            newrepo = basetemp.join(self.rootpath.basename)
+            out = self.hub.popen_output("hg st -nmardc .", cwd=self.rootpath)
+            num = 0
+            for fn in out.split("\n"):
+                if fn.strip():
+                    source = self.rootpath.join(fn)
+                    dest = newrepo.join(fn)
+                    dest.dirpath().ensure(dir=1)
+                    source.copy(dest)
+                    num += 1
+            log.debug("copied", num, "files to", newrepo)
+            return Exported(self.hub, newrepo, self.rootpath)
+        else:
+            return Exported(self.hub, self.rootpath, self.rootpath)
 
 class Exported:
     def __init__(self, hub, rootpath, origrepo):
@@ -155,6 +160,9 @@ class Exported:
         pypisubmit = self.hub.config.pypisubmit
         cwd = self.rootpath
         user, password = self.hub.http.auth or ("test", "test")
+        if hub.args.dryrun:
+            hub.info("would register package at", cwd, "to", pypisubmit)
+            return
         hub.debug("registering package at", cwd, "to", pypisubmit)
         out = hub.popen_output([sys.executable, fn_setup, cwd,
              pypisubmit, user, password, "register", "-r", "devpi",],
@@ -167,7 +175,12 @@ class Exported:
     def setup_upload(self):
         config = self.hub.config
         cwd = self.rootpath
-        user, password = self.hub.http.auth or ("test", "test")
+        user, password = self.hub.http.auth
+        if not user:
+            self.hub.fatal("need to be logged in to perform this action")
+        if self.hub.args.dryrun:
+            self.hub.info("would upload", cwd, "to", config.pypisubmit)
+            return
         out = self.hub.popen_output(
             [sys.executable, fn_setup, cwd, config.pypisubmit,
              user, password,
@@ -180,4 +193,27 @@ class Exported:
                     return
         else:
             self.hub.fatal("could not register releasefile", out)
+
+    def setup_upload_docs(self):
+        config = self.hub.config
+        cwd = self.rootpath
+        user, password = self.hub.http.auth
+        if not user:
+            self.hub.fatal("need to be logged in to perform this action")
+        if self.hub.args.dryrun:
+            self.hub.info("would upload docs from", cwd, "to",
+                          config.pypisubmit)
+            return
+        out = self.hub.popen_output(
+            [sys.executable, fn_setup, cwd, config.pypisubmit,
+             user, password,
+             "sdist", "upload_docs", "-r", "devpi",],
+            cwd=cwd)
+        if "Server response (200): OK" in out:
+            for line in out.split("\n")[-10:]:
+                if line.startswith("Submitting"):
+                    self.hub.info(line.replace("Submitting", "submitted"))
+                    return
+        else:
+            self.hub.fatal("could not upload docs", out)
 

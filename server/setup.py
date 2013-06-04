@@ -21,6 +21,7 @@ if __name__ == "__main__":
       description="devpi-server: reliable fast pypi.python.org caching server",
       keywords="pypi cache server wsgi",
       long_description=README + '\n\n' + CHANGES,
+      url="https://bitbucket.org/hpk42/devpi",
       version='0.9.dev6',
       maintainer="Holger Krekel",
       maintainer_email="holger@merlinux.eu",

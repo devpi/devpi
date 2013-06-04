@@ -277,7 +277,6 @@ def cmd_devpi(tmpdir):
     clientdir = tmpdir.join("client")
     from devpi.main import initmain
     def run_devpi(*args):
-        tmpdir.chdir()
         callargs = ["devpi", "--clientdir", clientdir] + list(args)
         callargs = [str(x) for x in callargs]
         print_("*** inline$ %s" % " ".join(callargs))

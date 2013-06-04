@@ -1,5 +1,6 @@
 
 import os
+import py
 from devpi_server.urlutil import DistURL
 import hashlib
 
@@ -187,3 +188,38 @@ class PrivateStage:
             files[filename] = entry.relpath
             log.info("%s: stored releasefile %s", self.name, entry.relpath)
             return entry
+
+    def store_doczip(self, name, version, content):
+        assert content
+        if not version:
+            version = "cur"
+        key = self.keyfs.STAGEDOCS(user=self.user, index=self.index,
+                                   name=name, version=version)
+
+        # XXX collission checking
+        #
+        unzipfile = py.std.zipfile.ZipFile(py.io.BytesIO(content))
+
+        # XXX locking?
+        tempdir = self.keyfs.mkdtemp(name)
+        members = unzipfile.namelist()
+        for name in members:
+            fpath = tempdir.join(name, abs=True)
+            if not fpath.relto(tempdir):
+                raise ValueError("invalid path name:" + name)
+            if name.endswith(os.sep):
+                fpath.ensure(dir=1)
+            else:
+                fpath.dirpath().ensure(dir=1)
+                with fpath.open("wb") as f:
+                    f.write(unzipfile.read(name))
+        keypath = key.filepath
+        if keypath.check():
+            old = keypath.new(basename="old-" + keypath.basename)
+            keypath.move(old)
+            tempdir.move(keypath)
+            old.remove()
+        else:
+            keypath.dirpath().ensure(dir=1)
+            tempdir.move(keypath)
+        return keypath

@@ -56,3 +56,5 @@ class Mapp:
     def create_index(self, indexname):
         user, password = self.auth
         self.devpi("index", "-c", indexname)
+
+

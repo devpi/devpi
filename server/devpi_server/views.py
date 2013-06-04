@@ -2,7 +2,7 @@
 from py.xml import html
 from devpi_server.types import lazydecorator, cached_property
 from bottle import response, request, abort, redirect, HTTPError, auth_basic
-from bottle import BaseResponse, HTTPResponse
+from bottle import BaseResponse, HTTPResponse, static_file
 import bottle
 import json
 import itsdangerous
@@ -11,6 +11,8 @@ import logging
 log = logging.getLogger(__name__)
 
 LOGINCOOKIE = "devpi-login"
+MAXDOCZIPSIZE = 30 * 1024 * 1024    # 30MB
+
 
 def simple_html_body(title, bodytags):
     return html.html(
@@ -39,13 +41,8 @@ def apireturn(code, body):
 
 route = lazydecorator()
 
-class Auth:
-    def __init__(self, user):
-        self.user = user
-        self.roles = ["user"]
-
 class PyPIView:
-    LOGIN_EXPIRATION = 60*60*10
+    LOGIN_EXPIRATION = 60*60*10  # 10 hours
 
     def __init__(self, xom):
         self.xom = xom
@@ -184,19 +181,25 @@ class PyPIView:
             action = request.forms[":action"]
         except KeyError:
             abort(400, output=":action field not found")
+        log.debug("received POST action %r" %(action))
         stage = self.getstage(user, index)
         if action == "submit":
             return ""
-        elif action == "file_upload":
+        elif action in ("doc_upload", "file_upload"):
             try:
                 content = request.files["content"]
             except KeyError:
                 abort(400, "content file field not found")
-            #name = request.forms.get("name")
-            #version = request.forms.get("version")
-            stage.store_releasefile(content.filename, content.value)
+            name = request.forms.get("name")
+            version = request.forms.get("version", "")
+            if action == "file_upload":
+                stage.store_releasefile(content.filename, content.value)
+            else:
+                if len(content.value) > MAXDOCZIPSIZE:
+                    abort(413, "zipfile too large")
+                stage.store_doczip(name, version, content.value)
         else:
-            abort(400, output="action %r not supported" % action)
+            abort(400, "action %r not supported" % action)
         return ""
 
     @route("/<user>/<index>/")
@@ -220,6 +223,19 @@ class PyPIView:
             bases,
         ]).unicode()
 
+
+    # showing documentation about packages
+    @route("/<user>/<index>/doc/<name>/<version>/<relpath:re:.*>",
+           method="GET")
+    def doc_show(self, user, index, name, version, relpath):
+        key = self.db.keyfs.STAGEDOCS(user=user, index=index,
+                                name=name, version=version)
+        if not key.filepath.check():
+            abort(404, "no documentation available")
+        if not relpath:
+            redirect("index.html")
+
+        return static_file(relpath, root=str(key.filepath))
 
     #
     # supplying basic API locations for all services

@@ -1,9 +1,17 @@
 
+import py
+import os
 import pytest
 
 @pytest.fixture(params=[(), ("root/pypi",)])
 def bases(request):
     return request.param
+
+def test_create_zipfile():
+    content = create_zipfile({"one": {"nested": "1"}, "two": {}})
+    p = py.path.local("/tmp")
+    p.join("hello.zip").write(content, "wb")
+
 
 class TestStage:
     @pytest.fixture
@@ -57,6 +65,25 @@ class TestStage:
         assert len(entries) == 1
         assert entries[0].md5 == entry.md5
         assert stage.getprojectnames() == ["some"]
+
+    def test_storedoczipfile(self, stage, bases):
+        content = create_zipfile({"index.html": "<html/>",
+            "_static": {}, "_templ": {"x.css": ""}})
+        filepath = stage.store_doczip("pkg1", "1.0", content)
+        assert filepath.join("index.html").check()
+        assert filepath.join("_static").check(dir=1)
+        assert filepath.join("_templ", "x.css").check(file=1)
+
+    def test_storedoczipfile(self, stage, bases):
+        content = create_zipfile({"index.html": "<html/>",
+            "_static": {}, "_templ": {"x.css": ""}})
+        filepath = stage.store_doczip("pkg1", "1.0", content)
+        content = create_zipfile({"nothing": "hello"})
+        filepath = stage.store_doczip("pkg1", "1.0", content)
+        assert filepath.join("nothing").check()
+        assert not filepath.join("index.html").check()
+        assert not filepath.join("_static").check()
+        assert not filepath.join("_templ").check()
 
     def test_store_and_get_volatile(self, stage):
         stage.configure(volatile=False)
@@ -120,3 +147,26 @@ def test_setdefault_indexes(db):
     assert ixconfig["type"] == "stage"
     assert ixconfig["bases"] == ()
     assert not ixconfig["volatile"]
+
+def create_zipfile(contentdict):
+    f = py.io.BytesIO()
+    zip = py.std.zipfile.ZipFile(f, "w")
+    _writezip(zip, contentdict)
+    zip.close()
+    return f.getvalue()
+
+def _writezip(zip, contentdict, prefixes=()):
+    for name, val in contentdict.items():
+        if isinstance(val, dict):
+            newprefixes = prefixes + (name,)
+            if not val:
+                path = os.sep.join(newprefixes) + "/"
+                zipinfo = py.std.zipfile.ZipInfo(path)
+                zip.writestr(zipinfo, "")
+            else:
+                _writezip(zip, val, newprefixes)
+        else:
+            path = os.sep.join(prefixes + (name,))
+            zip.writestr(path, val)
+
+

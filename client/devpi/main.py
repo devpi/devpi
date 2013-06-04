@@ -287,15 +287,25 @@ def index(parser):
 @subcommand("devpi.upload.upload")
 def upload(parser):
     """ prepare and upload packages to the current index. """
-    parser.add_argument("-l", dest="showstatus",
-        action="store_true", default=None,
-        help="show remote versions, local version and package types")
+    #parser.add_argument("-l", dest="showstatus",
+    #    action="store_true", default=None,
+    #    help="show remote versions, local version and package types")
     parser.add_argument("--ver", dest="setversion",
         action="store", default=None,
-        help="set version to fill into setup.py and package files")
+        help="fill version string into setup.py, */__init__.py */conf.py files")
+    #parser.add_argument("--incver", action="store_true",
+    #    help="retrieve max remove version, increment and set it like --ver")
+    parser.add_argument("--dryrun",
+        action="store_true", default=None,
+        help="don't perform any server-modifying actions")
+    parser.add_argument("--withdocs", action="store_true", default=None,
+        help="upload docs in addition to release files")
+    parser.add_argument("--onlydocs", action="store_true", default=None,
+        help="only upload docs and no release files")
     #parser.add_argument("-y", dest="yes",
     #    action="store_true", default=None,
     #    help="answer yes on interactive questions. ")
+    #
 
 @subcommand("devpi.test.test")
 def test(parser):

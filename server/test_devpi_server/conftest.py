@@ -134,7 +134,6 @@ def db(xom):
     set_default_indexes(db)
     return db
 
-
 ### incremental testing
 
 def pytest_runtest_makereport(item, call):

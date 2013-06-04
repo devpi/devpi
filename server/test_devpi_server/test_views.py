@@ -6,6 +6,8 @@ from bs4 import BeautifulSoup
 from webtest.forms import Upload
 from devpi_server.views import LOGINCOOKIE
 from webtest import TestApp as TApp
+from test_db import create_zipfile
+
 
 class MyTestApp(TApp):
     auth = None
@@ -93,15 +95,28 @@ def test_apiconfig(httpget, testapp):
 def test_upload(httpget, db, mapp, testapp):
     mapp.create_and_login_user("user")
     mapp.create_index("name")
-    BytesIO = py.io.BytesIO
-    r = testapp.post("/user/name/pypi/",
-        {":action": "file_upload", "name": "pkg1", "version": "2.6",
-         "content": Upload("pkg1-2.6.tgz", "123")})
-    assert r.status_code == 200
+    mapp.upload_file("user", "name", "pkg1-2.6.tgz", "123", "pkg1", "2.6")
     r = testapp.get("/user/name/simple/pkg1/")
     assert r.status_code == 200
     a = getfirstlink(r.text)
     assert "pkg1-2.6.tgz" in a.get("href")
+
+def test_upload_docs_too_large(httpget, db, mapp, testapp):
+    from devpi_server.views import MAXDOCZIPSIZE
+    mapp.create_and_login_user("user")
+    mapp.create_index("name")
+    content = "*" * (MAXDOCZIPSIZE + 1)
+    mapp.upload_doc_fails("user", "name", "pkg1.zip", content, "pkg1", "2.6")
+
+def test_upload_docs(httpget, db, mapp, testapp):
+    mapp.create_and_login_user("user")
+    mapp.create_index("name")
+    content = create_zipfile({"index.html": "<html/>"})
+    mapp.upload_doc("user", "name", "pkg1.zip", content, "pkg1", "2.6")
+    r = testapp.get("/user/name/doc/pkg1/2.6/index.html")
+    assert r.status_code == 200
+    #a = getfirstlink(r.text)
+    #assert "pkg1-2.6.tgz" in a.get("href")
 
 
 class TestAdminLogin:
@@ -178,6 +193,23 @@ class Mapp:
         r = self.testapp.delete_json("/%s" % username, expect_errors=True)
         assert r.status_code == 404
 
+    def upload_file(self, user, index, basename, content, name, version):
+        r = self.testapp.post("/%s/%s/pypi/" % (user, index),
+            {":action": "file_upload", "name": name, "version": version,
+             "content": Upload(basename, content)})
+        assert r.status_code == 200
+
+    def upload_doc(self, user, index, basename, content, name, version):
+        r = self.testapp.post("/%s/%s/pypi/" % (user, index),
+            {":action": "doc_upload", "name": name, "version": version,
+             "content": Upload(basename, content)})
+        assert r.status_code == 200
+
+    def upload_doc_fails(self, user, index, basename, content, name, version):
+        r = self.testapp.post("/%s/%s/pypi/" % (user, index),
+            {":action": "doc_upload", "name": name, "version": version,
+             "content": Upload(basename, content)}, expect_errors=True)
+        assert r.status_code >= 400 and r.status_code < 500
 
 
 class TestUserThings:

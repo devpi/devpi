@@ -8,7 +8,7 @@ storing basic python types.
 import re
 import py
 import threading
-from tempfile import NamedTemporaryFile
+from tempfile import NamedTemporaryFile, mkdtemp
 from execnet import dumps, loads
 import os
 from os.path import basename, isabs, join
@@ -39,8 +39,13 @@ class KeyFS:
     def tempfile(self, prefix):
         f = NamedTemporaryFile(prefix=prefix, dir=self.tmpdir, delete=False)
         relpath = os.path.relpath(f.name, str(self.basedir))
-        f.key = TypedKey(self, relpath, bytes)
+        f.key = get_typed_key(self, relpath, bytes)
         return f
+
+    def mkdtemp(self, prefix):
+        return py.path.local(mkdtemp(prefix=prefix, dir=self.tmpdir))
+        #return get_typed_key(self, py.path.local(path).relto(self.basedir),
+        #                     "DIR")
 
     def _set(self, relpath, value):
         with self.tempfile(basename(relpath)) as f:
@@ -83,7 +88,7 @@ class KeyFS:
         if "{" in key:
             key = PTypedKey(self, key, type)
         else:
-            key = TypedKey(self, key, type)
+            key = get_typed_key(self, key, type)
         self.keys.append(key)
         return key
 
@@ -100,10 +105,10 @@ class PTypedKey:
             if py.builtin._istext(val):
                 val = val.encode("utf8")
             else:
-                assert py.builtin._isbytes(val)
+                assert py.builtin._isbytes(val), (name, val)
             newkw[name] = val
         realkey = self.key.format(**newkw)
-        return TypedKey(self.keyfs, realkey, self.type)
+        return get_typed_key(self.keyfs, realkey, self.type)
 
     def listnames(self, __name, **kw):
         parts = self.key.split("/")
@@ -138,6 +143,16 @@ class PTypedKey:
     def __repr__(self):
         return "<PTypedKey %r type %r>" %(self.key, self.type.__name__)
 
+def get_typed_key(keyfs, relpath, type):
+    if type == "DIR":
+        return DirKey(keyfs, relpath)
+    return TypedKey(keyfs, relpath, type)
+
+class DirKey:
+    def __init__(self, keyfs, relpath):
+        self.keyfs = keyfs
+        self.relpath = relpath
+        self.filepath = self.keyfs._getpath(self.relpath)
 
 class TypedKey:
     def __init__(self, keyfs, relpath, type):
