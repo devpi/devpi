@@ -1,14 +1,49 @@
-devpi-server: consistent pypi.python.org cache, github-style internal indexes
-====================================================================================
+devpi: pypi server with full caching, private index overlays
+====================================================================
 
-* issues: https://bitbucket.org/hpk42/devpi/issues
+``devpi-server`` is a well-tested and easy-to-use PyPI server offering
+some unique features not found in other pypi servers:
 
-* IRC: #pylib on irc.freenode.net.
+- **consistent, auto-updating pypi-cache**: transparent local caching index of the
+  ``pypi.python.org`` index and release files on first access, including 
+  indexes and files from 3rd party sites.  Cache-invalidation 
+  using the latest PyPI protocols, ensuring a consistent auto-updating
+  view of what's available.
 
-* repository: https://bitbucket.org/hpk42/devpi
+- **internal per-user indexes**: can be created by registered users and
+  allow to receive package uploads and serve a merged view from 
+  ``pypi.python.org`` and those package uploads.  You can thus test 
+  out a release before you push it to pypi and point other users to 
+  this index to help trying it out.
 
-* mailing list: https://groups.google.com/d/forum/devpi-dev
+- **pypi interface compatibility**: devpi-server currently supports 
+  ``pip`` and ``easy_install`` install operations as well as 
+  ``setup.py register/upload/upload_docs`` actions.
 
+- **simple user management**: http REST API for creating users
+  and indexes so that ``http://yourdomain/<user>/<index>`` denotes 
+  a pypi-compatible index with the same endpoints as 
+  ``http://pypi.python.org``, namely ``simple/`` for index pages
+  pointing to release files and ``pypi/`` for register/upload 
+  operations.
+
+- **optional ``devpi`` command line tool** to manage users, indexes,
+  logins, uploads and installation activities.
+
+
+- ``devpi-server --gendeploy=TARGETDIR`` creates a zero-configuration
+  deployment for your (unixish) laptop or a server, fully contained in 
+  a virtualenv_ directory, controlled by ``TARGETDIR/bin/devpi-ctl``,
+  a thin wrapper around a dedicated supervisord_.  You'll also find
+  templates for nginx_ and a user crontab to start permanent deployment 
+  at system boot time under a nice looking URL.  
+
+- ``devpi-server`` contains an extensive automated test suite
+  to help continued improvements without regressions.
+
+To summarize, devpi-server aims to help you and your company handle 
+all installation interactions with pypi.python.org in the most
+reliable and fastest way possible.  
 
 Getting started, trying it out
 -------------------------------
@@ -234,3 +269,15 @@ and contribute, see the top of of this page for contact channels.
 .. _nginx: http://nginx.com/
 .. _virtualenv: http://pypi.python.org/pypi/virtualenv
 .. _supervisord: http://pypi.python.org/pypi/supervisor
+.. toctree::
+   :maxdepth: 2
+
+
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
+
