@@ -32,23 +32,20 @@ def main(argv=None):
     return bottle_run(xom)
 
 def add_keys(keyfs):
-    # users
+    # users and index configuration
     keyfs.USER = keyfs.addkey("{user}/.config", dict)
 
-    # pypi related
-    keyfs.HPYPIPROJECTS = keyfs.addkey("ext/pypi/links/{name}", list)
-    keyfs.PYPISERIAL = keyfs.addkey("ext/pypi/serial", int)
-    keyfs.PYPIINVALID = keyfs.addkey("ext/pypi/invalid", dict)
+    # type pypimirror related data
+    keyfs.PYPILINKS = keyfs.addkey("root/pypi/links/{name}", list)
+    keyfs.PYPIFILES = keyfs.addkey("root/pypi/c/{relpath}", file)
+    keyfs.PYPISERIAL = keyfs.addkey("root/pypi/serial", int)
+    keyfs.PYPIINVALID = keyfs.addkey("root/pypi/invalid", dict)
 
-    #keyfs.PYPIFILECACHE = keyfs.addkey("ext/pypi/c/{filename}", file)
-    #keyfs.PYPIFILECACHE_META = keyfs.addkey("ext/pypi/c/{filename}.m", dict)
-
-    # stage related
-    keyfs.HSTAGEFILES = keyfs.addkey("{user}/{index}/files/{name}", dict)
-    keyfs.STAGEFILE = keyfs.addkey("{user}/{index}/pkg/{md5}/{filename}", bytes)
+    # type stage related
+    keyfs.STAGELINKS = keyfs.addkey("{user}/{index}/links/{name}", dict)
+    keyfs.STAGEFILE = keyfs.addkey("{user}/{index}/f/{md5}/{filename}", bytes)
     keyfs.PATHENTRY = keyfs.addkey("{relpath}-meta", dict)
     keyfs.FILEPATH = keyfs.addkey("{relpath}", bytes)
-
 
 class XOM:
     class Exiting(SystemExit):
@@ -218,6 +215,6 @@ def set_default_indexes(db):
     DEV = "root/dev"
     if "root" not in db.user_list():
         db.user_setpassword("root", "")
-    db.user_indexconfig_set(PYPI, bases=(), type="pypimirror", volatile=False)
-    db.user_indexconfig_set(PROD, bases=(), type="pypi", volatile=False)
-    db.user_indexconfig_set(DEV, bases=(PROD,), type="pypi", volatile=True)
+    db.user_indexconfig_set(PYPI, bases=(), type="mirror", volatile=False)
+    db.user_indexconfig_set(PROD, bases=(), type="stage", volatile=False)
+    db.user_indexconfig_set(DEV, bases=(PROD,), type="stage", volatile=True)

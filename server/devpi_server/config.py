@@ -14,8 +14,8 @@ def addoptions(parser):
             help="show devpi_version (%s)" % devpi_server.__version__)
 
     opt = group.addoption("--datadir", type=str, metavar="DIR",
-            default="~/.devpi/serverdata",
-            help="data directory for devpi-server")
+            default="~/.devpi/server",
+            help="directory for server data")
 
     group.addoption("--port",  type=int,
             default=3141,
@@ -37,7 +37,7 @@ def addoptions(parser):
                  "nginx/cron files to help with permanent deployment. ")
 
     group.addoption("--secretfile", type=str, metavar="path",
-            default="~/.devpiserver/secret",
+            default="~/.devpi/server/.secret",
             help="file containing the server side secret used for user "
                  "validation. If it does not exist, a random secret "
                  "is generated on start up and used subsequently. ")
@@ -109,6 +109,8 @@ class Config:
         if not self.secretfile.check():
             self.secretfile.dirpath().ensure(dir=1)
             self.secretfile.write(os.urandom(32).encode("base64"))
+            s = py.std.stat
+            self.secretfile.chmod(s.S_IRUSR|s.S_IWUSR)
         return self.secretfile.read()
 
 def configure_logging(config):

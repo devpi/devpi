@@ -172,7 +172,7 @@ class Mapp:
         user, password = self.testapp.auth
         r = self.testapp.put_json("/%s/%s" % (user, indexname), {})
         assert r.status_code == 201
-        assert r.json["type"] == "pypi"
+        assert r.json["type"] == "stage"
 
     def delete_user_fails(self, username):
         r = self.testapp.delete_json("/%s" % username, expect_errors=True)
@@ -213,11 +213,11 @@ class TestIndexThings:
 
     @pytest.mark.parametrize(["input", "expected"], [
         ({},
-            dict(type="pypi", volatile=True, bases=["root/dev", "root/pypi"])),
+          dict(type="stage", volatile=True, bases=["root/dev", "root/pypi"])),
         ({"volatile": "False"},
-            dict(type="pypi", volatile=False, bases=["root/dev", "root/pypi"])),
+          dict(type="stage", volatile=False, bases=["root/dev", "root/pypi"])),
         ({"volatile": "False", "bases": "root/pypi"},
-            dict(type="pypi", volatile=False, bases=["root/pypi"])),
+          dict(type="stage", volatile=False, bases=["root/pypi"])),
     ])
     def test_kvdict(self, input, expected):
         from devpi_server.views import getkvdict_index

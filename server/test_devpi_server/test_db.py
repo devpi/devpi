@@ -9,7 +9,7 @@ class TestStage:
     @pytest.fixture
     def stage(self, request, db):
         config = dict(user="hello", index="world", bases=(),
-                      type="pypi", volatile=True)
+                      type="stage", volatile=True)
         if "bases" in request.fixturenames:
             config["bases"] = request.getfuncargvalue("bases")
         db.user_indexconfig_set(**config)
@@ -17,9 +17,9 @@ class TestStage:
 
     def test_create_and_delete(self, db):
         db.user_indexconfig_set(user="hello", index="world", bases=(),
-                                type="pypi", volatile=False)
+                                type="stage", volatile=False)
         db.user_indexconfig_set(user="hello", index="world2", bases=(),
-                                type="pypi", volatile=False)
+                                type="stage", volatile=False)
         db.user_indexconfig_delete(user="hello", index="world2")
         assert not db.user_indexconfig_get(user="hello", index="world2")
         assert db.user_indexconfig_get(user="hello", index="world")
@@ -109,14 +109,14 @@ def test_setdefault_indexes(db):
     from devpi_server.main import set_default_indexes
     set_default_indexes(db)
     ixconfig = db.getindexconfig("root/pypi")
-    assert ixconfig["type"] == "pypimirror"
+    assert ixconfig["type"] == "mirror"
 
     ixconfig = db.getindexconfig("root/dev")
-    assert ixconfig["type"] == "pypi"
+    assert ixconfig["type"] == "stage"
     assert ixconfig["bases"] == ("root/prod",)
     assert ixconfig["volatile"]
 
     ixconfig = db.getindexconfig("root/prod")
-    assert ixconfig["type"] == "pypi"
+    assert ixconfig["type"] == "stage"
     assert ixconfig["bases"] == ()
     assert not ixconfig["volatile"]

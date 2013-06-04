@@ -110,19 +110,19 @@ class ExtDB:
         self._inprogress = set()
 
     def iscontained(self, projectname):
-        return (self.keyfs.HPYPIPROJECTS(name=projectname).exists() or
+        return (self.keyfs.PYPILINKS(name=projectname).exists() or
                 projectname in self._inprogress)
 
     def getprojectnames(self):
         """ return list of all projects which have been served. """
-        return sorted(self.keyfs.HPYPIPROJECTS.listnames("name"))
+        return sorted(self.keyfs.PYPILINKS.listnames("name"))
 
     def _dump_projectlinks(self, projectname, dumplist, serial):
         newlist = [serial] + dumplist
-        self.keyfs.HPYPIPROJECTS(name=projectname).set(newlist)
+        self.keyfs.PYPILINKS(name=projectname).set(newlist)
 
     def _load_projectlinks(self, projectname):
-        res = self.keyfs.HPYPIPROJECTS(name=projectname).get(None)
+        res = self.keyfs.PYPILINKS(name=projectname).get(None)
         if res:
             serial = res.pop(0)
             assert isinstance(serial, int)

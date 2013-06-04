@@ -22,19 +22,16 @@ class ReleaseFileStore:
         self.keyfs = keyfs
 
     def maplink(self, link, refresh=False):
-        entry = self.getentry_fromlink(link)
-        mapping = {}
+        key = self.keyfs.PYPIFILES(relpath=link.torelpath())
+        entry = self.getentry(key.relpath)
+        mapping = {"url": link.geturl_nofragment().url}
         if link.eggfragment and not entry.eggfragment:
             mapping["eggfragment"] = link.eggfragment
         elif link.md5 and not entry.md5:
             mapping["md5"] = link.md5
-        else:
-            return entry
         entry.set(**mapping)
+        assert entry.url
         return entry
-
-    def getentry_fromlink(self, link):
-        return self.getentry(link.torelpath())
 
     def getentry(self, relpath):
         return RelPathEntry(self.keyfs, relpath)
@@ -125,20 +122,15 @@ def getmd5(content):
     return md5.hexdigest()
 
 class RelPathEntry(object):
-    _attr = set("md5 eggfragment size last_modified content_type".split())
+    _attr = set("md5 eggfragment size last_modified content_type url".split())
 
     def __init__(self, keyfs, relpath):
         self.keyfs = keyfs
         self.relpath = relpath
         self.FILE = keyfs.FILEPATH(relpath=relpath)
-        if relpath.split("/", 1)[0] in ("http", "https"):
-            disturl = DistURL.fromrelpath(relpath)
-            self.url = disturl.url
-            self.basename = disturl.basename
-        else:
-            self.basename = posixpath.basename(relpath)
+        self.basename = posixpath.basename(relpath)
         self.PATHENTRY = keyfs.PATHENTRY(relpath=relpath)
-        #log.debug("self.PATHENTRY %s", self.PATHENTRY.relpath)
+        log.debug("self.PATHENTRY %s", self.PATHENTRY.relpath)
         #log.debug("self.FILE %s", self.FILE)
         self._mapping = self.PATHENTRY.get()
 

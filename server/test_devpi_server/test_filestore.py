@@ -9,10 +9,10 @@ b = py.builtin.bytes
 
 class TestReleaseFileStore:
 
-    def test_getentry_fromlink_and_maplink(self, filestore):
+    def test_maplink_deterministic(self, filestore):
         link = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=123")
         entry1 = filestore.maplink(link)
-        entry2 = filestore.getentry_fromlink(link)
+        entry2 = filestore.maplink(link)
         assert entry1.relpath == entry2.relpath
         assert entry1.basename == "pytest-1.2.zip"
 
@@ -53,7 +53,8 @@ class TestReleaseFileStore:
 
     def test_relpathentry(self, filestore):
         link = DistURL("http://pypi.python.org/pkg/pytest-1.7.zip")
-        entry = filestore.getentry_fromlink(link)
+        entry = filestore.maplink(link)
+        assert entry.url == link.url
         assert not entry.iscached()
         entry.set(md5="1" * 16)
         assert not entry.iscached()
@@ -63,7 +64,7 @@ class TestReleaseFileStore:
         assert entry.md5 == "1" * 16
 
         # reget
-        entry = filestore.getentry_fromlink(link)
+        entry = filestore.getentry(entry.relpath)
         assert entry.iscached()
         assert entry.url == link.url
         assert entry.md5 == "1" * 16
@@ -87,7 +88,7 @@ class TestReleaseFileStore:
         assert bytes == b("123")
 
         # reget entry and check about content
-        entry = filestore.getentry_fromlink(link)
+        entry = filestore.getentry(entry.relpath)
         assert entry.iscached()
         assert entry.md5 == getmd5(bytes)
         assert entry.size == "3"
@@ -128,7 +129,7 @@ class TestReleaseFileStore:
                                              httpget, chunksize=3)
         received = b().join(riter)
         assert received == b("1")
-        entry2 = filestore.getentry_fromlink(link)
+        entry2 = filestore.getentry(entry.relpath)
         assert entry2.size == "1"
 
     def test_iterfile_remote_error_md5(self, filestore, httpget):

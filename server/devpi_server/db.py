@@ -74,6 +74,7 @@ class DB:
     def user_indexconfig_set(self, user, index=None, **kw):
         if index is None:
             user, index = user.split("/")
+        assert kw["type"] in ("stage", "mirror")
         with self.keyfs.USER(user=user).locked_update() as userconfig:
             indexes = userconfig.setdefault("indexes", {})
             ixconfig = indexes.setdefault(index, {})
@@ -101,10 +102,12 @@ class DB:
         ixconfig = self.user_indexconfig_get(user, index)
         if not ixconfig:
             return None
-        if ixconfig["type"] == "pypi":
+        if ixconfig["type"] == "stage":
             return PrivateStage(self, user, index, ixconfig)
-        elif ixconfig["type"] == "pypimirror":
+        elif ixconfig["type"] == "mirror":
             return self.xom.extdb
+        else:
+            raise ValueError("unknown index type %r" % ixconfig["type"])
 
     def getstagename(self, user, index):
         return "%s/%s" % (user, index)
@@ -114,7 +117,7 @@ class DB:
         return self.user_indexconfig_get(user, index)
 
     def create_stage(self, user, index=None,
-                     type="pypi", bases=("/ext/pypi",),
+                     type="stage", bases=("/ext/pypi",),
                      volatile=True):
         self.user_indexconfig_set(user, index, type=type, bases=bases,
                                   volatile=volatile)
@@ -155,7 +158,7 @@ class PrivateStage:
         return self.op_with_bases("getreleaselinks", projectname=projectname)
 
     def getreleaselinks_perstage(self, projectname):
-        key = self.keyfs.HSTAGEFILES(user=self.user, index=self.index,
+        key = self.keyfs.STAGELINKS(user=self.user, index=self.index,
                                      name=projectname)
         files = key.get()
         entries = []
@@ -169,12 +172,12 @@ class PrivateStage:
         return self.op_with_bases("getprojectnames")
 
     def getprojectnames_perstage(self):
-        return sorted(self.keyfs.HSTAGEFILES.listnames("name",
+        return sorted(self.keyfs.STAGELINKS.listnames("name",
                             user=self.user, index=self.index))
 
     def store_releasefile(self, filename, content):
         name, version = DistURL(filename).pkgname_and_version
-        key = self.keyfs.HSTAGEFILES(user=self.user, index=self.index,
+        key = self.keyfs.STAGELINKS(user=self.user, index=self.index,
                                      name=name)
         with key.locked_update() as files:
             if not self.ixconfig.get("volatile") and filename in files:

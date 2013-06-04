@@ -320,7 +320,7 @@ def getjson():
 
 def getkvdict_index(req):
     req_volatile = req.get("volatile")
-    kvdict = dict(volatile=True, type="pypi", bases=["root/dev", "root/pypi"])
+    kvdict = dict(volatile=True, type="stage", bases=["root/dev", "root/pypi"])
     if req_volatile is not None:
         if req_volatile == False or req_volatile.lower() in ["false", "no"]:
             kvdict["volatile"] = False
