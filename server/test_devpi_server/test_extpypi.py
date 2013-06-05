@@ -142,8 +142,8 @@ class TestExtPYPIDB:
             ''', pypiserial=20)
         extdb.url2response["https://download.com/index.html"] = dict(
             status_code=200, text = '''
-                <a href="pytest-1.1.tar.gz" />
-            ''')
+                <a href="pytest-1.1.tar.gz" /> ''',
+            headers = {"content-type": "text/html"})
         links = extdb.getreleaselinks("pytest")
         assert len(links) == 2
         assert links[0].url == "https://download.com/pytest-1.1.tar.gz"
@@ -160,6 +160,18 @@ class TestExtPYPIDB:
         assert len(links) == 3
         assert links[1].url == "https://pypi.python.org/pkg/pytest-1.0.1.zip"
         assert links[1].relpath.endswith("/pytest-1.0.1.zip")
+
+    def test_parse_and_scrape_non_html_ignored(self, extdb):
+        extdb.setextsimple("pytest", text='''
+                <a href="../../pkg/pytest-1.0.zip#md5=123" />
+                <a rel="download" href="https://download.com/index.html" />
+            ''', pypiserial=20)
+        extdb.url2response["https://download.com/index.html"] = dict(
+            status_code=200, text = '''
+                <a href="pytest-1.1.tar.gz" /> ''',
+            headers = {"content-type": "text/plain"})
+        links = extdb.getreleaselinks("pytest")
+        assert len(links) == 1
 
     def test_getreleaselinks_cache_refresh_semantics(self, extdb):
         extdb.setextsimple("pytest", text='''
@@ -200,7 +212,8 @@ class TestExtPYPIDB:
         extdb.url2response["https://download.com/index.html"] = dict(
             status_code=200, text = '''
                 <a href="../../pkg/pytest-1.0.zip#md5=123" />
-                <a rel="download" href="http://whatever.com" />'''
+                <a rel="download" href="http://whatever.com" />''',
+            headers = {"content-type": "text/html"},
         )
         extdb.url2response["https://whatever.com"] = dict(
             status_code=200, text = '<a href="pytest-1.1.zip#md5=123" />')

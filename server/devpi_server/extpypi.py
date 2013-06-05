@@ -6,7 +6,9 @@ testresult storage.
 """
 import json
 import re
+import py
 import sys
+import threading
 
 from ._pip import HTMLPage
 
@@ -16,6 +18,9 @@ from .urlutil import DistURL, joinpath
 from logging import getLogger
 assert __name__ == "devpi_server.extpypi"
 log = getLogger(__name__)
+
+CONCUCCRENT_CRAWL = False
+
 
 class IndexParser:
     ALLOWED_ARCHIVE_EXTS = ".egg .tar.gz .tar.bz2 .tar .tgz .zip".split()
@@ -100,6 +105,42 @@ class XMLProxy(object):
             log.warn("%s: error %s with remote %s", method, exc, self._proxy)
             return None
 
+def perform_crawling(extdb, result, numthreads=10):
+    pending = set(result.crawllinks)
+    def process():
+        while 1:
+            try:
+                crawlurl = pending.pop()
+            except KeyError:
+                break
+            log.info("visiting crawlurl %s", crawlurl)
+            response = extdb.httpget(crawlurl.url, allow_redirects=True)
+            log.info("crawlurl %s %s", crawlurl, response)
+            assert hasattr(response, "status_code")
+            if not isinstance(response, int) and response.status_code == 200:
+                ct = response.headers.get("content-type", "").lower()
+                if ct.startswith("text/html"):
+                    result.parse_index(
+                        DistURL(response.url), response.text, scrape=False)
+                    continue
+            log.warn("crawlurl %s status %s", crawlurl, response)
+
+    if not CONCUCCRENT_CRAWL:
+        while pending:
+            process()
+    else:
+        threads = []
+        numpending = len(pending)
+        for i in range(min(numthreads, numpending)):
+            t = threading.Thread(target=process)
+            t.setDaemon(True)
+            threads.append(t)
+            t.start()
+
+        log.debug("joining threads")
+        for t in threads:
+            t.join()
+
 class ExtDB:
     name = "ext/pypi"
 
@@ -158,25 +199,14 @@ class ExtDB:
         log.debug("%s: got response with serial %s" % (projectname, serial))
         assert response.text is not None, response.text
         result = parse_index(response.url, response.text)
-        for crawlurl in result.crawllinks:
-            log.debug("visiting crawlurl %s", crawlurl)
-            response = self.httpget(crawlurl.url, allow_redirects=True)
-            log.debug("crawlurl %s %s", crawlurl, response)
-            assert hasattr(response, "status_code")
-            if response.status_code == 200:
-                result.parse_index(DistURL(response.url), response.text,
-                                   scrape=False)
-            else:
-                log.warn("crawlurl %s returned %s", crawlurl.url,
-                        response.status_code)
-                # XXX we should mark project for retry after one hour or so
-
+        perform_crawling(self, result)
         releaselinks = list(result.releaselinks)
         entries = [self.releasefilestore.maplink(link, refresh=refresh)
                         for link in releaselinks]
         dumplist = [entry.relpath for entry in entries]
         self._dump_projectlinks(projectname, dumplist, serial)
         return entries
+
 
     def spawned_pypichanges(self, proxy, proxysleep):
         log.info("changelog/update tasks starting")
