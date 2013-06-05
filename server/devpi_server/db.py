@@ -64,6 +64,7 @@ class DB:
         d = self.keyfs.USER(user=user).get()
         del d["pwsalt"]
         del d["pwhash"]
+        d["username"] = user
         return d
 
     def user_indexconfig_get(self, user, index):

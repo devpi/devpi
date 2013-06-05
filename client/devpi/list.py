@@ -3,7 +3,7 @@ def main(hub, args):
     r = hub.http.get(hub.config.rooturl)
     if r.status_code == 200:
         hub.info("list of users and indexes")
-        data = r.json()
+        data = r.json()["resource"]
         for user in sorted(data):
             userconfig = data[user]
             indexes = userconfig.pop("indexes", None)

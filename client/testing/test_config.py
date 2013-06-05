@@ -34,10 +34,13 @@ class TestUnit:
 
     def test_main(self, tmpdir, monkeypatch, cmd_devpi):
         monkeypatch.chdir(tmpdir)
-        api = dict(pypisubmit="/post", pushrelease="/push",
-                   simpleindex="/index/",
-                   resultlog="/resultlog/",
-                   )
+        api = dict(
+                   status=200,
+                   resource = dict(
+                        pypisubmit="/post", pushrelease="/push",
+                        simpleindex="/index/",
+                        resultlog="/resultlog/",
+                   ))
         def http_api(*args, **kwargs):
             return api
 

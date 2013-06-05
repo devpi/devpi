@@ -34,6 +34,10 @@ class Mapp:
         result = self.out_devpi("user", "-l")
         return [x for x in result.outlines if x.strip()]
 
+    def getindexlist(self):
+        result = self.out_devpi("index", "-l")
+        return [x for x in result.outlines if x.strip()]
+
     def change_password(self, user, password):
         auth = getattr(self, "auth", None)
         if auth is None or auth[0] != user and auth[0] != "root":
@@ -49,9 +53,9 @@ class Mapp:
             self.devpi("user", "-c", user, "password=%s" % password,
                        "email=%s" % email)
 
-    def create_and_login_user(self, user="someuser"):
-        self.create_user(user, "123")
-        self.login(user, "123")
+    def create_and_login_user(self, user="someuser", password="123"):
+        self.create_user(user, password)
+        self.login(user, password)
 
     def create_index(self, indexname):
         user, password = self.auth

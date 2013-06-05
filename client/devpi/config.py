@@ -75,9 +75,11 @@ class Config(object):
         url = hub.get_index_url(url)
         data = hub.http_api("get", url + "/-api", ret=True,
                             errmsg="index %r" % url)
-        for name in data:
-            data[name] = urlutil.joinpath(url, data[name])
-        self.reconfigure(data)
+        if data["status"] == 200:
+            data = data["resource"]
+            for name in data:
+                data[name] = urlutil.joinpath(url, data[name])
+            self.reconfigure(data)
 
     def getvenvbin(self, name):
         if self.venvdir:

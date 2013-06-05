@@ -18,22 +18,17 @@ def getnewpass(hub, username):
 def user_create(hub, user, kvdict):
     if "password" not in kvdict:
         kvdict["password"] = getnewpass(hub, user)
-    hub.http_api("put", hub.config.getuserurl(user), kvdict,
-                 okmsg="created user %r" % user,
-                 errmsg="failed to create user %r" % user)
+    hub.http_api("put", hub.config.getuserurl(user), kvdict)
 
 def user_modify(hub, user, kvdict):
-    hub.http_api("patch", hub.config.getuserurl(user), kvdict,
-                 okmsg="modified user %r" % user,
-                 errmsg="failed to modify user %r" % user)
+    hub.http_api("patch", hub.config.getuserurl(user), kvdict)
 
 def user_delete(hub, user):
-    hub.http_api("delete", hub.config.getuserurl(user), None,
-                 okmsg="deleted user %r" % user,
-                 errmsg="failed to delete user %r" % user)
+    hub.http_api("delete", hub.config.getuserurl(user), None)
 
 def user_list(hub, user):
-    userdict = hub.http_api("get", hub.config.getuserurl(user), ret=True)
+    r = hub.http_api("get", hub.config.getuserurl(user))
+    userdict = r["resource"]
     for name in userdict or []:
         hub.line(name)
 

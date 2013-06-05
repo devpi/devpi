@@ -105,7 +105,7 @@ def test_readpypirc(monkeypatch, tmpdir):
     assert current["repository"] == "http://something"
     assert current["username"] == "user"
     assert current["password"] == "password"
-    assert current["realm"] == "devpi"
+    assert current["realm"] == "pypi"
     assert sys.argv == ["setup.py", "register", "1"]
 
 class TestUploadFunctional:

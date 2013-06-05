@@ -134,7 +134,7 @@ def test_upload_docs(httpget, db, mapp, testapp):
     #assert "pkg1-2.6.tgz" in a.get("href")
 
 
-class TestAdminLogin:
+class TestLoginBasics:
     def test_wrong_login_format(self, testapp):
         r = testapp.post("/login", "qweqweqwe", expect_errors=True)
         assert r.status_code == 400
@@ -152,6 +152,11 @@ class TestAdminLogin:
         assert "password" in r.json
         assert "expiration" in r.json
 
+    def test_login_root_default(self, testapp):
+        testapp.set_auth("root", "")
+        r = testapp.patch_json("/user", {"password": "123"})
+        assert r.status_code == 200
+
 @pytest.fixture
 def mapp(testapp):
     return Mapp(testapp)
@@ -168,6 +173,7 @@ class Mapp:
                                   {"user": user, "password": password})
         print "logging in as", user
         self.testapp.set_auth(user, r.json["password"])
+        self.auth = user, r.json["password"]
 
     def login_fails(self, user="root", password=""):
         r = self.testapp.post_json("/login",
@@ -176,7 +182,15 @@ class Mapp:
 
     def getuserlist(self):
         r = self.testapp.get("/", {"indexes": False}, {"Accept": "*/json"})
-        return r.json
+        assert r.status_code == 200
+        return r.json["resource"]
+
+    def getindexlist(self, user=None):
+        if user is None:
+            user = self.testapp.auth[0]
+        r = self.testapp.get("/%s/" % user, {"Accept": "*/json"})
+        assert r.status_code == 200
+        return r.json["resource"]
 
     def change_password(self, user, password):
         auth = self.testapp.auth
@@ -188,6 +202,9 @@ class Mapp:
         reqdict = dict(password=password, email=email)
         r = self.testapp.put_json("/%s" % user, reqdict)
         assert r.status_code == 201
+        res = r.json["resource"]
+        assert res["username"] == user
+        assert res["email"] == email
 
     def create_user_fails(self, user, password, email="hello@example.com"):
         with pytest.raises(webtest.AppError) as excinfo:
@@ -202,7 +219,7 @@ class Mapp:
         user, password = self.testapp.auth
         r = self.testapp.put_json("/%s/%s" % (user, indexname), {})
         assert r.status_code == 201
-        assert r.json["type"] == "stage"
+        assert r.json["resource"]["type"] == "stage"
 
     def delete_user_fails(self, username):
         r = self.testapp.delete_json("/%s" % username, expect_errors=True)
@@ -235,6 +252,7 @@ class TestUserThings:
         assert "hello" not in mapp.getuserlist()
         mapp.create_user("hello", password)
         mapp.create_user_fails("hello", password)
+        assert "hello" in mapp.getuserlist()
         mapp.login_fails("hello", "qweqwe")
         mapp.login("hello", password)
         mapp.delete_user("hello")
@@ -252,11 +270,15 @@ class TestUserThings:
 
 
 
+
 class TestIndexThings:
 
     def test_create_index(self, mapp):
         mapp.create_and_login_user()
+        indexname = mapp.auth[0] + "/dev"
+        assert indexname not in mapp.getindexlist()
         mapp.create_index("dev")
+        assert indexname in mapp.getindexlist()
 
     @pytest.mark.parametrize(["input", "expected"], [
         ({},
@@ -270,3 +292,4 @@ class TestIndexThings:
         from devpi_server.views import getkvdict_index
         result = getkvdict_index(input)
         assert result == expected
+

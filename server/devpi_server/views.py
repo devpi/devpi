@@ -27,19 +27,31 @@ def simple_html_body(title, bodytags, extrahead=""):
         )
     )
 
+#def abort_json(code, body):
+#    d = dict(error=body)
+#    raise HTTPResponse(body=json.dumps(d, indent=2)+"\n",
+#                       status=code, headers=
+#                       {"content-type": "application/json"})
+
 def abort(code, body):
     if "application/json" in request.headers.get("Accept", ""):
-        d = dict(error=body)
-        raise HTTPResponse(body=json.dumps(d), status=code, headers=
-                        {"content-type": "application/json"})
+        apireturn(code, body)
     bottle.abort(code, body)
 
-def apireturn(code, body):
-    #if "application/json" in request.headers.get("Accept", ""):
-    d = dict(error=body)
-    raise HTTPResponse(body=json.dumps(d), status=code, headers=
+def abort_authenticate():
+    err = HTTPError(401, "authentication required")
+    err.add_header('WWW-Authenticate', 'Basic realm="pypi"')
+    raise err
+
+def apireturn(code, message=None, resource=None):
+    d = dict(status=code)
+    if resource is not None:
+        d["resource"] = resource
+    if message:
+        d["message"] = message
+    data = json.dumps(d, indent=2) + "\n"
+    raise HTTPResponse(body=data, status=code, header=
                     {"content-type": "application/json"})
-    #bottle.abort(403, "can only return application/json")
 
 route = lazydecorator()
 
@@ -65,19 +77,22 @@ class PyPIView:
             authuser, authpassword = request.auth
         except TypeError:
             log.warn("could not read auth header")
-            err = HTTPError(401, "authentication required")
-            err.add_header('WWW-Authenticate', 'Basic realm="devpi"')
-            raise err
+            abort_authenticate()
         log.debug("detected auth for user %r", authuser)
         try:
             val = self.signer.unsign(authpassword, self.LOGIN_EXPIRATION)
         except itsdangerous.BadData:
-            abort(401, "invalid authentication for user %r" % authuser)
+            if self.db.user_validate(authuser, authpassword):
+                return
+            log.warn("invalid authentication for user %r", authuser)
+            abort_authenticate()
         if not val.startswith(authuser + "-"):
-            abort(401, "mismatch credential for user %r" % authuser)
+            log.warn("mismatch credential for user %r", authuser)
+            abort_authenticate()
         if authuser == "root" or authuser == user:
             return
-        abort(401, "user %r not authorized, requiring %r" % (authuser, user))
+        log.warn("user %r not authorized, requiring %r", authuser, user)
+        abort_authenticate()
 
     def set_user(self, user, hash):
         pseudopass = self.signer.sign(user + "-" + hash)
@@ -174,18 +189,31 @@ class PyPIView:
     def index_create_or_modify(self, user, index):
         ixconfig = self.db.user_indexconfig_get(user, index)
         if request.method == "PUT" and ixconfig is not None:
-            abort(409, "index exists")
+            apireturn(409, "index %s/%s exists" % (user, index))
         kvdict = getkvdict_index(getjson())
+        kvdict.setdefault("type", "stage")
+        kvdict.setdefault("bases", ["root/dev"])
+        kvdict.setdefault("volatile", True)
         ixconfig = self.db.user_indexconfig_set(user, index, **kvdict)
-        response.status = 201
-        response.content_type = "application/json"
-        return ixconfig
+        apireturn(201, resource=ixconfig)
 
     @route("/<user>/<index>", method=["DELETE"])
     def index_delete(self, user, index):
+        indexname = user + "/" + index
         if not self.db.user_indexconfig_delete(user, index):
-            abort(404, "index %s/%s does not exist" % (user, index))
-        return {}
+            apireturn(404, "index %s does not exist" % indexname)
+        apireturn(201, "index %s deleted" % indexname)
+
+    @route("/<user>/", method="GET")
+    def index_list(self, user):
+        userconfig = self.db.user_get(user)
+        if not userconfig:
+            apireturn(404, "user %s does not exist" % user)
+        indexes = {}
+        userindexes = userconfig.get("indexes", {})
+        for name, val in userindexes.items():
+            indexes["%s/%s" % (user, name)] = val
+        apireturn(200, resource=indexes)
 
     @route("/<user>/<index>/", method="POST")
     @route("/<user>/<index>/pypi", method="POST")
@@ -195,7 +223,7 @@ class PyPIView:
         try:
             action = request.forms[":action"]
         except KeyError:
-            abort(400, output=":action field not found")
+            abort(400, ":action field not found")
         log.debug("received POST action %r" %(action))
         stage = self.getstage(user, index)
         if action == "submit":
@@ -304,7 +332,7 @@ class PyPIView:
             "pushrelease": "/%s/%s/push" % (user, index),
             "simpleindex": "/%s/%s/simple/" % (user, index),
         }
-        return apidict
+        apireturn(200, resource=apidict)
 
     #
     # login and user handling
@@ -319,7 +347,7 @@ class PyPIView:
         hash = self.db.user_validate(user, password)
         if hash:
             return self.set_user(user, hash)
-        abort(401, "user could not be authenticated")
+        apireturn(401, "user %r could not be authenticated" % user)
 
     @route("/<user>", method="PATCH")
     @route("/<user>/", method="PATCH")
@@ -329,23 +357,23 @@ class PyPIView:
         if "password" in dict:
             hash = self.db.user_setpassword(user, dict["password"])
             return self.set_user(user, hash)
-        abort(400, "could not decode")
+        apireturn(400, "could not decode request")
 
     @route("/<user>", method="PUT")
     def user_create(self, user):
+        if self.db.user_exists(user):
+            apireturn(409, "user already exists")
         kvdict = getjson()
         if "password" in kvdict and "email" in kvdict:
-            if self.db.user_exists(user):
-                abort(409, "user already exists")
             hash = self.db.user_create(user, **kvdict)
-            abort(201, self.db.user_get(user))
-        abort(400, "password and email values need to be set")
+            apireturn(201, resource=self.db.user_get(user))
+        apireturn(400, "password and email values need to be set")
 
     @route("/<user>", method="DELETE")
     def user_delete(self, user):
         self.require_user(user)
         if not self.db.user_exists(user):
-            abort(404, "user %r does not exist" % user)
+            apireturn(404, "user %r does not exist" % user)
         self.db.user_delete(user)
         apireturn(200, "user %r deleted" % user)
 
@@ -357,8 +385,7 @@ class PyPIView:
         d = {}
         for user in self.db.user_list():
             d[user] = self.db.user_get(user)
-        return d
-
+        apireturn(200, resource=d)
 
 def getjson():
     dict = request.json

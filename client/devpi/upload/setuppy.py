@@ -10,7 +10,7 @@ def _prepare_distutils():
                 "repository": pypisubmit,
                 "username": user,
                 "password": password,
-                "realm": "devpi",
+                "realm": "pypi",
                }
 
     PyPIRCCommand._read_pypirc = new_read_pypirc

@@ -70,11 +70,9 @@ class Hub:
             data = r.content
             if data:
                 data = json.loads(data)
-                if not ret:
-                    for name, val in sorted(data.items()):
-                        self.info("   %s=%s" %(name, val))
-                else:
-                    return data
+                if "message" in data:
+                    self.info("%s: %s" %(data["status"], data["message"]))
+                return data
         else:
             msg = "server returned %s: %s" % (r.status_code, r.reason)
             if errmsg:
@@ -109,6 +107,9 @@ class Hub:
             userurl = self.config.getuserurl(self.http.auth[0])
             return urlutil.joinpath(userurl + "/", indexname)
         return urlutil.joinpath(self.config.rooturl, indexname)
+
+    def get_user_url(self):
+        return self.config.getuserurl(self.http.auth[0])
 
     def XXX_get_fq_index(self, indexname):
         parts = indexname.split("/", 1)
@@ -278,8 +279,9 @@ def index(parser):
         help="delete an index")
     group.add_argument("-m", "--modify", action="store_true",
         help="modify an index")
-
-    parser.add_argument("indexname", type=str, action="store",
+    group.add_argument("-l", "--list", action="store_true",
+        help="list indexes for the logged in user")
+    parser.add_argument("indexname", type=str, action="store", nargs="?",
         help="index name, specified as NAME or USER/NAME")
     parser.add_argument("keyvalues", nargs="*", type=str,
         help="key=value configuration item")
