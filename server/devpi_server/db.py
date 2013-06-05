@@ -152,6 +152,7 @@ class PrivateStage:
                     continue
                 elif base_entries >= 500 or base_entries < 0 :
                     return base_entries
+            log.debug("%s %s: %d entries", base, kw, len(base_entries))
             entries.extend(base_entries)
         return entries
 
@@ -165,8 +166,6 @@ class PrivateStage:
         entries = []
         for relpath in files.values():
             entries.append(self.xom.releasefilestore.getentry(relpath))
-        log.debug("%s %s: serving %d entries",
-                  self.name, projectname, len(entries))
         return entries
 
     def getprojectnames(self):

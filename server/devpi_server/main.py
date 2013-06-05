@@ -13,7 +13,8 @@ from devpi_server.types import cached_property
 from devpi_server.config import parseoptions, configure_logging
 import devpi_server
 
-PYPIURL_XMLRPC = "https://pypi.python.org/pypi/"
+USE_FRONT = 1  # use front.pypi.org for getting simple pages
+
 
 def main(argv=None):
     """ devpi-server command line entry point. """
@@ -31,6 +32,27 @@ def main(argv=None):
     xom = XOM(config)
     return bottle_run(xom)
 
+def make_application():
+    """ entry point for making an application object with defaults. """
+    config = parseoptions([])
+    #configure_logging(config)
+    return XOM(config).create_app()
+
+def bottle_run(xom):
+    app = xom.create_app(immediatetasks=True,
+                         catchall=not xom.config.args.debug)
+    port = xom.config.args.port
+    log.info("devpi-server version: %s", devpi_server.__version__)
+    log.info("serving at url: http://%s:%s/",
+             xom.config.args.host, xom.config.args.port)
+    log.info("bug tracker: https://bitbucket.org/hpk42/devpi/issues")
+    log.info("IRC: #pylib on irc.freenode.net")
+    ret = app.run(server=xom.config.args.bottleserver,
+                  host=xom.config.args.host,
+                  reloader=False, port=port)
+    xom.shutdown()
+    return ret
+
 def add_keys(keyfs):
     # users and index configuration
     keyfs.USER = keyfs.addkey("{user}/.config", dict)
@@ -38,8 +60,8 @@ def add_keys(keyfs):
     # type pypimirror related data
     keyfs.PYPILINKS = keyfs.addkey("root/pypi/links/{name}", list)
     keyfs.PYPIFILES = keyfs.addkey("root/pypi/c/{relpath}", file)
-    keyfs.PYPISERIAL = keyfs.addkey("root/pypi/serial", int)
-    keyfs.PYPIINVALID = keyfs.addkey("root/pypi/invalid", dict)
+    keyfs.PYPISERIALS = keyfs.addkey("root/pypi/serials", dict)
+    #keyfs.PYPIINVALID = keyfs.addkey("root/pypi/invalid", dict)
 
     # type stage related
     keyfs.STAGELINKS = keyfs.addkey("{user}/{index}/links/{name}", dict)
@@ -127,24 +149,74 @@ class XOM:
 
     def httpget(self, url, allow_redirects, timeout=30):
         from requests.exceptions import RequestException
+        headers = {}
+        if USE_FRONT:
+            if url.startswith("https://pypi.python.org/simple/"):
+                url = url.replace("https://pypi", "https://front")
+                headers["HOST"] = "pypi.python.org"
         try:
-            return self._httpsession.get(url, stream=True,
+            resp = self._httpsession.get(url, stream=True,
                                          allow_redirects=allow_redirects,
+                                         headers=headers,
                                          timeout=timeout)
+            if USE_FRONT and resp.url.startswith("https://front.python.org"):
+                resp.url = resp.url.replace("https://front.python.org",
+                                            "https://pypi.python.org")
+            return resp
         except RequestException:
             return FatalResponse(sys.exc_info())
 
-    def create_app(self, catchall=True):
+    def create_app(self, catchall=True, immediatetasks=False):
         from devpi_server.views import PyPIView, PkgView, route
         from bottle import Bottle
         log.info("creating application in process %s", os.getpid())
         app = Bottle(catchall=catchall)
+        plugin = BackgroundPlugin(xom=self)
+        if immediatetasks == -1:
+            pass
+        elif immediatetasks:
+            plugin.start_background_tasks()
+        else:  # defer to when the first request arrives
+            app.install(plugin)
         pypiview = PyPIView(self)
         route.discover_and_call(pypiview, app.route)
         pkgview = PkgView(self.releasefilestore, self.httpget)
         route.discover_and_call(pkgview, app.route)
         return app
 
+class BackgroundPlugin:
+    api = 2
+    name = "extdb_refresh"
+
+    _thread = None
+
+    def __init__(self, xom):
+        self.xom = xom
+
+    def setup(self, app):
+        log.debug("plugin.setup(%r)", app)
+        self.app = app
+
+    def apply(self, callback, route):
+        log.debug("plugin.apply() with %r, %r", callback, route)
+        def mywrapper(*args, **kwargs):
+            if not self._thread:
+                self.start_background_tasks()
+                self.app.uninstall(self)
+            return callback(*args, **kwargs)
+        return mywrapper
+
+    def close(self):
+        log.debug("plugin.close() called")
+
+    def start_background_tasks(self):
+        from devpi_server.extpypi import XMLProxy
+        from xmlrpclib import ServerProxy
+        xom = self.xom
+        PYPIURL_XMLRPC = "https://pypi.python.org/pypi/"
+        xom.proxy = XMLProxy(ServerProxy(PYPIURL_XMLRPC))
+        self._thread = xom.spawn(xom.extdb.spawned_pypichanges,
+            args=(xom.proxy, lambda: xom.sleep(xom.config.args.refresh)))
 
 class FatalResponse:
     status_code = -1
@@ -152,63 +224,6 @@ class FatalResponse:
     def __init__(self, excinfo=None):
         self.excinfo = excinfo
 
-
-
-# this flag indicates if we are running in the gunicorn master server
-# if so, we don't start background tasks
-workers = []
-
-def post_fork(server, worker):
-    # this hook is called by gunicorn in a freshly forked worker process
-    workers.append(worker)
-    log.debug("post_fork %s %s pid %s", server, worker, os.getpid())
-    #log.info("vars %r", vars(worker))
-
-def make_application():
-    ### unused function for creating an app
-    config = parseoptions()
-    xom = XOM(config)
-    start_background_tasks_if_not_in_arbiter(xom)
-    app = xom.create_app()
-    return app
-
-def application(environ, start_response, app=[]):
-    """ entry point for wsgi-servers who need an application object
-    in a module. """
-    if not app:
-        app.append(make_application())
-    return app[0](environ, start_response)
-
-def start_background_tasks_if_not_in_arbiter(xom):
-    log.debug("checking if running in worker %s", os.getpid())
-    if not workers:
-        return
-    log.info("starting background tasks from process %s", os.getpid())
-    from devpi_server.extpypi import RefreshManager, XMLProxy
-    from xmlrpclib import ServerProxy
-    xom.proxy = XMLProxy(ServerProxy(PYPIURL_XMLRPC))
-    refresher = RefreshManager(xom.extdb, xom)
-    xom.spawn(refresher.spawned_pypichanges,
-              args=(xom.proxy, lambda: xom.sleep(xom.config.args.refresh)))
-    log.debug("returning from background task starting")
-    xom.spawn(refresher.spawned_refreshprojects,
-              args=(lambda: xom.sleep(5),))
-
-def bottle_run(xom):
-    workers.append(1)
-    start_background_tasks_if_not_in_arbiter(xom)
-    app = xom.create_app(catchall=not xom.config.args.debug)
-    port = xom.config.args.port
-    log.info("devpi-server version: %s", devpi_server.__version__)
-    log.info("serving index url: http://%s:%s/ext/pypi/simple/",
-             xom.config.args.host, xom.config.args.port)
-    log.info("bug tracker: https://bitbucket.org/hpk42/devpi-server/issues")
-    log.info("IRC: #pylib on irc.freenode.net")
-    ret = app.run(server=xom.config.args.bottleserver,
-                  host=xom.config.args.host,
-                  reloader=False, port=port)
-    xom.shutdown()
-    return ret
 
 def set_default_indexes(db):
     PROD = "root/prod"

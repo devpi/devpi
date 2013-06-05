@@ -241,39 +241,31 @@ def raise_ValueError():
 
 class TestRefreshManager:
 
-    @pytest.fixture
-    def refreshmanager(self, request, extdb, xom):
-        rf = RefreshManager(extdb, xom)
-        #request.addfinalizer(xom.kill_spawned)
-        return rf
-
-    def test_pypichanges_nochanges(self, extdb, keyfs, refreshmanager):
+    def test_pypichanges_nochanges(self, extdb, keyfs):
         proxy = mock.create_autospec(XMLProxy)
-        proxy.changelog_last_serial.return_value = 10
+        proxy.list_packages_with_serial.return_value = {"hello": 10}
         proxy.changelog_since_serial.return_value = []
         with pytest.raises(ValueError):
-            refreshmanager.spawned_pypichanges(proxy,
-                                               proxysleep=raise_ValueError)
-        proxy.changelog_last_serial.assert_called_once_with()
-        assert keyfs.PYPISERIAL.get() == 10
+            extdb.spawned_pypichanges(proxy, proxysleep=raise_ValueError)
+        proxy.list_packages_with_serial.assert_called_once_with()
+        assert keyfs.PYPISERIALS.get() == {"hello": 10}
 
-    def test_pypichanges_changes(self, extdb, keyfs,
-                                 refreshmanager, monkeypatch):
-        keyfs.PYPISERIAL.set(10)
-        monkeypatch.setattr(extdb, "httpget",
-                            lambda *x,**y: raise_ValueError())
-        pytest.raises(ValueError, lambda: extdb.getreleaselinks("pytest"))
+    def test_pypichanges_changes(self, extdb, httpget, keyfs, monkeypatch):
+        keyfs.PYPISERIALS.set({"pytest": 20})
+        httpget.setextsimple("pytest", '<a href="pytest-2.3.tgz"/a>',
+                             pypiserial=20)
+        assert len(extdb.getreleaselinks("pytest")) == 1
         proxy = mock.create_autospec(XMLProxy)
         proxy.changelog_since_serial.return_value = [
             ["pylib", "1.4", 12123, 'new release', 11],
-            ["pytest", "2.0", 121231, 'new release', 12]]
+            ["pytest", "2.4", 121231, 'new release', 27]]
+        httpget.setextsimple("pytest", '<a href="pytest-2.4.tgz"/a>',
+                             pypiserial=27)
         with pytest.raises(ValueError):
-            refreshmanager.spawned_pypichanges(proxy,
-                                               proxysleep=raise_ValueError)
-        assert not proxy.changelog_last_serial.called
-        assert keyfs.PYPISERIAL.get() == 12
-        invalid = keyfs.PYPIINVALID.get()
-        assert invalid == {"pytest": 12}
+            extdb.spawned_pypichanges(proxy, proxysleep=raise_ValueError)
+        assert not proxy.list_packages_with_serial.called
+        assert keyfs.PYPISERIALS.get()["pytest"] == 27
+        assert extdb.getreleaselinks("pytest")[0].basename == "pytest-2.4.tgz"
 
     @pytest.fixture(params=["protocol", "socket"])
     def raise_error(self, request):
@@ -287,11 +279,11 @@ class TestRefreshManager:
             raise exc
         return raise_error
 
-    def test_changelog_since_serial_nonetwork(self, extdb, refreshmanager,
+    def test_changelog_since_serial_nonetwork(self, extdb,
                     keyfs, raise_error, monkeypatch, caplog):
         from xmlrpclib import ServerProxy
         got = []
-        keyfs.PYPISERIAL.set(10)
+        keyfs.PYPISERIALS.set({"pytest": 10})
         def raise_xmlrpcish(since_int):
             got.append(since_int)
             raise_error()
@@ -299,15 +291,13 @@ class TestRefreshManager:
         serverproxy.changelog_since_serial.side_effect = raise_xmlrpcish
         xmlproxy = XMLProxy(serverproxy)
         with pytest.raises(ValueError):
-            refreshmanager.spawned_pypichanges(xmlproxy,
-                                               proxysleep=raise_ValueError)
+            extdb.spawned_pypichanges(xmlproxy, proxysleep=raise_ValueError)
         with pytest.raises(ValueError):
-            refreshmanager.spawned_pypichanges(xmlproxy,
-                                               proxysleep=raise_ValueError)
+            extdb.spawned_pypichanges(xmlproxy, proxysleep=raise_ValueError)
         assert got == [10,10]
         assert caplog.getrecords(".*since_serial.*error.*")
 
-    def test_changelog_last_serial_nonetwork(self, extdb, refreshmanager,
+    def test_changelog_list_packages_no_network(self, extdb,
             keyfs, raise_error, monkeypatch, caplog):
         from xmlrpclib import ProtocolError, ServerProxy
 
@@ -319,38 +309,12 @@ class TestRefreshManager:
                 raise ValueError
 
         serverproxy = mock.Mock()
-        serverproxy.changelog_last_serial.side_effect = raise_ValueError
+        serverproxy.list_packages_with_serial.side_effect = raise_ValueError
         xmlproxy = XMLProxy(serverproxy)
         with pytest.raises(ValueError):
-            refreshmanager.spawned_pypichanges(xmlproxy,
-                                               proxysleep=raise_ValueError)
-        assert not keyfs.PYPISERIAL.exists()
+            extdb.spawned_pypichanges(xmlproxy, proxysleep=raise_ValueError)
+        assert not keyfs.PYPISERIALS.exists()
         assert caplog.getrecords(".*error.*")
-
-    def test_refreshprojects(self, keyfs, extdb, refreshmanager, monkeypatch):
-        keyfs.PYPIINVALID.set({"pytest": 12})
-        assert "pytest" in keyfs.PYPIINVALID.get()
-        m = mock.Mock()
-        monkeypatch.setattr(extdb, "getreleaselinks", m)
-        m.return_value = []
-        with pytest.raises(ValueError):
-            refreshmanager.spawned_refreshprojects(
-                invalidationsleep=raise_ValueError)
-        m.assert_called_once_with("pytest", refresh=12)
-        assert not keyfs.PYPIINVALID.get()
-
-    def test_refreshprojects_stalecache(self, keyfs,
-                                        extdb, refreshmanager, monkeypatch):
-        keyfs.PYPIINVALID.set({"pytest": 13})
-        assert "pytest" in keyfs.PYPIINVALID.get()
-        m = mock.Mock()
-        monkeypatch.setattr(extdb, "getreleaselinks", m)
-        m.return_value = -2
-        with pytest.raises(ValueError):
-            refreshmanager.spawned_refreshprojects(
-                invalidationsleep=raise_ValueError)
-        m.assert_called_once_with("pytest", refresh=13)
-        assert keyfs.PYPIINVALID.get() == {"pytest": 13}
 
 
 def test_requests_httpget_negative_status_code(xom_notmocked, monkeypatch):

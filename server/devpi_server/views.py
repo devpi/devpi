@@ -48,6 +48,7 @@ class PyPIView:
         self.xom = xom
         self.db = xom.db
 
+
     #
     # support functions
     #
@@ -224,8 +225,8 @@ class PyPIView:
         ]).unicode()
 
 
-    # showing documentation about packages
-    @route("/<user>/<index>/doc/<name>/<relpath:re:.*>",
+    # showing uploaded package documentation
+    @route("/<user>/<index>/+doc/<name>/<relpath:re:.*>",
            method="GET")
     def doc_show(self, user, index, name, relpath):
         key = self.db.keyfs.STAGEDOCS(user=user, index=index, name=name)
@@ -308,6 +309,11 @@ class PyPIView:
         for user in self.db.user_list():
             d[user] = self.db.user_get(user)
         return d
+
+    @route("/+init")
+    def init(self):
+        pass
+
 
 class PkgView:
     def __init__(self, filestore, httpget):

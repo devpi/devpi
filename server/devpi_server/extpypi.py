@@ -84,8 +84,8 @@ class XMLProxy(object):
     def __init__(self, proxy):
         self._proxy = proxy
 
-    def changelog_last_serial(self):
-        return self._execute("changelog_last_serial")
+    def list_packages_with_serial(self):
+        return self._execute("list_packages_with_serial")
 
     def changelog_since_serial(self, serial):
         return self._execute("changelog_since_serial", serial)
@@ -107,14 +107,14 @@ class ExtDB:
         self.keyfs = xom.keyfs
         self.httpget = xom.httpget
         self.releasefilestore = xom.releasefilestore
-        self._inprogress = set()
+        self.xom = xom
 
-    def iscontained(self, projectname):
-        return (self.keyfs.PYPILINKS(name=projectname).exists() or
-                projectname in self._inprogress)
+    def getcontained(self):
+        return self.keyfs.PYPILINKS.listnames("name")
 
     def getprojectnames(self):
         """ return list of all projects which have been served. """
+        # XXX return full upstream list?
         return sorted(self.keyfs.PYPILINKS.listnames("name"))
 
     def _dump_projectlinks(self, projectname, dumplist, serial):
@@ -143,11 +143,6 @@ class ExtDB:
         serial, res = self._load_projectlinks(projectname)
         if res is not None and serial >= refresh:
             return [self.releasefilestore.getentry(relpath) for relpath in res]
-
-        # the async changelog-checking might run any time and we need to
-        # make sure it consider this project before we read pypi.
-        # We therefore mark it as being accessed
-        self._inprogress.add(projectname)
 
         url = PYPIURL_SIMPLE + projectname + "/"
         log.debug("visiting index %s", url)
@@ -181,69 +176,53 @@ class ExtDB:
                         for link in releaselinks]
         dumplist = [entry.relpath for entry in entries]
         self._dump_projectlinks(projectname, dumplist, serial)
-        self._inprogress.remove(projectname)
         return entries
+
+    def spawned_pypichanges(self, proxy, proxysleep):
+        log.info("changelog/update tasks starting")
+        keyfs = self.keyfs
+        name2serials = keyfs.PYPISERIALS.get({})
+        while 1:
+            if not name2serials:
+                log.debug("retrieving initial name/serial list")
+                init_name2serials = proxy.list_packages_with_serial()
+                if init_name2serials is None:
+                    proxysleep()
+                    continue
+                for name, serial in iteritems(init_name2serials):
+                    name2serials[name.lower()] = serial
+                keyfs.PYPISERIALS.set(name2serials)
+            else:
+                # get changes since the maximum serial we are aware of
+                current_serial = max(itervalues(name2serials))
+                log.debug("querying pypi changelog since %s", current_serial)
+                changelog = proxy.changelog_since_serial(current_serial)
+                if changelog:
+                    names = set()
+                    for x in changelog:
+                        name, version, action, date, serial = x
+                        # XXX remove names if action == "remove"
+                        # and version is None
+                        name = name.lower()
+                        name2serials[name] = max(name2serials.get(name, 0),
+                                                 serial)
+                        names.add(name)
+                    log.debug("got changelog of size %d: %s" %(
+                              len(changelog), names))
+                    keyfs.PYPISERIALS.set(name2serials)
+
+            # walk through all mirrored projects and trigger updates if needed
+            for name in self.getcontained():
+                name = name.lower()
+                serial = name2serials[name]
+                self.getreleaselinks(name, refresh=serial)
+
+            proxysleep()
 
 PYPIURL_SIMPLE = "https://pypi.python.org/simple/"
 PYPIURL = "https://pypi.python.org/"
 
-class RefreshManager:
-    def __init__(self, extdb, xom):
-        self.extdb = extdb
-        self.xom = xom
-        self.keyfs = xom.keyfs
-
-    def spawned_pypichanges(self, proxy, proxysleep):
-        log.debug("spawned_pypichanges starting")
-        keyfs = self.keyfs
-        current_serial = keyfs.PYPISERIAL.get(None)
-        while 1:
-            if current_serial is None:
-                current_serial = proxy.changelog_last_serial()
-                if current_serial is None:
-                    proxysleep()
-                    continue
-                keyfs.PYPISERIAL.set(current_serial)
-            log.debug("checking remote changelog [%s]...", current_serial)
-            changelog = proxy.changelog_since_serial(current_serial)
-            if changelog:
-                log.debug("got changelog of size %d" %(len(changelog),))
-                self.mark_refresh(changelog)
-                current_serial += len(changelog)
-                keyfs.PYPISERIAL.set(current_serial)
-            proxysleep()
-
-    def mark_refresh(self, changelog):
-        projectnames = [(x[0], x[-1]) for x in changelog]
-        keyfs = self.keyfs
-        notcontained = set()
-        changed = {}
-        for name, serial in projectnames:
-            if self.extdb.iscontained(name):
-                log.debug("invalidating %r with serial %s", name, serial)
-                changed[name] = serial
-            else:
-                notcontained.add(name)
-        if notcontained:
-            log.info("ignoring changed projects: %r", notcontained)
-        if changed:
-            with keyfs.PYPIINVALID.locked_update() as invalid:
-                invalid.update(changed)
-            log.info("invalidated projects: %r", changed)
-
-    def spawned_refreshprojects(self, invalidationsleep):
-        """ Invalidation task for re-freshing project indexes. """
-        # note that this is written such that it could
-        # be killed and restarted anytime without loosing
-        # refreshing tasks (but possibly performing them twice)
-        keyfs = self.keyfs
-        while 1:
-            name2serial = keyfs.PYPIINVALID.get()
-            if name2serial:
-                log.info("refreshing invalidated projects %r", name2serial)
-                with keyfs.PYPIINVALID.locked_update() as invalid:
-                    for name, serial in name2serial.items():
-                        x = self.extdb.getreleaselinks(name, refresh=serial)
-                        if not isinstance(x, int):
-                            del invalid[name]
-            invalidationsleep()
+def itervalues(d):
+    return getattr(d, "itervalues", d.values)()
+def iteritems(d):
+    return getattr(d, "iteritems", d.items)()

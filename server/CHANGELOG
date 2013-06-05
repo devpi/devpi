@@ -2,8 +2,10 @@
 ----------------
 
 - implement more precise pypi.python.org CDN/caching invalidation
-  technique, using the new experimental "X-PYPI-LAST-SERIAL" header
-  on simple pages.
+  technique, using the most recent PyPI API ("X-PYPI-LAST-SERIAL" 
+  on simple pages and xmlrpc.list_packages_with_serial()).
+  also simplify background tasks to become only one async 
+  task doing both changelog checking and triggering updates.
 
 - use a filesystem based storage mechanism instead of Redis
 
