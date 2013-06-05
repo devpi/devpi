@@ -103,6 +103,34 @@ class TestStage:
         assert len(entries) == 1
         assert entries[0].FILE.get() == content2
 
+    def test_releasedata(self, stage):
+        assert stage.metadata_keys
+        assert not stage.get_metadata("hello", "1.0")
+        stage.register_metadata(dict(name="hello", version="1.0", author="xy"))
+        d = stage.get_metadata("hello", "1.0")
+        assert d["author"] == "xy"
+
+    def test_releasedata_description(self, stage):
+        source = py.std.textwrap.dedent("""\
+            test the *world*
+        """)
+        assert stage.metadata_keys
+        assert not stage.get_description("hello", "1.0")
+        stage.register_metadata(dict(name="hello", version="1.0",
+            description=source))
+        html = stage.get_description("hello", "1.0")
+        assert html
+        assert "test" in html and "world" in html
+
+    def test_releasedata_description_versions(self, stage):
+        stage.register_metadata(dict(name="hello", version="1.0",
+            description="hello"))
+        stage.register_metadata(dict(name="hello", version="1.1",
+            description="hello"))
+        ver = stage.get_description_versions("hello")
+        assert set(ver) == set(["1.0", "1.1"])
+
+
 class TestUsers:
     def test_create_and_validate(self, db):
         assert not db.user_exists("user")

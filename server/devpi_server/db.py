@@ -1,7 +1,8 @@
 
 import os
 import py
-from devpi_server.urlutil import DistURL
+from .urlutil import DistURL
+from .vendor._description_utils import processDescription
 import hashlib
 
 import logging
@@ -126,6 +127,11 @@ class DB:
 
 
 class PrivateStage:
+    metadata_keys = """
+        name version summary home_page author author_email
+        license description keywords platform classifiers download_url
+    """.split()
+
     def __init__(self, db, user, index, ixconfig):
         self.db = db
         self.xom = db.xom
@@ -155,6 +161,33 @@ class PrivateStage:
             log.debug("%s %s: %d entries", base, kw, len(base_entries))
             entries.extend(base_entries)
         return entries
+
+    def register_metadata(self, metadata):
+        name = metadata["name"]
+        version = metadata["version"]
+        key = self.keyfs.RELMETADATA(user=self.user, index=self.index,
+                                     name=name, version=version)
+        key.set(metadata)
+        desc = metadata.get("description")
+        if desc:
+            html = processDescription(desc)
+            key = self.keyfs.RELDESCRIPTION(
+                user=self.user, index=self.index, name=name, version=version)
+            key.set(html.encode("utf8"))
+
+    def get_description(self, name, version):
+        key = self.keyfs.RELDESCRIPTION(user=self.user, index=self.index,
+            name=name, version=version)
+        return key.get()
+
+    def get_description_versions(self, name):
+        return self.keyfs.RELDESCRIPTION.listnames("version",
+            user=self.user, index=self.index, name=name)
+
+    def get_metadata(self, name, version):
+        key = self.keyfs.RELMETADATA(user=self.user, index=self.index,
+                                     name=name, version=version)
+        return key.get()
 
     def getreleaselinks(self, projectname):
         return self.op_with_bases("getreleaselinks", projectname=projectname)

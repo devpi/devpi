@@ -91,6 +91,21 @@ def test_apiconfig(httpget, testapp):
     assert r.status_code == 404
     #for name in "pushrelease simpleindex login pypisubmit resultlog".split():
     #    assert name in r.json
+    #
+
+def test_register_metadata(httpget, db, mapp, testapp):
+    mapp.create_and_login_user("user")
+    mapp.create_index("name")
+    metadata = {"name": "pkg1", "version": "1.0", ":action": "submit",
+                "description": "hello world"}
+    r = testapp.post("/user/name/pypi", metadata)
+    assert r.status_code == 200
+    r = testapp.get("/user/name/pypi/pkg1/1.0/")
+    assert r.status_code == 200
+    assert "hello world" in r.text
+    r = testapp.get("/user/name/pypi/pkg1/")
+    assert r.status_code == 200
+    assert "1.0" in r.text
 
 def test_upload(httpget, db, mapp, testapp):
     mapp.create_and_login_user("user")

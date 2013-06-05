@@ -66,6 +66,9 @@ def add_keys(keyfs):
     keyfs.STAGELINKS = keyfs.addkey("{user}/{index}/links/{name}", dict)
     keyfs.STAGEFILE = keyfs.addkey("{user}/{index}/f/{md5}/{filename}", bytes)
     keyfs.STAGEDOCS = keyfs.addkey("{user}/{index}/doc/{name}", "DIR")
+    keyfs.RELMETADATA = keyfs.addkey("{user}/{index}/m/{name}/{version}", dict)
+    keyfs.RELDESCRIPTION = keyfs.addkey("{user}/{index}/d/{name}/{version}",
+                                        bytes)
     keyfs.PATHENTRY = keyfs.addkey("{relpath}-meta", dict)
     keyfs.FILEPATH = keyfs.addkey("{relpath}", bytes)
 

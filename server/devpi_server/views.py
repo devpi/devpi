@@ -1,4 +1,5 @@
 
+import py
 from py.xml import html
 from devpi_server.types import lazydecorator, cached_property
 from bottle import response, request, abort, redirect, HTTPError, auth_basic
@@ -14,14 +15,15 @@ LOGINCOOKIE = "devpi-login"
 MAXDOCZIPSIZE = 30 * 1024 * 1024    # 30MB
 
 
-def simple_html_body(title, bodytags):
+def simple_html_body(title, bodytags, extrahead=""):
     return html.html(
         html.head(
-            html.title(title)
+            html.title(title),
+            extrahead,
         ),
         html.body(
             html.h1(title),
-            *bodytags
+            bodytags
         )
     )
 
@@ -185,9 +187,10 @@ class PyPIView:
             abort(404, "index %s/%s does not exist" % (user, index))
         return {}
 
+    @route("/<user>/<index>/", method="POST")
     @route("/<user>/<index>/pypi", method="POST")
     @route("/<user>/<index>/pypi/", method="POST")
-    def upload(self, user, index):
+    def submit(self, user, index):
         self.require_user(user)
         try:
             action = request.forms[":action"]
@@ -196,7 +199,7 @@ class PyPIView:
         log.debug("received POST action %r" %(action))
         stage = self.getstage(user, index)
         if action == "submit":
-            return ""
+            return self._register_metadata(stage, request.forms)
         elif action in ("doc_upload", "file_upload"):
             try:
                 content = request.files["content"]
@@ -204,6 +207,8 @@ class PyPIView:
                 abort(400, "content file field not found")
             name = request.forms.get("name")
             version = request.forms.get("version", "")
+            if not stage.get_metadata(name, version):
+                self._register_metadata(stage, request.forms)
             if action == "file_upload":
                 stage.store_releasefile(content.filename, content.value)
             else:
@@ -213,6 +218,40 @@ class PyPIView:
         else:
             abort(400, "action %r not supported" % action)
         return ""
+
+    def _register_metadata(self, stage, form):
+        metadata = {}
+        for key in stage.metadata_keys:
+            metadata[key] = form.get(key, "")
+        log.info("got submit release info %r", metadata["name"])
+        stage.register_metadata(metadata)
+
+    @route("/<user>/<index>/pypi/<name>/<version>/", method="GET")
+    @route("/<user>/<index>/pypi/<name>/<version>", method="GET")
+    def versioned_description(self, user, index, name, version):
+        stage = self.getstage(user, index)
+        content = stage.get_description(name, version)
+        css = "https://pypi.python.org/styles/styles.css"
+        return simple_html_body("%s-%s description" % (name, version),
+            py.xml.raw(content), extrahead=
+            [html.link(media="screen", type="text/css",
+                rel="stylesheet", title="text",
+                href="https://pypi.python.org/styles/styles.css")]).unicode()
+
+    @route("/<user>/<index>/pypi/<name>", method="GET")
+    @route("/<user>/<index>/pypi/<name>/", method="GET")
+    def versions_of_descriptions(self, user, index, name):
+        stage = self.getstage(user, index)
+        descriptions = stage.get_description_versions(name)
+        l = []
+        for desc in descriptions:
+            l.append(
+                html.a(desc, href="/%s/%s/pypi/%s/%s/" % (
+                       user, index, name, desc))
+            )
+            l.append(html.br())
+        body = simple_html_body("Extracted Descriptions for %r" % name, l)
+        return body.unicode()
 
     @route("/<user>/<index>/")
     def indexroot(self, user, index):

@@ -2,7 +2,7 @@
 Code taken from pip's index.py for scraping links
 """
 import re
-from .urlutil import urljoin
+from devpi_server.urlutil import urljoin
 
 class HTMLPage(object):
     """Represents one page, along with its URL"""

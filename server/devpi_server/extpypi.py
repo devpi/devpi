@@ -10,7 +10,7 @@ import py
 import sys
 import threading
 
-from ._pip import HTMLPage
+from .vendor._pip import HTMLPage
 
 from .types import propmapping
 from .urlutil import DistURL, joinpath

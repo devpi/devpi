@@ -12,6 +12,8 @@ if __name__ == "__main__":
                         "execnet>=1.1",
                         "requests>=1.2.0",
                         "itsdangerous>=0.21",
+                        "docutils>=0.10",
+                        "pygments>=0.10",
                         "bottle>=0.11.6"]
     if sys.version_info < (2,7):
         install_requires.append("argparse>=1.2.1")
@@ -22,7 +24,7 @@ if __name__ == "__main__":
       keywords="pypi cache server wsgi",
       long_description=README + '\n\n' + CHANGES,
       url="https://bitbucket.org/hpk42/devpi",
-      version='0.9.dev6',
+      version='0.9.dev7',
       maintainer="Holger Krekel",
       maintainer_email="holger@merlinux.eu",
       packages=find_packages(),
