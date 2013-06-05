@@ -111,7 +111,7 @@ class PyPIView:
 
         links = []
         for entry in result:
-            href = "/pkg/" + entry.relpath
+            href = "/" + entry.relpath
             if entry.eggfragment:
                 href += "#egg=%s" % entry.eggfragment
             elif entry.md5:
@@ -125,6 +125,17 @@ class PyPIView:
             body.append(html.br())
         return simple_html_body("%s: links for %s" % (stage.name, projectname),
                                 body).unicode()
+
+    @route("/<user>/<index>/f/<relpath:re:.*>")
+    def pkgserv(self, user, index, relpath):
+        relpath = request.path.strip("/")
+        filestore = self.xom.releasefilestore
+        headers, itercontent = filestore.iterfile(relpath, self.xom.httpget)
+        response.content_type = headers["content-type"]
+        if "content-length" in headers:
+            response.content_length = headers["content-length"]
+        for x in itercontent:
+            yield x
 
     @route("/<user>/<index>/simple/")
     def simple_list_all(self, user, index):
@@ -229,12 +240,11 @@ class PyPIView:
     @route("/<user>/<index>/+doc/<name>/<relpath:re:.*>",
            method="GET")
     def doc_show(self, user, index, name, relpath):
+        if not relpath:
+            redirect("index.html")
         key = self.db.keyfs.STAGEDOCS(user=user, index=index, name=name)
         if not key.filepath.check():
             abort(404, "no documentation available")
-        if not relpath:
-            redirect("index.html")
-
         return static_file(relpath, root=str(key.filepath))
 
     #
@@ -310,24 +320,6 @@ class PyPIView:
             d[user] = self.db.user_get(user)
         return d
 
-    @route("/+init")
-    def init(self):
-        pass
-
-
-class PkgView:
-    def __init__(self, filestore, httpget):
-        self.filestore = filestore
-        self.httpget = httpget
-
-    @route("/pkg/<relpath:re:.*>")
-    def pkgserv(self, relpath):
-        headers, itercontent = self.filestore.iterfile(relpath, self.httpget)
-        response.content_type = headers["content-type"]
-        if "content-length" in headers:
-            response.content_length = headers["content-length"]
-        for x in itercontent:
-            yield x
 
 def getjson():
     dict = request.json

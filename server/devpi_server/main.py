@@ -59,9 +59,8 @@ def add_keys(keyfs):
 
     # type pypimirror related data
     keyfs.PYPILINKS = keyfs.addkey("root/pypi/links/{name}", list)
-    keyfs.PYPIFILES = keyfs.addkey("root/pypi/c/{relpath}", file)
+    keyfs.PYPIFILES = keyfs.addkey("root/pypi/f/{relpath}", file)
     keyfs.PYPISERIALS = keyfs.addkey("root/pypi/serials", dict)
-    #keyfs.PYPIINVALID = keyfs.addkey("root/pypi/invalid", dict)
 
     # type stage related
     keyfs.STAGELINKS = keyfs.addkey("{user}/{index}/links/{name}", dict)
@@ -167,7 +166,7 @@ class XOM:
             return FatalResponse(sys.exc_info())
 
     def create_app(self, catchall=True, immediatetasks=False):
-        from devpi_server.views import PyPIView, PkgView, route
+        from devpi_server.views import PyPIView, route
         from bottle import Bottle
         log.info("creating application in process %s", os.getpid())
         app = Bottle(catchall=catchall)
@@ -180,8 +179,6 @@ class XOM:
             app.install(plugin)
         pypiview = PyPIView(self)
         route.discover_and_call(pypiview, app.route)
-        pkgview = PkgView(self.releasefilestore, self.httpget)
-        route.discover_and_call(pkgview, app.route)
         return app
 
 class BackgroundPlugin:
