@@ -12,6 +12,16 @@ def runproc(cmd):
     args = cmd.split()
     return check_output(args)
 
+@pytest.fixture
+def uploadhub(request, tmpdir):
+    from devpi.main import initmain
+    hub, method = initmain(["devpitest",
+                           "--clientdir", tmpdir.join("client").strpath,
+                           "upload"])
+    return hub
+
+
+
 class TestCheckout:
     @pytest.fixture(scope="class")
     def repo(self, request):
@@ -28,16 +38,16 @@ class TestCheckout:
             old.chdir()
         return repo
 
-    def test_hg_export(self, emptyhub, repo, tmpdir, monkeypatch):
-        checkout = Checkout(emptyhub, repo.join("file"))
+    def test_hg_export(self, uploadhub, repo, tmpdir, monkeypatch):
+        checkout = Checkout(uploadhub, repo.join("file"))
         assert checkout.rootpath == repo
         newrepo = tmpdir.mkdir("newrepo")
         result = checkout.export(newrepo)
         assert result.rootpath.join("file").check()
         assert result.rootpath == newrepo.join(repo.basename)
 
-    def test_export_attributes(self, emptyhub, repo, tmpdir):
-        checkout = Checkout(emptyhub, repo)
+    def test_export_attributes(self, uploadhub, repo, tmpdir):
+        checkout = Checkout(uploadhub, repo)
         repo.join("setup.py").write("print 'xyz-1.2.3'")
         exported = checkout.export(tmpdir)
         assert exported.setup_fullname() == "xyz-1.2.3"
@@ -45,8 +55,8 @@ class TestCheckout:
         assert name == "xyz"
         assert str(version) == "1.2.3"
 
-    def test_export_changeversions(self, emptyhub, repo, tmpdir):
-        checkout = Checkout(emptyhub, repo)
+    def test_export_changeversions(self, uploadhub, repo, tmpdir):
+        checkout = Checkout(uploadhub, repo)
         repo.join("setup.py").write(dedent("""
             version = __version__ = "1.2.dev1"
             print ("pkg-%s" % version)
@@ -60,8 +70,8 @@ class TestCheckout:
         s2 = checkout.rootpath.join("setup.py").read()
         assert s1 == s2
 
-    def test_detect_versionfiles(self, emptyhub, repo, tmpdir):
-        checkout = Checkout(emptyhub, repo)
+    def test_detect_versionfiles(self, uploadhub, repo, tmpdir):
+        checkout = Checkout(uploadhub, repo)
         exported = checkout.export(tmpdir)
         p = exported.rootpath.ensure("a", "__init__.py")
         p.write("__version__ = '1.2'")
@@ -117,4 +127,6 @@ class TestUploadFunctional:
         devpi("upload", "--dryrun")
         devpi("upload", "--dryrun", "--withdocs")
         devpi("upload", "--dryrun", "--onlydocs")
+        devpi("upload", "--formats", "sdist.tbz")
+        devpi("upload", "--formats", "sdist.tgz,bdist_dumb")
 

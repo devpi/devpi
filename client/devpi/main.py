@@ -12,6 +12,8 @@ import json
 std = py.std
 subcommand = lazydecorator()
 
+from devpi import __version__
+
 def main(argv=None):
     if argv is None:
         argv = list(sys.argv)
@@ -111,23 +113,8 @@ class Hub:
     def get_user_url(self):
         return self.config.getuserurl(self.http.auth[0])
 
-    def XXX_get_fq_index(self, indexname):
-        parts = indexname.split("/", 1)
-        if len(parts) > 2:
-            self.fatal("invalid index name: %s" % indexname)
-        elif len(parts) == 1:
-            self.requires_login()
-            user = self.http.auth[0]
-            index = indexname
-        elif len(parts) == 2:
-            user, index = parts
-        else:
-            raise ValueError(indexname)
-        return user + "/" + index
-
     def raw_input(self, msg):
         return raw_input(msg)
-
 
     def getdir(self, name):
         return self._workdir.mkdir(name)
@@ -171,6 +158,8 @@ class Hub:
         if cwd == None:
             cwd = self.cwd
         self.line("%s$" % cwd, " ".join(args), "[to-pipe]")
+        if self.args.dryrun:
+            return
         return subprocess.check_output(args, cwd=str(cwd))
 
     def popen_check(self, args):
@@ -199,13 +188,27 @@ class Hub:
     def info(self, *msg):
         self.line(*msg, bold=True)
 
+class MyArgumentParser(argparse.ArgumentParser):
+    class ArgumentError(Exception):
+        """ and error from the argparse subsystem. """
+    def error(self, error):
+        """raise errors instead of printing and raising SystemExit"""
+        raise self.ArgumentError(error)
 
 def parse_args(argv):
     argv = map(str, argv)
-    parser = argparse.ArgumentParser(prog=argv[0])
-    add_generic_options(parser)
-    subparsers = parser.add_subparsers()
+    parser = getbasebaser(argv[0])
+    add_subparsers(parser)
+    try:
+        return parser.parse_args(argv[1:])
+    except parser.ArgumentError as e:
+        if not argv[1:]:
+            return parser.parse_args(["-h"])
+        parser.print_usage()
+        parser.exit(2, "%s: error: %s\n" % (parser.prog, e.args[0]))
 
+def add_subparsers(parser):
+    subparsers = parser.add_subparsers()
     for func, args, kwargs in subcommand.discover(globals()):
         mainloc = args[0]
         if len(args) > 1:
@@ -217,11 +220,17 @@ def parse_args(argv):
         func(subparser)
         mainloc = args[0]
         subparser.set_defaults(mainloc=mainloc)
+    #subparser = subparsers.add_parser("_test", help=argparse.SUPPRESS)
+    #subparser.set_defaults(mainloc="devpi")
 
-    args = parser.parse_args(argv[1:])
-    return args
+def getbasebaser(prog):
+    parser = MyArgumentParser(prog=prog)
+    add_generic_options(parser)
+    return parser
 
 def add_generic_options(parser):
+    parser.add_argument("--version", action="version",
+        version="devpi-server-" + __version__)
     parser.add_argument("--debug", action="store_true",
         help="show debug messages")
     parser.add_argument("--clientdir", action="store", metavar="DIR",
@@ -258,8 +267,8 @@ def user(parser):
 @subcommand("devpi.list", "list")
 def list_(parser):
     """ list users, indexes and packages. """
-    parser.add_argument("--user", type=str, action="store",
-        help="only show information for the given user")
+    #parser.add_argument("--user", type=str, action="store",
+    #    help="only show information for the given user")
 
 @subcommand("devpi.login")
 def login(parser):
@@ -297,13 +306,16 @@ def upload(parser):
         help="fill version string into setup.py, */__init__.py */conf.py files")
     #parser.add_argument("--incver", action="store_true",
     #    help="retrieve max remove version, increment and set it like --ver")
+    parser.add_argument("--formats", default="sdist.tgz", action="store",
+        help="comma separated list of build formats (passed to setup.py). "
+             "Examples sdist.zip,bdist_egg,bdist_dumb.")
     parser.add_argument("--dryrun",
         action="store_true", default=None,
         help="don't perform any server-modifying actions")
     parser.add_argument("--withdocs", action="store_true", default=None,
-        help="upload docs in addition to release files")
+        help="perform upload_docs in addition to uploading release files")
     parser.add_argument("--onlydocs", action="store_true", default=None,
-        help="only upload docs and no release files")
+        help="perform only upload_docs and no release files")
     #parser.add_argument("-y", dest="yes",
     #    action="store_true", default=None,
     #    help="answer yes on interactive questions. ")

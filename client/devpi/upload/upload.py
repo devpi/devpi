@@ -178,21 +178,32 @@ class Exported:
         user, password = self.hub.http.auth
         if not user:
             self.hub.fatal("need to be logged in to perform this action")
-        if self.hub.args.dryrun:
-            self.hub.info("would upload", cwd, "to", config.pypisubmit)
-            return
-        out = self.hub.popen_output(
-            [sys.executable, fn_setup, cwd, config.pypisubmit,
-             user, password,
-             "sdist", "upload", "-r", "devpi",],
-            cwd=cwd)
-        if "Server response (200): OK" in out:
-            for line in out.split("\n")[-10:]:
-                if line.startswith("Submitting"):
-                    self.hub.info(line.replace("Submitting", "submitted"))
-                    return
-        else:
-            self.hub.fatal("could not register releasefile", out)
+
+        formats = [x.strip() for x in self.hub.args.formats.split(",")]
+        for format in formats:
+            if not format:
+                continue
+            buildcommand = []
+            if format == "sdist" or format.startswith("sdist."):
+                buildcommand = ["sdist"]
+                parts = format.split(".", 1)
+                if len(parts) > 1:
+                    buildcommand.extend(["--formats", sdistformat(parts[1])])
+            else:
+                buildcommand.append(format)
+            pre = [sys.executable, fn_setup, cwd, config.pypisubmit,
+                   user, password]
+            cmd = pre + buildcommand  + ["upload", "-r", "devpi",]
+            out = self.hub.popen_output(cmd, cwd=cwd)
+            if out is None:  # dryrun
+                continue
+            if "Server response (200): OK" in out:
+                for line in out.split("\n")[-10:]:
+                    if line.startswith("Submitting"):
+                        self.hub.info(line.replace("Submitting", "submitted"))
+                        break
+            else:
+                self.hub.fatal("could not register releasefile", out)
 
     def setup_upload_docs(self):
         config = self.hub.config
@@ -217,3 +228,23 @@ class Exported:
         else:
             self.hub.fatal("could not upload docs", out)
 
+
+sdistformat2option = {
+    "tgz": "gztar",  # gzipped tar-file
+    "tar": "tar",    # un-compressed tar
+    "zip": "zip",    # comparessed zip file
+    "tz": "ztar",    # compressed tar file
+    "tbz": "bztar",  # bzip2'ed tar-file
+}
+
+#def getallformats():
+#    return set(sdistformat2option) + set(sdistformat2option.values())
+
+def sdistformat(format):
+    """ return sdist format option. """
+    res = sdistformat2option.get(format, None)
+    if res is None:
+        if res not in sdistformat2option.values():
+            raise ValueError("unknown sdist format option: %r" % res)
+        res = format
+    return res

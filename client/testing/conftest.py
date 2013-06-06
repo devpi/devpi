@@ -288,14 +288,6 @@ def cmd_devpi(tmpdir):
     run_devpi.clientdir = clientdir
     return run_devpi
 
-@pytest.fixture
-def emptyhub(request, tmpdir):
-    from devpi.main import Hub
-    class args:
-        clientdir = tmpdir.join("client")
-    return Hub(args)
-
-
 def runprocess(tmpdir, cmdargs):
     cmdargs = [str(x) for x in cmdargs]
     p1 = tmpdir.join("stdout")
