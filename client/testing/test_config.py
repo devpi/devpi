@@ -36,7 +36,7 @@ class TestUnit:
         monkeypatch.chdir(tmpdir)
         api = dict(
                    status=200,
-                   resource = dict(
+                   result = dict(
                         pypisubmit="/post",
                         simpleindex="/index/",
                         resultlog="/resultlog/",

@@ -77,7 +77,7 @@ class Config(object):
         url = hub.get_index_url(url)
         data = hub.http_api("get", url.rstrip("/") + "/+api")
         if data["status"] == 200:
-            data = data["resource"]
+            data = data["result"]
             for name in data:
                 data[name] = urlutil.joinpath(url, data[name])
             self.reconfigure(data)

@@ -1,0 +1,28 @@
+
+each index has these endpoints:
+
+    +pypi     endpoint for setup.py upload
+    +doc      uploaded documentation
+    +simple   uploaded documentation
+
+user/index/proj/version
+
+
+POST user/index/  {:action} upload_docs etc.
+
+GET user/index/+simple/...  simple pages in html
+GET user/index/NAME HTML -> latest README + relase files + fulldocs of NAME
+                         JSON -> list of releases of NAME
+
+GET user/index/NAME/VER HTML --> README and release files of that release 
+                       
+GET user/index/proj/  HTML -> README + referenced fulldocs
+                      JSON -> metadata 
+
+DELETE user/index/proj/2.3 {"confirm": "yes"}
+PUT user/index/proj/2.3/proj-2.3.0.tar.gz  #  {"confirm": "yes"}
+
+POST user/index/proj/ {"action": "preupload",
+                       "version": "2.3",
+                       "replace": True}
+-> {"

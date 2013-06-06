@@ -4,6 +4,7 @@ from py.xml import html
 from devpi_server.types import lazydecorator, cached_property
 from bottle import response, request, abort, redirect, HTTPError, auth_basic
 from bottle import BaseResponse, HTTPResponse, static_file
+from devpi_server import urlutil
 import bottle
 import json
 import itsdangerous
@@ -44,15 +45,19 @@ def abort_authenticate():
     err.add_header('location', "/+login")
     raise err
 
-def apireturn(code, message=None, resource=None):
+def apireturn(code, message=None, result=None):
     d = dict(status=code)
-    if resource is not None:
-        d["resource"] = resource
+    if result is not None:
+        d["result"] = result
     if message:
         d["message"] = message
     data = json.dumps(d, indent=2) + "\n"
     raise HTTPResponse(body=data, status=code, header=
                     {"content-type": "application/json"})
+
+def json_preferred():
+    # XXX do proper "best" matching
+    return "application/json" in request.headers.get("Accept", "")
 
 route = lazydecorator()
 
@@ -129,14 +134,14 @@ class PyPIView:
                     "pypisubmit": "/%s/%s/" % (user, index),
                     "simpleindex": "/%s/%s/+simple/" % (user, index),
                 })
-        apireturn(200, resource=api)
+        apireturn(200, result=api)
 
     #
     # index serving and upload
-    #
-    @route("/ext/pypi/simple<rest:re:.*>")
-    def extpypi_redirect(self, rest):
-        redirect("/ext/pypi/+simple%s" % rest)
+
+    #@route("/ext/pypi/simple<rest:re:.*>")  # deprecated
+    #def extpypi_redirect(self, rest):
+    #    redirect("/ext/pypi/+simple%s" % rest)
 
     @route("/<user>/<index>/+simple/<projectname>")
     @route("/<user>/<index>/+simple/<projectname>/")
@@ -154,31 +159,19 @@ class PyPIView:
 
         links = []
         for entry in result:
-            href = "/" + entry.relpath
+            relpath = entry.relpath
+            href = "/" + relpath
             if entry.eggfragment:
                 href += "#egg=%s" % entry.eggfragment
             elif entry.md5:
                 href += "#md5=%s" % entry.md5
-            links.append((href, entry.basename))
-
-        # construct html
-        body = []
-        for entry in links:
-            body.append(html.a(entry[1], href=entry[0]))
-            body.append(html.br())
+            links.extend([
+                 "/".join(relpath.split("/", 2)[:2]) + " ",
+                 html.a(entry.basename, href=href),
+                 html.br(),
+            ])
         return simple_html_body("%s: links for %s" % (stage.name, projectname),
-                                body).unicode()
-
-    @route("/<user>/<index>/f/<relpath:re:.*>")
-    def pkgserv(self, user, index, relpath):
-        relpath = request.path.strip("/")
-        filestore = self.xom.releasefilestore
-        headers, itercontent = filestore.iterfile(relpath, self.xom.httpget)
-        response.content_type = headers["content-type"]
-        if "content-length" in headers:
-            response.content_length = headers["content-length"]
-        for x in itercontent:
-            yield x
+                                links).unicode()
 
     @route("/<user>/<index>/+simple/")
     def simple_list_all(self, user, index):
@@ -224,13 +217,14 @@ class PyPIView:
         kvdict.setdefault("bases", ["root/dev"])
         kvdict.setdefault("volatile", True)
         ixconfig = self.db.user_indexconfig_set(user, index, **kvdict)
-        apireturn(201, resource=ixconfig)
+        apireturn(201, result=ixconfig)
 
     @route("/<user>/<index>", method=["DELETE"])
     def index_delete(self, user, index):
         indexname = user + "/" + index
         if not self.db.user_indexconfig_delete(user, index):
             apireturn(404, "index %s does not exist" % indexname)
+        self.db.delete_index(user, index)
         apireturn(201, "index %s deleted" % indexname)
 
     @route("/<user>/", method="GET")
@@ -242,7 +236,7 @@ class PyPIView:
         userindexes = userconfig.get("indexes", {})
         for name, val in userindexes.items():
             indexes["%s/%s" % (user, name)] = val
-        apireturn(200, resource=indexes)
+        apireturn(200, result=indexes)
 
     @route("/<user>/<index>/", method="POST")
     def submit(self, user, index):
@@ -281,57 +275,12 @@ class PyPIView:
         log.info("got submit release info %r", metadata["name"])
         stage.register_metadata(metadata)
 
-    @route("/<user>/<index>/pypi/<name>/<version>/", method="GET")
-    @route("/<user>/<index>/pypi/<name>/<version>", method="GET")
-    def versioned_description(self, user, index, name, version):
-        stage = self.getstage(user, index)
-        content = stage.get_description(name, version)
-        css = "https://pypi.python.org/styles/styles.css"
-        return simple_html_body("%s-%s description" % (name, version),
-            py.xml.raw(content), extrahead=
-            [html.link(media="screen", type="text/css",
-                rel="stylesheet", title="text",
-                href="https://pypi.python.org/styles/styles.css")]).unicode()
-
-    @route("/<user>/<index>/pypi/<name>", method="GET")
-    @route("/<user>/<index>/pypi/<name>/", method="GET")
-    def versions_of_descriptions(self, user, index, name):
-        stage = self.getstage(user, index)
-        descriptions = stage.get_description_versions(name)
-        l = []
-        for desc in descriptions:
-            l.append(
-                html.a(desc, href="/%s/%s/pypi/%s/%s/" % (
-                       user, index, name, desc))
-            )
-            l.append(html.br())
-        body = simple_html_body("Extracted Descriptions for %r" % name, l)
-        return body.unicode()
-
-    @route("/<user>/<index>/")
-    def indexroot(self, user, index):
-        stage = self.getstage(user, index)
-        bases = html.ul()
-        for base in stage.ixconfig["bases"]:
-            bases.append(html.li(
-                html.a("%s" % base, href="/%s/" % base),
-                " (",
-                html.a("simple", href="/%s/simple/" % base),
-                " )",
-            ))
-        if bases:
-            bases = [html.h2("inherited bases"), bases]
-
-        return simple_html_body("%s index" % stage.name, [
-            html.ul(
-                html.li(html.a("simple index", href="simple/")),
-            ),
-            bases,
-        ]).unicode()
-
+    #
+    #  per-project and version data
+    #
 
     # showing uploaded package documentation
-    @route("/<user>/<index>/+doc/<name>/<relpath:re:.*>",
+    @route("/<user>/<index>/<name>/+doc/<relpath:re:.*>",
            method="GET")
     def doc_show(self, user, index, name, relpath):
         if not relpath:
@@ -340,6 +289,119 @@ class PyPIView:
         if not key.filepath.check():
             abort(404, "no documentation available")
         return static_file(relpath, root=str(key.filepath))
+
+    @route("/<user>/<index>/<name>")
+    @route("/<user>/<index>/<name>/")
+    def project_get(self, user, index, name):
+        stage = self.getstage(user, index)
+        metadata = stage.get_projectconfig(name)
+        if json_preferred():
+            apireturn(200, result=metadata)
+        # html
+        body = []
+        for version in urlutil.sorted_by_version(metadata.keys()):
+            body.append(html.a(version, href=version + "/"))
+            body.append(html.br())
+        return simple_html_body("%s/%s: list of versions" % (stage.name,name),
+                                body).unicode(indent=2)
+
+    @route("/<user>/<index>/<name>", method="PUT")
+    def project_add(self, user, index, name):
+        self.require_user(user)
+        stage = self.getstage(user, index)
+        if stage.project_exists(name):
+            apireturn(409, "project %r exists" % name)
+        stage.project_add(name)
+        apireturn(201, "project %r created" % name)
+
+    @route("/<user>/<index>/<name>/<version>")
+    @route("/<user>/<index>/<name>/<version>/")
+    def version_get(self, user, index, name, version):
+        stage = self.getstage(user, index)
+        metadata = stage.get_projectconfig(name)
+        if not metadata:
+            abort(404, "project %r does not exist" % name)
+        verdata = metadata.get(version, None)
+        if not verdata:
+            abort(404)
+        if json_preferred():
+            apireturn(200, result=verdata)
+
+        # if html show description and metadata
+        rows = []
+        for key, value in sorted(verdata.items()):
+            if key == "description":
+                continue
+            rows.append(html.tr(html.td(key), html.td(value)))
+        body = html.table(*rows)
+        title = "%s/: %s-%s metadata and description" % (
+                stage.name, name, version)
+
+        content = stage.get_description(name, version)
+        css = "https://pypi.python.org/styles/styles.css"
+        return simple_html_body(title,
+            [html.table(*rows), py.xml.raw(content)],
+            extrahead=
+            [html.link(media="screen", type="text/css",
+                rel="stylesheet", title="text",
+                href="https://pypi.python.org/styles/styles.css")]
+        ).unicode(indent=2)
+
+    @route("/<user>/<index>/<name>/<version>/<relpath:re:.*>")
+    @route("/<user>/<index>/f/<relpath:re:.*>")
+    def pkgserv(self, user, index, name=None, version=None, relpath=None):
+        relpath = request.path.strip("/")
+        filestore = self.xom.releasefilestore
+        headers, itercontent = filestore.iterfile(relpath, self.xom.httpget)
+        response.content_type = headers["content-type"]
+        if "content-length" in headers:
+            response.content_length = headers["content-length"]
+        for x in itercontent:
+            yield x
+
+    @route("/<user>/<index>/")
+    def indexroot(self, user, index):
+        stage = self.getstage(user, index)
+        if json_preferred():
+            projectlist = stage.getprojectnames_perstage()
+            apireturn(200, result=projectlist)
+
+        # XXX this should go to a template
+        if hasattr(stage, "ixconfig"):
+            bases = html.ul()
+            for base in stage.ixconfig["bases"]:
+                bases.append(html.li(
+                    html.a("%s" % base, href="/%s/" % base),
+                    " (",
+                    html.a("simple", href="/%s/+simple/" % base),
+                    " )",
+                ))
+            if bases:
+                bases = [html.h2("inherited bases"), bases]
+        else:
+            bases = []
+        latest_packages = html.ul()
+        for name in stage.getprojectnames_perstage():
+            for entry in stage.getreleaselinks(name):
+                name, ver = urlutil.DistURL(entry.relpath).pkgname_and_version
+                latest_packages.append(html.li(
+                    html.a("%s-%s" % (name, ver), href="%s/%s/" % (name, ver)),
+                    " ",
+                    html.a(entry.basename, href="/" + entry.relpath),
+                ))
+                break
+        if latest_packages:
+            latest_packages = [html.h2("latest packages"), latest_packages]
+
+        return simple_html_body("%s index" % stage.name, [
+            html.ul(
+                html.li(html.a("simple index", href="+simple/")),
+            ),
+            latest_packages,
+            bases,
+        ]).unicode()
+
+
 
     #
     # login and user handling
@@ -373,7 +435,7 @@ class PyPIView:
         kvdict = getjson()
         if "password" in kvdict and "email" in kvdict:
             hash = self.db.user_create(user, **kvdict)
-            apireturn(201, resource=self.db.user_get(user))
+            apireturn(201, result=self.db.user_get(user))
         apireturn(400, "password and email values need to be set")
 
     @route("/<user>", method="DELETE")
@@ -392,7 +454,7 @@ class PyPIView:
         d = {}
         for user in self.db.user_list():
             d[user] = self.db.user_get(user)
-        apireturn(200, resource=d)
+        apireturn(200, result=d)
 
 def getjson():
     dict = request.json

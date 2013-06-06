@@ -12,7 +12,7 @@ from time import mktime
 
 import py
 from .types import propmapping
-from .urlutil import DistURL
+from .urlutil import DistURL, splitbasename
 
 from logging import getLogger
 log = getLogger(__name__)
@@ -107,9 +107,11 @@ class ReleaseFileStore:
 
     def store(self, user, index, filename, content):
         md5 = getmd5(content)
+        proj, version = splitbasename(filename, suffix=True)[:2]
         key = self.keyfs.STAGEFILE(user=user, index=index,
-                                    md5=md5,
-                                    filename=filename)
+                                   #md5=md5,
+                                   proj=proj, version=version,
+                                   filename=filename)
         entry = self.getentry(key.relpath)
         key.set(content)
         entry.set(md5=md5, size=len(content),

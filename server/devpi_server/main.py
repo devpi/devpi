@@ -39,6 +39,7 @@ def make_application():
     return XOM(config).create_app()
 
 def bottle_run(xom):
+    import bottle
     app = xom.create_app(immediatetasks=True,
                          catchall=not xom.config.args.debug)
     port = xom.config.args.port
@@ -47,7 +48,10 @@ def bottle_run(xom):
              xom.config.args.host, xom.config.args.port)
     log.info("bug tracker: https://bitbucket.org/hpk42/devpi/issues")
     log.info("IRC: #pylib on irc.freenode.net")
-    ret = app.run(server=xom.config.args.bottleserver,
+    if xom.config.args.debug:
+        from weberror.evalexception import make_eval_exception
+        app = make_eval_exception(app, {})
+    ret = bottle.run(app=app, server=xom.config.args.bottleserver,
                   host=xom.config.args.host,
                   reloader=False, port=port)
     xom.shutdown()
@@ -62,13 +66,15 @@ def add_keys(keyfs):
     keyfs.PYPIFILES = keyfs.addkey("root/pypi/f/{relpath}", file)
     keyfs.PYPISERIALS = keyfs.addkey("root/pypi/serials", dict)
 
-    # type stage related
-    keyfs.STAGELINKS = keyfs.addkey("{user}/{index}/links/{name}", dict)
-    keyfs.STAGEFILE = keyfs.addkey("{user}/{index}/f/{md5}/{filename}", bytes)
-    keyfs.STAGEDOCS = keyfs.addkey("{user}/{index}/doc/{name}", "DIR")
-    keyfs.RELMETADATA = keyfs.addkey("{user}/{index}/m/{name}/{version}", dict)
-    keyfs.RELDESCRIPTION = keyfs.addkey("{user}/{index}/d/{name}/{version}",
-                                        bytes)
+    # type "stage" related
+    keyfs.INDEXDIR = keyfs.addkey("{user}/{index}", "DIR")
+    keyfs.PROJCONFIG = keyfs.addkey("{user}/{index}/{name}/.config", dict)
+    keyfs.STAGEFILE = keyfs.addkey(
+            "{user}/{index}/{proj}/{version}/{filename}", bytes)
+    keyfs.STAGEDOCS = keyfs.addkey("{user}/{index}/{name}/.doc", "DIR")
+
+    keyfs.RELDESCRIPTION = keyfs.addkey(
+            "{user}/{index}/{name}/{version}/description_html", bytes)
     keyfs.PATHENTRY = keyfs.addkey("{relpath}-meta", dict)
     keyfs.FILEPATH = keyfs.addkey("{relpath}", bytes)
 

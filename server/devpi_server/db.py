@@ -94,6 +94,14 @@ class DB:
                 log.info("index %s/%s not exists", user, index)
                 return False
             del indexes[index]
+
+            log.info("deleted index config %s/%s" %(user, index))
+            return True
+
+    def delete_index(self, user, index):
+        p = self.keyfs.INDEXDIR(user=user, index=index).filepath
+        if p.check():
+            p.remove()
             log.info("deleted index %s/%s" %(user, index))
             return True
 
@@ -163,18 +171,31 @@ class PrivateStage:
             entries.extend(base_entries)
         return entries
 
+    #
+    # registering project and version metadata
+    #
     def register_metadata(self, metadata):
         name = metadata["name"]
         version = metadata["version"]
-        key = self.keyfs.RELMETADATA(user=self.user, index=self.index,
-                                     name=name, version=version)
-        key.set(metadata)
+        key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
+        with key.locked_update() as projectconfig:
+            versionconfig = projectconfig.setdefault(version, {})
+            versionconfig.update(metadata)
         desc = metadata.get("description")
         if desc:
             html = processDescription(desc)
             key = self.keyfs.RELDESCRIPTION(
                 user=self.user, index=self.index, name=name, version=version)
             key.set(html.encode("utf8"))
+
+    def project_add(self, name):
+        key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
+        with key.locked_update() as projectconfig:
+            pass
+
+    def project_exists(self, name):
+        key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
+        return key.exists()
 
     def get_description(self, name, version):
         key = self.keyfs.RELDESCRIPTION(user=self.user, index=self.index,
@@ -186,34 +207,42 @@ class PrivateStage:
             user=self.user, index=self.index, name=name)
 
     def get_metadata(self, name, version):
-        key = self.keyfs.RELMETADATA(user=self.user, index=self.index,
-                                     name=name, version=version)
+        projectconfig = self.get_projectconfig(name)
+        return projectconfig.get(version)
+
+    def get_projectconfig(self, name):
+        key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
         return key.get()
+
+    #
+    # getting release links
+    #
 
     def getreleaselinks(self, projectname):
         return self.op_with_bases("getreleaselinks", projectname=projectname)
 
     def getreleaselinks_perstage(self, projectname):
-        key = self.keyfs.STAGELINKS(user=self.user, index=self.index,
-                                     name=projectname)
-        files = key.get()
-        entries = []
-        for relpath in files.values():
-            entries.append(self.xom.releasefilestore.getentry(relpath))
-        return entries
+        projectconfig = self.get_projectconfig(projectname)
+        files = []
+        for verdata in projectconfig.values():
+            files.extend(
+                map(self.xom.releasefilestore.getentry,
+                    verdata.get("+files", {}).values()))
+        return files
 
     def getprojectnames(self):
         return self.op_with_bases("getprojectnames")
 
     def getprojectnames_perstage(self):
-        return sorted(self.keyfs.STAGELINKS.listnames("name",
-                            user=self.user, index=self.index))
+        return sorted(self.keyfs.PROJCONFIG.listnames("name",
+                      user=self.user, index=self.index))
 
     def store_releasefile(self, filename, content):
         name, version = DistURL(filename).pkgname_and_version
-        key = self.keyfs.STAGELINKS(user=self.user, index=self.index,
-                                     name=name)
-        with key.locked_update() as files:
+        key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
+        with key.locked_update() as projectconfig:
+            verdata = projectconfig.setdefault(version, {})
+            files = verdata.setdefault("+files", {})
             if not self.ixconfig.get("volatile") and filename in files:
                 return 409
             entry = self.xom.releasefilestore.store(self.user, self.index,

@@ -48,7 +48,7 @@ def index_delete(hub, indexname):
 def index_list(hub, indexname):
     url = hub.get_user_url() + "/"
     res = hub.http_api("get", url, None)
-    for name in res["resource"]:
+    for name in res["result"]:
         hub.info(name)
 
 def main(hub, args):

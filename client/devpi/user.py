@@ -28,7 +28,7 @@ def user_delete(hub, user):
 
 def user_list(hub, user):
     r = hub.http_api("get", hub.config.getuserurl(user))
-    userdict = r["resource"]
+    userdict = r["result"]
     for name in userdict or []:
         hub.line(name)
 

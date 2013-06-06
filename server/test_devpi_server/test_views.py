@@ -30,6 +30,11 @@ class MyTestApp(TApp):
             kwargs["expect_errors"] = True
         return super(MyTestApp, self).get(*args, **kwargs)
 
+    def get_json(self, *args, **kwargs):
+        headers = kwargs.setdefault("headers", {})
+        headers["Accept"] = "application/json"
+        return super(MyTestApp, self).get(*args, **kwargs)
+
 
 
 def getfirstlink(text):
@@ -81,7 +86,7 @@ def test_upstream_not_reachable(pypiurls, httpget, testapp, xom, code):
 def test_pkgserv(pypiurls, httpget, testapp):
     httpget.setextsimple("package", '<a href="/package-1.0.zip" />')
     httpget.setextfile("/package-1.0.zip", "123")
-    r = testapp.get("/root/pypi/+simple/package")
+    r = testapp.get("/root/pypi/+simple/package/")
     assert r.status_code == 200
     r = testapp.get(getfirstlink(r.text).get("href"))
     assert r.body == "123"
@@ -93,7 +98,7 @@ def test_apiconfig(httpget, testapp):
     #    assert name in r.json
     #
 
-def test_register_metadata(httpget, db, mapp, testapp):
+def test_register_metadata_and_get_description(httpget, db, mapp, testapp):
     mapp.create_and_login_user("user")
     mapp.create_index("name")
     api = mapp.getapi("user/name")
@@ -101,12 +106,12 @@ def test_register_metadata(httpget, db, mapp, testapp):
                 "description": "hello world"}
     r = testapp.post(api.pypisubmit, metadata)
     assert r.status_code == 200
-    r = testapp.get("/user/name/pypi/pkg1/1.0/")
+    r = testapp.get_json("/user/name/pkg1/1.0/")
     assert r.status_code == 200
-    assert "hello world" in r.text
-    r = testapp.get("/user/name/pypi/pkg1/")
+    assert "hello world" in r.json["result"]["description"]
+    r = testapp.get_json("/user/name/pkg1/")
     assert r.status_code == 200
-    assert "1.0" in r.text
+    assert "1.0" in r.json["result"]
 
 def test_upload(httpget, db, mapp, testapp):
     mapp.create_and_login_user("user")
@@ -129,7 +134,7 @@ def test_upload_docs(httpget, db, mapp, testapp):
     mapp.create_index("name")
     content = create_zipfile({"index.html": "<html/>"})
     mapp.upload_doc("user", "name", "pkg1.zip", content, "pkg1", "2.6")
-    r = testapp.get("/user/name/+doc/pkg1/index.html")
+    r = testapp.get("/user/name/pkg1/+doc/index.html")
     assert r.status_code == 200
     #a = getfirstlink(r.text)
     #assert "pkg1-2.6.tgz" in a.get("href")
@@ -180,7 +185,7 @@ class Mapp:
         assert r.status_code == 200
         class API:
             def __init__(self):
-                self.__dict__.update(r.json["resource"])
+                self.__dict__.update(r.json["result"])
         return API()
 
     def login(self, user="root", password=""):
@@ -198,14 +203,14 @@ class Mapp:
     def getuserlist(self):
         r = self.testapp.get("/", {"indexes": False}, {"Accept": "*/json"})
         assert r.status_code == 200
-        return r.json["resource"]
+        return r.json["result"]
 
     def getindexlist(self, user=None):
         if user is None:
             user = self.testapp.auth[0]
         r = self.testapp.get("/%s/" % user, {"Accept": "*/json"})
         assert r.status_code == 200
-        return r.json["resource"]
+        return r.json["result"]
 
     def change_password(self, user, password):
         auth = self.testapp.auth
@@ -217,7 +222,7 @@ class Mapp:
         reqdict = dict(password=password, email=email)
         r = self.testapp.put_json("/%s" % user, reqdict)
         assert r.status_code == 201
-        res = r.json["resource"]
+        res = r.json["result"]
         assert res["username"] == user
         assert res["email"] == email
 
@@ -234,7 +239,15 @@ class Mapp:
         user, password = self.testapp.auth
         r = self.testapp.put_json("/%s/%s" % (user, indexname), {})
         assert r.status_code == 201
-        assert r.json["resource"]["type"] == "stage"
+        assert r.json["result"]["type"] == "stage"
+
+    def create_project(self, indexname, projectname, code=201):
+        user, password = self.testapp.auth
+        r = self.testapp.put_json("/%s/%s/hello" % (user, indexname), {},
+                expect_errors=True)
+        assert r.status_code == code
+        if code == 201:
+            assert "created" in r.json["message"]
 
     def delete_user_fails(self, username):
         r = self.testapp.delete_json("/%s" % username, expect_errors=True)
@@ -284,6 +297,12 @@ class TestUserThings:
         mapp.login("root", "p1oi2p3i")
 
 
+class TestIndexOnlyWeb:
+    def test_create_project(self, mapp):
+        mapp.create_and_login_user()
+        mapp.create_index("dev")
+        mapp.create_project("dev", "hello")
+        mapp.create_project("dev", "hello", code=409)
 
 
 class TestIndexThings:
@@ -294,6 +313,7 @@ class TestIndexThings:
         assert indexname not in mapp.getindexlist()
         mapp.create_index("dev")
         assert indexname in mapp.getindexlist()
+
 
     @pytest.mark.parametrize(["input", "expected"], [
         ({},
