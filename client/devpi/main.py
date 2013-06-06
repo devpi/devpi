@@ -103,7 +103,11 @@ class Hub:
         if not self.http.auth:
             self.fatal("you need to be logged in (use 'devpi login USER')")
 
-    def get_index_url(self, indexname):
+    def get_index_url(self, indexname=None):
+        if indexname is None:
+            indexname = self.config.index
+            if indexname is None:
+                raise ValueError("no index name")
         if "/" not in indexname:
             assert self.http.auth[0]
             userurl = self.config.getuserurl(self.http.auth[0])

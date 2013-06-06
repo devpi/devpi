@@ -14,7 +14,7 @@ class TestUnit:
         config = Config(path)
         assert not config.simpleindex
         config.reconfigure(dict(
-                pypisubmit="/post", pushrelease="/push",
+                pypisubmit="/post",
                 simpleindex="/index",
                 login="/login",
                 resultlog="/"))
@@ -37,9 +37,10 @@ class TestUnit:
         api = dict(
                    status=200,
                    resource = dict(
-                        pypisubmit="/post", pushrelease="/push",
+                        pypisubmit="/post",
                         simpleindex="/index/",
                         resultlog="/resultlog/",
+                        login="/+login/",
                    ))
         def http_api(*args, **kwargs):
             return api
@@ -49,7 +50,6 @@ class TestUnit:
         hub = cmd_devpi("config", "http://world/this")
         newapi = hub.config
         assert newapi.pypisubmit == "http://world/post"
-        assert newapi.pushrelease == "http://world/push"
         assert newapi.simpleindex == "http://world/index/"
         assert newapi.resultlog == "http://world/resultlog/"
         assert not newapi.venvdir

@@ -4,7 +4,6 @@ from devpi.util import version as verlib
 from devpi.util import pypirc
 
 def main(hub, args):
-    pushrelease = hub.config.pushrelease
     pypirc_path = args.pypirc
     if pypirc_path is None:
         pypirc_path = py.path.local._gethomedir().join(".pypirc")
@@ -20,6 +19,7 @@ def main(hub, args):
                                  posturl=posturl,
                                  username=user, password=password,
                             ))
-    r = py.std.requests.post(pushrelease, data=req)
+    index = hub.config.index
+    r = py.std.requests.request("push", index, data=req)
     assert r.status_code == 201, r.content
     hub.info("pushed %s to %s" % (args.nameversion, args.posturl))

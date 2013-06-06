@@ -4,7 +4,7 @@ import py
 import webtest
 from bs4 import BeautifulSoup
 from webtest.forms import Upload
-from devpi_server.views import LOGINCOOKIE
+from devpi_server.views import PyPIView
 from webtest import TestApp as TApp
 from test_db import create_zipfile
 
@@ -43,11 +43,11 @@ def testapp(request, xom):
 
 def test_simple_project(pypiurls, httpget, testapp):
     name = "qpwoei"
-    r = testapp.get("/root/pypi/simple/" + name)
+    r = testapp.get("/root/pypi/+simple/" + name)
     assert r.status_code == 404
     path = "/%s-1.0.zip" % name
     httpget.setextsimple(name, text='<a href="%s"/>' % path)
-    r = testapp.get("/root/pypi/simple/%s" % name)
+    r = testapp.get("/root/pypi/+simple/%s" % name)
     assert r.status_code == 200
     links = BeautifulSoup(r.text).findAll("a")
     assert len(links) == 1
@@ -56,10 +56,10 @@ def test_simple_project(pypiurls, httpget, testapp):
 def test_simple_list(pypiurls, httpget, testapp):
     httpget.setextsimple("hello1", text="<html/>")
     httpget.setextsimple("hello2", text="<html/>")
-    assert testapp.get("/root/pypi/simple/hello1").status_code == 200
-    assert testapp.get("/root/pypi/simple/hello2").status_code == 200
-    assert testapp.get("/root/pypi/simple/hello3").status_code == 404
-    r = testapp.get("/root/pypi/simple/")
+    assert testapp.get("/root/pypi/+simple/hello1").status_code == 200
+    assert testapp.get("/root/pypi/+simple/hello2").status_code == 200
+    assert testapp.get("/root/pypi/+simple/hello3").status_code == 404
+    r = testapp.get("/root/pypi/+simple/")
     assert r.status_code == 200
     links = BeautifulSoup(r.text).findAll("a")
     assert len(links) == 2
@@ -75,13 +75,13 @@ def test_index_root(pypiurls, httpget, testapp, xom):
 def test_upstream_not_reachable(pypiurls, httpget, testapp, xom, code):
     name = "whatever%d" % (code + 1)
     httpget.setextsimple(name, status_code = code)
-    r = testapp.get("/root/pypi/simple/%s" % name)
+    r = testapp.get("/root/pypi/+simple/%s" % name)
     assert r.status_code == 502
 
 def test_pkgserv(pypiurls, httpget, testapp):
     httpget.setextsimple("package", '<a href="/package-1.0.zip" />')
     httpget.setextfile("/package-1.0.zip", "123")
-    r = testapp.get("/root/pypi/simple/package")
+    r = testapp.get("/root/pypi/+simple/package")
     assert r.status_code == 200
     r = testapp.get(getfirstlink(r.text).get("href"))
     assert r.body == "123"
@@ -96,9 +96,10 @@ def test_apiconfig(httpget, testapp):
 def test_register_metadata(httpget, db, mapp, testapp):
     mapp.create_and_login_user("user")
     mapp.create_index("name")
+    api = mapp.getapi("user/name")
     metadata = {"name": "pkg1", "version": "1.0", ":action": "submit",
                 "description": "hello world"}
-    r = testapp.post("/user/name/pypi", metadata)
+    r = testapp.post(api.pypisubmit, metadata)
     assert r.status_code == 200
     r = testapp.get("/user/name/pypi/pkg1/1.0/")
     assert r.status_code == 200
@@ -111,7 +112,7 @@ def test_upload(httpget, db, mapp, testapp):
     mapp.create_and_login_user("user")
     mapp.create_index("name")
     mapp.upload_file("user", "name", "pkg1-2.6.tgz", "123", "pkg1", "2.6")
-    r = testapp.get("/user/name/simple/pkg1/")
+    r = testapp.get("/user/name/+simple/pkg1/")
     assert r.status_code == 200
     a = getfirstlink(r.text)
     assert "pkg1-2.6.tgz" in a.get("href")
@@ -135,18 +136,19 @@ def test_upload_docs(httpget, db, mapp, testapp):
 
 
 class TestLoginBasics:
-    def test_wrong_login_format(self, testapp):
-        r = testapp.post("/login", "qweqweqwe", expect_errors=True)
+    def test_wrong_login_format(self, testapp, mapp):
+        api = mapp.getapi()
+        r = testapp.post(api.login, "qweqweqwe", expect_errors=True)
         assert r.status_code == 400
-        r = testapp.post_json("/login", {"qwelk": ""}, expect_errors=True)
+        r = testapp.post_json(api.login, {"qwelk": ""}, expect_errors=True)
         assert r.status_code == 400
 
     def test_login_root_default(self, testapp):
-        r = testapp.post_json("/login", {"user": "root", "password": "123"},
+        r = testapp.post_json(api.login, {"user": "root", "password": "123"},
                               expect_errors=True)
         assert r.status_code == 401
         assert not testapp.auth
-        r = testapp.post_json("/login", {"user": "root", "password": ""},
+        r = testapp.post_json(api.login, {"user": "root", "password": ""},
                               expect_errors=True)
         assert r.status_code == 200
         assert "password" in r.json
@@ -168,15 +170,28 @@ class Mapp:
     def delete_user(self, user):
         self.testapp.delete_json("/%s" % user)
 
+    def getapi(self, relpath="/"):
+        path = relpath.strip("/")
+        if not path:
+            path = "/+api"
+        else:
+            path = "/%s/+api" % path
+        r = self.testapp.get(path)
+        assert r.status_code == 200
+        class API:
+            def __init__(self):
+                self.__dict__.update(r.json["resource"])
+        return API()
+
     def login(self, user="root", password=""):
-        r = self.testapp.post_json("/login",
+        r = self.testapp.post_json("/+login",
                                   {"user": user, "password": password})
         print "logging in as", user
         self.testapp.set_auth(user, r.json["password"])
         self.auth = user, r.json["password"]
 
     def login_fails(self, user="root", password=""):
-        r = self.testapp.post_json("/login",
+        r = self.testapp.post_json("/+login",
             {"user": user, "password": password}, expect_errors=True)
         assert r.status_code >= 400
 
@@ -226,19 +241,19 @@ class Mapp:
         assert r.status_code == 404
 
     def upload_file(self, user, index, basename, content, name, version):
-        r = self.testapp.post("/%s/%s/pypi/" % (user, index),
+        r = self.testapp.post("/%s/%s/" % (user, index),
             {":action": "file_upload", "name": name, "version": version,
              "content": Upload(basename, content)})
         assert r.status_code == 200
 
     def upload_doc(self, user, index, basename, content, name, version):
-        r = self.testapp.post("/%s/%s/pypi/" % (user, index),
+        r = self.testapp.post("/%s/%s/" % (user, index),
             {":action": "doc_upload", "name": name, "version": version,
              "content": Upload(basename, content)})
         assert r.status_code == 200
 
     def upload_doc_fails(self, user, index, basename, content, name, version):
-        r = self.testapp.post("/%s/%s/pypi/" % (user, index),
+        r = self.testapp.post("/%s/%s/" % (user, index),
             {":action": "doc_upload", "name": name, "version": version,
              "content": Upload(basename, content)}, expect_errors=True)
         assert r.status_code >= 400 and r.status_code < 500

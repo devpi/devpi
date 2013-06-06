@@ -41,6 +41,7 @@ def abort(code, body):
 def abort_authenticate():
     err = HTTPError(401, "authentication required")
     err.add_header('WWW-Authenticate', 'Basic realm="pypi"')
+    err.add_header('location', "/+login")
     raise err
 
 def apireturn(code, message=None, resource=None):
@@ -105,15 +106,40 @@ class PyPIView:
             abort(404, "no such stage")
         return stage
 
+
+    #
+    # supplying basic API locations for all services
+    #
+
+    @route("/+api")
+    @route("/<path:path>/+api")
+    def apiconfig_index(self, path=None):
+        api = {
+            "resultlog": "/+tests",
+            "login": "/+login",
+        }
+        if path:
+            parts = path.split("/")
+            if len(parts) >= 2:
+                user, index = parts[:2]
+                if not self.db.user_indexconfig_get(user, index):
+                    abort(404, "index %s/%s does not exist" %(user, index))
+                api.update({
+                    "index": "/%s/%s/" % (user, index),
+                    "pypisubmit": "/%s/%s/" % (user, index),
+                    "simpleindex": "/%s/%s/+simple/" % (user, index),
+                })
+        apireturn(200, resource=api)
+
     #
     # index serving and upload
     #
-    @route("/ext/pypi<rest:re:.*>")
+    @route("/ext/pypi/simple<rest:re:.*>")
     def extpypi_redirect(self, rest):
-        redirect("/root/pypi%s" % rest)
+        redirect("/ext/pypi/+simple%s" % rest)
 
-    @route("/<user>/<index>/simple/<projectname>")
-    @route("/<user>/<index>/simple/<projectname>/")
+    @route("/<user>/<index>/+simple/<projectname>")
+    @route("/<user>/<index>/+simple/<projectname>/")
     def simple_list_project(self, user, index, projectname):
         # we only serve absolute links so we don't care about the route's slash
         stage = self.getstage(user, index)
@@ -154,7 +180,7 @@ class PyPIView:
         for x in itercontent:
             yield x
 
-    @route("/<user>/<index>/simple/")
+    @route("/<user>/<index>/+simple/")
     def simple_list_all(self, user, index):
         stage = self.getstage(user, index)
         names = stage.getprojectnames()
@@ -164,6 +190,8 @@ class PyPIView:
             body.append(html.br())
         return simple_html_body("%s: list of accessed projects" % stage.name,
                                 body).unicode()
+
+    @route("/<user>/<index>", method="GET")
     @route("/<user>/<index>/", method="GET")
     def indexroot(self, user, index):
         stage = self.getstage(user, index)
@@ -172,7 +200,7 @@ class PyPIView:
             bases.append(html.li(
                 html.a("%s" % base, href="/%s/" % base),
                 " (",
-                html.a("simple", href="/%s/simple/" % base),
+                html.a("simple", href="/%s/+simple/" % base),
                 " )",
             ))
         if bases:
@@ -180,7 +208,8 @@ class PyPIView:
 
         return simple_html_body("%s index" % stage.name, [
             html.ul(
-                html.li(html.a("simple index", href="simple/")),
+                html.li(html.a("simple index",
+                               href="/%s/+simple/" % stage.name))
             ),
             bases,
         ]).unicode()
@@ -216,8 +245,6 @@ class PyPIView:
         apireturn(200, resource=indexes)
 
     @route("/<user>/<index>/", method="POST")
-    @route("/<user>/<index>/pypi", method="POST")
-    @route("/<user>/<index>/pypi/", method="POST")
     def submit(self, user, index):
         self.require_user(user)
         try:
@@ -315,29 +342,9 @@ class PyPIView:
         return static_file(relpath, root=str(key.filepath))
 
     #
-    # supplying basic API locations for all services
-    #
-
-    @route("/<user>/<index>/-api")
-    @route("/<user>/<index>/pypi/-api")
-    @route("/<user>/<index>/simple/-api")
-    def apiconfig(self, user, index):
-        if not self.db.user_indexconfig_get(user, index):
-            abort(404, "index %s/%s does not exist" %(user, index))
-        root = "/"
-        apidict = {
-            "resultlog": "/resultlog",
-            "login": "/login",
-            "pypisubmit": "/%s/%s/pypi" % (user, index),
-            "pushrelease": "/%s/%s/push" % (user, index),
-            "simpleindex": "/%s/%s/simple/" % (user, index),
-        }
-        apireturn(200, resource=apidict)
-
-    #
     # login and user handling
     #
-    @route("/login", method="POST")
+    @route("/+login", method="POST")
     def login(self):
         dict = getjson()
         user = dict.get("user", None)

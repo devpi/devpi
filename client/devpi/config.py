@@ -22,11 +22,11 @@ def configproperty(name):
     return property(propget, propset)
 
 class Config(object):
+    index = configproperty("index")
     simpleindex = configproperty("simpleindex")
     pypisubmit = configproperty("pypisubmit")
-    pushrelease = configproperty("pushrelease")
-    resultlog = configproperty("resultlog")
     login = configproperty("login")
+    resultlog = configproperty("resultlog")
     venvdir = configproperty("venvdir")
 
     def __init__(self, path):
@@ -40,11 +40,13 @@ class Config(object):
             d.update(json.loads(self.path.read()))
 
     def items(self):
-        for name in ("simpleindex", "pypisubmit", "pushrelease",
-                     "login", "resultlog", "venvdir"):
+        for name in ("index", "simpleindex", "pypisubmit",
+                     "resultlog", "login", "venvdir"):
             yield (name, getattr(self, name))
 
     def reconfigure(self, data):
+        self._raw = data
+        self._configdict.clear()
         for name in data:
             oldval = getattr(self, name)
             newval = data[name]
@@ -56,7 +58,7 @@ class Config(object):
 
     @property
     def rooturl(self):
-        return urlutil.joinpath(self.simpleindex, "/")
+        return urlutil.joinpath(self.login, "/")
 
     def getuserurl(self, user):
         return urlutil.joinpath(self.rooturl, user)
@@ -73,8 +75,7 @@ class Config(object):
 
     def configure_fromurl(self, hub, url):
         url = hub.get_index_url(url)
-        data = hub.http_api("get", url + "/-api", ret=True,
-                            errmsg="index %r" % url)
+        data = hub.http_api("get", url.rstrip("/") + "/+api")
         if data["status"] == 200:
             data = data["resource"]
             for name in data:

@@ -14,18 +14,18 @@ def runproc(cmd):
 def test_main(monkeypatch, tmpdir):
     from devpi.push import main
     l = []
-    def mypost(url, data):
-        l.append((url, data))
+    def mypost(method, url, data):
+        l.append((method, url, data))
         class r:
             status_code = 201
         return r
-    monkeypatch.setattr(py.std.requests, "post", mypost)
+    monkeypatch.setattr(py.std.requests, "request", mypost)
 
     class args:
         clientdir = tmpdir.join("client")
 
     hub = Hub(args)
-    hub.config.reconfigure(dict(pushrelease="/push"))
+    hub.config.reconfigure(dict(index="/some/index"))
     p = tmpdir.join("pypirc")
     p.write(py.std.textwrap.dedent("""
         [distutils]
@@ -42,8 +42,8 @@ def test_main(monkeypatch, tmpdir):
         nameversion = "pkg-1.0"
     main(hub, args)
     assert len(l) == 1
-    url, data = l[0]
-    assert url == "/push"
+    method, url, data = l[0]
+    assert url == hub.config.index
     req = py.std.json.loads(data)
     assert req["name"] == "pkg"
     assert req["version"] == "1.0"
