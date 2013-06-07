@@ -33,8 +33,8 @@ class MyTestApp(TApp):
     def get_json(self, *args, **kwargs):
         headers = kwargs.setdefault("headers", {})
         headers["Accept"] = "application/json"
+        self.x = 1
         return super(MyTestApp, self).get(*args, **kwargs)
-
 
 
 def getfirstlink(text):
@@ -177,7 +177,8 @@ class Mapp:
         return API()
 
     def login(self, user="root", password="", code=200):
-        r = self.testapp.post_json("/+login",
+        api = self.getapi()
+        r = self.testapp.post_json(api.login,
                                   {"user": user, "password": password},
                                   expect_errors=True)
         assert r.status_code == code
@@ -237,6 +238,11 @@ class Mapp:
     def create_and_login_user(self, user="someuser"):
         self.create_user(user, "123")
         self.login(user, "123")
+
+    def get_config(self, path, code=200):
+        r = self.testapp.get_json(path, {}, expect_errors=True)
+        assert r.status_code == code
+        return r.json
 
     def create_index(self, indexname, code=201):
         if "/" in indexname:
@@ -304,14 +310,6 @@ class TestUserThings:
         mapp.login("root", "p1oi2p3i")
 
 
-class TestIndexOnlyWeb:
-    def test_create_project(self, mapp):
-        mapp.create_and_login_user()
-        mapp.create_index("dev")
-        mapp.create_project("dev", "hello")
-        mapp.create_project("dev", "hello", code=409)
-
-
 class TestIndexThings:
 
     def test_create_index(self, mapp):
@@ -326,6 +324,7 @@ class TestIndexThings:
         mapp.create_and_login_user("not_exist")
         mapp.create_index("not_exist/dev")
 
+
     @pytest.mark.parametrize(["input", "expected"], [
         ({},
           dict(type="stage", volatile=True, bases=["root/dev", "root/pypi"])),
@@ -338,4 +337,30 @@ class TestIndexThings:
         from devpi_server.views import getkvdict_index
         result = getkvdict_index(input)
         assert result == expected
+
+    def test_config_get_user_empty(self, mapp):
+        mapp.get_config("/user", code=404)
+
+    def test_create_user_and_config_gets(self, mapp):
+        assert mapp.get_config("/")["type"] == "list:userconfig"
+        mapp.create_and_login_user("cuser1")
+        data = mapp.get_config("/cuser1")
+        assert data["type"] == "userconfig"
+        data = mapp.get_config("/cuser1/")
+        assert data["type"] == "list:indexconfig"
+
+    def test_create_index_and_config_gets(self, mapp):
+        mapp.create_and_login_user("cuser2")
+        mapp.create_index("dev")
+        assert mapp.get_config("/cuser2/dev")["type"] == "indexconfig"
+        assert mapp.get_config("/cuser2/dev/")["type"] == "list:projectconfig"
+
+    def test_create_project_config_gets(self, mapp):
+        mapp.create_and_login_user("cuser3")
+        mapp.create_index("dev")
+        mapp.create_project("dev", "hello")
+        assert mapp.get_config("/cuser3/dev/")["type"] == "list:projectconfig"
+        assert mapp.get_config("/cuser3/dev/hello")["type"] == "projectconfig"
+        mapp.create_project("dev", "hello", code=409)
+
 

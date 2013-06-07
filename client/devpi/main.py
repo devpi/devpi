@@ -57,7 +57,7 @@ class Hub:
             session.auth = data["user"], data["password"]
         return session
 
-    def http_api(self, method, url, kvdict=None):
+    def http_api(self, method, url, kvdict=None, quiet=False):
         methodexec = getattr(self.http, method)
         jsontype = "application/json"
         headers = {"Accept": jsontype, "content-type": jsontype}
@@ -70,6 +70,8 @@ class Hub:
         out = self.info
         if r.status_code >= 400:
             out = self.fatal
+        elif quiet:
+            out = lambda *args, **kwargs: None
 
         if r.status_code >= 400 or self.args.debug:
             info = "%s %s\n" % (method.upper(), r.url)
@@ -178,11 +180,16 @@ class Hub:
         self.line(*msg, red=True)
 
     def fatal(self, *msg):
-        self.line(*msg, red=True)
+        msg = " ".join(map(str, msg))
+        self._tw.line(msg, red=True)
         raise SystemExit(1)
 
     def info(self, *msg):
         self.line(*msg, bold=True)
+
+    def out_json(self, data):
+        self._tw.line(json.dumps(data, sort_keys=True, indent=4))
+
 
 class MyArgumentParser(argparse.ArgumentParser):
     class ArgumentError(Exception):
@@ -241,9 +248,21 @@ def config(parser):
     """ show, create or delete configuration information. """
     parser.add_argument("--delete", action="store_true",
         help="delete currently stored API information")
-    parser.add_argument("indexurl", metavar="URL", type=str,
-        action="store", nargs="*",
-        help="url for retrieving index API information. ")
+    parser.add_argument("--venv", action="store", default=None,
+        help="virtual environment to use for install activities")
+    parser.add_argument("--urls", action="store_true",
+        help="show remote urls")
+    #parser.add_argument("--json", action="store_true",
+    #    help="return json responses, no other text on STDOUT")
+    parser.add_argument("--use", metavar="URL", action="store",
+        help="set current API endpoints to the ones obtained from the "
+             "given url (can use devpi root or some index url)."
+             "If already connected to a server, you can "
+             "specify 'USER/INDEXNAME' or 'INDEXNAME', implicitely "
+             "continuing with the same server/user context.")
+    parser.add_argument("path", nargs="?",
+        help="path to a resource to show information on. "
+             "examples: '/', '/user', '/user/index'.")
 
 @subcommand("devpi.user")
 def user(parser):
@@ -261,12 +280,6 @@ def user(parser):
         help="user name")
     parser.add_argument("keyvalues", nargs="*", type=str,
         help="key=value configuration item")
-
-@subcommand("devpi.list", "list")
-def list_(parser):
-    """ list users, indexes and packages. """
-    #parser.add_argument("--user", type=str, action="store",
-    #    help="only show information for the given user")
 
 @subcommand("devpi.login")
 def login(parser):

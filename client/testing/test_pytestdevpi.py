@@ -25,23 +25,23 @@ def file0():
     f.seek(0)
     return f
 
-def test_env_match(gen):
+def test_env_match(loghub, gen):
     kw = dict(packageurl="http://some.where/pkg-1.0.zip",
               packagemd5=gen.md5(),
               posturl="http://post.com")
     env = {}
-    test.setenv_devpi(env, **kw)
+    test.setenv_devpi(loghub, env, **kw)
     newkw = plugin.popenv_devpi(env)
     assert newkw == kw
     assert not env
 
-def test_setenv_unicode(gen):
+def test_setenv_unicode(loghub, gen):
     x = py.builtin._totext("http://some.where/pkg-1.0.zip")
     kw = dict(packageurl=x,
               packagemd5=x,
               posturl=x,)
     env = {}
-    test.setenv_devpi(env, **kw)
+    test.setenv_devpi(loghub, env, **kw)
     newkw = plugin.popenv_devpi(env)
     for val in newkw.values():
         assert isinstance(val, str)

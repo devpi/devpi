@@ -40,6 +40,10 @@ def pytest_addoption(parser):
 
 import subprocess as gsub
 
+def print_info(*args, **kwargs):
+    kwargs.setdefault("file", sys.stderr)
+    return py.builtin.print_(*args, **kwargs)
+
 class PopenFactory:
     def __init__(self, addfinalizer):
         self.addfinalizer = addfinalizer
@@ -122,17 +126,23 @@ def port_of_liveserver(request, xprocess, Popen_session):
     pid, logfile = xprocess.ensure("devpi-server", prepare_devpiserver,
                                    restart=True)
     assert pid is not None
-    request.addfinalizer(lambda: py.process.kill(pid))
+    def killproc():
+        try:
+            py.process.kill(pid)
+        except OSError:
+            pass
+    request.addfinalizer(killproc)
     return 7999
 
 @pytest.fixture
 def devpi(cmd_devpi, gen, port_of_liveserver):
     user = gen.user()
-    cmd_devpi("config", "http://localhost:%s/root/dev" % port_of_liveserver)
+    cmd_devpi("config",
+              "--use", "http://localhost:%s/root/dev" % port_of_liveserver)
     cmd_devpi("user", "-c", user, "password=123", "email=123")
     cmd_devpi("login", user, "--password", "123")
     cmd_devpi("index", "-c", "dev")
-    cmd_devpi("config", "dev")
+    cmd_devpi("config", "--use", "dev")
     cmd_devpi.patched_pypirc = get_pypirc_patcher(cmd_devpi)
     return cmd_devpi
 
@@ -260,15 +270,20 @@ def ext_devpi(request, tmpdir, devpi):
 
 @pytest.fixture
 def out_devpi(devpi):
-    def out_devpi_func(*args):
+    def out_devpi_func(*args, **kwargs):
         cap = py.io.StdCaptureFD()
         cap.startall()
         now = std.time.time()
         try:
-            devpi(*args)
-        finally:
-            out, err = cap.reset()
-            return RunResult(0, out.split("\n"), None, std.time.time()-now)
+            try:
+                devpi(*args, **kwargs)
+            finally:
+                out, err = cap.reset()
+        except:
+            print_(out)
+            print_(err)
+            raise
+        return RunResult(0, out.split("\n"), None, std.time.time()-now)
     return out_devpi_func
 
 @pytest.fixture
@@ -279,7 +294,7 @@ def cmd_devpi(tmpdir):
     def run_devpi(*args, **kwargs):
         callargs = ["devpi", "--clientdir", clientdir] + list(args)
         callargs = [str(x) for x in callargs]
-        print_("*** inline$ %s" % " ".join(callargs))
+        print_info("*** inline$ %s" % " ".join(callargs))
         hub, method = initmain(callargs)
         try:
             ret = method(hub, hub.args)
@@ -294,7 +309,7 @@ def cmd_devpi(tmpdir):
 def runprocess(tmpdir, cmdargs):
     cmdargs = [str(x) for x in cmdargs]
     p1 = tmpdir.join("stdout")
-    print_("running", cmdargs, "curdir=", py.path.local())
+    print_info("running", cmdargs, "curdir=", py.path.local())
     with std.codecs.open(str(p1), "w", encoding="utf8") as f1:
         now = std.time.time()
         popen = subprocess.Popen(
@@ -351,3 +366,11 @@ def create_venv(request, testdir, monkeypatch):
         return venvdir
     return do_create_venv
 
+
+@pytest.fixture
+def loghub():
+    from devpi.main import Hub
+    class args:
+        debug = True
+    hub = Hub(args)
+    return hub

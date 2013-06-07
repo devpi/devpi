@@ -47,7 +47,7 @@ class TestUnit:
 
         from devpi import main
         monkeypatch.setattr(main.Hub, "http_api", http_api)
-        hub = cmd_devpi("config", "http://world/this")
+        hub = cmd_devpi("config", "--use", "http://world/this")
         newapi = hub.config
         assert newapi.pypisubmit == "http://world/post"
         assert newapi.simpleindex == "http://world/index/"
@@ -60,13 +60,13 @@ class TestUnit:
     def test_main_venvsetting(self, cmd_devpi, tmpdir, monkeypatch):
         venvdir = tmpdir
         monkeypatch.chdir(tmpdir)
-        hub = cmd_devpi("config", "venv=%s" % venvdir)
+        hub = cmd_devpi("config", "--venv=%s" % venvdir)
         config = Config(hub.config.path)
         assert config.venvdir == str(venvdir)
 
         # test via env
         monkeypatch.setenv("WORKON_HOME", venvdir.dirpath())
-        hub = cmd_devpi("config", "venv=%s" % venvdir.basename)
+        hub = cmd_devpi("config", "--venv=%s" % venvdir.basename)
         assert hub.config.venvdir == venvdir
 
 

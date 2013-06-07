@@ -22,8 +22,13 @@ def main(hub, args):
 
     #newest_version = hub.remoteindex.getnewestversion(
 
-    uploadbase = hub.getdir("upload")
+    if not hub.config.index:
+        hub.fatal("no current index defined, see 'config --use'")
+    setup = hub.cwd.join("setup.py")
+    if not setup.check():
+        hub.fatal("no setup.py found in", hub.cwd)
     checkout = Checkout(hub, hub.cwd)
+    uploadbase = hub.getdir("upload")
     exported = checkout.export(uploadbase)
     hub.info("hg-exported project to", exported)
 
@@ -84,10 +89,12 @@ def find_parent_subpath(startpath, relpath, raising=True):
 
 
 class Checkout:
-    def __init__(self, hub, somepath):
+    def __init__(self, hub, setupdir):
         self.hub = hub
-        self.rootpath = find_parent_subpath(somepath, "setup.py").dirpath()
-        self.hashg = bool(find_parent_subpath(somepath, ".hg", raising=False))
+        self.rootpath = setupdir
+        assert setupdir.join("setup.py").check(), setupdir
+        self.hashg = bool(find_parent_subpath(self.rootpath,
+                          ".hg", raising=False))
 
     def export(self, basetemp):
         if self.hashg:

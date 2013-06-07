@@ -44,9 +44,10 @@ class Config(object):
                      "resultlog", "login", "venvdir"):
             yield (name, getattr(self, name))
 
-    def reconfigure(self, data):
+    def reconfigure(self, data, merge=False):
         self._raw = data
-        self._configdict.clear()
+        if not merge:
+            self._configdict.clear()
         for name in data:
             oldval = getattr(self, name)
             newval = data[name]
@@ -98,6 +99,7 @@ def getvenv():
 def main(hub, args=None):
     config = hub.config
     args = hub.args
+
     if args.delete:
         if not config.exists():
             hub.error_and_out("NO configuration found")
@@ -105,32 +107,59 @@ def main(hub, args=None):
         hub.info("REMOVED configuration at", config.path)
         return
     if config.exists():
-        msg = "config:"
+        hub.debug("config: %s" % config.path)
     else:
-        msg = "no config file, using empty defaults"
-    hub.debug(msg, config.path)
+        hub.debug("no config file, using empty defaults")
 
-    if args.indexurl:
-        assert not args.delete
-        for arg in args.indexurl:
-            if arg.startswith("venv="):
-                venvname = arg[5:]
-                cand = hub.cwd.join(venvname, abs=True)
-                if not cand.check():
-                    cand = hub.path_venvbase.join(venvname)
-                    if not cand.check():
-                        hub.fatal("no virtualenv %r found" % venvname)
-                config.reconfigure(dict(venvdir=cand.strpath))
-            else:
-                config.configure_fromurl(hub, arg)
-    for name, value in config.items():
-        hub.info("%16s: %s" %(name, value))
+    if args.venv:
+        venvname = args.venv
+        cand = hub.cwd.join(venvname, abs=True)
+        if not cand.check():
+            cand = hub.path_venvbase.join(venvname)
+            if not cand.check():
+                hub.fatal("no virtualenv %r found" % venvname)
+        config.reconfigure(dict(venvdir=cand.strpath), merge=True)
+
+    if args.use:
+        config.configure_fromurl(hub, args.use)
+
+    showurls = args.urls or args.debug
+
+    path = args.path
+    if path:
+        if path[0] != "/":
+            if not config.index:
+                hub.fatal("cannot use relative path without an active index")
+            url = urlutil.joinpath(hub.get_index_url(), path)
+        else:
+            url = urlutil.joinpath(config.rooturl, path)
+        data = hub.http_api("get", url, quiet=True)
+        hub.out_json(data)
+        return
+
+    if config.rooturl and config.rooturl != "/":
+        if showurls or not config.index:
+            hub.info("connected to: " + config.rooturl)
+    else:
+        if not args.venv:
+            hub.fatal("not connected to any devpi instance, "
+                      "use devpi --use URL")
+
+    if showurls:
+        for name, value in config.items():
+            hub.info("%16s: %s" %(name, value))
+    else:
+        if not config.index:
+            hub.error("not using any index (use 'index -l')")
+        else:
+            hub.info("using index: " + config.index)
 
     if hub.http.auth:
         user, password = hub.http.auth
-        hub.info("currently logged in as: %s" % user)
+        hub.info("logged in as: %s" % user)
     else:
-        hub.info("not currently logged in")
+        hub.line("not currently logged in")
+
 
 def parse_keyvalue_spec(keyvaluelist, keyset=None):
     d = {}

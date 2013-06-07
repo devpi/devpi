@@ -62,9 +62,10 @@ class DB:
 
     def user_get(self, user):
         d = self.keyfs.USER(user=user).get()
-        del d["pwsalt"]
-        del d["pwhash"]
-        d["username"] = user
+        if d:
+            del d["pwsalt"]
+            del d["pwhash"]
+            d["username"] = user
         return d
 
     def user_indexconfig_get(self, user, index):

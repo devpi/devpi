@@ -28,6 +28,10 @@ class Mapp:
         result = self.out_devpi("user", "-l")
         return [x for x in result.outlines if x.strip()]
 
+    def get_config(self, path, code=200):
+        result = self.out_devpi("config", path, code=code)
+        return std.json.loads(result.stdout.str())
+
     def getindexlist(self):
         result = self.out_devpi("index", "-l")
         return [x for x in result.outlines if x.strip()]
@@ -53,5 +57,9 @@ class Mapp:
     def create_index(self, indexname, code=201):
         #user, password = self.auth
         self.devpi("index", "-c", indexname, code=code)
+
+    def create_project(self, indexname, code=201):
+        pytest.xfail(reason="no way to create project via command line yet")
+
 
 

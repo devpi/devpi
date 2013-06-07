@@ -45,10 +45,12 @@ def abort_authenticate():
     err.add_header('location', "/+login")
     raise err
 
-def apireturn(code, message=None, result=None):
+def apireturn(code, message=None, result=None, type=None):
     d = dict(status=code)
     if result is not None:
+        assert type is not None
         d["result"] = result
+        d["type"] = type
     if message:
         d["message"] = message
     data = json.dumps(d, indent=2) + "\n"
@@ -136,7 +138,7 @@ class PyPIView:
                     "pypisubmit": "/%s/%s/" % (user, index),
                     "simpleindex": "/%s/%s/+simple/" % (user, index),
                 })
-        apireturn(200, result=api)
+        apireturn(200, type="apiconfig", result=api)
 
     #
     # index serving and upload
@@ -220,7 +222,13 @@ class PyPIView:
         kvdict.setdefault("bases", ["root/dev"])
         kvdict.setdefault("volatile", True)
         ixconfig = self.db.user_indexconfig_set(user, index, **kvdict)
-        apireturn(201, result=ixconfig)
+        apireturn(201, type="indexconfig", result=ixconfig)
+
+    @route("/<user>/<index>", method=["GET"])
+    def index_get(self, user, index):
+        ixconfig = self.db.user_indexconfig_get(user, index)
+        #if json_preferred():
+        apireturn(200, type="indexconfig", result=ixconfig)
 
     @route("/<user>/<index>", method=["DELETE"])
     def index_delete(self, user, index):
@@ -240,7 +248,7 @@ class PyPIView:
         userindexes = userconfig.get("indexes", {})
         for name, val in userindexes.items():
             indexes["%s/%s" % (user, name)] = val
-        apireturn(200, result=indexes)
+        apireturn(200, type="list:indexconfig", result=indexes)
 
     @route("/<user>/<index>/", method="POST")
     def submit(self, user, index):
@@ -300,7 +308,7 @@ class PyPIView:
         stage = self.getstage(user, index)
         metadata = stage.get_projectconfig(name)
         if json_preferred():
-            apireturn(200, result=metadata)
+            apireturn(200, type="projectconfig", result=metadata)
         # html
         body = []
         for version in urlutil.sorted_by_version(metadata.keys()):
@@ -329,7 +337,7 @@ class PyPIView:
         if not verdata:
             abort(404)
         if json_preferred():
-            apireturn(200, result=verdata)
+            apireturn(200, type="versiondata", result=verdata)
 
         # if html show description and metadata
         rows = []
@@ -368,7 +376,7 @@ class PyPIView:
         stage = self.getstage(user, index)
         if json_preferred():
             projectlist = stage.getprojectnames_perstage()
-            apireturn(200, result=projectlist)
+            apireturn(200, type="list:projectconfig", result=projectlist)
 
         # XXX this should go to a template
         if hasattr(stage, "ixconfig"):
@@ -439,7 +447,7 @@ class PyPIView:
         kvdict = getjson()
         if "password" in kvdict and "email" in kvdict:
             hash = self.db.user_create(user, **kvdict)
-            apireturn(201, result=self.db.user_get(user))
+            apireturn(201, type="userconfig", result=self.db.user_get(user))
         apireturn(400, "password and email values need to be set")
 
     @route("/<user>", method="DELETE")
@@ -450,6 +458,14 @@ class PyPIView:
         self.db.user_delete(user)
         apireturn(200, "user %r deleted" % user)
 
+    @route("/<user>", method="GET")
+    def user_get(self, user):
+        #self.require_user(user)
+        userconfig = self.db.user_get(user)
+        if not userconfig:
+            apireturn(404, "user %r does not exist" % user)
+        apireturn(200, type="userconfig", result=userconfig)
+
     @route("/", method="GET")
     def user_list(self):
         #accept = request.headers.get("accept")
@@ -458,7 +474,7 @@ class PyPIView:
         d = {}
         for user in self.db.user_list():
             d[user] = self.db.user_get(user)
-        apireturn(200, result=d)
+        apireturn(200, type="list:userconfig", result=d)
 
 def getjson():
     dict = request.json

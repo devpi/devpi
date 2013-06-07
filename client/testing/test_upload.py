@@ -39,7 +39,8 @@ class TestCheckout:
         return repo
 
     def test_hg_export(self, uploadhub, repo, tmpdir, monkeypatch):
-        checkout = Checkout(uploadhub, repo.join("file"))
+
+        checkout = Checkout(uploadhub, repo)
         assert checkout.rootpath == repo
         newrepo = tmpdir.mkdir("newrepo")
         result = checkout.export(newrepo)
