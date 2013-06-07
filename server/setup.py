@@ -24,7 +24,7 @@ if __name__ == "__main__":
       keywords="pypi cache server wsgi",
       long_description=README + '\n\n' + CHANGES,
       url="https://bitbucket.org/hpk42/devpi",
-      version='0.9.dev7',
+      version='0.9.dev8',
       maintainer="Holger Krekel",
       maintainer_email="holger@merlinux.eu",
       packages=find_packages(),

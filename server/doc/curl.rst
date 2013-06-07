@@ -54,7 +54,7 @@ Looking at list of projects in ``alice/dev`` index::
 Registering release files and docs (Unimplemented)
 -----------------------------------------------------------------
 
-Uploading an example release file::
+Uploading an release file for the ``example`` project::
 
      curl -H "Accept: application/json" 
            --user alice:123 -s  \

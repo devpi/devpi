@@ -276,13 +276,16 @@ def cmd_devpi(tmpdir):
     """ execute devpi subcommand in-process (with fresh init) """
     clientdir = tmpdir.join("client")
     from devpi.main import initmain
-    def run_devpi(*args):
+    def run_devpi(*args, **kwargs):
         callargs = ["devpi", "--clientdir", clientdir] + list(args)
         callargs = [str(x) for x in callargs]
         print_("*** inline$ %s" % " ".join(callargs))
         hub, method = initmain(callargs)
-        ret = method(hub, hub.args)
-        if ret:
+        try:
+            ret = method(hub, hub.args)
+        except SystemExit as sysex:
+            ret = sysex.args[0] or 1
+        if ret and kwargs.get("code", 0) < 400:
             raise SystemExit(ret)
         return hub
     run_devpi.clientdir = clientdir

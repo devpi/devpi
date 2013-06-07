@@ -57,8 +57,7 @@ class Hub:
             session.auth = data["user"], data["password"]
         return session
 
-    def http_api(self, method, url, kvdict=None, okmsg=None,
-                 errmsg=None, ret=False):
+    def http_api(self, method, url, kvdict=None):
         methodexec = getattr(self.http, method)
         jsontype = "application/json"
         headers = {"Accept": jsontype, "content-type": jsontype}
@@ -66,31 +65,24 @@ class Hub:
             r = methodexec(url, headers=headers)
         else:
             r = methodexec(url, json.dumps(kvdict), headers=headers)
-        if r.status_code >= 200 and r.status_code < 300:
-            if okmsg:
-                self.info(okmsg)
-            data = r.content
-            if data:
-                data = json.loads(data)
-                if "message" in data:
-                    self.info("%s: %s" %(data["status"], data["message"]))
-                return data
+        if r.status_code < 0:
+            self.fatal("%s: could not connect to %r" % (r.status_code, url))
+        out = self.info
+        if r.status_code >= 400:
+            out = self.fatal
+
+        if r.status_code >= 400 or self.args.debug:
+            info = "%s %s\n" % (method.upper(), r.url)
         else:
-            msg = "server returned %s: %s" % (r.status_code, r.reason)
-            if errmsg:
-                self.error(errmsg + ". " + msg)
-            else:
-                self.error(msg)
-            #if self.config.debug:
-            #self.error("request was: %s %s %s" %(method.upper(), url, kvdict))
-            try:
-                data = r.json()
-            except ValueError:
-                pass
-            else:
-                if data and "error" in data:
-                    self.error("server said: %s" % data["error"])
-            raise SystemExit(1)
+            info = ""
+        data = r.content
+        if data and r.headers["content-type"] == "application/json":
+            data = json.loads(data)
+            reason = data.get("message", r.reason)
+        else:
+            reason = r.reason
+        out("%s%s: %s" %(info, r.status_code, reason))
+        return data
 
     def update_auth(self, user, password):
         self.http.auth = (user, password)
@@ -221,6 +213,7 @@ def add_subparsers(parser):
             name = func.__name__
         subparser = subparsers.add_parser(name, help=func.__doc__)
         subparser.Action = argparse.Action
+        add_generic_options(subparser)
         func(subparser)
         mainloc = args[0]
         subparser.set_defaults(mainloc=mainloc)
@@ -233,11 +226,12 @@ def getbasebaser(prog):
     return parser
 
 def add_generic_options(parser):
-    parser.add_argument("--version", action="version",
-        version="devpi-server-" + __version__)
-    parser.add_argument("--debug", action="store_true",
-        help="show debug messages")
-    parser.add_argument("--clientdir", action="store", metavar="DIR",
+    group = parser.add_argument_group("generic options")
+    group.add_argument("--version", action="version",
+                       version="devpi-server-" + __version__)
+    group.add_argument("--debug", action="store_true",
+        help="show debug messages including more info on server requests")
+    group.add_argument("--clientdir", action="store", metavar="DIR",
         default=os.path.expanduser(os.environ.get("DEVPI_CLIENTDIR",
                                                   "~/.devpi/client")),
         help="directory for storing login and other state")
@@ -254,10 +248,10 @@ def config(parser):
 @subcommand("devpi.user")
 def user(parser):
     """ add, remove, modify, list user configuration"""
-    group = parser.add_mutually_exclusive_group()
+    group = parser.add_argument_group()
     group.add_argument("-c", "--create", action="store_true",
         help="create a user")
-    group.add_argument("-d", "--delete", action="store_true",
+    group.add_argument("--delete", action="store_true",
         help="delete a user")
     group.add_argument("-m", "--modify", action="store_true",
         help="modify user settings")
@@ -288,7 +282,7 @@ def index(parser):
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-c", "--create", action="store_true",
         help="create an index")
-    group.add_argument("-d", "--delete", action="store_true",
+    group.add_argument("--delete", action="store_true",
         help="delete an index")
     group.add_argument("-m", "--modify", action="store_true",
         help="modify an index")

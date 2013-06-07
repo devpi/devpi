@@ -14,21 +14,15 @@ class Mapp:
         self.devpi = devpi
         self.out_devpi = out_devpi
 
-    def delete_user(self, user):
-        self.devpi("user", "-d", user)
+    def delete_user(self, user, code=200):
+        self.devpi("user", "--delete", user, code=code)
 
-    def delete_user_fails(self, user):
-        with pytest.raises(SystemExit):
-            self.devpi("user", "-d", user)
+    def login_root(self):
+        self.login("root", "")
 
-
-    def login(self, user="root", password=""):
-        self.devpi("login", user, "--password", password)
+    def login(self, user="root", password="", code=201):
+        self.devpi("login", user, "--password", password, code=code)
         self.auth = (user, password)
-
-    def login_fails(self, user="root", password=""):
-        with pytest.raises(SystemExit):
-            self.devpi("login", user, "--password", password)
 
     def getuserlist(self):
         result = self.out_devpi("user", "-l")
@@ -44,21 +38,20 @@ class Mapp:
             raise ValueError("need to be logged as %r or root" % user)
         self.devpi("user", "-m", user, "password=%s" % password)
 
-    def create_user(self, user, password, email="hello@example.com"):
+    def create_user(self, user, password, email="hello@example.com", code=201):
         self.devpi("user", "-c", user, "password=%s" % password,
-                   "email=%s" % email)
+                   "email=%s" % email, code=code)
 
-    def create_user_fails(self, user, password, email="hello@example.com"):
-        with pytest.raises(SystemExit):
-            self.devpi("user", "-c", user, "password=%s" % password,
-                       "email=%s" % email)
+    def modify_user(self, user, password, email="hello@example.com", code=200):
+        self.devpi("user", "-c", user, "password=%s" % password,
+                   "email=%s" % email, code=code)
 
     def create_and_login_user(self, user="someuser", password="123"):
         self.create_user(user, password)
         self.login(user, password)
 
-    def create_index(self, indexname):
-        user, password = self.auth
-        self.devpi("index", "-c", indexname)
+    def create_index(self, indexname, code=201):
+        #user, password = self.auth
+        self.devpi("index", "-c", indexname, code=code)
 
 

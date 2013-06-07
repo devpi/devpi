@@ -116,7 +116,8 @@ def test_register_metadata_and_get_description(httpget, db, mapp, testapp):
 def test_upload(httpget, db, mapp, testapp):
     mapp.create_and_login_user("user")
     mapp.create_index("name")
-    mapp.upload_file("user", "name", "pkg1-2.6.tgz", "123", "pkg1", "2.6")
+    mapp.upload_file_pypi(
+            "user", "name", "pkg1-2.6.tgz", "123", "pkg1", "2.6")
     r = testapp.get("/user/name/+simple/pkg1/")
     assert r.status_code == 200
     a = getfirstlink(r.text)
@@ -127,7 +128,8 @@ def test_upload_docs_too_large(httpget, db, mapp, testapp):
     mapp.create_and_login_user("user")
     mapp.create_index("name")
     content = "*" * (MAXDOCZIPSIZE + 1)
-    mapp.upload_doc_fails("user", "name", "pkg1.zip", content, "pkg1", "2.6")
+    mapp.upload_doc("user", "name", "pkg1.zip", content, "pkg1", "2.6",
+                    code=413)
 
 def test_upload_docs(httpget, db, mapp, testapp):
     mapp.create_and_login_user("user")
@@ -148,21 +150,6 @@ class TestLoginBasics:
         r = testapp.post_json(api.login, {"qwelk": ""}, expect_errors=True)
         assert r.status_code == 400
 
-    def test_login_root_default(self, testapp):
-        r = testapp.post_json(api.login, {"user": "root", "password": "123"},
-                              expect_errors=True)
-        assert r.status_code == 401
-        assert not testapp.auth
-        r = testapp.post_json(api.login, {"user": "root", "password": ""},
-                              expect_errors=True)
-        assert r.status_code == 200
-        assert "password" in r.json
-        assert "expiration" in r.json
-
-    def test_login_root_default(self, testapp):
-        testapp.set_auth("root", "")
-        r = testapp.patch_json("/user", {"password": "123"})
-        assert r.status_code == 200
 
 @pytest.fixture
 def mapp(testapp):
@@ -172,8 +159,9 @@ class Mapp:
     def __init__(self, testapp):
         self.testapp = testapp
 
-    def delete_user(self, user):
-        self.testapp.delete_json("/%s" % user)
+    def delete_user(self, user, code=200):
+        r = self.testapp.delete_json("/%s" % user, expect_errors=True)
+        assert r.status_code == code
 
     def getapi(self, relpath="/"):
         path = relpath.strip("/")
@@ -188,17 +176,17 @@ class Mapp:
                 self.__dict__.update(r.json["result"])
         return API()
 
-    def login(self, user="root", password=""):
+    def login(self, user="root", password="", code=200):
         r = self.testapp.post_json("/+login",
-                                  {"user": user, "password": password})
-        print "logging in as", user
-        self.testapp.set_auth(user, r.json["password"])
-        self.auth = user, r.json["password"]
+                                  {"user": user, "password": password},
+                                  expect_errors=True)
+        assert r.status_code == code
+        if code == 200:
+            self.testapp.set_auth(user, r.json["password"])
+            self.auth = user, r.json["password"]
 
-    def login_fails(self, user="root", password=""):
-        r = self.testapp.post_json("/+login",
-            {"user": user, "password": password}, expect_errors=True)
-        assert r.status_code >= 400
+    def login_root(self):
+        self.login("root", "")
 
     def getuserlist(self):
         r = self.testapp.get("/", {"indexes": False}, {"Accept": "*/json"})
@@ -218,13 +206,28 @@ class Mapp:
         assert r.status_code == 200
         self.testapp.auth = (self.testapp.auth[0], r.json["password"])
 
-    def create_user(self, user, password, email="hello@example.com"):
+    def create_user(self, user, password, email="hello@example.com", code=201):
         reqdict = dict(password=password, email=email)
-        r = self.testapp.put_json("/%s" % user, reqdict)
-        assert r.status_code == 201
-        res = r.json["result"]
-        assert res["username"] == user
-        assert res["email"] == email
+        r = self.testapp.put_json("/%s" % user, reqdict, expect_errors=True)
+        assert r.status_code == code
+        if code == 201:
+            res = r.json["result"]
+            assert res["username"] == user
+            assert res["email"] == email
+
+    def modify_user(self, user, code=200, password=None, email=None):
+        reqdict = {}
+        if password:
+            reqdict["password"] = password
+        if email:
+            reqdict["email"] = email
+        r = self.testapp.patch_json("/%s" % user, reqdict, expect_errors=True)
+        assert r.status_code == code
+        if code == 200:
+            res = r.json["result"]
+            assert res["username"] == user
+            for name, val in reqdict.items():
+                assert res[name] == val
 
     def create_user_fails(self, user, password, email="hello@example.com"):
         with pytest.raises(webtest.AppError) as excinfo:
@@ -235,11 +238,17 @@ class Mapp:
         self.create_user(user, "123")
         self.login(user, "123")
 
-    def create_index(self, indexname):
-        user, password = self.testapp.auth
-        r = self.testapp.put_json("/%s/%s" % (user, indexname), {})
-        assert r.status_code == 201
-        assert r.json["result"]["type"] == "stage"
+    def create_index(self, indexname, code=201):
+        if "/" in indexname:
+            user, index = indexname.split("/")
+        else:
+            user, password = self.testapp.auth
+            index = indexname
+        r = self.testapp.put_json("/%s/%s" % (user, index), {},
+                                  expect_errors=True)
+        assert r.status_code == code
+        if code in (200,201):
+            assert r.json["result"]["type"] == "stage"
 
     def create_project(self, indexname, projectname, code=201):
         user, password = self.testapp.auth
@@ -249,47 +258,45 @@ class Mapp:
         if code == 201:
             assert "created" in r.json["message"]
 
-    def delete_user_fails(self, username):
-        r = self.testapp.delete_json("/%s" % username, expect_errors=True)
-        assert r.status_code == 404
-
-    def upload_file(self, user, index, basename, content, name, version):
+    def upload_file_pypi(self, user, index, basename, content, name, version):
         r = self.testapp.post("/%s/%s/" % (user, index),
             {":action": "file_upload", "name": name, "version": version,
              "content": Upload(basename, content)})
         assert r.status_code == 200
 
-    def upload_doc(self, user, index, basename, content, name, version):
-        r = self.testapp.post("/%s/%s/" % (user, index),
-            {":action": "doc_upload", "name": name, "version": version,
-             "content": Upload(basename, content)})
-        assert r.status_code == 200
+    def upload_doc(self, user, index, basename, content, name, version,
+                         code=200):
 
-    def upload_doc_fails(self, user, index, basename, content, name, version):
         r = self.testapp.post("/%s/%s/" % (user, index),
             {":action": "doc_upload", "name": name, "version": version,
              "content": Upload(basename, content)}, expect_errors=True)
-        assert r.status_code >= 400 and r.status_code < 500
+        assert r.status_code == code
 
 
 class TestUserThings:
+    def test_root_cannot_modify_unknown_user(self, mapp):
+        mapp.login_root()
+        mapp.modify_user("/user", password="123", email="whatever",
+                         code=404)
+
+    def test_root_is_refused_with_wrong_password(self, mapp):
+        mapp.login("root", "123123", code=401)
+
     def test_create_and_delete_user(self, mapp):
         password = "somepassword123123"
-        #self.login(testapp)
-        #self.login_fails(testapp, "hello", "qweqwe")
         assert "hello" not in mapp.getuserlist()
         mapp.create_user("hello", password)
-        mapp.create_user_fails("hello", password)
+        mapp.create_user("hello", password, code=409)
         assert "hello" in mapp.getuserlist()
-        mapp.login_fails("hello", "qweqwe")
+        mapp.login("hello", "qweqwe", code=401)
         mapp.login("hello", password)
         mapp.delete_user("hello")
-        mapp.login_fails("hello", password)
+        mapp.login("hello", password, code=401)
         assert "hello" not in mapp.getuserlist()
 
-    def test_delete_not_existent(self, mapp):
+    def test_delete_not_existent_user(self, mapp):
         mapp.login("root", "")
-        mapp.delete_user_fails("qlwkje")
+        mapp.delete_user("qlwkje", code=404)
 
     def test_password_setting_admin(self, mapp):
         mapp.login("root", "")
@@ -314,6 +321,10 @@ class TestIndexThings:
         mapp.create_index("dev")
         assert indexname in mapp.getindexlist()
 
+    def test_create_index_needs_user(self, mapp):
+        mapp.create_index("not_exist/dev", code=404)
+        mapp.create_and_login_user("not_exist")
+        mapp.create_index("not_exist/dev")
 
     @pytest.mark.parametrize(["input", "expected"], [
         ({},

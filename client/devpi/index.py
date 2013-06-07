@@ -27,18 +27,12 @@ def getdict(keyvalues):
 def index_create(hub, indexname, kvdict):
     url = hub.get_index_url(indexname)
     stage = urlutil.getpath(url)
-    hub.http_api("put", url, kvdict,
-                 okmsg="index %r created" % stage,
-                 errmsg="failed to create index %r" % stage,
-    )
+    hub.http_api("put", url, kvdict)
 
 def index_modify(hub, indexname, kvdict):
     url = hub.get_index_url(indexname)
     stage = urlutil.getpath(url)
-    hub.http_api("patch", url, kvdict,
-                 okmsg="index %r modified" % stage,
-                 errmsg="failed to modify index %r" % stage,
-    )
+    hub.http_api("patch", url, kvdict)
 
 def index_delete(hub, indexname):
     url = hub.get_index_url(indexname)

@@ -79,6 +79,8 @@ class PyPIView:
 
     def require_user(self, user):
         #log.debug("headers %r", request.headers.items())
+        if not self.db.user_exists(user):
+            abort(404, "user %r does not exist" % user)
         try:
             authuser, authpassword = request.auth
         except TypeError:
@@ -209,6 +211,7 @@ class PyPIView:
 
     @route("/<user>/<index>", method=["PUT", "PATCH"])
     def index_create_or_modify(self, user, index):
+        self.require_user(user)
         ixconfig = self.db.user_indexconfig_get(user, index)
         if request.method == "PUT" and ixconfig is not None:
             apireturn(409, "index %s/%s exists" % (user, index))
@@ -221,6 +224,7 @@ class PyPIView:
 
     @route("/<user>/<index>", method=["DELETE"])
     def index_delete(self, user, index):
+        self.require_user(user)
         indexname = user + "/" + index
         if not self.db.user_indexconfig_delete(user, index):
             apireturn(404, "index %s does not exist" % indexname)

@@ -6,6 +6,8 @@ import posixpath
 
 def main(hub, args):
     config = hub.config
+    if not config.simpleindex:
+        hub.fatal("not currently using any index, see devpi config")
     pip_path = config.getvenvbin("pip")
     if args.pkgspecs:
         hub.info("installing into", config.venvdir)
