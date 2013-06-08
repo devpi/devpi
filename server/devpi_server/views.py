@@ -83,6 +83,8 @@ class PyPIView:
         #log.debug("headers %r", request.headers.items())
         if not self.db.user_exists(user):
             abort(404, "user %r does not exist" % user)
+        if self.db.user_validate("root", ""):  # has empty password?
+            return  # then we don't require any authentication
         try:
             authuser, authpassword = request.auth
         except TypeError:
@@ -493,8 +495,11 @@ def getkvdict_index(req):
         if req_volatile == False or req_volatile.lower() in ["false", "no"]:
             kvdict["volatile"] = False
     bases = req.get("bases")
-    if bases is not None and not isinstance(bases, list):
-        kvdict["bases"] = bases.split(",")
+    if bases is not None:
+        if not isinstance(bases, list):
+            kvdict["bases"] = bases.split(",")
+        else:
+            kvdict["bases"] = bases
     if "type" in req:
         kvdict["type"] = req["type"]
     return kvdict

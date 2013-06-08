@@ -19,7 +19,9 @@ def addoptions(parser):
 
     group.addoption("--port",  type=int,
             default=3141,
-            help="port to listen for http requests")
+            help="port to listen for http requests.  When used with "
+                 "--gendeploy, port+1 will be used to prevent "
+                 "accidental clashes with ad-hoc runs.")
 
     group.addoption("--host",  type=str,
             default="localhost",

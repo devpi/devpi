@@ -7,22 +7,7 @@ from devpi import log
 from devpi.config import parse_keyvalue_spec
 from devpi.util import url as urlutil
 
-DEFAULT_UPSTREAMS = ["int/dev", "ext/pypi"]
-
-def getdict(keyvalues):
-    d = {}
-    for x in keyvalues:
-        key, val = x.split("=", 1)
-        if key not in ("upstreams", ):
-            raise KeyError("not a valid key: %s" % key)
-        d[key] = val
-    upstreams = d.get("upstreams", None)
-    if upstreams is None:
-        upstreams = DEFAULT_UPSTREAMS
-    else:
-        upstreams = list(filter(None, upstreams.split(",")))
-    d["upstreams"] = upstreams
-    return d
+DEFAULT_BASES = ["root/dev", ]
 
 def index_create(hub, indexname, kvdict):
     url = hub.get_index_url(indexname)

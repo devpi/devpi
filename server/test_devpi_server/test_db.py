@@ -168,13 +168,9 @@ def test_setdefault_indexes(db):
 
     ixconfig = db.getindexconfig("root/dev")
     assert ixconfig["type"] == "stage"
-    assert ixconfig["bases"] == ("root/prod",)
+    assert ixconfig["bases"] == ("root/pypi",)
     assert ixconfig["volatile"]
 
-    ixconfig = db.getindexconfig("root/prod")
-    assert ixconfig["type"] == "stage"
-    assert ixconfig["bases"] == ()
-    assert not ixconfig["volatile"]
 
 def create_zipfile(contentdict):
     f = py.io.BytesIO()

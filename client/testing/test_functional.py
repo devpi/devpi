@@ -7,12 +7,21 @@ from test_devpi_server.test_views import TestUserThings, TestIndexThings
 
 @pytest.fixture
 def mapp(request, devpi, out_devpi):
-    return Mapp(devpi, out_devpi)
+    return Mapp(request, devpi, out_devpi)
 
 class Mapp:
-    def __init__(self, devpi, out_devpi):
+    def __init__(self, request, devpi, out_devpi):
         self.devpi = devpi
         self.out_devpi = out_devpi
+        request.addfinalizer(self.cleanup)
+        self.auth = (None, None)
+
+    def cleanup(self):
+        pw = getattr(self, "_rootpassword", None)
+        if pw:
+            if self.auth[0] != "root":
+                self.login("root", pw)
+            self.change_password("root", "")
 
     def delete_user(self, user, code=200):
         self.devpi("user", "--delete", user, code=code)
@@ -41,6 +50,8 @@ class Mapp:
         if auth is None or auth[0] != user and auth[0] != "root":
             raise ValueError("need to be logged as %r or root" % user)
         self.devpi("user", "-m", user, "password=%s" % password)
+        if user == "root" and password != "":
+            self._rootpassword = password
 
     def create_user(self, user, password, email="hello@example.com", code=201):
         self.devpi("user", "-c", user, "password=%s" % password,

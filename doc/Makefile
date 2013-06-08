@@ -1,6 +1,7 @@
 # Makefile for Sphinx documentation
 #
 
+VERSION       = $(shell python -c "import conf ; print conf.release")
 # You can set these variables from the command line.
 SPHINXOPTS    =
 SPHINXBUILD   = sphinx-build
@@ -14,7 +15,7 @@ ALLSPHINXOPTS   = -d $(BUILDDIR)/doctrees $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 # the i18n builder cannot share the environment and doctrees with the others
 I18NSPHINXOPTS  = $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 
-.PHONY: help clean html dirhtml singlehtml pickle json htmlhelp qthelp devhelp epub latex latexpdf text man changes linkcheck doctest gettext
+.PHONY: help clean html dirhtml singlehtml pickle json htmlhelp qthelp devhelp epub latex latexpdf text man changes linkcheck doctest gettext install
 
 help:
 	@echo "Please use \`make <target>' where <target> is one of"
@@ -40,6 +41,14 @@ help:
 
 clean:
 	-rm -rf $(BUILDDIR)/*
+
+version:
+	@echo "version $(VERSION)"
+
+install: html
+	@echo "installing to http://devpi.net"
+	rsync -avz $(BUILDDIR)/html/ doc.devpi.net:/www/doc.devpi.net/$(VERSION)/
+
 
 html:
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html

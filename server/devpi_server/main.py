@@ -35,7 +35,6 @@ def main(argv=None):
 def make_application():
     """ entry point for making an application object with defaults. """
     config = parseoptions([])
-    #configure_logging(config)
     return XOM(config).create_app()
 
 def bottle_run(xom):
@@ -232,11 +231,9 @@ class FatalResponse:
 
 
 def set_default_indexes(db):
-    PROD = "root/prod"
     PYPI = "root/pypi"
     DEV = "root/dev"
     if "root" not in db.user_list():
         db.user_setpassword("root", "")
     db.user_indexconfig_set(PYPI, bases=(), type="mirror", volatile=False)
-    db.user_indexconfig_set(PROD, bases=(), type="stage", volatile=False)
-    db.user_indexconfig_set(DEV, bases=(PROD,), type="stage", volatile=True)
+    db.user_indexconfig_set(DEV, bases=(PYPI,), type="stage", volatile=True)

@@ -15,19 +15,30 @@ Creating a user::
            -d '{"password": "123", "email": "alice@example.com"}' -s \
            -X PUT http://localhost:3141/alice
     {
-      "status": 409, 
-      "message": "user already exists"
+      "status": 201, 
+      "type": "userconfig", 
+      "result": {
+        "username": "alice", 
+        "email": "alice@example.com"
+      }
     }
 
-Creating an ``alice/dev`` index inheriting directly from `root/pypi`_,
-using using the just created "alice" credentials::
+Create an ``alice/dev`` index inheriting directly from ``root/pypi``,
+using the just created "alice" credentials::
 
     $ curl -H "Accept: application/json" -H "Content-Type: application/json" \
            --user alice:123 -s -d '{"bases": ["root/pypi"]}' \
            -X PUT http://localhost:3141/alice/dev
     {
-      "status": 409, 
-      "message": "index alice/dev exists"
+      "status": 201, 
+      "type": "indexconfig", 
+      "result": {
+        "type": "stage", 
+        "bases": [
+          "root/pypi"
+        ], 
+        "volatile": true
+      }
     }
 
 Registering an ``example`` project in the new ``alice/dev`` index::
@@ -36,8 +47,8 @@ Registering an ``example`` project in the new ``alice/dev`` index::
            --user alice:123 -s  \
            -X PUT http://localhost:3141/alice/dev/example
      {
-       "status": 409, 
-       "message": "project 'example' exists"
+       "status": 201, 
+       "message": "project 'example' created"
      }
 
 Looking at list of projects in ``alice/dev`` index::
@@ -46,6 +57,7 @@ Looking at list of projects in ``alice/dev`` index::
            -X GET http://localhost:3141/alice/dev/
      {
        "status": 200, 
+       "type": "list:projectconfig", 
        "result": [
          "example"
        ]
@@ -83,11 +95,102 @@ Deleting a project::
       curl -H "Accept: application/json" -s \
            -X DELETE http://localhost:3141/alice/dev/example/
 
+Getting index or user information
+--------------------------------------------------
+
+Getting index configuration::
+
+    $ curl --user alice:123 -s -X GET http://localhost:3141/alice/dev
+    {
+      "status": 200, 
+      "type": "indexconfig", 
+      "result": {
+        "volatile": true, 
+        "bases": [
+          "root/pypi"
+        ], 
+        "type": "stage"
+      }
+    }
+
+Getting user information::
+
+    $ curl --user alice:123 -s -X GET http://localhost:3141/alice
+    {
+      "status": 200, 
+      "type": "userconfig", 
+      "result": {
+        "username": "alice", 
+        "email": "alice@example.com", 
+        "indexes": {
+          "dev": {
+            "volatile": true, 
+            "bases": [
+              "root/pypi"
+            ], 
+            "type": "stage"
+          }
+        }
+      }
+    }
+
+Getting all users and indexes::
+
+    $ curl --user alice:123 -s -X GET http://localhost:3141/
+    {
+      "status": 200, 
+      "type": "list:userconfig", 
+      "result": {
+        "hpk": {
+          "username": "hpk", 
+          "email": "qwe", 
+          "indexes": {
+            "dev": {
+              "type": "stage", 
+              "bases": [
+                "root/dev"
+              ], 
+              "volatile": true
+            }
+          }
+        }, 
+        "root": {
+          "username": "root", 
+          "indexes": {
+            "pypi": {
+              "volatile": false, 
+              "bases": [], 
+              "type": "mirror"
+            }, 
+            "dev": {
+              "type": "stage", 
+              "bases": [
+                "root/pypi"
+              ], 
+              "volatile": true
+            }
+          }
+        }, 
+        "alice": {
+          "username": "alice", 
+          "email": "alice@example.com", 
+          "indexes": {
+            "dev": {
+              "volatile": true, 
+              "bases": [
+                "root/pypi"
+              ], 
+              "type": "stage"
+            }
+          }
+        }
+      }
+    }
 
 Deleting an index or user
 --------------------------------------------------
 
-Deleting an index:
+Deleting an index::
 
     $ curl --user alice:123 -s -X DELETE http://localhost:3141/alice/dev
     {

@@ -142,7 +142,7 @@ def perform_crawling(extdb, result, numthreads=10):
             t.join()
 
 class ExtDB:
-    name = "ext/pypi"
+    name = "root/pypi"
 
     def __init__(self, xom):
         self.keyfs = xom.keyfs

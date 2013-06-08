@@ -319,11 +319,15 @@ class TestIndexThings:
         mapp.create_index("dev")
         assert indexname in mapp.getindexlist()
 
-    def test_create_index_needs_user(self, mapp):
+    def test_create_index__not_exists(self, mapp):
         mapp.create_index("not_exist/dev", code=404)
-        mapp.create_and_login_user("not_exist")
-        mapp.create_index("not_exist/dev")
 
+    def test_create_index_default_allowed(self, mapp):
+        mapp.create_index("root/test1")
+        mapp.login("root", "")
+        mapp.change_password("root", "asd")
+        mapp.create_and_login_user("newuser1")
+        mapp.create_index("root/test2", 401)
 
     @pytest.mark.parametrize(["input", "expected"], [
         ({},
@@ -331,6 +335,8 @@ class TestIndexThings:
         ({"volatile": "False"},
           dict(type="stage", volatile=False, bases=["root/dev", "root/pypi"])),
         ({"volatile": "False", "bases": "root/pypi"},
+          dict(type="stage", volatile=False, bases=["root/pypi"])),
+        ({"volatile": "False", "bases": ["root/pypi"]},
           dict(type="stage", volatile=False, bases=["root/pypi"])),
     ])
     def test_kvdict(self, input, expected):

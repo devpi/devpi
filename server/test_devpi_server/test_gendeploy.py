@@ -20,9 +20,8 @@ def test_gendeploycfg(tmpdir, monkeypatch):
     assert tmpdir.check()
     sup = tmpdir.join("etc/supervisord.conf").read()
     nginx = tmpdir.join("etc/nginx-devpi.conf").read()
-    assert "--port=3200" in sup
-    assert "proxy_pass http://localhost:3200" in nginx
-
+    assert "--port=3201" in sup
+    assert "proxy_pass http://localhost:3201" in nginx
 
 def test_create_devpictl(tmpdir):
     tw = py.io.TerminalWriter()

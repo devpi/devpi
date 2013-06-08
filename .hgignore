@@ -14,6 +14,7 @@ syntax:glob
 *.class
 *.orig
 *~
+_build/
 attic/*
 
 tmp/

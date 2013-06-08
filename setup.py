@@ -1,34 +1,23 @@
 #! /usr/bin/env python
 
 import os, sys
-from setuptools import setup, find_packages
+from setuptools import setup
 
 if __name__ == "__main__":
     here = os.path.abspath(".")
     README = open(os.path.join(here, 'README.rst')).read()
     CHANGES = open(os.path.join(here, 'CHANGELOG')).read()
 
-    install_requires = ["py>=1.4.13",
-                        "execnet>=1.1",
-                        "requests>=1.2.0",
-                        "itsdangerous>=0.21",
-                        "docutils>=0.10",
-                        "pygments>=0.10",
-                        "bottle>=0.11.6"]
-    if sys.version_info < (2,7):
-        install_requires.append("argparse>=1.2.1")
-
     setup(
-      name="devpi-server",
-      description="devpi-server: reliable fast pypi.python.org caching server",
-      keywords="pypi cache server wsgi",
+      name="devpi",
+      description="devpi: github-style pypi index server and packaging meta tool.",
+      install_requires = ["devpi-server>=0.9", "devpi-client>=0.9"],
+      keywords="pypi cache server installer wsgi",
       long_description=README + '\n\n' + CHANGES,
       url="http://doc.devpi.net",
       version='0.9.dev8',
       maintainer="Holger Krekel",
       maintainer_email="holger@merlinux.eu",
-      packages=find_packages(),
-      include_package_data=True,
       zip_safe=False,
       license="MIT",
       classifiers=[
@@ -41,9 +30,5 @@ if __name__ == "__main__":
         "Topic :: Internet :: WWW/HTTP",
         "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
         ],
-      install_requires=install_requires,
-      entry_points = {
-        'console_scripts':
-                    ["devpi-server = devpi_server.main:main"],
-      })
+      )
 

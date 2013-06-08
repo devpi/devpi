@@ -1,11 +1,15 @@
 devpi: managing and serving Python release processes
 ===================================================================
 
-This is the home for devpi-server and the devpi command line client:
+``devpi`` is a meta package installing two other packages::
 
-- server: contains devpi-server for serving PyPI indexes including
-  a selective auto-updating pypi.python.org mirror index.
+- ``devpi-server``: for serving a pypi.python.org consistent
+  caching index as well as local github-style overlay indexes.
 
-- client: contains command line tools with sub commands for
+- ``devpi-client``: command line tool with sub commands for
   creating users, using indexes, uploading to and installing
   from indexes, as well as a "test" command for invoking tox.
+
+For getting started see http://doc.devpi.net/
+
+Holger Krekel, June 2013

@@ -2,7 +2,7 @@
 
 import sys, os
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 if __name__ == "__main__":
     here = os.path.abspath(".")
@@ -16,13 +16,11 @@ if __name__ == "__main__":
         install_requires.append("argparse>=1.2.1")
 
     setup(
-      name="devpi",
-      description="devpi: packaging workflow commands for Python developers",
+      name="devpi-client",
+      description="devpi-client: packaging workflow commands for Python developers",
       long_description=open("README.rst").read(),
-      version='0.7.dev12',
-      packages=["devpi", "devpi.util", "devpi.upload",
-                "devpi.test", "devpi.test.inject",
-      ],
+      version='0.9.dev2',
+      packages=find_packages(),
       install_requires=install_requires,
       url="https://bitbucket.org/hpk42/devpi",
       maintainer="Holger Krekel",

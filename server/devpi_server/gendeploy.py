@@ -17,7 +17,7 @@ def gendeploycfg(config, venvdir, tw=None):
 
     tw.line("creating etc/ directory for supervisor configuration", bold=True)
     etc = venvdir.ensure("etc", dir=1)
-    httpport = config.args.port
+    httpport = config.args.port + 1
     datadir = venvdir.ensure("data", dir=1)
     logdir = venvdir.ensure("log", dir=1)
 
@@ -26,7 +26,7 @@ def gendeploycfg(config, venvdir, tw=None):
            logdir=logdir, datadir=datadir)
     nginxconf = render(tw, etc, "nginx-devpi.conf", format=1, port=httpport,
                        datadir=datadir)
-    indexurl = "http://localhost:%s/ext/pypi/simple/" % httpport
+    indexurl = "http://localhost:%s/root/dev/+simple/" % httpport
     devpictl = create_devpictl(tw, venvdir, httpport)
     cron = create_crontab(tw, etc, devpictl)
     tw.line("created and configured %s" % venvdir, bold=True)
@@ -39,11 +39,20 @@ def gendeploycfg(config, venvdir, tw=None):
 
         devpi-ctl start all
 
-    after which you can configure pip to always use the running index server:
+    after which you can configure pip to always use the default
+    root/dev index which carries all pypi packages and the ones
+    you upload to it::
 
-        # content of $USER/.pip/pip.conf
+        # content of $HOME/.pip/pip.conf
         [global]
         index-url = %(indexurl)s
+
+    and/or easy_install and some commands like "setup develop"::
+
+        # content of $HOME/.pydistutils.cfg
+        [easy_install]
+        index_url = %(indexurl)s
+
 
     %(cron)s
     As a bonus, we have prepared an nginx config at:
@@ -111,7 +120,14 @@ def gendeploy(config):
                 "depending on supervisor.", red=True)
         return 1
     target = getpath(config.args.gendeploy)
-    tw.line("installing virtualenv to %s" % (target), bold=True)
+    devpi_ctl = target.join("bin", "devpi-ctl")
+    prefix = ""
+    if devpi_ctl.check():
+        tw.line("detected existing devpi-ctl, ensuring it is shut down",
+                red=True)
+        subproc(tw, [devpi_ctl, "shutdown", "all"])
+        prefix = "re-"
+    tw.line("%sinstalling virtualenv to %s" % (prefix, target), bold=True)
     try:
         del os.environ["PYTHONDONTWRITEBYTECODE"]
     except KeyError:

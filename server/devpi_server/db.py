@@ -129,7 +129,7 @@ class DB:
         return self.user_indexconfig_get(user, index)
 
     def create_stage(self, user, index=None,
-                     type="stage", bases=("/ext/pypi",),
+                     type="stage", bases=("/root/pypi",),
                      volatile=True):
         self.user_indexconfig_set(user, index, type=type, bases=bases,
                                   volatile=volatile)
