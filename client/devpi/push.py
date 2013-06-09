@@ -19,7 +19,7 @@ def main(hub, args):
                                  posturl=posturl,
                                  username=user, password=password,
                             ))
-    index = hub.config.index
+    index = hub.current.index
     r = py.std.requests.request("push", index, data=req)
     assert r.status_code == 201, r.content
     hub.info("pushed %s to %s" % (args.nameversion, args.posturl))

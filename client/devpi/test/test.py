@@ -36,11 +36,11 @@ def setenv_devpi(hub, env, posturl, packageurl, packagemd5):
 
 
 class DevIndex:
-    def __init__(self, hub, rootdir, config):
+    def __init__(self, hub, rootdir, current):
         self.rootdir = rootdir
-        self.config = config
+        self.current = current
         self.hub = hub
-        self.remoteindex = RemoteIndex(config)
+        self.remoteindex = RemoteIndex(current)
         self.dir_download = self.rootdir.mkdir("downloads")
 
     def download_and_unpack(self, link):
@@ -73,7 +73,7 @@ class DevIndex:
 
         # the env var is picked up by pytest-devpi plugin
         env = os.environ.copy()
-        setenv_devpi(self.hub, env, posturl=self.config.resultlog,
+        setenv_devpi(self.hub, env, posturl=self.current.resultlog,
                           packageurl=link.href,
                           packagemd5=link.md5)
         # to get pytest to pick up our devpi plugin
@@ -87,7 +87,7 @@ class DevIndex:
         for name, val in env.items():
             assert isinstance(val, str), (name, val)
         toxargs = ["tox", "--installpkg", str(path_archive),
-                   "-i ALL=%s" % self.config.simpleindex,
+                   "-i ALL=%s" % self.current.simpleindex,
                    "-v",
         ]
         if venv is not None:
@@ -121,10 +121,10 @@ class UnpackedPackage:
 
 def main(hub, args):
     tmpdir = py.path.local.make_numbered_dir("devpi-test", keep=3)
-    config = hub.config
-    if not config.exists():
+    current = hub.current
+    if not current.exists():
         hub.fatal("no api configuration found")
-    devindex = DevIndex(hub, tmpdir, config)
+    devindex = DevIndex(hub, tmpdir, current)
     link = devindex.getbestlink(args.pkgspec[0])
     if not link:
         hub.fatal("could not find/receive link")

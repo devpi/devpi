@@ -37,8 +37,8 @@ class Mapp:
         result = self.out_devpi("user", "-l")
         return [x for x in result.outlines if x.strip()]
 
-    def get_config(self, path, code=200):
-        result = self.out_devpi("config", path, code=code)
+    def getjson(self, path, code=200):
+        result = self.out_devpi("getjson", path, code=code)
         return std.json.loads(result.stdout.str())
 
     def getindexlist(self):

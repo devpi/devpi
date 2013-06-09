@@ -3,7 +3,6 @@ import py
 import pytest
 from devpi.util import url as urlutil
 from devpi.test.test import main
-from devpi import config
 
 pytest_plugins = "pytester"
 

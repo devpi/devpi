@@ -239,7 +239,7 @@ class Mapp:
         self.create_user(user, "123")
         self.login(user, "123")
 
-    def get_config(self, path, code=200):
+    def getjson(self, path, code=200):
         r = self.testapp.get_json(path, {}, expect_errors=True)
         assert r.status_code == code
         return r.json
@@ -345,28 +345,28 @@ class TestIndexThings:
         assert result == expected
 
     def test_config_get_user_empty(self, mapp):
-        mapp.get_config("/user", code=404)
+        mapp.getjson("/user", code=404)
 
     def test_create_user_and_config_gets(self, mapp):
-        assert mapp.get_config("/")["type"] == "list:userconfig"
+        assert mapp.getjson("/")["type"] == "list:userconfig"
         mapp.create_and_login_user("cuser1")
-        data = mapp.get_config("/cuser1")
+        data = mapp.getjson("/cuser1")
         assert data["type"] == "userconfig"
-        data = mapp.get_config("/cuser1/")
+        data = mapp.getjson("/cuser1/")
         assert data["type"] == "list:indexconfig"
 
     def test_create_index_and_config_gets(self, mapp):
         mapp.create_and_login_user("cuser2")
         mapp.create_index("dev")
-        assert mapp.get_config("/cuser2/dev")["type"] == "indexconfig"
-        assert mapp.get_config("/cuser2/dev/")["type"] == "list:projectconfig"
+        assert mapp.getjson("/cuser2/dev")["type"] == "indexconfig"
+        assert mapp.getjson("/cuser2/dev/")["type"] == "list:projectconfig"
 
     def test_create_project_config_gets(self, mapp):
         mapp.create_and_login_user("cuser3")
         mapp.create_index("dev")
         mapp.create_project("dev", "hello")
-        assert mapp.get_config("/cuser3/dev/")["type"] == "list:projectconfig"
-        assert mapp.get_config("/cuser3/dev/hello")["type"] == "projectconfig"
+        assert mapp.getjson("/cuser3/dev/")["type"] == "list:projectconfig"
+        assert mapp.getjson("/cuser3/dev/hello")["type"] == "projectconfig"
         mapp.create_project("dev", "hello", code=409)
 
 

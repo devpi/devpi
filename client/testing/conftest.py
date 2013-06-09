@@ -78,9 +78,9 @@ def Popen(request):
     return PopenFactory(request.addfinalizer)
 
 def get_pypirc_patcher(devpi):
-    hub = devpi("config")
+    hub = devpi("use")
     user, password = hub.http.auth
-    pypisubmit = hub.config.pypisubmit
+    pypisubmit = hub.current.pypisubmit
     class overwrite:
         def __enter__(self):
             homedir = py.path.local._gethomedir()
@@ -137,12 +137,11 @@ def port_of_liveserver(request, xprocess, Popen_session):
 @pytest.fixture
 def devpi(cmd_devpi, gen, port_of_liveserver):
     user = gen.user()
-    cmd_devpi("config",
-              "--use", "http://localhost:%s/root/dev" % port_of_liveserver)
+    cmd_devpi("use", "http://localhost:%s/root/dev" % port_of_liveserver)
     cmd_devpi("user", "-c", user, "password=123", "email=123")
     cmd_devpi("login", user, "--password", "123")
     cmd_devpi("index", "-c", "dev")
-    cmd_devpi("config", "--use", "dev")
+    cmd_devpi("use", "dev")
     cmd_devpi.patched_pypirc = get_pypirc_patcher(cmd_devpi)
     return cmd_devpi
 

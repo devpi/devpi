@@ -1,7 +1,7 @@
 
 from devpi.remoteindex import RemoteIndex, LinkSet
 from devpi.util import url as urlutil
-from devpi.config import Config
+from devpi.use import Current
 
 def test_linkset():
     links = urlutil.parselinks("""
@@ -16,9 +16,9 @@ class TestRemoteIndex:
     def test_basic(self, monkeypatch, gen, tmpdir):
         md5 = gen.md5()
         indexurl = "http://my/simple/"
-        config = Config(tmpdir.join("client"))
-        config.reconfigure(dict(simpleindex=indexurl))
-        ri = RemoteIndex(config)
+        current = Current(tmpdir.join("client"))
+        current.reconfigure(dict(simpleindex=indexurl))
+        ri = RemoteIndex(current)
         def mockget(url):
             assert url.startswith(indexurl)
             return """
@@ -32,9 +32,9 @@ class TestRemoteIndex:
 
     def test_receive_error(self, monkeypatch, tmpdir):
         indexurl = "http://my/simple/"
-        config = Config(tmpdir.join("client"))
-        config.reconfigure(dict(simpleindex=indexurl))
-        ri = RemoteIndex(config)
+        current = Current(tmpdir.join("client"))
+        current.reconfigure(dict(simpleindex=indexurl))
+        ri = RemoteIndex(current)
         def mockget(url):
             raise ri.ReceiveError(404)
         monkeypatch.setattr(ri, "getcontent", mockget)

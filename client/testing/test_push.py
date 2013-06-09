@@ -3,7 +3,6 @@ import py
 import pytest
 import types
 from subprocess import check_call, Popen, check_output
-from devpi import config
 from devpi.main import Hub
 
 def runproc(cmd):
@@ -25,7 +24,7 @@ def test_main(monkeypatch, tmpdir):
         clientdir = tmpdir.join("client")
 
     hub = Hub(args)
-    hub.config.reconfigure(dict(index="/some/index"))
+    hub.current.reconfigure(dict(index="/some/index"))
     p = tmpdir.join("pypirc")
     p.write(py.std.textwrap.dedent("""
         [distutils]
@@ -43,7 +42,7 @@ def test_main(monkeypatch, tmpdir):
     main(hub, args)
     assert len(l) == 1
     method, url, data = l[0]
-    assert url == hub.config.index
+    assert url == hub.current.index
     req = py.std.json.loads(data)
     assert req["name"] == "pkg"
     assert req["version"] == "1.0"

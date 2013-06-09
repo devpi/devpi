@@ -3,7 +3,7 @@ import re
 import sys
 import py
 from devpi.upload.setuppy import __file__ as fn_setup
-from devpi.config import Config
+from devpi.use import Current
 from devpi import log
 from devpi.util import version as verlib
 from devpi import cached_property
@@ -22,8 +22,8 @@ def main(hub, args):
 
     #newest_version = hub.remoteindex.getnewestversion(
 
-    if not hub.config.index:
-        hub.fatal("no current index defined, see 'config --use'")
+    if not hub.current.index:
+        hub.fatal("no current index defined, see 'current --use'")
     setup = hub.cwd.join("setup.py")
     if not setup.check():
         hub.fatal("no setup.py found in", hub.cwd)
@@ -164,7 +164,7 @@ class Exported:
 
     def setup_register(self):
         hub = self.hub
-        pypisubmit = self.hub.config.pypisubmit
+        pypisubmit = self.hub.current.pypisubmit
         cwd = self.rootpath
         user, password = self.hub.http.auth or ("test", "test")
         if hub.args.dryrun:
@@ -180,7 +180,7 @@ class Exported:
             hub.fatal("release registration failed\n", out)
 
     def setup_upload(self):
-        config = self.hub.config
+        current = self.hub.current
         cwd = self.rootpath
         user, password = self.hub.http.auth
         if not user:
@@ -198,7 +198,7 @@ class Exported:
                     buildcommand.extend(["--formats", sdistformat(parts[1])])
             else:
                 buildcommand.append(format)
-            pre = [sys.executable, fn_setup, cwd, config.pypisubmit,
+            pre = [sys.executable, fn_setup, cwd, current.pypisubmit,
                    user, password]
             cmd = pre + buildcommand  + ["upload", "-r", "devpi",]
             out = self.hub.popen_output(cmd, cwd=cwd)
@@ -213,17 +213,17 @@ class Exported:
                 self.hub.fatal("could not register releasefile", out)
 
     def setup_upload_docs(self):
-        config = self.hub.config
+        current = self.hub.current
         cwd = self.rootpath
         user, password = self.hub.http.auth
         if not user:
             self.hub.fatal("need to be logged in to perform this action")
         if self.hub.args.dryrun:
             self.hub.info("would upload docs from", cwd, "to",
-                          config.pypisubmit)
+                          current.pypisubmit)
             return
         out = self.hub.popen_output(
-            [sys.executable, fn_setup, cwd, config.pypisubmit,
+            [sys.executable, fn_setup, cwd, current.pypisubmit,
              user, password,
              "sdist", "upload_docs", "-r", "devpi",],
             cwd=cwd)

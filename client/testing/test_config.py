@@ -2,34 +2,34 @@
 import urllib
 import pytest
 import py
-from devpi import config
+from devpi import use
 from devpi import log
 from devpi.main import Hub
-from devpi.config import main, Config
-from devpi.config import parse_keyvalue_spec
+from devpi.use import main, Current
+from devpi.use import parse_keyvalue_spec
 
 class TestUnit:
     def test_write_and_read(self, tmpdir):
-        path=tmpdir.join("config")
-        config = Config(path)
-        assert not config.simpleindex
-        config.reconfigure(dict(
+        path=tmpdir.join("current")
+        current = Current(path)
+        assert not current.simpleindex
+        current.reconfigure(dict(
                 pypisubmit="/post",
                 simpleindex="/index",
                 login="/login",
                 resultlog="/"))
-        assert config.simpleindex
-        newconfig = Config(path)
-        assert newconfig.pypisubmit == config.pypisubmit
-        assert newconfig.simpleindex == config.simpleindex
-        assert newconfig.resultlog == config.resultlog
-        assert newconfig.venvdir == config.venvdir
-        assert newconfig.login == config.login
+        assert current.simpleindex
+        newcurrent = Current(path)
+        assert newcurrent.pypisubmit == current.pypisubmit
+        assert newcurrent.simpleindex == current.simpleindex
+        assert newcurrent.resultlog == current.resultlog
+        assert newcurrent.venvdir == current.venvdir
+        assert newcurrent.login == current.login
 
     def test_normalize_url(self, tmpdir):
-        config = Config(tmpdir.join("config"))
-        config.reconfigure(dict(simpleindex="http://my.serv/index1"))
-        url = config._normalize_url("index2")
+        current = Current(tmpdir.join("current"))
+        current.reconfigure(dict(simpleindex="http://my.serv/index1"))
+        url = current._normalize_url("index2")
         assert url == "http://my.serv/index2/"
 
     def test_main(self, tmpdir, monkeypatch, cmd_devpi):
@@ -47,27 +47,27 @@ class TestUnit:
 
         from devpi import main
         monkeypatch.setattr(main.Hub, "http_api", http_api)
-        hub = cmd_devpi("config", "--use", "http://world/this")
-        newapi = hub.config
+        hub = cmd_devpi("use", "http://world/this")
+        newapi = hub.current
         assert newapi.pypisubmit == "http://world/post"
         assert newapi.simpleindex == "http://world/index/"
         assert newapi.resultlog == "http://world/resultlog/"
         assert not newapi.venvdir
 
-        hub = cmd_devpi("config", "--delete")
-        assert not hub.config.exists()
+        #hub = cmd_devpi("use", "--delete")
+        #assert not hub.current.exists()
 
     def test_main_venvsetting(self, cmd_devpi, tmpdir, monkeypatch):
         venvdir = tmpdir
         monkeypatch.chdir(tmpdir)
-        hub = cmd_devpi("config", "--venv=%s" % venvdir)
-        config = Config(hub.config.path)
-        assert config.venvdir == str(venvdir)
+        hub = cmd_devpi("use", "--venv=%s" % venvdir)
+        current = Current(hub.current.path)
+        assert current.venvdir == str(venvdir)
 
         # test via env
         monkeypatch.setenv("WORKON_HOME", venvdir.dirpath())
-        hub = cmd_devpi("config", "--venv=%s" % venvdir.basename)
-        assert hub.config.venvdir == venvdir
+        hub = cmd_devpi("use", "--venv=%s" % venvdir.basename)
+        assert hub.current.venvdir == venvdir
 
 
 

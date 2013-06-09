@@ -4,7 +4,7 @@ import py
 import json
 
 from devpi import log
-from devpi.config import parse_keyvalue_spec
+from devpi.use import parse_keyvalue_spec
 from devpi.util import url as urlutil
 
 DEFAULT_BASES = ["root/dev", ]

@@ -4,7 +4,7 @@ import py
 import json
 
 from devpi import log
-from devpi.config import parse_keyvalue_spec
+from devpi.use import parse_keyvalue_spec
 
 def getnewpass(hub, username):
     for i in range(3):
@@ -18,16 +18,16 @@ def getnewpass(hub, username):
 def user_create(hub, user, kvdict):
     if "password" not in kvdict:
         kvdict["password"] = getnewpass(hub, user)
-    hub.http_api("put", hub.config.getuserurl(user), kvdict)
+    hub.http_api("put", hub.current.getuserurl(user), kvdict)
 
 def user_modify(hub, user, kvdict):
-    hub.http_api("patch", hub.config.getuserurl(user), kvdict)
+    hub.http_api("patch", hub.current.getuserurl(user), kvdict)
 
 def user_delete(hub, user):
-    hub.http_api("delete", hub.config.getuserurl(user), None)
+    hub.http_api("delete", hub.current.getuserurl(user), None)
 
 def user_list(hub, user):
-    r = hub.http_api("get", hub.config.getuserurl(user))
+    r = hub.http_api("get", hub.current.getuserurl(user))
     userdict = r["result"]
     for name in userdict or []:
         hub.line(name)

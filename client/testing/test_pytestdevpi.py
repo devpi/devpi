@@ -107,7 +107,7 @@ def test_plugin_init_withresultlog(monkeypatch, gen, tmpdir):
     monkeypatch.setenv("DEVPY_PACKAGEURL", "http://xyz.net")
     monkeypatch.setenv("DEVPY_PACKAGEMD5", gen.md5())
     monkeypatch.setenv("DEVPY_POSTURL", "http://post.url")
-    class config:
+    class current:
         class option:
             resultlog = tmpdir.ensure("x")
         class pluginmanager:
@@ -120,11 +120,11 @@ def test_plugin_init_withresultlog(monkeypatch, gen, tmpdir):
 
     l = []
     monkeypatch.setenv("PYTEST_PLUGINS", "hello")
-    plugin.pytest_configure(config)
+    plugin.pytest_configure(current)
     assert "PYTEST_PLUGINS" not in os.environ
     monkeypatch.setattr(plugin, "postresultlog", lambda *args, **kwargs:
         l.append(kwargs))
-    plugin.pytest_unconfigure(config)
+    plugin.pytest_unconfigure(current)
     assert len(l) == 1
     assert l[0]["packageurl"] == "http://xyz.net"
 
@@ -132,7 +132,7 @@ def test_plugin_init_no_resultlog(monkeypatch, tmpdir, gen):
     monkeypatch.setenv("DEVPY_PACKAGEURL", "http://xyz.net")
     monkeypatch.setenv("DEVPY_PACKAGEMD5", gen.md5())
     monkeypatch.setenv("DEVPY_POSTURL", "http://post.url")
-    class config:
+    class current:
         class option:
             resultlog = ""
         class pluginmanager:
@@ -144,12 +144,12 @@ def test_plugin_init_no_resultlog(monkeypatch, tmpdir, gen):
                 return Term()
 
     monkeypatch.setenv("PYTEST_PLUGINS", "hello")
-    plugin.pytest_configure(config)
+    plugin.pytest_configure(current)
     l = []
     monkeypatch.setattr(plugin, "postresultlog", lambda *args, **kwargs:
             l.append(kwargs))
-    with open(config.option.resultlog, "w") as f:
+    with open(current.option.resultlog, "w") as f:
         f.write("")
-    plugin.pytest_unconfigure(config)
+    plugin.pytest_unconfigure(current)
     assert len(l) == 1
     assert l[0]["packageurl"] == "http://xyz.net"

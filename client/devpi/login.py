@@ -5,7 +5,7 @@ import py
 import json
 
 from devpi import log
-from devpi.config import parse_keyvalue_spec
+from devpi.use import parse_keyvalue_spec
 
 
 def main(hub, args):
@@ -15,7 +15,7 @@ def main(hub, args):
     password = args.password
     if password is None:
         password = py.std.getpass.getpass("password for user %s: " % user)
-    r = hub.http.post(hub.config.login,
+    r = hub.http.post(hub.current.login,
                       json.dumps({"user": user, "password": password}))
     if r.status_code == 200:
         data = r.json()

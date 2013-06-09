@@ -21,13 +21,13 @@ class RemoteIndex:
     class ReceiveError(Exception):
         """ error in receiving remote content. """
 
-    def __init__(self, config):
-        self.config = config
+    def __init__(self, current):
+        self.current = current
         self.requests = requests.Session()
 
     def getlinkset(self, pkgname):
         """ return list of links for given package. """
-        indexurl = urlutil.joinpath(self.config.simpleindex, pkgname + "/")
+        indexurl = urlutil.joinpath(self.current.simpleindex, pkgname + "/")
         try:
             content = self.getcontent(indexurl)
         except self.ReceiveError:
@@ -43,8 +43,8 @@ class RemoteIndex:
     def getbestlink(self, pkgname):
         return self.getlinkset(pkgname).getnewestversion(pkgname)
 
-    def getindexconfig(self, indexname):
-        r = self.getcontent(self.config.indexadmin)
+    def getindexcurrent(self, indexname):
+        r = self.getcontent(self.current.indexadmin)
 
 
 

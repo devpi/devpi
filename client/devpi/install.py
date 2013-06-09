@@ -5,16 +5,16 @@ from devpi import log
 import posixpath
 
 def main(hub, args):
-    config = hub.config
-    if not config.simpleindex:
-        hub.fatal("not currently using any index, see devpi config")
-    pip_path = config.getvenvbin("pip")
+    current = hub.current
+    if not current.simpleindex:
+        hub.fatal("not currently using any index, see devpi current")
+    pip_path = current.getvenvbin("pip")
     if args.pkgspecs:
-        hub.info("installing into", config.venvdir)
+        hub.info("installing into", current.venvdir)
         hub.popen_check([pip_path, "install", "-U", "--force-reinstall",
-            "-i", config.simpleindex ] + list(args.pkgspecs))
+            "-i", current.simpleindex ] + list(args.pkgspecs))
 
     if args.listinstalled:
-        hub.info("list of installed packages on", config.venvdir)
+        hub.info("list of installed packages on", current.venvdir)
         return hub.popen_check([pip_path, "freeze"])
 

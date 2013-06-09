@@ -6,7 +6,7 @@ import subprocess
 from devpi.util.lazydecorator import lazydecorator
 from devpi.util import url as urlutil
 from devpi import log, cached_property
-from devpi.config import Config
+from devpi.use import Current
 import requests
 import json
 std = py.std
@@ -99,17 +99,17 @@ class Hub:
 
     def get_index_url(self, indexname=None):
         if indexname is None:
-            indexname = self.config.index
+            indexname = self.current.index
             if indexname is None:
                 raise ValueError("no index name")
         if "/" not in indexname:
             assert self.http.auth[0]
-            userurl = self.config.getuserurl(self.http.auth[0])
+            userurl = self.current.getuserurl(self.http.auth[0])
             return urlutil.joinpath(userurl + "/", indexname)
-        return urlutil.joinpath(self.config.rooturl, indexname)
+        return urlutil.joinpath(self.current.rooturl, indexname)
 
     def get_user_url(self):
-        return self.config.getuserurl(self.http.auth[0])
+        return self.current.getuserurl(self.http.auth[0])
 
     def raw_input(self, msg):
         return raw_input(msg)
@@ -127,10 +127,10 @@ class Hub:
             return self.__workdir
 
     @cached_property
-    def config(self):
+    def current(self):
         self.clientdir.ensure(dir=1)
-        path = self.clientdir.join("config.json")
-        return Config(path)
+        path = self.clientdir.join("current.json")
+        return Current(path)
 
     @property
     def remoteindex(self):
@@ -138,7 +138,7 @@ class Hub:
             return self._remoteindex
         except AttributeError:
             from devpi.remoteindex import RemoteIndex
-            self._remoteindex = RemoteIndex(self.config)
+            self._remoteindex = RemoteIndex(self.current)
             return self._remoteindex
 
     @property
@@ -243,23 +243,25 @@ def add_generic_options(parser):
                                                   "~/.devpi/client")),
         help="directory for storing login and other state")
 
-@subcommand("devpi.config")
-def config(parser):
-    """ show, create or delete configuration information. """
-    parser.add_argument("--delete", action="store_true",
-        help="delete currently stored API information")
+@subcommand("devpi.use")
+def use(parser):
+    """ configure remote index and target venv for install activities. """
     parser.add_argument("--venv", action="store", default=None,
-        help="virtual environment to use for install activities")
+        help="set virtual environment to use for install activities")
     parser.add_argument("--urls", action="store_true",
-        help="show remote urls")
-    #parser.add_argument("--json", action="store_true",
-    #    help="return json responses, no other text on STDOUT")
-    parser.add_argument("--use", metavar="URL", action="store",
+        help="show remote endpoint urls")
+    parser.add_argument("--delete", action="store_true",
+        help="delete current association with server")
+    parser.add_argument("url", nargs="?",
         help="set current API endpoints to the ones obtained from the "
-             "given url (can use devpi root or some index url)."
-             "If already connected to a server, you can "
-             "specify 'USER/INDEXNAME' or 'INDEXNAME', implicitely "
-             "continuing with the same server/user context.")
+             "given url.  If already connected to a server, you can "
+             "specify '/USER/INDEXNAME' which will use the same server "
+             "context. If you specify the root url you will not be connected "
+             "to a particular index. ")
+
+@subcommand("devpi.getjson")
+def getjson(parser):
+    """ show remote server and index configuration. """
     parser.add_argument("path", nargs="?",
         help="path to a resource to show information on. "
              "examples: '/', '/user', '/user/index'.")

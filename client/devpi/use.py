@@ -14,29 +14,29 @@ else:
     vbin = "bin"
 
 
-def configproperty(name):
+def currentproperty(name):
     def propget(self):
-        return self._configdict.get(name, None)
+        return self._currentdict.get(name, None)
     def propset(self, val):
-        self._configdict[name] = val
+        self._currentdict[name] = val
     return property(propget, propset)
 
-class Config(object):
-    index = configproperty("index")
-    simpleindex = configproperty("simpleindex")
-    pypisubmit = configproperty("pypisubmit")
-    login = configproperty("login")
-    resultlog = configproperty("resultlog")
-    venvdir = configproperty("venvdir")
+class Current(object):
+    index = currentproperty("index")
+    simpleindex = currentproperty("simpleindex")
+    pypisubmit = currentproperty("pypisubmit")
+    login = currentproperty("login")
+    resultlog = currentproperty("resultlog")
+    venvdir = currentproperty("venvdir")
 
     def __init__(self, path):
         self.path = path
-        self._setupconfigdict()
+        self._setupcurrentdict()
 
-    def _setupconfigdict(self):
-        self._configdict = d = {}
+    def _setupcurrentdict(self):
+        self._currentdict = d = {}
         if self.path.check():
-            log.debug("loading config from %s", self.path)
+            log.debug("loading current from %s", self.path)
             d.update(json.loads(self.path.read()))
 
     def items(self):
@@ -47,15 +47,15 @@ class Config(object):
     def reconfigure(self, data, merge=False):
         self._raw = data
         if not merge:
-            self._configdict.clear()
+            self._currentdict.clear()
         for name in data:
             oldval = getattr(self, name)
             newval = data[name]
             if oldval != newval:
                 setattr(self, name, newval)
                 log.debug("changing %r to %r", name, newval)
-        log.debug("writing config %s", self.path)
-        self.path.write(json.dumps(self._configdict))
+        log.debug("writing current %s", self.path)
+        self.path.write(json.dumps(self._currentdict))
 
     @property
     def rooturl(self):
@@ -85,7 +85,7 @@ class Config(object):
 
     def getvenvbin(self, name):
         if self.venvdir:
-            venvdir = py.path.local(venvdir)
+            venvdir = py.path.local(self.venvdir)
             return py.path.local.sysfind(name, paths=[venvdir.join(vbin)])
         return py.path.local.sysfind(name)
 
@@ -97,19 +97,19 @@ def getvenv():
     return pip.dirpath().dirpath()
 
 def main(hub, args=None):
-    config = hub.config
+    current = hub.current
     args = hub.args
 
     if args.delete:
-        if not config.exists():
+        if not current.exists():
             hub.error_and_out("NO configuration found")
-        config.path.remove()
-        hub.info("REMOVED configuration at", config.path)
+        current.path.remove()
+        hub.info("REMOVED configuration at", current.path)
         return
-    if config.exists():
-        hub.debug("config: %s" % config.path)
+    if current.exists():
+        hub.debug("current: %s" % current.path)
     else:
-        hub.debug("no config file, using empty defaults")
+        hub.debug("no current file, using empty defaults")
 
     if args.venv:
         venvname = args.venv
@@ -118,41 +118,29 @@ def main(hub, args=None):
             cand = hub.path_venvbase.join(venvname)
             if not cand.check():
                 hub.fatal("no virtualenv %r found" % venvname)
-        config.reconfigure(dict(venvdir=cand.strpath), merge=True)
+        current.reconfigure(dict(venvdir=cand.strpath), merge=True)
 
-    if args.use:
-        config.configure_fromurl(hub, args.use)
+    if args.url:
+        current.configure_fromurl(hub, args.url)
 
     showurls = args.urls or args.debug
 
-    path = args.path
-    if path:
-        if path[0] != "/":
-            if not config.index:
-                hub.fatal("cannot use relative path without an active index")
-            url = urlutil.joinpath(hub.get_index_url(), path)
-        else:
-            url = urlutil.joinpath(config.rooturl, path)
-        data = hub.http_api("get", url, quiet=True)
-        hub.out_json(data)
-        return
-
-    if config.rooturl and config.rooturl != "/":
-        if showurls or not config.index:
-            hub.info("connected to: " + config.rooturl)
+    if current.rooturl and current.rooturl != "/":
+        if showurls or not current.index:
+            hub.info("connected to: " + current.rooturl)
     else:
         if not args.venv:
             hub.fatal("not connected to any devpi instance, "
                       "use devpi --use URL")
 
     if showurls:
-        for name, value in config.items():
+        for name, value in current.items():
             hub.info("%16s: %s" %(name, value))
     else:
-        if not config.index:
+        if not current.index:
             hub.error("not using any index (use 'index -l')")
         else:
-            hub.info("using index: " + config.index)
+            hub.info("using index: " + current.index)
 
     if hub.http.auth:
         user, password = hub.http.auth
