@@ -6,6 +6,7 @@ import json
 
 from devpi import log, cached_property
 from devpi.util import url as urlutil
+from devpi.server import ensure_autoserver
 import posixpath
 
 if sys.platform == "win32":
@@ -116,7 +117,7 @@ def main(hub, args=None):
 
     if args.url:
         if not args.url.startswith("http://"):
-            current = hub.current
+            ensure_autoserver(hub, current)
         current.configure_fromurl(hub, args.url)
 
     if args.venv:

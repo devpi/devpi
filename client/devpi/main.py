@@ -278,6 +278,8 @@ def add_generic_options(parser):
                        version="devpi-server-" + __version__)
     group.add_argument("--debug", action="store_true",
         help="show debug messages including more info on server requests")
+    #group.add_argument("-v", "--verbose", action="store_true",
+    #    help="increase verbosity")
     group.add_argument("--clientdir", action="store", metavar="DIR",
         default=os.path.expanduser(os.environ.get("DEVPI_CLIENTDIR",
                                                   "~/.devpi/client")),

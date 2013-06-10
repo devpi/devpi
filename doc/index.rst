@@ -28,16 +28,39 @@ Installing devpi client and server
 
 This will install ``devpi-client`` and ``devpi-server`` pypi packages.
 
+.. _`devpicommands`:
+
 devpi install: installing a package 
 ++++++++++++++++++++++++++++++++++++++++
 
 We can now use the ``devpi`` command line client to install
-a pypi package (here ``pytest`` as an example)::
+a pypi package (here ``pytest`` as an example) through an
+auto-started caching server::
 
     $ devpi install --venv=v1 pytest
     automatically starting devpi-server at http://localhost:3141/
-    --> $ virtualenv -q v1
-    --> $ v1/bin/pip install -q -U --force-reinstall -i http://localhost:3141/root/dev/+simple/ pytest
+    --> $ virtualenv v1
+    Using real prefix '/usr'
+    New python executable in v1/bin/python
+    Please make sure you remove any previous custom paths from your /home/hpk/.pydistutils.cfg file.
+    Installing setuptools............done.
+    Installing pip...............done.
+    --> $ v1/bin/pip install -U --force-reinstall -i http://localhost:3141/root/dev/+simple/ pytest
+    Downloading/unpacking pytest
+      Running setup.py egg_info for package pytest
+        
+    Downloading/unpacking py>=1.4.13dev6 (from pytest)
+      Running setup.py egg_info for package py
+        
+    Installing collected packages: pytest, py
+      Running setup.py install for pytest
+        
+        Installing py.test script to /tmp/doc-exec-15/v1/bin
+        Installing py.test-2.7 script to /tmp/doc-exec-15/v1/bin
+      Running setup.py install for py
+        
+    Successfully installed pytest py
+    Cleaning up...
 
 Here is what happened:
 
@@ -52,12 +75,15 @@ Here is what happened:
 Let's check that ``pytest`` was installed correctly::
 
     $ v1/bin/py.test --version
-    This is py.test version 2.3.5, imported from /tmp/doc-exec-104/v1/local/lib/python2.7/site-packages/pytest.pyc
+    This is py.test version 2.3.5, imported from /tmp/doc-exec-15/v1/local/lib/python2.7/site-packages/pytest.pyc
+
+You may invoke the ``devpi install`` command a second time which should
+go much faster and also work offline.
 
 devpi upload: uploading a package
 +++++++++++++++++++++++++++++++++++++++++++++++
 
-Please go to a ``setup.py`` based project of yours and issue::
+Go to a ``setup.py`` based project of yours and issue::
 
 	devpi upload   # need to be in a directory with setup.py
 
@@ -101,12 +127,12 @@ devpi server: controling the automatic server
 Let's look at our current automatically started server::
 
     $ devpi server --nolog  # don't show server log info
-    automatic server is running with pid 24227
+    automatic server is running with pid 7133
 
 Let's stop it::
 
     $ devpi server --stop
-    TERMINATED 'devpi-server', pid 24227 -- logfile /home/hpk/.devpi/client/.xproc/devpi-server/xprocess.log
+    TERMINATED 'devpi-server', pid 7133 -- logfile /home/hpk/.devpi/client/.xproc/devpi-server/xprocess.log
 
 Note that with most ``devpi`` commands the server will be started
 up again when needed.  As soon as you start ``devpi use`` with 

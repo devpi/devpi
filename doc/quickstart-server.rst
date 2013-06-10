@@ -31,7 +31,9 @@ uploading to the ``root/dev`` index
 
 A default devpi-server serves the ``root/dev`` index which
 inherits ``root/pypi`` and thus serves all pypi packages
-transparently.  But you can also upload extra packages.  For this
+transparently.  But you can also upload extra packages.  
+If you are not using :ref:`devpi commands <devpicommands>`,
+then you need to perform a few configurations.  First
 you need to register a new index server entry in your 
 your ``.pypirc`` file::
 
@@ -220,38 +222,50 @@ In order to configure authentication you need to install the
 By default the root password is empty and we can login::
 
     $ devpi login root --password=
+    logged in 'root', credentials valid for 10.00 hours
 
 We can now change the password, for example to "123"::
 
-    $ devpi user -m --password=123
+    $ devpi user -m root password=123
+    200: OK
 
 At this point, only root will now be able to upload to ``root/dev`` or
 any other ``root/*`` indexes.  Let's check our current index::
 
     $ devpi use
+    using index:  http://localhost:3141/alice/dev/
+    no current install venv set
+    logged in as: root
 
 this shows we are logged in as root.
 
 Let's logoff::
 
     $ devpi logoff
-
+    login information deleted
 
 and then register ourselves a new user::
 
-    $ devpi user -c alice --password 456 
+    $ devpi user -c alice password=456  email=alice@example.com
+    201: Created
 
 and login::
 
     $ devpi login alice --password=456
+    logged in 'alice', credentials valid for 10.00 hours
 
 Alice can now create a new ``dev`` index::
 
     $ devpi index -c dev
+    201: Created
 
 and use it::
 
     $ devpi use alice/dev
+    200: OK
+    using index:  http://localhost:3141/alice/dev/
+    no current install venv set
+    logged in as: alice
 
 Our ``alice/dev`` index derives from ``root/dev`` by default
 which in turn derives from ``root/pypi`` which mirrors and caches

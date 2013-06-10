@@ -11,10 +11,11 @@ def main(hub, args):
     venv = args.venv
     if not venv:
         venv = current.venvdir
+    xopt = []  # not args.verbose and ["-q"] or []
     if venv:
         vpath = py.path.local(venv)
         if not vpath.check():
-            hub.popen_check(["virtualenv", "-q", venv])
+            hub.popen_check(["virtualenv", venv] + xopt)
     pip_path = current.getvenvbin("pip", venvdir=venv, glob=True)
     if not pip_path:
         import pdb ; pdb.set_trace()
@@ -33,7 +34,8 @@ def main(hub, args):
             del os.environ["PYTHONDONTWRITEBYTECODE"]
         except KeyError:
             pass
-        hub.popen_check([pip_path, "install", "-q", "-U", "--force-reinstall",
+        hub.popen_check([pip_path, "install"] + xopt + [
+            "-U", "--force-reinstall",
             "-i", current.simpleindex ] + list(args.pkgspecs))
 
 
