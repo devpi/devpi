@@ -101,6 +101,9 @@ class Hub:
             json.dumps(dict(user=user, password=password)))
         os.umask(oldumask)
 
+    def delete_auth(self):
+        self.clientdir.join("login").remove()
+
     def requires_login(self):
         if not self.http.auth:
             self.fatal("you need to be logged in (use 'devpi login USER')")
@@ -301,6 +304,10 @@ def login(parser):
                         help="password to use for login (prompt if not set)")
     parser.add_argument("username", action="store", default=None,
                         help="username to use for login")
+
+@subcommand("devpi.login:logoff")
+def logoff(parser):
+    """ log out of the current devpi-server"""
 
 @subcommand("devpi.index")
 def index(parser):

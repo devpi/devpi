@@ -27,3 +27,8 @@ def main(hub, args):
         hub.error("server refused %r login, code=%s" %(user, r.status_code))
         return 1
 
+
+def logoff(hub, args):
+    hub.delete_auth()
+    hub.info("login information deleted")
+

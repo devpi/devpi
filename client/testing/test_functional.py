@@ -29,6 +29,9 @@ class Mapp:
     def login_root(self):
         self.login("root", "")
 
+    def logoff(self, code=200):
+        self.devpi("logoff", code=code)
+
     def login(self, user="root", password="", code=201):
         self.devpi("login", user, "--password", password, code=code)
         self.auth = (user, password)
@@ -74,3 +77,7 @@ class Mapp:
 
 
 
+
+def test_logoff(mapp):
+    mapp.login()
+    mapp.logoff()
