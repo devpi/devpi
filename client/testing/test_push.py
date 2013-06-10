@@ -22,7 +22,8 @@ def test_main(monkeypatch, tmpdir):
 
     class args:
         clientdir = tmpdir.join("client")
-
+    import devpi.server
+    monkeypatch.setattr(devpi.server, "ensure_autoserver", lambda x,y: None)
     hub = Hub(args)
     hub.current.reconfigure(dict(index="/some/index"))
     p = tmpdir.join("pypirc")

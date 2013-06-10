@@ -7,7 +7,7 @@ from devpi.util.lazydecorator import lazydecorator
 from devpi.util import url as urlutil
 from devpi import log, cached_property
 from devpi.use import Current
-from devpi.server import ensure_autoserver
+import devpi.server
 import requests
 import json
 std = py.std
@@ -139,7 +139,7 @@ class Hub:
         self.clientdir.ensure(dir=1)
         path = self.clientdir.join("current.json")
         current = Current(path)
-        ensure_autoserver(self, current)
+        devpi.server.ensure_autoserver(self, current)
         return current
 
     @property
@@ -374,6 +374,11 @@ def install(parser):
     """ install packages through current devpi index. """
     parser.add_argument("-l", action="store_true", dest="listinstalled",
         help="print list of currently installed packages. ")
+    parser.add_argument("-e", action="store", dest="editable", metavar="ARG",
+        help="install a project in editable mode. ")
+    parser.add_argument("--venv", action="store", metavar="DIR",
+        help="install into specified virtualenv (created on the fly "
+             "if none exists).")
     parser.add_argument("pkgspecs", metavar="pkg", type=str,
         action="store", default=None, nargs="*",
         help="uri or package file for installation from current index. """

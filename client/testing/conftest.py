@@ -282,6 +282,8 @@ def out_devpi(devpi):
             print_(out)
             print_(err)
             raise
+        print_(out)
+        print_(err, file=sys.stderr)
         return RunResult(0, out.split("\n"), None, std.time.time()-now)
     return out_devpi_func
 

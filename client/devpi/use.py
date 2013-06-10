@@ -83,11 +83,14 @@ class Current(object):
                 data[name] = urlutil.joinpath(url, data[name])
             self.reconfigure(data)
 
-    def getvenvbin(self, name):
-        if self.venvdir:
-            venvdir = py.path.local(self.venvdir)
-            return py.path.local.sysfind(name, paths=[venvdir.join(vbin)])
-        return py.path.local.sysfind(name)
+    def getvenvbin(self, name, venvdir=None, glob=True):
+        if venvdir is None:
+            venvdir = self.venvdir
+        if venvdir:
+            bindir = py.path.local(venvdir).join(vbin)
+            return py.path.local.sysfind(name, paths=[bindir])
+        if glob:
+            return py.path.local.sysfind(name)
 
 
 def getvenv():
