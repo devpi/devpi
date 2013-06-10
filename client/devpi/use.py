@@ -121,6 +121,7 @@ def main(hub, args=None):
         current.reconfigure(dict(venvdir=cand.strpath), merge=True)
 
     if args.url:
+        #
         current.configure_fromurl(hub, args.url)
 
     showurls = args.urls or args.debug
@@ -130,8 +131,7 @@ def main(hub, args=None):
             hub.info("connected to: " + current.rooturl)
     else:
         if not args.venv:
-            hub.fatal("not connected to any devpi instance, "
-                      "use devpi --use URL")
+            hub.fatal("not connected to any devpi instance")
 
     if showurls:
         for name, value in current.items():

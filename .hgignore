@@ -17,6 +17,7 @@ syntax:glob
 _build/
 attic/*
 
+htmlcov/
 tmp/
 .pytest
 doc/*/_build

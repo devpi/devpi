@@ -17,7 +17,8 @@ if __name__ == "__main__":
 
     setup(
       name="devpi-client",
-      description="devpi-client: packaging workflow commands for Python developers",
+      description="devpi upload/install/... workflow commands for Python "
+                  "developers",
       long_description=open("README.rst").read(),
       version='0.9.dev2',
       packages=find_packages(),

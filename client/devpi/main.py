@@ -7,6 +7,7 @@ from devpi.util.lazydecorator import lazydecorator
 from devpi.util import url as urlutil
 from devpi import log, cached_property
 from devpi.use import Current
+from devpi.server import ensure_autoserver
 import requests
 import json
 std = py.std
@@ -46,6 +47,12 @@ class Hub:
     def clientdir(self):
         return py.path.local(self.args.clientdir)
 
+    def require_valid_current_with_index(self):
+        if not self.current.simpleindex:
+            self.fatal("need to be using a live index, see 'devpi use'")
+        return self.current
+
+
     # remote http hooks
 
     @cached_property
@@ -55,6 +62,7 @@ class Hub:
         if p.check():
             data = json.loads(p.read())
             session.auth = data["user"], data["password"]
+        session.ConnectionError = requests.exceptions.ConnectionError
         return session
 
     def http_api(self, method, url, kvdict=None, quiet=False):
@@ -130,7 +138,9 @@ class Hub:
     def current(self):
         self.clientdir.ensure(dir=1)
         path = self.clientdir.join("current.json")
-        return Current(path)
+        current = Current(path)
+        ensure_autoserver(self, current)
+        return current
 
     @property
     def remoteindex(self):
@@ -368,6 +378,14 @@ def install(parser):
         action="store", default=None, nargs="*",
         help="uri or package file for installation from current index. """
     )
+
+@subcommand("devpi.server")
+def server(parser):
+    """ commands for controling the automatic server. """
+    parser.add_argument("--stop", action="store_true",
+        help="stop automatically started server if any")
+    parser.add_argument("--nolog", action="store_true",
+        help="don't show log file when showing status")
 
 
 if __name__ == "__main__":

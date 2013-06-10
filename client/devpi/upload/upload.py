@@ -22,8 +22,7 @@ def main(hub, args):
 
     #newest_version = hub.remoteindex.getnewestversion(
 
-    if not hub.current.index:
-        hub.fatal("no current index defined, see 'current --use'")
+    hub.require_valid_current_with_index()
     setup = hub.cwd.join("setup.py")
     if not setup.check():
         hub.fatal("no setup.py found in", hub.cwd)

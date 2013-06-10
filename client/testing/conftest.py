@@ -367,9 +367,10 @@ def create_venv(request, testdir, monkeypatch):
 
 
 @pytest.fixture
-def loghub():
+def loghub(tmpdir):
     from devpi.main import Hub
     class args:
         debug = True
+        clientdir = tmpdir.join("clientdir")
     hub = Hub(args)
     return hub
