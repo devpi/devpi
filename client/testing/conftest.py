@@ -17,6 +17,10 @@ pytest_plugins = "pytester"
 
 from devpi.util import url as urlutil
 
+@pytest.fixture(autouse=True, scope="session")
+def noautoserver():
+    std.os.environ["DEVPI_NO_AUTOSERVER"] = "1"
+
 def pytest_runtest_makereport(item, call):
     if "incremental" in item.keywords:
         if call.excinfo is not None:
@@ -35,7 +39,7 @@ def pytest_runtest_setup(item):
     #    assert 0
 
 def pytest_addoption(parser):
-    parser.addoption("--slow", help="run functional/slow tests",
+    parser.addoption("--fast", help="skip functional/slow tests", default=False,
                      action="store_true")
 
 import subprocess as gsub
@@ -111,9 +115,9 @@ def get_pypirc_patcher(devpi):
     return overwrite()
 
 @pytest.fixture(scope="session")
-def port_of_liveserver(request, xprocess, Popen_session):
-    if not request.config.option.slow:
-        pytest.skip("not running functional tests, use --slow to do so.")
+def port_of_liveserver(request, xprocess):
+    if request.config.option.fast:
+        pytest.skip("not running functional tests in --fast mode")
 
     def prepare_devpiserver(cwd):
         datadir = cwd.join("data")
@@ -123,15 +127,11 @@ def port_of_liveserver(request, xprocess, Popen_session):
         return (".*Listening on.*",
                 ["devpi-server", "--data", datadir, "--port", 7999 ])
 
-    pid, logfile = xprocess.ensure("devpi-server", prepare_devpiserver,
-                                   restart=True)
-    assert pid is not None
-    def killproc():
-        try:
-            py.process.kill(pid)
-        except OSError:
-            pass
-    request.addfinalizer(killproc)
+    pid, logfile = xprocess.ensure("devpi-server",
+                                   prepare_devpiserver, restart=True)
+    info = xprocess.getinfo("devpi-server")
+    from devpi._vendor.xprocess import do_xkill
+    request.addfinalizer(lambda: do_xkill(info, py.io.TerminalWriter()))
     return 7999
 
 @pytest.fixture
@@ -186,7 +186,7 @@ class Gen:
     def md5(self, num=1):
         md5list = []
         for x in range(num):
-            self._md5.update(str(num))
+            self._md5.update(str(num).encode("utf8"))
             md5list.append(self._md5.hexdigest())
         if num == 1:
             return md5list[0]
@@ -303,6 +303,7 @@ def cmd_devpi(tmpdir):
             ret = sysex.args[0] or 1
         if ret and kwargs.get("code", 0) < 400:
             raise SystemExit(ret)
+        hub, method = initmain(callargs)
         return hub
     run_devpi.clientdir = clientdir
     return run_devpi

@@ -120,6 +120,7 @@ class UnpackedPackage:
 
 
 def main(hub, args):
+    hub.require_valid_current_with_index()
     tmpdir = py.path.local.make_numbered_dir("devpi-test", keep=3)
     current = hub.current
     if not current.exists():

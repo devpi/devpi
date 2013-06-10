@@ -9,10 +9,12 @@ def main(hub, args):
     current = hub.require_valid_current_with_index()
 
     venv = args.venv
+    if not venv:
+        venv = current.venvdir
     if venv:
         vpath = py.path.local(venv)
         if not vpath.check():
-            hub.popen_check(["virtualenv", venv])
+            hub.popen_check(["virtualenv", "-q", venv])
     pip_path = current.getvenvbin("pip", venvdir=venv, glob=True)
     if not pip_path:
         import pdb ; pdb.set_trace()
@@ -31,8 +33,7 @@ def main(hub, args):
             del os.environ["PYTHONDONTWRITEBYTECODE"]
         except KeyError:
             pass
-        hub.info("installing into", current.venvdir)
-        hub.popen_check([pip_path, "install", "-U", "--force-reinstall",
+        hub.popen_check([pip_path, "install", "-q", "-U", "--force-reinstall",
             "-i", current.simpleindex ] + list(args.pkgspecs))
 
 

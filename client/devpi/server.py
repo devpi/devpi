@@ -2,7 +2,7 @@
 """
 interact/control automatic server.
 """
-
+import os
 import py
 
 
@@ -14,10 +14,12 @@ def ensure_autoserver(hub, current):
     autoserver = AutoServer(hub)
     if current.rooturl != "/" and current.rooturl != default_rooturl:
         return
+    if os.environ.get("DEVPI_NO_AUTOSERVER"):
+        raise ValueError(42)
     try:
         r = hub.http.head(default_rooturl)
     except hub.http.ConnectionError as e:
-        hub.error("no server found, starting new one")
+        #hub.error("no server found, starting new one")
         autoserver.start()
         if not current.simpleindex:
             indexurl = default_rooturl + "root/dev/"
@@ -43,9 +45,10 @@ class AutoServer:
             url = default_rooturl
             self.hub.info("automatically starting devpi-server at %s" % url)
             return (".*Listening on.*", [devpi_server])
-        pid, logfile = self.xproc.ensure("devpi-server", prepare_devpiserver)
-        self.pid = pid
-        self.logfile = logfile
+        self.xproc.ensure("devpi-server", prepare_devpiserver)
+        info = self.xproc.getinfo("devpi-server")
+        self.pid = info.pid
+        self.logfile = info.logpath
 
     def stop(self):
         do_xkill(self.info, tw=self.hub)

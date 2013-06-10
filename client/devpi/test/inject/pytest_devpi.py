@@ -9,7 +9,8 @@ def popenv_devpi(env):
     d = {}
     for name in ("posturl", "packageurl", "packagemd5"):
         try:
-            d[name] = env.pop("DEVPY_%s" % name.upper())
+            d[name] = py.builtin._totext(env.pop("DEVPY_%s" % name.upper()),
+                                         "UTF-8")
         except KeyError:
             return None
     return d
@@ -80,13 +81,19 @@ def httppost(url, data, headers):
 def postresultlog(posturl, packageurl, packagemd5, resultfile):
     # XXX use streaming so that large result files are no problem
     res = ReprResultLog(packageurl, packagemd5, **getplatforminfo())
-    res.parse_resultfile(resultfile)
+    try:
+        res.parse_resultfile(resultfile)
+    except FormatError:
+        return
     data = res.dump()
     response = httppost(posturl, data, headers=
             {"CONTENT-TYPE": "text/plain"})
     if response.status_code != 201:
         return response
     return response.headers.get("location")
+
+class FormatError(ValueError):
+    """ wrong format of result log file. """
 
 class ReprResultLog:
     def __init__(self, packageurl, packagemd5, platformstring,
@@ -155,7 +162,8 @@ class ReprResultLog:
                 self._add(outcome, testid)
                 line = f.readline()
             else:
-                assert line[1] == " ", line
+                if not line[1] == " ":
+                   raise FormatError(line)
                 longrepr = []
                 while 1:
                     line = f.readline()

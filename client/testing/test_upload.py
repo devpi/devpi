@@ -1,4 +1,4 @@
-import sys
+import os, sys
 import py
 import pytest
 import types
@@ -6,11 +6,16 @@ from devpi.upload.upload import (setversion, Checkout, find_parent_subpath)
 from devpi.util import version as verlib
 from textwrap import dedent
 
-from subprocess import check_call, Popen, check_output
+from devpi.main import check_output
 
 def runproc(cmd):
     args = cmd.split()
-    return check_output(args)
+    path0 = args[0]
+    if not os.path.isabs(path0):
+        path0 = py.path.local.sysfind(path0)
+        if not path0:
+            pytest.skip("%r not found" % args[0])
+    return check_output([str(path0)] + args[1:])
 
 @pytest.fixture
 def uploadhub(request, tmpdir):

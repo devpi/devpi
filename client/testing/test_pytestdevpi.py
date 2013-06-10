@@ -44,7 +44,7 @@ def test_setenv_unicode(loghub, gen):
     test.setenv_devpi(loghub, env, **kw)
     newkw = plugin.popenv_devpi(env)
     for val in newkw.values():
-        assert isinstance(val, str)
+        assert py.builtin._istext(val)
     assert newkw == kw
     assert not env
 

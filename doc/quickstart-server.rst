@@ -26,7 +26,6 @@ to install your packages as usual.  The first install request
 will be slower than any subsequent ones which just serve from 
 the local cache.
 
-
 uploading to the ``root/dev`` index
 --------------------------------------
 
@@ -70,19 +69,19 @@ packages from the pypi-mirroring ``root/pypi`` index.
 
 **What to do next?**:
 
-- checkout the convenient devpi_ command line client for 
-  creating users, indexes and for performing standard uploading, 
-  installation and testing activities in conjunction 
-  with devpi-server.
-  
 - :ref:`configure a permanent index for pip and easy_install
   <perminstallindex>` to avoid re-typing long URLs.
+
+- :ref:`advance your setup to require authentication <auth>`
 
 - use :ref:`devpi-server --gendeploy <gendeploy>` to create
   and start a permanent deployment to run devpi-server
   on your laptop or a company server.
 
-- :ref:`advance your setup to require authentication <auth>`
+- checkout the convenient devpi_ command line client for 
+  creating users, indexes and for performing standard uploading, 
+  installation and testing activities in conjunction 
+  with devpi-server.
 
 - checkout the evolving HTTP REST interface :doc:`curl`
 
@@ -206,4 +205,63 @@ did using gendeploy_, you can proceed like this::
 
 Note that if you don't shutdown the supervisord, the ``--gendeploy``
 command is bound to fail.
+
+
+.. _auth:
+
+requiring authentication
+-----------------------------------------
+
+In order to configure authentication you need to install the
+``devpi`` command line client::
+
+    pip install devpi-client
+
+By default the root password is empty and we can login::
+
+    $ devpi login root --password=
+
+We can now change the password, for example to "123"::
+
+    $ devpi user -m --password=123
+
+At this point, only root will now be able to upload to ``root/dev`` or
+any other ``root/*`` indexes.  Let's check our current index::
+
+    $ devpi use
+
+this shows we are logged in as root.
+
+Let's logoff::
+
+    $ devpi logoff
+
+
+and then register ourselves a new user::
+
+    $ devpi user -c alice --password 456 
+
+and login::
+
+    $ devpi login alice --password=456
+
+Alice can now create a new ``dev`` index::
+
+    $ devpi index -c dev
+
+and use it::
+
+    $ devpi use alice/dev
+
+Our ``alice/dev`` index derives from ``root/dev`` by default
+which in turn derives from ``root/pypi`` which mirrors and caches
+all pypi packages.
+
+We can now use it to upload any ``setup.py`` project of ours::
+
+    devpi upload
+
+You can now visit with a Browser the index url shown by 
+``devpi use`` but note that the 
+:ref:`web UI is quite rough <projectstatus>` as of now.
 

@@ -2,8 +2,7 @@ import sys
 import py
 import pytest
 import types
-from subprocess import check_call, Popen, check_output
-from devpi.main import Hub
+from devpi.main import Hub, check_output
 
 def runproc(cmd):
     args = cmd.split()

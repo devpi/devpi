@@ -3,7 +3,7 @@ import pytest
 import subprocess
 from py import std
 
-from test_devpi_server.test_views import TestUserThings, TestIndexThings
+from test_devpi_server.functional import TestUserThings, TestIndexThings
 
 @pytest.fixture
 def mapp(request, devpi, out_devpi):

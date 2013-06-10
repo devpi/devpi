@@ -7,10 +7,9 @@ import pytest
 def bases(request):
     return request.param
 
-def test_create_zipfile():
+def test_create_zipfile(tmpdir):
     content = create_zipfile({"one": {"nested": "1"}, "two": {}})
-    p = py.path.local("/tmp")
-    p.join("hello.zip").write(content, "wb")
+    tmpdir.join("hello.zip").write(content, "wb")
 
 
 class TestStage:

@@ -50,6 +50,9 @@ class XProcessInfo:
         else:
             self.pid = None
 
+    def kill(self, tw=None):
+        return do_xkill(self, tw or py.io.TerminalWriter())
+
     def _isrunning_win32(self, pid):
         import ctypes, ctypes.wintypes
         kernel32 = ctypes.windll.kernel32
@@ -118,14 +121,9 @@ class XProcess:
 
         if restart:
             if info.pid is not None:
-                try:
-                    py.process.kill(info.pid)
-                except OSError:
-                    pass
-                # wait?
-            controldir = info.controldir
+                info.kill()
+            controldir = info.controldir.ensure(dir=1)
             #controldir.remove()
-            controldir.ensure(dir=1)
             wait, args = preparefunc(controldir)
             args = [str(x) for x in args]
             self.log.debug("%s$ %s", controldir, " ".join(args))
@@ -147,22 +145,24 @@ class XProcess:
         if not restart:
             f.seek(0, 2)
         else:
-            count = 50
-            while 1:
-                line = f.readline()
-                self.log.debug(line)
-                if not line:
-                    import time
-                    time.sleep(0.1)
-                if std.re.search(wait, line):
-                    self.log.debug("%s process startup pattern detected", name)
-                    break
-                count -= 1
-                if count < 0:
-                    raise RuntimeError("Could not start process %s" % name)
-
-
+            if self._checkpattern(f, wait):
+                self.log.debug("%s process startup pattern detected", name)
+            else:
+                raise RuntimeError("Could not start process %s" % name)
         logfiles = self.config.__dict__.setdefault("_extlogfiles", {})
         logfiles[name] = f
-        return info.pid, f
+        newinfo = self.getinfo(name)
+        return info.pid, info.logpath
+
+    def _checkpattern(self, f, pattern, count=50):
+        while 1:
+            line = f.readline()
+            self.log.debug(line)
+            if not line:
+                std.time.sleep(0.1)
+            if std.re.search(pattern, line):
+                return True
+            count -= 1
+            if count < 0:
+                return False
 

@@ -399,8 +399,9 @@ class PyPIView:
             for entry in stage.getreleaselinks(name):
                 name, ver = urlutil.DistURL(entry.relpath).pkgname_and_version
                 latest_packages.append(html.li(
-                    html.a("%s-%s" % (name, ver), href="%s/%s/" % (name, ver)),
-                    " ",
+                    html.a("%s-%s info page" % (name, ver),
+                           href="%s/%s/" % (name, ver)),
+                    " releasefiles: ",
                     html.a(entry.basename, href="/" + entry.relpath),
                 ))
                 break

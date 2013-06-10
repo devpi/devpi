@@ -10,7 +10,7 @@ import py
 import threading
 from tempfile import NamedTemporaryFile, mkdtemp
 from execnet import dumps, loads
-import os
+import os, sys
 from os.path import basename, isabs, join
 from os import listdir
 
@@ -61,7 +61,11 @@ class KeyFS:
         try:
             os.rename(source, dest)
         except OSError as e:
-            os.makedirs(os.path.dirname(dest))
+            destdir = os.path.dirname(dest)
+            if not os.path.exists(destdir):
+                os.makedirs(destdir)
+            if sys.platform == "win32" and os.path.exists(dest):
+                os.remove(dest)
             os.rename(source, dest)
 
     def _delete(self, relpath):
@@ -136,7 +140,7 @@ class PTypedKey:
         l = []
         for x in current:
             key = x.relto(self.keyfs.basedir)
-            parts = key.split("/")
+            parts = key.split(os.sep)
             l.append(parts[position])
         return set(l)
 

@@ -5,17 +5,11 @@ devpi: pypi caching server and one-stop tool for python packaging
 
 The **devpi** project aims to support a variety of company- and
 user-specific Python Package release, testing and installation 
-activities.  The project is partly funded by a contract of a larger
-geo-distributed company with merlinux_ and Holger Krekel as the 
-lead developer.  The project is bound to see more releases in 2013, 
-see :ref:`projectstatus`.
-
-The project provides two MIT-licensed Python packages:
+activities.  The project provides a devpi_ meta package pulling 
+in two, also separately installable, MIT-licensed packages:
 
 - ``devpi-server``: well-tested and easy-to-use pypi server with
-  :doc:`unique features <features-server>` not found in other implementations.
-  This server can be used from standard ``setup.py upload``
-  and ``pip/easy_install`` invocations.
+  some :doc:`unique features <features-server>`.
 
 - ``devpi-client``: one-stop ``devpi`` tool with sub commands for managing 
   users and github-style user/INDEX overlay indexes, and wrapping
@@ -25,92 +19,116 @@ The project provides two MIT-licensed Python packages:
 Quickstart: serve, install and upload
 ----------------------------------------
 
-Install both server and client::
+Installing devpi client and server
+++++++++++++++++++++++++++++++++++++++++
+
+::
 
 	pip install devpi
 
-Start a server in one window::
-  
-	devpi-server  # and leave it running in the window, open new one
+This will install ``devpi-client`` and ``devpi-server`` pypi packages.
 
-Install an arbitrary package (here ``pytest``) into a new ``subenv``
-virtualenv directory::
+devpi install: installing a package 
+++++++++++++++++++++++++++++++++++++++++
 
-	$ devpi install --venv=v1 pytest
+We can now use the ``devpi`` command line client to install
+a pypi package (here ``pytest`` as an example)::
 
-Here ``pip`` used the default devpi ``root/dev`` index which is an
-:ref:`overlay index <overlayindex>`, which inherits all pypi.python.org
-packages.
+    $ devpi install --venv=v1 pytest
+    automatically starting devpi-server at http://localhost:3141/
+    --> $ virtualenv -q v1
+    --> $ v1/bin/pip install -q -U --force-reinstall -i http://localhost:3141/root/dev/+simple/ pytest
 
-Check that ``pytest`` was installed correctly::
+Here is what happened:
 
-	$ subenv/bin/py.test --version
+- ``devpi-server`` was automatically started because we are
+  using the default ``localhost:3141`` url and no server responded there.
 
-Locally upload a ``setup.py`` based package::
+- a virtualenv ``v1`` was created because it didn't exist
 
-	$ devpi upload   # need to be in a directory with setup.py
+- ``pip install`` was configured to use the default devpi ``root/dev`` 
+  index which is an index which inherits pypi.python.org packages.
+
+Let's check that ``pytest`` was installed correctly::
+
+    $ v1/bin/py.test --version
+    This is py.test version 2.3.5, imported from /tmp/doc-exec-104/v1/local/lib/python2.7/site-packages/pytest.pyc
+
+devpi upload: uploading a package
++++++++++++++++++++++++++++++++++++++++++++++++
+
+Please go to a ``setup.py`` based project of yours and issue::
+
+	devpi upload   # need to be in a directory with setup.py
 
 and install the just uploaded package::
 
 	devpi install --venv=v1 NAME_OF_YOUR_PACKAGE
 
-This installed your package and potentially all pypi dependencies
-through the default ``root/dev`` index, 
+This installed your just uploaded package from the default ``root/dev``
+index again, which also contains all pypi.python.org packages.
+
+
+devpi test: testing an uploaded package
++++++++++++++++++++++++++++++++++++++++++++++++
+
+If you have a package using tox_ you may invoke::
+
+    devpi test PACKAGENAME  # package needs to contain tox.ini
+
+this will download the latest release of ``PACKAGENAME`` and run tox
+against it.  You can try to run ``devpi test`` with any 3rd party 
+pypi package.
+
+
+devpi use: show index and other info
+++++++++++++++++++++++++++++++++++++++++++++++++
+
+::
+
+    $ devpi use
+    using index:  http://localhost:3141/root/dev/
+    no current install venv set
+    logged in as: root
+
+In the default configuration we do not need credentials
+and thus do not need to be logged in.
+
+
+devpi server: controling the automatic server 
++++++++++++++++++++++++++++++++++++++++++++++++
+
+Let's look at our current automatically started server::
+
+    $ devpi server --nolog  # don't show server log info
+    automatic server is running with pid 24227
+
+Let's stop it::
+
+    $ devpi server --stop
+    TERMINATED 'devpi-server', pid 24227 -- logfile /home/hpk/.devpi/client/.xproc/devpi-server/xprocess.log
+
+Note that with most ``devpi`` commands the server will be started
+up again when needed.  As soon as you start ``devpi use`` with 
+any other root url than ``http://localhost:3141`` no automatic 
+server management takes place anymore.
+
+See :doc:`quickstart-server` for more deployment options and how
+to use ``devpi-server`` with plain ``pip``, ``easy_install`` or
+``setup.py`` invocations.
 
 .. toctree::
    :maxdepth: 2
 
-   quickstart-client
+   status
    quickstart-server
    features-server
-   company
    curl
-   contact
 
 .. toctree::
    :hidden:
 
    links
-
-
-.. _projectstatus:
-
-Project status and further developments
-----------------------------------------
-
-As of June 2013, around 250 automated tests are passing on
-python2.7 and python2.6 on Ubuntu 12.04 and Windows 7.
-
-Both the ``devpi-server`` and the ``devpi`` tools are in beta status
-because these are initial releases and more diverse real-life testing is
-warranted.  The pre-0.9 releases of devpi-server already helped to iron 
-out a number of issues and for the 0.9 transition a lot of effort went 
-into making devpi-server work consistently with the new PyPI Content 
-Delivery Network (CDN).
-
-The project is actively developed and bound to see more releases in
-2013, in particular in these areas:
-
-- bugfixes and maintenance
-- copying release files between index files and to pypi.python.org 
-- better testing workflows
-- mirroring between devpi-server instances
-
-**One area that is lacking is the web UI**.  I am looking for a partner
-to push forward with the web UI and design.  The server provides a 
-nice evolving :doc:`REST API <curl>`.
-
-Note that only part of the development is funded for a limited time.
-
-You are very welcome to report issues, discuss or help:
-
-* issues: https://bitbucket.org/hpk42/devpi/issues
-
-* IRC: #pylib on irc.freenode.net.
-
-* repository: https://bitbucket.org/hpk42/devpi
-
-* mailing list: https://groups.google.com/d/forum/devpi-dev
 
 
 Example timing

@@ -75,7 +75,7 @@ class Current(object):
         return url
 
     def configure_fromurl(self, hub, url):
-        url = hub.get_index_url(url)
+        url = hub.get_index_url(url, current=self)
         data = hub.http_api("get", url.rstrip("/") + "/+api")
         if data["status"] == 200:
             data = data["result"]
@@ -100,19 +100,24 @@ def getvenv():
     return pip.dirpath().dirpath()
 
 def main(hub, args=None):
-    current = hub.current
     args = hub.args
+    current = hub.current
 
     if args.delete:
-        if not current.exists():
+        if not hub.current.exists():
             hub.error_and_out("NO configuration found")
-        current.path.remove()
-        hub.info("REMOVED configuration at", current.path)
+        hub.current.path.remove()
+        hub.info("REMOVED configuration at", hub.current.path)
         return
     if current.exists():
         hub.debug("current: %s" % current.path)
     else:
-        hub.debug("no current file, using empty defaults")
+        hub.debug("no current file, using defaults")
+
+    if args.url:
+        if not args.url.startswith("http://"):
+            current = hub.current
+        current.configure_fromurl(hub, args.url)
 
     if args.venv:
         if args.venv != "-":
@@ -126,10 +131,6 @@ def main(hub, args=None):
                                 merge=True)
         else:
             current.reconfigure(dict(venvdir=None), merge=True)
-
-    if args.url:
-        #
-        current.configure_fromurl(hub, args.url)
 
     showurls = args.urls or args.debug
 

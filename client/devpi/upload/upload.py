@@ -93,7 +93,7 @@ class Checkout:
         self.rootpath = setupdir
         assert setupdir.join("setup.py").check(), setupdir
         self.hashg = bool(find_parent_subpath(self.rootpath,
-                          ".hg", raising=False))
+                          ".hg", raising=False)) and py.path.local.sysfind("hg")
 
     def export(self, basetemp):
         if self.hashg:

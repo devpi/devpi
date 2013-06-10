@@ -10,6 +10,7 @@ from devpi.use import Current
 import devpi.server
 import requests
 import json
+from devpi.server import ensure_autoserver
 std = py.std
 subcommand = lazydecorator()
 
@@ -29,6 +30,19 @@ def initmain(argv):
         mod, func = mod.split(":")
     mod = __import__(mod, None, None, ["__doc__"])
     return Hub(args), getattr(mod, func)
+
+def check_output(*args, **kwargs):
+    from subprocess import Popen, CalledProcessError, PIPE
+    # subprocess.check_output does not exist on python26
+    popen = Popen(stdout=PIPE, *args, **kwargs)
+    output, unused_err = popen.communicate()
+    retcode = popen.poll()
+    if retcode:
+        cmd = kwargs.get("args")
+        if cmd is None:
+            cmd = args[0]
+        raise CalledProcessError(retcode, cmd, output=output)
+    return output
 
 class Hub:
     class Popen(std.subprocess.Popen):
@@ -96,7 +110,7 @@ class Hub:
 
     def update_auth(self, user, password):
         self.http.auth = (user, password)
-        oldumask = os.umask(0077)
+        oldumask = os.umask(7*8+7)
         self.clientdir.join("login").write(
             json.dumps(dict(user=user, password=password)))
         os.umask(oldumask)
@@ -108,16 +122,18 @@ class Hub:
         if not self.http.auth:
             self.fatal("you need to be logged in (use 'devpi login USER')")
 
-    def get_index_url(self, indexname=None):
+    def get_index_url(self, indexname=None, current=None):
+        if current is None:
+            current = self.current
         if indexname is None:
-            indexname = self.current.index
+            indexname = current.index
             if indexname is None:
                 raise ValueError("no index name")
         if "/" not in indexname:
             assert self.http.auth[0]
-            userurl = self.current.getuserurl(self.http.auth[0])
+            userurl = current.getuserurl(self.http.auth[0])
             return urlutil.joinpath(userurl + "/", indexname)
-        return urlutil.joinpath(self.current.rooturl, indexname)
+        return urlutil.joinpath(current.rooturl, indexname)
 
     def get_user_url(self):
         return self.current.getuserurl(self.http.auth[0])
@@ -142,7 +158,12 @@ class Hub:
         self.clientdir.ensure(dir=1)
         path = self.clientdir.join("current.json")
         current = Current(path)
-        devpi.server.ensure_autoserver(self, current)
+        try:
+            cmd = self.args.mainloc.split(":")[0]
+            if cmd not in ("devpi.use", "devpi.server"):
+                ensure_autoserver(self, current)
+        except AttributeError:
+            pass
         return current
 
     @property
@@ -168,15 +189,22 @@ class Hub:
         args = [str(x) for x in args]
         if cwd == None:
             cwd = self.cwd
-        self.line("%s$" % cwd, " ".join(args), "[to-pipe]")
+        self.report_popen(args, cwd)
         if self.args.dryrun:
             return
-        return subprocess.check_output(args, cwd=str(cwd))
+        return check_output(args, cwd=str(cwd))
+
+    def report_popen(self, args, cwd=None):
+        base = cwd or self.cwd
+        rel = py.path.local(args[0]).relto(base)
+        if not rel:
+            rel = str(args[0])
+        self.line("--> $", rel, " ".join(args[1:]))
 
     def popen_check(self, args):
         assert args[0], args
         args = [str(x) for x in args]
-        self.line("$", " ".join(args))
+        self.report_popen(args)
         ret = subprocess.call(args)
         if ret != 0:
             self.fatal("command failed")
@@ -226,7 +254,6 @@ def parse_args(argv):
 def add_subparsers(parser):
     subparsers = parser.add_subparsers()
     for func, args, kwargs in subcommand.discover(globals()):
-        mainloc = args[0]
         if len(args) > 1:
             name = args[1]
         else:

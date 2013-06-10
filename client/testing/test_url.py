@@ -1,4 +1,5 @@
 import pytest
+import posixpath
 from devpi.util.url import joinpath, getnetloc, getpath, getscheme, ishttp, parselinks
 import os.path
 
@@ -51,7 +52,7 @@ from devpi.util.url import url2path, path2url
 def test_canonical_url_path_mappings(url):
     path = url2path(url)
     assert path[0] != "/"
-    assert os.path.normpath(path) == path
+    assert posixpath.normpath(path) == path
     back_url = path2url(path)
     assert url == back_url
 
