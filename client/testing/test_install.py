@@ -1,6 +1,6 @@
 
 
-def test_simple_install_process(create_and_upload,
+def test_simple_install_venv_workflow(create_and_upload,
                                 create_venv, out_devpi):
     create_and_upload("example-1.2.3")
     venvdir = create_venv()

@@ -58,7 +58,9 @@ class TestUnit:
         #assert not hub.current.exists()
 
     def test_main_venvsetting(self, cmd_devpi, tmpdir, monkeypatch):
+        from devpi.use import vbin
         venvdir = tmpdir
+        venvdir.ensure(vbin, dir=1)
         monkeypatch.chdir(tmpdir)
         hub = cmd_devpi("use", "--venv=%s" % venvdir)
         current = Current(hub.current.path)

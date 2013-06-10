@@ -115,13 +115,17 @@ def main(hub, args=None):
         hub.debug("no current file, using empty defaults")
 
     if args.venv:
-        venvname = args.venv
-        cand = hub.cwd.join(venvname, abs=True)
-        if not cand.check():
-            cand = hub.path_venvbase.join(venvname)
+        if args.venv != "-":
+            venvname = args.venv
+            cand = hub.cwd.join(venvname, vbin, abs=True)
             if not cand.check():
-                hub.fatal("no virtualenv %r found" % venvname)
-        current.reconfigure(dict(venvdir=cand.strpath), merge=True)
+                cand = hub.path_venvbase.join(venvname, vbin)
+                if not cand.check():
+                    hub.fatal("no virtualenv %r found" % venvname)
+            current.reconfigure(dict(venvdir=cand.dirpath().strpath),
+                                merge=True)
+        else:
+            current.reconfigure(dict(venvdir=None), merge=True)
 
     if args.url:
         #
@@ -143,7 +147,11 @@ def main(hub, args=None):
         if not current.index:
             hub.error("not using any index (use 'index -l')")
         else:
-            hub.info("using index: " + current.index)
+            hub.info("using index:  " + current.index)
+    if current.venvdir:
+        hub.info("install venv: %s" % current.venvdir)
+    else:
+        hub.line("no current install venv set")
 
     if hub.http.auth:
         user, password = hub.http.auth

@@ -257,7 +257,8 @@ def add_generic_options(parser):
 def use(parser):
     """ configure remote index and target venv for install activities. """
     parser.add_argument("--venv", action="store", default=None,
-        help="set virtual environment to use for install activities")
+        help="set virtual environment to use for install activities. "
+             "specify '-' to unset it.")
     parser.add_argument("--urls", action="store_true",
         help="show remote endpoint urls")
     parser.add_argument("--delete", action="store_true",

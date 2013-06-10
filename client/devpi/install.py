@@ -1,4 +1,5 @@
 
+import os
 import py
 
 from devpi import log
@@ -26,6 +27,10 @@ def main(hub, args):
 
 
     if args.pkgspecs:
+        try:
+            del os.environ["PYTHONDONTWRITEBYTECODE"]
+        except KeyError:
+            pass
         hub.info("installing into", current.venvdir)
         hub.popen_check([pip_path, "install", "-U", "--force-reinstall",
             "-i", current.simpleindex ] + list(args.pkgspecs))

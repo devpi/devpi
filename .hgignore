@@ -20,7 +20,7 @@ attic/*
 htmlcov/
 tmp/
 .pytest
-doc/*/_build
+_build/
 build/
 dist/
 *.egg-info
