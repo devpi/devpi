@@ -133,13 +133,15 @@ class PyPIView:
             parts = path.split("/")
             if len(parts) >= 2:
                 user, index = parts[:2]
-                if not self.db.user_indexconfig_get(user, index):
+                ixconfig = self.db.user_indexconfig_get(user, index)
+                if not ixconfig:
                     abort(404, "index %s/%s does not exist" %(user, index))
                 api.update({
                     "index": "/%s/%s/" % (user, index),
-                    "pypisubmit": "/%s/%s/" % (user, index),
                     "simpleindex": "/%s/%s/+simple/" % (user, index),
                 })
+                if ixconfig["type"] == "stage":
+                    api["pypisubmit"] = "/%s/%s/" % (user, index)
         apireturn(200, type="apiconfig", result=api)
 
     #
@@ -254,13 +256,15 @@ class PyPIView:
 
     @route("/<user>/<index>/", method="POST")
     def submit(self, user, index):
+        if user == "root" and index == "pypi":
+            abort(404, "cannot submit to pypi mirror")
         self.require_user(user)
         try:
             action = request.forms[":action"]
         except KeyError:
             abort(400, ":action field not found")
-        log.debug("received POST action %r" %(action))
         stage = self.getstage(user, index)
+        log.debug("received POST action %r" %(action))
         if action == "submit":
             return self._register_metadata(stage, request.forms)
         elif action in ("doc_upload", "file_upload"):

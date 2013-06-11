@@ -136,3 +136,6 @@ class TestUploadFunctional:
         devpi("upload", "--formats", "sdist.tbz")
         devpi("upload", "--formats", "sdist.tgz,bdist_dumb")
 
+        # go to other index
+        devpi("use", "root/pypi")
+        devpi("upload", "--dryrun", code=404)

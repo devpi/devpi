@@ -94,8 +94,15 @@ def test_pkgserv(pypiurls, httpget, testapp):
     assert r.body == "123"
 
 def test_apiconfig(httpget, testapp):
-    r = testapp.get("/user/name/-api")
+    r = testapp.get("/user/name/+api")
     assert r.status_code == 404
+    r = testapp.get("/root/dev/+api")
+    assert r.status_code == 200
+    assert r.json["result"]["pypisubmit"]
+    r = testapp.get("/root/pypi/+api")
+    assert r.status_code == 200
+    assert not "pypisubmit" in r.json["result"]
+
     #for name in "pushrelease simpleindex login pypisubmit resultlog".split():
     #    assert name in r.json
     #
@@ -124,6 +131,10 @@ def test_upload(httpget, db, mapp, testapp):
     assert r.status_code == 200
     a = getfirstlink(r.text)
     assert "pkg1-2.6.tgz" in a.get("href")
+
+def test_upload_pypi_fails(httpget, db, mapp, testapp):
+    mapp.upload_file_pypi(
+            "root", "pypi", "pkg1-2.6.tgz", "123", "pkg1", "2.6", code=404)
 
 def test_upload_docs_too_large(httpget, db, mapp, testapp):
     from devpi_server.views import MAXDOCZIPSIZE
@@ -266,11 +277,12 @@ class Mapp:
         if code == 201:
             assert "created" in r.json["message"]
 
-    def upload_file_pypi(self, user, index, basename, content, name, version):
+    def upload_file_pypi(self, user, index, basename, content,
+                         name, version, code=200):
         r = self.testapp.post("/%s/%s/" % (user, index),
             {":action": "file_upload", "name": name, "version": version,
-             "content": Upload(basename, content)})
-        assert r.status_code == 200
+             "content": Upload(basename, content)}, expect_errors=True)
+        assert r.status_code == code
 
     def upload_doc(self, user, index, basename, content, name, version,
                          code=200):

@@ -22,7 +22,6 @@ def main(hub, args):
 
     #newest_version = hub.remoteindex.getnewestversion(
 
-    hub.require_valid_current_with_index()
     setup = hub.cwd.join("setup.py")
     if not setup.check():
         hub.fatal("no setup.py found in", hub.cwd)
@@ -32,6 +31,9 @@ def main(hub, args):
     hub.info("hg-exported project to", exported)
 
     #set_new_version(hub, args, exported)
+    if not hub.current.pypisubmit:
+        hub.fatal("no pypisubmit endpoint available for: %s" %
+                  hub.current.index)
     if not args.onlydocs:
         exported.setup_register()
         exported.setup_upload()

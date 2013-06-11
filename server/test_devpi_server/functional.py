@@ -89,5 +89,3 @@ class TestIndexThings:
         assert mapp.getjson("/cuser3/dev/")["type"] == "list:projectconfig"
         assert mapp.getjson("/cuser3/dev/hello")["type"] == "projectconfig"
         mapp.create_project("dev", "hello", code=409)
-
-
