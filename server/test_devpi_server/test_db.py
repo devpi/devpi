@@ -65,6 +65,14 @@ class TestStage:
         assert entries[0].md5 == entry.md5
         assert stage.getprojectnames() == ["some"]
 
+    def test_releasefile_sorting(self, stage, bases):
+        content = "123"
+        entry = stage.store_releasefile("some-1.1.zip", content)
+        entry = stage.store_releasefile("some-1.0.zip", content)
+        entries = stage.getreleaselinks("some")
+        assert len(entries) == 2
+        assert entries[0].basename == "some-1.1.zip"
+
     def test_storedoczipfile(self, stage, bases):
         content = create_zipfile({"index.html": "<html/>",
             "_static": {}, "_templ": {"x.css": ""}})

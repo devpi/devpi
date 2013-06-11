@@ -4,6 +4,7 @@ import py
 from .urlutil import DistURL
 from .vendor._description_utils import processDescription
 import hashlib
+from .urlutil import sorted_by_version
 
 import logging
 
@@ -220,7 +221,12 @@ class PrivateStage:
     #
 
     def getreleaselinks(self, projectname):
-        return self.op_with_bases("getreleaselinks", projectname=projectname)
+        l = self.op_with_bases("getreleaselinks", projectname=projectname)
+        if isinstance(l, int):
+            return l
+        l = sorted_by_version(l, attr="basename")
+        l.reverse()
+        return l
 
     def getreleaselinks_perstage(self, projectname):
         projectconfig = self.get_projectconfig(projectname)

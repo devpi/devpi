@@ -3,6 +3,8 @@
 
 - return 404 for submits to root/pypi
 
+- properly sort release file links on stage indexes
+
 0.9.0.dev
 ----------------
 

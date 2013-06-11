@@ -109,3 +109,21 @@ def test_canonical_url_path_mappings(url):
     back_url = DistURL.fromrelpath(path)
     assert url == back_url
 
+
+def test_sorted_by_version():
+    from devpi_server.urlutil import sorted_by_version
+    l = ["hello-1.3.0.tgz", "hello-1.3.1.tgz", "hello-1.2.9.zip"]
+    assert sorted_by_version(l) == \
+        ["hello-1.2.9.zip", "hello-1.3.0.tgz", "hello-1.3.1.tgz"]
+
+def test_sorted_by_version_with_attr():
+    class A:
+        def __init__(self, ver):
+            self.ver = ver
+        def __eq__(self, other):
+            assert self.ver == other.ver
+    l = [A("hello-1.2.0.tgz") , A("hello-1.1.0.zip")]
+    x = sorted_by_version(l, attr="ver")
+    l.reverse()
+    assert x == l
+

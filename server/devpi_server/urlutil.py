@@ -18,11 +18,16 @@ def joinpath(url, *args):
 
 _releasefile_suffix_rx = re.compile(r"(\.egg|\.zip|\.tar\.gz|\.tgz|\.tar\.bz2|-py[23]\.\d-.*|\.win-amd64-py[23]\.\d\..*|\.win32-py[23]\.\d\..*)$", re.IGNORECASE)
 
-def sorted_by_version(versions):
-    ver = pkg_resources.parse_version
-    def cmp(x, y):
+def sorted_by_version(versions, attr=None):
+    parse_version = pkg_resources.parse_version
+    if attr:
+        def ver(x):
+            return parse_version(getattr(x, attr))
+    else:
+        ver = parse_version
+    def vercmp(x, y):
         return cmp(ver(x), ver(y))
-    return sorted(versions, cmp=cmp)
+    return sorted(versions, cmp=vercmp)
 
 def splitbasename(path, suffix=True):
     """ return (pkgname, version, suffix) triple from basename of path/url. """
