@@ -5,6 +5,9 @@
 
 - properly sort release file links on stage indexes
 
+- "push" method on indexes for transfering release files to another
+  pypi index
+
 0.9.0.dev
 ----------------
 

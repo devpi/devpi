@@ -80,11 +80,14 @@ class Hub:
         return session
 
     def http_api(self, method, url, kvdict=None, quiet=False):
-        methodexec = getattr(self.http, method)
+        methodexec = getattr(self.http, method, None)
         jsontype = "application/json"
         headers = {"Accept": jsontype, "content-type": jsontype}
         if method in ("delete", "get"):
             r = methodexec(url, headers=headers)
+        elif method == "push":
+            r = self.http.request(method, url, data=json.dumps(kvdict),
+                                  headers=headers)
         else:
             r = methodexec(url, json.dumps(kvdict), headers=headers)
         if r.status_code < 0:
@@ -394,16 +397,22 @@ def test(parser):
 
 @subcommand("devpi.push")
 def push(parser):
-    """ push a release and releasefiles to another index server. """
+    """ push a release and releasefiles to an external index server.
+        (pushing between indexes not implemented yet).
+    """
     parser.add_argument("--pypirc", metavar="path", type=str,
         default=None, action="store",
         help="path to pypirc")
-    parser.add_argument("nameversion", metavar="release", type=str,
+    parser.add_argument("nameversion", metavar="NAME-VER", type=str,
         default=None, action="store",
-        help="release of format 'name-version' to push")
-    parser.add_argument("posturl", metavar="url", type=str,
+        help="release in format 'name-version'. of which the metadata and "
+             "all release files are to be uploaded to the specified "
+             "external pypi repo." )
+    parser.add_argument("-r", dest="posturl", metavar="url", type=str,
         default=None, action="store",
-        help="post url of other index server.")
+        help="repo name as specified in your .pypirc file")
+    #parser.add_argument("targetindex", type=str, default=None, nargs="?",
+    #    help="index in USER/NAME form to push to. ")
 
 
 @subcommand("devpi.install")

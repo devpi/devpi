@@ -1,4 +1,8 @@
 
+0.9.1
+---------------------
+
+- new "devpi push" command with server and client parts
 
 0.9
 ---------------------

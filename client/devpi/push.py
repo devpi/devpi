@@ -15,11 +15,14 @@ def main(hub, args):
     auth = pypirc.Auth(pypirc_path)
     posturl, (user, password) = auth.get_url_auth(args.posturl)
     name, version = verlib.guess_pkgname_and_version(args.nameversion)
-    req = py.std.json.dumps(dict(name=name, version=str(version),
-                                 posturl=posturl,
-                                 username=user, password=password,
-                            ))
+    req = dict(name=name, version=str(version), posturl=posturl,
+               username=user, password=password )
     index = hub.current.index
-    r = py.std.requests.request("push", index, data=req)
-    assert r.status_code == 201, r.content
-    hub.info("pushed %s to %s" % (args.nameversion, args.posturl))
+    res = hub.http_api("push", index, kvdict=req)
+    #assert r.status_code == 200, r.content
+    hub.info("pushed %s to %s" % (args.nameversion, posturl))
+    if res["status"] == 200:
+        assert res["type"] == "actionlog"
+        for action in res["result"]:
+            red = action[0] >= 400
+            hub.line(" ".join(map(str, action)), red=red)

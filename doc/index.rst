@@ -16,8 +16,8 @@ in two, also separately installable, MIT-licensed packages:
   common upload/test/install activities.
 
 
-Quickstart: serve, install and upload
-----------------------------------------
+Quickstart: install, upload, test, push 
+--------------------------------------------
 
 Installing devpi client and server
 ++++++++++++++++++++++++++++++++++++++++
@@ -94,6 +94,12 @@ and install the just uploaded package::
 This installed your just uploaded package from the default ``root/dev``
 index again, which also contains all pypi.python.org packages.
 
+.. note::
+
+    ``devpi upload`` allows to upload multiple different formats
+    of your release files such as ``sdist.zip`` or ``bdist_egg``.
+    With the ``--withdocs`` option, you will also upload documentation.
+
 
 devpi test: testing an uploaded package
 +++++++++++++++++++++++++++++++++++++++++++++++
@@ -103,9 +109,22 @@ If you have a package using tox_ you may invoke::
     devpi test PACKAGENAME  # package needs to contain tox.ini
 
 this will download the latest release of ``PACKAGENAME`` and run tox
-against it.  You can try to run ``devpi test`` with any 3rd party 
+against it.  You can also try to run ``devpi test`` with any 3rd party 
 pypi package.
 
+devpi push: releasing a package to another index
+++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+After you repeated your upload and test cycle you
+may at some point decide that a package is ready
+and push it to pypi.python.org::
+
+    devpi push NAME-VERSION -r pypi
+
+this will push all release files for this version to
+the external ``pypi`` index server, using credentials
+and the URL found in the ``pypi`` section in your
+``.pypirc``, typically pointing to https://pypi.python.org/pypi.
 
 devpi use: show index and other info
 ++++++++++++++++++++++++++++++++++++++++++++++++

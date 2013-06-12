@@ -1,5 +1,6 @@
 import sys
 import py
+import json
 import pytest
 import types
 from devpi.main import Hub, check_output
@@ -12,18 +13,25 @@ def runproc(cmd):
 def test_main(monkeypatch, tmpdir):
     from devpi.push import main
     l = []
-    def mypost(method, url, data):
+    def mypost(method, url, data, headers):
         l.append((method, url, data))
         class r:
             status_code = 201
+            reason = "created"
+            content = json.dumps(dict(type="actionlog", status=201,
+                result=[("register", "pkg", "1.0"),
+                        ("upload", "pkg-1.3.tar.gz")]
+            ))
+            headers = {"content-type": "application/json"}
         return r
-    monkeypatch.setattr(py.std.requests, "request", mypost)
 
     class args:
         clientdir = tmpdir.join("client")
+        debug = False
     import devpi.server
     monkeypatch.setattr(devpi.server, "ensure_autoserver", lambda x,y: None)
     hub = Hub(args)
+    monkeypatch.setattr(hub.http, "request", mypost)
     hub.current.reconfigure(dict(index="/some/index"))
     p = tmpdir.join("pypirc")
     p.write(py.std.textwrap.dedent("""

@@ -29,6 +29,9 @@ def sorted_by_version(versions, attr=None):
         return cmp(ver(x), ver(y))
     return sorted(versions, cmp=vercmp)
 
+def guess_pkgname_and_version(path):
+    return splitbasename(path, suffix=False)[:2]
+
 def splitbasename(path, suffix=True):
     """ return (pkgname, version, suffix) triple from basename of path/url. """
     path = posixpath.basename(path)

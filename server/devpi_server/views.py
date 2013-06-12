@@ -10,6 +10,8 @@ import json
 import itsdangerous
 import logging
 
+import requests
+
 log = logging.getLogger(__name__)
 
 LOGINCOOKIE = "devpi-login"
@@ -253,6 +255,43 @@ class PyPIView:
         for name, val in userindexes.items():
             indexes["%s/%s" % (user, name)] = val
         apireturn(200, type="list:indexconfig", result=indexes)
+
+    @route("/<user>/<index>/", method="PUSH")
+    def pushrelease(self, user, index):
+        pushdata = getjson()
+        name = pushdata["name"]
+        version = pushdata["version"]
+        posturl = pushdata["posturl"]
+        username = pushdata["username"]
+        password = pushdata["password"]
+        pypiauth = (username, password)
+        stage = self.getstage(user, index)
+        metadata = stage.get_metadata(name, version)
+        assert metadata
+        entries = stage.getreleaselinks(name)
+        matches = []
+        results = []
+        for entry in entries:
+            n, v = urlutil.guess_pkgname_and_version(entry.basename)
+            if n == name and str(v) == version:
+                matches.append(entry)
+        metadata[":action"] = "submit"
+        r = requests.post(posturl, data=metadata, auth=pypiauth)
+        ok_codes = (200, 201)
+        results.append((r.status_code, "register", name, version))
+        if r.status_code in ok_codes:
+            for entry in matches:
+                metadata[":action"] = "file_upload"
+                metadata["filetype"] = "sdist"  # XXX
+                basename = entry.basename
+                openfile = entry.FILE.filepath.open("rb")
+                r = requests.post(posturl, data=metadata, auth=pypiauth,
+                      files={"content": (basename, openfile)})
+                results.append((r.status_code, "upload", entry.relpath))
+        if r.status_code in ok_codes:
+            apireturn(200, result=results, type="actionlog")
+        else:
+            apireturn(502, result=results, type="actionlog")
 
     @route("/<user>/<index>/", method="POST")
     def submit(self, user, index):

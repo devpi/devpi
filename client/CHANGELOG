@@ -1,4 +1,12 @@
 
+0.9.1 initial release
+-------------------------------
+
+- implemented new "devpi push" command for pushing out releases
+
+- improved error handling for devpi upload
+
+
 0.9 initial release
 -------------------------------
 

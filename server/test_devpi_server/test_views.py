@@ -2,6 +2,7 @@
 import pytest
 import py
 import webtest
+import requests, json
 from bs4 import BeautifulSoup
 from webtest.forms import Upload
 from devpi_server.views import PyPIView
@@ -122,7 +123,7 @@ def test_register_metadata_and_get_description(httpget, db, mapp, testapp):
     assert r.status_code == 200
     assert "1.0" in r.json["result"]
 
-def test_upload(httpget, db, mapp, testapp):
+def test_upload_and_push_ok(httpget, db, mapp, testapp, monkeypatch):
     mapp.create_and_login_user("user")
     mapp.create_index("name")
     mapp.upload_file_pypi(
@@ -131,6 +132,37 @@ def test_upload(httpget, db, mapp, testapp):
     assert r.status_code == 200
     a = getfirstlink(r.text)
     assert "pkg1-2.6.tgz" in a.get("href")
+
+    # push
+    req = dict(name="pkg1", version="2.6", posturl="whatever",
+               username="user", password="password")
+    rec = []
+    def recpost(url, data, auth, files=None):
+        rec.append((url, data, auth, files))
+        class r:
+            status_code = 200
+        return r
+    monkeypatch.setattr(requests, "post", recpost)
+    body = json.dumps(req)
+    r = testapp.request("/user/name/", method="push", body=body,
+                        expect_errors=True)
+    assert r.status_code == 200
+    assert len(rec) == 2
+    assert rec[0][0] == "whatever"
+    assert rec[1][0] == "whatever"
+
+    # push with error
+    def posterror(url, data, auth, files=None):
+        class r:
+            status_code = 500
+        return r
+    monkeypatch.setattr(requests, "post", posterror)
+    r = testapp.request("/user/name/", method="push", body=body,
+                        expect_errors=True)
+    assert r.status_code == 502
+    result = r.json["result"]
+    assert len(result) == 1
+    assert result[0][0] == 500
 
 def test_upload_pypi_fails(httpget, db, mapp, testapp):
     mapp.upload_file_pypi(
