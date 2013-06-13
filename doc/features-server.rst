@@ -38,7 +38,7 @@ including pre-configured templates for nginx_ and cron.
 separate tool for Packaging/Testing activities
 -------------------------------------------------------
 
-The complimentary `command line tool devpi <devpi>`_ helps to manage
+The complimentary :ref:`command line tool devpi <devpicommands>` helps to manage
 users, indexes, logins and typical setup.py-based upload and
 installation workflows.
 
