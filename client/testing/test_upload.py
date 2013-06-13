@@ -124,6 +124,14 @@ def test_readpypirc(monkeypatch, tmpdir):
     assert current["realm"] == "pypi"
     assert sys.argv == ["setup.py", "register", "1"]
 
+def test_setuppy_execution_namespace(monkeypatch, tmpdir):
+    from devpi.upload.setuppy import run_setuppy
+    def mockexecfile(filename, global_ns, local_ns=None):
+        assert global_ns["__file__"] == os.path.join(str(tmpdir), "setup.py")
+    monkeypatch.setattr(py.builtin.builtins, 'execfile', mockexecfile)
+    tmpdir.chdir()
+    run_setuppy()
+
 class TestUploadFunctional:
     def test_dryrun_all(self, initproj, devpi):
         initproj("hello-1.0", {"doc": {
