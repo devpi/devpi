@@ -119,7 +119,9 @@ class Hub:
         os.umask(oldumask)
 
     def delete_auth(self):
-        self.clientdir.join("login").remove()
+        loginpath = self.clientdir.join("login")
+        if loginpath.check():
+            loginpath.remove()
 
     def requires_login(self):
         if not self.http.auth:

@@ -81,3 +81,4 @@ class Mapp:
 def test_logoff(mapp):
     mapp.login()
     mapp.logoff()
+    mapp.logoff()
