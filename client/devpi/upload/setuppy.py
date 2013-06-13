@@ -1,3 +1,4 @@
+import os
 
 def _prepare_distutils():
     import os, sys, urlparse
@@ -22,8 +23,15 @@ def _prepare_distutils():
     del sys.argv[:5]
     sys.argv.insert(0, "setup.py")
 
+
+def run_setuppy():
+    # Modify global namespace for execution of setup.py.
+    namespace = globals().copy()
+    namespace["__file__"] = os.path.abspath("setup.py")
+    execfile("setup.py", namespace)
+
+
 if __name__ == "__main__":
     _prepare_distutils()
     del _prepare_distutils
-    execfile("setup.py", globals())
-
+    run_setuppy()
