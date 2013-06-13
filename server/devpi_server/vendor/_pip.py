@@ -1,5 +1,9 @@
 """
 Code taken from pip's index.py for scraping links
+
+note XXX for changes:
+- clean_link() is not applied
+
 """
 import re
 from devpi_server.urlutil import urljoin
@@ -84,6 +88,8 @@ class HTMLPage(object):
         """Makes sure a link is fully encoded.  That is, if a ' ' shows up in
         the link, it will be rewritten to %20 (while not over-quoting
         % or other characters)."""
+        # XXX CHANGE from PIP ORIGINAL
+        return url
         return self._clean_re.sub(
             lambda match: '%%%2x' % ord(match.group(0)), url)
 

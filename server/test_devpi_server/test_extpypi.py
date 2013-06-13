@@ -15,6 +15,13 @@ class TestIndexParsing:
         assert link.basename == "py-1.4.12.zip"
         assert link.md5 == "12ab"
 
+    def test_parse_index_simple_tilde(self):
+        result = parse_index(self.simplepy,
+            """<a href="/~user/py-1.4.12.zip#md5=12ab">qwe</a>""")
+        link, = result.releaselinks
+        assert link.basename == "py-1.4.12.zip"
+        assert link.url.endswith("/~user/py-1.4.12.zip#md5=12ab")
+
     def test_parse_index_simple_nocase(self):
         simplepy = DistURL("http://pypi.python.org/simple/Py/")
         result = parse_index(simplepy,
