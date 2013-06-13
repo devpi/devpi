@@ -35,7 +35,7 @@ def main(hub, args):
         except KeyError:
             pass
         hub.popen_check([pip_path, "install"] + xopt + [
-            "-U", "--force-reinstall",
+            "-U", #"--force-reinstall",
             "-i", current.simpleindex ] + list(args.pkgspecs))
 
 
