@@ -180,13 +180,16 @@ class Exported:
         else:
             hub.fatal("release registration failed\n", out)
 
+    def _getuserpassword(self):
+        auth = self.hub.http.auth
+        if auth:
+            return auth
+        return "_test", "test"
+
     def setup_upload(self):
         current = self.hub.current
         cwd = self.rootpath
-        user, password = self.hub.http.auth
-        if not user:
-            self.hub.fatal("need to be logged in to perform this action")
-
+        user, password = self._getuserpassword()
         formats = [x.strip() for x in self.hub.args.formats.split(",")]
         for format in formats:
             if not format:
@@ -216,9 +219,7 @@ class Exported:
     def setup_upload_docs(self):
         current = self.hub.current
         cwd = self.rootpath
-        user, password = self.hub.http.auth
-        if not user:
-            self.hub.fatal("need to be logged in to perform this action")
+        user, password = self._getuserpassword()
         if self.hub.args.dryrun:
             self.hub.info("would upload docs from", cwd, "to",
                           current.pypisubmit)

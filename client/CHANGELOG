@@ -9,6 +9,7 @@
 
 - improved error handling for devpi upload
 
+- fix logoff if not logged in
 
 0.9 initial release
 -------------------------------
