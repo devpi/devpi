@@ -1,4 +1,6 @@
 
+.. include:: links.rst
+
 .. _projectstatus:
 
 Project status and further developments

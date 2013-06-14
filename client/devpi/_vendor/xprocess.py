@@ -130,7 +130,9 @@ class XProcess:
             stdout = open(str(info.logpath), "wb", 0)
             kwargs = {}
             if sys.platform == "win32":
-                kwargs["creationflags"] = 0x08
+                kwargs["startupinfo"] = sinfo = std.subprocess.STARTUPINFO()
+                sinfo.dwFlags |= std.subprocess.STARTF_USESHOWWINDOW
+                sinfo.wShowWindow |= std.subprocess.SW_HIDE
             else:
                 kwargs["close_fds"] = True
                 kwargs["preexec_fn"] = os.setpgrp  # no CONTROL-C
@@ -145,8 +147,12 @@ class XProcess:
         if not restart:
             f.seek(0, 2)
         else:
-            if self._checkpattern(f, wait):
-                self.log.debug("%s process startup pattern detected", name)
+            if not callable(wait):
+                check = lambda: self._checkpattern(f, wait)
+            else:
+                check = wait
+            if check():
+                self.log.debug("%s process startup detected", name)
             else:
                 raise RuntimeError("Could not start process %s" % name)
         logfiles = self.config.__dict__.setdefault("_extlogfiles", {})

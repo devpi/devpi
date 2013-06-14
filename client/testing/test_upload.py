@@ -38,7 +38,7 @@ class TestCheckout:
         try:
             runproc("hg init")
             runproc("hg add file setup.py")
-            runproc("hg commit -m message")
+            runproc("hg commit --config ui.username=whatever -m message")
         finally:
             old.chdir()
         return repo

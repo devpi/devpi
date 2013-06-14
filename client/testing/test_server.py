@@ -42,11 +42,18 @@ def test_ensure_autoserver(loghub, tmpdir, monkeypatch, raising, rooturl,
         else:
             return py.io.BytesIO()
 
+    g = []
+    def get(url):
+        g.append(1)
+        return
+
     monkeypatch.setattr(loghub.http, "head", head)
+    monkeypatch.setattr(loghub.http, "get", get)
     monkeypatch.delenv("DEVPI_NO_AUTOSERVER")
     if raising:
         ensure_autoserver(loghub, current)
         assert l == [1]
+        assert len(g) == 1
     else:
         ensure_autoserver(loghub, current)
         assert not l

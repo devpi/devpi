@@ -1,16 +1,16 @@
-0.9.1.dev1
+0.9.1
 ----------------
 
 - return 404 for submits to root/pypi
 
-- properly sort release file links on stage indexes
+- properly sorted release file links on stage indexes
 
 - "push" method on indexes for transfering release files to another
   pypi index
 
 - properly handle urls from indexes with ~ and other special chars
 
-0.9.0.dev
+0.9.0
 ----------------
 
 - implement more precise pypi.python.org CDN/caching invalidation

@@ -8,6 +8,8 @@ import sys
 import os
 
 from _pytest.pytester import RunResult
+from devpi.main import Hub, initmain
+from devpi.server import AutoServer
 import subprocess
 
 print_ = py.builtin.print_
@@ -115,24 +117,16 @@ def get_pypirc_patcher(devpi):
     return overwrite()
 
 @pytest.fixture(scope="session")
-def port_of_liveserver(request, xprocess):
+def port_of_liveserver(request):
+    port = 7999
     if request.config.option.fast:
         pytest.skip("not running functional tests in --fast mode")
-
-    def prepare_devpiserver(cwd):
-        datadir = cwd.join("data")
-        if datadir.check():
-            datadir.remove()
-        datadir.mkdir()
-        return (".*Listening on.*",
-                ["devpi-server", "--data", datadir, "--port", 7999 ])
-
-    pid, logfile = xprocess.ensure("devpi-server",
-                                   prepare_devpiserver, restart=True)
-    info = xprocess.getinfo("devpi-server")
-    from devpi._vendor.xprocess import do_xkill
-    request.addfinalizer(lambda: do_xkill(info, py.io.TerminalWriter()))
-    return 7999
+    clientdir = request.config._tmpdirhandler.mktemp("liveserver")
+    hub, method = initmain(["devpi", "--clientdir", clientdir, "server"])
+    autoserver = AutoServer(hub)
+    autoserver.start("http://localhost:%s" % port, removedata=True)
+    request.addfinalizer(autoserver.stop)
+    return port
 
 @pytest.fixture
 def devpi(cmd_devpi, gen, port_of_liveserver):
@@ -291,7 +285,6 @@ def out_devpi(devpi):
 def cmd_devpi(tmpdir):
     """ execute devpi subcommand in-process (with fresh init) """
     clientdir = tmpdir.join("client")
-    from devpi.main import initmain
     def run_devpi(*args, **kwargs):
         callargs = ["devpi", "--clientdir", clientdir] + list(args)
         callargs = [str(x) for x in callargs]
@@ -371,7 +364,6 @@ def create_venv(request, testdir, monkeypatch):
 
 @pytest.fixture
 def loghub(tmpdir):
-    from devpi.main import Hub
     class args:
         debug = True
         clientdir = tmpdir.join("clientdir")

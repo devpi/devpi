@@ -36,7 +36,7 @@ class ReleaseFileStore:
     def getentry(self, relpath):
         return RelPathEntry(self.keyfs, relpath)
 
-    def iterfile(self, relpath, httpget, chunksize=8192):
+    def iterfile(self, relpath, httpget, chunksize=8192*16):
         entry = self.getentry(relpath)
         cached = entry.iscached() and not entry.eggfragment
         if cached:

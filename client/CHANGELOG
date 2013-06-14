@@ -1,5 +1,5 @@
 
-0.9.1.dev
+0.9.1
 -------------------------------
 
 - refined "python setup.py" calls from ``devpi upload`` with proper
@@ -10,6 +10,8 @@
 - improved error handling for devpi upload
 
 - fix logoff if not logged in
+
+- don't use --force-reinstall when using pip
 
 0.9 initial release
 -------------------------------
