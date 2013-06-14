@@ -58,7 +58,8 @@ class IndexParser:
                     # XXX seems we have to maintain a particular
                     # order to keep pip/easy_install happy with some
                     # packages (e.g. nose)
-                    self.egglinks.insert(0, newurl)
+                    if newurl not in self.egglinks:
+                        self.egglinks.insert(0, newurl)
                 else:
                     log.debug("skip egg link %s (projectname: %s)",
                               newurl, self.projectname)
@@ -157,6 +158,8 @@ class ExtDB:
         """ return list of all projects which have been served. """
         # XXX return full upstream list?
         return sorted(self.keyfs.PYPILINKS.listnames("name"))
+
+    getprojectnames_perstage = getprojectnames
 
     def _dump_projectlinks(self, projectname, dumplist, serial):
         newlist = [serial] + dumplist

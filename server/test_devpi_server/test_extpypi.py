@@ -31,6 +31,14 @@ class TestIndexParsing:
         """)
         assert len(result.releaselinks) == 3
 
+    def test_parse_index_two_eggs_same_url(self):
+        simplepy = DistURL("http://pypi.python.org/simple/Py/")
+        result = parse_index(simplepy,
+            """<a href="../../pkg/pyzip#egg=py-dev">qwe2</a>
+               <a href="../../pkg/pyzip#egg=py-dev">qwe</a>
+        """)
+        assert len(result.releaselinks) == 1
+
     def test_parse_index_simple_nomatch(self):
         result = parse_index(self.simplepy,
             """<a href="../../pkg/py-1.3.html">qwe</a>""")

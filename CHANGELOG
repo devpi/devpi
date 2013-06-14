@@ -6,12 +6,14 @@ server:
 
 - return 404 for submits to root/pypi
 
-- properly sort release file links on stage indexes
+- properly sorted release file links on stage indexes
 
 - "push" method on indexes for transfering release files to another
   pypi index
 
 - properly handle urls from indexes with ~ and other special chars
+
+- fix root/pypi and root/dev page serving in various cases
 
 client:
 
@@ -23,3 +25,5 @@ client:
 - improved error handling for devpi upload
 
 - fix logoff if not logged in
+
+- don't use --force-reinstall when using pip

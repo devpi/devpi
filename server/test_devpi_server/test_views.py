@@ -61,6 +61,16 @@ def test_simple_project(pypiurls, httpget, testapp):
     assert len(links) == 1
     assert links[0].get("href").endswith(path)
 
+def test_simple_project_pypi_egg(pypiurls, httpget, testapp):
+    httpget.setextsimple("py",
+        """<a href="http://bb.org/download/py.zip#egg=py-dev" />""")
+    r = testapp.get("/root/pypi/+simple/py/")
+    assert r.status_code == 200
+    links = BeautifulSoup(r.text).findAll("a")
+    assert len(links) == 1
+    r = testapp.get("/root/pypi/")
+    assert r.status_code == 200
+
 def test_simple_list(pypiurls, httpget, testapp):
     httpget.setextsimple("hello1", text="<html/>")
     httpget.setextsimple("hello2", text="<html/>")
@@ -107,6 +117,10 @@ def test_apiconfig(httpget, testapp):
     #for name in "pushrelease simpleindex login pypisubmit resultlog".split():
     #    assert name in r.json
     #
+    #
+def test_root_pypi(httpget, testapp):
+    r = testapp.get("/root/pypi/")
+    assert r.status_code == 200
 
 def test_register_metadata_and_get_description(httpget, db, mapp, testapp):
     mapp.create_and_login_user("user")
@@ -132,6 +146,10 @@ def test_upload_and_push_ok(httpget, db, mapp, testapp, monkeypatch):
     assert r.status_code == 200
     a = getfirstlink(r.text)
     assert "pkg1-2.6.tgz" in a.get("href")
+
+    # get root index page
+    r = testapp.get("/user/name/")
+    assert r.status_code == 200
 
     # push
     req = dict(name="pkg1", version="2.6", posturl="whatever",

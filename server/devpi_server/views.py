@@ -440,7 +440,13 @@ class PyPIView:
         latest_packages = html.ul()
         for name in stage.getprojectnames_perstage():
             for entry in stage.getreleaselinks(name):
-                name, ver = urlutil.DistURL(entry.relpath).pkgname_and_version
+                if entry.eggfragment:
+                    continue
+                if entry.url:
+                    path = entry.url
+                else:
+                    path = entry.relpath
+                name, ver = urlutil.DistURL(path).pkgname_and_version
                 latest_packages.append(html.li(
                     html.a("%s-%s info page" % (name, ver),
                            href="%s/%s/" % (name, ver)),

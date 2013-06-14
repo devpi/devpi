@@ -10,6 +10,8 @@
 
 - properly handle urls from indexes with ~ and other special chars
 
+- fix root/pypi and root/dev page serving in various cases
+
 0.9.0
 ----------------
 
