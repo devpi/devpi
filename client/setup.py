@@ -11,6 +11,7 @@ if __name__ == "__main__":
 
     install_requires=["tox>=1.4.3", "archive>=0.3", "beautifulsoup4>=4.2.1",
                       #"pip>=1.3.1",
+                      "pkginfo>=1.1b1",
                       "py>=1.4.14", "requests>=1.2.2",]
 
     if sys.version_info < (2,7):
@@ -21,7 +22,7 @@ if __name__ == "__main__":
       description="devpi upload/install/... workflow commands for Python "
                   "developers",
       long_description=open("README.rst").read(),
-      version='0.9.1',
+      version='0.9.2.dev1',
       packages=find_packages(),
       install_requires=install_requires,
       url="https://bitbucket.org/hpk42/devpi",

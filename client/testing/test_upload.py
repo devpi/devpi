@@ -1,4 +1,5 @@
 import os, sys
+import json
 import py
 import pytest
 import types
@@ -133,7 +134,7 @@ def test_setuppy_execution_namespace(monkeypatch, tmpdir):
     run_setuppy()
 
 class TestUploadFunctional:
-    def test_dryrun_all(self, initproj, devpi):
+    def test_all(self, initproj, devpi):
         initproj("hello-1.0", {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
@@ -151,3 +152,19 @@ class TestUploadFunctional:
         # go to other index
         devpi("use", "root/pypi")
         devpi("upload", "--dryrun", code=404)
+
+    def test_fromdir(self, initproj, devpi, out_devpi, runproc):
+        initproj("hello-1.1", {"doc": {
+            "conf.py": "",
+            "index.html": "<html/>"}})
+        tmpdir = py.path.local()
+        runproc(tmpdir, "python setup.py sdist".split())
+        dist = tmpdir.join("dist")
+        assert dist.check()
+        hub = devpi("upload", "--fromdir", dist)
+        out = out_devpi("getjson", hub.current.index + "hello/1.1/")
+        data = json.loads(out.stdout.str())
+        assert "hello-1.1.tar.gz" in data["result"]["+files"]
+
+
+

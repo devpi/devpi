@@ -301,6 +301,10 @@ def cmd_devpi(tmpdir):
     run_devpi.clientdir = clientdir
     return run_devpi
 
+@pytest.fixture
+def runproc():
+    return runprocess
+
 def runprocess(tmpdir, cmdargs):
     cmdargs = [str(x) for x in cmdargs]
     p1 = tmpdir.join("stdout")

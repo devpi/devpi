@@ -1,4 +1,9 @@
 
+0.9.2.dev1
+-------------------------------
+
+- introduce "devpi upload --fromdir" for uploading archives in bulk mode
+
 0.9.1
 -------------------------------
 

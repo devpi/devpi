@@ -374,6 +374,8 @@ def upload(parser):
     parser.add_argument("--formats", default="sdist.tgz", action="store",
         help="comma separated list of build formats (passed to setup.py). "
              "Examples sdist.zip,bdist_egg,bdist_dumb.")
+    parser.add_argument("--fromdir", action="store", default=None,
+        help="upload all archive files from the specified directory")
     parser.add_argument("--dryrun",
         action="store_true", default=None,
         help="don't perform any server-modifying actions")

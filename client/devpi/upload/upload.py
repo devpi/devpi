@@ -22,6 +22,9 @@ def main(hub, args):
 
     #newest_version = hub.remoteindex.getnewestversion(
 
+    if args.fromdir:
+        return main_fromdir(hub, args)
+
     setup = hub.cwd.join("setup.py")
     if not setup.check():
         hub.fatal("no setup.py found in", hub.cwd)
@@ -39,6 +42,71 @@ def main(hub, args):
         exported.setup_upload()
     if args.onlydocs or args.withdocs:
         exported.setup_upload_docs()
+
+def main_fromdir(hub, args):
+    fromdir = py.path.local(os.path.expanduser(args.fromdir))
+    if not fromdir.check():
+        hub.fatal("directory does not exist: %s" % fromdir)
+
+    for archivepath in get_archive_files(fromdir):
+        pkginfo = get_pkginfo(archivepath)
+        #hub.debug("got pkginfo for %s-%s  %s" %
+        #          (pkginfo.name, pkginfo.version, pkginfo.author))
+        upload_file_pypi(hub, archivepath, pkginfo)
+
+def upload_file_pypi(hub, path, pkginfo):
+    d = {}
+    for attr in pkginfo:
+        d[attr] = getattr(pkginfo, attr)
+    name, version = d["name"], d["version"]
+    d[":action"] = "submit"
+    if not hub.args.dryrun:
+        r = hub.http.post(hub.current.index, d)
+        if r.status_code != 200:
+            hub.error("%s: could not register %s to %s" (r.status_code,
+                      name, version, hub.current.index))
+            return False
+        hub.info("%s: %s-%s registered to %s" %(r.status_code, name, version,
+                                            hub.current.index))
+    else:
+        hub.info("would register %s-%s registered to %s" %(
+                 name, version, hub.current.index))
+    d[":action"] = "file_upload"
+    files = {"content": (path.basename, path.open("rb"))}
+    #hub.info(d)
+    if hub.args.dryrun:
+        hub.info("would upload %s to %s" %(
+                 path.basename, hub.current.index))
+        return True
+    r = hub.http.post(hub.current.index, d, files=files)
+    if r.status_code == 200:
+        hub.info("%s: %s posted to %s" %(r.status_code, path.basename,
+                                     hub.current.index))
+        return True
+    else:
+        hub.error("%s: failed to posted %s to %s" %(r.status_code,
+                  path.basename, hub.current.index))
+        return False
+
+
+# taken from devpi-server/extpypi.py
+ALLOWED_ARCHIVE_EXTS = ".egg .tar.gz .tar.bz2 .tar .tgz .zip".split()
+def get_archive_files(fromdir):
+    for x in fromdir.visit():
+        if not x.check(file=1):
+            continue
+        for name in ALLOWED_ARCHIVE_EXTS:
+            if x.basename.endswith(name):
+                yield x
+
+def get_pkginfo(archivepath):
+    #arch = Archive(str(archivepath))
+    #for name in arch.namelist():
+    #    if name.endswith("/PKG-INFO"):
+    import pkginfo
+    info = pkginfo.SDist(str(archivepath))
+    return info
+
 
 def set_new_version(hub, args, exported):
     if args.setversion:
