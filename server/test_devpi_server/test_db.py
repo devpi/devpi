@@ -47,6 +47,8 @@ class TestStage:
         entries = stage.getreleaselinks("someproject")
         assert len(entries) == 1
         assert stage.getprojectnames() == ["someproject",]
+        stage.register_metadata(dict(name="someproject", version="1.1"))
+        assert stage.getprojectnames() == ["someproject",]
 
     def test_inheritance_error(self, httpget, stage):
         stage.configure(bases=("root/pypi",))

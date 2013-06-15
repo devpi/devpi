@@ -194,29 +194,6 @@ class PyPIView:
         return simple_html_body("%s: list of accessed projects" % stage.name,
                                 body).unicode()
 
-    @route("/<user>/<index>", method="GET")
-    @route("/<user>/<index>/", method="GET")
-    def indexroot(self, user, index):
-        stage = self.getstage(user, index)
-        bases = html.ul()
-        for base in stage.ixconfig["bases"]:
-            bases.append(html.li(
-                html.a("%s" % base, href="/%s/" % base),
-                " (",
-                html.a("simple", href="/%s/+simple/" % base),
-                " )",
-            ))
-        if bases:
-            bases = [html.h2("inherited bases"), bases]
-
-        return simple_html_body("%s index" % stage.name, [
-            html.ul(
-                html.li(html.a("simple index",
-                               href="/%s/+simple/" % stage.name))
-            ),
-            bases,
-        ]).unicode()
-
     @route("/<user>/<index>", method=["PUT", "PATCH"])
     def index_create_or_modify(self, user, index):
         self.require_user(user)
@@ -303,7 +280,6 @@ class PyPIView:
         except KeyError:
             abort(400, ":action field not found")
         stage = self.getstage(user, index)
-        log.debug("received POST action %r" %(action))
         if action == "submit":
             return self._register_metadata(stage, request.forms)
         elif action in ("doc_upload", "file_upload"):
@@ -316,7 +292,10 @@ class PyPIView:
             if not stage.get_metadata(name, version):
                 self._register_metadata(stage, request.forms)
             if action == "file_upload":
-                stage.store_releasefile(content.filename, content.value)
+                res = stage.store_releasefile(content.filename, content.value)
+                if res == 409:
+                    abort(409, "%s already exists in non-volatile index" %(
+                         content.filename,))
             else:
                 if len(content.value) > MAXDOCZIPSIZE:
                     abort(413, "zipfile too large")
@@ -380,7 +359,7 @@ class PyPIView:
             abort(404, "project %r does not exist" % name)
         verdata = metadata.get(version, None)
         if not verdata:
-            abort(404)
+            abort(404, "version %r does not exist" % version)
         if json_preferred():
             apireturn(200, type="versiondata", result=verdata)
 
@@ -438,10 +417,12 @@ class PyPIView:
         else:
             bases = []
         latest_packages = html.ul()
-        for name in stage.getprojectnames_perstage():
+        for name in stage.getprojectnames():
             for entry in stage.getreleaselinks(name):
                 if entry.eggfragment:
                     continue
+                if not entry.relpath.startswith(stage.name + "/"):
+                    break
                 if entry.url:
                     path = entry.url
                 else:
@@ -454,8 +435,9 @@ class PyPIView:
                     html.a(entry.basename, href="/" + entry.relpath),
                 ))
                 break
-        if latest_packages:
-            latest_packages = [html.h2("latest packages"), latest_packages]
+        latest_packages = [
+            html.h2("in-stage latest packages, higher than bases"),
+            latest_packages]
 
         return simple_html_body("%s index" % stage.name, [
             html.ul(
@@ -540,7 +522,7 @@ def getjson():
 
 def getkvdict_index(req):
     req_volatile = req.get("volatile")
-    kvdict = dict(volatile=True, type="stage", bases=["root/dev", "root/pypi"])
+    kvdict = dict(volatile=True, type="stage", bases=["root/dev"])
     if req_volatile is not None:
         if req_volatile == False or req_volatile.lower() in ["false", "no"]:
             kvdict["volatile"] = False

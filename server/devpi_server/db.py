@@ -238,7 +238,7 @@ class PrivateStage:
         return files
 
     def getprojectnames(self):
-        return self.op_with_bases("getprojectnames")
+        return sorted(set(self.op_with_bases("getprojectnames")))
 
     def getprojectnames_perstage(self):
         return sorted(self.keyfs.PROJCONFIG.listnames("name",

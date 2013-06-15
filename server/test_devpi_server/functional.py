@@ -50,21 +50,6 @@ class TestIndexThings:
         mapp.create_and_login_user("newuser1")
         mapp.create_index("root/test2", 401)
 
-    @pytest.mark.parametrize(["input", "expected"], [
-        ({},
-          dict(type="stage", volatile=True, bases=["root/dev", "root/pypi"])),
-        ({"volatile": "False"},
-          dict(type="stage", volatile=False, bases=["root/dev", "root/pypi"])),
-        ({"volatile": "False", "bases": "root/pypi"},
-          dict(type="stage", volatile=False, bases=["root/pypi"])),
-        ({"volatile": "False", "bases": ["root/pypi"]},
-          dict(type="stage", volatile=False, bases=["root/pypi"])),
-    ])
-    def test_kvdict(self, input, expected):
-        from devpi_server.views import getkvdict_index
-        result = getkvdict_index(input)
-        assert result == expected
-
     def test_config_get_user_empty(self, mapp):
         mapp.getjson("/user", code=404)
 

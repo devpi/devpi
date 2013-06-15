@@ -1,3 +1,8 @@
+0.9.2.dev1
+----------------
+
+- fix /USER/INDEXNAME root views to contain only latest in-stage packages
+
 0.9.1
 ----------------
 

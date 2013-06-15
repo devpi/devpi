@@ -167,8 +167,11 @@ class RelPathEntry(object):
         return self.FILE.exists()
 
     def __eq__(self, other):
-        return (self.relpath == other.relpath and
+        return (self.relpath == getattr(other, "relpath", None) and
                 self._mapping == other._mapping)
+
+    def __hash__(self):
+        return hash(self.relpath)
 
     def set(self, **kw):
         mapping = {}

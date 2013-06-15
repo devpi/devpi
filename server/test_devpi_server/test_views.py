@@ -84,7 +84,7 @@ def test_simple_list(pypiurls, httpget, testapp):
     hrefs = [a.get("href") for a in links]
     assert hrefs == ["hello1/", "hello2/"]
 
-def test_index_root(pypiurls, httpget, testapp, xom):
+def test_indexroot(pypiurls, httpget, testapp, xom):
     xom.db.create_stage("user/index", bases=("root/pypi",))
     r = testapp.get("/user/index/")
     assert r.status_code == 200
@@ -342,4 +342,19 @@ class Mapp:
              "content": Upload(basename, content)}, expect_errors=True)
         assert r.status_code == code
 
+
+@pytest.mark.parametrize(["input", "expected"], [
+    ({},
+      dict(type="stage", volatile=True, bases=["root/dev"])),
+    ({"volatile": "False"},
+      dict(type="stage", volatile=False, bases=["root/dev"])),
+    ({"volatile": "False", "bases": "root/pypi"},
+      dict(type="stage", volatile=False, bases=["root/pypi"])),
+    ({"volatile": "False", "bases": ["root/pypi"]},
+      dict(type="stage", volatile=False, bases=["root/pypi"])),
+])
+def test_kvdict(input, expected):
+    from devpi_server.views import getkvdict_index
+    result = getkvdict_index(input)
+    assert result == expected
 
