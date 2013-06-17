@@ -376,6 +376,8 @@ def upload(parser):
              "Examples sdist.zip,bdist_egg,bdist_dumb.")
     parser.add_argument("--fromdir", action="store", default=None,
         help="upload all archive files from the specified directory")
+    parser.add_argument("--only-latest", action="store_true",
+        help="upload only latest version if multiple archives for a package are found")
     parser.add_argument("--dryrun",
         action="store_true", default=None,
         help="don't perform any server-modifying actions")

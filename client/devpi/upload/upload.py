@@ -44,15 +44,46 @@ def main(hub, args):
         exported.setup_upload_docs()
 
 def main_fromdir(hub, args):
+    # requires verlib from PYPI for version comparison
+    from verlib import suggest_normalized_version
     fromdir = py.path.local(os.path.expanduser(args.fromdir))
     if not fromdir.check():
         hub.fatal("directory does not exist: %s" % fromdir)
 
+    path_pkginfo = {}
     for archivepath in get_archive_files(fromdir):
-        pkginfo = get_pkginfo(archivepath)
-        #hub.debug("got pkginfo for %s-%s  %s" %
-        #          (pkginfo.name, pkginfo.version, pkginfo.author))
-        upload_file_pypi(hub, archivepath, pkginfo)
+        try:
+            pkginfo = get_pkginfo(archivepath)
+            #hub.debug("got pkginfo for %s-%s  %s" %
+            #          (pkginfo.name, pkginfo.version, pkginfo.author))
+            if pkginfo.name is None:
+                # e.g. reportlab 2.7 has this problem might be caused by pkginfo
+                continue # skip these for now
+                # we could retrieve name and version from filename
+                #basename = os.path.basename(archivepath.basename)
+                #x = re.match('(?P<name>[A-Za-z]+)', basename)
+                #pkginfo.alt_name = x.group('name')
+            path_pkginfo[archivepath] = pkginfo
+        except Exception, e:
+            print "Error", e,  "while retrieving pkginfo from", archivepath
+    if args.only_latest:
+        name_version_path = {}
+        for archivepath, pkginfo in path_pkginfo.iteritems():
+            name = pkginfo.name
+            iversion = suggest_normalized_version(pkginfo.version)
+            data = name_version_path.get(name)
+            if data is None or data[0] < iversion:
+                name_version_path[name] = (iversion, pkginfo, archivepath)
+                # print 'updating' if data else 'setting', name, iversion
+        path_pkginfo = {}
+        for x in name_version_path.itervalues():
+            path_pkginfo[x[2]] = x[1]
+    for archivepath, pkginfo in path_pkginfo.iteritems():
+        try:
+            upload_file_pypi(hub, archivepath, pkginfo)
+        except Exception, e:
+            print "Error", e,  "while uploading", archivepath
+
 
 def upload_file_pypi(hub, path, pkginfo):
     d = {}
