@@ -8,6 +8,8 @@
 
 - introduce "devpi upload --fromdir" for uploading archives in bulk mode
 
+- make "devpi use" also show base indexes by default
+
 0.9.1
 -------------------------------
 

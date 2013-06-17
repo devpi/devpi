@@ -25,6 +25,7 @@ def currentproperty(name):
 class Current(object):
     index = currentproperty("index")
     simpleindex = currentproperty("simpleindex")
+    bases = currentproperty("bases")
     pypisubmit = currentproperty("pypisubmit")
     login = currentproperty("login")
     resultlog = currentproperty("resultlog")
@@ -80,8 +81,9 @@ class Current(object):
         data = hub.http_api("get", url.rstrip("/") + "/+api", quiet=True)
         if data["status"] == 200:
             data = data["result"]
+            rooturl = urlutil.getnetloc(url, scheme=True)
             for name in data:
-                data[name] = urlutil.joinpath(url, data[name])
+                data[name] = urlutil.joinpath(rooturl, data[name])
             self.reconfigure(data)
 
     def getvenvbin(self, name, venvdir=None, glob=True):
@@ -149,6 +151,8 @@ def main(hub, args=None):
             hub.error("not using any index (use 'index -l')")
         else:
             hub.info("using index:  " + current.index)
+    if current.bases:
+        hub.info("base indexes: " + current.bases)
     if current.venvdir:
         hub.info("install venv: %s" % current.venvdir)
     else:
