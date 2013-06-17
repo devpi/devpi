@@ -164,7 +164,10 @@ class TestUploadFunctional:
         hub = devpi("upload", "--fromdir", dist)
         out = out_devpi("getjson", hub.current.index + "hello/1.1/")
         data = json.loads(out.stdout.str())
-        assert "hello-1.1.tar.gz" in data["result"]["+files"]
+        if sys.platform == "win32":
+            assert "hello-1.1.zip" in data["result"]["+files"]
+        else:
+            assert "hello-1.1.tar.gz" in data["result"]["+files"]
 
 
 

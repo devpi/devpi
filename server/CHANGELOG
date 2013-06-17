@@ -1,7 +1,9 @@
-0.9.2.dev1
+0.9.2.dev2
 ----------------
 
 - fix /USER/INDEXNAME root views to contain only latest in-stage packages
+
+- make +api calls return bases so that "devpi use" can show them
 
 0.9.1
 ----------------

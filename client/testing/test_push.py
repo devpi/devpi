@@ -29,7 +29,7 @@ def test_main(monkeypatch, tmpdir):
         clientdir = tmpdir.join("client")
         debug = False
     import devpi.server
-    monkeypatch.setattr(devpi.server, "ensure_autoserver", lambda x,y: None)
+    monkeypatch.setattr(devpi.server, "handle_autoserver", lambda x,y: None)
     hub = Hub(args)
     monkeypatch.setattr(hub.http, "request", mypost)
     hub.current.reconfigure(dict(index="/some/index"))

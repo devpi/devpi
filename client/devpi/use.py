@@ -6,7 +6,7 @@ import json
 
 from devpi import log, cached_property
 from devpi.util import url as urlutil
-from devpi.server import ensure_autoserver
+from devpi.server import handle_autoserver
 import posixpath
 
 if sys.platform == "win32":
@@ -25,6 +25,7 @@ def currentproperty(name):
 class Current(object):
     index = currentproperty("index")
     simpleindex = currentproperty("simpleindex")
+    bases = currentproperty("bases")
     pypisubmit = currentproperty("pypisubmit")
     login = currentproperty("login")
     resultlog = currentproperty("resultlog")
@@ -77,11 +78,12 @@ class Current(object):
 
     def configure_fromurl(self, hub, url):
         url = hub.get_index_url(url, current=self)
-        data = hub.http_api("get", url.rstrip("/") + "/+api")
+        data = hub.http_api("get", url.rstrip("/") + "/+api", quiet=True)
         if data["status"] == 200:
             data = data["result"]
+            rooturl = urlutil.getnetloc(url, scheme=True)
             for name in data:
-                data[name] = urlutil.joinpath(url, data[name])
+                data[name] = urlutil.joinpath(rooturl, data[name])
             self.reconfigure(data)
 
     def getvenvbin(self, name, venvdir=None, glob=True):
@@ -115,10 +117,12 @@ def main(hub, args=None):
     else:
         hub.debug("no current file, using defaults")
 
+    if not args.noauto:
+        handle_autoserver(hub, current, target=args.url)
     if args.url:
-        if not args.url.startswith("http://"):
-            ensure_autoserver(hub, current)
         current.configure_fromurl(hub, args.url)
+    elif current.index:  # re-get status/api
+        current.configure_fromurl(hub, current.index)
 
     if args.venv:
         if args.venv != "-":
@@ -138,9 +142,6 @@ def main(hub, args=None):
     if current.rooturl and current.rooturl != "/":
         if showurls or not current.index:
             hub.info("connected to: " + current.rooturl)
-    else:
-        if not args.venv:
-            hub.fatal("not connected to any devpi instance")
 
     if showurls:
         for name, value in current.items():
@@ -150,6 +151,8 @@ def main(hub, args=None):
             hub.error("not using any index (use 'index -l')")
         else:
             hub.info("using index:  " + current.index)
+    if current.bases:
+        hub.info("base indexes: " + current.bases)
     if current.venvdir:
         hub.info("install venv: %s" % current.venvdir)
     else:

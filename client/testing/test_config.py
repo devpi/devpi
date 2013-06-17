@@ -40,6 +40,7 @@ class TestUnit:
                         pypisubmit="/post",
                         simpleindex="/index/",
                         resultlog="/resultlog/",
+                        bases="root/dev",
                         login="/+login/",
                    ))
         def http_api(*args, **kwargs):
@@ -52,6 +53,7 @@ class TestUnit:
         assert newapi.pypisubmit == "http://world/post"
         assert newapi.simpleindex == "http://world/index/"
         assert newapi.resultlog == "http://world/resultlog/"
+        assert newapi.bases == "http://world/root/dev"
         assert not newapi.venvdir
 
         #hub = cmd_devpi("use", "--delete")
@@ -62,13 +64,13 @@ class TestUnit:
         venvdir = tmpdir
         venvdir.ensure(vbin, dir=1)
         monkeypatch.chdir(tmpdir)
-        hub = cmd_devpi("use", "--venv=%s" % venvdir)
+        hub = cmd_devpi("use", "--no-auto", "--venv=%s" % venvdir)
         current = Current(hub.current.path)
         assert current.venvdir == str(venvdir)
 
         # test via env
         monkeypatch.setenv("WORKON_HOME", venvdir.dirpath())
-        hub = cmd_devpi("use", "--venv=%s" % venvdir.basename)
+        hub = cmd_devpi("use", "--no-auto", "--venv=%s" % venvdir.basename)
         assert hub.current.venvdir == venvdir
 
 
