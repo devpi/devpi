@@ -4,28 +4,25 @@ import os
 import py
 std = py.std
 
-def do_xkill(info, tw):
-    if info.pid and info.isrunning():
-        msg = "%r, pid %d" % (info.name, info.pid)
-        if sys.platform == "win32":
-            py.std.subprocess.check_call("taskkill /F /PID %s" % info.pid)
-            tw.line("TERMINATED %s -- logfile %s" % (msg, info.logpath))
-            #info.pidpath.dirpath().remove(ignore_error=True)
-            return 0
+def do_xkill(info):
+    # return codes:
+    # 0   no work to do
+    # 1   killed
+    # -1  failed to kill
+    if not info.pid or not info.isrunning():
+        return 0
+
+    msg = "%r, pid %d" % (info.name, info.pid)
+    if sys.platform == "win32":
+        std.subprocess.check_call("taskkill /F /PID %s" % info.pid)
+        return 1
+    else:
+        try:
+            os.kill(info.pid, 9)
+        except OSError:
+            return -1
         else:
-            try:
-                os.kill(info.pid, 9)
-            except OSError:
-                tw.line("FAILED killing %s" % msg, red=True)
-                return 1
-            else:
-                tw.line("TERMINATED %s -- logfile %s" % (msg, info.logpath))
-                #info.pidpath.dirpath().remove(ignore_errors=True)
-                return 0
-    #else:
-    #    #tw.line("no running %r process, pruning" % info.name, red=True)
-    #    #info.pidpath.dirpath().remove()
-    return 1
+            return 1
 
 def do_killxshow(xprocess, tw, xkill):
     ret = 0
@@ -50,8 +47,8 @@ class XProcessInfo:
         else:
             self.pid = None
 
-    def kill(self, tw=None):
-        return do_xkill(self, tw or py.io.TerminalWriter())
+    def kill(self):
+        return do_xkill(self)
 
     def _isrunning_win32(self, pid):
         import ctypes, ctypes.wintypes

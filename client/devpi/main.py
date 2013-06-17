@@ -10,7 +10,7 @@ from devpi.use import Current
 import devpi.server
 import requests
 import json
-from devpi.server import ensure_autoserver
+from devpi.server import handle_autoserver
 std = py.std
 subcommand = lazydecorator()
 
@@ -166,7 +166,7 @@ class Hub:
         try:
             cmd = self.args.mainloc.split(":")[0]
             if cmd not in ("devpi.use", "devpi.server"):
-                ensure_autoserver(self, current)
+                handle_autoserver(self, current)
         except AttributeError:
             pass
         return current
@@ -292,10 +292,14 @@ def add_generic_options(parser):
 
 @subcommand("devpi.use")
 def use(parser):
-    """ configure remote index and target venv for install activities. """
+    """ show or configure remote index and target venv for install
+    activities. """
+
     parser.add_argument("--venv", action="store", default=None,
         help="set virtual environment to use for install activities. "
              "specify '-' to unset it.")
+    parser.add_argument("--no-auto", action="store_true", dest="noauto",
+        help="don't start automatic server")
     parser.add_argument("--urls", action="store_true",
         help="show remote endpoint urls")
     parser.add_argument("--delete", action="store_true",
@@ -439,8 +443,8 @@ def server(parser):
     """ commands for controling the automatic server. """
     parser.add_argument("--stop", action="store_true",
         help="stop automatically started server if any")
-    parser.add_argument("--nolog", action="store_true",
-        help="don't show log file when showing status")
+    parser.add_argument("--log", action="store_true",
+        help="show last log lines of automatic server")
 
 
 if __name__ == "__main__":

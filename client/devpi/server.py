@@ -6,15 +6,26 @@ import os
 import time
 import py
 
-
 from devpi.util import url as urlutil
-from devpi._vendor.xprocess import XProcess, do_xkill
+from devpi._vendor.xprocess import XProcess
 
-default_rooturl = "http://localhost:3141/"
+default_rooturl = "http://localhost:3141"
 
-def ensure_autoserver(hub, current):
+def handle_autoserver(hub, current, target=None):
+    # state changes:
+    # current: default_rooturl  target: someother -> stop autoserver
+    # current: someother target: default_rooturl -> start autoserver
     autoserver = AutoServer(hub)
-    if current.rooturl != "/" and current.rooturl != default_rooturl:
+    current_is_root = current.rooturl == "/" or \
+                      current.rooturl.startswith(default_rooturl)
+    target_non_root = target and not target.startswith(default_rooturl)
+
+    #hub.info("current_is_root: %s, target_non_root: %s" %(
+    #         current_is_root, target_non_root))
+    if current_is_root and target_non_root:
+        autoserver.stop(withlog=hub)
+        return
+    if not current_is_root and (not target or target_non_root):
         return
     if os.environ.get("DEVPI_NO_AUTOSERVER"):
         raise ValueError(42)
@@ -23,11 +34,11 @@ def ensure_autoserver(hub, current):
     except hub.http.ConnectionError as e:
         autoserver.start()
         if not current.simpleindex:
-            indexurl = default_rooturl + "root/dev/"
+            indexurl = default_rooturl + "/root/dev/"
             current.configure_fromurl(hub, indexurl)
             hub.info("auto-configuring use of root/dev index")
     else:
-        hub.debug("server is running at: %s" % default_rooturl)
+        hub.debug("server is already running at: %s" % default_rooturl)
         r.close()
 
 class AutoServer:
@@ -60,7 +71,7 @@ class AutoServer:
             else:
                 port = parts[1]
             url = "http://localhost:%s" % port
-            self.hub.info("automatically starting devpi-server at %s" % url)
+            self.hub.info("automatically starting devpi-server for %s" % url)
             datadir = cwd.join("data")
             if removedata and datadir.check():
                 datadir.remove()
@@ -72,9 +83,16 @@ class AutoServer:
         self.pid = info.pid
         self.logfile = info.logpath
 
-    def stop(self):
+    def stop(self, withlog=None):
         info = self.xproc.getinfo("devpi-server")
-        info.kill()
+        ret = info.kill()
+        if withlog:
+            if ret == 1:
+                withlog.info("killed automatic server pid=%s" % info.pid)
+            elif ret == -1:
+                withlog.error("failed to kill automatic server pid=%s" %
+                              info.pid)
+        return ret
 
     def log(self):
         logpath = self.info.logpath
@@ -92,16 +110,14 @@ class AutoServer:
                 self.hub.line(line.rstrip())
             self.hub.info("logfile at: %s" % logpath)
 
-    def stopserver(self):
-        info = self.xproc.getinfo("devpi-server")
-        info.kill(tw=self.hub)
-
 def main(hub, args):
     autoserver = AutoServer(hub)
     if args.stop:
-        autoserver.stop()
-        return
-    elif not args.nolog:
+        ret = autoserver.stop(withlog=hub)
+        if ret >= 0:
+            return 0
+        return 1
+    elif args.log:
         autoserver.log()
     if autoserver.info.isrunning():
         hub.info("automatic server is running with pid %s" %

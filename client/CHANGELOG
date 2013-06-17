@@ -1,6 +1,10 @@
 
-0.9.2.dev1
+0.9.2.dev2
 -------------------------------
+
+- improve automatic server handling via "devpi use"
+
+- for "devpi server" you now need to specify "--log" to see log lines
 
 - introduce "devpi upload --fromdir" for uploading archives in bulk mode
 

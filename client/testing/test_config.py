@@ -62,13 +62,13 @@ class TestUnit:
         venvdir = tmpdir
         venvdir.ensure(vbin, dir=1)
         monkeypatch.chdir(tmpdir)
-        hub = cmd_devpi("use", "--venv=%s" % venvdir)
+        hub = cmd_devpi("use", "--no-auto", "--venv=%s" % venvdir)
         current = Current(hub.current.path)
         assert current.venvdir == str(venvdir)
 
         # test via env
         monkeypatch.setenv("WORKON_HOME", venvdir.dirpath())
-        hub = cmd_devpi("use", "--venv=%s" % venvdir.basename)
+        hub = cmd_devpi("use", "--no-auto", "--venv=%s" % venvdir.basename)
         assert hub.current.venvdir == venvdir
 
 

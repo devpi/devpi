@@ -6,7 +6,7 @@ import json
 
 from devpi import log, cached_property
 from devpi.util import url as urlutil
-from devpi.server import ensure_autoserver
+from devpi.server import handle_autoserver
 import posixpath
 
 if sys.platform == "win32":
@@ -77,7 +77,7 @@ class Current(object):
 
     def configure_fromurl(self, hub, url):
         url = hub.get_index_url(url, current=self)
-        data = hub.http_api("get", url.rstrip("/") + "/+api")
+        data = hub.http_api("get", url.rstrip("/") + "/+api", quiet=True)
         if data["status"] == 200:
             data = data["result"]
             for name in data:
@@ -115,10 +115,12 @@ def main(hub, args=None):
     else:
         hub.debug("no current file, using defaults")
 
+    if not args.noauto:
+        handle_autoserver(hub, current, target=args.url)
     if args.url:
-        if not args.url.startswith("http://"):
-            ensure_autoserver(hub, current)
         current.configure_fromurl(hub, args.url)
+    elif current.index:  # re-get status/api
+        current.configure_fromurl(hub, current.index)
 
     if args.venv:
         if args.venv != "-":
@@ -138,9 +140,6 @@ def main(hub, args=None):
     if current.rooturl and current.rooturl != "/":
         if showurls or not current.index:
             hub.info("connected to: " + current.rooturl)
-    else:
-        if not args.venv:
-            hub.fatal("not connected to any devpi instance")
 
     if showurls:
         for name, value in current.items():
