@@ -75,6 +75,9 @@ def main_fromdir(hub, args):
     for archivepath in get_archive_files(fromdir):
         pkginfo = get_pkginfo(archivepath)
         if pkginfo is None or pkginfo.name is None:
+            hub.error("%s: does not contain PKGINFO, "
+                     "taking name/version from filename" %
+                     archivepath.basename)
             pkginfo = MinimalPkgInfo(archivepath.basename)
         path_pkginfo[archivepath] = pkginfo
         #hub.debug("got pkginfo for %s-%s  %s" %
