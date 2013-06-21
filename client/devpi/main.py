@@ -56,6 +56,10 @@ class Hub:
         self._tw = py.io.TerminalWriter()
         self.args = args
         self.cwd = py.path.local()
+        self.quiet = False
+
+    def set_quiet(self):
+        self.quiet = True
 
     @property
     def clientdir(self):
@@ -63,7 +67,7 @@ class Hub:
 
     def require_valid_current_with_index(self):
         if not self.current.simpleindex:
-            self.fatal("need to be using a live index, see 'devpi use'")
+            handle_autoserver(self, self.current)
         return self.current
 
 
@@ -218,12 +222,14 @@ class Hub:
         msg = " ".join(map(str, msgs))
         self._tw.line(msg, **kwargs)
 
+    # semantic logging
     def debug(self, *msg):
-        if self.args.debug:
+        if self.args.debug and not self.quiet:
             self.line("[debug]", *msg)
 
     def error(self, *msg):
-        self.line(*msg, red=True)
+        if not self.quiet:
+            self.line(*msg, red=True)
 
     def fatal(self, *msg):
         msg = " ".join(map(str, msg))
@@ -231,7 +237,8 @@ class Hub:
         raise SystemExit(1)
 
     def info(self, *msg):
-        self.line(*msg, bold=True)
+        if not self.quiet:
+            self.line(*msg, bold=True)
 
     def out_json(self, data):
         self._tw.line(json.dumps(data, sort_keys=True, indent=4))

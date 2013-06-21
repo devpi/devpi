@@ -56,7 +56,7 @@ def test_handle_autoserver(loghub, tmpdir, monkeypatch, raising, rooturl,
         assert len(g) == 1
     else:
         handle_autoserver(loghub, current)
-        assert not l
+        assert l == [1]
         autoserver = AutoServer(loghub)
         if logfile:
             autoserver.info.logpath.ensure()

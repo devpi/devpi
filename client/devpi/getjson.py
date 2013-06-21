@@ -9,6 +9,7 @@ from devpi.util import url as urlutil
 import posixpath
 
 def main(hub, args=None):
+    hub.set_quiet()
     current = hub.current
     args = hub.args
 

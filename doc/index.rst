@@ -33,9 +33,9 @@ This will install ``devpi-client`` and ``devpi-server`` pypi packages.
 devpi install: installing a package 
 ++++++++++++++++++++++++++++++++++++++++
 
-We can now use the ``devpi`` command line client to install
+We can now use the ``devpi`` command line client to ``pip install``
 a pypi package (here ``pytest`` as an example) through an
-auto-started caching server::
+auto-started caching devpi-server::
 
     $ devpi install --venv=v1 pytest
     automatically starting devpi-server at http://localhost:3141/

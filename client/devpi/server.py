@@ -15,6 +15,9 @@ def handle_autoserver(hub, current, target=None):
     # state changes:
     # current: default_rooturl  target: someother -> stop autoserver
     # current: someother target: default_rooturl -> start autoserver
+    #
+    # also if no simpleindex is defined, use /root/dev/
+
     autoserver = AutoServer(hub)
     current_is_root = current.rooturl == "/" or \
                       current.rooturl.startswith(default_rooturl)
@@ -33,13 +36,13 @@ def handle_autoserver(hub, current, target=None):
         r = hub.http.head(default_rooturl)
     except hub.http.ConnectionError as e:
         autoserver.start()
-        if not current.simpleindex:
-            indexurl = default_rooturl + "/root/dev/"
-            current.configure_fromurl(hub, indexurl)
-            hub.info("auto-configuring use of root/dev index")
     else:
         hub.debug("server is already running at: %s" % default_rooturl)
         r.close()
+    if not current.simpleindex:
+        indexurl = default_rooturl + "/root/dev/"
+        current.configure_fromurl(hub, indexurl)
+        hub.info("auto-configuring use of root/dev index")
 
 class AutoServer:
     def __init__(self, hub):
