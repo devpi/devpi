@@ -63,9 +63,6 @@ def main_fromdir(hub, args):
     for archivepath in get_archive_files(fromdir):
         pkginfo = get_pkginfo(archivepath)
         if pkginfo is None or pkginfo.name is None:
-            if pkginfo:
-                print 'no name', archivepath
-                sys.exit(1)
             pkginfo = MinimalPkgInfo(archivepath)
         path_pkginfo[archivepath] = pkginfo
         #hub.debug("got pkginfo for %s-%s  %s" %
