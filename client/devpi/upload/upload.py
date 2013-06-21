@@ -43,15 +43,45 @@ def main(hub, args):
     if args.onlydocs or args.withdocs:
         exported.setup_upload_docs()
 
+
+class MinimalPkgInfo(object):
+    def __init__(self, path):
+        self.name, ver = verlib.guess_pkgname_and_version(path)
+        self.version = unicode(ver)
+
+    def __iter__(self):
+        for attr_name in ('name', 'version'):
+            yield attr_name
+
+def filter_latest(path_pkginfo):
+    name_version_path = {}
+    for archivepath, pkginfo in path_pkginfo.iteritems():
+        name = pkginfo.name
+        iversion = verlib.normversion(pkginfo.version)
+        data = name_version_path.get(name)
+        if data is None or data[0] < iversion:
+            name_version_path[name] = (iversion, pkginfo, archivepath)
+    retval = {}
+    for x in name_version_path.itervalues():
+        retval[x[2]] = x[1]
+    return retval
+
 def main_fromdir(hub, args):
     fromdir = py.path.local(os.path.expanduser(args.fromdir))
     if not fromdir.check():
         hub.fatal("directory does not exist: %s" % fromdir)
 
+    path_pkginfo = {}
     for archivepath in get_archive_files(fromdir):
         pkginfo = get_pkginfo(archivepath)
+        if pkginfo is None or pkginfo.name is None:
+            pkginfo = MinimalPkgInfo(archivepath.basename)
+        path_pkginfo[archivepath] = pkginfo
         #hub.debug("got pkginfo for %s-%s  %s" %
         #          (pkginfo.name, pkginfo.version, pkginfo.author))
+    if args.only_latest:
+        path_pkginfo = filter_latest(path_pkginfo)
+    for archivepath, pkginfo in path_pkginfo.iteritems():
         upload_file_pypi(hub, archivepath, pkginfo)
 
 def upload_file_pypi(hub, path, pkginfo):
@@ -104,7 +134,7 @@ def get_pkginfo(archivepath):
     #for name in arch.namelist():
     #    if name.endswith("/PKG-INFO"):
     import pkginfo
-    info = pkginfo.SDist(str(archivepath))
+    info = pkginfo.get_metadata(str(archivepath))
     return info
 
 
