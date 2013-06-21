@@ -45,7 +45,6 @@ def main(hub, args):
 
 def main_fromdir(hub, args):
     # requires verlib from PYPI for version comparison
-    from verlib import suggest_normalized_version
     fromdir = py.path.local(os.path.expanduser(args.fromdir))
     if not fromdir.check():
         hub.fatal("directory does not exist: %s" % fromdir)
@@ -66,15 +65,17 @@ def main_fromdir(hub, args):
             path_pkginfo[archivepath] = pkginfo
         except Exception, e:
             print "Error", e,  "while retrieving pkginfo from", archivepath
+            #raise
     if args.only_latest:
         name_version_path = {}
         for archivepath, pkginfo in path_pkginfo.iteritems():
             name = pkginfo.name
-            iversion = suggest_normalized_version(pkginfo.version)
+            iversion = verlib.normversion(pkginfo.version)
+            print iversion
             data = name_version_path.get(name)
             if data is None or data[0] < iversion:
                 name_version_path[name] = (iversion, pkginfo, archivepath)
-                # print 'updating' if data else 'setting', name, iversion
+                print 'updating' if data else 'setting', name, iversion
         path_pkginfo = {}
         for x in name_version_path.itervalues():
             path_pkginfo[x[2]] = x[1]
@@ -135,7 +136,7 @@ def get_pkginfo(archivepath):
     #for name in arch.namelist():
     #    if name.endswith("/PKG-INFO"):
     import pkginfo
-    info = pkginfo.SDist(str(archivepath))
+    info = pkginfo.get_metadata(str(archivepath))
     return info
 
 
