@@ -43,47 +43,46 @@ def main(hub, args):
     if args.onlydocs or args.withdocs:
         exported.setup_upload_docs()
 
+
+class MinimalPkgInfo(object):
+    def __init__(self, path):
+        self.name, ver = verlib.guess_pkgname_and_version(path.basename)
+        self.version = unicode(ver)
+
+    def __iter__(self):
+        for attr_name in ('name', 'version'):
+            yield attr_name
+
+
 def main_fromdir(hub, args):
-    # requires verlib from PYPI for version comparison
     fromdir = py.path.local(os.path.expanduser(args.fromdir))
     if not fromdir.check():
         hub.fatal("directory does not exist: %s" % fromdir)
 
     path_pkginfo = {}
     for archivepath in get_archive_files(fromdir):
-        try:
-            pkginfo = get_pkginfo(archivepath)
-            #hub.debug("got pkginfo for %s-%s  %s" %
-            #          (pkginfo.name, pkginfo.version, pkginfo.author))
-            if pkginfo.name is None:
-                # e.g. reportlab 2.7 has this problem might be caused by pkginfo
-                continue # skip these for now
-                # we could retrieve name and version from filename
-                #basename = os.path.basename(archivepath.basename)
-                #x = re.match('(?P<name>[A-Za-z]+)', basename)
-                #pkginfo.alt_name = x.group('name')
-            path_pkginfo[archivepath] = pkginfo
-        except Exception, e:
-            print "Error", e,  "while retrieving pkginfo from", archivepath
-            #raise
+        pkginfo = get_pkginfo(archivepath)
+        if pkginfo is None or pkginfo.name is None:
+            if pkginfo:
+                print 'no name', archivepath
+                sys.exit(1)
+            pkginfo = MinimalPkgInfo(archivepath)
+        path_pkginfo[archivepath] = pkginfo
+        #hub.debug("got pkginfo for %s-%s  %s" %
+        #          (pkginfo.name, pkginfo.version, pkginfo.author))
     if args.only_latest:
         name_version_path = {}
         for archivepath, pkginfo in path_pkginfo.iteritems():
             name = pkginfo.name
             iversion = verlib.normversion(pkginfo.version)
-            print iversion
             data = name_version_path.get(name)
             if data is None or data[0] < iversion:
                 name_version_path[name] = (iversion, pkginfo, archivepath)
-                print 'updating' if data else 'setting', name, iversion
         path_pkginfo = {}
         for x in name_version_path.itervalues():
             path_pkginfo[x[2]] = x[1]
     for archivepath, pkginfo in path_pkginfo.iteritems():
-        try:
-            upload_file_pypi(hub, archivepath, pkginfo)
-        except Exception, e:
-            print "Error", e,  "while uploading", archivepath
+        upload_file_pypi(hub, archivepath, pkginfo)
 
 
 def upload_file_pypi(hub, path, pkginfo):
