@@ -11,8 +11,7 @@ server:
 client:
 
 - introduce "devpi upload --fromdir" for uploading archives in bulk
-  mode, thanks to Anthon van der Neut for helping with this!
-  (resolved issue5)
+  mode, thanks to Anthon van der Neut for helping with this!  (resolved issue5)
 
 - improve automatic server handling via "devpi use"
 
