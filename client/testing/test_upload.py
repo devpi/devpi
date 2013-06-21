@@ -27,7 +27,6 @@ def uploadhub(request, tmpdir):
     return hub
 
 
-
 class TestCheckout:
     @pytest.fixture(scope="class")
     def repo(self, request):
@@ -168,6 +167,27 @@ class TestUploadFunctional:
             assert "hello-1.1.zip" in data["result"]["+files"]
         else:
             assert "hello-1.1.tar.gz" in data["result"]["+files"]
+
+def test_minimal_pkginfo():
+    from devpi.upload.upload import MinimalPkgInfo
+    minpack = MinimalPkgInfo('this/is/a/test-abc-0.1.2dev3.tar.gz')
+    assert minpack.version == '0.1.2dev3'
+    assert verlib.normversion(minpack.version) == (u'00000000', u'00000001',
+                                            u'00000002', u'*@', u'00000003', '*final')
+
+
+def test_filter_latest():
+    from devpi.upload.upload import MinimalPkgInfo, filter_latest
+    d = {}
+    for idx in [1, 9, 10]:
+        path = 'this/is/a/test-abc-0.%d' % (idx)
+        d[path] = MinimalPkgInfo(path)
+    assert len(d) == 3
+    d = filter_latest(d)
+    assert len(d) == 1
+    filtered = d[path]
+    assert filtered.name == 'test-abc'
+    assert filtered.version == u'0.10'
 
 
 
