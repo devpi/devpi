@@ -117,10 +117,13 @@ class Hub:
 
     def update_auth(self, user, password):
         self.http.auth = (user, password)
+        self.clientdir.ensure(dir=1)
         oldumask = os.umask(7*8+7)
-        self.clientdir.join("login").write(
-            json.dumps(dict(user=user, password=password)))
-        os.umask(oldumask)
+        try:
+            self.clientdir.join("login").write(
+                json.dumps(dict(user=user, password=password)))
+        finally:
+            os.umask(oldumask)
 
     def delete_auth(self):
         loginpath = self.clientdir.join("login")
