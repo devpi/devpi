@@ -388,16 +388,20 @@ def upload(parser):
     parser.add_argument("--formats", default="sdist.tgz", action="store",
         help="comma separated list of build formats (passed to setup.py). "
              "Examples sdist.zip,bdist_egg,bdist_dumb.")
-    parser.add_argument("--fromdir", action="store", default=None,
+    parser.add_argument("--from-dir", action="store", default=None,
+        dest="fromdir",
         help="upload all archive files from the specified directory")
     parser.add_argument("--only-latest", action="store_true",
-        help="upload only latest version if multiple archives for a package are found")
-    parser.add_argument("--dryrun",
+        help="upload only latest version if multiple archives for a "
+             "package are found (only effective with --from-dir)")
+    parser.add_argument("--dry-run", dest="dryrun",
         action="store_true", default=None,
         help="don't perform any server-modifying actions")
-    parser.add_argument("--withdocs", action="store_true", default=None,
+    parser.add_argument("--with-docs", action="store_true", default=None,
+        dest="withdocs",
         help="perform upload_docs in addition to uploading release files")
-    parser.add_argument("--onlydocs", action="store_true", default=None,
+    parser.add_argument("--only-docs", action="store_true", default=None,
+        dest="onlydocs",
         help="perform only upload_docs and no release files")
     #parser.add_argument("-y", dest="yes",
     #    action="store_true", default=None,

@@ -138,19 +138,19 @@ class TestUploadFunctional:
             "conf.py": "",
             "index.html": "<html/>"}})
         assert py.path.local("setup.py").check()
-        devpi("upload", "--dryrun")
-        devpi("upload", "--dryrun", "--withdocs")
-        devpi("upload", "--dryrun", "--onlydocs")
+        devpi("upload", "--dry-run")
+        devpi("upload", "--dry-run", "--with-docs")
+        devpi("upload", "--dry-run", "--only-docs")
         devpi("upload", "--formats", "sdist.tbz")
         devpi("upload", "--formats", "sdist.tgz,bdist_dumb")
 
         # logoff then upload
         devpi("logoff")
-        devpi("upload", "--dryrun", code=404)
+        devpi("upload", "--dry-run", code=404)
 
         # go to other index
         devpi("use", "root/pypi")
-        devpi("upload", "--dryrun", code=404)
+        devpi("upload", "--dry-run", code=404)
 
     def test_fromdir(self, initproj, devpi, out_devpi, runproc):
         initproj("hello-1.1", {"doc": {
@@ -160,7 +160,7 @@ class TestUploadFunctional:
         runproc(tmpdir, "python setup.py sdist".split())
         dist = tmpdir.join("dist")
         assert dist.check()
-        hub = devpi("upload", "--fromdir", dist)
+        hub = devpi("upload", "--from-dir", dist)
         out = out_devpi("getjson", hub.current.index + "hello/1.1/")
         data = json.loads(out.stdout.str())
         if sys.platform == "win32":

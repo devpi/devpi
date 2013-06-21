@@ -80,26 +80,36 @@ Let's check that ``pytest`` was installed correctly::
 You may invoke the ``devpi install`` command a second time which should
 go much faster and also work offline.
 
-devpi upload: uploading a package
+devpi upload: uploading one or more packages
 +++++++++++++++++++++++++++++++++++++++++++++++
 
 Go to a ``setup.py`` based project of yours and issue::
 
 	devpi upload   # need to be in a directory with setup.py
 
-and install the just uploaded package::
+You can now install the just uploaded package::
 
 	devpi install --venv=v1 NAME_OF_YOUR_PACKAGE
 
 This installed your just uploaded package from the default ``root/dev``
-index again, which also contains all pypi.python.org packages.
+index.
 
 .. note::
 
     ``devpi upload`` allows to upload multiple different formats
     of your release files such as ``sdist.zip`` or ``bdist_egg``.
     With the ``--withdocs`` option, you will also upload documentation.
+    The default is ``sdist.tgz``.
 
+uploading existing release files
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+If you have a directory with existing package files::
+
+    devpi upload --from-dir PATH/TO/DIR
+
+will recursively collect all archives files, register
+and upload them to our private ``root/dev`` pypi index.
 
 devpi test: testing an uploaded package
 +++++++++++++++++++++++++++++++++++++++++++++++
