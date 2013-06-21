@@ -11,6 +11,8 @@
 
 - make "devpi use" also show base indexes by default
 
+- fix issue4: auto-server data stored in non-dot dir
+
 0.9.1
 -------------------------------
 

@@ -48,7 +48,11 @@ class AutoServer:
     def __init__(self, hub):
         self.hub = hub
         self._extlogfiles = {}
-        xprocdir = hub.clientdir.join(".xproc")
+        xprocdir = hub.clientdir.join("xproc")
+        # let's move the pre-0.9.2 .xproc dir to the new location
+        xprocdir_old = hub.clientdir.join(".xproc")
+        if xprocdir_old.check() and not xprocdir.check():
+            xprocdir_old.move(xprocdir)
         self.xproc = XProcess(config=self, rootdir=xprocdir, log=hub)
         self.info = self.xproc.getinfo("devpi-server")
 
