@@ -39,6 +39,8 @@ class KeyFS:
     def tempfile(self, prefix):
         f = NamedTemporaryFile(prefix=prefix, dir=self.tmpdir, delete=False)
         relpath = os.path.relpath(f.name, str(self.basedir))
+        # change from hardcoded default perm 0600 in tempfile._mkstemp_inner()
+        os.chmod(f.name, 0644)
         f.key = get_typed_key(self, relpath, bytes)
         return f
 
