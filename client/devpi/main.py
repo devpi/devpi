@@ -259,6 +259,11 @@ def parse_args(argv):
     parser = getbasebaser(argv[0])
     add_subparsers(parser)
     try:
+        try:
+            import argcomplete
+            argcomplete.autocomplete(parser)
+        except ImportError:
+            pass
         return parser.parse_args(argv[1:])
     except parser.ArgumentError as e:
         if not argv[1:]:
