@@ -1,7 +1,7 @@
 0.9.2
 -------------------------------
 
-- introduce "devpi upload --fromdir" for uploading archives in bulk
+- introduce "devpi upload --from-dir" for uploading archives in bulk
   mode, thanks to Anthon van der Neut for helping with this!
   (resolved issue5)
 
