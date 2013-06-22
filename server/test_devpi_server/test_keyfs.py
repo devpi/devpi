@@ -1,6 +1,7 @@
 import py
 import pytest
 import os
+import stat
 
 from devpi_server.keyfs import KeyFS
 
@@ -42,6 +43,12 @@ class TestKeyFS:
         assert os.path.basename(f.name).startswith("abc")
         assert os.path.exists(f.name)
         assert f.key.exists()
+        org_stat = stat.S_IMODE(os.stat(f.name).st_mode)
+        os.remove(f.name)
+        # normal create follows umask
+        with open(f.name, "w") as fp:
+            fp.write("hello")
+        assert org_stat == stat.S_IMODE(os.stat(f.name).st_mode)
 
     def test_tempfile_movekey(self, keyfs):
         with keyfs.tempfile("abc") as f:
