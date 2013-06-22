@@ -22,6 +22,7 @@ class KeyFS:
         self.tmpdir = str(self.basedir.ensure(".tmp", dir=1))
         self.keys = []
         self._locks = {}
+        self._mode = None
 
     def _getlock(self, relpath):
         return self._locks.setdefault(relpath, threading.RLock())
@@ -36,11 +37,18 @@ class KeyFS:
                 raise KeyError(relpath)
             return default
 
+    def chmod(self, file_name):
+        if self._mode is None:
+            umask = os.umask(0)
+            os.umask(umask)
+            self._mode = 0666 ^ umask
+        os.chmod(file_name, self._mode)
+
     def tempfile(self, prefix):
         f = NamedTemporaryFile(prefix=prefix, dir=self.tmpdir, delete=False)
         relpath = os.path.relpath(f.name, str(self.basedir))
         # change from hardcoded default perm 0600 in tempfile._mkstemp_inner()
-        os.chmod(f.name, 0644)
+        self.chmod(f.name)
         f.key = get_typed_key(self, relpath, bytes)
         return f
 
