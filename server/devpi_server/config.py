@@ -62,6 +62,11 @@ def parseoptions(argv, addoptions=addoptions):
                     "The server automatically refreshes the cache of all "
                     "indexes which have changed on the pypi.python.org side.")
     addoptions(parser)
+    try:
+        import argcomplete
+        argcomplete.autocomplete(parser)
+    except ImportError:
+        pass
     args = parser.parse_args(argv[1:])
     config = Config(args)
     return config
