@@ -1,3 +1,4 @@
+# PYTHON_ARGCOMPLETE_OK
 import os
 import sys
 import py
