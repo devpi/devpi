@@ -8,26 +8,6 @@ from devpi.main import Hub
 from devpi.use import main, Current
 from devpi.use import parse_keyvalue_spec
 
-def test_argcomplete():
-    import os
-    import sys
-    from devpi.main import try_argcomplete
-    from argparse import ArgumentParser
-
-    def exit_method(arg):
-        pass
-    parser = ArgumentParser()
-    parser.add_argument("--version")
-    os.environ['_ARGCOMPLETE'] = "1"
-    os.environ['_ARGCOMPLETE_IFS'] = "\x0b"
-    os.environ['COMP_LINE'] = "devpi"
-    os.environ['COMP_POINT'] = "6"
-    os.environ['COMP_WORDBREAKS'] = ' \t\n"\'><=;|&(:'
-    _stdout, _stderr = sys.stdout, sys.stderr
-    res = try_argcomplete(parser, exit_method=exit_method)
-    sys.stdout, sys.stderr = _stdout, _stderr
-    assert res == None
-
 class TestUnit:
     def test_write_and_read(self, tmpdir):
         path=tmpdir.join("current")

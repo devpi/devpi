@@ -255,15 +255,10 @@ class MyArgumentParser(argparse.ArgumentParser):
         """raise errors instead of printing and raising SystemExit"""
         raise self.ArgumentError(error)
 
-def try_argcomplete(parser, exit_method=None):
-    # could wrap in test test:
-    # if os.environ.get('_ARGCOMPLETE') is not None:
+def try_argcomplete(parser):
     try:
         import argcomplete
-        if exit_method:
-            argcomplete.autocomplete(parser, exit_method=exit_method)
-        else:
-            argcomplete.autocomplete(parser)
+        argcomplete.autocomplete(parser)
         return True
     except ImportError:
         pass
