@@ -52,6 +52,15 @@ def addoptions(parser):
             help="run wsgi application with debug logging")
 
 
+def try_argcomplete(parser):
+    try:
+        import argcomplete
+        argcomplete.autocomplete(parser)
+        return True
+    except ImportError:
+        pass
+    return False
+
 def parseoptions(argv, addoptions=addoptions):
     if argv is None:
         argv = sys.argv
@@ -62,11 +71,7 @@ def parseoptions(argv, addoptions=addoptions):
                     "The server automatically refreshes the cache of all "
                     "indexes which have changed on the pypi.python.org side.")
     addoptions(parser)
-    try:
-        import argcomplete
-        argcomplete.autocomplete(parser)
-    except ImportError:
-        pass
+    try_argcomplete(parser)
     args = parser.parse_args(argv[1:])
     config = Config(args)
     return config
