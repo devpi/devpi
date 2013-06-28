@@ -258,18 +258,17 @@ class MyArgumentParser(argparse.ArgumentParser):
 def try_argcomplete(parser):
     try:
         import argcomplete
-        argcomplete.autocomplete(parser)
-        return True
     except ImportError:
         pass
-    return False
+    else:
+        argcomplete.autocomplete(parser)
 
 def parse_args(argv):
     argv = map(str, argv)
     parser = getbasebaser(argv[0])
     add_subparsers(parser)
+    try_argcomplete(parser)
     try:
-        try_argcomplete(parser)
         return parser.parse_args(argv[1:])
     except parser.ArgumentError as e:
         if not argv[1:]:

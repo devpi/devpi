@@ -51,15 +51,13 @@ def addoptions(parser):
     group.addoption("--debug", action="store_true",
             help="run wsgi application with debug logging")
 
-
 def try_argcomplete(parser):
     try:
         import argcomplete
-        argcomplete.autocomplete(parser)
-        return True
     except ImportError:
         pass
-    return False
+    else:
+        argcomplete.autocomplete(parser)
 
 def parseoptions(argv, addoptions=addoptions):
     if argv is None:
