@@ -1,3 +1,4 @@
+# PYTHON_ARGCOMPLETE_OK
 """
 a WSGI server to serve PyPI compatible indexes and a full
 recursive cache of pypi.python.org packages.
