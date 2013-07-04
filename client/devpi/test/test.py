@@ -49,7 +49,7 @@ class DevIndex:
         except self.remoteindex.ReceiveError:
             self.hub.fatal("could not receive", link.href)
 
-        self.hub.info("received %s", link.href)
+        self.hub.info("received", link.href)
         if hasattr(link, "md5"):
             md5 = hashlib.md5()
             md5.update(content)
