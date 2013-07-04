@@ -188,7 +188,9 @@ class PrivateStage:
             html = processDescription(desc)
             key = self.keyfs.RELDESCRIPTION(
                 user=self.user, index=self.index, name=name, version=version)
-            key.set(html.encode("utf8"))
+            if py.builtin._istext(html):
+                html = html.encode("utf8")
+            key.set(html)
 
     def project_add(self, name):
         key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
