@@ -96,8 +96,8 @@ def upload_file_pypi(hub, path, pkginfo):
     if not hub.args.dryrun:
         r = hub.http.post(hub.current.index, d)
         if r.status_code != 200:
-            hub.error("%s: could not register %s to %s" (r.status_code,
-                      name, version, hub.current.index))
+            hub.error("%s: could not register %s to %s" % (r.status_code,
+                      name + version, hub.current.index))
             return False
         hub.info("%s: %s-%s registered to %s" %(r.status_code, name, version,
                                             hub.current.index))
