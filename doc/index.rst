@@ -214,6 +214,10 @@ it and install ``django-treebeard`` again, now using devpi-server::
 
 So it's around 2-3 times faster on a 30Mbit internet connection.
 
+Known limitations
+------------------
+
+- ``devpi-server`` currently does not follow any FTP links.
 
 Indices and tables
 ==================

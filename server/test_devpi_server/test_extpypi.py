@@ -71,6 +71,16 @@ class TestIndexParsing:
         assert link.eggfragment == "py-dev"
         assert link2.basename == "py-1.0.zip"
 
+    def test_parse_index_ftp_ignored_for_now(self):
+        result = parse_index(self.simplepy,
+            """<a href="http://bb.org/download/py-1.0.zip" />
+               <a href="ftp://bb.org/download/py-1.0.tar.gz" />
+               <a rel="download" href="ftp://bb.org/download/py-1.1.tar.gz" />
+        """)
+        assert len(result.releaselinks) == 1
+        link, = result.releaselinks
+        assert link.basename == "py-1.0.zip"
+
     def test_parse_index_with_two_eggs_ordering(self):
         # it seems that pip/easy_install in some cases
         # rely on the exact ordering of eggs in the html page
@@ -111,6 +121,14 @@ class TestIndexParsing:
         assert links[0].url == \
                 "http://pypi.python.org/pkg/py-1.4.12.zip#md5=12ab"
         assert links[1].url == "http://pylib.org/py-1.1.egg"
+
+    def test_releasefile_and_scrape_no_ftp(self):
+        result = parse_index(self.simplepy,
+            """<a href="ftp://pylib2.org/py-1.0.tar.gz"
+                  rel="download">whatever2</a> """)
+        assert len(result.releaselinks) == 0
+        assert len(result.crawllinks) == 0
+
 
     def test_releasefile_md5_matching_and_ordering(self):
         """ check that md5-links win over non-md5 links anywhere.

@@ -20,10 +20,11 @@ assert __name__ == "devpi_server.extpypi"
 log = getLogger(__name__)
 
 CONCUCCRENT_CRAWL = False
+ALLOWED_ARCHIVE_EXTS = ".egg .tar.gz .tar.bz2 .tar .tgz .zip".split()
+ARCHIVE_SCHEMES = ("http", "https")
 
 
 class IndexParser:
-    ALLOWED_ARCHIVE_EXTS = ".egg .tar.gz .tar.bz2 .tar .tgz .zip".split()
 
     def __init__(self, projectname):
         self.projectname = projectname.lower()
@@ -64,19 +65,30 @@ class IndexParser:
                     log.debug("skip egg link %s (projectname: %s)",
                               newurl, self.projectname)
                 continue
-            nameversion, ext = newurl.splitext_archive()
-            parts = re.split(r'-\d+', nameversion)
-            projectname = parts[0]
-            #log.debug("checking %s, projectname %r, nameversion %s", newurl, self.projectname, nameversion)
-            if len(parts) > 1 and ext.lower() in self.ALLOWED_ARCHIVE_EXTS and \
-               projectname.lower() == self.projectname:
+            if is_archive_of_project(newurl, self.projectname):
                 self._mergelink_ifbetter(newurl)
                 seen.add(newurl.url)
                 continue
         if scrape:
             for link in p.rel_links():
                 if link.url not in seen:
-                    self.crawllinks.add(DistURL(link.url))
+                    disturl = DistURL(link.url)
+                    if disturl._parsed.scheme in ARCHIVE_SCHEMES:
+                        self.crawllinks.add(disturl)
+
+def is_archive_of_project(newurl, targetname):
+    if newurl._parsed.scheme not in ARCHIVE_SCHEMES:
+        log.warn("url has wrong scheme %r", newurl)
+        return False
+    targetname = targetname.lower()
+    nameversion, ext = newurl.splitext_archive()
+    parts = re.split(r'-\d+', nameversion)
+    projectname = parts[0]
+    #log.debug("checking %s, projectname %r, nameversion %s", newurl, self.projectname, nameversion)
+    if len(parts) > 1 and ext.lower() in ALLOWED_ARCHIVE_EXTS and \
+       projectname.lower() == targetname:
+        return True
+    return False
 
 def parse_index(disturl, html, scrape=True):
     if not isinstance(disturl, DistURL):
@@ -182,6 +194,7 @@ class ExtDB:
 
         If the pypi server cannot be reached return -1
         If the cache is stale and could not be refreshed return -2.
+
         """
         assert not isinstance(refresh, bool), repr(refresh)
         serial, res = self._load_projectlinks(projectname)
@@ -249,7 +262,6 @@ class ExtDB:
                 name = name.lower()
                 serial = name2serials[name]
                 self.getreleaselinks(name, refresh=serial)
-
             proxysleep()
 
 PYPIURL_SIMPLE = "https://pypi.python.org/simple/"
