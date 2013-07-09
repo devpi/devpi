@@ -48,7 +48,7 @@ def bottle_run(xom):
              xom.config.args.host, xom.config.args.port)
     log.info("bug tracker: https://bitbucket.org/hpk42/devpi/issues")
     log.info("IRC: #pylib on irc.freenode.net")
-    if xom.config.args.debug:
+    if "WEBTRACE" in os.environ and xom.config.args.debug:
         from weberror.evalexception import make_eval_exception
         app = make_eval_exception(app, {})
     ret = bottle.run(app=app, server=xom.config.args.bottleserver,
