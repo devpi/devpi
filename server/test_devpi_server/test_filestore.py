@@ -97,6 +97,20 @@ class TestReleaseFileStore:
         bytes = b().join(riter)
         assert bytes == b("123")
 
+    def test_iterfile_remote_no_headers(self, filestore, httpget):
+        link = DistURL("http://pypi.python.org/pkg/pytest-1.8.zip")
+        entry = filestore.maplink(link, refresh=False)
+        assert not entry.md5
+        headers={}
+        httpget.url2response[link.url] = dict(status_code=200,
+                headers=headers, raw = BytesIO("123"))
+        rheaders, riter = filestore.iterfile(entry.relpath,
+                                             httpget, chunksize=1)
+        assert "content-length" not in rheaders
+        assert rheaders.get("content-type") is None
+        bytes = b().join(riter)
+        assert bytes == b("123")
+
     def test_iterfile_remote_error_size_mismatch(self, filestore, httpget):
         link = DistURL("http://pypi.python.org/pkg/pytest-3.0.zip")
         entry = filestore.maplink(link, refresh=False)

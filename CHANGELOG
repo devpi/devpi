@@ -1,4 +1,12 @@
 
+0.9.3.dev
+----------------------------
+
+server:
+
+- fixed issue9: caching of packages where upstream provides no
+  last-modified header now works.
+
 0.9.2 (compared to 0.9.1)
 ----------------------------
 

@@ -137,16 +137,18 @@ class RelPathEntry(object):
         self._mapping = self.PATHENTRY.get()
 
     def gethttpheaders(self):
-        headers = {"last-modified": self.last_modified,
-                   "content-type": self.content_type}
+        headers = {}
+        if self.last_modified:
+            headers["last-modified"] = self.last_modified
+        headers["content-type"] = self.content_type
         if self.size is not None:
             headers["content-length"] = str(self.size)
         return headers
 
     def sethttpheaders(self, headers):
-        self.set(last_modified=headers["last-modified"],
-                 size = headers["content-length"],
-                 content_type = headers["content-type"])
+        self.set(content_type = headers.get("content-type"),
+                 size = headers.get("content-length"),
+                 last_modified = headers.get("last-modified"))
 
     def invalidate_cache(self):
         try:
