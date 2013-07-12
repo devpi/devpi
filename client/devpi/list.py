@@ -28,10 +28,12 @@ def out_project(hub, data, name):
         if files is not None:
             for fn in files:
                 origin = files[fn]
+                if version.startswith("egg="):
+                    origin = "%s (%s) " % (origin, version)
                 if origin.startswith(index):
-                    hub.info("%s" %(origin))
+                    hub.info(origin)
                 else:
-                    hub.line("%s" %(origin))
+                    hub.line(origin)
 
 def main(hub, args):
     current = hub.current

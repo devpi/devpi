@@ -230,7 +230,10 @@ class ExtDB:
         data = {}
         for link in releaselinks:
             url = DistURL(link.url)
-            name, version = url.pkgname_and_version
+            if link.eggfragment:
+                version = "egg=" + link.eggfragment
+            else:
+                _, version = url.pkgname_and_version
             verdata = data.setdefault(version, {})
             files = verdata.setdefault("+files", {})
             files[url.basename] = link.relpath

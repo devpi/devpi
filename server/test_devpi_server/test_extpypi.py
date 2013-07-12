@@ -175,6 +175,13 @@ class TestExtPYPIDB:
         data = config["1.0"]
         assert data["+files"]
 
+    def test_getprojectconfig_with_egg(self, extdb):
+        extdb.setextsimple("pytest", text='''
+            <a href="../../pkg/tip.zip#egg=pytest-dev" />''')
+        config = extdb.get_projectconfig("pytest")
+        data = config["egg=pytest-dev"]
+        assert data["+files"]
+
     def test_parse_and_scrape(self, extdb):
         extdb.setextsimple("pytest", text='''
                 <a href="../../pkg/pytest-1.0.zip#md5=123" />
