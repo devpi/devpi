@@ -53,8 +53,8 @@ class Hub:
             cmds = [str(x) for x in cmds]
             std.subprocess.Popen.__init__(self, cmds, *args, **kwargs)
 
-    def __init__(self, args):
-        self._tw = py.io.TerminalWriter()
+    def __init__(self, args, file=None):
+        self._tw = py.io.TerminalWriter(file=file)
         self.args = args
         self.cwd = py.path.local()
         self.quiet = False
@@ -337,6 +337,13 @@ def getjson(parser):
     parser.add_argument("path", nargs="?",
         help="path to a resource to show information on. "
              "examples: '/', '/user', '/user/index'.")
+
+@subcommand("devpi.list", "list")
+def list_(parser):
+    """ list project versions and files """
+    parser.add_argument("spec", nargs="?",
+        help="show only info for the project, specified by simple name "
+             "or by name-version")
 
 @subcommand("devpi.user")
 def user(parser):

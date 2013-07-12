@@ -160,18 +160,12 @@ class PrivateStage:
 
     def op_with_bases(self, opname, **kw):
         op_perstage = getattr(self, opname + "_perstage")
-        entries = op_perstage(**kw)
+        results = [(self, op_perstage(**kw))]
         for base in self.ixconfig["bases"]:
             stage = self.db.getstage(base)
             base_entries = getattr(stage, opname)(**kw)
-            if isinstance(base_entries, int):
-                if base_entries == 404:
-                    continue
-                elif base_entries >= 500 or base_entries < 0 :
-                    return base_entries
-            log.debug("%s %s: %d entries", base, kw, len(base_entries))
-            entries.extend(base_entries)
-        return entries
+            results.append((stage, base_entries))
+        return results
 
     #
     # registering project and version metadata
@@ -214,24 +208,41 @@ class PrivateStage:
         projectconfig = self.get_projectconfig(name)
         return projectconfig.get(version)
 
-    def get_projectconfig(self, name):
+    def get_projectconfig_perstage(self, name):
         key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
         return key.get()
+
+    def get_projectconfig(self, name):
+        all_projectconfig = {}
+        for stage, res in self.op_with_bases("get_projectconfig", name=name):
+            if isinstance(res, int):
+                if res == 404:
+                    continue
+                return res
+            all_projectconfig.update(res)
+        return all_projectconfig
 
     #
     # getting release links
     #
 
     def getreleaselinks(self, projectname):
-        l = self.op_with_bases("getreleaselinks", projectname=projectname)
-        if isinstance(l, int):
-            return l
-        l = sorted_by_version(l, attr="basename")
-        l.reverse()
-        return l
+        all_links = []
+        for stage, res in self.op_with_bases("getreleaselinks",
+                                          projectname=projectname):
+            if isinstance(res, int):
+                if res == 404:
+                    continue
+                return res
+            all_links.extend(res)
+        all_links = sorted_by_version(all_links, attr="basename")
+        all_links.reverse()
+        return all_links
 
     def getreleaselinks_perstage(self, projectname):
-        projectconfig = self.get_projectconfig(projectname)
+        projectconfig = self.get_projectconfig_perstage(projectname)
+        if isinstance(projectconfig, int):
+            return projectconfig
         files = []
         for verdata in projectconfig.values():
             files.extend(
@@ -240,7 +251,12 @@ class PrivateStage:
         return files
 
     def getprojectnames(self):
-        return sorted(set(self.op_with_bases("getprojectnames")))
+        all_names = set()
+        for stage, names in self.op_with_bases("getprojectnames"):
+            if isinstance(names, int):
+                return names
+            all_names.update(names)
+        return sorted(all_names)
 
     def getprojectnames_perstage(self):
         return sorted(self.keyfs.PROJCONFIG.listnames("name",

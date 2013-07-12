@@ -111,6 +111,20 @@ If you have a directory with existing package files::
 will recursively collect all archives files, register
 and upload them to our private ``root/dev`` pypi index.
 
+listing projects and release files
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+If you issue::
+
+    devpi list
+
+you get a list of all project names where release files are
+registered on the in-use index whereas::
+
+    devpi list PROJECT
+
+will give you all release files for the given PROJECT.
+
 devpi test: testing an uploaded package
 +++++++++++++++++++++++++++++++++++++++++++++++
 

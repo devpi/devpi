@@ -58,6 +58,13 @@ class TestStage:
         #entries = stage.getprojectnames()
         #assert entries == -1
 
+    def test_get_projectconfig_inherited(self, httpget, stage):
+        stage.configure(bases=("root/pypi",))
+        httpget.setextsimple("someproject",
+            "<a href='someproject-1.0.zip' /a>")
+        projectconfig = stage.get_projectconfig("someproject")
+        assert "someproject-1.0.zip" in projectconfig["1.0"]["+files"]
+
     def test_store_and_get_releasefile(self, stage, bases):
         content = "123"
         content2 = "1234"
@@ -66,6 +73,8 @@ class TestStage:
         assert len(entries) == 1
         assert entries[0].md5 == entry.md5
         assert stage.getprojectnames() == ["some"]
+        pconfig = stage.get_projectconfig("some")
+        assert pconfig["1.0"]["+files"]["some-1.0.zip"].endswith("some-1.0.zip")
 
     def test_releasefile_sorting(self, stage, bases):
         content = "123"

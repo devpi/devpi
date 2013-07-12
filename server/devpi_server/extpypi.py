@@ -223,6 +223,18 @@ class ExtDB:
         self._dump_projectlinks(projectname, dumplist, serial)
         return entries
 
+    def get_projectconfig(self, name):
+        releaselinks = self.getreleaselinks(name)
+        if isinstance(releaselinks, int):
+            return releaselinks
+        data = {}
+        for link in releaselinks:
+            url = DistURL(link.url)
+            name, version = url.pkgname_and_version
+            verdata = data.setdefault(version, {})
+            files = verdata.setdefault("+files", {})
+            files[url.basename] = link.relpath
+        return data
 
     def spawned_pypichanges(self, proxy, proxysleep):
         log.info("changelog/update tasks starting")

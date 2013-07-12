@@ -168,6 +168,13 @@ class TestExtPYPIDB:
         assert link.md5 == "123"
         assert link.relpath.endswith("/pytest-1.0.zip")
 
+    def test_getprojectconfig(self, extdb):
+        extdb.setextsimple("pytest", text='''
+            <a href="../../pkg/pytest-1.0.zip#md5=123" />''')
+        config = extdb.get_projectconfig("pytest")
+        data = config["1.0"]
+        assert data["+files"]
+
     def test_parse_and_scrape(self, extdb):
         extdb.setextsimple("pytest", text='''
                 <a href="../../pkg/pytest-1.0.zip#md5=123" />
