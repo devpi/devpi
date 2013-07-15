@@ -8,7 +8,7 @@ import sys
 import os
 
 from _pytest.pytester import RunResult, LineMatcher
-from devpi.main import Hub, initmain
+from devpi.main import Hub, initmain, parse_args
 from devpi.server import AutoServer
 import subprocess
 
@@ -371,6 +371,7 @@ def loghub(tmpdir):
     class args:
         debug = True
         clientdir = tmpdir.join("clientdir")
+        yes = False
     out = py.io.TextIO()
     hub = Hub(args, file=out)
     def _getmatcher():
@@ -378,3 +379,16 @@ def loghub(tmpdir):
         return LineMatcher(lines)
     hub._getmatcher = _getmatcher
     return hub
+
+@pytest.fixture(scope="session")
+def makehub(request):
+    handler = request.config._tmpdirhandler
+    def mkhub(arglist):
+        tmp = handler.mktemp("hub")
+        args = parse_args(["testhub"] + arglist)
+        old = tmp.chdir()
+        try:
+            return Hub(args)
+        finally:
+            old.chdir()
+    return mkhub

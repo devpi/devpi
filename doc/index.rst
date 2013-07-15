@@ -111,7 +111,7 @@ If you have a directory with existing package files::
 will recursively collect all archives files, register
 and upload them to our private ``root/dev`` pypi index.
 
-listing projects and release files
+listing or removing projects and release files
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 If you issue::
@@ -119,11 +119,20 @@ If you issue::
     devpi list
 
 you get a list of all project names where release files are
-registered on the in-use index whereas::
+registered on the current index.  You can restrict it to
+a project or a particular version of a project::
 
     devpi list PROJECT
+    devpi list PROJECT-1.0
 
-will give you all release files for the given PROJECT.
+will give you all release files for the given PROJECT or PROJECT-1.0,
+respectively.  The ``remove`` subcommand uses the same syntax::
+
+    devpi remove PROJECT
+    devpi remove PROJECT-1.0
+
+Unless you specify the ``-y`` option you will be asked to confirm
+the list of release files that are to be deleted.
 
 devpi test: testing an uploaded package
 +++++++++++++++++++++++++++++++++++++++++++++++

@@ -10,17 +10,17 @@ from devpi.util import url as urlutil
 DEFAULT_BASES = ["root/dev", ]
 
 def index_create(hub, indexname, kvdict):
-    url = hub.get_index_url(indexname)
+    url = hub.get_index_url(indexname, slash=False)
     stage = urlutil.getpath(url)
     hub.http_api("put", url, kvdict)
 
 def index_modify(hub, indexname, kvdict):
-    url = hub.get_index_url(indexname)
+    url = hub.get_index_url(indexname, slash=False)
     stage = urlutil.getpath(url)
     hub.http_api("patch", url, kvdict)
 
 def index_delete(hub, indexname):
-    url = hub.get_index_url(indexname)
+    url = hub.get_index_url(indexname, slash=False)
     stage = urlutil.getpath(url)
     hub.http_api("delete", url, None)
 

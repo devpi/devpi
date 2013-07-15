@@ -4,9 +4,25 @@ import pytest
 import py
 from devpi import use
 from devpi import log
-from devpi.main import Hub
+from devpi.main import Hub, parse_args
 from devpi.use import main, Current
 from devpi.use import parse_keyvalue_spec
+
+def test_ask_confirm(makehub, monkeypatch):
+    import devpi.main
+    hub = makehub(["remove", "something"])
+    monkeypatch.setattr(devpi.main, "raw_input", lambda msg: "yes",
+                        raising=False)
+    assert hub.ask_confirm("hello")
+    monkeypatch.setattr(devpi.main, "raw_input", lambda msg: "no")
+    assert not hub.ask_confirm("hello")
+    l = ["yes", "qwoeiu"]
+    monkeypatch.setattr(devpi.main, "raw_input", lambda msg: l.pop())
+    assert hub.ask_confirm("hello")
+
+def test_ask_confirm_delete_args_yes(makehub):
+    hub = makehub(["remove", "-y", "whatever"])
+    assert hub.ask_confirm("hello")
 
 class TestUnit:
     def test_write_and_read(self, tmpdir):
@@ -40,6 +56,7 @@ class TestUnit:
                         pypisubmit="/post",
                         simpleindex="/index/",
                         resultlog="/resultlog/",
+                        index="root/some",
                         bases="root/dev",
                         login="/+login/",
                    ))
@@ -55,6 +72,12 @@ class TestUnit:
         assert newapi.resultlog == "http://world/resultlog/"
         assert newapi.bases == "http://world/root/dev"
         assert not newapi.venvdir
+
+        # some url helpers
+        assert hub.get_index_url(slash=False) == "http://world/root/some"
+        assert hub.get_index_url() == "http://world/root/some/"
+        assert hub.get_project_url("pytest") == \
+                                    "http://world/root/some/pytest/"
 
         #hub = cmd_devpi("use", "--delete")
         #assert not hub.current.exists()

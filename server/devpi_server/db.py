@@ -191,6 +191,23 @@ class PrivateStage:
         with key.locked_update() as projectconfig:
             pass
 
+    def project_delete(self, name):
+        key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
+        key.delete()
+
+    def project_version_delete(self, name, version):
+        key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
+        with key.locked_update() as projectconfig:
+            if version not in projectconfig:
+                return False
+            log.info("deleting version %r of project %r", version, name)
+            del projectconfig[version]
+        # XXX race condition if concurrent addition happens
+        if not projectconfig:
+            log.info("no version left, deleting project %r", name)
+            key.delete()
+        return True
+
     def project_exists(self, name):
         key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
         return key.exists()

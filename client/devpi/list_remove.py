@@ -1,6 +1,7 @@
 
 import os
 import py
+import pkg_resources
 
 from devpi.util import version as verutil
 from devpi.util import url as urlutil
@@ -35,7 +36,7 @@ def out_project(hub, data, name):
                 else:
                     hub.line(origin)
 
-def main(hub, args):
+def main_list(hub, args):
     current = hub.current
     args = hub.args
 
@@ -45,6 +46,49 @@ def main(hub, args):
     else:
         data = getjson(hub, args.spec)
         out_project(hub, data["result"], args.spec)
+
+def main_remove(hub, args):
+    current = hub.current
+    args = hub.args
+
+    name, ver, suffix = verutil.splitbasename(args.spec)
+    if suffix:
+        hub.fatal("can only delete releases, not single release files")
+    url = hub.get_project_url(name)
+    if ver:
+        url = url + ver + "/"
+    data = hub.http_api("get", url)
+    if confirm_delete(hub, data):
+        hub.http_api("delete", url)
+
+def confirm_delete(hub, data):
+    basepath = urlutil.getpath(hub.current.index).lstrip("/")
+    to_delete = []
+    if data["type"] == "projectconfig":
+        for version, verdata in data["result"].items():
+            to_delete.extend(match_release_files(basepath, verdata))
+    elif data["type"] == "versiondata":
+        to_delete.extend(match_release_files(basepath, data["result"]))
+    if not to_delete:
+        hub.line("nothing to delete")
+        return None
+    else:
+        hub.info("About to remove the following release files and metadata:")
+        for fil in to_delete:
+            hub.info("   " + fil)
+        return hub.ask_confirm("Are you sure")
+
+def match_release_files(basepath, verdata):
+    files = verdata.get("+files", [])
+    for fil in files.values():
+        if fil.startswith(basepath):
+            yield fil
+
+#def filter_versions(spec, lines):
+    #    ver = pkg_resources.parse_version(line)
+#    req = pkg_resources.Requirement.parse(spec)
+#    if ver in req:
+#        pass
 
 def getjson(hub, path):
     current = hub.current

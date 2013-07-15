@@ -10,10 +10,21 @@ server:
 - fixed issue8: only http/https archives are allowed and other
   schemes (such as ftp) are silently skipped
 
+- added support for REST DELETE methods of projects and versions on an index
+
+- added "argcomplete" support for tab completion on options
+  (thanks to Anthon van der Neut)
+
 client:
 
 - new "devpi list" command to show projects of the in-use index or all
   release files of a project with "devpi list PROJECTNAME".
+
+- new "devpi remove" command to remove releases from the current index,
+  including any contained release files
+
+- added "argcomplete" support for tab completion on options
+  (thanks to Anthon van der Neut)
 
 
 0.9.2 (compared to 0.9.1)

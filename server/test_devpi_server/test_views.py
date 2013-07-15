@@ -183,9 +183,51 @@ def test_upload_and_push_ok(httpget, db, mapp, testapp, monkeypatch):
     assert len(result) == 1
     assert result[0][0] == 500
 
+def test_upload_and_remove_project(httpget, db, mapp, testapp, monkeypatch):
+    mapp.create_and_login_user("user")
+    mapp.create_index("name")
+    r = testapp.delete("/user/name/pkg1/", expect_errors=True)
+    assert r.status_code == 404
+    mapp.upload_file_pypi(
+            "user", "name", "pkg1-2.6.tgz", "123", "pkg1", "2.6")
+    r = testapp.get("/user/name/+simple/pkg1/")
+    assert r.status_code == 200
+    r = testapp.delete("/user/name/pkg1/")
+    assert r.status_code == 200
+    data = mapp.getjson("/user/name/pkg1/")
+    #assert data["status"] == 404
+    assert not data["result"]
+
+def test_upload_and_remove_project_version(httpget, db,
+                                           mapp, testapp, monkeypatch):
+    mapp.create_and_login_user("user")
+    mapp.create_index("name")
+    r = testapp.delete("/user/name/pkg1/", expect_errors=True)
+    assert r.status_code == 404
+    mapp.upload_file_pypi(
+            "user", "name", "pkg1-2.6.tgz", "123", "pkg1", "2.6")
+    mapp.upload_file_pypi(
+            "user", "name", "pkg1-2.7.tgz", "123", "pkg1", "2.7")
+    r = testapp.get("/user/name/+simple/pkg1/")
+    assert r.status_code == 200
+    r = testapp.delete("/user/name/pkg1/1.0", expect_errors=True)
+    assert r.status_code == 404
+    r = testapp.delete("/user/name/pkg1/2.6/")
+    assert r.status_code == 200
+    assert mapp.getjson("/user/name/pkg1/")["status"] == 200
+    assert testapp.delete("/user/name/pkg1/2.7").status_code == 200
+    #assert mapp.getjson("/user/name/pkg1/")["status"] == 404
+    assert not mapp.getjson("/user/name/pkg1/")["result"]
+
 def test_upload_pypi_fails(httpget, db, mapp, testapp):
     mapp.upload_file_pypi(
             "root", "pypi", "pkg1-2.6.tgz", "123", "pkg1", "2.6", code=404)
+
+def test_delete_pypi_fails(httpget, db, mapp, testapp):
+    r = testapp.delete("/root/pypi/pytest/2.3.5", expect_errors=True)
+    assert r.status_code == 405
+    r = testapp.delete("/root/pypi/pytest", expect_errors=True)
+    assert r.status_code == 405
 
 def test_upload_docs_too_large(httpget, db, mapp, testapp):
     from devpi_server.views import MAXDOCZIPSIZE

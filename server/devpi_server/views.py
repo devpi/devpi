@@ -332,6 +332,8 @@ class PyPIView:
     def project_get(self, user, index, name):
         stage = self.getstage(user, index)
         metadata = stage.get_projectconfig(name)
+        #if not metadata:
+        #    apireturn("404", "project %r does not exist" % name)
         if json_preferred():
             apireturn(200, type="projectconfig", result=metadata)
         # html
@@ -350,6 +352,18 @@ class PyPIView:
             apireturn(409, "project %r exists" % name)
         stage.project_add(name)
         apireturn(201, "project %r created" % name)
+
+    @route("/<user>/<index>/<name>", method="DELETE")
+    @route("/<user>/<index>/<name>/", method="DELETE")
+    def project_delete(self, user, index, name):
+        self.require_user(user)
+        stage = self.getstage(user, index)
+        if stage.name == "root/pypi":
+            abort(405, "cannot delete on root/pypi index")
+        if not stage.project_exists(name):
+            apireturn(404, "project %r does not exist" % name)
+        stage.project_delete(name)
+        apireturn(200, "project %r deleted from stage %s" % (name, stage.name))
 
     @route("/<user>/<index>/<name>/<version>")
     @route("/<user>/<index>/<name>/<version>/")
@@ -383,6 +397,21 @@ class PyPIView:
                 rel="stylesheet", title="text",
                 href="https://pypi.python.org/styles/styles.css")]
         ).unicode(indent=2)
+
+    @route("/<user>/<index>/<name>/<version>", method="DELETE")
+    @route("/<user>/<index>/<name>/<version>/", method="DELETE")
+    def project_version_delete(self, user, index, name, version):
+        stage = self.getstage(user, index)
+        if stage.name == "root/pypi":
+            abort(405, "cannot delete on root/pypi index")
+        metadata = stage.get_projectconfig(name)
+        if not metadata:
+            abort(404, "project %r does not exist" % name)
+        verdata = metadata.get(version, None)
+        if not verdata:
+            abort(404, "version %r does not exist" % version)
+        stage.project_version_delete(name, version)
+        apireturn(200, "project %r version %r deleted" % (name, version))
 
     @route("/<user>/<index>/<name>/<version>/<relpath:re:.*>")
     @route("/<user>/<index>/f/<relpath:re:.*>")

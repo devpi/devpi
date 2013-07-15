@@ -135,7 +135,7 @@ class Hub:
         if not self.http.auth:
             self.fatal("you need to be logged in (use 'devpi login USER')")
 
-    def get_index_url(self, indexname=None, current=None):
+    def get_index_url(self, indexname=None, current=None, slash=True):
         if current is None:
             current = self.current
         if indexname is None:
@@ -146,7 +146,15 @@ class Hub:
             assert self.http.auth[0]
             userurl = current.getuserurl(self.http.auth[0])
             return urlutil.joinpath(userurl + "/", indexname)
-        return urlutil.joinpath(current.rooturl, indexname)
+        url = urlutil.joinpath(current.rooturl, indexname)
+        if slash:
+            url = url.rstrip("/") + "/"
+        return url
+
+    def get_project_url(self, name):
+        baseurl = self.get_index_url(slash=True)
+        url = urlutil.joinpath(baseurl, name) + "/"
+        return url
 
     def get_user_url(self):
         return self.current.getuserurl(self.http.auth[0])
@@ -226,6 +234,21 @@ class Hub:
         msg = " ".join(map(str, msgs))
         self._tw.line(msg, **kwargs)
 
+    def ask_confirm(self, msg):
+        got = None
+        choices = ("yes", "no")
+        choicestr = "/".join(choices)
+        question = "%s (%s)? " % (msg, choicestr)
+        if self.args.yes:
+            self.info(question + "yes (autoset from -y option)")
+            return True
+        while got not in choices:
+            got = raw_input(question)
+            if got in choices:
+                break
+            self.error("not a valid choice %r" % got)
+        return got == "yes"
+
     # semantic logging
     def debug(self, *msg):
         if self.args.debug and not self.quiet:
@@ -303,6 +326,8 @@ def add_generic_options(parser):
                        version="devpi-server-" + __version__)
     group.add_argument("--debug", action="store_true",
         help="show debug messages including more info on server requests")
+    group.add_argument("-y", action="store_true", dest="yes",
+        help="assume 'yes' on confirmation questions")
     #group.add_argument("-v", "--verbose", action="store_true",
     #    help="increase verbosity")
     group.add_argument("--clientdir", action="store", metavar="DIR",
@@ -338,12 +363,22 @@ def getjson(parser):
         help="path to a resource to show information on. "
              "examples: '/', '/user', '/user/index'.")
 
-@subcommand("devpi.list", "list")
+@subcommand("devpi.list_remove:main_list", "list")
 def list_(parser):
     """ list project versions and files """
     parser.add_argument("spec", nargs="?",
-        help="show only info for the project, specified by simple name "
-             "or by name-version")
+        help="show only info for a project/version/release file.  "
+             "Example specs: 'pytest' or 'pytest-2.3.5' or "
+             "'pytest-2.3.5.tar.gz'")
+
+@subcommand("devpi.list_remove:main_remove")
+def remove(parser):
+    """ remove project, project-versions and release-file
+    from the current index."""
+    parser.add_argument("spec",
+        help="remove info/files for a project/version/release file from the "
+             "current index. "
+             "Example specs: 'pytest' or 'pytest-2.3.5' or 'pytest-2.3.5.tar.gz'")
 
 @subcommand("devpi.user")
 def user(parser):

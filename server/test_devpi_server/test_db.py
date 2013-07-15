@@ -76,6 +76,27 @@ class TestStage:
         pconfig = stage.get_projectconfig("some")
         assert pconfig["1.0"]["+files"]["some-1.0.zip"].endswith("some-1.0.zip")
 
+    def test_store_and_delete_project(self, stage, bases):
+        content = "123"
+        entry = stage.store_releasefile("some-1.0.zip", content)
+        pconfig = stage.get_projectconfig_perstage("some")
+        assert pconfig["1.0"]
+        stage.project_delete("some")
+        pconfig = stage.get_projectconfig_perstage("some")
+        assert not pconfig
+
+    def test_store_and_delete_release(self, stage, bases):
+        content = "123"
+        entry = stage.store_releasefile("some-1.0.zip", content)
+        entry = stage.store_releasefile("some-1.1.zip", content)
+        pconfig = stage.get_projectconfig_perstage("some")
+        assert pconfig["1.0"] and pconfig["1.1"]
+        stage.project_version_delete("some", "1.0")
+        pconfig = stage.get_projectconfig_perstage("some")
+        assert pconfig["1.1"] and "1.0" not in pconfig
+        stage.project_version_delete("some", "1.1")
+        assert not stage.project_exists("some")
+
     def test_releasefile_sorting(self, stage, bases):
         content = "123"
         entry = stage.store_releasefile("some-1.1.zip", content)

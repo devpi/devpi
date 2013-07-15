@@ -4,9 +4,10 @@ import py
 import pytest
 import types
 from mock import Mock
-from devpi.list import out_index
-from devpi.list import out_project
-from devpi.list import getjson
+from devpi.list_remove import out_index
+from devpi.list_remove import out_project
+from devpi.list_remove import getjson
+from devpi.list_remove import confirm_delete
 
 @pytest.mark.parametrize(["input", "output"], [
     (["pkg1", "pkg2"], ["*pkg1*", "*pkg2*"]),
@@ -34,6 +35,19 @@ def test_out_project(loghub, input, output):
     matcher = loghub._getmatcher()
     matcher.fnmatch_lines(output)
 
+def test_confirm_delete(loghub, monkeypatch):
+    loghub.current.reconfigure(dict(
+                pypisubmit="/post",
+                simpleindex="/index",
+                index="/root/dev/",
+                login="/login",
+                ))
+    monkeypatch.setattr(loghub, "ask_confirm", lambda msg: True)
+    data = dict(type="versiondata",
+                result={"+files":
+                    {"x-1.tar.gz": "root/dev/files/x-1.tar.gz"}})
+    assert confirm_delete(loghub, data)
+
 
 def test_getjson(loghub):
     loghub.current.reconfigure(dict(
@@ -59,10 +73,5 @@ class TestList:
         devpi("upload", "--formats", "sdist.tbz")
         devpi("upload", "--formats", "sdist.tgz,bdist_dumb")
 
-        # logoff then upload
-        devpi("logoff")
-        devpi("upload", "--dry-run", code=404)
-
-        # go to other index
-        devpi("use", "root/pypi")
-        devpi("upload", "--dry-run", code=404)
+        devpi("list", "hello")
+        devpi("remove", "-y", "hello")
