@@ -175,6 +175,13 @@ class TestExtPYPIDB:
         data = config["1.0"]
         assert data["+files"]
 
+    def test_getdescription(self, extdb):
+        extdb.setextsimple("pytest", text='''
+            <a href="../../pkg/pytest-1.0.zip#md5=123" />''')
+        content = extdb.get_description("pytest", "1.0")
+        assert "refer" in content
+        assert "https://pypi.python.org/pypi/pytest/1.0/" in content
+
     def test_getprojectconfig_with_egg(self, extdb):
         extdb.setextsimple("pytest", text='''
             <a href="../../pkg/tip.zip#egg=pytest-dev" />''')

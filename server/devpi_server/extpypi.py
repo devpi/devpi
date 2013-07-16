@@ -9,6 +9,7 @@ import re
 import py
 import sys
 import threading
+html = py.xml.html
 
 from .vendor._pip import HTMLPage
 
@@ -238,6 +239,11 @@ class ExtDB:
             files = verdata.setdefault("+files", {})
             files[url.basename] = link.relpath
         return data
+
+    def get_description(self, name, version):
+        link = "https://pypi.python.org/pypi/%s/%s/" % (name, version)
+        return html.div("please refer to description on remote server ",
+            html.a(link, href=link)).unicode(indent=2)
 
     def spawned_pypichanges(self, proxy, proxysleep):
         log.info("changelog/update tasks starting")
