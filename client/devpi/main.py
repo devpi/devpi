@@ -337,7 +337,7 @@ def add_generic_options(parser):
 
 @subcommand("devpi.use")
 def use(parser):
-    """ show or configure remote index and target venv for install
+    """ show/configure current index and target venv for install
     activities. """
 
     parser.add_argument("--venv", action="store", default=None,
@@ -365,7 +365,7 @@ def getjson(parser):
 
 @subcommand("devpi.list_remove:main_list", "list")
 def list_(parser):
-    """ list project versions and files """
+    """ list project versions and files for the current index"""
     parser.add_argument("spec", nargs="?",
         help="show only info for a project/version/release file.  "
              "Example specs: 'pytest' or 'pytest-2.3.5' or "
@@ -373,8 +373,7 @@ def list_(parser):
 
 @subcommand("devpi.list_remove:main_remove")
 def remove(parser):
-    """ remove project, project-versions and release-file
-    from the current index."""
+    """ remove project info/files from current index. """
     parser.add_argument("spec",
         help="remove info/files for a project/version/release file from the "
              "current index. "
