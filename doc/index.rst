@@ -3,18 +3,22 @@ devpi: pypi caching server and one-stop tool for python packaging
 
 .. include:: links.rst
 
-The **devpi** project aims to support a variety of company- and
-user-specific Python Package release, testing and installation 
-activities.  The project provides a devpi_ meta package pulling 
-in two, also separately installable, MIT-licensed packages:
+The devpi project features a powerful PyPI server and a command line
+tool to help with release, testing and installation activities.  For
+your convenience and single laptop usage, the devpi_ meta package pulls
+in both the server and client packages:
 
 - ``devpi-server``: well-tested and easy-to-use pypi server with
-  some :doc:`unique features <features-server>`.
+  some :doc:`unique features <features-server>`, among them a self-updating
+  pypi.python.org cache and private overlay indexes (merging in all packages
+  from parent indexes).
 
-- ``devpi-client``: one-stop ``devpi`` tool with sub commands for managing 
-  users and github-style user/INDEX overlay indexes, and wrapping
-  common upload/test/install activities.
+- ``devpi-client``: one-stop ``devpi`` tool with sub commands for
+  uploading, testing and push-to-pypi operations as well as managing 
+  users and github-style user/INDEX overlay indexes.
 
+If you aim for single-laptop usage and quickly trying things out, read on below.  
+If you aim for a company wide setup, checkout :doc:`quickstart-server`.
 
 Quickstart: install, upload, test, push 
 --------------------------------------------
