@@ -79,7 +79,7 @@ def confirm_delete(hub, data):
         return hub.ask_confirm("Are you sure")
 
 def match_release_files(basepath, verdata):
-    files = verdata.get("+files", [])
+    files = verdata.get("+files", {})
     for fil in files.values():
         if fil.startswith(basepath):
             yield fil
