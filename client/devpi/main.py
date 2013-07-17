@@ -323,7 +323,7 @@ def getbasebaser(prog):
 def add_generic_options(parser):
     group = parser.add_argument_group("generic options")
     group.add_argument("--version", action="version",
-                       version="devpi-server-" + __version__)
+                       version=devpi.__version__)
     group.add_argument("--debug", action="store_true",
         help="show debug messages including more info on server requests")
     group.add_argument("-y", action="store_true", dest="yes",

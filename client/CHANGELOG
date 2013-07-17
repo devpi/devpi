@@ -1,4 +1,4 @@
-0.9.4
+0.9.3.1
 -------------------------------
 
 - fix uploading by adding setup.py's dir to sys.path:  setup.py 
