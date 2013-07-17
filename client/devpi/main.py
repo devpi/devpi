@@ -42,7 +42,10 @@ def check_output(*args, **kwargs):
         cmd = kwargs.get("args")
         if cmd is None:
             cmd = args[0]
-        raise CalledProcessError(retcode, cmd, output=output)
+        if sys.version_info < (2,7) and sys.platform == "win32":
+            raise CalledProcessError(retcode, cmd)
+        else:
+            raise CalledProcessError(retcode, cmd, output=output)
     return output
 
 class Hub:

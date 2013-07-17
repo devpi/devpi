@@ -38,6 +38,8 @@ class ReleaseFileStore:
 
     def iterfile(self, relpath, httpget, chunksize=8192*16):
         entry = self.getentry(relpath)
+        if not entry.PATHENTRY.exists():
+            return None, None
         cached = entry.iscached() and not entry.eggfragment
         if cached:
             headers, iterable = self.iterfile_local(entry, chunksize)

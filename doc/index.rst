@@ -20,6 +20,8 @@ in both the server and client packages:
 If you aim for single-laptop usage and quickly trying things out, read on below.  
 If you aim for a company wide setup, checkout :doc:`quickstart-server`.
 
+**Compatibility: Windows/Python2.7, Linux/Python2.6,2.7, OSX/Python2.6/2.7**
+
 Quickstart: install, upload, test, push 
 --------------------------------------------
 

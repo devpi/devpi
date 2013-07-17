@@ -419,6 +419,8 @@ class PyPIView:
         relpath = request.path.strip("/")
         filestore = self.xom.releasefilestore
         headers, itercontent = filestore.iterfile(relpath, self.xom.httpget)
+        if headers is None:
+            abort(404, "no such file")
         response.content_type = headers["content-type"]
         if "content-length" in headers:
             response.content_length = headers["content-length"]

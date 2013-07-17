@@ -1,4 +1,21 @@
 
+0.9.4
+----------------------------
+
+server: 
+
+- fix issue where lookups into subpages of the simple index
+  (simple/NAME/VER) would not trigger a 404 as they should.
+
+client:
+
+- fix uploading by adding setup.py's dir to sys.path:  setup.py 
+  files that import modules/packages for obtaining versions etc.
+  now work. Thanks jbasko.
+
+- fix automatic devpi-server startup on python26/windows 
+
+
 0.9.3
 ----------------------------
 

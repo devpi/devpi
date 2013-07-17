@@ -1,9 +1,11 @@
-0.9.3.1
+0.9.4
 -------------------------------
 
 - fix uploading by adding setup.py's dir to sys.path:  setup.py 
   files that import modules/packages for obtaining versions etc.
   now work. Thanks jbasko.
+
+- fix automatic devpi-server startup on python26/windows 
 
 0.9.3
 -------------------------------

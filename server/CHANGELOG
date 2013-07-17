@@ -1,3 +1,9 @@
+0.9.4
+----------------
+
+- fix issue where lookups into subpages of the simple index
+  (simple/NAME/VER) would not trigger a 404 as they should.
+
 0.9.3
 ----------------
 

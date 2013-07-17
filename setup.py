@@ -11,11 +11,11 @@ if __name__ == "__main__":
     setup(
       name="devpi",
       description="devpi: github-style pypi index server and packaging meta tool.",
-      install_requires = ["devpi-server>=0.9.3", "devpi-client>=0.9.3"],
+      install_requires = ["devpi-server>=0.9.4,<0.9.5", "devpi-client>=0.9.4,<0.9.5"],
       keywords="pypi cache server installer wsgi",
       long_description=README + '\n\n' + CHANGES,
       url="http://doc.devpi.net",
-      version='0.9.4.dev1',
+      version='0.9.4',
       maintainer="Holger Krekel",
       maintainer_email="holger@merlinux.eu",
       zip_safe=False,
