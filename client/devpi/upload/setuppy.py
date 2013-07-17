@@ -1,4 +1,4 @@
-import os
+import os, sys
 
 def _prepare_distutils():
     import os, sys, urlparse
@@ -20,9 +20,11 @@ def _prepare_distutils():
     user = sys.argv[3]
     password = sys.argv[4]
     os.chdir(setupdir)
+    # Invoking "python setup.py prepends the directory of the setup.py file.
+    # (and many packages import things to obtain a version)
+    sys.path.insert(0, setupdir)
     del sys.argv[:5]
     sys.argv.insert(0, "setup.py")
-
 
 def run_setuppy():
     # Modify global namespace for execution of setup.py.

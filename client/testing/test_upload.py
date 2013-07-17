@@ -114,7 +114,9 @@ def test_readpypirc(monkeypatch, tmpdir):
     monkeypatch.setattr(sys, "argv", ["xxx", str(tmpdir), "http://something",
                                       "user", "password",
                                       "register", "1"])
+    assert str(tmpdir) not in sys.path
     _prepare_distutils()
+    assert str(tmpdir) in sys.path
     cmd = types.InstanceType(PyPIRCCommand)
     current = PyPIRCCommand._read_pypirc(cmd)
     assert current["server"] == "devpi"

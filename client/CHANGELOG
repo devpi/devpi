@@ -1,3 +1,10 @@
+0.9.4
+-------------------------------
+
+- fix uploading by adding setup.py's dir to sys.path:  setup.py 
+  files that import modules/packages for obtaining versions etc.
+  now work. Thanks jbasko.
+
 0.9.3
 -------------------------------
 
