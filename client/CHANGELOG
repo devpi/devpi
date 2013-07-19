@@ -1,3 +1,9 @@
+0.9.5.dev1
+-------------------------------
+
+- remove spurious pdb.set_trace() in devpi install command when
+  no pip can be found.
+
 0.9.4
 -------------------------------
 

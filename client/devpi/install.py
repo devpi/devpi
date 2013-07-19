@@ -18,7 +18,6 @@ def main(hub, args):
             hub.popen_check(["virtualenv", venv] + xopt)
     pip_path = current.getvenvbin("pip", venvdir=venv, glob=True)
     if not pip_path:
-        import pdb ; pdb.set_trace()
         hub.fatal("no pip binary found")
     if args.listinstalled:
         hub.info("list of installed packages on", current.venvdir)
