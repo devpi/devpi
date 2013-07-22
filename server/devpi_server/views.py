@@ -511,10 +511,10 @@ class PyPIView:
         if self.db.user_exists(user):
             apireturn(409, "user already exists")
         kvdict = getjson()
-        if "password" in kvdict and "email" in kvdict:
+        if "password" in kvdict:  # and "email" in kvdict:
             hash = self.db.user_create(user, **kvdict)
             apireturn(201, type="userconfig", result=self.db.user_get(user))
-        apireturn(400, "password and email values need to be set")
+        apireturn(400, "password needs to be set")
 
     @route("/<user>", method="DELETE")
     def user_delete(self, user):

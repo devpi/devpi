@@ -318,13 +318,15 @@ class Mapp:
         self.testapp.auth = (self.testapp.auth[0], r.json["password"])
 
     def create_user(self, user, password, email="hello@example.com", code=201):
-        reqdict = dict(password=password, email=email)
+        reqdict = dict(password=password)
+        if email:
+            reqdict["email"] = email
         r = self.testapp.put_json("/%s" % user, reqdict, expect_errors=True)
         assert r.status_code == code
         if code == 201:
             res = r.json["result"]
             assert res["username"] == user
-            assert res["email"] == email
+            assert res.get("email") == email
 
     def modify_user(self, user, code=200, password=None, email=None):
         reqdict = {}

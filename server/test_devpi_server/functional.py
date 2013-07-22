@@ -21,6 +21,19 @@ class TestUserThings:
         mapp.login("hello", password, code=401)
         assert "hello" not in mapp.getuserlist()
 
+    def test_create_and_delete_user_no_email(self, mapp):
+        name = "hello_noemail"
+        password = "somepassword123123"
+        assert name not in mapp.getuserlist()
+        mapp.create_user(name, password, email=None)
+        mapp.create_user(name, password, code=409)
+        assert name in mapp.getuserlist()
+        mapp.login(name, "qweqwe", code=401)
+        mapp.login(name, password)
+        mapp.delete_user(name)
+        mapp.login(name, password, code=401)
+        assert name not in mapp.getuserlist()
+
     def test_delete_not_existent_user(self, mapp):
         mapp.login("root", "")
         mapp.delete_user("qlwkje", code=404)

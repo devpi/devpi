@@ -29,10 +29,11 @@ class DB:
         with self.keyfs.USER(user=user).update() as userconfig:
             return self._setpassword(userconfig, user, password)
 
-    def user_create(self, user, password, email):
+    def user_create(self, user, password, email=None):
         with self.keyfs.USER(user=user).update() as userconfig:
             hash = self._setpassword(userconfig, user, password)
-            userconfig["email"] = email
+            if email:
+                userconfig["email"] = email
             log.info("created user %r with email %r" %(user, email))
             return hash
 
