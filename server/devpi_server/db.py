@@ -11,10 +11,28 @@ import logging
 log = logging.getLogger(__name__)
 
 def getpwhash(password, salt):
+    print "password: %r, salt: %r" %(password, salt)
     hash = hashlib.sha256()
     hash.update(salt)
     hash.update(password)
     return hash.hexdigest()
+
+def run_passwd(db, user):
+    if not db.user_exists(user):
+        log.error("user %r not found" % user)
+        return 1
+    for i in range(3):
+        pwd = py.std.getpass.getpass("enter password for %s: " % user)
+        pwd2 = py.std.getpass.getpass("repeat password for %s: " % user)
+        if pwd != pwd2:
+            log.error("password don't match")
+        else:
+            break
+    else:
+        log.error("no password set")
+        return 1
+    db.user_setpassword(user, pwd)
+
 
 _ixconfigattr = set("type volatile bases acl_upload".split())
 
@@ -40,7 +58,7 @@ class DB:
     def _setpassword(self, userconfig, user, password):
         userconfig["pwsalt"] = salt = os.urandom(16).encode("base_64")
         userconfig["pwhash"] = hash = getpwhash(password, salt)
-        log.info("setting password for user %r", user)
+        log.info("setting password for user %r to %r", user, password)
         return hash
 
     def user_delete(self, user):

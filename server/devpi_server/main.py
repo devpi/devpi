@@ -31,6 +31,9 @@ def main(argv=None):
 
     configure_logging(config)
     xom = XOM(config)
+    if config.args.passwd:
+        from devpi_server.db import run_passwd
+        return run_passwd(xom.db, config.args.passwd)
     return bottle_run(xom)
 
 def make_application():
@@ -44,6 +47,7 @@ def bottle_run(xom):
                          catchall=not xom.config.args.debug)
     port = xom.config.args.port
     log.info("devpi-server version: %s", devpi_server.__version__)
+    log.info("datadir: %s" % xom.datadir)
     log.info("serving at url: http://%s:%s/",
              xom.config.args.host, xom.config.args.port)
     log.info("bug tracker: https://bitbucket.org/hpk42/devpi/issues")

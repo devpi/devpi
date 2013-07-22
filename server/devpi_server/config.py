@@ -31,6 +31,8 @@ def addoptions(parser):
             default=60,
             help="interval for consulting changelog api of pypi.python.org")
 
+    group.addoption("--passwd", action="store", metavar="USER",
+            help="set password for user USER (interactive)")
     group = parser.addgroup("deploy", "deployment options")
     group.addoption("--gendeploy", action="store", metavar="DIR",
             help="(unix only) generate a pre-configured self-contained "

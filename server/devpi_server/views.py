@@ -499,6 +499,7 @@ class PyPIView:
         dict = getjson()
         user = dict.get("user", None)
         password = dict.get("password", None)
+        log.debug("got password %r" % password)
         if user is None or password is None:
             abort(400, "Bad request: no user/password specified")
         hash = self.db.user_validate(user, password)

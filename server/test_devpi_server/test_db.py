@@ -11,7 +11,6 @@ def test_create_zipfile(tmpdir):
     content = create_zipfile({"one": {"nested": "1"}, "two": {}})
     tmpdir.join("hello.zip").write(content, "wb")
 
-
 class TestStage:
     @pytest.fixture
     def stage(self, request, db):
@@ -205,6 +204,12 @@ class TestUsers:
         db.user_delete("user3")
         newusers = db.user_list().difference(baselist)
         assert newusers == set("user1 user2".split())
+
+    def test_server_passwd(self, db, monkeypatch):
+        from devpi_server.db import run_passwd
+        monkeypatch.setattr(py.std.getpass, "getpass", lambda x: "123")
+        run_passwd(db, "root")
+        assert db.user_validate("root", "123")
 
 def test_setdefault_indexes(db):
     from devpi_server.main import set_default_indexes

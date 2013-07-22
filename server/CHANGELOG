@@ -5,6 +5,8 @@ next version
   user and acl_upload users may upload releases, files 
   or documentation to an index.
 
+- add --passwd USER option for setting a user's password server-side
+
 - don't require email setting for creating users
 
 0.9.4
