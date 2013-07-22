@@ -31,6 +31,13 @@ class TestStage:
         assert not db.user_indexconfig_get(user="hello", index="world2")
         assert db.user_indexconfig_get(user="hello", index="world")
 
+    def test_create_and_delete_with_acl(self, db):
+        db.user_indexconfig_set(user="hello", index="world", bases=(),
+                                type="stage", volatile=False,
+                                acl_upload=["root"])
+        indexconfig = db.user_indexconfig_get(user="hello", index="world")
+        assert indexconfig["acl_upload"] == ["root"]
+
     def test_not_configured_index(self, db):
         stagename = "hello/world"
         assert not db.getindexconfig(stagename)

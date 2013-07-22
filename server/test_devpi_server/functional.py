@@ -43,8 +43,10 @@ class TestUserThings:
         mapp.change_password("root", "p1oi2p3i")
         mapp.login("root", "p1oi2p3i")
 
-
 class TestIndexThings:
+
+    def test_getjson_non_existent(self, mapp):
+        mapp.getjson("/whatever/index", 404)
 
     def test_create_index(self, mapp):
         mapp.create_and_login_user()
@@ -62,6 +64,15 @@ class TestIndexThings:
         mapp.change_password("root", "asd")
         mapp.create_and_login_user("newuser1")
         mapp.create_index("root/test2", 401)
+
+    def test_create_index_and_acls(self, mapp):
+        username = "newuser2"
+        mapp.create_and_login_user(username)
+        mapp.create_index("root/test2")
+        mapp.set_acl("root/test2", [username])
+        assert username in mapp.get_acl("root/test2")
+        mapp.set_acl("root/test2", [])
+        assert username not in mapp.get_acl("root/test2")
 
     def test_config_get_user_empty(self, mapp):
         mapp.getjson("/user", code=404)

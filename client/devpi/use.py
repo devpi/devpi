@@ -151,8 +151,8 @@ def main(hub, args=None):
             hub.error("not using any index (use 'index -l')")
         else:
             hub.info("using index:  " + current.index)
-    if current.bases:
-        hub.info("base indexes: " + current.bases)
+    #if current.bases:
+    #    hub.info("base indexes: " + current.bases)
     if current.venvdir:
         hub.info("install venv: %s" % current.venvdir)
     else:

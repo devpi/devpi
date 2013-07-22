@@ -16,7 +16,7 @@ def getpwhash(password, salt):
     hash.update(password)
     return hash.hexdigest()
 
-_ixconfigattr = set("type volatile bases".split())
+_ixconfigattr = set("type volatile bases acl_upload".split())
 
 class DB:
 
@@ -73,9 +73,12 @@ class DB:
     def user_indexconfig_get(self, user, index):
         userconfig = self.keyfs.USER(user=user).get()
         try:
-            return userconfig["indexes"][index]
+            indexconfig = userconfig["indexes"][index]
         except KeyError:
             return None
+        if "acl_upload" not in indexconfig:
+            indexconfig["acl_upload"] = [user]
+        return indexconfig
 
     def user_indexconfig_set(self, user, index=None, **kw):
         if index is None:
@@ -85,8 +88,10 @@ class DB:
             indexes = userconfig.setdefault("indexes", {})
             ixconfig = indexes.setdefault(index, {})
             ixconfig.update(kw)
-            if not set(ixconfig) == _ixconfigattr:
-                raise ValueError("incomplete config: %s" % ixconfig)
+            if "acl_upload" not in ixconfig:
+                ixconfig["acl_upload"] = []
+            #if not set(ixconfig) == _ixconfigattr:
+            #    raise ValueError("incomplete config: %s" % ixconfig)
             log.debug("configure_index %s/%s: %s", user, index, ixconfig)
             return ixconfig
 

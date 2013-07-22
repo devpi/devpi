@@ -42,7 +42,8 @@ class Mapp:
 
     def getjson(self, path, code=200):
         result = self.out_devpi("getjson", path, code=code)
-        return std.json.loads(result.stdout.str())
+        if code == 200:
+            return std.json.loads(result.stdout.str())
 
     def getindexlist(self):
         result = self.out_devpi("index", "-l")
@@ -72,8 +73,24 @@ class Mapp:
         #user, password = self.auth
         self.devpi("index", "-c", indexname, code=code)
 
+    def set_acl(self, indexname, acls, code=200):
+        #user, password = self.auth
+        if isinstance(acls, list):
+            acls = ",".join(acls)
+        self.devpi("index", indexname, "acl_upload=%s" % acls, code=200)
+
+    def get_acl(self, indexname, code=200):
+        result = self.out_devpi("index", indexname)
+        for line in result.outlines:
+            line = line.strip()
+            parts = line.split("acl_upload=", 1)
+            if len(parts) == 2:
+                return parts[1].split(",")
+        return  []
+
     def create_project(self, indexname, code=201):
         pytest.xfail(reason="no way to create project via command line yet")
+
 
 
 

@@ -1,6 +1,10 @@
 next version
 ----------------
 
+- add setting of acl_upload for indexes.   Only the owning
+  user and acl_upload users may upload releases, files 
+  or documentation to an index.
+
 - don't require email setting for creating users
 
 0.9.4

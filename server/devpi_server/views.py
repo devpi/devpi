@@ -81,31 +81,42 @@ class PyPIView:
     def signer(self):
         return itsdangerous.TimestampSigner(self.xom.config.secret)
 
-    def require_user(self, user):
+    def get_auth_user(self):
+        try:
+            authuser, authpassword = request.auth
+        except TypeError:
+            log.debug("could not read auth header")
+            return None
+        try:
+            val = self.signer.unsign(authpassword, self.LOGIN_EXPIRATION)
+        except itsdangerous.BadData:
+            if self.db.user_validate(authuser, authpassword):
+                return authuser
+            return None
+        else:
+            if not val.startswith(authuser + "-"):
+                log.debug("mismatch credential for user %r", authuser)
+                return None
+            return authuser
+
+    def require_user(self, user, stage=None, acltype="upload"):
         #log.debug("headers %r", request.headers.items())
         if not self.db.user_exists(user):
             abort(404, "user %r does not exist" % user)
         if self.db.user_validate("root", ""):  # has empty password?
             return  # then we don't require any authentication
-        try:
-            authuser, authpassword = request.auth
-        except TypeError:
-            log.warn("could not read auth header")
+        auth_user = self.get_auth_user()
+        if not auth_user:
+            log.warn("invalid or no authentication")
             abort_authenticate()
-        log.debug("detected auth for user %r", authuser)
-        try:
-            val = self.signer.unsign(authpassword, self.LOGIN_EXPIRATION)
-        except itsdangerous.BadData:
-            if self.db.user_validate(authuser, authpassword):
-                return
-            log.warn("invalid authentication for user %r", authuser)
-            abort_authenticate()
-        if not val.startswith(authuser + "-"):
-            log.warn("mismatch credential for user %r", authuser)
-            abort_authenticate()
-        if authuser == "root" or authuser == user:
+        if auth_user == "root" or auth_user == user:
             return
-        log.warn("user %r not authorized, requiring %r", authuser, user)
+        if stage:
+            acl = stage.ixconfig.get("acl_" + acltype, [])
+            if auth_user in acl:
+                log.debug("user %r is acl_upload list", auth_user)
+                return
+        log.info("user %r not authorized", auth_user)
         abort_authenticate()
 
     def set_user(self, user, hash):
@@ -206,13 +217,12 @@ class PyPIView:
         kvdict.setdefault("bases", ["root/dev"])
         kvdict.setdefault("volatile", True)
         ixconfig = self.db.user_indexconfig_set(user, index, **kvdict)
-        apireturn(201, type="indexconfig", result=ixconfig)
+        apireturn(200, type="indexconfig", result=ixconfig)
 
     @route("/<user>/<index>", method=["GET"])
     def index_get(self, user, index):
-        ixconfig = self.db.user_indexconfig_get(user, index)
-        #if json_preferred():
-        apireturn(200, type="indexconfig", result=ixconfig)
+        stage = self.getstage(user, index)
+        apireturn(200, type="indexconfig", result=stage.ixconfig)
 
     @route("/<user>/<index>", method=["DELETE"])
     def index_delete(self, user, index):
@@ -275,12 +285,12 @@ class PyPIView:
     def submit(self, user, index):
         if user == "root" and index == "pypi":
             abort(404, "cannot submit to pypi mirror")
-        self.require_user(user)
+        stage = self.getstage(user, index)
+        self.require_user(user, stage=stage)
         try:
             action = request.forms[":action"]
         except KeyError:
             abort(400, ":action field not found")
-        stage = self.getstage(user, index)
         if action == "submit":
             return self._register_metadata(stage, request.forms)
         elif action in ("doc_upload", "file_upload"):
@@ -556,7 +566,8 @@ def getkvdict_index(req):
     req_volatile = req.get("volatile")
     kvdict = dict(volatile=True, type="stage", bases=["root/dev"])
     if req_volatile is not None:
-        if req_volatile == False or req_volatile.lower() in ["false", "no"]:
+        if req_volatile == False or (req_volatile != True and
+            req_volatile.lower() in ["false", "no"]):
             kvdict["volatile"] = False
     bases = req.get("bases")
     if bases is not None:
@@ -566,4 +577,6 @@ def getkvdict_index(req):
             kvdict["bases"] = bases
     if "type" in req:
         kvdict["type"] = req["type"]
+    if "acl_upload" in req:
+        kvdict["acl_upload"] = req["acl_upload"]
     return kvdict

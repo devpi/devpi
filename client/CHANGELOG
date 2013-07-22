@@ -4,6 +4,8 @@
 - remove spurious pdb.set_trace() in devpi install command when
   no pip can be found.
 
+- show and allow to set "acl_upload" for uploading priviliges
+
 0.9.4
 -------------------------------
 

@@ -202,6 +202,24 @@ def test_upload_and_remove_project(httpget, db, mapp, testapp, monkeypatch):
     #assert data["status"] == 404
     assert not data["result"]
 
+def test_upload_with_acl(httpget, db, mapp, testapp, monkeypatch):
+    mapp.login("root")
+    mapp.change_password("root", "123")
+    mapp.create_user("user", "123")
+
+    mapp.create_and_login_user("i1", "456")
+    mapp.create_index("dev")
+
+    mapp.login("user", "123")
+    # user cannot write to index now
+    mapp.upload_file_pypi(
+            "i1", "dev", "pkg1-2.6.tgz", "123", "pkg1", "2.6", code=401)
+    mapp.login("i1", "456")
+    mapp.set_acl("i1/dev", ["user"])
+    mapp.login("user", "123")
+    mapp.upload_file_pypi(
+            "i1", "dev", "pkg1-2.6.tgz", "123", "pkg1", "2.6")
+
 def test_upload_and_remove_project_version(httpget, db,
                                            mapp, testapp, monkeypatch):
     mapp.create_and_login_user("user")
@@ -347,16 +365,16 @@ class Mapp:
             self.create_user(user, password)
         assert "409" in excinfo.value.args[0]
 
-    def create_and_login_user(self, user="someuser"):
-        self.create_user(user, "123")
-        self.login(user, "123")
+    def create_and_login_user(self, user="someuser", password="123"):
+        self.create_user(user, password)
+        self.login(user, password)
 
     def getjson(self, path, code=200):
         r = self.testapp.get_json(path, {}, expect_errors=True)
         assert r.status_code == code
         return r.json
 
-    def create_index(self, indexname, code=201):
+    def create_index(self, indexname, code=200):
         if "/" in indexname:
             user, index = indexname.split("/")
         else:
@@ -367,6 +385,20 @@ class Mapp:
         assert r.status_code == code
         if code in (200,201):
             assert r.json["result"]["type"] == "stage"
+
+    def set_acl(self, indexname, users, acltype="upload"):
+        r = self.testapp.get_json("/%s" % indexname)
+        result = r.json["result"]
+        if not isinstance(users, list):
+            users = users.split(",")
+        assert isinstance(users, list)
+        result["acl_upload"] = users
+        r = self.testapp.patch_json("/%s" % (indexname,), result)
+        assert r.status_code == 200
+
+    def get_acl(self, indexname, acltype="upload"):
+        r = self.testapp.get_json("/%s" % indexname)
+        return r.json["result"].get("acl_" + acltype, None)
 
     def create_project(self, indexname, projectname, code=201):
         user, password = self.testapp.auth
@@ -401,6 +433,9 @@ class Mapp:
       dict(type="stage", volatile=False, bases=["root/pypi"])),
     ({"volatile": "False", "bases": ["root/pypi"]},
       dict(type="stage", volatile=False, bases=["root/pypi"])),
+    ({"volatile": "False", "bases": ["root/pypi"], "acl_upload": ["hello"]},
+      dict(type="stage", volatile=False, bases=["root/pypi"],
+           acl_upload=["hello"])),
 ])
 def test_kvdict(input, expected):
     from devpi_server.views import getkvdict_index
