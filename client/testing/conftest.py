@@ -321,6 +321,7 @@ def runprocess(tmpdir, cmdargs):
 
 
 import pytest
+from mock import Mock
 import devpi.util.url as urlutil
 from devpi import log
 
@@ -378,6 +379,7 @@ def loghub(tmpdir):
         lines = out.getvalue().split("\n")
         return LineMatcher(lines)
     hub._getmatcher = _getmatcher
+    hub.http_api = Mock()
     return hub
 
 @pytest.fixture(scope="session")

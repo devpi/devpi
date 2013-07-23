@@ -1,6 +1,8 @@
 next version
 ----------------
 
+- implemented internal push operation between devpi indexes
+
 - add setting of acl_upload for indexes.   Only the owning
   user and acl_upload users may upload releases, files 
   or documentation to an index.

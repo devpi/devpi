@@ -30,12 +30,15 @@ class TestStage:
         assert not db.user_indexconfig_get(user="hello", index="world2")
         assert db.user_indexconfig_get(user="hello", index="world")
 
-    def test_create_and_delete_with_acl(self, db):
+    def test_set_and_get_acl(self, db):
         db.user_indexconfig_set(user="hello", index="world", bases=(),
                                 type="stage", volatile=False,
                                 acl_upload=["root"])
         indexconfig = db.user_indexconfig_get(user="hello", index="world")
         assert indexconfig["acl_upload"] == ["root"]
+        stage = db.getstage("hello/world")
+        assert stage.can_upload("root")
+        assert not stage.can_upload("qweqwe")
 
     def test_not_configured_index(self, db):
         stagename = "hello/world"
@@ -154,6 +157,9 @@ class TestStage:
         stage.register_metadata(dict(name="hello", version="1.0", author="xy"))
         d = stage.get_metadata("hello", "1.0")
         assert d["author"] == "xy"
+        #stage.ixconfig["volatile"] = False
+        #with pytest.raises(stage.MetadataExists):
+        #    stage.register_metadata(dict(name="hello", version="1.0"))
 
     def test_releasedata_description(self, stage):
         source = py.std.textwrap.dedent("""\

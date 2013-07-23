@@ -25,8 +25,12 @@ class MyTestApp(TApp):
                 headers = kw["headers"] = {}
             auth = ("%s:%s" % self.auth).encode("base64")
             headers["Authorization"] = "Basic %s" % auth
-            print ("setting auth header %r" % auth)
+            #print ("setting auth header %r %s %s" % (auth, method, url))
         return super(MyTestApp, self)._gen_request(method, url, **kw)
+
+    def push(self, url, params=None, **kw):
+        kw.setdefault("expect_errors", True)
+        return self._gen_request("push", url, params=params, **kw)
 
     def get(self, *args, **kwargs):
         if "expect_errors" not in kwargs:
@@ -142,7 +146,53 @@ def test_register_metadata_and_get_description(httpget, db, mapp, testapp):
     assert r.status_code == 200
     assert "1.0" in r.json["result"]
 
-def test_upload_and_push_ok(httpget, db, mapp, testapp, monkeypatch):
+def test_push_non_existent(httpget, db, mapp, testapp, monkeypatch):
+    # check that push from non-existent index results in 404
+    req = dict(name="pkg5", version="2.6", targetindex="user2/dev")
+    r = testapp.push("/user2/dev/", json.dumps(req), expect_errors=True)
+    assert r.status_code == 404
+    mapp.create_and_login_user("user1", "1")
+    mapp.create_index("dev")
+
+    # check that push to non-existent target index results in 404
+    r = testapp.push("/user1/dev/", json.dumps(req), expect_errors=True)
+    assert r.status_code == 404
+
+    mapp.create_and_login_user("user2")
+    mapp.create_index("dev", indexconfig=dict(acl_upload=["user2"]))
+    mapp.login("user1", "1")
+    # check that push of non-existent release results in 404
+    r = testapp.push("/user1/dev/", json.dumps(req), expect_errors=True)
+    assert r.status_code == 404
+    #
+    mapp.upload_file_pypi(
+            "user1", "dev", "pkg5-2.6.tgz", "123", "pkg5", "2.6")
+    # check that push to non-authoried existent target index results in 401
+    r = testapp.push("/user1/dev/", json.dumps(req), expect_errors=True)
+    assert r.status_code == 401
+
+def test_upload_and_push_internal(httpget, db, mapp, testapp, monkeypatch):
+    mapp.create_user("user1", "1")
+    mapp.create_and_login_user("user2")
+    mapp.create_index("prod", indexconfig=dict(acl_upload=["user1", "user2"]))
+    mapp.create_index("dev", indexconfig=dict(acl_upload=["user2"]))
+    print mapp.getjson("/user2/prod")
+
+    mapp.login("user1", "1")
+    mapp.create_index("dev")
+    mapp.upload_file_pypi(
+            "user1", "dev", "pkg1-2.6.tgz", "123", "pkg1", "2.6")
+
+    # check that push is authorized and executed towards user2/prod index
+    req = dict(name="pkg1", version="2.6", targetindex="user2/prod")
+    r = testapp.push("/user1/dev/", json.dumps(req))
+    assert r.status_code == 200
+    r = testapp.get_json("/user2/prod/pkg1/2.6")
+    assert r.status_code == 200
+    relpath = r.json["result"]["+files"]["pkg1-2.6.tgz"]
+    assert relpath == "user2/prod/pkg1/2.6/pkg1-2.6.tgz"
+
+def test_upload_and_push_remote_ok(httpget, db, mapp, testapp, monkeypatch):
     mapp.create_and_login_user("user")
     mapp.create_index("name")
     mapp.upload_file_pypi(
@@ -374,13 +424,15 @@ class Mapp:
         assert r.status_code == code
         return r.json
 
-    def create_index(self, indexname, code=200):
+    def create_index(self, indexname, indexconfig=None, code=200):
+        if indexconfig is None:
+            indexconfig = {}
         if "/" in indexname:
             user, index = indexname.split("/")
         else:
             user, password = self.testapp.auth
             index = indexname
-        r = self.testapp.put_json("/%s/%s" % (user, index), {},
+        r = self.testapp.put_json("/%s/%s" % (user, index), indexconfig,
                                   expect_errors=True)
         assert r.status_code == code
         if code in (200,201):

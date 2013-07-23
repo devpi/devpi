@@ -63,7 +63,7 @@ class TestIndexThings:
         mapp.login("root", "")
         mapp.change_password("root", "asd")
         mapp.create_and_login_user("newuser1")
-        mapp.create_index("root/test2", 401)
+        mapp.create_index("root/test2", code=401)
 
     def test_create_index_and_acls(self, mapp):
         username = "newuser2"

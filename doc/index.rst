@@ -151,14 +151,14 @@ this will download the latest release of ``PACKAGENAME`` and run tox
 against it.  You can also try to run ``devpi test`` with any 3rd party 
 pypi package.
 
-devpi push: releasing a package to another index
+devpi push: send a release to another index
 ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 After you repeated your upload and test cycle you
 may at some point decide that a package is ready
-and push it to pypi.python.org::
+and push it to an external pypi server::
 
-    devpi push NAME-VERSION -r pypi
+    devpi push NAME-VERSION pypi:pypi
 
 this will push all release files for this version to
 the external ``pypi`` index server, using credentials

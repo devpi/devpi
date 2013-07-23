@@ -4,13 +4,48 @@ import json
 import pytest
 import types
 from devpi.main import Hub, check_output
+from devpi.push import parse_target, PyPIPush, DevpiPush
 
 def runproc(cmd):
     args = cmd.split()
     return check_output(args)
 
+def test_parse_target_devpi(loghub):
+    class args:
+        target = "user/name"
+    res = parse_target(loghub, args)
+    assert isinstance(res, DevpiPush)
 
-def test_main(monkeypatch, tmpdir):
+def test_parse_target_pypi(tmpdir, loghub):
+    p = tmpdir.join("pypirc")
+    p.write(py.std.textwrap.dedent("""
+        [distutils]
+        index-servers = whatever
+
+        [whatever]
+        repository: http://anotherserver
+        username: test
+        password: testp
+    """))
+    class args:
+        target = "pypi:whatever"
+        pypirc = str(p)
+    res = parse_target(loghub, args)
+    assert isinstance(res, PyPIPush)
+    assert res.user == "test"
+    assert res.password == "testp"
+    assert res.posturl == "http://anotherserver"
+
+def test_push_devpi(loghub, monkeypatch):
+    class args:
+        target = "user/name"
+    pusher = parse_target(loghub, args)
+    res = pusher.execute(loghub, "pytest", "2.3.5")
+    req = dict(name="pytest", version="2.3.5", targetindex="user/name")
+    loghub.http_api.assert_called_once_with(
+                "push", loghub.current.index, kvdict=req)
+
+def test_main_push_pypi(monkeypatch, tmpdir):
     from devpi.push import main
     l = []
     def mypost(method, url, data, headers):
@@ -45,8 +80,9 @@ def test_main(monkeypatch, tmpdir):
     """))
     class args:
         pypirc = str(p)
-        posturl = "whatever"
+        target = "pypi:whatever"
         nameversion = "pkg-1.0"
+
     main(hub, args)
     assert len(l) == 1
     method, url, data = l[0]
@@ -63,6 +99,5 @@ class TestPush:
         result = ext_devpi("push", "-h")
         assert result.ret == 0
         result.stdout.fnmatch_lines("""
-            *release*
-            *url*
+            *TARGET*
         """)

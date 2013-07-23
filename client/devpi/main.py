@@ -560,7 +560,9 @@ def test(parser):
 def push(parser):
     """ push a release and releasefiles to an external index server.
 
-        (pushing between indexes not implemented yet).
+        You can push a release with all its release files either
+        to a remote pypi target ("pypi:REPONAME") or another
+        devpi index ("user/name").
     """
     parser.add_argument("--pypirc", metavar="path", type=str,
         default=None, action="store",
@@ -570,11 +572,12 @@ def push(parser):
         help="release in format 'name-version'. of which the metadata and "
              "all release files are to be uploaded to the specified "
              "external pypi repo." )
-    parser.add_argument("-r", dest="posturl", metavar="url", type=str,
-        default=None, action="store",
-        help="repo name as specified in your .pypirc file")
-    #parser.add_argument("targetindex", type=str, default=None, nargs="?",
-    #    help="index in USER/NAME form to push to. ")
+    parser.add_argument("target", metavar="TARGETSPEC", type=str,
+        action="store",
+        help="local or remote target index. local targets are of form "
+             "'USER/NAME', specifying an existing writeable local index. "
+             "remote targets are of form 'REPO:' where REPO must be an "
+             "existing entry in the pypirc file.")
 
 
 @subcommand("devpi.install")

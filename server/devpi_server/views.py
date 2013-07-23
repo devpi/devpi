@@ -246,40 +246,77 @@ class PyPIView:
 
     @route("/<user>/<index>/", method="PUSH")
     def pushrelease(self, user, index):
-        pushdata = getjson()
-        name = pushdata["name"]
-        version = pushdata["version"]
-        posturl = pushdata["posturl"]
-        username = pushdata["username"]
-        password = pushdata["password"]
-        pypiauth = (username, password)
         stage = self.getstage(user, index)
+        pushdata = getjson()
+        try:
+            name = pushdata["name"]
+            version = pushdata["version"]
+        except KeyError:
+            apireturn(400, message="no name/version specified in json")
+
         metadata = stage.get_metadata(name, version)
-        assert metadata
-        entries = stage.getreleaselinks(name)
+        entries = stage.getreleaselinks_perstage(name)
         matches = []
-        results = []
         for entry in entries:
             n, v = urlutil.guess_pkgname_and_version(entry.basename)
             if n == name and str(v) == version:
                 matches.append(entry)
+        if not matches or not metadata:
+            apireturn(404,
+                      message="no release/files found for %s-%s" %(
+                      name, version))
+
+        # prepare metadata for submission
         metadata[":action"] = "submit"
-        r = requests.post(posturl, data=metadata, auth=pypiauth)
-        ok_codes = (200, 201)
-        results.append((r.status_code, "register", name, version))
-        if r.status_code in ok_codes:
+
+        results = []
+        targetindex = pushdata.get("targetindex", None)
+        if targetindex is not None:
+            parts = targetindex.split("/")
+            if len(parts) != 2:
+                apireturn(400, message="targetindex not in format user/index")
+            target_stage = self.getstage(*parts)
+            auth_user = self.get_auth_user()
+            log.debug("targetindex %r, auth_user %r", targetindex, auth_user)
+            if not target_stage.can_upload(auth_user):
+               apireturn(401, message="user %r cannot upload to %r"
+                                      %(auth_user, targetindex))
+            #results = stage.copy_release(metadata, target_stage)
+            #results.append((r.status_code, "upload", entry.relpath))
+            #apireturn(200, results=results, type="actionlog")
+            if not target_stage.get_metadata(name, version):
+                self._register_metadata(target_stage, metadata)
+            results.append((200, "register", name, version,
+                            "->", target_stage.name))
             for entry in matches:
-                metadata[":action"] = "file_upload"
-                metadata["filetype"] = "sdist"  # XXX
-                basename = entry.basename
-                openfile = entry.FILE.filepath.open("rb")
-                r = requests.post(posturl, data=metadata, auth=pypiauth,
-                      files={"content": (basename, openfile)})
-                results.append((r.status_code, "upload", entry.relpath))
-        if r.status_code in ok_codes:
+                res = target_stage.store_releasefile(
+                    entry.basename, entry.FILE.filepath.read(mode="rb"))
+                if not isinstance(res, int):
+                    res = 200
+                results.append((res, "store_releasefile", entry.basename,
+                                "->", target_stage.name))
             apireturn(200, result=results, type="actionlog")
         else:
-            apireturn(502, result=results, type="actionlog")
+            posturl = pushdata["posturl"]
+            username = pushdata["username"]
+            password = pushdata["password"]
+            pypiauth = (username, password)
+            r = requests.post(posturl, data=metadata, auth=pypiauth)
+            ok_codes = (200, 201)
+            results.append((r.status_code, "register", name, version))
+            if r.status_code in ok_codes:
+                for entry in matches:
+                    metadata[":action"] = "file_upload"
+                    metadata["filetype"] = "sdist"  # XXX
+                    basename = entry.basename
+                    openfile = entry.FILE.filepath.open("rb")
+                    r = requests.post(posturl, data=metadata, auth=pypiauth,
+                          files={"content": (basename, openfile)})
+                    results.append((r.status_code, "upload", entry.relpath))
+            if r.status_code in ok_codes:
+                apireturn(200, result=results, type="actionlog")
+            else:
+                apireturn(502, result=results, type="actionlog")
 
     @route("/<user>/<index>/", method="POST")
     def submit(self, user, index):
@@ -319,8 +356,9 @@ class PyPIView:
         metadata = {}
         for key in stage.metadata_keys:
             metadata[key] = form.get(key, "")
-        log.info("got submit release info %r", metadata["name"])
         stage.register_metadata(metadata)
+        log.info("%s: got submit release info %r",
+                 stage.name, metadata["name"])
 
     #
     #  per-project and version data
@@ -499,7 +537,7 @@ class PyPIView:
         dict = getjson()
         user = dict.get("user", None)
         password = dict.get("password", None)
-        log.debug("got password %r" % password)
+        #log.debug("got password %r" % password)
         if user is None or password is None:
             abort(400, "Bad request: no user/password specified")
         hash = self.db.user_validate(user, password)

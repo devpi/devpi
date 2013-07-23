@@ -11,7 +11,6 @@ import logging
 log = logging.getLogger(__name__)
 
 def getpwhash(password, salt):
-    print "password: %r, salt: %r" %(password, salt)
     hash = hashlib.sha256()
     hash.update(salt)
     hash.update(password)
@@ -176,6 +175,9 @@ class PrivateStage:
         self.name = user + "/" + index
         self.ixconfig = ixconfig
 
+    def can_upload(self, username):
+        return username in self.ixconfig.get("acl_upload", [])
+
     def configure(self, **kw):
         assert _ixconfigattr.issuperset(kw)
         config = self.ixconfig
@@ -194,11 +196,18 @@ class PrivateStage:
     #
     # registering project and version metadata
     #
+    #class MetadataExists(Exception):
+    #    """ metadata exists on a given non-volatile index. """
+
     def register_metadata(self, metadata):
         name = metadata["name"]
         version = metadata["version"]
         key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
         with key.locked_update() as projectconfig:
+            #if not self.ixconfig["volatile"] and projectconfig:
+            #    raise self.MetadataExists(
+            #        "%s-%s exists on non-volatile %s" %(
+            #        name, version, self.name))
             versionconfig = projectconfig.setdefault(version, {})
             versionconfig.update(metadata)
         desc = metadata.get("description")
