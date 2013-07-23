@@ -17,6 +17,17 @@ subcommand = lazydecorator()
 
 from devpi import __version__
 
+main_description = """
+The devpi sub commands (installed via devpi-client) wrap common Python
+packaging, uploading, installation and testing activities, using a remote
+devpi-server managed index.  If using the default http://localhost:3141 server
+location, devpi-client will automatically start a server in the background
+if no server is responding on that address.  This behaviour is controlled
+by the ``devpi server`` subcommand which also provides access to log files.
+For more information see http://doc.devpi.net
+
+"""
+
 def main(argv=None):
     if argv is None:
         argv = list(sys.argv)
@@ -282,6 +293,13 @@ class MyArgumentParser(argparse.ArgumentParser):
         """raise errors instead of printing and raising SystemExit"""
         raise self.ArgumentError(error)
 
+    #def __init__(self, *args, **kwargs):
+    #    kwargs["formatter_class"] = MyHelpFormatter
+    #    argparse.ArgumentParser.__init__(self, *args, **kwargs)
+
+#class MyHelpFormatter(argparse.HelpFormatter):
+#    pass
+
 def try_argcomplete(parser):
     try:
         import argcomplete
@@ -292,7 +310,7 @@ def try_argcomplete(parser):
 
 def parse_args(argv):
     argv = map(str, argv)
-    parser = getbasebaser(argv[0])
+    parser = getbaseparser(argv[0])
     add_subparsers(parser)
     try_argcomplete(parser)
     try:
@@ -303,6 +321,15 @@ def parse_args(argv):
         parser.print_usage()
         parser.exit(2, "%s: error: %s\n" % (parser.prog, e.args[0]))
 
+def parse_docstring(txt):
+    description = txt
+    i = txt.find(".")
+    if i == -1:
+        doc = txt
+    else:
+        doc = txt[:i+1]
+    return doc, description
+
 def add_subparsers(parser):
     subparsers = parser.add_subparsers()
     for func, args, kwargs in subcommand.discover(globals()):
@@ -310,7 +337,10 @@ def add_subparsers(parser):
             name = args[1]
         else:
             name = func.__name__
-        subparser = subparsers.add_parser(name, help=func.__doc__)
+        doc, description = parse_docstring(func.__doc__)
+        subparser = subparsers.add_parser(name,
+                                          description=description,
+                                          help=doc)
         subparser.Action = argparse.Action
         add_generic_options(subparser)
         func(subparser)
@@ -319,8 +349,8 @@ def add_subparsers(parser):
     #subparser = subparsers.add_parser("_test", help=argparse.SUPPRESS)
     #subparser.set_defaults(mainloc="devpi")
 
-def getbasebaser(prog):
-    parser = MyArgumentParser(prog=prog)
+def getbaseparser(prog):
+    parser = MyArgumentParser(prog=prog, description=main_description)
     add_generic_options(parser)
     return parser
 
@@ -342,7 +372,13 @@ def add_generic_options(parser):
 @subcommand("devpi.use")
 def use(parser):
     """ show/configure current index and target venv for install
-    activities. """
+    activities.
+
+    This shows client-side state, relevant for devpi-server interactions,
+    including login authentication information, the current remote index
+    (and API endpoints if you specify --urls) and the target virtualenv
+    for installation activities.
+    """
 
     parser.add_argument("--venv", action="store", default=None,
         help="set virtual environment to use for install activities. "
@@ -362,14 +398,22 @@ def use(parser):
 
 @subcommand("devpi.getjson")
 def getjson(parser):
-    """ show remote server and index configuration. """
-    parser.add_argument("path", nargs="?",
+    """ show remote server and index configuration.
+
+    A low-level command to show json-formatted configuration data
+    from remote resources.  This will always query the remote server.
+    """
+    parser.add_argument("path", action="store",
         help="path to a resource to show information on. "
              "examples: '/', '/user', '/user/index'.")
 
 @subcommand("devpi.list_remove:main_list", "list")
 def list_(parser):
-    """ list project versions and files for the current index"""
+    """ list project versions and files for the current index.
+
+    Without a ``spec`` argument this command will show the names
+    of all projects that have been used.
+    """
     parser.add_argument("spec", nargs="?",
         help="show only info for a project/version/release file.  "
              "Example specs: 'pytest' or 'pytest-2.3.5' or "
@@ -377,7 +421,12 @@ def list_(parser):
 
 @subcommand("devpi.list_remove:main_remove")
 def remove(parser):
-    """ remove project info/files from current index. """
+    """ remove project info/files from current index.
+
+    This command allows to remove projects or releases from your
+    current index (see "devpi use").  It will ask interactively
+    for confirmation before performing the actual removals.
+    """
     parser.add_argument("spec",
         help="remove info/files for a project/version/release file from the "
              "current index. "
@@ -385,7 +434,14 @@ def remove(parser):
 
 @subcommand("devpi.user")
 def user(parser):
-    """ add, remove, modify, list user configuration"""
+    """ add, remove, modify, list user configuration.
+
+    This is the central command for performing remote user
+    configuration and manipulation.  Each indexes (created in turn
+    by "devpi index" command) is owned by a particular user.
+    If you create a user you either need to pass a ``password=...``
+    setting or interactively type a password.
+    """
     group = parser.add_argument_group()
     group.add_argument("-c", "--create", action="store_true",
         help="create a user")
@@ -398,11 +454,17 @@ def user(parser):
     parser.add_argument("username", type=str, action="store", nargs="?",
         help="user name")
     parser.add_argument("keyvalues", nargs="*", type=str,
-        help="key=value configuration item")
+        help="key=value configuration item.  Possible keys: "
+             "email, password.")
 
 @subcommand("devpi.login")
 def login(parser):
-    """ login to devpi-server"""
+    """ login to devpi-server with the specified user.
+
+    This command performs the login protocol with the remove server
+    which typically results in a cached auth token which is valid for
+    ten hours.  You can check your login information with "devpi use".
+    """
     parser.add_argument("--password", action="store", default=None,
                         help="password to use for login (prompt if not set)")
     parser.add_argument("username", action="store", default=None,
@@ -410,11 +472,23 @@ def login(parser):
 
 @subcommand("devpi.login:logoff")
 def logoff(parser):
-    """ log out of the current devpi-server"""
+    """ log out of the current devpi-server.
+
+    This will erase the client-side login token (see "devpi login").
+    """
 
 @subcommand("devpi.index")
 def index(parser):
-    """ create, delete and manage indexes. """
+    """ create, delete and manage indexes.
+
+    This is the central command to create and manipulate indexes.
+    The index is always created under the currently logged in user
+    with a command like this: ``devpi index -c newindex``.
+
+    You can also view the configuration of any index with
+    ``devpi index USER/INDEX`` or list all indexes of the
+    in-use index with ``devpi index -l``.
+    """
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-c", "--create", action="store_true",
         help="create an index")
@@ -430,7 +504,12 @@ def index(parser):
 
 @subcommand("devpi.upload.upload")
 def upload(parser):
-    """ prepare and upload packages to the current index. """
+    """ prepare and upload packages to the current index.
+
+    This command wraps ``setup.py`` invocations to build and
+    upload releases, release files and documentation to your
+    in-use index (see "devpi use").
+    """
     #parser.add_argument("-l", dest="showstatus",
     #    action="store_true", default=None,
     #    help="show remote versions, local version and package types")
@@ -464,7 +543,11 @@ def upload(parser):
 
 @subcommand("devpi.test.test")
 def test(parser):
-    """ download and test a package against tox environments."""
+    """ download and test a package against tox environments.
+
+    Download a package and run tests as configured by the
+    tox.ini file (which must be contained in the package).
+    """
     parser.add_argument("-e", metavar="VENV", type=str, dest="venv",
         default=None, action="store",
         help="virtual environment to run from the tox.ini")
@@ -476,6 +559,7 @@ def test(parser):
 @subcommand("devpi.push")
 def push(parser):
     """ push a release and releasefiles to an external index server.
+
         (pushing between indexes not implemented yet).
     """
     parser.add_argument("--pypirc", metavar="path", type=str,
@@ -495,7 +579,11 @@ def push(parser):
 
 @subcommand("devpi.install")
 def install(parser):
-    """ install packages through current devpi index. """
+    """ install packages through current devpi index.
+
+    This is convenience wrapper which configures and invokes
+    ``pip install`` commands for you, using the current index.
+    """
     parser.add_argument("-l", action="store_true", dest="listinstalled",
         help="print list of currently installed packages. ")
     parser.add_argument("-e", action="store", dest="editable", metavar="ARG",
@@ -510,12 +598,17 @@ def install(parser):
 
 @subcommand("devpi.server")
 def server(parser):
-    """ commands for controling the automatic server. """
+    """ commands for controling the automatic server.
+
+    Check logs and status of the "automatic" server which is invoked
+    implicitely with many subcommands if you use the default
+    http://localhost:3141/ server address and no server is
+    currently running there.
+    """
     parser.add_argument("--stop", action="store_true",
         help="stop automatically started server if any")
     parser.add_argument("--log", action="store_true",
         help="show last log lines of automatic server")
-
 
 if __name__ == "__main__":
     main()

@@ -6,6 +6,9 @@
 
 - show and allow to set "acl_upload" for uploading priviliges
 
+- add longer descriptions to each sub command, shown with
+  "devpi COMMAND -h".
+
 0.9.4
 -------------------------------
 
