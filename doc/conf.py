@@ -41,7 +41,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'devpi'
-copyright = u'2013, holger krekel, merlinux GmbH, cat picture by "admiller" on flicker'
+copyright = u'2013, holger krekel and merlinux GmbH see http://merlinux.eu, cat picture CC-BY 2.0 licensed by "admiller" on flicker'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
