@@ -302,7 +302,9 @@ class PyPIView:
             username = pushdata["username"]
             password = pushdata["password"]
             pypiauth = (username, password)
+            log.info("registering %s-%s to %s", name, version, posturl)
             r = requests.post(posturl, data=metadata, auth=pypiauth)
+            log.debug("register returned: %s", r.status_code)
             ok_codes = (200, 201)
             results.append((r.status_code, "register", name, version))
             if r.status_code in ok_codes:
@@ -313,8 +315,10 @@ class PyPIView:
                     metadata["filetype"] = filetype
                     metadata["pyversion"] = pyver
                     openfile = entry.FILE.filepath.open("rb")
+                    log.info("sending %s to %s", basename, posturl)
                     r = requests.post(posturl, data=metadata, auth=pypiauth,
                           files={"content": (basename, openfile)})
+                    log.debug("send finished, status: %s", r.status_code)
                     results.append((r.status_code, "upload", entry.relpath))
             if r.status_code in ok_codes:
                 apireturn(200, result=results, type="actionlog")
