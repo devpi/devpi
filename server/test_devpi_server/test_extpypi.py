@@ -323,10 +323,30 @@ class TestRefreshManager:
         with pytest.raises(ValueError):
             extdb.spawned_pypichanges(proxy, proxysleep=raise_ValueError)
         proxy.list_packages_with_serial.assert_called_once_with()
-        assert keyfs.PYPISERIALS.get() == {"hello": 10}
+        assert keyfs.PYPISERIALS.get()["hello"] == 10
+
+    def test_pypichanges_mirrorversionchange(self, extdb, keyfs, monkeypatch):
+        proxy = mock.create_autospec(XMLProxy)
+        proxy.list_packages_with_serial.return_value = {"hello": 10}
+        proxy.changelog_since_serial.return_value = []
+        with pytest.raises(ValueError):
+            extdb.spawned_pypichanges(proxy, proxysleep=raise_ValueError)
+        proxy.list_packages_with_serial.assert_called_once_with()
+
+        # trying again should not trigger restart
+        proxy.list_packages_with_serial.called = False
+        with pytest.raises(ValueError):
+            extdb.spawned_pypichanges(proxy, proxysleep=raise_ValueError)
+        assert not proxy.list_packages_with_serial.called
+        monkeypatch.setattr(extdb, "MIRRORVERSION", extdb.MIRRORVERSION + 1)
+        # trying again should trigger restart
+        with pytest.raises(ValueError):
+            extdb.spawned_pypichanges(proxy, proxysleep=raise_ValueError)
+        assert proxy.list_packages_with_serial.called
+
 
     def test_pypichanges_changes(self, extdb, httpget, keyfs, monkeypatch):
-        keyfs.PYPISERIALS.set({"pytest": 20})
+        keyfs.PYPISERIALS.set({"pytest": 20, ".ver": extdb.MIRRORVERSION})
         httpget.setextsimple("pytest", '<a href="pytest-2.3.tgz"/a>',
                              pypiserial=20)
         assert len(extdb.getreleaselinks("pytest")) == 1
@@ -358,7 +378,7 @@ class TestRefreshManager:
                     keyfs, raise_error, monkeypatch, caplog):
         from xmlrpclib import ServerProxy
         got = []
-        keyfs.PYPISERIALS.set({"pytest": 10})
+        keyfs.PYPISERIALS.set({"pytest": 10, ".ver": extdb.MIRRORVERSION})
         def raise_xmlrpcish(since_int):
             got.append(since_int)
             raise_error()

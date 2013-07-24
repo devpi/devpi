@@ -245,19 +245,26 @@ class ExtDB:
         return html.div("please refer to description on remote server ",
             html.a(link, href=link)).unicode(indent=2)
 
+    MIRRORVERSION = 1
     def spawned_pypichanges(self, proxy, proxysleep):
         log.info("changelog/update tasks starting")
         keyfs = self.keyfs
         name2serials = keyfs.PYPISERIALS.get({})
+        name2serials_version = name2serials.get(".ver", 0)
+        if name2serials_version != self.MIRRORVERSION:
+            log.info("detected MIRRORVERSION CHANGE, restarting caching info")
+            name2serials = {}  # restart getting info from pypi
+                               # this will not reget release files
         while 1:
             if not name2serials:
-                log.debug("retrieving initial name/serial list")
+                log.info("retrieving initial name/serial list")
                 init_name2serials = proxy.list_packages_with_serial()
                 if init_name2serials is None:
                     proxysleep()
                     continue
                 for name, serial in iteritems(init_name2serials):
                     name2serials[name.lower()] = serial
+                name2serials[".ver"] = self.MIRRORVERSION
                 keyfs.PYPISERIALS.set(name2serials)
             else:
                 # get changes since the maximum serial we are aware of
@@ -281,7 +288,7 @@ class ExtDB:
             # walk through all mirrored projects and trigger updates if needed
             for name in self.getcontained():
                 name = name.lower()
-                serial = name2serials[name]
+                serial = name2serials.get(name, 0)
                 self.getreleaselinks(name, refresh=serial)
             proxysleep()
 
