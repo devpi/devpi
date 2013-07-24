@@ -21,7 +21,7 @@ assert __name__ == "devpi_server.extpypi"
 log = getLogger(__name__)
 
 CONCUCCRENT_CRAWL = False
-ALLOWED_ARCHIVE_EXTS = ".egg .tar.gz .tar.bz2 .tar .tgz .zip".split()
+ALLOWED_ARCHIVE_EXTS = ".egg .whl .tar.gz .tar.bz2 .tar .tgz .zip".split()
 ARCHIVE_SCHEMES = ("http", "https")
 
 

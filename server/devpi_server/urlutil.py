@@ -18,7 +18,7 @@ def joinpath(url, *args):
 
 _releasefile_suffix_rx = re.compile(r"(\.zip|\.tar\.gz|\.tgz|\.tar\.bz2|"
     "\.win-amd68-py[23]\.\d\..*|\.win32-py[23]\.\d\..*|"
-    "-py[23][\d\.]+.*\..*"
+    "-(?:py|cp|ip|pp|jy)[23][\d\.]+.*\..*"
     ")$", re.IGNORECASE)
 
 def sorted_by_version(versions, attr=None):
@@ -32,8 +32,18 @@ def sorted_by_version(versions, attr=None):
         return cmp(ver(x), ver(y))
     return sorted(versions, cmp=vercmp)
 
-_pyversion_type_rex = re.compile(r"py([\d\.]+).*\.(exe|egg|msi)", re.IGNORECASE)
-_ext2type = dict(exe="bdist_wininst", egg="bdist_egg", msi="bdist_msi")
+# see also PEP425 for supported "python tags"
+_pyversion_type_rex = re.compile(
+        r"(?:py|cp|ip|pp|jy)([\d\.py]+).*\.(exe|egg|msi|whl)", re.IGNORECASE)
+_ext2type = dict(exe="bdist_wininst", egg="bdist_egg", msi="bdist_msi",
+                 whl="bdist_wheel")
+
+#wheel_file_re = re.compile(
+#                r"""^(?P<namever>(?P<name>.+?)(-(?P<ver>\d.+?))?)
+#                ((-(?P<build>\d.*?))?-(?P<pyver>.+?)-(?P<abi>.+?)-(?P<plat>.+?)
+#                \.whl|\.dist-info)$""",
+#                re.VERBOSE)
+
 def get_pyversion_filetype(basename):
     _,_,suffix = splitbasename(basename)
     if suffix in (".zip", ".tar.gz", ".tgz", "tar.bz2"):
@@ -41,7 +51,10 @@ def get_pyversion_filetype(basename):
     m = _pyversion_type_rex.search(suffix)
     assert m, suffix
     pyversion, ext = m.groups()
-    if "." not in pyversion:
+    if pyversion == "2.py3":  # "universal" wheel with no C
+        pyversion = "2.7"  # arbitrary but pypi/devpi makes no special use
+                           # of "pyversion" anyway?!
+    elif "." not in pyversion:
         assert len(pyversion) == 2
         pyversion = ".".join(pyversion)
     return (pyversion, _ext2type[ext])

@@ -71,6 +71,14 @@ class TestIndexParsing:
         assert link.eggfragment == "py-dev"
         assert link2.basename == "py-1.0.zip"
 
+    def test_parse_index_with_wheel(self):
+        result = parse_index(self.simplepy,
+            """<a href="pkg/py-1.0-cp27-none-linux_x86_64.whl" />
+        """)
+        assert len(result.releaselinks) == 1
+        link, = result.releaselinks
+        assert link.basename == "py-1.0-cp27-none-linux_x86_64.whl"
+
     def test_parse_index_ftp_ignored_for_now(self):
         result = parse_index(self.simplepy,
             """<a href="http://bb.org/download/py-1.0.zip" />

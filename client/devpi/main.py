@@ -520,7 +520,7 @@ def upload(parser):
     #    help="retrieve max remove version, increment and set it like --ver")
     parser.add_argument("--formats", default="sdist.tgz", action="store",
         help="comma separated list of build formats (passed to setup.py). "
-             "Examples sdist.zip,bdist_egg,bdist_dumb.")
+             "Examples sdist.zip,bdist_egg,bdist_wheel,bdist_dumb.")
     parser.add_argument("--from-dir", action="store", default=None,
         dest="fromdir",
         help="upload all archive files from the specified directory")

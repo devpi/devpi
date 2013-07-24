@@ -75,6 +75,9 @@ def test_joinpath_multiple():
     ("pytest-2.3.4.zip", ("pytest", "2.3.4", ".zip")),
     ("pytest-2.3.4-py27.egg", ("pytest", "2.3.4", "-py27.egg")),
     ("dddttt-0.1.dev38-py2.7.egg", ("dddttt", "0.1.dev38", "-py2.7.egg")),
+    ("devpi-0.9.5.dev1-cp26-none-linux_x86_64.whl",
+        ("devpi", "0.9.5.dev1", "-cp26-none-linux_x86_64.whl")),
+    ("wheel-0.21.0-py2.py3-none-any.whl", ("wheel", "0.21.0", "-py2.py3-none-any.whl")),
     ("green-0.4.0-py2.5-win32.egg", ("green", "0.4.0", "-py2.5-win32.egg")),
 ])
 def test_splitbasename(releasename, expected):
@@ -86,6 +89,8 @@ def test_splitbasename(releasename, expected):
     ("x-2.3.zip", ("source", "sdist")),
     ("x-2.3-0.4.0.win32-py3.1.exe", ("3.1", "bdist_wininst")),
     ("x-2.3-py27.egg", ("2.7", "bdist_egg")),
+    ("wheel-0.21.0-py2.py3-none-any.whl", ("2.7", "bdist_wheel")),
+    ("devpi-0.9.5.dev1-cp26-none-linux_x86_64.whl", ("2.6", "bdist_wheel")),
     ("greenlet-0.4.0-py3.3-win-amd64.egg", ("3.3", "bdist_egg")),
 ])
 def test_get_pyversion_filetype(releasename, expected):

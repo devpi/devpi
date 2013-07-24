@@ -1,6 +1,9 @@
 next version
 ----------------
 
+- initial wheel support: accept "whl" uploads and support caching 
+  of whl files from pypi.python.org
+
 - implemented internal push operation between devpi indexes
 
 - show "docs" link if documentation has been uploaded

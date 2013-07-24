@@ -1,6 +1,10 @@
 0.9.5.dev1
 -------------------------------
 
+- initial wheel support: "devpi upload --format=bdist_wheel" now uploads
+  a wheel format file to the index.  "devpi install" will trigger
+  pip commands with option "--use-wheels".
+
 - fix issue15: docs will now be built via "setup.py build_sphinx" 
   using a internal build dir so that the upload succeeds if conf.py
   would otherwise specify a non-standard location.
