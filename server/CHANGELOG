@@ -3,6 +3,8 @@ next version
 
 - implemented internal push operation between devpi indexes
 
+- show "docs" link if documentation has been uploaded
+
 - pushing releases to pypi.python.org will now correctly 
   report the filetype/pyversion in the metadata.
 

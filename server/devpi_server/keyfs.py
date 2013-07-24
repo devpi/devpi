@@ -168,6 +168,12 @@ class DirKey:
         self.relpath = relpath
         self.filepath = self.keyfs._getpath(self.relpath)
 
+    def exists(self):
+        return self.filepath.check()
+
+    def delete(self):
+        return self.filepath.remove()
+
 class TypedKey:
     def __init__(self, keyfs, relpath, type):
         self.keyfs = keyfs

@@ -1,6 +1,10 @@
 0.9.5.dev1
 -------------------------------
 
+- fix issue15: docs will now be built via "setup.py build_sphinx" 
+  using a internal build dir so that the upload succeeds if conf.py
+  would otherwise specify a non-standard location.
+
 - implement and refine "devpi push" command.  It now accepts
   two forms "user/name" for specifying an internal devpi index
   and "pypi:REPONAME" for specifying a repository which must be

@@ -515,11 +515,20 @@ class PyPIView:
                 else:
                     path = entry.relpath
                 name, ver = urlutil.DistURL(path).pkgname_and_version
+                dockey = self.db.keyfs.STAGEDOCS(user=user,
+                                                 index=index, name=name)
+                if dockey.exists():
+                    docs = [" docs: ", html.a("%s-%s docs" %(name, ver),
+                                href="%s/+doc/index.html" %(name))]
+                else:
+                    docs = []
+
                 latest_packages.append(html.li(
                     html.a("%s-%s info page" % (name, ver),
                            href="%s/%s/" % (name, ver)),
                     " releasefiles: ",
                     html.a(entry.basename, href="/" + entry.relpath),
+                    *docs
                 ))
                 break
         latest_packages = [

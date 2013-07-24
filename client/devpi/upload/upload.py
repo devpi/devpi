@@ -325,10 +325,15 @@ class Exported:
             self.hub.info("would upload docs from", cwd, "to",
                           current.pypisubmit)
             return
+        build = cwd.join("build")
+        upload_dir = build.join("html")
+        doc_setup_command = [
+            "build_sphinx", "-E", "--build-dir", build,
+            "upload_docs", "--upload-dir", upload_dir]
         out = self.hub.popen_output(
             [sys.executable, fn_setup, cwd, current.pypisubmit,
-             user, password,
-             "sdist", "upload_docs", "-r", "devpi",],
+             user, password ] + doc_setup_command +
+             ["-r", "devpi",],
             cwd=cwd)
         if "Server response (200): OK" in out:
             for line in out.split("\n")[-10:]:

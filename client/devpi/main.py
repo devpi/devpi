@@ -532,10 +532,11 @@ def upload(parser):
         help="don't perform any server-modifying actions")
     parser.add_argument("--with-docs", action="store_true", default=None,
         dest="withdocs",
-        help="perform upload_docs in addition to uploading release files")
+        help="build sphinx docs and upload them to index. "
+             "this triggers 'setup.py build_sphinx ... upload_docs ...'")
     parser.add_argument("--only-docs", action="store_true", default=None,
         dest="onlydocs",
-        help="perform only upload_docs and no release files")
+        help="as --with-docs but don't upload release files")
     #parser.add_argument("-y", dest="yes",
     #    action="store_true", default=None,
     #    help="answer yes on interactive questions. ")

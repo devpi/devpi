@@ -93,6 +93,19 @@ Go to a ``setup.py`` based project of yours and issue::
 
 	devpi upload   # need to be in a directory with setup.py
 
+If you have sphinx-based docs you can upload them as well::
+
+    devpi upload --with-docs
+
+This will build and upload sphinx-documentation by configuring and running
+this command::
+
+    setup.py build_sphinx -E --build-dir $BUILD_DIR \
+             upload_docs --upload-dir $BUILD_DIR/html
+
+It basically discovers your docs at standard locations and
+runs a fresh build before pushing it to the devpi index.
+
 You can now install the just uploaded package::
 
 	devpi install --venv=v1 NAME_OF_YOUR_PACKAGE
@@ -154,9 +167,16 @@ pypi package.
 devpi push: send a release to another index
 ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-After you repeated your upload and test cycle you
-may at some point decide that a package is ready
-and push it to an external pypi server::
+You can push a release with all release files and docs
+to another devpi index::
+
+    devpi push NAME-VERSION root/staging
+
+This will determine all files belonging to the specified ``NAME-VERSION``
+release and copy them to the ``root/staging`` index. 
+
+You can upload a release with all release files and docs
+to an external index listed in your ``.pypirc`` configuration file::
 
     devpi push NAME-VERSION pypi:pypi
 
