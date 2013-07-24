@@ -112,7 +112,7 @@ class TestIndexParsing:
         assert len(result.releaselinks) == 1
         assert len(result.crawllinks) == 2
         result.parse_index(DistURL("http://pylib.org"), """
-               <a href="http://pylib.org/py-1.1.egg" />
+               <a href="http://pylib.org/py-1.1-py27.egg" />
                <a href="http://pylib.org/other" rel="download" />
         """, scrape=False)
         assert len(result.crawllinks) == 2
@@ -120,7 +120,7 @@ class TestIndexParsing:
         links = list(result.releaselinks)
         assert links[0].url == \
                 "http://pypi.python.org/pkg/py-1.4.12.zip#md5=12ab"
-        assert links[1].url == "http://pylib.org/py-1.1.egg"
+        assert links[1].url == "http://pylib.org/py-1.1-py27.egg"
 
     def test_releasefile_and_scrape_no_ftp(self):
         result = parse_index(self.simplepy,

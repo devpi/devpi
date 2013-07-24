@@ -16,7 +16,10 @@ def joinpath(url, *args):
     new = urljoin(new, args[-1])
     return new
 
-_releasefile_suffix_rx = re.compile(r"(\.egg|\.zip|\.tar\.gz|\.tgz|\.tar\.bz2|-py[23]\.\d-.*|\.win-amd64-py[23]\.\d\..*|\.win32-py[23]\.\d\..*)$", re.IGNORECASE)
+_releasefile_suffix_rx = re.compile(r"(\.zip|\.tar\.gz|\.tgz|\.tar\.bz2|"
+    "\.win-amd68-py[23]\.\d\..*|\.win32-py[23]\.\d\..*|"
+    "-py[23][\d\.]+.*\..*"
+    ")$", re.IGNORECASE)
 
 def sorted_by_version(versions, attr=None):
     parse_version = pkg_resources.parse_version
@@ -28,6 +31,20 @@ def sorted_by_version(versions, attr=None):
     def vercmp(x, y):
         return cmp(ver(x), ver(y))
     return sorted(versions, cmp=vercmp)
+
+_pyversion_type_rex = re.compile(r"py([\d\.]+).*\.(exe|egg|msi)", re.IGNORECASE)
+_ext2type = dict(exe="bdist_wininst", egg="bdist_egg", msi="bdist_msi")
+def get_pyversion_filetype(basename):
+    _,_,suffix = splitbasename(basename)
+    if suffix in (".zip", ".tar.gz", ".tgz", "tar.bz2"):
+        return ("source", "sdist")
+    m = _pyversion_type_rex.search(suffix)
+    assert m, suffix
+    pyversion, ext = m.groups()
+    if "." not in pyversion:
+        assert len(pyversion) == 2
+        pyversion = ".".join(pyversion)
+    return (pyversion, _ext2type[ext])
 
 def guess_pkgname_and_version(path):
     return splitbasename(path, suffix=False)[:2]

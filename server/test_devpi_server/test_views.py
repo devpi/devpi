@@ -237,6 +237,32 @@ def test_upload_and_push_remote_ok(httpget, db, mapp, testapp, monkeypatch):
     assert len(result) == 1
     assert result[0][0] == 500
 
+def test_upload_and_push_egg(httpget, db, mapp, testapp, monkeypatch):
+    mapp.create_and_login_user("user")
+    mapp.create_index("name")
+    mapp.upload_file_pypi(
+            "user", "name", "pkg2-1.0-py27.egg", "123", "pkg2", "1.0")
+    r = testapp.get("/user/name/+simple/pkg2/")
+    assert r.status_code == 200
+    a = getfirstlink(r.text)
+    assert "pkg2-1.0-py27.egg" in a.get("href")
+
+    # push
+    req = dict(name="pkg2", version="1.0", posturl="whatever",
+               username="user", password="password")
+    rec = []
+    def recpost(url, data, auth, files=None):
+        rec.append((url, data, auth, files))
+        class r:
+            status_code = 200
+        return r
+    monkeypatch.setattr(requests, "post", recpost)
+    r = testapp.push("/user/name/", json.dumps(req))
+    assert r.status_code == 200
+    assert len(rec) == 2
+    assert rec[0][0] == "whatever"
+    assert rec[1][0] == "whatever"
+
 def test_upload_and_remove_project(httpget, db, mapp, testapp, monkeypatch):
     mapp.create_and_login_user("user")
     mapp.create_index("name")

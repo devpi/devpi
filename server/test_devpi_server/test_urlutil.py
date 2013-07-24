@@ -73,10 +73,23 @@ def test_joinpath_multiple():
 
 @pytest.mark.parametrize(("releasename", "expected"), [
     ("pytest-2.3.4.zip", ("pytest", "2.3.4", ".zip")),
+    ("pytest-2.3.4-py27.egg", ("pytest", "2.3.4", "-py27.egg")),
+    ("dddttt-0.1.dev38-py2.7.egg", ("dddttt", "0.1.dev38", "-py2.7.egg")),
     ("green-0.4.0-py2.5-win32.egg", ("green", "0.4.0", "-py2.5-win32.egg")),
 ])
-def test_splitting(releasename, expected):
+def test_splitbasename(releasename, expected):
     result = splitbasename(releasename)
+    assert result == expected
+    #assert DistURL("http://hello/%s" % releasename).splitbasename() == expected
+
+@pytest.mark.parametrize(("releasename", "expected"), [
+    ("x-2.3.zip", ("source", "sdist")),
+    ("x-2.3-0.4.0.win32-py3.1.exe", ("3.1", "bdist_wininst")),
+    ("x-2.3-py27.egg", ("2.7", "bdist_egg")),
+    ("greenlet-0.4.0-py3.3-win-amd64.egg", ("3.3", "bdist_egg")),
+])
+def test_get_pyversion_filetype(releasename, expected):
+    result = get_pyversion_filetype(releasename)
     assert result == expected
     #assert DistURL("http://hello/%s" % releasename).splitbasename() == expected
 

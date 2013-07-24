@@ -262,6 +262,7 @@ class PyPIView:
             if n == name and str(v) == version:
                 matches.append(entry)
         if not matches or not metadata:
+            log.info("%s: no release files %s-%s" %(stage.name, name, version))
             apireturn(404,
                       message="no release/files found for %s-%s" %(
                       name, version))
@@ -307,8 +308,10 @@ class PyPIView:
             if r.status_code in ok_codes:
                 for entry in matches:
                     metadata[":action"] = "file_upload"
-                    metadata["filetype"] = "sdist"  # XXX
                     basename = entry.basename
+                    pyver, filetype = urlutil.get_pyversion_filetype(basename)
+                    metadata["filetype"] = filetype
+                    metadata["pyversion"] = pyver
                     openfile = entry.FILE.filepath.open("rb")
                     r = requests.post(posturl, data=metadata, auth=pypiauth,
                           files={"content": (basename, openfile)})
