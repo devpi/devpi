@@ -283,13 +283,18 @@ class PrivateStage:
 
     def getreleaselinks(self, projectname):
         all_links = []
+        versions = set()
         for stage, res in self.op_with_bases("getreleaselinks",
                                           projectname=projectname):
             if isinstance(res, int):
                 if res == 404:
                     continue
                 return res
-            all_links.extend(res)
+            for entry in res:
+                ver = DistURL(entry.relpath).easyversion
+                if ver not in versions:
+                    versions.add(ver)
+                    all_links.append(entry)
         all_links = sorted_by_version(all_links, attr="basename")
         all_links.reverse()
         return all_links

@@ -59,6 +59,15 @@ class TestStage:
         stage.register_metadata(dict(name="someproject", version="1.1"))
         assert stage.getprojectnames() == ["someproject",]
 
+    def test_getreleaselinks_inheritance_shadow(self, httpget, stage):
+        stage.configure(bases=("root/pypi",))
+        httpget.setextsimple("someproject",
+            "<a href='someproject-1.0.zip' /a>")
+        stage.store_releasefile("someproject-1.0.tar.gz", "123")
+        entries = stage.getreleaselinks("someproject")
+        assert len(entries) == 1
+        assert entries[0].relpath.endswith("someproject-1.0.tar.gz")
+
     def test_inheritance_error(self, httpget, stage):
         stage.configure(bases=("root/pypi",))
         httpget.setextsimple("someproject", status_code = -1)
