@@ -291,7 +291,10 @@ class PrivateStage:
                     continue
                 return res
             for entry in res:
-                ver = DistURL(entry.relpath).easyversion
+                if entry.eggfragment:
+                    ver = entry.eggfragment
+                else:
+                    ver = DistURL(entry.relpath).easyversion
                 if ver not in versions:
                     versions.add(ver)
                     all_links.append(entry)

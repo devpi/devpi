@@ -68,6 +68,17 @@ class TestStage:
         assert len(entries) == 1
         assert entries[0].relpath.endswith("someproject-1.0.tar.gz")
 
+    def test_getreleaselinks_inheritance_shadow_egg(self, httpget, stage):
+        stage.configure(bases=("root/pypi",))
+        httpget.setextsimple("py",
+        """<a href="http://bb.org/download/py.zip#egg=py-dev" />""")
+        stage.store_releasefile("py-1.0.tar.gz", "123")
+        entries = stage.getreleaselinks("py")
+        assert len(entries) == 2
+        e0, e1 = entries
+        assert e0.basename == "py.zip"
+        assert e1.basename == "py-1.0.tar.gz"
+
     def test_inheritance_error(self, httpget, stage):
         stage.configure(bases=("root/pypi",))
         httpget.setextsimple("someproject", status_code = -1)
