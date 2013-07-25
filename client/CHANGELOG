@@ -1,6 +1,8 @@
 0.9.5.dev1
 -------------------------------
 
+- fix issue19: devpi use now memorizes --venv setting properly. Thanks Laurent.
+
 - initial wheel support: "devpi upload --format=bdist_wheel" now uploads
   a wheel format file to the index.  "devpi install" will trigger
   pip commands with option "--use-wheels".

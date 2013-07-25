@@ -82,7 +82,7 @@ class TestUnit:
         #hub = cmd_devpi("use", "--delete")
         #assert not hub.current.exists()
 
-    def test_main_venvsetting(self, cmd_devpi, tmpdir, monkeypatch):
+    def test_main_venvsetting(self, out_devpi, cmd_devpi, tmpdir, monkeypatch):
         from devpi.use import vbin
         venvdir = tmpdir
         venvdir.ensure(vbin, dir=1)
@@ -90,6 +90,9 @@ class TestUnit:
         hub = cmd_devpi("use", "--no-auto", "--venv=%s" % venvdir)
         current = Current(hub.current.path)
         assert current.venvdir == str(venvdir)
+        hub = cmd_devpi("use", "--no-auto", "--venv=%s" % venvdir)
+        res = out_devpi("use", "--no-auto")
+        res.stdout.fnmatch_lines("*venv*%s" % venvdir)
 
         # test via env
         monkeypatch.setenv("WORKON_HOME", venvdir.dirpath())

@@ -38,18 +38,18 @@ class Current(object):
     def _setupcurrentdict(self):
         self._currentdict = d = {}
         if self.path.check():
-            log.debug("loading current from %s", self.path)
+            log.debug("loading current from %s" % self.path)
             d.update(json.loads(self.path.read()))
+        else:
+            log.debug("no client config found at %s" % self.path)
 
     def items(self):
         for name in ("index", "simpleindex", "pypisubmit",
                      "resultlog", "login", "venvdir"):
             yield (name, getattr(self, name))
 
-    def reconfigure(self, data, merge=False):
+    def reconfigure(self, data):
         self._raw = data
-        if not merge:
-            self._currentdict.clear()
         for name in data:
             oldval = getattr(self, name)
             newval = data[name]
@@ -80,6 +80,11 @@ class Current(object):
         url = hub.get_index_url(url, current=self)
         data = hub.http_api("get", url.rstrip("/") + "/+api", quiet=True)
         if data["status"] == 200:
+            venvdir = hub.current.venvdir
+            hub.current._currentdict.clear()
+            hub.current.venvdir = venvdir
+            hub.current.index = hub.current.simpleindex = None
+            hub.current.pypisubmit
             data = data["result"]
             rooturl = urlutil.getnetloc(url, scheme=True)
             for name in data:
@@ -132,10 +137,9 @@ def main(hub, args=None):
                 cand = hub.path_venvbase.join(venvname, vbin)
                 if not cand.check():
                     hub.fatal("no virtualenv %r found" % venvname)
-            current.reconfigure(dict(venvdir=cand.dirpath().strpath),
-                                merge=True)
+            current.reconfigure(dict(venvdir=cand.dirpath().strpath))
         else:
-            current.reconfigure(dict(venvdir=None), merge=True)
+            current.reconfigure(dict(venvdir=None))
 
     showurls = args.urls or args.debug
 
