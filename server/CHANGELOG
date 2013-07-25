@@ -1,6 +1,9 @@
 next version
 ----------------
 
+- fix issue16: enrich projectconfig json with a "+shadow" file which
+  lists shadowed "versions"
+
 - initial wheel support: accept "whl" uploads and support caching 
   of whl files from pypi.python.org
 

@@ -3,6 +3,8 @@
 
 - fix issue19: devpi use now memorizes --venv setting properly. Thanks Laurent.
 
+- fix issue16: show files from shadowed versions 
+
 - initial wheel support: "devpi upload --format=bdist_wheel" now uploads
   a wheel format file to the index.  "devpi install" will trigger
   pip commands with option "--use-wheels".

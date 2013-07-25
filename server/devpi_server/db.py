@@ -269,7 +269,12 @@ class PrivateStage:
                 if res == 404:
                     continue
                 return res
-            all_projectconfig.update(res)
+            for ver in res:
+                if ver not in all_projectconfig:
+                    all_projectconfig[ver] = res[ver]
+                else:
+                    l = all_projectconfig[ver].setdefault("+shadowing", [])
+                    l.append(res[ver])
         return all_projectconfig
 
     #

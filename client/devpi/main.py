@@ -412,7 +412,9 @@ def list_(parser):
     """ list project versions and files for the current index.
 
     Without a ``spec`` argument this command will show the names
-    of all projects that have been used.
+    of all projects that have been used.  With a spec argument
+    it will show all release files.  RED files come from an
+    an inherited version which is shadowed by an inheriting index.
     """
     parser.add_argument("spec", nargs="?",
         help="show only info for a project/version/release file.  "

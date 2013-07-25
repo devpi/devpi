@@ -23,18 +23,26 @@ def out_project(hub, data, name):
 
     versions.sort(cmp=cmpversion)
     for version in reversed(versions):
-        verdata = data[version]
         #hub.info("%s-%s:" % (name, version))
-        files = verdata.get("+files")
-        if files is not None:
-            for fn in files:
-                origin = files[fn]
-                if version.startswith("egg="):
-                    origin = "%s (%s) " % (origin, version)
-                if origin.startswith(index):
-                    hub.info(origin)
-                else:
-                    hub.line(origin)
+        verdata = data[version]
+        out_project_version_files(hub, verdata, version, index)
+        shadowing = data[version].get("+shadowing", [])
+        for verdata in shadowing:
+            out_project_version_files(hub, verdata, version, None)
+
+def out_project_version_files(hub, verdata, version, index):
+    files = verdata.get("+files")
+    if files is not None:
+        for fn in files:
+            origin = files[fn]
+            if version.startswith("egg="):
+                origin = "%s (%s) " % (origin, version)
+            if index is None:
+                hub.error(origin)
+            elif origin.startswith(index):
+                hub.info(origin)
+            else:
+                hub.line(origin)
 
 def main_list(hub, args):
     current = hub.current

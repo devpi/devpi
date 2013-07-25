@@ -85,6 +85,18 @@ class TestStage:
         pconfig = stage.get_projectconfig("some")
         assert pconfig["1.0"]["+files"]["some-1.0.zip"].endswith("some-1.0.zip")
 
+    def test_project_config_shadowed(self, httpget, stage):
+        stage.configure(bases=("root/pypi",))
+        httpget.setextsimple("someproject",
+            "<a href='someproject-1.0.zip' /a>")
+        content = "123"
+        entry = stage.store_releasefile("someproject-1.0.zip", content)
+        projectconfig = stage.get_projectconfig("someproject")
+        files = projectconfig["1.0"]["+files"]
+        link = files.values()[0]
+        assert link.endswith("someproject-1.0.zip")
+        assert projectconfig["1.0"]["+shadowing"]
+
     def test_store_and_delete_project(self, stage, bases):
         content = "123"
         entry = stage.store_releasefile("some-1.0.zip", content)
