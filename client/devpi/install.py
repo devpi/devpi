@@ -34,7 +34,7 @@ def main(hub, args):
         except KeyError:
             pass
         hub.popen_check([pip_path, "install"] + xopt + [
-            "--use-wheel",
+            #"--use-wheel",
             "-U", #"--force-reinstall",
             "-i", current.simpleindex ] + list(args.pkgspecs))
 

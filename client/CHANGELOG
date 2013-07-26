@@ -6,8 +6,8 @@
 - fix issue16: show files from shadowed versions 
 
 - initial wheel support: "devpi upload --format=bdist_wheel" now uploads
-  a wheel format file to the index.  "devpi install" will trigger
-  pip commands with option "--use-wheels".
+  a wheel format file to the index.  (XXX "devpi install" will trigger
+  pip commands with option "--use-wheels".)
 
 - fix issue15: docs will now be built via "setup.py build_sphinx" 
   using a internal build dir so that the upload succeeds if conf.py
