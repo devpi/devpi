@@ -1,6 +1,9 @@
 next version
 ----------------
 
+- fixate supervisor==3.0b1 with --gendeploy so that "pip install"
+  succeeds independently from 1.3/1.4 version differences.
+
 - inheritance cleanup: inherited versions for a project are now shadowed
   and not shown anymore with getreleaselinks() or in +simple pages.
 
