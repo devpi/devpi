@@ -14,4 +14,4 @@ devpi: managing and serving Python release processes
 
 For getting started see http://doc.devpi.net/
 
-Holger Krekel, July 2013
+Holger Krekel, August 2013
