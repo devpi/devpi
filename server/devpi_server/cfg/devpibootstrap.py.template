@@ -1,0 +1,218 @@
+#!/usr/bin/env python
+# The MIT License
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+"""
+devpibootstrap
+===============
+
+A bootstrap script to automatically install devpi in a virtualenv.
+
+Getting started
+---------------
+
+"""
+
+__version__ = '0.9.5.dev1'
+
+import sys
+import os
+import re
+from os import path
+import shutil
+
+from subprocess import Popen, PIPE, check_call, CalledProcessError
+import tarfile
+
+USETOXDEV=os.environ.get('USETOXDEV', False)
+
+PY3 = sys.version_info[0] == 3
+
+if PY3:
+    from urllib.request import urlretrieve
+    import xmlrpc.client as xmlrpclib
+else:
+    from urllib import urlretrieve
+    import xmlrpclib
+
+
+def log(msg, *args):
+    if args:
+        msg = msg % args
+    sys.stderr.write("bootstrap: %s\n" % msg)
+    sys.stderr.flush()
+
+def run(cmd, shell=True):
+    """Run the given command in shell"""
+    log('running command: %s', cmd)
+    check_call(cmd, shell=shell)
+
+
+def crun(cmd, shell=True):
+    """Run the given command and return its output"""
+    log('running command (for output): %s', cmd)
+    p = Popen(cmd, stdout=PIPE, shell=shell)
+    stdout, stderr = p.communicate()
+    return stdout
+
+
+def wget(url):
+    """Download the given file to current directory"""
+    log('downloading %s', url)
+    basename = path.basename(url)
+    localpath = path.join(path.abspath(os.getcwd()), basename)
+    urlretrieve(url, localpath)
+    return localpath
+
+
+def has_script(venv, name):
+    """Check if the virtualenv has the given script
+
+    Looks for bin/$name (unix) or Scripts/$name.exe (windows) in the virtualenv
+    """
+    if sys.platform == 'win32':
+        return any([path.exists(path.join(venv, 'Scripts', name)),
+                    path.exists(path.join(venv, 'Scripts', name + '.exe'))])
+    else:
+        return path.exists(path.join(venv, 'bin', name))
+
+def activate_path(venv):
+    """Return the full path to the script virtualenv directory"""
+    if sys.platform == 'win32':
+        p = path.abspath(path.join(venv, 'Scripts'))
+    else:
+        p = path.abspath(path.join(venv, 'bin'))
+    assert path.exists(p), p
+    os.environ['PATH'] = p + os.pathsep + os.environ['PATH']
+    log("added to PATH: %s", p)
+
+def get_script_path(venv, name):
+    """Return the full path to the script in virtualenv directory"""
+    if sys.platform == 'win32':
+        p = path.join(venv, 'Scripts', name)
+        if not path.exists(p):
+            p = path.join(venv, 'Scripts', name + '.exe')
+    else:
+        p = path.join(venv, 'bin', name)
+
+    if not path.exists(p):
+        raise NameError('cannot find a script named "%s"' % (name,))
+
+    return path.abspath(p)
+
+
+def get_package_version(venv, name):
+    """Return the installed version of tox"""
+    py = get_script_path(venv, 'python')
+    s = 'import devpi,sys; sys.stdout.write(str(%s.__version__))' % name
+    if sys.version_info[:2] >= (2, 6):
+        return crun('%s -s -c "%s"' % (py, s))
+    else:
+        return crun('%s -c "%s"' % (py, s))
+
+
+def parse_simple_version(v):
+    """A simplified version of pkg_resources.parse_version
+
+    This method can only parse simple versions like the ones with a set of
+    numbers separated by dots (eg: 1.2.3)
+    """
+    return [int(c) for c in v.split('.')]
+
+
+def ensuredir(p):
+    if not path.isdir(p):
+        os.makedirs(p)
+
+def get_virtualenv():
+    TARURL = '{virtualenvtar}'
+    basename = path.basename(TARURL)
+    log("matching %s", basename)
+    dirname = re.match("(virtualenv-.*).tar.gz", basename).group(1)
+    vdir = path.join(dirname)
+    virtualenv_script = path.join(vdir, "virtualenv.py")
+    if not path.exists(virtualenv_script):
+        if path.exists(vdir):
+            shutil.rmtree(vdir)
+        archive = wget(TARURL)
+        log("got %s", archive)
+        with tarfile.open(archive, "r:gz") as tar:
+            tar.extractall()
+        assert path.exists(vdir)
+        log("extracted %s", vdir)
+    assert path.exists(virtualenv_script)
+    return virtualenv_script
+
+class Devpi:
+    def __init__(self, index):
+        self.index = index
+        self.script = init_script(index)
+
+    def __call__(self, *args):
+        argv = list(args)
+        assert args
+        clientdir = ".devpiclient"
+        try:
+            run([self.script, "--clientdir=%s" % clientdir] + argv,
+                shell=False)
+        except CalledProcessError:
+            _, e, _ = sys.exc_info()
+            log('exited with error code %d', e.returncode)
+            sys.exit(e.returncode)
+
+def init_script(index):
+    currentdir = os.getcwd()
+    BASE = path.abspath(".tox")
+    TENV = path.join(BASE, "_devpi")
+    ensuredir(BASE)
+    return activate_devpi_script(TENV)
+
+def cmdline(argv=None):
+    devpi(*(argv or []))
+
+
+def activate_devpi_script(TENV):
+    log('bootstrap version %s', __version__)
+    log("devpi bootstrap env is/shall be at: %s" % TENV)
+
+    os.environ['PATH'] = TENV + os.path.pathsep + os.environ['PATH']
+    # create virtual environment
+    if not has_script(TENV, 'devpi'):
+        virtualenv_path = get_virtualenv()
+        run([sys.executable, virtualenv_path, TENV], shell=False)
+
+    assert has_script(TENV, 'python'), 'no python script'
+    assert has_script(TENV, 'pip'), 'no pip script'
+    activate_path(TENV)
+
+    pip = get_script_path(TENV, 'pip')
+
+    run('%s install --pre -i {bootstrapindex} --upgrade devpi-client' % (pip,))
+    assert has_script(TENV, 'devpi')
+    return get_script_showversion(TENV, "devpi")
+
+def get_script_showversion(TENV, name):
+    version = get_package_version(TENV, name)
+    assert has_script(TENV, name)
+    script = path.abspath(get_script_path(TENV, name))
+    log('%s is installed at %s, version is %s', name, script, version)
+    return script
+
+if __name__ == '__main__':
+    cmdline(sys.argv[1:])

@@ -137,6 +137,14 @@ def getpath(path):
     return py.path.local(os.path.expanduser(str(path)))
 
 def render(tw, basedir, confname, format=None, **kw):
+    result = render_string(confname, format=format, **kw)
+    conf = basedir.join(confname)
+    conf.write(result)
+    if tw is not None:
+        tw.line("wrote %s" % conf, bold=True)
+    return conf
+
+def render_string(confname, format=None, **kw):
     template = confname + ".template"
     from pkg_resources import resource_string
     templatestring = resource_string("devpi_server.cfg", template)
@@ -146,8 +154,4 @@ def render(tw, basedir, confname, format=None, **kw):
         result = templatestring.format(**kw)
     else:
         result = templatestring % kw
-    conf = basedir.join(confname)
-    conf.write(result)
-    if tw is not None:
-        tw.line("wrote %s" % conf, bold=True)
-    return conf
+    return result

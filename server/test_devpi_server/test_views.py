@@ -5,7 +5,7 @@ import webtest
 import requests, json
 from bs4 import BeautifulSoup
 from webtest.forms import Upload
-from devpi_server.views import PyPIView
+from devpi_server.views import PyPIView, render_string
 from webtest import TestApp as TApp
 from test_db import create_zipfile
 
@@ -345,6 +345,20 @@ def test_upload_docs(httpget, db, mapp, testapp):
     #a = getfirstlink(r.text)
     #assert "pkg1-2.6.tgz" in a.get("href")
 
+def test_get_devpibootstrap(testapp):
+    r = testapp.get("/root/dev/+bootstrap",
+                    headers={"Host": "whatever.com"})
+    assert r.status_code == 200
+    assert r.content_type == "application/octet-stream"
+    data = r.body
+    assert "http://whatever.com/root/dev/+simple" in data
+
+    # recognize special "X-Schemehost" setting.
+    r = testapp.get("/root/dev/+bootstrap",
+                    headers={"X-Schemehost": "http://devpi.com"})
+    assert r.status_code == 200
+    data = r.body
+    assert "http://devpi.com/root/dev/+simple" in data
 
 class TestLoginBasics:
     def test_wrong_login_format(self, testapp, mapp):

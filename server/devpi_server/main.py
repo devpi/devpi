@@ -24,7 +24,6 @@ def main(argv=None):
         print (devpi_server.__version__)
         return
 
-
     if config.args.gendeploy:
         from devpi_server.gendeploy import gendeploy
         return gendeploy(config)
@@ -48,8 +47,8 @@ def bottle_run(xom):
     port = xom.config.args.port
     log.info("devpi-server version: %s", devpi_server.__version__)
     log.info("datadir: %s" % xom.datadir)
-    log.info("serving at url: http://%s:%s/",
-             xom.config.args.host, xom.config.args.port)
+    hostaddr = "http://%s:%s" %(xom.config.args.host, xom.config.args.port)
+    log.info("serving at url: %s", hostaddr)
     log.info("bug tracker: https://bitbucket.org/hpk42/devpi/issues")
     log.info("IRC: #pylib on irc.freenode.net")
     if "WEBTRACE" in os.environ and xom.config.args.debug:

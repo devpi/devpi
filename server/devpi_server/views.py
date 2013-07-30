@@ -4,11 +4,13 @@ from py.xml import html
 from devpi_server.types import lazydecorator, cached_property
 from bottle import response, request, abort, redirect, HTTPError, auth_basic
 from bottle import BaseResponse, HTTPResponse, static_file
+from devpi_server.config import render_string
 from devpi_server import urlutil
 import bottle
 import json
 import itsdangerous
 import logging
+import inspect
 
 import requests
 
@@ -17,6 +19,7 @@ log = logging.getLogger(__name__)
 LOGINCOOKIE = "devpi-login"
 MAXDOCZIPSIZE = 30 * 1024 * 1024    # 30MB
 
+static_dir = py.path.local(__file__).dirpath("+static").strpath
 
 def simple_html_body(title, bodytags, extrahead=""):
     return html.html(
@@ -71,7 +74,6 @@ class PyPIView:
     def __init__(self, xom):
         self.xom = xom
         self.db = xom.db
-
 
     #
     # support functions
@@ -157,6 +159,27 @@ class PyPIView:
                 if ixconfig["type"] == "stage":
                     api["pypisubmit"] = "/%s/%s/" % (user, index)
         apireturn(200, type="apiconfig", result=api)
+
+    #
+    # static serving (e.g. devpibootstrap.py)
+    #
+
+    @route("/<user>/<index>/+bootstrap", method="GET")
+    def serve_bootstrap(self, user, index):
+        schemehost = request.headers.get("X-Schemehost", None)
+        if schemehost is None:
+            schemehost = "http://" + request.headers.get("Host")
+        log.info("host header: %s", schemehost)
+        virtualenvtar = (schemehost +
+            '/root/pypi/f/https/pypi.python.org/packages/'
+            'source/v/virtualenv/virtualenv-1.10.tar.gz')
+        simple = "%s/%s/%s/+simple/" % (schemehost, user, index)
+        data = render_string("devpibootstrap.py",
+            bootstrapindex=simple,
+            virtualenvtar=virtualenvtar)
+        response.content_type = "application/octet-stream"
+        response.content_length = len(data)
+        return data
 
     #
     # index serving and upload
@@ -542,7 +565,6 @@ class PyPIView:
             latest_packages,
             bases,
         ]).unicode()
-
 
 
     #
