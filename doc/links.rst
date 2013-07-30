@@ -7,4 +7,5 @@
 .. _devpi: http://pypi.python.org/pypi/devpi/
 .. _merlinux: http://merlinux.eu
 .. _tox: http://tox.testrun.org
+.. _pypi: http://pypi.python.org/pypi
 

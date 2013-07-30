@@ -1,5 +1,5 @@
 devpi: pypi caching server and one-stop tool for python packaging
-====================================================================
+=================================================================
 
 .. include:: links.rst
 
@@ -20,13 +20,17 @@ in both the server and client packages:
 If you aim for single-laptop usage and quickly trying things out, read on below.  
 If you aim for a company wide setup, checkout :doc:`quickstart-server`.
 
+For step by step introduction to devpi, please refer to the :ref:`userman_index`
+
 **Compatibility: Windows/Python2.7, Linux/Python2.6,2.7, OSX/Python2.6/2.7**
 
-Quickstart: install, upload, test, push 
---------------------------------------------
+.. _label_quickstart_section:
+
+Quickstart: install, upload, test, push
+---------------------------------------
 
 Installing devpi client and server
-++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++
 
 ::
 
@@ -36,8 +40,8 @@ This will install ``devpi-client`` and ``devpi-server`` pypi packages.
 
 .. _`devpicommands`:
 
-devpi install: installing a package 
-++++++++++++++++++++++++++++++++++++++++
+devpi install: installing a package
++++++++++++++++++++++++++++++++++++
 
 We can now use the ``devpi`` command line client to ``pip install``
 a pypi package (here ``pytest`` as an example) through an
@@ -87,7 +91,7 @@ You may invoke the ``devpi install`` command a second time which should
 go much faster and also work offline.
 
 devpi upload: uploading one or more packages
-+++++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++
 
 Go to a ``setup.py`` based project of yours and issue::
 
@@ -121,7 +125,7 @@ index.
     The default is ``sdist.tgz``.
 
 uploading existing release files
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++
 
 If you have a directory with existing package files::
 
@@ -131,7 +135,7 @@ will recursively collect all archives files, register
 and upload them to our private ``root/dev`` pypi index.
 
 listing or removing projects and release files
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++
 
 If you issue::
 
@@ -154,7 +158,7 @@ Unless you specify the ``-y`` option you will be asked to confirm
 the list of release files that are to be deleted.
 
 devpi test: testing an uploaded package
-+++++++++++++++++++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++++++
 
 If you have a package using tox_ you may invoke::
 
@@ -165,7 +169,7 @@ against it.  You can also try to run ``devpi test`` with any 3rd party
 pypi package.
 
 devpi push: send a release to another index
-++++++++++++++++++++++++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++++++++++
 
 You can push a release with all release files and docs
 to another devpi index::
@@ -186,7 +190,7 @@ and the URL found in the ``pypi`` section in your
 ``.pypirc``, typically pointing to https://pypi.python.org/pypi.
 
 devpi use: show index and other info
-++++++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++
 
 ::
 
@@ -199,8 +203,8 @@ In the default configuration we do not need credentials
 and thus do not need to be logged in.
 
 
-devpi server: controling the automatic server 
-+++++++++++++++++++++++++++++++++++++++++++++++
+devpi server: controling the automatic server
++++++++++++++++++++++++++++++++++++++++++++++
 
 Let's look at our current automatically started server::
 
@@ -227,6 +231,7 @@ to use ``devpi-server`` with plain ``pip``, ``easy_install`` or
    status
    quickstart-server
    features-server
+   userman/index.rst
    curl
 
 .. toctree::
@@ -236,7 +241,7 @@ to use ``devpi-server`` with plain ``pip``, ``easy_install`` or
 
 
 Example timing
-----------------
+--------------
 
 Here is a little screen session when using a fresh ``devpi-server``
 instance, installing itself in a fresh virtualenv::
@@ -264,7 +269,7 @@ it and install ``django-treebeard`` again, now using devpi-server::
 So it's around 2-3 times faster on a 30Mbit internet connection.
 
 Known limitations
-------------------
+-----------------
 
 - ``devpi-server`` currently does not follow any FTP links.
 
