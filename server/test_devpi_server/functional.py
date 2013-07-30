@@ -74,6 +74,13 @@ class TestIndexThings:
         mapp.set_acl("root/test2", [])
         assert username not in mapp.get_acl("root/test2")
 
+    def test_create_index_with_jenkinsurl(self, mapp):
+        url = "http://localhost:8080/"
+        mapp.create_index("root/test3")
+        mapp.set_uploadtrigger_jenkins("root/test3", url)
+        data = mapp.getjson("/root/test3")
+        assert data["result"]["uploadtrigger_jenkins"] == url
+
     def test_config_get_user_empty(self, mapp):
         mapp.getjson("/user", code=404)
 

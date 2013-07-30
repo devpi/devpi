@@ -12,6 +12,8 @@ log = logging.getLogger(__name__)
 def pytest_addoption(parser):
     parser.addoption("--catchall", action="store_true", default=False,
         help="run bottle apps in catchall mode to see exceptions")
+    parser.addoption("--remote", action="store_true", default=False,
+        help="run tests involving remote services (pypi.python.org)")
 
 @pytest.fixture()
 def caplog(caplog):

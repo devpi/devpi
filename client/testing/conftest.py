@@ -21,6 +21,7 @@ from devpi.util import url as urlutil
 
 @pytest.fixture(autouse=True, scope="session")
 def noautoserver():
+    # prevent accidental automatic server startup
     std.os.environ["DEVPI_NO_AUTOSERVER"] = "1"
 
 def pytest_runtest_makereport(item, call):

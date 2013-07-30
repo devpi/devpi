@@ -79,6 +79,10 @@ class Mapp:
             acls = ",".join(acls)
         self.devpi("index", indexname, "acl_upload=%s" % acls, code=200)
 
+    def set_uploadtrigger_jenkins(self, indexname, url):
+        self.devpi("index", indexname,
+                   "uploadtrigger_jenkins=%s" % url, code=200)
+
     def get_acl(self, indexname, code=200):
         result = self.out_devpi("index", indexname)
         for line in result.outlines:

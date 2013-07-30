@@ -1,32 +1,7 @@
 #!/usr/bin/env python
-# The MIT License
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-# THE SOFTWARE.
 """
-devpibootstrap
-===============
-
-A bootstrap script to automatically install devpi in a virtualenv.
-
-Getting started
----------------
-
+A jenkins uploadtrigger bootstrap script to automatically install devpi
+in a virtualenv and then run "devpi use" and "devpi test". 
 """
 
 __version__ = '0.9.5.dev1'
@@ -76,7 +51,7 @@ def wget(url):
     """Download the given file to current directory"""
     log('downloading %s', url)
     basename = path.basename(url)
-    localpath = path.join(path.abspath(os.getcwd()), basename)
+    localpath = path.join(os.getcwd(), basename)
     urlretrieve(url, localpath)
     return localpath
 
@@ -118,7 +93,7 @@ def get_script_path(venv, name):
 
 
 def get_package_version(venv, name):
-    """Return the installed version of tox"""
+    """Return the installed version of a package. """
     py = get_script_path(venv, 'python')
     s = 'import devpi,sys; sys.stdout.write(str(%s.__version__))' % name
     if sys.version_info[:2] >= (2, 6):
@@ -127,74 +102,57 @@ def get_package_version(venv, name):
         return crun('%s -c "%s"' % (py, s))
 
 
-def parse_simple_version(v):
-    """A simplified version of pkg_resources.parse_version
-
-    This method can only parse simple versions like the ones with a set of
-    numbers separated by dots (eg: 1.2.3)
-    """
-    return [int(c) for c in v.split('.')]
-
-
 def ensuredir(p):
     if not path.isdir(p):
         os.makedirs(p)
 
-def get_virtualenv():
-    TARURL = '{virtualenvtar}'
-    basename = path.basename(TARURL)
+def get_virtualenv(virtualenvtar_url):
+    basename = path.basename(virtualenvtar_url)
     log("matching %s", basename)
     dirname = re.match("(virtualenv-.*).tar.gz", basename).group(1)
-    vdir = path.join(dirname)
+    vdir = path.abspath(dirname)
     virtualenv_script = path.join(vdir, "virtualenv.py")
     if not path.exists(virtualenv_script):
         if path.exists(vdir):
             shutil.rmtree(vdir)
-        archive = wget(TARURL)
+        archive = wget(virtualenvtar_url)
         log("got %s", archive)
-        with tarfile.open(archive, "r:gz") as tar:
-            tar.extractall()
+        tar = tarfile.open(archive, "r:gz")
+        tar.extractall()
+        tar.close()
         assert path.exists(vdir)
         log("extracted %s", vdir)
     assert path.exists(virtualenv_script)
     return virtualenv_script
 
 class Devpi:
-    def __init__(self, index):
-        self.index = index
-        self.script = init_script(index)
+    def __init__(self, basedir, script):
+        self.basedir = basedir
+        self.script = script 
 
     def __call__(self, *args):
         argv = list(args)
         assert args
-        clientdir = ".devpiclient"
+        clientdir = path.join(self.basedir, ".devpiclient")
         try:
-            run([self.script, "--clientdir=%s" % clientdir] + argv,
+            self.run([self.script, "--clientdir=%s" % clientdir] + argv,
                 shell=False)
         except CalledProcessError:
             _, e, _ = sys.exc_info()
             log('exited with error code %d', e.returncode)
             sys.exit(e.returncode)
 
-def init_script(index):
-    currentdir = os.getcwd()
-    BASE = path.abspath(".tox")
-    TENV = path.join(BASE, "_devpi")
-    ensuredir(BASE)
-    return activate_devpi_script(TENV)
+    def run(self, *args, **kwargs):
+        return run(*args, **kwargs)
 
-def cmdline(argv=None):
-    devpi(*(argv or []))
-
-
-def activate_devpi_script(TENV):
+def activate_devpi_script(TENV, virtualenvtar_url, devpi_install_index):
     log('bootstrap version %s', __version__)
     log("devpi bootstrap env is/shall be at: %s" % TENV)
 
     os.environ['PATH'] = TENV + os.path.pathsep + os.environ['PATH']
     # create virtual environment
     if not has_script(TENV, 'devpi'):
-        virtualenv_path = get_virtualenv()
+        virtualenv_path = get_virtualenv(virtualenvtar_url)
         run([sys.executable, virtualenv_path, TENV], shell=False)
 
     assert has_script(TENV, 'python'), 'no python script'
@@ -203,7 +161,8 @@ def activate_devpi_script(TENV):
 
     pip = get_script_path(TENV, 'pip')
 
-    run('%s install --pre -i {bootstrapindex} --upgrade devpi-client' % (pip,))
+    run('%s install --pre -i %s --upgrade devpi-client' % (
+        pip, devpi_install_index))
     assert has_script(TENV, 'devpi')
     return get_script_showversion(TENV, "devpi")
 
@@ -214,5 +173,28 @@ def get_script_showversion(TENV, name):
     log('%s is installed at %s, version is %s', name, script, version)
     return script
 
+def main(indexurl = "{INDEXURL}",
+         virtualenvtar_url = "{VIRTUALENVTARURL}",
+         devpi_install_index = "{DEVPI_INSTALL_INDEX}",
+         testspec = "{TESTSPEC}"):
+    log("starting Jenkins job")
+    basedir = os.getcwd()
+
+    # prepare a TMPDIR that resides in the Jenkins workspace
+    # this is picked up from "devpi test" below
+    os.environ["TMPDIR"] = tmpdir = path.join(basedir, "TMP")
+    ensuredir(tmpdir)
+
+    # prepare a virtualenv for installing devpi-client
+    TENV = path.join(basedir, "_devpi")
+    script = activate_devpi_script(TENV, virtualenvtar_url,
+                                   devpi_install_index)
+
+    devpi = Devpi(basedir, script)
+
+    # invoke the just-installed devpi client
+    devpi("use", indexurl)
+    devpi("test", testspec)
+
 if __name__ == '__main__':
-    cmdline(sys.argv[1:])
+    main()

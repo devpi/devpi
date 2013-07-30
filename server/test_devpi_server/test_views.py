@@ -5,9 +5,10 @@ import webtest
 import requests, json
 from bs4 import BeautifulSoup
 from webtest.forms import Upload
-from devpi_server.views import PyPIView, render_string
+from devpi_server.views import PyPIView, render_string, get_outside_url
 from webtest import TestApp as TApp
 from test_db import create_zipfile
+from mock import Mock
 
 from .functional import TestUserThings, TestIndexThings
 
@@ -296,6 +297,20 @@ def test_upload_with_acl(httpget, db, mapp, testapp, monkeypatch):
     mapp.upload_file_pypi(
             "i1", "dev", "pkg1-2.6.tgz", "123", "pkg1", "2.6")
 
+def test_upload_with_jenkins(db, mapp, testapp, monkeypatch):
+    mapp.create_and_login_user("i1", "456")
+    mapp.create_index("dev")
+    mapp.set_uploadtrigger_jenkins("i1/dev", "http://x.com/{pkgname}")
+    from devpi_server import views
+    post_mock = Mock(autospec=requests.post)
+    monkeypatch.setattr(views.requests, "post", post_mock)
+    mapp.upload_file_pypi(
+            "i1", "dev", "pkg1-2.6.tgz", "123", "pkg1", "2.6", code=200)
+    assert post_mock.call_count == 1
+    args = post_mock.call_args
+    assert args[0][0] == "http://x.com/pkg1"
+    assert args[1]["data"]["Submit"] == "Build"
+
 def test_upload_and_remove_project_version(httpget, db,
                                            mapp, testapp, monkeypatch):
     mapp.create_and_login_user("user")
@@ -345,28 +360,12 @@ def test_upload_docs(httpget, db, mapp, testapp):
     #a = getfirstlink(r.text)
     #assert "pkg1-2.6.tgz" in a.get("href")
 
-def test_get_devpibootstrap(testapp):
-    r = testapp.get("/root/dev/+bootstrap",
-                    headers={"Host": "whatever.com"})
-    assert r.status_code == 200
-    assert r.content_type == "application/octet-stream"
-    data = r.body
-    assert "http://whatever.com/root/dev/+simple" in data
-
-    # recognize special "X-Schemehost" setting.
-    r = testapp.get("/root/dev/+bootstrap",
-                    headers={"X-Schemehost": "http://devpi.com"})
-    assert r.status_code == 200
-    data = r.body
-    assert "http://devpi.com/root/dev/+simple" in data
-
-class TestLoginBasics:
-    def test_wrong_login_format(self, testapp, mapp):
-        api = mapp.getapi()
-        r = testapp.post(api.login, "qweqweqwe", expect_errors=True)
-        assert r.status_code == 400
-        r = testapp.post_json(api.login, {"qwelk": ""}, expect_errors=True)
-        assert r.status_code == 400
+def test_wrong_login_format(testapp, mapp):
+    api = mapp.getapi()
+    r = testapp.post(api.login, "qweqweqwe", expect_errors=True)
+    assert r.status_code == 400
+    r = testapp.post_json(api.login, {"qwelk": ""}, expect_errors=True)
+    assert r.status_code == 400
 
 
 @pytest.fixture
@@ -478,6 +477,14 @@ class Mapp:
         if code in (200,201):
             assert r.json["result"]["type"] == "stage"
 
+    def set_uploadtrigger_jenkins(self, indexname, triggerurl):
+        indexurl = "/" + indexname
+        r = self.testapp.get_json(indexurl)
+        result = r.json["result"]
+        result["uploadtrigger_jenkins"] = triggerurl
+        r = self.testapp.patch_json(indexurl, result)
+        assert r.status_code == 200
+
     def set_acl(self, indexname, users, acltype="upload"):
         r = self.testapp.get_json("/%s" % indexname)
         result = r.json["result"]
@@ -533,4 +540,14 @@ def test_kvdict(input, expected):
     from devpi_server.views import getkvdict_index
     result = getkvdict_index(input)
     assert result == expected
+
+def test_get_outside_url():
+    url = get_outside_url({"X-outside-url": "http://outside.com"}, None)
+    assert url == "http://outside.com/"
+    url = get_outside_url({"X-outside-url": "http://outside.com"},
+                          "http://outside2.com")
+    assert url == "http://outside2.com/"
+    url = get_outside_url({"Host": "outside3.com"}, None)
+    assert url == "http://outside3.com/"
+
 

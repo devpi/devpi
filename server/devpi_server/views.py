@@ -161,27 +161,6 @@ class PyPIView:
         apireturn(200, type="apiconfig", result=api)
 
     #
-    # static serving (e.g. devpibootstrap.py)
-    #
-
-    @route("/<user>/<index>/+bootstrap", method="GET")
-    def serve_bootstrap(self, user, index):
-        schemehost = request.headers.get("X-Schemehost", None)
-        if schemehost is None:
-            schemehost = "http://" + request.headers.get("Host")
-        log.info("host header: %s", schemehost)
-        virtualenvtar = (schemehost +
-            '/root/pypi/f/https/pypi.python.org/packages/'
-            'source/v/virtualenv/virtualenv-1.10.tar.gz')
-        simple = "%s/%s/%s/+simple/" % (schemehost, user, index)
-        data = render_string("devpibootstrap.py",
-            bootstrapindex=simple,
-            virtualenvtar=virtualenvtar)
-        response.content_type = "application/octet-stream"
-        response.content_length = len(data)
-        return data
-
-    #
     # index serving and upload
 
     #@route("/ext/pypi/simple<rest:re:.*>")  # deprecated
@@ -374,6 +353,7 @@ class PyPIView:
                 if res == 409:
                     abort(409, "%s already exists in non-volatile index" %(
                          content.filename,))
+                trigger_jenkins(stage, name)
             else:
                 if len(content.value) > MAXDOCZIPSIZE:
                     abort(413, "zipfile too large")
@@ -638,6 +618,48 @@ def getjson():
             abort(400, "Bad request: could not decode")
     return dict
 
+def get_outside_url(headers, outsideurl):
+    if outsideurl:
+        url = outsideurl
+    else:
+        url = headers.get("X-outside-url", None)
+        if url is None:
+            url = "http://" + headers.get("Host")
+    url = url.rstrip("/") + "/"
+    log.debug("host header: %s", url)
+    return url
+
+def trigger_jenkins(stage, testspec):
+    jenkins_url = stage.ixconfig["uploadtrigger_jenkins"]
+    if not jenkins_url:
+        return
+    jenkins_url = jenkins_url.format(pkgname=testspec)
+    baseurl = get_outside_url(request.headers,
+                              stage.xom.config.args.outside_url)
+
+    source = render_string("devpibootstrap.py",
+        INDEXURL=baseurl + stage.name,
+        VIRTUALENVTARURL= (baseurl +
+            "root/pypi/f/https/pypi.python.org/packages/"
+            "source/v/virtualenv/virtualenv-1.10.tar.gz"),
+        TESTSPEC=testspec,
+        DEVPI_INSTALL_INDEX = baseurl + stage.name + "/+simple/"
+    )
+    inputfile = py.io.BytesIO(source)
+    r = requests.post(jenkins_url, data={
+                    "Submit": "Build",
+                    "name": "jobscript.py",
+                    "json": json.dumps(
+                {"parameter": {"name": "jobscript.py", "file": "file0"}}),
+        },
+            files={"file0": ("file0", inputfile)})
+
+    if r.status_code == 200:
+        log.info("successfully triggered jenkins: %s", jenkins_url)
+    else:
+        log.error("%s: failed to trigger jenkins at %s", r.status_code,
+                  jenkins_url)
+
 
 def getkvdict_index(req):
     req_volatile = req.get("volatile")
@@ -656,4 +678,6 @@ def getkvdict_index(req):
         kvdict["type"] = req["type"]
     if "acl_upload" in req:
         kvdict["acl_upload"] = req["acl_upload"]
+    if "uploadtrigger_jenkins" in req:
+        kvdict["uploadtrigger_jenkins"] = req["uploadtrigger_jenkins"]
     return kvdict

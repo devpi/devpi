@@ -21,6 +21,7 @@ If you aim for single-laptop usage and quickly trying things out, read on below.
 If you aim for a company wide setup, checkout :doc:`quickstart-server`.
 
 For step by step introduction to devpi, please refer to the :ref:`userman_index`
+For integration and triggering of Jenkins jobs from devpi, see :doc:`jenkins`.
 
 **Compatibility: Windows/Python2.7, Linux/Python2.6,2.7, OSX/Python2.6/2.7**
 
@@ -232,6 +233,7 @@ to use ``devpi-server`` with plain ``pip``, ``easy_install`` or
    quickstart-server
    features-server
    userman/index.rst
+   jenkins
    curl
 
 .. toctree::

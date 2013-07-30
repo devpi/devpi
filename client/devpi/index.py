@@ -55,6 +55,8 @@ def index_show(hub, indexname):
     hub.line("  type=%s" % ixconfig["type"])
     hub.line("  bases=%s" % ",".join(ixconfig["bases"]))
     hub.line("  volatile=%s" % (ixconfig["volatile"],))
+    hub.line("  uploadtrigger_jenkins=%s" %(
+                ixconfig["uploadtrigger_jenkins"],))
     hub.line("  acl_upload=%s" % ",".join(ixconfig["acl_upload"]))
 
 def main(hub, args):

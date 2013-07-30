@@ -27,6 +27,14 @@ def addoptions(parser):
             default="localhost",
             help="domain/ip address to listen on")
 
+    group.addoption("--outside-url",  type=str, dest="outside_url",
+            metavar="URL",
+            default=None,
+            help="the outside URL where this server will be reachable. "
+                 "Set this if you proxy devpi-server through a web server "
+                 "and the web server does not set or you want to override "
+                 "the custom X-outside-url header.")
+
     group.addoption("--refresh", type=float, metavar="SECS",
             default=60,
             help="interval for consulting changelog api of pypi.python.org")

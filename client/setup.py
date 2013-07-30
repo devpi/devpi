@@ -22,7 +22,7 @@ if __name__ == "__main__":
       description="devpi upload/install/... workflow commands for Python "
                   "developers",
       long_description=open("README.rst").read(),
-      version='0.9.5.dev1',
+      version='0.9.5.dev3',
       packages=find_packages(),
       install_requires=install_requires,
       url="https://bitbucket.org/hpk42/devpi",

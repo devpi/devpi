@@ -107,6 +107,8 @@ class DB:
             ixconfig.update(kw)
             if "acl_upload" not in ixconfig:
                 ixconfig["acl_upload"] = []
+            if "uploadtrigger_jenkins" not in ixconfig:
+                ixconfig["uploadtrigger_jenkins"] = None
             #if not set(ixconfig) == _ixconfigattr:
             #    raise ValueError("incomplete config: %s" % ixconfig)
             log.debug("configure_index %s/%s: %s", user, index, ixconfig)
