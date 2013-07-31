@@ -15,9 +15,6 @@ from devpi.util import version as verlib
 from devpi.util import pypirc
 from devpi.remoteindex import RemoteIndex
 
-pytestpluginpath = py.path.local(devpi.__file__).dirpath(
-        "test", "inject", "pytest_devpi.py")
-
 import requests
 
 def setenv_devpi(hub, env, posturl, packageurl, packagemd5):
@@ -69,23 +66,11 @@ class DevIndex:
     def runtox(self, link, Popen, venv=None):
         path_archive = link.pkg.path_archive
 
-        assert pytestpluginpath.check()
-
         # the env var is picked up by pytest-devpi plugin
         env = os.environ.copy()
-        setenv_devpi(self.hub, env, posturl=self.current.resultlog,
-                          packageurl=link.href,
-                          packagemd5=link.md5)
-        # to get pytest to pick up our devpi plugin
-        # XXX in the future we rather want to instruct tox to use
-        # a pytest driver with our plugin enabled and maybe
-        # move reporting and posting of resultlogs to tox
-        env["PYTHONPATH"] = pytestpluginpath.dirname
-        self.hub.debug("setting PYTHONPATH", env["PYTHONPATH"])
-        env["PYTEST_PLUGINS"] = x = pytestpluginpath.purebasename
-        self.hub.debug("setting PYTEST_PLUGINS", env["PYTEST_PLUGINS"])
-        for name, val in env.items():
-            assert isinstance(val, str), (name, val)
+        #setenv_devpi(self.hub, env, posturl=self.current.resultlog,
+        #                  packageurl=link.href,
+        #                  packagemd5=link.md5)
         toxargs = ["tox", "--installpkg", str(path_archive),
                    "-i ALL=%s" % self.current.simpleindex,
                    "-v",

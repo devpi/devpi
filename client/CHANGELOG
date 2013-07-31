@@ -29,6 +29,9 @@
 - add longer descriptions to each sub command, shown with
   "devpi COMMAND -h".
 
+- removed pytestplugin support for now (pytest reporting directly to
+  devpi-server)
+
 0.9.4
 -------------------------------
 
