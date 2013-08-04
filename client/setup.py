@@ -33,7 +33,7 @@ if __name__ == "__main__":
         "Environment :: Web Environment",
         "Intended Audience :: Developers",
         "Intended Audience :: System Administrators",
-        "License :: OSI Approved :: BSD License",
+        "License :: OSI Approved :: MIT License",
         ],
       entry_points = {'console_scripts': ["devpi = devpi.main:main"]},
       )
