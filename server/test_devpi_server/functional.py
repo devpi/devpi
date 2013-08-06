@@ -58,6 +58,22 @@ class TestIndexThings:
     def test_create_index__not_exists(self, mapp):
         mapp.create_index("not_exist/dev", code=404)
 
+    def test_create_index_base_not_exists(self, mapp):
+        indexconfig = dict(bases=("not/exists",))
+        m = mapp.create_index("root/hello", indexconfig=indexconfig, code=400)
+        if m:  # only server-side mapp returns messages
+            assert "not/exists" in m
+
+    def test_create_index_base_normalized(self, mapp):
+        indexconfig = dict(bases=("/root/dev",))
+        mapp.create_index("root/hello", indexconfig=indexconfig, code=200)
+
+    def test_create_index_base_invalid(self, mapp):
+        indexconfig = dict(bases=("/root/dev/123",))
+        m = mapp.create_index("root/hello", indexconfig=indexconfig, code=400)
+        if m:
+            assert "root/dev/123" in m
+
     def test_create_index_default_allowed(self, mapp):
         mapp.create_index("root/test1")
         mapp.login("root", "")

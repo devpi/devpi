@@ -69,9 +69,18 @@ class Mapp:
         self.create_user(user, password)
         self.login(user, password)
 
-    def create_index(self, indexname, code=201):
+    def _indexconfig_to_cmdline_keyvalue(self, indexconfig):
+        params = []
+        if indexconfig:
+            for name, val in indexconfig.items():
+                if name == "bases":
+                    params.append("%s=%s" % (name, ",".join(val)))
+        return params
+
+    def create_index(self, indexname, indexconfig=None, code=201):
         #user, password = self.auth
-        self.devpi("index", "-c", indexname, code=code)
+        params = self._indexconfig_to_cmdline_keyvalue(indexconfig)
+        self.out_devpi("index", "-c", indexname, *params, code=code)
 
     def set_acl(self, indexname, acls, code=200):
         #user, password = self.auth

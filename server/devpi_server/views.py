@@ -245,7 +245,10 @@ class PyPIView:
         kvdict.setdefault("type", "stage")
         kvdict.setdefault("bases", ["root/dev"])
         kvdict.setdefault("volatile", True)
-        ixconfig = self.db.user_indexconfig_set(user, index, **kvdict)
+        try:
+            ixconfig = self.db.user_indexconfig_set(user, index, **kvdict)
+        except self.db.InvalidIndexconfig as e:
+            apireturn(400, message=", ".join(e.messages))
         apireturn(200, type="indexconfig", result=ixconfig)
 
     @route("/<user>/<index>", method=["GET"])

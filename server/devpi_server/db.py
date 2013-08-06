@@ -36,6 +36,10 @@ def run_passwd(db, user):
 _ixconfigattr = set("type volatile bases acl_upload".split())
 
 class DB:
+    class InvalidIndexconfig(Exception):
+        def __init__(self, messages):
+            self.messages = messages
+            Exception.__init__(self, messages)
 
     def __init__(self, xom):
         self.xom = xom
@@ -87,7 +91,14 @@ class DB:
             d["username"] = user
         return d
 
-    def user_indexconfig_get(self, user, index):
+    def _get_user_and_index(self, user, index=None):
+        if index is None:
+            user = user.strip("/")
+            user, index = user.split("/")
+        return user, index
+
+    def user_indexconfig_get(self, user, index=None):
+        user, index = self._get_user_and_index(user, index)
         userconfig = self.keyfs.USER(user=user).get()
         try:
             indexconfig = userconfig["indexes"][index]
@@ -98,8 +109,26 @@ class DB:
         return indexconfig
 
     def user_indexconfig_set(self, user, index=None, **kw):
-        if index is None:
-            user, index = user.split("/")
+        user, index = self._get_user_and_index(user, index)
+
+        # check and normalize base indices
+        messages = []
+        newbases = []
+        for base in kw.get("bases", []):
+            try:
+                base_user, base_index = self._get_user_and_index(base)
+            except ValueError:
+                messages.append("invalid base index spec: %r" % (base,))
+            else:
+                if self.user_indexconfig_get(base) is None:
+                    messages.append("base index %r does not exist" %(base,))
+                else:
+                    newbases.append("%s/%s" % (base_user, base_index))
+        if messages:
+            raise self.InvalidIndexconfig(messages)
+        kw["bases"] = tuple(newbases)
+
+        # modify user/indexconfig
         assert kw["type"] in ("stage", "mirror")
         with self.keyfs.USER(user=user).locked_update() as userconfig:
             indexes = userconfig.setdefault("indexes", {})
@@ -149,10 +178,6 @@ class DB:
 
     def getstagename(self, user, index):
         return "%s/%s" % (user, index)
-
-    def getindexconfig(self, stagename):
-        user, index = stagename.split("/")
-        return self.user_indexconfig_get(user, index)
 
     def create_stage(self, user, index=None,
                      type="stage", bases=("/root/pypi",),

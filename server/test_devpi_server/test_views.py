@@ -501,6 +501,8 @@ class Mapp:
         assert r.status_code == code
         if code in (200,201):
             assert r.json["result"]["type"] == "stage"
+        if code in (400,):
+            return r.json["message"]
 
     def set_uploadtrigger_jenkins(self, indexname, triggerurl):
         indexurl = "/" + indexname

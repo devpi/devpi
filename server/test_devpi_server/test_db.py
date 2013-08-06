@@ -42,8 +42,35 @@ class TestStage:
 
     def test_not_configured_index(self, db):
         stagename = "hello/world"
-        assert not db.getindexconfig(stagename)
+        assert not db.user_indexconfig_get(stagename)
         assert not db.getstage(stagename)
+
+    def test_indexconfig_set_throws_on_unknown_base_index(self, db):
+        with pytest.raises(db.InvalidIndexconfig) as excinfo:
+            db.user_indexconfig_set(user="hello", index="world",
+                                    bases=("root/notexists",
+                                           "root/notexists2"),
+                                    type="stage")
+        messages = excinfo.value.messages
+        assert len(messages) == 2
+        assert "root/notexists" in messages[0]
+        assert "root/notexists2" in messages[1]
+
+    def test_indexconfig_set_throws_on_invalid_base_index(self, db):
+        with pytest.raises(db.InvalidIndexconfig) as excinfo:
+            db.user_indexconfig_set(user="hello", index="world",
+                                    bases=("root/dev/123",),
+                                    type="stage")
+        messages = excinfo.value.messages
+        assert len(messages) == 1
+        assert "root/dev/123" in messages[0]
+
+    def test_indexconfig_set_normalizes_bases(self, db):
+        ixconfig = db.user_indexconfig_set(user="hello", index="world",
+                                           bases=("/root/dev/",),
+                                           type="stage")
+        assert ixconfig["bases"] == ("root/dev",)
+
 
     def test_empty(self, stage, bases):
         assert not stage.getreleaselinks("someproject")
@@ -252,10 +279,10 @@ class TestUsers:
 def test_setdefault_indexes(db):
     from devpi_server.main import set_default_indexes
     set_default_indexes(db)
-    ixconfig = db.getindexconfig("root/pypi")
+    ixconfig = db.user_indexconfig_get("root/pypi")
     assert ixconfig["type"] == "mirror"
 
-    ixconfig = db.getindexconfig("root/dev")
+    ixconfig = db.user_indexconfig_get("root/dev")
     assert ixconfig["type"] == "stage"
     assert ixconfig["bases"] == ("root/pypi",)
     assert ixconfig["volatile"]
