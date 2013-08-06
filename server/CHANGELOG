@@ -1,6 +1,9 @@
 next version
 ----------------
 
+- fix issue22: don't bypass CDN by default, rather provide an
+  "--bypass-cdn" option to do it (in case you have cache-invalidation troubles)
+
 - fix issue20 and fix issue23: normalize index specs internally ("/root/dev" ->
   "root/dev") and check if base indices exist.
 

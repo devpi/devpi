@@ -39,6 +39,12 @@ def addoptions(parser):
             default=60,
             help="interval for consulting changelog api of pypi.python.org")
 
+    group.addoption("--bypass-cdn", action="store_true",
+            help="set this if you want to bypass pypi's CDN for access to "
+                 "simple pages and packages, in order to rule out cache-"
+                 "invalidation issues.  This will only work if you "
+                 "are not using a http proxy.")
+
     group.addoption("--passwd", action="store", metavar="USER",
             help="set password for user USER (interactive)")
     group = parser.addgroup("deploy", "deployment options")

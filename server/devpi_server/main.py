@@ -14,9 +14,6 @@ from devpi_server.types import cached_property
 from devpi_server.config import parseoptions, configure_logging
 import devpi_server
 
-USE_FRONT = 1  # use front.pypi.org for getting simple pages
-
-
 def main(argv=None):
     """ devpi-server command line entry point. """
     config = parseoptions(argv)
@@ -162,7 +159,9 @@ class XOM:
     def httpget(self, url, allow_redirects, timeout=30):
         from requests.exceptions import RequestException
         headers = {}
+        USE_FRONT = self.config.args.bypass_cdn
         if USE_FRONT:
+            log.debug("bypassing pypi CDN for: %s", url)
             if url.startswith("https://pypi.python.org/simple/"):
                 url = url.replace("https://pypi", "https://front")
                 headers["HOST"] = "pypi.python.org"
