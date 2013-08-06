@@ -1,7 +1,7 @@
 next version
 ----------------
 
-- fix issue20: normalize index specs internally ("/root/dev" ->
+- fix issue20 and fix issue23: normalize index specs internally ("/root/dev" ->
   "root/dev") and check if base indices exist.
 
 - add Jenkins build job triggering for running the tests for a package
