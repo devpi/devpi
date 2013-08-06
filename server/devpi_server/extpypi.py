@@ -15,6 +15,7 @@ from .vendor._pip import HTMLPage
 
 from .types import propmapping
 from .urlutil import DistURL, joinpath
+from pkg_resources import Requirement
 
 from logging import getLogger
 assert __name__ == "devpi_server.extpypi"
@@ -28,7 +29,8 @@ ARCHIVE_SCHEMES = ("http", "https")
 class IndexParser:
 
     def __init__(self, projectname):
-        self.projectname = projectname.lower()
+        self.projectname_raw = projectname
+        self.projectname = Requirement.parse(projectname).project_name.lower()
         self.basename2link = {}
         self.crawllinks = set()
         self.egglinks = []
@@ -79,17 +81,17 @@ class IndexParser:
 
 def is_archive_of_project(newurl, targetname):
     if newurl._parsed.scheme not in ARCHIVE_SCHEMES:
-        log.warn("url has wrong scheme %r", newurl)
+        log.warn("url has unsupported scheme %r", newurl)
         return False
-    targetname = targetname.lower()
     nameversion, ext = newurl.splitext_archive()
     parts = re.split(r'-\d+', nameversion)
     projectname = parts[0]
+    if not projectname:
+        return False
+    pname = Requirement.parse(projectname).project_name.lower()
     #log.debug("checking %s, projectname %r, nameversion %s", newurl, self.projectname, nameversion)
-    if len(parts) > 1 and ext.lower() in ALLOWED_ARCHIVE_EXTS and \
-       projectname.lower() == targetname:
-        return True
-    return False
+    return (len(parts) > 1 and ext.lower() in ALLOWED_ARCHIVE_EXTS and
+            pname == targetname)
 
 def parse_index(disturl, html, scrape=True):
     if not isinstance(disturl, DistURL):

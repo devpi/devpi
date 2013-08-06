@@ -102,14 +102,28 @@ class TestStage:
         assert entries[2].basename == "someproject-1.0.zip"
         assert stage.getprojectnames() == ["someproject",]
 
+    def test_inheritance_normalize_multipackage(self, httpget, db, stage):
+        stage.configure(bases=("root/pypi",))
+        httpget.setextsimple("some-project", """
+            <a href='some_project-1.0.zip' /a>
+            <a href='some_project-1.0.tar.gz' /a>
+        """)
+        stage.store_releasefile("some_project-1.2.tar.gz", "456")
+        entries = stage.getreleaselinks("some-project")
+        assert len(entries) == 3
+        assert entries[0].basename == "some_project-1.2.tar.gz"
+        assert entries[1].basename == "some_project-1.0.zip"
+        assert entries[2].basename == "some_project-1.0.tar.gz"
+        assert stage.getprojectnames() == ["some-project",]
+
     def test_getreleaselinks_inheritance_shadow(self, httpget, stage):
         stage.configure(bases=("root/pypi",))
         httpget.setextsimple("someproject",
             "<a href='someproject-1.0.zip' /a>")
-        stage.store_releasefile("someproject-1.0.tar.gz", "123")
+        stage.store_releasefile("someproject-1.0.zip", "123")
         entries = stage.getreleaselinks("someproject")
         assert len(entries) == 1
-        assert entries[0].relpath.endswith("someproject-1.0.tar.gz")
+        assert entries[0].relpath.endswith("someproject-1.0.zip")
 
     def test_getreleaselinks_inheritance_shadow_egg(self, httpget, stage):
         stage.configure(bases=("root/pypi",))

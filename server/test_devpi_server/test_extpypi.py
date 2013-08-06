@@ -31,6 +31,14 @@ class TestIndexParsing:
         """)
         assert len(result.releaselinks) == 3
 
+    def test_parse_index_normalized_name(self):
+        simplepy = DistURL("http://pypi.python.org/simple/ndg-httpsclient/")
+        result = parse_index(simplepy, """
+               <a href="../../pkg/ndg_httpsclient-1.0.tar.gz" />
+        """)
+        assert len(result.releaselinks) == 1
+        assert result.releaselinks[0].url.endswith("ndg_httpsclient-1.0.tar.gz")
+
     def test_parse_index_two_eggs_same_url(self):
         simplepy = DistURL("http://pypi.python.org/simple/Py/")
         result = parse_index(simplepy,

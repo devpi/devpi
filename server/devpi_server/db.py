@@ -310,7 +310,7 @@ class PrivateStage:
 
     def getreleaselinks(self, projectname):
         all_links = []
-        versions = set()
+        basenames = set()
         for stage, res in self.op_with_bases("getreleaselinks",
                                           projectname=projectname):
             if isinstance(res, int):
@@ -319,11 +319,11 @@ class PrivateStage:
                 return res
             for entry in res:
                 if entry.eggfragment:
-                    ver = entry.eggfragment
+                    key = entry.eggfragment
                 else:
-                    ver = DistURL(entry.relpath).easyversion
-                if ver not in versions:
-                    versions.add(ver)
+                    key = entry.basename
+                if key not in basenames:
+                    basenames.add(key)
                     all_links.append(entry)
         all_links = sorted_by_version(all_links, attr="basename")
         all_links.reverse()
