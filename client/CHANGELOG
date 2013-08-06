@@ -1,6 +1,11 @@
 1.0.dev1
 -------------------------------
 
+- fix issue14: lookup "python" from PATH for upload/packaging activities instead of
+  using "sys.executable" which comes from the interpreter executing the "devpi" script.
+  This allows to alias "devpi" to come from a virtualenv which is separate from
+  the one used to perform packaging.
+
 - fix issue17: better reporting when "devpi use" does not operate on valid URL
 
 - test result upload and access: 

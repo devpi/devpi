@@ -221,6 +221,10 @@ class Exported:
         self.hub = hub
         self.rootpath = rootpath
         self.origrepo = origrepo
+        python = py.path.local.sysfind("python")
+        if not python:
+            raise ValueError("could not find 'python' executable")
+        self.python = str(python)
 
     def __str__(self):
         return "<Exported %s>" % self.rootpath
@@ -256,7 +260,7 @@ class Exported:
         setup_py = self.rootpath.join("setup.py")
         if not setup_py.check():
             self.hub.fatal("no setup.py file")
-        fullname = self.hub.popen_output([sys.executable,
+        fullname = self.hub.popen_output([self.python,
                                           setup_py, "--fullname"]).strip()
         self.hub.info("got local pypi-fullname", fullname)
         return fullname
@@ -273,7 +277,7 @@ class Exported:
             hub.info("would register package at", cwd, "to", pypisubmit)
             return
         hub.debug("registering package at", cwd, "to", pypisubmit)
-        out = hub.popen_output([sys.executable, fn_setup, cwd,
+        out = hub.popen_output([self.python, fn_setup, cwd,
              pypisubmit, user, password, "register", "-r", "devpi",],
              cwd = self.rootpath)
         if "Server response (200): OK" in out:
@@ -303,7 +307,7 @@ class Exported:
                     buildcommand.extend(["--formats", sdistformat(parts[1])])
             else:
                 buildcommand.append(format)
-            pre = [sys.executable, fn_setup, cwd, current.pypisubmit,
+            pre = [self.python, fn_setup, cwd, current.pypisubmit,
                    user, password]
             cmd = pre + buildcommand  + ["upload", "-r", "devpi",]
             out = self.hub.popen_output(cmd, cwd=cwd)
@@ -331,7 +335,7 @@ class Exported:
             "build_sphinx", "-E", "--build-dir", build,
             "upload_docs", "--upload-dir", upload_dir]
         out = self.hub.popen_output(
-            [sys.executable, fn_setup, cwd, current.pypisubmit,
+            [self.python, fn_setup, cwd, current.pypisubmit,
              user, password ] + doc_setup_command +
              ["-r", "devpi",],
             cwd=cwd)

@@ -28,8 +28,14 @@ def uploadhub(request, tmpdir):
 
 
 class TestCheckout:
+    @pytest.fixture(autouse=True)
+    def no_sys_executable(self, monkeypatch):
+        monkeypatch.setattr(sys, "executable", None)
+
     @pytest.fixture(scope="class")
     def repo(self, request):
+        if not py.path.local.sysfind("hg"):
+            pytest.skip("'hg' command not found")
         repo = request.config._tmpdirhandler.mktemp("repo", numbered=True)
         file = repo.join("file")
         file.write("hello")
@@ -44,7 +50,6 @@ class TestCheckout:
         return repo
 
     def test_hg_export(self, uploadhub, repo, tmpdir, monkeypatch):
-
         checkout = Checkout(uploadhub, repo)
         assert checkout.rootpath == repo
         newrepo = tmpdir.mkdir("newrepo")
