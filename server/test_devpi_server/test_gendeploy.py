@@ -19,8 +19,10 @@ def test_gendeploycfg(tmpdir, monkeypatch):
     gendeploy.gendeploycfg(config, tmpdir)
     assert tmpdir.check()
     sup = tmpdir.join("etc/supervisord.conf").read()
+    devpi_sup = tmpdir.join('etc/supervisor-devpi.conf').read()
     nginx = tmpdir.join("etc/nginx-devpi.conf").read()
-    assert "--port=3201" in sup
+    assert "--port=3201" in devpi_sup
+    assert ('[include]\nfiles = %(here)s/supervisor-devpi.conf') in sup
     assert "proxy_pass http://localhost:3201" in nginx
 
 def test_create_devpictl(tmpdir):

@@ -4,8 +4,8 @@ file = %(here)s/../supervisor.socket
 [supervisord]
 logfile={logdir}/supervisord.log
 pidfile={venvdir}/supervisord.pid
-logfile_maxbytes=50MB           
-logfile_backups=5 
+logfile_maxbytes=50MB
+logfile_backups=5
 loglevel=info           ; info, debug, warn, trace
 redirect_stderr = True
 nodaemon=false          ; run supervisord as a daemon
@@ -22,11 +22,7 @@ serverurl=unix://%(here)s/../supervisor.socket
 # if you have a system-wide supervisord installation 
 # you might move the below actual program definitions 
 # to a global /etc/supervisord/conf.d/devpi-server.conf
+[include]
+files = %(here)s/supervisor-devpi.conf
 
-[program:devpi-server]
-command={venvdir}/bin/devpi-server --datadir={datadir} --refresh=60 --port={devpiport}
-priority=999
-startsecs = 1
-redirect_stderr = True
-autostart=False
 
