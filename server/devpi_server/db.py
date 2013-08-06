@@ -164,8 +164,7 @@ class DB:
     # stage handling
 
     def getstage(self, user, index=None):
-        if index is None:
-            user, index = user.split("/")
+        user, index = self._get_user_and_index(user, index)
         ixconfig = self.user_indexconfig_get(user, index)
         if not ixconfig:
             return None
