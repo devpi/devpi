@@ -102,15 +102,16 @@ class Hub:
         methodexec = getattr(self.http, method, None)
         jsontype = "application/json"
         headers = {"Accept": jsontype, "content-type": jsontype}
-        if method in ("delete", "get"):
-            r = methodexec(url, headers=headers)
-        elif method == "push":
-            r = self.http.request(method, url, data=json.dumps(kvdict),
-                                  headers=headers)
-        else:
-            r = methodexec(url, json.dumps(kvdict), headers=headers)
-        if r.status_code < 0:
-            self.fatal("%s: could not connect to %r" % (r.status_code, url))
+        try:
+            if method in ("delete", "get"):
+                r = methodexec(url, headers=headers)
+            elif method == "push":
+                r = self.http.request(method, url, data=json.dumps(kvdict),
+                                      headers=headers)
+            else:
+                r = methodexec(url, json.dumps(kvdict), headers=headers)
+        except self.http.ConnectionError:
+            self.fatal("could not connect to %r" % (url,))
         out = self.info
         if r.status_code >= 400:
             out = self.fatal

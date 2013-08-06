@@ -1,6 +1,8 @@
 1.0.dev1
 -------------------------------
 
+- fix issue17: better reporting when "devpi use" does not operate on valid URL
+
 - test result upload and access: 
   - "devpi test" invokes "tox --result-json ..." and uploads 
     the test result log to devpi-server.  

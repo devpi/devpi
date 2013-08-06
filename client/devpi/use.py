@@ -14,6 +14,9 @@ if sys.platform == "win32":
 else:
     vbin = "bin"
 
+def is_valid_url(url):
+    result = urlutil.urlparse(url)
+    return result.scheme in ("http", "https") and result.netloc
 
 def currentproperty(name):
     def propget(self):
@@ -78,6 +81,8 @@ class Current(object):
 
     def configure_fromurl(self, hub, url):
         url = hub.get_index_url(url, current=self)
+        if not is_valid_url(url):
+            hub.fatal("invalid URL: %s" % url)
         data = hub.http_api("get", url.rstrip("/") + "/+api", quiet=True)
         if data["status"] == 200:
             venvdir = hub.current.venvdir

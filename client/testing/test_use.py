@@ -48,6 +48,26 @@ class TestUnit:
         url = current._normalize_url("index2")
         assert url == "http://my.serv/index2/"
 
+    def test_use_with_no_rooturl(self, capfd, cmd_devpi, monkeypatch):
+        from devpi import main
+        monkeypatch.setattr(main.Hub, "http_api", None)
+        with pytest.raises(SystemExit):
+            hub = cmd_devpi("use", "some/index", code=200)
+        out, err = capfd.readouterr()
+        assert "invalid" in out
+
+    def test_use_with_nonexistent_domain(self, capfd, cmd_devpi, monkeypatch):
+        from devpi import main
+        from requests.sessions import Session
+        from requests.exceptions import ConnectionError
+        def raise_connectionerror(*args, **kwargs):
+            raise ConnectionError("qwe")
+        monkeypatch.setattr(Session, "request", raise_connectionerror)
+        with pytest.raises(SystemExit):
+            hub = cmd_devpi("use", "http://qlwkejqlwke", code=200)
+        out, err = capfd.readouterr()
+        assert "could not connect" in out
+
     def test_main(self, tmpdir, monkeypatch, cmd_devpi):
         monkeypatch.chdir(tmpdir)
         api = dict(
@@ -111,5 +131,3 @@ def test_parse_keyvalue_spec(input, expected):
 
 def test_parse_keyvalue_spec_unknown_key():
     pytest.raises(KeyError, lambda: parse_keyvalue_spec(["hello=3"], ["some"]))
-
-
