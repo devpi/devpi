@@ -1,6 +1,0 @@
-[program:devpi-server]
-command={venvdir}/bin/devpi-server --datadir={datadir} --refresh=60 --port={devpiport}
-priority=999
-startsecs = 1
-redirect_stderr = True
-autostart=False

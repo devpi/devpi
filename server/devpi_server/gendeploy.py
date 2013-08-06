@@ -24,11 +24,6 @@ def gendeploycfg(config, venvdir, tw=None):
     render(tw, etc, "supervisord.conf", venvdir=venvdir,
            devpiport=httpport,
            logdir=logdir, datadir=datadir)
-
-    render(tw, etc, "supervisor-devpi.conf", venvdir=venvdir,
-           devpiport=httpport,
-           logdir=logdir, datadir=datadir)
-
     nginxconf = render(tw, etc, "nginx-devpi.conf", format=1, port=httpport,
                        datadir=datadir)
     indexurl = "http://localhost:%s/root/dev/+simple/" % httpport
