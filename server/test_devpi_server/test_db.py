@@ -86,6 +86,22 @@ class TestStage:
         stage.register_metadata(dict(name="someproject", version="1.1"))
         assert stage.getprojectnames() == ["someproject",]
 
+    def test_inheritance_twice(self, httpget, db, stage):
+        db.user_indexconfig_set(user="root", index="dev2",
+                                bases=("root/dev",), type="stage")
+        stage_dev2 = db.getstage("root/dev2")
+        stage.configure(bases=("root/dev2",))
+        httpget.setextsimple("someproject",
+            "<a href='someproject-1.0.zip' /a>")
+        stage_dev2.store_releasefile("someproject-1.1.tar.gz", "123")
+        stage.store_releasefile("someproject-1.2.tar.gz", "456")
+        entries = stage.getreleaselinks("someproject")
+        assert len(entries) == 3
+        assert entries[0].basename == "someproject-1.2.tar.gz"
+        assert entries[1].basename == "someproject-1.1.tar.gz"
+        assert entries[2].basename == "someproject-1.0.zip"
+        assert stage.getprojectnames() == ["someproject",]
+
     def test_getreleaselinks_inheritance_shadow(self, httpget, stage):
         stage.configure(bases=("root/pypi",))
         httpget.setextsimple("someproject",
