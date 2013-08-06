@@ -1,5 +1,10 @@
-0.9.5.dev1
+1.0.dev1
 -------------------------------
+
+- test result upload and access: 
+  - "devpi test" invokes "tox --result-json ..." and uploads 
+    the test result log to devpi-server.  
+  - "devpi list [-f] PKG" shows test result information.
 
 - add "uploadtrigger_jenkins" configuration option through "devpi
   index".

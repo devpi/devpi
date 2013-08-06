@@ -79,6 +79,7 @@ def add_keys(keyfs):
     keyfs.RELDESCRIPTION = keyfs.addkey(
             "{user}/{index}/{name}/{version}/description_html", bytes)
     keyfs.PATHENTRY = keyfs.addkey("{relpath}-meta", dict)
+    keyfs.ATTACHMENT = keyfs.addkey("+attach/{md5}/{type}/{num}", bytes)
     keyfs.FILEPATH = keyfs.addkey("{relpath}", bytes)
 
 class XOM:

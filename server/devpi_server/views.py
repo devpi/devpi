@@ -161,6 +161,33 @@ class PyPIView:
         apireturn(200, type="apiconfig", result=api)
 
     #
+    # attachment to release files
+    # currently only test results, pending generalization
+    #
+
+    @route("/+tests", method="POST")
+    def add_attach(self):
+        filestore = self.xom.releasefilestore
+        data = getjson()
+        md5 = data["installpkg"]["md5"]
+        num = filestore.add_attachment(md5=md5, type="toxresult",
+                                       data=request.body.read())
+        relpath = "/+tests/%s/%s/%s" %(md5, "toxresult", num)
+        apireturn(200, type="testresultpath", result=relpath)
+
+    @route("/+tests/<md5>/<type>", method="GET")
+    def get_attachlist(self, md5, type):
+        filestore = self.xom.releasefilestore
+        datalist = list(filestore.iter_attachments(md5=md5, type=type))
+        apireturn(200, type="list:toxresult", result=datalist)
+
+    @route("/+tests/<md5>/<type>/<num>", method="GET")
+    def get_attach(self, md5, type, num):
+        filestore = self.xom.releasefilestore
+        data = filestore.get_attachment(md5=md5, type=type, num=num)
+        apireturn(200, type="testresult", result=data)
+
+    #
     # index serving and upload
 
     #@route("/ext/pypi/simple<rest:re:.*>")  # deprecated
@@ -476,6 +503,11 @@ class PyPIView:
     def pkgserv(self, user, index, name=None, version=None, relpath=None):
         relpath = request.path.strip("/")
         filestore = self.xom.releasefilestore
+        if json_preferred():
+            entry = filestore.getentry(relpath)
+            if not entry.exists():
+                apireturn(404, "no such release file")
+            apireturn(200, type="releasefilemeta", result=entry._mapping)
         headers, itercontent = filestore.iterfile(relpath, self.xom.httpget)
         if headers is None:
             abort(404, "no such file")
@@ -484,6 +516,7 @@ class PyPIView:
             response.content_length = headers["content-length"]
         for x in itercontent:
             yield x
+
 
     @route("/<user>/<index>/")
     def indexroot(self, user, index):
@@ -615,7 +648,7 @@ def getjson():
         try:
             return json.load(request.body)
         except ValueError:
-            abort(400, "Bad request: could not decode")
+            abort(400, "Bad request: could not decode json")
     return dict
 
 def get_outside_url(headers, outsideurl):

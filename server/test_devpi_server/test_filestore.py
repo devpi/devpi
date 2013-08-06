@@ -242,5 +242,14 @@ class TestReleaseFileStore:
         headers, iterable = filestore.iterfile(entry.relpath, httpget=None)
         assert b("").join(iterable) == content
 
+    def test_add_testresult(self, filestore):
+        #
+        #link = DistURL("http://pypi.python.org/pkg/pytest-1.7.zip#md5=123")
+        #entry = filestore.maplink(link)
 
-
+        from test_devpi_server.example import tox_result_data
+        md5 = tox_result_data["installpkg"]["md5"]
+        data = json.dumps(tox_result_data)
+        num = filestore.add_attachment(md5, "toxresult", data)
+        res = filestore.get_attachment(md5, "toxresult", num)
+        assert res == data

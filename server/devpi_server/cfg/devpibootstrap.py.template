@@ -161,7 +161,8 @@ def activate_devpi_script(TENV, virtualenvtar_url, devpi_install_index):
 
     pip = get_script_path(TENV, 'pip')
 
-    run('%s install --pre -i %s --upgrade devpi-client' % (
+    # reinstall always for now
+    run('%s install --pre -i %s --force-reinstall --upgrade devpi-client' % (
         pip, devpi_install_index))
     assert has_script(TENV, 'devpi')
     return get_script_showversion(TENV, "devpi")
@@ -177,7 +178,7 @@ def main(indexurl = "{INDEXURL}",
          virtualenvtar_url = "{VIRTUALENVTARURL}",
          devpi_install_index = "{DEVPI_INSTALL_INDEX}",
          testspec = "{TESTSPEC}"):
-    log("starting Jenkins job")
+    log("starting Jenkins job for %s" % testspec)
     basedir = os.getcwd()
 
     # prepare a TMPDIR that resides in the Jenkins workspace

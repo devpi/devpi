@@ -6,6 +6,7 @@ for all indexes.
 import hashlib
 import posixpath
 import os
+import json
 from wsgiref.handlers import format_date_time
 from datetime import datetime
 from time import mktime
@@ -120,6 +121,29 @@ class ReleaseFileStore:
                   last_modified=http_date())
         return entry
 
+    def add_attachment(self, md5, type, data):
+        assert type in ("toxresult",)
+        assert isinstance(data, bytes)
+        # XXX thread safety
+        num = len(self.keyfs.ATTACHMENT.listnames("num",
+                                                  type=type,
+                                                  md5=md5))
+        num = str(num)
+        key = self.keyfs.ATTACHMENT(type=type, md5=md5, num=num)
+        key.set(data)
+        return num
+
+    def get_attachment(self, md5, type, num):
+        return self.keyfs.ATTACHMENT(type=type, md5=md5, num=num).get()
+
+    def iter_attachments(self, md5, type):
+        import json
+        nums = self.keyfs.ATTACHMENT.listnames("num", type=type, md5=md5)
+        for num in range(len(nums)):
+            a = self.keyfs.ATTACHMENT(num=str(num), type=type, md5=md5).get()
+            yield json.loads(a)
+
+
 def getmd5(content):
     md5 = hashlib.md5()
     md5.update(content)
@@ -151,6 +175,9 @@ class RelPathEntry(object):
         self.set(content_type = headers.get("content-type"),
                  size = headers.get("content-length"),
                  last_modified = headers.get("last-modified"))
+
+    def exists(self):
+        return bool(self._mapping)
 
     def invalidate_cache(self):
         try:
@@ -184,6 +211,7 @@ class RelPathEntry(object):
             if val is not None:
                 mapping[name] = str(val)
         self._mapping.update(mapping)
+
         self.PATHENTRY.set(self._mapping)
 
 for _ in RelPathEntry._attr:

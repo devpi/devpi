@@ -9,6 +9,7 @@ import devpi
 import argparse
 import pkg_resources
 import archive
+import json
 
 from devpi.util import url as urlutil
 from devpi.util import version as verlib
@@ -24,11 +25,11 @@ def setenv_devpi(hub, env, posturl, packageurl, packagemd5):
         posturl = posturl.encode("utf8")
         packageurl = packageurl.encode("utf8")
         packagemd5 = packagemd5.encode("utf8")
-    env["DEVPY_POSTURL"] = posturl.encode("utf8")
-    env["DEVPY_PACKAGEURL"] = packageurl.encode("utf8")
-    env["DEVPY_PACKAGEMD5"] = (packagemd5 or "").encode("utf8")
+    env["DEVPI_POSTURL"] = posturl.encode("utf8")
+    env["DEVPI_PACKAGEURL"] = packageurl.encode("utf8")
+    env["DEVPI_PACKAGEMD5"] = (packagemd5 or "").encode("utf8")
     for name in env:
-        if name.startswith("DEVPY"):
+        if name.startswith("DEVPI"):
             hub.debug("setenv_devpi %s %s", name, env[name])
 
 
@@ -66,13 +67,18 @@ class DevIndex:
     def runtox(self, link, Popen, venv=None):
         path_archive = link.pkg.path_archive
 
-        # the env var is picked up by pytest-devpi plugin
         env = os.environ.copy()
+
+        # publishing some infos to the commands started by tox
         #setenv_devpi(self.hub, env, posturl=self.current.resultlog,
         #                  packageurl=link.href,
         #                  packagemd5=link.md5)
-        toxargs = ["tox", "--installpkg", str(path_archive),
+        jsonreport = link.pkg.rootdir.join("toxreport.json")
+        toxscript = py.path.local.sysfind("tox")
+        assert toxscript, "tox not found"
+        toxargs = [str(toxscript), "--installpkg", str(path_archive),
                    "-i ALL=%s" % self.current.simpleindex,
+                   "--result-json", str(jsonreport),
                    "-v",
         ]
         if venv is not None:
@@ -81,11 +87,23 @@ class DevIndex:
         self.hub.info("%s$ %s" %(link.pkg.path_unpacked, " ".join(toxargs)))
         popen = Popen(toxargs, cwd=str(link.pkg.path_unpacked), env=env)
         popen.communicate()
+        if popen.returncode != 2:  # KEYBOARDINTERRUPT prevents upload
+            jsondata = py.std.json.load(jsonreport.open("rb"))
+            post_tox_json_report(self.hub,
+                                 self.hub.current.resultlog, jsondata)
         if popen.returncode != 0:
             self.hub.error("tox command failed", popen.returncode)
             return 1
         return 0
 
+def post_tox_json_report(hub, href, jsondata):
+    hub.line("posting tox result data to %s" % href)
+    r = hub.http_api("post", href, kvdict=jsondata)
+    status = int(r["status"])
+    if status == 200:
+        hub.info("successfully posted tox result data")
+    else:
+        hub.error("failed to post tox result data: %s" % status)
 
 class UnpackedPackage:
     def __init__(self, hub, rootdir, path_archive, link):

@@ -43,6 +43,66 @@ def out_project_version_files(hub, verdata, version, index):
                 hub.info(origin)
             else:
                 hub.line(origin)
+            query_file_status(hub, origin)
+
+def query_file_status(hub, origin):
+    # XXX this code is not auto-tested in all detail
+    # so change with great care or write tests first
+    rooturl = hub.current.rooturl
+    res = hub.http_api("get", urlutil.joinpath(rooturl, "/" + origin),
+                       quiet=True)
+    assert res["status"] == 200
+    md5 = res["result"]["md5"]
+    res = hub.http_api("get", urlutil.joinpath(rooturl,
+                                               "/+tests/%s/toxresult" % md5),
+                       quiet=True)
+    assert res["status"] == 200
+    assert res["type"] == "list:toxresult"
+    for toxresult in res["result"]:
+        platform = toxresult["platform"]
+        for envname, env in toxresult["testenvs"].items():
+            prefix = "  {host} {platform} {envname}".format(
+                     envname=envname, **toxresult)
+            setup = env.get("setup")
+            if not setup:
+                hub.error("%s no setup was performed" % prefix)
+            elif has_failing_commands(setup):
+                hub.error("%s setup failed" % prefix)
+                show_commands(hub, setup)
+            try:
+                pyversion = env["python"]["version"].split(None, 1)[0]
+            except KeyError:
+                pass
+            else:
+                prefix = prefix + " " + pyversion
+            test = env.get("test")
+            if not test:
+                hub.error("%s no tests were run" % prefix)
+            elif has_failing_commands(test):
+                hub.error("%s tests failed" % prefix)
+                show_commands(hub, test)
+            else:
+                hub.line("%s tests passed" % prefix)
+
+def has_failing_commands(commands):
+    for command in commands:
+        if command["retcode"] != "0":
+            return True
+    return False
+
+def show_commands(hub, commands):
+    if not hub.args.failures:
+        return
+    for command in commands:
+        argv = command["command"]
+        output = command["output"]
+        shellcommand = " ".join(argv)
+        if command["retcode"] != "0":
+            hub.error("    FAIL: %s" % shellcommand)
+            for line in output.split("\n"):
+                hub.error("    %s" % line)
+            break
+        hub.info("    OK:  %s" % shellcommand)
 
 def main_list(hub, args):
     current = hub.current

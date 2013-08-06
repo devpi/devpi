@@ -295,7 +295,7 @@ def cmd_devpi(tmpdir):
             ret = method(hub, hub.args)
         except SystemExit as sysex:
             ret = sysex.args[0] or 1
-        if ret and kwargs.get("code", 0) < 400:
+        if ret and kwargs.get("code", 400) < 400:
             raise SystemExit(ret)
         hub, method = initmain(callargs)
         return hub
@@ -380,7 +380,7 @@ def loghub(tmpdir):
         lines = out.getvalue().split("\n")
         return LineMatcher(lines)
     hub._getmatcher = _getmatcher
-    hub.http_api = Mock()
+    hub.http_api = Mock(autospec=Hub.http_api)
     return hub
 
 @pytest.fixture(scope="session")

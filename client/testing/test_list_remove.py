@@ -4,10 +4,7 @@ import py
 import pytest
 import types
 from mock import Mock
-from devpi.list_remove import out_index
-from devpi.list_remove import out_project
-from devpi.list_remove import getjson
-from devpi.list_remove import confirm_delete
+from devpi.list_remove import *
 
 @pytest.mark.parametrize(["input", "output"], [
     (["pkg1", "pkg2"], ["*pkg1*", "*pkg2*"]),
@@ -28,13 +25,16 @@ def test_out_index(loghub, input, output):
                     {"p1-1.0.tar.gz": "root/prod/pkg/1.0/p1-1.0.tar.gz"}}]}},
     ["*dev*p1-1.0.tar.gz*", "*prod*p1-1.0.tar.gz"]),
 ])
-def test_out_project(loghub, input, output):
+def test_out_project(loghub, input, output, monkeypatch):
+    from devpi import list_remove
     loghub.current.reconfigure(dict(
                 pypisubmit="/post",
                 simpleindex="/index",
                 index="/root/dev/",
                 login="/login",
                 ))
+    loghub.args.status = False
+    monkeypatch.setattr(list_remove, "query_file_status", lambda *args: None)
     out_project(loghub, input, "p1")
     matcher = loghub._getmatcher()
     matcher.fnmatch_lines(output)
@@ -67,6 +67,23 @@ def test_getjson(loghub):
     getjson(loghub, "proj")
     loghub.http_api.assert_called_once_with("get", "/root/dev/proj/",
                                             quiet=True)
+
+def test_has_failing_commands():
+    assert not has_failing_commands([dict(retcode="0"), dict(retcode="0")])
+    assert has_failing_commands([dict(retcode="0"), dict(retcode="1")])
+
+def test_showcommands(loghub):
+    loghub.args.failures = True
+    show_commands(loghub, [
+        {"retcode": "0", "command": ["OK"], "output": "out1"},
+        {"retcode": "1", "command": ["fail1"], "output": "FAIL1OUT"}
+    ])
+    loghub._getmatcher().fnmatch_lines("""
+        *OK:*OK*
+        *FAIL:*fail1
+        *FAIL1OUT*
+    """)
+
 
 class TestList:
     def test_all(self, initproj, devpi):

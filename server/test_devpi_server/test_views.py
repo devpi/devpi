@@ -311,6 +311,19 @@ def test_upload_with_jenkins(db, mapp, testapp, monkeypatch):
     assert args[0][0] == "http://x.com/pkg1"
     assert args[1]["data"]["Submit"] == "Build"
 
+def test_upload_and_testdata(db, mapp, testapp, monkeypatch):
+    api = mapp.getapi()
+    from test_devpi_server.example import tox_result_data
+    mapp.create_and_login_user("i1", "456")
+    mapp.create_index("dev")
+    mapp.upload_file_pypi(
+            "i1", "dev", "pkg1-2.6.tgz", "123", "pkg1", "2.6", code=200)
+    r = testapp.post_json(api.resultlog, tox_result_data)
+    path = r.json["result"]
+    assert r.status_code == 200
+    r = testapp.get(path)
+    assert r.status_code == 200
+
 def test_upload_and_remove_project_version(httpget, db,
                                            mapp, testapp, monkeypatch):
     mapp.create_and_login_user("user")
@@ -331,6 +344,18 @@ def test_upload_and_remove_project_version(httpget, db,
     assert testapp.delete("/user/name/pkg1/2.7").status_code == 200
     #assert mapp.getjson("/user/name/pkg1/")["status"] == 404
     assert not mapp.getjson("/user/name/pkg1/")["result"]
+
+def test_upload_and_access_releasefile_meta(httpget, db,
+                                           mapp, testapp, monkeypatch):
+    mapp.create_and_login_user("user")
+    mapp.create_index("name")
+    mapp.upload_file_pypi(
+            "user", "name", "pkg5-2.6.tgz", "123", "pkg1", "2.6")
+    json = mapp.getjson("/user/name/pkg5/")
+    href = json["result"]["2.6"]["+files"].values()[0]
+    pkgmeta = mapp.getjson("/" + href)
+    assert pkgmeta["type"] == "releasefilemeta"
+    assert pkgmeta["result"]["size"] == "3"
 
 def test_upload_pypi_fails(httpget, db, mapp, testapp):
     mapp.upload_file_pypi(
