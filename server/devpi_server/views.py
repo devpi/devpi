@@ -621,6 +621,8 @@ class PyPIView:
 
     @route("/<user>", method="DELETE")
     def user_delete(self, user):
+        if user == "root":
+            apireturn(403, "root user cannot be deleted")
         self.require_user(user)
         if not self.db.user_exists(user):
             apireturn(404, "user %r does not exist" % user)

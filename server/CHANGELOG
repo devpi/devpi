@@ -1,6 +1,8 @@
 next version
 ----------------
 
+- fix issue25: return 403 Forbidden when trying to delete the root user.
+
 - fix name mangling issue for pypi-cache: "project_name*" is now matched
   correctly when a lookup for "project-name" happens.
 

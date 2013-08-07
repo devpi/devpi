@@ -9,6 +9,10 @@ class TestUserThings:
     def test_root_is_refused_with_wrong_password(self, mapp):
         mapp.login("root", "123123", code=401)
 
+    def test_root_not_deleteable(self, mapp):
+        mapp.login_root()
+        mapp.delete_user("root", code=403)
+
     def test_create_and_delete_user(self, mapp):
         password = "somepassword123123"
         assert "hello" not in mapp.getuserlist()
