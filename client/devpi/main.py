@@ -100,6 +100,15 @@ class Hub:
         return session
 
     def http_api(self, method, url, kvdict=None, quiet=False):
+        """ send a json request and return a HTTPReply object which
+        adds some extra methods to the requests's Reply object.
+
+        This method will bail out if we could not connect or
+        the response code is >= 400.
+
+        This method will not output any information to the user
+        if ``quiet`` is set to true.
+        """
         methodexec = getattr(self.http, method, None)
         jsontype = "application/json"
         headers = {"Accept": jsontype, "content-type": jsontype}
@@ -115,24 +124,27 @@ class Hub:
             self._last_http_status = -1
             self.fatal("could not connect to %r" % (url,))
         self._last_http_status = r.status_code
-        out = self.info
+
+        reply = HTTPReply(r)
+
+        # feedback reply info to user, possibly bailing out
         if r.status_code >= 400:
             out = self.fatal
-        elif quiet:
-            out = lambda *args, **kwargs: None
+        elif quiet and not self.args.debug:
+            return reply
+        else:
+            out = self.info
 
         if r.status_code >= 400 or self.args.debug:
-            info = "%s %s\n" % (method.upper(), r.url)
+            info = "%s %s\n" % (r.request.method, r.url)
         else:
             info = ""
-        data = r.content
-        if data and r.headers["content-type"] == "application/json":
-            data = json.loads(data)
-            reason = data.get("message", r.reason)
-        else:
-            reason = r.reason
-        out("%s%s: %s" %(info, r.status_code, reason))
-        return data
+        message = reply.json_get("message", "")
+        if message:
+            message = ": " + message
+        out("%s%s %s%s" %(info, r.status_code, r.reason, message))
+        return reply
+
 
     def update_auth(self, user, password):
         self.http.auth = (user, password)
@@ -288,6 +300,30 @@ class Hub:
 
     def out_json(self, data):
         self._tw.line(json.dumps(data, sort_keys=True, indent=4))
+
+
+class HTTPReply(object):
+    def __init__(self, response):
+        self._response = response
+
+    def __getattr__(self, name):
+        return getattr(self._response, name)
+
+    def json_get(self, jsonkey, default=None):
+        r = self._response
+        if not r.content or r.headers["content-type"] != "application/json":
+            return default
+        try:
+            return self._json[jsonkey]
+        except KeyError:
+            return default
+
+    @cached_property
+    def _json(self):
+        return self._response.json()
+
+    def __getitem__(self, name):
+        return self._json[name]
 
 
 class MyArgumentParser(argparse.ArgumentParser):

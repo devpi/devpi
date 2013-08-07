@@ -93,32 +93,30 @@ def upload_file_pypi(hub, path, pkginfo):
         d[attr] = getattr(pkginfo, attr)
     name, version = d["name"], d["version"]
     d[":action"] = "submit"
+    index = hub.current.index
     if not hub.args.dryrun:
         r = hub.http.post(hub.current.index, d)
         if r.status_code != 200:
-            hub.error("%s: could not register %s to %s" % (r.status_code,
-                      name + version, hub.current.index))
+            hub.error("%s %s: could not register %s to %s" % (r.status_code,
+                      r.reason, name + version, index))
             return False
-        hub.info("%s: %s-%s registered to %s" %(r.status_code, name, version,
-                                            hub.current.index))
+        hub.info("%s-%s registered to %s" %(name, version, index))
     else:
         hub.info("would register %s-%s registered to %s" %(
-                 name, version, hub.current.index))
+                 name, version, index))
     d[":action"] = "file_upload"
     files = {"content": (path.basename, path.open("rb"))}
     #hub.info(d)
     if hub.args.dryrun:
-        hub.info("would upload %s to %s" %(
-                 path.basename, hub.current.index))
+        hub.info("would upload %s to %s" %(path.basename, index))
         return True
     r = hub.http.post(hub.current.index, d, files=files)
     if r.status_code == 200:
-        hub.info("%s: %s posted to %s" %(r.status_code, path.basename,
-                                     hub.current.index))
+        hub.info("%s posted to %s" %(path.basename, index))
         return True
     else:
-        hub.error("%s: failed to posted %s to %s" %(r.status_code,
-                  path.basename, hub.current.index))
+        hub.error("%s %s: failed to post %s to %s" %(
+                  r.status_code, r.reason, path.basename, index))
         return False
 
 
