@@ -295,8 +295,13 @@ def cmd_devpi(tmpdir):
             ret = method(hub, hub.args)
         except SystemExit as sysex:
             ret = sysex.args[0] or 1
-        if ret and kwargs.get("code", 400) < 400:
-            raise SystemExit(ret)
+        expected = kwargs.get("code", None)
+        if expected is not None:
+            if not isinstance(expected, tuple):
+                expected = (expected, )
+            if hub._last_http_status not in expected:
+                pytest.fail("got http code %r, expected %r"
+                            % (hub._last_http_status, expected))
         hub, method = initmain(callargs)
         return hub
     run_devpi.clientdir = clientdir

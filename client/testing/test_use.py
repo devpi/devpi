@@ -51,8 +51,7 @@ class TestUnit:
     def test_use_with_no_rooturl(self, capfd, cmd_devpi, monkeypatch):
         from devpi import main
         monkeypatch.setattr(main.Hub, "http_api", None)
-        with pytest.raises(SystemExit):
-            hub = cmd_devpi("use", "some/index", code=200)
+        hub = cmd_devpi("use", "some/index", code=None)
         out, err = capfd.readouterr()
         assert "invalid" in out
 
@@ -63,8 +62,7 @@ class TestUnit:
         def raise_connectionerror(*args, **kwargs):
             raise ConnectionError("qwe")
         monkeypatch.setattr(Session, "request", raise_connectionerror)
-        with pytest.raises(SystemExit):
-            hub = cmd_devpi("use", "http://qlwkejqlwke", code=200)
+        hub = cmd_devpi("use", "http://qlwkejqlwke", code=-1)
         out, err = capfd.readouterr()
         assert "could not connect" in out
 

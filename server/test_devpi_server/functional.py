@@ -70,7 +70,8 @@ class TestIndexThings:
 
     def test_create_index_base_invalid(self, mapp):
         indexconfig = dict(bases=("/root/dev/123",))
-        m = mapp.create_index("root/hello", indexconfig=indexconfig, code=400)
+        m = mapp.create_index("root/newindex1",
+                              indexconfig=indexconfig, code=400)
         if m:
             assert "root/dev/123" in m
 

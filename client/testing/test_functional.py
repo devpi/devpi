@@ -29,10 +29,10 @@ class Mapp:
     def login_root(self):
         self.login("root", "")
 
-    def logoff(self, code=200):
+    def logoff(self, code=None):
         self.devpi("logoff", code=code)
 
-    def login(self, user="root", password="", code=201):
+    def login(self, user="root", password="", code=200):
         self.devpi("login", user, "--password", password, code=code)
         self.auth = (user, password)
 
@@ -62,7 +62,7 @@ class Mapp:
                    "email=%s" % email, code=code)
 
     def modify_user(self, user, password, email="hello@example.com", code=200):
-        self.devpi("user", "-c", user, "password=%s" % password,
+        self.devpi("user", "-m", user, "password=%s" % password,
                    "email=%s" % email, code=code)
 
     def create_and_login_user(self, user="someuser", password="123"):
@@ -77,7 +77,7 @@ class Mapp:
                     params.append("%s=%s" % (name, ",".join(val)))
         return params
 
-    def create_index(self, indexname, indexconfig=None, code=201):
+    def create_index(self, indexname, indexconfig=None, code=200):
         #user, password = self.auth
         params = self._indexconfig_to_cmdline_keyvalue(indexconfig)
         self.out_devpi("index", "-c", indexname, *params, code=code)
@@ -111,3 +111,4 @@ def test_logoff(mapp):
     mapp.login()
     mapp.logoff()
     mapp.logoff()
+

@@ -153,11 +153,11 @@ class TestUploadFunctional:
 
         # logoff then upload
         devpi("logoff")
-        devpi("upload", "--dry-run", code=404)
+        devpi("upload", "--dry-run")
 
         # go to other index
         devpi("use", "root/pypi")
-        devpi("upload", "--dry-run", code=404)
+        devpi("upload", "--dry-run")
 
     def test_fromdir(self, initproj, devpi, out_devpi, runproc):
         initproj("hello-1.1", {"doc": {

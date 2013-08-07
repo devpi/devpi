@@ -72,6 +72,7 @@ class Hub:
         self.args = args
         self.cwd = py.path.local()
         self.quiet = False
+        self._last_http_status = None
 
     def set_quiet(self):
         self.quiet = True
@@ -111,7 +112,9 @@ class Hub:
             else:
                 r = methodexec(url, json.dumps(kvdict), headers=headers)
         except self.http.ConnectionError:
+            self._last_http_status = -1
             self.fatal("could not connect to %r" % (url,))
+        self._last_http_status = r.status_code
         out = self.info
         if r.status_code >= 400:
             out = self.fatal
