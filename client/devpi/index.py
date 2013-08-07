@@ -61,28 +61,38 @@ def index_show(hub, indexname):
 def main(hub, args):
     hub.requires_login()
     indexname = args.indexname
-    kvdict = parse_keyvalue_spec_index(args.keyvalues)
-    if args.list:
-        return index_list(hub, indexname)
-    if args.create:
-        if not indexname:
-            hub.fatal("need to specify index for creation")
-        return index_create(hub, indexname, kvdict)
     if args.delete:
         if not indexname:
             hub.fatal("need to specify index for deletion")
-        if kvdict:
+        if arg.keyvalues:
             hub.fatal("cannot --delete if you specify key=values")
         return index_delete(hub, indexname)
+
+    keyvalues = list(args.keyvalues)
+    if args.create:
+        if not indexname:
+            hub.fatal("need to specify index for creation")
+        kvdict = parse_keyvalue_spec_index(hub, keyvalues)
+        return index_create(hub, indexname, kvdict)
+
+    if indexname and "=" in indexname:
+        keyvalues.append(indexname)
+        indexname = hub.current.index
     if not indexname:
         indexname = hub.current.index
+    kvdict = parse_keyvalue_spec_index(hub, keyvalues)
+    if args.list:
+        return index_list(hub, indexname)
     if kvdict:
         return index_modify(hub, indexname, kvdict)
     else:
         return index_show(hub, indexname)
 
-def parse_keyvalue_spec_index(keyvalues):
-    kvdict = parse_keyvalue_spec(keyvalues)
+def parse_keyvalue_spec_index(hub, keyvalues):
+    try:
+        kvdict = parse_keyvalue_spec(keyvalues)
+    except ValueError:
+        hub.fatal("arguments must be format NAME=VALUE: %r" %( keyvalues,))
     if "acl_upload" in kvdict:
         kvdict["acl_upload"] = kvdict["acl_upload"].split(",")
     return kvdict

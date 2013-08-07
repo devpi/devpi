@@ -542,7 +542,8 @@ def index(parser):
     group.add_argument("-l", "--list", action="store_true",
         help="list indexes for the logged in user")
     parser.add_argument("indexname", type=str, action="store", nargs="?",
-        help="index name, specified as NAME or USER/NAME")
+        help="index name, specified as NAME or USER/NAME.  If no index "
+             "is specified use the current index")
     parser.add_argument("keyvalues", nargs="*", type=str,
         help="key=value configuration item. Possible key=value are "
              "bases=CSV, volatile=True|False, acl_upload=CSV)")
