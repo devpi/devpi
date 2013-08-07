@@ -6,6 +6,7 @@ import textwrap
 import py
 import sys
 import os
+import json
 
 from _pytest.pytester import RunResult, LineMatcher
 from devpi.main import Hub, initmain, parse_args
@@ -374,7 +375,7 @@ def create_venv(request, testdir, monkeypatch):
 
 
 @pytest.fixture
-def loghub(tmpdir):
+def loghub(tmpdir, mock_http_api):
     class args:
         debug = True
         clientdir = tmpdir.join("clientdir")
@@ -385,7 +386,6 @@ def loghub(tmpdir):
         lines = out.getvalue().split("\n")
         return LineMatcher(lines)
     hub._getmatcher = _getmatcher
-    hub.http_api = Mock(autospec=Hub.http_api)
     return hub
 
 @pytest.fixture(scope="session")
@@ -400,3 +400,37 @@ def makehub(request):
         finally:
             old.chdir()
     return mkhub
+
+@pytest.fixture
+def mock_http_api(monkeypatch):
+    """ mock out all Hub.http_api calls and return an object
+    offering 'register_result' to fake replies. """
+    from devpi import main
+    #monkeypatch.replace("requests.session.Session.request", None)
+    from requests.sessions import Session
+    monkeypatch.setattr(Session, "request", None)
+
+    class MockHTTPAPI:
+        def __init__(self):
+            self.called = []
+            self._json_responses = {}
+
+        def __call__(self, method, url, kvdict=None, quiet=False):
+            self.called.append((method, url, kvdict))
+            reply_data = self._json_responses.get(url)
+            if reply_data is not None:
+                class R:
+                    status_code = reply_data["status"]
+                    reason = reply_data.get("reason", "OK")
+                    def json(self):
+                        return reply_data["json"]
+                return main.HTTPReply(R())
+            pytest.fail("http_api call to %r is not mocked" % (url,))
+
+        def set(self, url, status=200, **kw):
+            data = json.loads(json.dumps(kw))
+            self._json_responses[url] = {"status": status, "json": data}
+    mockapi = MockHTTPAPI()
+    monkeypatch.setattr(main.Hub, "http_api", mockapi)
+    return mockapi
+

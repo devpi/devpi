@@ -51,7 +51,7 @@ def abort_authenticate():
     raise err
 
 def apireturn(code, message=None, result=None, type=None):
-    d = dict(status=code)
+    d = dict() # status=code)
     if result is not None:
         assert type is not None
         d["result"] = result

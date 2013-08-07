@@ -39,15 +39,14 @@ def get_indexconfig_reply(hub, indexname, ok404=False):
     or None if configuration query failed. """
     url = hub.get_index_url(indexname, slash=False)
     res = hub.http_api("get", url, None, quiet=True)
-    status = res["status"]
-    if status == 200:
+    if res.status_code == 200:
         if res["type"] != "indexconfig":
             hub.fatal("%s: wrong result type: %s" % (url, res["type"]))
         return res["result"]
-    elif status == 404 and ok404:
+    elif res.status_code == 404 and ok404:
         return None
-    hub.fatal("%s: got return code %s for getting json"
-                %(indexname, res["status"]))
+    hub.fatal("%s: trying to get json resulted in: %s %s"
+                %(indexname, res.status_code, res.reason))
 
 def index_show(hub, indexname):
     ixconfig = get_indexconfig_reply(hub, indexname, ok404=False)

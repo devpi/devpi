@@ -51,12 +51,12 @@ def query_file_status(hub, origin):
     rooturl = hub.current.rooturl
     res = hub.http_api("get", urlutil.joinpath(rooturl, "/" + origin),
                        quiet=True)
-    assert res["status"] == 200
+    assert res.status_code == 200
     md5 = res["result"]["md5"]
     res = hub.http_api("get", urlutil.joinpath(rooturl,
                                                "/+tests/%s/toxresult" % md5),
                        quiet=True)
-    assert res["status"] == 200
+    assert res.status_code == 200
     assert res["type"] == "list:toxresult"
     for toxresult in res["result"]:
         platform = toxresult["platform"]

@@ -83,18 +83,18 @@ class Current(object):
         url = hub.get_index_url(url, current=self)
         if not is_valid_url(url):
             hub.fatal("invalid URL: %s" % url)
-        data = hub.http_api("get", url.rstrip("/") + "/+api", quiet=True)
-        if data["status"] == 200:
-            venvdir = hub.current.venvdir
-            hub.current._currentdict.clear()
-            hub.current.venvdir = venvdir
-            hub.current.index = hub.current.simpleindex = None
-            hub.current.pypisubmit
-            data = data["result"]
-            rooturl = urlutil.getnetloc(url, scheme=True)
-            for name in data:
-                data[name] = urlutil.joinpath(rooturl, data[name])
-            self.reconfigure(data)
+        r = hub.http_api("get", url.rstrip("/") + "/+api", quiet=True)
+        assert r.status_code == 200
+        venvdir = hub.current.venvdir
+        hub.current._currentdict.clear()
+        hub.current.venvdir = venvdir
+        hub.current.index = hub.current.simpleindex = None
+        hub.current.pypisubmit
+        data = r["result"]
+        rooturl = urlutil.getnetloc(url, scheme=True)
+        for name in data:
+            data[name] = urlutil.joinpath(rooturl, data[name])
+        self.reconfigure(data)
 
     def getvenvbin(self, name, venvdir=None, glob=True):
         if venvdir is None:

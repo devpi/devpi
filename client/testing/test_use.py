@@ -66,11 +66,9 @@ class TestUnit:
         out, err = capfd.readouterr()
         assert "could not connect" in out
 
-    def test_main(self, tmpdir, monkeypatch, cmd_devpi):
-        monkeypatch.chdir(tmpdir)
-        api = dict(
-                   status=200,
-                   result = dict(
+    def test_main(self, cmd_devpi, mock_http_api):
+        mock_http_api.set("http://world/this/+api", 200,
+                    result=dict(
                         pypisubmit="/post",
                         simpleindex="/index/",
                         resultlog="/resultlog/",
@@ -78,11 +76,7 @@ class TestUnit:
                         bases="root/dev",
                         login="/+login/",
                    ))
-        def http_api(*args, **kwargs):
-            return api
 
-        from devpi import main
-        monkeypatch.setattr(main.Hub, "http_api", http_api)
         hub = cmd_devpi("use", "http://world/this")
         newapi = hub.current
         assert newapi.pypisubmit == "http://world/post"

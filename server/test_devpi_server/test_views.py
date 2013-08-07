@@ -340,7 +340,7 @@ def test_upload_and_remove_project_version(httpget, db,
     assert r.status_code == 404
     r = testapp.delete("/user/name/pkg1/2.6/")
     assert r.status_code == 200
-    assert mapp.getjson("/user/name/pkg1/")["status"] == 200
+    assert mapp.getjson("/user/name/pkg1/")["result"]
     assert testapp.delete("/user/name/pkg1/2.7").status_code == 200
     #assert mapp.getjson("/user/name/pkg1/")["status"] == 404
     assert not mapp.getjson("/user/name/pkg1/")["result"]

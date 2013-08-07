@@ -99,11 +99,10 @@ class DevIndex:
 def post_tox_json_report(hub, href, jsondata):
     hub.line("posting tox result data to %s" % href)
     r = hub.http_api("post", href, kvdict=jsondata)
-    status = int(r["status"])
-    if status == 200:
+    if r.status_code == 200:
         hub.info("successfully posted tox result data")
     else:
-        hub.error("failed to post tox result data: %s" % status)
+        hub.error("could not post tox result data to: %s" % href)
 
 class UnpackedPackage:
     def __init__(self, hub, rootdir, path_archive, link):
