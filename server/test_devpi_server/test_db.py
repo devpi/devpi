@@ -40,6 +40,9 @@ class TestStage:
         assert stage.can_upload("root")
         assert not stage.can_upload("qweqwe")
 
+    def test_getstage_normalized(self, db):
+        assert db.getstage("/root/dev/").name == "root/dev"
+
     def test_not_configured_index(self, db):
         stagename = "hello/world"
         assert not db.user_indexconfig_get(stagename)
