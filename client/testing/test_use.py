@@ -48,6 +48,11 @@ class TestUnit:
         url = current._normalize_url("index2")
         assert url == "http://my.serv/index2/"
 
+    def test_invalid_url(self, loghub, tmpdir):
+        current = Current(tmpdir.join("current"))
+        with pytest.raises(SystemExit):
+            current.configure_fromurl(loghub, "http://heise.de:/qwe")
+
     def test_use_with_no_rooturl(self, capfd, cmd_devpi, monkeypatch):
         from devpi import main
         monkeypatch.setattr(main.Hub, "http_api", None)
