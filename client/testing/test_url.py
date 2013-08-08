@@ -1,6 +1,6 @@
 import pytest
 import posixpath
-from devpi.util.url import joinpath, getnetloc, getpath, getscheme, ishttp, parselinks
+from devpi.util.url import *
 import os.path
 
 @pytest.mark.parametrize(("url", "path", "expected"), [
@@ -94,4 +94,12 @@ def test_parselinks_tworel():
     assert "homepage" in link.rel
     assert "download" in link.rel
     assert link.text == ""
+
+
+def test_is_valid_url():
+    assert is_valid_url("http://heise.de")
+    assert is_valid_url("http://heise.de:80")
+    assert is_valid_url("https://heise.de/hello")
+    assert not is_valid_url("ftp://heise.de/hello")
+    assert not is_valid_url("http://heise.de:")
 

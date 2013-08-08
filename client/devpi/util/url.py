@@ -13,6 +13,14 @@ def urlparse(url):
 def urlunsplit(tupledata):
     return urlp.urlunsplit(tupledata)
 
+def is_valid_url(url):
+    result = urlparse(url)
+    if result.scheme not in ("http", "https"):
+        return False
+    if not result.netloc or result.netloc.endswith(":"):
+        return False
+    return True
+
 def joinpath(url, *args):
     new = url
     for arg in args[:-1]:

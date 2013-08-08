@@ -4,7 +4,7 @@ def _prepare_distutils():
     import os, sys, urlparse
     from distutils.config import PyPIRCCommand
 
-    print "sys.argv", sys.argv
+    print ("sys.argv %s" % sys.argv)
     old_read_pypirc = PyPIRCCommand._read_pypirc
     def new_read_pypirc(self):
         return {"server": "devpi",

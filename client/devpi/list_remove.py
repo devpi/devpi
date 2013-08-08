@@ -126,7 +126,7 @@ def main_remove(hub, args):
     name, ver, suffix = verutil.splitbasename(args.spec)
     if suffix:
         hub.fatal("can only delete releases, not single release files")
-    url = hub.get_project_url(name)
+    url = hub.current.get_project_url(name)
     if ver:
         url = url + ver + "/"
     data = hub.http_api("get", url)
@@ -166,9 +166,9 @@ def getjson(hub, path):
     current = hub.current
     if not path:
         check_verify_current(hub)
-        url = hub.get_index_url()
+        url = current.get_index_url()
     else:
-        url = urlutil.joinpath(hub.get_index_url(), path) + "/"
+        url = urlutil.joinpath(current.get_index_url(), path) + "/"
     return hub.http_api("get", url, quiet=True)
 
 def check_verify_current(hub):

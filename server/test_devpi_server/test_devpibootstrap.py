@@ -46,7 +46,8 @@ def virtualenv_tar(tmpdir):
 def test_bootstrapdict_create(bootstrapdict):
     assert "Devpi" in bootstrapdict
 
-def test_get_virtualenv(bootstrapdict, virtualenv_tar, monkeypatch):
+def test_get_virtualenv(tmpdir, bootstrapdict, virtualenv_tar, monkeypatch):
+    monkeypatch.chdir(tmpdir)
     get_virtualenv = bootstrapdict["get_virtualenv"]
     vurl = "http://localhost:3141/root/pypi/virtualenv-1.10.tar.gz"
     def urlretrieve(url, localpath):

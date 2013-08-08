@@ -73,6 +73,7 @@ class Hub:
         self.cwd = py.path.local()
         self.quiet = False
         self._last_http_status = None
+        self._session = requests.session()
 
     def set_quiet(self):
         self.quiet = True
@@ -86,16 +87,12 @@ class Hub:
             handle_autoserver(self, self.current)
         return self.current
 
-
     # remote http hooks
 
-    @cached_property
+    @property
     def http(self):
-        session = requests.session()
-        p = self.clientdir.join("login")
-        if p.check():
-            data = json.loads(p.read())
-            session.auth = data["user"], data["password"]
+        session = self._session
+        #session.auth = tuple(self.current.auth) if self.current.auth else None
         session.ConnectionError = requests.exceptions.ConnectionError
         return session
 
@@ -113,7 +110,9 @@ class Hub:
         headers = {"Accept": jsontype, "content-type": jsontype}
         try:
             data = json.dumps(kvdict) if kvdict is not None else None
-            r = self.http.request(method, url, data=data, headers=headers)
+            auth = tuple(self.current.auth) if self.current.auth else None
+            r = self.http.request(method, url, data=data, headers=headers,
+                                  auth=auth)
         except self.http.ConnectionError:
             self._last_http_status = -1
             self.fatal("could not connect to %r" % (url,))
@@ -148,15 +147,6 @@ class Hub:
         return reply
 
 
-    def update_auth(self, user, password):
-        self.http.auth = (user, password)
-        self.clientdir.ensure(dir=1)
-        oldumask = os.umask(7*8+7)
-        try:
-            self.clientdir.join("login").write(
-                json.dumps(dict(user=user, password=password)))
-        finally:
-            os.umask(oldumask)
 
     def delete_auth(self):
         loginpath = self.clientdir.join("login")
@@ -165,33 +155,8 @@ class Hub:
             return True
 
     def requires_login(self):
-        if not self.http.auth:
+        if not self.current.auth:
             self.fatal("you need to be logged in (use 'devpi login USER')")
-
-    def get_index_url(self, indexname=None, current=None, slash=True):
-        if current is None:
-            current = self.current
-        if indexname is None:
-            indexname = current.index
-            if indexname is None:
-                raise ValueError("no index name")
-        if "/" not in indexname:
-            assert self.http.auth[0]
-            userurl = current.getuserurl(self.http.auth[0])
-            return urlutil.joinpath(userurl + "/", indexname)
-        url = urlutil.joinpath(current.rooturl, indexname)
-        url = url.rstrip("/")
-        if slash:
-            url = url.rstrip("/") + "/"
-        return url
-
-    def get_project_url(self, name):
-        baseurl = self.get_index_url(slash=True)
-        url = urlutil.joinpath(baseurl, name) + "/"
-        return url
-
-    def get_user_url(self):
-        return self.current.getuserurl(self.http.auth[0])
 
     def raw_input(self, msg):
         return raw_input(msg)

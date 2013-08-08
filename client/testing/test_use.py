@@ -48,6 +48,11 @@ class TestUnit:
         url = current._normalize_url("index2")
         assert url == "http://my.serv/index2/"
 
+    def test_invalid_url(self, loghub, tmpdir):
+        current = Current(tmpdir.join("current"))
+        with pytest.raises(SystemExit):
+            current.configure_fromurl(loghub, "http://heise.de:/qwe")
+
     def test_use_with_no_rooturl(self, capfd, cmd_devpi, monkeypatch):
         from devpi import main
         monkeypatch.setattr(main.Hub, "http_api", None)
@@ -86,9 +91,10 @@ class TestUnit:
         assert not newapi.venvdir
 
         # some url helpers
-        assert hub.get_index_url(slash=False) == "http://world/root/some"
-        assert hub.get_index_url() == "http://world/root/some/"
-        assert hub.get_project_url("pytest") == \
+        current = hub.current
+        assert current.get_index_url(slash=False) == "http://world/root/some"
+        assert current.get_index_url() == "http://world/root/some/"
+        assert current.get_project_url("pytest") == \
                                     "http://world/root/some/pytest/"
 
         #hub = cmd_devpi("use", "--delete")
