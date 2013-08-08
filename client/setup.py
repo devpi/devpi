@@ -9,7 +9,7 @@ if __name__ == "__main__":
     README = open(os.path.join(here, 'README.rst')).read()
     CHANGES = open(os.path.join(here, 'CHANGELOG')).read()
 
-    install_requires=["tox", "archive>=0.3", "beautifulsoup4>=4.2.1",
+    install_requires=["tox>=1.6.0.dev2", "archive>=0.3", "beautifulsoup4>=4.2.1",
                       #"pip>=1.4",
                       "pkginfo>=1.1b1",
                       "py>=1.4.14", "requests>=1.2.2",]

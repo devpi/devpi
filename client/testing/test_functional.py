@@ -185,12 +185,30 @@ class TestUserManagement:
         mapp.login(user=existing_user_id, password="1234", code = 401) # old password should be invalid
         mapp.login(user=existing_user_id, password=id(self)) # new password should work
 
-    def test_mod_email(self, mapp, existing_user_id):
+    def test_mod_email(self, mapp, existing_user_id, port_of_liveserver):
+        """ Verify that email change is effective"""
+        mapp.logoff()
+        mapp.login(user=existing_user_id, password="1234")
+        email_address = existing_user_id + '_' + str(id(self)) + "@devpi.net"
+        mapp.modify_user(user = existing_user_id, email = email_address)
+        # Verify that the email was indeed changed.
+        assert mapp.getjson("http://localhost:%s" % port_of_liveserver)['result'][existing_user_id]['email'] == email_address
+
+    def test_mod_combined(self, mapp, existing_user_id, port_of_liveserver):
         """ Verify that password change is effective"""
         mapp.logoff()
         mapp.login(user=existing_user_id, password="1234")
-        mapp.modify_user(user = existing_user_id, email = "foo@devpi.net")
+        email_address = existing_user_id + '_' + str(id(self)) + "@devpi.net"
+        mapp.modify_user(user = existing_user_id, password = id(self), email = email_address)
+        
+        # Verify that the email was changed.
+        assert mapp.getjson("http://localhost:%s" % port_of_liveserver)['result'][existing_user_id]['email'] == email_address
+        
         # Verify that the password was indeed changed.
+        mapp.logoff()
+        mapp.login(user=existing_user_id, password="1234", code = 401) # old password should be invalid
+        mapp.login(user=existing_user_id, password=id(self)) # new password should work
+        
 
         
     def test_delete_root_forbidden(self, mapp):

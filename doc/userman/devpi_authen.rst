@@ -36,7 +36,29 @@ If the user do not already have a user ID he or she must create one::
 Modifying a User
 ----------------
 
-It is possible to modify the user password or email address. 
+It is possible to modify the user password and/or email address::
+
+   $ devpi login emilie --password 1234
+   automatically starting devpi-server for http://localhost:3141
+   logged in 'emilie', credentials valid for 10.00 hours
+   $ devpi user -m emilie password=4567 email=newaddress@gmail.com
+   $ devpi getjson http://localhost:3141/emilie
+   {
+       "result": {
+           "email": "newaddress@gmail.com",            
+           "username": "emilie"
+           ...
+       }, 
+       "type": "userconfig"
+   }
+   $ devpi logoff
+   login information deleted
+   
+   $ devpi login emilie --password 1234 # test password change was successful
+   POST http://localhost:3141/+login
+   401 Unauthorized: user u'emilie' could not be authenticated
+   $ devpi login emilie --password 4567
+   logged in 'emilie', credentials valid for 10.00 hours
 
 .. note:: In order to modify a user, you must be logged in as root or the user itself.
    
