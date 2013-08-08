@@ -50,6 +50,11 @@ class DB:
         with self.keyfs.USER(user=user).update() as userconfig:
             return self._setpassword(userconfig, user, password)
 
+    def user_setemail(self, user, email):
+        with self.keyfs.USER(user=user).update() as userconfig:
+            userconfig['email'] = email
+
+
     def user_create(self, user, password, email=None):
         with self.keyfs.USER(user=user).update() as userconfig:
             hash = self._setpassword(userconfig, user, password)

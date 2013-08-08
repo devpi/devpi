@@ -33,6 +33,13 @@ If the user do not already have a user ID he or she must create one::
    $ devpi user -c emilie email=edoe@mydomain.net password=1234
    201: Created
    
+Modifying a User
+----------------
+
+It is possible to modify the user password or email address. 
+
+.. note:: In order to modify a user, you must be logged in as root or the user itself.
+   
 Logging In
 ----------
    

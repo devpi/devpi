@@ -618,6 +618,12 @@ class PyPIView:
     def user_patch(self, user):
         self.auth.require_user(user)
         dict = getjson()
+        if "email" in dict:
+            self.db.user_setemail(user, dict["email"])
+            if "password" not in dict:
+                # Only send the return code if the password is not set
+                # email setting is trivial if the user exists.
+                apireturn(200, "user %r email updated" % user)        
         if "password" in dict:
             hash = self.db.user_setpassword(user, dict["password"])
             return self.auth.new_proxy_auth(user, dict["password"])

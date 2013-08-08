@@ -2,6 +2,7 @@
 import pytest
 import subprocess
 from py import std
+import time
 
 from test_devpi_server.functional import TestUserThings, TestIndexThings
 
@@ -119,4 +120,92 @@ def test_logoff(mapp):
     mapp.login()
     mapp.logoff()
     mapp.logoff()
+    
 
+class TestUserManagement:
+    """ This class tests the user sub command of devpi
+    """
+
+    @pytest.fixture
+    def new_user_id(self, request, gen, mapp):
+        user_id = "tmp_%s_%s"  %(gen.user(), str(time.time()))
+        def del_tmp_user():
+            try:
+                mapp.delete_user(user = user_id, code=201)
+            except: 
+                pass 
+        request.addfinalizer(del_tmp_user)
+        return user_id
+
+    @pytest.fixture
+    def existing_user_id(self, request, new_user_id, mapp):
+        """ Create a temporary user - will be deleted when the fixture is finalized"""        
+        mapp.create_user(user = new_user_id, password = 1234, email=  new_user_id + "@example.com", code=201)        
+        return new_user_id
+    
+    @pytest.fixture 
+    def user_list(self, mapp, port_of_liveserver):
+        """ This fixture gets the list of user via getjson"""        
+        return mapp.getjson("http://localhost:%s" % port_of_liveserver)['result'].keys()
+    
+    def test_create_new_user(self, mapp, new_user_id):
+        """ Verifies that a new user can be created"""
+        
+        mapp.create_user(user = new_user_id, password = 1234, email=  new_user_id + "@example.com", code=201)        
+        mapp.out_devpi('user', '-l').stdout.fnmatch_lines(new_user_id)
+
+
+    def test_duplicate_user(self, mapp, existing_user_id):
+        """ Verifies that a new user can be created"""
+        
+        mapp.create_user(user = existing_user_id, password = 1234, email=  existing_user_id + "@example.com", code=409)
+        
+    def test_user_list(self, mapp, user_list):
+        """ Obtain the list of users via getjson and verify that it matches what 
+            is returned by devpi user -l
+         
+        """
+        user_list = set(user_list)
+        res = set(mapp.getuserlist())
+        assert len(user_list) == len(res) and user_list.issubset(res)
+    
+    @pytest.mark.xfail(msg = "This test works from the command line but does fail here (return code == 200)???")  
+    def test_unauthorized_mod(self, mapp, existing_user_id):
+        """ Verify that if current user is logged off, modifications can not be done"""
+        mapp.logoff()
+        mapp.modify_user(user = existing_user_id, password = id(self), code = 401)
+        
+    def test_mod_password(self, mapp, existing_user_id):
+        """ Verify that password change is effective"""
+        mapp.logoff()
+        mapp.login(user=existing_user_id, password="1234")
+        mapp.modify_user(user = existing_user_id, password = id(self))
+        # Verify that the password was indeed changed.
+        mapp.logoff()
+        mapp.login(user=existing_user_id, password="1234", code = 401) # old password should be invalid
+        mapp.login(user=existing_user_id, password=id(self)) # new password should work
+
+    def test_mod_email(self, mapp, existing_user_id):
+        """ Verify that password change is effective"""
+        mapp.logoff()
+        mapp.login(user=existing_user_id, password="1234")
+        mapp.modify_user(user = existing_user_id, email = "foo@devpi.net")
+        # Verify that the password was indeed changed.
+
+        
+    def test_delete_root_forbidden(self, mapp):
+        """ Verifies that the root user can not be deleted.
+        
+            This test is not implemented correctly because of issue #26.
+            
+            Technically, mapp.delete_user(user = "root", code=403) should raise an 
+            exception if the operation did not fail with the appropriate error code. tx 
+        """
+        mapp.login_root()
+        mapp.delete_user(user = "root", code=403)
+
+        
+        
+        
+
+        

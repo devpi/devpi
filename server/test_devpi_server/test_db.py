@@ -309,6 +309,12 @@ class TestUsers:
         run_passwd(db, "root")
         assert db.user_validate("root", "123")
 
+    def test_server_email(self, db):
+        email_address = "root_" + str(id) + "@mydomain"
+        db.user_setemail('root', email_address)
+        assert db.keyfs.USER(user='root').get()['email'] == email_address
+
+
 def test_setdefault_indexes(db):
     from devpi_server.main import set_default_indexes
     set_default_indexes(db)
