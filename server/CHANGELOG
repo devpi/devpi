@@ -1,6 +1,8 @@
 next version
 ----------------
 
+- default to "eventlet" server when creating deployment with --gendeploy
+
 - fix issue25: return 403 Forbidden when trying to delete the root user.
 
 - fix name mangling issue for pypi-cache: "project_name*" is now matched
