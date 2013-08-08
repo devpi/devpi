@@ -158,31 +158,6 @@ class Hub:
         if not self.current.auth:
             self.fatal("you need to be logged in (use 'devpi login USER')")
 
-    def get_index_url(self, indexname=None, current=None, slash=True):
-        if current is None:
-            current = self.current
-        if indexname is None:
-            indexname = current.index
-            if indexname is None:
-                raise ValueError("no index name")
-        if "/" not in indexname:
-            assert self.current.auth[0]
-            userurl = current.getuserurl(self.current.auth[0])
-            return urlutil.joinpath(userurl + "/", indexname)
-        url = urlutil.joinpath(current.rooturl, indexname)
-        url = url.rstrip("/")
-        if slash:
-            url = url.rstrip("/") + "/"
-        return url
-
-    def get_project_url(self, name):
-        baseurl = self.get_index_url(slash=True)
-        url = urlutil.joinpath(baseurl, name) + "/"
-        return url
-
-    def get_user_url(self):
-        return self.current.getuserurl(self.current.auth[0])
-
     def raw_input(self, msg):
         return raw_input(msg)
 

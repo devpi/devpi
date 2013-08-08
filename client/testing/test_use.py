@@ -86,9 +86,10 @@ class TestUnit:
         assert not newapi.venvdir
 
         # some url helpers
-        assert hub.get_index_url(slash=False) == "http://world/root/some"
-        assert hub.get_index_url() == "http://world/root/some/"
-        assert hub.get_project_url("pytest") == \
+        current = hub.current
+        assert current.get_index_url(slash=False) == "http://world/root/some"
+        assert current.get_index_url() == "http://world/root/some/"
+        assert current.get_project_url("pytest") == \
                                     "http://world/root/some/pytest/"
 
         #hub = cmd_devpi("use", "--delete")

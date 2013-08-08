@@ -61,13 +61,6 @@ class Current(object):
         finally:
             os.umask(oldumask)
 
-    @property
-    def rooturl(self):
-        return urlutil.joinpath(self.login, "/")
-
-    def getuserurl(self, user):
-        return urlutil.joinpath(self.rooturl, user)
-
     def exists(self):
         return self.path and self.path.check()
 
@@ -79,7 +72,7 @@ class Current(object):
         return url
 
     def configure_fromurl(self, hub, url):
-        url = hub.get_index_url(url, current=self)
+        url = hub.current.get_index_url(url)
         if not is_valid_url(url):
             hub.fatal("invalid URL: %s" % url)
         r = hub.http_api("get", url.rstrip("/") + "/+api", quiet=True)
@@ -98,6 +91,35 @@ class Current(object):
             return py.path.local.sysfind(name, paths=[bindir])
         if glob:
             return py.path.local.sysfind(name)
+
+    # url helpers
+    #
+    @property
+    def rooturl(self):
+        return urlutil.joinpath(self.login, "/")
+
+    def get_user_url(self, user):
+        return urlutil.joinpath(self.rooturl, user)
+
+    def get_index_url(self, indexname=None, slash=True):
+        if indexname is None:
+            indexname = self.index
+            if indexname is None:
+                raise ValueError("no index name")
+        if "/" not in indexname:
+            assert self.auth[0]
+            userurl = self.get_user_url(self.auth[0])
+            return urlutil.joinpath(userurl + "/", indexname)
+        url = urlutil.joinpath(self.rooturl, indexname)
+        url = url.rstrip("/")
+        if slash:
+            url = url.rstrip("/") + "/"
+        return url
+
+    def get_project_url(self, name):
+        baseurl = self.get_index_url(slash=True)
+        url = urlutil.joinpath(baseurl, name) + "/"
+        return url
 
 
 def getvenv():
