@@ -10,7 +10,7 @@ if __name__ == "__main__":
     CHANGES = open(os.path.join(here, 'CHANGELOG')).read()
 
     install_requires=["tox>=1.6.0.dev2", "archive>=0.3", "beautifulsoup4>=4.2.1",
-                      #"pip>=1.3.1",
+                      #"pip>=1.4",
                       "pkginfo>=1.1b1",
                       "py>=1.4.14", "requests>=1.2.2",]
 
@@ -22,7 +22,7 @@ if __name__ == "__main__":
       description="devpi upload/install/... workflow commands for Python "
                   "developers",
       long_description=open("README.rst").read(),
-      version='0.9.5.dev4',
+      version='0.9.5.dev5',
       packages=find_packages(),
       install_requires=install_requires,
       url="https://bitbucket.org/hpk42/devpi",

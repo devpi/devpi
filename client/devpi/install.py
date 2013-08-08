@@ -35,6 +35,7 @@ def main(hub, args):
             pass
         hub.popen_check([pip_path, "install"] + xopt + [
             #"--use-wheel",
+            "--pre",
             "-U", #"--force-reinstall",
             "-i", current.simpleindex ] + list(args.pkgspecs))
 
