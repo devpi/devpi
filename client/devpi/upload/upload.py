@@ -281,7 +281,7 @@ class Exported:
         if "Server response (200): OK" in out:
             hub.info("release registered", "%s-%s" % self.name_and_version())
         else:
-            hub.fatal("release registration failed\n", out)
+            hub.fatal(out + "\n", "release registration failed\n")
 
     def _getuserpassword(self):
         auth = self.hub.http.auth
@@ -317,7 +317,7 @@ class Exported:
                         self.hub.info(line.replace("Submitting", "submitted"))
                         break
             else:
-                self.hub.fatal("could not register releasefile", out)
+                self.hub.fatal("could not register releasefile")
 
     def setup_upload_docs(self):
         current = self.hub.current

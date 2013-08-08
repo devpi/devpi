@@ -31,7 +31,7 @@ def handle_autoserver(hub, current, target=None):
     if not current_is_root and (not target or target_non_root):
         return
     if os.environ.get("DEVPI_NO_AUTOSERVER"):
-        raise ValueError(42)
+        raise ValueError("DEVPI_NO_AUTOSERVER prevents starting autoserver")
     try:
         r = hub.http.head(default_rooturl)
     except hub.http.ConnectionError as e:

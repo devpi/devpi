@@ -109,23 +109,23 @@ class Hub:
         This method will not output any information to the user
         if ``quiet`` is set to true.
         """
-        methodexec = getattr(self.http, method, None)
         jsontype = "application/json"
         headers = {"Accept": jsontype, "content-type": jsontype}
         try:
-            if method in ("delete", "get"):
-                r = methodexec(url, headers=headers)
-            elif method == "push":
-                r = self.http.request(method, url, data=json.dumps(kvdict),
-                                      headers=headers)
-            else:
-                r = methodexec(url, json.dumps(kvdict), headers=headers)
+            data = json.dumps(kvdict) if kvdict is not None else None
+            r = self.http.request(method, url, data=data, headers=headers)
         except self.http.ConnectionError:
             self._last_http_status = -1
             self.fatal("could not connect to %r" % (url,))
         self._last_http_status = r.status_code
 
         reply = HTTPReply(r)
+
+        # if we get a 401 it means our auth info is expired or not present
+        if r.status_code == 401:
+            if self.delete_auth():
+                self.error("removed expired authentication information")
+
 
         # feedback reply info to user, possibly bailing out
         if r.status_code >= 400:
@@ -160,6 +160,7 @@ class Hub:
         loginpath = self.clientdir.join("login")
         if loginpath.check():
             loginpath.remove()
+            return True
 
     def requires_login(self):
         if not self.http.auth:

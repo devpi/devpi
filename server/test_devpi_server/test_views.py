@@ -290,7 +290,7 @@ def test_upload_with_acl(httpget, db, mapp, testapp, monkeypatch):
     mapp.login("user", "123")
     # user cannot write to index now
     mapp.upload_file_pypi(
-            "i1", "dev", "pkg1-2.6.tgz", "123", "pkg1", "2.6", code=401)
+            "i1", "dev", "pkg1-2.6.tgz", "123", "pkg1", "2.6", code=403)
     mapp.login("i1", "456")
     mapp.set_acl("i1/dev", ["user"])
     mapp.login("user", "123")
@@ -577,4 +577,39 @@ def test_get_outside_url():
     url = get_outside_url({"Host": "outside3.com"}, None)
     assert url == "http://outside3.com/"
 
+class TestAuth:
+    @pytest.fixture
+    def auth(self, db):
+        from devpi_server.views import Auth
+        return Auth(db, "qweqwe")
+
+    def test_no_auth(self, auth):
+        assert auth.get_auth_user(None) is None
+
+    def test_auth_direct(self, db, auth):
+        db.user_create("user", password="world")
+        assert auth.get_auth_user(("user", "world")) == "user"
+
+    def test_proxy_auth(self, db, auth):
+        db.user_create("user", password="world")
+        assert auth.new_proxy_auth("user", "wrongpass") is None
+        assert auth.new_proxy_auth("uer", "wrongpass") is None
+        res = auth.new_proxy_auth("user", "world")
+        assert "password" in res and "expiration" in res
+        assert auth.get_auth_user(("user", res["password"]))
+
+    def test_proxy_auth_expired(self, db, auth, monkeypatch):
+        user, password = "user", "world"
+
+        db.user_create(user, password)
+        proxy = auth.new_proxy_auth(user, password)
+
+        def r(*args): raise py.std.itsdangerous.SignatureExpired("123")
+        monkeypatch.setattr(auth.signer, "unsign", r)
+
+        newauth = (user, proxy["password"])
+        res = auth.get_auth_user(newauth, raising=False)
+        assert res is None
+        with pytest.raises(auth.Expired):
+            auth.get_auth_user(newauth)
 
