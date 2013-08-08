@@ -117,9 +117,6 @@ class Hub:
         except self.http.ConnectionError:
             self._last_http_status = -1
             self.fatal("could not connect to %r" % (url,))
-        except Exception as urle:
-            self._last_http_status = -1
-            self.fatal("could not connect to %r - %s" % (url, urle.message))
         self._last_http_status = r.status_code
 
         reply = HTTPReply(r)
