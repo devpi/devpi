@@ -2,7 +2,7 @@ import sys
 import py
 import logging
 
-__version__ = '0.9.5.dev5'
+__version__ = '0.9.5.dev6'
 
 log = logging.getLogger(__name__)
 
