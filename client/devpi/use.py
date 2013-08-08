@@ -33,6 +33,7 @@ class Current(object):
     login = currentproperty("login")
     resultlog = currentproperty("resultlog")
     venvdir = currentproperty("venvdir")
+    auth = currentproperty("auth")
 
     def __init__(self, path):
         self.path = path
@@ -46,21 +47,19 @@ class Current(object):
         else:
             log.debug("no client config found at %s" % self.path)
 
-    def items(self):
-        for name in ("index", "simpleindex", "pypisubmit",
-                     "resultlog", "login", "venvdir"):
-            yield (name, getattr(self, name))
-
     def reconfigure(self, data):
-        self._raw = data
         for name in data:
             oldval = getattr(self, name)
             newval = data[name]
             if oldval != newval:
                 setattr(self, name, newval)
-                log.debug("changing %r to %r", name, newval)
+                log.info("changing %r to %r", name, newval)
         log.debug("writing current %s", self.path)
-        self.path.write(json.dumps(self._currentdict))
+        oldumask = os.umask(7*8+7)
+        try:
+            self.path.write(json.dumps(self._currentdict))
+        finally:
+            os.umask(oldumask)
 
     @property
     def rooturl(self):
@@ -85,15 +84,10 @@ class Current(object):
             hub.fatal("invalid URL: %s" % url)
         r = hub.http_api("get", url.rstrip("/") + "/+api", quiet=True)
         assert r.status_code == 200
-        venvdir = hub.current.venvdir
-        hub.current._currentdict.clear()
-        hub.current.venvdir = venvdir
-        hub.current.index = hub.current.simpleindex = None
-        hub.current.pypisubmit
-        data = r["result"]
+        data = {}
         rooturl = urlutil.getnetloc(url, scheme=True)
-        for name in data:
-            data[name] = urlutil.joinpath(rooturl, data[name])
+        for name in r["result"]:
+            data[name] = urlutil.joinpath(rooturl, r["result"][name])
         self.reconfigure(data)
 
     def getvenvbin(self, name, venvdir=None, glob=True):
@@ -153,22 +147,20 @@ def main(hub, args=None):
             hub.info("connected to: " + current.rooturl)
 
     if showurls:
-        for name, value in current.items():
-            hub.info("%16s: %s" %(name, value))
+        for name in "index simpleindex pypisubmit resultlog login".split():
+            hub.info("%16s: %s" %(name, getattr(current, name)))
     else:
         if not current.index:
             hub.error("not using any index (use 'index -l')")
         else:
             hub.info("using index:  " + current.index)
-    #if current.bases:
-    #    hub.info("base indexes: " + current.bases)
     if current.venvdir:
         hub.info("install venv: %s" % current.venvdir)
     else:
         hub.line("no current install venv set")
 
-    if hub.http.auth:
-        user, password = hub.http.auth
+    if current.auth:
+        user, password = current.auth
         hub.info("logged in as: %s" % user)
     else:
         hub.line("not currently logged in")

@@ -50,7 +50,7 @@ def test_push_devpi(loghub, monkeypatch, mock_http_api):
 def test_main_push_pypi(monkeypatch, tmpdir):
     from devpi.push import main
     l = []
-    def mypost(method, url, data, headers):
+    def mypost(method, url, data, headers, auth=None):
         l.append((method, url, data))
         class r:
             status_code = 201
