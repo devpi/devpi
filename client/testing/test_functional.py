@@ -38,6 +38,7 @@ class Mapp:
 
     def getuserlist(self):
         result = self.out_devpi("user", "-l")
+        assert "200" not in result.stdout.str()
         return [x for x in result.outlines if x.strip()]
 
     def getjson(self, path, code=200):
@@ -47,6 +48,7 @@ class Mapp:
 
     def getindexlist(self):
         result = self.out_devpi("index", "-l")
+        assert "200" not in result.stdout.str()
         return [x for x in result.outlines if x.strip()]
 
     def change_password(self, user, password):
@@ -57,13 +59,19 @@ class Mapp:
         if user == "root" and password != "":
             self._rootpassword = password
 
-    def create_user(self, user, password, email="hello@example.com", code=201):
-        self.devpi("user", "-c", user, "password=%s" % password,
-                   "email=%s" % email, code=code)
+    def create_user(self, user, password=None, email=None, code=201):
+        self._usercommand("-c", user, password, email, code=code)
 
-    def modify_user(self, user, password, email="hello@example.com", code=200):
-        self.devpi("user", "-m", user, "password=%s" % password,
-                   "email=%s" % email, code=code)
+    def modify_user(self, user, password=None, email=None, code=200):
+        self._usercommand("-m", user, password, email, code=code)
+
+    def _usercommand(self, flag, user, password, email, code):
+        args = []
+        if password:
+            args.append("password=%s" % password)
+        if email:
+            args.append("email=%s" % email)
+        self.devpi("user", flag, user, *args, code=code)
 
     def create_and_login_user(self, user="someuser", password="123"):
         self.create_user(user, password)

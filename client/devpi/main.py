@@ -126,7 +126,9 @@ class Hub:
             if self.delete_auth():
                 self.error("removed expired authentication information")
 
-
+        if r.status_code in (200, 201):
+            # don't show any extra info on success code
+            return reply
         # feedback reply info to user, possibly bailing out
         if r.status_code >= 400:
             out = self.fatal
