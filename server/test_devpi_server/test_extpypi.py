@@ -119,6 +119,12 @@ class TestIndexParsing:
             <a href="http://bb.org/download/py-1.0.zip" />""")
         assert len(result.releaselinks) == 1
 
+    def test_parse_index_with_non_parseable_hrefs(self):
+        result = parse_index(self.simplepy,
+            """<a href="qlkwje 1lk23j123123" />
+            <a href="http://bb.org/download/py-1.0.zip" />""")
+        assert len(result.releaselinks) == 1
+
     def test_releasefile_and_scrape(self):
         result = parse_index(self.simplepy,
             """<a href="../../pkg/py-1.4.12.zip#md5=12ab">qwe</a>

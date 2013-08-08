@@ -88,7 +88,10 @@ def is_archive_of_project(newurl, targetname):
     projectname = parts[0]
     if not projectname:
         return False
-    pname = Requirement.parse(projectname).project_name.lower()
+    try:
+        pname = Requirement.parse(projectname).project_name.lower()
+    except ValueError:
+        return False
     #log.debug("checking %s, projectname %r, nameversion %s", newurl, self.projectname, nameversion)
     return (len(parts) > 1 and ext.lower() in ALLOWED_ARCHIVE_EXTS and
             pname == targetname)
