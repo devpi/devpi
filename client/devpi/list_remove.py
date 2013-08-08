@@ -58,11 +58,15 @@ def query_file_status(hub, origin):
                        quiet=True)
     assert res.status_code == 200
     assert res["type"] == "list:toxresult"
-    for toxresult in res["result"]:
+    seen = set()
+    for toxresult in reversed(res["result"]):
         platform = toxresult["platform"]
         for envname, env in toxresult["testenvs"].items():
             prefix = "  {host} {platform} {envname}".format(
                      envname=envname, **toxresult)
+            if prefix in seen:
+                continue
+            seen.add(prefix)
             setup = env.get("setup")
             if not setup:
                 hub.error("%s no setup was performed" % prefix)
