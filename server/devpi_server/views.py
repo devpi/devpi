@@ -699,7 +699,7 @@ def trigger_jenkins(stage, testspec):
         INDEXURL=baseurl + stage.name,
         VIRTUALENVTARURL= (baseurl +
             "root/pypi/f/https/pypi.python.org/packages/"
-            "source/v/virtualenv/virtualenv-1.10.tar.gz"),
+            "source/v/virtualenv/virtualenv-1.10.1.tar.gz"),
         TESTSPEC=testspec,
         DEVPI_INSTALL_INDEX = baseurl + stage.name + "/+simple/"
     )

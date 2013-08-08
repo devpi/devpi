@@ -270,7 +270,7 @@ class Exported:
         hub = self.hub
         pypisubmit = self.hub.current.pypisubmit
         cwd = self.rootpath
-        user, password = self.hub.http.auth or ("test", "test")
+        user, password = self.hub.current.auth or ("test", "test")
         if hub.args.dryrun:
             hub.info("would register package at", cwd, "to", pypisubmit)
             return
@@ -284,7 +284,7 @@ class Exported:
             hub.fatal(out + "\n", "release registration failed\n")
 
     def _getuserpassword(self):
-        auth = self.hub.http.auth
+        auth = self.hub.current.auth
         if auth:
             return auth
         return "_test", "test"

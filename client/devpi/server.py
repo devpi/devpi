@@ -33,7 +33,7 @@ def handle_autoserver(hub, current, target=None):
     if os.environ.get("DEVPI_NO_AUTOSERVER"):
         raise ValueError("DEVPI_NO_AUTOSERVER prevents starting autoserver")
     try:
-        r = hub.http.head(default_rooturl)
+        r = hub._session.head(default_rooturl)
     except hub.http.ConnectionError as e:
         autoserver.start()
     else:

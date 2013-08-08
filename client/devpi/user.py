@@ -18,16 +18,16 @@ def getnewpass(hub, username):
 def user_create(hub, user, kvdict):
     if "password" not in kvdict:
         kvdict["password"] = getnewpass(hub, user)
-    hub.http_api("put", hub.current.getuserurl(user), kvdict)
+    hub.http_api("put", hub.current.get_user_url(user), kvdict)
 
 def user_modify(hub, user, kvdict):
-    hub.http_api("patch", hub.current.getuserurl(user), kvdict)
+    hub.http_api("patch", hub.current.get_user_url(user), kvdict)
 
 def user_delete(hub, user):
-    hub.http_api("delete", hub.current.getuserurl(user), None)
+    hub.http_api("delete", hub.current.get_user_url(user), None)
 
 def user_list(hub, user):
-    r = hub.http_api("get", hub.current.getuserurl(user))
+    r = hub.http_api("get", hub.current.get_user_url(user))
     userdict = r["result"]
     for name in userdict or []:
         hub.line(name)

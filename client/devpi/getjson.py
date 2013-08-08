@@ -14,14 +14,16 @@ def main(hub, args=None):
     args = hub.args
 
     path = args.path
-    if path:
-        if path[0] != "/":
-            if not current.index:
-                hub.fatal("cannot use relative path without an active index")
-            url = urlutil.joinpath(hub.get_index_url(), path)
-        else:
-            url = urlutil.joinpath(current.rooturl, path)
-        r = hub.http_api("get", url, quiet=True)
-        hub.out_json(r._json)
-        return
+
+    current = hub.current
+
+    if path[0] != "/":
+        if not current.index:
+            hub.fatal("cannot use relative path without an active index")
+        url = urlutil.joinpath(current.get_index_url(), path)
+    else:
+        url = urlutil.joinpath(current.rooturl, path)
+    r = hub.http_api("get", url, quiet=True)
+    hub.out_json(r._json)
+    return
 

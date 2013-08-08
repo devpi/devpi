@@ -10,7 +10,7 @@ from devpi.util import url as urlutil
 DEFAULT_BASES = ["root/dev", ]
 
 def index_create(hub, indexname, kvdict):
-    url = hub.get_index_url(indexname, slash=False)
+    url = hub.current.get_index_url(indexname, slash=False)
     hub.http_api("put", url, kvdict)
     index_show(hub, indexname)
 
@@ -20,16 +20,16 @@ def index_modify(hub, indexname, kvdict):
         indexconfig[name] = val
         hub.info("%s changing %s: %s" %(indexname, name, val))
 
-    url = hub.get_index_url(indexname, slash=False)
+    url = hub.current.get_index_url(indexname, slash=False)
     res = hub.http_api("patch", url, indexconfig)
     index_show(hub, indexname)
 
 def index_delete(hub, indexname):
-    url = hub.get_index_url(indexname, slash=False)
+    url = hub.current.get_index_url(indexname, slash=False)
     hub.http_api("delete", url, None)
 
 def index_list(hub, indexname):
-    url = hub.get_user_url() + "/"
+    url = hub.current.get_user_url(hub.current.auth[0]) + "/"
     res = hub.http_api("get", url, None)
     for name in res["result"]:
         hub.info(name)
@@ -37,7 +37,7 @@ def index_list(hub, indexname):
 def get_indexconfig_reply(hub, indexname, ok404=False):
     """ return 2-tuple of index url and indexconfig
     or None if configuration query failed. """
-    url = hub.get_index_url(indexname, slash=False)
+    url = hub.current.get_index_url(indexname, slash=False)
     res = hub.http_api("get", url, None, quiet=True)
     if res.status_code == 200:
         if res["type"] != "indexconfig":
