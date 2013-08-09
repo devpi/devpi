@@ -6,6 +6,10 @@
   This allows to alias "devpi" to come from a virtualenv which is separate from
   the one used to perform packaging.
 
+- remember authentication on a per-root basis and cleanup "devpi use"
+  interactions.  This makes switching between multiple devpi instances
+  more seemless.
+
 - fix issue17: better reporting when "devpi use" does not operate on valid URL
 
 - test result upload and access: 

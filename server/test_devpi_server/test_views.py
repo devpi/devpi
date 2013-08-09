@@ -120,7 +120,6 @@ def test_apiconfig(httpget, testapp):
     r = testapp.get("/root/dev/+api")
     assert r.status_code == 200
     assert r.json["result"]["pypisubmit"]
-    assert r.json["result"]["bases"] == "root/pypi/"
     r = testapp.get("/root/pypi/+api")
     assert r.status_code == 200
     assert not "pypisubmit" in r.json["result"]

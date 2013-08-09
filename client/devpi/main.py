@@ -110,7 +110,7 @@ class Hub:
         headers = {"Accept": jsontype, "content-type": jsontype}
         try:
             data = json.dumps(kvdict) if kvdict is not None else None
-            auth = tuple(self.current.auth) if self.current.auth else None
+            auth = self.current.get_auth()
             r = self.http.request(method, url, data=data, headers=headers,
                                   auth=auth)
         except self.http.ConnectionError:
@@ -155,7 +155,7 @@ class Hub:
             return True
 
     def requires_login(self):
-        if not self.current.auth:
+        if not self.current.get_auth_user():
             self.fatal("you need to be logged in (use 'devpi login USER')")
 
     def raw_input(self, msg):

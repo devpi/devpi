@@ -48,6 +48,15 @@ class TestUnit:
         url = current._normalize_url("index2")
         assert url == "http://my.serv/index2/"
 
+    def test_auth_multisite(self, tmpdir):
+        current = Current(tmpdir.join("current"))
+        login1 = "http://site.com/+login"
+        login2 = "http://site2.com/+login"
+        current.set_auth("hello", "pass1", login1)
+        current.set_auth("hello", "pass2", login2)
+        assert current.get_auth(login1) == ("hello", "pass1")
+        assert current.get_auth(login2) == ("hello", "pass2")
+
     def test_invalid_url(self, loghub, tmpdir):
         current = Current(tmpdir.join("current"))
         with pytest.raises(SystemExit):
@@ -71,6 +80,25 @@ class TestUnit:
         out, err = capfd.readouterr()
         assert "could not connect" in out
 
+    def test_change_index(self, cmd_devpi, mock_http_api):
+        mock_http_api.set("http://world.com/+api", 200,
+                    result=dict(
+                        index="/index",
+                        login="/+login/",
+                   ))
+        mock_http_api.set("http://world2.com/+api", 200,
+                    result=dict(
+                        login="/+login/",
+                   ))
+
+        hub = cmd_devpi("use", "http://world.com")
+        assert hub.current.index == "http://world.com/index"
+        assert hub.current.rooturl == "http://world.com/"
+
+        hub = cmd_devpi("use", "http://world2.com")
+        assert not hub.current.index
+        assert hub.current.rooturl == "http://world2.com/"
+
     def test_main(self, cmd_devpi, mock_http_api):
         mock_http_api.set("http://world/this/+api", 200,
                     result=dict(
@@ -87,7 +115,6 @@ class TestUnit:
         assert newapi.pypisubmit == "http://world/post"
         assert newapi.simpleindex == "http://world/index/"
         assert newapi.resultlog == "http://world/resultlog/"
-        assert newapi.bases == "http://world/root/dev"
         assert not newapi.venvdir
 
         # some url helpers
@@ -116,7 +143,6 @@ class TestUnit:
         monkeypatch.setenv("WORKON_HOME", venvdir.dirpath())
         hub = cmd_devpi("use", "--no-auto", "--venv=%s" % venvdir.basename)
         assert hub.current.venvdir == venvdir
-
 
 
 @pytest.mark.parametrize("input expected".split(), [

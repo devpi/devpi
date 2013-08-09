@@ -87,7 +87,7 @@ def Popen(request):
 
 def get_pypirc_patcher(devpi):
     hub = devpi("use")
-    user, password = hub.current.auth
+    user, password = hub.current.get_auth()
     pypisubmit = hub.current.pypisubmit
     class overwrite:
         def __enter__(self):

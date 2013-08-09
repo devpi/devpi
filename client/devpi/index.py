@@ -29,7 +29,7 @@ def index_delete(hub, indexname):
     hub.http_api("delete", url, None)
 
 def index_list(hub, indexname):
-    url = hub.current.get_user_url(hub.current.auth[0]) + "/"
+    url = hub.current.get_user_url() + "/"
     res = hub.http_api("get", url, None)
     for name in res["result"]:
         hub.info(name)

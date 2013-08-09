@@ -168,7 +168,6 @@ class PyPIView:
                 api.update({
                     "index": "/%s/%s/" % (user, index),
                     "simpleindex": "/%s/%s/+simple/" % (user, index),
-                    "bases": ",".join(["%s/" % x for x in ixconfig["bases"]])
                 })
                 if ixconfig["type"] == "stage":
                     api["pypisubmit"] = "/%s/%s/" % (user, index)

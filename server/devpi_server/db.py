@@ -66,7 +66,7 @@ class DB:
     def _setpassword(self, userconfig, user, password):
         userconfig["pwsalt"] = salt = os.urandom(16).encode("base_64")
         userconfig["pwhash"] = hash = getpwhash(password, salt)
-        log.info("setting password for user %r to %r", user, password)
+        log.info("setting password for user %r", user)
 
     def user_delete(self, user):
         self.keyfs.USER(user=user).delete()

@@ -26,8 +26,8 @@ def user_modify(hub, user, kvdict):
 def user_delete(hub, user):
     hub.http_api("delete", hub.current.get_user_url(user), None)
 
-def user_list(hub, user):
-    r = hub.http_api("get", hub.current.get_user_url(user))
+def user_list(hub):
+    r = hub.http_api("get", hub.current.rooturl)
     userdict = r["result"]
     for name in userdict or []:
         hub.line(name)
@@ -44,6 +44,6 @@ def main(hub, args):
     elif args.modify:
         return user_modify(hub, username, kvdict)
     elif args.list:
-        return user_list(hub, username)
+        return user_list(hub)
     else:
         hub.fatal("need to specify -c|-d|-m|-l")

@@ -17,7 +17,7 @@ def main(hub, args):
         password = py.std.getpass.getpass("password for user %s: " % user)
     data = dict(user=user, password=password)
     data = hub.http_api("post", hub.current.login, data, quiet=False)
-    hub.current.reconfigure(dict(auth=(user, data["password"])))
+    hub.current.set_auth(user, data["password"])
     hours = data["expiration"] / (60*60.0)
     hub.info("logged in %r, credentials valid for %.2f hours" %
              (user, hours))
