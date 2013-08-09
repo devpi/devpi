@@ -64,7 +64,7 @@ def main(hub, args):
     if args.delete:
         if not indexname:
             hub.fatal("need to specify index for deletion")
-        if arg.keyvalues:
+        if args.keyvalues:
             hub.fatal("cannot --delete if you specify key=values")
         return index_delete(hub, indexname)
 

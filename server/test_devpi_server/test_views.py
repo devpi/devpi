@@ -506,6 +506,15 @@ class Mapp:
         if code in (400,):
             return r.json["message"]
 
+    def delete_index(self, indexname, code=201):
+        if "/" in indexname:
+            user, index = indexname.split("/")
+        else:
+            user, password = self.testapp.auth
+            index = indexname
+        r = self.testapp.delete_json("/%s/%s" % (user, index))
+        assert r.status_code == code
+
     def set_uploadtrigger_jenkins(self, indexname, triggerurl):
         indexurl = "/" + indexname
         r = self.testapp.get_json(indexurl)

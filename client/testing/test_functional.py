@@ -91,6 +91,9 @@ class Mapp:
         params = self._indexconfig_to_cmdline_keyvalue(indexconfig)
         self.out_devpi("index", "-c", indexname, *params, code=code)
 
+    def delete_index(self, indexname, code=201):
+        self.out_devpi("index", "--delete", indexname, code=code)
+
     def set_acl(self, indexname, acls, code=200):
         #user, password = self.auth
         if isinstance(acls, list):

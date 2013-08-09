@@ -52,12 +52,14 @@ class TestIndexThings:
     def test_getjson_non_existent(self, mapp):
         mapp.getjson("/whatever/index", 404)
 
-    def test_create_index(self, mapp):
+    def test_create_and_delete_index(self, mapp):
         mapp.create_and_login_user()
         indexname = mapp.auth[0] + "/dev"
         assert indexname not in mapp.getindexlist()
         mapp.create_index("dev")
         assert indexname in mapp.getindexlist()
+        mapp.delete_index("dev")
+        assert indexname not in mapp.getindexlist()
 
     def test_create_index__not_exists(self, mapp):
         mapp.create_index("not_exist/dev", code=404)
