@@ -25,6 +25,26 @@ class TestReleaseFileStore:
         assert entry1.relpath.endswith("/pytest-1.2.zip")
         assert entry1.md5 == "123"
 
+    def test_maplink_replaced_release_not_cached_yet(self, filestore):
+        link = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=123")
+        entry1 = filestore.maplink(link, refresh=False)
+        assert not entry1.iscached()
+        assert entry1.md5 == "123"
+        newlink = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=456")
+        entry2 = filestore.maplink(newlink, refresh=False)
+        assert entry2.md5 == "456"
+
+    def test_maplink_replaced_release_already_cached(self, filestore):
+        link = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=123")
+        entry1 = filestore.maplink(link, refresh=False)
+        # pseudo-write a release file
+        entry1.FILE.set(py.builtin.bytes("content"))
+        assert entry1.iscached()
+        newlink = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=456")
+        entry2 = filestore.maplink(newlink, refresh=False)
+        assert entry2.md5 == "456"
+        assert not entry2.iscached()
+
     def test_maplink_file_there_but_no_entry(self, filestore, keyfs):
         link = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=123")
         entry1 = filestore.maplink(link, refresh=False)

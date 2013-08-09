@@ -26,10 +26,14 @@ class ReleaseFileStore:
         key = self.keyfs.PYPIFILES(relpath=link.torelpath())
         entry = self.getentry(key.relpath)
         mapping = {"url": link.geturl_nofragment().url}
-        if link.eggfragment and not entry.eggfragment:
-            mapping["eggfragment"] = link.eggfragment
-        elif link.md5 and not entry.md5:
-            mapping["md5"] = link.md5
+        mapping["eggfragment"] = link.eggfragment
+        mapping["md5"] = link.md5
+        if link.md5 != entry.md5:
+            if entry.FILE.exists():
+                log.info("replaced md5, deleting stale %s" % entry.relpath)
+                entry.FILE.delete()
+            else:
+                log.info("replaced md5 info for %s" % entry.relpath)
         entry.set(**mapping)
         assert entry.url
         return entry

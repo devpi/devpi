@@ -24,7 +24,7 @@ if __name__ == "__main__":
       keywords="pypi cache server wsgi",
       long_description=README + '\n\n' + CHANGES,
       url="http://doc.devpi.net",
-      version='0.9.5.dev8',
+      version='0.9.5.dev9',
       maintainer="Holger Krekel",
       maintainer_email="holger@merlinux.eu",
       packages=find_packages(),

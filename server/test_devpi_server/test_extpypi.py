@@ -190,6 +190,27 @@ class TestExtPYPIDB:
         assert link.md5 == "123"
         assert link.relpath.endswith("/pytest-1.0.zip")
 
+    def test_parse_project_replaced_eggfragment(self, extdb):
+        extdb.setextsimple("pytest", pypiserial=10, text='''
+            <a href="../../pkg/pytest-1.0.zip#egg=pytest-dev1" />''',)
+        links = extdb.getreleaselinks("pytest", refresh=10)
+        assert links[0].eggfragment == "pytest-dev1"
+        extdb.setextsimple("pytest", pypiserial=11, text='''
+            <a href="../../pkg/pytest-1.0.zip#egg=pytest-dev2" />''')
+        links = extdb.getreleaselinks("pytest", refresh=11)
+        assert links[0].eggfragment == "pytest-dev2"
+
+    def test_parse_project_replaced_md5(self, extdb):
+        extdb.setextsimple("pytest", pypiserial=10, text='''
+            <a href="../../pkg/pytest-1.0.zip#md5=123" />''',)
+        links = extdb.getreleaselinks("pytest", refresh=10)
+        assert links[0].md5 == "123"
+        extdb.setextsimple("pytest", pypiserial=11, text='''
+            <a href="../../pkg/pytest-1.0.zip#md5=456" />''')
+        links = extdb.getreleaselinks("pytest", refresh=11)
+        assert links[0].md5 == "456"
+
+
     def test_getprojectconfig(self, extdb):
         extdb.setextsimple("pytest", text='''
             <a href="../../pkg/pytest-1.0.zip#md5=123" />''')
