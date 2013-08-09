@@ -27,6 +27,7 @@ def index_modify(hub, indexname, kvdict):
 def index_delete(hub, indexname):
     url = hub.current.get_index_url(indexname, slash=False)
     hub.http_api("delete", url, None)
+    hub.info("index deleted: %s" % indexname)
 
 def index_list(hub, indexname):
     url = hub.current.get_user_url() + "/"
