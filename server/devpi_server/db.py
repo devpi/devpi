@@ -214,13 +214,24 @@ class PrivateStage:
         config.update(kw)
         self.db.user_indexconfig_set(self.user, self.index, **config)
 
+    def _get_sro(self):
+        """ return stage resolution order. """
+        todo = [self]
+        seen = set()
+        while todo:
+            stage = todo.pop(0)
+            yield stage
+            seen.add(stage.name)
+            for base in stage.ixconfig["bases"]:
+                if base not in seen:
+                    todo.append(self.db.getstage(base))
+
     def op_with_bases(self, opname, **kw):
-        op_perstage = getattr(self, opname + "_perstage")
-        results = [(self, op_perstage(**kw))]
-        for base in self.ixconfig["bases"]:
-            stage = self.db.getstage(base)
-            base_entries = getattr(stage, opname)(**kw)
-            results.append((stage, base_entries))
+        opname += "_perstage"
+        results = []
+        for stage in self._get_sro():
+            stage_result = getattr(stage, opname)(**kw)
+            results.append((stage, stage_result))
         return results
 
     #
@@ -352,8 +363,8 @@ class PrivateStage:
         return sorted(all_names)
 
     def getprojectnames_perstage(self):
-        return sorted(self.keyfs.PROJCONFIG.listnames("name",
-                      user=self.user, index=self.index))
+        return self.keyfs.PROJCONFIG.listnames("name",
+                    user=self.user, index=self.index)
 
     def store_releasefile(self, filename, content):
         name, version = DistURL(filename).pkgname_and_version

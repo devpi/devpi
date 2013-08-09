@@ -332,12 +332,15 @@ class TestRefreshManager:
 
     def test_pypichanges_nochanges(self, extdb, keyfs):
         proxy = mock.create_autospec(XMLProxy)
-        proxy.list_packages_with_serial.return_value = {"hello": 10}
+        proxy.list_packages_with_serial.return_value = {"hello": 10,
+                                                        "abc": 42}
         proxy.changelog_since_serial.return_value = []
         with pytest.raises(ValueError):
             extdb.spawned_pypichanges(proxy, proxysleep=raise_ValueError)
         proxy.list_packages_with_serial.assert_called_once_with()
         assert keyfs.PYPISERIALS.get()["hello"] == 10
+        assert keyfs.PYPISERIALS.get()["abc"] == 42
+        assert extdb.getprojectnames() == ["abc", "hello"]
 
     def test_pypichanges_mirrorversionchange(self, extdb, keyfs, monkeypatch):
         proxy = mock.create_autospec(XMLProxy)

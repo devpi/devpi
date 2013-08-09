@@ -147,12 +147,12 @@ class PTypedKey:
             current = next
         if position == -1:
             return []
-        l = []
+        names = set()
         for x in current:
             key = x.relto(self.keyfs.basedir)
             parts = key.split(os.sep)
-            l.append(parts[position])
-        return set(l)
+            names.add(parts[position])
+        return names
 
     def __repr__(self):
         return "<PTypedKey %r type %r>" %(self.key, self.type.__name__)

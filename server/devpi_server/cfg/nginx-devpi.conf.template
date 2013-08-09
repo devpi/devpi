@@ -4,6 +4,11 @@ server {
     # 127.0.0.1 localhost devpi.localhost
     server_name devpi.localhost;
     listen 80;
+    gzip             on;
+    gzip_min_length  2000;
+    gzip_proxied     any;
+    gzip_types       text/html application/json; 
+
     root %(datadir)s;  # arbitrary for now
     location / {
         proxy_pass http://localhost:%(port)s;

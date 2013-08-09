@@ -240,14 +240,36 @@ class PyPIView:
 
     @route("/<user>/<index>/+simple/")
     def simple_list_all(self, user, index):
+        log.info("starting +simple")
+        import time
+        now = time.time()
         stage = self.getstage(user, index)
-        names = stage.getprojectnames()
-        body = []
-        for name in names:
-            body.append(html.a(name, href=name + "/"))
-            body.append(html.br())
-        return simple_html_body("%s: list of accessed projects" % stage.name,
-                                body).unicode()
+        stage_results = []
+        for stage, names in stage.op_with_bases("getprojectnames"):
+            if isinstance(names, int):
+                abort(502, "could not get simple list of %s" % stage.name)
+            stage_results.append((stage, names))
+
+        # at this point we are sure we can produce the data without
+        # depending on remote networks
+        response.content_type = "text/html ; charset=utf-8"
+        title =  "%s: simple list of all projects (including inheritance)" %(
+                 stage.name)
+        yield "<html><head><title>%s</title></head><body><h1>%s</h1>" %(
+              title, title)
+        all_names = set()
+        for stage, names in stage_results:
+            h2 = stage.name
+            bases = getattr(stage, "ixconfig", {}).get("bases")
+            if bases:
+                h2 += " (bases: %s)" % ",".join(bases)
+            yield "<h2>" + h2 + "</h2>"
+            for name in names:
+                if name not in all_names:
+                    yield '<a href="%s/">%s</a><br/>' % (name, name)
+                    all_names.add(name)
+        yield "</body>"
+        log.info("finished +simple %s" % (time.time()-now))
 
     @route("/<user>/<index>", method=["PUT", "PATCH"])
     def index_create_or_modify(self, user, index):
@@ -540,6 +562,7 @@ class PyPIView:
         stage = self.getstage(user, index)
         if json_preferred():
             projectlist = stage.getprojectnames_perstage()
+            projectlist = sorted(projectlist)
             apireturn(200, type="list:projectconfig", result=projectlist)
 
         # XXX this should go to a template
@@ -557,7 +580,7 @@ class PyPIView:
         else:
             bases = []
         latest_packages = html.ul()
-        for name in stage.getprojectnames():
+        for name in stage.getprojectnames_perstage():
             for entry in stage.getreleaselinks(name):
                 if entry.eggfragment:
                     continue

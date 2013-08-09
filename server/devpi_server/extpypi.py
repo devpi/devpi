@@ -162,6 +162,7 @@ def perform_crawling(extdb, result, numthreads=10):
 
 class ExtDB:
     name = "root/pypi"
+    ixconfig = dict(bases=(), volatile=False)
 
     def __init__(self, xom):
         self.keyfs = xom.keyfs
@@ -174,7 +175,10 @@ class ExtDB:
 
     def getprojectnames(self):
         """ return list of all projects which have been served. """
-        # XXX return full upstream list?
+        log.info("slow access (big reply) to full extpypi simple list")
+        if hasattr(self, "name2serials"):
+            return sorted(x for x in self.name2serials if x[0] != ".")
+        log.warn("pypi.python.org's simple page not cached yet")
         return sorted(self.keyfs.PYPILINKS.listnames("name"))
 
     getprojectnames_perstage = getprojectnames
@@ -207,6 +211,9 @@ class ExtDB:
         if res is not None and serial >= refresh:
             return [self.releasefilestore.getentry(relpath) for relpath in res]
 
+        # XXX short cut 404 if self.name2serials is not empty and
+        # does not contain the projectname (watch out case-sensitivity)
+
         url = PYPIURL_SIMPLE + projectname + "/"
         log.debug("visiting index %s", url)
         response = self.httpget(url, allow_redirects=True)
@@ -229,6 +236,11 @@ class ExtDB:
         self._dump_projectlinks(projectname, dumplist, serial)
         return entries
 
+    getreleaselinks_perstage = getreleaselinks
+
+    def op_with_bases(self, opname, **kw):
+        return [(self, getattr(self, opname)(**kw))]
+
     def get_projectconfig(self, name):
         releaselinks = self.getreleaselinks(name)
         if isinstance(releaselinks, int):
@@ -245,6 +257,8 @@ class ExtDB:
             files[url.basename] = link.relpath
         return data
 
+    get_projectconfig_perstage = get_projectconfig
+
     def get_description(self, name, version):
         link = "https://pypi.python.org/pypi/%s/%s/" % (name, version)
         return html.div("please refer to description on remote server ",
@@ -258,8 +272,10 @@ class ExtDB:
         name2serials_version = name2serials.get(".ver", 0)
         if name2serials_version != self.MIRRORVERSION:
             log.info("detected MIRRORVERSION CHANGE, restarting caching info")
-            name2serials = {}  # restart getting info from pypi
-                               # this will not reget release files
+            name2serials.clear() # restart getting info from pypi
+                                 # this will not reget release files
+        if name2serials:
+            self.name2serials = name2serials
         while 1:
             if not name2serials:
                 log.info("retrieving initial name/serial list")
@@ -271,6 +287,7 @@ class ExtDB:
                     name2serials[name.lower()] = serial
                 name2serials[".ver"] = self.MIRRORVERSION
                 keyfs.PYPISERIALS.set(name2serials)
+                self.name2serials = name2serials
             else:
                 # get changes since the maximum serial we are aware of
                 current_serial = max(itervalues(name2serials))
