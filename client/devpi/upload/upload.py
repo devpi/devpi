@@ -209,7 +209,7 @@ class Checkout:
                     dest.dirpath().ensure(dir=1)
                     source.copy(dest)
                     num += 1
-            log.debug("copied", num, "files to", newrepo)
+            log.debug("copied %s files to %s", num, newrepo)
             return Exported(self.hub, newrepo, self.rootpath)
         else:
             return Exported(self.hub, self.rootpath, self.rootpath)
@@ -267,6 +267,7 @@ class Exported:
         return verlib.guess_pkgname_and_version(self.setup_fullname())
 
     def setup_register(self):
+        self.check_setup()
         hub = self.hub
         pypisubmit = self.hub.current.pypisubmit
         cwd = self.rootpath
@@ -289,7 +290,14 @@ class Exported:
             return auth
         return "_test", "test"
 
+    def check_setup(self):
+        p = self.rootpath.join("setup.py")
+        if not p.check():
+            self.hub.fatal("did not find %s after "
+                           "export of versioned files" % p)
+
     def setup_upload(self):
+        self.check_setup()
         current = self.hub.current
         cwd = self.rootpath
         user, password = self._getuserpassword()

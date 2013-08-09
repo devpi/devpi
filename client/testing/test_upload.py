@@ -30,6 +30,7 @@ def uploadhub(request, tmpdir):
 class TestCheckout:
     @pytest.fixture(autouse=True)
     def no_sys_executable(self, monkeypatch):
+        """ make sure sys.executable is not used accidentally. """
         monkeypatch.setattr(sys, "executable", None)
 
     @pytest.fixture(scope="class")
@@ -56,6 +57,20 @@ class TestCheckout:
         result = checkout.export(newrepo)
         assert result.rootpath.join("file").check()
         assert result.rootpath == newrepo.join(repo.basename)
+
+    def test_hg_export_verify_setup(self, uploadhub, repo,
+                                          tmpdir, monkeypatch):
+        subdir = repo.mkdir("subdir")
+        subdir.ensure("setup.py")
+        checkout = Checkout(uploadhub, subdir)
+        wc = tmpdir.mkdir("wc")
+        exported = checkout.export(wc)
+        with pytest.raises(SystemExit):
+            exported.check_setup()
+        with pytest.raises(SystemExit):
+            exported.setup_register()
+        with pytest.raises(SystemExit):
+            exported.setup_upload()
 
     def test_export_attributes(self, uploadhub, repo, tmpdir):
         checkout = Checkout(uploadhub, repo)
