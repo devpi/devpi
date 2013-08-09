@@ -287,16 +287,17 @@ class TestUsers:
         assert not db.user_validate("user", "password2")
 
     def test_create_and_delete(self, db):
-        db.user_setpassword("user", "password")
+        db.user_create("user", password="password")
+        assert db.user_exists("user")
         db.user_delete("user")
         assert not db.user_exists("user")
         assert not db.user_validate("user", "password")
 
     def test_create_and_list(self, db):
         baselist = db.user_list()
-        db.user_setpassword("user1", "password")
-        db.user_setpassword("user2", "password")
-        db.user_setpassword("user3", "password")
+        db.user_modify("user1", password="password")
+        db.user_modify("user2", password="password")
+        db.user_modify("user3", password="password")
         newusers = db.user_list().difference(baselist)
         assert newusers == set("user1 user2 user3".split())
         db.user_delete("user3")
@@ -311,8 +312,8 @@ class TestUsers:
 
     def test_server_email(self, db):
         email_address = "root_" + str(id) + "@mydomain"
-        db.user_setemail('root', email_address)
-        assert db.keyfs.USER(user='root').get()['email'] == email_address
+        db.user_modify('root', email=email_address)
+        assert db.user_get("root")["email"] == email_address
 
 
 def test_setdefault_indexes(db):

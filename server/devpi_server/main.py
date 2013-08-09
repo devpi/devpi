@@ -238,6 +238,6 @@ def set_default_indexes(db):
     PYPI = "root/pypi"
     DEV = "root/dev"
     if "root" not in db.user_list():
-        db.user_setpassword("root", "")
+        db.user_modify("root", password="")
     db.user_indexconfig_set(PYPI, bases=(), type="mirror", volatile=False)
     db.user_indexconfig_set(DEV, bases=(PYPI,), type="stage", volatile=True)

@@ -5,7 +5,8 @@ import webtest
 import requests, json
 from bs4 import BeautifulSoup
 from webtest.forms import Upload
-from devpi_server.views import PyPIView, render_string, get_outside_url
+from devpi_server.views import *
+import devpi_server.views
 from webtest import TestApp as TApp
 from test_db import create_zipfile
 from mock import Mock
@@ -447,7 +448,8 @@ class Mapp:
         auth = self.testapp.auth
         r = self.testapp.patch_json("/%s" % user, dict(password=password))
         assert r.status_code == 200
-        self.testapp.auth = (self.testapp.auth[0], r.json["password"])
+        self.testapp.auth = (self.testapp.auth[0],
+                             r.json["result"]["password"])
 
     def create_user(self, user, password, email="hello@example.com", code=201):
         reqdict = dict(password=password)
@@ -576,6 +578,36 @@ def test_get_outside_url():
     assert url == "http://outside2.com/"
     url = get_outside_url({"Host": "outside3.com"}, None)
     assert url == "http://outside3.com/"
+
+class Test_getjson:
+    @pytest.fixture
+    def abort_calls(self, monkeypatch):
+        l = []
+        def recorder(*args, **kwargs):
+            l.append((args, kwargs))
+            raise SystemExit(1)
+        monkeypatch.setattr(devpi_server.views, "abort", recorder)
+        return l
+
+    def test_getjson(self):
+        class request:
+            body = py.io.BytesIO(json.dumps({"hello": "world"}))
+        assert getjson(request)["hello"] == "world"
+
+    def test_getjson_error(self, abort_calls):
+        class request:
+            body = py.io.BytesIO("123 123")
+        with pytest.raises(SystemExit):
+            getjson(request)
+        assert abort_calls[0][0][0] == 400
+
+    def test_getjson_wrong_keys(self, abort_calls):
+        class request:
+            body = py.io.BytesIO(json.dumps({"k1": "v1", "k2": "v2"}))
+        with pytest.raises(SystemExit):
+            getjson(request, allowed_keys=["k1", "k3"])
+        assert abort_calls[0][0][0] == 400
+
 
 class TestAuth:
     @pytest.fixture

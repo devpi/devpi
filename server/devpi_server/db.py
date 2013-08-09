@@ -30,7 +30,7 @@ def run_passwd(db, user):
     else:
         log.error("no password set")
         return 1
-    db.user_setpassword(user, pwd)
+    db.user_modify(user, password=pwd)
 
 
 _ixconfigattr = set("type volatile bases acl_upload".split())
@@ -45,29 +45,28 @@ class DB:
         self.xom = xom
         self.keyfs = xom.keyfs
 
-    # user handling
-    def user_setpassword(self, user, password):
-        with self.keyfs.USER(user=user).update() as userconfig:
-            return self._setpassword(userconfig, user, password)
-
-    def user_setemail(self, user, email):
-        with self.keyfs.USER(user=user).update() as userconfig:
-            userconfig['email'] = email
-
-
     def user_create(self, user, password, email=None):
         with self.keyfs.USER(user=user).update() as userconfig:
-            hash = self._setpassword(userconfig, user, password)
+            self._setpassword(userconfig, user, password)
             if email:
                 userconfig["email"] = email
             log.info("created user %r with email %r" %(user, email))
-            return hash
+
+    def user_modify(self, user, password=None, email=None):
+        with self.keyfs.USER(user=user).update() as userconfig:
+            modified = []
+            if password is not None:
+                self._setpassword(userconfig, user, password)
+                modified.append("password=*******")
+            if email:
+                userconfig["email"] = email
+                modified.append("email=%s" % email)
+            log.info("modified user %r: %s" %(user, ", ".join(modified)))
 
     def _setpassword(self, userconfig, user, password):
         userconfig["pwsalt"] = salt = os.urandom(16).encode("base_64")
         userconfig["pwhash"] = hash = getpwhash(password, salt)
         log.info("setting password for user %r to %r", user, password)
-        return hash
 
     def user_delete(self, user):
         self.keyfs.USER(user=user).delete()

@@ -182,7 +182,7 @@ class PyPIView:
     @route("/+tests", method="POST")
     def add_attach(self):
         filestore = self.xom.releasefilestore
-        data = getjson()
+        data = getjson(request)
         md5 = data["installpkg"]["md5"]
         num = filestore.add_attachment(md5=md5, type="toxresult",
                                        data=request.body.read())
@@ -255,7 +255,7 @@ class PyPIView:
         ixconfig = self.db.user_indexconfig_get(user, index)
         if request.method == "PUT" and ixconfig is not None:
             apireturn(409, "index %s/%s exists" % (user, index))
-        kvdict = getkvdict_index(getjson())
+        kvdict = getkvdict_index(getjson(request))
         kvdict.setdefault("type", "stage")
         kvdict.setdefault("bases", ["root/dev"])
         kvdict.setdefault("volatile", True)
@@ -293,7 +293,7 @@ class PyPIView:
     @route("/<user>/<index>/", method="PUSH")
     def pushrelease(self, user, index):
         stage = self.getstage(user, index)
-        pushdata = getjson()
+        pushdata = getjson(request)
         try:
             name = pushdata["name"]
             version = pushdata["version"]
@@ -602,7 +602,7 @@ class PyPIView:
     #
     @route("/+login", method="POST")
     def login(self):
-        dict = getjson()
+        dict = getjson(request)
         user = dict.get("user", None)
         password = dict.get("password", None)
         #log.debug("got password %r" % password)
@@ -617,23 +617,20 @@ class PyPIView:
     @route("/<user>/", method="PATCH")
     def user_patch(self, user):
         self.auth.require_user(user)
-        dict = getjson()
-        if "email" in dict:
-            self.db.user_setemail(user, dict["email"])
-            if "password" not in dict:
-                # Only send the return code if the password is not set
-                # email setting is trivial if the user exists.
-                apireturn(200, "user %r email updated" % user)        
-        if "password" in dict:
-            hash = self.db.user_setpassword(user, dict["password"])
-            return self.auth.new_proxy_auth(user, dict["password"])
-        apireturn(400, "could not decode request")
+        dict = getjson(request, allowed_keys=["email", "password"])
+        email = dict.get("email")
+        password = dict.get("password")
+        self.db.user_modify(user, password=password, email=email)
+        if password is not None:
+            apireturn(200, "user updated, new proxy auth", type="userpassword",
+                      result=self.auth.new_proxy_auth(user, password=password))
+        apireturn(200, "user updated")
 
     @route("/<user>", method="PUT")
     def user_create(self, user):
         if self.db.user_exists(user):
             apireturn(409, "user already exists")
-        kvdict = getjson()
+        kvdict = getjson(request)
         if "password" in kvdict:  # and "email" in kvdict:
             hash = self.db.user_create(user, **kvdict)
             apireturn(201, type="userconfig", result=self.db.user_get(user))
@@ -667,13 +664,15 @@ class PyPIView:
             d[user] = self.db.user_get(user)
         apireturn(200, type="list:userconfig", result=d)
 
-def getjson():
-    dict = request.json
-    if dict is None:
-        try:
-            return json.load(request.body)
-        except ValueError:
-            abort(400, "Bad request: could not decode json")
+def getjson(request, allowed_keys=None):
+    try:
+        dict = json.load(request.body)
+    except ValueError:
+        abort(400, "Bad request: could not decode json")
+    if allowed_keys is not None:
+        diff = set(dict).difference(allowed_keys)
+        if diff:
+            abort(400, "json keys not recognized: %s" % ",".join(diff))
     return dict
 
 def get_outside_url(headers, outsideurl):
