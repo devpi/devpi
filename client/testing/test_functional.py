@@ -174,8 +174,6 @@ class TestUserManagement:
         res = set(mapp.getuserlist())
         assert len(user_list) == len(res) and user_list.issubset(res)
 
-    @pytest.mark.xfail(msg="works from the command line but fails here "
-                           "(return code == 200)???")
     def test_unauthorized_mod(self, mapp, existing_user_id):
         """ Verify that if current user is logged off,
         modifications can not be done"""

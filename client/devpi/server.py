@@ -84,11 +84,12 @@ class AutoServer:
                 datadir.remove()
             datadir.ensure(dir=1)
             return (lambda: self._waitup(url),
-                [devpi_server, "--data", datadir, "--port", port])
+                [devpi_server, "--debug", "--data", datadir, "--port", port])
         self.xproc.ensure("devpi-server", prepare_devpiserver)
         info = self.xproc.getinfo("devpi-server")
         self.pid = info.pid
         self.logfile = info.logpath
+        self.hub.debug("*** logfile is at %s" % self.logfile)
 
     def stop(self, withlog=None):
         info = self.xproc.getinfo("devpi-server")

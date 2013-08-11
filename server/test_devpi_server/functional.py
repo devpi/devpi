@@ -66,15 +66,18 @@ class TestIndexThings:
 
     def test_create_index_base_not_exists(self, mapp):
         indexconfig = dict(bases=("not/exists",))
+        mapp.login_root()
         m = mapp.create_index("root/hello", indexconfig=indexconfig, code=400)
         if m:  # only server-side mapp returns messages
             assert "not/exists" in m
 
     def test_create_index_base_normalized(self, mapp):
         indexconfig = dict(bases=("/root/dev",))
+        mapp.login_root()
         mapp.create_index("root/hello", indexconfig=indexconfig, code=200)
 
     def test_create_index_base_invalid(self, mapp):
+        mapp.login_root()
         indexconfig = dict(bases=("/root/dev/123",))
         m = mapp.create_index("root/newindex1",
                               indexconfig=indexconfig, code=400)
@@ -82,6 +85,7 @@ class TestIndexThings:
             assert "root/dev/123" in m
 
     def test_create_index_default_allowed(self, mapp):
+        mapp.login_root()
         mapp.create_index("root/test1")
         mapp.login("root", "")
         mapp.change_password("root", "asd")
@@ -90,8 +94,9 @@ class TestIndexThings:
 
     def test_create_index_and_acls(self, mapp):
         username = "newuser2"
-        mapp.create_and_login_user(username)
-        mapp.create_index("root/test2")
+        mapp.create_user(username, "password")
+        mapp.login_root()
+        mapp.create_index("test2")
         mapp.set_acl("root/test2", [username])
         assert username in mapp.get_acl("root/test2")
         mapp.set_acl("root/test2", [])
@@ -99,6 +104,7 @@ class TestIndexThings:
 
     def test_create_index_with_jenkinsurl(self, mapp):
         url = "http://localhost:8080/"
+        mapp.login_root()
         mapp.create_index("root/test3")
         mapp.set_uploadtrigger_jenkins("root/test3", url)
         data = mapp.getjson("/root/test3")

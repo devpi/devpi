@@ -362,6 +362,7 @@ def test_upload_pypi_fails(httpget, db, mapp, testapp):
             "root", "pypi", "pkg1-2.6.tgz", "123", "pkg1", "2.6", code=404)
 
 def test_delete_pypi_fails(httpget, db, mapp, testapp):
+    mapp.login_root()
     r = testapp.delete("/root/pypi/pytest/2.3.5", expect_errors=True)
     assert r.status_code == 405
     r = testapp.delete("/root/pypi/pytest", expect_errors=True)

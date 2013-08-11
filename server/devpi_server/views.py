@@ -110,8 +110,6 @@ class Auth:
         #log.debug("headers %r", request.headers.items())
         if not self.db.user_exists(user):
             abort(404, "user %r does not exist" % user)
-        if self.db.user_validate("root", ""):  # has empty password?
-            return  # then we don't require any authentication
         try:
             auth_user = self.get_auth_user(request.auth)
         except itsdangerous.SignatureExpired:
@@ -119,6 +117,7 @@ class Auth:
 
         if not auth_user:
             log.warn("invalid or no authentication")
+            log.warn("request.auth %s" %(request.auth,))
             abort_authenticate()
         if auth_user == "root" or auth_user == user:
             return

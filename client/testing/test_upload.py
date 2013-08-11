@@ -26,6 +26,11 @@ def uploadhub(request, tmpdir):
                            "upload"])
     return hub
 
+#@pytest.fixture(autouse=True)
+#def extpypi_404(monkeypatch):
+#    from devpi_server import extpypi  # this is only client side
+#    monkeypatch.setattr(extpypi.ExtDB, "getreleaselinks", lambda *args: 404)
+
 
 class TestCheckout:
     @pytest.fixture(autouse=True)

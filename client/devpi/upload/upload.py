@@ -94,8 +94,11 @@ def upload_file_pypi(hub, path, pkginfo):
     name, version = d["name"], d["version"]
     d[":action"] = "submit"
     index = hub.current.index
+    auth = hub.current.get_auth()
+    if not auth:
+        hub.fatal("need to be authenticated (use 'devpi login')")
     if not hub.args.dryrun:
-        r = hub.http.post(hub.current.index, d)
+        r = hub.http.post(hub.current.index, d, auth=auth)
         if r.status_code != 200:
             hub.error("%s %s: could not register %s to %s" % (r.status_code,
                       r.reason, name + version, index))
@@ -110,7 +113,7 @@ def upload_file_pypi(hub, path, pkginfo):
     if hub.args.dryrun:
         hub.info("would upload %s to %s" %(path.basename, index))
         return True
-    r = hub.http.post(hub.current.index, d, files=files)
+    r = hub.http.post(hub.current.index, d, files=files, auth=auth)
     if r.status_code == 200:
         hub.info("%s posted to %s" %(path.basename, index))
         return True
@@ -280,7 +283,7 @@ class Exported:
              pypisubmit, user, password, "register", "-r", "devpi",],
              cwd = self.rootpath)
         if "Server response (200): OK" in out:
-            hub.info("release registered", "%s-%s" % self.name_and_version())
+            hub.info("release registered to %s" % hub.current.index)
         else:
             hub.fatal(out + "\n", "release registration failed\n")
 
