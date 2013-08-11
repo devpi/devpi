@@ -44,13 +44,14 @@ This will install ``devpi-client`` and ``devpi-server`` pypi packages.
 devpi install: installing a package
 +++++++++++++++++++++++++++++++++++
 
+.. 
+    $ rm -rf v1
+
 We can now use the ``devpi`` command line client to ``pip install``
 a pypi package (here ``pytest`` as an example) through an
 auto-started caching devpi-server::
 
     $ devpi install --venv=v1 pytest
-    automatically starting devpi-server for http://localhost:3141
-    *** logfile is at
     --> $ virtualenv -q v1
     --> $ v1/bin/pip install --pre -U -i http://localhost:3141/root/dev/+simple/ pytest
     Downloading/unpacking pytest
@@ -106,12 +107,12 @@ Now go to the directory of a ``setup.py`` file of one of your projects
 to the local ``root/dev`` default index::
 
     example $ devpi upload
-    created workdir /tmp/devpi1103
+    created workdir /tmp/devpi1114
     --> $ hg st -nmac .
-    hg-exported project to <Exported /tmp/devpi1103/upload/example>
-    --> $ /home/hpk/venv/0/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi1103/upload/example http://localhost:3141/root/dev/ root root-72509ca707b0f1f765548e62d9d849eb1a11768a240914a329b20a7eacbc8dda.BOmHsQ.AGHLxf9jG3dzHDSJALUZQ2wCLCY register -r devpi
+    hg-exported project to <Exported /tmp/devpi1114/upload/example>
+    --> $ /home/hpk/venv/0/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi1114/upload/example http://localhost:3141/root/dev/ root root-72509ca707b0f1f765548e62d9d849eb1a11768a240914a329b20a7eacbc8dda.BOmQ-A.GPHBzJr1n99qow-K6BDoezgd4N8 register -r devpi
     release registered to http://localhost:3141/root/dev/
-    --> $ /home/hpk/venv/0/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi1103/upload/example http://localhost:3141/root/dev/ root root-72509ca707b0f1f765548e62d9d849eb1a11768a240914a329b20a7eacbc8dda.BOmHsQ.AGHLxf9jG3dzHDSJALUZQ2wCLCY sdist --formats gztar upload -r devpi
+    --> $ /home/hpk/venv/0/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi1114/upload/example http://localhost:3141/root/dev/ root root-72509ca707b0f1f765548e62d9d849eb1a11768a240914a329b20a7eacbc8dda.BOmQ-A.GPHBzJr1n99qow-K6BDoezgd4N8 sdist --formats gztar upload -r devpi
     submitted dist/example-1.0.tar.gz to http://localhost:3141/root/dev/
 
 There are three triggered actions:
@@ -241,6 +242,8 @@ devpi use: show index and other info
 In the default configuration we do not need credentials
 and thus do not need to be logged in.
 
+.. 
+    $ rm -rf v1
 
 devpi server: controling the automatic server
 +++++++++++++++++++++++++++++++++++++++++++++
@@ -248,12 +251,12 @@ devpi server: controling the automatic server
 Let's look at our current automatically started server::
 
     $ devpi server 
-    automatic server is running with pid 29155
+    automatic server is running with pid 32619
 
 Let's stop it::
 
     $ devpi server --stop
-    killed automatic server pid=29155
+    killed automatic server pid=32619
 
 Note that with most ``devpi`` commands the server will be started
 up again when needed.  As soon as you start ``devpi use`` with 

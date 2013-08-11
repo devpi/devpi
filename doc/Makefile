@@ -162,6 +162,5 @@ doctest:
 	      "results in $(BUILDDIR)/doctest/output.txt."
 
 
-regen:
-	rm -rf v1
+regen: 
 	python regendoc.py --update index.rst
