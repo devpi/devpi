@@ -49,14 +49,10 @@ a pypi package (here ``pytest`` as an example) through an
 auto-started caching devpi-server::
 
     $ devpi install --venv=v1 pytest
-    automatically starting devpi-server at http://localhost:3141/
-    --> $ virtualenv v1
-    Using real prefix '/usr'
-    New python executable in v1/bin/python
-    Please make sure you remove any previous custom paths from your /home/hpk/.pydistutils.cfg file.
-    Installing setuptools............done.
-    Installing pip...............done.
-    --> $ v1/bin/pip install -U --force-reinstall -i http://localhost:3141/root/dev/+simple/ pytest
+    automatically starting devpi-server for http://localhost:3141
+    *** logfile is at
+    --> $ virtualenv -q v1
+    --> $ v1/bin/pip install --pre -U -i http://localhost:3141/root/dev/+simple/ pytest
     Downloading/unpacking pytest
       Running setup.py egg_info for package pytest
         
@@ -66,8 +62,8 @@ auto-started caching devpi-server::
     Installing collected packages: pytest, py
       Running setup.py install for pytest
         
-        Installing py.test script to /tmp/doc-exec-15/v1/bin
-        Installing py.test-2.7 script to /tmp/doc-exec-15/v1/bin
+        Installing py.test script to /home/hpk/p/devpi/doc/v1/bin
+        Installing py.test-2.7 script to /home/hpk/p/devpi/doc/v1/bin
       Running setup.py install for py
         
     Successfully installed pytest py
@@ -86,17 +82,76 @@ Here is what happened:
 Let's check that ``pytest`` was installed correctly::
 
     $ v1/bin/py.test --version
-    This is py.test version 2.3.5, imported from /tmp/doc-exec-15/v1/local/lib/python2.7/site-packages/pytest.pyc
+    This is py.test version 2.3.5, imported from /home/hpk/p/devpi/doc/v1/local/lib/python2.7/site-packages/pytest.pyc
 
-You may invoke the ``devpi install`` command a second time which should
-go much faster and also work offline.
+You may invoke the ``devpi install`` command a second time which goes
+much faster and works offline.
 
 devpi upload: uploading one or more packages
 ++++++++++++++++++++++++++++++++++++++++++++
 
-Go to a ``setup.py`` based project of yours and issue::
+In order to upload packages to the ``root/dev`` index you need to login::
 
-	devpi upload   # need to be in a directory with setup.py
+    $ devpi login root --password ""
+    logged in 'root', credentials valid for 10.00 hours
+
+Let's verify we are logged in to the correct default ``root/dev`` index::
+
+    $ devpi use
+    using index: http://localhost:3141/root/dev/ (logged in as root)
+    no current install venv set
+
+Now go to the directory of a ``setup.py`` file of one of your projects  
+(we assume it is named ``example``) to build and upload your package
+to the local ``root/dev`` default index::
+
+    example $ devpi upload
+    created workdir /tmp/devpi1103
+    --> $ hg st -nmac .
+    hg-exported project to <Exported /tmp/devpi1103/upload/example>
+    --> $ /home/hpk/venv/0/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi1103/upload/example http://localhost:3141/root/dev/ root root-72509ca707b0f1f765548e62d9d849eb1a11768a240914a329b20a7eacbc8dda.BOmHsQ.AGHLxf9jG3dzHDSJALUZQ2wCLCY register -r devpi
+    release registered to http://localhost:3141/root/dev/
+    --> $ /home/hpk/venv/0/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi1103/upload/example http://localhost:3141/root/dev/ root root-72509ca707b0f1f765548e62d9d849eb1a11768a240914a329b20a7eacbc8dda.BOmHsQ.AGHLxf9jG3dzHDSJALUZQ2wCLCY sdist --formats gztar upload -r devpi
+    submitted dist/example-1.0.tar.gz to http://localhost:3141/root/dev/
+
+There are three triggered actions:
+
+- detection of a mercurial repository, leading to copying all versioned
+  files to a temporary work dir.  If you are not using mercurial,
+  the copy-step is skipped and the upload operates directly on your source
+  tree.
+
+- registering the ``example`` release as defined in ``setup.py`` to 
+  the ``root/dev`` index.
+
+- building and uploading a ``gztar`` formatted release file to the
+  ``root/dev`` index.
+
+We can now install the freshly uploaded package::
+
+    $ devpi install --venv=v1 example
+    --> $ v1/bin/pip install --pre -U -i http://localhost:3141/root/dev/+simple/ example
+    Downloading/unpacking example
+      Downloading example-1.0.tar.gz
+      Running setup.py egg_info for package example
+        
+    Installing collected packages: example
+      Running setup.py install for example
+        
+    Successfully installed example
+    Cleaning up...
+
+This installed your just uploaded package from the default ``root/dev``
+index.
+
+.. note::
+
+    ``devpi upload`` allows to simultanously upload multiple different 
+    formats of your release files such as ``sdist.zip`` or ``bdist_egg``.
+    The default is ``sdist.tgz``.
+
+uploading sphinx docs
+++++++++++++++++++++++++++++++++
 
 If you have sphinx-based docs you can upload them as well::
 
@@ -108,22 +163,6 @@ this command::
     setup.py build_sphinx -E --build-dir $BUILD_DIR \
              upload_docs --upload-dir $BUILD_DIR/html
 
-It basically discovers your docs at standard locations and
-runs a fresh build before pushing it to the devpi index.
-
-You can now install the just uploaded package::
-
-	devpi install --venv=v1 NAME_OF_YOUR_PACKAGE
-
-This installed your just uploaded package from the default ``root/dev``
-index.
-
-.. note::
-
-    ``devpi upload`` allows to upload multiple different formats
-    of your release files such as ``sdist.zip`` or ``bdist_egg``.
-    With the ``--withdocs`` option, you will also upload documentation.
-    The default is ``sdist.tgz``.
 
 uploading existing release files
 ++++++++++++++++++++++++++++++++
@@ -133,7 +172,7 @@ If you have a directory with existing package files::
     devpi upload --from-dir PATH/TO/DIR
 
 will recursively collect all archives files, register
-and upload them to our private ``root/dev`` pypi index.
+and upload them to our local ``root/dev`` pypi index.
 
 listing or removing projects and release files
 ++++++++++++++++++++++++++++++++++++++++++++++
@@ -196,9 +235,8 @@ devpi use: show index and other info
 ::
 
     $ devpi use
-    using index:  http://localhost:3141/root/dev/
+    using index: http://localhost:3141/root/dev/ (logged in as root)
     no current install venv set
-    logged in as: root
 
 In the default configuration we do not need credentials
 and thus do not need to be logged in.
@@ -209,13 +247,13 @@ devpi server: controling the automatic server
 
 Let's look at our current automatically started server::
 
-    $ devpi server --nolog  # don't show server log info
-    automatic server is running with pid 7133
+    $ devpi server 
+    automatic server is running with pid 29155
 
 Let's stop it::
 
     $ devpi server --stop
-    TERMINATED 'devpi-server', pid 7133 -- logfile /home/hpk/.devpi/client/.xproc/devpi-server/xprocess.log
+    killed automatic server pid=29155
 
 Note that with most ``devpi`` commands the server will be started
 up again when needed.  As soon as you start ``devpi use`` with 

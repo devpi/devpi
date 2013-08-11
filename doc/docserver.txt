@@ -10,7 +10,6 @@ you can upload documentation to an index simply by::
 The documentation will be linked to from the ``pypi/PROJNAME`` page
 of that index.
 
-
 Server data directory layout (implementation internal)
 ------------------------------------------------------
 
