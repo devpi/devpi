@@ -34,7 +34,7 @@ You are very welcome to report issues, discuss or help:
 
 * issues: https://bitbucket.org/hpk42/devpi/issues
 
-* IRC: #pylib on irc.freenode.net.
+* IRC: #devpi on irc.freenode.net.
 
 * repository: https://bitbucket.org/hpk42/devpi
 
