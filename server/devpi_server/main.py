@@ -240,4 +240,8 @@ def set_default_indexes(db):
     if "root" not in db.user_list():
         db.user_modify("root", password="")
     db.user_indexconfig_set(PYPI, bases=(), type="mirror", volatile=False)
-    db.user_indexconfig_set(DEV, bases=(PYPI,), type="stage", volatile=True)
+    ixconfig = db.user_indexconfig_get(DEV)
+    if not ixconfig:
+        log.info("configuring default %s index", DEV)
+        db.user_indexconfig_set(DEV, bases=(PYPI,), type="stage",
+                                volatile=False)
