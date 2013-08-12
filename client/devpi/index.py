@@ -60,7 +60,6 @@ def index_show(hub, indexname):
     hub.line("  acl_upload=%s" % ",".join(ixconfig["acl_upload"]))
 
 def main(hub, args):
-    hub.requires_login()
     indexname = args.indexname
     if args.delete:
         if not indexname:

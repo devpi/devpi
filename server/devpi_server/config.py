@@ -8,14 +8,18 @@ from devpi_server.types import canraise, cached_property
 import devpi_server
 log = getLogger(__name__)
 
+def get_default_serverdir():
+    return os.environ.get("DEVPI_SERVERDIR", "~/.devpi/server")
+
 def addoptions(parser):
     group = parser.addgroup("main", "main options")
     group.addoption("--version", action="store_true",
             help="show devpi_version (%s)" % devpi_server.__version__)
 
     opt = group.addoption("--datadir", type=str, metavar="DIR",
-            default=os.environ.get("DEVPI_SERVERDIR", "~/.devpi/server"),
-            help="directory for server data")
+            default=get_default_serverdir(),
+            help="directory for server data.  If set default is taken from "
+                 "$DEVPI_SERVERDIR, otherwise it is '~/.devpi/server'")
 
     group.addoption("--port",  type=int,
             default=3141,
@@ -55,7 +59,7 @@ def addoptions(parser):
                  "nginx/cron files to help with permanent deployment. ")
 
     group.addoption("--secretfile", type=str, metavar="path",
-            default="~/.devpi/server/.secret",
+            default="{datadir}/.secret",
             help="file containing the server side secret used for user "
                  "validation. If it does not exist, a random secret "
                  "is generated on start up and used subsequently. ")
@@ -128,7 +132,11 @@ class ConfigurationError(Exception):
 class Config:
     def __init__(self, args):
         self.args = args
-        self.secretfile = py.path.local(os.path.expanduser(args.secretfile))
+        if args.secretfile == "{datadir}/.secret":
+            serverdir = args.datadir
+            self.secretfile = py.path.local(serverdir).join(".secret", abs=True)
+        else:
+            self.secretfile = py.path.local(os.path.expanduser(args.secretfile))
 
     @cached_property
     def secret(self):

@@ -6,7 +6,6 @@ import json
 
 from devpi import log, cached_property
 from devpi.util import url as urlutil
-from devpi.server import handle_autoserver
 import posixpath
 
 if sys.platform == "win32":
@@ -14,6 +13,7 @@ if sys.platform == "win32":
 else:
     vbin = "bin"
 
+devpi_endpoints = "index simpleindex pypisubmit resultlog login".split()
 
 def currentproperty(name):
     def propget(self):
@@ -56,6 +56,17 @@ class Current(object):
         auth[url] = (user, password)
         self.reconfigure(data=dict(_auth=auth))
 
+    def del_auth(self, url=None):
+        if url is None:
+            url = self.rooturl
+        auth = self._get_auth_dict()
+        try:
+            del auth[url]
+        except KeyError:
+            return False
+        self.reconfigure(data=dict(_auth=auth))
+        return True
+
     def get_auth_user(self):
         return self._get_auth_dict().get(self.rooturl, [None])[0]
 
@@ -96,7 +107,7 @@ class Current(object):
         rooturl = urlutil.getnetloc(url, scheme=True)
         result = r["result"]
         data = {}
-        url_keys = set("index simpleindex pypisubmit resultlog login".split())
+        url_keys = set(devpi_endpoints)
         for name in url_keys:
             val = result.get(name, None)
             if val is not None:
@@ -117,7 +128,8 @@ class Current(object):
     #
     @property
     def rooturl(self):
-        return urlutil.joinpath(self.login, "/")
+        if self.login:
+            return urlutil.joinpath(self.login, "/")
 
     def get_user_url(self, user=None):
         if user is None:
@@ -167,8 +179,6 @@ def main(hub, args=None):
     else:
         hub.debug("no current file, using defaults")
 
-    if not args.noauto:
-        handle_autoserver(hub, current, target=args.url)
     if args.url:
         current.configure_fromurl(hub, args.url)
     elif current.index:  # re-get status/api
@@ -193,19 +203,19 @@ def main(hub, args=None):
         login_status = "logged in as %s" % user
     else:
         login_status = "not logged in"
-    if current.rooturl and current.rooturl != "/":
-        if showurls or not current.index:
-            hub.info("connected to: %s (%s)" % (current.rooturl, login_status))
-
-    if showurls:
-        for name in "index simpleindex pypisubmit resultlog login".split():
-            hub.info("%16s: %s" %(name, getattr(current, name)))
-    else:
-        if not current.index:
+    if current.rooturl:
+        if current.index:
+            if showurls:
+                for name in devpi_endpoints:
+                    hub.info("%16s: %s" %(name, getattr(current, name)))
+            else:
+                hub.info("using index: %s (%s)" % (current.index, login_status))
+        elif current.rooturl:
+            hub.info("using server: %s (%s)" % (current.rooturl, login_status))
             hub.error("not using any index ('index -l' to discover, then "
                       "'use NAME' to use one)")
-        else:
-            hub.info("using index: %s (%s)" % (current.index, login_status))
+    else:
+        hub.error("not using any server")
     if current.venvdir:
         hub.info("install venv: %s" % current.venvdir)
     else:

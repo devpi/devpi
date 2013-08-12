@@ -27,6 +27,8 @@ def main(hub, args):
 
 
 def logoff(hub, args):
-    hub.delete_auth()
-    hub.info("login information deleted")
-
+    if hub.current.get_auth():
+        hub.current.del_auth()
+        hub.info("login information deleted")
+    else:
+        hub.error("not logged in")

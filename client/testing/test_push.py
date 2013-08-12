@@ -66,8 +66,6 @@ def test_main_push_pypi(monkeypatch, tmpdir):
     class args:
         clientdir = tmpdir.join("client")
         debug = False
-    import devpi.server
-    monkeypatch.setattr(devpi.server, "handle_autoserver", lambda x,y: None)
     hub = Hub(args)
     monkeypatch.setattr(hub.http, "request", mypost)
     hub.current.reconfigure(dict(index="/some/index"))

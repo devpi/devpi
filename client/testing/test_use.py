@@ -56,6 +56,11 @@ class TestUnit:
         current.set_auth("hello", "pass2", login2)
         assert current.get_auth(login1) == ("hello", "pass1")
         assert current.get_auth(login2) == ("hello", "pass2")
+        current.del_auth(login1)
+        assert not current.get_auth(login1)
+        assert current.get_auth(login2) == ("hello", "pass2")
+        current.del_auth(login2)
+        assert not current.get_auth(login2)
 
     def test_invalid_url(self, loghub, tmpdir):
         current = Current(tmpdir.join("current"))
@@ -132,16 +137,16 @@ class TestUnit:
         venvdir = tmpdir
         venvdir.ensure(vbin, dir=1)
         monkeypatch.chdir(tmpdir)
-        hub = cmd_devpi("use", "--no-auto", "--venv=%s" % venvdir)
+        hub = cmd_devpi("use", "--venv=%s" % venvdir)
         current = Current(hub.current.path)
         assert current.venvdir == str(venvdir)
-        hub = cmd_devpi("use", "--no-auto", "--venv=%s" % venvdir)
-        res = out_devpi("use", "--no-auto")
+        hub = cmd_devpi("use", "--venv=%s" % venvdir)
+        res = out_devpi("use")
         res.stdout.fnmatch_lines("*venv*%s" % venvdir)
 
         # test via env
         monkeypatch.setenv("WORKON_HOME", venvdir.dirpath())
-        hub = cmd_devpi("use", "--no-auto", "--venv=%s" % venvdir.basename)
+        hub = cmd_devpi("use", "--venv=%s" % venvdir.basename)
         assert hub.current.venvdir == venvdir
 
 

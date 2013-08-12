@@ -39,7 +39,6 @@ class Mapp:
 
     def getuserlist(self):
         result = self.out_devpi("user", "-l")
-        assert "200" not in result.stdout.str()
         return [x for x in result.outlines if x.strip()]
 
     def getjson(self, path, code=200):
@@ -49,7 +48,6 @@ class Mapp:
 
     def getindexlist(self):
         result = self.out_devpi("index", "-l")
-        assert "200" not in result.stdout.str()
         return [x for x in result.outlines if x.strip()]
 
     def change_password(self, user, password):

@@ -11,39 +11,6 @@ from devpi._vendor.xprocess import XProcess
 
 default_rooturl = "http://localhost:3141"
 
-def handle_autoserver(hub, current, target=None):
-    # state changes:
-    # current: default_rooturl  target: someother -> stop autoserver
-    # current: someother target: default_rooturl -> start autoserver
-    #
-    # also if no simpleindex is defined, use /root/dev/
-
-    autoserver = AutoServer(hub)
-    current_is_root = current.rooturl == "/" or \
-                      current.rooturl.startswith(default_rooturl)
-    target_non_root = target and not target.startswith(default_rooturl)
-
-    #hub.info("current_is_root: %s, target_non_root: %s" %(
-    #         current_is_root, target_non_root))
-    if current_is_root and target_non_root:
-        autoserver.stop(withlog=hub)
-        return
-    if not current_is_root and (not target or target_non_root):
-        return
-    if os.environ.get("DEVPI_NO_AUTOSERVER"):
-        raise ValueError("DEVPI_NO_AUTOSERVER prevents starting autoserver")
-    try:
-        r = hub._session.head(default_rooturl)
-    except hub.http.ConnectionError as e:
-        autoserver.start()
-    else:
-        hub.debug("server is already running at: %s" % default_rooturl)
-        r.close()
-    if not current.simpleindex:
-        indexurl = default_rooturl + "/root/dev/"
-        current.configure_fromurl(hub, indexurl)
-        hub.info("auto-configuring use of root/dev index")
-
 class AutoServer:
     def __init__(self, hub):
         self.hub = hub
@@ -67,7 +34,7 @@ class AutoServer:
                 return True
         return False
 
-    def start(self, default_rooturl=default_rooturl, removedata=False):
+    def start(self, datadir, default_rooturl=default_rooturl, removedata=False):
         devpi_server = py.path.local.sysfind("devpi-server")
         if devpi_server is None:
             self.hub.fatal("cannot find devpi-server binary, no auto-start")
@@ -78,13 +45,16 @@ class AutoServer:
             else:
                 port = parts[1]
             url = "http://localhost:%s" % port
-            self.hub.info("automatically starting devpi-server for %s" % url)
-            datadir = cwd.join("data")
-            if removedata and datadir.check():
-                datadir.remove()
-            datadir.ensure(dir=1)
+            self.hub.info("automatically starting devpi-server at %s" % url)
+            if datadir is None:
+                serverdir = cwd.join("data")
+                if removedata and serverdir.check():
+                    serverdir.remove()
+            else:
+                serverdir = py.path.local(datadir)
+            serverdir.ensure(dir=1)
             return (lambda: self._waitup(url),
-                [devpi_server, "--debug", "--data", datadir, "--port", port])
+                [devpi_server, "--debug", "--data", serverdir, "--port", port])
         self.xproc.ensure("devpi-server", prepare_devpiserver)
         info = self.xproc.getinfo("devpi-server")
         self.pid = info.pid
@@ -120,6 +90,14 @@ class AutoServer:
 
 def main(hub, args):
     autoserver = AutoServer(hub)
+    if args.start:
+        from devpi_server.config import get_default_serverdir
+        datadir = get_default_serverdir()
+        datadir = py.path.local(os.path.expanduser(datadir))
+        ret = autoserver.start(datadir=datadir)
+        if ret >= 0:
+            return 0
+        return 1
     if args.stop:
         ret = autoserver.stop(withlog=hub)
         if ret >= 0:

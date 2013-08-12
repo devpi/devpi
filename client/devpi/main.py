@@ -11,7 +11,6 @@ from devpi.use import Current
 import devpi.server
 import requests
 import json
-from devpi.server import handle_autoserver
 std = py.std
 subcommand = lazydecorator()
 
@@ -83,9 +82,10 @@ class Hub:
         return py.path.local(self.args.clientdir)
 
     def require_valid_current_with_index(self):
-        if not self.current.simpleindex:
-            handle_autoserver(self, self.current)
-        return self.current
+        current = self.current
+        if not current.index:
+            hub.fatal("not connected to an index, see 'devpi use'")
+        return current
 
     # remote http hooks
 
@@ -122,7 +122,7 @@ class Hub:
 
         # if we get a 401 it means our auth info is expired or not present
         if r.status_code == 401:
-            if self.delete_auth():
+            if self.current.del_auth():
                 self.error("removed expired authentication information")
 
         if r.status_code in (200, 201):
@@ -147,12 +147,6 @@ class Hub:
         return reply
 
 
-
-    def delete_auth(self):
-        loginpath = self.clientdir.join("login")
-        if loginpath.check():
-            loginpath.remove()
-            return True
 
     def requires_login(self):
         if not self.current.get_auth_user():
@@ -180,8 +174,6 @@ class Hub:
         current = Current(path)
         try:
             cmd = self.args.mainloc.split(":")[0]
-            if cmd not in ("devpi.use", "devpi.server"):
-                handle_autoserver(self, current)
         except AttributeError:
             pass
         return current
@@ -391,8 +383,6 @@ def use(parser):
     parser.add_argument("--venv", action="store", default=None,
         help="set virtual environment to use for install activities. "
              "specify '-' to unset it.")
-    parser.add_argument("--no-auto", action="store_true", dest="noauto",
-        help="don't start automatic server")
     parser.add_argument("--urls", action="store_true",
         help="show remote endpoint urls")
     parser.add_argument("--delete", action="store_true",
@@ -572,11 +562,12 @@ def test(parser):
 
 @subcommand("devpi.push")
 def push(parser):
-    """ push a release and releasefiles to an external index server.
+    """ push a release and releasefiles to an internal or external index.
 
         You can push a release with all its release files either
-        to a remote pypi target ("pypi:REPONAME") or another
-        devpi index ("user/name").
+        to an external pypi server ("pypi:REPONAME") where REPONAME
+        needs to be defined in your ``.pypirc`` file.  Or you can
+        push to another devpi index ("user/name").
     """
     parser.add_argument("--pypirc", metavar="path", type=str,
         default=None, action="store",
@@ -615,13 +606,12 @@ def install(parser):
 
 @subcommand("devpi.server")
 def server(parser):
-    """ commands for controling the automatic server.
+    """ commands for controling a background server.
 
-    Check logs and status of the "automatic" server which is invoked
-    implicitely with many subcommands if you use the default
-    http://localhost:3141/ server address and no server is
-    currently running there.
+    Control a background ``devpi-server`` instance.
     """
+    parser.add_argument("--start", action="store_true",
+        help="start server in background")
     parser.add_argument("--stop", action="store_true",
         help="stop automatically started server if any")
     parser.add_argument("--log", action="store_true",

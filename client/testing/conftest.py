@@ -20,11 +20,6 @@ pytest_plugins = "pytester"
 
 from devpi.util import url as urlutil
 
-@pytest.fixture(autouse=True, scope="session")
-def noautoserver():
-    # prevent accidental automatic server startup
-    std.os.environ["DEVPI_NO_AUTOSERVER"] = "1"
-
 def pytest_runtest_makereport(item, call):
     if "incremental" in item.keywords:
         if call.excinfo is not None:
@@ -126,7 +121,7 @@ def port_of_liveserver(request):
     clientdir = request.config._tmpdirhandler.mktemp("liveserver")
     hub, method = initmain(["devpi", "--clientdir", clientdir, "server"])
     autoserver = AutoServer(hub)
-    autoserver.start("http://localhost:%s" % port, removedata=True)
+    autoserver.start(None, "http://localhost:%s" % port, removedata=True)
     request.addfinalizer(autoserver.stop)
     return port
 
@@ -393,7 +388,12 @@ def makehub(request):
     handler = request.config._tmpdirhandler
     def mkhub(arglist):
         tmp = handler.mktemp("hub")
-        args = parse_args(["testhub"] + arglist)
+        for x in arglist:
+            if "--clientdir" in x:
+                break
+        else:
+            arglist.append("--clientdir=%s" % tmp)
+        args = parse_args(["devpi_"] + arglist)
         old = tmp.chdir()
         try:
             return Hub(args)
