@@ -163,4 +163,7 @@ doctest:
 
 
 regen: 
+	devpi server --stop
+	export DEVPI_CLIENTDIR=`pwd`/.devpi-client
+	export DEVPI_SERVERDIR=`pwd`/.devpi-server
 	python regendoc.py --update index.rst

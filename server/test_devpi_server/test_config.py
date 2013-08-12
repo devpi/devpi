@@ -65,5 +65,8 @@ class TestConfig:
         assert config.secretfile == secfile
         #recs = caplog.getrecords()
 
-
+    def test_devpi_serverdir_env(self, tmpdir, monkeypatch):
+        monkeypatch.setenv("DEVPI_SERVERDIR", tmpdir)
+        config = parseoptions(["devpi-server"])
+        assert config.args.datadir == tmpdir
 

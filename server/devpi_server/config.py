@@ -14,7 +14,7 @@ def addoptions(parser):
             help="show devpi_version (%s)" % devpi_server.__version__)
 
     opt = group.addoption("--datadir", type=str, metavar="DIR",
-            default="~/.devpi/server",
+            default=os.environ.get("DEVPI_SERVERDIR", "~/.devpi/server"),
             help="directory for server data")
 
     group.addoption("--port",  type=int,
