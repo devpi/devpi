@@ -64,13 +64,18 @@ class AutoServer:
     def stop(self, withlog=None):
         info = self.xproc.getinfo("devpi-server")
         ret = info.kill()
-        if withlog:
-            if ret == 1:
+        if ret == 1:
+            if withlog:
                 withlog.info("killed automatic server pid=%s" % info.pid)
-            elif ret == -1:
+            return 0
+        elif ret == -1:
+            if withlog:
                 withlog.error("failed to kill automatic server pid=%s" %
                               info.pid)
-        return ret
+            return 1
+        if withlog:
+            withlog.info("no server found")
+        return 0
 
     def log(self):
         logpath = self.info.logpath
@@ -95,14 +100,10 @@ def main(hub, args):
         datadir = get_default_serverdir()
         datadir = py.path.local(os.path.expanduser(datadir))
         ret = autoserver.start(datadir=datadir)
-        if ret >= 0:
-            return 0
-        return 1
+        return ret
     if args.stop:
         ret = autoserver.stop(withlog=hub)
-        if ret >= 0:
-            return 0
-        return 1
+        return ret
     elif args.log:
         autoserver.log()
     if autoserver.info.isrunning():

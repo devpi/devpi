@@ -206,6 +206,22 @@ class Hub:
             return
         return check_output(args, cwd=str(cwd))
 
+    def popen(self, args, cwd=None):
+        if isinstance(args, str):
+            args = std.shlex.split(args)
+        assert args[0], args
+        args = [str(x) for x in args]
+        if cwd == None:
+            cwd = self.cwd
+        self.report_popen(args, cwd)
+        if self.args.dryrun:
+            return
+        popen = subprocess.Popen(args, cwd=str(cwd))
+        out, err = popen.communicate()
+        ret = popen.wait()
+        if ret:
+            self.fatal("****** process returned %s" % ret)
+
     def report_popen(self, args, cwd=None):
         base = cwd or self.cwd
         rel = py.path.local(args[0]).relto(base)
@@ -368,6 +384,25 @@ def add_generic_options(parser):
         default=os.path.expanduser(os.environ.get("DEVPI_CLIENTDIR",
                                                   "~/.devpi/client")),
         help="directory for storing login and other state")
+
+@subcommand("devpi.quickstart")
+def quickstart(parser):
+    """ start a server, create a user and login, then create a USER/dev
+    index and then connect to this index, so that subsequent devpi
+    commands can work with it.
+    """
+    parser.add_argument("--user", action="store",
+        default=os.environ.get("USER", "test"),
+        help="set initial user name to create and login")
+    parser.add_argument("--password", action="store",
+        default="",
+        help="initial password (default is empty)")
+    parser.add_argument("--index", action="store",
+        default="dev",
+        help="initial index name for the user.")
+    parser.add_argument("--dry-run", action="store_true", dest="dryrun",
+        default=False,
+        help="don't perform any actions, just show them")
 
 @subcommand("devpi.use")
 def use(parser):
