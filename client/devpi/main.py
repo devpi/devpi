@@ -58,6 +58,8 @@ def check_output(*args, **kwargs):
             raise CalledProcessError(retcode, cmd, output=output)
     return output
 
+notset = object()
+
 class Hub:
     class Popen(std.subprocess.Popen):
         STDOUT = std.subprocess.STDOUT
@@ -96,7 +98,7 @@ class Hub:
         session.ConnectionError = requests.exceptions.ConnectionError
         return session
 
-    def http_api(self, method, url, kvdict=None, quiet=False):
+    def http_api(self, method, url, kvdict=None, quiet=False, auth=notset):
         """ send a json request and return a HTTPReply object which
         adds some extra methods to the requests's Reply object.
 
@@ -110,7 +112,8 @@ class Hub:
         headers = {"Accept": jsontype, "content-type": jsontype}
         try:
             data = json.dumps(kvdict) if kvdict is not None else None
-            auth = self.current.get_auth()
+            if auth is notset:
+                auth = self.current.get_auth()
             r = self.http.request(method, url, data=data, headers=headers,
                                   auth=auth)
         except self.http.ConnectionError:

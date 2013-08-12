@@ -48,10 +48,10 @@ def parse_target(hub, args):
 def main(hub, args):
     pusher = parse_target(hub, args)
     name, version = verlib.guess_pkgname_and_version(args.nameversion)
-    res = pusher.execute(hub, name, version)
-    if res["status"] == 200:
-        assert res["type"] == "actionlog"
-        for action in res["result"]:
+    r = pusher.execute(hub, name, version)
+    if r.status_code == 200:
+        assert r["type"] == "actionlog"
+        for action in r["result"]:
             red = action[0] >= 400
             hub.line(" ".join(map(str, action)), red=red)
 

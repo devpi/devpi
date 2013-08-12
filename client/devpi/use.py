@@ -100,10 +100,11 @@ class Current(object):
         return url
 
     def configure_fromurl(self, hub, url):
-        url = hub.current.get_index_url(url)
+        url = self.get_index_url(url)
         if not urlutil.is_valid_url(url):
             hub.fatal("invalid URL: %s" % url)
-        r = hub.http_api("get", url.rstrip("/") + "/+api", quiet=True)
+        r = hub.http_api("get", url.rstrip("/") + "/+api", quiet=True,
+                         auth=None)
         rooturl = urlutil.getnetloc(url, scheme=True)
         result = r["result"]
         data = {}

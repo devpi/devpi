@@ -8,6 +8,12 @@ SPHINXBUILD   = sphinx-build
 PAPER         =
 BUILDDIR      = _build
 
+
+# for regen and any called devpi/devpi-server commands
+DEVPI_CLIENTDIR = $(shell pwd)/.devpi/client
+DEVPI_SERVERDIR = $(shell pwd)/.devpi/server
+export DEVPI_CLIENTDIR DEVPI_SERVERDIR
+
 # Internal variables.
 PAPEROPT_a4     = -D latex_paper_size=a4
 PAPEROPT_letter = -D latex_paper_size=letter
@@ -164,6 +170,5 @@ doctest:
 
 regen: 
 	devpi server --stop
-	export DEVPI_CLIENTDIR=`pwd`/.devpi-client
-	export DEVPI_SERVERDIR=`pwd`/.devpi-server
-	python regendoc.py --update index.rst
+	rm -rf ${DEVPI_CLIENTDIR} ${DEVPI_SERVERDIR}
+	USER=testuser python regendoc.py --update index.rst

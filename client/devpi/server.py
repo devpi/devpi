@@ -1,6 +1,6 @@
 
 """
-interact/control automatic server.
+interact/control devpi-server background process.
 """
 import os
 import time
@@ -45,7 +45,7 @@ class AutoServer:
             else:
                 port = parts[1]
             url = "http://localhost:%s" % port
-            self.hub.info("automatically starting devpi-server at %s" % url)
+            self.hub.info("starting devpi-server at %s" % url)
             if datadir is None:
                 serverdir = cwd.join("data")
                 if removedata and serverdir.check():
@@ -59,18 +59,18 @@ class AutoServer:
         info = self.xproc.getinfo("devpi-server")
         self.pid = info.pid
         self.logfile = info.logpath
-        self.hub.debug("*** logfile is at %s" % self.logfile)
+        self.hub.info("*** logfile is at %s" % self.logfile)
 
     def stop(self, withlog=None):
         info = self.xproc.getinfo("devpi-server")
         ret = info.kill()
         if ret == 1:
             if withlog:
-                withlog.info("killed automatic server pid=%s" % info.pid)
+                withlog.info("killed server pid=%s" % info.pid)
             return 0
         elif ret == -1:
             if withlog:
-                withlog.error("failed to kill automatic server pid=%s" %
+                withlog.error("failed to kill server pid=%s" %
                               info.pid)
             return 1
         if withlog:
@@ -107,7 +107,7 @@ def main(hub, args):
     elif args.log:
         autoserver.log()
     if autoserver.info.isrunning():
-        hub.info("automatic server is running with pid %s" %
+        hub.info("server is running with pid %s" %
                  autoserver.info.pid)
     else:
-        hub.info("no automatic server is running")
+        hub.info("no server is running")

@@ -41,19 +41,75 @@ This will install ``devpi-client`` and ``devpi-server`` pypi packages.
 
 .. _`devpicommands`:
 
+devpi quickstart: initializing basic scenario
+++++++++++++++++++++++++++++++++++++++++++++++
+
+The ``devpi quickstart`` command performs basic initialization step
+of the devpi system on your local machine:
+
+- start a background devpi-server at ``http://localhost:3141``
+
+- configure the client-side tool ``devpi`` to connect to the newly
+  started server
+
+- create and login a user, using as defaults your current login name 
+  and an empty password.
+
+- create an index and directly use it.
+
+Let's just run the quickstart to read the instructive output::
+
+    $ devpi quickstart
+    --> $ devpi server --start
+    starting devpi-server at http://localhost:3141
+    *** logfile is at /home/hpk/p/devpi/doc/.devpi/client/xproc/devpi-server/xprocess.log
+    --> $ devpi use http://localhost:3141
+    using server: http://localhost:3141/ (not logged in)
+    not using any index ('index -l' to discover, then 'use NAME' to use one)
+    no current install venv set
+    
+    --> $ devpi user -c testuser password=
+    user created: testuser
+    
+    --> $ devpi login testuser --password=
+    logged in 'testuser', credentials valid for 10.00 hours
+    
+    --> $ devpi index -c dev
+    dev:
+      type=stage
+      bases=root/pypi
+      volatile=True
+      uploadtrigger_jenkins=None
+      acl_upload=testuser
+    
+    --> $ devpi use dev
+    using index: http://localhost:3141/testuser/dev/ (logged in as testuser)
+    no current install venv set
+    COMPLETED!  you can now work with your 'dev' index
+      devpi install PKG   # install a pkg from pypi
+      devpi upload        # upload a setup.py based project
+      devpi test PKG      # download and test a tox-based project 
+      devpi PUSH ...      # to copy releases between indexes
+      devpi index ...     # to manipulate/create indexes
+      devpi user ...      # to manipulate/create users
+      devpi server ...    # to control the background server
+      devpi CMD -h        # help for a specific command
+      devpi -h            # general help
+    docs at http://doc.devpi.net
+
 devpi install: installing a package
 +++++++++++++++++++++++++++++++++++
 
 .. 
-    $ rm -rf v1
+    $ rm -rf v1    # clear up any left-over virtualenv's from belows commands
 
-We can now use the ``devpi`` command line client to ``pip install``
-a pypi package (here ``pytest`` as an example) through an
+We can now use the ``devpi`` command line client to trigger a
+``pip install`` of a pypi package (here ``pytest`` as an example) through an
 auto-started caching devpi-server::
 
     $ devpi install --venv=v1 pytest
     --> $ virtualenv -q v1
-    --> $ v1/bin/pip install --pre -U -i http://localhost:3141/root/dev/+simple/ pytest
+    --> $ v1/bin/pip install --pre -U -i http://localhost:3141/testuser/dev/+simple/ pytest
     Downloading/unpacking pytest
       Running setup.py egg_info for package pytest
         
@@ -72,13 +128,13 @@ auto-started caching devpi-server::
 
 Here is what happened:
 
-- ``devpi-server`` was automatically started because we are
-  using the default ``localhost:3141`` url and no server responded there.
+- a virtualenv ``v1`` was created because of the ``--venv=v1`` option 
+  and the fact it it didn't exist yet (otherwise no creation would happen).
 
-- a virtualenv ``v1`` was created because it didn't exist
-
-- ``pip install`` was configured to use the default devpi ``root/dev`` 
-  index which is an index which inherits pypi.python.org packages.
+- ``pip install`` was configured to use our ``testuser/dev`` index
+  which is an index which inherits pypi.python.org packages.
+  If we hadn't specified a virtualenv, ``pip`` would be discovered 
+  from the ``PATH``.
 
 Let's check that ``pytest`` was installed correctly::
 
@@ -91,29 +147,24 @@ much faster and works offline.
 devpi upload: uploading one or more packages
 ++++++++++++++++++++++++++++++++++++++++++++
 
-In order to upload packages to the ``root/dev`` index you need to login::
-
-    $ devpi login root --password ""
-    logged in 'root', credentials valid for 10.00 hours
-
-Let's verify we are logged in to the correct default ``root/dev`` index::
+Let's verify we are logged in to the correct index::
 
     $ devpi use
-    using index: http://localhost:3141/root/dev/ (logged in as root)
+    using index: http://localhost:3141/testuser/dev/ (logged in as testuser)
     no current install venv set
 
 Now go to the directory of a ``setup.py`` file of one of your projects  
 (we assume it is named ``example``) to build and upload your package
-to the local ``root/dev`` default index::
+to our ``testuser/dev`` index::
 
     example $ devpi upload
-    created workdir /tmp/devpi1114
+    created workdir /tmp/devpi1359
     --> $ hg st -nmac .
-    hg-exported project to <Exported /tmp/devpi1114/upload/example>
-    --> $ /home/hpk/venv/0/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi1114/upload/example http://localhost:3141/root/dev/ root root-72509ca707b0f1f765548e62d9d849eb1a11768a240914a329b20a7eacbc8dda.BOmQ-A.GPHBzJr1n99qow-K6BDoezgd4N8 register -r devpi
-    release registered to http://localhost:3141/root/dev/
-    --> $ /home/hpk/venv/0/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi1114/upload/example http://localhost:3141/root/dev/ root root-72509ca707b0f1f765548e62d9d849eb1a11768a240914a329b20a7eacbc8dda.BOmQ-A.GPHBzJr1n99qow-K6BDoezgd4N8 sdist --formats gztar upload -r devpi
-    submitted dist/example-1.0.tar.gz to http://localhost:3141/root/dev/
+    hg-exported project to <Exported /tmp/devpi1359/upload/example>
+    --> $ /home/hpk/venv/0/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi1359/upload/example http://localhost:3141/testuser/dev/ testuser testuser-616e42177ebacb2144a5563d9ac1d05ffceb6be374465b5e637cef24ca38fdc2.BOqmAw.6lvkFDyaMChvQ75XxonjxsdsZB0 register -r devpi
+    release registered to http://localhost:3141/testuser/dev/
+    --> $ /home/hpk/venv/0/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi1359/upload/example http://localhost:3141/testuser/dev/ testuser testuser-616e42177ebacb2144a5563d9ac1d05ffceb6be374465b5e637cef24ca38fdc2.BOqmAw.6lvkFDyaMChvQ75XxonjxsdsZB0 sdist --formats gztar upload -r devpi
+    submitted dist/example-1.0.tar.gz to http://localhost:3141/testuser/dev/
 
 There are three triggered actions:
 
@@ -123,15 +174,16 @@ There are three triggered actions:
   tree.
 
 - registering the ``example`` release as defined in ``setup.py`` to 
-  the ``root/dev`` index.
+  our current index
 
-- building and uploading a ``gztar`` formatted release file to the
-  ``root/dev`` index.
+- building and uploading a ``gztar`` formatted release file from the
+  workdir to the current index (using a ``setup.py`` invocation under
+  the hood).
 
 We can now install the freshly uploaded package::
 
     $ devpi install --venv=v1 example
-    --> $ v1/bin/pip install --pre -U -i http://localhost:3141/root/dev/+simple/ example
+    --> $ v1/bin/pip install --pre -U -i http://localhost:3141/testuser/dev/+simple/ example
     Downloading/unpacking example
       Downloading example-1.0.tar.gz
       Running setup.py egg_info for package example
@@ -142,8 +194,8 @@ We can now install the freshly uploaded package::
     Successfully installed example
     Cleaning up...
 
-This installed your just uploaded package from the default ``root/dev``
-index.
+This installed your just uploaded package from the ``testuser/dev``
+index where we previously uploaded the package.
 
 .. note::
 
@@ -151,117 +203,170 @@ index.
     formats of your release files such as ``sdist.zip`` or ``bdist_egg``.
     The default is ``sdist.tgz``.
 
-uploading sphinx docs
-++++++++++++++++++++++++++++++++
 
-If you have sphinx-based docs you can upload them as well::
-
-    devpi upload --with-docs
-
-This will build and upload sphinx-documentation by configuring and running
-this command::
-
-    setup.py build_sphinx -E --build-dir $BUILD_DIR \
-             upload_docs --upload-dir $BUILD_DIR/html
-
-
-uploading existing release files
-++++++++++++++++++++++++++++++++
-
-If you have a directory with existing package files::
-
-    devpi upload --from-dir PATH/TO/DIR
-
-will recursively collect all archives files, register
-and upload them to our local ``root/dev`` pypi index.
-
-listing or removing projects and release files
-++++++++++++++++++++++++++++++++++++++++++++++
-
-If you issue::
-
-    devpi list
-
-you get a list of all project names where release files are
-registered on the current index.  You can restrict it to
-a project or a particular version of a project::
-
-    devpi list PROJECT
-    devpi list PROJECT-1.0
-
-will give you all release files for the given PROJECT or PROJECT-1.0,
-respectively.  The ``remove`` subcommand uses the same syntax::
-
-    devpi remove PROJECT
-    devpi remove PROJECT-1.0
-
-Unless you specify the ``-y`` option you will be asked to confirm
-the list of release files that are to be deleted.
 
 devpi test: testing an uploaded package
 +++++++++++++++++++++++++++++++++++++++
 
-If you have a package using tox_ you may invoke::
+If you have a package which uses tox_ for testing you may invoke::
 
-    devpi test PACKAGENAME  # package needs to contain tox.ini
+    $ devpi test example  # package needs to contain tox.ini
+    received http://localhost:3141/testuser/dev/example/1.0/example-1.0.tar.gz
+    verified md5 ok 5ea9f56f10175a135f075a79defaa69c
+    unpacking /tmp/devpi-test297/downloads/example-1.0.tar.gz to /tmp/devpi-test297
+    /tmp/devpi-test297/example-1.0$ /home/hpk/venv/0/bin/tox --installpkg /tmp/devpi-test297/downloads/example-1.0.tar.gz -i ALL=http://localhost:3141/testuser/dev/+simple/ --result-json /tmp/devpi-test297/toxreport.json -v
+    using tox.ini: /tmp/devpi-test297/example-1.0/tox.ini
+    using tox-1.6.0.dev4 from /home/hpk/p/tox/tox/__init__.pyc
+    python create: /tmp/devpi-test297/example-1.0/.tox/python
+      /tmp/devpi-test297/example-1.0/.tox$ /home/hpk/venv/0/bin/python /home/hpk/venv/0/local/lib/python2.7/site-packages/virtualenv.py --setuptools --python /home/hpk/venv/0/bin/python python >/tmp/devpi-test297/example-1.0/.tox/python/log/python-0.log
+    python installdeps: pytest
+      /tmp/devpi-test297/example-1.0/.tox/python/log$ /tmp/devpi-test297/example-1.0/.tox/python/bin/pip install -i http://localhost:3141/testuser/dev/+simple/ pytest >/tmp/devpi-test297/example-1.0/.tox/python/log/python-1.log
+    python inst: /tmp/devpi-test297/downloads/example-1.0.tar.gz
+      /tmp/devpi-test297/example-1.0/.tox/python/log$ /tmp/devpi-test297/example-1.0/.tox/python/bin/pip install -i http://localhost:3141/testuser/dev/+simple/ /tmp/devpi-test297/downloads/example-1.0.tar.gz >/tmp/devpi-test297/example-1.0/.tox/python/log/python-2.log
+    python runtests: commands[0] | py.test
+      /tmp/devpi-test297/example-1.0$ /tmp/devpi-test297/example-1.0/.tox/python/bin/py.test >/tmp/devpi-test297/example-1.0/.tox/python/log/python-3.log
+    ___________________________________ summary ____________________________________
+      python: commands succeeded
+      congratulations :)
+    wrote json report at: /tmp/devpi-test297/toxreport.json
+    posting tox result data to http://localhost:3141/+tests
+    successfully posted tox result data
 
-this will download the latest release of ``PACKAGENAME`` and run tox
-against it.  You can also try to run ``devpi test`` with any 3rd party 
-pypi package.
+Here is what happened:
 
-devpi push: send a release to another index
-+++++++++++++++++++++++++++++++++++++++++++
+- devpi got the latest available version of ``example`` from the current
+  index
 
-You can push a release with all release files and docs
-to another devpi index::
+- it unpacked it to a temp dir, found the ``tox.ini`` and then invoked
+  tox, pointing it to our ``example-1.0.tar.gz``, forcing all installations
+  to go through our current ``testuser/dev/+simple/`` index and instructing
+  it to create a ``json`` report.
 
-    devpi push NAME-VERSION root/staging
+- after all tests ran, we send the ``toxreport.json`` to the devpi server
+  where it will be attached precisely to our release file.
+ 
+We can verify that the test status was recorded via::
 
-This will determine all files belonging to the specified ``NAME-VERSION``
-release and copy them to the ``root/staging`` index. 
+    $ devpi list example
+    testuser/dev/example/1.0/example-1.0.tar.gz
+      teta linux2 python 2.7.3 tests passed
 
-You can upload a release with all release files and docs
-to an external index listed in your ``.pypirc`` configuration file::
+devpi push: staging a release to another index
+++++++++++++++++++++++++++++++++++++++++++++++++
 
-    devpi push NAME-VERSION pypi:pypi
+Once you are happy with a release file you can push it either
+to another devpi-managed index or to an outside pypi index server.
 
-this will push all release files for this version to
-the external ``pypi`` index server, using credentials
-and the URL found in the ``pypi`` section in your
-``.pypirc``, typically pointing to https://pypi.python.org/pypi.
+Let's create another ``staging`` index::
 
-devpi use: show index and other info
-++++++++++++++++++++++++++++++++++++
+    $ devpi index -c staging volatile=False
+    staging:
+      type=stage
+      bases=root/pypi
+      volatile=False
+      uploadtrigger_jenkins=None
+      acl_upload=testuser
 
-::
+We created a non-volatile index which means that one can not 
+overwrite or delete release files. See `volatile indexes`_ for more info
+on this setting.
+
+We can now push the ``example-1.0.tar.gz`` from above above to
+our ``staging`` index::
+
+    $ devpi push example-1.0 testuser/staging
+    200 register example 1.0 -> testuser/staging
+    200 store_releasefile example-1.0.tar.gz -> testuser/staging
+
+This will determine all files belonging to the specified ``example-1.0``
+release and copy them to the ``testuser/staging`` index. 
+
+
+devpi push: releasing to an external index
++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+we are at::
 
     $ devpi use
-    using index: http://localhost:3141/root/dev/ (logged in as root)
+    using index: http://localhost:3141/testuser/dev/ (logged in as testuser)
     no current install venv set
 
-In the default configuration we do not need credentials
-and thus do not need to be logged in.
+Let's now use our ``testuser/staging`` index::
+
+    $ devpi use testuser/staging
+    using index: http://localhost:3141/testuser/staging/ (logged in as testuser)
+    no current install venv set
+
+and check the test status again::
+
+    $ devpi list example
+    testuser/staging/example/1.0/example-1.0.tar.gz
+      teta linux2 python 2.7.3 tests passed
+
+We may now decide to push this release to an external
+pypi-style index which we have configured in the ``.pypirc`` file::
+
+    $ devpi push example-1.0 pypi:testrun
+    using pypirc /home/hpk/.pypirc
+    200 register example 1.0
+    200 upload testuser/staging/example/1.0/example-1.0.tar.gz
+
+this will push all release files of the ``example-1.0`` release
+to the external ``testrun`` index server, using credentials
+and the URL found in the ``pypi`` section in your
+``.pypirc``.
+
+index inheritance re-configuration
+++++++++++++++++++++++++++++++++++++++++++++++
+
+At this point we have the ``example-1.0`` release and release file
+on both the ``testuser/dev`` and ``testuser/staging`` indices.
+If we rather want to always use staging packages in our development
+index, we can reconfigure the inheritance ``bases`` for ``testuser/dev``::
+
+    $ devpi index testuser/dev bases=testuser/staging
+    testuser/dev changing bases: testuser/staging
+    testuser/dev:
+      type=stage
+      bases=testuser/staging
+      volatile=True
+      uploadtrigger_jenkins=None
+      acl_upload=testuser
+
+If we now switch back to using ``testuser/dev``::
+
+    $ devpi use testuser/dev
+    using index: http://localhost:3141/testuser/dev/ (logged in as testuser)
+    no current install venv set
+
+and look at our example release files::
+
+    $ devpi list example
+    testuser/dev/example/1.0/example-1.0.tar.gz
+      teta linux2 python 2.7.3 tests passed
+    testuser/staging/example/1.0/example-1.0.tar.gz
+      teta linux2 python 2.7.3 tests passed
+
+we'll see that ``example-1.0.tar.gz`` is contained in both
+indices.  Let's remove the ``testuser/dev`` ``example`` release::
+
+    $ devpi remove -y example
+    About to remove the following release files and metadata:
+       testuser/dev/example/1.0/example-1.0.tar.gz
+    Are you sure (yes/no)? yes (autoset from -y option)
+
+If don't specify the ``-y`` option you will be asked to confirm
+the delete operation interactively.
+
+The ``example-1.0`` release remains accessible through ``testuser/dev``
+because it inherits all releases from its ``testuser/staging`` base::
+
+    $ devpi list example
+    testuser/staging/example/1.0/example-1.0.tar.gz
+      teta linux2 python 2.7.3 tests passed
 
 .. 
     $ rm -rf v1
-
-devpi server: controling the automatic server
-+++++++++++++++++++++++++++++++++++++++++++++
-
-Let's look at our current automatically started server::
-
-    $ devpi server 
-    automatic server is running with pid 32619
-
-Let's stop it::
-
-    $ devpi server --stop
-    killed automatic server pid=32619
-
-Note that with most ``devpi`` commands the server will be started
-up again when needed.  As soon as you start ``devpi use`` with 
-any other root url than ``http://localhost:3141`` no automatic 
-server management takes place anymore.
 
 See :doc:`quickstart-server` for more deployment options and how
 to use ``devpi-server`` with plain ``pip``, ``easy_install`` or

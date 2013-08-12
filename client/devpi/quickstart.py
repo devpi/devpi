@@ -15,13 +15,18 @@ def main(hub, args):
     hub.popen(["devpi", "server", "--start"])
     try:
         hub.popen(["devpi", "use", "http://localhost:3141"])
+        hub.line("")
         hub.popen(["devpi", "user", "-c", args.user,
                                    "password=%s" % args.password])
+        hub.line("")
         hub.popen(["devpi", "login", args.user,
                                    "--password=%s" % args.password])
+        hub.line("")
         hub.popen(["devpi", "index", "-c", args.index,])
+        hub.line("")
         hub.popen(["devpi", "use", args.index,])
     except SystemExit:
+        hub.line("")
         hub.info("stopping server because of failure")
         hub.popen(["devpi", "server", "--stop"])
         raise SystemExit(1)
@@ -34,4 +39,6 @@ def main(hub, args):
     hub.info("  devpi index ...     # to manipulate/create indexes")
     hub.info("  devpi user ...      # to manipulate/create users")
     hub.info("  devpi server ...    # to control the background server")
-    hub.info("for options see 'devpi -h', for docs http://doc.devpi.net")
+    hub.info("  devpi CMD -h        # help for a specific command")
+    hub.info("  devpi -h            # general help")
+    hub.info("docs at http://doc.devpi.net")

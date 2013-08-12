@@ -32,4 +32,5 @@ env/
 .coverage
 .pytest
 .devpy
+doc/.devpi
 .xprocess
