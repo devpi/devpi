@@ -161,7 +161,7 @@ class PyPIView:
             parts = path.split("/")
             if len(parts) >= 2:
                 user, index = parts[:2]
-                ixconfig = self.db.user_indexconfig_get(user, index)
+                ixconfig = self.db.index_get(user, index)
                 if not ixconfig:
                     abort(404, "index %s/%s does not exist" %(user, index))
                 api.update({
@@ -272,15 +272,15 @@ class PyPIView:
     @route("/<user>/<index>", method=["PUT", "PATCH"])
     def index_create_or_modify(self, user, index):
         self.auth.require_user(user)
-        ixconfig = self.db.user_indexconfig_get(user, index)
+        ixconfig = self.db.index_get(user, index)
         if request.method == "PUT" and ixconfig is not None:
             apireturn(409, "index %s/%s exists" % (user, index))
         kvdict = getkvdict_index(getjson(request))
-        kvdict.setdefault("type", "stage")
-        kvdict.setdefault("bases", ["root/dev"])
-        kvdict.setdefault("volatile", True)
         try:
-            ixconfig = self.db.user_indexconfig_set(user, index, **kvdict)
+            if not ixconfig:
+                ixconfig = self.db.index_create(user, index, **kvdict)
+            else:
+                ixconfig = self.db.index_modify(user, index, **kvdict)
         except self.db.InvalidIndexconfig as e:
             apireturn(400, message=", ".join(e.messages))
         apireturn(200, type="indexconfig", result=ixconfig)
@@ -294,7 +294,7 @@ class PyPIView:
     def index_delete(self, user, index):
         self.auth.require_user(user)
         indexname = user + "/" + index
-        if not self.db.user_indexconfig_delete(user, index):
+        if not self.db.index_delete(user, index):
             apireturn(404, "index %s does not exist" % indexname)
         self.db.delete_index(user, index)
         apireturn(201, "index %s deleted" % indexname)

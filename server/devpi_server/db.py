@@ -33,7 +33,8 @@ def run_passwd(db, user):
     db.user_modify(user, password=pwd)
 
 
-_ixconfigattr = set("type volatile bases acl_upload".split())
+_ixconfigattr = set(
+    "type volatile bases uploadtrigger_jenkins acl_upload".split())
 
 class DB:
     class InvalidIndexconfig(Exception):
@@ -101,7 +102,7 @@ class DB:
             user, index = user.split("/")
         return user, index
 
-    def user_indexconfig_get(self, user, index=None):
+    def index_get(self, user, index=None):
         user, index = self._get_user_and_index(user, index)
         userconfig = self.keyfs.USER(user=user).get()
         try:
@@ -112,42 +113,70 @@ class DB:
             indexconfig["acl_upload"] = [user]
         return indexconfig
 
-    def user_indexconfig_set(self, user, index=None, **kw):
-        user, index = self._get_user_and_index(user, index)
-
+    def _normalize_bases(self, bases):
         # check and normalize base indices
         messages = []
         newbases = []
-        for base in kw.get("bases", []):
+        for base in bases:
             try:
                 base_user, base_index = self._get_user_and_index(base)
             except ValueError:
                 messages.append("invalid base index spec: %r" % (base,))
             else:
-                if self.user_indexconfig_get(base) is None:
+                if self.index_get(base) is None:
                     messages.append("base index %r does not exist" %(base,))
                 else:
                     newbases.append("%s/%s" % (base_user, base_index))
         if messages:
             raise self.InvalidIndexconfig(messages)
-        kw["bases"] = tuple(newbases)
+        return newbases
+
+    def index_get(self, user, index=None):
+        user, index = self._get_user_and_index(user, index)
+        userconfig = self.keyfs.USER(user=user).get()
+        return userconfig.get("indexes", {}).get(index)
+
+    def index_exists(self, user, index=None):
+        return bool(self.index_get(user, index))
+
+    def index_create(self, user, index=None, type="stage",
+                     volatile=True, bases=("root/pypi",),
+                     uploadtrigger_jenkins=None,
+                     acl_upload=None):
+        user, index = self._get_user_and_index(user, index)
+
+        if acl_upload is None:
+            acl_upload = [user]
+        bases = tuple(self._normalize_bases(bases))
 
         # modify user/indexconfig
-        assert kw["type"] in ("stage", "mirror")
         with self.keyfs.USER(user=user).locked_update() as userconfig:
             indexes = userconfig.setdefault("indexes", {})
-            ixconfig = indexes.setdefault(index, {})
-            ixconfig.update(kw)
-            if "acl_upload" not in ixconfig:
-                ixconfig["acl_upload"] = []
-            if "uploadtrigger_jenkins" not in ixconfig:
-                ixconfig["uploadtrigger_jenkins"] = None
-            #if not set(ixconfig) == _ixconfigattr:
-            #    raise ValueError("incomplete config: %s" % ixconfig)
-            log.debug("configure_index %s/%s: %s", user, index, ixconfig)
+            assert index not in indexes, indexes[index]
+            indexes[index] = ixconfig = dict(
+                type=type, volatile=volatile, bases=bases,
+                uploadtrigger_jenkins=uploadtrigger_jenkins,
+                acl_upload=acl_upload)
+            log.info("created index %s/%s: %s", user, index, ixconfig)
             return ixconfig
 
-    def user_indexconfig_delete(self, user, index):
+    def index_modify(self, user, index=None, **kw):
+        user, index = self._get_user_and_index(user, index)
+        diff = list(set(kw).difference(_ixconfigattr))
+        if diff:
+            raise self.InvalidIndexconfig(
+                ["invalid keys for index configuration: %s" %(diff,)])
+        if "bases" in kw:
+            kw["bases"] = tuple(self._normalize_bases(kw["bases"]))
+
+        # modify user/indexconfig
+        with self.keyfs.USER(user=user).locked_update() as userconfig:
+            ixconfig = userconfig["indexes"][index]
+            ixconfig.update(kw)
+            log.info("modified index %s/%s: %s", user, index, ixconfig)
+            return ixconfig
+
+    def index_delete(self, user, index):
         with self.keyfs.USER(user=user).locked_update() as userconfig:
             indexes = userconfig.get("indexes") or {}
             if index not in indexes:
@@ -169,7 +198,7 @@ class DB:
 
     def getstage(self, user, index=None):
         user, index = self._get_user_and_index(user, index)
-        ixconfig = self.user_indexconfig_get(user, index)
+        ixconfig = self.index_get(user, index)
         if not ixconfig:
             return None
         if ixconfig["type"] == "stage":
@@ -182,11 +211,8 @@ class DB:
     def getstagename(self, user, index):
         return "%s/%s" % (user, index)
 
-    def create_stage(self, user, index=None,
-                     type="stage", bases=("/root/pypi",),
-                     volatile=True):
-        self.user_indexconfig_set(user, index, type=type, bases=bases,
-                                  volatile=volatile)
+    def create_stage(self, user, index=None, **kw):
+        self.index_create(user, index, **kw)
         return self.getstage(user, index)
 
 
@@ -208,11 +234,8 @@ class PrivateStage:
     def can_upload(self, username):
         return username in self.ixconfig.get("acl_upload", [])
 
-    def configure(self, **kw):
-        assert _ixconfigattr.issuperset(kw)
-        config = self.ixconfig
-        config.update(kw)
-        self.db.user_indexconfig_set(self.user, self.index, **config)
+    def _reconfigure(self, **kw):
+        self.ixconfig = self.db.index_modify(self.name, **kw)
 
     def _get_sro(self):
         """ return stage resolution order. """

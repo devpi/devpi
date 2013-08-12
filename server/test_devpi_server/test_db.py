@@ -18,42 +18,46 @@ class TestStage:
                       type="stage", volatile=True)
         if "bases" in request.fixturenames:
             config["bases"] = request.getfuncargvalue("bases")
-        db.user_indexconfig_set(**config)
+        db.index_create(**config)
         return db.getstage(user=config["user"], index=config["index"])
 
     def test_create_and_delete(self, db):
-        db.user_indexconfig_set(user="hello", index="world", bases=(),
-                                type="stage", volatile=False)
-        db.user_indexconfig_set(user="hello", index="world2", bases=(),
-                                type="stage", volatile=False)
-        db.user_indexconfig_delete(user="hello", index="world2")
-        assert not db.user_indexconfig_get(user="hello", index="world2")
-        assert db.user_indexconfig_get(user="hello", index="world")
+        db.index_create(user="hello", index="world", bases=(),
+                        type="stage", volatile=False)
+        db.index_create(user="hello", index="world2", bases=(),
+                        type="stage", volatile=False)
+        db.index_delete(user="hello", index="world2")
+        assert not db.index_get(user="hello", index="world2")
+        assert db.index_get(user="hello", index="world")
 
     def test_set_and_get_acl(self, db):
-        db.user_indexconfig_set(user="hello", index="world", bases=(),
-                                type="stage", volatile=False,
-                                acl_upload=["root"])
-        indexconfig = db.user_indexconfig_get(user="hello", index="world")
-        assert indexconfig["acl_upload"] == ["root"]
+        db.index_create(user="hello", index="world", bases=(),
+                        type="stage", volatile=False)
+        indexconfig = db.index_get(user="hello", index="world")
+        # check that "hello" was included in acl_upload by default
+        assert indexconfig["acl_upload"] == ["hello"]
         stage = db.getstage("hello/world")
-        assert stage.can_upload("root")
-        assert not stage.can_upload("qweqwe")
+        # root cannot upload
+        assert not stage.can_upload("root")
+
+        # and we remove 'hello' from acl_upload ...
+        assert db.index_modify(user="hello", index="world", acl_upload=[])
+        # ... it cannot upload either
+        stage = db.getstage("hello/world")
+        assert not stage.can_upload("hello")
 
     def test_getstage_normalized(self, db):
         assert db.getstage("/root/dev/").name == "root/dev"
 
     def test_not_configured_index(self, db):
         stagename = "hello/world"
-        assert not db.user_indexconfig_get(stagename)
+        assert not db.index_get(stagename)
         assert not db.getstage(stagename)
 
     def test_indexconfig_set_throws_on_unknown_base_index(self, db):
         with pytest.raises(db.InvalidIndexconfig) as excinfo:
-            db.user_indexconfig_set(user="hello", index="world",
-                                    bases=("root/notexists",
-                                           "root/notexists2"),
-                                    type="stage")
+            db.index_create(user="hello", index="world",
+                            bases=("root/notexists", "root/notexists2"),)
         messages = excinfo.value.messages
         assert len(messages) == 2
         assert "root/notexists" in messages[0]
@@ -61,26 +65,23 @@ class TestStage:
 
     def test_indexconfig_set_throws_on_invalid_base_index(self, db):
         with pytest.raises(db.InvalidIndexconfig) as excinfo:
-            db.user_indexconfig_set(user="hello", index="world",
-                                    bases=("root/dev/123",),
-                                    type="stage")
+            db.index_create(user="hello", index="world",
+                            bases=("root/dev/123",),)
         messages = excinfo.value.messages
         assert len(messages) == 1
         assert "root/dev/123" in messages[0]
 
     def test_indexconfig_set_normalizes_bases(self, db):
-        ixconfig = db.user_indexconfig_set(user="hello", index="world",
-                                           bases=("/root/dev/",),
-                                           type="stage")
+        ixconfig = db.index_create(user="hello", index="world",
+                                   bases=("/root/dev/",))
         assert ixconfig["bases"] == ("root/dev",)
-
 
     def test_empty(self, stage, bases):
         assert not stage.getreleaselinks("someproject")
         assert not stage.getprojectnames()
 
-    def test_inheritance_simple(self, httpget, stage):
-        stage.configure(bases=("root/pypi",))
+    def test_inheritance_simple(self, httpget, stage, db):
+        stage._reconfigure(bases=("root/pypi",))
         httpget.setextsimple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         entries = stage.getreleaselinks("someproject")
@@ -90,10 +91,9 @@ class TestStage:
         assert stage.getprojectnames() == ["someproject",]
 
     def test_inheritance_twice(self, httpget, db, stage):
-        db.user_indexconfig_set(user="root", index="dev2",
-                                bases=("root/dev",), type="stage")
+        db.index_create(user="root", index="dev2", bases=("root/dev",))
         stage_dev2 = db.getstage("root/dev2")
-        stage.configure(bases=("root/dev2",))
+        stage._reconfigure(bases=("root/dev2",))
         httpget.setextsimple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         stage_dev2.store_releasefile("someproject-1.1.tar.gz", "123")
@@ -106,7 +106,7 @@ class TestStage:
         assert stage.getprojectnames() == ["someproject",]
 
     def test_inheritance_normalize_multipackage(self, httpget, db, stage):
-        stage.configure(bases=("root/pypi",))
+        stage._reconfigure(bases=("root/pypi",))
         httpget.setextsimple("some-project", """
             <a href='some_project-1.0.zip' /a>
             <a href='some_project-1.0.tar.gz' /a>
@@ -120,7 +120,7 @@ class TestStage:
         assert stage.getprojectnames() == ["some-project",]
 
     def test_getreleaselinks_inheritance_shadow(self, httpget, stage):
-        stage.configure(bases=("root/pypi",))
+        stage._reconfigure(bases=("root/pypi",))
         httpget.setextsimple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         stage.store_releasefile("someproject-1.0.zip", "123")
@@ -129,7 +129,7 @@ class TestStage:
         assert entries[0].relpath.endswith("someproject-1.0.zip")
 
     def test_getreleaselinks_inheritance_shadow_egg(self, httpget, stage):
-        stage.configure(bases=("root/pypi",))
+        stage._reconfigure(bases=("root/pypi",))
         httpget.setextsimple("py",
         """<a href="http://bb.org/download/py.zip#egg=py-dev" />""")
         stage.store_releasefile("py-1.0.tar.gz", "123")
@@ -140,7 +140,7 @@ class TestStage:
         assert e1.basename == "py-1.0.tar.gz"
 
     def test_inheritance_error(self, httpget, stage):
-        stage.configure(bases=("root/pypi",))
+        stage._reconfigure(bases=("root/pypi",))
         httpget.setextsimple("someproject", status_code = -1)
         entries = stage.getreleaselinks("someproject")
         assert entries == -1
@@ -148,7 +148,7 @@ class TestStage:
         #assert entries == -1
 
     def test_get_projectconfig_inherited(self, httpget, stage):
-        stage.configure(bases=("root/pypi",))
+        stage._reconfigure(bases=("root/pypi",))
         httpget.setextsimple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         projectconfig = stage.get_projectconfig("someproject")
@@ -166,7 +166,7 @@ class TestStage:
         assert pconfig["1.0"]["+files"]["some-1.0.zip"].endswith("some-1.0.zip")
 
     def test_project_config_shadowed(self, httpget, stage):
-        stage.configure(bases=("root/pypi",))
+        stage._reconfigure(bases=("root/pypi",))
         httpget.setextsimple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         content = "123"
@@ -226,7 +226,7 @@ class TestStage:
         assert not filepath.join("_templ").check()
 
     def test_store_and_get_volatile(self, stage):
-        stage.configure(volatile=False)
+        stage._reconfigure(volatile=False)
         content = "123"
         content2 = "1234"
         entry = stage.store_releasefile("some-1.0.zip", content)
@@ -237,7 +237,7 @@ class TestStage:
         assert entry == 409
 
         # rewrite succeeds with volatile
-        stage.configure(volatile=True)
+        stage._reconfigure(volatile=True)
         entry = stage.store_releasefile("some-1.0.zip", content2)
         entries = stage.getreleaselinks("some")
         assert len(entries) == 1
@@ -319,21 +319,17 @@ class TestUsers:
 def test_setdefault_indexes(db):
     from devpi_server.main import set_default_indexes
     set_default_indexes(db)
-    ixconfig = db.user_indexconfig_get("root/pypi")
+    ixconfig = db.index_get("root/pypi")
     assert ixconfig["type"] == "mirror"
 
-    ixconfig = db.user_indexconfig_get("root/dev")
+    ixconfig = db.index_get("root/dev")
     assert ixconfig["type"] == "stage"
     assert ixconfig["bases"] == ("root/pypi",)
-    assert ixconfig["volatile"] == False
-
-    ixconfig["volatile"] = True
-    db.user_indexconfig_set("root/dev", **ixconfig)
-    set_default_indexes(db)
-    ixconfig = db.user_indexconfig_get("root/dev")
     assert ixconfig["volatile"] == True
 
-
+    db.index_modify("root/dev", volatile=False)
+    set_default_indexes(db)
+    assert db.index_get("root/dev")["volatile"] == False
 
 def create_zipfile(contentdict):
     f = py.io.BytesIO()

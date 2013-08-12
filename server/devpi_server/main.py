@@ -238,10 +238,8 @@ def set_default_indexes(db):
     PYPI = "root/pypi"
     DEV = "root/dev"
     if "root" not in db.user_list():
-        db.user_modify("root", password="")
-    db.user_indexconfig_set(PYPI, bases=(), type="mirror", volatile=False)
-    ixconfig = db.user_indexconfig_get(DEV)
-    if not ixconfig:
-        log.info("configuring default %s index", DEV)
-        db.user_indexconfig_set(DEV, bases=(PYPI,), type="stage",
-                                volatile=False)
+        db.user_create("root", password="")
+    if not db.index_exists(PYPI):
+        db.index_create(PYPI, bases=(), type="mirror", volatile=False)
+    if not db.index_exists(DEV):
+        db.index_create(DEV, bases=(PYPI,))
