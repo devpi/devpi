@@ -264,11 +264,10 @@ def test_upload_and_push_egg(httpget, db, mapp, testapp, monkeypatch):
     assert rec[0][0] == "whatever"
     assert rec[1][0] == "whatever"
 
-def test_upload_and_remove_project(httpget, db, mapp, testapp, monkeypatch):
+def test_upload_and_delete_project(httpget, db, mapp, testapp, monkeypatch):
     mapp.create_and_login_user("user")
-    mapp.create_index("name")
-    r = testapp.delete("/user/name/pkg1/", expect_errors=True)
-    assert r.status_code == 404
+    mapp.create_index("name", indexconfig=dict(volatile=True))
+    mapp.delete_project("user", "name", "pkg1", code=404)
     mapp.upload_file_pypi(
             "user", "name", "pkg1-2.6.tgz", "123", "pkg1", "2.6")
     r = testapp.get("/user/name/+simple/pkg1/")
@@ -324,7 +323,7 @@ def test_upload_and_testdata(db, mapp, testapp, monkeypatch):
     r = testapp.get(path)
     assert r.status_code == 200
 
-def test_upload_and_remove_project_version(httpget, db,
+def test_upload_and_delete_project_version(httpget, db,
                                            mapp, testapp, monkeypatch):
     mapp.create_and_login_user("user")
     mapp.create_index("name")
@@ -344,6 +343,15 @@ def test_upload_and_remove_project_version(httpget, db,
     assert testapp.delete("/user/name/pkg1/2.7").status_code == 200
     #assert mapp.getjson("/user/name/pkg1/")["status"] == 404
     assert not mapp.getjson("/user/name/pkg1/")["result"]
+
+def test_delete_version_fails_on_non_volatile(httpget, db,
+                                              mapp, testapp, monkeypatch):
+    mapp.create_and_login_user("user")
+    mapp.create_index("name", indexconfig=dict(volatile=False))
+    mapp.upload_file_pypi(
+            "user", "name", "pkg1-2.6.tgz", "123", "pkg1", "2.6")
+    r = testapp.delete("/user/name/pkg1/2.6", expect_errors=True)
+    assert r.status_code == 403
 
 def test_upload_and_access_releasefile_meta(httpget, db,
                                            mapp, testapp, monkeypatch):
@@ -367,6 +375,13 @@ def test_delete_pypi_fails(httpget, db, mapp, testapp):
     assert r.status_code == 405
     r = testapp.delete("/root/pypi/pytest", expect_errors=True)
     assert r.status_code == 405
+
+def test_delete_volatile_fails(httpget, db, mapp, testapp):
+    mapp.login_root()
+    mapp.create_index("test", indexconfig=dict(volatile=False))
+    mapp.upload_file_pypi(
+            "root", "test", "pkg5-2.6.tgz", "123", "pkg1", "2.6")
+    mapp.delete_project("root", "test", "pkg5", code=403)
 
 def test_upload_docs_too_large(httpget, db, mapp, testapp):
     from devpi_server.views import MAXDOCZIPSIZE
@@ -512,7 +527,8 @@ class Mapp:
         else:
             user, password = self.testapp.auth
             index = indexname
-        r = self.testapp.delete_json("/%s/%s" % (user, index))
+        r = self.testapp.delete_json("/%s/%s" % (user, index),
+                                     expect_errors=True)
         assert r.status_code == code
 
     def set_uploadtrigger_jenkins(self, indexname, triggerurl):
@@ -539,11 +555,16 @@ class Mapp:
 
     def create_project(self, indexname, projectname, code=201):
         user, password = self.testapp.auth
-        r = self.testapp.put_json("/%s/%s/hello" % (user, indexname), {},
-                expect_errors=True)
+        r = self.testapp.put_json("/%s/%s/%s" % (user, indexname,
+                                  projectname), {}, expect_errors=True)
         assert r.status_code == code
         if code == 201:
             assert "created" in r.json["message"]
+
+    def delete_project(self, user, index, projectname, code=200):
+        r = self.testapp.delete_json("/%s/%s/%s" % (user, index,
+                projectname), {}, expect_errors=True)
+        assert r.status_code == code
 
     def upload_file_pypi(self, user, index, basename, content,
                          name, version, code=200):
@@ -551,6 +572,7 @@ class Mapp:
             {":action": "file_upload", "name": name, "version": version,
              "content": Upload(basename, content)}, expect_errors=True)
         assert r.status_code == code
+
 
     def upload_doc(self, user, index, basename, content, name, version,
                          code=200):
@@ -563,9 +585,9 @@ class Mapp:
 
 @pytest.mark.parametrize(["input", "expected"], [
     ({},
-      dict(type="stage", volatile=True, bases=["root/dev"])),
+      dict(type="stage", volatile=True, bases=["root/pypi"])),
     ({"volatile": "False"},
-      dict(type="stage", volatile=False, bases=["root/dev"])),
+      dict(type="stage", volatile=False, bases=["root/pypi"])),
     ({"volatile": "False", "bases": "root/pypi"},
       dict(type="stage", volatile=False, bases=["root/pypi"])),
     ({"volatile": "False", "bases": ["root/pypi"]},

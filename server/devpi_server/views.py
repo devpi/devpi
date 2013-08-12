@@ -294,9 +294,12 @@ class PyPIView:
     def index_delete(self, user, index):
         self.auth.require_user(user)
         indexname = user + "/" + index
-        if not self.db.index_delete(user, index):
+        ixconfig = self.db.index_get(user, index)
+        if not ixconfig:
             apireturn(404, "index %s does not exist" % indexname)
-        self.db.delete_index(user, index)
+        if not ixconfig["volatile"]:
+            apireturn(403, "index %s non-volatile, cannot delete" % indexname)
+        assert self.db.index_delete(user, index)
         apireturn(201, "index %s deleted" % indexname)
 
     @route("/<user>/", method="GET")
@@ -484,6 +487,9 @@ class PyPIView:
             abort(405, "cannot delete on root/pypi index")
         if not stage.project_exists(name):
             apireturn(404, "project %r does not exist" % name)
+        if not stage.ixconfig["volatile"]:
+            apireturn(403, "project %r is on non-volatile index %s" %(
+                      name, stage.name))
         stage.project_delete(name)
         apireturn(200, "project %r deleted from stage %s" % (name, stage.name))
 
@@ -526,6 +532,8 @@ class PyPIView:
         stage = self.getstage(user, index)
         if stage.name == "root/pypi":
             abort(405, "cannot delete on root/pypi index")
+        if not stage.ixconfig["volatile"]:
+            abort(403, "cannot delete version on non-volatile index")
         metadata = stage.get_projectconfig(name)
         if not metadata:
             abort(404, "project %r does not exist" % name)
@@ -662,8 +670,13 @@ class PyPIView:
         if user == "root":
             apireturn(403, "root user cannot be deleted")
         self.auth.require_user(user)
-        if not self.db.user_exists(user):
+        userconfig = self.db.user_get(user)
+        if not userconfig:
             apireturn(404, "user %r does not exist" % user)
+        for name, ixconfig in userconfig.get("indexes", {}).items():
+            if not ixconfig["volatile"]:
+                apireturn(403, "user %r has non-volatile index: %s" %(
+                               user, name))
         self.db.user_delete(user)
         apireturn(200, "user %r deleted" % user)
 
@@ -741,7 +754,7 @@ def trigger_jenkins(stage, testspec):
 
 def getkvdict_index(req):
     req_volatile = req.get("volatile")
-    kvdict = dict(volatile=True, type="stage", bases=["root/dev"])
+    kvdict = dict(volatile=True, type="stage", bases=["root/pypi"])
     if req_volatile is not None:
         if req_volatile == False or (req_volatile != True and
             req_volatile.lower() in ["false", "no"]):

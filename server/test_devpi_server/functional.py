@@ -134,3 +134,9 @@ class TestIndexThings:
         assert mapp.getjson("/cuser3/dev/")["type"] == "list:projectconfig"
         assert mapp.getjson("/cuser3/dev/hello")["type"] == "projectconfig"
         mapp.create_project("dev", "hello", code=409)
+
+    def test_non_volatile_cannot_be_deleted(self, mapp):
+        mapp.create_and_login_user("cuser4")
+        mapp.create_index("dev", indexconfig={"volatile": False})
+        mapp.delete_index("dev", code=403)
+        mapp.delete_user("cuser4", code=403)

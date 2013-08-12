@@ -176,18 +176,19 @@ class DB:
             log.info("modified index %s/%s: %s", user, index, ixconfig)
             return ixconfig
 
-    def index_delete(self, user, index):
+    def index_delete(self, user, index=None):
+        user, index = self._get_user_and_index(user, index)
         with self.keyfs.USER(user=user).locked_update() as userconfig:
-            indexes = userconfig.get("indexes") or {}
+            indexes = userconfig.get("indexes", {})
             if index not in indexes:
                 log.info("index %s/%s not exists", user, index)
                 return False
             del indexes[index]
-
+            self._remove_indexdir(user, index)
             log.info("deleted index config %s/%s" %(user, index))
             return True
 
-    def delete_index(self, user, index):
+    def _remove_indexdir(self, user, index):
         p = self.keyfs.INDEXDIR(user=user, index=index).filepath
         if p.check():
             p.remove()

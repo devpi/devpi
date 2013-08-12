@@ -84,6 +84,8 @@ class Mapp:
             for name, val in indexconfig.items():
                 if name == "bases":
                     params.append("%s=%s" % (name, ",".join(val)))
+                if name == "volatile":
+                    params.append("%s=%s" % (name, bool(val)))
         return params
 
     def create_index(self, indexname, indexconfig=None, code=200):
@@ -142,7 +144,8 @@ class TestUserManagement:
 
     @pytest.fixture
     def existing_user_id(self, request, new_user_id, mapp):
-        """ Create a temporary user - will be deleted when the fixture is finalized"""
+        """ Create a temporary user - will be deleted when the
+        fixture is finalized"""
         mapp.create_user(user=new_user_id, password=1234,
                          email=new_user_id + "@example.com", code=201)
         return new_user_id
