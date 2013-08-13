@@ -111,7 +111,8 @@ def test_pkgserv(pypiurls, httpget, testapp):
     httpget.setextfile("/package-1.0.zip", "123")
     r = testapp.get("/root/pypi/+simple/package/")
     assert r.status_code == 200
-    r = testapp.get(getfirstlink(r.text).get("href"))
+    href = getfirstlink(r.text).get("href")
+    r = testapp.get(href)
     assert r.body == "123"
 
 def test_apiconfig(httpget, testapp):

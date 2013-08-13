@@ -1,5 +1,9 @@
-next version
+1.0rc2
 ----------------
+
+- fix a strange effect in that sometimes tools ask to receive
+  a package url with a "#md5=..." arriving at the server side.
+  We now strip that part out before trying to serve the file.
 
 - introduce ``--start``, ``--stop`` and ``--log`` commands for
   controling a background devpi-server run. (these commands

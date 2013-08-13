@@ -547,6 +547,8 @@ class PyPIView:
     @route("/<user>/<index>/f/<relpath:re:.*>")
     def pkgserv(self, user, index, name=None, version=None, relpath=None):
         relpath = request.path.strip("/")
+        if "#" in relpath:   # XXX unclear how this can happen (it does)
+            relpath = relpath.split("#", 1)[0]
         filestore = self.xom.releasefilestore
         if json_preferred():
             entry = filestore.getentry(relpath)
