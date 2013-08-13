@@ -8,7 +8,6 @@ SPHINXBUILD   = sphinx-build
 PAPER         =
 BUILDDIR      = _build
 
-
 # Internal variables.
 PAPEROPT_a4     = -D latex_paper_size=a4
 PAPEROPT_letter = -D latex_paper_size=letter
@@ -16,7 +15,26 @@ ALLSPHINXOPTS   = -d $(BUILDDIR)/doctrees $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 # the i18n builder cannot share the environment and doctrees with the others
 I18NSPHINXOPTS  = $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 
-.PHONY: help clean html dirhtml singlehtml pickle json htmlhelp qthelp devhelp epub latex latexpdf text man changes linkcheck doctest gettext install quickstart-releaseprocess quickstart-pypimirror quickstart-company regen prepare-quickstart
+# This variable is not auto generated as the order is important.
+USER_MAN_FILES = userman/devpi_commands.rst\
+                 userman/devpi_user.rst\
+                 userman/devpi_packages.rst\
+                 userman/devpi_indices.rst\
+                 userman/index.rst\
+                 userman/devpi_misc.rst\
+                 userman/devpi_concepts.rst\
+                                  
+export DEVPI_CLIENTDIR=$(CURDIR)/.devpi/um_client
+export DEVPI_SERVERDIR=$(CURDIR)/.devpi/um_server
+
+file = userman/devpi_commands.rst
+
+.PHONY: help clean html dirhtml singlehtml pickle json htmlhelp qthelp devhelp \
+        epub latex latexpdf text man changes linkcheck doctest gettext install \
+        quickstart-releaseprocess quickstart-pypimirror quickstart-company regen \
+        prepare-quickstart\
+        regen_fresh regen_start regen.uman-all regen.file regen.uman-clean\
+        $(USER_MAN_FILES) 
 
 help:
 	@echo "Please use \`make <target>' where <target> is one of"
@@ -39,6 +57,11 @@ help:
 	@echo "  changes    to make an overview of all changed/added/deprecated items"
 	@echo "  linkcheck  to check all external links for integrity"
 	@echo "  doctest    to run all doctests embedded in the documentation (if enabled)"
+	@echo 
+	@echo "User Manual Regen Targets"
+	@echo "  regen.uman        regenerates page. of the user manual chapeter e.g. regen.uman file=..."
+	@echo "  regen.uman-all    regenerates the user manual"
+	@echo "  regen.uman-clean  stop temp server and clean up directory"
 
 clean:
 	-rm -rf $(BUILDDIR)/*
@@ -162,7 +185,6 @@ doctest:
 	@echo "Testing of doctests in the sources finished, look at the " \
 	      "results in $(BUILDDIR)/doctest/output.txt."
 
-
 regen: quickstart-pypimirror quickstart-releaseprocess quickstart-company
 
 quickstart-pypimirror:
@@ -173,3 +195,30 @@ quickstart-releaseprocess:
 
 quickstart-company:
 	USER=testuser sh regen.sh --update quickstart-company.rst
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# USER MANUAL TARGETS
+ 
+
+$(USER_MAN_FILES) :
+	@echo Regenerating $@
+	USER=testuser python regendoc.py --update $@
+
+regen_fresh: regen.uman-clean
+	devpi-server --start
+    
+regen_server_start:	
+	- devpi-server --stop	
+	devpi-server --start
+    
+
+regen.uman-all : regen_fresh $(USER_MAN_FILES)
+
+regen.uman-clean:
+	- devpi-server --stop
+	- rm -rf ${DEVPI_CLIENTDIR} ${DEVPI_SERVERDIR}
+
+regen.uman: regen_server_start $(file) 
+
+

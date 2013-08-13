@@ -25,3 +25,11 @@ Glossary
    acl
    
       Access Control List
+      
+   upload
+   
+      Action consisting of loading a package from a file system to an index. 
+   
+   push
+   
+      Action of transfering a package from one index to another. 

@@ -12,17 +12,18 @@ Concepts
 Goals
 -----
 
-`devpi`_ goals is to provide a fast and reliable package cache to `pypi`_ as well as mechanism to share
-packages, in various states of development, amongst users and developers, prior to pushing to the 
-*outside world*.
+`devpi`_ goals is to provide a fast and reliable package cache to `pypi`_ 
+as well as mechanism to share packages, in various states of development, 
+amongst users and developers, prior to pushing to the *outside world*.
 
 This implies that users can:
   
    * Work unaffected if Pypi fails
-   * store "closed source" packages internally, that can be accessed like any other 
-     packages as if they were residing on PyPi.
+   * store "closed source" packages internally, that can be accessed like 
+     any other packages as if they were residing on PyPi.
      
-With this understanding, let's go over a short overview of the ``devpi-server`` and ``devpi-client``.
+With this understanding, let's go over a short overview of the ``devpi-server``
+and ``devpi-client``.
 
 Overview
 --------
@@ -34,8 +35,8 @@ Overview
      
    - The ``devpi client`` provides the user interface (command line) to interface with the ``devpi server``.
    
-The ``devpi server`` has a default, read-only, index name **/root/pypi**. When a package is not 
-found in the index hierachies, it will will query `pypi`_ in a attempt to locate it. If located, 
+The ``devpi server`` has a default, read-only, :term:`index` name **/root/pypi**. When a package is not 
+found in the index hierachy, it will will query `pypi`_ in a attempt to locate it. If located, 
 the ``devpi server`` will cache all versions of that package, and periodically check the change
 logs to determine if new versions have been in released, in which case, the new package versions 
 will be automatically downloaded into the server cache.  
@@ -45,27 +46,39 @@ will be automatically downloaded into the server cache.
          
 .. note: Throughout this document, references to *devpi* impply the ``devpi client`` whereas references to the 
          ``devpi server`` will be explicit.
+
+The diagram depicts the topology of a master server as well as their index structures:
+
+.. image:: ../images/devpi-topology.png
+         
          
 The Devpi Server
-++++++++++++++++
+----------------
 
 The ``devpi-server`` consist of a single process running on a system. The system can be local to your machine or 
 on a centralized server. The server, by default, normally listens to port 3141 (PI = **3.141**\592653589793)
 
-By default, the server has one index only:
+By default, the server has one :term:`index` only:
 
-   - **/root/pypi** is a special index which acts a PyPI cache. This index is read only, that is, not package 
-     can be uploaded to that index. 
-   - **/root/dev** is the default development index used by the root user. This index is writable [#f1]_.
+   - **/root/pypi** is a special index which acts a PyPI cache. This index is read only, that is, no package 
+     can be uploaded to that index.
+     
+Access Control
+--------------
 
-.. note: (1) 
+dfd      
+
+The Devpi Client
+----------------
+
+dfdsf
 
 .. _label_userman_indices_section:
 
-What are Indices?
-^^^^^^^^^^^^^^^^^
+Indexes
+-------
 
-- An index is a container or repository where you can store packages, test results and documentation. 
+- An :term:`index` is a container or repository where you can store packages, test results and documentation. 
 
 - An index derives from one or multiple base indices: 
 
@@ -160,7 +173,7 @@ What are Indices?
 .. _non_volatile_indexes:
 
 Non Volatile Indexes
-^^^^^^^^^^^^^^^^^^^^
+++++++++++++++++++++
 
 As introduced earlier, a volatile index is an index that can be modified/deleted
 at will by its owner. 
@@ -178,13 +191,6 @@ bases.
 **Non volatile indexes** should be used as common package repositories between 
 user, either for staging or production.
    
-Deployment Topologies
-^^^^^^^^^^^^^^^^^^^^^
-
-The diagram depicts the topology of a master server as well as their index structures:
-
-.. image:: ../images/devpi-topology.png
-
 
 .. rubric:: Footnotes
 
@@ -197,10 +203,6 @@ The diagram depicts the topology of a master server as well as their index struc
 .. [#f3] A prefered option in this case would be to temporarily modify the base of sophie's dev index:
 
             ``devpi index -m dev bases=/sophie/prod,/emilie/dev volatile=True``       
-         
-
-
-
 
 
 
