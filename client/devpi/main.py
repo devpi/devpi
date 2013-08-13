@@ -86,7 +86,7 @@ class Hub:
     def require_valid_current_with_index(self):
         current = self.current
         if not current.index:
-            hub.fatal("not connected to an index, see 'devpi use'")
+            self.fatal("not connected to an index, see 'devpi use'")
         return current
 
     # remote http hooks

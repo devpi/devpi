@@ -8,12 +8,12 @@ if __name__ == "__main__":
     README = open(os.path.join(here, 'README.rst')).read()
     CHANGES = open(os.path.join(here, 'CHANGELOG')).read()
 
-    install_requires = ["py>=1.4.13",
+    install_requires = ["py>=1.4.15",
                         "execnet>=1.1",
-                        "requests>=1.2.0",
-                        "itsdangerous>=0.21",
-                        "docutils>=0.10",
-                        "pygments>=0.10",
+                        "requests>=1.2.3",
+                        "itsdangerous>=0.23",
+                        "docutils>=0.11",
+                        "pygments>=1.6",
                         "bottle>=0.11.6"]
     if sys.version_info < (2,7):
         install_requires.append("argparse>=1.2.1")
@@ -24,7 +24,7 @@ if __name__ == "__main__":
       keywords="pypi cache server wsgi",
       long_description=README + '\n\n' + CHANGES,
       url="http://doc.devpi.net",
-      version='0.9.5.dev9',
+      version='1.0rc1',
       maintainer="Holger Krekel",
       maintainer_email="holger@merlinux.eu",
       packages=find_packages(),
