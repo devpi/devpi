@@ -36,7 +36,7 @@ of the devpi system on your local machine:
 Let's just run the quickstart to read the instructive output::
 
     $ devpi quickstart
-    --> $ devpi-server --start
+    --> $ devpi-server
     starting background devpi-server at http://localhost:3141
     /home/hpk/p/devpi/doc/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server
     process 'devpi-server' started pid=15057
