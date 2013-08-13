@@ -2,14 +2,13 @@
 import py
 import pytest
 from devpi.util import url as urlutil
-from devpi.test.test import *
+from devpi.test import *
 from devpi.main import check_output
 from mock import Mock
 
 pytest_plugins = "pytester"
 
 def test_post_tox_json_report(loghub, mock_http_api):
-    from devpi.test.test import post_tox_json_report
     mock_http_api.set("http://devpi.net", 200, result={})
     post_tox_json_report(loghub, "http://devpi.net", {"hello": "123"})
     assert len(mock_http_api.called) == 1
@@ -19,7 +18,6 @@ def test_post_tox_json_report(loghub, mock_http_api):
     """)
 
 def test_post_tox_json_report_error(loghub, mock_http_api):
-    from devpi.test.test import post_tox_json_report
     mock_http_api.set("http://devpi.net/+tests", 404)
     post_tox_json_report(loghub, "http://devpi.net/+tests", {"hello": "123"})
     assert len(mock_http_api.called) == 1

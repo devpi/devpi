@@ -578,7 +578,7 @@ def upload(parser):
     #    help="answer yes on interactive questions. ")
     #
 
-@subcommand("devpi.test.test")
+@subcommand("devpi.test")
 def test(parser):
     """ download and test a package against tox environments.
 
