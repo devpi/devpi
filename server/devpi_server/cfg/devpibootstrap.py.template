@@ -4,7 +4,7 @@ A jenkins uploadtrigger bootstrap script to automatically install devpi
 in a virtualenv and then run "devpi use" and "devpi test". 
 """
 
-__version__ = '0.9.5.dev1'
+__version__ = '1.0rc2'
 
 import sys
 import os
@@ -182,7 +182,8 @@ def main(indexurl = "{INDEXURL}",
     basedir = os.getcwd()
 
     # prepare a TMPDIR that resides in the Jenkins workspace
-    # this is picked up from "devpi test" below
+    # for installing devpi itself
+    OLD_TMPDIR = os.environ.get("TMPDIR")
     os.environ["TMPDIR"] = tmpdir = path.join(basedir, "TMP")
     ensuredir(tmpdir)
 
@@ -195,6 +196,14 @@ def main(indexurl = "{INDEXURL}",
 
     # invoke the just-installed devpi client
     devpi("use", indexurl)
+
+    # reset the TMPDIR because test invokes tox and
+    # using an in-workspace work dir would create 
+    # very long pathnames which often cause problems
+    if OLD_TMPDIR:
+        os.environ["TMPDIR"] = OLD_TMPDIR
+    else:
+        del os.environ["TMPDIR"]
     devpi("test", testspec)
 
 if __name__ == '__main__':

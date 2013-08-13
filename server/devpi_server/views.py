@@ -239,8 +239,6 @@ class PyPIView:
     @route("/<user>/<index>/+simple/")
     def simple_list_all(self, user, index):
         log.info("starting +simple")
-        import time
-        now = time.time()
         stage = self.getstage(user, index)
         stage_results = []
         for stage, names in stage.op_with_bases("getprojectnames"):
@@ -251,7 +249,7 @@ class PyPIView:
         # at this point we are sure we can produce the data without
         # depending on remote networks
         response.content_type = "text/html ; charset=utf-8"
-        title =  "%s: simple list of all projects (including inheritance)" %(
+        title =  "%s: simple list (including inherited indices)" %(
                  stage.name)
         yield "<html><head><title>%s</title></head><body><h1>%s</h1>" %(
               title, title)
@@ -261,13 +259,13 @@ class PyPIView:
             bases = getattr(stage, "ixconfig", {}).get("bases")
             if bases:
                 h2 += " (bases: %s)" % ",".join(bases)
-            yield "<h2>" + h2 + "</h2>"
+            yield ("<h2>" + h2 + "</h2>").encode("utf-8")
             for name in names:
                 if name not in all_names:
-                    yield '<a href="%s/">%s</a><br/>' % (name, name)
+                    anchor = '<a href="%s/">%s</a><br/>' % (name, name)
+                    yield anchor.encode("utf-8")
                     all_names.add(name)
         yield "</body>"
-        log.info("finished +simple %s" % (time.time()-now))
 
     @route("/<user>/<index>", method=["PUT", "PATCH"])
     def index_create_or_modify(self, user, index):

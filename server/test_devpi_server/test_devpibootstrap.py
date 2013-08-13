@@ -20,6 +20,7 @@ def bootstrapdict():
 
 @pytest.fixture(scope="session")
 def url_of_liveserver(request):
+    # XXX OLD VERSION, overwritten below
     initmain = pytest.importorskip("devpi.main").initmain
     AutoServer = pytest.importorskip("devpi.server").AutoServer
     port = 7998
@@ -30,6 +31,19 @@ def url_of_liveserver(request):
     autoserver.start(url, removedata=True)
     request.addfinalizer(autoserver.stop)
     return url
+
+@pytest.fixture(scope="session")
+def url_of_liveserver(request):
+    import subprocess, random
+    port = random.randint(2001, 64000)
+    clientdir = request.config._tmpdirhandler.mktemp("liveserver")
+    subprocess.check_call(["devpi-server", "--datadir", str(clientdir),
+                             "--port", str(port), "--start"])
+    def stop():
+        subprocess.check_call(["devpi-server", "--datadir", str(clientdir),
+                                 "--stop"])
+    request.addfinalizer(stop)
+    return "http://localhost:%s" % port
 
 @pytest.fixture
 def virtualenv_tar(tmpdir):
