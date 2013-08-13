@@ -165,7 +165,7 @@ Non Volatile Indexes
 As introduced earlier, a volatile index is an index that can be modified/deleted
 at will by its owner. 
 
-A :term:`Non Volatile Index` is an index that can not be modified in a desctructive 
+A :term:`non volatile index` is an index that can not be modified in a desctructive 
 manner. This implies that:
 
    * A **non volatile index** can not be deleted. 
