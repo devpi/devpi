@@ -18,7 +18,7 @@ packages, in various states of development, amongst users and developers, prior 
 
 This implies that users can:
   
-   * Work unaffected if Pypi or a mirror fails
+   * Work unaffected if Pypi fails
    * store "closed source" packages internally, that can be accessed like any other 
      packages as if they were residing on PyPi.
      
@@ -49,12 +49,12 @@ will be automatically downloaded into the server cache.
 The Devpi Server
 ++++++++++++++++
 
-The ``devpi server`` consist of a single process running on a system. The system can be local to your machine or 
+The ``devpi-server`` consist of a single process running on a system. The system can be local to your machine or 
 on a centralized server. The server, by default, normally listens to port 3141 (PI = **3.141**\592653589793)
 
-By default, the server has two indices:
+By default, the server has one index only:
 
-   - **/root/pypi** is a special index which acts a Pypi cache. This index is read only, that is, not package 
+   - **/root/pypi** is a special index which acts a PyPI cache. This index is read only, that is, not package 
      can be uploaded to that index. 
    - **/root/dev** is the default development index used by the root user. This index is writable [#f1]_.
 

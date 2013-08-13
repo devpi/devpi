@@ -1,19 +1,18 @@
 .. _label_userman_devpi_install_chapter:
 
-Package Installation
-====================
+Uploading, testing and pushing packages
+=========================================
 
 .. include:: ../links.rst
 
 .. sidebar:: Summary
     
-    This chapter ilustrates how to install a open source package as well as a package stored 
-    on an internal index. 
+    This chapter ilustrates how to upload, test and push a package 
+    between indices or to an external index server such as 
+    https://pypi.python.org.
 
-
-
-Overview
---------
+XXX Overview
+--------------
 
 As explained in the :ref:`label_userman_concepts_chapter` chapter, the **/root/pypi** is a special cache to 
 http://python.pypi.org. 
@@ -30,8 +29,8 @@ using a user index (**/emilie/dev**) which has the following inheritance tree::
       /emilie/dev
       
       
-Creating a virtual environment
-------------------------------
+XXX Creating a virtual environment
+-----------------------------------
 
 This step is presented here to simply create a sandbox using `virtualenv`_::
 

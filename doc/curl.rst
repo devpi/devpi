@@ -1,5 +1,5 @@
-The REST HTTP API
-=======================
+XXX The devpi-server REST HTTP API
+==================================
 
 We demonstrate the devpi-server ReST API using curl interactively.
 You can issue the same commands with a ``devpi-server`` process

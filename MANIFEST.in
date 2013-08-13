@@ -1,1 +1,2 @@
 include CHANGELOG README.rst setup.py tox.ini
+graft doc

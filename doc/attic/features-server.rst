@@ -4,7 +4,6 @@ devpi-server features
 
 .. include:: links.rst
 
-
 consistent robust pypi-cache
 ----------------------------------------
 

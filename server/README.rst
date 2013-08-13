@@ -1,6 +1,5 @@
 devpi-server: consistent pypi.python.org cache, github-style internal indexes
-====================================================================================
-
+=============================================================================
 
 See http://doc.devpi.net for getting started and documentation.
 

@@ -8,4 +8,5 @@
 .. _merlinux: http://merlinux.eu
 .. _tox: http://tox.testrun.org
 .. _pypi: http://pypi.python.org/pypi
-
+.. _`devpi issue tracker`: https://bitbucket.org/hpk42/devpi/issues
+.. _supervisor: http://pypi.python.org/pypi/supervisor

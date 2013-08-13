@@ -15,7 +15,7 @@ def gendeploycfg(config, venvdir, tw=None):
         tw = py.io.TerminalWriter()
         tw.cwd = py.path.local()
 
-    tw.line("creating etc/ directory for supervisor configuration", bold=True)
+    #tw.line("creating etc/ directory for supervisor configuration", bold=True)
     etc = venvdir.ensure("etc", dir=1)
     httpport = config.args.port + 1
     datadir = venvdir.ensure("data", dir=1)
@@ -105,7 +105,6 @@ def create_devpictl(tw, tmpdir, httpport):
     devpictl = render(tw, devpiserver.dirpath(), "devpi-ctl",
                       firstline=firstline,
                       httpport=httpport, devpictlpy=devpictlpy)
-    tw.line("wrote %s" % devpictl, bold=True)
     s = py.std.stat
     setmode = s.S_IXUSR  # | s.S_IXGRP | s.S_IXOTH
     devpictl.chmod(devpictl.stat().mode | setmode)
@@ -132,11 +131,11 @@ def gendeploy(config):
         del os.environ["PYTHONDONTWRITEBYTECODE"]
     except KeyError:
         pass
-    subproc(tw, ["virtualenv", str(target)])
+    subproc(tw, ["virtualenv", "-q", str(target)])
     pip = py.path.local.sysfind("pip", paths=[target.join("bin")])
     tw.line("installing devpi-server and supervisor", bold=True)
     version = devpi_server.__version__
-    subproc(tw, [pip, "install", "--pre",
+    subproc(tw, [pip, "install", "--pre", "-q",
                  "supervisor", "eventlet", "devpi-server>=%s" % version])
     tw.line("generating configuration")
     gendeploycfg(config, target, tw=tw)

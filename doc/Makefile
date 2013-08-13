@@ -9,11 +9,6 @@ PAPER         =
 BUILDDIR      = _build
 
 
-# for regen and any called devpi/devpi-server commands
-DEVPI_CLIENTDIR = $(shell pwd)/.devpi/client
-DEVPI_SERVERDIR = $(shell pwd)/.devpi/server
-export DEVPI_CLIENTDIR DEVPI_SERVERDIR
-
 # Internal variables.
 PAPEROPT_a4     = -D latex_paper_size=a4
 PAPEROPT_letter = -D latex_paper_size=letter
@@ -21,7 +16,7 @@ ALLSPHINXOPTS   = -d $(BUILDDIR)/doctrees $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 # the i18n builder cannot share the environment and doctrees with the others
 I18NSPHINXOPTS  = $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 
-.PHONY: help clean html dirhtml singlehtml pickle json htmlhelp qthelp devhelp epub latex latexpdf text man changes linkcheck doctest gettext install
+.PHONY: help clean html dirhtml singlehtml pickle json htmlhelp qthelp devhelp epub latex latexpdf text man changes linkcheck doctest gettext install quickstart-releaseprocess quickstart-pypimirror quickstart-company regen prepare-quickstart
 
 help:
 	@echo "Please use \`make <target>' where <target> is one of"
@@ -168,7 +163,13 @@ doctest:
 	      "results in $(BUILDDIR)/doctest/output.txt."
 
 
-regen: 
-	devpi server --stop
-	rm -rf ${DEVPI_CLIENTDIR} ${DEVPI_SERVERDIR}
-	USER=testuser python regendoc.py --update index.rst
+regen: quickstart-pypimirror quickstart-releaseprocess quickstart-company
+
+quickstart-pypimirror:
+	USER=testuser sh regen.sh --update quickstart-pypimirror.rst
+
+quickstart-releaseprocess:
+	USER=testuser sh regen.sh --update quickstart-releaseprocess.rst
+
+quickstart-company:
+	USER=testuser sh regen.sh --update quickstart-company.rst

@@ -1,7 +1,7 @@
 .. _label_userman_devpi_authentication_chapter:
 
-Authentication
-==============
+Authentication and User management
+==================================
 
 .. include:: ../links.rst
 

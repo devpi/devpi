@@ -1,7 +1,7 @@
 .. _label_userman_indices_chapter:
 
-Indices
-=======
+Creating, configuring and using indices
+========================================
 
 .. include:: ../links.rst
 
