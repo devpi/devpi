@@ -2,11 +2,13 @@
 import subprocess, time
 import py
 import pytest
-from devpi.server import AutoServer, default_rooturl, main
+from devpi_server.bgserver import BackgroundServer
+from devpi_server.main import main
 from requests.exceptions import ConnectionError
 
 @pytest.fixture
 def mockpopen(monkeypatch):
+    # old code to mock creating of a process
     called = []
     class MockPopen:
         def __init__(self, *args, **kwargs):
@@ -21,14 +23,12 @@ def mockpopen(monkeypatch):
     monkeypatch.setattr(subprocess, "Popen", MockPopen)
     return called
 
-def test_server_start_stop(makehub):
-    hub = makehub(["server"])
-    server = AutoServer(hub)
-    server.start(None, "http://localhost:3145")
-    server.stop()
-
-def test_log(loghub):
-    autoserver = AutoServer(loghub)
-    autoserver.info.logpath
-
+def test_server_commands(tmpdir, monkeypatch):
+    monkeypatch.setenv("DEVPI_SERVERDIR", tmpdir)
+    main(["devpi-server", "--start", "--port=3499"])
+    try:
+        main(["devpi-server", "--status"])
+        main(["devpi-server", "--log"])
+    finally:
+        main(["devpi-server", "--stop"])
 

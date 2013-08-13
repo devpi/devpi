@@ -1,6 +1,11 @@
 next version
 ----------------
 
+- introduce ``--start``, ``--stop`` and ``--log`` commands for
+  controling a background devpi-server run. (these commands
+  previously were implemented with the devpi-client and the "server"
+  sub command)
+
 - fix issue27: provide full list of pypi names in root/pypi's simple
   view (and simple pages from inheriting indices)
 

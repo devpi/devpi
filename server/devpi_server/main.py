@@ -16,18 +16,44 @@ import devpi_server
 
 def main(argv=None):
     """ devpi-server command line entry point. """
+    if argv is None:
+        argv = sys.argv
+    argv = map(str, argv)
+
     config = parseoptions(argv)
-    if config.args.version:
+    args = config.args
+
+    if args.version:
         print (devpi_server.__version__)
         return
 
-    if config.args.gendeploy:
+    if args.gendeploy:
         from devpi_server.gendeploy import gendeploy
         return gendeploy(config)
 
+    if args.start or args.stop or args.log or args.status:
+        xprocdir = py.path.local(args.datadir).join(".xproc")
+        from devpi_server.bgserver import BackgroundServer
+        tw = py.io.TerminalWriter()
+        bgserver = BackgroundServer(tw, xprocdir)
+        if args.start:
+            filtered_args = [x for x in argv[1:]]
+            return bgserver.start(args, filtered_args)
+        elif args.stop:
+            return bgserver.stop()
+        elif args.log:
+            return bgserver.log()
+        elif args.status:
+            if bgserver.info.isrunning():
+                bgserver.line("server is running with pid %s" %
+                              bgserver.info.pid)
+            else:
+                bgserver.line("no server is running")
+            return
+
     configure_logging(config)
     xom = XOM(config)
-    if config.args.passwd:
+    if args.passwd:
         from devpi_server.db import run_passwd
         return run_passwd(xom.db, config.args.passwd)
     return bottle_run(xom)
@@ -125,7 +151,7 @@ class XOM:
 
     @cached_property
     def datadir(self):
-        return py.path.local(os.path.expanduser(self.config.args.datadir))
+        return self.config.args.datadir
 
     @cached_property
     def releasefilestore(self):

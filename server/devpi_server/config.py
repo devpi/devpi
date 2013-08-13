@@ -51,7 +51,20 @@ def addoptions(parser):
 
     group.addoption("--passwd", action="store", metavar="USER",
             help="set password for user USER (interactive)")
+
+
+    group = parser.addgroup("background server")
+    group.addoption("--start", action="store_true",
+            help="start the background devpi-server")
+    group.addoption("--stop", action="store_true",
+            help="stop the background devpi-server")
+    group.addoption("--status", action="store_true",
+            help="show status of background devpi-server")
+    group.addoption("--log", action="store_true",
+            help="show logfile content of background server")
+
     group = parser.addgroup("deploy", "deployment options")
+
     group.addoption("--gendeploy", action="store", metavar="DIR",
             help="(unix only) generate a pre-configured self-contained "
                  "virtualenv directory which puts devpi-server "
@@ -80,9 +93,6 @@ def try_argcomplete(parser):
         argcomplete.autocomplete(parser)
 
 def parseoptions(argv, addoptions=addoptions):
-    if argv is None:
-        argv = sys.argv
-    argv = map(str, argv)
     parser = MyArgumentParser(
         description="Start an index server acting as a cache for "
                     "pypi.python.org, suitable for pip/easy_install usage. "
@@ -132,9 +142,9 @@ class ConfigurationError(Exception):
 class Config:
     def __init__(self, args):
         self.args = args
+        args.datadir = py.path.local(os.path.expanduser(args.datadir))
         if args.secretfile == "{datadir}/.secret":
-            serverdir = args.datadir
-            self.secretfile = py.path.local(serverdir).join(".secret", abs=True)
+            self.secretfile = args.datadir.join(".secret", abs=True)
         else:
             self.secretfile = py.path.local(os.path.expanduser(args.secretfile))
 

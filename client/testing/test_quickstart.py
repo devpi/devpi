@@ -1,13 +1,17 @@
+import py
 import pytest
+import subprocess
 
 def test_dryrun(cmd_devpi):
     cmd_devpi("quickstart", "--dry-run")
 
 def test_functional(cmd_devpi, monkeypatch, tmpdir):
-    monkeypatch.setenv("DEVPI_SERVER", tmpdir.join("serverdata"))
+    monkeypatch.setenv("DEVPI_SERVERDIR", tmpdir.join("server"))
+    monkeypatch.setenv("DEVPI_CLIENTDIR", tmpdir.join("client"))
     cmd_devpi("quickstart")
     try:
-        with pytest.raises(SystemExit):
-            cmd_devpi("server", "quickstart")
+        hub = cmd_devpi("quickstart")
+        assert isinstance(hub.sysex, SystemExit)
     finally:
-        cmd_devpi("server", "--stop")
+        p = py.path.local.sysfind("devpi-server")
+        subprocess.check_call([str(p), "--stop"])

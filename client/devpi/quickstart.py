@@ -8,11 +8,15 @@ import py
 def main(hub, args):
     clientdir = py.path.local(args.clientdir)
     if clientdir.check() or clientdir.dirpath("server").check():
-        hub.fatal("client or server dir exists, cannot perform quickstart. "
-                  "If you have a server running, please kill it and "
+        hub.fatal("client state directory exists, cannot perform quickstart. "
+                  "If you have a server running, please kill it with "
+                  "e. g. `devpi-server --stop` and "
                   "afterwards remove %s" %(clientdir.dirpath()))
+    #out = hub.popen_output(["devpi-server", "--status"])
+    #if "no server" not in out:
+    #    hub.fatal("devpi-server already running, stop it first")
 
-    hub.popen(["devpi", "server", "--start"])
+    hub.popen(["devpi-server", "--start"])
     try:
         hub.popen(["devpi", "use", "http://localhost:3141"])
         hub.line("")
@@ -28,7 +32,7 @@ def main(hub, args):
     except SystemExit:
         hub.line("")
         hub.info("stopping server because of failure")
-        hub.popen(["devpi", "server", "--stop"])
+        hub.popen(["devpi-server", "--stop"])
         raise SystemExit(1)
 
     hub.info("COMPLETED!  you can now work with your %r index" %(args.index))

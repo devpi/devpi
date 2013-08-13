@@ -1,6 +1,7 @@
 
 # content of conftest.py
 
+import random
 import pytest
 import textwrap
 import py
@@ -10,7 +11,6 @@ import json
 
 from _pytest.pytester import RunResult, LineMatcher
 from devpi.main import Hub, initmain, parse_args
-from devpi.server import AutoServer
 import subprocess
 
 print_ = py.builtin.print_
@@ -115,14 +115,16 @@ def get_pypirc_patcher(devpi):
 
 @pytest.fixture(scope="session")
 def port_of_liveserver(request):
-    port = 7999
     if request.config.option.fast:
         pytest.skip("not running functional tests in --fast mode")
+    port = random.randint(2001, 64000)
     clientdir = request.config._tmpdirhandler.mktemp("liveserver")
-    hub, method = initmain(["devpi", "--clientdir", clientdir, "server"])
-    autoserver = AutoServer(hub)
-    autoserver.start(None, "http://localhost:%s" % port, removedata=True)
-    request.addfinalizer(autoserver.stop)
+    subprocess.check_call(["devpi-server", "--datadir", str(clientdir),
+                             "--port", str(port), "--start"])
+    def stop():
+        subprocess.check_call(["devpi-server", "--datadir", str(clientdir),
+                                 "--stop"])
+    request.addfinalizer(stop)
     return port
 
 @pytest.fixture
@@ -291,6 +293,7 @@ def cmd_devpi(tmpdir):
             ret = method(hub, hub.args)
         except SystemExit as sysex:
             ret = sysex.args[0] or 1
+            hub.sysex = sysex
         expected = kwargs.get("code", None)
         if expected is not None:
             if not isinstance(expected, tuple):
@@ -298,7 +301,6 @@ def cmd_devpi(tmpdir):
             if hub._last_http_status not in expected:
                 pytest.fail("got http code %r, expected %r"
                             % (hub._last_http_status, expected))
-        hub, method = initmain(callargs)
         return hub
     run_devpi.clientdir = clientdir
     return run_devpi

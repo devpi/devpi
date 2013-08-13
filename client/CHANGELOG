@@ -1,6 +1,9 @@
 1.0.dev1
 -------------------------------
 
+- removed ``server`` subcommand and options for controling background devpi-server
+  processes to become options of ``devpi-server`` itself.
+
 - fix issue14: lookup "python" from PATH for upload/packaging activities instead of
   using "sys.executable" which comes from the interpreter executing the "devpi" script.
   This allows to alias "devpi" to come from a virtualenv which is separate from

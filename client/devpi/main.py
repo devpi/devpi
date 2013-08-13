@@ -4,11 +4,11 @@ import sys
 import py
 import argparse
 import subprocess
+import devpi
 from devpi.util.lazydecorator import lazydecorator
 from devpi.util import url as urlutil
 from devpi import log, cached_property
 from devpi.use import Current
-import devpi.server
 import requests
 import json
 std = py.std
@@ -17,14 +17,9 @@ subcommand = lazydecorator()
 from devpi import __version__
 
 main_description = """
-The devpi sub commands (installed via devpi-client) wrap common Python
+The devpi commands (installed via devpi-client) wrap common Python
 packaging, uploading, installation and testing activities, using a remote
-devpi-server managed index.  If using the default http://localhost:3141 server
-location, devpi-client will automatically start a server in the background
-if no server is responding on that address.  This behaviour is controlled
-by the ``devpi server`` subcommand which also provides access to log files.
-For more information see http://doc.devpi.net
-
+devpi-server managed index.  For more information see http://doc.devpi.net
 """
 
 def main(argv=None):
@@ -412,7 +407,7 @@ def use(parser):
     """ show/configure current index and target venv for install
     activities.
 
-    This shows client-side state, relevant for devpi-server interactions,
+    This shows client-side state, relevant for server interactions,
     including login authentication information, the current remote index
     (and API endpoints if you specify --urls) and the target virtualenv
     for installation activities.
@@ -642,18 +637,6 @@ def install(parser):
         help="uri or package file for installation from current index. """
     )
 
-@subcommand("devpi.server")
-def server(parser):
-    """ commands for controling a background server.
-
-    Control a background ``devpi-server`` instance.
-    """
-    parser.add_argument("--start", action="store_true",
-        help="start server in background")
-    parser.add_argument("--stop", action="store_true",
-        help="stop automatically started server if any")
-    parser.add_argument("--log", action="store_true",
-        help="show last log lines of automatic server")
 
 if __name__ == "__main__":
     main()
