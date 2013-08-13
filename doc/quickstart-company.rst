@@ -1,5 +1,5 @@
 Quickstart for deploying devpi in your company
-===============================================
+==============================================
 
 .. include:: links.rst
 
@@ -8,7 +8,7 @@ own ``devpi-server`` instance and creating users
 and indices using the ``devpi`` command line client.
 
 Installing devpi-server
-------------------------------------------------
+-----------------------
 
 Install ``devpi-server``::
 
@@ -22,7 +22,7 @@ And let's check the version::
 .. _gendeploy:
 
 generating a pre-configured server virtualenv directory
------------------------------------------------------------
+-------------------------------------------------------
 
 devpi-server provides the ``--gendeploy`` option to create virtualenv-based
 supervisor_-controled deployments of ``devpi-server``.  Even if you
@@ -161,7 +161,7 @@ If you prefer different schemes of deployment you may consider it
 .. _`upgrading gendeploy`:
 
 using gendeploy when upgrading
--------------------------------------
+------------------------------
 
 If you want to upgrade your devpi-server deployment which you previously
 did using gendeploy_, you can proceed like this::
@@ -181,7 +181,7 @@ command is bound to fail.
 .. _auth:
 
 requiring authentication
------------------------------------------
+------------------------
 
 In order to configure authentication you need to install the
 ``devpi`` command line client::

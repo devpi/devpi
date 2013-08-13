@@ -1,5 +1,6 @@
 .. include:: links.rst
 
+.. _quickstart-releaseprocess:
 
 Quickstart: managing a release on your laptop
 ---------------------------------------------
