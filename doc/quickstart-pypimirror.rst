@@ -2,25 +2,25 @@
 .. include:: links.rst
 
 Quickstart: running a pypi mirror on your laptop
-------------------------------------------------
+----------------------------------------------------
 
 This quickstart document let's you quickly run and manage ``devpi-server``
 for serving an efficient self-updating PyPI caching mirror on your laptop,
 suitable for offline operations after an initial cache fill.
 
 Installing devpi-server
-+++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++
 
 Install the ``devpi-server`` package on our machine::
 
 	pip install -U devpi-server
 
 start background devpi-server process
-+++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++
 
 To start ``devpi-server`` in the background issue::
     
-    $ devpi-server
+    $ devpi-server --start
     starting background devpi-server at http://localhost:3141
     /home/hpk/p/devpi/doc/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server
     process 'devpi-server' started pid=14046
@@ -30,7 +30,7 @@ To start ``devpi-server`` in the background issue::
 You now have a server listning on ``http://localhost:3141``.
 
 install your first package with pip/easy_install
-++++++++++++++++++++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Both pip_ and easy_install_ support the ``-i`` option to specify
 an index server url.  We use it to point installers to a special
@@ -83,7 +83,7 @@ mirroring 100% bug free and compatible to pypi.python.org.
 .. _perminstallindex:
 
 permanent index server configuration for pip
-++++++++++++++++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 To avoid having to re-type index URLs, you can configure pip by
 setting the index-url entry in your ``$HOME/.pip/pip.conf`` (posix) or 
@@ -101,7 +101,7 @@ to your shell settings (e.g. ``.bashrc``):
 
 
 permanent easy_install configuration
-++++++++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++++++++++++++++
 
 You can configure ``easy_install`` by an entry in 
 the ``$HOME/.pydistutils.cfg`` file::
@@ -112,7 +112,7 @@ the ``$HOME/.pydistutils.cfg`` file::
 
 
 Checking and stopping the background server
-+++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++
 
 At any time you can check the background server status with::
 
