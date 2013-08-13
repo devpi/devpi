@@ -49,6 +49,8 @@ To learn more, checkout our quickstart and other docs.
    userman/index
 
    curl
+   
+   glossary
 
 
 .. toctree::

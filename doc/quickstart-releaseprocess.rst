@@ -2,7 +2,7 @@
 
 
 Quickstart: managing a release on your laptop
-----------------------------------------------------
+---------------------------------------------
 
 This quickstart document walks you through setting up a self-contained
 pypi release upload, testing and staging system for your Python packages.
@@ -17,7 +17,7 @@ We want to run the full devpi system on our laptop::
 This will install ``devpi-client`` and ``devpi-server`` pypi packages.
 
 devpi quickstart: initializing basic scenario
-++++++++++++++++++++++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++++++++++++
 
 The ``devpi quickstart`` command performs basic initialization step
 of the devpi system on your local machine:
@@ -227,7 +227,7 @@ We can verify that the test status was recorded via::
       teta linux2 python 2.7.3 tests passed
 
 devpi push: staging a release to another index
-++++++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++
 
 Once you are happy with a release file you can push it either
 to another devpi-managed index or to an outside pypi index server.
@@ -243,7 +243,7 @@ Let's create another ``staging`` index::
       acl_upload=testuser
 
 We created a non-volatile index which means that one can not 
-overwrite or delete release files. See `volatile indexes`_ for more info
+overwrite or delete release files. See :ref:`non_volatile_indexes` for more info
 on this setting.
 
 We can now push the ``example-1.0.tar.gz`` from above above to
@@ -258,7 +258,7 @@ release and copy them to the ``testuser/staging`` index.
 
 
 devpi push: releasing to an external index
-+++++++++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++
 
 we are at::
 
@@ -292,7 +292,7 @@ and the URL found in the ``pypi`` section in your
 ``.pypirc``.
 
 index inheritance re-configuration
-++++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++
 
 At this point we have the ``example-1.0`` release and release file
 on both the ``testuser/dev`` and ``testuser/staging`` indices.

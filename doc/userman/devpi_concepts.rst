@@ -109,8 +109,10 @@ What are Indices?
          When looking for package ``foo``, the **devpi-server** will traverse the 
          inheritance tree if this package is not found in the current index.  
 
-- A index is **volatile** if packages can be overriden with the same version (which would make sense for a developement 
-  index). Otherwise, attempting to *upload* [#f2]_ a package with the same version would result in an error. 
+- A index is **volatile** if packages can be overriden with the same version 
+  (which would make sense for a developement  index). Otherwise, attempting to 
+  *upload* [#f2]_ a package with the same version would result in an error. 
+  See the :ref:`non_volatile_indexes` for rules specific to this index type. 
    
 - A user can have/create as many indices as he/she wants. 
 
@@ -154,6 +156,27 @@ What are Indices?
           "status": 200, 
           "type": "userconfig"
       }
+      
+.. _non_volatile_indexes:
+
+Non Volatile Indexes
+^^^^^^^^^^^^^^^^^^^^
+
+As introduced earlier, a volatile index is an index that can be modified/deleted
+at will by its owner. 
+
+A :term:`Non Volatile Index` is an index that can not be modified in a desctructive 
+manner. This implies that:
+
+   * A **non volatile index** can not be deleted. 
+   * If a project is created, it can not be deleted.
+   * If a version is uploaded or pushed, it can not be be removed or overriden. 
+
+Furthermore, a non volatile index **can not** use a volatile index as one of its 
+bases.
+
+**Non volatile indexes** should be used as common package repositories between 
+user, either for staging or production.
    
 Deployment Topologies
 ^^^^^^^^^^^^^^^^^^^^^
