@@ -8,6 +8,9 @@
   a package url with a "#md5=..." arriving at the server side.
   We now strip that part out before trying to serve the file.
 
+- on startup don't create any initial indexes other 
+  than the "root/pypi" pypi caching mirror.
+
 - introduce ``--start``, ``--stop`` and ``--log`` commands for
   controling a background devpi-server run. (these commands
   previously were implemented with the devpi-client and the "server"

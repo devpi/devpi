@@ -7,8 +7,6 @@ from devpi import log
 from devpi.use import parse_keyvalue_spec
 from devpi.util import url as urlutil
 
-DEFAULT_BASES = ["root/dev", ]
-
 def index_create(hub, indexname, kvdict):
     url = hub.current.get_index_url(indexname, slash=False)
     hub.http_api("put", url, kvdict)

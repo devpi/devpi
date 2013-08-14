@@ -130,7 +130,7 @@ def port_of_liveserver(request):
 @pytest.fixture
 def devpi(cmd_devpi, gen, port_of_liveserver):
     user = gen.user()
-    cmd_devpi("use", "http://localhost:%s/root/dev" % port_of_liveserver)
+    cmd_devpi("use", "http://localhost:%s/root/pypi" % port_of_liveserver)
     cmd_devpi("user", "-c", user, "password=123", "email=123")
     cmd_devpi("login", user, "--password", "123")
     cmd_devpi("index", "-c", "dev")

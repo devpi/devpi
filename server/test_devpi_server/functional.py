@@ -72,9 +72,10 @@ class TestIndexThings:
             assert "not/exists" in m
 
     def test_create_index_base_normalized(self, mapp):
-        indexconfig = dict(bases=("/root/dev",))
+        indexconfig = dict(bases=("/root/pypi",))
         mapp.login_root()
-        mapp.create_index("root/hello", indexconfig=indexconfig, code=200)
+        mapp.create_index("root/hello", indexconfig=indexconfig,
+                          code=200)
 
     def test_create_index_base_invalid(self, mapp):
         mapp.login_root()

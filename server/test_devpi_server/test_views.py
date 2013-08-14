@@ -118,9 +118,6 @@ def test_pkgserv(pypiurls, httpget, testapp):
 def test_apiconfig(httpget, testapp):
     r = testapp.get("/user/name/+api")
     assert r.status_code == 404
-    r = testapp.get("/root/dev/+api")
-    assert r.status_code == 200
-    assert r.json["result"]["pypisubmit"]
     r = testapp.get("/root/pypi/+api")
     assert r.status_code == 200
     assert not "pypisubmit" in r.json["result"]

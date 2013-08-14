@@ -47,7 +47,7 @@ class TestStage:
         assert not stage.can_upload("hello")
 
     def test_getstage_normalized(self, db):
-        assert db.getstage("/root/dev/").name == "root/dev"
+        assert db.getstage("/root/pypi/").name == "root/pypi"
 
     def test_not_configured_index(self, db):
         stagename = "hello/world"
@@ -73,8 +73,8 @@ class TestStage:
 
     def test_indexconfig_set_normalizes_bases(self, db):
         ixconfig = db.index_create(user="hello", index="world",
-                                   bases=("/root/dev/",))
-        assert ixconfig["bases"] == ("root/dev",)
+                                   bases=("/root/pypi/",))
+        assert ixconfig["bases"] == ("root/pypi",)
 
     def test_empty(self, stage, bases):
         assert not stage.getreleaselinks("someproject")
@@ -91,7 +91,7 @@ class TestStage:
         assert stage.getprojectnames() == ["someproject",]
 
     def test_inheritance_twice(self, httpget, db, stage):
-        db.index_create(user="root", index="dev2", bases=("root/dev",))
+        db.index_create(user="root", index="dev2", bases=("root/pypi",))
         stage_dev2 = db.getstage("root/dev2")
         stage._reconfigure(bases=("root/dev2",))
         httpget.setextsimple("someproject",
@@ -321,15 +321,6 @@ def test_setdefault_indexes(db):
     set_default_indexes(db)
     ixconfig = db.index_get("root/pypi")
     assert ixconfig["type"] == "mirror"
-
-    ixconfig = db.index_get("root/dev")
-    assert ixconfig["type"] == "stage"
-    assert ixconfig["bases"] == ("root/pypi",)
-    assert ixconfig["volatile"] == True
-
-    db.index_modify("root/dev", volatile=False)
-    set_default_indexes(db)
-    assert db.index_get("root/dev")["volatile"] == False
 
 def create_zipfile(contentdict):
     f = py.io.BytesIO()

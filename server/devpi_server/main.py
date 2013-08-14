@@ -270,10 +270,7 @@ class FatalResponse:
 
 def set_default_indexes(db):
     PYPI = "root/pypi"
-    DEV = "root/dev"
     if "root" not in db.user_list():
         db.user_create("root", password="")
     if not db.index_exists(PYPI):
         db.index_create(PYPI, bases=(), type="mirror", volatile=False)
-    if not db.index_exists(DEV):
-        db.index_create(DEV, bases=(PYPI,))
