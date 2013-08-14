@@ -1,4 +1,7 @@
-Quickstart for central server with multiple users
+
+.. _`quickstart-server`:
+
+Quickstart: permanent install on server/laptop
 ==========================================================
 
 .. include:: links.rst
@@ -7,6 +10,19 @@ This quickstart document walks you through setting up your own
 ``devpi-server`` instance, controling it with supervisor_ and 
 serving it through nginx_ on a unix like system.  It also
 shows how to create a first user and index.
+
+Note that the :doc:`the pypi-mirroring quickstart
+<quickstart-pypimirror>` already discusses the ``devpi-server
+--start|--log|--stop`` background-server control options which you can
+use to integrate with existing ``init.d`` or similar infrastructure.
+
+.. note::
+
+    If you intend to package devpi-server yourself
+    this quickstart may still be helpful because it
+    generates configuration files and discusses options 
+    for deployment integration.  Btw, if you create 
+    a deb/rpm package, :ref:`please share it <contribute>`.
 
 Installing devpi-server
 -----------------------
@@ -22,21 +38,39 @@ And let's check the version::
 
 .. _gendeploy:
 
-generating a virtualenv and configuration files
+generating a deployment
 -------------------------------------------------------
 
 devpi-server provides the ``--gendeploy`` option to create
 virtualenv-based supervisor_-controled deployments of ``devpi-server``.
+
+creating a virtualenv
++++++++++++++++++++++++++++++++
+
 Let's make sure we have a recent ``virtualenv`` installed:
 
     $ pip install -q -U virtualenv
 
 Now, let's create a self-contained virtualenv directory where
 devpi-server is configured to run under supervisor_ control.
-Any :ref:`cmdref_devpi_server` option that we pass along
-with a ``--gendeploy`` call will be passed through to the
-eventual supervisor-managed devpi-server process. 
-Here we just pass it a port to distinguish it from the :ref:`single
+It is a good idea to create the virtualenv directory yourself,
+using the python of your choice::
+
+    $ virtualenv -q TARGETDIR
+
+If you don't create it, the next step would automatically
+create it.
+
+``--gendeploy``: installing packages and configuration files
+------------------------------------------------------------
+
+We can now use the ``--gendeploy TARGETDIR`` option to
+install packages and configuration files.  Any 
+:ref:`devpi-server option <cmdref_devpi_server>` that we pass along
+with a ``--gendeploy`` call will be used for creating
+adapted config files. 
+
+Here, we just pass it a port to distinguish it from the :ref:`single
 laptop deployment (Quickstart) <quickstart-releaseprocess>`::
 
     $ devpi-server --gendeploy=TARGETDIR --port 4040
@@ -54,7 +88,6 @@ laptop deployment (Quickstart) <quickstart-releaseprocess>`::
     and then start the server process:
     
         devpi-ctl start all
-    
     It seems you are using "cron", so we created a crontab file
      which starts devpi-server at boot. With:
     
@@ -72,14 +105,20 @@ laptop deployment (Quickstart) <quickstart-releaseprocess>`::
     
     may quick reliable pypi installations be with you :)
 
-We are now going through the generated instructions step by step.
+.. note::
+    
+    devops note: at this point, no server has been started and you
+    can look at the generated configuration files and integrate
+    them into your own deployment structure.
+
+Let's discuss what we have now step by step.
 
 devpi-ctl: supervisor wrapper for devpi control
 +++++++++++++++++++++++++++++++++++++++++++++++
 
-You can now use the ``devpi-ctl`` helper which is a transparent
+You can use the ``devpi-ctl`` helper which is a transparent
 wrapper of the ``supervisorctl`` tool to make sure that the 
-supervisord contained in our ``targetdir`` virtualenv is running.
+supervisord contained in our ``TARGETDIR`` virtualenv is running.
 
 Let's check the status of our new server::
 
@@ -114,6 +153,47 @@ uninstall devpi-server from the original environment::
     $ pip uninstall -y devpi-server
     Uninstalling devpi-server:
       Successfully uninstalled devpi-server
+
+the supervisor configuration file
++++++++++++++++++++++++++++++++++++
+
+If you have your own server supervisor configuration 
+you can take the relevant bit out from the gendeploy-generated 
+one::
+
+    $ cat TARGETDIR/etc/supervisord.conf
+    [unix_http_server]
+    file = %(here)s/../supervisor.socket
+     
+    [supervisord]
+    logfile=/home/hpk/p/devpi/doc/TARGETDIR/log/supervisord.log
+    pidfile=/home/hpk/p/devpi/doc/TARGETDIR/supervisord.pid
+    logfile_maxbytes=50MB           
+    logfile_backups=5 
+    loglevel=info           ; info, debug, warn, trace
+    redirect_stderr = True
+    nodaemon=false          ; run supervisord as a daemon
+    minfds=1024             ; number of startup file descriptors
+    minprocs=200            ; number of process descriptors
+    childlogdir=/home/hpk/p/devpi/doc/TARGETDIR/log   ; where child log files will live
+     
+    [rpcinterface:supervisor]
+    supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
+     
+    [supervisorctl]
+    serverurl=unix://%(here)s/../supervisor.socket
+    
+    # if you have a system-wide supervisord installation 
+    # you might move the below actual program definitions 
+    # to a global /etc/supervisord/conf.d/devpi-server.conf
+    
+    [program:devpi-server]
+    command=/home/hpk/p/devpi/doc/TARGETDIR/bin/devpi-server --port 4040 --serverdir /home/hpk/p/devpi/doc/TARGETDIR/data
+    priority=999
+    startsecs = 5
+    redirect_stderr = True
+    autostart=False
+    
 
 .. _`configured nginx`:
 
@@ -187,8 +267,7 @@ For purposes of this tutorial, we use the direct
 
     $ devpi use http://localhost:4040
     using server: http://localhost:4040/ (not logged in)
-    not using any index ('index -l' to discover, then 'use NAME' to use one)
-    no current install venv set
+    no current index: type 'devpi use -l' to discover indices
 
 At this point we have only a root user and a ``root/pypi``
 index (see :ref:`using root/pypi index <install first>`).
@@ -244,7 +323,6 @@ and use it::
 
     $ devpi use alice/dev
     using index: http://localhost:4040/alice/dev/ (logged in as alice)
-    no current install venv set
 
 Our ``alice/dev`` index derives from ``root/pypi`` by default
 which makes all pypi.python.org releases available.

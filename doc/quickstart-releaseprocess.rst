@@ -2,8 +2,8 @@
 
 .. _quickstart-releaseprocess:
 
-Quickstart: managing a release on your laptop
----------------------------------------------
+Quickstart: uploading, testing, pushing releases 
+------------------------------------------------
 
 This quickstart document walks you through setting up a self-contained
 pypi release upload, testing and staging system for your Python packages.
@@ -33,18 +33,19 @@ of the devpi system on your local machine:
 
 - create an index and directly use it.
 
-Let's just run the quickstart to read the instructive output::
+Let's run the quickstart command which will trigger
+a series of other devpi commands::
 
     $ devpi quickstart
     --> $ devpi-server --start
     starting background devpi-server at http://localhost:3141
     /home/hpk/p/devpi/doc/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server
-    process 'devpi-server' started pid=32177
+    process 'devpi-server' started pid=13370
     devpi-server process startup detected
     logfile is at /home/hpk/p/devpi/doc/.devpi/server/.xproc/devpi-server/xprocess.log
     --> $ devpi use http://localhost:3141
     using server: http://localhost:3141/ (not logged in)
-    not using any index ('index -l' to discover, then 'use NAME' to use one)
+    no current index: type 'devpi use -l' to discover indices
     
     --> $ devpi user -c testuser password=
     user created: testuser
@@ -125,9 +126,9 @@ to our ``testuser/dev`` index::
     created workdir /tmp/devpi0
     --> $ hg st -nmac .
     hg-exported project to <Exported /tmp/devpi0/upload/example>
-    --> $ /home/hpk/p/devpi/doc/docenv/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi0/upload/example http://localhost:3141/testuser/dev/ testuser testuser-7b8bd510b94c6f01e1ba29cecc531595dd814145129b98c86005c47715aa8376.BO0e7A.Z4hhRbYfUlJFDwOR3QAGquvf5s4 register -r devpi
+    --> $ /home/hpk/p/devpi/doc/docenv/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi0/upload/example http://localhost:3141/testuser/dev/ testuser testuser-bd4468df5e43c72876b29ad1bc2ad587e08e3575b1ee7de11cdf42cb0bb6834e.BO025g.1W_T1A6K4F0IhHLz_z_zNcD4OkM register -r devpi
     release registered to http://localhost:3141/testuser/dev/
-    --> $ /home/hpk/p/devpi/doc/docenv/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi0/upload/example http://localhost:3141/testuser/dev/ testuser testuser-7b8bd510b94c6f01e1ba29cecc531595dd814145129b98c86005c47715aa8376.BO0e7A.Z4hhRbYfUlJFDwOR3QAGquvf5s4 sdist --formats gztar upload -r devpi
+    --> $ /home/hpk/p/devpi/doc/docenv/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi0/upload/example http://localhost:3141/testuser/dev/ testuser testuser-bd4468df5e43c72876b29ad1bc2ad587e08e3575b1ee7de11cdf42cb0bb6834e.BO025g.1W_T1A6K4F0IhHLz_z_zNcD4OkM sdist --formats gztar upload -r devpi
     submitted dist/example-1.0.tar.gz to http://localhost:3141/testuser/dev/
 
 There are three triggered actions:
@@ -332,3 +333,12 @@ because it inherits all releases from its ``testuser/staging`` base::
     list result: http://localhost:3141/testuser/dev/
     testuser/staging/example/1.0/example-1.0.tar.gz
       teta linux2 python 2.7.3 tests passed
+
+
+running devpi-server permanently
++++++++++++++++++++++++++++++++++
+
+If you want to configure a permanent devpi-server install,
+you can go to :ref:`quickstart-server` to learn more.
+
+

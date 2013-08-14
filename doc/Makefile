@@ -32,7 +32,7 @@ chapter = commands
 
 .PHONY: help clean html dirhtml singlehtml pickle json htmlhelp qthelp devhelp \
         epub latex latexpdf text man changes linkcheck doctest gettext install \
-        quickstart-releaseprocess quickstart-pypimirror quickstart-company regen \
+        quickstart-releaseprocess quickstart-pypimirror quickstart-server regen \
         prepare-quickstart\
         regen.server-fresh regen.server-restart regen.server-clean\
         regen.uman-all regen.uman
@@ -188,7 +188,7 @@ doctest:
 	      "results in $(BUILDDIR)/doctest/output.txt."
 
 
-regen: quickstart-pypimirror quickstart-releaseprocess quickstart-company
+regen: quickstart-pypimirror quickstart-releaseprocess quickstart-server
 
 quickstart-pypimirror:
 	USER=testuser sh regen.sh --update quickstart-pypimirror.rst
@@ -196,8 +196,8 @@ quickstart-pypimirror:
 quickstart-releaseprocess:
 	USER=testuser sh regen.sh --update quickstart-releaseprocess.rst
 
-quickstart-company:
-	USER=testuser sh regen.sh --update quickstart-company.rst
+quickstart-server:
+	USER=testuser sh regen.sh --update quickstart-server.rst
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #

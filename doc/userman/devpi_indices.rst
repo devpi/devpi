@@ -23,8 +23,7 @@ client provides the :ref:`cmdref_use` sub-command to achieve this purpose::
 
    $ devpi use http://localhost:3141/
    using server: http://localhost:3141/ (logged in as root)
-   not using any index ('index -l' to discover, then 'use NAME' to use one)
-   no current install venv set
+   no current index: type 'devpi use -l' to discover indices
    
 where ``http://devpi.mydomain:3141`` is the **base url** to a given `devpi`_ 
 server. To use an index, users must specify an API endpoint defined as:
@@ -43,7 +42,6 @@ set the index::
 
    $ devpi use /root/pypi
    using index: http://localhost:3141/root/pypi/ (logged in as emilie)
-   no current install venv set
 
 and then issue::
 
@@ -53,7 +51,6 @@ and then issue::
          pypisubmit: None
           resultlog: http://localhost:3141/+tests
               login: http://localhost:3141/+login
-   no current install venv set
 
 Creating an Index
 -----------------
@@ -63,7 +60,6 @@ he or she doesn't have any index associated to his or her username::
 
    $ devpi use
    using index: http://localhost:3141/root/pypi/ (logged in as emilie)
-   no current install venv set
 
 In order to create an index, use the :ref:`cmdref_index` sub-command. In the 
 example below, we create the **emilie/prod** production index::
@@ -157,13 +153,11 @@ She can start using them (short endpoint)::
 
    $ devpi use dev
    using index: http://localhost:3141/emilie/dev/ (logged in as emilie)
-   no current install venv set
    
 or (long endpoint)::
 
    $ devpi use prod
    using index: http://localhost:3141/emilie/prod/ (logged in as emilie)
-   no current install venv set
    
 And from there, the urls should be set to:: 
 
@@ -173,7 +167,6 @@ And from there, the urls should be set to::
          pypisubmit: http://localhost:3141/emilie/prod/
           resultlog: http://localhost:3141/+tests
               login: http://localhost:3141/+login
-   no current install venv set
    
 .. note:: By default, a user index has its ``acl_upload`` property set to 
           himself/herself. This implies that other users are not allowed 
@@ -270,22 +263,18 @@ Now that we have two indices, we can switch between them by doing::
 
    $ devpi use /emilie/prod
    using index: http://localhost:3141/emilie/prod/ (logged in as emilie)
-   no current install venv set
 
 ::
    $ devpi use 
    using index: http://localhost:3141/emilie/prod/ (logged in as emilie)
-   no current install venv set
 
 ::
    $ devpi use /emilie/dev
    using index: http://localhost:3141/emilie/dev/ (logged in as emilie)
-   no current install venv set
 
 ::
    $ devpi use
    using index: http://localhost:3141/emilie/dev/ (logged in as emilie)
-   no current install venv set
 
 Deleting an Index
 -----------------
@@ -327,7 +316,6 @@ In the example below, we create a "bad" index and delete it::
 :: 
    $ devpi use
    using index: http://localhost:3141/emilie/dev/ (logged in as emilie)
-   no current install venv set
    
 ::
    $ devpi getjson /emilie/oups

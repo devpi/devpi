@@ -33,4 +33,5 @@ env/
 .pytest
 .devpy
 doc/.devpi
+doc/.tmp_devpi_user_man
 .xprocess

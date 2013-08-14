@@ -35,7 +35,10 @@ release activities with Python.  Main features and usage scenarios:
   that all dependencies will resolve when installing your own
   (previously uploaded) development package from an index.
 
-To learn more, checkout our quickstart and other docs.
+To learn more checkout our quickstart and other docs.
+
+To understand more of how the PyPI protocol works, 
+checkout :pep:`438` and related documentation
 
 .. _label_quickstart_section:
 
@@ -47,7 +50,7 @@ Tutorials and Documentation
 
    quickstart-pypimirror
    quickstart-releaseprocess
-   quickstart-company
+   quickstart-server
 
    status
 

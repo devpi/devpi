@@ -55,10 +55,12 @@ def addoptions(parser):
 
 
     group.addoption("--gendeploy", action="store", metavar="DIR",
-            help="(unix only) generate a pre-configured self-contained "
+            help="(unix only) install and generate a pre-configured "
                  "virtualenv directory which puts devpi-server "
-                 "under supervisor control.  Also provides "
-                 "nginx/cron files to help with permanent deployment. ")
+                 "under supervisor control and provides some example "
+                 "files for nginx/crontab.  If the specified DIR exists "
+                 "virtualenv creation will be skipped and only the "
+                 "installation steps will be performed. ")
 
     group.addoption("--secretfile", type=str, metavar="path",
             default="{serverdir}/.secret",

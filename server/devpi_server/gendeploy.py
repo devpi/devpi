@@ -139,16 +139,18 @@ def gendeploy(config):
         tw.line("detected existing devpi-ctl, ensuring it is shut down",
                 red=True)
         subproc(tw, [devpi_ctl, "shutdown", "all"])
-        prefix = "re-"
-    tw.line("%screating virtualenv to %s" % (prefix, target), bold=True)
-    try:
-        del os.environ["PYTHONDONTWRITEBYTECODE"]
-    except KeyError:
-        pass
-    subproc(tw, ["virtualenv", "-q", str(target)])
+    if not (target.check() and target.join("bin").check()):
+        tw.line("creating virtualenv: %s" % (target, ), bold=True)
+        try:
+            del os.environ["PYTHONDONTWRITEBYTECODE"]
+        except KeyError:
+            pass
+        subproc(tw, ["virtualenv", "-q", str(target)])
+    else:
+        tw.line("using existing virtualenv: %s" %(target,), bold=True)
     pip = py.path.local.sysfind("pip", paths=[target.join("bin")])
-    tw.line("installing devpi-server,supervisor,eventlet into "
-            "virtualenv", bold=True)
+    tw.line("installing devpi-server,supervisor,eventlet into virtualenv",
+            bold=True)
     version = devpi_server.__version__
     subproc(tw, [pip, "install", "--pre", "-q",
                  "supervisor", "eventlet", "devpi-server>=%s" % version])

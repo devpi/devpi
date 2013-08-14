@@ -30,6 +30,8 @@ releases in 2013, in particular in these areas:
 and/or a partner to push forward with the web UI and design.  The server 
 provides an evolving :doc:`REST API <curl>` to begin with.
 
+.. _contribute:
+
 contact and contribution points
 ++++++++++++++++++++++++++++++++++
 
