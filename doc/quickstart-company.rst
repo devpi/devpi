@@ -1,118 +1,100 @@
-Quickstart for deploying devpi in your company
-==============================================
+Quickstart for central server with multiple users
+==========================================================
 
 .. include:: links.rst
 
-This quickstart document walks you through setting up your
-own ``devpi-server`` instance and creating users
-and indices using the ``devpi`` command line client.
+This quickstart document walks you through setting up your own
+``devpi-server`` instance, controling it with supervisor_ and 
+serving it through nginx_ on a unix like system.  It also
+shows how to create a first user and index.
 
 Installing devpi-server
 -----------------------
 
-Install ``devpi-server``::
+Install or upgrade ``devpi-server``::
 
-    $ pip install -U -q devpi-server
+    $ pip install --pre -U -q devpi-server
 
 And let's check the version::
 
     $ devpi-server --version
-    0.9.4
+    1.0rc2
 
 .. _gendeploy:
 
-generating a pre-configured server virtualenv directory
+generating a virtualenv and configuration files
 -------------------------------------------------------
 
-devpi-server provides the ``--gendeploy`` option to create virtualenv-based
-supervisor_-controled deployments of ``devpi-server``.  Even if you
-plan on using your own deployment scheme, this option might be interesting
-because it creates nginx_ and ``crontab`` config files for your perusal.
+devpi-server provides the ``--gendeploy`` option to create
+virtualenv-based supervisor_-controled deployments of ``devpi-server``.
 Let's make sure we have a recent ``virtualenv`` installed:
 
     $ pip install -q -U virtualenv
 
-Now, let's create a self-contained virtualenv directory where devpi-server is
-configured to run under supervisor_ control.  We can also specify a
-particular port to distinguish it from the :ref:`single laptop
-deployment (Quickstart) <quickstart-releaseprocess>`::
+Now, let's create a self-contained virtualenv directory where
+devpi-server is configured to run under supervisor_ control.
+Any :ref:`cmdref_devpi_server` option that we pass along
+with a ``--gendeploy`` call will be passed through to the
+eventual supervisor-managed devpi-server process. 
+Here we just pass it a port to distinguish it from the :ref:`single
+laptop deployment (Quickstart) <quickstart-releaseprocess>`::
 
-    $ devpi-server --gendeploy=targetdir --port 4040
-    detected existing devpi-ctl, ensuring it is shut down
-    Shut down
-    restarted /home/hpk/p/devpi/doc/targetdir/bin/supervisord
-    using supervisor config: /home/hpk/p/devpi/doc/targetdir/etc/supervisord.conf
-    re-installing virtualenv to /home/hpk/p/devpi/doc/targetdir
-    Using real prefix '/usr'
-    New python executable in /home/hpk/p/devpi/doc/targetdir/bin/python
-    Please make sure you remove any previous custom paths from your /home/hpk/.pydistutils.cfg file.
-    Installing Setuptools.............................................................................................done.
-    Installing Pip....................................................................................................................................done.
-    installing devpi-server and supervisor
-    Requirement already satisfied (use --upgrade to upgrade): devpi-server>=0.9.4 in ./targetdir/lib/python2.7/site-packages
-    Requirement already satisfied (use --upgrade to upgrade): supervisor in ./targetdir/lib/python2.7/site-packages
-    Requirement already satisfied (use --upgrade to upgrade): py>=1.4.15 in ./targetdir/lib/python2.7/site-packages (from devpi-server>=0.9.4)
-    Requirement already satisfied (use --upgrade to upgrade): execnet>=1.1 in ./targetdir/lib/python2.7/site-packages (from devpi-server>=0.9.4)
-    Requirement already satisfied (use --upgrade to upgrade): requests>=1.2.3 in ./targetdir/lib/python2.7/site-packages (from devpi-server>=0.9.4)
-    Requirement already satisfied (use --upgrade to upgrade): itsdangerous>=0.23 in ./targetdir/lib/python2.7/site-packages (from devpi-server>=0.9.4)
-    Requirement already satisfied (use --upgrade to upgrade): docutils>=0.11 in ./targetdir/lib/python2.7/site-packages (from devpi-server>=0.9.4)
-    Requirement already satisfied (use --upgrade to upgrade): pygments>=1.6 in ./targetdir/lib/python2.7/site-packages (from devpi-server>=0.9.4)
-    Requirement already satisfied (use --upgrade to upgrade): bottle>=0.11.6 in ./targetdir/lib/python2.7/site-packages (from devpi-server>=0.9.4)
-    Requirement already satisfied (use --upgrade to upgrade): setuptools in ./targetdir/lib/python2.7/site-packages (from supervisor)
-    Requirement already satisfied (use --upgrade to upgrade): meld3>=0.6.5 in ./targetdir/lib/python2.7/site-packages (from supervisor)
-    Cleaning up...
-    generating configuration
-    creating etc/ directory for supervisor configuration
-    wrote /home/hpk/p/devpi/doc/targetdir/etc/supervisord.conf
-    wrote /home/hpk/p/devpi/doc/targetdir/etc/nginx-devpi.conf
-    wrote /home/hpk/p/devpi/doc/targetdir/bin/devpi-ctl
-    wrote /home/hpk/p/devpi/doc/targetdir/bin/devpi-ctl
-    created and configured /home/hpk/p/devpi/doc/targetdir
-    You may now execute the following:
+    $ devpi-server --gendeploy=TARGETDIR --port 4040
+    creating virtualenv to /home/hpk/p/devpi/doc/TARGETDIR
+    installing devpi-server,supervisor,eventlet into virtualenv
+    wrote /home/hpk/p/devpi/doc/TARGETDIR/etc/supervisord.conf
+    wrote /home/hpk/p/devpi/doc/TARGETDIR/etc/nginx-devpi.conf
+    wrote /home/hpk/p/devpi/doc/TARGETDIR/bin/devpi-ctl
+    wrote /home/hpk/p/devpi/doc/TARGETDIR/etc/crontab
+    created and configured /home/hpk/p/devpi/doc/TARGETDIR
+    To control supervisor's deployment of devpi-server set:
     
-         alias devpi-ctl='/home/hpk/p/devpi/doc/targetdir/bin/devpi-ctl'
+        alias devpi-ctl='/home/hpk/p/devpi/doc/TARGETDIR/bin/devpi-ctl'
     
-    and then call:
+    and then start the server process:
     
         devpi-ctl start all
     
-    after which you can configure pip to always use the default
-    root/dev index which carries all pypi packages and the ones
-    you upload to it::
+    It seems you are using "cron", so we created a crontab file
+     which starts devpi-server at boot. With:
     
-        # content of $HOME/.pip/pip.conf
-        [global]
-        index-url = http://localhost:4041/root/dev/+simple/
+        crontab /home/hpk/p/devpi/doc/TARGETDIR/etc/crontab
     
-    and/or easy_install and some commands like "setup develop"::
+    you should be able to install the new crontab but please check it
+    first.
     
-        # content of $HOME/.pydistutils.cfg
-        [easy_install]
-        index_url = http://localhost:4041/root/dev/+simple/
+    We prepared an nginx configuration at:
     
-    
-    
-    As a bonus, we have prepared an nginx config at:
-    
-        /home/hpk/p/devpi/doc/targetdir/etc/nginx-devpi.conf
+        /home/hpk/p/devpi/doc/TARGETDIR/etc/nginx-devpi.conf
     
     which you might modify and copy to your /etc/nginx/sites-enabled
     directory.
     
-    may quick pypi installations be with you :)
+    may quick reliable pypi installations be with you :)
+
+We are now going through the generated instructions step by step.
+
+devpi-ctl: supervisor wrapper for devpi control
++++++++++++++++++++++++++++++++++++++++++++++++
 
 You can now use the ``devpi-ctl`` helper which is a transparent
 wrapper of the ``supervisorctl`` tool to make sure that the 
-supervisord contained in our ``targetdir`` virtualenv is running::
+supervisord contained in our ``targetdir`` virtualenv is running.
 
-    $ targetdir/bin/devpi-ctl status 
+Let's check the status of our new server::
 
-You could set an alias like this (in your ``.bashrc`` for permanence)::
+    $ TARGETDIR/bin/devpi-ctl status 
+    devpi-server                     STOPPED    Not started
+    restarted /home/hpk/p/devpi/doc/TARGETDIR/bin/supervisord
+    using supervisor config: /home/hpk/p/devpi/doc/TARGETDIR/etc/supervisord.conf
 
-    alias devpi-ctl=targetdir/bin/devpi-ctl
+And then start it::
 
-You now have a tool at your finger tips for controlling 
-devpi-server deployment::
+    $ TARGETDIR/bin/devpi-ctl start devpi-server
+    devpi-server: started
+    using supervisor config: /home/hpk/p/devpi/doc/TARGETDIR/etc/supervisord.conf
+
+Here are some further (wrapped supervisor) commands::
 
     devpi-ctl status    # look at status of devpi-server
 
@@ -120,204 +102,164 @@ devpi-server deployment::
 
     devpi-ctl start all # start devpi-server 
 
-    devpi-ctl tail devpi-server  # look at current logs
+    devpi-ctl tail [-f] devpi-server  # look at current logs
     
     devpi-ctl shutdown  # shutdown all processes including supervisor
 
     devpi-ctl status    # look at status of devpi processes
 
-You can now uninstall devpi-server from the environment where you
-issued ``--gendeploy`` because the ``targetdir`` environment is 
-self-contained and does not depend on the original installation::
+Now that we have our "gendeploy" instance running, we can
+uninstall devpi-server from the original environment::
 
-    $ pip uninstall devpi-server
+    $ pip uninstall -y devpi-server
+    Uninstalling devpi-server:
+      Successfully uninstalled devpi-server
 
-Lastly, if you want to have things running at system startup and you are using
-a standard cron, a modified copy of your user crontab has been amended which
-you may inspect and install with:
+.. _`configured nginx`:
 
-    $ crontab targetdir/etc/crontab
-    targetdir/etc/crontab: No such file or directory
+nginx as frontend
++++++++++++++++++
 
-If you persisted your :ref:`pip/easy_install 
-configuration <perminstallindex>`, you will now benefit
-from a permanently fast ``pip`` installation experience, including
-when on travel with your laptop.
+If you are using nginx_ you can take a look at the created
+nginx site config file::
 
-But wait, what if you want to install this on a server in your company?
-If you are using nginx_, you may::
-
-    modify and copy TARGETDIR/etc/nginx-devpi.conf to
-    /etc/nginx/sites-enabled/
-
-and serve your devpi-server deployment to the whole company
-under a nice looking url.
-
-If you look into the ``TARGETDIR/etc/supervisord.conf`` 
-and read up on supervisor, you can modify the configuration to your liking.
-If you prefer different schemes of deployment you may consider it 
-"executable" documentation.
-
-.. _`upgrading gendeploy`:
-
-using gendeploy when upgrading
-------------------------------
-
-If you want to upgrade your devpi-server deployment which you previously
-did using gendeploy_, you can proceed like this::
-
-    # we assume you are in some virtualenv (not the deployment one)
-    # and have created a devpi-ctl alias as advised
+    $ cat TARGETDIR/etc/nginx-devpi.conf
+    server {
+        server_name localhost;   
+        listen 80;
+        gzip             on;
+        gzip_min_length  2000;
+        gzip_proxied     any;
+        gzip_types       text/html application/json; 
     
-    pip install -U devpi-server  
-    devpi-ctl shutdown
-    devpi-server --gendeploy=TARGETDIR [--port=...] 
-    devpi-ctl start all 
+        root /home/hpk/p/devpi/doc/TARGETDIR/data;  # arbitrary for now
+        location / {
+            proxy_pass http://localhost:4040;
+            proxy_set_header  X-outside-url $scheme://$host;
+            proxy_set_header  X-Real-IP $remote_addr;
+        }   
+    } 
 
-Note that if you don't shutdown the supervisord, the ``--gendeploy``
-command is bound to fail.
+Apart from the ``server_name`` setting which you probably
+want to adjust, this is a ready-use nginx configuration file.
+The "X-outside-url" header dynamically tells the devpi-server
+instance under which outside url it is reachable.  This is particuarly
+needed when using the :ref:`jenkins integration` but might also
+be needed in other occassions in the future.
+
+crontab / start at bootup 
++++++++++++++++++++++++++
+
+Lastly, if you want to have things running at system startup and you are
+using a standard cron, a modified copy of your user crontab has been
+amended which you may inspect::
+
+    $ cat TARGETDIR/etc/crontab
+    @reboot /home/hpk/p/devpi/doc/TARGETDIR/bin/devpi-ctl start all
+
+and install with::
+
+    crontab TARGETDIR/etc/crontab
+
+If you look into the ``TARGETDIR/etc/supervisord.conf`` and read up on
+supervisor, you can modify the configuration to your liking.
 
 
 .. _auth:
 
-requiring authentication
-------------------------
+Initial user setup (on separate machine)
+------------------------------------------
 
-In order to configure authentication you need to install the
-``devpi`` command line client::
+In order to manage users and indices let's install the
+``devpi-client`` package::
 
-    pip install devpi-client
+    $ pip install --pre -U -q devpi-client
 
-By default the root password is empty and we can login::
+You can install this client software on different hosts.
 
-    $ devpi login root --password=
-    Traceback (most recent call last):
-      File "/home/hpk/bin/devpi", line 9, in <module>
-        load_entry_point('devpi-client==1.0rc2', 'console_scripts', 'devpi')()
-      File "/home/hpk/p/devpi/client/devpi/main.py", line 29, in main
-        return method(hub, hub.args)
-      File "/home/hpk/p/devpi/client/devpi/login.py", line 19, in main
-        data = hub.http_api("post", hub.current.login, data, quiet=False)
-      File "/home/hpk/p/devpi/client/devpi/main.py", line 113, in http_api
-        auth=auth)
-      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/requests/sessions.py", line 324, in request
-        prep = req.prepare()
-      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/requests/models.py", line 222, in prepare
-        p.prepare_url(self.url, self.params)
-      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/requests/models.py", line 291, in prepare_url
-        raise MissingSchema("Invalid URL %r: No schema supplied" % url)
-    requests.exceptions.MissingSchema: Invalid URL u'None': No schema supplied
+Connecting to the server
+++++++++++++++++++++++++++++++++++
 
-We can now change the password, for example to "123"::
+If you `configured nginx`_, you can use the ``server_name``
+of your nginx configuration for connecting to the server.
+For purposes of this tutorial, we use the direct
+``http://localhost:4040`` as configured above::
 
-    $ devpi user -m root password=123
-    Traceback (most recent call last):
-      File "/home/hpk/bin/devpi", line 9, in <module>
-        load_entry_point('devpi-client==1.0rc2', 'console_scripts', 'devpi')()
-      File "/home/hpk/p/devpi/client/devpi/main.py", line 29, in main
-        return method(hub, hub.args)
-      File "/home/hpk/p/devpi/client/devpi/user.py", line 47, in main
-        return user_modify(hub, username, kvdict)
-      File "/home/hpk/p/devpi/client/devpi/user.py", line 25, in user_modify
-        hub.http_api("patch", hub.current.get_user_url(user), kvdict)
-      File "/home/hpk/p/devpi/client/devpi/main.py", line 113, in http_api
-        auth=auth)
-      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/requests/sessions.py", line 324, in request
-        prep = req.prepare()
-      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/requests/models.py", line 222, in prepare
-        p.prepare_url(self.url, self.params)
-      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/requests/models.py", line 291, in prepare_url
-        raise MissingSchema("Invalid URL %r: No schema supplied" % url)
-    requests.exceptions.MissingSchema: Invalid URL u'root': No schema supplied
-
-At this point, only root will now be able to upload to ``root/dev`` or
-any other ``root/*`` indexes.  Let's check our current index::
-
-    $ devpi use
-    not using any server
+    $ devpi use http://localhost:4040
+    using server: http://localhost:4040/ (not logged in)
+    not using any index ('index -l' to discover, then 'use NAME' to use one)
     no current install venv set
 
-this shows we are logged in as root.
+At this point we have only a root user and a ``root/pypi``
+index (see :ref:`using root/pypi index <install first>`).
 
-Let's logoff::
+
+setting the root password
+++++++++++++++++++++++++++++++++++
+
+The first thing to do is to set a password for the ``root`` user.
+For that we first need to login::
+
+    $ devpi login root --password ""
+    logged in 'root', credentials valid for 10.00 hours
+
+and can then change it::
+
+    $ devpi user -m root password=123
+
+At this point we don't have any other users::
+
+    $ devpi user -l
+    root
+
+As we don't plan to work further with the root user, we can log off::
 
     $ devpi logoff
-    not logged in
+    login information deleted
 
-and then register ourselves a new user::
+Registering a new user
+++++++++++++++++++++++++++++++++
+
+Let's register ourselves a new user::
 
     $ devpi user -c alice password=456  email=alice@example.com
-    Traceback (most recent call last):
-      File "/home/hpk/bin/devpi", line 9, in <module>
-        load_entry_point('devpi-client==1.0rc2', 'console_scripts', 'devpi')()
-      File "/home/hpk/p/devpi/client/devpi/main.py", line 29, in main
-        return method(hub, hub.args)
-      File "/home/hpk/p/devpi/client/devpi/user.py", line 43, in main
-        return user_create(hub, username, kvdict)
-      File "/home/hpk/p/devpi/client/devpi/user.py", line 21, in user_create
-        res = hub.http_api("put", hub.current.get_user_url(user), kvdict)
-      File "/home/hpk/p/devpi/client/devpi/main.py", line 113, in http_api
-        auth=auth)
-      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/requests/sessions.py", line 324, in request
-        prep = req.prepare()
-      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/requests/models.py", line 222, in prepare
-        p.prepare_url(self.url, self.params)
-      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/requests/models.py", line 291, in prepare_url
-        raise MissingSchema("Invalid URL %r: No schema supplied" % url)
-    requests.exceptions.MissingSchema: Invalid URL u'alice': No schema supplied
+    user created: alice
 
-and login::
+and then login::
 
     $ devpi login alice --password=456
-    Traceback (most recent call last):
-      File "/home/hpk/bin/devpi", line 9, in <module>
-        load_entry_point('devpi-client==1.0rc2', 'console_scripts', 'devpi')()
-      File "/home/hpk/p/devpi/client/devpi/main.py", line 29, in main
-        return method(hub, hub.args)
-      File "/home/hpk/p/devpi/client/devpi/login.py", line 19, in main
-        data = hub.http_api("post", hub.current.login, data, quiet=False)
-      File "/home/hpk/p/devpi/client/devpi/main.py", line 113, in http_api
-        auth=auth)
-      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/requests/sessions.py", line 324, in request
-        prep = req.prepare()
-      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/requests/models.py", line 222, in prepare
-        p.prepare_url(self.url, self.params)
-      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/requests/models.py", line 291, in prepare_url
-        raise MissingSchema("Invalid URL %r: No schema supplied" % url)
-    requests.exceptions.MissingSchema: Invalid URL u'None': No schema supplied
+    logged in 'alice', credentials valid for 10.00 hours
 
 Alice can now create a new ``dev`` index::
 
     $ devpi index -c dev
-    Traceback (most recent call last):
-      File "/home/hpk/bin/devpi", line 9, in <module>
-        load_entry_point('devpi-client==1.0rc2', 'console_scripts', 'devpi')()
-      File "/home/hpk/p/devpi/client/devpi/main.py", line 29, in main
-        return method(hub, hub.args)
-      File "/home/hpk/p/devpi/client/devpi/index.py", line 76, in main
-        return index_create(hub, indexname, kvdict)
-      File "/home/hpk/p/devpi/client/devpi/index.py", line 13, in index_create
-        url = hub.current.get_index_url(indexname, slash=False)
-      File "/home/hpk/p/devpi/client/devpi/use.py", line 148, in get_index_url
-        userurl = self.get_user_url()
-      File "/home/hpk/p/devpi/client/devpi/use.py", line 139, in get_user_url
-        raise ValueError("no current authenticated user")
-    ValueError: no current authenticated user
+    dev:
+      type=stage
+      bases=root/pypi
+      volatile=True
+      uploadtrigger_jenkins=None
+      acl_upload=alice
 
 and use it::
 
     $ devpi use alice/dev
-    invalid URL: alice/dev/
+    using index: http://localhost:4040/alice/dev/ (logged in as alice)
+    no current install venv set
 
-Our ``alice/dev`` index derives from ``root/dev`` by default
-which in turn derives from ``root/pypi`` which mirrors and caches
-all pypi packages.
+Our ``alice/dev`` index derives from ``root/pypi`` by default
+which makes all pypi.python.org releases available.
 
-We can now use it to upload any ``setup.py`` project of ours::
+Installing, uploading, testing and releasing
++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    devpi upload
+You may now continue with install, test and release activities
+as described in the :ref:`release process quickstart <quickstart_release_steps>`.
 
-You can now visit with a Browser the index url shown by 
-``devpi use`` but note that the 
-:ref:`web UI is quite rough <projectstatus>` as of now.
+Stopping the server
+++++++++++++++++++++++++++++++++++++++++++
 
+Using devpi-ctl again we can stop the server eventually::
+
+    $ TARGETDIR/bin/devpi-ctl shutdown
+    Shut down
+    using supervisor config: /home/hpk/p/devpi/doc/TARGETDIR/etc/supervisord.conf

@@ -60,14 +60,13 @@ def gendeploycfg(config, venvdir, tw=None):
     cron = create_crontab(tw, etc, devpictl)
     tw.line("created and configured %s" % venvdir, bold=True)
     tw.line(py.std.textwrap.dedent("""\
-    You may now execute the following:
+    To control supervisor's deployment of devpi-server set:
 
-         alias devpi-ctl='%(devpictl)s'
+        alias devpi-ctl='%(devpictl)s'
 
-    and then call:
+    and then start the server process:
 
         devpi-ctl start all
-
     %(cron)s
     We prepared an nginx configuration at:
 
@@ -76,7 +75,8 @@ def gendeploycfg(config, venvdir, tw=None):
     which you might modify and copy to your /etc/nginx/sites-enabled
     directory.
     """) % locals())
-    tw.line("may quick pypi installations be with you :)", bold=True)
+    tw.line("may quick reliable pypi installations be with you :)",
+            green=True)
 
 
 def create_crontab(tw, etc, devpictl):
@@ -140,15 +140,15 @@ def gendeploy(config):
                 red=True)
         subproc(tw, [devpi_ctl, "shutdown", "all"])
         prefix = "re-"
-    tw.line("%sinstalling virtualenv to %s" % (prefix, target), bold=True)
+    tw.line("%screating virtualenv to %s" % (prefix, target), bold=True)
     try:
         del os.environ["PYTHONDONTWRITEBYTECODE"]
     except KeyError:
         pass
     subproc(tw, ["virtualenv", "-q", str(target)])
     pip = py.path.local.sysfind("pip", paths=[target.join("bin")])
-    tw.line("installing devpi-server/supervisor/eventlet into %s" %
-            target, bold=True)
+    tw.line("installing devpi-server,supervisor,eventlet into "
+            "virtualenv", bold=True)
     version = devpi_server.__version__
     subproc(tw, [pip, "install", "--pre", "-q",
                  "supervisor", "eventlet", "devpi-server>=%s" % version])

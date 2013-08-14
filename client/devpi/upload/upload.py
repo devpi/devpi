@@ -33,6 +33,7 @@ def main(hub, args):
     exported = checkout.export(uploadbase)
     hub.info("hg-exported project to", exported)
 
+    current = hub.require_valid_current_with_index()
     #set_new_version(hub, args, exported)
     if not hub.current.pypisubmit:
         hub.fatal("no pypisubmit endpoint available for: %s" %

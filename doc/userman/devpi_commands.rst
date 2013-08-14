@@ -1,7 +1,7 @@
 .. _label_userman_commandref:
 
-devpi command reference
-=======================
+devpi command reference (client)
+================================
 
 .. include:: ../links.rst
 
@@ -434,3 +434,14 @@ user
       --debug          show debug messages including more info on server requests
       -y               assume 'yes' on confirmation questions
       --clientdir DIR  directory for storing login and other state
+
+
+.. _`cmdref_devpi_server`:
+
+devpi command reference (server)
+================================
+
+::
+
+    $ devpi-server -h
+

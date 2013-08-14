@@ -7,7 +7,8 @@ Creating, configuring and using indices
 
 .. sidebar:: Summary
     
-    This chapter covers index manipulation such as creation, deletion and use.
+    This chapter covers index manipulation such as creation, deletion
+    and use.
     
     :Pre-requisite: You must have logged in to a devpi server 
                     (see :ref:`devpi_um_authentication_chapter` for details)

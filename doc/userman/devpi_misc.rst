@@ -10,6 +10,8 @@ Miscellaneous
     Placeholder for miscenallenous information such a debugging techniques, tricks, and perhaps FAQ. 
     
 
+.. _`jenkins integration`:
+
 configuring jenkins integration
 -------------------------------
 

@@ -13,7 +13,7 @@ Installing devpi client and server
 
 We want to run the full devpi system on our laptop::
 
-	pip install -U devpi
+	$ pip install --pre -U -q devpi
 
 This will install ``devpi-client`` and ``devpi-server`` pypi packages.
 
@@ -39,13 +39,12 @@ Let's just run the quickstart to read the instructive output::
     --> $ devpi-server --start
     starting background devpi-server at http://localhost:3141
     /home/hpk/p/devpi/doc/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server
-    process 'devpi-server' started pid=15057
+    process 'devpi-server' started pid=32177
     devpi-server process startup detected
     logfile is at /home/hpk/p/devpi/doc/.devpi/server/.xproc/devpi-server/xprocess.log
     --> $ devpi use http://localhost:3141
     using server: http://localhost:3141/ (not logged in)
     not using any index ('index -l' to discover, then 'use NAME' to use one)
-    no current install venv set
     
     --> $ devpi user -c testuser password=
     user created: testuser
@@ -63,7 +62,6 @@ Let's just run the quickstart to read the instructive output::
     
     --> $ devpi use dev
     using index: http://localhost:3141/testuser/dev/ (logged in as testuser)
-    no current install venv set
     COMPLETED!  you can now work with your 'dev' index
       devpi install PKG   # install a pkg from pypi
       devpi upload        # upload a setup.py based project
@@ -75,49 +73,41 @@ Let's just run the quickstart to read the instructive output::
       devpi -h            # general help
     docs at http://doc.devpi.net
 
+.. _`quickstart_release_steps`:
+
 devpi install: installing a package
 +++++++++++++++++++++++++++++++++++
 
-We can now use the ``devpi`` command line client to trigger a
-``pip install`` of a pypi package (here ``pytest`` as an example) through an
+We can now use the ``devpi`` command line client to trigger a ``pip
+install`` of a pypi package (here ``pytest`` as an example) through an
 auto-started caching devpi-server::
 
-    $ devpi install --venv=v1 pytest
-    --> $ virtualenv -q v1
-    --> $ v1/bin/pip install --pre -U -i http://localhost:3141/testuser/dev/+simple/ pytest
+    $ devpi install pytest
+    --> $ docenv/bin/pip install --pre -U -i http://localhost:3141/testuser/dev/+simple/ pytest
     Downloading/unpacking pytest
       Running setup.py egg_info for package pytest
         
-    Downloading/unpacking py>=1.4.13dev6 (from pytest)
-      Running setup.py egg_info for package py
-        
-    Installing collected packages: pytest, py
+    Requirement already up-to-date: py>=1.4.13dev6 in ./docenv/lib/python2.7/site-packages (from pytest)
+    Installing collected packages: pytest
       Running setup.py install for pytest
         
-        Installing py.test script to /home/hpk/p/devpi/doc/v1/bin
-        Installing py.test-2.7 script to /home/hpk/p/devpi/doc/v1/bin
-      Running setup.py install for py
-        
-    Successfully installed pytest py
+        Installing py.test script to /home/hpk/p/devpi/doc/docenv/bin
+        Installing py.test-2.7 script to /home/hpk/p/devpi/doc/docenv/bin
+    Successfully installed pytest
     Cleaning up...
 
-Here is what happened:
-
-- a virtualenv ``v1`` was created because of the ``--venv=v1`` option 
-  and the fact it it didn't exist yet (otherwise no creation would happen).
-
-- ``pip install`` was configured to use our ``testuser/dev`` index
-  which is an index which inherits pypi.python.org packages.
-  If we hadn't specified a virtualenv, ``pip`` would be discovered 
-  from the ``PATH``.
+The ``devpi install`` command configured a pip call, using the
+pypi-compatible ``+simple/`` page on our ``testuser/dev`` index for
+finding and downloading packages.  The ``pip`` executable was searched
+in the ``PATH`` and found in ``docenv/bin/pip``.
 
 Let's check that ``pytest`` was installed correctly::
 
-    $ v1/bin/py.test --version
-    This is py.test version 2.3.5, imported from /home/hpk/p/devpi/doc/v1/local/lib/python2.7/site-packages/pytest.pyc
+    $ py.test --version
+    This is py.test version 2.3.5, imported from /home/hpk/p/devpi/doc/docenv/local/lib/python2.7/site-packages/pytest.pyc
 
-You may invoke the ``devpi install`` command a second time which goes
-much faster and works offline.
+You may invoke the ``devpi install`` command a second time which will
+even work when you have no network.
 
 devpi upload: uploading one or more packages
 ++++++++++++++++++++++++++++++++++++++++++++
@@ -126,19 +116,18 @@ Let's verify we are logged in to the correct index::
 
     $ devpi use
     using index: http://localhost:3141/testuser/dev/ (logged in as testuser)
-    no current install venv set
 
 Now go to the directory of a ``setup.py`` file of one of your projects  
 (we assume it is named ``example``) to build and upload your package
 to our ``testuser/dev`` index::
 
     example $ devpi upload
-    created workdir /tmp/devpi1424
+    created workdir /tmp/devpi0
     --> $ hg st -nmac .
-    hg-exported project to <Exported /tmp/devpi1424/upload/example>
-    --> $ /home/hpk/p/devpi/doc/docenv/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi1424/upload/example http://localhost:3141/testuser/dev/ testuser testuser-0e66fdbff3a48197facd1da98e6e03eb83d912f33916e9c82ec35f865961bc41.BOvR_Q.ZTGnjWJRmjej8LclO4289bQC_ZA register -r devpi
+    hg-exported project to <Exported /tmp/devpi0/upload/example>
+    --> $ /home/hpk/p/devpi/doc/docenv/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi0/upload/example http://localhost:3141/testuser/dev/ testuser testuser-7b8bd510b94c6f01e1ba29cecc531595dd814145129b98c86005c47715aa8376.BO0e7A.Z4hhRbYfUlJFDwOR3QAGquvf5s4 register -r devpi
     release registered to http://localhost:3141/testuser/dev/
-    --> $ /home/hpk/p/devpi/doc/docenv/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi1424/upload/example http://localhost:3141/testuser/dev/ testuser testuser-0e66fdbff3a48197facd1da98e6e03eb83d912f33916e9c82ec35f865961bc41.BOvR_Q.ZTGnjWJRmjej8LclO4289bQC_ZA sdist --formats gztar upload -r devpi
+    --> $ /home/hpk/p/devpi/doc/docenv/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi0/upload/example http://localhost:3141/testuser/dev/ testuser testuser-7b8bd510b94c6f01e1ba29cecc531595dd814145129b98c86005c47715aa8376.BO0e7A.Z4hhRbYfUlJFDwOR3QAGquvf5s4 sdist --formats gztar upload -r devpi
     submitted dist/example-1.0.tar.gz to http://localhost:3141/testuser/dev/
 
 There are three triggered actions:
@@ -157,8 +146,8 @@ There are three triggered actions:
 
 We can now install the freshly uploaded package::
 
-    $ devpi install --venv=v1 example
-    --> $ v1/bin/pip install --pre -U -i http://localhost:3141/testuser/dev/+simple/ example
+    $ devpi install example
+    --> $ docenv/bin/pip install --pre -U -i http://localhost:3141/testuser/dev/+simple/ example
     Downloading/unpacking example
       Downloading example-1.0.tar.gz
       Running setup.py egg_info for package example
@@ -183,27 +172,26 @@ index where we previously uploaded the package.
 devpi test: testing an uploaded package
 +++++++++++++++++++++++++++++++++++++++
 
-If you have a package which uses tox_ for testing you may invoke::
+If you have a package which uses tox_ for testing you may now invoke::
 
     $ devpi test example  # package needs to contain tox.ini
     received http://localhost:3141/testuser/dev/example/1.0/example-1.0.tar.gz
-    verified md5 ok b010869494cadc72a70063ab7522d183
-    unpacking /tmp/devpi-test311/downloads/example-1.0.tar.gz to /tmp/devpi-test311
-    /tmp/devpi-test311/example-1.0$ /home/hpk/venv/0/bin/tox --installpkg /tmp/devpi-test311/downloads/example-1.0.tar.gz -i ALL=http://localhost:3141/testuser/dev/+simple/ --result-json /tmp/devpi-test311/toxreport.json -v
-    using tox.ini: /tmp/devpi-test311/example-1.0/tox.ini
-    using tox-1.6rc1 from /home/hpk/p/tox/tox/__init__.pyc
-    python create: /tmp/devpi-test311/example-1.0/.tox/python
-      /tmp/devpi-test311/example-1.0/.tox$ /home/hpk/venv/0/bin/python /home/hpk/venv/0/local/lib/python2.7/site-packages/virtualenv.py --setuptools --python /home/hpk/venv/0/bin/python python >/tmp/devpi-test311/example-1.0/.tox/python/log/python-0.log
+    unpacking /tmp/devpi-test0/downloads/example-1.0.tar.gz to /tmp/devpi-test0
+    /tmp/devpi-test0/example-1.0$ /home/hpk/venv/0/bin/tox --installpkg /tmp/devpi-test0/downloads/example-1.0.tar.gz -i ALL=http://localhost:3141/testuser/dev/+simple/ --result-json /tmp/devpi-test0/toxreport.json -v
+    using tox.ini: /tmp/devpi-test0/example-1.0/tox.ini
+    using tox-1.6rc2 from /home/hpk/p/tox/tox/__init__.pyc
+    python create: /tmp/devpi-test0/example-1.0/.tox/python
+      /tmp/devpi-test0/example-1.0/.tox$ /home/hpk/venv/0/bin/python /home/hpk/venv/0/local/lib/python2.7/site-packages/virtualenv.py --setuptools --python /home/hpk/venv/0/bin/python python >/tmp/devpi-test0/example-1.0/.tox/python/log/python-0.log
     python installdeps: pytest
-      /tmp/devpi-test311/example-1.0/.tox/python/log$ /tmp/devpi-test311/example-1.0/.tox/python/bin/pip install -i http://localhost:3141/testuser/dev/+simple/ pytest >/tmp/devpi-test311/example-1.0/.tox/python/log/python-1.log
-    python inst: /tmp/devpi-test311/downloads/example-1.0.tar.gz
-      /tmp/devpi-test311/example-1.0/.tox/python/log$ /tmp/devpi-test311/example-1.0/.tox/python/bin/pip install -i http://localhost:3141/testuser/dev/+simple/ /tmp/devpi-test311/downloads/example-1.0.tar.gz >/tmp/devpi-test311/example-1.0/.tox/python/log/python-2.log
+      /tmp/devpi-test0/example-1.0/.tox/python/log$ /tmp/devpi-test0/example-1.0/.tox/python/bin/pip install -i http://localhost:3141/testuser/dev/+simple/ pytest >/tmp/devpi-test0/example-1.0/.tox/python/log/python-1.log
+    python inst: /tmp/devpi-test0/downloads/example-1.0.tar.gz
+      /tmp/devpi-test0/example-1.0/.tox/python/log$ /tmp/devpi-test0/example-1.0/.tox/python/bin/pip install -i http://localhost:3141/testuser/dev/+simple/ /tmp/devpi-test0/downloads/example-1.0.tar.gz >/tmp/devpi-test0/example-1.0/.tox/python/log/python-2.log
     python runtests: commands[0] | py.test
-      /tmp/devpi-test311/example-1.0$ /tmp/devpi-test311/example-1.0/.tox/python/bin/py.test >/tmp/devpi-test311/example-1.0/.tox/python/log/python-3.log
+      /tmp/devpi-test0/example-1.0$ /tmp/devpi-test0/example-1.0/.tox/python/bin/py.test >/tmp/devpi-test0/example-1.0/.tox/python/log/python-3.log
     ___________________________________ summary ____________________________________
       python: commands succeeded
       congratulations :)
-    wrote json report at: /tmp/devpi-test311/toxreport.json
+    wrote json report at: /tmp/devpi-test0/toxreport.json
     posting tox result data to http://localhost:3141/+tests
     successfully posted tox result data
 
@@ -223,6 +211,7 @@ Here is what happened:
 We can verify that the test status was recorded via::
 
     $ devpi list example
+    list result: http://localhost:3141/testuser/dev/
     testuser/dev/example/1.0/example-1.0.tar.gz
       teta linux2 python 2.7.3 tests passed
 
@@ -246,37 +235,39 @@ We created a non-volatile index which means that one can not
 overwrite or delete release files. See :ref:`non_volatile_indexes` for more info
 on this setting.
 
-We can now push the ``example-1.0.tar.gz`` from above above to
+We can now push the ``example-1.0.tar.gz`` from above to
 our ``staging`` index::
 
     $ devpi push example-1.0 testuser/staging
     200 register example 1.0 -> testuser/staging
     200 store_releasefile example-1.0.tar.gz -> testuser/staging
 
-This will determine all files belonging to the specified ``example-1.0``
-release and copy them to the ``testuser/staging`` index. 
-
+This will determine all files on our ``testuser/dev`` index belonging to
+the specified ``example-1.0`` release and copy them to the
+``testuser/staging`` index. 
 
 devpi push: releasing to an external index
 ++++++++++++++++++++++++++++++++++++++++++
 
-we are at::
+Let's check again our our current index::
 
     $ devpi use
     using index: http://localhost:3141/testuser/dev/ (logged in as testuser)
-    no current install venv set
 
 Let's now use our ``testuser/staging`` index::
 
     $ devpi use testuser/staging
     using index: http://localhost:3141/testuser/staging/ (logged in as testuser)
-    no current install venv set
 
-and check the test status again::
+and check the test result status again::
 
     $ devpi list example
+    list result: http://localhost:3141/testuser/staging/
     testuser/staging/example/1.0/example-1.0.tar.gz
       teta linux2 python 2.7.3 tests passed
+
+Good, the test result status is still available after the push
+from the last step.
 
 We may now decide to push this release to an external
 pypi-style index which we have configured in the ``.pypirc`` file::
@@ -297,7 +288,8 @@ index inheritance re-configuration
 At this point we have the ``example-1.0`` release and release file
 on both the ``testuser/dev`` and ``testuser/staging`` indices.
 If we rather want to always use staging packages in our development
-index, we can reconfigure the inheritance ``bases`` for ``testuser/dev``::
+index, we can reconfigure the inheritance 
+``bases`` for ``testuser/dev``::
 
     $ devpi index testuser/dev bases=testuser/staging
     testuser/dev changing bases: testuser/staging
@@ -312,11 +304,11 @@ If we now switch back to using ``testuser/dev``::
 
     $ devpi use testuser/dev
     using index: http://localhost:3141/testuser/dev/ (logged in as testuser)
-    no current install venv set
 
 and look at our example release files::
 
     $ devpi list example
+    list result: http://localhost:3141/testuser/dev/
     testuser/dev/example/1.0/example-1.0.tar.gz
       teta linux2 python 2.7.3 tests passed
     testuser/staging/example/1.0/example-1.0.tar.gz
@@ -330,12 +322,13 @@ indices.  Let's remove the ``testuser/dev`` ``example`` release::
        testuser/dev/example/1.0/example-1.0.tar.gz
     Are you sure (yes/no)? yes (autoset from -y option)
 
-If don't specify the ``-y`` option you will be asked to confirm
+If you don't specify the ``-y`` option you will be asked to confirm
 the delete operation interactively.
 
 The ``example-1.0`` release remains accessible through ``testuser/dev``
 because it inherits all releases from its ``testuser/staging`` base::
 
     $ devpi list example
+    list result: http://localhost:3141/testuser/dev/
     testuser/staging/example/1.0/example-1.0.tar.gz
       teta linux2 python 2.7.3 tests passed

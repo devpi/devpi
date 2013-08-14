@@ -218,9 +218,9 @@ def main(hub, args=None):
     else:
         hub.error("not using any server")
     if current.venvdir:
-        hub.info("install venv: %s" % current.venvdir)
-    else:
-        hub.line("no current install venv set")
+        hub.info("venv for install command: %s" % current.venvdir)
+    #else:
+    #    hub.line("no current install venv set")
 
 
 

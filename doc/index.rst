@@ -37,6 +37,11 @@ release activities with Python.  Main features and usage scenarios:
 
 To learn more, checkout our quickstart and other docs.
 
+.. _label_quickstart_section:
+
+Tutorials and Documentation
+-----------------------------------------
+
 .. toctree::
    :maxdepth: 1
 

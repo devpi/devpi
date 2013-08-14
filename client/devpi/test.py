@@ -52,7 +52,7 @@ class DevIndex:
             md5 = hashlib.md5()
             md5.update(content)
             assert md5.hexdigest() == link.md5
-            self.hub.info("verified md5 ok", link.md5)
+            #self.hub.info("verified md5 ok", link.md5)
         path_archive = self.dir_download.join(link.basename)
         with path_archive.open("wb") as f:
             f.write(content)

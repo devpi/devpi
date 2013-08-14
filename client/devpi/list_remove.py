@@ -109,9 +109,10 @@ def show_commands(hub, commands):
         hub.info("    OK:  %s" % shellcommand)
 
 def main_list(hub, args):
-    current = hub.current
+    current = hub.require_valid_current_with_index()
     args = hub.args
 
+    hub.info("list result: %s" % hub.current.index)
     if not args.spec:
         data = getjson(hub, None)
         out_index(hub, data["result"])
@@ -120,7 +121,7 @@ def main_list(hub, args):
         out_project(hub, data["result"], args.spec)
 
 def main_remove(hub, args):
-    current = hub.current
+    current = hub.require_valid_current_with_index()
     args = hub.args
 
     name, ver, suffix = verutil.splitbasename(args.spec)
