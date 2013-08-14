@@ -48,6 +48,8 @@ def get_indexconfig_reply(hub, indexname, ok404=False):
                 %(indexname, res.status_code, res.reason))
 
 def index_show(hub, indexname):
+    if not indexname:
+        hub.fatal("no index specified and no index in use")
     ixconfig = get_indexconfig_reply(hub, indexname, ok404=False)
     hub.info(indexname + ":")
     hub.line("  type=%s" % ixconfig["type"])
@@ -78,6 +80,7 @@ def main(hub, args):
         indexname = hub.current.index
     if not indexname:
         indexname = hub.current.index
+
     kvdict = parse_keyvalue_spec_index(hub, keyvalues)
     if args.list:
         return index_list(hub, indexname)

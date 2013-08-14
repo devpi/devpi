@@ -9,6 +9,9 @@
   This allows to alias "devpi" to come from a virtualenv which is separate from
   the one used to perform packaging.
 
+- fix issue35: "devpi index" cleanly errors out if no index is
+  specified or in use.
+
 - remember authentication on a per-root basis and cleanup "devpi use"
   interactions.  This makes switching between multiple devpi instances
   more seemless.
