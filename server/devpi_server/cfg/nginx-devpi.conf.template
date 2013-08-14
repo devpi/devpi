@@ -1,9 +1,6 @@
 server {
-    # substitute with your servername or add devpi.localhost to
-    # /etc/hosts in a line similar to this:
-    # 127.0.0.1 localhost devpi.localhost
-    server_name devpi.localhost;
-    listen 80;
+    server_name %(outside_host)s;   
+    listen %(outside_port)s;
     gzip             on;
     gzip_min_length  2000;
     gzip_proxied     any;

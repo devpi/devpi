@@ -76,11 +76,24 @@ def bottle_run(xom):
     if "WEBTRACE" in os.environ and xom.config.args.debug:
         from weberror.evalexception import make_eval_exception
         app = make_eval_exception(app, {})
-    ret = bottle.run(app=app, server=xom.config.args.bottleserver,
+    bottleserver = get_bottle_server(xom.config.args.bottleserver)
+    log.info("bottleserver type: %s" % bottleserver)
+    ret = bottle.run(app=app, server=bottleserver,
                   host=xom.config.args.host,
                   reloader=False, port=port)
     xom.shutdown()
     return ret
+
+def get_bottle_server(opt):
+    if opt == "auto":
+        try:
+            import eventlet
+        except ImportError:
+            log.debug("could not import 'eventlet'")
+            opt = "wsgiref"
+        else:
+            opt = "eventlet"
+    return opt
 
 def add_keys(keyfs):
     # users and index configuration

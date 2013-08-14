@@ -607,9 +607,11 @@ def test_get_outside_url():
     assert url == "http://outside.com/"
     url = get_outside_url({"X-outside-url": "http://outside.com"},
                           "http://outside2.com")
-    assert url == "http://outside2.com/"
+    assert url == "http://outside.com/"
     url = get_outside_url({"Host": "outside3.com"}, None)
     assert url == "http://outside3.com/"
+    url = get_outside_url({"Host": "outside3.com"}, "http://out.com")
+    assert url == "http://out.com/"
 
 class Test_getjson:
     @pytest.fixture

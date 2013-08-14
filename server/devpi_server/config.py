@@ -67,8 +67,9 @@ def addoptions(parser):
                  "is generated on start up and used subsequently. ")
 
     group.addoption("--bottleserver", metavar="TYPE",
-            default="wsgiref",
-            help="bottle server class, you may try eventlet or others")
+            default="auto",
+            help="bottle server class, tries 'eventlet', "
+                 "then 'wsgiref'  if set to 'auto' (default)")
 
     group.addoption("--debug", action="store_true",
             help="run wsgi application with debug logging")

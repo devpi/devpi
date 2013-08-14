@@ -3,6 +3,7 @@ import py
 import sys
 import os
 import subprocess
+from devpi_server import urlutil
 
 from devpi_server.config import render, getpath
 import devpi_server
@@ -17,17 +18,45 @@ def gendeploycfg(config, venvdir, tw=None):
 
     #tw.line("creating etc/ directory for supervisor configuration", bold=True)
     etc = venvdir.ensure("etc", dir=1)
-    httpport = config.args.port + 1
-    serverdir = venvdir.ensure("data", dir=1)
+    orig_args = list(config.args._raw)
+
+    # filter out --gendeploy option
+    for i, val in enumerate(orig_args):
+        if val.startswith("--gendeploy="):
+            del orig_args[i]
+            break
+        elif val == "--gendeploy":
+            del orig_args[i:i+2]
+            break
+
+    if not config.args.serverdir:  # default
+        serverdir = venvdir.ensure("data", dir=1)
+    else:
+        serverdir = config.serverdir
+    orig_args.extend(["--serverdir", str(serverdir)])
+
     logdir = venvdir.ensure("log", dir=1)
 
     render(tw, etc, "supervisord.conf", venvdir=venvdir,
-           devpiport=httpport,
-           logdir=logdir, serverdir=serverdir)
-    nginxconf = render(tw, etc, "nginx-devpi.conf", format=1, port=httpport,
+           server_args=subprocess.list2cmdline(orig_args),
+           logdir=logdir)
+    outside_url = config.args.outside_url
+    if outside_url is None: # default
+        outside_host = "localhost"
+        outside_port = 80
+    else:
+        parsed = urlutil.urlparse(outside_url)
+        parts = list(parsed.netloc.split(":"))
+        if len(parts) < 2:
+            parts.append(80)
+        outside_host, outside_port = parts
+
+    nginxconf = render(tw, etc, "nginx-devpi.conf", format=1,
+                       outside_host=outside_host,
+                       outside_port=outside_port,
+                       port=config.args.port,
                        serverdir=serverdir)
-    indexurl = "http://localhost:%s/root/dev/+simple/" % httpport
-    devpictl = create_devpictl(tw, venvdir, httpport)
+    devpictl = create_devpictl(tw, venvdir)
     cron = create_crontab(tw, etc, devpictl)
     tw.line("created and configured %s" % venvdir, bold=True)
     tw.line(py.std.textwrap.dedent("""\
@@ -39,23 +68,8 @@ def gendeploycfg(config, venvdir, tw=None):
 
         devpi-ctl start all
 
-    after which you can configure pip to always use the default
-    root/dev index which carries all pypi packages and the ones
-    you upload to it::
-
-        # content of $HOME/.pip/pip.conf
-        [global]
-        index-url = %(indexurl)s
-
-    and/or easy_install and some commands like "setup develop"::
-
-        # content of $HOME/.pydistutils.cfg
-        [easy_install]
-        index_url = %(indexurl)s
-
-
     %(cron)s
-    As a bonus, we have prepared an nginx config at:
+    We prepared an nginx configuration at:
 
         %(nginxconf)s
 
@@ -94,7 +108,7 @@ def create_crontab(tw, etc, devpictl):
     """ % (based, crontabpath))
 
 
-def create_devpictl(tw, tmpdir, httpport):
+def create_devpictl(tw, tmpdir):
     devpiserver = tmpdir.join("bin", "devpi-server")
     if not devpiserver.check():
         tw.line("created fake devpictl", red=True)
@@ -104,7 +118,7 @@ def create_devpictl(tw, tmpdir, httpport):
     devpictlpy = py.path.local(__file__).dirpath("ctl.py").read()
     devpictl = render(tw, devpiserver.dirpath(), "devpi-ctl",
                       firstline=firstline,
-                      httpport=httpport, devpictlpy=devpictlpy)
+                      devpictlpy=devpictlpy)
     s = py.std.stat
     setmode = s.S_IXUSR  # | s.S_IXGRP | s.S_IXOTH
     devpictl.chmod(devpictl.stat().mode | setmode)
@@ -133,11 +147,11 @@ def gendeploy(config):
         pass
     subproc(tw, ["virtualenv", "-q", str(target)])
     pip = py.path.local.sysfind("pip", paths=[target.join("bin")])
-    tw.line("installing devpi-server and supervisor", bold=True)
+    tw.line("installing devpi-server/supervisor/eventlet into %s" %
+            target, bold=True)
     version = devpi_server.__version__
     subproc(tw, [pip, "install", "--pre", "-q",
                  "supervisor", "eventlet", "devpi-server>=%s" % version])
-    tw.line("generating configuration")
     gendeploycfg(config, target, tw=tw)
 
 def subproc(tw, args):

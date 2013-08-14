@@ -710,11 +710,11 @@ def getjson(request, allowed_keys=None):
     return dict
 
 def get_outside_url(headers, outsideurl):
-    if outsideurl:
-        url = outsideurl
-    else:
-        url = headers.get("X-outside-url", None)
-        if url is None:
+    url = headers.get("X-outside-url", None)
+    if url is None:
+        if outsideurl:
+            url = outsideurl
+        else:
             url = "http://" + headers.get("Host")
     url = url.rstrip("/") + "/"
     log.debug("host header: %s", url)

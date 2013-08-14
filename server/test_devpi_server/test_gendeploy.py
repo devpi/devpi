@@ -12,22 +12,27 @@ from devpi_server import gendeploy
 pytestmark = pytest.mark.skipif("sys.platform == 'win32'")
 
 
-def test_gendeploycfg(tmpdir, monkeypatch):
+@pytest.mark.parametrize("opt", [["--gendeploy=xyz"],
+                                 ["--gendeploy", "xyz"]])
+def test_gendeploycfg(tmpdir, monkeypatch, opt):
     monkeypatch.setattr(gendeploy, "create_crontab", lambda x, y, z: "")
-    config = parseoptions(["x", "--port=3200",
-                           "--serverdir=%s" % tmpdir])
+    config = parseoptions(["x"] + opt +
+        ["--port=3200", "--serverdir=%s" % tmpdir])
     gendeploy.gendeploycfg(config, tmpdir)
     assert tmpdir.check()
     sup = tmpdir.join("etc/supervisord.conf").read()
     nginx = tmpdir.join("etc/nginx-devpi.conf").read()
-    assert "--port=3201" in sup
-    assert "proxy_pass http://localhost:3201" in nginx
+    assert "--port=3200" in sup
+    assert "--gendeploy" not in sup
+    assert "xyz" not in sup
+    assert "proxy_pass http://localhost:3200" in nginx
+
 
 def test_create_devpictl(tmpdir):
     tw = py.io.TerminalWriter()
     devpiserver = tmpdir.ensure("bin", "devpi-server")
     devpiserver.write("FIRST LINE\n")
-    devpictl = gendeploy.create_devpictl(tw, tmpdir, httpport=18)
+    devpictl = gendeploy.create_devpictl(tw, tmpdir)
     assert devpictl.check()
     assert devpictl.stat().mode & py.std.stat.S_IXUSR
     firstline = devpictl.readlines(cr=0)[0]
