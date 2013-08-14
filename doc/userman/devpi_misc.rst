@@ -121,7 +121,7 @@ If you have a directory with existing package files::
     devpi upload --from-dir PATH/TO/DIR
 
 will recursively collect all archives files, register
-and upload them to our local ``root/dev`` pypi index.
+and upload them to our local ``testuser/dev`` pypi index.
 
 Using plain ``setup.py`` for uploading
 --------------------------------------
@@ -152,7 +152,7 @@ If you now use ``testuser/dev`` for installation like this::
     pip install -i http://localhost:3141/testuser/dev/+simple/ PKGNAME
 
 You will install your package including any pypi-dependencies 
-it might need, because the ``root/dev`` index inherits all
+it might need, because the ``testuser/dev`` index inherits all
 packages from the pypi-mirroring ``root/pypi`` index.
 
 .. note::
