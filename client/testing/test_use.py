@@ -145,11 +145,12 @@ class TestUnit:
 
         hub = cmd_devpi("use", "http://world/")
         mock_http_api.set("http://world/", 200, result=dict(
-            user1=dict(indexes={"dev": {"bases": ["x"]}})
+            user1=dict(indexes={"dev": {"bases": ["x"],
+                "volatile": False}})
         ))
         out = out_devpi("use", "-l")
         out.stdout.fnmatch_lines("""
-            user1/dev*x*
+            user1/dev*x*False*
         """)
 
     def test_main_venvsetting(self, out_devpi, cmd_devpi, tmpdir, monkeypatch):

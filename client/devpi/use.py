@@ -162,8 +162,10 @@ def out_index_list(hub, data):
     for user in data:
         indexes = data[user].get("indexes", [])
         for index, ixconfig in indexes.items():
-            hub.info("%s/%s: bases=%s" %(user, index,
-                     ",".join(ixconfig.get("bases", []))))
+            ixname = "%s/%s" % (user, index)
+            hub.info("%-15s bases=%-15s volatile=%s" %(ixname,
+                     ",".join(ixconfig.get("bases", [])),
+                     ixconfig["volatile"]))
     return
 
 def getvenv():
@@ -226,7 +228,7 @@ def main(hub, args=None):
                 hub.info("using index: %s (%s)" % (current.index, login_status))
         elif current.rooturl:
             hub.info("using server: %s (%s)" % (current.rooturl, login_status))
-            hub.line("no current index: type 'devpi use -l' "
+            hub.error("no current index: type 'devpi use -l' "
                       "to discover indices")
     else:
         hub.line("no server: type 'devpi use URL' with a URL "
