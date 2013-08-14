@@ -418,6 +418,8 @@ def use(parser):
              "specify '-' to unset it.")
     parser.add_argument("--urls", action="store_true",
         help="show remote endpoint urls")
+    parser.add_argument("-l", action="store_true", dest="list",
+        help="show all available indexes at the remote server")
     parser.add_argument("--delete", action="store_true",
         help="delete current association with server")
     parser.add_argument("url", nargs="?",

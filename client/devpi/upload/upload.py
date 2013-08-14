@@ -21,6 +21,7 @@ def main(hub, args):
     # so we need to monkeypatch distutils in the setup.py process
 
     #newest_version = hub.remoteindex.getnewestversion(
+    current = hub.require_valid_current_with_index()
 
     if args.fromdir:
         return main_fromdir(hub, args)
@@ -33,7 +34,6 @@ def main(hub, args):
     exported = checkout.export(uploadbase)
     hub.info("hg-exported project to", exported)
 
-    current = hub.require_valid_current_with_index()
     #set_new_version(hub, args, exported)
     if not hub.current.pypisubmit:
         hub.fatal("no pypisubmit endpoint available for: %s" %

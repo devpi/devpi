@@ -132,6 +132,26 @@ class TestUnit:
         #hub = cmd_devpi("use", "--delete")
         #assert not hub.current.exists()
 
+    def test_main_list(self, out_devpi, cmd_devpi, mock_http_api):
+        mock_http_api.set("http://world/+api", 200,
+                    result=dict(
+                        pypisubmit="",
+                        simpleindex="",
+                        resultlog="/resultlog/",
+                        index="",
+                        bases="",
+                        login="/+login/",
+                   ))
+
+        hub = cmd_devpi("use", "http://world/")
+        mock_http_api.set("http://world/", 200, result=dict(
+            user1=dict(indexes={"dev": {"bases": ["x"]}})
+        ))
+        out = out_devpi("use", "-l")
+        out.stdout.fnmatch_lines("""
+            user1/dev*x*
+        """)
+
     def test_main_venvsetting(self, out_devpi, cmd_devpi, tmpdir, monkeypatch):
         from devpi.use import vbin
         venvdir = tmpdir

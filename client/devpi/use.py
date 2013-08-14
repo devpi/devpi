@@ -158,6 +158,13 @@ class Current(object):
         url = urlutil.joinpath(baseurl, name) + "/"
         return url
 
+def out_index_list(hub, data):
+    for user in data:
+        indexes = data[user].get("indexes", [])
+        for index, ixconfig in indexes.items():
+            hub.info("%s/%s: bases=%s" %(user, index,
+                     ",".join(ixconfig.get("bases", []))))
+    return
 
 def getvenv():
     pip = py.path.local.sysfind("pip")
@@ -196,6 +203,12 @@ def main(hub, args=None):
             current.reconfigure(dict(venvdir=cand.dirpath().strpath))
         else:
             current.reconfigure(dict(venvdir=None))
+    if args.list:
+        if not hub.current.rooturl:
+            hub.fatal("not connected to any server")
+        r = hub.http_api("GET", hub.current.rooturl, {}, quiet=True)
+        out_index_list(hub, r["result"])
+        return 0
 
     showurls = args.urls or args.debug
 
@@ -213,10 +226,11 @@ def main(hub, args=None):
                 hub.info("using index: %s (%s)" % (current.index, login_status))
         elif current.rooturl:
             hub.info("using server: %s (%s)" % (current.rooturl, login_status))
-            hub.error("not using any index ('index -l' to discover, then "
-                      "'use NAME' to use one)")
+            hub.line("no current index: type 'devpi use -l' "
+                      "to discover indices")
     else:
-        hub.error("not using any server")
+        hub.line("no server: type 'devpi use URL' with a URL "
+                 "pointing to a server or directly to an index.")
     if current.venvdir:
         hub.info("venv for install command: %s" % current.venvdir)
     #else:
