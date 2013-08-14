@@ -66,12 +66,12 @@ By default, the server has one :term:`index` only:
 Access Control
 --------------
 
-dfd      
+To be documented     
 
 The Devpi Client
 ----------------
 
-dfdsf
+To be documented
 
 .. _label_userman_indices_section:
 
@@ -190,6 +190,13 @@ bases.
 
 **Non volatile indexes** should be used as common package repositories between 
 user, either for staging or production.
+
+.. _um_concept_server_end_points:
+
+Server End Points
+-----------------
+
+
    
 
 .. rubric:: Footnotes

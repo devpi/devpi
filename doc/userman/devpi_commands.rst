@@ -1,7 +1,7 @@
 .. _label_userman_commandref:
 
 devpi command reference
-============================
+=======================
 
 .. include:: ../links.rst
 
@@ -15,6 +15,7 @@ getjson
 -------
 
 ::
+
     $ devpi getjson -h
     usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi getjson
            [-h] [--version] [--debug] [-y] [--clientdir DIR] path
@@ -42,6 +43,7 @@ index
 -----
 
 ::
+
     $ devpi index -h
     usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi index
            [-h] [--version] [--debug] [-y] [--clientdir DIR] [-c | --delete | -l]
@@ -77,6 +79,7 @@ install
 -------
 
 ::
+
     $ devpi install -h
     usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi install
            [-h] [--version] [--debug] [-y] [--clientdir DIR] [-l] [-e ARG]
@@ -109,6 +112,7 @@ list
 ----
 
 ::
+
     $ devpi list -h
     usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi list
            [-h] [--version] [--debug] [-y] [--clientdir DIR] [-f] [spec]
@@ -138,6 +142,7 @@ login
 -----
 
 ::
+
     $ devpi login -h
     usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi login
            [-h] [--version] [--debug] [-y] [--clientdir DIR] [--password PASSWORD]
@@ -168,6 +173,7 @@ logoff
 ------
 
 ::
+
     $ devpi logoff -h
     usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi logoff
            [-h] [--version] [--debug] [-y] [--clientdir DIR]
@@ -190,6 +196,7 @@ push
 ----
 
 ::
+
     $ devpi push -h
     usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi push
            [-h] [--version] [--debug] [-y] [--clientdir DIR] [--pypirc path]
@@ -225,6 +232,7 @@ quickstart
 ----------
 
 ::
+
     $ devpi quickstart -h
     usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi quickstart
            [-h] [--version] [--debug] [-y] [--clientdir DIR] [--user USER]
@@ -253,6 +261,7 @@ remove
 ------
 
 ::
+
     $ devpi remove -h
     usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi remove
            [-h] [--version] [--debug] [-y] [--clientdir DIR] spec
@@ -281,6 +290,7 @@ test
 ----
 
 ::
+
     $ devpi test -h
     usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi test
            [-h] [--version] [--debug] [-y] [--clientdir DIR] [-e VENV] pkgspec
@@ -308,6 +318,7 @@ upload
 ------
 
 ::
+
     $ devpi upload -h
     usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi upload
            [-h] [--version] [--debug] [-y] [--clientdir DIR] [--ver SETVERSION]
@@ -346,6 +357,7 @@ use
 ---
 
 ::
+
     $ devpi use -h
     usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi use
            [-h] [--version] [--debug] [-y] [--clientdir DIR] [--venv VENV]
@@ -353,9 +365,9 @@ use
            [url]
     
     show/configure current index and target venv for install activities. This
-    shows client-side state, relevant for server interactions, including login
-    authentication information, the current remote index (and API endpoints if you
-    specify --urls) and the target virtualenv for installation activities.
+    shows client-side state, relevant for devpi-server interactions, including
+    login authentication information, the current remote index (and API endpoints
+    if you specify --urls) and the target virtualenv for installation activities.
     
     positional arguments:
       url              set current API endpoints to the ones obtained from the
@@ -383,6 +395,7 @@ user
 ----
 
 ::
+
     $ devpi user -h
     usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi user
            [-h] [--version] [--debug] [-y] [--clientdir DIR] [-c] [--delete] [-m]

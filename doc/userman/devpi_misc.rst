@@ -11,9 +11,7 @@ Miscellaneous
     
 
 configuring jenkins integration
-------------------------------------
-
-.. include:: links.rst
+-------------------------------
 
 devpi-server can trigger Jenkins to test uploaded packages using tox_.
 This needs configuration on two sides:
@@ -23,7 +21,7 @@ This needs configuration on two sides:
 - Jenkins: adding one or more jobs which can get triggered
 
 Configuring a devpi index to trigger Jenkins
-++++++++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++
 
 Here is a example command, using the default ``/testuser/dev`` index 
 and a Jenkins server at http://localhost:8080::
@@ -47,7 +45,7 @@ Note that uploading a package will succeed independently if a build job could
 be submitted successfully to Jenkins.
 
 Configuring Jenkins job(s)
-++++++++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++
 
 On the Jenkins side, you need to configure one or more jobs which can
 be triggered by devpi-server.  Each job is configured in the same way:
@@ -80,7 +78,7 @@ after the upload successfully returns.
 
 
 Behind the scenes
-++++++++++++++++++++++++++++
++++++++++++++++++
 
 Once you triggered a job from devpi, you can checkout the ``jobscript.py``
 in the Jenkins workspace to see what was injected.  The injected 
@@ -100,7 +98,7 @@ script roughly follows these steps:
 
 
 uploading sphinx docs
----------------------------------
+---------------------
 
 If you have sphinx-based docs you can upload them as well::
 
@@ -114,7 +112,7 @@ this command::
 
 
 bulk uploading release files
---------------------------------------
+----------------------------
 
 If you have a directory with existing package files::
 
@@ -124,7 +122,7 @@ will recursively collect all archives files, register
 and upload them to our local ``root/dev`` pypi index.
 
 Using plain ``setup.py`` for uploading
-----------------------------------------
+--------------------------------------
 
 then you need to perform a few configurations.  First
 you need to register a new index server entry in your 

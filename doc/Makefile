@@ -16,25 +16,26 @@ ALLSPHINXOPTS   = -d $(BUILDDIR)/doctrees $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 I18NSPHINXOPTS  = $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 
 # This variable is not auto generated as the order is important.
-USER_MAN_FILES = userman/devpi_commands.rst\
-                 userman/devpi_user.rst\
-                 userman/devpi_packages.rst\
-                 userman/devpi_indices.rst\
-                 userman/index.rst\
-                 userman/devpi_misc.rst\
-                 userman/devpi_concepts.rst\
-                                  
-export DEVPI_CLIENTDIR=$(CURDIR)/.devpi/um_client
-export DEVPI_SERVERDIR=$(CURDIR)/.devpi/um_server
+USER_MAN_CHAPTERS = commands\
+                    user\
+                    indices\
+#                 userman/devpi_packages.rst\
+#                 userman/index.rst\
+#                 userman/devpi_misc.rst\
+#                 userman/devpi_concepts.rst\
+          
+                                 
+export DEVPI_CLIENTDIR=$(CURDIR)/.tmp_devpi_user_man/client
+export DEVPI_SERVERDIR=$(CURDIR)/.tmp_devpi_user_man/server
 
-file = userman/devpi_commands.rst
+chapter = commands
 
 .PHONY: help clean html dirhtml singlehtml pickle json htmlhelp qthelp devhelp \
         epub latex latexpdf text man changes linkcheck doctest gettext install \
         quickstart-releaseprocess quickstart-pypimirror quickstart-company regen \
         prepare-quickstart\
-        regen_fresh regen_start regen.uman-all regen.file regen.uman-clean\
-        $(USER_MAN_FILES) 
+        regen.server-fresh regen.server-restart regen.server-clean\
+        regen.uman-all regen.uman
 
 help:
 	@echo "Please use \`make <target>' where <target> is one of"
@@ -59,9 +60,10 @@ help:
 	@echo "  doctest    to run all doctests embedded in the documentation (if enabled)"
 	@echo 
 	@echo "User Manual Regen Targets"
-	@echo "  regen.uman        regenerates page. of the user manual chapeter e.g. regen.uman file=..."
+	@echo "  regen.uman        regenerates page. of the user manual chapeter e.g. regen.uman chapter=..."
 	@echo "  regen.uman-all    regenerates the user manual"
 	@echo "  regen.uman-clean  stop temp server and clean up directory"
+	@echo "  Chapter List: $(USER_MAN_CHAPTERS)"
 
 clean:
 	-rm -rf $(BUILDDIR)/*
@@ -185,6 +187,7 @@ doctest:
 	@echo "Testing of doctests in the sources finished, look at the " \
 	      "results in $(BUILDDIR)/doctest/output.txt."
 
+
 regen: quickstart-pypimirror quickstart-releaseprocess quickstart-company
 
 quickstart-pypimirror:
@@ -201,24 +204,26 @@ quickstart-company:
 # USER MANUAL TARGETS
  
 
-$(USER_MAN_FILES) :
+$(USER_MAN_CHAPTERS):
 	@echo Regenerating $@
-	USER=testuser python regendoc.py --update $@
+	USER=testuser python regendoc.py --update userman/devpi_$@.rst
 
-regen_fresh: regen.uman-clean
-	devpi-server --start
+regen.server-fresh: regen.server-clean
+	devpi server --start
     
-regen_server_start:	
-	- devpi-server --stop	
-	devpi-server --start
+regen.server-restart:	
+	-devpi server --stop	
+	devpi server --start
+
+regen.server-clean:
+	@echo stopping server
+	-devpi server --stop
+	@echo deleting $(DEVPI_CLIENTDIR) $(DEVPI_SERVERDIR)
+	-rm -rf $(DEVPI_CLIENTDIR) $(DEVPI_SERVERDIR)
     
 
-regen.uman-all : regen_fresh $(USER_MAN_FILES)
+regen.uman-all : regen.server-fresh $(USER_MAN_CHAPTERS)
 
-regen.uman-clean:
-	- devpi-server --stop
-	- rm -rf ${DEVPI_CLIENTDIR} ${DEVPI_SERVERDIR}
-
-regen.uman: regen_server_start $(file) 
+regen.uman: regen.server-restart $(chapter)
 
 

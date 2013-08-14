@@ -1,7 +1,7 @@
-.. _label_userman_indices_chapter:
+.. _devpi_um_indices_chapter:
 
 Creating, configuring and using indices
-========================================
+=======================================
 
 .. include:: ../links.rst
 
@@ -10,203 +10,281 @@ Creating, configuring and using indices
     This chapter covers index manipulation such as creation, deletion and use.
     
     :Pre-requisite: You must have logged in to a devpi server 
-                    (see :ref:`label_userman_devpi_authentication_chapter` for details)
+                    (see :ref:`devpi_um_authentication_chapter` for details)
 
+.. _devpi_um_indices_use_section:
 
 "Use" sub-command
 -----------------
 
-When working with devpi, users need to make **use** of an index. The devpi client provides 
-the ``use`` sub-command to achieve this purpose::
+When working with devpi, users need to make **use** of an index. The devpi 
+client provides the :ref:`cmdref_use` sub-command to achieve this purpose::
 
-   $devpi use http://devpi.mydomain:3141/root/pypi
+   $ devpi use http://localhost:3141/
+   using server: http://localhost:3141/ (logged in as root)
+   not using any index ('index -l' to discover, then 'use NAME' to use one)
+   no current install venv set
    
-where ``http://devpi.mydomain:3141/root/pypi`` is the **url** to a given index defined as:
+where ``http://devpi.mydomain:3141`` is the **base url** to a given `devpi`_ 
+server. To use an index, users must specify an API endpoint defined as:
 
-   current API endpoints to the ones obtained from the given url. If already connected to a server, 
-   you can specify '/USER/INDEXNAME' which will use the same server context. If you specify the 
-   root url you will not be connected to a particular index.
+   current API endpoints to the ones obtained from the given url. If already 
+   connected to a server, you can specify '/USER/INDEXNAME' which will use 
+   the same server context. If you specify the root url you will not be 
+   connected to a particular index.
+   
+To see the :ref:`um_concept_server_end_points`, login::
+
+   $ devpi login emilie --password 1234
+   logged in 'emilie', credentials valid for 10.00 hours
+   
+set the index::
+
+   $ devpi use /root/pypi
+   using index: http://localhost:3141/root/pypi/ (logged in as emilie)
+   no current install venv set
+
+and then issue::
+
+   $ devpi use --urls
+              index: http://localhost:3141/root/pypi/
+        simpleindex: http://localhost:3141/root/pypi/+simple/
+         pypisubmit: None
+          resultlog: http://localhost:3141/+tests
+              login: http://localhost:3141/+login
+   no current install venv set
 
 Creating an Index
 -----------------
 
-As explained in the previous chapter, once a new use is logged in, he or she doesn't have any index 
-associated to his or her username::
+As explained in the previous chapter, once a new user is logged in, 
+he or she doesn't have any index associated to his or her username::
 
    $ devpi use
-   using index:  http://localhost:3141/root/pypi/
-   base indices: http://localhost:3141
+   using index: http://localhost:3141/root/pypi/ (logged in as emilie)
    no current install venv set
-   logged in as: emilie
 
-In order to create an index, use the **index** sub-command. In the example below, we create 
-our **emilie/prod** production index::
+In order to create an index, use the :ref:`cmdref_index` sub-command. In the 
+example below, we create the **emilie/prod** production index::
 
-   $devpi index -c prod bases=/root/pypi volatile=False
-   201: created
+   $ devpi index -c prod volatile=False
+   prod:
+     type=stage
+     bases=root/pypi
+     volatile=False
+     uploadtrigger_jenkins=None
+     acl_upload=emilie
    
 which leads to the following::
 
    $ devpi getjson /emilie
    {
        "result": {
-           "email": "edoe@mydomain.net", 
-           "indices": {
+           "email": "emilienew@gmail.com", 
+           "indexes": {
                "prod": {
+                   "acl_upload": [
+                       "emilie"
+                   ], 
                    "bases": [
-                       "/root/pypi"
+                       "root/pypi"
                    ], 
                    "type": "stage", 
+                   "uploadtrigger_jenkins": null, 
                    "volatile": false
                }
            }, 
            "username": "emilie"
        }, 
-       "status": 200, 
        "type": "userconfig"
    }
    
-There are two actual parameters (``bases`` and ``volatile``) which are refered in the command 
-help as ``[keyvalues [keyvalues ...]]``
+Two things happened when issuing this command:
 
-Those are passed directly to the server (avoiding any client update) and define the bases (or 
-parent for an index) and whether package version can be overriden (volatile). Being a production 
-index, the user will want to set this to False. 
+   * The index has (by default) ``/root/pypi`` as it base.
+   * The index is created as non :term:`non volatile index` 
+     (``volatile=False``) which is the desired result if the index is intended 
+     to be a production index. 
+     
+Emilie can then creating a development index (:term:`volatile index`) by 
+specifying her ``prod`` index as follow::
 
-:note: While it is possible to create an infinity of indices for a user, this number should to keep 
-       to a minimum. As explained in :ref:`label_userman_concepts_chapter`, it is often 
-       preferable to modify the bases of an existing index to say work on a package from 
-       another user rather than creating a new one. 
-       
-       A typical use would be to have a user **production** index ``prod`` which contains package that 
-       are fully tested and eventually ready to be released and a **development** or sandbox index 
-       ``dev`` which is used to upload packages currently in the works. 
-       
-Once an index is created, it inherits the packages from its bases::
-
-   $ devpi use  http://localhost:3141/emilie/prod
-   using index:  http://localhost:3141/emilie/prod/
-   base indices: http://localhost:3141/root/pypi/
-   no current install venv set
-   logged in as: emilie
+   $ devpi index -c dev bases=/emilie/prod volatile=False
+   dev:
+     type=stage
+     bases=emilie/prod
+     volatile=False
+     uploadtrigger_jenkins=None
+     acl_upload=emilie
    
-The development index can be created using **/emilie/prod** as its base::
+which has the following definition on the server side::
 
-   $ devpi index -c dev bases=/emilie/prod volatile=True
-   201: Created
-   $ devpi use  http://localhost:3141/emilie/dev
-   using index:  http://localhost:3141/emilie/dev/
-   base indices: http://localhost:3141/emilie/prod/
-   no current install venv set
-   logged in as: emilie
-   
-which leads to::
-
-   devpi getjson /emilie
+   $ devpi getjson /emilie/dev
    {
        "result": {
-           "email": "edoe@mydomain.net", 
-           "indices": {
-               "dev": {
-                   "bases": [
-                       "/emilie/prod"
-                   ], 
-                   "type": "stage", 
-                   "volatile": true
-               }, 
-               "prod": {
-                   "bases": [
-                       "/root/pypi"
-                   ], 
-                   "type": "stage", 
-                   "volatile": false
-               }
-           }, 
-           "username": "emilie"
+           "acl_upload": [
+               "emilie"
+           ], 
+           "bases": [
+               "emilie/prod"
+           ], 
+           "type": "stage", 
+           "uploadtrigger_jenkins": null, 
+           "volatile": false
        }, 
-       "status": 200, 
-       "type": "userconfig"
+       "type": "indexconfig"
    }
+
+:note: While it is possible to create an infinity of indices for a user, 
+       this number should to keep to a minimum. As explained in 
+       :ref:`label_userman_concepts_chapter`, it is often preferable to modify 
+       the bases of an existing index to say work on a package from another user 
+       rather than creating a new one. 
+       
+       A typical use would be to have a user **production** index ``prod``  
+       which contains package that are fully tested and eventually ready to 
+       be released and a **development** or sandbox index ``dev`` which is 
+       used to upload packages currently in the works.
+       
+Once her indexes are created::
+
+   $ devpi index -l 
+   emilie/dev
+   emilie/prod
+
+She can start using them (short endpoint)::
+
+   $ devpi use dev
+   using index: http://localhost:3141/emilie/dev/ (logged in as emilie)
+   no current install venv set
+   
+or (long endpoint)::
+
+   $ devpi use prod
+   using index: http://localhost:3141/emilie/prod/ (logged in as emilie)
+   no current install venv set
+   
+And from there, the urls should be set to:: 
+
+   $ devpi use --urls
+              index: http://localhost:3141/emilie/prod/
+        simpleindex: http://localhost:3141/emilie/prod/+simple/
+         pypisubmit: http://localhost:3141/emilie/prod/
+          resultlog: http://localhost:3141/+tests
+              login: http://localhost:3141/+login
+   no current install venv set
+   
+.. note:: By default, a user index has its ``acl_upload`` property set to 
+          himself/herself. This implies that other users are not allowed 
+          to upload packages in that index.  
    
 Modifying an Index
 ------------------
 
-It is possible to modify an index. This should be use to change the bases of a given index. 
-For instance, the :ref:`label_userman_indices_section` section shows two users 
-(emilie and sophie) having each a **prod** and **dev** index. 
+It is possible to modify an index. This should be used to change the index's bases,
+:term:`acl` modification and for changing its volatility.
 
-Lets now assume that Sophie uploads her ``pysober`` package in her **dev** index and 
-Emilie wants to test the integration of this package with the package she is currently 
-working on.
+Changing the Bases
+^^^^^^^^^^^^^^^^^^
 
-An easy way to do this is to specify **/sophie/dev** as a base of **/emilie/dev** using 
-the **index** sub-command as follow:
+Assuming that Sophie has both index types as well::
 
-   First, we note that **/emilie/dev** has a single base (**/root/dev**)::
+   $ devpi login sophie --password=1234
+   logged in 'sophie', credentials valid for 10.00 hours
    
-      $ devpi getjson http://localhost:3141/emilie/dev
-      {
-          "result": {
-              "bases": [
-                  "/emilie/prod"
-              ], 
-              "type": "stage", 
-              "volatile": true
-          }, 
-          "status": 200, 
-          "type": "indexconfig"
-      }
+::
 
-   We add **/sophie/dev** as a base to **/emilie/dev**::
+   $ devpi index -c prod volatile=False
+   prod:
+     type=stage
+     bases=root/pypi
+     volatile=False
+     uploadtrigger_jenkins=None
+     acl_upload=sophie
    
-      $ devpi index --modify /emilie/dev bases=/root/dev bases=/sophie/dev
-      201: Created
+::
+
+   $ devpi index -c dev bases=/sophie/prod volatile=False
+   dev:
+     type=stage
+     bases=sophie/prod
+     volatile=False
+     uploadtrigger_jenkins=None
+     acl_upload=sophie
+
+Lets now assume that Sophie uploads her ``pysober`` package in her **dev** 
+index and Emilie wants to test the integration of this package with the 
+package she is currently working on.
    
-   :note: It is important to specify all bases for that index, that is repeating **/root/dev**
-          which can be obtained by doing ``devpi getjson http://localhost:3141/emilie/dev``
+One easy way to achieve this is by modifying the ``/emilie/dev`` index's 
+bases::
+
+   $devpi login emilie --password=1234
+   logged in 'emilie', credentials valid for 10.00 hours
+
+::
+
+   $ devpi index /emilie/dev bases=/emilie/prod,/sophie/dev
+   /emilie/dev changing bases: /emilie/prod,/sophie/dev
+   /emilie/dev:
+     type=stage
+     bases=emilie/prod,sophie/dev
+     volatile=False
+     uploadtrigger_jenkins=None
+     acl_upload=emilie
+   
+:note: It is important to specify all bases for that index, that is repeating
+       **/emilie/prod** which can be obtained by doing::
+       
+          $ devpi index /emilie/dev
           
-   From there, Emilie can install ``pysober`` by refering to her own index alone. When the 
-   work is done, this relationship can be revoked by doing [#f1]_ ::
+From there, Emilie can install ``pysober`` by refering to her own index alone. When the 
+work is done, this relationship can be revoked by doing::
    
-      $ devpi index --modify /emilie/dev bases=/root/dev
-      201: Created
-      
-      $ devpi getjson http://localhost:3141/emilie/dev
-      {
-          "result": {
-              "bases": [
-                  "/root/dev"
-              ], 
-              "type": "stage", 
-              "volatile": true
-          }, 
-          "status": 200, 
-          "type": "indexconfig"
-      }
-      
+   $ devpi index /emilie/dev bases=/emilie/prod
+   /emilie/dev changing bases: /emilie/prod
+   /emilie/dev:
+     type=stage
+     bases=emilie/prod
+     volatile=False
+     uploadtrigger_jenkins=None
+     acl_upload=emilie
+::
    
+   $ devpi index /emilie/dev
+   /emilie/dev:
+     type=stage
+     bases=emilie/prod
+     volatile=False
+     uploadtrigger_jenkins=None
+     acl_upload=emilie
+   
+Modifying the ACL
+^^^^^^^^^^^^^^^^^
    
 Switching Between Indices
 -------------------------
 
 Now that we have two indices, we can switch between them by doing::
 
-   $ devpi use http://localhost:3141/emilie/prod
-   automatically starting devpi-server for http://localhost:3141
-   using index:  http://localhost:3141/emilie/prod/
-   base indices: http://localhost:3141/root/pypi/
-   ...
+   $ devpi use /emilie/prod
+   using index: http://localhost:3141/emilie/prod/ (logged in as emilie)
+   no current install venv set
+
+::
+   $ devpi use 
+   using index: http://localhost:3141/emilie/prod/ (logged in as emilie)
+   no current install venv set
+
+::
+   $ devpi use /emilie/dev
+   using index: http://localhost:3141/emilie/dev/ (logged in as emilie)
+   no current install venv set
+
+::
    $ devpi use
-   using index:  http://localhost:3141/emilie/prod/
-   base indices: http://localhost:3141/root/pypi/
-   ...
-   $ devpi use http://localhost:3141/emilie/dev
-   using index:  http://localhost:3141/emilie/dev/
-   base indices: http://localhost:3141/emilie/prod/
-   ...
-   $ devpi use
-   using index:  http://localhost:3141/emilie/dev/
-   base indices: http://localhost:3141/emilie/prod/
+   using index: http://localhost:3141/emilie/dev/ (logged in as emilie)
+   no current install venv set
 
 Deleting an Index
 -----------------
@@ -216,36 +294,46 @@ Deleting an Index
 In the example below, we create a "bad" index and delete it::
 
    $ devpi index -c oups bases=/emilie/prod volatile=True
+   oups:
+     type=stage
+     bases=emilie/prod
+     volatile=True
+     uploadtrigger_jenkins=None
+     acl_upload=emilie
+
+::
 
    $ devpi getjson /emilie/oups
    {
        "result": {
+           "acl_upload": [
+               "emilie"
+           ], 
            "bases": [
-               "/emilie/prod"
+               "emilie/prod"
            ], 
            "type": "stage", 
+           "uploadtrigger_jenkins": null, 
            "volatile": true
        }, 
-       "status": 200, 
        "type": "indexconfig"
    }
-   
+ 
+::  
    $ devpi index --delete /emilie/oups
-   201: index emilie/oups deleted
-   
+   index deleted: /emilie/oups
+  
+:: 
    $ devpi use
-   GET http://localhost:3141/emilie/oups/+api
-   404: index emilie/oups does not exist
+   using index: http://localhost:3141/emilie/dev/ (logged in as emilie)
+   no current install venv set
    
-
+::
    $ devpi getjson /emilie/oups
-   {
-       "status": 200
-   }
+   GET http://localhost:3141/emilie/oups
+   404 Not Found: no such stage
 
 .. rubric:: Footnotes
-
-.. [#f1] Make sure that you specify all bases needed with the ``--modify`` option. 
 
 
 
