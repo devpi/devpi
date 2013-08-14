@@ -4,7 +4,7 @@ A jenkins uploadtrigger bootstrap script to automatically install devpi
 in a virtualenv and then run "devpi use" and "devpi test". 
 """
 
-__version__ = '1.0rc2'
+__version__ = '1.0'
 
 import sys
 import os
