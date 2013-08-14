@@ -1,6 +1,9 @@
 1.0rc2
 ----------------
 
+- rename "--datadir" to "--serverdir" to better match
+  the also picked up DEVPI_SERVERDIR environment variable.
+
 - fix a strange effect in that sometimes tools ask to receive
   a package url with a "#md5=..." arriving at the server side.
   We now strip that part out before trying to serve the file.

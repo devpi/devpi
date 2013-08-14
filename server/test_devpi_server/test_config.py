@@ -53,7 +53,7 @@ class TestConfig:
         config = parseoptions(["devpi-server", "--secretfile=%s" % p])
         assert config.secretfile == str(p)
         assert config.secret == secret
-        config = parseoptions(["devpi-server", "--datadir=%s" % tmpdir])
+        config = parseoptions(["devpi-server", "--serverdir=%s" % tmpdir])
         assert config.secretfile == tmpdir.join(".secret")
         config.secretfile.write(secret)
         assert config.secret == config.secretfile.read()
@@ -72,5 +72,5 @@ class TestConfig:
     def test_devpi_serverdir_env(self, tmpdir, monkeypatch):
         monkeypatch.setenv("DEVPI_SERVERDIR", tmpdir)
         config = parseoptions(["devpi-server"])
-        assert config.args.datadir == tmpdir
+        assert config.serverdir == tmpdir
 

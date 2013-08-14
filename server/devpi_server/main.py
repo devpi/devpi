@@ -32,13 +32,12 @@ def main(argv=None):
         return gendeploy(config)
 
     if args.start or args.stop or args.log or args.status:
-        xprocdir = py.path.local(args.datadir).join(".xproc")
+        xprocdir = config.serverdir.join(".xproc")
         from devpi_server.bgserver import BackgroundServer
         tw = py.io.TerminalWriter()
         bgserver = BackgroundServer(tw, xprocdir)
         if args.start:
-            filtered_args = [x for x in argv[1:]]
-            return bgserver.start(args, filtered_args)
+            return bgserver.start(args)
         elif args.stop:
             return bgserver.stop()
         elif args.log:
@@ -69,7 +68,7 @@ def bottle_run(xom):
                          catchall=not xom.config.args.debug)
     port = xom.config.args.port
     log.info("devpi-server version: %s", devpi_server.__version__)
-    log.info("datadir: %s" % xom.datadir)
+    log.info("serverdir: %s" % xom.config.serverdir)
     hostaddr = "http://%s:%s" %(xom.config.args.host, xom.config.args.port)
     log.info("serving at url: %s", hostaddr)
     log.info("bug tracker: https://bitbucket.org/hpk42/devpi/issues")
@@ -150,10 +149,6 @@ class XOM:
         return thread
 
     @cached_property
-    def datadir(self):
-        return self.config.args.datadir
-
-    @cached_property
     def releasefilestore(self):
         from devpi_server.filestore import ReleaseFileStore
         return ReleaseFileStore(self.keyfs)
@@ -161,7 +156,7 @@ class XOM:
     @cached_property
     def keyfs(self):
         from devpi_server.keyfs import KeyFS
-        keyfs = KeyFS(self.datadir)
+        keyfs = KeyFS(self.config.serverdir)
         add_keys(keyfs)
         return keyfs
 

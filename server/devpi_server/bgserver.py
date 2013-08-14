@@ -48,8 +48,8 @@ class BackgroundServer:
                 return True
         return False
 
-    def start(self, args, raw_args):
-        filtered_args = [x for x in raw_args if x != "--start"]
+    def start(self, args):
+        filtered_args = [x for x in args._raw if x != "--start"]
         devpi_server = py.path.local.sysfind("devpi-server")
         if devpi_server is None:
             self.fatal("cannot find devpi-server binary, no auto-start")

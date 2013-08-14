@@ -16,10 +16,11 @@ def addoptions(parser):
     group.addoption("--version", action="store_true",
             help="show devpi_version (%s)" % devpi_server.__version__)
 
-    opt = group.addoption("--datadir", type=str, metavar="DIR",
-            default=get_default_serverdir(),
-            help="directory for server data.  If set default is taken from "
-                 "$DEVPI_SERVERDIR, otherwise it is '~/.devpi/server'")
+    opt = group.addoption("--serverdir", type=str, metavar="DIR",
+            default=None,
+            help="directory for server data.  By default, "
+                 "$DEVPI_SERVERDIR is used if it exists, "
+                 "otherwise the default is '~/.devpi/server'")
 
     group.addoption("--host",  type=str,
             default="localhost",
@@ -60,7 +61,7 @@ def addoptions(parser):
                  "nginx/cron files to help with permanent deployment. ")
 
     group.addoption("--secretfile", type=str, metavar="path",
-            default="{datadir}/.secret",
+            default="{serverdir}/.secret",
             help="file containing the server side secret used for user "
                  "validation. If it does not exist, a random secret "
                  "is generated on start up and used subsequently. ")
@@ -102,6 +103,7 @@ def parseoptions(argv, addoptions=addoptions):
     addoptions(parser)
     try_argcomplete(parser)
     args = parser.parse_args(argv[1:])
+    args._raw = argv[1:]
     config = Config(args)
     return config
 
@@ -143,11 +145,16 @@ class ConfigurationError(Exception):
 class Config:
     def __init__(self, args):
         self.args = args
-        args.datadir = py.path.local(os.path.expanduser(args.datadir))
-        if args.secretfile == "{datadir}/.secret":
-            self.secretfile = args.datadir.join(".secret", abs=True)
+        serverdir = args.serverdir
+        if serverdir is None:
+            serverdir = get_default_serverdir()
+        self.serverdir = py.path.local(os.path.expanduser(serverdir))
+
+        if args.secretfile == "{serverdir}/.secret":
+            self.secretfile = self.serverdir.join(".secret", abs=True)
         else:
-            self.secretfile = py.path.local(os.path.expanduser(args.secretfile))
+            self.secretfile = py.path.local(
+                    os.path.expanduser(args.secretfile))
 
     @cached_property
     def secret(self):

@@ -15,7 +15,7 @@ pytestmark = pytest.mark.skipif("sys.platform == 'win32'")
 def test_gendeploycfg(tmpdir, monkeypatch):
     monkeypatch.setattr(gendeploy, "create_crontab", lambda x, y, z: "")
     config = parseoptions(["x", "--port=3200",
-                           "--datadir=%s" % tmpdir])
+                           "--serverdir=%s" % tmpdir])
     gendeploy.gendeploycfg(config, tmpdir)
     assert tmpdir.check()
     sup = tmpdir.join("etc/supervisord.conf").read()

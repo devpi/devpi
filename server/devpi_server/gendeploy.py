@@ -18,14 +18,14 @@ def gendeploycfg(config, venvdir, tw=None):
     #tw.line("creating etc/ directory for supervisor configuration", bold=True)
     etc = venvdir.ensure("etc", dir=1)
     httpport = config.args.port + 1
-    datadir = venvdir.ensure("data", dir=1)
+    serverdir = venvdir.ensure("data", dir=1)
     logdir = venvdir.ensure("log", dir=1)
 
     render(tw, etc, "supervisord.conf", venvdir=venvdir,
            devpiport=httpport,
-           logdir=logdir, datadir=datadir)
+           logdir=logdir, serverdir=serverdir)
     nginxconf = render(tw, etc, "nginx-devpi.conf", format=1, port=httpport,
-                       datadir=datadir)
+                       serverdir=serverdir)
     indexurl = "http://localhost:%s/root/dev/+simple/" % httpport
     devpictl = create_devpictl(tw, venvdir, httpport)
     cron = create_crontab(tw, etc, devpictl)

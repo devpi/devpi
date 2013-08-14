@@ -9,7 +9,7 @@ server {
     gzip_proxied     any;
     gzip_types       text/html application/json; 
 
-    root %(datadir)s;  # arbitrary for now
+    root %(serverdir)s;  # arbitrary for now
     location / {
         proxy_pass http://localhost:%(port)s;
         proxy_set_header  X-outside-url $scheme://$host;

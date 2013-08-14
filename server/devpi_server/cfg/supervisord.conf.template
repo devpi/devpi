@@ -24,7 +24,7 @@ serverurl=unix://%(here)s/../supervisor.socket
 # to a global /etc/supervisord/conf.d/devpi-server.conf
 
 [program:devpi-server]
-command={venvdir}/bin/devpi-server --datadir={datadir} --refresh=60 --port={devpiport} --bottleserver eventlet
+command={venvdir}/bin/devpi-server --serverdir={serverdir} --refresh=60 --port={devpiport} --bottleserver eventlet
 priority=999
 startsecs = 5
 redirect_stderr = True
