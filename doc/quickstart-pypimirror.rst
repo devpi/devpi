@@ -29,6 +29,12 @@ To start ``devpi-server`` in the background issue::
 
 You now have a server listning on ``http://localhost:3141``.
 
+.. note::
+
+    If you have ``eventlet`` installed, ``devpi-server``
+    will automatically pick the eventlet-wsgi server,
+    see the ``--bottleserver`` option.
+
 .. _`install_first`:
 
 install your first package with pip/easy_install

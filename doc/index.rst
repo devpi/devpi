@@ -3,11 +3,13 @@ devpi: PyPI-compatible server and complimentary command line tool
 
 .. include:: links.rst
 
-.. sidebar:: Meta
+.. sidebar:: Links and contact
 
    `issue tracker <https://bitbucket.org/hpk42/devpi/issues>`_
 
    `mailing list <https://groups.google.com/d/forum/devpi-dev>`_
+    
+   :ref:`tutorials and documentation <label_quickstart_section>`
 
    #devpi on freenode
 
