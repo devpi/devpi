@@ -25,11 +25,11 @@ This needs configuration on two sides:
 Configuring a devpi index to trigger Jenkins
 ++++++++++++++++++++++++++++++++++++++++++++
 
-Here is a example command, using the default ``/testuser/dev`` index 
+Here is a example command, using a ``/testuser/dev`` index 
 and a Jenkins server at http://localhost:8080::
 
     # needs one Jenkins job for each name of uploaded packages
-    devpi index /user/dev uploadtrigger_jenkins=http://localhost:8080/job/{pkgname}/build
+    devpi index /testuser/dev uploadtrigger_jenkins=http://localhost:8080/job/{pkgname}/build
 
 Any package which gets uploaded to ``/testuser/dev`` will now trigger
 a POST request to the specified url.  The ``{pkgname}`` part will be substituted with the name of the uploaded package.  You don't need to specify such
@@ -123,12 +123,14 @@ If you have a directory with existing package files::
 will recursively collect all archives files, register
 and upload them to our local ``testuser/dev`` pypi index.
 
+.. _`configure pypirc`:
+
 Using plain ``setup.py`` for uploading
 --------------------------------------
 
-then you need to perform a few configurations.  First
-you need to register a new index server entry in your 
-your ``.pypirc`` file::
+In order for ``setup.py`` to register releases and upload 
+release files we need to configure our index server in
+the ``$HOME/.pypirc`` file::
 
     # content of $HOME/.pypirc
     [distutils]
@@ -156,7 +158,6 @@ it might need, because the ``testuser/dev`` index inherits all
 packages from the pypi-mirroring ``root/pypi`` index.
 
 .. note::
-
-   We do not define user/password credentials in the ``.pypirc``
-   file because ``devpi-server`` allows upload by anyone as long
-   as the ``root`` password is empty.
+    
+    If working with multiple indices, it is usually more
+    convenient to use :ref:`devpi upload`.

@@ -110,8 +110,14 @@ Let's check that ``pytest`` was installed correctly::
 You may invoke the ``devpi install`` command a second time which will
 even work when you have no network.
 
+.. _`devpi upload`:
+
 devpi upload: uploading one or more packages
 ++++++++++++++++++++++++++++++++++++++++++++
+
+We are going to use ``devpi`` command line tool facilities for 
+performing uploads (you can also 
+:ref:`use plain setup.py <configure pypirc>`).
 
 Let's verify we are logged in to the correct index::
 
