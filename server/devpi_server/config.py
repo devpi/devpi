@@ -12,7 +12,7 @@ def get_default_serverdir():
     return os.environ.get("DEVPI_SERVERDIR", "~/.devpi/server")
 
 def addoptions(parser):
-    group = parser.addgroup("main", "main options")
+    group = parser.addgroup("main options")
     group.addoption("--version", action="store_true",
             help="show devpi_version (%s)" % devpi_server.__version__)
 
@@ -21,15 +21,15 @@ def addoptions(parser):
             help="directory for server data.  If set default is taken from "
                  "$DEVPI_SERVERDIR, otherwise it is '~/.devpi/server'")
 
+    group.addoption("--host",  type=str,
+            default="localhost",
+            help="domain/ip address to listen on")
+
     group.addoption("--port",  type=int,
             default=3141,
             help="port to listen for http requests.  When used with "
                  "--gendeploy, port+1 will be used to prevent "
                  "accidental clashes with ad-hoc runs.")
-
-    group.addoption("--host",  type=str,
-            default="localhost",
-            help="domain/ip address to listen on")
 
     group.addoption("--outside-url",  type=str, dest="outside_url",
             metavar="URL",
@@ -53,18 +53,6 @@ def addoptions(parser):
             help="set password for user USER (interactive)")
 
 
-    group = parser.addgroup("background server")
-    group.addoption("--start", action="store_true",
-            help="start the background devpi-server")
-    group.addoption("--stop", action="store_true",
-            help="stop the background devpi-server")
-    group.addoption("--status", action="store_true",
-            help="show status of background devpi-server")
-    group.addoption("--log", action="store_true",
-            help="show logfile content of background server")
-
-    group = parser.addgroup("deploy", "deployment options")
-
     group.addoption("--gendeploy", action="store", metavar="DIR",
             help="(unix only) generate a pre-configured self-contained "
                  "virtualenv directory which puts devpi-server "
@@ -83,6 +71,19 @@ def addoptions(parser):
 
     group.addoption("--debug", action="store_true",
             help="run wsgi application with debug logging")
+
+    group = parser.addgroup("background server")
+    group.addoption("--start", action="store_true",
+            help="start the background devpi-server")
+    group.addoption("--stop", action="store_true",
+            help="stop the background devpi-server")
+    group.addoption("--status", action="store_true",
+            help="show status of background devpi-server")
+    group.addoption("--log", action="store_true",
+            help="show logfile content of background server")
+
+    group = parser.addgroup("deployment options")
+
 
 def try_argcomplete(parser):
     try:
