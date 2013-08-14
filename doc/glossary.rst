@@ -36,3 +36,9 @@ Glossary
    push
    
       Action of transfering a package from one index to another. 
+      
+   release file
+   
+      A release file contains a project's artifact (.py files, etc) required
+      for the installation. A release file is versioned. The term *package* 
+      is often use as well, but might be confused with a *python package*.

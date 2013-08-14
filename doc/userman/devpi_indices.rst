@@ -12,6 +12,11 @@ Creating, configuring and using indices
     
     :Pre-requisite: You must have logged in to a devpi server 
                     (see :ref:`devpi_um_authentication_chapter` for details)
+                    
+   *related commands*:
+      * :ref:`cmdref_use`
+      * :ref:`cmdref_index` 
+      * :ref:`cmdref_getjson` 
 
 .. _devpi_um_indices_use_section:
 
@@ -23,8 +28,7 @@ client provides the :ref:`cmdref_use` sub-command to achieve this purpose::
 
    $ devpi use http://localhost:3141/
    using server: http://localhost:3141/ (logged in as root)
-   not using any index ('index -l' to discover, then 'use NAME' to use one)
-   no current install venv set
+   no current index: type 'devpi use -l' to discover indices
    
 where ``http://devpi.mydomain:3141`` is the **base url** to a given `devpi`_ 
 server. To use an index, users must specify an API endpoint defined as:
@@ -43,7 +47,6 @@ set the index::
 
    $ devpi use /root/pypi
    using index: http://localhost:3141/root/pypi/ (logged in as emilie)
-   no current install venv set
 
 and then issue::
 
@@ -53,7 +56,6 @@ and then issue::
          pypisubmit: None
           resultlog: http://localhost:3141/+tests
               login: http://localhost:3141/+login
-   no current install venv set
 
 Creating an Index
 -----------------
@@ -63,7 +65,6 @@ he or she doesn't have any index associated to his or her username::
 
    $ devpi use
    using index: http://localhost:3141/root/pypi/ (logged in as emilie)
-   no current install venv set
 
 In order to create an index, use the :ref:`cmdref_index` sub-command. In the 
 example below, we create the **emilie/prod** production index::
@@ -157,13 +158,11 @@ She can start using them (short endpoint)::
 
    $ devpi use dev
    using index: http://localhost:3141/emilie/dev/ (logged in as emilie)
-   no current install venv set
    
 or (long endpoint)::
 
    $ devpi use prod
    using index: http://localhost:3141/emilie/prod/ (logged in as emilie)
-   no current install venv set
    
 And from there, the urls should be set to:: 
 
@@ -173,7 +172,6 @@ And from there, the urls should be set to::
          pypisubmit: http://localhost:3141/emilie/prod/
           resultlog: http://localhost:3141/+tests
               login: http://localhost:3141/+login
-   no current install venv set
    
 .. note:: By default, a user index has its ``acl_upload`` property set to 
           himself/herself. This implies that other users are not allowed 
@@ -222,8 +220,18 @@ bases::
 
    $devpi login emilie --password=1234
    logged in 'emilie', credentials valid for 10.00 hours
+   
+First, the user can list all availabe indexes via the :ref:`cmdref_use` -l 
+option::
 
-::
+   $ devpi use -l 
+   sophie/prod: bases=root/pypi
+   sophie/dev: bases=sophie/prod
+   root/pypi: bases=
+   emilie/prod: bases=root/pypi
+   emilie/dev: bases=emilie/prod
+
+And finally modify the bases::
 
    $ devpi index /emilie/dev bases=/emilie/prod,/sophie/dev
    /emilie/dev changing bases: /emilie/prod,/sophie/dev
@@ -262,6 +270,58 @@ work is done, this relationship can be revoked by doing::
    
 Modifying the ACL
 ^^^^^^^^^^^^^^^^^
+
+A user can only upload a package, if he or she is part of the upload 
+:term:`acl`. By default, the index's owner is the only user part of 
+the index's ``upload acl``::
+
+   $ devpi getjson /emilie/prod
+   {
+       "result": {
+           "acl_upload": [
+               "emilie"
+           ], 
+           "bases": [
+               "root/pypi"
+           ], 
+           "type": "stage", 
+           "uploadtrigger_jenkins": null, 
+           "volatile": false
+       }, 
+       "type": "indexconfig"
+   }
+   
+In this example, Emilie can allow Sophie to upload 
+:term:`release files <release file>` by adding her to the index's ``acl_upload``
+as follow::
+
+    $ devpi index /emilie/prod acl_upload=emilie,sophie
+    /emilie/prod changing acl_upload: ['emilie', 'sophie']
+    /emilie/prod:
+      type=stage
+      bases=root/pypi
+      volatile=False
+      uploadtrigger_jenkins=None
+      acl_upload=emilie,sophie
+    
+::
+
+   $ devpi getjson /emilie/prod
+   {
+       "result": {
+           "acl_upload": [
+               "emilie", 
+               "sophie"
+           ], 
+           "bases": [
+               "root/pypi"
+           ], 
+           "type": "stage", 
+           "uploadtrigger_jenkins": null, 
+           "volatile": false
+       }, 
+       "type": "indexconfig"
+   }
    
 Switching Between Indices
 -------------------------
@@ -270,22 +330,21 @@ Now that we have two indices, we can switch between them by doing::
 
    $ devpi use /emilie/prod
    using index: http://localhost:3141/emilie/prod/ (logged in as emilie)
-   no current install venv set
 
 ::
+
    $ devpi use 
    using index: http://localhost:3141/emilie/prod/ (logged in as emilie)
-   no current install venv set
 
 ::
+
    $ devpi use /emilie/dev
    using index: http://localhost:3141/emilie/dev/ (logged in as emilie)
-   no current install venv set
 
 ::
+
    $ devpi use
    using index: http://localhost:3141/emilie/dev/ (logged in as emilie)
-   no current install venv set
 
 Deleting an Index
 -----------------
@@ -321,23 +380,40 @@ In the example below, we create a "bad" index and delete it::
    }
  
 ::  
+
    $ devpi index --delete /emilie/oups
    index deleted: /emilie/oups
-  
-:: 
-   $ devpi use
-   using index: http://localhost:3141/emilie/dev/ (logged in as emilie)
-   no current install venv set
    
 ::
+
+   $ devpi use   
+   using index: http://localhost:3141/emilie/dev/ (logged in as emilie)
+   
+::
+
    $ devpi getjson /emilie/oups
    GET http://localhost:3141/emilie/oups
    404 Not Found: no such stage
+   
+The ``/root/pypi`` index can not be deleted::
 
+   $ devpi index --delete /root/pypi
+   removed expired authentication information
+   DELETE http://localhost:3141/root/pypi
+   401 Unauthorized
+   
+nor can an index pertaining to another user::
+
+   $ devpi index --delete /sophie/dev
+   DELETE http://localhost:3141/sophie/dev
+   401 Unauthorized
+   
+Finally, a :term:`non volatile index` can not be deleted [#f1]_ ::
+
+   $ devpi index --delete /emilie/prod
+   DELETE http://localhost:3141/emilie/prod
+   401 Unauthorized
+   
 .. rubric:: Footnotes
 
-
-
-
-   
-
+.. [#f1] It must first be modified as a :term:`volatile index` - see :ref:`cmdref_index` 

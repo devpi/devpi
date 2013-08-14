@@ -8,6 +8,11 @@ Authentication and User management
 .. sidebar:: Summary
 
     This section shows how to register a user of a `devpi`_ server and login
+    
+    *related commands*:
+      * :ref:`cmdref_use`
+      * :ref:`cmdref_user` 
+      * :ref:`cmdref_login`
 
 In order to access a devpi server, a user must authenticate against it. 
 
@@ -15,8 +20,7 @@ But before that, users must indicate to the devpi client which server to use::
 
    $ devpi use  http://localhost:3141
    using server: http://localhost:3141/ (not logged in)
-   not using any index ('index -l' to discover, then 'use NAME' to use one)
-   no current install venv set
+   no current index: type 'devpi use -l' to discover indices
 
 In this case, we do not make use of a particular index [#f1]_. We could however
 use the default **root/pypi** index [#f2]_.
@@ -28,14 +32,10 @@ For instance, to use the ``pypi`` index, once could issue::
 
    $devpi use /root/pypi
    using index: http://localhost:3141/root/pypi/ (not logged in)
-   no current install venv set
    
 More on the use command can be found :ref:`here <devpi_um_indices_use_section>`
 
-*related commands*:
-   * :ref:`cmdref_use`
-   * :ref:`cmdref_user` 
-   * :ref:`cmdref_login`
+
 
 Creating a User
 ---------------
@@ -53,7 +53,6 @@ If the do not already have a user ID he or she must create one::
 The user can then be listed::
 
    $ devpi user -l 
-   hpk
    sophie
    root
    emilie

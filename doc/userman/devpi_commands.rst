@@ -17,9 +17,8 @@ getjson
 ::
 
     $ devpi getjson -h
-    usage: /home/hpk/venv/0/bin/devpi getjson [-h] [--version] [--debug] [-y]
-                                              [--clientdir DIR]
-                                              path
+    usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi getjson
+           [-h] [--version] [--debug] [-y] [--clientdir DIR] path
     
     show remote server and index configuration. A low-level command to show json-
     formatted configuration data from remote resources. This will always query the
@@ -46,10 +45,9 @@ index
 ::
 
     $ devpi index -h
-    usage: /home/hpk/venv/0/bin/devpi index [-h] [--version] [--debug] [-y]
-                                            [--clientdir DIR] [-c | --delete | -l]
-                                            [indexname]
-                                            [keyvalues [keyvalues ...]]
+    usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi index
+           [-h] [--version] [--debug] [-y] [--clientdir DIR] [-c | --delete | -l]
+           [indexname] [keyvalues [keyvalues ...]]
     
     create, delete and manage indexes. This is the central command to create and
     manipulate indexes. The index is always created under the currently logged in
@@ -83,10 +81,10 @@ install
 ::
 
     $ devpi install -h
-    usage: /home/hpk/venv/0/bin/devpi install [-h] [--version] [--debug] [-y]
-                                              [--clientdir DIR] [-l] [-e ARG]
-                                              [--venv DIR]
-                                              [pkg [pkg ...]]
+    usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi install
+           [-h] [--version] [--debug] [-y] [--clientdir DIR] [-l] [-e ARG]
+           [--venv DIR]
+           [pkg [pkg ...]]
     
     install packages through current devpi index. This is convenience wrapper
     which configures and invokes ``pip install`` commands for you, using the
@@ -116,9 +114,8 @@ list
 ::
 
     $ devpi list -h
-    usage: /home/hpk/venv/0/bin/devpi list [-h] [--version] [--debug] [-y]
-                                           [--clientdir DIR] [-f]
-                                           [spec]
+    usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi list
+           [-h] [--version] [--debug] [-y] [--clientdir DIR] [-f] [spec]
     
     list project versions and files for the current index. Without a ``spec``
     argument this command will show the names of all projects that have been used.
@@ -147,10 +144,9 @@ login
 ::
 
     $ devpi login -h
-    usage: /home/hpk/venv/0/bin/devpi login [-h] [--version] [--debug] [-y]
-                                            [--clientdir DIR]
-                                            [--password PASSWORD]
-                                            username
+    usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi login
+           [-h] [--version] [--debug] [-y] [--clientdir DIR] [--password PASSWORD]
+           username
     
     login to devpi-server with the specified user. This command performs the login
     protocol with the remove server which typically results in a cached auth token
@@ -179,8 +175,8 @@ logoff
 ::
 
     $ devpi logoff -h
-    usage: /home/hpk/venv/0/bin/devpi logoff [-h] [--version] [--debug] [-y]
-                                             [--clientdir DIR]
+    usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi logoff
+           [-h] [--version] [--debug] [-y] [--clientdir DIR]
     
     log out of the current devpi-server. This will erase the client-side login
     token (see "devpi login").
@@ -202,9 +198,9 @@ push
 ::
 
     $ devpi push -h
-    usage: /home/hpk/venv/0/bin/devpi push [-h] [--version] [--debug] [-y]
-                                           [--clientdir DIR] [--pypirc path]
-                                           NAME-VER TARGETSPEC
+    usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi push
+           [-h] [--version] [--debug] [-y] [--clientdir DIR] [--pypirc path]
+           NAME-VER TARGETSPEC
     
     push a release and releasefiles to an internal or external index. You can push
     a release with all its release files either to an external pypi server
@@ -238,10 +234,9 @@ quickstart
 ::
 
     $ devpi quickstart -h
-    usage: /home/hpk/venv/0/bin/devpi quickstart [-h] [--version] [--debug] [-y]
-                                                 [--clientdir DIR] [--user USER]
-                                                 [--password PASSWORD]
-                                                 [--index INDEX] [--dry-run]
+    usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi quickstart
+           [-h] [--version] [--debug] [-y] [--clientdir DIR] [--user USER]
+           [--password PASSWORD] [--index INDEX] [--dry-run]
     
     start a server, create a user and login, then create a USER/dev index and then
     connect to this index, so that subsequent devpi commands can work with it.
@@ -268,9 +263,8 @@ remove
 ::
 
     $ devpi remove -h
-    usage: /home/hpk/venv/0/bin/devpi remove [-h] [--version] [--debug] [-y]
-                                             [--clientdir DIR]
-                                             spec
+    usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi remove
+           [-h] [--version] [--debug] [-y] [--clientdir DIR] spec
     
     remove project info/files from current index. This command allows to remove
     projects or releases from your current index (see "devpi use"). It will ask
@@ -298,9 +292,8 @@ test
 ::
 
     $ devpi test -h
-    usage: /home/hpk/venv/0/bin/devpi test [-h] [--version] [--debug] [-y]
-                                           [--clientdir DIR] [-e VENV]
-                                           pkgspec
+    usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi test
+           [-h] [--version] [--debug] [-y] [--clientdir DIR] [-e VENV] pkgspec
     
     download and test a package against tox environments. Download a package and
     run tests as configured by the tox.ini file (which must be contained in the
@@ -327,12 +320,10 @@ upload
 ::
 
     $ devpi upload -h
-    usage: /home/hpk/venv/0/bin/devpi upload [-h] [--version] [--debug] [-y]
-                                             [--clientdir DIR] [--ver SETVERSION]
-                                             [--formats FORMATS]
-                                             [--from-dir FROMDIR] [--only-latest]
-                                             [--dry-run] [--with-docs]
-                                             [--only-docs]
+    usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi upload
+           [-h] [--version] [--debug] [-y] [--clientdir DIR] [--ver SETVERSION]
+           [--formats FORMATS] [--from-dir FROMDIR] [--only-latest] [--dry-run]
+           [--with-docs] [--only-docs]
     
     prepare and upload packages to the current index. This command wraps
     ``setup.py`` invocations to build and upload releases, release files and
@@ -368,10 +359,10 @@ use
 ::
 
     $ devpi use -h
-    usage: /home/hpk/venv/0/bin/devpi use [-h] [--version] [--debug] [-y]
-                                          [--clientdir DIR] [--venv VENV] [--urls]
-                                          [--delete]
-                                          [url]
+    usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi use
+           [-h] [--version] [--debug] [-y] [--clientdir DIR] [--venv VENV]
+           [--urls] [-l] [--delete]
+           [url]
     
     show/configure current index and target venv for install activities. This
     shows client-side state, relevant for server interactions, including login
@@ -390,6 +381,7 @@ use
       --venv VENV      set virtual environment to use for install activities.
                        specify '-' to unset it.
       --urls           show remote endpoint urls
+      -l               show all available indexes at the remote server
       --delete         delete current association with server
     
     generic options:
@@ -406,10 +398,10 @@ user
 ::
 
     $ devpi user -h
-    usage: /home/hpk/venv/0/bin/devpi user [-h] [--version] [--debug] [-y]
-                                           [--clientdir DIR] [-c] [--delete] [-m]
-                                           [-l]
-                                           [username] [keyvalues [keyvalues ...]]
+    usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi user
+           [-h] [--version] [--debug] [-y] [--clientdir DIR] [-c] [--delete] [-m]
+           [-l]
+           [username] [keyvalues [keyvalues ...]]
     
     add, remove, modify, list user configuration. This is the central command for
     performing remote user configuration and manipulation. Each indexes (created
@@ -435,7 +427,6 @@ user
       -y               assume 'yes' on confirmation questions
       --clientdir DIR  directory for storing login and other state
 
-
 .. _`cmdref_devpi_server`:
 
 devpi command reference (server)
@@ -444,4 +435,53 @@ devpi command reference (server)
 ::
 
     $ devpi-server -h
-
+    usage: devpi-server [-h] [--version] [--serverdir DIR] [--host HOST]
+                        [--port PORT] [--outside-url URL] [--refresh SECS]
+                        [--bypass-cdn] [--passwd USER] [--gendeploy DIR]
+                        [--secretfile path] [--bottleserver TYPE] [--debug]
+                        [--start] [--stop] [--status] [--log]
+    
+    Start an index server acting as a cache for pypi.python.org, suitable for
+    pip/easy_install usage. The server automatically refreshes the cache of all
+    indexes which have changed on the pypi.python.org side.
+    
+    optional arguments:
+      -h, --help           show this help message and exit
+    
+    main options:
+      --version            show devpi_version (1.0rc2)
+      --serverdir DIR      directory for server data. By default, $DEVPI_SERVERDIR
+                           is used if it exists, otherwise the default is
+                           '~/.devpi/server'
+      --host HOST          domain/ip address to listen on [localhost]
+      --port PORT          port to listen for http requests. When used with
+                           --gendeploy, port+1 will be used to prevent accidental
+                           clashes with ad-hoc runs. [3141]
+      --outside-url URL    the outside URL where this server will be reachable.
+                           Set this if you proxy devpi-server through a web server
+                           and the web server does not set or you want to override
+                           the custom X-outside-url header.
+      --refresh SECS       interval for consulting changelog api of
+                           pypi.python.org [60]
+      --bypass-cdn         set this if you want to bypass pypi's CDN for access to
+                           simple pages and packages, in order to rule out cache-
+                           invalidation issues. This will only work if you are not
+                           using a http proxy.
+      --passwd USER        set password for user USER (interactive)
+      --gendeploy DIR      (unix only) generate a pre-configured self-contained
+                           virtualenv directory which puts devpi-server under
+                           supervisor control. Also provides nginx/cron files to
+                           help with permanent deployment.
+      --secretfile path    file containing the server side secret used for user
+                           validation. If it does not exist, a random secret is
+                           generated on start up and used subsequently.
+                           [{serverdir}/.secret]
+      --bottleserver TYPE  bottle server class, tries 'eventlet', then 'wsgiref'
+                           if set to 'auto' (default) [auto]
+      --debug              run wsgi application with debug logging
+    
+    background server:
+      --start              start the background devpi-server
+      --stop               stop the background devpi-server
+      --status             show status of background devpi-server
+      --log                show logfile content of background server
