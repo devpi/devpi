@@ -34,7 +34,7 @@ Install or upgrade ``devpi-server``::
 And let's check the version::
 
     $ devpi-server --version
-    1.0rc2
+    1.0
 
 .. _gendeploy:
 
@@ -74,7 +74,7 @@ Here, we just pass it a port to distinguish it from the :ref:`single
 laptop deployment (Quickstart) <quickstart-releaseprocess>`::
 
     $ devpi-server --gendeploy=TARGETDIR --port 4040
-    creating virtualenv to /home/hpk/p/devpi/doc/TARGETDIR
+    using existing virtualenv: /home/hpk/p/devpi/doc/TARGETDIR
     installing devpi-server,supervisor,eventlet into virtualenv
     wrote /home/hpk/p/devpi/doc/TARGETDIR/etc/supervisord.conf
     wrote /home/hpk/p/devpi/doc/TARGETDIR/etc/nginx-devpi.conf

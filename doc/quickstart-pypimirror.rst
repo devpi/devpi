@@ -23,7 +23,7 @@ To start ``devpi-server`` in the background issue::
     $ devpi-server --start
     starting background devpi-server at http://localhost:3141
     /home/hpk/p/devpi/doc/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server
-    process 'devpi-server' started pid=13277
+    process 'devpi-server' started pid=27081
     devpi-server process startup detected
     logfile is at /home/hpk/p/devpi/doc/.devpi/server/.xproc/devpi-server/xprocess.log
 
@@ -72,8 +72,8 @@ and then re-install it with ``easy_install``::
     Best match: simplejson 3.3.0
     Downloading http://localhost:3141/root/pypi/f/https/pypi.python.org/packages/source/s/simplejson/simplejson-3.3.0.tar.gz#md5=0e29b393bceac8081fa4e93ff9f6a001
     Processing simplejson-3.3.0.tar.gz
-    Writing /tmp/easy_install-Ur2D_K/simplejson-3.3.0/setup.cfg
-    Running simplejson-3.3.0/setup.py -q bdist_egg --dist-dir /tmp/easy_install-Ur2D_K/simplejson-3.3.0/egg-dist-tmp-ulhCpJ
+    Writing /tmp/easy_install-NFUzKf/simplejson-3.3.0/setup.cfg
+    Running simplejson-3.3.0/setup.py -q bdist_egg --dist-dir /tmp/easy_install-NFUzKf/simplejson-3.3.0/egg-dist-tmp-Bi036V
     zip_safe flag not set; analyzing archive contents...
     simplejson.tests.__init__: module references __file__
     Adding simplejson 3.3.0 to easy-install.pth file
@@ -125,36 +125,36 @@ Checking and stopping the background server
 At any time you can check the background server status with::
 
     $ devpi-server --status
-    server is running with pid 13277
+    server is running with pid 27081
 
 Or stop it::
     
     $ devpi-server --stop
-    killed server pid=13277
+    killed server pid=27081
 
 Finally, you can also look at the logfile of the background server
 (also after it has been stopped)::
 
     $ devpi-server --log
     last lines of devpi-server log
-    2013-08-14 17:42:23,857 [INFO ] devpi_server.filestore: replaced md5 info for root/pypi/f/https/pypi.python.org/packages/source/s/simplejson/simplejson-1.5.tar.gz
-    2013-08-14 17:42:23,857 [INFO ] devpi_server.filestore: replaced md5 info for root/pypi/f/https/pypi.python.org/packages/2.4/s/simplejson/simplejson-1.5-py2.4.egg
-    2013-08-14 17:42:23,858 [INFO ] devpi_server.filestore: replaced md5 info for root/pypi/f/https/pypi.python.org/packages/2.4/s/simplejson/simplejson-1.4-py2.4.egg
-    2013-08-14 17:42:23,858 [INFO ] devpi_server.filestore: replaced md5 info for root/pypi/f/https/pypi.python.org/packages/source/s/simplejson/simplejson-1.4.tar.gz
-    2013-08-14 17:42:23,859 [INFO ] devpi_server.filestore: replaced md5 info for root/pypi/f/https/pypi.python.org/packages/source/s/simplejson/simplejson-1.3.tar.gz
-    2013-08-14 17:42:23,859 [INFO ] devpi_server.filestore: replaced md5 info for root/pypi/f/https/pypi.python.org/packages/2.4/s/simplejson/simplejson-1.3-py2.4.egg
-    2013-08-14 17:42:23,859 [INFO ] devpi_server.filestore: replaced md5 info for root/pypi/f/https/pypi.python.org/packages/source/s/simplejson/simplejson-1.1.tar.gz
-    2013-08-14 17:42:23,860 [INFO ] devpi_server.filestore: replaced md5 info for root/pypi/f/https/pypi.python.org/packages/2.4/s/simplejson/simplejson-1.1-py2.4.egg
-    2013-08-14 17:42:23,860 [INFO ] devpi_server.filestore: replaced md5 info for root/pypi/f/https/pypi.python.org/packages/2.3/s/simplejson/simplejson-1.1-py2.3.egg
-    127.0.0.1 - - [14/Aug/2013 17:42:23] "GET /root/pypi/+simple/simplejson/ HTTP/1.1" 200 16121 0.511770
-    (13277) accepted ('127.0.0.1', 52968)
-    2013-08-14 17:42:23,967 [INFO ] devpi_server.filestore: cache-streaming: https://pypi.python.org/packages/source/s/simplejson/simplejson-3.3.0.tar.gz, target root/pypi/f/https/pypi.python.org/packages/source/s/simplejson/simplejson-3.3.0.tar.gz
-    2013-08-14 17:42:23,967 [INFO ] devpi_server.filestore: starting file iteration: root/pypi/f/https/pypi.python.org/packages/source/s/simplejson/simplejson-3.3.0.tar.gz (size 67250)
-    2013-08-14 17:42:24,126 [INFO ] devpi_server.filestore: finished getting remote 'https://pypi.python.org/packages/source/s/simplejson/simplejson-3.3.0.tar.gz'
-    127.0.0.1 - - [14/Aug/2013 17:42:24] "GET /root/pypi/f/https/pypi.python.org/packages/source/s/simplejson/simplejson-3.3.0.tar.gz HTTP/1.1" 200 67382 0.199982
-    (13277) accepted ('127.0.0.1', 52969)
-    127.0.0.1 - - [14/Aug/2013 17:42:25] "GET /root/pypi/+simple/simplejson/ HTTP/1.1" 200 16121 0.020222
-    (13277) accepted ('127.0.0.1', 52970)
-    2013-08-14 17:42:25,547 [INFO ] devpi_server.filestore: starting file iteration: root/pypi/f/https/pypi.python.org/packages/source/s/simplejson/simplejson-3.3.0.tar.gz (size 67250)
-    127.0.0.1 - - [14/Aug/2013 17:42:25] "GET /root/pypi/f/https/pypi.python.org/packages/source/s/simplejson/simplejson-3.3.0.tar.gz HTTP/1.1" 200 67382 0.001728
+    2013-08-14 19:57:31,448 [INFO ] devpi_server.filestore: replaced md5 info for root/pypi/f/https/pypi.python.org/packages/source/s/simplejson/simplejson-1.5.tar.gz
+    2013-08-14 19:57:31,448 [INFO ] devpi_server.filestore: replaced md5 info for root/pypi/f/https/pypi.python.org/packages/2.4/s/simplejson/simplejson-1.5-py2.4.egg
+    2013-08-14 19:57:31,449 [INFO ] devpi_server.filestore: replaced md5 info for root/pypi/f/https/pypi.python.org/packages/2.4/s/simplejson/simplejson-1.4-py2.4.egg
+    2013-08-14 19:57:31,449 [INFO ] devpi_server.filestore: replaced md5 info for root/pypi/f/https/pypi.python.org/packages/source/s/simplejson/simplejson-1.4.tar.gz
+    2013-08-14 19:57:31,450 [INFO ] devpi_server.filestore: replaced md5 info for root/pypi/f/https/pypi.python.org/packages/source/s/simplejson/simplejson-1.3.tar.gz
+    2013-08-14 19:57:31,450 [INFO ] devpi_server.filestore: replaced md5 info for root/pypi/f/https/pypi.python.org/packages/2.4/s/simplejson/simplejson-1.3-py2.4.egg
+    2013-08-14 19:57:31,450 [INFO ] devpi_server.filestore: replaced md5 info for root/pypi/f/https/pypi.python.org/packages/source/s/simplejson/simplejson-1.1.tar.gz
+    2013-08-14 19:57:31,451 [INFO ] devpi_server.filestore: replaced md5 info for root/pypi/f/https/pypi.python.org/packages/2.4/s/simplejson/simplejson-1.1-py2.4.egg
+    2013-08-14 19:57:31,451 [INFO ] devpi_server.filestore: replaced md5 info for root/pypi/f/https/pypi.python.org/packages/2.3/s/simplejson/simplejson-1.1-py2.3.egg
+    127.0.0.1 - - [14/Aug/2013 19:57:31] "GET /root/pypi/+simple/simplejson/ HTTP/1.1" 200 16121 0.423404
+    (27081) accepted ('127.0.0.1', 56574)
+    2013-08-14 19:57:31,553 [INFO ] devpi_server.filestore: cache-streaming: https://pypi.python.org/packages/source/s/simplejson/simplejson-3.3.0.tar.gz, target root/pypi/f/https/pypi.python.org/packages/source/s/simplejson/simplejson-3.3.0.tar.gz
+    2013-08-14 19:57:31,553 [INFO ] devpi_server.filestore: starting file iteration: root/pypi/f/https/pypi.python.org/packages/source/s/simplejson/simplejson-3.3.0.tar.gz (size 67250)
+    2013-08-14 19:57:31,674 [INFO ] devpi_server.filestore: finished getting remote 'https://pypi.python.org/packages/source/s/simplejson/simplejson-3.3.0.tar.gz'
+    127.0.0.1 - - [14/Aug/2013 19:57:31] "GET /root/pypi/f/https/pypi.python.org/packages/source/s/simplejson/simplejson-3.3.0.tar.gz HTTP/1.1" 200 67382 0.162174
+    (27081) accepted ('127.0.0.1', 56575)
+    127.0.0.1 - - [14/Aug/2013 19:57:32] "GET /root/pypi/+simple/simplejson/ HTTP/1.1" 200 16121 0.013359
+    (27081) accepted ('127.0.0.1', 56576)
+    2013-08-14 19:57:32,968 [INFO ] devpi_server.filestore: starting file iteration: root/pypi/f/https/pypi.python.org/packages/source/s/simplejson/simplejson-3.3.0.tar.gz (size 67250)
+    127.0.0.1 - - [14/Aug/2013 19:57:32] "GET /root/pypi/f/https/pypi.python.org/packages/source/s/simplejson/simplejson-3.3.0.tar.gz HTTP/1.1" 200 67382 0.000791
     logfile at: /home/hpk/p/devpi/doc/.devpi/server/.xproc/devpi-server/xprocess.log

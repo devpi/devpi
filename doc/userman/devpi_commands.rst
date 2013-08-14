@@ -454,7 +454,7 @@ devpi command reference (server)
       -h, --help           show this help message and exit
     
     main options:
-      --version            show devpi_version (1.0rc2)
+      --version            show devpi_version (1.0)
       --serverdir DIR      directory for server data. By default, $DEVPI_SERVERDIR
                            is used if it exists, otherwise the default is
                            '~/.devpi/server'
@@ -473,10 +473,12 @@ devpi command reference (server)
                            invalidation issues. This will only work if you are not
                            using a http proxy.
       --passwd USER        set password for user USER (interactive)
-      --gendeploy DIR      (unix only) generate a pre-configured self-contained
+      --gendeploy DIR      (unix only) install and generate a pre-configured
                            virtualenv directory which puts devpi-server under
-                           supervisor control. Also provides nginx/cron files to
-                           help with permanent deployment.
+                           supervisor control and provides some example files for
+                           nginx/crontab. If the specified DIR exists virtualenv
+                           creation will be skipped and only the installation
+                           steps will be performed.
       --secretfile path    file containing the server side secret used for user
                            validation. If it does not exist, a random secret is
                            generated on start up and used subsequently.

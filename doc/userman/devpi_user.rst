@@ -55,7 +55,6 @@ The user can then be listed::
    $ devpi user -l 
    sophie
    root
-   testuser
    emilie
    
 Or inspect the server configuration::

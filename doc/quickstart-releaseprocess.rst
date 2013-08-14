@@ -40,7 +40,7 @@ a series of other devpi commands::
     --> $ devpi-server --start
     starting background devpi-server at http://localhost:3141
     /home/hpk/p/devpi/doc/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server
-    process 'devpi-server' started pid=13370
+    process 'devpi-server' started pid=27175
     devpi-server process startup detected
     logfile is at /home/hpk/p/devpi/doc/.devpi/server/.xproc/devpi-server/xprocess.log
     --> $ devpi use http://localhost:3141
@@ -126,9 +126,9 @@ to our ``testuser/dev`` index::
     created workdir /tmp/devpi0
     --> $ hg st -nmac .
     hg-exported project to <Exported /tmp/devpi0/upload/example>
-    --> $ /home/hpk/p/devpi/doc/docenv/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi0/upload/example http://localhost:3141/testuser/dev/ testuser testuser-bd4468df5e43c72876b29ad1bc2ad587e08e3575b1ee7de11cdf42cb0bb6834e.BO025g.1W_T1A6K4F0IhHLz_z_zNcD4OkM register -r devpi
+    --> $ /home/hpk/p/devpi/doc/docenv/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi0/upload/example http://localhost:3141/testuser/dev/ testuser testuser-c95b5c069ec6e1fca2a2af486cb75baf742d60de2b1970298641b6d648ab6736.BO1WkQ.E6BPx4TCVNQa7XgtZvipBV2cJPM register -r devpi
     release registered to http://localhost:3141/testuser/dev/
-    --> $ /home/hpk/p/devpi/doc/docenv/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi0/upload/example http://localhost:3141/testuser/dev/ testuser testuser-bd4468df5e43c72876b29ad1bc2ad587e08e3575b1ee7de11cdf42cb0bb6834e.BO025g.1W_T1A6K4F0IhHLz_z_zNcD4OkM sdist --formats gztar upload -r devpi
+    --> $ /home/hpk/p/devpi/doc/docenv/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi0/upload/example http://localhost:3141/testuser/dev/ testuser testuser-c95b5c069ec6e1fca2a2af486cb75baf742d60de2b1970298641b6d648ab6736.BO1WkQ.E6BPx4TCVNQa7XgtZvipBV2cJPM sdist --formats gztar upload -r devpi
     submitted dist/example-1.0.tar.gz to http://localhost:3141/testuser/dev/
 
 There are three triggered actions:
@@ -333,7 +333,6 @@ because it inherits all releases from its ``testuser/staging`` base::
     list result: http://localhost:3141/testuser/dev/
     testuser/staging/example/1.0/example-1.0.tar.gz
       teta linux2 python 2.7.3 tests passed
-
 
 running devpi-server permanently
 +++++++++++++++++++++++++++++++++
