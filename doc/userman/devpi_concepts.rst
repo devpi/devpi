@@ -185,8 +185,8 @@ manner. This implies that:
    * If a project is created, it can not be deleted.
    * If a version is uploaded or pushed, it can not be be removed or overriden. 
 
-Furthermore, a non volatile index **can not** use a volatile index as one of its 
-bases.
+Furthermore, a non volatile index **should not** use a volatile index as
+one of its bases.
 
 **Non volatile indexes** should be used as common package repositories between 
 user, either for staging or production.

@@ -71,7 +71,6 @@ Let's just run the quickstart to read the instructive output::
       devpi PUSH ...      # to copy releases between indexes
       devpi index ...     # to manipulate/create indexes
       devpi user ...      # to manipulate/create users
-      devpi server ...    # to control the background server
       devpi CMD -h        # help for a specific command
       devpi -h            # general help
     docs at http://doc.devpi.net

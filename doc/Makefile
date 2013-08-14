@@ -209,15 +209,15 @@ $(USER_MAN_CHAPTERS):
 	USER=testuser python regendoc.py --update userman/devpi_$@.rst
 
 regen.server-fresh: regen.server-clean
-	devpi server --start
+	devpi-server --start
     
 regen.server-restart:	
-	-devpi server --stop	
-	devpi server --start
+	-devpi-server --stop	
+	devpi-server --start
 
 regen.server-clean:
 	@echo stopping server
-	-devpi server --stop
+	-devpi-server --stop
 	@echo deleting $(DEVPI_CLIENTDIR) $(DEVPI_SERVERDIR)
 	-rm -rf $(DEVPI_CLIENTDIR) $(DEVPI_SERVERDIR)
     

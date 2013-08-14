@@ -42,7 +42,6 @@ def main(hub, args):
     hub.info("  devpi PUSH ...      # to copy releases between indexes")
     hub.info("  devpi index ...     # to manipulate/create indexes")
     hub.info("  devpi user ...      # to manipulate/create users")
-    hub.info("  devpi server ...    # to control the background server")
     hub.info("  devpi CMD -h        # help for a specific command")
     hub.info("  devpi -h            # general help")
     hub.info("docs at http://doc.devpi.net")
