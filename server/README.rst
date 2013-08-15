@@ -39,7 +39,7 @@ good defaults and easy deployment
 ---------------------------------------
 
 Get started easily and create a permanent devpi-server deployment
-including pre-configured templates for nginx_ and cron. 
+including pre-configured templates for ``nginx`` and cron. 
 
 separate tool for Packaging/Testing activities
 -------------------------------------------------------

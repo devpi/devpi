@@ -30,7 +30,7 @@ The **root/pypi** index is a read only cache of http://python.pypi.org
 Once ``devpi`` uses a server, the server base url is cached on the client side.
 For instance, to use the ``pypi`` index, once could issue::
 
-   $devpi use /root/pypi
+   $ devpi use /root/pypi
    using index: http://localhost:3141/root/pypi/ (not logged in)
    
 More on the use command can be found :ref:`here <devpi_um_indices_use_section>`
@@ -101,8 +101,9 @@ Attempting to modify a user with the wrong credentials results in an error::
 
    $ devpi login sophie --password 1234
    logged in 'sophie', credentials valid for 10.00 hours
-   
+  
 ::
+ 
    $ devpi user -m emilie email=hijack@email.com
    removed expired authentication information
    PATCH http://localhost:3141/emilie
