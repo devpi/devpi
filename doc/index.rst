@@ -58,7 +58,6 @@ Tutorials and Documentation
 
    userman/index
 
-   curl
    
    glossary
 
@@ -67,7 +66,7 @@ Tutorials and Documentation
    :hidden:
 
    links
-
+   curl
 
 .. 
     Indices and tables

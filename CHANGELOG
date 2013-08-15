@@ -1,7 +1,122 @@
 1.0
 ----------------------------
 
-XXX collect changelog of server and client
+devpi-server:
+
+- rename "--datadir" to "--serverdir" to better match
+  the also picked up DEVPI_SERVERDIR environment variable.
+
+- fix a strange effect in that sometimes tools ask to receive
+  a package url with a "#md5=..." arriving at the server side.
+  We now strip that part out before trying to serve the file.
+
+- on startup don't create any initial indexes other 
+  than the "root/pypi" pypi caching mirror.
+
+- introduce ``--start``, ``--stop`` and ``--log`` commands for
+  controling a background devpi-server run. (these commands
+  previously were implemented with the devpi-client and the "server"
+  sub command)
+
+- fix issue27: provide full list of pypi names in root/pypi's simple
+  view (and simple pages from inheriting indices)
+
+- default to "eventlet" server when creating deployment with --gendeploy
+
+- fix issue25: return 403 Forbidden when trying to delete the root user.
+
+- fix name mangling issue for pypi-cache: "project_name*" is now matched
+  correctly when a lookup for "project-name" happens.
+
+- fix issue22: don't bypass CDN by default, rather provide an
+  "--bypass-cdn" option to do it (in case you have cache-invalidation troubles)
+
+- fix issue20 and fix issue23: normalize index specs internally ("/root/dev" ->
+  "root/dev") and check if base indices exist.
+
+- add Jenkins build job triggering for running the tests for a package
+  through tox.
+
+- inheritance cleanup: inherited versions for a project are now shadowed
+  and not shown anymore with getreleaselinks() or in +simple pages
+  if the "basename" is exactly shadowed.
+
+- fix issue16: enrich projectconfig json with a "+shadow" file which
+  lists shadowed "versions"
+
+- initial wheel support: accept "whl" uploads and support caching 
+  of whl files from pypi.python.org
+
+- implemented internal push operation between devpi indexes
+
+- show "docs" link if documentation has been uploaded
+
+- pushing releases to pypi.python.org will now correctly 
+  report the filetype/pyversion in the metadata.
+
+- add setting of acl_upload for indexes.   Only the owning
+  user and acl_upload users may upload releases, files 
+  or documentation to an index.
+
+- add --passwd USER option for setting a user's password server-side
+
+- don't require email setting for creating users
+
+devpi-client:
+
+- removed ``server`` subcommand and options for controling background devpi-server
+  processes to become options of ``devpi-server`` itself.
+
+- fix issue14: lookup "python" from PATH for upload/packaging activities instead of
+  using "sys.executable" which comes from the interpreter executing the "devpi" script.
+  This allows to alias "devpi" to come from a virtualenv which is separate from
+  the one used to perform packaging.
+
+- fix issue35: "devpi index" cleanly errors out if no index is
+  specified or in use.
+
+- remember authentication on a per-root basis and cleanup "devpi use"
+  interactions.  This makes switching between multiple devpi instances
+  more seemless.
+
+- fix issue17: better reporting when "devpi use" does not operate on valid URL
+
+- test result upload and access: 
+  - "devpi test" invokes "tox --result-json ..." and uploads 
+    the test result log to devpi-server.  
+  - "devpi list [-f] PKG" shows test result information.
+
+- add "uploadtrigger_jenkins" configuration option through "devpi
+  index".
+
+- fix issue19: devpi use now memorizes --venv setting properly. Thanks Laurent.
+
+- fix issue16: show files from shadowed versions 
+
+- initial wheel support: "devpi upload --format=bdist_wheel" now uploads
+  a wheel format file to the index.  (XXX "devpi install" will trigger
+  pip commands with option "--use-wheels".)
+
+- fix issue15: docs will now be built via "setup.py build_sphinx" 
+  using a internal build dir so that the upload succeeds if conf.py
+  would otherwise specify a non-standard location.
+
+- implement and refine "devpi push" command.  It now accepts
+  two forms "user/name" for specifying an internal devpi index
+  and "pypi:REPONAME" for specifying a repository which must be
+  defined in a .pypirc file.
+  
+- remove spurious pdb.set_trace() in devpi install command when
+  no pip can be found.
+
+- show and allow to set "acl_upload" for uploading priviliges
+
+- add longer descriptions to each sub command, shown with
+  "devpi COMMAND -h".
+
+- removed pytestplugin support for now (pytest reporting directly to
+  devpi-server)
+
 
 0.9.4
 ----------------------------

@@ -1,4 +1,4 @@
-1.0rc2
+1.0
 ----------------
 
 - rename "--datadir" to "--serverdir" to better match

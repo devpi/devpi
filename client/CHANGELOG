@@ -1,4 +1,4 @@
-1.0.rc2
+1.0
 -------------------------------
 
 - removed ``server`` subcommand and options for controling background devpi-server
