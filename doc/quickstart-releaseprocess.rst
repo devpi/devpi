@@ -20,8 +20,8 @@ This will install ``devpi-client`` and ``devpi-server`` pypi packages.
 devpi quickstart: initializing basic scenario
 +++++++++++++++++++++++++++++++++++++++++++++
 
-The ``devpi quickstart`` command performs basic initialization step
-of the devpi system on your local machine:
+The ``devpi quickstart`` command performs some basic initialization steps
+on your local machine:
 
 - start a background devpi-server at ``http://localhost:3141``
 
