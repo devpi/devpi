@@ -1,4 +1,4 @@
-devpi: managing and serving Python release processes
+devpi: PyPI server and packaging/testing/release tool
 ===================================================================
 
 ``devpi`` is a meta package installing two other packages:

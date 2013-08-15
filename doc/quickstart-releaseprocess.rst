@@ -40,7 +40,7 @@ a series of other devpi commands::
     --> $ devpi-server --start
     starting background devpi-server at http://localhost:3141
     /home/hpk/p/devpi/doc/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server
-    process 'devpi-server' started pid=27175
+    process 'devpi-server' started pid=492
     devpi-server process startup detected
     logfile is at /home/hpk/p/devpi/doc/.devpi/server/.xproc/devpi-server/xprocess.log
     --> $ devpi use http://localhost:3141
@@ -132,9 +132,9 @@ to our ``testuser/dev`` index::
     created workdir /tmp/devpi0
     --> $ hg st -nmac .
     hg-exported project to <Exported /tmp/devpi0/upload/example>
-    --> $ /home/hpk/p/devpi/doc/docenv/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi0/upload/example http://localhost:3141/testuser/dev/ testuser testuser-c95b5c069ec6e1fca2a2af486cb75baf742d60de2b1970298641b6d648ab6736.BO1WkQ.E6BPx4TCVNQa7XgtZvipBV2cJPM register -r devpi
+    --> $ /home/hpk/p/devpi/doc/docenv/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi0/upload/example http://localhost:3141/testuser/dev/ testuser testuser-d75168097979d42460f7dab8212d3e220c8200e3e3fd67f5e298f25983f3e10f.BO5gvg.kyBJwz0ypseN9hVqafLXb75cnJY register -r devpi
     release registered to http://localhost:3141/testuser/dev/
-    --> $ /home/hpk/p/devpi/doc/docenv/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi0/upload/example http://localhost:3141/testuser/dev/ testuser testuser-c95b5c069ec6e1fca2a2af486cb75baf742d60de2b1970298641b6d648ab6736.BO1WkQ.E6BPx4TCVNQa7XgtZvipBV2cJPM sdist --formats gztar upload -r devpi
+    --> $ /home/hpk/p/devpi/doc/docenv/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi0/upload/example http://localhost:3141/testuser/dev/ testuser testuser-d75168097979d42460f7dab8212d3e220c8200e3e3fd67f5e298f25983f3e10f.BO5gvg.kyBJwz0ypseN9hVqafLXb75cnJY sdist --formats gztar upload -r devpi
     submitted dist/example-1.0.tar.gz to http://localhost:3141/testuser/dev/
 
 There are three triggered actions:
@@ -184,17 +184,11 @@ If you have a package which uses tox_ for testing you may now invoke::
     $ devpi test example  # package needs to contain tox.ini
     received http://localhost:3141/testuser/dev/example/1.0/example-1.0.tar.gz
     unpacking /tmp/devpi-test0/downloads/example-1.0.tar.gz to /tmp/devpi-test0
-    /tmp/devpi-test0/example-1.0$ /home/hpk/venv/0/bin/tox --installpkg /tmp/devpi-test0/downloads/example-1.0.tar.gz -i ALL=http://localhost:3141/testuser/dev/+simple/ --result-json /tmp/devpi-test0/toxreport.json -v
-    using tox.ini: /tmp/devpi-test0/example-1.0/tox.ini
-    using tox-1.6rc2 from /home/hpk/p/tox/tox/__init__.pyc
+    /tmp/devpi-test0/example-1.0$ /home/hpk/venv/0/bin/tox --installpkg /tmp/devpi-test0/downloads/example-1.0.tar.gz -i ALL=http://localhost:3141/testuser/dev/+simple/ --result-json /tmp/devpi-test0/toxreport.json
     python create: /tmp/devpi-test0/example-1.0/.tox/python
-      /tmp/devpi-test0/example-1.0/.tox$ /home/hpk/venv/0/bin/python /home/hpk/venv/0/local/lib/python2.7/site-packages/virtualenv.py --setuptools --python /home/hpk/venv/0/bin/python python >/tmp/devpi-test0/example-1.0/.tox/python/log/python-0.log
     python installdeps: pytest
-      /tmp/devpi-test0/example-1.0/.tox/python/log$ /tmp/devpi-test0/example-1.0/.tox/python/bin/pip install -i http://localhost:3141/testuser/dev/+simple/ pytest >/tmp/devpi-test0/example-1.0/.tox/python/log/python-1.log
     python inst: /tmp/devpi-test0/downloads/example-1.0.tar.gz
-      /tmp/devpi-test0/example-1.0/.tox/python/log$ /tmp/devpi-test0/example-1.0/.tox/python/bin/pip install -i http://localhost:3141/testuser/dev/+simple/ /tmp/devpi-test0/downloads/example-1.0.tar.gz >/tmp/devpi-test0/example-1.0/.tox/python/log/python-2.log
     python runtests: commands[0] | py.test
-      /tmp/devpi-test0/example-1.0$ /tmp/devpi-test0/example-1.0/.tox/python/bin/py.test >/tmp/devpi-test0/example-1.0/.tox/python/log/python-3.log
     ___________________________________ summary ____________________________________
       python: commands succeeded
       congratulations :)

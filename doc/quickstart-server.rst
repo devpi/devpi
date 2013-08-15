@@ -8,7 +8,7 @@ Quickstart: permanent install on server/laptop
 
 This quickstart document walks you through setting up your own
 ``devpi-server`` instance, controling it with supervisor_ and 
-serving it through nginx_ on a unix like system.  It also
+(optionally) serving it through nginx_ on a unix like system.  It also
 shows how to create a first user and index.
 
 Note that the :doc:`the pypi-mirroring quickstart

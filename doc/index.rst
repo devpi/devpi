@@ -1,4 +1,4 @@
-devpi: PyPI-compatible server and complimentary command line tool
+devpi: PyPI server and packaging/testing/release tool
 =================================================================
 
 .. include:: links.rst
@@ -19,28 +19,34 @@ and a complimentary command line tool to drive packaging, testing and
 release activities with Python.  Main features and usage scenarios:
 
 - **fast PyPI mirror**: use a local self-updating pypi.python.org 
-  caching mirror from pip_ or easy_install_.  After an initial cache-fill
-  it can work off-line and will re-synchronize when you get online again.
+  caching mirror which works with ``pip`` and ``easy_install``.  
+  After an initial cache-fill it can work off-line and will 
+  re-synchronize when you get online again.
 
-- **staging and release management**: push releases and files 
-  from one index to another ("dev -> prod").  Use "non-volatile"
-  indexes to prevent a release or release file from disappearing
-  or changing.  
-
-- **test recording**: run tests via tox_ and attach test results 
-  to a specific release file.  Inspect test results on a per-release
-  file basis before you decide to push it to https://pypi.python.org
+- **uploading and staging**: upload ``setup.py``-style packages 
+  to a private index.  Test your uploaded release files and, when 
+  ready, push them verbatim from one internal index to another (staging).
+  You can configure on a per-index basis who can upload.  Special 
+  "push" syntax is available for pushing a release and its files 
+  from an internal to an external index (such as https://pypi.python.org ), 
+  dramatically reducing the risk of release accidents. 
 
 - **index inheritance**: configure an index to transparently
-  include all packages from one or more base indices.  Typically,
-  your index will at least inherit all pypi.python.org packages so 
-  that all dependencies will resolve when installing your own
-  (previously uploaded) development package from an index.
+  include all releases/packages from one or more internal base indices.  
+  For example, you can install internal or development packages from
+  your own internal index; if that index inherits from the internal
+  read-only ``root/pypi`` pypi.python.org-caching index, all your 
+  pypi-dependencies will resolve correctly.
+
+- **test recording**: devpi can run tests via tox_ and attach test results 
+  to a specific release file.  Inspect test results on a per-release
+  file basis before you decide to push it to an external index.
+
+- **Jenkins integration**: You can :ref:`easily set a per-index Jenkins
+  trigger <jenkins integration>` for automatically tox-testing any 
+  uploaded release file and query releases for their test results.
 
 To learn more checkout our quickstart and other docs.
-
-To understand more of how the PyPI protocol works, 
-checkout :pep:`438` and related documentation
 
 .. _label_quickstart_section:
 

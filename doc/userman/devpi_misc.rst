@@ -20,7 +20,7 @@ This needs configuration on two sides:
 
 - devpi: configuring an index to send POST requests to Jenkins upon upload
 
-- Jenkins: adding one or more jobs which can get triggered
+- Jenkins: adding one or more jobs which can get triggered by devpi-server.
 
 Configuring a devpi index to trigger Jenkins
 ++++++++++++++++++++++++++++++++++++++++++++
