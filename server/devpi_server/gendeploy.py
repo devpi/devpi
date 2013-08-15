@@ -139,7 +139,7 @@ def gendeploy(config):
         tw.line("detected existing devpi-ctl, ensuring it is shut down",
                 red=True)
         subproc(tw, [devpi_ctl, "shutdown", "all"])
-    if not (target.check() and target.join("bin").check()):
+    if not target.join("bin").check():
         tw.line("creating virtualenv: %s" % (target, ), bold=True)
         try:
             del os.environ["PYTHONDONTWRITEBYTECODE"]

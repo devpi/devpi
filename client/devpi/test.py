@@ -79,7 +79,6 @@ class DevIndex:
         toxargs = [str(toxscript), "--installpkg", str(path_archive),
                    "-i ALL=%s" % self.current.simpleindex,
                    "--result-json", str(jsonreport),
-                   "-v",
         ]
         if venv is not None:
             toxargs.append("-e" + venv)
