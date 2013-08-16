@@ -97,25 +97,8 @@ Then modify the desired property::
 
    $ devpi user -m emilie email=emilienew@gmail.com
    
-Attempting to modify a user with the wrong credentials results in an error::
-
-   $ devpi login sophie --password 1234
-   logged in 'sophie', credentials valid for 10.00 hours
-  
-::
- 
-   $ devpi user -m emilie email=hijack@email.com
-   removed expired authentication information
-   PATCH http://localhost:3141/emilie
-   401 Unauthorized
-
-Logging Off
------------
-
-In order to log off from a server, issue::
-
-   $ devpi logoff
-   not logged in
+Attempting to modify a user with the wrong credentials results in an 401 
+(unauthorized) error.
 
 Deleting a User
 ---------------
@@ -133,7 +116,7 @@ credentials::
    
 ::
 
-   $devpi user mistake --delete  
+   $ devpi user mistake --delete  
    user deleted: mistake
 
 .. rubric:: Footnotes

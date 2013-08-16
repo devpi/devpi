@@ -10,8 +10,14 @@ Uploading, testing and pushing packages
     This chapter ilustrates how to term:`upload`, test and :term:`push` a package 
     between indexes or to an external index server such as https://pypi.python.org.
 
-XXX Overview
-------------
+    *related commands*:
+      * :ref:`cmdref_upload`
+      * :ref:`cmdref_push` 
+      * :ref:`cmdref_test`
+      * :ref:`cmdref_install`
+
+Overview
+--------
 
 As explained in the :ref:`label_userman_concepts_chapter` chapter, the **/root/pypi** is a special cache to 
 http://python.pypi.org. 
