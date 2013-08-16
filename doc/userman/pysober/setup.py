@@ -7,6 +7,7 @@ def main():
     setup(
         name='pysober',
         description='A insignificant project for the sake of documentation',
+        url='http://mydomain.net',
         version=__version__,
         author='Holger Krekel',
         author_email='holger at merlinux.eu',

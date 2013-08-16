@@ -25,7 +25,7 @@ But before that, users must indicate to the devpi client which server to use::
 In this case, we do not make use of a particular index. We could however
 use the default **root/pypi** index [#f1]_.
 
-The **root/pypi** index is a read only cache of http://python.pypi.org  
+The **root/pypi** index is a read only cache of http://pypi.python.org  
 
 Once ``devpi`` uses a server, the server base url is cached on the client side.
 For instance, to use the ``pypi`` index, once could issue::

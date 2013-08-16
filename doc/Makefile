@@ -19,7 +19,7 @@ I18NSPHINXOPTS  = $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 USER_MAN_CHAPTERS = commands\
                     user\
                     indices\
-#                 userman/devpi_packages.rst\
+                    packages\
 #                 userman/index.rst\
 #                 userman/devpi_misc.rst\
 #                 userman/devpi_concepts.rst\
