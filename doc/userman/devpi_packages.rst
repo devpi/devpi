@@ -24,6 +24,23 @@ using a user index (**/emilie/dev**) which has the following inheritance tree::
           |
       /emilie/dev
       
+
+Sample Package
+^^^^^^^^^^^^^^
+
+The sample project consists of the following files:
+
+   * :download:`pysober.py <./pysober/pysober.py>` The module to be released.
+   * :download:`setup.py <./pysober/setup.py>` 
+   * :download:`MANIFEST.in <./pysober/MANIFEST.in>` 
+   * :download:`tox.ini <./pysober/tox.ini>` Tox configuration file required by **devpi** :ref:`cmdref_test`
+   * :download:`./test/conftest.py <./pysober/test/conftest.py>` Adds a --project-version option
+   * :download:`./test/test_pysober.py <./pysober/test/test_pysober.py>`
+   * :download:`./doc/Makefile <./pysober/doc/Makefile>` The documentation project which looks like this :ref:`pysober_index`
+   * :download:`./doc/source/overview.rst <./pysober/doc/source/overview.rst>`
+   * :download:`./doc/source/index.rst <./pysober/doc/source/index.rst>`
+   * :download:`./doc/source/conf.py <./pysober/doc/source/conf.py>`
+
       
 XXX Creating a virtual environment
 ----------------------------------
