@@ -7,9 +7,8 @@ Uploading, testing and pushing packages
 
 .. sidebar:: Summary
     
-    This chapter ilustrates how to upload, test and :term:`push` a package 
-    between indices or to an external index server such as 
-    https://pypi.python.org.
+    This chapter ilustrates how to term:`upload`, test and :term:`push` a package 
+    between indexes or to an external index server such as https://pypi.python.org.
 
 XXX Overview
 ------------

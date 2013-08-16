@@ -82,10 +82,11 @@ Indexes
 
 - An index derives from one or multiple base indices: 
 
-   For instance, imagine Emilie creates her own production index (called */emilie/prod*) (this index
-   should have */root/pypi* index as a base in order to get the Pypi packages (the default base is 
-   */root/dev*)) and decide to have a developement index (*/emilie.dev*) which derives from her
-   production index (a base). The later is used to upload tempory packages currently under development.
+   For instance, imagine Emilie creates her own production index (called 
+   */emilie/prod* - the default base is */root/pypi*)) and decide to have a 
+   developement index (*/emilie.dev*) which derives from her production index 
+   (a base). The later is used to upload tempory packages currently under 
+   development.
    
    The structure could look something like this:: 
    

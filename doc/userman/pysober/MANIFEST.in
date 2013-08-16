@@ -1,0 +1,3 @@
+include tox.ini
+recursive-include doc *
+graft doc
