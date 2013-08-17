@@ -186,6 +186,8 @@ And from there, the urls should be set to::
 .. note:: By default, a user index has its ``acl_upload`` property set to 
           himself/herself. This implies that other users are not allowed 
           to upload packages in that index.  
+
+.. _devpi_um_indices_modify:
    
 Modifying an Index
 ------------------
