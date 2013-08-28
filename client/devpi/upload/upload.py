@@ -125,7 +125,7 @@ def upload_file_pypi(hub, path, pkginfo):
 
 
 # taken from devpi-server/extpypi.py
-ALLOWED_ARCHIVE_EXTS = ".egg .tar.gz .tar.bz2 .tar .tgz .zip".split()
+ALLOWED_ARCHIVE_EXTS = ".egg .whl .tar.gz .tar.bz2 .tar .tgz .zip".split()
 def get_archive_files(fromdir):
     for x in fromdir.visit():
         if not x.check(file=1):
