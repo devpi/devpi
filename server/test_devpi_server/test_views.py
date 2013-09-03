@@ -59,6 +59,12 @@ def test_indexroot(pypiurls, httpget, testapp, xom):
     r = testapp.get("/user/index/")
     assert r.status_code == 200
 
+def test_indexroot_root_pypi(pypiurls, httpget, testapp, xom):
+    r = testapp.get("/root/pypi/")
+    assert r.status_code == 200
+    assert "in-stage" not in r.body
+
+
 @pytest.mark.parametrize("code", [-1, 500, 501, 502, 503])
 def test_upstream_not_reachable(pypiurls, httpget, testapp, xom, code):
     name = "whatever%d" % (code + 1)
@@ -462,4 +468,6 @@ class TestAuth:
         assert res is None
         with pytest.raises(auth.Expired):
             auth.get_auth_user(newauth)
+
+
 

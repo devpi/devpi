@@ -570,6 +570,13 @@ class PyPIView:
             projectlist = stage.getprojectnames_perstage()
             projectlist = sorted(projectlist)
             apireturn(200, type="list:projectconfig", result=projectlist)
+        if stage.name == "root/pypi":
+            return simple_html_body("%s index" % stage.name, [
+                html.ul(
+                    html.li(html.a("simple index", href="+simple/")),
+                ),
+            ]).unicode()
+
 
         # XXX this should go to a template
         if hasattr(stage, "ixconfig"):

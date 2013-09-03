@@ -5,6 +5,10 @@
   explicitely instructs pip to install the exact same version 
   of devpi-server with which --gendeploy is issued.
 
+- fix issue46 -- for GET /root/pypi/ only show a link to the
+  simple page instead of computing "latest in-stage packages"
+  which is only useful for devpi's user indices.
+
 1.0
 ----------------
 
