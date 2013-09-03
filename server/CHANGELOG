@@ -1,7 +1,9 @@
 1.0.1.dev1
 ----------------
 
-XXX
+- address issue43: --gendeploy now uses pip without --pre and
+  explicitely instructs pip to install the exact same version 
+  of devpi-server with which --gendeploy is issued.
 
 1.0
 ----------------
