@@ -71,6 +71,13 @@ class TestIndexThings:
         if m:  # only server-side mapp returns messages
             assert "not/exists" in m
 
+    def test_create_index_base_empty(self, mapp):
+        indexconfig = dict(bases=())
+        mapp.login_root()
+        mapp.create_index("root/empty", indexconfig=indexconfig, code=200)
+        data = mapp.getjson("/root/empty")
+        assert not data["result"]["bases"]
+
     def test_create_index_base_normalized(self, mapp):
         indexconfig = dict(bases=("/root/pypi",))
         mapp.login_root()

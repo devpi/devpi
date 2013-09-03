@@ -9,6 +9,9 @@
 - fix issue47: set PIP_USE_WHEEL with "devpi install ..." so that
   it will automatically pick up wheel files if pip>1.4 is used.
 
+- fix issue42: allow to set empty bases for an index, so that it doesn't
+  inherit anything.
+
 1.0
 -------------------------------
 

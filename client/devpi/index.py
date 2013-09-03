@@ -96,4 +96,6 @@ def parse_keyvalue_spec_index(hub, keyvalues):
         hub.fatal("arguments must be format NAME=VALUE: %r" %( keyvalues,))
     if "acl_upload" in kvdict:
         kvdict["acl_upload"] = kvdict["acl_upload"].split(",")
+    if "bases" in kvdict:
+        kvdict["bases"] = [x for x in kvdict["bases"].split(",") if x]
     return kvdict
