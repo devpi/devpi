@@ -6,6 +6,9 @@
   pip < 1.4 and >= 1.4 is normalized to always install 
   development versions.
 
+- fix issue47: set PIP_USE_WHEEL with "devpi install ..." so that
+  it will automatically pick up wheel files if pip>1.4 is used.
+
 1.0
 -------------------------------
 

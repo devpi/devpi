@@ -34,11 +34,10 @@ def main(hub, args):
         except KeyError:
             pass
         hub.popen_check([pip_path, "install"] + xopt + [
-            #"--use-wheel",
             "-U", #"--force-reinstall",
             "-i", current.simpleindex ] + list(args.pkgspecs),
             # normalize pip<1.4 and pip>=1.4 behaviour
-            extraenv={"PIP_PRE": "1"},
+            extraenv={"PIP_PRE": "1", "PIP_USE_WHEEL": "1"},
         )
 
 
