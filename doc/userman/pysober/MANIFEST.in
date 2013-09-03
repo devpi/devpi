@@ -1,0 +1,4 @@
+include tox.ini
+recursive-include doc *
+recursive-include test *.py
+graft doc

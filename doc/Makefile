@@ -19,7 +19,7 @@ I18NSPHINXOPTS  = $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 USER_MAN_CHAPTERS = commands\
                     user\
                     indices\
-#                 userman/devpi_packages.rst\
+                    packages\
 #                 userman/index.rst\
 #                 userman/devpi_misc.rst\
 #                 userman/devpi_concepts.rst\
@@ -208,6 +208,9 @@ $(USER_MAN_CHAPTERS):
 	@echo Regenerating $@
 	USER=testuser python regendoc.py --update userman/devpi_$@.rst
 
+regen.sample_undo:
+	-hg revert ./userman/pysober
+
 regen.server-fresh: regen.server-clean
 	devpi-server --start
     
@@ -215,7 +218,7 @@ regen.server-restart:
 	-devpi-server --stop	
 	devpi-server --start
 
-regen.server-clean:
+regen.server-clean: regen.sample_undo
 	@echo stopping server
 	-devpi-server --stop
 	@echo deleting $(DEVPI_CLIENTDIR) $(DEVPI_SERVERDIR)

@@ -25,7 +25,7 @@ But before that, users must indicate to the devpi client which server to use::
 In this case, we do not make use of a particular index. We could however
 use the default **root/pypi** index [#f1]_.
 
-The **root/pypi** index is a read only cache of http://python.pypi.org  
+The **root/pypi** index is a read only cache of http://pypi.python.org  
 
 Once ``devpi`` uses a server, the server base url is cached on the client side.
 For instance, to use the ``pypi`` index, once could issue::
@@ -97,25 +97,8 @@ Then modify the desired property::
 
    $ devpi user -m emilie email=emilienew@gmail.com
    
-Attempting to modify a user with the wrong credentials results in an error::
-
-   $ devpi login sophie --password 1234
-   logged in 'sophie', credentials valid for 10.00 hours
-  
-::
- 
-   $ devpi user -m emilie email=hijack@email.com
-   removed expired authentication information
-   PATCH http://localhost:3141/emilie
-   401 Unauthorized
-
-Logging Off
------------
-
-In order to log off from a server, issue::
-
-   $ devpi logoff
-   not logged in
+Attempting to modify a user with the wrong credentials results in an 401 
+(unauthorized) error.
 
 Deleting a User
 ---------------
@@ -133,7 +116,7 @@ credentials::
    
 ::
 
-   $devpi user mistake --delete  
+   $ devpi user mistake --delete  
    user deleted: mistake
 
 .. rubric:: Footnotes

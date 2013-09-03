@@ -15,6 +15,17 @@ Creating, configuring and using indices
 
 .. _devpi_um_indices_use_section:
 
+Overview
+--------
+
+In this chapter, we explore how we can create and modify indexes based according 
+to the following structure:
+
+.. image:: ../images/devpi-topology.png
+
+with the two users already created.
+
+
 "Use" sub-command
 -----------------
 
@@ -51,6 +62,10 @@ and then issue::
          pypisubmit: None
           resultlog: http://localhost:3141/+tests
               login: http://localhost:3141/+login
+
+.. addind a REsT comment here works around a regendoc bug.              
+              
+See :ref:`devpi_um_indices_list` for additional information on this command.
 
 Creating an Index
 -----------------
@@ -106,11 +121,11 @@ Two things happened when issuing this command:
 Emilie can then creating a development index (:term:`volatile index`) by 
 specifying her ``prod`` index as follow::
 
-   $ devpi index -c dev bases=/emilie/prod volatile=False
+   $ devpi index -c dev bases=/emilie/prod volatile=True
    dev:
      type=stage
      bases=emilie/prod
-     volatile=False
+     volatile=True
      uploadtrigger_jenkins=None
      acl_upload=emilie
    
@@ -127,7 +142,7 @@ which has the following definition on the server side::
            ], 
            "type": "stage", 
            "uploadtrigger_jenkins": null, 
-           "volatile": false
+           "volatile": true
        }, 
        "type": "indexconfig"
    }
@@ -171,6 +186,8 @@ And from there, the urls should be set to::
 .. note:: By default, a user index has its ``acl_upload`` property set to 
           himself/herself. This implies that other users are not allowed 
           to upload packages in that index.  
+
+.. _devpi_um_indices_modify:
    
 Modifying an Index
 ------------------
@@ -198,17 +215,20 @@ Assuming that Sophie has both index types as well::
    
 ::
 
-   $ devpi index -c dev bases=/sophie/prod volatile=False
+   $ devpi index -c dev bases=/sophie/prod volatile=True
    dev:
      type=stage
      bases=sophie/prod
-     volatile=False
+     volatile=True
      uploadtrigger_jenkins=None
      acl_upload=sophie
 
 Lets now assume that Sophie uploads her ``pysober`` package in her **dev** 
 index and Emilie wants to test the integration of this package with the 
 package she is currently working on.
+
+.. note:: See :ref:`devpi_um_indices_list` to see how indexes on the server 
+          can be listed.  
    
 One easy way to achieve this is by modifying the ``/emilie/dev`` index's 
 bases::
@@ -223,33 +243,36 @@ bases::
    /emilie/dev:
      type=stage
      bases=emilie/prod,sophie/dev
-     volatile=False
+     volatile=True
      uploadtrigger_jenkins=None
      acl_upload=emilie
    
-:note: It is important to specify all bases for that index, that is repeating
-       **/emilie/prod** which can be obtained by doing::
+.. note:: It is important to specify all bases for that index, that is repeating
+          **/emilie/prod** which can be obtained by doing::
        
           $ devpi index /emilie/dev
           
-From there, Emilie can install ``pysober`` by refering to her own index alone. When the 
-work is done, this relationship can be revoked by doing::
+From there, Emilie can install ``pysober`` by refering to her own index alone.  
+When the work is done, this relationship can be revoked by doing::
    
    $ devpi index /emilie/dev bases=/emilie/prod
    /emilie/dev changing bases: /emilie/prod
    /emilie/dev:
      type=stage
      bases=emilie/prod
-     volatile=False
+     volatile=True
      uploadtrigger_jenkins=None
      acl_upload=emilie
-::
+
+.. Adding a comment to work around a bug in regendoc where all lines are removed.     
+     
+which now has the ``/emilie/dev`` as a base only::
    
    $ devpi index /emilie/dev
    /emilie/dev:
      type=stage
      bases=emilie/prod
-     volatile=False
+     volatile=True
      uploadtrigger_jenkins=None
      acl_upload=emilie
    
@@ -264,15 +287,18 @@ Now that we have two indices, we can switch between them by doing::
    $ devpi use /emilie/prod
    using index: http://localhost:3141/emilie/prod/ (logged in as emilie)
 
-::
+checking::
+
    $ devpi use 
    using index: http://localhost:3141/emilie/prod/ (logged in as emilie)
 
-::
+switching::
+
    $ devpi use /emilie/dev
    using index: http://localhost:3141/emilie/dev/ (logged in as emilie)
 
-::
+and checking again::
+
    $ devpi use
    using index: http://localhost:3141/emilie/dev/ (logged in as emilie)
 
@@ -291,7 +317,7 @@ In the example below, we create a "bad" index and delete it::
      uploadtrigger_jenkins=None
      acl_upload=emilie
 
-::
+here is the bad index::
 
    $ devpi getjson /emilie/oups
    {
@@ -309,20 +335,45 @@ In the example below, we create a "bad" index and delete it::
        "type": "indexconfig"
    }
  
-::  
+which is now deleted::  
+
    $ devpi index --delete /emilie/oups
    index deleted: /emilie/oups
-  
-:: 
-   $ devpi use
-   using index: http://localhost:3141/emilie/dev/ (logged in as emilie)
    
-::
+And to prove it::
+
    $ devpi getjson /emilie/oups
    GET http://localhost:3141/emilie/oups
    404 Not Found: no such stage
+   
+.. _devpi_um_indices_list:   
+   
+Listing indexes
+---------------
+
+The **devpi** :ref:`cmdref_index` command show the existing indexes for a
+given user::
+
+   $ devpi index -l
+   emilie/dev
+   emilie/prod
+   
+However, it is sometimes useful to see all indexes present on the server. This 
+can done with the **devpi** :ref:`cmdref_use` ``-l`` command [#f1]_ which 
+provides, not only the index names and their owner, but also index property
+information::
+
+   $ devpi use -l
+   sophie/prod     bases=root/pypi       volatile=False
+   sophie/dev      bases=sophie/prod     volatile=True
+   root/pypi       bases=                volatile=False
+   emilie/prod     bases=root/pypi       volatile=False
+   emilie/dev      bases=emilie/prod     volatile=True
 
 .. rubric:: Footnotes
+
+.. [#f1] At the present time, it is not possible to issue ``devpi use -l <username>``
+         see `feature request #38 <https://bitbucket.org/hpk42/devpi/issue/38/>`_
 
 
 
