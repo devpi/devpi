@@ -220,18 +220,26 @@ class Hub:
         if ret:
             self.fatal("****** process returned %s" % ret)
 
-    def report_popen(self, args, cwd=None):
+    def report_popen(self, args, cwd=None, extraenv=None):
         base = cwd or self.cwd
         rel = py.path.local(args[0]).relto(base)
         if not rel:
             rel = str(args[0])
-        self.line("--> $", rel, " ".join(args[1:]))
+        if extraenv is not None:
+            envadd = " [%s]" % ",".join(
+                ["%s=%s" % item for item in extraenv.items()])
+        else:
+            envadd = ""
+        self.line("--> $", rel, " ".join(args[1:]), envadd)
 
-    def popen_check(self, args):
+    def popen_check(self, args, extraenv=None):
         assert args[0], args
         args = [str(x) for x in args]
-        self.report_popen(args)
-        ret = subprocess.call(args)
+        self.report_popen(args, extraenv=extraenv)
+        env = os.environ.copy()
+        if extraenv is not None:
+            env.update(extraenv)
+        ret = subprocess.call(args, env=env)
         if ret != 0:
             self.fatal("command failed")
 
