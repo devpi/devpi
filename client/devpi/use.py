@@ -160,7 +160,7 @@ class Current(object):
 
 def out_index_list(hub, data):
     for user in data:
-        indexes = data[user].get("indexes", [])
+        indexes = data[user].get("indexes", {})
         for index, ixconfig in indexes.items():
             ixname = "%s/%s" % (user, index)
             hub.info("%-15s bases=%-15s volatile=%s" %(ixname,

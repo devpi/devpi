@@ -12,6 +12,8 @@
 - fix issue42: allow to set empty bases for an index, so that it doesn't
   inherit anything.
 
+- fix issue44: "use -l" doesn't break when a user has no index
+
 1.0
 -------------------------------
 

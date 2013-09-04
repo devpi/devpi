@@ -5,8 +5,7 @@ import py
 from devpi import use
 from devpi import log
 from devpi.main import Hub, parse_args
-from devpi.use import main, Current
-from devpi.use import parse_keyvalue_spec
+from devpi.use import *
 
 def test_ask_confirm(makehub, monkeypatch):
     import devpi.main
@@ -181,3 +180,6 @@ def test_parse_keyvalue_spec(input, expected):
 
 def test_parse_keyvalue_spec_unknown_key():
     pytest.raises(KeyError, lambda: parse_keyvalue_spec(["hello=3"], ["some"]))
+
+def test_user_no_index(loghub):
+    out_index_list(loghub, {"user": {"username": "user"}})
