@@ -113,10 +113,13 @@ def try_argcomplete(parser):
 
 def parseoptions(argv, addoptions=addoptions):
     parser = MyArgumentParser(
-        description="Start an index server acting as a cache for "
-                    "pypi.python.org, suitable for pip/easy_install usage. "
-                    "The server automatically refreshes the cache of all "
-                    "indexes which have changed on the pypi.python.org side.")
+        description="Start a server which serves multiples users and "
+                    "indices. The special root/pypi index is a real-time "
+                    "mirror of pypi.python.org and is created by default. "
+                    "All indices are suitable for pip or easy_install usage "
+                    "and setup.py upload ... invocations."
+    )
+
     addoptions(parser)
     try_argcomplete(parser)
     args = parser.parse_args(argv[1:])
