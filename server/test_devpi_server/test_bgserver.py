@@ -31,4 +31,3 @@ def test_server_commands(tmpdir, monkeypatch):
         main(["devpi-server", "--log"])
     finally:
         main(["devpi-server", "--stop"])
-

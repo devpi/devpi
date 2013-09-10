@@ -112,7 +112,7 @@ class ReleaseFileStore:
             log.info("finished getting remote %r", entry.url)
         return entry.gethttpheaders(), iter_and_cache()
 
-    def store(self, user, index, filename, content):
+    def store(self, user, index, filename, content, last_modified=None):
         md5 = getmd5(content)
         proj, version = splitbasename(filename, suffix=True)[:2]
         key = self.keyfs.STAGEFILE(user=user, index=index,
@@ -121,8 +121,10 @@ class ReleaseFileStore:
                                    filename=filename)
         entry = self.getentry(key.relpath)
         key.set(content)
+        if last_modified is None:
+            last_modified = http_date()
         entry.set(md5=md5, size=len(content),
-                  last_modified=http_date())
+                  last_modified=last_modified)
         return entry
 
     def add_attachment(self, md5, type, data):
@@ -141,11 +143,13 @@ class ReleaseFileStore:
         return self.keyfs.ATTACHMENT(type=type, md5=md5, num=num).get()
 
     def iter_attachments(self, md5, type):
-        import json
         nums = self.keyfs.ATTACHMENT.listnames("num", type=type, md5=md5)
         for num in range(len(nums)):
             a = self.keyfs.ATTACHMENT(num=str(num), type=type, md5=md5).get()
             yield json.loads(a)
+
+    def iter_attachment_types(self, md5):
+        return self.keyfs.ATTACHMENT.listnames("type", md5=md5, num="0")
 
 
 def getmd5(content):

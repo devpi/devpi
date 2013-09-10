@@ -162,7 +162,7 @@ def perform_crawling(extdb, result, numthreads=10):
 
 class ExtDB:
     name = "root/pypi"
-    ixconfig = dict(bases=(), volatile=False)
+    ixconfig = dict(bases=(), volatile=False, type="mirror")
 
     def __init__(self, xom):
         self.keyfs = xom.keyfs

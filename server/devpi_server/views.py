@@ -138,7 +138,6 @@ class PyPIView:
         self.db = xom.db
         self.auth = Auth(xom.db, xom.config.secret)
 
-
     def getstage(self, user, index):
         stage = self.db.getstage(user, index)
         if not stage:

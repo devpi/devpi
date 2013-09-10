@@ -53,6 +53,12 @@ class DB:
                 userconfig["email"] = email
             log.info("created user %r with email %r" %(user, email))
 
+    def _user_set(self, user, newuserconfig):
+        with self.keyfs.USER(user=user).update() as userconfig:
+            userconfig.clear()
+            userconfig.update(newuserconfig)
+            log.info("internal: set user information %r", user)
+
     def user_modify(self, user, password=None, email=None):
         with self.keyfs.USER(user=user).update() as userconfig:
             modified = []
@@ -88,12 +94,14 @@ class DB:
             return pwhash
         return None
 
-    def user_get(self, user):
+    def user_get(self, user, credentials=False):
         d = self.keyfs.USER(user=user).get()
-        if d:
+        if not d:
+            return d
+        if not credentials:
             del d["pwsalt"]
             del d["pwhash"]
-            d["username"] = user
+        d["username"] = user
         return d
 
     def _get_user_and_index(self, user, index=None):
@@ -258,6 +266,8 @@ class PrivateStage:
             results.append((stage, stage_result))
         return results
 
+    def log_info(self, *args):
+        log.info("%s: %s" % (self.name, args[0]), *args[1:])
     #
     # registering project and version metadata
     #
@@ -275,6 +285,7 @@ class PrivateStage:
             #        name, version, self.name))
             versionconfig = projectconfig.setdefault(version, {})
             versionconfig.update(metadata)
+            self.log_info("store_metadata %s-%s", name, version)
         desc = metadata.get("description")
         if desc:
             html = processDescription(desc)
@@ -298,11 +309,11 @@ class PrivateStage:
         with key.locked_update() as projectconfig:
             if version not in projectconfig:
                 return False
-            log.info("deleting version %r of project %r", version, name)
+            self.log_info("deleting version %r of project %r", version, name)
             del projectconfig[version]
         # XXX race condition if concurrent addition happens
         if not projectconfig:
-            log.info("no version left, deleting project %r", name)
+            self.log_info("no version left, deleting project %r", name)
             key.delete()
         return True
 
@@ -390,7 +401,7 @@ class PrivateStage:
         return self.keyfs.PROJCONFIG.listnames("name",
                     user=self.user, index=self.index)
 
-    def store_releasefile(self, filename, content):
+    def store_releasefile(self, filename, content, last_modified=None):
         name, version = DistURL(filename).pkgname_and_version
         key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
         with key.locked_update() as projectconfig:
@@ -399,9 +410,9 @@ class PrivateStage:
             if not self.ixconfig.get("volatile") and filename in files:
                 return 409
             entry = self.xom.releasefilestore.store(self.user, self.index,
-                                                    filename, content)
+                                filename, content, last_modified=last_modified)
             files[filename] = entry.relpath
-            log.info("%s: stored releasefile %s", self.name, entry.relpath)
+            self.log_info("store_releasefile %s", entry.relpath)
             return entry
 
     def store_doczip(self, name, content):

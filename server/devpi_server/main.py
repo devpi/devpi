@@ -13,19 +13,54 @@ log = getLogger(__name__)
 from devpi_server.types import cached_property
 from devpi_server.config import parseoptions, configure_logging
 import devpi_server
+from pkg_resources import parse_version
+
+class Fatal(Exception):
+    pass
+
+def fatal(msg):
+    raise Fatal(msg)
+
+def check_compatible_version(versionfile):
+    last_version = "1.0.1.dev2"
+    last = parse_version(last_version)
+    if versionfile.check():
+        current_version = versionfile.read()
+        current = parse_version(current_version)
+        if current >= last:
+            return
+        fatal("serverstate version %s (read from %s), "
+              "not compatible with %s" %(
+                current_version, versionfile, devpi_server.__version__))
+    else:
+        version = devpi_server.__version__
+        assert parse_version(version) >= last
+        versionfile.dirpath().ensure(dir=1)
+        versionfile.write(version)
 
 def main(argv=None):
     """ devpi-server command line entry point. """
+    try:
+        return _main(argv)
+    except Fatal as e:
+        sys.stderr.write("fatal: %s" %  e.args[0] + "\n")
+        return 1
+
+def _main(argv=None):
     if argv is None:
         argv = sys.argv
-    argv = map(str, argv)
 
+    argv = map(str, argv)
     config = parseoptions(argv)
     args = config.args
 
     if args.version:
         print (devpi_server.__version__)
         return
+
+    versionfile = config.serverdir.join(".serverversion")
+    check_compatible_version(versionfile)
+
 
     if args.gendeploy:
         from devpi_server.gendeploy import gendeploy
@@ -50,11 +85,17 @@ def main(argv=None):
                 bgserver.line("no server is running")
             return
 
-    configure_logging(config)
     xom = XOM(config)
     if args.passwd:
         from devpi_server.db import run_passwd
         return run_passwd(xom.db, config.args.passwd)
+    if args.export:
+        from devpi_server.importexport import do_export
+        return do_export(args.export, xom)
+    elif args.import_:
+        from devpi_server.importexport import do_import
+        return do_import(args.import_, xom)
+    configure_logging(config)
     return bottle_run(xom)
 
 def make_application():
@@ -182,7 +223,8 @@ class XOM:
     def db(self):
         from devpi_server.db import DB
         db = DB(self)
-        set_default_indexes(db)
+        if not self.config.args.import_:
+            set_default_indexes(db)
         return db
 
     @cached_property
@@ -223,6 +265,7 @@ class XOM:
             plugin.start_background_tasks()
         else:  # defer to when the first request arrives
             app.install(plugin)
+        app.xom = self
         pypiview = PyPIView(self)
         route.discover_and_call(pypiview, app.route)
         return app

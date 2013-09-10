@@ -14,15 +14,20 @@ import os, sys
 from os.path import basename, isabs, join
 from os import listdir
 
+from devpi_server.types import cached_property
+
 _nodefault = object()
 
-class KeyFS:
+class KeyFS(object):
     def __init__(self, basedir):
-        self.basedir = py.path.local(basedir)
-        self.tmpdir = str(self.basedir.ensure(".tmp", dir=1))
+        self.basedir = py.path.local(basedir).ensure(dir=1)
         self.keys = []
         self._locks = {}
         self._mode = None
+
+    @cached_property
+    def tmpdir(self):
+        return str(self.basedir.ensure(".tmp", dir=1))
 
     def _getlock(self, relpath):
         return self._locks.setdefault(relpath, threading.RLock())

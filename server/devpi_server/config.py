@@ -76,6 +76,21 @@ def addoptions(parser):
     group.addoption("--debug", action="store_true",
             help="run wsgi application with debug logging")
 
+    group.addoption("--export", type=str, metavar="PATH",
+            help="export devpi-server database state into PATH. "
+                 "This will export all users, all indices (except root/pypi),"
+                 " release files and test results.  Documentation is NOT "
+                 "dumped at this point because it cannot be tied to "
+                 "a particular version."
+    )
+    group.addoption("--import", type=str, metavar="PATH",
+            dest="import_",
+            help="import devpi-server database from PATH where PATH "
+                 "is a directory which was created by an --export operation "
+                 "of a prior devpi-server run (possibly earlier version). "
+                 "You can only import into a fresh server state directory "
+                 "which you can set via --serverdir")
+
     group = parser.addgroup("background server")
     group.addoption("--start", action="store_true",
             help="start the background devpi-server")
@@ -86,7 +101,6 @@ def addoptions(parser):
     group.addoption("--log", action="store_true",
             help="show logfile content of background server")
 
-    group = parser.addgroup("deployment options")
 
 
 def try_argcomplete(parser):

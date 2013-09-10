@@ -341,3 +341,31 @@ Using devpi-ctl again we can stop the server eventually::
     $ TARGETDIR/bin/devpi-ctl shutdown
     Shut down
     using supervisor config: /home/hpk/p/devpi/doc/TARGETDIR/etc/supervisord.conf
+
+
+versioning, exporting and importing server state
+----------------------------------------------------
+
+.. versionadded:: 1.0.1
+
+``devpi-server`` maintains its state in a ``serverdir``,
+by default in ``$HOME/.devpi/server``.
+
+You can use the ``--export`` option to dump state
+into a directory::
+
+    devpi-server --export somedir
+
+Using the same ``devpi-server`` or a future release you can then
+import it::
+
+    devpi-server --import somedir --serverdir newserver
+
+This will import the previously exported server dump and
+create a new server state structure.
+
+.. note::
+
+    With version 1.0.1 users, indices, release files and
+    all test results will be dumped.  The ``root/pypi`` pypi-caching
+    index and documentation files are **not currently dumped**.

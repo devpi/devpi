@@ -1,6 +1,16 @@
 1.0.1.dev1
 ----------------
 
+- add --export/--import options to dump and import server contents:
+  users, indexes, release files and (test) attachments.
+  Note that root/pypi (PyPI-caching information) and all
+  uploaded documentation will not be exported/imported in this version
+  (planned for the future).
+
+- also add ".serverversion" file and write it if it does not
+  exist, and make devpi-server use it to verify if
+  operating on a compatible server data layout, otherwise bail out.
+
 - address issue43: --gendeploy now uses pip without --pre and
   explicitely instructs pip to install the exact same version 
   of devpi-server with which --gendeploy is issued.

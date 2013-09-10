@@ -6,6 +6,7 @@ import mimetypes
 import pytest
 import py
 from devpi_server.main import XOM, add_keys
+from devpi_server.main import parseoptions
 
 
 log = logging.getLogger(__name__)
@@ -33,6 +34,23 @@ def caplog(caplog):
     return caplog
 
 @pytest.fixture
+def gentmp(request):
+    tmpdirhandler = request.config._tmpdirhandler
+    cache = []
+    def gentmp(name=None):
+        if not cache:
+            prefix = re.sub("[\W]", "_", request.node.name)
+            basedir = tmpdirhandler.mktemp(prefix, numbered=True)
+            cache.append(basedir)
+        else:
+            basedir = cache[0]
+        if name:
+            return basedir.mkdir(name)
+        return py.path.local.make_numbered_dir(prefix="gentmp",
+                keep=0, rootdir=basedir, lock_timeout=None)
+    return gentmp
+
+@pytest.fixture
 def xom_notmocked(request):
     from devpi_server.main import parseoptions, XOM
     config = parseoptions(["devpi-server"])
@@ -41,8 +59,7 @@ def xom_notmocked(request):
     return xom
 
 @pytest.fixture
-def xom(request, keyfs, filestore, httpget):
-    from devpi_server.main import parseoptions, XOM
+def xom(request, keyfs, filestore, httpget, makexom):
     from devpi_server.extpypi import ExtDB
     config = parseoptions(["devpi-server"])
     xom = XOM(config)
@@ -54,6 +71,39 @@ def xom(request, keyfs, filestore, httpget):
     xom.extdb.url2response = httpget.url2response
     request.addfinalizer(xom.shutdown)
     return xom
+
+@pytest.fixture
+def makexom(request, gentmp, httpget):
+    def makexom(opts=()):
+        serverdir = gentmp()
+        fullopts = ["devpi-server", "--serverdir", serverdir] + list(opts)
+        fullopts = [str(x) for x in fullopts]
+        config = parseoptions(fullopts)
+        xom = XOM(config)
+        xom.httpget = httpget
+        request.addfinalizer(xom.shutdown)
+        return xom
+    return makexom
+
+
+@pytest.fixture
+def maketestapp(request):
+    def maketestapp(xom):
+        app = xom.create_app(catchall=False, immediatetasks=-1)
+        mt = MyTestApp(app)
+        mt.xom = xom
+        return mt
+    return maketestapp
+
+@pytest.fixture
+def makemapp(maketestapp, makexom):
+    def makemapp(testapp=None, options=()):
+        if testapp is None:
+            testapp = maketestapp(makexom(options))
+        m = Mapp(testapp)
+        m.xom = testapp.xom
+        return m
+    return makemapp
 
 @pytest.fixture
 def httpget(pypiurls):
@@ -138,8 +188,8 @@ def db(xom):
     return db
 
 @pytest.fixture
-def mapp(testapp):
-    return Mapp(testapp)
+def mapp(makemapp, testapp):
+    return makemapp(testapp)
 
 class Mapp:
     def __init__(self, testapp):
@@ -347,10 +397,8 @@ class MyTestApp(TApp):
 
 
 @pytest.fixture
-def testapp(request, xom):
-    app = xom.create_app(catchall=False, immediatetasks=-1)
-    return MyTestApp(app)
-
+def testapp(request, maketestapp, xom):
+    return maketestapp(xom)
 
 ### incremental testing
 
