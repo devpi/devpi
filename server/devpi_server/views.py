@@ -2,17 +2,17 @@
 import py
 from py.xml import html
 from devpi_server.types import lazydecorator, cached_property
-from bottle import response, request, abort, redirect, HTTPError, auth_basic
+from bottle import response, request, abort, redirect, HTTPError
 from bottle import BaseResponse, HTTPResponse, static_file
-from devpi_server.config import render_string
-from devpi_server import urlutil
 import bottle
 import json
-import itsdangerous
 import logging
 import inspect
-
 import requests
+
+from .auth import Auth
+from .config import render_string
+from . import urlutil
 
 log = logging.getLogger(__name__)
 
@@ -67,71 +67,6 @@ def json_preferred():
 
 route = lazydecorator()
 
-class Auth:
-    LOGIN_EXPIRATION = 60*60*10  # 10 hours
-
-    class Expired(Exception):
-        """ proxy authentication expired. """
-
-    def __init__(self, db, secret):
-        self.db = db
-        self.signer = itsdangerous.TimestampSigner(secret)
-
-    def get_auth_user(self, auth, raising=True):
-        try:
-            authuser, authpassword = auth
-        except TypeError:
-            return None
-        try:
-            val = self.signer.unsign(authpassword, self.LOGIN_EXPIRATION)
-        except itsdangerous.SignatureExpired:
-            if raising:
-                raise self.Expired()
-            return None
-        except itsdangerous.BadData:
-            # check if we got user/password direct authentication
-            if self.db.user_validate(authuser, authpassword):
-                return authuser
-            return None
-        else:
-            if not val.startswith(authuser + "-"):
-                log.debug("mismatch credential for user %r", authuser)
-                return None
-            return authuser
-
-    def new_proxy_auth(self, user, password):
-        hash = self.db.user_validate(user, password)
-        if hash:
-            pseudopass = self.signer.sign(user + "-" + hash)
-            return {"password":  pseudopass,
-                    "expiration": self.LOGIN_EXPIRATION}
-
-    def require_user(self, user, stage=None, acltype="upload"):
-        #log.debug("headers %r", request.headers.items())
-        if not self.db.user_exists(user):
-            abort(404, "user %r does not exist" % user)
-        try:
-            auth_user = self.get_auth_user(request.auth)
-        except itsdangerous.SignatureExpired:
-            abort_authenticate(msg="authentication expired")
-
-        if not auth_user:
-            log.warn("invalid or no authentication")
-            log.warn("request.auth %s" %(request.auth,))
-            abort_authenticate()
-        if auth_user == "root" or auth_user == user:
-            return
-        if stage:
-            acl = stage.ixconfig.get("acl_" + acltype, [])
-            if auth_user in acl:
-                log.debug("user %r is acl_upload list", auth_user)
-                return
-            apireturn(403, message="user %r not authorized for %s to %s"
-                             % (auth_user, acltype, stage.name))
-        log.info("user %r not authorized", auth_user)
-        abort_authenticate()
-
-
 class PyPIView:
     def __init__(self, xom):
         self.xom = xom
@@ -155,6 +90,7 @@ class PyPIView:
         api = {
             "resultlog": "/+tests",
             "login": "/+login",
+            "authstatus": self.auth.get_auth_status(request.auth),
         }
         if path:
             parts = path.split("/")
@@ -268,7 +204,7 @@ class PyPIView:
 
     @route("/<user>/<index>", method=["PUT", "PATCH"])
     def index_create_or_modify(self, user, index):
-        self.auth.require_user(user)
+        self.require_user(user)
         ixconfig = self.db.index_get(user, index)
         if request.method == "PUT" and ixconfig is not None:
             apireturn(409, "index %s/%s exists" % (user, index))
@@ -289,7 +225,7 @@ class PyPIView:
 
     @route("/<user>/<index>", method=["DELETE"])
     def index_delete(self, user, index):
-        self.auth.require_user(user)
+        self.require_user(user)
         indexname = user + "/" + index
         ixconfig = self.db.index_get(user, index)
         if not ixconfig:
@@ -396,7 +332,7 @@ class PyPIView:
         if user == "root" and index == "pypi":
             abort(404, "cannot submit to pypi mirror")
         stage = self.getstage(user, index)
-        self.auth.require_user(user, stage=stage)
+        self.require_user(user, stage=stage)
         try:
             action = request.forms[":action"]
         except KeyError:
@@ -468,7 +404,7 @@ class PyPIView:
 
     @route("/<user>/<index>/<name>", method="PUT")
     def project_add(self, user, index, name):
-        self.auth.require_user(user)
+        self.require_user(user)
         stage = self.getstage(user, index)
         if stage.project_exists(name):
             apireturn(409, "project %r exists" % name)
@@ -478,7 +414,7 @@ class PyPIView:
     @route("/<user>/<index>/<name>", method="DELETE")
     @route("/<user>/<index>/<name>/", method="DELETE")
     def project_delete(self, user, index, name):
-        self.auth.require_user(user)
+        self.require_user(user)
         stage = self.getstage(user, index)
         if stage.name == "root/pypi":
             abort(405, "cannot delete on root/pypi index")
@@ -635,6 +571,32 @@ class PyPIView:
     #
     # login and user handling
     #
+
+    def require_user(self, user, stage=None, acltype="upload"):
+        #log.debug("headers %r", request.headers.items())
+        status, auth_user = self.auth.get_auth_status(request.auth)
+        log.debug("got auth status %r for user %r" %(status, auth_user))
+        if not self.db.user_exists(user):
+            abort(404, "required user %r does not exist" % auth_user)
+        if status == "nouser":
+            abort(404, "user %r does not exist" % auth_user)
+        elif status == "expired":
+            abort_authenticate(msg="auth expired for %r" % auth_user)
+        elif status == "noauth":
+            abort_authenticate()
+        if auth_user == "root" or auth_user == user:
+            return
+        if stage:
+            acl = stage.ixconfig.get("acl_" + acltype, [])
+            if auth_user in acl:
+                log.debug("user %r is acl_upload list", auth_user)
+                return
+            apireturn(403, message="user %r not authorized for %s to %s"
+                             % (auth_user, acltype, stage.name))
+        log.info("user %r not authorized", auth_user)
+        abort_authenticate()
+
+
     @route("/+login", method="POST")
     def login(self):
         dict = getjson(request)
@@ -651,7 +613,7 @@ class PyPIView:
     @route("/<user>", method="PATCH")
     @route("/<user>/", method="PATCH")
     def user_patch(self, user):
-        self.auth.require_user(user)
+        self.require_user(user)
         dict = getjson(request, allowed_keys=["email", "password"])
         email = dict.get("email")
         password = dict.get("password")
@@ -675,7 +637,7 @@ class PyPIView:
     def user_delete(self, user):
         if user == "root":
             apireturn(403, "root user cannot be deleted")
-        self.auth.require_user(user)
+        self.require_user(user)
         userconfig = self.db.user_get(user)
         if not userconfig:
             apireturn(404, "user %r does not exist" % user)
@@ -688,7 +650,7 @@ class PyPIView:
 
     @route("/<user>", method="GET")
     def user_get(self, user):
-        #self.auth.require_user(user)
+        #self.require_user(user)
         userconfig = self.db.user_get(user)
         if not userconfig:
             apireturn(404, "user %r does not exist" % user)

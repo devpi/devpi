@@ -61,8 +61,13 @@ class TestIndexThings:
         mapp.delete_index("dev")
         assert indexname not in mapp.getindexlist()
 
+    def test_create_index_auth_deleted(self, mapp):
+        mapp.create_and_login_user("ci1")
+        mapp.delete_user("ci1")
+        mapp.create_index("ci1/dev", code=404)
+
     def test_create_index__not_exists(self, mapp):
-        mapp.create_index("not_exist/dev", code=404)
+        mapp.create_index("not_exists/dev", code=404)
 
     def test_create_index_base_not_exists(self, mapp):
         indexconfig = dict(bases=("not/exists",))

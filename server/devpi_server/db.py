@@ -3,18 +3,12 @@ import os
 import py
 from .urlutil import DistURL
 from .vendor._description_utils import processDescription
-import hashlib
 from .urlutil import sorted_by_version
+from .auth import crypt_password, verify_password
 
 import logging
 
 log = logging.getLogger(__name__)
-
-def getpwhash(password, salt):
-    hash = hashlib.sha256()
-    hash.update(salt)
-    hash.update(password)
-    return hash.hexdigest()
 
 def run_passwd(db, user):
     if not db.user_exists(user):
@@ -71,8 +65,9 @@ class DB:
             log.info("modified user %r: %s" %(user, ", ".join(modified)))
 
     def _setpassword(self, userconfig, user, password):
-        userconfig["pwsalt"] = salt = os.urandom(16).encode("base_64")
-        userconfig["pwhash"] = hash = getpwhash(password, salt)
+        salt, hash = crypt_password(password)
+        userconfig["pwsalt"] = salt
+        userconfig["pwhash"] = hash
         log.info("setting password for user %r", user)
 
     def user_delete(self, user):
@@ -90,7 +85,7 @@ class DB:
             return False
         salt = userconfig["pwsalt"]
         pwhash = userconfig["pwhash"]
-        if getpwhash(password, salt) == pwhash:
+        if verify_password(password, pwhash, salt):
             return pwhash
         return None
 

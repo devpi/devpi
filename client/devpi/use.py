@@ -103,8 +103,7 @@ class Current(object):
         url = self.get_index_url(url)
         if not urlutil.is_valid_url(url):
             hub.fatal("invalid URL: %s" % url)
-        r = hub.http_api("get", url.rstrip("/") + "/+api", quiet=True,
-                         auth=None)
+        r = hub.http_api("get", url.rstrip("/") + "/+api", quiet=True)
         rooturl = urlutil.getnetloc(url, scheme=True)
         result = r["result"]
         data = {}
