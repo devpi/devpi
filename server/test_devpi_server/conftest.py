@@ -219,8 +219,9 @@ class Mapp:
                                   expect_errors=True)
         assert r.status_code == code
         if code == 200:
-            self.testapp.set_auth(user, r.json["password"])
-            self.auth = user, r.json["password"]
+            password = r.json.get("result", r.json)["password"]
+            self.testapp.set_auth(user, password)
+            self.auth = user, password
 
     def login_root(self):
         self.login("root", "")
