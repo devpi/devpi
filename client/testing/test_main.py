@@ -8,6 +8,9 @@ class TestVerifyAPIVersion:
         verify_reply_version(loghub, reply)
         matcher = loghub._getmatcher()
         matcher.fnmatch_lines("*assuming API-VERSION 1*")
+        verify_reply_version(loghub, reply)
+        matcher = loghub._getmatcher()
+        assert matcher.str().count("assuming") == 1
 
     def test_version_ok(self, loghub):
         from devpi_server.views import API_VERSION

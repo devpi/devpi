@@ -656,9 +656,11 @@ def verify_reply_version(hub, reply):
     acceptable_api_version = ("1",)
     version = reply.headers.get("X-DEVPI-API-VERSION", None)
     if version is None:
-        hub.error("WARN: devpi-client-%s got an unversioned reply, "
-                  "assuming API-VERSION 1 (as implemented by "
-                  "devpi-server-1.1)" % client_version)
+        if not hasattr(hub, "_WARNAPI_DELIVERED"):
+            hub.error("WARN: devpi-client-%s got an unversioned reply, "
+                      "assuming API-VERSION 1 (as implemented by "
+                      "devpi-server-1.1)" % client_version)
+            hub._WARNAPI_DELIVERED = True
         return
     if version in acceptable_api_version:
         return
