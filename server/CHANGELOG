@@ -1,4 +1,4 @@
-1.0.1.dev1
+1.1.dev1
 ----------------
 
 - add --export/--import options to dump and import server contents:
@@ -6,6 +6,11 @@
   Note that root/pypi (PyPI-caching information) and all
   uploaded documentation will not be exported/imported in this version
   (planned for the future).
+
+- devpi-server now returns a X-DEVPI-API-VERSION header,
+  current is "1".  For future incompatible changes this
+  version will be incremented so that devpi-client can
+  bail out cleanly if it doesn't support the version.
 
 - also add ".serverversion" file and write it if it does not
   exist, and make devpi-server use it to verify if

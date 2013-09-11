@@ -14,6 +14,8 @@ from .auth import Auth
 from .config import render_string
 from . import urlutil
 
+API_VERSION = "1"
+
 log = logging.getLogger(__name__)
 
 MAXDOCZIPSIZE = 30 * 1024 * 1024    # 30MB
@@ -59,7 +61,8 @@ def apireturn(code, message=None, result=None, type=None):
         d["message"] = message
     data = json.dumps(d, indent=2) + "\n"
     raise HTTPResponse(body=data, status=code, header=
-                    {"content-type": "application/json"})
+                    {"content-type": "application/json",
+                     "X-DEVPI-API-VERSION": API_VERSION})
 
 def json_preferred():
     # XXX do proper "best" matching

@@ -1,6 +1,12 @@
 1.0.1.dev1
 -------------------------------
 
+- detect "X-DEVPI-API-VERSION" header and check for compatibility.
+  devpi-client currently supports version "1" and warns if
+  no version is known (defaulting to "1").
+
+- getjson now prints http reply headers if "-v|--verbose" was supplied.
+
 - fix issue43: set PIP_PRE environment variable when executing
   "devpi install ..." so that the behaviour between 
   pip < 1.4 and >= 1.4 is normalized to always install 

@@ -23,7 +23,12 @@ def main(hub, args=None):
         url = urlutil.joinpath(current.get_index_url(), path)
     else:
         url = urlutil.joinpath(current.rooturl, path)
-    r = hub.http_api("get", url, quiet=True)
+    r = hub.http_api("get", url, quiet=True, check_version=False)
+    if hub.args.verbose:
+        hub.line("GET REQUEST sent to %s" % url)
+        for name in sorted(r.headers):
+            hub.line("%s: %s" %(name.upper(), r.headers[name]))
+        hub.line()
     hub.out_json(r._json)
     return
 

@@ -116,14 +116,14 @@ class Mapp:
     def create_project(self, indexname, code=201):
         pytest.xfail(reason="no way to create project via command line yet")
 
-
-
-
 def test_logoff(mapp):
     mapp.login()
     mapp.logoff()
     mapp.logoff()
 
+def test_getjson(out_devpi):
+    result = out_devpi("getjson", "/", "-v")
+    assert "X-DEVPI-API-VERSION" in result.stdout.str()
 
 class TestUserManagement:
     """ This class tests the user sub command of devpi

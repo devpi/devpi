@@ -8,6 +8,7 @@ import devpi
 from devpi.util.lazydecorator import lazydecorator
 from devpi.util import url as urlutil
 from devpi import log, cached_property
+from devpi import __version__ as client_version
 from devpi.use import Current
 import requests
 import json
@@ -93,7 +94,8 @@ class Hub:
         session.ConnectionError = requests.exceptions.ConnectionError
         return session
 
-    def http_api(self, method, url, kvdict=None, quiet=False, auth=notset):
+    def http_api(self, method, url, kvdict=None, quiet=False, auth=notset,
+        check_version=True):
         """ send a json request and return a HTTPReply object which
         adds some extra methods to the requests's Reply object.
 
@@ -122,6 +124,9 @@ class Hub:
         if r.status_code == 401:
             if self.current.del_auth():
                 self.error("removed expired authentication information")
+
+        if check_version:
+            verify_reply_version(self, reply)
 
         if r.status_code in (200, 201):
             # don't show any extra info on success code
@@ -384,8 +389,8 @@ def add_generic_options(parser):
         help="show debug messages including more info on server requests")
     group.add_argument("-y", action="store_true", dest="yes",
         help="assume 'yes' on confirmation questions")
-    #group.add_argument("-v", "--verbose", action="store_true",
-    #    help="increase verbosity")
+    group.add_argument("-v", "--verbose", action="count",
+        help="increase verbosity")
     group.add_argument("--clientdir", action="store", metavar="DIR",
         default=os.path.expanduser(os.environ.get("DEVPI_CLIENTDIR",
                                                   "~/.devpi/client")),
@@ -646,6 +651,21 @@ def install(parser):
         action="store", default=None, nargs="*",
         help="uri or package file for installation from current index. """
     )
+
+def verify_reply_version(hub, reply):
+    acceptable_api_version = ("1",)
+    version = reply.headers.get("X-DEVPI-API-VERSION", None)
+    if version is None:
+        hub.error("WARN: devpi-client-%s got an unversioned reply, "
+                  "assuming API-VERSION 1 (as implemented by "
+                  "devpi-server-1.1)" % client_version)
+        return
+    if version in acceptable_api_version:
+        return
+    hub.fatal("devpi-client-%s got a reply with API-VERSION %s, "
+              "acceptable are: %s" %(client_version, version,
+                                     ",".join(acceptable_api_version)))
+
 
 
 if __name__ == "__main__":

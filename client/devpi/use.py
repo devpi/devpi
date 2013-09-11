@@ -116,7 +116,8 @@ class Current(object):
                 val = urlutil.joinpath(rooturl, val)
             data[name] = val
         self.reconfigure(data)
-        if result["authstatus"][0] not in ["ok", "noauth"]:
+        status = result.get("authstatus", None)
+        if status and status[0] not in ["ok", "noauth"]:
             self.del_auth(rooturl)
 
     def getvenvbin(self, name, venvdir=None, glob=True):
