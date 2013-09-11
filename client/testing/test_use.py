@@ -66,6 +66,27 @@ class TestUnit:
         with pytest.raises(SystemExit):
             current.configure_fromurl(loghub, "http://heise.de:/qwe")
 
+    def test_auth_handling(self, loghub, tmpdir):
+        current = Current(tmpdir.join("current"))
+        d = {
+            "index": "http://l/some/index",
+            "login": "http://l/login",
+        }
+        current.reconfigure(data=d)
+        assert current.rooturl
+        current.set_auth("user", "password")
+        assert current.get_auth() == ("user", "password")
+
+        # ok response
+        d["authstatus"] = ["ok", "user"]
+        current._configure_from_server_api(d, current.rooturl)
+        assert current.get_auth() == ("user", "password")
+
+        # invalidation response
+        d["authstatus"] = ["nouser", "user"]
+        current._configure_from_server_api(d, current.rooturl)
+        assert not current.get_auth()
+
     def test_use_with_no_rooturl(self, capfd, cmd_devpi, monkeypatch):
         from devpi import main
         monkeypatch.setattr(main.Hub, "http_api", None)
@@ -89,10 +110,12 @@ class TestUnit:
                     result=dict(
                         index="/index",
                         login="/+login/",
+                        authstatus=["noauth", ""],
                    ))
         mock_http_api.set("http://world2.com/+api", 200,
                     result=dict(
                         login="/+login/",
+                        authstatus=["noauth", ""],
                    ))
 
         hub = cmd_devpi("use", "http://world.com")
@@ -112,6 +135,7 @@ class TestUnit:
                         index="root/some",
                         bases="root/dev",
                         login="/+login/",
+                        authstatus=["noauth", ""],
                    ))
 
         hub = cmd_devpi("use", "http://world/this")
@@ -140,6 +164,7 @@ class TestUnit:
                         index="",
                         bases="",
                         login="/+login/",
+                        authstatus=["noauth", ""],
                    ))
 
         hub = cmd_devpi("use", "http://world/")

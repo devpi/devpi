@@ -104,8 +104,10 @@ class Current(object):
         if not urlutil.is_valid_url(url):
             hub.fatal("invalid URL: %s" % url)
         r = hub.http_api("get", url.rstrip("/") + "/+api", quiet=True)
-        rooturl = urlutil.getnetloc(url, scheme=True)
-        result = r["result"]
+        self._configure_from_server_api(r["result"], url)
+
+    def _configure_from_server_api(self, result, url):
+        rooturl = urlutil.getnetloc(url, scheme=True) + "/"
         data = {}
         url_keys = set(devpi_endpoints)
         for name in url_keys:
@@ -114,6 +116,8 @@ class Current(object):
                 val = urlutil.joinpath(rooturl, val)
             data[name] = val
         self.reconfigure(data)
+        if result["authstatus"][0] not in ["ok", "noauth"]:
+            self.del_auth(rooturl)
 
     def getvenvbin(self, name, venvdir=None, glob=True):
         if venvdir is None:
