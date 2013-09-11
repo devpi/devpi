@@ -15,8 +15,13 @@ def main(hub, args):
     password = args.password
     if password is None:
         password = py.std.getpass.getpass("password for user %s: " % user)
-    data = dict(user=user, password=password)
-    data = hub.http_api("post", hub.current.login, data, quiet=False)
+    input = dict(user=user, password=password)
+    r = hub.http_api("post", hub.current.login, input, quiet=False)
+    # devpi-server 1.1 sends a proper result structure, normalize:
+    try:
+        data = r["result"]
+    except KeyError:
+        data = r
     hub.current.set_auth(user, data["password"])
     hours = data["expiration"] / (60*60.0)
     hub.info("logged in %r, credentials valid for %.2f hours" %

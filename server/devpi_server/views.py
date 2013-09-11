@@ -610,7 +610,8 @@ class PyPIView:
             abort(400, "Bad request: no user/password specified")
         proxyauth = self.auth.new_proxy_auth(user, password)
         if proxyauth:
-            return proxyauth
+            apireturn(200, "login successful", type="proxyauth",
+                result=proxyauth)
         apireturn(401, "user %r could not be authenticated" % user)
 
     @route("/<user>", method="PATCH")

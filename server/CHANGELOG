@@ -24,6 +24,8 @@
   simple page instead of computing "latest in-stage packages"
   which is only useful for devpi's user indices.
 
+- fix issue37: upload with expired login causes proper 401
+
 1.0
 ----------------
 
