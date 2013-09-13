@@ -141,7 +141,7 @@ def add_keys(keyfs):
     keyfs.USER = keyfs.addkey("{user}/.config", dict)
 
     # type pypimirror related data
-    keyfs.PYPILINKS = keyfs.addkey("root/pypi/links/{name}", list)
+    keyfs.PYPILINKS = keyfs.addkey("root/pypi/links/{name}", dict)
     keyfs.PYPIFILES = keyfs.addkey("root/pypi/f/{relpath}", file)
     keyfs.PYPISERIALS = keyfs.addkey("root/pypi/serials", dict)
 

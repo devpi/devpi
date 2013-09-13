@@ -45,6 +45,11 @@ def abort(code, body):
         apireturn(code, body)
     bottle.abort(code, body)
 
+def abort_custom(code, msg):
+    error = HTTPError(code, msg)
+    error.status = "%s %s" %(code, msg)
+    raise error
+
 def abort_authenticate(msg="authentication required"):
     err = HTTPError(401, msg)
     err.add_header('WWW-Authenticate', 'Basic realm="pypi"')
@@ -348,8 +353,10 @@ class PyPIView:
             except KeyError:
                 abort(400, "content file field not found")
             name = request.forms.get("name")
-            version = request.forms.get("version", "")
+            version = request.forms.get("version", "")  # docs have no version
             if not stage.get_metadata(name, version):
+                # XXX we should reject to register if the project doesn't
+                # exist at all
                 self._register_metadata(stage, request.forms)
             if action == "file_upload":
                 res = stage.store_releasefile(content.filename, content.value)
@@ -369,7 +376,13 @@ class PyPIView:
         metadata = {}
         for key in stage.metadata_keys:
             metadata[key] = form.get(key, "")
-        stage.register_metadata(metadata)
+        try:
+            stage.register_metadata(metadata)
+        except stage.RegisterNameConflict as e:
+            info = e.args[0]
+            abort_custom(403, "cannot register %r because %r is already "
+                  "registered at %s" % (
+                  metadata["name"], info.name, info.stage.name))
         log.info("%s: got submit release info %r",
                  stage.name, metadata["name"])
 

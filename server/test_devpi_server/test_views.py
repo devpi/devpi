@@ -1,5 +1,6 @@
 
 import pytest
+import re
 import py
 import webtest
 import requests, json
@@ -110,6 +111,32 @@ def test_register_metadata_and_get_description(httpget, db, mapp, testapp):
     r = testapp.get_json("/user/name/pkg1/")
     assert r.status_code == 200
     assert "1.0" in r.json["result"]
+
+def test_register_metadata_normalize_conflict(httpget, db, mapp, testapp):
+    mapp.create_and_login_user("user")
+    mapp.create_index("name")
+    api = mapp.getapi("user/name")
+    metadata = {"name": "pKg1", "version": "1.0", ":action": "submit",
+                "description": "hello world"}
+    r = testapp.post(api.pypisubmit, metadata, code=200)
+    metadata = {"name": "Pkg1", "version": "1.0", ":action": "submit",
+                "description": "hello world"}
+    r = testapp.post(api.pypisubmit, metadata, code=403)
+    assert re.search("pKg1.*already.*registered", r.body)
+
+def test_register_metadata_normalize_inheritance(httpget, db, mapp, testapp):
+    mapp.create_and_login_user("user")
+    mapp.create_index("name", indexconfig=dict(bases=["root/pypi"]))
+    api = mapp.getapi("user/name")
+    httpget.setextsimple("Pkg1",
+            url="https://pypi.python.org/simple/pKg1/",
+            text='<a href="%s"/>' % "pKg1-1.0.tar.gz")
+
+    metadata = {"name": "Pkg1", "version": "1.0", ":action": "submit",
+                "description": "hello world"}
+    r = testapp.post(api.pypisubmit, metadata, code=403)
+    assert re.search("Pkg1.*because.*pKg1.*already.*registered.*pypi",
+                     r.body)
 
 def test_push_non_existent(httpget, db, mapp, testapp, monkeypatch):
     # check that push from non-existent index results in 404

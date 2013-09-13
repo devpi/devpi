@@ -252,6 +252,24 @@ class TestStage:
         #stage.ixconfig["volatile"] = False
         #with pytest.raises(stage.MetadataExists):
         #    stage.register_metadata(dict(name="hello", version="1.0"))
+        #
+
+    def test_releasedata_validation(self, stage):
+        with pytest.raises(ValueError):
+             stage.register_metadata( dict(name="hello_", version="1.0"))
+
+    def test_register_metadata_normalized_name_clash(self, stage):
+        stage.register_metadata(dict(name="hello-World", version="1.0"))
+        with pytest.raises(stage.RegisterNameConflict):
+            stage.register_metadata(dict(name="Hello-world", version="1.0"))
+        with pytest.raises(stage.RegisterNameConflict):
+            stage.register_metadata(dict(name="Hello_world", version="1.0"))
+
+    def test_get_existing_project(self, stage):
+        stage.register_metadata(dict(name="Hello", version="1.0"))
+        stage.register_metadata(dict(name="this", version="1.0"))
+        project = stage.get_project_info("hello")
+        assert project.name == "Hello"
 
     def test_releasedata_description(self, stage):
         source = py.std.textwrap.dedent("""\

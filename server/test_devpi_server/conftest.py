@@ -119,7 +119,8 @@ def httpget(pypiurls):
                     if fakeresponse is None:
                         fakeresponse = dict(status_code = 404)
                     xself.__dict__.update(fakeresponse)
-                    xself.url = url
+                    if "url" not in fakeresponse:
+                        xself.url = url
                     xself.allow_redirects = allow_redirects
                 def __repr__(xself):
                     return "<mockresponse %s url=%s>" % (xself.status_code,
@@ -128,11 +129,11 @@ def httpget(pypiurls):
             log.debug("returning %s", r)
             return r
 
-        def mockresponse(self, url, **kw):
+        def mockresponse(self, mockurl, **kw):
             if "status_code" not in kw:
                 kw["status_code"] = 200
-            log.debug("set mocking response %s %s", url, kw)
-            self.url2response[url] = kw
+            log.debug("set mocking response %s %s", mockurl, kw)
+            self.url2response[mockurl] = kw
 
         def setextsimple(self, name, text=None, pypiserial=10000, **kw):
             headers = kw.setdefault("headers", {})
@@ -378,6 +379,15 @@ class MyTestApp(TApp):
             headers["Authorization"] = "Basic %s" % auth
             #print ("setting auth header %r %s %s" % (auth, method, url))
         return super(MyTestApp, self)._gen_request(method, url, **kw)
+
+    def post(self, *args, **kwargs):
+        code = kwargs.pop("code", None)
+        if code is not None and code >= 300:
+            kwargs.setdefault("expect_errors", True)
+        r = super(MyTestApp, self).post(*args, **kwargs)
+        if code is not None:
+            assert r.status_code == code
+        return r
 
     def push(self, url, params=None, **kw):
         kw.setdefault("expect_errors", True)

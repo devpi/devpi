@@ -1,10 +1,12 @@
 
 import os
+import re
 import py
 from .urlutil import DistURL
 from .vendor._description_utils import processDescription
 from .urlutil import sorted_by_version
 from .auth import crypt_password, verify_password
+from .validation import validate_metadata, normalize_name
 
 import logging
 
@@ -219,6 +221,11 @@ class DB:
         self.index_create(user, index, **kw)
         return self.getstage(user, index)
 
+class ProjectInfo:
+    def __init__(self, stage, name):
+        self.name = name
+        self.stage = stage
+
 
 class PrivateStage:
     metadata_keys = """
@@ -269,9 +276,37 @@ class PrivateStage:
     #class MetadataExists(Exception):
     #    """ metadata exists on a given non-volatile index. """
 
+    class RegisterNameConflict(Exception):
+        """ a conflict while trying to register metadata. """
+
+    def get_project_info(self, name):
+        """ return first matching project info object for the given name
+        or None if no project exists. """
+        for stage, res in self.op_with_bases("get_project_info", name=name):
+            if res is not None:
+                return res
+
+    def get_project_info_perstage(self, name):
+        """ return normalized name for the given name or None
+        if no project exists. """
+        names = self.getprojectnames_perstage()
+        norm2name = dict([(normalize_name(x), x) for x in names])
+        realname = norm2name.get(normalize_name(name), None)
+        if realname:
+            return ProjectInfo(self, realname)
+
     def register_metadata(self, metadata):
+        """ register metadata.  Raises ValueError in case of metadata
+        errors. """
+        validate_metadata(metadata)
         name = metadata["name"]
         version = metadata["version"]
+        # check if the project exists already under its normalized
+        info = self.get_project_info(name)
+        if info:
+            log.info("got project info with name %r" % info.name)
+        if info is not None and info.name != name:
+            raise self.RegisterNameConflict(info)
         key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
         with key.locked_update() as projectconfig:
             #if not self.ixconfig["volatile"] and projectconfig:
@@ -441,3 +476,4 @@ class PrivateStage:
             keypath.dirpath().ensure(dir=1)
             tempdir.move(keypath)
         return keypath
+

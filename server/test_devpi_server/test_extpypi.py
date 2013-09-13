@@ -345,6 +345,11 @@ class TestExtPYPIDB:
         names = extdb.getprojectnames()
         assert names == ["proj1", "proj2"]
 
+    def test_get_existing_with_302(self, extdb):
+        extdb.setextsimple("hello",
+                url="https://pypi.python.org/simple/Hello/",
+                text='<a href="/Hello-1.0.tar.gz" />')
+        assert extdb.get_project_info("hello").name == "Hello"
 
 def raise_ValueError():
     raise ValueError(42)
@@ -469,3 +474,10 @@ def test_requests_httpget_timeout(xom_notmocked, monkeypatch):
     r = xom_notmocked.httpget("http://notexists.qwe", allow_redirects=False,
                               timeout=1.2)
     assert r.status_code == -1
+
+def test_invalidate_on_version_change(tmpdir, caplog):
+    from devpi_server.extpypi import invalidate_on_version_change, ExtDB
+    p = tmpdir.ensure("root", "pypi", "something")
+    invalidate_on_version_change(tmpdir)
+    assert not p.check()
+    assert tmpdir.join(".mirrorversion").read() == ExtDB.VERSION

@@ -17,6 +17,9 @@ from .types import propmapping
 from .urlutil import DistURL, joinpath
 from pkg_resources import Requirement
 
+from .validation import normalize_name, safe_name
+from .db import ProjectInfo
+
 from logging import getLogger
 assert __name__ == "devpi_server.extpypi"
 log = getLogger(__name__)
@@ -29,8 +32,7 @@ ARCHIVE_SCHEMES = ("http", "https")
 class IndexParser:
 
     def __init__(self, projectname):
-        self.projectname_raw = projectname
-        self.projectname = Requirement.parse(projectname).project_name.lower()
+        self.projectname = normalize_name(projectname)
         self.basename2link = {}
         self.crawllinks = set()
         self.egglinks = []
@@ -58,7 +60,7 @@ class IndexParser:
             eggfragment = newurl.eggfragment
             if scrape and eggfragment:
                 filename = eggfragment.replace("_", "-")
-                if filename.lower().startswith(self.projectname + "-"):
+                if normalize_name(filename).startswith(self.projectname):
                     # XXX seems we have to maintain a particular
                     # order to keep pip/easy_install happy with some
                     # packages (e.g. nose)
@@ -88,13 +90,9 @@ def is_archive_of_project(newurl, targetname):
     projectname = parts[0]
     if not projectname:
         return False
-    try:
-        pname = Requirement.parse(projectname).project_name.lower()
-    except ValueError:
+    if normalize_name(projectname) != normalize_name(targetname):
         return False
-    #log.debug("checking %s, projectname %r, nameversion %s", newurl, self.projectname, nameversion)
-    return (len(parts) > 1 and ext.lower() in ALLOWED_ARCHIVE_EXTS and
-            pname == targetname)
+    return (len(parts) > 1 and ext.lower() in ALLOWED_ARCHIVE_EXTS)
 
 def parse_index(disturl, html, scrape=True):
     if not isinstance(disturl, DistURL):
@@ -160,7 +158,22 @@ def perform_crawling(extdb, result, numthreads=10):
         for t in threads:
             t.join()
 
+
+def invalidate_on_version_change(serverdir):
+    verfile = serverdir.join(".mirrorversion")
+    if not verfile.check():
+        ver = "0"
+    else:
+        ver = verfile.read()
+    if ver != ExtDB.VERSION:
+        basedir = serverdir.join(*ExtDB.name.split("/"))
+        if basedir.check():
+            log.info("version format change: removing root/pypi state")
+            basedir.remove()
+    verfile.write(ExtDB.VERSION)
+
 class ExtDB:
+    VERSION = "1"
     name = "root/pypi"
     ixconfig = dict(bases=(), volatile=False, type="mirror")
 
@@ -169,6 +182,7 @@ class ExtDB:
         self.httpget = xom.httpget
         self.releasefilestore = xom.releasefilestore
         self.xom = xom
+        invalidate_on_version_change(self.xom.config.serverdir)
 
     def getcontained(self):
         return self.keyfs.PYPILINKS.listnames("name")
@@ -183,17 +197,16 @@ class ExtDB:
 
     getprojectnames_perstage = getprojectnames
 
-    def _dump_projectlinks(self, projectname, dumplist, serial):
-        newlist = [serial] + dumplist
-        self.keyfs.PYPILINKS(name=projectname).set(newlist)
+    def _dump_project_cache(self, projectname, dumplist, serial):
+        normname = normalize_name(projectname)
+        data = {"serial": serial,
+                "entrylist": dumplist,
+                "projectname": projectname}
+        self.keyfs.PYPILINKS(name=normname).set(data)
 
-    def _load_projectlinks(self, projectname):
-        res = self.keyfs.PYPILINKS(name=projectname).get(None)
-        if res:
-            serial = res.pop(0)
-            assert isinstance(serial, int)
-            return serial, res
-        return None, None
+    def _load_project_cache(self, projectname):
+        normname = normalize_name(projectname)
+        return self.keyfs.PYPILINKS(name=normname).get(None)
 
     def getreleaselinks(self, projectname, refresh=0):
         """ return all releaselinks from the index and referenced scrape
@@ -207,9 +220,10 @@ class ExtDB:
 
         """
         assert not isinstance(refresh, bool), repr(refresh)
-        serial, res = self._load_projectlinks(projectname)
-        if res is not None and serial >= refresh:
-            return [self.releasefilestore.getentry(relpath) for relpath in res]
+        cache = self._load_project_cache(projectname)
+        if cache is not None and cache["serial"] >= refresh:
+            return [self.releasefilestore.getentry(relpath)
+                        for relpath in cache["entrylist"]]
 
         # XXX short cut 404 if self.name2serials is not empty and
         # does not contain the projectname (watch out case-sensitivity)
@@ -219,13 +233,15 @@ class ExtDB:
         response = self.httpget(url, allow_redirects=True)
         if response.status_code != 200:
             return response.status_code
+        real_projectname = response.url.strip("/").split("/")[-1]
         serial = int(response.headers["X-PYPI-LAST-SERIAL"])
         if not isinstance(refresh, bool) and isinstance(refresh, int):
             if serial < refresh:
                 log.warn("%s: pypi returned serial %s, expected %s",
-                         projectname, serial, refresh)
+                         real_projectname, serial, refresh)
                 return -2  # the page we got is not fresh enough
-        log.debug("%s: got response with serial %s" % (projectname, serial))
+        log.debug("%s: got response with serial %s" %
+                  (real_projectname, serial))
         assert response.text is not None, response.text
         result = parse_index(response.url, response.text)
         perform_crawling(self, result)
@@ -233,10 +249,19 @@ class ExtDB:
         entries = [self.releasefilestore.maplink(link, refresh=refresh)
                         for link in releaselinks]
         dumplist = [entry.relpath for entry in entries]
-        self._dump_projectlinks(projectname, dumplist, serial)
+        self._dump_project_cache(real_projectname, dumplist, serial)
         return entries
 
     getreleaselinks_perstage = getreleaselinks
+
+    def get_project_info(self, name):
+        x = self.getreleaselinks(name)
+        if not isinstance(x, int):
+            cache = self._load_project_cache(name)
+            if cache is not None:
+                return ProjectInfo(self, cache["projectname"])
+
+    get_project_info_perstage = get_project_info
 
     def op_with_bases(self, opname, **kw):
         return [(self, getattr(self, opname)(**kw))]
