@@ -283,6 +283,8 @@ class Mapp:
     def getjson(self, path, code=200):
         r = self.testapp.get_json(path, {}, expect_errors=True)
         assert r.status_code == code
+        if r.status_code == 302:
+            return r.headers["location"]
         return r.json
 
     def create_index(self, indexname, indexconfig=None, code=200):

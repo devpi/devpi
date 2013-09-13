@@ -112,7 +112,7 @@ def main_list(hub, args):
     current = hub.require_valid_current_with_index()
     args = hub.args
 
-    hub.info("list result: %s" % hub.current.index)
+    hub.info("list result: %s" % (hub.current.index + (args.spec or '')))
     if not args.spec:
         data = getjson(hub, None)
         out_index(hub, data["result"])

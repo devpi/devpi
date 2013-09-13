@@ -155,6 +155,9 @@ class PyPIView:
     def simple_list_project(self, user, index, projectname):
         # we only serve absolute links so we don't care about the route's slash
         stage = self.getstage(user, index)
+        info = stage.get_project_info(projectname)
+        if info and info.name != projectname:
+            redirect("/%s/+simple/%s/" % (stage.name, info.name))
         result = stage.getreleaselinks(projectname)
         if isinstance(result, int):
             if result == 404:
@@ -407,6 +410,9 @@ class PyPIView:
     @route("/<user>/<index>/<name>/")
     def project_get(self, user, index, name):
         stage = self.getstage(user, index)
+        info = stage.get_project_info(name)
+        if info and info.name != name:
+            redirect("/%s/%s/" % (stage.name, info.name))
         metadata = stage.get_projectconfig(name)
         #if not metadata:
         #    apireturn("404", "project %r does not exist" % name)

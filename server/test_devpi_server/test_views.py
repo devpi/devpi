@@ -158,6 +158,18 @@ class TestSubmitValidation:
         submit.file("pkg5-2.6.tgz", "123", {"name": "Pkg5"}, code=200)
         submit.file("pkg5-2.6.qwe", "123", {"name": "pkg5"}, code=403)
 
+    def test_upload_and_simple_index(self, submit, testapp):
+        submit.file("pkg5-2.6.tgz", "123", {"name": "Pkg5"}, code=200)
+        r = testapp.get("/%s/+simple/pkg5" % submit.stagename)
+        assert r.status_code == 302
+
+    def test_get_project_redirected(self, submit, mapp):
+        metadata = {"name": "Pkg1", "version": "1.0", ":action": "submit",
+                    "description": "hello world"}
+        submit.metadata(metadata, code=200)
+        location = mapp.getjson("/%s/pkg1" % submit.stagename, code=302)
+        assert location.endswith("/Pkg1/")
+
 def test_push_non_existent(httpget, db, mapp, testapp, monkeypatch):
     # check that push from non-existent index results in 404
     req = dict(name="pkg5", version="2.6", targetindex="user2/dev")

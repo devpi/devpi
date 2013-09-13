@@ -26,6 +26,10 @@
 
 - fix issue37: upload with expired login causes proper 401
 
+- fix issue45: register/upload package names are now properly 
+  validated and redirects take place if e.g. a project was
+  registered as "name-sub" and "+simple/name_sub" is queried.
+
 1.0
 ----------------
 

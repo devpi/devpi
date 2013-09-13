@@ -118,6 +118,9 @@ class Hub:
             self.fatal("could not connect to %r" % (url,))
         self._last_http_status = r.status_code
 
+        if r.url != url:
+            self.info("*redirected: %s" %(r.url,))
+
         reply = HTTPReply(r)
 
         # if we get a 401 it means our auth info is expired or not present

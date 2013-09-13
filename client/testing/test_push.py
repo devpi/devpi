@@ -61,6 +61,7 @@ def test_main_push_pypi(monkeypatch, tmpdir):
             ))
             headers = {"content-type": "application/json"}
             _json = dict(status=201)
+        r.url = url
         return r
 
     class args:
