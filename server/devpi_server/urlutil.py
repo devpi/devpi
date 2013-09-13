@@ -99,7 +99,6 @@ class DistURL:
     @property
     def pkgname_and_version(self):
         name, version = splitbasename(self.basename, suffix=True)[:2]
-        name = pkg_resources.Requirement.parse(name).project_name
         return name, version
 
 

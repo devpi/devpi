@@ -1,7 +1,10 @@
 import re
 
-# below code mostly taken from pypi's mini_pkg_resources.py
+# below code mostly taken from pypi's mini_pkg_resources.py and webui.py
+# on 13th Sep 2013 from http://bitbucket.org/pypa/pypi
+
 legal_package_name = re.compile(r"^[a-z0-9\._-]+$", re.IGNORECASE)
+safe_filenames = re.compile(r'.+?\.(exe|tar\.gz|bz2|rpm|deb|zip|tgz|egg|dmg|msi|whl)$', re.I)
 
 def safe_name(name):
     """Convert an arbitrary string to a standard distribution name
@@ -22,19 +25,8 @@ def safe_version(version):
     version = version.replace(' ','.')
     return re.sub('[^A-Za-z0-9.]+', '-', version)
 
-def validate_package_name(name, version):
-    if legal_package_name.search(name) is None:
-        raise ValueError("Invalid package name. Names must contain "
-                         "only ASCII letters, digits, underscores, "
-                         "hyphens, and periods")
-
-    if not name[0].isalnum():
-        raise ValueError("Invalid package name. Names must start with "
-                         "an ASCII letter or digit")
-
-    if not name[-1].isalnum():
-        raise ValueError("Invalid package name. Names must end with "
-                         "an ASCII letter or digit")
+def is_valid_archive_name(filename):
+    return safe_filenames.match(filename)
 
 def validate_metadata(data):
     # from https://bitbucket.org/pypa/pypi/src/1e31fd3cc7a72e4aa54a2bd79d50be5c8c0a3b1e/webui.py?at=default#cl-2124

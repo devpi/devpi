@@ -433,6 +433,8 @@ class PrivateStage:
 
     def store_releasefile(self, filename, content, last_modified=None):
         name, version = DistURL(filename).pkgname_and_version
+        info = self.get_project_info(name)
+        name = getattr(info, "name", name)
         key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
         with key.locked_update() as projectconfig:
             verdata = projectconfig.setdefault(version, {})

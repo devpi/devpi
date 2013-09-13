@@ -9,6 +9,7 @@ import json
 import logging
 import inspect
 import requests
+from .validation import normalize_name, is_valid_archive_name
 
 from .auth import Auth
 from .config import render_string
@@ -359,6 +360,7 @@ class PyPIView:
                 # exist at all
                 self._register_metadata(stage, request.forms)
             if action == "file_upload":
+                abort_if_invalid_filename(name, content.filename)
                 res = stage.store_releasefile(content.filename, content.value)
                 if res == 409:
                     abort(409, "%s already exists in non-volatile index" %(
@@ -735,6 +737,14 @@ def trigger_jenkins(stage, testspec):
     else:
         log.error("%s: failed to trigger jenkins at %s", r.status_code,
                   jenkins_url)
+
+def abort_if_invalid_filename(name, filename):
+    if not is_valid_archive_name(filename):
+        abort_custom(400, "%r is not a valid archive name" %(filename))
+    if normalize_name(filename).startswith(normalize_name(name)):
+        return
+    abort_custom(400, "filename %r does not match project name %r"
+                      %(filename, name))
 
 
 def getkvdict_index(req):

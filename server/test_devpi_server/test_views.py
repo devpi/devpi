@@ -112,31 +112,51 @@ def test_register_metadata_and_get_description(httpget, db, mapp, testapp):
     assert r.status_code == 200
     assert "1.0" in r.json["result"]
 
-def test_register_metadata_normalize_conflict(httpget, db, mapp, testapp):
-    mapp.create_and_login_user("user")
-    mapp.create_index("name")
-    api = mapp.getapi("user/name")
-    metadata = {"name": "pKg1", "version": "1.0", ":action": "submit",
-                "description": "hello world"}
-    r = testapp.post(api.pypisubmit, metadata, code=200)
-    metadata = {"name": "Pkg1", "version": "1.0", ":action": "submit",
-                "description": "hello world"}
-    r = testapp.post(api.pypisubmit, metadata, code=403)
-    assert re.search("pKg1.*already.*registered", r.body)
+class TestSubmitValidation:
+    @pytest.fixture
+    def submit(self, mapp, testapp):
+        class Submit:
+            def __init__(self, stagename="user/dev"):
+                self.user, self.index = stagename.split("/")
+                self.stagename = stagename
+                mapp.create_and_login_user(self.user)
+                mapp.create_index(self.index)
+                self.api = mapp.getapi(stagename)
 
-def test_register_metadata_normalize_inheritance(httpget, db, mapp, testapp):
-    mapp.create_and_login_user("user")
-    mapp.create_index("name", indexconfig=dict(bases=["root/pypi"]))
-    api = mapp.getapi("user/name")
-    httpget.setextsimple("Pkg1",
-            url="https://pypi.python.org/simple/pKg1/",
-            text='<a href="%s"/>' % "pKg1-1.0.tar.gz")
+            def metadata(self, metadata, code):
+                return testapp.post(self.api.pypisubmit, metadata, code=code)
 
-    metadata = {"name": "Pkg1", "version": "1.0", ":action": "submit",
-                "description": "hello world"}
-    r = testapp.post(api.pypisubmit, metadata, code=403)
-    assert re.search("Pkg1.*because.*pKg1.*already.*registered.*pypi",
-                     r.body)
+            def file(self, filename, content, metadata, code=200):
+                return mapp.upload_file_pypi(
+                        self.user, self.index, filename, content,
+                        metadata["name"], metadata.get("version", "1.0"),
+                        code=code)
+        return Submit()
+
+    def test_metadata_normalize_conflict(self, submit, testapp):
+        metadata = {"name": "pKg1", "version": "1.0", ":action": "submit",
+                    "description": "hello world"}
+        r = submit.metadata(metadata, code=200)
+        metadata = {"name": "Pkg1", "version": "1.0", ":action": "submit",
+                    "description": "hello world"}
+        r = submit.metadata(metadata, code=403)
+        assert re.search("pKg1.*already.*registered", r.body)
+
+    def test_metadata_normalize_inheritance(self, httpget, submit):
+        httpget.setextsimple("Pkg1",
+                url="https://pypi.python.org/simple/pKg1/",
+                text='<a href="%s"/>' % "pKg1-1.0.tar.gz")
+
+        metadata = {"name": "Pkg1", "version": "1.0", ":action": "submit",
+                    "description": "hello world"}
+        r = submit.metadata(metadata, code=403)
+        assert re.search("Pkg1.*because.*pKg1.*already.*registered.*pypi",
+                         r.body)
+
+    def test_upload_file(self, submit):
+        submit.file("pkg5-2.6.tgz", "123", {"name": "pkg5some"}, code=400)
+        submit.file("pkg5-2.6.tgz", "123", {"name": "Pkg5"}, code=200)
+        submit.file("pkg5-2.6.qwe", "123", {"name": "pkg5"}, code=403)
 
 def test_push_non_existent(httpget, db, mapp, testapp, monkeypatch):
     # check that push from non-existent index results in 404
@@ -349,18 +369,18 @@ def test_upload_and_access_releasefile_meta(httpget, db,
     mapp.create_and_login_user("user")
     mapp.create_index("name")
     mapp.upload_file_pypi(
-            "user", "name", "pkg5-2.6.tgz", "123", "pkg1", "2.6")
+            "user", "name", "pkg5-2.6.tgz", "123", "pkg5", "2.6")
     json = mapp.getjson("/user/name/pkg5/")
     href = json["result"]["2.6"]["+files"].values()[0]
     pkgmeta = mapp.getjson("/" + href)
     assert pkgmeta["type"] == "releasefilemeta"
     assert pkgmeta["result"]["size"] == "3"
 
-def test_upload_pypi_fails(httpget, db, mapp, testapp):
+def test_upload_pypi_fails(mapp):
     mapp.upload_file_pypi(
             "root", "pypi", "pkg1-2.6.tgz", "123", "pkg1", "2.6", code=404)
 
-def test_delete_pypi_fails(httpget, db, mapp, testapp):
+def test_delete_pypi_fails(mapp, testapp):
     mapp.login_root()
     r = testapp.delete("/root/pypi/pytest/2.3.5", expect_errors=True)
     assert r.status_code == 405
@@ -371,7 +391,7 @@ def test_delete_volatile_fails(httpget, db, mapp, testapp):
     mapp.login_root()
     mapp.create_index("test", indexconfig=dict(volatile=False))
     mapp.upload_file_pypi(
-            "root", "test", "pkg5-2.6.tgz", "123", "pkg1", "2.6")
+            "root", "test", "pkg5-2.6.tgz", "123", "pkg5", "2.6")
     mapp.delete_project("root", "test", "pkg5", code=403)
 
 def test_upload_docs_too_large(httpget, db, mapp, testapp):

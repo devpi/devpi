@@ -170,6 +170,9 @@ class RelPathEntry(object):
         #log.debug("self.FILE %s", self.FILE)
         self._mapping = self.PATHENTRY.get()
 
+    def __repr__(self):
+        return "<RelPathEntry %r>" %(self.relpath)
+
     def gethttpheaders(self):
         headers = {}
         if self.last_modified:

@@ -48,7 +48,7 @@ class TestDistURL:
         url = DistURL("http://a/py-1.0.tar.gz")
         assert url.pkgname_and_version == ("py", "1.0")
         url = DistURL("http://a/py_some-1.0.tar.gz")
-        assert url.pkgname_and_version == ("py-some", "1.0")
+        assert url.pkgname_and_version == ("py_some", "1.0")
 
     def test_easyversion_comparison(self):
         url1 = DistURL("http://a/py-1.0.tar.gz")

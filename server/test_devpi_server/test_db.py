@@ -107,10 +107,10 @@ class TestStage:
 
     def test_inheritance_normalize_multipackage(self, httpget, db, stage):
         stage._reconfigure(bases=("root/pypi",))
-        httpget.setextsimple("some-project", """
+        httpget.setextsimple("some_project", """
             <a href='some_project-1.0.zip' /a>
             <a href='some_project-1.0.tar.gz' /a>
-        """)
+        """, url="https://pypi.python.org/simple/some-project/")
         stage.store_releasefile("some_project-1.2.tar.gz", "456")
         entries = stage.getreleaselinks("some-project")
         assert len(entries) == 3
