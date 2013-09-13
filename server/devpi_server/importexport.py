@@ -158,10 +158,11 @@ class Importer_1:
         stage2config = {}
         for user, userconfig, indexes in reader.users():
             self.db._user_set(user, userconfig)
-            for index, indexconfig in indexes.items():
-                stagename = "%s/%s" %(user, index)
-                stage2config[stagename] = indexconfig
-                tree.add(stagename, indexconfig.get("bases"))
+            if indexes:
+                for index, indexconfig in indexes.items():
+                    stagename = "%s/%s" %(user, index)
+                    stage2config[stagename] = indexconfig
+                    tree.add(stagename, indexconfig.get("bases"))
 
         # create stages in inheritance/root-first order
         stages = {}

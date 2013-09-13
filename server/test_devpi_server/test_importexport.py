@@ -109,3 +109,10 @@ class TestImportExport:
             md5=md5, type="toxresult", num=num)
         assert x == "123"
 
+    def test_user_no_index_login_works(self, impexp):
+        mapp1 = impexp.mapp1
+        mapp1.create_and_login_user("exp", "pass")
+        impexp.export()
+        mapp2 = impexp.new_import()
+        mapp2.login("exp", "pass")
+
