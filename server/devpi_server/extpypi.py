@@ -182,7 +182,6 @@ class ExtDB:
         self.httpget = xom.httpget
         self.releasefilestore = xom.releasefilestore
         self.xom = xom
-        invalidate_on_version_change(self.xom.config.serverdir)
 
     def getcontained(self):
         return self.keyfs.PYPILINKS.listnames("name")

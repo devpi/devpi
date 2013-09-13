@@ -14,6 +14,7 @@ from devpi_server.types import cached_property
 from devpi_server.config import parseoptions, configure_logging
 import devpi_server
 from pkg_resources import parse_version
+from . import extpypi
 
 class Fatal(Exception):
     pass
@@ -95,6 +96,7 @@ def _main(argv=None):
     elif args.import_:
         from devpi_server.importexport import do_import
         return do_import(args.import_, xom)
+    extpypi.invalidate_on_version_change(xom.config.serverdir)
     configure_logging(config)
     return bottle_run(xom)
 

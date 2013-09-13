@@ -26,3 +26,11 @@ def test_check_compatible_version_raises(tmpdir):
     versionfile.write("0.9.4")
     with pytest.raises(Fatal):
         check_compatible_version(versionfile)
+
+def test_invalidate(monkeypatch, tmpdir):
+    monkeypatch.setattr(devpi_server.main, "bottle_run", lambda *args: None)
+    l = []
+    monkeypatch.setattr(devpi_server.extpypi, "invalidate_on_version_change",
+                        lambda xom: l.append(xom))
+    main([])
+    assert len(l) == 1
