@@ -100,10 +100,10 @@ def addoptions(parser):
             help="show status of background devpi-server")
     group.addoption("--log", action="store_true",
             help="show logfile content of background server")
-    group.addoption("--pidfile", action="store",
-            help="set pid file location")
-    group.addoption("--logfile", action="store",
-            help="set log file file location")
+    #group.addoption("--pidfile", action="store",
+    #        help="set pid file location")
+    #group.addoption("--logfile", action="store",
+    #        help="set log file file location")
 
 
 
