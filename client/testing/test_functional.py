@@ -1,21 +1,31 @@
 
 import pytest
 import subprocess
+import textwrap
 from py import std
 import time
 
 from test_devpi_server.functional import TestUserThings, TestIndexThings
+from test_devpi_server.functional import MappMixin
 
 @pytest.fixture
 def mapp(request, devpi, out_devpi):
     return Mapp(request, devpi, out_devpi)
 
-class Mapp:
+class Mapp(MappMixin):
+    _usercount = 10
     def __init__(self, request, devpi, out_devpi):
         self.devpi = devpi
         self.out_devpi = out_devpi
         request.addfinalizer(self.cleanup)
         self.auth = (None, None)
+        self.current_stage = ""
+
+    def _getindexname(self, indexname):
+        if indexname is None:
+            indexname = self.current_stage
+        assert indexname
+        return indexname
 
     def cleanup(self):
         pw = getattr(self, "_rootpassword", None)
@@ -32,6 +42,12 @@ class Mapp:
 
     def logoff(self, code=None):
         self.devpi("logoff", code=code)
+
+    def use(self, indexname):
+        assert indexname.count("/") == 1, indexname
+        self.devpi("use", indexname)
+        self.current_stage = indexname
+        self.api = self.getapi()
 
     def login(self, user="root", password="", code=200):
         self.devpi("login", user, "--password", password, code=code)
@@ -94,17 +110,22 @@ class Mapp:
     def delete_index(self, indexname, code=201):
         self.out_devpi("index", "--delete", indexname, code=code)
 
-    def set_acl(self, indexname, acls, code=200):
+    def set_acl(self, acls, code=200, indexname=None):
         #user, password = self.auth
+        indexname = self._getindexname(indexname)
         if isinstance(acls, list):
             acls = ",".join(acls)
         self.devpi("index", indexname, "acl_upload=%s" % acls, code=200)
 
-    def set_uploadtrigger_jenkins(self, indexname, url):
-        self.devpi("index", indexname,
-                   "uploadtrigger_jenkins=%s" % url, code=200)
+    def set_uploadtrigger_jenkins(self, url, indexname=None):
+        if indexname is None:
+            self.devpi("index", "uploadtrigger_jenkins=%s" % url, code=200)
+        else:
+            self.devpi("index", indexname,
+                       "uploadtrigger_jenkins=%s" % url, code=200)
 
-    def get_acl(self, indexname, code=200):
+    def get_acl(self, code=200, indexname=None):
+        indexname = self._getindexname(indexname)
         result = self.out_devpi("index", indexname)
         for line in result.outlines:
             line = line.strip()
@@ -113,8 +134,9 @@ class Mapp:
                 return parts[1].split(",")
         return  []
 
-    def create_project(self, indexname, code=201):
+    def create_project(self, projectname, code=201, indexname=None):
         pytest.xfail(reason="no way to create project via command line yet")
+
 
 def test_logoff(mapp):
     mapp.login()

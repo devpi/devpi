@@ -97,10 +97,8 @@ def test_root_pypi(httpget, testapp):
     r = testapp.get("/root/pypi/")
     assert r.status_code == 200
 
-def test_register_metadata_and_get_description(httpget, db, mapp, testapp):
-    mapp.create_and_login_user("user")
-    mapp.create_index("name")
-    api = mapp.getapi("user/name")
+def test_register_metadata_and_get_description(mapp, testapp):
+    api = mapp.create_and_use("user/name")
     metadata = {"name": "pkg1", "version": "1.0", ":action": "submit",
                 "description": "hello world"}
     r = testapp.post(api.pypisubmit, metadata)
@@ -117,19 +115,17 @@ class TestSubmitValidation:
     def submit(self, mapp, testapp):
         class Submit:
             def __init__(self, stagename="user/dev"):
-                self.user, self.index = stagename.split("/")
                 self.stagename = stagename
-                mapp.create_and_login_user(self.user)
-                mapp.create_index(self.index)
-                self.api = mapp.getapi(stagename)
+                self.api = mapp.create_and_use(stagename)
 
             def metadata(self, metadata, code):
                 return testapp.post(self.api.pypisubmit, metadata, code=code)
 
             def file(self, filename, content, metadata, code=200):
                 return mapp.upload_file_pypi(
-                        self.user, self.index, filename, content,
+                        filename, content,
                         metadata["name"], metadata.get("version", "1.0"),
+                        indexname=self.stagename,
                         code=code)
         return Submit()
 
@@ -170,7 +166,7 @@ class TestSubmitValidation:
         location = mapp.getjson("/%s/pkg1" % submit.stagename, code=302)
         assert location.endswith("/Pkg1/")
 
-def test_push_non_existent(httpget, db, mapp, testapp, monkeypatch):
+def test_push_non_existent(mapp, testapp, monkeypatch):
     # check that push from non-existent index results in 404
     req = dict(name="pkg5", version="2.6", targetindex="user2/dev")
     r = testapp.push("/user2/dev/", json.dumps(req), expect_errors=True)
@@ -189,13 +185,13 @@ def test_push_non_existent(httpget, db, mapp, testapp, monkeypatch):
     r = testapp.push("/user1/dev/", json.dumps(req), expect_errors=True)
     assert r.status_code == 404
     #
-    mapp.upload_file_pypi(
-            "user1", "dev", "pkg5-2.6.tgz", "123", "pkg5", "2.6")
+    mapp.use("user1/dev")
+    mapp.upload_file_pypi("pkg5-2.6.tgz", "123", "pkg5", "2.6")
     # check that push to non-authoried existent target index results in 401
     r = testapp.push("/user1/dev/", json.dumps(req), expect_errors=True)
     assert r.status_code == 401
 
-def test_upload_and_push_internal(httpget, db, mapp, testapp, monkeypatch):
+def test_upload_and_push_internal(mapp, testapp, monkeypatch):
     mapp.create_user("user1", "1")
     mapp.create_and_login_user("user2")
     mapp.create_index("prod", indexconfig=dict(acl_upload=["user1", "user2"]))
@@ -204,8 +200,8 @@ def test_upload_and_push_internal(httpget, db, mapp, testapp, monkeypatch):
 
     mapp.login("user1", "1")
     mapp.create_index("dev")
-    mapp.upload_file_pypi(
-            "user1", "dev", "pkg1-2.6.tgz", "123", "pkg1", "2.6")
+    mapp.use("user1/dev")
+    mapp.upload_file_pypi("pkg1-2.6.tgz", "123", "pkg1", "2.6")
 
     # check that push is authorized and executed towards user2/prod index
     req = dict(name="pkg1", version="2.6", targetindex="user2/prod")
@@ -216,18 +212,16 @@ def test_upload_and_push_internal(httpget, db, mapp, testapp, monkeypatch):
     relpath = r.json["result"]["+files"]["pkg1-2.6.tgz"]
     assert relpath == "user2/prod/pkg1/2.6/pkg1-2.6.tgz"
 
-def test_upload_and_push_remote_ok(httpget, db, mapp, testapp, monkeypatch):
-    mapp.create_and_login_user("user")
-    mapp.create_index("name")
-    mapp.upload_file_pypi(
-            "user", "name", "pkg1-2.6.tgz", "123", "pkg1", "2.6")
-    r = testapp.get("/user/name/+simple/pkg1/")
+def test_upload_and_push_remote_ok(mapp, testapp, monkeypatch):
+    api = mapp.create_and_use()
+    mapp.upload_file_pypi("pkg1-2.6.tgz", "123", "pkg1", "2.6")
+    r = testapp.get(api.simpleindex + "pkg1")
     assert r.status_code == 200
     a = getfirstlink(r.text)
     assert "pkg1-2.6.tgz" in a.get("href")
 
     # get root index page
-    r = testapp.get("/user/name/")
+    r = testapp.get(api.index)
     assert r.status_code == 200
 
     # push
@@ -241,7 +235,7 @@ def test_upload_and_push_remote_ok(httpget, db, mapp, testapp, monkeypatch):
         return r
     monkeypatch.setattr(requests, "post", recpost)
     body = json.dumps(req)
-    r = testapp.request("/user/name/", method="push", body=body,
+    r = testapp.request(api.index, method="push", body=body,
                         expect_errors=True)
     assert r.status_code == 200
     assert len(rec) == 2
@@ -254,19 +248,17 @@ def test_upload_and_push_remote_ok(httpget, db, mapp, testapp, monkeypatch):
             status_code = 500
         return r
     monkeypatch.setattr(requests, "post", posterror)
-    r = testapp.request("/user/name/", method="push", body=body,
+    r = testapp.request(api.index, method="push", body=body,
                         expect_errors=True)
     assert r.status_code == 502
     result = r.json["result"]
     assert len(result) == 1
     assert result[0][0] == 500
 
-def test_upload_and_push_egg(httpget, db, mapp, testapp, monkeypatch):
-    mapp.create_and_login_user("user")
-    mapp.create_index("name")
-    mapp.upload_file_pypi(
-            "user", "name", "pkg2-1.0-py27.egg", "123", "pkg2", "1.0")
-    r = testapp.get("/user/name/+simple/pkg2/")
+def test_upload_and_push_egg(mapp, testapp, monkeypatch):
+    api = mapp.create_and_use()
+    mapp.upload_file_pypi("pkg2-1.0-py27.egg", "123", "pkg2", "1.0")
+    r = testapp.get(api.simpleindex + "pkg2/")
     assert r.status_code == 200
     a = getfirstlink(r.text)
     assert "pkg2-1.0-py27.egg" in a.get("href")
@@ -281,145 +273,116 @@ def test_upload_and_push_egg(httpget, db, mapp, testapp, monkeypatch):
             status_code = 200
         return r
     monkeypatch.setattr(requests, "post", recpost)
-    r = testapp.push("/user/name/", json.dumps(req))
+    r = testapp.push(api.index, json.dumps(req))
     assert r.status_code == 200
     assert len(rec) == 2
     assert rec[0][0] == "whatever"
     assert rec[1][0] == "whatever"
 
-def test_upload_and_delete_project(httpget, db, mapp, testapp, monkeypatch):
-    mapp.create_and_login_user("user")
-    mapp.create_index("name", indexconfig=dict(volatile=True))
-    mapp.delete_project("user", "name", "pkg1", code=404)
-    mapp.upload_file_pypi(
-            "user", "name", "pkg1-2.6.tgz", "123", "pkg1", "2.6")
-    r = testapp.get("/user/name/+simple/pkg1/")
+def test_upload_and_delete_project(mapp, testapp):
+    api = mapp.create_and_use()
+    mapp.delete_project("pkg1", code=404)
+    mapp.upload_file_pypi("pkg1-2.6.tgz", "123", "pkg1", "2.6")
+    r = testapp.get(api.simpleindex + "pkg1/")
     assert r.status_code == 200
-    r = testapp.delete("/user/name/pkg1/")
+    r = testapp.delete(api.index + "pkg1/")
     assert r.status_code == 200
-    data = mapp.getjson("/user/name/pkg1/")
+    data = mapp.getjson(api.index + "pkg1/")
     #assert data["status"] == 404
     assert not data["result"]
 
-def test_upload_with_acl(httpget, db, mapp, testapp, monkeypatch):
+def test_upload_with_acl(mapp):
     mapp.login("root")
     mapp.change_password("root", "123")
     mapp.create_user("user", "123")
-
-    mapp.create_and_login_user("i1", "456")
-    mapp.create_index("dev")
-
+    api = mapp.create_and_use()  # new context and login
     mapp.login("user", "123")
     # user cannot write to index now
-    mapp.upload_file_pypi(
-            "i1", "dev", "pkg1-2.6.tgz", "123", "pkg1", "2.6", code=403)
-    mapp.login("i1", "456")
-    mapp.set_acl("i1/dev", ["user"])
+    mapp.upload_file_pypi("pkg1-2.6.tgz", "123", "pkg1", "2.6", code=403)
+    mapp.login(api.user, api.password)
+    mapp.set_acl(["user"])
     mapp.login("user", "123")
-    mapp.upload_file_pypi(
-            "i1", "dev", "pkg1-2.6.tgz", "123", "pkg1", "2.6")
+    mapp.upload_file_pypi("pkg1-2.6.tgz", "123", "pkg1", "2.6")
 
-def test_upload_with_jenkins(db, mapp, testapp, monkeypatch):
-    mapp.create_and_login_user("i1", "456")
-    mapp.create_index("dev")
-    mapp.set_uploadtrigger_jenkins("i1/dev", "http://x.com/{pkgname}")
+def test_upload_with_jenkins(mapp, monkeypatch):
+    mapp.create_and_use()
+    mapp.set_uploadtrigger_jenkins("http://x.com/{pkgname}")
     from devpi_server import views
     post_mock = Mock(autospec=requests.post)
     monkeypatch.setattr(views.requests, "post", post_mock)
-    mapp.upload_file_pypi(
-            "i1", "dev", "pkg1-2.6.tgz", "123", "pkg1", "2.6", code=200)
+    mapp.upload_file_pypi("pkg1-2.6.tgz", "123", "pkg1", "2.6", code=200)
     assert post_mock.call_count == 1
     args = post_mock.call_args
     assert args[0][0] == "http://x.com/pkg1"
     assert args[1]["data"]["Submit"] == "Build"
 
-def test_upload_and_testdata(db, mapp, testapp, monkeypatch):
-    api = mapp.getapi()
+def test_upload_and_testdata(mapp, testapp):
     from test_devpi_server.example import tox_result_data
-    mapp.create_and_login_user("i1", "456")
-    mapp.create_index("dev")
-    mapp.upload_file_pypi(
-            "i1", "dev", "pkg1-2.6.tgz", "123", "pkg1", "2.6", code=200)
+    api = mapp.create_and_use()
+    mapp.upload_file_pypi("pkg1-2.6.tgz", "123", "pkg1", "2.6", code=200)
     r = testapp.post_json(api.resultlog, tox_result_data)
     path = r.json["result"]
     assert r.status_code == 200
     r = testapp.get(path)
     assert r.status_code == 200
 
-def test_upload_and_delete_project_version(httpget, db,
-                                           mapp, testapp, monkeypatch):
-    mapp.create_and_login_user("user")
-    mapp.create_index("name")
-    r = testapp.delete("/user/name/pkg1/", expect_errors=True)
-    assert r.status_code == 404
-    mapp.upload_file_pypi(
-            "user", "name", "pkg1-2.6.tgz", "123", "pkg1", "2.6")
-    mapp.upload_file_pypi(
-            "user", "name", "pkg1-2.7.tgz", "123", "pkg1", "2.7")
-    r = testapp.get("/user/name/+simple/pkg1/")
-    assert r.status_code == 200
-    r = testapp.delete("/user/name/pkg1/1.0", expect_errors=True)
-    assert r.status_code == 404
-    r = testapp.delete("/user/name/pkg1/2.6/")
-    assert r.status_code == 200
-    assert mapp.getjson("/user/name/pkg1/")["result"]
-    assert testapp.delete("/user/name/pkg1/2.7").status_code == 200
-    #assert mapp.getjson("/user/name/pkg1/")["status"] == 404
-    assert not mapp.getjson("/user/name/pkg1/")["result"]
-
-def test_delete_version_fails_on_non_volatile(httpget, db,
-                                              mapp, testapp, monkeypatch):
-    mapp.create_and_login_user("user")
-    mapp.create_index("name", indexconfig=dict(volatile=False))
-    mapp.upload_file_pypi(
-            "user", "name", "pkg1-2.6.tgz", "123", "pkg1", "2.6")
-    r = testapp.delete("/user/name/pkg1/2.6", expect_errors=True)
-    assert r.status_code == 403
-
-def test_upload_and_access_releasefile_meta(httpget, db,
-                                           mapp, testapp, monkeypatch):
-    mapp.create_and_login_user("user")
-    mapp.create_index("name")
-    mapp.upload_file_pypi(
-            "user", "name", "pkg5-2.6.tgz", "123", "pkg5", "2.6")
-    json = mapp.getjson("/user/name/pkg5/")
+def test_upload_and_access_releasefile_meta(mapp):
+    api = mapp.create_and_use()
+    mapp.upload_file_pypi("pkg5-2.6.tgz", "123", "pkg5", "2.6")
+    json = mapp.getjson(api.index + "pkg5/")
     href = json["result"]["2.6"]["+files"].values()[0]
     pkgmeta = mapp.getjson("/" + href)
     assert pkgmeta["type"] == "releasefilemeta"
     assert pkgmeta["result"]["size"] == "3"
 
+def test_upload_and_delete_project_version(mapp):
+    api = mapp.create_and_use()
+    mapp.delete_project("pkg1", code=404)
+    mapp.upload_file_pypi("pkg1-2.6.tgz", "123", "pkg1", "2.6")
+    mapp.upload_file_pypi("pkg1-2.7.tgz", "123", "pkg1", "2.7")
+    mapp.get_simple("pkg1", code=200)
+    mapp.delete_project("pkg1/1.0", code=404)
+    mapp.delete_project("pkg1/2.6", code=200)
+    assert mapp.getjson(api.index + "pkg1/")["result"]
+    mapp.delete_project("pkg1/2.7", code=200)
+    #assert mapp.getjson("/user/name/pkg1/")["status"] == 404
+    assert not mapp.getjson(api.index + "pkg1/")["result"]
+
+def test_delete_version_fails_on_non_volatile(mapp):
+    api = mapp.create_and_use(indexconfig=dict(volatile=False))
+    mapp.upload_file_pypi("pkg1-2.6.tgz", "123", "pkg1", "2.6")
+    mapp.delete_project("pkg1/2.6", code=403)
+
+
 def test_upload_pypi_fails(mapp):
     mapp.upload_file_pypi(
-            "root", "pypi", "pkg1-2.6.tgz", "123", "pkg1", "2.6", code=404)
+            "pkg1-2.6.tgz", "123", "pkg1", "2.6", code=404,
+            indexname="root/pypi")
 
-def test_delete_pypi_fails(mapp, testapp):
+def test_delete_pypi_fails(mapp):
     mapp.login_root()
-    r = testapp.delete("/root/pypi/pytest/2.3.5", expect_errors=True)
-    assert r.status_code == 405
-    r = testapp.delete("/root/pypi/pytest", expect_errors=True)
-    assert r.status_code == 405
+    mapp.use("root/pypi")
+    mapp.delete_project("pytest/2.3.5", code=405)
+    mapp.delete_project("pytest", code=405)
 
-def test_delete_volatile_fails(httpget, db, mapp, testapp):
+def test_delete_volatile_fails(mapp):
     mapp.login_root()
     mapp.create_index("test", indexconfig=dict(volatile=False))
-    mapp.upload_file_pypi(
-            "root", "test", "pkg5-2.6.tgz", "123", "pkg5", "2.6")
-    mapp.delete_project("root", "test", "pkg5", code=403)
+    mapp.use("root/test")
+    mapp.upload_file_pypi("pkg5-2.6.tgz", "123", "pkg5", "2.6")
+    mapp.delete_project("pkg5", code=403)
 
-def test_upload_docs_too_large(httpget, db, mapp, testapp):
+def test_upload_docs_too_large(mapp):
     from devpi_server.views import MAXDOCZIPSIZE
-    mapp.create_and_login_user("user")
-    mapp.create_index("name")
+    mapp.create_and_use()
     content = "*" * (MAXDOCZIPSIZE + 1)
-    mapp.upload_doc("user", "name", "pkg1.zip", content, "pkg1", "2.6",
-                    code=413)
+    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=413)
 
-def test_upload_docs(httpget, db, mapp, testapp):
-    mapp.create_and_login_user("user")
-    mapp.create_index("name")
+def test_upload_docs(mapp, testapp):
+    api = mapp.create_and_use()
     content = create_zipfile({"index.html": "<html/>"})
-    mapp.upload_doc("user", "name", "pkg1.zip", content, "pkg1", "2.6")
-    r = testapp.get("/user/name/pkg1/+doc/index.html")
+    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6")
+    r = testapp.get(api.index + "pkg1/+doc/index.html")
     assert r.status_code == 200
     #a = getfirstlink(r.text)
     #assert "pkg1-2.6.tgz" in a.get("href")

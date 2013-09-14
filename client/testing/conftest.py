@@ -11,6 +11,7 @@ import json
 
 from _pytest.pytester import RunResult, LineMatcher
 from devpi.main import Hub, initmain, parse_args
+
 import subprocess
 
 print_ = py.builtin.print_

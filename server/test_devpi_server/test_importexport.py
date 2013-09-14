@@ -93,7 +93,8 @@ class TestImportExport:
         mapp1 = impexp.mapp1
         mapp1.create_and_login_user("exp")
         mapp1.create_index("dev5")
-        mapp1.upload_file_pypi("exp", "dev5", "hello-1.0.tar.gz", "content",
+        mapp1.use("exp/dev5")
+        mapp1.upload_file_pypi("hello-1.0.tar.gz", "content",
                      "hello", "1.0")
 
         md5 = py.std.md5.md5("content").hexdigest()

@@ -1,5 +1,36 @@
 import pytest
 
+class API:
+    def __init__(self, d):
+        self.__dict__ = d
+
+class MappMixin:
+    _usercount = 0
+
+    def create_and_use(self, stagename=None, password="123", indexconfig=None):
+        if stagename is None:
+            stagename = self.get_new_stagename()
+        user, index = stagename.split("/")
+        self.create_and_login_user(user, password=password)
+        self.create_index(index, indexconfig=indexconfig)
+        self.use(stagename)
+        self.api.user = user
+        self.api.password = password
+        return self.api
+
+    def get_new_stagename(self):
+        self._usercount += 1
+        return "user%s/dev" % self._usercount
+
+    def getapi(self, relpath="/"):
+        path = relpath.strip("/")
+        if not path:
+            path = "/+api"
+        else:
+            path = "/%s/+api" % path
+        return API(self.getjson(path)["result"])
+
+
 class TestUserThings:
     def test_root_cannot_modify_unknown_user(self, mapp):
         mapp.login_root()
@@ -110,16 +141,18 @@ class TestIndexThings:
         mapp.create_user(username, "password")
         mapp.login_root()
         mapp.create_index("test2")
-        mapp.set_acl("root/test2", [username])
-        assert username in mapp.get_acl("root/test2")
+        mapp.use("root/test2")
+        mapp.set_acl([username])
+        assert username in mapp.get_acl()
         mapp.set_acl("root/test2", [])
-        assert username not in mapp.get_acl("root/test2")
+        assert username not in mapp.get_acl()
 
     def test_create_index_with_jenkinsurl(self, mapp):
         url = "http://localhost:8080/"
         mapp.login_root()
         mapp.create_index("root/test3")
-        mapp.set_uploadtrigger_jenkins("root/test3", url)
+        mapp.use("root/test3")
+        mapp.set_uploadtrigger_jenkins(url)
         data = mapp.getjson("/root/test3")
         assert data["result"]["uploadtrigger_jenkins"] == url
 
@@ -143,13 +176,14 @@ class TestIndexThings:
     def test_create_project_config_gets(self, mapp):
         mapp.create_and_login_user("cuser3")
         mapp.create_index("dev")
-        mapp.create_project("dev", "hello")
+        mapp.create_project("hello", indexname="cuser3/dev")
         assert mapp.getjson("/cuser3/dev/")["type"] == "list:projectconfig"
         assert mapp.getjson("/cuser3/dev/hello")["type"] == "projectconfig"
-        mapp.create_project("dev", "hello", code=409)
+        mapp.create_project("hello", code=409)
 
     def test_non_volatile_cannot_be_deleted(self, mapp):
         mapp.create_and_login_user("cuser4")
         mapp.create_index("dev", indexconfig={"volatile": False})
         mapp.delete_index("dev", code=403)
         mapp.delete_user("cuser4", code=403)
+

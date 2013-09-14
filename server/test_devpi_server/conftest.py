@@ -192,26 +192,24 @@ def db(xom):
 def mapp(makemapp, testapp):
     return makemapp(testapp)
 
-class Mapp:
+
+from .functional import MappMixin
+
+
+class Mapp(MappMixin):
     def __init__(self, testapp):
         self.testapp = testapp
+        self.current_stage = ""
+
+    def _getindexname(self, indexname):
+        if not indexname:
+            assert self.current_stage, "no index in use, none specified"
+            return self.current_stage
+        return indexname
 
     def delete_user(self, user, code=200):
         r = self.testapp.delete_json("/%s" % user, expect_errors=True)
         assert r.status_code == code
-
-    def getapi(self, relpath="/"):
-        path = relpath.strip("/")
-        if not path:
-            path = "/+api"
-        else:
-            path = "/%s/+api" % path
-        r = self.testapp.get(path)
-        assert r.status_code == 200
-        class API:
-            def __init__(self):
-                self.__dict__.update(r.json["result"])
-        return API()
 
     def login(self, user="root", password="", code=200):
         api = self.getapi()
@@ -280,6 +278,13 @@ class Mapp:
         self.create_user(user, password)
         self.login(user, password)
 
+    def use(self, stagename):
+        stagename = stagename.strip("/")
+        assert stagename.count("/") == 1, stagename
+        self.api = self.getapi(stagename)
+        self.current_stage = stagename
+        return self.api
+
     def getjson(self, path, code=200):
         r = self.testapp.get_json(path, {}, expect_errors=True)
         assert r.status_code == code
@@ -287,7 +292,7 @@ class Mapp:
             return r.headers["location"]
         return r.json
 
-    def create_index(self, indexname, indexconfig=None, code=200):
+    def create_index(self, indexname, indexconfig=None, use=True, code=200):
         if indexconfig is None:
             indexconfig = {}
         if "/" in indexname:
@@ -300,6 +305,7 @@ class Mapp:
         assert r.status_code == code
         if code in (200,201):
             assert r.json["result"]["type"] == "stage"
+            self.use("%s/%s" % (user, index))
         if code in (400,):
             return r.json["message"]
 
@@ -313,7 +319,8 @@ class Mapp:
                                      expect_errors=True)
         assert r.status_code == code
 
-    def set_uploadtrigger_jenkins(self, indexname, triggerurl):
+    def set_uploadtrigger_jenkins(self, triggerurl, indexname=None):
+        indexname = self._getindexname(indexname)
         indexurl = "/" + indexname
         r = self.testapp.get_json(indexurl)
         result = r.json["result"]
@@ -321,7 +328,8 @@ class Mapp:
         r = self.testapp.patch_json(indexurl, result)
         assert r.status_code == 200
 
-    def set_acl(self, indexname, users, acltype="upload"):
+    def set_acl(self, users, acltype="upload", indexname=None):
+        indexname = self._getindexname(indexname)
         r = self.testapp.get_json("/%s" % indexname)
         result = r.json["result"]
         if not isinstance(users, list):
@@ -331,38 +339,49 @@ class Mapp:
         r = self.testapp.patch_json("/%s" % (indexname,), result)
         assert r.status_code == 200
 
-    def get_acl(self, indexname, acltype="upload"):
+    def get_acl(self, acltype="upload", indexname=None):
+        indexname = self._getindexname(indexname)
         r = self.testapp.get_json("/%s" % indexname)
         return r.json["result"].get("acl_" + acltype, None)
 
-    def create_project(self, indexname, projectname, code=201):
+    def create_project(self, projectname, code=201, indexname=None):
+        indexname = self._getindexname(indexname)
         user, password = self.testapp.auth
-        r = self.testapp.put_json("/%s/%s/%s" % (user, indexname,
+        r = self.testapp.put_json("/%s/%s" % (indexname,
                                   projectname), {}, expect_errors=True)
         assert r.status_code == code
         if code == 201:
             assert "created" in r.json["message"]
 
-    def delete_project(self, user, index, projectname, code=200):
-        r = self.testapp.delete_json("/%s/%s/%s" % (user, index,
+    def delete_project(self, projectname, code=200, indexname=None):
+        indexname = self._getindexname(indexname)
+        r = self.testapp.delete_json("/%s/%s" % (indexname,
                 projectname), {}, expect_errors=True)
         assert r.status_code == code
 
-    def upload_file_pypi(self, user, index, basename, content,
-                         name, version, code=200):
-        r = self.testapp.post("/%s/%s/" % (user, index),
+    def upload_file_pypi(self, basename, content,
+                         name, version, indexname=None, code=200):
+        indexname = self._getindexname(indexname)
+        r = self.testapp.post("/%s/" % indexname,
             {":action": "file_upload", "name": name, "version": version,
              "content": Upload(basename, content)}, expect_errors=True)
         assert r.status_code == code
 
 
-    def upload_doc(self, user, index, basename, content, name, version,
+    def upload_doc(self, basename, content, name, version, indexname=None,
                          code=200):
-
-        r = self.testapp.post("/%s/%s/" % (user, index),
+        indexname = self._getindexname(indexname)
+        r = self.testapp.post("/%s/" % indexname,
             {":action": "doc_upload", "name": name, "version": version,
              "content": Upload(basename, content)}, expect_errors=True)
         assert r.status_code == code
+
+    def get_simple(self, projectname, code=200):
+        r = self.testapp.get(self.api.simpleindex + projectname + "/",
+                             expect_errors=True)
+        assert r.status_code == code
+        return r
+
 
 from webtest import TestApp as TApp
 
