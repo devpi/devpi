@@ -2,7 +2,6 @@ import pytest
 from devpi_server.importexport import *
 from devpi_server.main import main, Fatal
 
-
 def test_not_exists(tmpdir, xom):
     p = tmpdir.join("hello")
     with pytest.raises(Fatal):
@@ -43,29 +42,24 @@ class TestIndexTree:
         assert names.index("name2") > names.index("name4")
         assert names.index("name1") == 3
 
-def test_import_default(tmpdir, xom):
-    assert not do_export(tmpdir, xom)
-    new = tmpdir.join("new")
-    main(["devpi-server", "--import", str(tmpdir),
-          "--serverdir", str(new)])
-    assert xom.config.secret == new.join(".secret").read()
 
 class TestImportExport:
     @pytest.fixture
     def impexp(self, makemapp, gentmp):
         class ImpExp:
             def __init__(self):
-                self.mapp1 = makemapp()
                 self.exportdir = gentmp()
+                self.mapp1 = makemapp(options=[
+                    "--export", self.exportdir]
+                )
 
             def export(self):
-                assert do_export(self.exportdir, self.mapp1.xom) == 0
+                assert self.mapp1.xom.main() == 0
 
             def new_import(self):
                 mapp2 = makemapp(options=("--import", str(self.exportdir)))
-                assert do_import(self.exportdir, mapp2.xom) == 0
+                assert mapp2.xom.main() == 0
                 return mapp2
-
         return ImpExp()
 
     def test_two_indexes_inheriting(self, impexp):
@@ -79,6 +73,7 @@ class TestImportExport:
         indexlist = mapp2.getindexlist("exp")
         assert indexlist["exp/dev6"]["bases"] == ["exp/dev5"]
         assert "exp/dev6" in indexlist
+        assert mapp2.xom.config.secret == mapp1.xom.config.secret
 
     def test_upload_releasefile_with_attachment(self, impexp):
         mapp1 = impexp.mapp1

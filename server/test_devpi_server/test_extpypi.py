@@ -434,14 +434,12 @@ class TestRefreshManager:
         assert got == [10,10]
         assert caplog.getrecords(".*since_serial.*error.*")
 
-    def test_changelog_list_packages_no_network(self, extdb,
-            keyfs, raise_error, monkeypatch, caplog):
-        serverproxy = mock.Mock()
-        serverproxy.list_packages_with_serial.return_value = None
-        xmlproxy = XMLProxy(serverproxy)
+    def test_changelog_list_packages_no_network(self, makexom):
+        xmlproxy = mock.create_autospec(XMLProxy)
+        xmlproxy.list_packages_with_serial.return_value = None
         with pytest.raises(Fatal):
-            extdb.init_pypi_mirror(xmlproxy)
-        assert not keyfs.PYPISERIALS.exists()
+            xom = makexom(proxy=xmlproxy)
+        #assert not xom.keyfs.PYPISERIALS.exists()
 
 
 def test_requests_httpget_negative_status_code(xom_notmocked, monkeypatch):

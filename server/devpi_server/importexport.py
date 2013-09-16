@@ -33,7 +33,11 @@ def do_import(path, xom):
     entries = xom.keyfs.basedir.listdir()
     if entries:
         offending = [x.basename for x in entries
-                        if x.basename not in [".secret", ".serverversion"]]
+                        if x.check(dotfile=0)]
+        if "root" in offending:
+            root = xom.keyfs.basedir.join("root")
+            if root.listdir() == [root.join("pypi")]:
+                offending.remove("root")
         if offending:
             fatal("serverdir must be empty: %s (found %s)"
                     %(xom.config.serverdir, offending))
@@ -151,7 +155,9 @@ class Importer_1:
     def import_all(self, path):
         self.basepath = path
         reader = Reader_1(self.tw, path)
-        self.xom.config.secretfile.write(path.join("secret").read())
+        secret = path.join("secret").read()
+        self.xom.config.secretfile.write(secret)
+        self.xom.config.secret = secret
 
         # first create all users, and memorize index inheritance structure
         tree = IndexTree()

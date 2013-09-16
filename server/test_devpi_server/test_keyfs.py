@@ -6,8 +6,8 @@ import stat
 from devpi_server.keyfs import KeyFS
 
 @pytest.fixture
-def keyfs(tmpdir):
-    return KeyFS(tmpdir)
+def keyfs(gentmp):
+    return KeyFS(gentmp())
 
 @pytest.fixture(params=["direct", "a/b/c", ])
 def key(request):

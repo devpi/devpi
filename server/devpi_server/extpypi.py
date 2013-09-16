@@ -159,17 +159,18 @@ def perform_crawling(extdb, result, numthreads=10):
             t.join()
 
 
-def invalidate_on_version_change(serverdir):
-    verfile = serverdir.join(".mirrorversion")
+def invalidate_on_version_change(basedir):
+    verfile = basedir.join(".mirrorversion")
     if not verfile.check():
         ver = "0"
     else:
         ver = verfile.read()
     if ver != ExtDB.VERSION:
-        basedir = serverdir.join(*ExtDB.name.split("/"))
+        basedir = basedir.join(*ExtDB.name.split("/"))
         if basedir.check():
             log.info("version format change: removing root/pypi state")
             basedir.remove()
+    verfile.dirpath().ensure(dir=1)
     verfile.write(ExtDB.VERSION)
 
 class ExtDB:
@@ -177,10 +178,12 @@ class ExtDB:
     name = "root/pypi"
     ixconfig = dict(bases=(), volatile=False, type="mirror")
 
-    def __init__(self, keyfs, httpget, filestore):
+    def __init__(self, keyfs, httpget, filestore, proxy):
         self.keyfs = keyfs
         self.httpget = httpget
         self.releasefilestore = filestore
+        invalidate_on_version_change(keyfs.basedir.join("root", "pypi"))
+        self.init_pypi_mirror(proxy)
 
     def getcontained(self):
         return self.keyfs.PYPILINKS.listnames("name")
@@ -285,6 +288,7 @@ class ExtDB:
 
     def init_pypi_mirror(self, proxy):
         """ initialize pypi mirror if no mirror state exists. """
+        self.proxy = proxy
         name2serials = self.keyfs.PYPISERIALS.get({})
         if not name2serials:
             log.info("retrieving initial name/serial list")
@@ -318,7 +322,6 @@ class ExtDB:
             self.name2serials[name] = serial
 
     def spawned_pypichanges(self, proxy, proxysleep):
-        #self.init_pypi_mirror(proxy)
         log.info("changelog/update tasks starting")
         keyfs = self.keyfs
         while 1:

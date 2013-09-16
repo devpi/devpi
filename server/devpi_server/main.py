@@ -64,7 +64,7 @@ def _main(argv=None):
     versionfile = config.serverdir.join(".serverversion")
     check_compatible_version(versionfile)
 
-
+    # meta commmands (that will not instantiate server object in-process)
     if args.gendeploy:
         from devpi_server.gendeploy import gendeploy
         return gendeploy(config)
@@ -92,15 +92,9 @@ def _main(argv=None):
     if args.passwd:
         from devpi_server.db import run_passwd
         return run_passwd(xom.db, config.args.passwd)
-    if args.export:
-        from devpi_server.importexport import do_export
-        return do_export(args.export, xom)
-    elif args.import_:
-        from devpi_server.importexport import do_import
-        return do_import(args.import_, xom)
-    extpypi.invalidate_on_version_change(xom.config.serverdir)
-    configure_logging(config)
-    return bottle_run(xom)
+
+    return xom.main()
+
 
 def make_application():
     """ entry point for making an application object with defaults. """
@@ -166,17 +160,28 @@ class XOM:
     class Exiting(SystemExit):
         pass
 
-    def __init__(self, config, keyfs=None, filestore=None, extdb=None):
+    def __init__(self, config, proxy=None, httpget=None):
         self.config = config
         self._spawned = []
         self._shutdown = threading.Event()
         self._shutdownfuncs = []
-        if keyfs is not None:
-            self.keyfs = keyfs
-        if filestore is not None:
-            self.releasefilestore = filestore
-        if extdb is not None:
-            self.extdb = extdb
+        if proxy is not None:
+            self.proxy = proxy
+
+        if httpget is not None:
+            self.httpget = httpget
+
+    def main(self):
+        xom = self
+        args = xom.config.args
+        if args.export:
+            from devpi_server.importexport import do_export
+            return do_export(args.export, xom)
+        elif args.import_:
+            from devpi_server.importexport import do_import
+            return do_import(args.import_, xom)
+        configure_logging(xom.config)
+        return bottle_run(xom)
 
     def fatal(self, msg):
         self.shutdown()
@@ -231,8 +236,16 @@ class XOM:
     @cached_property
     def extdb(self):
         from devpi_server.extpypi import ExtDB
-        return ExtDB(keyfs=self.keyfs, httpget=self.httpget,
-                     filestore=self.releasefilestore)
+        extdb = ExtDB(keyfs=self.keyfs, httpget=self.httpget,
+                      filestore=self.releasefilestore,
+                      proxy=self.proxy)
+        return extdb
+
+    @cached_property
+    def proxy(self):
+        from devpi_server.extpypi import XMLProxy
+        from xmlrpclib import ServerProxy
+        return XMLProxy(ServerProxy(PYPIURL_XMLRPC))
 
     @cached_property
     def db(self):
@@ -276,11 +289,7 @@ class XOM:
         if immediatetasks == -1:
             pass
         else:
-            from devpi_server.extpypi import XMLProxy
-            from xmlrpclib import ServerProxy
-            self.proxy = XMLProxy(ServerProxy(PYPIURL_XMLRPC))
             plugin = BackgroundPlugin(xom=self)
-            self.extdb.init_pypi_mirror(self.proxy)
             if immediatetasks:
                 plugin.start_background_tasks()
             else:  # defer to when the first request arrives

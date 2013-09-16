@@ -3,9 +3,11 @@ import re
 import logging
 from webtest.forms import Upload
 import mimetypes
+import mock
 import pytest
 import py
-from devpi_server.main import XOM, add_keys
+from devpi_server.main import XOM
+from devpi_server.extpypi import XMLProxy
 from devpi_server.main import parseoptions
 
 
@@ -51,26 +53,28 @@ def gentmp(request):
     return gentmp
 
 @pytest.fixture
-def xom_notmocked(request):
-    from devpi_server.main import parseoptions, XOM
-    config = parseoptions(["devpi-server"])
-    xom = XOM(config)
-    request.addfinalizer(xom.shutdown)
-    return xom
+def xom_notmocked(request, makexom):
+    return makexom(mocking=False)
 
 @pytest.fixture
-def xom(request, keyfs, filestore, httpget, extdb, makexom):
-    return makexom([], keyfs=keyfs, filestore=filestore, extdb=extdb)
+def xom(request, makexom):
+    return makexom([])
 
 @pytest.fixture
 def makexom(request, gentmp, httpget):
-    def makexom(opts=(), keyfs=None, filestore=None, extdb=None):
+    def makexom(opts=(), httpget=httpget, proxy=None, mocking=True):
         serverdir = gentmp()
         fullopts = ["devpi-server", "--serverdir", serverdir] + list(opts)
         fullopts = [str(x) for x in fullopts]
         config = parseoptions(fullopts)
-        xom = XOM(config, keyfs=keyfs, filestore=filestore, extdb=extdb)
-        xom.httpget = httpget
+        if mocking:
+            if proxy is None:
+                proxy = mock.create_autospec(XMLProxy)
+                proxy.list_packages_with_serial.return_value = {}
+            xom = XOM(config, proxy=proxy, httpget=httpget)
+            add_extdb_mocks(xom.extdb, httpget)
+        else:
+            xom = XOM(config)
         request.addfinalizer(xom.shutdown)
         return xom
     return makexom
@@ -92,7 +96,6 @@ def makemapp(request, maketestapp, makexom):
             testapp = maketestapp(makexom(options))
         m = Mapp(testapp)
         m.xom = testapp.xom
-        m.xom.extdb._init_pypi_serials({})
         return m
     return makemapp
 
@@ -147,31 +150,26 @@ def httpget(pypiurls):
     return MockHTTPGet()
 
 @pytest.fixture
-def filestore(keyfs):
-    from devpi_server.filestore import ReleaseFileStore
-    return ReleaseFileStore(keyfs)
+def filestore(xom):
+    return xom.releasefilestore
 
 @pytest.fixture
-def keyfs(tmpdir):
-    tmpdir.ensure("serverdir")
-    from devpi_server.keyfs import KeyFS
-    keyfs = KeyFS(tmpdir.join("keyfs"))
-    add_keys(keyfs)
-    return keyfs
+def keyfs(xom):
+    return xom.keyfs
 
 @pytest.fixture
-def extdb(request, keyfs, filestore, httpget):
-    from devpi_server.extpypi import ExtDB
-    extdb = ExtDB(keyfs=keyfs, filestore=filestore, httpget=httpget)
+def extdb(xom):
+    return xom.extdb
+
+def add_extdb_mocks(extdb, httpget):
     # add some mocking helpers
-    extdb._init_pypi_serials({})
     extdb.url2response = httpget.url2response
     def setextsimple(name, text=None, pypiserial=10000, **kw):
         extdb._set_project_serial(name, pypiserial)
         httpget.setextsimple(name, text=text, pypiserial=pypiserial, **kw)
     extdb.setextsimple = setextsimple
     extdb.mock_simple = setextsimple
-    return extdb
+    extdb.httpget = httpget
 
 @pytest.fixture
 def pypiurls():
