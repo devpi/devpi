@@ -18,6 +18,11 @@
   version will be incremented so that devpi-client can
   bail out cleanly if it doesn't support the version.
 
+- speed up and make more reliable all operations on private packages which
+  have no pypi.python.org release: we can now determine if a project
+  exists on pypi and under which name exactly without
+  remote queries or redirects to pypi.python.org.
+
 - also add ".serverversion" file and write it if it does not
   exist, and make devpi-server use it to verify if
   operating on a compatible server data layout, otherwise bail out.

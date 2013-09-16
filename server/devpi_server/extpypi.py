@@ -219,15 +219,16 @@ class ExtDB:
             return [self.releasefilestore.getentry(relpath)
                         for relpath in cache["entrylist"]]
 
-        # XXX short cut 404 if self.name2serials is not empty and
-        # does not contain the projectname (watch out case-sensitivity)
-
-        url = PYPIURL_SIMPLE + projectname + "/"
+        info = self.get_project_info(projectname)
+        if not info:
+            return 404
+        url = PYPIURL_SIMPLE + info.name + "/"
         log.debug("visiting index %s", url)
         response = self.httpget(url, allow_redirects=True)
         if response.status_code != 200:
             return response.status_code
         real_projectname = response.url.strip("/").split("/")[-1]
+        assert real_projectname == info.name
         serial = int(response.headers["X-PYPI-LAST-SERIAL"])
         if not isinstance(refresh, bool) and isinstance(refresh, int):
             if serial < refresh:
@@ -314,40 +315,42 @@ class ExtDB:
             if n != name:
                 self.normname2name[n] = name
         else:
-            if current_serial < serial:
-                self.name2serials[name] = serial
+            self.name2serials[name] = serial
 
     def spawned_pypichanges(self, proxy, proxysleep):
         #self.init_pypi_mirror(proxy)
         log.info("changelog/update tasks starting")
         keyfs = self.keyfs
-        name2serials = self.name2serials
         while 1:
             # get changes since the maximum serial we are aware of
-            current_serial = max(itervalues(name2serials))
+            current_serial = max(itervalues(self.name2serials))
             log.debug("querying pypi changelog since %s", current_serial)
             changelog = proxy.changelog_since_serial(current_serial)
-            if changelog:
-                names = set()
-                for x in changelog:
-                    name, version, action, date, serial = x
-                    # XXX remove names if action == "remove"
-                    # and version is None
-                    # XXX normalization
-                    name = name.lower()
-                    name2serials[name] = max(name2serials.get(name, 0),
-                                             serial)
-                    names.add(name)
-                log.debug("got changelog of size %d: %s" %(
-                          len(changelog), names))
-                keyfs.PYPISERIALS.set(name2serials)
-
-            # walk through all mirrored projects and trigger updates if needed
-            for name in self.getcontained():
-                name = name.lower()
-                serial = name2serials.get(name, 0)
-                self.getreleaselinks(name, refresh=serial)
+            self.process_changelog(changelog)
+            self.process_refreshes()
             proxysleep()
+
+    def process_changelog(self, changelog):
+        if not changelog:
+            return
+        names = set()
+        for x in changelog:
+            name, version, action, date, serial = x
+            # XXX remove names if action == "remove"
+            # and version is None
+            self.name2serials[name] = max(self.name2serials.get(name, 0),
+                                     serial)
+            names.add(name)
+        log.debug("processed changelog of size %d: %s" %(
+                  len(changelog), names))
+        self.keyfs.PYPISERIALS.set(self.name2serials)
+
+    def process_refreshes(self):
+        # walk through all mirrored projects and trigger updates if needed
+        for name in self.getcontained():
+            name = name.lower()
+            serial = self.name2serials.get(name, 0)
+            self.getreleaselinks(name, refresh=serial)
 
 PYPIURL_SIMPLE = "https://pypi.python.org/simple/"
 PYPIURL = "https://pypi.python.org/"

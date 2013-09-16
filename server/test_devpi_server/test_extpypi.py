@@ -369,20 +369,39 @@ class TestRefreshManager:
         assert keyfs.PYPISERIALS.get() == d
         assert extdb.getprojectnames() == ["abc", "hello"]
 
-    def test_pypichanges_changes(self, extdb, keyfs, monkeypatch):
-        extdb.mock_simple("pytest", '<a href="pytest-2.3.tgz"/a>',
-                          pypiserial=20)
-        assert len(extdb.getreleaselinks("pytest")) == 1
+    def test_pypichanges_loop(self, extdb, monkeypatch):
+        extdb.process_changelog = mock.Mock()
+        extdb.process_refreshes = mock.Mock()
         proxy = mock.create_autospec(XMLProxy)
-        proxy.changelog_since_serial.return_value = [
+        changelog = [
             ["pylib", "1.4", 12123, 'new release', 11],
-            ["pytest", "2.4", 121231, 'new release', 27]]
-        extdb.mock_simple("pytest", '<a href="pytest-2.4.tgz"/a>',
-                          pypiserial=27)
+            ["pytest", "2.4", 121231, 'new release', 27]
+        ]
+        proxy.changelog_since_serial.return_value = changelog
+
+        # we need to have one entry in serials
+        extdb.mock_simple("pytest", pypiserial=27)
         with pytest.raises(ValueError):
             extdb.spawned_pypichanges(proxy, proxysleep=raise_ValueError)
-        assert not proxy.list_packages_with_serial.called
+        extdb.process_changelog.assert_called_once_with(changelog)
+        extdb.process_refreshes.assert_called_once()
+
+    def test_pypichanges_changes(self, extdb, keyfs, monkeypatch):
+        assert not extdb.name2serials
+        extdb.mock_simple("pytest", '<a href="pytest-2.3.tgz"/a>',
+                          pypiserial=20)
+        assert len(extdb.name2serials) == 1
+        assert len(extdb.getreleaselinks("pytest")) == 1
+        extdb.process_changelog([
+            ["Django", "1.4", 12123, 'new release', 11],
+            ["pytest", "2.4", 121231, 'new release', 27]
+        ])
+        assert len(extdb.name2serials) == 2
         assert keyfs.PYPISERIALS.get()["pytest"] == 27
+        assert keyfs.PYPISERIALS.get()["Django"] == 11
+        extdb.mock_simple("pytest", '<a href="pytest-2.4.tgz"/a>',
+                          pypiserial=27)
+        extdb.process_refreshes()
         assert extdb.getreleaselinks("pytest")[0].basename == "pytest-2.4.tgz"
 
     @pytest.fixture(params=["protocol", "socket"])
