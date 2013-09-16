@@ -348,7 +348,6 @@ class ExtDB:
     def process_refreshes(self):
         # walk through all mirrored projects and trigger updates if needed
         for name in self.getcontained():
-            name = name.lower()
             serial = self.name2serials.get(name, 0)
             self.getreleaselinks(name, refresh=serial)
 
