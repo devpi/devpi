@@ -52,15 +52,6 @@ def test_import_default(tmpdir, xom):
 
 class TestImportExport:
     @pytest.fixture
-    def xom_dest(self, tmpdir):
-        from devpi_server.main import parseoptions, XOM
-        destdir = tmpdir.join("destdir")
-        assert not destdir.check()
-        config = parseoptions(
-            ["devpi-server", "--import", "x", "--serverdir", str(destdir)])
-        return XOM(config)
-
-    @pytest.fixture
     def impexp(self, makemapp, gentmp):
         class ImpExp:
             def __init__(self):
