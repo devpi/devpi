@@ -186,12 +186,13 @@ class Importer_1:
             for project, versions in index.projects.items():
                 for version, versiondata in versions.items():
                     files = versiondata.pop("+files", [])
+                    assert versiondata, (project, version)
                     if hasattr(stage, "register_metadata"):
                         stage.register_metadata(versiondata)
                     for file in files:
-                        self.import_file_or_meta(stage, index, file)
+                        self.import_file(stage, index, file)
 
-    def import_file_or_meta(self, stage, index, file):
+    def import_file(self, stage, index, file):
         p = index.path.join(os.path.basename(file))
         filemeta = index.filemeta.get(file, None)
         assert filemeta
