@@ -166,11 +166,17 @@ class XOM:
     class Exiting(SystemExit):
         pass
 
-    def __init__(self, config):
+    def __init__(self, config, keyfs=None, filestore=None, extdb=None):
         self.config = config
         self._spawned = []
         self._shutdown = threading.Event()
         self._shutdownfuncs = []
+        if keyfs is not None:
+            self.keyfs = keyfs
+        if filestore is not None:
+            self.releasefilestore = filestore
+        if extdb is not None:
+            self.extdb = extdb
 
     def fatal(self, msg):
         self.shutdown()
@@ -225,7 +231,8 @@ class XOM:
     @cached_property
     def extdb(self):
         from devpi_server.extpypi import ExtDB
-        return ExtDB(xom=self)
+        return ExtDB(keyfs=self.keyfs, httpget=self.httpget,
+                     filestore=self.releasefilestore)
 
     @cached_property
     def db(self):

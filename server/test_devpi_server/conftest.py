@@ -59,27 +59,17 @@ def xom_notmocked(request):
     return xom
 
 @pytest.fixture
-def xom(request, keyfs, filestore, httpget, makexom):
-    from devpi_server.extpypi import ExtDB
-    config = parseoptions(["devpi-server"])
-    xom = XOM(config)
-    xom.keyfs = keyfs
-    xom.releasefilestore = filestore
-    xom.httpget = httpget
-    xom.extdb = ExtDB(xom=xom)
-    xom.extdb.setextsimple = httpget.setextsimple
-    xom.extdb.url2response = httpget.url2response
-    request.addfinalizer(xom.shutdown)
-    return xom
+def xom(request, keyfs, filestore, httpget, extdb, makexom):
+    return makexom([], keyfs=keyfs, filestore=filestore, extdb=extdb)
 
 @pytest.fixture
 def makexom(request, gentmp, httpget):
-    def makexom(opts=()):
+    def makexom(opts=(), keyfs=None, filestore=None, extdb=None):
         serverdir = gentmp()
         fullopts = ["devpi-server", "--serverdir", serverdir] + list(opts)
         fullopts = [str(x) for x in fullopts]
         config = parseoptions(fullopts)
-        xom = XOM(config)
+        xom = XOM(config, keyfs=keyfs, filestore=filestore, extdb=extdb)
         xom.httpget = httpget
         request.addfinalizer(xom.shutdown)
         return xom
@@ -96,12 +86,13 @@ def maketestapp(request):
     return maketestapp
 
 @pytest.fixture
-def makemapp(maketestapp, makexom):
+def makemapp(request, maketestapp, makexom):
     def makemapp(testapp=None, options=()):
         if testapp is None:
             testapp = maketestapp(makexom(options))
         m = Mapp(testapp)
         m.xom = testapp.xom
+        m.xom.extdb._init_pypi_serials({})
         return m
     return makemapp
 
@@ -162,17 +153,24 @@ def filestore(keyfs):
 
 @pytest.fixture
 def keyfs(tmpdir):
+    tmpdir.ensure("serverdir")
     from devpi_server.keyfs import KeyFS
     keyfs = KeyFS(tmpdir.join("keyfs"))
     add_keys(keyfs)
     return keyfs
 
 @pytest.fixture
-def extdb(request, xom):
-    extdb = xom.extdb
-    serials = request.keywords.get("extdb_serials")
-    if serials:
-         extdb._init_pypi_serials(serials.args[0])
+def extdb(request, keyfs, filestore, httpget):
+    from devpi_server.extpypi import ExtDB
+    extdb = ExtDB(keyfs=keyfs, filestore=filestore, httpget=httpget)
+    # add some mocking helpers
+    extdb._init_pypi_serials({})
+    extdb.url2response = httpget.url2response
+    def setextsimple(name, text=None, pypiserial=10000, **kw):
+        extdb._set_project_serial(name, pypiserial)
+        httpget.setextsimple(name, text=text, pypiserial=pypiserial, **kw)
+    extdb.setextsimple = setextsimple
+    extdb.mock_simple = setextsimple
     return extdb
 
 @pytest.fixture

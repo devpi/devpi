@@ -3,6 +3,7 @@ import py
 import os
 import pytest
 
+
 @pytest.fixture(params=[(), ("root/pypi",)])
 def bases(request):
     return request.param
@@ -80,22 +81,20 @@ class TestStage:
         assert not stage.getreleaselinks("someproject")
         assert not stage.getprojectnames()
 
-    def test_inheritance_simple(self, httpget, stage, db):
+    def test_inheritance_simple(self, extdb, stage, db):
         stage._reconfigure(bases=("root/pypi",))
-        httpget.setextsimple("someproject",
-            "<a href='someproject-1.0.zip' /a>")
+        extdb.mock_simple("someproject", "<a href='someproject-1.0.zip' /a>")
+        assert stage.getprojectnames() == ["someproject",]
         entries = stage.getreleaselinks("someproject")
         assert len(entries) == 1
-        assert stage.getprojectnames() == ["someproject",]
         stage.register_metadata(dict(name="someproject", version="1.1"))
         assert stage.getprojectnames() == ["someproject",]
 
-    def test_inheritance_twice(self, httpget, db, stage):
+    def test_inheritance_twice(self, extdb, db, stage):
         db.index_create(user="root", index="dev2", bases=("root/pypi",))
         stage_dev2 = db.getstage("root/dev2")
         stage._reconfigure(bases=("root/dev2",))
-        httpget.setextsimple("someproject",
-            "<a href='someproject-1.0.zip' /a>")
+        extdb.mock_simple("someproject", "<a href='someproject-1.0.zip' /a>")
         stage_dev2.store_releasefile("someproject-1.1.tar.gz", "123")
         stage.store_releasefile("someproject-1.2.tar.gz", "456")
         entries = stage.getreleaselinks("someproject")
@@ -105,12 +104,12 @@ class TestStage:
         assert entries[2].basename == "someproject-1.0.zip"
         assert stage.getprojectnames() == ["someproject",]
 
-    def test_inheritance_normalize_multipackage(self, httpget, db, stage):
+    def test_inheritance_normalize_multipackage(self, extdb, stage):
         stage._reconfigure(bases=("root/pypi",))
-        httpget.setextsimple("some_project", """
+        extdb.mock_simple("some-project", """
             <a href='some_project-1.0.zip' /a>
             <a href='some_project-1.0.tar.gz' /a>
-        """, url="https://pypi.python.org/simple/some-project/")
+        """)
         stage.store_releasefile("some_project-1.2.tar.gz", "456")
         entries = stage.getreleaselinks("some-project")
         assert len(entries) == 3
@@ -119,18 +118,18 @@ class TestStage:
         assert entries[2].basename == "some_project-1.0.tar.gz"
         assert stage.getprojectnames() == ["some-project",]
 
-    def test_getreleaselinks_inheritance_shadow(self, httpget, stage):
+    def test_getreleaselinks_inheritance_shadow(self, extdb, stage):
         stage._reconfigure(bases=("root/pypi",))
-        httpget.setextsimple("someproject",
+        extdb.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         stage.store_releasefile("someproject-1.0.zip", "123")
         entries = stage.getreleaselinks("someproject")
         assert len(entries) == 1
         assert entries[0].relpath.endswith("someproject-1.0.zip")
 
-    def test_getreleaselinks_inheritance_shadow_egg(self, httpget, stage):
+    def test_getreleaselinks_inheritance_shadow_egg(self, extdb, stage):
         stage._reconfigure(bases=("root/pypi",))
-        httpget.setextsimple("py",
+        extdb.mock_simple("py",
         """<a href="http://bb.org/download/py.zip#egg=py-dev" />""")
         stage.store_releasefile("py-1.0.tar.gz", "123")
         entries = stage.getreleaselinks("py")
@@ -139,17 +138,17 @@ class TestStage:
         assert e0.basename == "py.zip"
         assert e1.basename == "py-1.0.tar.gz"
 
-    def test_inheritance_error(self, httpget, stage):
+    def test_inheritance_error(self, extdb, stage):
         stage._reconfigure(bases=("root/pypi",))
-        httpget.setextsimple("someproject", status_code = -1)
+        extdb.mock_simple("someproject", status_code = -1)
         entries = stage.getreleaselinks("someproject")
         assert entries == -1
         #entries = stage.getprojectnames()
         #assert entries == -1
 
-    def test_get_projectconfig_inherited(self, httpget, stage):
+    def test_get_projectconfig_inherited(self, extdb, stage):
         stage._reconfigure(bases=("root/pypi",))
-        httpget.setextsimple("someproject",
+        extdb.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         projectconfig = stage.get_projectconfig("someproject")
         assert "someproject-1.0.zip" in projectconfig["1.0"]["+files"]
@@ -165,9 +164,9 @@ class TestStage:
         pconfig = stage.get_projectconfig("some")
         assert pconfig["1.0"]["+files"]["some-1.0.zip"].endswith("some-1.0.zip")
 
-    def test_project_config_shadowed(self, httpget, stage):
+    def test_project_config_shadowed(self, extdb, stage):
         stage._reconfigure(bases=("root/pypi",))
-        httpget.setextsimple("someproject",
+        extdb.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         content = "123"
         entry = stage.store_releasefile("someproject-1.0.zip", content)

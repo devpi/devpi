@@ -305,6 +305,8 @@ class PrivateStage:
         info = self.get_project_info(name)
         if info:
             log.info("got project info with name %r" % info.name)
+        else:
+            log.debug("project %r does not exist, good", name)
         if info is not None and info.name != name:
             raise self.RegisterNameConflict(info)
         key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
@@ -435,6 +437,7 @@ class PrivateStage:
         name, version = DistURL(filename).pkgname_and_version
         info = self.get_project_info(name)
         name = getattr(info, "name", name)
+        log.debug("project name of %r is %r", filename, name)
         key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
         with key.locked_update() as projectconfig:
             verdata = projectconfig.setdefault(version, {})

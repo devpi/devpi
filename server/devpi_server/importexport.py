@@ -30,7 +30,7 @@ def do_import(path, xom):
         importer = Importer_1(tw, xom)
     else:
         fatal("incompatible dumpversion: %r" %(dumpversion,))
-    entries = xom.config.serverdir.listdir()
+    entries = xom.keyfs.basedir.listdir()
     if entries:
         offending = [x.basename for x in entries
                         if x.basename not in [".secret", ".serverversion"]]

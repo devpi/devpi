@@ -177,22 +177,17 @@ class ExtDB:
     name = "root/pypi"
     ixconfig = dict(bases=(), volatile=False, type="mirror")
 
-    def __init__(self, xom):
-        self.keyfs = xom.keyfs
-        self.httpget = xom.httpget
-        self.releasefilestore = xom.releasefilestore
-        self.xom = xom
+    def __init__(self, keyfs, httpget, filestore):
+        self.keyfs = keyfs
+        self.httpget = httpget
+        self.releasefilestore = filestore
 
     def getcontained(self):
         return self.keyfs.PYPILINKS.listnames("name")
 
     def getprojectnames(self):
         """ return list of all projects which have been served. """
-        log.info("slow access (big reply) to full extpypi simple list")
-        if hasattr(self, "name2serials"):
-            return sorted(x for x in self.name2serials if x[0] != ".")
-        log.warn("pypi.python.org's simple page not cached yet")
-        return sorted(self.keyfs.PYPILINKS.listnames("name"))
+        return sorted(self.name2serials)
 
     getprojectnames_perstage = getprojectnames
 
@@ -254,11 +249,10 @@ class ExtDB:
     getreleaselinks_perstage = getreleaselinks
 
     def get_project_info(self, name):
-        x = self.getreleaselinks(name)
-        if not isinstance(x, int):
-            cache = self._load_project_cache(name)
-            if cache is not None:
-                return ProjectInfo(self, cache["projectname"])
+        norm_name = normalize_name(name)
+        name = self.normname2name.get(norm_name, norm_name)
+        if name in self.name2serials:
+            return ProjectInfo(self, name)
 
     get_project_info_perstage = get_project_info
 
@@ -295,8 +289,9 @@ class ExtDB:
             log.info("retrieving initial name/serial list")
             name2serials = proxy.list_packages_with_serial()
             if name2serials is None:
-                self.xom.fatal("mirror initialization failed: "
-                               "pypi.python.org not reachable")
+                from devpi_server.main import fatal
+                fatal("mirror initialization failed: "
+                      "pypi.python.org not reachable")
             self.keyfs.PYPISERIALS.set(name2serials)
         else:
             log.info("reusing already cached name/serial list")
@@ -304,13 +299,29 @@ class ExtDB:
 
     def _init_pypi_serials(self, name2serials):
         self.name2serials = name2serials
+        self.normname2name = d = dict()
+        for name in name2serials:
+            norm = normalize_name(name)
+            if norm != name:
+                d[norm] = name
+
+    def _set_project_serial(self, name, serial):
+        try:
+            current_serial = self.name2serials[name]
+        except KeyError:
+            self.name2serials[name] = serial
+            n = normalize_name(name)
+            if n != name:
+                self.normname2name[n] = name
+        else:
+            if current_serial < serial:
+                self.name2serials[name] = serial
 
     def spawned_pypichanges(self, proxy, proxysleep):
         #self.init_pypi_mirror(proxy)
         log.info("changelog/update tasks starting")
         keyfs = self.keyfs
         name2serials = self.name2serials
-        assert name2serials
         while 1:
             # get changes since the maximum serial we are aware of
             current_serial = max(itervalues(name2serials))
@@ -322,6 +333,7 @@ class ExtDB:
                     name, version, action, date, serial = x
                     # XXX remove names if action == "remove"
                     # and version is None
+                    # XXX normalization
                     name = name.lower()
                     name2serials[name] = max(name2serials.get(name, 0),
                                              serial)

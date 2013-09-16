@@ -333,9 +333,9 @@ class TestExtPYPIDB:
         assert len(links) == 1
 
     def test_getprojectnames(self, extdb):
-        extdb.setextsimple("proj1", text='''
+        extdb.mock_simple("proj1", text='''
                            <a href="../../pkg/proj1-1.0.zip#md5=123" /> ''')
-        extdb.setextsimple("proj2", text='''
+        extdb.mock_simple("proj2", text='''
                            <a href="../../pkg/proj2-1.0.zip#md5=123" /> ''')
         extdb.url2response["https://pypi.python.org/simple/proj3/"] = dict(
             status_code=404)
@@ -346,10 +346,14 @@ class TestExtPYPIDB:
         assert names == ["proj1", "proj2"]
 
     def test_get_existing_with_302(self, extdb):
-        extdb.setextsimple("hello",
-                url="https://pypi.python.org/simple/Hello/",
-                text='<a href="/Hello-1.0.tar.gz" />')
-        assert extdb.get_project_info("hello").name == "Hello"
+        extdb.mock_simple("Hello_this")
+        extdb.mock_simple("hello-World")
+        extdb.mock_simple("s-p")
+        assert extdb.get_project_info("hello-this").name == "Hello_this"
+        assert extdb.get_project_info("hello_world").name == "hello-World"
+        assert extdb.get_project_info("hello-world").name == "hello-World"
+        assert extdb.get_project_info("s-p").name == "s-p"
+        assert extdb.get_project_info("s_p").name == "s-p"
 
 def raise_ValueError():
     raise ValueError(42)
@@ -365,17 +369,16 @@ class TestRefreshManager:
         assert keyfs.PYPISERIALS.get() == d
         assert extdb.getprojectnames() == ["abc", "hello"]
 
-    @pytest.mark.extdb_serials({"pytest": 20})
-    def test_pypichanges_changes(self, extdb, httpget, keyfs, monkeypatch):
-        httpget.setextsimple("pytest", '<a href="pytest-2.3.tgz"/a>',
-                             pypiserial=20)
+    def test_pypichanges_changes(self, extdb, keyfs, monkeypatch):
+        extdb.mock_simple("pytest", '<a href="pytest-2.3.tgz"/a>',
+                          pypiserial=20)
         assert len(extdb.getreleaselinks("pytest")) == 1
         proxy = mock.create_autospec(XMLProxy)
         proxy.changelog_since_serial.return_value = [
             ["pylib", "1.4", 12123, 'new release', 11],
             ["pytest", "2.4", 121231, 'new release', 27]]
-        httpget.setextsimple("pytest", '<a href="pytest-2.4.tgz"/a>',
-                             pypiserial=27)
+        extdb.mock_simple("pytest", '<a href="pytest-2.4.tgz"/a>',
+                          pypiserial=27)
         with pytest.raises(ValueError):
             extdb.spawned_pypichanges(proxy, proxysleep=raise_ValueError)
         assert not proxy.list_packages_with_serial.called
@@ -394,9 +397,9 @@ class TestRefreshManager:
             raise exc
         return raise_error
 
-    @pytest.mark.extdb_serials({"pytest": 10})
     def test_changelog_since_serial_nonetwork(self, extdb,
-                    keyfs, raise_error, monkeypatch, caplog):
+                    raise_error, monkeypatch, caplog):
+        extdb.mock_simple("pytest", pypiserial=10)
         from xmlrpclib import ServerProxy
         got = []
         def raise_xmlrpcish(since_int):

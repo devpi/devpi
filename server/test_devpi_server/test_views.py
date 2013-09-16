@@ -16,12 +16,12 @@ from .functional import TestUserThings, TestIndexThings
 def getfirstlink(text):
     return BeautifulSoup(text).findAll("a")[0]
 
-def test_simple_project(pypiurls, httpget, testapp):
+def test_simple_project(pypiurls, extdb, testapp):
     name = "qpwoei"
     r = testapp.get("/root/pypi/+simple/" + name)
     assert r.status_code == 404
     path = "/%s-1.0.zip" % name
-    httpget.setextsimple(name, text='<a href="%s"/>' % path)
+    extdb.mock_simple(name, text='<a href="%s"/>' % path)
     r = testapp.get("/root/pypi/+simple/%s" % name)
     assert r.status_code == 200
     links = BeautifulSoup(r.text).findAll("a")
@@ -32,8 +32,8 @@ def test_simple_url_longer_triggers_404(testapp):
     assert testapp.get("/root/pypi/+simple/pytest/1.0/").status_code == 404
     assert testapp.get("/root/pypi/+simple/pytest/1.0").status_code == 404
 
-def test_simple_project_pypi_egg(pypiurls, httpget, testapp):
-    httpget.setextsimple("py",
+def test_simple_project_pypi_egg(pypiurls, extdb, testapp):
+    extdb.mock_simple("py",
         """<a href="http://bb.org/download/py.zip#egg=py-dev" />""")
     r = testapp.get("/root/pypi/+simple/py/")
     assert r.status_code == 200
@@ -42,9 +42,9 @@ def test_simple_project_pypi_egg(pypiurls, httpget, testapp):
     r = testapp.get("/root/pypi/")
     assert r.status_code == 200
 
-def test_simple_list(pypiurls, httpget, testapp):
-    httpget.setextsimple("hello1", text="<html/>")
-    httpget.setextsimple("hello2", text="<html/>")
+def test_simple_list(pypiurls, extdb, testapp):
+    extdb.mock_simple("hello1", "<html/>")
+    extdb.mock_simple("hello2", "<html/>")
     assert testapp.get("/root/pypi/+simple/hello1").status_code == 200
     assert testapp.get("/root/pypi/+simple/hello2").status_code == 200
     assert testapp.get("/root/pypi/+simple/hello3").status_code == 404
@@ -55,26 +55,26 @@ def test_simple_list(pypiurls, httpget, testapp):
     hrefs = [a.get("href") for a in links]
     assert hrefs == ["hello1/", "hello2/"]
 
-def test_indexroot(pypiurls, httpget, testapp, xom):
+def test_indexroot(pypiurls, testapp, xom):
     xom.db.create_stage("user/index", bases=("root/pypi",))
     r = testapp.get("/user/index/")
     assert r.status_code == 200
 
-def test_indexroot_root_pypi(pypiurls, httpget, testapp, xom):
+def test_indexroot_root_pypi(testapp, xom):
     r = testapp.get("/root/pypi/")
     assert r.status_code == 200
     assert "in-stage" not in r.body
 
 
 @pytest.mark.parametrize("code", [-1, 500, 501, 502, 503])
-def test_upstream_not_reachable(pypiurls, httpget, testapp, xom, code):
+def test_upstream_not_reachable(pypiurls, extdb, testapp, xom, code):
     name = "whatever%d" % (code + 1)
-    httpget.setextsimple(name, status_code = code)
+    extdb.mock_simple(name, status_code = code)
     r = testapp.get("/root/pypi/+simple/%s" % name)
     assert r.status_code == 502
 
-def test_pkgserv(pypiurls, httpget, testapp):
-    httpget.setextsimple("package", '<a href="/package-1.0.zip" />')
+def test_pkgserv(pypiurls, httpget, extdb, testapp):
+    extdb.mock_simple("package", '<a href="/package-1.0.zip" />')
     httpget.setextfile("/package-1.0.zip", "123")
     r = testapp.get("/root/pypi/+simple/package/")
     assert r.status_code == 200
@@ -82,7 +82,7 @@ def test_pkgserv(pypiurls, httpget, testapp):
     r = testapp.get(href)
     assert r.body == "123"
 
-def test_apiconfig(httpget, testapp):
+def test_apiconfig(testapp):
     r = testapp.get("/user/name/+api")
     assert r.status_code == 404
     r = testapp.get("/root/pypi/+api")
@@ -93,7 +93,7 @@ def test_apiconfig(httpget, testapp):
     #    assert name in r.json
     #
     #
-def test_root_pypi(httpget, testapp):
+def test_root_pypi(testapp):
     r = testapp.get("/root/pypi/")
     assert r.status_code == 200
 
@@ -138,11 +138,8 @@ class TestSubmitValidation:
         r = submit.metadata(metadata, code=403)
         assert re.search("pKg1.*already.*registered", r.body)
 
-    def test_metadata_normalize_inheritance(self, httpget, submit):
-        httpget.setextsimple("Pkg1",
-                url="https://pypi.python.org/simple/pKg1/",
-                text='<a href="%s"/>' % "pKg1-1.0.tar.gz")
-
+    def test_metadata_normalize_inheritance(self, extdb, submit):
+        extdb.mock_simple("pKg1")
         metadata = {"name": "Pkg1", "version": "1.0", ":action": "submit",
                     "description": "hello world"}
         r = submit.metadata(metadata, code=403)
