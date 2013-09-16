@@ -3,7 +3,7 @@ import py
 import pytest
 
 from devpi_server.extpypi import *
-from devpi_server.main import FatalResponse
+from devpi_server.main import FatalResponse, Fatal
 
 class TestIndexParsing:
     simplepy = DistURL("http://pypi.python.org/simple/py/")
@@ -356,40 +356,17 @@ def raise_ValueError():
 
 class TestRefreshManager:
 
-    def test_pypichanges_nochanges(self, extdb, keyfs):
+    def test_init_pypi_mirror(self, extdb, keyfs):
         proxy = mock.create_autospec(XMLProxy)
-        proxy.list_packages_with_serial.return_value = {"hello": 10,
-                                                        "abc": 42}
-        proxy.changelog_since_serial.return_value = []
-        with pytest.raises(ValueError):
-            extdb.spawned_pypichanges(proxy, proxysleep=raise_ValueError)
-        proxy.list_packages_with_serial.assert_called_once_with()
-        assert keyfs.PYPISERIALS.get()["hello"] == 10
-        assert keyfs.PYPISERIALS.get()["abc"] == 42
+        d = {"hello": 10, "abc": 42}
+        proxy.list_packages_with_serial.return_value = d
+        extdb.init_pypi_mirror(proxy)
+        assert extdb.name2serials == d
+        assert keyfs.PYPISERIALS.get() == d
         assert extdb.getprojectnames() == ["abc", "hello"]
 
-    def test_pypichanges_mirrorversionchange(self, extdb, keyfs, monkeypatch):
-        proxy = mock.create_autospec(XMLProxy)
-        proxy.list_packages_with_serial.return_value = {"hello": 10}
-        proxy.changelog_since_serial.return_value = []
-        with pytest.raises(ValueError):
-            extdb.spawned_pypichanges(proxy, proxysleep=raise_ValueError)
-        proxy.list_packages_with_serial.assert_called_once_with()
-
-        # trying again should not trigger restart
-        proxy.list_packages_with_serial.called = False
-        with pytest.raises(ValueError):
-            extdb.spawned_pypichanges(proxy, proxysleep=raise_ValueError)
-        assert not proxy.list_packages_with_serial.called
-        monkeypatch.setattr(extdb, "MIRRORVERSION", extdb.MIRRORVERSION + 1)
-        # trying again should trigger restart
-        with pytest.raises(ValueError):
-            extdb.spawned_pypichanges(proxy, proxysleep=raise_ValueError)
-        assert proxy.list_packages_with_serial.called
-
-
+    @pytest.mark.extdb_serials({"pytest": 20})
     def test_pypichanges_changes(self, extdb, httpget, keyfs, monkeypatch):
-        keyfs.PYPISERIALS.set({"pytest": 20, ".ver": extdb.MIRRORVERSION})
         httpget.setextsimple("pytest", '<a href="pytest-2.3.tgz"/a>',
                              pypiserial=20)
         assert len(extdb.getreleaselinks("pytest")) == 1
@@ -417,11 +394,11 @@ class TestRefreshManager:
             raise exc
         return raise_error
 
+    @pytest.mark.extdb_serials({"pytest": 10})
     def test_changelog_since_serial_nonetwork(self, extdb,
                     keyfs, raise_error, monkeypatch, caplog):
         from xmlrpclib import ServerProxy
         got = []
-        keyfs.PYPISERIALS.set({"pytest": 10, ".ver": extdb.MIRRORVERSION})
         def raise_xmlrpcish(since_int):
             got.append(since_int)
             raise_error()
@@ -437,22 +414,12 @@ class TestRefreshManager:
 
     def test_changelog_list_packages_no_network(self, extdb,
             keyfs, raise_error, monkeypatch, caplog):
-        from xmlrpclib import ProtocolError, ServerProxy
-
-        proxyanswers = [None]
-        loops = []
-        def proxysleep():
-            loops.append(1)
-            if not proxyanswers.pop():
-                raise ValueError
-
         serverproxy = mock.Mock()
-        serverproxy.list_packages_with_serial.side_effect = raise_ValueError
+        serverproxy.list_packages_with_serial.return_value = None
         xmlproxy = XMLProxy(serverproxy)
-        with pytest.raises(ValueError):
-            extdb.spawned_pypichanges(xmlproxy, proxysleep=raise_ValueError)
+        with pytest.raises(Fatal):
+            extdb.init_pypi_mirror(xmlproxy)
         assert not keyfs.PYPISERIALS.exists()
-        assert caplog.getrecords(".*error.*")
 
 
 def test_requests_httpget_negative_status_code(xom_notmocked, monkeypatch):

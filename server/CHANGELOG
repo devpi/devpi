@@ -1,6 +1,12 @@
 1.1.dev1
 ----------------
 
+- if no pypi mirror state is known, devpi-server now calls
+  pypi to obtain names/serials.  It will fail to start
+  if no connection is possible.  Once a first mirror
+  state is known, subsequent devpi-server starts will
+  not perform this initial query.
+
 - add --export/--import options to dump and import server contents:
   users, indexes, release files and (test) attachments.
   Note that root/pypi (PyPI-caching information) and all

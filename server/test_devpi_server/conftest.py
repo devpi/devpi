@@ -168,8 +168,12 @@ def keyfs(tmpdir):
     return keyfs
 
 @pytest.fixture
-def extdb(xom):
-    return xom.extdb
+def extdb(request, xom):
+    extdb = xom.extdb
+    serials = request.keywords.get("extdb_serials")
+    if serials:
+         extdb._init_pypi_serials(serials.args[0])
+    return extdb
 
 @pytest.fixture
 def pypiurls():

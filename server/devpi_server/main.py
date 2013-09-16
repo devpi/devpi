@@ -16,6 +16,8 @@ import devpi_server
 from pkg_resources import parse_version
 from . import extpypi
 
+PYPIURL_XMLRPC = "https://pypi.python.org/pypi/"
+
 class Fatal(Exception):
     pass
 
@@ -115,7 +117,7 @@ def bottle_run(xom):
     hostaddr = "http://%s:%s" %(xom.config.args.host, xom.config.args.port)
     log.info("serving at url: %s", hostaddr)
     log.info("bug tracker: https://bitbucket.org/hpk42/devpi/issues")
-    log.info("IRC: #pylib on irc.freenode.net")
+    log.info("IRC: #devpi on irc.freenode.net")
     if "WEBTRACE" in os.environ and xom.config.args.debug:
         from weberror.evalexception import make_eval_exception
         app = make_eval_exception(app, {})
@@ -169,6 +171,10 @@ class XOM:
         self._spawned = []
         self._shutdown = threading.Event()
         self._shutdownfuncs = []
+
+    def fatal(self, msg):
+        self.shutdown()
+        fatal(msg)
 
     def shutdown(self):
         log.debug("shutting down")
@@ -260,13 +266,18 @@ class XOM:
         from bottle import Bottle
         log.info("creating application in process %s", os.getpid())
         app = Bottle(catchall=catchall)
-        plugin = BackgroundPlugin(xom=self)
         if immediatetasks == -1:
             pass
-        elif immediatetasks:
-            plugin.start_background_tasks()
-        else:  # defer to when the first request arrives
-            app.install(plugin)
+        else:
+            from devpi_server.extpypi import XMLProxy
+            from xmlrpclib import ServerProxy
+            self.proxy = XMLProxy(ServerProxy(PYPIURL_XMLRPC))
+            plugin = BackgroundPlugin(xom=self)
+            self.extdb.init_pypi_mirror(self.proxy)
+            if immediatetasks:
+                plugin.start_background_tasks()
+            else:  # defer to when the first request arrives
+                app.install(plugin)
         app.xom = self
         pypiview = PyPIView(self)
         route.discover_and_call(pypiview, app.route)
@@ -280,6 +291,7 @@ class BackgroundPlugin:
 
     def __init__(self, xom):
         self.xom = xom
+        assert xom.proxy
 
     def setup(self, app):
         log.debug("plugin.setup(%r)", app)
@@ -298,11 +310,7 @@ class BackgroundPlugin:
         log.debug("plugin.close() called")
 
     def start_background_tasks(self):
-        from devpi_server.extpypi import XMLProxy
-        from xmlrpclib import ServerProxy
         xom = self.xom
-        PYPIURL_XMLRPC = "https://pypi.python.org/pypi/"
-        xom.proxy = XMLProxy(ServerProxy(PYPIURL_XMLRPC))
         self._thread = xom.spawn(xom.extdb.spawned_pypichanges,
             args=(xom.proxy, lambda: xom.sleep(xom.config.args.refresh)))
 
@@ -315,7 +323,7 @@ class FatalResponse:
 
 def set_default_indexes(db):
     PYPI = "root/pypi"
-    if "root" not in db.user_list():
-        db.user_create("root", password="")
     if not db.index_exists(PYPI):
+        if "root" not in db.user_list():
+            db.user_create("root", password="")
         db.index_create(PYPI, bases=(), type="mirror", volatile=False)

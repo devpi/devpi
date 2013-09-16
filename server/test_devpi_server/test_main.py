@@ -34,3 +34,11 @@ def test_invalidate(monkeypatch, tmpdir):
                         lambda xom: l.append(xom))
     main([])
     assert len(l) == 1
+
+def test_startup_fails_on_initial_setup_nonetwork(tmpdir, monkeypatch):
+    import bottle
+    monkeypatch.setattr(bottle, "run", lambda **kw: 0/0)
+    monkeypatch.setattr(devpi_server.main, "PYPIURL_XMLRPC",
+                        "http://qwqwlekjqwlekqwe.notexists")
+    ret = main(["devpi-server", "--serverdir", str(tmpdir)])
+    assert ret

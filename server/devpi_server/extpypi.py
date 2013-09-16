@@ -288,48 +288,47 @@ class ExtDB:
         return html.div("please refer to description on remote server ",
             html.a(link, href=link)).unicode(indent=2)
 
-    MIRRORVERSION = 1
+    def init_pypi_mirror(self, proxy):
+        """ initialize pypi mirror if no mirror state exists. """
+        name2serials = self.keyfs.PYPISERIALS.get({})
+        if not name2serials:
+            log.info("retrieving initial name/serial list")
+            name2serials = proxy.list_packages_with_serial()
+            if name2serials is None:
+                self.xom.fatal("mirror initialization failed: "
+                               "pypi.python.org not reachable")
+            self.keyfs.PYPISERIALS.set(name2serials)
+        else:
+            log.info("reusing already cached name/serial list")
+        self._init_pypi_serials(name2serials)
+
+    def _init_pypi_serials(self, name2serials):
+        self.name2serials = name2serials
+
     def spawned_pypichanges(self, proxy, proxysleep):
+        #self.init_pypi_mirror(proxy)
         log.info("changelog/update tasks starting")
         keyfs = self.keyfs
-        name2serials = keyfs.PYPISERIALS.get({})
-        name2serials_version = name2serials.get(".ver", 0)
-        if name2serials_version != self.MIRRORVERSION:
-            log.info("detected MIRRORVERSION CHANGE, restarting caching info")
-            name2serials.clear() # restart getting info from pypi
-                                 # this will not reget release files
-        if name2serials:
-            self.name2serials = name2serials
+        name2serials = self.name2serials
+        assert name2serials
         while 1:
-            if not name2serials:
-                log.info("retrieving initial name/serial list")
-                init_name2serials = proxy.list_packages_with_serial()
-                if init_name2serials is None:
-                    proxysleep()
-                    continue
-                for name, serial in iteritems(init_name2serials):
-                    name2serials[name.lower()] = serial
-                name2serials[".ver"] = self.MIRRORVERSION
+            # get changes since the maximum serial we are aware of
+            current_serial = max(itervalues(name2serials))
+            log.debug("querying pypi changelog since %s", current_serial)
+            changelog = proxy.changelog_since_serial(current_serial)
+            if changelog:
+                names = set()
+                for x in changelog:
+                    name, version, action, date, serial = x
+                    # XXX remove names if action == "remove"
+                    # and version is None
+                    name = name.lower()
+                    name2serials[name] = max(name2serials.get(name, 0),
+                                             serial)
+                    names.add(name)
+                log.debug("got changelog of size %d: %s" %(
+                          len(changelog), names))
                 keyfs.PYPISERIALS.set(name2serials)
-                self.name2serials = name2serials
-            else:
-                # get changes since the maximum serial we are aware of
-                current_serial = max(itervalues(name2serials))
-                log.debug("querying pypi changelog since %s", current_serial)
-                changelog = proxy.changelog_since_serial(current_serial)
-                if changelog:
-                    names = set()
-                    for x in changelog:
-                        name, version, action, date, serial = x
-                        # XXX remove names if action == "remove"
-                        # and version is None
-                        name = name.lower()
-                        name2serials[name] = max(name2serials.get(name, 0),
-                                                 serial)
-                        names.add(name)
-                    log.debug("got changelog of size %d: %s" %(
-                              len(changelog), names))
-                    keyfs.PYPISERIALS.set(name2serials)
 
             # walk through all mirrored projects and trigger updates if needed
             for name in self.getcontained():
