@@ -9,8 +9,8 @@ from devpi_server.main import fatal
 def do_export(path, xom):
     path = py.path.local(path)
     tw = py.io.TerminalWriter()
-    if path.check():
-        tw.line("removing %s" % path, red=True)
+    if path.check() and path.listdir():
+        fatal("export directory %s must not exist or be empty" % path)
     path.ensure(dir=1)
     tw.line("creating %s" % path)
     dumper = Exporter(tw, xom)

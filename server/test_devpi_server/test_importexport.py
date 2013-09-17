@@ -16,6 +16,8 @@ def test_empty_export(tmpdir, xom):
     ret = do_export(tmpdir, xom)
     assert not ret
     assert tmpdir.join("dumpversion").read() == Exporter.DUMPVERSION
+    with pytest.raises(Fatal):
+        do_export(tmpdir, xom)
 
 def test_import_on_existing_server_data(tmpdir, xom):
     assert not do_export(tmpdir, xom)
