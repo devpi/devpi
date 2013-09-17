@@ -87,7 +87,10 @@ def get_pypirc_patcher(devpi):
     pypisubmit = hub.current.pypisubmit
     class overwrite:
         def __enter__(self):
-            homedir = py.path.local._gethomedir()
+            try:
+                homedir = py.path.local._gethomedir()
+            except Exception:
+                pytest.skip("this test requires a home directory")
             self.pypirc = pypirc = homedir.join(".pypirc")
             if pypirc.check():
                 save = pypirc.new(basename=pypirc.basename+".save")
