@@ -149,7 +149,8 @@ class TestSubmitValidation:
     def test_upload_file(self, submit):
         submit.file("pkg5-2.6.tgz", "123", {"name": "pkg5some"}, code=400)
         submit.file("pkg5-2.6.tgz", "123", {"name": "Pkg5"}, code=200)
-        submit.file("pkg5-2.6.qwe", "123", {"name": "pkg5"}, code=403)
+        submit.file("pkg5-2.6.qwe", "123", {"name": "Pkg5"}, code=400)
+        submit.file("pkg5-2.7.tgz", "123", {"name": "pkg5"}, code=403)
 
     def test_upload_and_simple_index(self, submit, testapp):
         submit.file("pkg5-2.6.tgz", "123", {"name": "Pkg5"}, code=200)

@@ -363,8 +363,13 @@ class PrivateStage:
             user=self.user, index=self.index, name=name)
 
     def get_metadata(self, name, version):
-        projectconfig = self.get_projectconfig(name)
-        return projectconfig.get(version)
+        # on win32 we need to make sure that we only return
+        # something if we know about the exact name, not a
+        # case-different one
+        info = self.get_project_info(name)
+        if info and info.name == name:
+            projectconfig = self.get_projectconfig(name)
+            return projectconfig.get(version)
 
     def get_projectconfig_perstage(self, name):
         key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
