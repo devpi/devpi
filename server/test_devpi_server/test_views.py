@@ -19,7 +19,8 @@ def getfirstlink(text):
 def test_simple_project(pypiurls, extdb, testapp):
     name = "qpwoei"
     r = testapp.get("/root/pypi/+simple/" + name)
-    assert r.status_code == 404
+    assert r.status_code == 200
+    assert not BeautifulSoup(r.text).findAll("a")
     path = "/%s-1.0.zip" % name
     extdb.mock_simple(name, text='<a href="%s"/>' % path)
     r = testapp.get("/root/pypi/+simple/%s" % name)
@@ -47,7 +48,9 @@ def test_simple_list(pypiurls, extdb, testapp):
     extdb.mock_simple("hello2", "<html/>")
     assert testapp.get("/root/pypi/+simple/hello1").status_code == 200
     assert testapp.get("/root/pypi/+simple/hello2").status_code == 200
-    assert testapp.get("/root/pypi/+simple/hello3").status_code == 404
+    r = testapp.get("/root/pypi/+simple/hello3")
+    assert r.status_code == 200
+    assert "no such project" in r.text
     r = testapp.get("/root/pypi/+simple/")
     assert r.status_code == 200
     links = BeautifulSoup(r.text).findAll("a")
