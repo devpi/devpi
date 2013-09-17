@@ -27,12 +27,15 @@ def test_check_compatible_version_raises(tmpdir):
     with pytest.raises(Fatal):
         check_compatible_version(versionfile)
 
-#def test_invalidate(monkeypatch, tmpdir):
-#    monkeypatch.setattr(devpi_server.main, "bottle_run", lambda *args: None)
-#    monkeypatch.setattr(devpi_server.extpypi, "invalidate_on_version_change",
-#                        lambda xom: 0/0)
-#    with pytest.raises(ZeroDivisionError):
-#        main([])
+def test_invalidate_is_called(monkeypatch, tmpdir):
+    monkeypatch.setattr(devpi_server.main, "bottle_run", lambda *args: None)
+    def record(basedir):
+        assert tmpdir.join("root", "pypi") == basedir
+        0/0
+    monkeypatch.setattr(devpi_server.extpypi, "invalidate_on_version_change",
+                        lambda xom: 0/0)
+    with pytest.raises(ZeroDivisionError):
+        main(["devpi-server", "--serverdir", str(tmpdir)])
 
 def test_startup_fails_on_initial_setup_nonetwork(tmpdir, monkeypatch):
     import bottle

@@ -166,7 +166,6 @@ def invalidate_on_version_change(basedir):
     else:
         ver = verfile.read()
     if ver != ExtDB.VERSION:
-        basedir = basedir.join(*ExtDB.name.split("/"))
         if basedir.check():
             log.info("version format change: removing root/pypi state")
             basedir.remove()
@@ -300,10 +299,8 @@ class ExtDB:
             self.keyfs.PYPISERIALS.set(name2serials)
         else:
             log.info("reusing already cached name/serial list")
-        self._init_pypi_serials(name2serials)
-
-    def _init_pypi_serials(self, name2serials):
         self.name2serials = name2serials
+        # create a mapping of normalized name to real name
         self.normname2name = d = dict()
         for name in name2serials:
             norm = normalize_name(name)
@@ -311,6 +308,9 @@ class ExtDB:
                 d[norm] = name
 
     def _set_project_serial(self, name, serial):
+        """ set the current serial and fill normalization table
+        if project does not exist.
+        """
         try:
             current_serial = self.name2serials[name]
         except KeyError:

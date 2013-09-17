@@ -25,7 +25,7 @@ def fatal(msg):
     raise Fatal(msg)
 
 def check_compatible_version(versionfile):
-    last_version = "1.0.1.dev2"
+    last_version = "1.1.dev2"
     last = parse_version(last_version)
     if versionfile.check():
         current_version = versionfile.read()
@@ -177,7 +177,9 @@ class XOM:
         if args.export:
             from devpi_server.importexport import do_export
             return do_export(args.export, xom)
-        elif args.import_:
+        # access extdb to make sure invalidation happens
+        xom.extdb
+        if args.import_:
             from devpi_server.importexport import do_import
             return do_import(args.import_, xom)
         configure_logging(xom.config)
