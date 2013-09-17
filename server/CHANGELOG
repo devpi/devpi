@@ -7,6 +7,9 @@
   state is known, subsequent devpi-server starts will
   not perform this initial query.
 
+- reject simple/NAME if NAME contains non-ascii characters
+  (PEP426 naming rules)
+
 - add --export/--import options to dump and import server contents:
   users, indexes, release files and (test) attachments.
   Note that root/pypi (PyPI-caching information) and all

@@ -29,6 +29,11 @@ def test_simple_project(pypiurls, extdb, testapp):
     assert len(links) == 1
     assert links[0].get("href").endswith(path)
 
+def test_simple_project_unicode_rejected(pypiurls, extdb, testapp):
+    name = "qpw\xc3"
+    r = testapp.get("/root/pypi/+simple/" + name)
+    assert r.status_code == 400
+
 def test_simple_url_longer_triggers_404(testapp):
     assert testapp.get("/root/pypi/+simple/pytest/1.0/").status_code == 404
     assert testapp.get("/root/pypi/+simple/pytest/1.0").status_code == 404

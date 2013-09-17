@@ -154,6 +154,7 @@ class PyPIView:
     @route("/<user>/<index>/+simple/<projectname>/")
     def simple_list_project(self, user, index, projectname):
         # we only serve absolute links so we don't care about the route's slash
+        abort_if_invalid_projectname(projectname)
         stage = self.getstage(user, index)
         info = stage.get_project_info(projectname)
         if info and info.name != projectname:
@@ -754,6 +755,12 @@ def abort_if_invalid_filename(name, filename):
         return
     abort_custom(400, "filename %r does not match project name %r"
                       %(filename, name))
+
+def abort_if_invalid_projectname(projectname):
+    try:
+        projectname.decode("ascii")
+    except UnicodeDecodeError:
+        abort(400, "unicode project names not allowed")
 
 
 def getkvdict_index(req):
