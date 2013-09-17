@@ -25,7 +25,7 @@ def fatal(msg):
     raise Fatal(msg)
 
 def check_compatible_version(versionfile):
-    last_version = "1.1.dev2"
+    last_version = "1.0"
     last = parse_version(last_version)
     if versionfile.check():
         current_version = versionfile.read()
