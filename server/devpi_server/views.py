@@ -163,7 +163,7 @@ class PyPIView:
             if result == 404:
                 # we don't want pip/easy_install to try the whole simple
                 # page -- we know for sure there is no fitting project
-                # because devpi indexes perform package listing properly
+                # because all devpi indexes perform package name normalization
                 abort(200, "no such project %r" % projectname)
             if result >= 500:
                 abort(502, "upstream server has internal error")
