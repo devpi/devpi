@@ -178,11 +178,11 @@ class XOM:
             from devpi_server.importexport import do_export
             return do_export(args.export, xom)
         # access extdb to make sure invalidation happens
+        configure_logging(xom.config)
         xom.extdb
         if args.import_:
             from devpi_server.importexport import do_import
             return do_import(args.import_, xom)
-        configure_logging(xom.config)
         return bottle_run(xom)
 
     def fatal(self, msg):
