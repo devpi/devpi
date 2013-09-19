@@ -323,13 +323,20 @@ class Exported:
             out = self.hub.popen_output(cmd, cwd=cwd)
             if out is None:  # dryrun
                 continue
-            if "Server response (200): OK" in out:
+            ok = False
+            for line in out.split("\n"):
+                lower = line.lower()
+                if lower.startswith("server response "):
+                    ok = "(200): OK" in line
+                    self.hub.info(line)
+                    break
+            else:
+                self.hub.fatal("could not register releasefile")
+            if ok:
                 for line in out.split("\n")[-10:]:
                     if line.startswith("Submitting"):
                         self.hub.info(line.replace("Submitting", "submitted"))
                         break
-            else:
-                self.hub.fatal("could not register releasefile")
 
     def setup_upload_docs(self):
         current = self.hub.current

@@ -11,8 +11,8 @@ if __name__ == "__main__":
     setup(
       name="devpi",
       description="devpi: github-style pypi index server and packaging meta tool.",
-      install_requires = ["devpi-server>=1.0,<1.1",
-                          "devpi-client>=1.0,<1.1"],
+      install_requires = ["devpi-server>=1.1.rc1,<1.2",
+                          "devpi-client>=1.1.rc1,<1.2"],
       keywords="pypi cache server installer wsgi",
       long_description=README + '\n\n' + CHANGES,
       url="http://doc.devpi.net",

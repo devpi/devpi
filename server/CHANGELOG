@@ -1,6 +1,9 @@
 1.1.dev1
 ----------------
 
+- fix issue51: return 200 code if release file is successfully uploaded 
+  but jenkins could not be triggered (previously returned 500)
+
 - systematically test pypi/mirror code against all 34K pypi projects
   so that we know that all http/https installable archive links that pypi offers 
   are correctly recognized by devpi-server's root/pypi index.

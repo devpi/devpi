@@ -372,8 +372,13 @@ class PyPIView:
                 if res == 409:
                     abort(409, "%s already exists in non-volatile index" %(
                          content.filename,))
-                if trigger_jenkins(stage, name) == -1:
-                    abort_custom(202, "accepted, but jenkins trigger failed")
+                jenkins_url = stage.ixconfig["uploadtrigger_jenkins"]
+                if jenkins_url:
+                    jenkins_url = jenkins_url.format(pkgname=name)
+                    if trigger_jenkins(stage, jenkins_url, name) == -1:
+                        abort_custom(200,
+                            "OK, but couldn't trigger jenkins at %s" %
+                            (jenkins_url,))
             else:
                 # docs have no version
                 if len(content.value) > MAXDOCZIPSIZE:
@@ -721,11 +726,7 @@ def get_outside_url(headers, outsideurl):
     log.debug("host header: %s", url)
     return url
 
-def trigger_jenkins(stage, testspec):
-    jenkins_url = stage.ixconfig["uploadtrigger_jenkins"]
-    if not jenkins_url:
-        return
-    jenkins_url = jenkins_url.format(pkgname=testspec)
+def trigger_jenkins(stage, jenkins_url, testspec):
     baseurl = get_outside_url(request.headers,
                               stage.xom.config.args.outside_url)
 
@@ -746,9 +747,9 @@ def trigger_jenkins(stage, testspec):
                     {"parameter": {"name": "jobscript.py", "file": "file0"}}),
             },
                 files={"file0": ("file0", inputfile)})
-    except requests.exceptions.RequestError as e:
-        log.error("%s: failed to connect to jenkins at %s", r.status_code,
-                  jenkins_url)
+    except requests.exceptions.RequestException as e:
+        log.error("%s: failed to connect to jenkins at %s",
+                  testspec, jenkins_url)
         return -1
 
     if r.status_code == 200:
