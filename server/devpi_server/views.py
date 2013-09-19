@@ -1,4 +1,3 @@
-
 import py
 from py.xml import html
 from devpi_server.types import lazydecorator, cached_property
@@ -361,19 +360,22 @@ class PyPIView:
             except KeyError:
                 abort(400, "content file field not found")
             name = request.forms.get("name")
-            version = request.forms.get("version", "")  # docs have no version
-            if not stage.get_metadata(name, version):
-                # XXX we should reject to register if the project doesn't
-                # exist at all
-                self._register_metadata(stage, request.forms)
+            version = request.forms.get("version")
+            info = stage.get_project_info(name)
+            if not info:
+                abort(400, "no project named %r was ever registered" %(name))
             if action == "file_upload":
                 abort_if_invalid_filename(name, content.filename)
+                if not stage.get_metadata(name, version):
+                    self._register_metadata(stage, request.forms)
                 res = stage.store_releasefile(content.filename, content.value)
                 if res == 409:
                     abort(409, "%s already exists in non-volatile index" %(
                          content.filename,))
-                trigger_jenkins(stage, name)
+                if trigger_jenkins(stage, name) == -1:
+                    abort_custom(202, "accepted, but jenkins trigger failed")
             else:
+                # docs have no version
                 if len(content.value) > MAXDOCZIPSIZE:
                     abort(413, "zipfile too large")
                 stage.store_doczip(name, content.value)
@@ -392,6 +394,8 @@ class PyPIView:
             abort_custom(403, "cannot register %r because %r is already "
                   "registered at %s" % (
                   metadata["name"], info.name, info.stage.name))
+        except ValueError as e:
+            abort_custom(400, "invalid metadata: %s" % (e,))
         log.info("%s: got submit release info %r",
                  stage.name, metadata["name"])
 
@@ -734,19 +738,25 @@ def trigger_jenkins(stage, testspec):
         DEVPI_INSTALL_INDEX = baseurl + stage.name + "/+simple/"
     )
     inputfile = py.io.BytesIO(source)
-    r = requests.post(jenkins_url, data={
-                    "Submit": "Build",
-                    "name": "jobscript.py",
-                    "json": json.dumps(
-                {"parameter": {"name": "jobscript.py", "file": "file0"}}),
-        },
-            files={"file0": ("file0", inputfile)})
+    try:
+        r = requests.post(jenkins_url, data={
+                        "Submit": "Build",
+                        "name": "jobscript.py",
+                        "json": json.dumps(
+                    {"parameter": {"name": "jobscript.py", "file": "file0"}}),
+            },
+                files={"file0": ("file0", inputfile)})
+    except requests.exceptions.RequestError as e:
+        log.error("%s: failed to connect to jenkins at %s", r.status_code,
+                  jenkins_url)
+        return -1
 
     if r.status_code == 200:
         log.info("successfully triggered jenkins: %s", jenkins_url)
     else:
         log.error("%s: failed to trigger jenkins at %s", r.status_code,
                   jenkins_url)
+        return -1
 
 def abort_if_invalid_filename(name, filename):
     if not is_valid_archive_name(filename):

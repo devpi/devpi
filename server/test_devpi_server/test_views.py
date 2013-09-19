@@ -155,12 +155,16 @@ class TestSubmitValidation:
                          r.body)
 
     def test_upload_file(self, submit):
+        metadata = {"name": "Pkg5", "version": "1.0", ":action": "submit"}
+        submit.metadata(metadata, code=200)
         submit.file("pkg5-2.6.tgz", "123", {"name": "pkg5some"}, code=400)
         submit.file("pkg5-2.6.tgz", "123", {"name": "Pkg5"}, code=200)
         submit.file("pkg5-2.6.qwe", "123", {"name": "Pkg5"}, code=400)
         submit.file("pkg5-2.7.tgz", "123", {"name": "pkg5"}, code=403)
 
     def test_upload_and_simple_index(self, submit, testapp):
+        metadata = {"name": "Pkg5", "version": "2.6", ":action": "submit"}
+        submit.metadata(metadata, code=200)
         submit.file("pkg5-2.6.tgz", "123", {"name": "Pkg5"}, code=200)
         r = testapp.get("/%s/+simple/pkg5" % submit.stagename)
         assert r.status_code == 302
@@ -378,10 +382,24 @@ def test_delete_volatile_fails(mapp):
     mapp.upload_file_pypi("pkg5-2.6.tgz", "123", "pkg5", "2.6")
     mapp.delete_project("pkg5", code=403)
 
+def test_upload_docs_no_version(mapp, testapp):
+    api = mapp.create_and_use()
+    content = create_zipfile({"index.html": "<html/>"})
+    mapp.register_metadata(dict(name="Pkg1", version="1.0"))
+    mapp.upload_doc("pkg1.zip", content, "Pkg1", "")
+    r = testapp.get(api.index + "Pkg1/+doc/index.html")
+    assert r.status_code == 200
+
+def test_upload_docs_no_project_ever_registered(mapp, testapp):
+    api = mapp.create_and_use()
+    content = create_zipfile({"index.html": "<html/>"})
+    mapp.upload_doc("pkg1.zip", content, "pkg1", "", code=400)
+
 def test_upload_docs_too_large(mapp):
     from devpi_server.views import MAXDOCZIPSIZE
     mapp.create_and_use()
     content = "*" * (MAXDOCZIPSIZE + 1)
+    mapp.register_metadata(dict(name="pkg1", version="0.0"))
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=413)
 
 def test_upload_docs(mapp, testapp):

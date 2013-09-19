@@ -359,9 +359,20 @@ class Mapp(MappMixin):
                 projectname), {}, expect_errors=True)
         assert r.status_code == code
 
-    def upload_file_pypi(self, basename, content,
-                         name, version, indexname=None, code=200):
+    def register_metadata(self, metadata, indexname=None, code=200):
         indexname = self._getindexname(indexname)
+        metadata = metadata.copy()
+        metadata[":action"] = "submit"
+        r = self.testapp.post("/%s/" % indexname, metadata,
+                              expect_errors=True)
+        assert r.status_code == code
+
+    def upload_file_pypi(self, basename, content,
+                         name, version, indexname=None, register=True,
+                         code=200):
+        indexname = self._getindexname(indexname)
+        if register and code == 200:
+            self.register_metadata(dict(name=name, version=version))
         r = self.testapp.post("/%s/" % indexname,
             {":action": "file_upload", "name": name, "version": version,
              "content": Upload(basename, content)}, expect_errors=True)
@@ -371,6 +382,8 @@ class Mapp(MappMixin):
     def upload_doc(self, basename, content, name, version, indexname=None,
                          code=200):
         indexname = self._getindexname(indexname)
+        if version:
+            self.register_metadata(dict(name=name, version=version))
         r = self.testapp.post("/%s/" % indexname,
             {":action": "doc_upload", "name": name, "version": version,
              "content": Upload(basename, content)}, expect_errors=True)

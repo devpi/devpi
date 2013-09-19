@@ -1,6 +1,7 @@
 import pytest
 from devpi_server.importexport import *
 from devpi_server.main import main, Fatal
+import devpi_server
 
 def test_not_exists(tmpdir, xom):
     p = tmpdir.join("hello")
@@ -105,3 +106,54 @@ class TestImportExport:
         mapp2 = impexp.new_import()
         mapp2.login("exp", "pass")
 
+    def test_10_upload_docs_no_version(self, impexp):
+        mapp1 = impexp.mapp1
+        api = mapp1.create_and_use()
+        # in devpi-server 1.0 one could upload a doc
+        # without ever registering the project, leading to empty
+        # versions.  We simulate it here because 1.1 http API
+        # prevents this case.
+        stage = mapp1.xom.db.getstage(api.stagename)
+        stage._register_metadata({"name": "hello", "version": ""})
+        impexp.export()
+        mapp2 = impexp.new_import()
+        stage = mapp2.xom.db.getstage(api.stagename)
+        assert not stage.get_project_info("hello")
+
+    def test_10_upload_un_normalized_names(self, impexp):
+        mapp1 = impexp.mapp1
+        api = mapp1.create_and_use()
+        # in devpi-server 1.0 one could register X_Y and X-Y names
+        # and they would get registeded under different names.
+        # We simulate it here because 1.1 http API prevents this case.
+        stage = mapp1.xom.db.getstage(api.stagename)
+        stage._register_metadata({"name": "hello_x", "version": "1.0"})
+        stage._register_metadata({"name": "hello-X", "version": "1.1"})
+        stage._register_metadata({"name": "Hello-X", "version": "1.2"})
+        impexp.export()
+        mapp2 = impexp.new_import()
+        stage = mapp2.xom.db.getstage(api.stagename)
+        def n(name):
+            return stage.get_project_info(name).name
+        assert n("hello-x") == "Hello-X"
+        assert n("Hello_x") == "Hello-X"
+
+
+def test_normalize_index_projects(xom):
+    tw = py.io.TerminalWriter()
+    importer = Importer_1(tw, xom)
+    index = {
+                "hello": {"1.0": {"name": "hello"}},
+                "Hello": {"1.9": {"name": "Hello"}},
+                "hellO": {"0.9": {"name": "hellO"}},
+                "world": {"1.0": {"name": "world"}},
+                "World": {"0.9": {"name": "World"}},
+    }
+    newindex = importer.normalize_index_projects(index)
+    assert len(newindex) == 2
+    assert len(newindex["Hello"]) == 3
+    for ver in ("0.9", "1.0", "1.9"):
+        assert newindex["Hello"][ver]["name"] == "Hello"
+    assert len(newindex["world"]) == 2
+    assert newindex["world"]["0.9"]["name"] == "world"
+    assert newindex["world"]["1.0"]["name"] == "world"

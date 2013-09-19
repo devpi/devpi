@@ -16,6 +16,7 @@ class MappMixin:
         self.use(stagename)
         self.api.user = user
         self.api.password = password
+        self.api.stagename = stagename
         return self.api
 
     def get_new_stagename(self):

@@ -309,6 +309,11 @@ class PrivateStage:
             log.debug("project %r does not exist, good", name)
         if info is not None and info.name != name:
             raise self.RegisterNameConflict(info)
+        self._register_metadata(metadata)
+
+    def _register_metadata(self, metadata):
+        name = metadata["name"]
+        version = metadata["version"]
         key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
         with key.locked_update() as projectconfig:
             #if not self.ixconfig["volatile"] and projectconfig:

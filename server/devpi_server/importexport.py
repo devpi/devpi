@@ -3,6 +3,8 @@ import json
 import os
 import py
 import logging
+from .validation import normalize_name
+from pkg_resources import parse_version
 
 from devpi_server.main import fatal
 
@@ -152,6 +154,9 @@ class Importer_1:
         self.db = xom.db
         self.filestore = xom.releasefilestore
 
+    def warn(self, msg):
+        self.tw.line(msg, red=True)
+
     def import_all(self, path):
         self.basepath = path
         reader = Reader_1(self.tw, path)
@@ -183,12 +188,17 @@ class Importer_1:
             if stage.name == "root/pypi":
                 continue
             index = reader.index(stage.name)
-            for project, versions in index.projects.items():
+            normalized = self.normalize_index_projects(index.projects)
+            for project, versions in normalized.items():
                 for version, versiondata in versions.items():
                     files = versiondata.pop("+files", [])
-                    assert versiondata, (project, version)
-                    if hasattr(stage, "register_metadata"):
-                        stage.register_metadata(versiondata)
+                    assert versiondata, (versiondata, project, version)
+                    if not versiondata.get("version"):
+                        name = versiondata["name"]
+                        self.warn("%r: ignoring project metadata without "
+                                  "version information. " % name)
+                        continue
+                    stage.register_metadata(versiondata)
                     for file in files:
                         self.import_file(stage, index, file)
 
@@ -217,6 +227,37 @@ class Importer_1:
     def import_attachment(self, md5, type, attachment_data):
         self.tw.line("importing attachment %s/%s" %(md5, type))
         self.filestore.add_attachment(md5=md5, type=type, data=attachment_data)
+
+    def normalize_index_projects(self, index):
+        # index is a devpi-server 1.0 nested mapping of
+        # names -> version->versiondata
+        # We normalize names according to the latest version
+        normname2versions = {}
+        for name, versions in index.items():
+            d = normname2versions.setdefault(normalize_name(name), {})
+            d.update(versions)
+
+        newindex = {}
+        for name, versions in normname2versions.items():
+            maxver = None
+            for ver in versions:
+                new = parse_version(ver)
+                if maxver is None or new > parsed:
+                    maxver = ver
+                    parsed = new
+            # set normalized name on all versions
+            name = versions[maxver]["name"]
+            newversions = {}
+            changed = False
+            for ver, verdata in versions.items():
+                if verdata["name"] != name:
+                    self.warn("normalizing project name: %s to %s" % (
+                              verdata["name"], name))
+                    verdata["name"] = name
+                newversions[ver] = verdata
+            newindex[name] = newversions
+
+        return newindex
 
 class IndexTree:
     """ sort index inheritance structure to that we can
@@ -252,3 +293,4 @@ class IndexTree:
                     for child in self.name2children.get(name, []):
                         if child not in created:
                             pending.append(child)
+
