@@ -1,9 +1,13 @@
 1.1.dev1
 ----------------
 
+- systematically test pypi/mirror code against all 34K pypi projects
+  so that we know that all http/https installable archive links that pypi offers 
+  are correctly recognized by devpi-server's root/pypi index.
+
 - if no pypi mirror state is known, devpi-server now calls
   pypi to obtain names/serials.  It will fail to start
-  if no connection is possible.  Once a first mirror
+  if no such initial connection is possible.  Once a first mirror
   state is known, subsequent devpi-server starts will
   not perform this initial query.
 

@@ -67,6 +67,12 @@ class TestIndexParsing:
         assert result.crawllinks == \
                     set(["http://pylib.org", "http://pylib2.org"])
 
+    def test_parse_index_invalid_link(self, extdb):
+        result = parse_index(self.simplepy, '''
+                <a rel="download" href="http:/host.com/123" />
+        ''')
+        assert result.crawllinks
+
     def test_parse_index_with_egg(self):
         result = parse_index(self.simplepy,
             """<a href="http://bb.org/download/py.zip#egg=py-dev" />
@@ -86,6 +92,35 @@ class TestIndexParsing:
         assert len(result.releaselinks) == 1
         link, = result.releaselinks
         assert link.basename == "py-1.0-cp27-none-linux_x86_64.whl"
+
+    @pytest.mark.parametrize("basename", [
+        "py-1.3.1.tar.gz",
+        "py-1.3.1-1.fc12.src.rpm",
+        "py-docs-1.0.zip",
+        "py-1.1.0.win-amd64.exe",
+        "py.tar.gz",
+        "py-0.8.msi",
+        "py-0.10.0.dmg",
+        "py-0.8.deb",
+        "py-12.0.0.win32-py2.7.msi",
+        "py-1.3.1-1.0rc4.tar.gz", "py-1.0.1.tar.bz2"])
+    def test_parse_index_with_valid_basenames(self, basename):
+        result = parse_index(self.simplepy, '<a href="pkg/%s" />' % basename)
+        assert len(result.releaselinks) == 1
+        link, = result.releaselinks
+        assert link.basename == basename
+
+    def test_parse_index_with_num_in_projectname(self):
+        simple = DistURL("http://pypi.python.org/simple/py-4chan/")
+        result = parse_index(simple, '<a href="pkg/py-4chan-1.0.zip"/>')
+        assert len(result.releaselinks) == 1
+        assert result.releaselinks[0].basename == "py-4chan-1.0.zip"
+
+    def test_parse_index_unparseable_url(self):
+        simple = DistURL("http://pypi.python.org/simple/x123/")
+        result = parse_index(simple, '<a href="http:" />')
+        assert len(result.releaselinks) == 0
+
 
     def test_parse_index_ftp_ignored_for_now(self):
         result = parse_index(self.simplepy,
@@ -115,7 +150,7 @@ class TestIndexParsing:
 
     def test_parse_index_with_matchingprojectname_no_version(self):
         result = parse_index(self.simplepy,
-            """<a href="http://bb.org/download/py.zip" />
+            """<a href="http://bb.org/download/p.zip" />
             <a href="http://bb.org/download/py-1.0.zip" />""")
         assert len(result.releaselinks) == 1
 

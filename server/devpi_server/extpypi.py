@@ -25,8 +25,6 @@ assert __name__ == "devpi_server.extpypi"
 log = getLogger(__name__)
 
 CONCUCCRENT_CRAWL = False
-ALLOWED_ARCHIVE_EXTS = ".egg .whl .tar.gz .tar.bz2 .tar .tgz .zip".split()
-ARCHIVE_SCHEMES = ("http", "https")
 
 
 class IndexParser:
@@ -70,29 +68,16 @@ class IndexParser:
                     log.debug("skip egg link %s (projectname: %s)",
                               newurl, self.projectname)
                 continue
-            if is_archive_of_project(newurl, self.projectname):
-                self._mergelink_ifbetter(newurl)
+            if newurl.is_archive_of_project(self.projectname):
                 seen.add(newurl.url)
+                self._mergelink_ifbetter(newurl)
                 continue
         if scrape:
             for link in p.rel_links():
                 if link.url not in seen:
                     disturl = DistURL(link.url)
-                    if disturl._parsed.scheme in ARCHIVE_SCHEMES:
+                    if disturl.is_valid_http_url():
                         self.crawllinks.add(disturl)
-
-def is_archive_of_project(newurl, targetname):
-    if newurl._parsed.scheme not in ARCHIVE_SCHEMES:
-        log.warn("url has unsupported scheme %r", newurl)
-        return False
-    nameversion, ext = newurl.splitext_archive()
-    parts = re.split(r'-\d+', nameversion)
-    projectname = parts[0]
-    if not projectname:
-        return False
-    if normalize_name(projectname) != normalize_name(targetname):
-        return False
-    return (len(parts) > 1 and ext.lower() in ALLOWED_ARCHIVE_EXTS)
 
 def parse_index(disturl, html, scrape=True):
     if not isinstance(disturl, DistURL):

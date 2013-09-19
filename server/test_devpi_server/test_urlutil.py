@@ -81,6 +81,20 @@ def test_joinpath_multiple():
         ("devpi", "0.9.5.dev1", "-cp26-none-linux_x86_64.whl")),
     ("wheel-0.21.0-py2.py3-none-any.whl", ("wheel", "0.21.0", "-py2.py3-none-any.whl")),
     ("green-0.4.0-py2.5-win32.egg", ("green", "0.4.0", "-py2.5-win32.egg")),
+    ("Candela-0.2.1.macosx-10.4-x86_64.exe", ("Candela", "0.2.1",
+                                             ".macosx-10.4-x86_64.exe")),
+    ("Cambiatuscromos-0.1.1alpha.linux-x86_64.exe",
+        ("Cambiatuscromos", "0.1.1alpha", ".linux-x86_64.exe")),
+    ("Aesthete-0.4.2.win32.exe", ("Aesthete", "0.4.2", ".win32.exe")),
+    ("DTL-1.0.5.win-amd64.exe", ("DTL", "1.0.5", ".win-amd64.exe")),
+    ("Cheetah-2.2.2-1.x86_64.rpm", ("Cheetah", "2.2.2-1", ".x86_64.rpm")),
+    ("Cheetah-2.2.2-1.src.rpm", ("Cheetah", "2.2.2-1", ".src.rpm")),
+    ("Cheetah-2.2.2-1.x85.rpm", ("Cheetah", "2.2.2-1", ".x85.rpm")),
+    ("Cheetah-2.2.2.dev1.x85.rpm", ("Cheetah", "2.2.2.dev1", ".x85.rpm")),
+    ("Cheetah-2.2.2.dev1.noarch.rpm", ("Cheetah", "2.2.2.dev1", ".noarch.rpm")),
+    ("deferargs.tar.gz", ("deferargs", "", ".tar.gz")),
+    ("Twisted-12.0.0.win32-py2.7.msi",
+        ("Twisted", "12.0.0", ".win32-py2.7.msi")),
 ])
 def test_splitbasename(releasename, expected):
     result = splitbasename(releasename)
@@ -146,8 +160,3 @@ def test_sorted_by_version_with_attr():
     l.reverse()
     assert x == l
 
-def test_guess_pkgname_and_version():
-    g = guess_pkgname_and_version
-    assert g("hello-1.3.tar.gz") == ("hello", "1.3")
-    assert g("hello-1.3") == ("hello", "1.3")
-    assert g("hello") == ("hello", "")

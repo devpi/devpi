@@ -33,7 +33,8 @@ class ReleaseFileStore:
                 log.info("replaced md5, deleting stale %s" % entry.relpath)
                 entry.FILE.delete()
             else:
-                log.info("replaced md5 info for %s" % entry.relpath)
+                if entry.md5:
+                    log.info("replaced md5 info for %s" % entry.relpath)
         entry.set(**mapping)
         assert entry.url
         return entry
@@ -114,7 +115,7 @@ class ReleaseFileStore:
 
     def store(self, user, index, filename, content, last_modified=None):
         md5 = getmd5(content)
-        proj, version = splitbasename(filename, suffix=True)[:2]
+        proj, version = splitbasename(filename)[:2]
         key = self.keyfs.STAGEFILE(user=user, index=index,
                                    #md5=md5,
                                    proj=proj, version=version,

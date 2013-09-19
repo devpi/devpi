@@ -52,7 +52,9 @@ def query_file_status(hub, origin):
     res = hub.http_api("get", urlutil.joinpath(rooturl, "/" + origin),
                        quiet=True)
     assert res.status_code == 200
-    md5 = res["result"]["md5"]
+    md5 = res["result"].get("md5")
+    if not md5:
+        return
     res = hub.http_api("get", urlutil.joinpath(rooturl,
                                                "/+tests/%s/toxresult" % md5),
                        quiet=True)

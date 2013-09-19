@@ -3,6 +3,14 @@ import os, sys
 import posixpath
 import re
 import pkg_resources
+from .types import cached_property
+from .validation import normalize_name
+from requests.models import parse_url
+from logging import getLogger
+log = getLogger(__name__)
+
+ALLOWED_ARCHIVE_EXTS = set(
+    ".dmg .deb .msi .rpm .exe .egg .whl .tar.gz .tar.bz2 .tar .tgz .zip".split())
 
 if sys.version_info >= (3, 0):
     from urllib.parse import urlparse, urlunsplit, urljoin
@@ -17,8 +25,13 @@ def joinpath(url, *args):
     return new
 
 _releasefile_suffix_rx = re.compile(r"(\.zip|\.tar\.gz|\.tgz|\.tar\.bz2|"
-    "\.win-amd68-py[23]\.\d\..*|\.win32-py[23]\.\d\..*|"
-    "-(?:py|cp|ip|pp|jy)[23][\d\.]+.*\..*"
+    "\.macosx-\d+.*|"
+    "\.linux-.*|"
+    "\.[^\.]*\.rpm|"
+    "\.win-amd68-py[23]\.\d\..*|"
+    "\.win32-py[23]\.\d\..*|"
+    "\.win.*\..*|"
+    "-(?:py|cp|ip|pp|jy)[23][\d\.]+.*\..*|"
     ")$", re.IGNORECASE)
 
 def sorted_by_version(versions, attr=None):
@@ -59,23 +72,33 @@ def get_pyversion_filetype(basename):
         pyversion = ".".join(pyversion)
     return (pyversion, _ext2type[ext])
 
-def guess_pkgname_and_version(path):
-    return splitbasename(path, suffix=False)[:2]
+def splitbasename(path):
+    nameversion, ext = splitext_archive(path)
+    parts = re.split(r'-\d+', nameversion)
+    projectname = parts[0]
+    if not projectname:
+        raise ValueError("could not identify projectname in path: %s" %
+                         path)
+    if ext.lower() not in ALLOWED_ARCHIVE_EXTS:
+        raise ValueError("invalide archive type %r in: %s" %(ext, path))
+    if len(parts) == 1:  # no version
+        return projectname, "", ext
+    non_projectname = nameversion[len(projectname)+1:] + ext
+    # now version might contain platform specifiers
+    m = _releasefile_suffix_rx.search(non_projectname)
+    assert m, (path, non_projectname)
+    suffix = m.group(1)
+    version = non_projectname[:-len(suffix)]
+    return projectname, version, suffix
 
-def splitbasename(path, suffix=True):
-    """ return (pkgname, version, suffix) triple from basename of path/url. """
-    path = posixpath.basename(path)
-    pkgname = re.split(r"-\d+", path, 1)[0]
-    version = path[len(pkgname) + 1:]
-    if suffix:
-        m = _releasefile_suffix_rx.search(version)
-        assert m, path
-        suffix = m.group(1)
-        version = version[:-len(suffix)]
-    else:
-        suffix = ""
-        version = _releasefile_suffix_rx.sub("", version)
-    return pkgname, version, suffix
+
+def splitext_archive(basename):
+    base, ext = posixpath.splitext(basename)
+    if base.lower().endswith('.tar'):
+        ext = base[-4:] + ext
+        base = base[:-4]
+    return base, ext
+
 
 class DistURL:
     def __init__(self, url):
@@ -93,14 +116,29 @@ class DistURL:
         return DistURL(urlunsplit((scheme, netloc, url, query, "")))
 
     @property
+    def scheme(self):
+        return self._parsed.scheme
+
+    def is_archive_of_project(self, targetname):
+        nameversion, ext = self.splitext_archive()
+        # we don't check for strict equality because pypi currently
+        # shows "x-docs-1.0.tar.gz" for targetname "x" (however it was uploaded)
+        if not normalize_name(nameversion).startswith(targetname):
+            return False
+        if ext.lower() not in ALLOWED_ARCHIVE_EXTS:
+            return False
+        if self.is_valid_http_url():
+            return True
+        log.warn("url cannot be parsed or is unsupported: %r", self)
+        return False
+
+    @property
     def url_nofrag(self):
         return self.geturl_nofragment().url
 
     @property
     def pkgname_and_version(self):
-        name, version = splitbasename(self.basename, suffix=True)[:2]
-        return name, version
-
+        return splitbasename(self.basename)[:2]
 
     @property
     def easyversion(self):
@@ -116,19 +154,18 @@ class DistURL:
         return hash(self.url)
 
     def splitext_archive(self):
-        base, ext = posixpath.splitext(self.basename)
-        if base.lower().endswith('.tar'):
-            ext = base[-4:] + ext
-            base = base[:-4]
-        return base, ext
+        return splitext_archive(self.basename)
 
-    @property
+    @cached_property
     def _parsed(self):
+        return urlparse(self.url)
+
+    def is_valid_http_url(self):
         try:
-            return self.__parsed
-        except AttributeError:
-            self.__parsed = p = urlparse(self.url)
-            return self.__parsed
+            x = parse_url(self.url)
+        except Exception:
+            return False
+        return x.scheme in ("http", "https")
 
     @property
     def basename(self):

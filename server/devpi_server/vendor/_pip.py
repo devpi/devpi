@@ -43,7 +43,11 @@ class HTMLPage(object):
         """Yields all links in the page"""
         for match in self._href_re.finditer(self.content):
             url = match.group(1) or match.group(2) or match.group(3)
-            url = self.clean_link(urljoin(self.base_url, url))
+            # CHANGED from PIP original: catch parsing errors
+            try:
+                url = self.clean_link(urljoin(self.base_url, url))
+            except ValueError:
+                continue
             yield Link(url, self)
 
     def rel_links(self, rels=('homepage', 'download')):

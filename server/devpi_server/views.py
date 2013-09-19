@@ -276,7 +276,7 @@ class PyPIView:
         entries = stage.getreleaselinks_perstage(name)
         matches = []
         for entry in entries:
-            n, v = urlutil.guess_pkgname_and_version(entry.basename)
+            n, v, suffix = urlutil.splitbasename(entry.basename)
             if n == name and str(v) == version:
                 matches.append(entry)
         if not matches or not metadata:
