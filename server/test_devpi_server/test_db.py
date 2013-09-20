@@ -3,6 +3,8 @@ import py
 import os
 import pytest
 
+from devpi_server.db import unzip_to_dir
+
 
 @pytest.fixture(params=[(), ("root/pypi",)])
 def bases(request):
@@ -212,6 +214,18 @@ class TestStage:
         assert filepath.join("index.html").check()
         assert filepath.join("_static").check(dir=1)
         assert filepath.join("_templ", "x.css").check(file=1)
+
+    def test_getdoczip(self, stage, bases, tmpdir):
+        assert not stage.get_doczip("pkg1")
+        content = create_zipfile({"index.html": "<html/>",
+            "_static": {}, "_templ": {"x.css": ""}})
+        filepath = stage.store_doczip("pkg1", content)
+        doczip_content = stage.get_doczip("pkg1")
+        assert doczip_content
+        unzip_to_dir(doczip_content, tmpdir)
+        assert tmpdir.join("index.html").read() == "<html/>"
+        assert tmpdir.join("_static").check(dir=1)
+        assert tmpdir.join("_templ", "x.css").check(file=1)
 
     def test_storedoczipfile(self, stage, bases):
         content = create_zipfile({"index.html": "<html/>",
