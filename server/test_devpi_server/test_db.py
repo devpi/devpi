@@ -346,6 +346,12 @@ class TestUsers:
         db.user_modify('root', email=email_address)
         assert db.user_get("root")["email"] == email_address
 
+def test_user_set_without_indexes(db):
+    db.user_create("user", "password", email="some@email.com")
+    assert db.user_exists("user")
+    db.index_create("user/hello")
+    db._user_set("user", {"password": "pass2"})
+    assert db.index_exists("user/hello")
 
 def test_setdefault_indexes(db):
     from devpi_server.main import set_default_indexes

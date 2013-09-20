@@ -51,6 +51,8 @@ class DB:
 
     def _user_set(self, user, newuserconfig):
         with self.keyfs.USER(user=user).update() as userconfig:
+            if "indexes" not in newuserconfig:
+                newuserconfig["indexes"] = userconfig.get("indexes", {})
             userconfig.clear()
             userconfig.update(newuserconfig)
             log.info("internal: set user information %r", user)
@@ -463,7 +465,7 @@ class PrivateStage:
     def store_doczip(self, name, content):
         """ unzip doc content for the specified "name" project. """
         assert content
-        key = self.keyfs.STAGEDOCS(user=self.user, index=self.index, name=name)
+        key = self._doc_key(name)
 
         # XXX locking (unzipping could happen concurrently in theory)
         tempdir = self.keyfs.mkdtemp(name)
@@ -481,12 +483,16 @@ class PrivateStage:
 
     def get_doczip(self, name):
         """ get zip file content of the current docs or None. """
-        key = self.keyfs.STAGEDOCS(user=self.user, index=self.index, name=name)
+        key = self._doc_key(name)
         basedir = key.filepath
         if not basedir.check():
             return
         content = create_zipfile(basedir)
         return content
+
+    def _doc_key(self, name):
+        return self.keyfs.STAGEDOCS(user=self.user, index=self.index,
+                                    name=name)
 
 
 def create_zipfile(basedir):

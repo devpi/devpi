@@ -253,8 +253,7 @@ class XOM:
     def db(self):
         from devpi_server.db import DB
         db = DB(self)
-        if not self.config.args.import_:
-            set_default_indexes(db)
+        set_default_indexes(db)
         return db
 
     @cached_property
@@ -345,3 +344,4 @@ def set_default_indexes(db):
         if "root" not in db.user_list():
             db.user_create("root", password="")
         db.index_create(PYPI, bases=(), type="mirror", volatile=False)
+        print "set root/pypi default index", db

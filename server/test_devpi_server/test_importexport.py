@@ -1,6 +1,8 @@
 import pytest
 from devpi_server.importexport import *
 from devpi_server.main import main, Fatal
+from .test_db import create_zipfile
+
 import devpi_server
 
 def test_not_exists(tmpdir, xom):
@@ -9,17 +11,19 @@ def test_not_exists(tmpdir, xom):
          do_import(p, xom)
 
 def test_import_wrong_dumpversion(tmpdir, xom):
-    tmpdir.join("dumpversion").write("1lk23j123")
+    tmpdir.join("dataindex.json").write('{"dumpversion": "0"}')
     with pytest.raises(Fatal):
         do_import(tmpdir, xom)
 
 def test_empty_export(tmpdir, xom):
     ret = do_export(tmpdir, xom)
     assert not ret
-    assert tmpdir.join("dumpversion").read() == Exporter.DUMPVERSION
+    data = json.loads(tmpdir.join("dataindex.json").read())
+    assert data["dumpversion"] == Exporter.DUMPVERSION
     with pytest.raises(Fatal):
         do_export(tmpdir, xom)
 
+@pytest.mark.xfail
 def test_import_on_existing_server_data(tmpdir, xom):
     assert not do_export(tmpdir, xom)
     with pytest.raises(Fatal):
@@ -104,6 +108,19 @@ class TestImportExport:
         mapp2 = impexp.new_import()
         mapp2.login("exp", "pass")
 
+    def test_docs_are_preserved(self, impexp):
+        mapp1 = impexp.mapp1
+        api = mapp1.create_and_use()
+        mapp1.register_metadata({"name": "hello", "version": "1.0"})
+        content = create_zipfile({"index.html": "<html/>"})
+        mapp1.upload_doc("hello.zip", content, "hello", "")
+        impexp.export()
+        mapp2 = impexp.new_import()
+        stage = mapp2.xom.db.getstage(api.stagename)
+        path = stage._doc_key("hello").filepath
+        assert path.check()
+        assert path.join("index.html").read() == "<html/>"
+
     def test_10_upload_docs_no_version(self, impexp):
         mapp1 = impexp.mapp1
         api = mapp1.create_and_use()
@@ -139,7 +156,7 @@ class TestImportExport:
 
 def test_normalize_index_projects(xom):
     tw = py.io.TerminalWriter()
-    importer = Importer_1(tw, xom)
+    importer = Importer(tw, xom)
     index = {
                 "hello": {"1.0": {"name": "hello"}},
                 "Hello": {"1.9": {"name": "Hello"}},

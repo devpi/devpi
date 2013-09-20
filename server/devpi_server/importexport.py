@@ -27,13 +27,8 @@ def do_import(path, xom):
     if not path.check():
         fatal("path for importing not found: %s" %(path))
 
-    dumpversion = path.join("dumpversion").read()
-    if dumpversion == "1":
-        importer = Importer_1(tw, xom)
-    else:
-        fatal("incompatible dumpversion: %r" %(dumpversion,))
     entries = xom.keyfs.basedir.listdir()
-    if entries:
+    if 0 and entries:
         offending = [x.basename for x in entries
                         if x.check(dotfile=0)]
         if "root" in offending:
@@ -43,6 +38,7 @@ def do_import(path, xom):
         if offending:
             fatal("serverdir must be empty: %s (found %s)"
                     %(xom.config.serverdir, offending))
+    importer = Importer(tw, xom)
     importer.import_all(path)
     return 0
 
@@ -55,34 +51,49 @@ class Exporter:
         self.keyfs = xom.keyfs
         self.filestore = xom.releasefilestore
 
+        self.export = {}
+        self.export_users = self.export["users"] = {}
+        self.export_indexes = self.export["indexes"] = {}
+
+    def warn(self, msg):
+        self.tw.line(msg, red=True)
+
+    def completed(self, msg):
+        self.tw.line("dumped %s" % msg, bold=True)
+
     def dump_all(self, path):
         self.basepath = path
-        path.join("dumpversion").write(self.DUMPVERSION)
-        path.join("secret").write(self.config.secret)
+        self.export["dumpversion"] = self.DUMPVERSION
+        self.export["secret"] = self.config.secret
         self.dump_users(path / "users")
-        #self.dump_tests(path / "tests")
+        self._write_json(path.join("dataindex.json"), self.export)
 
     def dump_users(self, path):
-        users = {}
+        users = self.export_users
         for username in self.db.user_list():
             userdir = path.join(username)
             data = self.db.user_get(username, credentials=True)
-            users[username] = data
-            for indexname, indexconfig in data.get("indexes", {}).items():
+            indexes = data.pop("indexes", {})
+            self.export_users[username] = data
+            self.completed("user %r" % username)
+            for indexname, indexconfig in indexes.items():
                 stage = self.db.getstage(username, indexname)
                 if stage.ixconfig["type"] != "mirror":
                     indexdir = userdir.ensure(indexname, dir=1)
-                    self.dump_stage(indexdir, stage)
-        self._write_json(path.join(".config"), users)
+                    self.dump_stage(indexdir, stage, indexconfig)
 
-    def dump_stage(self, indexdir, stage):
-        indexmeta = {"projects": {}, "filemeta": {}}
+    def dump_stage(self, indexdir, stage, indexconfig):
+        indexmeta = self.export_indexes[stage.name] = {}
+        indexmeta["projects"] = projects = {}
+        indexmeta["filemeta"] = {}
+        indexmeta["indexconfig"] = indexconfig
         for projectname in stage.getprojectnames_perstage():
             data = stage.get_projectconfig_perstage(projectname)
-            indexmeta["projects"][projectname] = data
+            projects[projectname] = data
             for version, versiondata in data.items():
                 self.dump_releasefiles(indexdir, versiondata, indexmeta)
-        self._write_json(indexdir.join(".meta"), indexmeta)
+            self.dump_docfile(indexdir, stage, projectname)
+        self.completed("index %r" % stage.name)
 
     def dump_releasefiles(self, basedir, versiondata, indexmeta):
         for releasefile in versiondata.get("+files", {}).values():
@@ -105,6 +116,17 @@ class Exporter:
                 self.tw.line("wrote attachment %s [%s]" %
                                  (p.relto(self.basepath), entry.basename))
 
+    def dump_docfile(self, basedir, stage, projectname):
+        content = stage.get_doczip(projectname)
+        if content:
+            name = normalize_name(projectname)
+            p = basedir.join(name + ".zip")
+            with p.open("wb") as f:
+                f.write(content)
+            self.tw.line("wrote docs %s [%s]" %(p.relto(self.basepath),
+                                                projectname))
+            return p.relto(basedir)
+
     def _copy_file(self, source, dest):
         source.copy(dest)
         self.tw.line("copied %s to %s" %(source, dest.relto(self.basepath)))
@@ -116,83 +138,66 @@ class Exporter:
                                                len(writedata)))
         path.write(writedata)
 
-class Reader_1:
-    def __init__(self, tw, path):
-        self.tw = tw
-        self.path = path
-        self.config_users = self.read_json(path.join("users", ".config"))
 
-    def users(self):
-        for user, userconfig in self.config_users.items():
-            newuserconfig = userconfig.copy()
-            indexes = newuserconfig.pop("indexes", None)
-            yield user, newuserconfig, indexes
-
-    def indexes(self, user):
-        userconfig = self.config_users[user]
-        for index, indexconfig in userconfig.get("indexes", {}).items():
-            yield index, indexconfig
-
-    def index(self, stagename):
-        stagedir = self.path.join("users", stagename)
-        return Indexdir_1(stagedir, self.read_json(stagedir.join(".meta")))
-
-    def read_json(self, path):
-        self.tw.line("reading json: %s" %(path,))
-        return json.loads(path.read("rb"))
-
-class Indexdir_1:
-    def __init__(self, path, meta):
-        self.path = path
-        self.filemeta = meta["filemeta"]
-        self.projects = meta["projects"]
-
-class Importer_1:
+class Importer:
     def __init__(self, tw, xom):
         self.tw = tw
         self.xom = xom
         self.db = xom.db
         self.filestore = xom.releasefilestore
+        self.tw = tw
+
+    def read_json(self, path):
+        self.tw.line("reading json: %s" %(path,))
+        return json.loads(path.read("rb"))
 
     def warn(self, msg):
         self.tw.line(msg, red=True)
 
     def import_all(self, path):
         self.basepath = path
-        reader = Reader_1(self.tw, path)
-        secret = path.join("secret").read()
+        self.import_data = self.read_json(path.join("dataindex.json"))
+        dumpversion = self.import_data["dumpversion"]
+        if dumpversion != "1":
+            fatal("incompatible dumpversion: %r" %(dumpversion,))
+        self.import_users = self.import_data["users"]
+        self.import_indexes = self.import_data["indexes"]
+        self.xom.config.secret = secret = self.import_data["secret"]
         self.xom.config.secretfile.write(secret)
-        self.xom.config.secret = secret
 
-        # first create all users, and memorize index inheritance structure
-        tree = IndexTree()
-        stage2config = {}
-        for user, userconfig, indexes in reader.users():
+        # first create all users
+        for user, userconfig in self.import_users.items():
             self.db._user_set(user, userconfig)
-            if indexes:
-                for index, indexconfig in indexes.items():
-                    stagename = "%s/%s" %(user, index)
-                    stage2config[stagename] = indexconfig
-                    tree.add(stagename, indexconfig.get("bases"))
+
+        # memorize index inheritance structure
+        tree = IndexTree()
+        tree.add("root/pypi")  # a root index
+        for stagename, import_index in self.import_indexes.items():
+            bases = import_index["indexconfig"].get("bases")
+            tree.add(stagename, bases)
 
         # create stages in inheritance/root-first order
-        stages = {}
+        stages = []
         for stagename in tree.iternames():
-            indexconfig = stage2config[stagename]
+            if stagename == "root/pypi":
+                assert self.db.index_exists(stagename)
+                continue
+            import_index = self.import_indexes[stagename]
+            indexconfig = import_index["indexconfig"]
             stage = self.db.create_stage(stagename, None, **indexconfig)
-            stages[stagename] = stage
+            stages.append(stage)
         del tree
 
-        # create projects and releasefiles
-        for stage in stages.values():
-            if stage.name == "root/pypi":
-                continue
-            index = reader.index(stage.name)
-            normalized = self.normalize_index_projects(index.projects)
+        # create projects and releasefiles for each index
+        for stage in stages:
+            assert stage.name != "root/pypi"
+            indexdir = self.basepath.join("users", stage.name)
+            import_index = self.import_indexes[stage.name]
+            projects = import_index["projects"]
+            normalized = self.normalize_index_projects(projects)
             for project, versions in normalized.items():
                 for version, versiondata in versions.items():
                     files = versiondata.pop("+files", [])
-                    assert versiondata, (versiondata, project, version)
                     if not versiondata.get("version"):
                         name = versiondata["name"]
                         self.warn("%r: ignoring project metadata without "
@@ -200,11 +205,14 @@ class Importer_1:
                         continue
                     stage.register_metadata(versiondata)
                     for file in files:
-                        self.import_file(stage, index, file)
+                        self.import_file(stage, indexdir,
+                                         import_index["filemeta"],
+                                         file)
+                # XXX docfiles
 
-    def import_file(self, stage, index, file):
-        p = index.path.join(os.path.basename(file))
-        filemeta = index.filemeta.get(file, None)
+    def import_file(self, stage, indexdir, filemeta, file):
+        p = indexdir.join(os.path.basename(file))
+        filemeta = filemeta.get(file, None)
         assert filemeta
         if stage.ixconfig["type"] != "mirror":
             assert p.check(), p
@@ -259,6 +267,8 @@ class Importer_1:
 
         return newindex
 
+
+
 class IndexTree:
     """ sort index inheritance structure to that we can
     create in root->child order.
@@ -277,6 +287,7 @@ class IndexTree:
                 children.append(name)
 
     def iternames(self):
+        print self.name2children
         pending = [None]
         created = set()
         while pending:
