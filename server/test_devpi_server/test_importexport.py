@@ -67,31 +67,29 @@ class TestImportExport:
 
     def test_two_indexes_inheriting(self, impexp):
         mapp1 = impexp.mapp1
-        mapp1.create_and_login_user("exp")
-        mapp1.create_index("dev5")
-        mapp1.create_index("dev6", indexconfig=dict(bases="exp/dev5"))
+        api = mapp1.create_and_use()
+        stagename2 = api.user + "/" + "dev6"
+        mapp1.create_index(stagename2, indexconfig=dict(bases=api.stagename))
         impexp.export()
         mapp2 = impexp.new_import()
-        assert "exp" in mapp2.getuserlist()
-        indexlist = mapp2.getindexlist("exp")
-        assert indexlist["exp/dev6"]["bases"] == ["exp/dev5"]
-        assert "exp/dev6" in indexlist
+        assert api.user in mapp2.getuserlist()
+        indexlist = mapp2.getindexlist(api.user)
+        assert indexlist[stagename2]["bases"] == [api.stagename]
+        assert stagename2 in indexlist
         assert mapp2.xom.config.secret == mapp1.xom.config.secret
 
     def test_upload_releasefile_with_attachment(self, impexp):
         mapp1 = impexp.mapp1
-        mapp1.create_and_login_user("exp")
-        mapp1.create_index("dev5")
-        mapp1.use("exp/dev5")
+        api = mapp1.create_and_use()
         mapp1.upload_file_pypi("hello-1.0.tar.gz", "content",
-                     "hello", "1.0")
+                               "hello", "1.0")
 
         md5 = py.std.md5.md5("content").hexdigest()
         num = mapp1.xom.releasefilestore.add_attachment(
                     md5=md5, type="toxresult", data="123")
         impexp.export()
         mapp2 = impexp.new_import()
-        stage = mapp2.xom.db.getstage("exp/dev5")
+        stage = mapp2.xom.db.getstage(api.stagename)
         entries = stage.getreleaselinks("hello")
         assert len(entries) == 1
         assert entries[0].FILE.get() == "content"
