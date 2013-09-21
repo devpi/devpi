@@ -282,6 +282,7 @@ class Mapp(MappMixin):
         stagename = stagename.strip("/")
         assert stagename.count("/") == 1, stagename
         self.api = self.getapi(stagename)
+        self.api.stagename = stagename
         self.current_stage = stagename
         return self.api
 
@@ -305,7 +306,7 @@ class Mapp(MappMixin):
         assert r.status_code == code
         if code in (200,201):
             assert r.json["result"]["type"] == "stage"
-            self.use("%s/%s" % (user, index))
+            return self.use("%s/%s" % (user, index))
         if code in (400,):
             return r.json["message"]
 

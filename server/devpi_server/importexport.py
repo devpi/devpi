@@ -42,6 +42,7 @@ def do_import(path, xom):
     importer.import_all(path)
     return 0
 
+
 class Exporter:
     DUMPVERSION = "1"
     def __init__(self, tw, xom):
@@ -55,6 +56,12 @@ class Exporter:
         self.export_users = self.export["users"] = {}
         self.export_indexes = self.export["indexes"] = {}
 
+    def copy_file(self, source, dest):
+        dest.dirpath().ensure(dir=1)
+        source.copy(dest)
+        self.tw.line("copied %s to %s" %(source, dest.relto(self.basepath)))
+        return dest.relto(self.basepath)
+
     def warn(self, msg):
         self.tw.line(msg, red=True)
 
@@ -65,10 +72,6 @@ class Exporter:
         self.basepath = path
         self.export["dumpversion"] = self.DUMPVERSION
         self.export["secret"] = self.config.secret
-        self.dump_users(path / "users")
-        self._write_json(path.join("dataindex.json"), self.export)
-
-    def dump_users(self, path):
         users = self.export_users
         for username in self.db.user_list():
             userdir = path.join(username)
@@ -80,56 +83,9 @@ class Exporter:
                 stage = self.db.getstage(username, indexname)
                 if stage.ixconfig["type"] != "mirror":
                     indexdir = userdir.ensure(indexname, dir=1)
-                    self.dump_stage(indexdir, stage, indexconfig)
+                    IndexDump(self, stage, indexdir).dump()
+        self._write_json(path.join("dataindex.json"), self.export)
 
-    def dump_stage(self, indexdir, stage, indexconfig):
-        indexmeta = self.export_indexes[stage.name] = {}
-        indexmeta["projects"] = projects = {}
-        indexmeta["filemeta"] = {}
-        indexmeta["indexconfig"] = indexconfig
-        for projectname in stage.getprojectnames_perstage():
-            data = stage.get_projectconfig_perstage(projectname)
-            projects[projectname] = data
-            for version, versiondata in data.items():
-                self.dump_releasefiles(indexdir, versiondata, indexmeta)
-            self.dump_docfile(indexdir, stage, projectname)
-        self.completed("index %r" % stage.name)
-
-    def dump_releasefiles(self, basedir, versiondata, indexmeta):
-        for releasefile in versiondata.get("+files", {}).values():
-            entry = self.filestore.getentry(releasefile)
-            indexmeta["filemeta"][entry.basename] = entry._mapping
-            if entry.iscached():
-                self._copy_file(entry.FILE.filepath,
-                                basedir.join(entry.basename))
-            self.dump_attachments(entry)
-
-    def dump_attachments(self, entry):
-        basedir = self.basepath.join("attach", entry.md5)
-        for type in self.filestore.iter_attachment_types(md5=entry.md5):
-            for i, attachment in enumerate(self.filestore.iter_attachments(
-                    md5=entry.md5, type=type)):
-                data = json.dumps(attachment)
-                p = basedir.ensure(type, str(i))
-                p.write(data)
-                basedir.ensure(type, str(i)).write(data)
-                self.tw.line("wrote attachment %s [%s]" %
-                                 (p.relto(self.basepath), entry.basename))
-
-    def dump_docfile(self, basedir, stage, projectname):
-        content = stage.get_doczip(projectname)
-        if content:
-            name = normalize_name(projectname)
-            p = basedir.join(name + ".zip")
-            with p.open("wb") as f:
-                f.write(content)
-            self.tw.line("wrote docs %s [%s]" %(p.relto(self.basepath),
-                                                projectname))
-            return p.relto(basedir)
-
-    def _copy_file(self, source, dest):
-        source.copy(dest)
-        self.tw.line("copied %s to %s" %(source, dest.relto(self.basepath)))
 
     def _write_json(self, path, data):
         writedata = json.dumps(data, indent=2)
@@ -138,6 +94,71 @@ class Exporter:
                                                len(writedata)))
         path.write(writedata)
 
+
+class IndexDump:
+    def __init__(self, exporter, stage, basedir):
+        self.exporter = exporter
+        self.stage = stage
+        self.basedir = basedir
+        indexmeta = exporter.export_indexes[stage.name] = {}
+        indexmeta["projects"] = projects = {}
+        indexmeta["indexconfig"] = stage.ixconfig
+        indexmeta["files"] = []
+        self.indexmeta = indexmeta
+
+    def dump(self):
+        xxx
+        for projectname in self.stage.getprojectnames_perstage():
+            data = self.stage.get_projectconfig_perstage(projectname)
+            self.indexmeta["projects"][projectname] = data
+            for version, versiondata in data.items():
+                self.dump_releasefiles(projectname, versiondata)
+            self.dump_docfile(projectname)
+        self.exporter.completed("index %r" % self.stage.name)
+
+    def dump_releasefiles(self, projectname, versiondata):
+        files = versiondata.pop("+files", {})
+        for basename, file in files.items():
+            entry = self.exporter.filestore.getentry(file)
+            file_meta = entry._mapping
+            assert entry.iscached(), entry.FILE.filepath
+            rel = self.exporter.copy_file(
+                entry.FILE.filepath,
+                self.basedir.join(projectname, entry.basename))
+            self.add_filedesc("releasefile", projectname, rel,
+                               entrymapping=file_meta)
+            self.dump_attachments(entry)
+
+    def add_filedesc(self, type, projectname, relpath, **kw):
+        assert self.exporter.basepath.join(relpath).check()
+        d = kw.copy()
+        d["type"] = type
+        d["projectname"] = projectname
+        d["relpath"] = relpath
+        self.indexmeta["files"].append(d)
+        self.exporter.completed("%s: %s " %(type, relpath))
+
+    def dump_attachments(self, entry):
+        basedir = self.exporter.basepath.join("attach", entry.md5)
+        filestore = self.exporter.filestore
+        for type in filestore.iter_attachment_types(md5=entry.md5):
+            for i, attachment in enumerate(filestore.iter_attachments(
+                    md5=entry.md5, type=type)):
+                data = json.dumps(attachment)
+                p = basedir.ensure(type, str(i))
+                p.write(data)
+                basedir.ensure(type, str(i)).write(data)
+                self.exporter.completed("wrote attachment %s [%s]" %
+                                 (p.relto(self.basedir), entry.basename))
+
+    def dump_docfile(self, projectname):
+        content = self.stage.get_doczip(projectname)
+        if content:
+            p = self.basedir.join(projectname + ".zip")
+            with p.open("wb") as f:
+                f.write(content)
+            relpath = p.relto(self.exporter.basepath)
+            self.add_filedesc("doczip", projectname, relpath)
 
 class Importer:
     def __init__(self, tw, xom):
@@ -155,7 +176,7 @@ class Importer:
         self.tw.line(msg, red=True)
 
     def import_all(self, path):
-        self.basepath = path
+        self.import_rootdir = path
         self.import_data = self.read_json(path.join("dataindex.json"))
         dumpversion = self.import_data["dumpversion"]
         if dumpversion != "1":
@@ -191,39 +212,44 @@ class Importer:
         # create projects and releasefiles for each index
         for stage in stages:
             assert stage.name != "root/pypi"
-            indexdir = self.basepath.join("users", stage.name)
+            indexdir = self.import_rootdir.join("users", stage.name)
             import_index = self.import_indexes[stage.name]
             projects = import_index["projects"]
-            normalized = self.normalize_index_projects(projects)
-            for project, versions in normalized.items():
+            #normalized = self.normalize_index_projects(projects)
+            for project, versions in projects.items():
                 for version, versiondata in versions.items():
-                    files = versiondata.pop("+files", [])
+                    assert "+files" not in versiondata
                     if not versiondata.get("version"):
                         name = versiondata["name"]
                         self.warn("%r: ignoring project metadata without "
                                   "version information. " % name)
                         continue
                     stage.register_metadata(versiondata)
-                    for file in files:
-                        self.import_file(stage, indexdir,
-                                         import_index["filemeta"],
-                                         file)
-                # XXX docfiles
 
-    def import_file(self, stage, indexdir, filemeta, file):
-        p = indexdir.join(os.path.basename(file))
-        filemeta = filemeta.get(file, None)
-        assert filemeta
-        if stage.ixconfig["type"] != "mirror":
-            assert p.check(), p
+            # import release files
+            for filedesc in import_index["files"]:
+                self.import_filedesc(stage, filedesc)
+
+    def import_filedesc(self, stage, filedesc):
+        assert stage.ixconfig["type"] != "mirror"
+        rel = filedesc["relpath"]
+        projectname = filedesc["projectname"]
+        p = self.import_rootdir.join(rel)
+        assert p.check(), p
+        if filedesc["type"] == "releasefile":
+            mapping = filedesc["entrymapping"]
             entry = stage.store_releasefile(p.basename, p.read("rb"),
-                        last_modified=filemeta["last_modified"])
-            assert entry.md5 == filemeta["md5"]
-            assert entry.size == filemeta["size"]
+                        last_modified=mapping["last_modified"])
+            assert entry.md5 == mapping["md5"]
+            assert entry.size == mapping["size"]
             self.import_attachments(entry.md5)
+        elif filedesc["type"] == "doczip":
+            stage.store_doczip(projectname, p.read("rb"))
+        else:
+            fatal("unknown file type: %s" % (type,))
 
     def import_attachments(self, md5):
-        md5dir = self.basepath.join("attach", md5)
+        md5dir = self.import_rootdir.join("attach", md5)
         if not md5dir.check():
             return
         for type_path in md5dir.listdir():
@@ -253,17 +279,18 @@ class Importer:
                 if maxver is None or new > parsed:
                     maxver = ver
                     parsed = new
-            # set normalized name on all versions
-            name = versions[maxver]["name"]
+            # set normalized name on all version specific metadata
+            normalized_name = versions[maxver]["name"]
             newversions = {}
             changed = False
             for ver, verdata in versions.items():
-                if verdata["name"] != name:
+                if verdata["name"] != normalized_name:
                     self.warn("normalizing project name: %s to %s" % (
-                              verdata["name"], name))
-                    verdata["name"] = name
+                              verdata["name"], normalized_name))
+                    verdata["name"] = normalized_name
                 newversions[ver] = verdata
-            newindex[name] = newversions
+
+            newindex[normalized_name] = newversions
 
         return newindex
 
@@ -287,7 +314,6 @@ class IndexTree:
                 children.append(name)
 
     def iternames(self):
-        print self.name2children
         pending = [None]
         created = set()
         while pending:

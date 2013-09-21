@@ -135,7 +135,7 @@ class TestImportExport:
         stage = mapp2.xom.db.getstage(api.stagename)
         assert not stage.get_project_info("hello")
 
-    def test_10_upload_un_normalized_names(self, impexp):
+    def test_10_normalized_projectnames(self, impexp):
         mapp1 = impexp.mapp1
         api = mapp1.create_and_use()
         # in devpi-server 1.0 one could register X_Y and X-Y names
@@ -152,6 +152,26 @@ class TestImportExport:
             return stage.get_project_info(name).name
         assert n("hello-x") == "Hello-X"
         assert n("Hello_x") == "Hello-X"
+
+    def test_10_normalized_projectnames_with_inheritance(self, impexp):
+        mapp1 = impexp.mapp1
+        api = mapp1.create_and_use()
+        # in devpi-server 1.0 one could register X_Y and X-Y names
+        # and they would get registeded under different names.
+        # We simulate it here because 1.1 http API prevents this case.
+        stage = mapp1.xom.db.getstage(api.stagename)
+        stage._register_metadata({"name": "hello_x", "version": "1.0"})
+        stage._register_metadata({"name": "hello-X", "version": "1.1"})
+        api2 = mapp1.create_index("new2", indexconfig={"bases": api.stagename})
+        stage2 = mapp1.xom.db.getstage(api2.stagename)
+        stage2._register_metadata({"name": "hello_X", "version": "0.9"})
+        impexp.export()
+        mapp2 = impexp.new_import()
+        stage2 = mapp2.xom.db.getstage(api2.stagename)
+        def n(name):
+            return stage2.get_project_info(name).name
+        assert n("hello-x") == "hello-X"
+        assert n("Hello_x") == "hello-X"
 
 
 def test_normalize_index_projects(xom):
