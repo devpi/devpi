@@ -380,7 +380,7 @@ class PyPIView:
                             "OK, but couldn't trigger jenkins at %s" %
                             (jenkins_url,))
             else:
-                # docs have no version
+                # docs have no version (XXX but they are tied to the latest)
                 if len(content.value) > MAXDOCZIPSIZE:
                     abort(413, "zipfile too large")
                 stage.store_doczip(name, content.value)

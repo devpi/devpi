@@ -161,9 +161,9 @@ class XProcess:
     def _checkpattern(self, f, pattern, count=50):
         while 1:
             line = f.readline()
-            self.log.debug(line)
             if not line:
                 std.time.sleep(0.1)
+            self.log.debug(line)
             if std.re.search(pattern, line):
                 return True
             count -= 1

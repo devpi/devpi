@@ -450,12 +450,15 @@ class PrivateStage:
         return self.keyfs.PROJCONFIG.listnames("name",
                     user=self.user, index=self.index)
 
+    class MissesRegistration(Exception):
+        """ store_releasefile requires pre-existing release metadata. """
+
     def store_releasefile(self, filename, content, last_modified=None):
         name, version = DistURL(filename).pkgname_and_version
-        #assert self.get_metadata(name, version), (name, version)
-
         info = self.get_project_info(name)
         name = getattr(info, "name", name)
+        if not self.get_metadata(name, version):
+            raise self.MissesRegistration(name, version)
         log.debug("project name of %r is %r", filename, name)
         key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
         with key.locked_update() as projectconfig:

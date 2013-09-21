@@ -1,0 +1,35 @@
+
+devpi learns proper releasing
+-------------------------------
+
+The push operation is replaced by the more powerful and convenient
+"release" command::
+
+    # move the latest release and all its files to the upstream index
+    # this operation will fail if there is more than one direct upstream
+    devpi release name 
+
+    # move the latest release and all its files to a specific upstream index
+    devpi release name gti/dev
+
+    # move a specific release to the upstream pypi index (effectively
+    # moving it to the external pypi.python.org side)
+    # this operation will fail if root/pypi is not an upstream index
+    devpi release name==1.0 root/pypi
+
+    # move the latest releases of name and name2 to main pypi
+    # this operation will fail if root/pypi is not a base
+    devpi release name name2 root/pypi
+
+    # copy a release to an external index listed as "testrun" in your .pypirc
+    # after this operation the release will remain present in the current index
+    devpi release name [name2] pypirc:testrun
+
+The release command will gather, verify and present the information,
+asking interactively for "yes" before triggering any changes.
+
+The release command helps to maintains an invariant within devpi
+indexes: a release can only exist at most once in an index and its bases.
+You cannot register a release at an index if one of its bases has the 
+same version already.  Instead you need to increment the version of
+the release.

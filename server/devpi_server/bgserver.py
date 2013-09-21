@@ -37,7 +37,7 @@ class BackgroundServer:
     def line(self, msg, **kw):
         self.tw.line(msg, **kw)
 
-    def _waitup(self, url, count=200):
+    def _waitup(self, url, count=500):
         # try for 20 seconds to start devpi-server (which remotely
         # receives a serials list which may take a while)
         while count > 0:

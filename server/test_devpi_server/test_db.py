@@ -3,6 +3,7 @@ import py
 import os
 import pytest
 
+from devpi_server.urlutil import splitbasename
 from devpi_server.db import unzip_to_dir
 
 
@@ -13,6 +14,14 @@ def bases(request):
 def test_create_zipfile(tmpdir):
     content = create_zipfile({"one": {"nested": "1"}, "two": {}})
     tmpdir.join("hello.zip").write(content, "wb")
+
+def register_and_store(stage, basename, content="123", name=None):
+    n, version = splitbasename(basename)[:2]
+    if name is None:
+        name = n
+    stage.register_metadata(dict(name=name, version=version))
+    return stage.store_releasefile(basename, content)
+
 
 class TestStage:
     @pytest.fixture
@@ -97,8 +106,8 @@ class TestStage:
         stage_dev2 = db.getstage("root/dev2")
         stage._reconfigure(bases=("root/dev2",))
         extdb.mock_simple("someproject", "<a href='someproject-1.0.zip' /a>")
-        stage_dev2.store_releasefile("someproject-1.1.tar.gz", "123")
-        stage.store_releasefile("someproject-1.2.tar.gz", "456")
+        register_and_store(stage_dev2, "someproject-1.1.tar.gz")
+        register_and_store(stage_dev2, "someproject-1.2.tar.gz")
         entries = stage.getreleaselinks("someproject")
         assert len(entries) == 3
         assert entries[0].basename == "someproject-1.2.tar.gz"
@@ -112,7 +121,10 @@ class TestStage:
             <a href='some_project-1.0.zip' /a>
             <a href='some_project-1.0.tar.gz' /a>
         """)
-        stage.store_releasefile("some_project-1.2.tar.gz", "456")
+        register_and_store(stage, "some_project-1.2.tar.gz",
+                           name="some-project")
+        register_and_store(stage, "some_project-1.2.tar.gz",
+                           name="some-project")
         entries = stage.getreleaselinks("some-project")
         assert len(entries) == 3
         assert entries[0].basename == "some_project-1.2.tar.gz"
@@ -124,6 +136,7 @@ class TestStage:
         stage._reconfigure(bases=("root/pypi",))
         extdb.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
+        register_and_store(stage, "someproject-1.0.zip", "123")
         stage.store_releasefile("someproject-1.0.zip", "123")
         entries = stage.getreleaselinks("someproject")
         assert len(entries) == 1
@@ -133,7 +146,7 @@ class TestStage:
         stage._reconfigure(bases=("root/pypi",))
         extdb.mock_simple("py",
         """<a href="http://bb.org/download/py.zip#egg=py-dev" />""")
-        stage.store_releasefile("py-1.0.tar.gz", "123")
+        register_and_store(stage, "py-1.0.tar.gz", "123")
         entries = stage.getreleaselinks("py")
         assert len(entries) == 2
         e0, e1 = entries
@@ -158,13 +171,17 @@ class TestStage:
     def test_store_and_get_releasefile(self, stage, bases):
         content = "123"
         content2 = "1234"
-        entry = stage.store_releasefile("some-1.0.zip", content)
+        entry = register_and_store(stage, "some-1.0.zip", content)
         entries = stage.getreleaselinks("some")
         assert len(entries) == 1
         assert entries[0].md5 == entry.md5
         assert stage.getprojectnames() == ["some"]
         pconfig = stage.get_projectconfig("some")
         assert pconfig["1.0"]["+files"]["some-1.0.zip"].endswith("some-1.0.zip")
+
+    def test_store_releasefile_fails_if_not_registered(self, stage):
+        with pytest.raises(stage.MissesRegistration):
+            stage.store_releasefile("someproject-1.0.zip", "123")
 
     def test_project_config_shadowed(self, extdb, stage):
         stage._reconfigure(bases=("root/pypi",))
@@ -180,7 +197,7 @@ class TestStage:
 
     def test_store_and_delete_project(self, stage, bases):
         content = "123"
-        entry = stage.store_releasefile("some-1.0.zip", content)
+        entry = register_and_store(stage, "some-1.0.zip", content)
         pconfig = stage.get_projectconfig_perstage("some")
         assert pconfig["1.0"]
         stage.project_delete("some")
@@ -188,9 +205,8 @@ class TestStage:
         assert not pconfig
 
     def test_store_and_delete_release(self, stage, bases):
-        content = "123"
-        entry = stage.store_releasefile("some-1.0.zip", content)
-        entry = stage.store_releasefile("some-1.1.zip", content)
+        entry = register_and_store(stage, "some-1.0.zip")
+        entry = register_and_store(stage, "some-1.1.zip")
         pconfig = stage.get_projectconfig_perstage("some")
         assert pconfig["1.0"] and pconfig["1.1"]
         stage.project_version_delete("some", "1.0")
@@ -200,9 +216,8 @@ class TestStage:
         assert not stage.project_exists("some")
 
     def test_releasefile_sorting(self, stage, bases):
-        content = "123"
-        entry = stage.store_releasefile("some-1.1.zip", content)
-        entry = stage.store_releasefile("some-1.0.zip", content)
+        entry = register_and_store(stage, "some-1.1.zip")
+        entry = register_and_store(stage, "some-1.0.zip")
         entries = stage.getreleaselinks("some")
         assert len(entries) == 2
         assert entries[0].basename == "some-1.1.zip"
@@ -242,7 +257,7 @@ class TestStage:
         stage._reconfigure(volatile=False)
         content = "123"
         content2 = "1234"
-        entry = stage.store_releasefile("some-1.0.zip", content)
+        entry = register_and_store(stage, "some-1.0.zip", content)
         assert len(stage.getreleaselinks("some")) == 1
 
         # rewrite  fails
