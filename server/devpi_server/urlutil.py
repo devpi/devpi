@@ -3,7 +3,7 @@ import os, sys
 import posixpath
 import re
 import pkg_resources
-from .types import cached_property
+from .types import cached_property, CompareMixin
 from .validation import normalize_name
 from requests.models import parse_url
 from logging import getLogger
@@ -16,6 +16,8 @@ if sys.version_info >= (3, 0):
     from urllib.parse import urlparse, urlunsplit, urljoin
 else:
     from urlparse import urlparse, urlunsplit, urljoin
+
+from pkg_resources import parse_version
 
 def joinpath(url, *args):
     new = url
@@ -72,14 +74,14 @@ def get_pyversion_filetype(basename):
         pyversion = ".".join(pyversion)
     return (pyversion, _ext2type[ext])
 
-def splitbasename(path):
+def splitbasename(path, checkarch=True):
     nameversion, ext = splitext_archive(path)
     parts = re.split(r'-\d+', nameversion)
     projectname = parts[0]
     if not projectname:
         raise ValueError("could not identify projectname in path: %s" %
                          path)
-    if ext.lower() not in ALLOWED_ARCHIVE_EXTS:
+    if checkarch and ext.lower() not in ALLOWED_ARCHIVE_EXTS:
         raise ValueError("invalide archive type %r in: %s" %(ext, path))
     if len(parts) == 1:  # no version
         return projectname, "", ext
@@ -205,3 +207,11 @@ class DistURL:
         """ return url from canonical relative path. """
         scheme, netlocpath = relpath.split("/", 1)
         return cls(scheme + "://" + netlocpath)
+
+class Version(CompareMixin):
+    def __init__(self, versionstring):
+        self.string = versionstring
+        self.cmpval = parse_version(versionstring)
+
+def get_latest_version(seq):
+    return max(map(Version, seq))

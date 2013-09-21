@@ -4,6 +4,8 @@ import os
 import py
 import logging
 from .validation import normalize_name
+from .types import cached_property
+from .urlutil import get_latest_version
 from pkg_resources import parse_version
 
 from devpi_server.main import fatal
@@ -72,6 +74,7 @@ class Exporter:
         self.basepath = path
         self.export["dumpversion"] = self.DUMPVERSION
         self.export["secret"] = self.config.secret
+        self.compute_global_projectname_normalization()
         users = self.export_users
         for username in self.db.user_list():
             userdir = path.join(username)
@@ -81,11 +84,42 @@ class Exporter:
             self.completed("user %r" % username)
             for indexname, indexconfig in indexes.items():
                 stage = self.db.getstage(username, indexname)
-                if stage.ixconfig["type"] != "mirror":
-                    indexdir = userdir.ensure(indexname, dir=1)
-                    IndexDump(self, stage, indexdir).dump()
+                if stage.ixconfig["type"] == "mirror":
+                    continue
+                indexdir = userdir.ensure(indexname, dir=1)
+                IndexDump(self, stage, indexdir).dump()
         self._write_json(path.join("dataindex.json"), self.export)
 
+    def compute_global_projectname_normalization(self):
+        self.tw.line("computing global projectname normalization map")
+
+        norm2maxversion = {}
+        # compute latest normname version across all stages
+        for username in self.db.user_list():
+            user = self.db.user_get(username)
+            for indexname in user.get("indexes", []):
+                stage = self.db.getstage(username, indexname)
+                if stage.name == "root/pypi":
+                    continue
+                names = stage.getprojectnames_perstage()
+                for name in names:
+                    config = stage.get_projectconfig_perstage(name)
+                    if config:
+                        maxver = get_latest_version(config)
+                        maxver.realname = name
+                        norm = normalize_name(name)
+                        normver = norm2maxversion.setdefault(norm, maxver)
+                        if maxver > normver:
+                            norm2maxversion[norm] = maxver
+
+        # determine real name of a project
+        self.norm2name = norm2name = {}
+        for norm, maxver in norm2maxversion.items():
+            norm2name[norm] = maxver.realname
+
+    def get_real_projectname(self, name):
+        norm = normalize_name(name)
+        return self.norm2name[norm]
 
     def _write_json(self, path, data):
         writedata = json.dumps(data, indent=2)
@@ -107,13 +141,18 @@ class IndexDump:
         self.indexmeta = indexmeta
 
     def dump(self):
-        xxx
-        for projectname in self.stage.getprojectnames_perstage():
-            data = self.stage.get_projectconfig_perstage(projectname)
-            self.indexmeta["projects"][projectname] = data
+        for name in self.stage.getprojectnames_perstage():
+            data = self.stage.get_projectconfig_perstage(name)
+            realname = self.exporter.get_real_projectname(name)
+            projconfig = self.indexmeta["projects"].setdefault(realname, {})
+            projconfig.update(data)
+            assert "+files" not in data
             for version, versiondata in data.items():
-                self.dump_releasefiles(projectname, versiondata)
-            self.dump_docfile(projectname)
+                versiondata["name"] = realname
+                self.dump_releasefiles(realname, versiondata)
+            content = self.stage.get_doczip(name)
+            if content:
+                self.dump_docfile(realname, content)
         self.exporter.completed("index %r" % self.stage.name)
 
     def dump_releasefiles(self, projectname, versiondata):
@@ -151,14 +190,12 @@ class IndexDump:
                 self.exporter.completed("wrote attachment %s [%s]" %
                                  (p.relto(self.basedir), entry.basename))
 
-    def dump_docfile(self, projectname):
-        content = self.stage.get_doczip(projectname)
-        if content:
-            p = self.basedir.join(projectname + ".zip")
-            with p.open("wb") as f:
-                f.write(content)
-            relpath = p.relto(self.exporter.basepath)
-            self.add_filedesc("doczip", projectname, relpath)
+    def dump_docfile(self, projectname, content):
+        p = self.basedir.join(projectname + ".zip")
+        with p.open("wb") as f:
+            f.write(content)
+        relpath = p.relto(self.exporter.basepath)
+        self.add_filedesc("doczip", projectname, relpath)
 
 class Importer:
     def __init__(self, tw, xom):
@@ -261,38 +298,6 @@ class Importer:
     def import_attachment(self, md5, type, attachment_data):
         self.tw.line("importing attachment %s/%s" %(md5, type))
         self.filestore.add_attachment(md5=md5, type=type, data=attachment_data)
-
-    def normalize_index_projects(self, index):
-        # index is a devpi-server 1.0 nested mapping of
-        # names -> version->versiondata
-        # We normalize names according to the latest version
-        normname2versions = {}
-        for name, versions in index.items():
-            d = normname2versions.setdefault(normalize_name(name), {})
-            d.update(versions)
-
-        newindex = {}
-        for name, versions in normname2versions.items():
-            maxver = None
-            for ver in versions:
-                new = parse_version(ver)
-                if maxver is None or new > parsed:
-                    maxver = ver
-                    parsed = new
-            # set normalized name on all version specific metadata
-            normalized_name = versions[maxver]["name"]
-            newversions = {}
-            changed = False
-            for ver, verdata in versions.items():
-                if verdata["name"] != normalized_name:
-                    self.warn("normalizing project name: %s to %s" % (
-                              verdata["name"], normalized_name))
-                    verdata["name"] = normalized_name
-                newversions[ver] = verdata
-
-            newindex[normalized_name] = newversions
-
-        return newindex
 
 
 

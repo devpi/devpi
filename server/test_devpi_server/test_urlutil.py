@@ -160,3 +160,7 @@ def test_sorted_by_version_with_attr():
     l.reverse()
     assert x == l
 
+def test_version():
+    ver1 = Version("1.0")
+    ver2 = Version("1.1")
+    assert max([ver1, ver2]) == ver2

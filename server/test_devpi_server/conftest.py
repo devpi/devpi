@@ -6,9 +6,9 @@ import mimetypes
 import mock
 import pytest
 import py
-from devpi_server.main import XOM
+from devpi_server.main import XOM, parseoptions
 from devpi_server.extpypi import XMLProxy
-from devpi_server.main import parseoptions
+from devpi_server.urlutil import splitbasename
 
 
 log = logging.getLogger(__name__)
@@ -369,9 +369,15 @@ class Mapp(MappMixin):
         assert r.status_code == code
 
     def upload_file_pypi(self, basename, content,
-                         name, version, indexname=None, register=True,
+                         name=None, version=None, indexname=None,
+                         register=True,
                          code=200):
         indexname = self._getindexname(indexname)
+        name_version = splitbasename(basename, checkarch=False)
+        #if not name:
+        #    name = name_version[0]
+        #if not version:
+        #    version = name_version[1]
         if register and code == 200:
             self.register_metadata(dict(name=name, version=version))
         r = self.testapp.post("/%s/" % indexname,

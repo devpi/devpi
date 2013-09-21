@@ -1,4 +1,6 @@
+import py
 import functools
+import operator
 
 def propmapping(name, type=None):
     if type is None:
@@ -12,6 +14,7 @@ def propmapping(name, type=None):
             return x
     fget.__name__ = name
     return property(fget)
+
 
 def canraise(Error):
     def wrap(func):
@@ -77,3 +80,35 @@ def cached_property(f):
 
     return property(get, set)
 
+class CompareMixin(object):
+    def _cmp(self, other, op):
+        try:
+            return op(self.cmpval, other.cmpval)
+        except AttributeError:
+            raise NotImplemented
+    def __lt__(self, other):
+        return self._cmp(other, operator.lt)
+    def __le__(self, other):
+        return self._cmp(other, operator.le)
+    def __eq__(self, other):
+        return self._cmp(other, operator.eq)
+    def __ne__(self, other):
+        return self._cmp(other, operator.ne)
+    def __ge__(self, other):
+        return self._cmp(other, operator.ge)
+    def __gt__(self, other):
+        return self._cmp(other, operator.gt)
+
+def gen_comparisons_with_key(cls, key):
+    for name, op in (("lt", "<"), ("le", "<="), ("eq", "=="), ("ne", "!="),
+                     ("ge", ">="), ("gt", ">")):
+        d = {}
+        fullname = "__" + name + "__"
+        py.builtin.exec_(py.code.Source("""
+            def %s(self, other):
+                try:
+                    return self.%s %s other.%s
+                except AttributeError:
+                    raise NotImplemented
+        """ %(fullname, key, op, key)).compile(), d)
+        setattr(cls, fullname, d[fullname])

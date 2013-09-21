@@ -152,6 +152,13 @@ class TestImportExport:
             return stage.get_project_info(name).name
         assert n("hello-x") == "Hello-X"
         assert n("Hello_x") == "Hello-X"
+        config = stage.get_projectconfig("Hello-X")
+        assert len(config) == 3
+        assert config["1.0"]["name"] == "Hello-X"
+        assert config["1.0"]["version"] == "1.0"
+        assert config["1.1"]["name"] == "Hello-X"
+        assert config["1.2"]["name"] == "Hello-X"
+
 
     def test_10_normalized_projectnames_with_inheritance(self, impexp):
         mapp1 = impexp.mapp1
@@ -174,21 +181,3 @@ class TestImportExport:
         assert n("Hello_x") == "hello-X"
 
 
-def test_normalize_index_projects(xom):
-    tw = py.io.TerminalWriter()
-    importer = Importer(tw, xom)
-    index = {
-                "hello": {"1.0": {"name": "hello"}},
-                "Hello": {"1.9": {"name": "Hello"}},
-                "hellO": {"0.9": {"name": "hellO"}},
-                "world": {"1.0": {"name": "world"}},
-                "World": {"0.9": {"name": "World"}},
-    }
-    newindex = importer.normalize_index_projects(index)
-    assert len(newindex) == 2
-    assert len(newindex["Hello"]) == 3
-    for ver in ("0.9", "1.0", "1.9"):
-        assert newindex["Hello"][ver]["name"] == "Hello"
-    assert len(newindex["world"]) == 2
-    assert newindex["world"]["0.9"]["name"] == "world"
-    assert newindex["world"]["1.0"]["name"] == "world"

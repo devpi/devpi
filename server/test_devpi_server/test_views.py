@@ -6,6 +6,7 @@ import webtest
 import requests, json
 from bs4 import BeautifulSoup
 from devpi_server.views import *
+from devpi_server.urlutil import splitbasename
 import devpi_server.views
 from test_db import create_zipfile
 from mock import Mock
@@ -130,9 +131,12 @@ class TestSubmitValidation:
                 return testapp.post(self.api.pypisubmit, metadata, code=code)
 
             def file(self, filename, content, metadata, code=200):
+                if "version" not in metadata:
+                    metadata["version"] = splitbasename(filename,
+                                                        checkarch=False)[1]
                 return mapp.upload_file_pypi(
                         filename, content,
-                        metadata["name"], metadata.get("version", "1.0"),
+                        metadata.get("name"), metadata.get("version"),
                         indexname=self.stagename,
                         code=code)
         return Submit()

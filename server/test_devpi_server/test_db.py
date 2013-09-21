@@ -267,6 +267,13 @@ class TestStage:
         #    stage.register_metadata(dict(name="hello", version="1.0"))
         #
 
+    def test_get_metadata_latest(self, stage):
+        stage.register_metadata(dict(name="hello", version="1.0"))
+        stage.register_metadata(dict(name="hello", version="1.1"))
+        stage.register_metadata(dict(name="hello", version="0.9"))
+        metadata = stage.get_metadata_latest("hello")
+        assert metadata["version"] == "1.1"
+
     def test_releasedata_validation(self, stage):
         with pytest.raises(ValueError):
              stage.register_metadata( dict(name="hello_", version="1.0"))

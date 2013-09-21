@@ -565,33 +565,25 @@ class PyPIView:
         else:
             bases = []
         latest_packages = html.ul()
-        for name in stage.getprojectnames_perstage():
-            for entry in stage.getreleaselinks(name):
-                if entry.eggfragment:
-                    continue
-                if not entry.relpath.startswith(stage.name + "/"):
-                    break
-                if entry.url:
-                    path = entry.url
-                else:
-                    path = entry.relpath
-                name, ver = urlutil.DistURL(path).pkgname_and_version
-                dockey = self.db.keyfs.STAGEDOCS(user=user,
-                                                 index=index, name=name)
-                if dockey.exists():
-                    docs = [" docs: ", html.a("%s-%s docs" %(name, ver),
+        for projectname in stage.getprojectnames_perstage():
+            metadata = stage.get_metadata_latest(projectname)
+            name, ver = metadata["name"], metadata["version"]
+            dockey = stage._doc_key(name)
+            if dockey.exists():
+                docs = [" docs: ", html.a("%s-%s docs" %(name, ver),
                                 href="%s/+doc/index.html" %(name))]
-                else:
-                    docs = []
-
+            else:
+                docs = []
+            for basename, relpath in metadata["+files"].items():
                 latest_packages.append(html.li(
                     html.a("%s-%s info page" % (name, ver),
                            href="%s/%s/" % (name, ver)),
                     " releasefiles: ",
-                    html.a(entry.basename, href="/" + entry.relpath),
+                    html.a(basename, href="/" + relpath),
                     *docs
                 ))
-                break
+                break  # could present more releasefiles
+
         latest_packages = [
             html.h2("in-stage latest packages, at least as recent as bases"),
             latest_packages]

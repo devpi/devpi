@@ -4,7 +4,7 @@ import re
 import py
 from .urlutil import DistURL
 from .vendor._description_utils import processDescription
-from .urlutil import sorted_by_version
+from .urlutil import sorted_by_version, get_latest_version
 from .auth import crypt_password, verify_password
 from .validation import validate_metadata, normalize_name
 
@@ -378,6 +378,11 @@ class PrivateStage:
             projectconfig = self.get_projectconfig(name)
             return projectconfig.get(version)
 
+    def get_metadata_latest(self, name):
+        versions = self.get_projectconfig(name)
+        maxver = get_latest_version(versions)
+        return self.get_metadata(name, maxver.string)
+
     def get_projectconfig_perstage(self, name):
         key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
         return key.get()
@@ -447,6 +452,8 @@ class PrivateStage:
 
     def store_releasefile(self, filename, content, last_modified=None):
         name, version = DistURL(filename).pkgname_and_version
+        #assert self.get_metadata(name, version), (name, version)
+
         info = self.get_project_info(name)
         name = getattr(info, "name", name)
         log.debug("project name of %r is %r", filename, name)
@@ -526,3 +533,4 @@ def unzip_to_dir(content, basedir):
             fpath.dirpath().ensure(dir=1)
             with fpath.open("wb") as f:
                 f.write(unzipfile.read(name))
+
