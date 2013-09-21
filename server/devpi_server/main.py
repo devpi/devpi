@@ -177,8 +177,8 @@ class XOM:
         if args.export:
             from devpi_server.importexport import do_export
             return do_export(args.export, xom)
-        # access extdb to make sure invalidation happens
         configure_logging(xom.config)
+        # access extdb to make sure invalidation happens
         xom.extdb
         if args.import_:
             from devpi_server.importexport import do_import

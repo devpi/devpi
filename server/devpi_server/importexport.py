@@ -22,7 +22,7 @@ def do_export(path, xom):
     return 0
 
 def do_import(path, xom):
-    logging.basicConfig(level="INFO", format='%(message)s')
+    logging.basicConfig(level=logging.INFO, format='%(message)s')
     path = py.path.local(path)
     tw = py.io.TerminalWriter()
 

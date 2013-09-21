@@ -1,5 +1,6 @@
 import sys
 import os.path
+import logging
 from logging import getLogger, basicConfig
 import argparse
 
@@ -191,9 +192,9 @@ class Config:
 
 def configure_logging(config):
     if config.args.debug:
-        loglevel = "DEBUG"
+        loglevel = logging.DEBUG
     else:
-        loglevel = "INFO"
+        loglevel = logging.INFO
     basicConfig(level=loglevel,
                 format='%(asctime)s [%(levelname)-5.5s] %(name)s: %(message)s')
 
