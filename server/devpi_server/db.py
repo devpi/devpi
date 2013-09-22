@@ -42,6 +42,14 @@ class DB:
         self.xom = xom
         self.keyfs = xom.keyfs
 
+    def is_empty(self):
+        userlist = self.user_list()
+        if len(userlist) != 1 or "root" not in userlist:
+            return False
+        userconfig = self.user_get("root")
+        rootindexes = list(userconfig.get("indexes", []))
+        return rootindexes == ["pypi"]
+
     def user_create(self, user, password, email=None):
         with self.keyfs.USER(user=user).update() as userconfig:
             self._setpassword(userconfig, user, password)

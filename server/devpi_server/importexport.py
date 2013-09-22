@@ -29,17 +29,8 @@ def do_import(path, xom):
     if not path.check():
         fatal("path for importing not found: %s" %(path))
 
-    entries = xom.keyfs.basedir.listdir()
-    if 0 and entries:
-        offending = [x.basename for x in entries
-                        if x.check(dotfile=0)]
-        if "root" in offending:
-            root = xom.keyfs.basedir.join("root")
-            if root.listdir() == [root.join("pypi")]:
-                offending.remove("root")
-        if offending:
-            fatal("serverdir must be empty: %s (found %s)"
-                    %(xom.config.serverdir, offending))
+    if not xom.db.is_empty():
+        fatal("serverdir must be empty: %s" % xom.config.serverdir)
     importer = Importer(tw, xom)
     importer.import_all(path)
     return 0

@@ -22,6 +22,17 @@ def register_and_store(stage, basename, content="123", name=None):
     stage.register_metadata(dict(name=name, version=version))
     return stage.store_releasefile(basename, content)
 
+def test_db_is_empty(db):
+    assert db.is_empty()
+    db.user_create("user", "password", email="some@email.com")
+    assert not db.is_empty()
+    db.user_delete("user")
+    assert db.is_empty()
+    db.index_create(user="root", index="dev", bases=(), type="stage",
+                    volatile=False)
+    assert not db.is_empty()
+    db.index_delete(user="root", index="dev")
+    assert db.is_empty()
 
 class TestStage:
     @pytest.fixture

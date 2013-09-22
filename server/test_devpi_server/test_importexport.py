@@ -23,8 +23,8 @@ def test_empty_export(tmpdir, xom):
     with pytest.raises(Fatal):
         do_export(tmpdir, xom)
 
-@pytest.mark.xfail
 def test_import_on_existing_server_data(tmpdir, xom):
+    xom.db.user_create("someuser", "qwe")
     assert not do_export(tmpdir, xom)
     with pytest.raises(Fatal):
         do_import(tmpdir, xom)
