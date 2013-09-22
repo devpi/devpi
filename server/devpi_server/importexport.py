@@ -52,7 +52,7 @@ class Exporter:
         self.config = xom.config
         self.db = xom.db
         self.keyfs = xom.keyfs
-        self.filestore = xom.releasefilestore
+        self.filestore = xom.filestore
 
         self.export = {}
         self.export_users = self.export["users"] = {}
@@ -202,7 +202,7 @@ class Importer:
         self.tw = tw
         self.xom = xom
         self.db = xom.db
-        self.filestore = xom.releasefilestore
+        self.filestore = xom.filestore
         self.tw = tw
 
     def read_json(self, path):

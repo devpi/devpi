@@ -18,7 +18,7 @@ from .urlutil import DistURL, splitbasename
 from logging import getLogger
 log = getLogger(__name__)
 
-class ReleaseFileStore:
+class FileStore:
     def __init__(self, keyfs):
         self.keyfs = keyfs
 

@@ -224,9 +224,9 @@ class XOM:
         return thread
 
     @cached_property
-    def releasefilestore(self):
-        from devpi_server.filestore import ReleaseFileStore
-        return ReleaseFileStore(self.keyfs)
+    def filestore(self):
+        from devpi_server.filestore import FileStore
+        return FileStore(self.keyfs)
 
     @cached_property
     def keyfs(self):
@@ -239,7 +239,7 @@ class XOM:
     def extdb(self):
         from devpi_server.extpypi import ExtDB
         extdb = ExtDB(keyfs=self.keyfs, httpget=self.httpget,
-                      filestore=self.releasefilestore,
+                      filestore=self.filestore,
                       proxy=self.proxy)
         return extdb
 

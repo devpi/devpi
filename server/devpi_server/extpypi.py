@@ -165,7 +165,7 @@ class ExtDB:
     def __init__(self, keyfs, httpget, filestore, proxy):
         self.keyfs = keyfs
         self.httpget = httpget
-        self.releasefilestore = filestore
+        self.filestore = filestore
         invalidate_on_version_change(keyfs.basedir.join("root", "pypi"))
         self.init_pypi_mirror(proxy)
 
@@ -203,7 +203,7 @@ class ExtDB:
         assert not isinstance(refresh, bool), repr(refresh)
         cache = self._load_project_cache(projectname)
         if cache is not None and cache["serial"] >= refresh:
-            return [self.releasefilestore.getentry(relpath)
+            return [self.filestore.getentry(relpath)
                         for relpath in cache["entrylist"]]
 
         info = self.get_project_info(projectname)
@@ -228,7 +228,7 @@ class ExtDB:
         result = parse_index(response.url, response.text)
         perform_crawling(self, result)
         releaselinks = list(result.releaselinks)
-        entries = [self.releasefilestore.maplink(link, refresh=refresh)
+        entries = [self.filestore.maplink(link, refresh=refresh)
                         for link in releaselinks]
         dumplist = [entry.relpath for entry in entries]
         self._dump_project_cache(real_projectname, dumplist, serial)

@@ -89,7 +89,7 @@ class TestImportExport:
                                "hello", "1.0")
 
         md5 = py.std.md5.md5("content").hexdigest()
-        num = mapp1.xom.releasefilestore.add_attachment(
+        num = mapp1.xom.filestore.add_attachment(
                     md5=md5, type="toxresult", data="123")
         impexp.export()
         mapp2 = impexp.new_import()
@@ -97,7 +97,7 @@ class TestImportExport:
         entries = stage.getreleaselinks("hello")
         assert len(entries) == 1
         assert entries[0].FILE.get() == "content"
-        x = mapp2.xom.releasefilestore.get_attachment(
+        x = mapp2.xom.filestore.get_attachment(
             md5=md5, type="toxresult", num=num)
         assert x == "123"
 

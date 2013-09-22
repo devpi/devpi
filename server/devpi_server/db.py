@@ -434,7 +434,7 @@ class PrivateStage:
         files = []
         for verdata in projectconfig.values():
             files.extend(
-                map(self.xom.releasefilestore.getentry,
+                map(self.xom.filestore.getentry,
                     verdata.get("+files", {}).values()))
         return files
 
@@ -466,7 +466,7 @@ class PrivateStage:
             files = verdata.setdefault("+files", {})
             if not self.ixconfig.get("volatile") and filename in files:
                 return 409
-            entry = self.xom.releasefilestore.store(self.user, self.index,
+            entry = self.xom.filestore.store(self.user, self.index,
                                 filename, content, last_modified=last_modified)
             files[filename] = entry.relpath
             self.log_info("store_releasefile %s", entry.relpath)

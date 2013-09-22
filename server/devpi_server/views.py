@@ -122,7 +122,7 @@ class PyPIView:
 
     @route("/+tests", method="POST")
     def add_attach(self):
-        filestore = self.xom.releasefilestore
+        filestore = self.xom.filestore
         data = getjson(request)
         md5 = data["installpkg"]["md5"]
         num = filestore.add_attachment(md5=md5, type="toxresult",
@@ -132,13 +132,13 @@ class PyPIView:
 
     @route("/+tests/<md5>/<type>", method="GET")
     def get_attachlist(self, md5, type):
-        filestore = self.xom.releasefilestore
+        filestore = self.xom.filestore
         datalist = list(filestore.iter_attachments(md5=md5, type=type))
         apireturn(200, type="list:toxresult", result=datalist)
 
     @route("/+tests/<md5>/<type>/<num>", method="GET")
     def get_attach(self, md5, type, num):
-        filestore = self.xom.releasefilestore
+        filestore = self.xom.filestore
         data = filestore.get_attachment(md5=md5, type=type, num=num)
         apireturn(200, type="testresult", result=data)
 
@@ -519,7 +519,7 @@ class PyPIView:
         relpath = request.path.strip("/")
         if "#" in relpath:   # XXX unclear how this can happen (it does)
             relpath = relpath.split("#", 1)[0]
-        filestore = self.xom.releasefilestore
+        filestore = self.xom.filestore
         if json_preferred():
             entry = filestore.getentry(relpath)
             if not entry.exists():

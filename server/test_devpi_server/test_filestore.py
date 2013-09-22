@@ -7,7 +7,7 @@ from devpi_server.filestore import *
 BytesIO = py.io.BytesIO
 b = py.builtin.bytes
 
-class TestReleaseFileStore:
+class TestFileStore:
 
     def test_maplink_deterministic(self, filestore):
         link = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=123")

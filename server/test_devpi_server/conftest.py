@@ -151,7 +151,7 @@ def httpget(pypiurls):
 
 @pytest.fixture
 def filestore(xom):
-    return xom.releasefilestore
+    return xom.filestore
 
 @pytest.fixture
 def keyfs(xom):
