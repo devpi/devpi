@@ -30,7 +30,8 @@ def do_import(path, xom):
         fatal("path for importing not found: %s" %(path))
 
     if not xom.db.is_empty():
-        fatal("serverdir must be empty: %s" % xom.config.serverdir)
+        fatal("serverdir must not contain users or stages: %s" %
+              xom.config.serverdir)
     importer = Importer(tw, xom)
     importer.import_all(path)
     return 0
