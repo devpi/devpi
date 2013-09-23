@@ -1,6 +1,12 @@
 1.1.dev1
 ----------------
 
+- fix issue49: both push and import/export now support docfiles.  Note,
+  however, that docfiles relate to a project as a whole and are not tied
+  to a particular version.  This property is inherited from the PyPI
+  standard upload_docs action and cannot be changed without interfering
+  or replacing the upload_docs protocol of setuptools/sphinx.
+
 - fix issue51: return 200 code if release file is successfully uploaded 
   but jenkins could not be triggered (previously returned 500)
 

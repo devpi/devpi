@@ -271,18 +271,26 @@ class PyPIView:
         except KeyError:
             apireturn(400, message="no name/version specified in json")
 
-        metadata = stage.get_metadata(name, version)
-        entries = stage.getreleaselinks_perstage(name)
+        projectconfig = stage.get_projectconfig(name)
         matches = []
-        for entry in entries:
-            n, v, suffix = urlutil.splitbasename(entry.basename)
-            if n == name and str(v) == version:
-                matches.append(entry)
-        if not matches or not metadata:
+        if projectconfig:
+            verdata = projectconfig.get(version)
+            if verdata:
+                files = verdata.get("+files")
+                for basename, relpath in files.items():
+                    entry = stage.xom.filestore.getentry(relpath)
+                    if not entry.iscached():
+                        abort(400, "cannot push non-cached files")
+                    matches.append(entry)
+                metadata = get_pure_metadata(verdata)
+
+        if not matches:
             log.info("%s: no release files %s-%s" %(stage.name, name, version))
             apireturn(404,
                       message="no release/files found for %s-%s" %(
                       name, version))
+
+        doczip = stage.get_doczip(name)
 
         # prepare metadata for submission
         metadata[":action"] = "submit"
@@ -313,6 +321,10 @@ class PyPIView:
                     res = 200
                 results.append((res, "store_releasefile", entry.basename,
                                 "->", target_stage.name))
+            if doczip:
+                target_stage.store_doczip(name, doczip)
+                results.append((200, "uploaded documentation", name,
+                                "->", target_stage.name))
             apireturn(200, result=results, type="actionlog")
         else:
             posturl = pushdata["posturl"]
@@ -326,17 +338,28 @@ class PyPIView:
             results.append((r.status_code, "register", name, version))
             if r.status_code in ok_codes:
                 for entry in matches:
-                    metadata[":action"] = "file_upload"
+                    file_metadata = metadata.copy()
+                    file_metadata[":action"] = "file_upload"
                     basename = entry.basename
                     pyver, filetype = urlutil.get_pyversion_filetype(basename)
-                    metadata["filetype"] = filetype
-                    metadata["pyversion"] = pyver
+                    file_metadata["filetype"] = filetype
+                    file_metadata["pyversion"] = pyver
                     openfile = entry.FILE.filepath.open("rb")
                     log.info("sending %s to %s", basename, posturl)
-                    r = requests.post(posturl, data=metadata, auth=pypiauth,
+                    r = requests.post(posturl, data=file_metadata,
+                          auth=pypiauth,
                           files={"content": (basename, openfile)})
                     log.debug("send finished, status: %s", r.status_code)
                     results.append((r.status_code, "upload", entry.relpath))
+                if doczip:
+                    doc_metadata = metadata.copy()
+                    doc_metadata[":action"] = "doc_upload"
+                    r = requests.post(posturl, data=doc_metadata,
+                          auth=pypiauth,
+                          files={"content": (name + ".zip", doczip)})
+                    log.debug("send finished, status: %s", r.status_code)
+                    results.append((r.status_code, "docfile", name))
+                #
             if r.status_code in ok_codes:
                 apireturn(200, result=results, type="actionlog")
             else:
@@ -786,3 +809,10 @@ def getkvdict_index(req):
     if "uploadtrigger_jenkins" in req:
         kvdict["uploadtrigger_jenkins"] = req["uploadtrigger_jenkins"]
     return kvdict
+
+def get_pure_metadata(somedict):
+    metadata = {}
+    for n, v in somedict.items():
+        if n[0] != "+":
+            metadata[n] = v
+    return metadata

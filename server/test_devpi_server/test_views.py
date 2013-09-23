@@ -210,12 +210,13 @@ def test_upload_and_push_internal(mapp, testapp, monkeypatch):
     mapp.create_and_login_user("user2")
     mapp.create_index("prod", indexconfig=dict(acl_upload=["user1", "user2"]))
     mapp.create_index("dev", indexconfig=dict(acl_upload=["user2"]))
-    print mapp.getjson("/user2/prod")
 
     mapp.login("user1", "1")
     mapp.create_index("dev")
     mapp.use("user1/dev")
     mapp.upload_file_pypi("pkg1-2.6.tgz", "123", "pkg1", "2.6")
+    content = create_zipfile({"index.html": "<html/>"})
+    mapp.upload_doc("pkg1.zip", content, "pkg1", "")
 
     # check that push is authorized and executed towards user2/prod index
     req = dict(name="pkg1", version="2.6", targetindex="user2/prod")
@@ -225,10 +226,16 @@ def test_upload_and_push_internal(mapp, testapp, monkeypatch):
     assert r.status_code == 200
     relpath = r.json["result"]["+files"]["pkg1-2.6.tgz"]
     assert relpath == "user2/prod/pkg1/2.6/pkg1-2.6.tgz"
+    r = testapp.get("/user2/prod/pkg1/+doc/index.html")
+    assert r.status_code == 200
 
-def test_upload_and_push_remote_ok(mapp, testapp, monkeypatch):
+
+def test_upload_and_push_external(mapp, testapp, monkeypatch):
     api = mapp.create_and_use()
     mapp.upload_file_pypi("pkg1-2.6.tgz", "123", "pkg1", "2.6")
+    zipcontent = create_zipfile({"index.html": "<html/>"})
+    mapp.upload_doc("pkg1.zip", zipcontent, "pkg1", "")
+
     r = testapp.get(api.simpleindex + "pkg1")
     assert r.status_code == 200
     a = getfirstlink(r.text)
@@ -252,9 +259,13 @@ def test_upload_and_push_remote_ok(mapp, testapp, monkeypatch):
     r = testapp.request(api.index, method="push", body=body,
                         expect_errors=True)
     assert r.status_code == 200
-    assert len(rec) == 2
+    assert len(rec) == 3
     assert rec[0][0] == "whatever"
     assert rec[1][0] == "whatever"
+    assert rec[2][0] == "whatever"
+    upload_dict = rec[2][-1]
+    assert upload_dict["content"][0] == "pkg1.zip"
+    assert upload_dict["content"][1] == zipcontent
 
     # push with error
     def posterror(url, data, auth, files=None):
