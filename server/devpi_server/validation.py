@@ -34,9 +34,9 @@ def validate_metadata(data):
     ''' Validate the contents of the metadata.
     '''
     if not data.get('name', ''):
-        raise ValueError, 'Missing required field "name"'
+        raise ValueError('Missing required field "name"')
     if not data.get('version', ''):
-        raise ValueError, 'Missing required field "version"'
+        raise ValueError('Missing required field "version"')
     if data.has_key('metadata_version'):
         metadata_version = data['metadata_version']
         del data['metadata_version']
@@ -73,7 +73,7 @@ def validate_metadata(data):
     # possible to break path names for file and documentation
     # uploads
     if '/' in data['name']:
-        raise ValueError, "Invalid package name"
+        raise ValueError("Invalid package name")
 
 
     # again, this is a restriction required by the implementation and not
