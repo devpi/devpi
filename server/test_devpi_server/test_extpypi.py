@@ -31,6 +31,24 @@ class TestIndexParsing:
         """)
         assert len(result.releaselinks) == 3
 
+    def test_parse_index_egg_svnurl(self, monkeypatch):
+        # strange case reported by fschulze/witsch where
+        # urlparsing will yield a fragment for svn urls.
+        # it's not exactly clear how urlparse.uses_fragment
+        # sometimes contains "svn" but it's good to check
+        # that we are not sensitive to the issue.
+        import urlparse
+        monkeypatch.setattr(urlparse, "uses_fragment",
+                            urlparse.uses_fragment + ["svn"])
+        simplepy = DistURL("https://pypi.python.org/simple/zope.sqlalchemy/")
+        result = parse_index(simplepy,
+            '<a href="svn://svn.zope.org/repos/main/'
+            'zope.sqlalchemy/trunk#egg=zope.sqlalchemy-dev" />'
+        )
+        assert len(result.releaselinks) == 0
+        assert len(result.egglinks) == 0
+        #assert 0, (result.releaselinks, result.egglinks)
+
     def test_parse_index_normalized_name(self):
         simplepy = DistURL("http://pypi.python.org/simple/ndg-httpsclient/")
         result = parse_index(simplepy, """

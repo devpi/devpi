@@ -55,10 +55,11 @@ class IndexParser:
         seen = set()
         for link in p.links:
             newurl = DistURL(link.url)
+            if not newurl.is_valid_http_url():
+                continue
             eggfragment = newurl.eggfragment
             if scrape and eggfragment:
-                filename = eggfragment.replace("_", "-")
-                if normalize_name(filename).startswith(self.projectname):
+                if normalize_name(eggfragment).startswith(self.projectname):
                     # XXX seems we have to maintain a particular
                     # order to keep pip/easy_install happy with some
                     # packages (e.g. nose)
