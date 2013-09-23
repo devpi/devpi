@@ -5,7 +5,7 @@ import py
 import logging
 from .validation import normalize_name
 from .types import cached_property
-from .urlutil import get_latest_version
+from .urlutil import get_latest_version, Version
 from pkg_resources import parse_version
 
 from devpi_server.main import fatal
@@ -97,8 +97,14 @@ class Exporter:
                 for name in names:
                     config = stage.get_projectconfig_perstage(name)
                     if config:
-                        maxver = get_latest_version(config)
-                        maxver.realname = name
+                        maxver = None
+                        for ver, verdata in config.items():
+                            version = Version(ver)
+                            version.realname = verdata["name"]
+                            if maxver is None or version > maxver:
+                                maxver = version
+                        if not maxver:
+                            continue
                         norm = normalize_name(name)
                         normver = norm2maxversion.setdefault(norm, maxver)
                         if maxver > normver:

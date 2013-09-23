@@ -454,9 +454,20 @@ class PrivateStage:
             all_names.update(names)
         return sorted(all_names)
 
+
     def getprojectnames_perstage(self):
-        return self.keyfs.PROJCONFIG.listnames("name",
-                    user=self.user, index=self.index)
+        names = self.keyfs.PROJCONFIG.listnames("name",
+                        user=self.user, index=self.index)
+        # on case insensitive filesystems we can't be sure
+        # we have case-sensitive names so we do a slow
+        # iteration over all projectconfig files
+        realnames = set()
+        for name in names:
+            projectconfig = self.get_projectconfig_perstage(name)
+            for metadata in projectconfig.values():
+                realnames.add(metadata["name"])
+        return list(realnames)
+
 
     class MissesRegistration(Exception):
         """ store_releasefile requires pre-existing release metadata. """
