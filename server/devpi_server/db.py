@@ -538,7 +538,7 @@ def unzip_to_dir(content, basedir):
         fpath = basedir.join(name, abs=True)
         if not fpath.relto(basedir):
             raise ValueError("invalid path name:" + name)
-        if name.endswith(os.sep):
+        if name.endswith(os.sep) or name[-1] == "/":
             fpath.ensure(dir=1)
         else:
             fpath.dirpath().ensure(dir=1)

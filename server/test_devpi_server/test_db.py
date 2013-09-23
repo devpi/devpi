@@ -404,7 +404,7 @@ def _writezip(zip, contentdict, prefixes=()):
         if isinstance(val, dict):
             newprefixes = prefixes + (name,)
             if not val:
-                path = os.sep.join(newprefixes) + "/"
+                path = os.sep.join(newprefixes) + os.sep
                 zipinfo = py.std.zipfile.ZipInfo(path)
                 zip.writestr(zipinfo, "")
             else:
