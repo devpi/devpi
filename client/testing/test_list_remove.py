@@ -91,7 +91,7 @@ class TestList:
             "conf.py": "",
             "index.html": "<html/>"}})
         assert py.path.local("setup.py").check()
-        devpi("upload", "--formats", "sdist.tbz")
+        devpi("upload", "--formats", "sdist.zip")
         devpi("upload", "--formats", "sdist.tgz,bdist_dumb")
 
         devpi("list", "hello")

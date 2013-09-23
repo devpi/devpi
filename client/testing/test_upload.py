@@ -168,7 +168,7 @@ class TestUploadFunctional:
         devpi("upload", "--dry-run")
         devpi("upload", "--dry-run", "--with-docs")
         devpi("upload", "--dry-run", "--only-docs")
-        devpi("upload", "--formats", "sdist.tbz")
+        devpi("upload", "--formats", "sdist.zip")
         devpi("upload", "--formats", "sdist.tgz,bdist_dumb")
 
         # logoff then upload
