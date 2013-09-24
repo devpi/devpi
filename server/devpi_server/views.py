@@ -43,7 +43,9 @@ def simple_html_body(title, bodytags, extrahead=""):
 def abort(code, body):
     if "application/json" in request.headers.get("Accept", ""):
         apireturn(code, body)
-    bottle.abort(code, body)
+    error = HTTPError(code, body)
+    error.add_header("X-DEVPI-API-VERSION", API_VERSION)
+    raise error
 
 def abort_custom(code, msg):
     error = HTTPError(code, msg)
