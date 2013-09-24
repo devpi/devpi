@@ -567,11 +567,15 @@ def upload(parser):
     #parser.add_argument("-l", dest="showstatus",
     #    action="store_true", default=None,
     #    help="show remote versions, local version and package types")
-    parser.add_argument("--ver", dest="setversion",
-        action="store", default=None,
-        help="fill version string into setup.py, */__init__.py */conf.py files")
+    #parser.add_argument("--ver", dest="setversion",
+    #    action="store", default=None,
+    #    help="fill version string into setup.py, */__init__.py */conf.py files")
     #parser.add_argument("--incver", action="store_true",
     #    help="retrieve max remove version, increment and set it like --ver")
+    parser.add_argument("--no-vcs", action="store_true", dest="novcs",
+        help="don't VCS-export to a fresh dir, just execute setup.py scripts "
+             "directly using their dirname as current dir. ")
+
     parser.add_argument("--formats", default="sdist.tgz", action="store",
         help="comma separated list of build formats (passed to setup.py). "
              "Examples sdist.zip,bdist_egg,bdist_wheel,bdist_dumb.")

@@ -7,6 +7,9 @@
 
 - getjson now prints http reply headers if "-v|--verbose" was supplied.
 
+- fix issue52: add "--no-vcs" option to force "devpi upload" to not
+  vcs-export files before executing build/upload
+
 - fix issue50: introduce "--toxargs" to "devpi test" invocations in
   order to add arbitrary arguments to tox.
 

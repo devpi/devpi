@@ -63,6 +63,11 @@ class TestCheckout:
         assert result.rootpath.join("file").check()
         assert result.rootpath == newrepo.join(repo.basename)
 
+    def test_hg_export_disabled(self, uploadhub, repo, tmpdir, monkeypatch):
+        monkeypatch.setattr(uploadhub.args, "novcs", True)
+        checkout = Checkout(uploadhub, repo)
+        assert not checkout.hashg
+
     def test_hg_export_verify_setup(self, uploadhub, repo,
                                           tmpdir, monkeypatch):
         subdir = repo.mkdir("subdir")

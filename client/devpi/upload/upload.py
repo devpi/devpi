@@ -32,7 +32,6 @@ def main(hub, args):
     checkout = Checkout(hub, hub.cwd)
     uploadbase = hub.getdir("upload")
     exported = checkout.export(uploadbase)
-    hub.info("hg-exported project to", exported)
 
     #set_new_version(hub, args, exported)
     if not hub.current.pypisubmit:
@@ -197,8 +196,9 @@ class Checkout:
         self.hub = hub
         self.rootpath = setupdir
         assert setupdir.join("setup.py").check(), setupdir
-        self.hashg = bool(find_parent_subpath(self.rootpath,
-                          ".hg", raising=False)) and py.path.local.sysfind("hg")
+        self.hashg = not hub.args.novcs \
+            and find_parent_subpath(self.rootpath, ".hg", raising=False) \
+            and py.path.local.sysfind("hg")
 
     def export(self, basetemp):
         if self.hashg:
@@ -214,6 +214,7 @@ class Checkout:
                     source.copy(dest)
                     num += 1
             log.debug("copied %s files to %s", num, newrepo)
+            self.hub.info("hg-exported project to", newrepo)
             return Exported(self.hub, newrepo, self.rootpath)
         else:
             return Exported(self.hub, self.rootpath, self.rootpath)
