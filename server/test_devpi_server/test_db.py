@@ -41,6 +41,7 @@ class TestStage:
                       type="stage", volatile=True)
         if "bases" in request.fixturenames:
             config["bases"] = request.getfuncargvalue("bases")
+        db.user_create("hello", "123")
         db.index_create(**config)
         return db.getstage(user=config["user"], index=config["index"])
 
@@ -102,6 +103,25 @@ class TestStage:
     def test_empty(self, stage, bases):
         assert not stage.getreleaselinks("someproject")
         assert not stage.getprojectnames()
+
+    def test_10_metadata_name_mixup(self, stage, bases):
+        stage._register_metadata({"name": "x-encoder", "version": "1.0"})
+        key = stage.keyfs.PROJCONFIG(user=stage.user, index=stage.index,
+                                     name="x_encoder")
+        with key.locked_update() as projectconfig:
+            versionconfig = projectconfig["1.0"] = {}
+            versionconfig.update({"+files":
+                {"x_encoder-1.0.zip": "%s/x_encoder/1.0/x_encoder-1.0.zip" %
+                 stage.name}})
+        names = stage.getprojectnames_perstage()
+        assert len(names) == 2
+        assert "x-encoder" in names
+        assert "x_encoder" in names
+        # also test import/export
+        from devpi_server.importexport import Exporter
+        tw = py.io.TerminalWriter()
+        exporter = Exporter(tw, stage.xom)
+        exporter.compute_global_projectname_normalization()
 
     def test_inheritance_simple(self, extdb, stage, db):
         stage._reconfigure(bases=("root/pypi",))

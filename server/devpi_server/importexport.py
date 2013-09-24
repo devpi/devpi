@@ -100,7 +100,7 @@ class Exporter:
                         maxver = None
                         for ver, verdata in config.items():
                             version = Version(ver)
-                            version.realname = verdata["name"]
+                            version.realname = verdata.get("name", name)
                             if maxver is None or version > maxver:
                                 maxver = version
                         if not maxver:

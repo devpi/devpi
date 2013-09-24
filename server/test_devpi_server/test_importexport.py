@@ -159,6 +159,21 @@ class TestImportExport:
         assert config["1.1"]["name"] == "Hello-X"
         assert config["1.2"]["name"] == "Hello-X"
 
+    def test_10_no_empty_releases(self, impexp):
+        mapp1 = impexp.mapp1
+        api = mapp1.create_and_use()
+        # in devpi-server 1.0 one could register X_Y and X-Y names
+        # and they would get registeded under different names.
+        # We simulate it here because 1.1 http API prevents this case.
+        stage = mapp1.xom.db.getstage(api.stagename)
+        stage._register_metadata({"name": "hello_x", "version": "1.0"})
+        stage._register_metadata({"name": "hello_x", "version": ""})
+        impexp.export()
+        mapp2 = impexp.new_import()
+        stage = mapp2.xom.db.getstage(api.stagename)
+        projconfig = stage.get_projectconfig("hello_x")
+        assert list(projconfig) == ["1.0"]
+
 
     def test_10_normalized_projectnames_with_inheritance(self, impexp):
         mapp1 = impexp.mapp1

@@ -373,7 +373,7 @@ class Mapp(MappMixin):
                          register=True,
                          code=200):
         indexname = self._getindexname(indexname)
-        name_version = splitbasename(basename, checkarch=False)
+        #name_version = splitbasename(basename, checkarch=False)
         #if not name:
         #    name = name_version[0]
         #if not version:

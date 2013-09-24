@@ -465,7 +465,7 @@ class PrivateStage:
         for name in names:
             projectconfig = self.get_projectconfig_perstage(name)
             for metadata in projectconfig.values():
-                realnames.add(metadata["name"])
+                realnames.add(metadata.get("name", name))
         return list(realnames)
 
 
