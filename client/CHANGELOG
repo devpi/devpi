@@ -1,4 +1,4 @@
-1.0.1.dev1
+1.1.dev
 -------------------------------
 
 - detect "X-DEVPI-API-VERSION" header and check for compatibility.
@@ -19,6 +19,9 @@
   inherit anything.
 
 - fix issue44: "use -l" doesn't break when a user has no index
+
+- devpi test now invokes tox in-process (by importing tox) rather than
+  a subprocess.
 
 1.0
 -------------------------------

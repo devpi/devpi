@@ -10,6 +10,7 @@ import argparse
 import pkg_resources
 import archive
 import json
+import tox
 
 from devpi.util import url as urlutil
 from devpi.util import version as verlib
@@ -68,31 +69,34 @@ class DevIndex:
     def runtox(self, link, Popen, venv=None):
         path_archive = link.pkg.path_archive
 
-        env = os.environ.copy()
-
         # publishing some infos to the commands started by tox
         #setenv_devpi(self.hub, env, posturl=self.current.resultlog,
         #                  packageurl=link.href,
         #                  packagemd5=link.md5)
         jsonreport = link.pkg.rootdir.join("toxreport.json")
-        toxscript = py.path.local.sysfind("tox")
-        assert toxscript, "tox not found"
-        toxargs = [str(toxscript), "--installpkg", str(path_archive),
+        toxargs = ["--installpkg", str(path_archive),
                    "-i ALL=%s" % self.current.simpleindex,
                    "--result-json", str(jsonreport),
         ]
         if venv is not None:
             toxargs.append("-e" + venv)
 
-        self.hub.info("%s$ %s" %(link.pkg.path_unpacked, " ".join(toxargs)))
-        popen = Popen(toxargs, cwd=str(link.pkg.path_unpacked), env=env)
-        popen.communicate()
-        if popen.returncode != 2:  # KEYBOARDINTERRUPT prevents upload
-            jsondata = py.std.json.load(jsonreport.open("rb"))
+        self.hub.info("%s$ tox %s" %(link.pkg.path_unpacked,
+                      " ".join(toxargs)))
+        old = link.pkg.path_unpacked.chdir()
+        try:
+            try:
+                ret = tox.cmdline(toxargs)
+            except SystemExit as e:
+                ret = e.args[0]
+        finally:
+            old.chdir()
+        if ret != 2:
+            jsondata = json.load(jsonreport.open("rb"))
             post_tox_json_report(self.hub,
                                  self.hub.current.resultlog, jsondata)
-        if popen.returncode != 0:
-            self.hub.error("tox command failed", popen.returncode)
+        if ret != 0:
+            self.hub.error("tox command failed", ret)
             return 1
         return 0
 
@@ -122,11 +126,8 @@ class UnpackedPackage:
 
 
 def main(hub, args):
-    hub.require_valid_current_with_index()
+    current = hub.require_valid_current_with_index()
     tmpdir = py.path.local.make_numbered_dir("devpi-test", keep=3)
-    current = hub.current
-    if not current.exists():
-        hub.fatal("no api configuration found")
     devindex = DevIndex(hub, tmpdir, current)
     link = devindex.getbestlink(args.pkgspec[0])
     if not link:
