@@ -363,7 +363,7 @@ class Exported:
                     self.hub.info(line.replace("Submitting", "submitted"))
                     return
         else:
-            self.hub.fatal("could not upload docs", out)
+            self.hub.fatal(out, "\ncould not upload docs")
 
 
 sdistformat2option = {
