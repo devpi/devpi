@@ -34,7 +34,7 @@ Install or upgrade ``devpi-server``::
 And let's check the version::
 
     $ devpi-server --version
-    1.0
+    1.1.dev8
 
 .. _gendeploy:
 
@@ -341,7 +341,6 @@ Using devpi-ctl again we can stop the server eventually::
     $ TARGETDIR/bin/devpi-ctl shutdown
     Shut down
     using supervisor config: /home/hpk/p/devpi/doc/TARGETDIR/etc/supervisord.conf
-
 
 versioning, exporting and importing server state
 ----------------------------------------------------

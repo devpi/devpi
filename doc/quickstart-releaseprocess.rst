@@ -37,23 +37,23 @@ Let's run the quickstart command which will trigger
 a series of other devpi commands::
 
     $ devpi quickstart
-    --> $ devpi-server --start
+    --> $ devpi-server --start 
     starting background devpi-server at http://localhost:3141
     /home/hpk/p/devpi/doc/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server
-    process 'devpi-server' started pid=492
+    process 'devpi-server' started pid=3990
     devpi-server process startup detected
     logfile is at /home/hpk/p/devpi/doc/.devpi/server/.xproc/devpi-server/xprocess.log
-    --> $ devpi use http://localhost:3141
+    --> $ devpi use http://localhost:3141 
     using server: http://localhost:3141/ (not logged in)
     no current index: type 'devpi use -l' to discover indices
     
-    --> $ devpi user -c testuser password=
+    --> $ devpi user -c testuser password= 
     user created: testuser
     
-    --> $ devpi login testuser --password=
+    --> $ devpi login testuser --password= 
     logged in 'testuser', credentials valid for 10.00 hours
     
-    --> $ devpi index -c dev
+    --> $ devpi index -c dev 
     dev:
       type=stage
       bases=root/pypi
@@ -61,7 +61,7 @@ a series of other devpi commands::
       uploadtrigger_jenkins=None
       acl_upload=testuser
     
-    --> $ devpi use dev
+    --> $ devpi use dev 
     using index: http://localhost:3141/testuser/dev/ (logged in as testuser)
     COMPLETED!  you can now work with your 'dev' index
       devpi install PKG   # install a pkg from pypi
@@ -84,7 +84,7 @@ install`` of a pypi package (here ``pytest`` as an example) through an
 auto-started caching devpi-server::
 
     $ devpi install pytest
-    --> $ docenv/bin/pip install --pre -U -i http://localhost:3141/testuser/dev/+simple/ pytest
+    --> $ docenv/bin/pip install -U -i http://localhost:3141/testuser/dev/+simple/ pytest  [PIP_USE_WHEEL=1,PIP_PRE=1]
     Downloading/unpacking pytest
       Running setup.py egg_info for package pytest
         
@@ -130,11 +130,12 @@ to our ``testuser/dev`` index::
 
     example $ devpi upload
     created workdir /tmp/devpi0
-    --> $ hg st -nmac .
-    hg-exported project to <Exported /tmp/devpi0/upload/example>
-    --> $ /home/hpk/p/devpi/doc/docenv/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi0/upload/example http://localhost:3141/testuser/dev/ testuser testuser-d75168097979d42460f7dab8212d3e220c8200e3e3fd67f5e298f25983f3e10f.BO5gvg.kyBJwz0ypseN9hVqafLXb75cnJY register -r devpi
+    --> $ hg st -nmac . 
+    hg-exported project to /tmp/devpi0/upload/example
+    --> $ /home/hpk/p/devpi/doc/docenv/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi0/upload/example http://localhost:3141/testuser/dev/ testuser testuser-400536a5555fd0e24561f020c1df4218b294bade336e0c6bfe75d46d65b67f2d.BSMbDg.4PZ6LwKt328xiU6k8bbzUW_nu8s register -r devpi 
     release registered to http://localhost:3141/testuser/dev/
-    --> $ /home/hpk/p/devpi/doc/docenv/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi0/upload/example http://localhost:3141/testuser/dev/ testuser testuser-d75168097979d42460f7dab8212d3e220c8200e3e3fd67f5e298f25983f3e10f.BO5gvg.kyBJwz0ypseN9hVqafLXb75cnJY sdist --formats gztar upload -r devpi
+    --> $ /home/hpk/p/devpi/doc/docenv/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi0/upload/example http://localhost:3141/testuser/dev/ testuser testuser-400536a5555fd0e24561f020c1df4218b294bade336e0c6bfe75d46d65b67f2d.BSMbDg.4PZ6LwKt328xiU6k8bbzUW_nu8s sdist --formats gztar upload -r devpi 
+    Server response (200): OK
     submitted dist/example-1.0.tar.gz to http://localhost:3141/testuser/dev/
 
 There are three triggered actions:
@@ -154,7 +155,7 @@ There are three triggered actions:
 We can now install the freshly uploaded package::
 
     $ devpi install example
-    --> $ docenv/bin/pip install --pre -U -i http://localhost:3141/testuser/dev/+simple/ example
+    --> $ docenv/bin/pip install -U -i http://localhost:3141/testuser/dev/+simple/ example  [PIP_USE_WHEEL=1,PIP_PRE=1]
     Downloading/unpacking example
       Downloading example-1.0.tar.gz
       Running setup.py egg_info for package example
@@ -184,7 +185,7 @@ If you have a package which uses tox_ for testing you may now invoke::
     $ devpi test example  # package needs to contain tox.ini
     received http://localhost:3141/testuser/dev/example/1.0/example-1.0.tar.gz
     unpacking /tmp/devpi-test0/downloads/example-1.0.tar.gz to /tmp/devpi-test0
-    /tmp/devpi-test0/example-1.0$ /home/hpk/venv/0/bin/tox --installpkg /tmp/devpi-test0/downloads/example-1.0.tar.gz -i ALL=http://localhost:3141/testuser/dev/+simple/ --result-json /tmp/devpi-test0/toxreport.json
+    /tmp/devpi-test0/example-1.0$ tox --installpkg /tmp/devpi-test0/downloads/example-1.0.tar.gz -i ALL=http://localhost:3141/testuser/dev/+simple/ --result-json /tmp/devpi-test0/toxreport.json
     python create: /tmp/devpi-test0/example-1.0/.tox/python
     python installdeps: pytest
     python inst: /tmp/devpi-test0/downloads/example-1.0.tar.gz
@@ -212,7 +213,7 @@ Here is what happened:
 We can verify that the test status was recorded via::
 
     $ devpi list example
-    list result: http://localhost:3141/testuser/dev/
+    list result: http://localhost:3141/testuser/dev/example
     testuser/dev/example/1.0/example-1.0.tar.gz
       teta linux2 python 2.7.3 tests passed
 
@@ -263,7 +264,7 @@ Let's now use our ``testuser/staging`` index::
 and check the test result status again::
 
     $ devpi list example
-    list result: http://localhost:3141/testuser/staging/
+    list result: http://localhost:3141/testuser/staging/example
     testuser/staging/example/1.0/example-1.0.tar.gz
       teta linux2 python 2.7.3 tests passed
 
@@ -293,7 +294,7 @@ index, we can reconfigure the inheritance
 ``bases`` for ``testuser/dev``::
 
     $ devpi index testuser/dev bases=testuser/staging
-    testuser/dev changing bases: testuser/staging
+    testuser/dev changing bases: ['testuser/staging']
     testuser/dev:
       type=stage
       bases=testuser/staging
@@ -309,7 +310,7 @@ If we now switch back to using ``testuser/dev``::
 and look at our example release files::
 
     $ devpi list example
-    list result: http://localhost:3141/testuser/dev/
+    list result: http://localhost:3141/testuser/dev/example
     testuser/dev/example/1.0/example-1.0.tar.gz
       teta linux2 python 2.7.3 tests passed
     testuser/staging/example/1.0/example-1.0.tar.gz
@@ -330,7 +331,7 @@ The ``example-1.0`` release remains accessible through ``testuser/dev``
 because it inherits all releases from its ``testuser/staging`` base::
 
     $ devpi list example
-    list result: http://localhost:3141/testuser/dev/
+    list result: http://localhost:3141/testuser/dev/example
     testuser/staging/example/1.0/example-1.0.tar.gz
       teta linux2 python 2.7.3 tests passed
 

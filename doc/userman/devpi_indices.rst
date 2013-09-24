@@ -239,7 +239,7 @@ bases::
 ::
 
    $ devpi index /emilie/dev bases=/emilie/prod,/sophie/dev
-   /emilie/dev changing bases: /emilie/prod,/sophie/dev
+   /emilie/dev changing bases: ['/emilie/prod', '/sophie/dev']
    /emilie/dev:
      type=stage
      bases=emilie/prod,sophie/dev
@@ -256,7 +256,7 @@ From there, Emilie can install ``pysober`` by refering to her own index alone.
 When the work is done, this relationship can be revoked by doing::
    
    $ devpi index /emilie/dev bases=/emilie/prod
-   /emilie/dev changing bases: /emilie/prod
+   /emilie/dev changing bases: ['/emilie/prod']
    /emilie/dev:
      type=stage
      bases=emilie/prod

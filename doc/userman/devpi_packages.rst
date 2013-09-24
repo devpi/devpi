@@ -76,14 +76,14 @@ While this topic has been mentioned in many parts of the documentation, we would
 to reiterate that the `devpi`_ server acts as a http://pypi.python.org cache::
 
    $ devpi install jsontree
-   --> $ /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/pip install --pre -U -i http://localhost:3141/emilie/dev/+simple/ jsontree
-   Requirement already up-to-date: jsontree in /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/lib/python2.7/site-packages
+   --> $ /home/hpk/venv/0/bin/pip install -U -i http://localhost:3141/emilie/dev/+simple/ jsontree  [PIP_USE_WHEEL=1,PIP_PRE=1]
+   Requirement already up-to-date: jsontree in /home/hpk/venv/0/lib/python2.7/site-packages
    Cleaning up...
    
 From there::
 
    $ pwd 
-   /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/doc/userman
+   /home/hpk/p/devpi/doc/userman
 
 .. _devpi_um_packages_rf_upload:
 
@@ -93,28 +93,26 @@ Uploading a Release File
 Uploading the sample release file can be done as follow (default format is sdist)::
 
    $ cd pysober; devpi upload 
-   created workdir /tmp/devpi39
-   --> $ hg st -nmac .
-   hg-exported project to <Exported /tmp/devpi39/upload/pysober>
-   --> $ /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/python /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/local/lib/python2.7/site-packages/devpi/upload/setuppy.py /tmp/devpi39/upload/pysober http://localhost:3141/emilie/dev/ emilie emilie-e46158400e23cdef8bd7b1c1460299d50f32a64992d878d973f854b2f32eef1d.BPBapQ.9J9ptibFGGGR6P4c-uXUFivHR9c register -r devpi
+   created workdir /tmp/devpi21
+   --> $ hg st -nmac . 
+   hg-exported project to /tmp/devpi21/upload/pysober
+   --> $ /home/hpk/venv/0/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi21/upload/pysober http://localhost:3141/emilie/dev/ emilie emilie-2fb80ca8e738a6f5b46d9503b7d48122e3305671988a18718ad926a5c6c0e8e9.BSMY8w.5gBUwNcDlQvCrVohV987K02RyaE register -r devpi 
    release registered to http://localhost:3141/emilie/dev/
-   --> $ /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/python /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/local/lib/python2.7/site-packages/devpi/upload/setuppy.py /tmp/devpi39/upload/pysober http://localhost:3141/emilie/dev/ emilie emilie-e46158400e23cdef8bd7b1c1460299d50f32a64992d878d973f854b2f32eef1d.BPBapQ.9J9ptibFGGGR6P4c-uXUFivHR9c sdist --formats gztar upload -r devpi
+   --> $ /home/hpk/venv/0/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi21/upload/pysober http://localhost:3141/emilie/dev/ emilie emilie-2fb80ca8e738a6f5b46d9503b7d48122e3305671988a18718ad926a5c6c0e8e9.BSMY8w.5gBUwNcDlQvCrVohV987K02RyaE sdist --formats gztar upload -r devpi 
+   Server response (200): OK
    submitted dist/pysober-0.1.0.tar.gz to http://localhost:3141/emilie/dev/
-   
-which is equivalent to::
 
-   $ cd pysober; python setup.py sdit
-   usage: setup.py [global_opts] cmd1 [cmd1_opts] [cmd2 [cmd2_opts] ...]
-      or: setup.py --help [cmd1 cmd2 ...]
-      or: setup.py --help-commands
-      or: setup.py cmd --help
+.. note::
+
+       The ``upload`` command effectively calls ``python setup.py register``
+       and ``python setup.py sdist upload`` using a wrapper script that
+       makes sure we are doing these operations against our current
+       in-use index.
    
-   error: invalid command 'sdit'
-   
-We can then verify that the project has been uploaded::
+Let's verify that the project has been uploaded::
 
    $ devpi list pysober
-   list result: http://localhost:3141/emilie/dev/
+   list result: http://localhost:3141/emilie/dev/pysober
    emilie/dev/pysober/0.1.0/pysober-0.1.0.tar.gz
    
 Assuming that we create a new version::
@@ -124,28 +122,19 @@ Assuming that we create a new version::
 We can now upload the new version::
 
    $ cd pysober; devpi upload
-   created workdir /tmp/devpi40
-   --> $ hg st -nmac .
-   hg-exported project to <Exported /tmp/devpi40/upload/pysober>
-   --> $ /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/python /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/local/lib/python2.7/site-packages/devpi/upload/setuppy.py /tmp/devpi40/upload/pysober http://localhost:3141/emilie/dev/ emilie emilie-e46158400e23cdef8bd7b1c1460299d50f32a64992d878d973f854b2f32eef1d.BPBapQ.9J9ptibFGGGR6P4c-uXUFivHR9c register -r devpi
+   created workdir /tmp/devpi22
+   --> $ hg st -nmac . 
+   hg-exported project to /tmp/devpi22/upload/pysober
+   --> $ /home/hpk/venv/0/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi22/upload/pysober http://localhost:3141/emilie/dev/ emilie emilie-2fb80ca8e738a6f5b46d9503b7d48122e3305671988a18718ad926a5c6c0e8e9.BSMY8w.5gBUwNcDlQvCrVohV987K02RyaE register -r devpi 
    release registered to http://localhost:3141/emilie/dev/
-   --> $ /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/python /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/local/lib/python2.7/site-packages/devpi/upload/setuppy.py /tmp/devpi40/upload/pysober http://localhost:3141/emilie/dev/ emilie emilie-e46158400e23cdef8bd7b1c1460299d50f32a64992d878d973f854b2f32eef1d.BPBapQ.9J9ptibFGGGR6P4c-uXUFivHR9c sdist --formats gztar upload -r devpi
+   --> $ /home/hpk/venv/0/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi22/upload/pysober http://localhost:3141/emilie/dev/ emilie emilie-2fb80ca8e738a6f5b46d9503b7d48122e3305671988a18718ad926a5c6c0e8e9.BSMY8w.5gBUwNcDlQvCrVohV987K02RyaE sdist --formats gztar upload -r devpi 
+   Server response (200): OK
    submitted dist/pysober-0.2.0.tar.gz to http://localhost:3141/emilie/dev/
    
-again equivalent to::
-
-   $ cd pysober; python setup.py sdit
-   usage: setup.py [global_opts] cmd1 [cmd1_opts] [cmd2 [cmd2_opts] ...]
-      or: setup.py --help [cmd1 cmd2 ...]
-      or: setup.py --help-commands
-      or: setup.py cmd --help
-   
-   error: invalid command 'sdit'
-   
-And we now have::
+We can verify that we uploaded two versions of our release file::
 
    $ devpi list pysober
-   list result: http://localhost:3141/emilie/dev/
+   list result: http://localhost:3141/emilie/dev/pysober
    emilie/dev/pysober/0.2.0/pysober-0.2.0.tar.gz
    emilie/dev/pysober/0.1.0/pysober-0.1.0.tar.gz
    
@@ -170,7 +159,7 @@ removed::
 ::
 
    $ devpi list pysober   
-   list result: http://localhost:3141/emilie/dev/
+   list result: http://localhost:3141/emilie/dev/pysober
    emilie/dev/pysober/0.1.0/pysober-0.1.0.tar.gz
    
 In the event the entire project was wrongly created, it is also possible to 
@@ -186,20 +175,58 @@ delete it (beware, this can't be undone)::
 And has the list command show, the project is no longer there::
 
    $ devpi list pysober   
-   list result: http://localhost:3141/emilie/dev/
+   list result: http://localhost:3141/emilie/dev/pysober
 
 .. _devpi_um_packages_fromdir_upload:
 
 Uploading from a Directory
 --------------------------
 
-In the :ref:`previous section <devpi_um_packages_rf_remove>` we delete the project ``pysober``.
-However the files are still in the local file system ``dist`` folder::
+In the :ref:`previous section <devpi_um_packages_rf_remove>` we delete the project ``pysober``.  Let's execute a direct packaging step and then upload
+the resulting release file.  First the typical ``setup.py`` packaging call::
+
+   $ cd pysober ; python setup.py sdist
+   running sdist
+   running egg_info
+   writing pysober.egg-info/PKG-INFO
+   writing top-level names to pysober.egg-info/top_level.txt
+   writing dependency_links to pysober.egg-info/dependency_links.txt
+   reading manifest file 'pysober.egg-info/SOURCES.txt'
+   reading manifest template 'MANIFEST.in'
+   writing manifest file 'pysober.egg-info/SOURCES.txt'
+   running check
+   creating pysober-0.2.0
+   creating pysober-0.2.0/doc
+   creating pysober-0.2.0/doc/source
+   creating pysober-0.2.0/pysober.egg-info
+   creating pysober-0.2.0/test
+   making hard links in pysober-0.2.0...
+   hard linking MANIFEST.in -> pysober-0.2.0
+   hard linking README -> pysober-0.2.0
+   hard linking pysober.py -> pysober-0.2.0
+   hard linking setup.py -> pysober-0.2.0
+   hard linking tox.ini -> pysober-0.2.0
+   hard linking doc/Makefile -> pysober-0.2.0/doc
+   hard linking doc/source/conf.py -> pysober-0.2.0/doc/source
+   hard linking doc/source/index.rst -> pysober-0.2.0/doc/source
+   hard linking doc/source/overview.rst -> pysober-0.2.0/doc/source
+   hard linking pysober.egg-info/PKG-INFO -> pysober-0.2.0/pysober.egg-info
+   hard linking pysober.egg-info/SOURCES.txt -> pysober-0.2.0/pysober.egg-info
+   hard linking pysober.egg-info/dependency_links.txt -> pysober-0.2.0/pysober.egg-info
+   hard linking pysober.egg-info/not-zip-safe -> pysober-0.2.0/pysober.egg-info
+   hard linking pysober.egg-info/top_level.txt -> pysober-0.2.0/pysober.egg-info
+   hard linking test/conftest.py -> pysober-0.2.0/test
+   hard linking test/test_pysober.py -> pysober-0.2.0/test
+   Writing pysober-0.2.0/setup.cfg
+   Creating tar archive
+   removing 'pysober-0.2.0' (and everything under it)
+
+We now have a release file in the ``dist`` directory::
 
    $ ls pysober/dist
    pysober-0.2.0.tar.gz
 
-`devpi`_ provide a way to upload all the :term:`release files <release file>` 
+`devpi`_ provides a way to upload all the :term:`release files <release file>` 
 from a directory::
 
    $ devpi upload --from-dir pysober/dist
@@ -209,11 +236,12 @@ from a directory::
 which in our case would restore the project::
 
    $ devpi list pysober   
-   list result: http://localhost:3141/emilie/dev/
+   list result: http://localhost:3141/emilie/dev/pysober
    emilie/dev/pysober/0.2.0/pysober-0.2.0.tar.gz
 
-When using the ``--only-latest``, only the most recent :term:`release file` is
-uploaded, on this case ``pysober-0.2.0``   
+You can use the ``--only-latest`` option if you have multiple 
+:term:`release file` files with different versions, causing
+the upload of only the respective latest version.
 
 .. _devpi_um_packages_push:
 
@@ -262,13 +290,13 @@ Let's also make sure we now switch (use) the appropriate index::
 Finally let's take a look at the index to see if the ``pysober`` is present::
 
    $ devpi list pysober
-   list result: http://localhost:3141/sophie/dev/
+   list result: http://localhost:3141/sophie/dev/pysober
 
 As expected, this package is not found. In order to access this package, Sophie 
 can modify her ``dev`` index to use ``/emilie/prod`` index as a base::
 
    $ devpi index /sophie/dev bases=/emilie/prod,/sophie/prod  
-   /sophie/dev changing bases: /emilie/prod,/sophie/prod
+   /sophie/dev changing bases: ['/emilie/prod', '/sophie/prod']
    /sophie/dev:
      type=stage
      bases=emilie/prod,sophie/prod
@@ -279,7 +307,7 @@ can modify her ``dev`` index to use ``/emilie/prod`` index as a base::
 The list command now gives her a different picture::
 
    $ devpi list pysober
-   list result: http://localhost:3141/sophie/dev/
+   list result: http://localhost:3141/sophie/dev/pysober
    emilie/prod/pysober/0.2.0/pysober-0.2.0.tar.gz
    
 However, keep in mind that the :term:`release file` is not copied to Sophie's
@@ -298,18 +326,19 @@ She can however, modify the package::
 And upload a new version to her ``/sophie/dev`` index::
 
    $ cd pysober; devpi upload
-   created workdir /tmp/devpi41
-   --> $ hg st -nmac .
-   hg-exported project to <Exported /tmp/devpi41/upload/pysober>
-   --> $ /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/python /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/local/lib/python2.7/site-packages/devpi/upload/setuppy.py /tmp/devpi41/upload/pysober http://localhost:3141/sophie/dev/ sophie sophie-efb9aedb069ee33192e50db173f68940dbffb341dbc134e7fb6641a190e8bb8f.BPBaqw.8GZZnKnWS3xWNUCB-zl6wOz9hCg register -r devpi
+   created workdir /tmp/devpi23
+   --> $ hg st -nmac . 
+   hg-exported project to /tmp/devpi23/upload/pysober
+   --> $ /home/hpk/venv/0/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi23/upload/pysober http://localhost:3141/sophie/dev/ sophie sophie-a97ea838b5735b9fb03d2753ef01d8cda5404e703a87f08af7902eef5c8b60ef.BSMY-w.MrdRonqo5rEJi5zwH-VpRlPA6-8 register -r devpi 
    release registered to http://localhost:3141/sophie/dev/
-   --> $ /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/python /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/local/lib/python2.7/site-packages/devpi/upload/setuppy.py /tmp/devpi41/upload/pysober http://localhost:3141/sophie/dev/ sophie sophie-efb9aedb069ee33192e50db173f68940dbffb341dbc134e7fb6641a190e8bb8f.BPBaqw.8GZZnKnWS3xWNUCB-zl6wOz9hCg sdist --formats gztar upload -r devpi
+   --> $ /home/hpk/venv/0/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi23/upload/pysober http://localhost:3141/sophie/dev/ sophie sophie-a97ea838b5735b9fb03d2753ef01d8cda5404e703a87f08af7902eef5c8b60ef.BSMY-w.MrdRonqo5rEJi5zwH-VpRlPA6-8 sdist --formats gztar upload -r devpi 
+   Server response (200): OK
    submitted dist/pysober-0.2.1.tar.gz to http://localhost:3141/sophie/dev/
    
 which leads to::
 
    $ devpi list pysober
-   list result: http://localhost:3141/sophie/dev/
+   list result: http://localhost:3141/sophie/dev/pysober
    sophie/dev/pysober/0.2.1/pysober-0.2.1.tar.gz
    emilie/prod/pysober/0.2.0/pysober-0.2.0.tar.gz
    
@@ -340,7 +369,7 @@ Then switching back to her index::
 Sophie would see the following::
 
    $ devpi list pysober
-   list result: http://localhost:3141/sophie/dev/
+   list result: http://localhost:3141/sophie/dev/pysober
    sophie/dev/pysober/0.2.1/pysober-0.2.1.tar.gz
    emilie/prod/pysober/0.2.0/pysober-0.2.0.tar.gz
 
@@ -357,7 +386,7 @@ the subsequent attempt would work::
 Leaving now her index in that state::
 
    $ devpi list pysober
-   list result: http://localhost:3141/sophie/dev/
+   list result: http://localhost:3141/sophie/dev/pysober
    sophie/dev/pysober/0.2.1/pysober-0.2.1.tar.gz
    emilie/prod/pysober/0.2.0/pysober-0.2.0.tar.gz
 

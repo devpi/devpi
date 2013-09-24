@@ -223,6 +223,9 @@ regen.server-clean: regen.sample_undo
 	-devpi-server --stop
 	@echo deleting $(DEVPI_CLIENTDIR) $(DEVPI_SERVERDIR)
 	-rm -rf $(DEVPI_CLIENTDIR) $(DEVPI_SERVERDIR)
+	@echo deleting pysober/dist
+	-rm userman/pysober/dist/*
+
     
 
 regen.uman-all : regen.server-fresh $(USER_MAN_CHAPTERS)

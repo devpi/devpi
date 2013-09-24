@@ -17,8 +17,9 @@ getjson
 ::
 
     $ devpi getjson -h
-    usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi getjson
-           [-h] [--version] [--debug] [-y] [--clientdir DIR] path
+    usage: /home/hpk/venv/0/bin/devpi getjson [-h] [--version] [--debug] [-y] [-v]
+                                              [--clientdir DIR]
+                                              path
     
     show remote server and index configuration. A low-level command to show json-
     formatted configuration data from remote resources. This will always query the
@@ -35,6 +36,7 @@ getjson
       --version        show program's version number and exit
       --debug          show debug messages including more info on server requests
       -y               assume 'yes' on confirmation questions
+      -v, --verbose    increase verbosity
       --clientdir DIR  directory for storing login and other state
 
 .. _cmdref_index:
@@ -45,9 +47,10 @@ index
 ::
 
     $ devpi index -h
-    usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi index
-           [-h] [--version] [--debug] [-y] [--clientdir DIR] [-c | --delete | -l]
-           [indexname] [keyvalues [keyvalues ...]]
+    usage: /home/hpk/venv/0/bin/devpi index [-h] [--version] [--debug] [-y] [-v]
+                                            [--clientdir DIR] [-c | --delete | -l]
+                                            [indexname]
+                                            [keyvalues [keyvalues ...]]
     
     create, delete and manage indexes. This is the central command to create and
     manipulate indexes. The index is always created under the currently logged in
@@ -71,6 +74,7 @@ index
       --version        show program's version number and exit
       --debug          show debug messages including more info on server requests
       -y               assume 'yes' on confirmation questions
+      -v, --verbose    increase verbosity
       --clientdir DIR  directory for storing login and other state
 
 .. _cmdref_install:
@@ -81,10 +85,10 @@ install
 ::
 
     $ devpi install -h
-    usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi install
-           [-h] [--version] [--debug] [-y] [--clientdir DIR] [-l] [-e ARG]
-           [--venv DIR]
-           [pkg [pkg ...]]
+    usage: /home/hpk/venv/0/bin/devpi install [-h] [--version] [--debug] [-y] [-v]
+                                              [--clientdir DIR] [-l] [-e ARG]
+                                              [--venv DIR]
+                                              [pkg [pkg ...]]
     
     install packages through current devpi index. This is convenience wrapper
     which configures and invokes ``pip install`` commands for you, using the
@@ -104,6 +108,7 @@ install
       --version        show program's version number and exit
       --debug          show debug messages including more info on server requests
       -y               assume 'yes' on confirmation questions
+      -v, --verbose    increase verbosity
       --clientdir DIR  directory for storing login and other state
 
 .. _cmdref_list:
@@ -114,8 +119,9 @@ list
 ::
 
     $ devpi list -h
-    usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi list
-           [-h] [--version] [--debug] [-y] [--clientdir DIR] [-f] [spec]
+    usage: /home/hpk/venv/0/bin/devpi list [-h] [--version] [--debug] [-y] [-v]
+                                           [--clientdir DIR] [-f]
+                                           [spec]
     
     list project versions and files for the current index. Without a ``spec``
     argument this command will show the names of all projects that have been used.
@@ -134,6 +140,7 @@ list
       --version        show program's version number and exit
       --debug          show debug messages including more info on server requests
       -y               assume 'yes' on confirmation questions
+      -v, --verbose    increase verbosity
       --clientdir DIR  directory for storing login and other state
 
 .. _cmdref_login:
@@ -144,9 +151,10 @@ login
 ::
 
     $ devpi login -h
-    usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi login
-           [-h] [--version] [--debug] [-y] [--clientdir DIR] [--password PASSWORD]
-           username
+    usage: /home/hpk/venv/0/bin/devpi login [-h] [--version] [--debug] [-y] [-v]
+                                            [--clientdir DIR]
+                                            [--password PASSWORD]
+                                            username
     
     login to devpi-server with the specified user. This command performs the login
     protocol with the remove server which typically results in a cached auth token
@@ -165,6 +173,7 @@ login
       --debug              show debug messages including more info on server
                            requests
       -y                   assume 'yes' on confirmation questions
+      -v, --verbose        increase verbosity
       --clientdir DIR      directory for storing login and other state
 
 .. _cmdref_logoff:
@@ -175,8 +184,8 @@ logoff
 ::
 
     $ devpi logoff -h
-    usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi logoff
-           [-h] [--version] [--debug] [-y] [--clientdir DIR]
+    usage: /home/hpk/venv/0/bin/devpi logoff [-h] [--version] [--debug] [-y] [-v]
+                                             [--clientdir DIR]
     
     log out of the current devpi-server. This will erase the client-side login
     token (see "devpi login").
@@ -188,6 +197,7 @@ logoff
       --version        show program's version number and exit
       --debug          show debug messages including more info on server requests
       -y               assume 'yes' on confirmation questions
+      -v, --verbose    increase verbosity
       --clientdir DIR  directory for storing login and other state
 
 .. _cmdref_push:
@@ -198,9 +208,9 @@ push
 ::
 
     $ devpi push -h
-    usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi push
-           [-h] [--version] [--debug] [-y] [--clientdir DIR] [--pypirc path]
-           NAME-VER TARGETSPEC
+    usage: /home/hpk/venv/0/bin/devpi push [-h] [--version] [--debug] [-y] [-v]
+                                           [--clientdir DIR] [--pypirc path]
+                                           NAME-VER TARGETSPEC
     
     push a release and releasefiles to an internal or external index. You can push
     a release with all its release files either to an external pypi server
@@ -224,6 +234,7 @@ push
       --version        show program's version number and exit
       --debug          show debug messages including more info on server requests
       -y               assume 'yes' on confirmation questions
+      -v, --verbose    increase verbosity
       --clientdir DIR  directory for storing login and other state
 
 .. _cmdref_quickstart:
@@ -234,9 +245,11 @@ quickstart
 ::
 
     $ devpi quickstart -h
-    usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi quickstart
-           [-h] [--version] [--debug] [-y] [--clientdir DIR] [--user USER]
-           [--password PASSWORD] [--index INDEX] [--dry-run]
+    usage: /home/hpk/venv/0/bin/devpi quickstart [-h] [--version] [--debug] [-y]
+                                                 [-v] [--clientdir DIR]
+                                                 [--user USER]
+                                                 [--password PASSWORD]
+                                                 [--index INDEX] [--dry-run]
     
     start a server, create a user and login, then create a USER/dev index and then
     connect to this index, so that subsequent devpi commands can work with it.
@@ -253,6 +266,7 @@ quickstart
       --debug              show debug messages including more info on server
                            requests
       -y                   assume 'yes' on confirmation questions
+      -v, --verbose        increase verbosity
       --clientdir DIR      directory for storing login and other state
 
 .. _cmdref_remove:
@@ -263,8 +277,9 @@ remove
 ::
 
     $ devpi remove -h
-    usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi remove
-           [-h] [--version] [--debug] [-y] [--clientdir DIR] spec
+    usage: /home/hpk/venv/0/bin/devpi remove [-h] [--version] [--debug] [-y] [-v]
+                                             [--clientdir DIR]
+                                             spec
     
     remove project info/files from current index. This command allows to remove
     projects or releases from your current index (see "devpi use"). It will ask
@@ -282,6 +297,7 @@ remove
       --version        show program's version number and exit
       --debug          show debug messages including more info on server requests
       -y               assume 'yes' on confirmation questions
+      -v, --verbose    increase verbosity
       --clientdir DIR  directory for storing login and other state
 
 .. _cmdref_test:
@@ -292,25 +308,30 @@ test
 ::
 
     $ devpi test -h
-    usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi test
-           [-h] [--version] [--debug] [-y] [--clientdir DIR] [-e VENV] pkgspec
+    usage: /home/hpk/venv/0/bin/devpi test [-h] [--version] [--debug] [-y] [-v]
+                                           [--clientdir DIR] [-e VENV]
+                                           [--tox-args toxargs]
+                                           pkgspec
     
     download and test a package against tox environments. Download a package and
     run tests as configured by the tox.ini file (which must be contained in the
     package).
     
     positional arguments:
-      pkgspec          package specification to download and test
+      pkgspec             package specification to download and test
     
     optional arguments:
-      -h, --help       show this help message and exit
-      -e VENV          virtual environment to run from the tox.ini
+      -h, --help          show this help message and exit
+      -e VENV             virtual environment to run from the tox.ini
+      --tox-args toxargs  extra command line arguments for tox
     
     generic options:
-      --version        show program's version number and exit
-      --debug          show debug messages including more info on server requests
-      -y               assume 'yes' on confirmation questions
-      --clientdir DIR  directory for storing login and other state
+      --version           show program's version number and exit
+      --debug             show debug messages including more info on server
+                          requests
+      -y                  assume 'yes' on confirmation questions
+      -v, --verbose       increase verbosity
+      --clientdir DIR     directory for storing login and other state
 
 .. _cmdref_upload:
 
@@ -320,10 +341,12 @@ upload
 ::
 
     $ devpi upload -h
-    usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi upload
-           [-h] [--version] [--debug] [-y] [--clientdir DIR] [--ver SETVERSION]
-           [--formats FORMATS] [--from-dir FROMDIR] [--only-latest] [--dry-run]
-           [--with-docs] [--only-docs]
+    usage: /home/hpk/venv/0/bin/devpi upload [-h] [--version] [--debug] [-y] [-v]
+                                             [--clientdir DIR] [--no-vcs]
+                                             [--formats FORMATS]
+                                             [--from-dir FROMDIR] [--only-latest]
+                                             [--dry-run] [--with-docs]
+                                             [--only-docs]
     
     prepare and upload packages to the current index. This command wraps
     ``setup.py`` invocations to build and upload releases, release files and
@@ -331,8 +354,8 @@ upload
     
     optional arguments:
       -h, --help          show this help message and exit
-      --ver SETVERSION    fill version string into setup.py, */__init__.py
-                          */conf.py files
+      --no-vcs            don't VCS-export to a fresh dir, just execute setup.py
+                          scripts directly using their dirname as current dir.
       --formats FORMATS   comma separated list of build formats (passed to
                           setup.py). Examples
                           sdist.zip,bdist_egg,bdist_wheel,bdist_dumb.
@@ -349,6 +372,7 @@ upload
       --debug             show debug messages including more info on server
                           requests
       -y                  assume 'yes' on confirmation questions
+      -v, --verbose       increase verbosity
       --clientdir DIR     directory for storing login and other state
 
 .. _cmdref_use:
@@ -359,10 +383,10 @@ use
 ::
 
     $ devpi use -h
-    usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi use
-           [-h] [--version] [--debug] [-y] [--clientdir DIR] [--venv VENV]
-           [--urls] [-l] [--delete]
-           [url]
+    usage: /home/hpk/venv/0/bin/devpi use [-h] [--version] [--debug] [-y] [-v]
+                                          [--clientdir DIR] [--venv VENV] [--urls]
+                                          [-l] [--delete]
+                                          [url]
     
     show/configure current index and target venv for install activities. This
     shows client-side state, relevant for server interactions, including login
@@ -388,6 +412,7 @@ use
       --version        show program's version number and exit
       --debug          show debug messages including more info on server requests
       -y               assume 'yes' on confirmation questions
+      -v, --verbose    increase verbosity
       --clientdir DIR  directory for storing login and other state
 
 .. _cmdref_user:
@@ -398,10 +423,10 @@ user
 ::
 
     $ devpi user -h
-    usage: /home/lpbrac/bitbucket/devpi_doc_contrib_1_0/bin/devpi user
-           [-h] [--version] [--debug] [-y] [--clientdir DIR] [-c] [--delete] [-m]
-           [-l]
-           [username] [keyvalues [keyvalues ...]]
+    usage: /home/hpk/venv/0/bin/devpi user [-h] [--version] [--debug] [-y] [-v]
+                                           [--clientdir DIR] [-c] [--delete] [-m]
+                                           [-l]
+                                           [username] [keyvalues [keyvalues ...]]
     
     add, remove, modify, list user configuration. This is the central command for
     performing remote user configuration and manipulation. Each indexes (created
@@ -425,6 +450,7 @@ user
       --version        show program's version number and exit
       --debug          show debug messages including more info on server requests
       -y               assume 'yes' on confirmation questions
+      -v, --verbose    increase verbosity
       --clientdir DIR  directory for storing login and other state
 
 .. _`cmdref_devpi_server`:
@@ -439,17 +465,19 @@ devpi command reference (server)
                         [--port PORT] [--outside-url URL] [--refresh SECS]
                         [--bypass-cdn] [--passwd USER] [--gendeploy DIR]
                         [--secretfile path] [--bottleserver TYPE] [--debug]
-                        [--start] [--stop] [--status] [--log]
+                        [--export PATH] [--import PATH] [--start] [--stop]
+                        [--status] [--log]
     
-    Start an index server acting as a cache for pypi.python.org, suitable for
-    pip/easy_install usage. The server automatically refreshes the cache of all
-    indexes which have changed on the pypi.python.org side.
+    Start a server which serves multiples users and indices. The special root/pypi
+    index is a real-time mirror of pypi.python.org and is created by default. All
+    indices are suitable for pip or easy_install usage and setup.py upload ...
+    invocations.
     
     optional arguments:
       -h, --help           show this help message and exit
     
     main options:
-      --version            show devpi_version (1.0)
+      --version            show devpi_version (1.1.dev8)
       --serverdir DIR      directory for server data. By default, $DEVPI_SERVERDIR
                            is used if it exists, otherwise the default is
                            '~/.devpi/server'
@@ -481,6 +509,16 @@ devpi command reference (server)
       --bottleserver TYPE  bottle server class, tries 'eventlet', then 'wsgiref'
                            if set to 'auto' (default) [auto]
       --debug              run wsgi application with debug logging
+      --export PATH        export devpi-server database state into PATH. This will
+                           export all users, all indices (except root/pypi),
+                           release files and test results. Documentation is NOT
+                           dumped at this point because it cannot be tied to a
+                           particular version.
+      --import PATH        import devpi-server database from PATH where PATH is a
+                           directory which was created by an --export operation of
+                           a prior devpi-server run (possibly earlier version).
+                           You can only import into a fresh server state directory
+                           which you can set via --serverdir
     
     background server:
       --start              start the background devpi-server
