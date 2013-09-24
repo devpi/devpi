@@ -20,6 +20,7 @@ def test_empty_export(tmpdir, xom):
     assert not ret
     data = json.loads(tmpdir.join("dataindex.json").read())
     assert data["dumpversion"] == Exporter.DUMPVERSION
+    assert data["devpi_server"] == devpi_server.__version__
     with pytest.raises(Fatal):
         do_export(tmpdir, xom)
 

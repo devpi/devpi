@@ -9,6 +9,7 @@ from .urlutil import get_latest_version, Version
 from pkg_resources import parse_version
 
 from devpi_server.main import fatal
+import devpi_server
 
 def do_export(path, xom):
     path = py.path.local(path)
@@ -65,6 +66,7 @@ class Exporter:
     def dump_all(self, path):
         self.basepath = path
         self.export["dumpversion"] = self.DUMPVERSION
+        self.export["devpi_server"] = devpi_server.__version__
         self.export["secret"] = self.config.secret
         self.compute_global_projectname_normalization()
         users = self.export_users
