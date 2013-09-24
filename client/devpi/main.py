@@ -611,6 +611,10 @@ def test(parser):
         default=None, action="store", nargs=1,
         help="package specification to download and test")
 
+    parser.add_argument("--tox-args", metavar="toxargs", action="store",
+        dest="toxargs", default=None,
+        help="extra command line arguments for tox")
+
 @subcommand("devpi.push")
 def push(parser):
     """ push a release and releasefiles to an internal or external index.

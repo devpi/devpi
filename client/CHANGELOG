@@ -7,6 +7,9 @@
 
 - getjson now prints http reply headers if "-v|--verbose" was supplied.
 
+- fix issue50: introduce "--toxargs" to "devpi test" invocations in
+  order to add arbitrary arguments to tox.
+
 - fix issue43: set PIP_PRE environment variable when executing
   "devpi install ..." so that the behaviour between 
   pip < 1.4 and >= 1.4 is normalized to always install 

@@ -25,6 +25,19 @@ def test_post_tox_json_report_error(loghub, mock_http_api):
         *could not post*http://devpi.net/+tests*
     """)
 
+def test_passthrough_args_toxargs(makehub, tmpdir):
+    hub = makehub(["test", "--tox-args", "-- -x", "somepkg"])
+    index = DevIndex(hub, tmpdir, None)
+    args = index.get_tox_args()
+    assert args == ["--", "-x"]
+
+def test_passthrough_args_env(makehub, tmpdir):
+    hub = makehub(["test", "-epy27", "somepkg"])
+    index = DevIndex(hub, tmpdir, None)
+    args = index.get_tox_args()
+    assert args == ["-epy27"]
+
+
 class TestFunctional:
     @pytest.mark.xfail(reason="output capturing for devpi calls")
     def test_main_nopackage(self, out_devpi):
@@ -45,3 +58,4 @@ class TestFunctional:
         result = out_devpi("list", "-f", "exa")
         assert result.ret == 0
         result.stdout.fnmatch_lines("""*tests passed*""")
+

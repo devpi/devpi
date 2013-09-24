@@ -1,6 +1,7 @@
 
 from __future__ import with_statement
 import os, sys
+import shlex
 import hashlib
 import mimetypes
 import posixpath
@@ -66,7 +67,7 @@ class DevIndex:
         #req = pkg_resources.parse_requirements(pkgspec)[0]
         return self.remoteindex.getbestlink(pkgname)
 
-    def runtox(self, link, Popen, venv=None):
+    def runtox(self, link):
         path_archive = link.pkg.path_archive
 
         # publishing some infos to the commands started by tox
@@ -78,8 +79,7 @@ class DevIndex:
                    "-i ALL=%s" % self.current.simpleindex,
                    "--result-json", str(jsonreport),
         ]
-        if venv is not None:
-            toxargs.append("-e" + venv)
+        toxargs.extend(self.get_tox_args())
 
         self.hub.info("%s$ tox %s" %(link.pkg.path_unpacked,
                       " ".join(toxargs)))
@@ -99,6 +99,15 @@ class DevIndex:
             self.hub.error("tox command failed", ret)
             return 1
         return 0
+
+    def get_tox_args(self):
+        toxargs = []
+        args = self.hub.args
+        if args.venv is not None:
+            toxargs.append("-e" + args.venv)
+        if args.toxargs:
+            toxargs.extend(shlex.split(args.toxargs))
+        return toxargs
 
 def post_tox_json_report(hub, href, jsondata):
     hub.line("posting tox result data to %s" % href)
@@ -133,5 +142,5 @@ def main(hub, args):
     if not link:
         hub.fatal("could not find/receive link")
     devindex.download_and_unpack(link)
-    ret = devindex.runtox(link, Popen=hub.Popen, venv=args.venv)
+    ret = devindex.runtox(link)
     return ret
