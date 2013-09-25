@@ -1,6 +1,7 @@
 import py
 from py.xml import html
 from devpi_server.types import lazydecorator, cached_property
+import devpi_server
 from bottle import response, request, abort, redirect, HTTPError
 from bottle import BaseResponse, HTTPResponse, static_file
 import bottle
@@ -13,8 +14,6 @@ from .validation import normalize_name, is_valid_archive_name
 from .auth import Auth
 from .config import render_string
 from . import urlutil
-
-API_VERSION = "1"
 
 log = logging.getLogger(__name__)
 
@@ -40,11 +39,17 @@ def simple_html_body(title, bodytags, extrahead=""):
 #                       status=code, headers=
 #                       {"content-type": "application/json"})
 
+API_VERSION = "1"
+
+meta_headers = {"X-DEVPI-API-VERSION": API_VERSION,
+                "X-DEVPI-SERVER-VERSION": devpi_server.__version__}
+
 def abort(code, body):
     if "application/json" in request.headers.get("Accept", ""):
         apireturn(code, body)
     error = HTTPError(code, body)
-    error.add_header("X-DEVPI-API-VERSION", API_VERSION)
+    for n,v in meta_headers.items():
+        error.add_header(n, v)
     raise error
 
 def abort_custom(code, msg):
@@ -67,9 +72,9 @@ def apireturn(code, message=None, result=None, type=None):
     if message:
         d["message"] = message
     data = json.dumps(d, indent=2) + "\n"
-    raise HTTPResponse(body=data, status=code, header=
-                    {"content-type": "application/json",
-                     "X-DEVPI-API-VERSION": API_VERSION})
+    header = meta_headers.copy()
+    header["content-type"] = "application/json"
+    raise HTTPResponse(body=data, status=code, header=header)
 
 def json_preferred():
     # XXX do proper "best" matching

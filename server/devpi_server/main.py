@@ -10,8 +10,10 @@ import threading
 from logging import getLogger
 log = getLogger(__name__)
 
-from devpi_server.types import cached_property
-from devpi_server.config import parseoptions, configure_logging
+from .types import cached_property
+from .config import parseoptions, configure_logging
+from .urlutil import Version
+
 import devpi_server
 from pkg_resources import parse_version
 from . import extpypi
@@ -24,22 +26,22 @@ class Fatal(Exception):
 def fatal(msg):
     raise Fatal(msg)
 
-def check_compatible_version(versionfile):
-    last_version = "1.0"
-    last = parse_version(last_version)
-    if versionfile.check():
-        current_version = versionfile.read()
-        current = parse_version(current_version)
-        if current >= last:
-            return
-        fatal("serverstate version %s (read from %s), "
-              "not compatible with %s" %(
-                current_version, versionfile, devpi_server.__version__))
+def check_compatible_version(xom):
+    server_version = Version(devpi_server.__version__)
+    serverdir = xom.config.serverdir
+    versionfile = serverdir.join(".serverversion")
+    if not versionfile.check():
+        if not xom.db.is_empty():
+            fatal("serverdir %s is unversioned, assuming 1.0.\n"
+                  "Use --upgrade to migrate your data. " % serverdir)
+        # pypi mirror state is going to be invalidated anyway.
     else:
-        version = devpi_server.__version__
-        assert parse_version(version) >= last
-        versionfile.dirpath().ensure(dir=1)
-        versionfile.write(version)
+        state_version = Version(versionfile.read())
+        if server_version < state_version:
+            fatal("Incompatible state: server %s cannot run serverdir "
+                  "%s in %s. " %(server_version, serverdir, state_version))
+    versionfile.write(server_version.string)
+    log.info("setting new server version %s in serverdir" %(server_version))
 
 def main(argv=None):
     """ devpi-server command line entry point. """
@@ -61,14 +63,13 @@ def _main(argv=None):
         print (devpi_server.__version__)
         return
 
-    versionfile = config.serverdir.join(".serverversion")
-    check_compatible_version(versionfile)
-
     # meta commmands (that will not instantiate server object in-process)
     if args.gendeploy:
         from devpi_server.gendeploy import gendeploy
         return gendeploy(config)
 
+    xom = XOM(config)
+    check_compatible_version(xom)
     if args.start or args.stop or args.log or args.status:
         xprocdir = config.serverdir.join(".xproc")
         from devpi_server.bgserver import BackgroundServer
@@ -88,7 +89,6 @@ def _main(argv=None):
                 bgserver.line("no server is running")
             return
 
-    xom = XOM(config)
     if args.passwd:
         from devpi_server.db import run_passwd
         return run_passwd(xom.db, config.args.passwd)

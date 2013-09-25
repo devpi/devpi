@@ -16,16 +16,19 @@ def test_get_bottle_server_eventlet_if_exists(monkeypatch):
     assert get_bottle_server("auto") == "eventlet"
 
 
-def test_check_compatible_version(tmpdir):
-    versionfile = tmpdir.join("version")
-    check_compatible_version(versionfile)
-    assert versionfile.read() == devpi_server.__version__
-
-def test_check_compatible_version_raises(tmpdir):
-    versionfile = tmpdir.join("version")
-    versionfile.write("0.9.4")
+def test_check_compatible_version_earlier(xom, monkeypatch):
+    monkeypatch.setattr(xom.db, "is_empty", lambda: False)
     with pytest.raises(Fatal):
-        check_compatible_version(versionfile)
+        check_compatible_version(xom)
+
+def test_check_compatible_version_self(xom):
+    check_compatible_version(xom)
+
+def test_check_incompatible_version_raises(xom):
+    versionfile = xom.config.serverdir.join(".serverversion")
+    versionfile.write("5.0.4")
+    with pytest.raises(Fatal):
+        check_compatible_version(xom)
 
 def test_invalidate_is_called(monkeypatch, tmpdir):
     monkeypatch.setattr(devpi_server.main, "bottle_run", lambda *args: None)

@@ -213,5 +213,8 @@ class Version(CompareMixin):
         self.string = versionstring
         self.cmpval = parse_version(versionstring)
 
+    def __str__(self):
+        return self.string
+
 def get_latest_version(seq):
     return max(map(Version, seq))
