@@ -81,8 +81,7 @@ devpi install: installing a package
 +++++++++++++++++++++++++++++++++++
 
 We can now use the ``devpi`` command line client to trigger a ``pip
-install`` of a pypi package (here ``pytest`` as an example) through an
-auto-started caching devpi-server::
+install`` of a pypi package using the index from our already running server::
 
     $ devpi install pytest
     --> $ docenv/bin/pip install -U -i http://localhost:3141/testuser/dev/+simple/ pytest  [PIP_USE_WHEEL=1,PIP_PRE=1]
