@@ -774,7 +774,7 @@ def trigger_jenkins(stage, jenkins_url, testspec):
                   testspec, jenkins_url)
         return -1
 
-    if r.status_code == 200:
+    if 200 <= r.status_code < 300:
         log.info("successfully triggered jenkins: %s", jenkins_url)
     else:
         log.error("%s: failed to trigger jenkins at %s", r.status_code,

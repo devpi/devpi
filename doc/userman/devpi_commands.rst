@@ -461,12 +461,12 @@ devpi command reference (server)
 ::
 
     $ devpi-server -h
-    usage: devpi-server [-h] [--version] [serverdir DIR] [--host HOST]
-                        [--port PORT] [--outside-url URL] [--refresh SECS]
-                        [--bypass-cdn] [--passwd USER] [--gendeploy DIR]
-                        [--secretfile path] [--bottleserver TYPE] [--debug]
-                        [--export PATH] [--import PATH] [--start] [--stop]
-                        [--status] [--log]
+    usage: devpi-server [-h] [--host HOST] [--port PORT] [--outside-url URL]
+                        [--bottleserver TYPE] [--debug] [--refresh SECS]
+                        [--bypass-cdn] [--version] [--gendeploy DIR]
+                        [--secretfile path] [--upgrade-state] [--export PATH]
+                        [--import PATH] [--passwd USER] [--serverdir DIR]
+                        [--start] [--stop] [--status] [--log]
     
     Start a server which serves multiples users and indices. The special root/pypi
     index is a real-time mirror of pypi.python.org and is created by default. All
@@ -476,11 +476,7 @@ devpi command reference (server)
     optional arguments:
       -h, --help           show this help message and exit
     
-    main options:
-      --version            show devpi_version (1.1.dev8)
-      serverdir DIR      directory for server data. By default, $DEVPI_SERVERDIR
-                           is used if it exists, otherwise the default is
-                           '~/.devpi/server'
+    web serving options:
       --host HOST          domain/ip address to listen on [localhost]
       --port PORT          port to listen for http requests. When used with
                            --gendeploy, port+1 will be used to prevent accidental
@@ -489,13 +485,20 @@ devpi command reference (server)
                            Set this if you proxy devpi-server through a web server
                            and the web server does not set or you want to override
                            the custom X-outside-url header.
+      --bottleserver TYPE  bottle server class, tries 'eventlet', then 'wsgiref'
+                           if set to 'auto' (default) [auto]
+      --debug              run wsgi application with debug logging
+    
+    pypi mirroring options (root/pypi):
       --refresh SECS       interval for consulting changelog api of
                            pypi.python.org [60]
       --bypass-cdn         set this if you want to bypass pypi's CDN for access to
                            simple pages and packages, in order to rule out cache-
                            invalidation issues. This will only work if you are not
                            using a http proxy.
-      --passwd USER        set password for user USER (interactive)
+    
+    deployment and data options:
+      --version            show devpi_version (1.1)
       --gendeploy DIR      (unix only) install and generate a pre-configured
                            virtualenv directory which puts devpi-server under
                            supervisor control and provides some example files for
@@ -506,19 +509,20 @@ devpi command reference (server)
                            validation. If it does not exist, a random secret is
                            generated on start up and used subsequently.
                            [{serverdir}/.secret]
-      --bottleserver TYPE  bottle server class, tries 'eventlet', then 'wsgiref'
-                           if set to 'auto' (default) [auto]
-      --debug              run wsgi application with debug logging
+      --upgrade-state      upgrade server state if possible.
       --export PATH        export devpi-server database state into PATH. This will
-                           export all users, all indices (except root/pypi),
-                           release files and test results. Documentation is NOT
-                           dumped at this point because it cannot be tied to a
-                           particular version.
+                           export all users, indices (except root/pypi), release
+                           files, test results and documentation.
       --import PATH        import devpi-server database from PATH where PATH is a
-                           directory which was created by an --export operation of
-                           a prior devpi-server run (possibly earlier version).
-                           You can only import into a fresh server state directory
-                           which you can set via serverdir
+                           directory which was created by a 'devpi-server --export
+                           PATH' operation, using the same or an earlier devpi-
+                           server version. Note that you can only import into a
+                           fresh server state directory (positional argument to
+                           devpi-server).
+      --passwd USER        set password for user USER (interactive)
+      --serverdir DIR      directory for server data. By default, $DEVPI_SERVERDIR
+                           is used if it exists, otherwise the default is
+                           '~/.devpi/server'
     
     background server:
       --start              start the background devpi-server

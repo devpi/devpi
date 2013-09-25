@@ -189,6 +189,7 @@ doctest:
 
 
 regen: quickstart-pypimirror quickstart-releaseprocess quickstart-server
+	rm -rf TARGETDIR
 
 quickstart-pypimirror:
 	USER=testuser sh regen.sh --update quickstart-pypimirror.rst
@@ -209,7 +210,7 @@ $(USER_MAN_CHAPTERS):
 	USER=testuser python regendoc.py --update userman/devpi_$@.rst
 
 regen.sample_undo:
-	-hg revert ./userman/pysober
+	-hg revert --all ./userman/pysober
 
 regen.server-fresh: regen.server-clean
 	devpi-server --start
@@ -224,7 +225,7 @@ regen.server-clean: regen.sample_undo
 	@echo deleting $(DEVPI_CLIENTDIR) $(DEVPI_SERVERDIR)
 	-rm -rf $(DEVPI_CLIENTDIR) $(DEVPI_SERVERDIR)
 	@echo deleting pysober/dist
-	-rm userman/pysober/dist/*
+	-rm -rf userman/pysober/dist
 
     
 

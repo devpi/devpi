@@ -34,7 +34,7 @@ Install or upgrade ``devpi-server``::
 And let's check the version::
 
     $ devpi-server --version
-    1.1.dev8
+    1.1
 
 .. _gendeploy:
 
@@ -188,7 +188,7 @@ one::
     # to a global /etc/supervisord/conf.d/devpi-server.conf
     
     [program:devpi-server]
-    command=/home/hpk/p/devpi/doc/TARGETDIR/bin/devpi-server --port 4040 /home/hpk/p/devpi/doc/TARGETDIR/data
+    command=/home/hpk/p/devpi/doc/TARGETDIR/bin/devpi-server --port 4040 --serverdir /home/hpk/p/devpi/doc/TARGETDIR/data
     priority=999
     startsecs = 5
     redirect_stderr = True
@@ -270,7 +270,7 @@ For purposes of this tutorial, we use the direct
     no current index: type 'devpi use -l' to discover indices
 
 At this point we have only a root user and a ``root/pypi``
-index (see :ref:`using root/pypi index <install first>`).
+index (see :ref:`using root/pypi index <install_first>`).
 
 
 setting the root password

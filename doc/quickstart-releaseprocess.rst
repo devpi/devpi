@@ -38,9 +38,10 @@ a series of other devpi commands::
 
     $ devpi quickstart
     --> $ devpi-server --start 
+    set root/pypi default index
     starting background devpi-server at http://localhost:3141
     /home/hpk/p/devpi/doc/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server
-    process 'devpi-server' started pid=3990
+    process 'devpi-server' started pid=20823
     devpi-server process startup detected
     logfile is at /home/hpk/p/devpi/doc/.devpi/server/.xproc/devpi-server/xprocess.log
     --> $ devpi use http://localhost:3141 
@@ -132,9 +133,9 @@ to our ``testuser/dev`` index::
     created workdir /tmp/devpi0
     --> $ hg st -nmac . 
     hg-exported project to /tmp/devpi0/upload/example
-    --> $ /home/hpk/p/devpi/doc/docenv/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi0/upload/example http://localhost:3141/testuser/dev/ testuser testuser-400536a5555fd0e24561f020c1df4218b294bade336e0c6bfe75d46d65b67f2d.BSMbDg.4PZ6LwKt328xiU6k8bbzUW_nu8s register -r devpi 
+    --> $ /home/hpk/p/devpi/doc/docenv/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi0/upload/example http://localhost:3141/testuser/dev/ testuser testuser-93c9ec04a37f012d798c494de3c61aace494b9fe2a43f2d1f34b0a1bbf54c7fd.BSReqA.UAs0QIsfaz2AD_D3FI9hLbe6vc4 register -r devpi 
     release registered to http://localhost:3141/testuser/dev/
-    --> $ /home/hpk/p/devpi/doc/docenv/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi0/upload/example http://localhost:3141/testuser/dev/ testuser testuser-400536a5555fd0e24561f020c1df4218b294bade336e0c6bfe75d46d65b67f2d.BSMbDg.4PZ6LwKt328xiU6k8bbzUW_nu8s sdist --formats gztar upload -r devpi 
+    --> $ /home/hpk/p/devpi/doc/docenv/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi0/upload/example http://localhost:3141/testuser/dev/ testuser testuser-93c9ec04a37f012d798c494de3c61aace494b9fe2a43f2d1f34b0a1bbf54c7fd.BSReqA.UAs0QIsfaz2AD_D3FI9hLbe6vc4 sdist --formats gztar upload -r devpi 
     Server response (200): OK
     submitted dist/example-1.0.tar.gz to http://localhost:3141/testuser/dev/
 

@@ -33,7 +33,7 @@ def gendeploycfg(config, venvdir, tw=None):
         serverdir = venvdir.ensure("data", dir=1)
     else:
         serverdir = config.serverdir
-    orig_args.extend(["serverdir", str(serverdir)])
+    orig_args.extend(["--serverdir", str(serverdir)])
 
     logdir = venvdir.ensure("log", dir=1)
 

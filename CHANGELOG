@@ -1,9 +1,99 @@
-1.0.1.dev
+1.1
 ----------------------------
 
-- improved documentation (thanks Laurent Brack)
+devpi-server:
 
-XXX include server/client changelogs
+- systematically test pypi/mirror code against all 34K pypi projects
+  so that we know that all http/https installable archive links that pypi offers 
+  are correctly recognized by devpi-server's root/pypi index.
+
+- if no pypi mirror state is known, devpi-server now calls
+  pypi to obtain names/serials.  It will fail to start
+  if no such initial connection is possible.  Once a first mirror
+  state is known, subsequent devpi-server starts will
+  not perform this initial query.
+
+- speed up and make more reliable all operations on private packages which
+  have no pypi.python.org release: we can now determine if a project
+  exists on pypi and under which name exactly without
+  remote queries or redirects to pypi.python.org.
+
+- fix issue45: register/upload package names are now properly 
+  validated and redirects take place if e.g. a project was
+  registered as "name-sub" and "+simple/name_sub" is queried.
+
+- new --upgrade-state command to allow for easy and safe
+  in-place upgrading of server state.  This is not guranteed
+  to be possible for all future releases which might require
+  using --export with an older version and --import with a newer
+  version.
+
+- new --export/--import options to dump and import server contents:
+  users, indexes, docs, release files and (test) attachments.
+  Note that root/pypi (PyPI-caching information) will not be exported/imported.
+  (maybe in the future if there is demand). 
+
+- fix issue49: both push and import/export now support docfiles.  Note,
+  however, that docfiles relate to a project as a whole and are not tied
+  to a particular version.  This property is inherited from the PyPI
+  standard upload_docs action and cannot be changed without interfering
+  or replacing the upload_docs protocol of setuptools/sphinx.
+
+- fix issue51: return 200 code if release file is successfully uploaded 
+  but jenkins could not be triggered (previously returned 500)
+
+- reject simple/NAME if NAME contains non-ascii characters
+  (PEP426 naming rules)
+
+- devpi-server now returns a X-DEVPI-API-VERSION and
+  X-DEVPI-SERVER-VERSION header.  For future incompatible changes 
+  these versions allow clients to reject interactions.
+
+- also add ".serverversion" file and write it if it does not
+  exist, and make devpi-server use it to verify if
+  operating on a compatible server data layout, otherwise bail out.
+
+- address issue43: --gendeploy now uses pip without --pre and
+  explicitely instructs pip to install the exact same version 
+  of devpi-server with which --gendeploy is issued.
+
+- fix issue46 -- for GET /root/pypi/ only show a link to the
+  simple page instead of computing "latest in-stage packages"
+  which is only useful for devpi's user indices.
+
+- fix issue37: upload with expired login causes proper 401
+
+
+devpi-client:
+
+- detect "X-DEVPI-API-VERSION" header and check for compatibility.
+  devpi-client currently supports version "1" and warns if
+  no version is known (defaulting to "1").
+
+- getjson now prints http reply headers if "-v|--verbose" was supplied.
+
+- fix issue52: add "--no-vcs" option to force "devpi upload" to not
+  vcs-export files before executing build/upload
+
+- fix issue50: introduce "--toxargs" to "devpi test" invocations in
+  order to add arbitrary arguments to tox.
+
+- fix issue43: set PIP_PRE environment variable when executing
+  "devpi install ..." so that the behaviour between 
+  pip < 1.4 and >= 1.4 is normalized to always install 
+  development versions.
+
+- fix issue47: set PIP_USE_WHEEL with "devpi install ..." so that
+  it will automatically pick up wheel files if pip>1.4 is used.
+
+- fix issue42: allow to set empty bases for an index, so that it doesn't
+  inherit anything.
+
+- fix issue44: "use -l" doesn't break when a user has no index
+
+- devpi test now invokes tox in-process (by importing tox) rather than
+  a subprocess.
+
 
 1.0
 ----------------------------
