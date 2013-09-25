@@ -1,0 +1,360 @@
+devpi-1.1: much improved PyPI mirroring, data migration
+=========================================================                       
+                 
+The devpi-{server,client}-1.1 releases bring a lot of refinements
+and improvements for serving standalone pypi mirrors or company/private
+indexes which seemlessly merge in PyPI releases, mainly:
+
+- improved speed and semantics of pypi cache.  devpi-server
+  has been tested to correctly mirror all ~34000 projects
+  on pypi.python.org now, and minimizes upstream interactions
+  by fully exploiting the existing mirroring protocols.
+
+- data migration: new --upgrade/import/export options.
+  versioning of serverstate and API calls so that future
+  changes can be detected by clients.
+
+- better support for ".whl" files and many other little 
+  improvements and bug fixes, see the changelog
+  below for more info.
+
+Note that devpi-1.1 will require to ``--upgrade`` your 1.0 
+server state before you can serve with devpi-server-1.1 release.
+
+Docs also were updated.  Here is a Quickstart tutorial 
+for efficient pypi-mirroring on your laptop::    
+                                                                                
+    http://doc.devpi.net/1.1/quickstart-pypimirror.html                         
+                                                                                
+And if you want to manage your releases or implement staging                    
+as an individual or within an organisation::                                    
+                                                                                
+    http://doc.devpi.net/1.1/quickstart-releaseprocess.html                     
+                                                                                
+If you want to permanently install devpi-server and potentially                 
+access it from many clients::                                                   
+                                                                                
+    http://doc.devpi.net/1.1/quickstart-server.html                             
+                                                                                
+More documentation and the beginning of an exhaustive user manual::             
+                                                                                
+    http://doc.devpi.net/latest/                                                
+
+have fun,
+
+holger
+
+
+CHANGELOG 1.1
+----------------------------
+
+devpi-server:
+
+- systematically test pypi/mirror code against all 34K pypi projects
+  so that we know that all http/https installable archive links that pypi offers 
+  are correctly recognized by devpi-server's root/pypi index.
+
+- if no pypi mirror state is known, devpi-server now calls
+  pypi to obtain names/serials.  It will fail to start
+  if no such initial connection is possible.  Once a first mirror
+  state is known, subsequent devpi-server starts will
+  not perform this initial query.
+
+- speed up and make more reliable all operations on private packages which
+  have no pypi.python.org release: we can now determine if a project
+  exists on pypi and under which name exactly without
+  remote queries or redirects to pypi.python.org.
+
+- fix issue45: register/upload package names are now properly 
+  validated and redirects take place if e.g. a project was
+  registered as "name-sub" and "+simple/name_sub" is queried.
+
+- new --upgrade-state command to allow for easy and safe
+  in-place upgrading of server state.  This is not guranteed
+  to be possible for all future releases which might require
+  using --export with an older version and --import with a newer
+  version.
+
+- new --export/--import options to dump and import server contents:
+  users, indexes, docs, release files and (test) attachments.
+  Note that root/pypi (PyPI-caching information) will not be exported/imported.
+  (maybe in the future if there is demand). 
+
+- fix issue49: both push and import/export now support docfiles.  Note,
+  however, that docfiles relate to a project as a whole and are not tied
+  to a particular version.  This property is inherited from the PyPI
+  standard upload_docs action and cannot be changed without interfering
+  or replacing the upload_docs protocol of setuptools/sphinx.
+
+- fix issue51: return 200 code if release file is successfully uploaded 
+  but jenkins could not be triggered (previously returned 500)
+
+- reject simple/NAME if NAME contains non-ascii characters
+  (PEP426 naming rules)
+
+- devpi-server now returns a X-DEVPI-API-VERSION and
+  X-DEVPI-SERVER-VERSION header.  For future incompatible changes 
+  these versions allow clients to reject interactions.
+
+- also add ".serverversion" file and write it if it does not
+  exist, and make devpi-server use it to verify if
+  operating on a compatible server data layout, otherwise bail out.
+
+- address issue43: --gendeploy now uses pip without --pre and
+  explicitely instructs pip to install the exact same version 
+  of devpi-server with which --gendeploy is issued.
+
+- fix issue46 -- for GET /root/pypi/ only show a link to the
+  simple page instead of computing "latest in-stage packages"
+  which is only useful for devpi's user indices.
+
+- fix issue37: upload with expired login causes proper 401
+
+
+devpi-client:
+
+- detect "X-DEVPI-API-VERSION" header and check for compatibility.
+  devpi-client currently supports version "1" and warns if
+  no version is known (defaulting to "1").
+
+- getjson now prints http reply headers if "-v|--verbose" was supplied.
+
+- fix issue52: add "--no-vcs" option to force "devpi upload" to not
+  vcs-export files before executing build/upload
+
+- fix issue50: introduce "--toxargs" to "devpi test" invocations in
+  order to add arbitrary arguments to tox.
+
+- fix issue43: set PIP_PRE environment variable when executing
+  "devpi install ..." so that the behaviour between 
+  pip < 1.4 and >= 1.4 is normalized to always install 
+  development versions.
+
+- fix issue47: set PIP_USE_WHEEL with "devpi install ..." so that
+  it will automatically pick up wheel files if pip>1.4 is used.
+
+- fix issue42: allow to set empty bases for an index, so that it doesn't
+  inherit anything.
+
+- fix issue44: "use -l" doesn't break when a user has no index
+
+- devpi test now invokes tox in-process (by importing tox) rather than
+  a subprocess.
+
+
+1.0
+----------------------------
+
+devpi-server:
+
+- rename "--datadir" to "--serverdir" to better match
+  the also picked up DEVPI_SERVERDIR environment variable.
+
+- fix a strange effect in that sometimes tools ask to receive
+  a package url with a "#md5=..." arriving at the server side.
+  We now strip that part out before trying to serve the file.
+
+- on startup don't create any initial indexes other 
+  than the "root/pypi" pypi caching mirror.
+
+- introduce ``--start``, ``--stop`` and ``--log`` commands for
+  controling a background devpi-server run. (these commands
+  previously were implemented with the devpi-client and the "server"
+  sub command)
+
+- fix issue27: provide full list of pypi names in root/pypi's simple
+  view (and simple pages from inheriting indices)
+
+- default to "eventlet" server when creating deployment with --gendeploy
+
+- fix issue25: return 403 Forbidden when trying to delete the root user.
+
+- fix name mangling issue for pypi-cache: "project_name*" is now matched
+  correctly when a lookup for "project-name" happens.
+
+- fix issue22: don't bypass CDN by default, rather provide an
+  "--bypass-cdn" option to do it (in case you have cache-invalidation troubles)
+
+- fix issue20 and fix issue23: normalize index specs internally ("/root/dev" ->
+  "root/dev") and check if base indices exist.
+
+- add Jenkins build job triggering for running the tests for a package
+  through tox.
+
+- inheritance cleanup: inherited versions for a project are now shadowed
+  and not shown anymore with getreleaselinks() or in +simple pages
+  if the "basename" is exactly shadowed.
+
+- fix issue16: enrich projectconfig json with a "+shadow" file which
+  lists shadowed "versions"
+
+- initial wheel support: accept "whl" uploads and support caching 
+  of whl files from pypi.python.org
+
+- implemented internal push operation between devpi indexes
+
+- show "docs" link if documentation has been uploaded
+
+- pushing releases to pypi.python.org will now correctly 
+  report the filetype/pyversion in the metadata.
+
+- add setting of acl_upload for indexes.   Only the owning
+  user and acl_upload users may upload releases, files 
+  or documentation to an index.
+
+- add --passwd USER option for setting a user's password server-side
+
+- don't require email setting for creating users
+
+devpi-client:
+
+- removed ``server`` subcommand and options for controling background devpi-server
+  processes to become options of ``devpi-server`` itself.
+
+- fix issue14: lookup "python" from PATH for upload/packaging activities instead of
+  using "sys.executable" which comes from the interpreter executing the "devpi" script.
+  This allows to alias "devpi" to come from a virtualenv which is separate from
+  the one used to perform packaging.
+
+- fix issue35: "devpi index" cleanly errors out if no index is
+  specified or in use.
+
+- remember authentication on a per-root basis and cleanup "devpi use"
+  interactions.  This makes switching between multiple devpi instances
+  more seemless.
+
+- fix issue17: better reporting when "devpi use" does not operate on valid URL
+
+- test result upload and access: 
+  - "devpi test" invokes "tox --result-json ..." and uploads 
+    the test result log to devpi-server.  
+  - "devpi list [-f] PKG" shows test result information.
+
+- add "uploadtrigger_jenkins" configuration option through "devpi
+  index".
+
+- fix issue19: devpi use now memorizes --venv setting properly. Thanks Laurent.
+
+- fix issue16: show files from shadowed versions 
+
+- initial wheel support: "devpi upload --format=bdist_wheel" now uploads
+  a wheel format file to the index.  (XXX "devpi install" will trigger
+  pip commands with option "--use-wheels".)
+
+- fix issue15: docs will now be built via "setup.py build_sphinx" 
+  using a internal build dir so that the upload succeeds if conf.py
+  would otherwise specify a non-standard location.
+
+- implement and refine "devpi push" command.  It now accepts
+  two forms "user/name" for specifying an internal devpi index
+  and "pypi:REPONAME" for specifying a repository which must be
+  defined in a .pypirc file.
+  
+- remove spurious pdb.set_trace() in devpi install command when
+  no pip can be found.
+
+- show and allow to set "acl_upload" for uploading priviliges
+
+- add longer descriptions to each sub command, shown with
+  "devpi COMMAND -h".
+
+- removed pytestplugin support for now (pytest reporting directly to
+  devpi-server)
+
+
+0.9.4
+----------------------------
+
+server: 
+
+- fix issue where lookups into subpages of the simple index
+  (simple/NAME/VER) would not trigger a 404 as they should.
+
+client:
+
+- fix uploading by adding setup.py's dir to sys.path:  setup.py 
+  files that import modules/packages for obtaining versions etc.
+  now work. Thanks jbasko.
+
+- fix automatic devpi-server startup on python26/windows 
+
+
+0.9.3
+----------------------------
+
+server:
+
+- fixed issue9: caching of packages where upstream provides no
+  last-modified header now works.
+
+- fixed issue8: only http/https archives are allowed and other
+  schemes (such as ftp) are silently skipped
+
+- added support for REST DELETE methods of projects and versions on an index
+
+- added "argcomplete" support for tab completion on options
+  (thanks to Anthon van der Neut)
+
+client:
+
+- new "devpi list" command to show projects of the in-use index or all
+  release files of a project with "devpi list PROJECTNAME".
+
+- new "devpi remove" command to remove releases from the current index,
+  including any contained release files
+
+- added "argcomplete" support for tab completion on options
+  (thanks to Anthon van der Neut)
+
+
+0.9.2 (compared to 0.9.1)
+----------------------------
+
+server:
+
+- fix /USER/INDEXNAME root views to contain only latest in-stage packages
+
+- make +api calls return bases so that "devpi use" can show them
+
+client:
+
+- introduce "devpi upload --fromdir" for uploading archives in bulk
+  mode, thanks to Anthon van der Neut for helping with this!  (resolved issue5)
+
+- improve automatic server handling via "devpi use"
+
+- for "devpi server" you now need to specify "--log" to see log lines
+
+- make "devpi use" also show base indexes by default
+
+- fix issue4: auto-server data stored in non-dot dir
+
+
+0.9.1 (compared to 0.9.0)
+----------------------------
+
+server:
+
+- return 404 for submits to root/pypi
+
+- properly sorted release file links on stage indexes
+
+- "push" method on indexes for transfering release files to another
+  pypi index
+
+- properly handle urls from indexes with ~ and other special chars
+
+- fix root/pypi and root/dev page serving in various cases
+
+client:
+
+- refined "python setup.py" calls from ``devpi upload`` with proper
+  ``__file__`` attributes.  Thanks Andi Albrecht.
+
+- implemented new "devpi push" command for pushing out releases
+
+- improved error handling for devpi upload
+
+- fix logoff if not logged in
+
+- don't use --force-reinstall when using pip
