@@ -357,12 +357,12 @@ versioning, exporting and importing server state
 
 ``devpi-server`` maintains its state in a ``serverdir``,
 by default in ``$HOME/.devpi/server``, unless you specify
-a different location via the first positional argument.
+a different location via the ``--serverdir`` option.
 
 You can use the ``--export`` option to dump user and index state
 into a directory::
 
-    devpi-server ~/.devpi/server --export dumpdir
+    devpi-server --serverdir ~/.devpi/server --export dumpdir
 
 ``dumpdir`` will then contain a ``dataindex.json`` and the
 files that comprise the server state.  
@@ -370,13 +370,13 @@ files that comprise the server state.
 Using the same version of ``devpi-server`` or a future release you can
 then import this dumped server state::
 
-    devpi-server newserver --import dumpdir
+    devpi-server --serverdir newserver --import dumpdir
 
 This will import the previously exported server dump and
 create a new server state structure in the ``newserver`` directory.
 You can then run a server from this new state::
 
-    devpi-server newserver --port 5000
+    devpi-server --serverdir newserver --port 5000
 
 and check through a browser that all your data got migrated correctly.
 Once you are happy you can remove the old serverdir (Default

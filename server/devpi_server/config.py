@@ -90,17 +90,11 @@ def addoptions(parser):
     deploy.addoption("--passwd", action="store", metavar="USER",
             help="set password for user USER (interactive)")
 
-    deploy.addoption("--serverdir", action="store_true",
-            help="deprecated/no-op option. Rather specify serverdir as "
-                 "positional argument.")
-
-    deploy.addoption("serverdir", type=str, nargs="?",
+    deploy.addoption("--serverdir", type=str, metavar="DIR", action="store",
             default=None,
             help="directory for server data.  By default, "
                  "$DEVPI_SERVERDIR is used if it exists, "
                  "otherwise the default is '~/.devpi/server'")
-
-
 
     bg = parser.addgroup("background server")
     bg.addoption("--start", action="store_true",
@@ -137,8 +131,9 @@ def parseoptions(argv, addoptions=addoptions):
 
     addoptions(parser)
     try_argcomplete(parser)
-    args = parser.parse_args(argv[1:])
-    args._raw = argv[1:]
+    raw = [str(x) for x in argv[1:]]
+    args = parser.parse_args(raw)
+    args._raw = raw
     config = Config(args)
     return config
 

@@ -38,12 +38,12 @@ def test_invalidate_is_called(monkeypatch, tmpdir):
     monkeypatch.setattr(devpi_server.extpypi, "invalidate_on_version_change",
                         lambda xom: 0/0)
     with pytest.raises(ZeroDivisionError):
-        main(["devpi-server", str(tmpdir)])
+        main(["devpi-server", "--serverdir", str(tmpdir)])
 
 def test_startup_fails_on_initial_setup_nonetwork(tmpdir, monkeypatch):
     import bottle
     monkeypatch.setattr(bottle, "run", lambda **kw: 0/0)
     monkeypatch.setattr(devpi_server.main, "PYPIURL_XMLRPC",
                         "http://qwqwlekjqwlekqwe.notexists")
-    ret = main(["devpi-server", str(tmpdir)])
+    ret = main(["devpi-server", "--serverdir", str(tmpdir)])
     assert ret

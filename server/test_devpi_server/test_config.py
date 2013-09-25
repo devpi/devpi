@@ -53,7 +53,7 @@ class TestConfig:
         config = parseoptions(["devpi-server", "--secretfile=%s" % p])
         assert config.secretfile == str(p)
         assert config.secret == secret
-        config = parseoptions(["devpi-server", str(tmpdir)])
+        config = parseoptions(["devpi-server", "--serverdir", tmpdir])
         assert config.secretfile == tmpdir.join(".secret")
         config.secretfile.write(secret)
         assert config.secret == config.secretfile.read()
