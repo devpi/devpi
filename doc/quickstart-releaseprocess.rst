@@ -40,10 +40,10 @@ a series of other devpi commands::
     --> $ devpi-server --start 
     set root/pypi default index
     starting background devpi-server at http://localhost:3141
-    /home/hpk/p/devpi/doc/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server
-    process 'devpi-server' started pid=20823
+    /tmp/home/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server
+    process 'devpi-server' started pid=1165
     devpi-server process startup detected
-    logfile is at /home/hpk/p/devpi/doc/.devpi/server/.xproc/devpi-server/xprocess.log
+    logfile is at /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
     --> $ devpi use http://localhost:3141 
     using server: http://localhost:3141/ (not logged in)
     no current index: type 'devpi use -l' to discover indices
@@ -84,16 +84,16 @@ We can now use the ``devpi`` command line client to trigger a ``pip
 install`` of a pypi package using the index from our already running server::
 
     $ devpi install pytest
-    --> $ docenv/bin/pip install -U -i http://localhost:3141/testuser/dev/+simple/ pytest  [PIP_USE_WHEEL=1,PIP_PRE=1]
+    --> $ /tmp/docenv/bin/pip install -U -i http://localhost:3141/testuser/dev/+simple/ pytest  [PIP_USE_WHEEL=1,PIP_PRE=1]
     Downloading/unpacking pytest
       Running setup.py egg_info for package pytest
         
-    Requirement already up-to-date: py>=1.4.13dev6 in ./docenv/lib/python2.7/site-packages (from pytest)
+    Requirement already up-to-date: py>=1.4.13dev6 in /tmp/docenv/lib/python2.7/site-packages (from pytest)
     Installing collected packages: pytest
       Running setup.py install for pytest
         
-        Installing py.test script to /home/hpk/p/devpi/doc/docenv/bin
-        Installing py.test-2.7 script to /home/hpk/p/devpi/doc/docenv/bin
+        Installing py.test script to /tmp/docenv/bin
+        Installing py.test-2.7 script to /tmp/docenv/bin
     Successfully installed pytest
     Cleaning up...
 
@@ -105,7 +105,7 @@ in the ``PATH`` and found in ``docenv/bin/pip``.
 Let's check that ``pytest`` was installed correctly::
 
     $ py.test --version
-    This is py.test version 2.3.5, imported from /home/hpk/p/devpi/doc/docenv/local/lib/python2.7/site-packages/pytest.pyc
+    This is py.test version 2.3.5, imported from /tmp/docenv/local/lib/python2.7/site-packages/pytest.pyc
 
 You may invoke the ``devpi install`` command a second time which will
 even work when you have no network.
@@ -132,9 +132,9 @@ to our ``testuser/dev`` index::
     created workdir /tmp/devpi0
     --> $ hg st -nmac . 
     hg-exported project to /tmp/devpi0/upload/example
-    --> $ /home/hpk/p/devpi/doc/docenv/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi0/upload/example http://localhost:3141/testuser/dev/ testuser testuser-93c9ec04a37f012d798c494de3c61aace494b9fe2a43f2d1f34b0a1bbf54c7fd.BSReqA.UAs0QIsfaz2AD_D3FI9hLbe6vc4 register -r devpi 
+    --> $ /tmp/docenv/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi0/upload/example http://localhost:3141/testuser/dev/ testuser testuser-355a10e01d9e9088bf96a4d8fb07b0fc2ce4d4d5f12386c522b41a445546069e.BSR-3A.xXYdm_u1BGYOwi51LV3WGztb2wQ register -r devpi 
     release registered to http://localhost:3141/testuser/dev/
-    --> $ /home/hpk/p/devpi/doc/docenv/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi0/upload/example http://localhost:3141/testuser/dev/ testuser testuser-93c9ec04a37f012d798c494de3c61aace494b9fe2a43f2d1f34b0a1bbf54c7fd.BSReqA.UAs0QIsfaz2AD_D3FI9hLbe6vc4 sdist --formats gztar upload -r devpi 
+    --> $ /tmp/docenv/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi0/upload/example http://localhost:3141/testuser/dev/ testuser testuser-355a10e01d9e9088bf96a4d8fb07b0fc2ce4d4d5f12386c522b41a445546069e.BSR-3A.xXYdm_u1BGYOwi51LV3WGztb2wQ sdist --formats gztar upload -r devpi 
     Server response (200): OK
     submitted dist/example-1.0.tar.gz to http://localhost:3141/testuser/dev/
 
@@ -155,7 +155,7 @@ There are three triggered actions:
 We can now install the freshly uploaded package::
 
     $ devpi install example
-    --> $ docenv/bin/pip install -U -i http://localhost:3141/testuser/dev/+simple/ example  [PIP_USE_WHEEL=1,PIP_PRE=1]
+    --> $ /tmp/docenv/bin/pip install -U -i http://localhost:3141/testuser/dev/+simple/ example  [PIP_USE_WHEEL=1,PIP_PRE=1]
     Downloading/unpacking example
       Downloading example-1.0.tar.gz
       Running setup.py egg_info for package example
@@ -275,9 +275,7 @@ We may now decide to push this release to an external
 pypi-style index which we have configured in the ``.pypirc`` file::
 
     $ devpi push example-1.0 pypi:testrun
-    using pypirc /home/hpk/.pypirc
-    200 register example 1.0
-    200 upload testuser/staging/example/1.0/example-1.0.tar.gz
+    no pypirc file found at: /tmp/home/.pypirc
 
 this will push all release files of the ``example-1.0`` release
 to the external ``testrun`` index server, using credentials

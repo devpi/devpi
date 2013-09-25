@@ -93,12 +93,12 @@ Uploading a Release File
 Uploading the sample release file can be done as follow (default format is sdist)::
 
    $ cd pysober; devpi upload 
-   created workdir /tmp/devpi7
+   created workdir /tmp/devpi11
    --> $ hg st -nmac . 
-   hg-exported project to /tmp/devpi7/upload/pysober
-   --> $ /home/hpk/venv/0/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi7/upload/pysober http://localhost:3141/emilie/dev/ emilie emilie-3f0b7f49f53faf7eaee8d019d690ea3d26c76bbef75a3fa4e8e708f16628f3f8.BSRg4Q.oxPlpIi1Q0DgWHKNeEDjhb7qFo4 register -r devpi 
+   hg-exported project to /tmp/devpi11/upload/pysober
+   --> $ /home/hpk/venv/0/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi11/upload/pysober http://localhost:3141/emilie/dev/ emilie emilie-c780a9ddbee86058d28aefeac09c1596ac8b32d40963e604ae5545123ed688b6.BSSBJQ.irCWNlXuYQlV8z03mpPsXZOhiX4 register -r devpi 
    release registered to http://localhost:3141/emilie/dev/
-   --> $ /home/hpk/venv/0/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi7/upload/pysober http://localhost:3141/emilie/dev/ emilie emilie-3f0b7f49f53faf7eaee8d019d690ea3d26c76bbef75a3fa4e8e708f16628f3f8.BSRg4Q.oxPlpIi1Q0DgWHKNeEDjhb7qFo4 sdist --formats gztar upload -r devpi 
+   --> $ /home/hpk/venv/0/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi11/upload/pysober http://localhost:3141/emilie/dev/ emilie emilie-c780a9ddbee86058d28aefeac09c1596ac8b32d40963e604ae5545123ed688b6.BSSBJQ.irCWNlXuYQlV8z03mpPsXZOhiX4 sdist --formats gztar upload -r devpi 
    Server response (200): OK
    submitted dist/pysober-0.1.0.tar.gz to http://localhost:3141/emilie/dev/
 
@@ -122,12 +122,12 @@ Assuming that we create a new version::
 We can now upload the new version::
 
    $ cd pysober; devpi upload
-   created workdir /tmp/devpi8
+   created workdir /tmp/devpi12
    --> $ hg st -nmac . 
-   hg-exported project to /tmp/devpi8/upload/pysober
-   --> $ /home/hpk/venv/0/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi8/upload/pysober http://localhost:3141/emilie/dev/ emilie emilie-3f0b7f49f53faf7eaee8d019d690ea3d26c76bbef75a3fa4e8e708f16628f3f8.BSRg4Q.oxPlpIi1Q0DgWHKNeEDjhb7qFo4 register -r devpi 
+   hg-exported project to /tmp/devpi12/upload/pysober
+   --> $ /home/hpk/venv/0/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi12/upload/pysober http://localhost:3141/emilie/dev/ emilie emilie-c780a9ddbee86058d28aefeac09c1596ac8b32d40963e604ae5545123ed688b6.BSSBJQ.irCWNlXuYQlV8z03mpPsXZOhiX4 register -r devpi 
    release registered to http://localhost:3141/emilie/dev/
-   --> $ /home/hpk/venv/0/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi8/upload/pysober http://localhost:3141/emilie/dev/ emilie emilie-3f0b7f49f53faf7eaee8d019d690ea3d26c76bbef75a3fa4e8e708f16628f3f8.BSRg4Q.oxPlpIi1Q0DgWHKNeEDjhb7qFo4 sdist --formats gztar upload -r devpi 
+   --> $ /home/hpk/venv/0/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi12/upload/pysober http://localhost:3141/emilie/dev/ emilie emilie-c780a9ddbee86058d28aefeac09c1596ac8b32d40963e604ae5545123ed688b6.BSSBJQ.irCWNlXuYQlV8z03mpPsXZOhiX4 sdist --formats gztar upload -r devpi 
    Server response (200): OK
    submitted dist/pysober-0.2.0.tar.gz to http://localhost:3141/emilie/dev/
    
@@ -327,12 +327,12 @@ She can however, modify the package::
 And upload a new version to her ``/sophie/dev`` index::
 
    $ cd pysober; devpi upload
-   created workdir /tmp/devpi9
+   created workdir /tmp/devpi13
    --> $ hg st -nmac . 
-   hg-exported project to /tmp/devpi9/upload/pysober
-   --> $ /home/hpk/venv/0/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi9/upload/pysober http://localhost:3141/sophie/dev/ sophie sophie-a02547e3923940a095c967449423e39b7d23eb3db5e790a509689215b2a87030.BSRg7A.An3AjPzL654Vq3pI3jlZPj8baEY register -r devpi 
+   hg-exported project to /tmp/devpi13/upload/pysober
+   --> $ /home/hpk/venv/0/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi13/upload/pysober http://localhost:3141/sophie/dev/ sophie sophie-51dfdfda81d743ba13a70b61efe2dde1e9067f65798ee65a9ceb3089c0fe88fc.BSSBLg.BjjdIlmoS5gXAejWTs-1iGbgRw8 register -r devpi 
    release registered to http://localhost:3141/sophie/dev/
-   --> $ /home/hpk/venv/0/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi9/upload/pysober http://localhost:3141/sophie/dev/ sophie sophie-a02547e3923940a095c967449423e39b7d23eb3db5e790a509689215b2a87030.BSRg7A.An3AjPzL654Vq3pI3jlZPj8baEY sdist --formats gztar upload -r devpi 
+   --> $ /home/hpk/venv/0/bin/python /home/hpk/p/devpi/client/devpi/upload/setuppy.py /tmp/devpi13/upload/pysober http://localhost:3141/sophie/dev/ sophie sophie-51dfdfda81d743ba13a70b61efe2dde1e9067f65798ee65a9ceb3089c0fe88fc.BSSBLg.BjjdIlmoS5gXAejWTs-1iGbgRw8 sdist --formats gztar upload -r devpi 
    Server response (200): OK
    submitted dist/pysober-0.2.1.tar.gz to http://localhost:3141/sophie/dev/
    

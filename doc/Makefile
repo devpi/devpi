@@ -8,6 +8,9 @@ SPHINXBUILD   = sphinx-build
 PAPER         =
 BUILDDIR      = _build
 
+export HOME=/tmp/home
+export TESTHOME=$(HOME)
+
 # Internal variables.
 PAPEROPT_a4     = -D latex_paper_size=a4
 PAPEROPT_letter = -D latex_paper_size=letter
@@ -25,8 +28,8 @@ USER_MAN_CHAPTERS = commands\
 #                 userman/devpi_concepts.rst\
           
                                  
-export DEVPI_CLIENTDIR=$(CURDIR)/.tmp_devpi_user_man/client
-export DEVPI_SERVERDIR=$(CURDIR)/.tmp_devpi_user_man/server
+#export DEVPI_CLIENTDIR=$(CURDIR)/.tmp_devpi_user_man/client
+#export DEVPI_SERVERDIR=$(CURDIR)/.tmp_devpi_user_man/server
 
 chapter = commands
 
@@ -222,14 +225,17 @@ regen.server-restart:
 regen.server-clean: regen.sample_undo
 	@echo stopping server
 	-devpi-server --stop
-	@echo deleting $(DEVPI_CLIENTDIR) $(DEVPI_SERVERDIR)
-	-rm -rf $(DEVPI_CLIENTDIR) $(DEVPI_SERVERDIR)
+	@echo deleting $TESTHOME/.devpi state
+	-rm -rf $(TESTHOME)/.devpi
 	@echo deleting pysober/dist
 	-rm -rf userman/pysober/dist
+	hg revert --all userman/pysober
 
     
 
 regen.uman-all : regen.server-fresh $(USER_MAN_CHAPTERS)
+	hg revert --all userman/pysober
+	rm -rf userman/pysober/dist
 
 regen.uman: regen.server-restart $(chapter)
 

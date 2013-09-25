@@ -23,10 +23,10 @@ To start ``devpi-server`` in the background issue::
     $ devpi-server --start
     set root/pypi default index
     starting background devpi-server at http://localhost:3141
-    /home/hpk/p/devpi/doc/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server
-    process 'devpi-server' started pid=20736
+    /tmp/home/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server
+    process 'devpi-server' started pid=1063
     devpi-server process startup detected
-    logfile is at /home/hpk/p/devpi/doc/.devpi/server/.xproc/devpi-server/xprocess.log
+    logfile is at /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
 
 You now have a server listning on ``http://localhost:3141``.
 
@@ -73,13 +73,13 @@ and then re-install it with ``easy_install``::
     Best match: simplejson 3.3.0
     Downloading http://localhost:3141/root/pypi/f/https/pypi.python.org/packages/source/s/simplejson/simplejson-3.3.0.tar.gz#md5=0e29b393bceac8081fa4e93ff9f6a001
     Processing simplejson-3.3.0.tar.gz
-    Writing /tmp/easy_install-r2teqc/simplejson-3.3.0/setup.cfg
-    Running simplejson-3.3.0/setup.py -q bdist_egg --dist-dir /tmp/easy_install-r2teqc/simplejson-3.3.0/egg-dist-tmp-JtdaHN
+    Writing /tmp/easy_install-u_vGqI/simplejson-3.3.0/setup.cfg
+    Running simplejson-3.3.0/setup.py -q bdist_egg --dist-dir /tmp/easy_install-u_vGqI/simplejson-3.3.0/egg-dist-tmp-qt_HB_
     zip_safe flag not set; analyzing archive contents...
     simplejson.tests.__init__: module references __file__
     Adding simplejson 3.3.0 to easy-install.pth file
     
-    Installed /home/hpk/p/devpi/doc/docenv/lib/python2.7/site-packages/simplejson-3.3.0-py2.7-linux-x86_64.egg
+    Installed /tmp/docenv/lib/python2.7/site-packages/simplejson-3.3.0-py2.7-linux-x86_64.egg
     Processing dependencies for simplejson
     Finished processing dependencies for simplejson
 
@@ -126,19 +126,46 @@ Checking and stopping the background server
 At any time you can check the background server status with::
 
     $ devpi-server --status
-    server is running with pid 20736
+    server is running with pid 1063
 
 Or stop it::
     
     $ devpi-server --stop
-    killed server pid=20736
+    killed server pid=1063
 
 Finally, you can also look at the logfile of the background server
 (also after it has been stopped)::
 
     $ devpi-server --log
     last lines of devpi-server log
-    logfile at: /home/hpk/p/devpi/doc/.devpi/server/.xproc/devpi-server/xprocess.log
+    2013-09-25 16:03:58,096 [INFO ] devpi_server.extpypi: changelog/update tasks starting
+    2013-09-25 16:03:58,122 [INFO ] devpi_server.main: devpi-server version: 1.1
+    2013-09-25 16:03:58,122 [INFO ] devpi_server.main: serverdir: /tmp/home/.devpi/server
+    2013-09-25 16:03:58,122 [INFO ] devpi_server.main: serving at url: http://localhost:3141
+    2013-09-25 16:03:58,122 [INFO ] devpi_server.main: bug tracker: https://bitbucket.org/hpk42/devpi/issues
+    2013-09-25 16:03:58,122 [INFO ] devpi_server.main: IRC: #devpi on irc.freenode.net
+    2013-09-25 16:03:58,133 [INFO ] devpi_server.main: bottleserver type: eventlet
+    Bottle v0.11.6 server starting up (using EventletServer())...
+    Listening on http://localhost:3141/
+    Hit Ctrl-C to quit.
+    
+    (1063) wsgi starting up on http://127.0.0.1:3141/
+    (1063) accepted ('127.0.0.1', 52691)
+    127.0.0.1 - - [25/Sep/2013 16:03:58] "GET / HTTP/1.1" 200 498 0.000579
+    (1063) accepted ('127.0.0.1', 52692)
+    2013-09-25 16:03:58,358 [INFO ] requests.packages.urllib3.connectionpool: Starting new HTTPS connection (1): pypi.python.org
+    127.0.0.1 - - [25/Sep/2013 16:03:58] "GET /root/pypi/+simple/simplejson/ HTTP/1.1" 200 16697 0.259157
+    (1063) accepted ('127.0.0.1', 52694)
+    2013-09-25 16:03:58,696 [INFO ] devpi_server.filestore: cache-streaming: https://pypi.python.org/packages/source/s/simplejson/simplejson-3.3.0.tar.gz, target root/pypi/f/https/pypi.python.org/packages/source/s/simplejson/simplejson-3.3.0.tar.gz
+    2013-09-25 16:03:58,696 [INFO ] devpi_server.filestore: starting file iteration: root/pypi/f/https/pypi.python.org/packages/source/s/simplejson/simplejson-3.3.0.tar.gz (size 67250)
+    2013-09-25 16:03:58,801 [INFO ] devpi_server.filestore: finished getting remote 'https://pypi.python.org/packages/source/s/simplejson/simplejson-3.3.0.tar.gz'
+    127.0.0.1 - - [25/Sep/2013 16:03:58] "GET /root/pypi/f/https/pypi.python.org/packages/source/s/simplejson/simplejson-3.3.0.tar.gz HTTP/1.1" 200 67382 0.137262
+    (1063) accepted ('127.0.0.1', 52695)
+    127.0.0.1 - - [25/Sep/2013 16:03:59] "GET /root/pypi/+simple/simplejson/ HTTP/1.1" 200 16697 0.014801
+    (1063) accepted ('127.0.0.1', 52696)
+    2013-09-25 16:04:00,004 [INFO ] devpi_server.filestore: starting file iteration: root/pypi/f/https/pypi.python.org/packages/source/s/simplejson/simplejson-3.3.0.tar.gz (size 67250)
+    127.0.0.1 - - [25/Sep/2013 16:04:00] "GET /root/pypi/f/https/pypi.python.org/packages/source/s/simplejson/simplejson-3.3.0.tar.gz HTTP/1.1" 200 67382 0.001008
+    logfile at: /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
 
 running devpi-server permanently
 +++++++++++++++++++++++++++++++++
