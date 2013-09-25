@@ -27,13 +27,16 @@ def fatal(msg):
     raise Fatal(msg)
 
 def check_compatible_version(xom):
+    args = xom.config.args
+    if args.upgrade_state or args.export:
+        return
     server_version = Version(devpi_server.__version__)
     serverdir = xom.config.serverdir
     versionfile = serverdir.join(".serverversion")
     if not versionfile.check():
         if not xom.db.is_empty():
             fatal("serverdir %s is unversioned, assuming 1.0.\n"
-                  "Use --upgrade to migrate your data. " % serverdir)
+                  "Use --upgrade-state to migrate your data. " % serverdir)
         # pypi mirror state is going to be invalidated anyway.
     else:
         state_version = Version(versionfile.read())
@@ -48,7 +51,8 @@ def main(argv=None):
     try:
         return _main(argv)
     except Fatal as e:
-        sys.stderr.write("fatal: %s" %  e.args[0] + "\n")
+        tw = py.io.TerminalWriter(sys.stderr)
+        tw.line("fatal: %s" %  e.args[0], red=True)
         return 1
 
 def _main(argv=None):
@@ -174,6 +178,10 @@ class XOM:
     def main(self):
         xom = self
         args = xom.config.args
+        if args.upgrade_state:
+            from devpi_server.importexport import do_upgrade
+            return do_upgrade(xom)
+
         if args.export:
             from devpi_server.importexport import do_export
             return do_export(args.export, xom)

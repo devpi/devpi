@@ -73,6 +73,10 @@ def addoptions(parser):
                  "validation. If it does not exist, a random secret "
                  "is generated on start up and used subsequently. ")
 
+    deploy.addoption("--upgrade-state", action="store_true",
+            dest="upgrade_state",
+            help="upgrade server state if possible. ")
+
     deploy.addoption("--export", type=str, metavar="PATH",
             help="export devpi-server database state into PATH. "
                  "This will export all users, indices (except root/pypi),"

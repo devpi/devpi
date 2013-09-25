@@ -1,15 +1,6 @@
 1.1.dev1
 ----------------
 
-- fix issue49: both push and import/export now support docfiles.  Note,
-  however, that docfiles relate to a project as a whole and are not tied
-  to a particular version.  This property is inherited from the PyPI
-  standard upload_docs action and cannot be changed without interfering
-  or replacing the upload_docs protocol of setuptools/sphinx.
-
-- fix issue51: return 200 code if release file is successfully uploaded 
-  but jenkins could not be triggered (previously returned 500)
-
 - systematically test pypi/mirror code against all 34K pypi projects
   so that we know that all http/https installable archive links that pypi offers 
   are correctly recognized by devpi-server's root/pypi index.
@@ -20,24 +11,41 @@
   state is known, subsequent devpi-server starts will
   not perform this initial query.
 
-- reject simple/NAME if NAME contains non-ascii characters
-  (PEP426 naming rules)
-
-- add --export/--import options to dump and import server contents:
-  users, indexes, release files and (test) attachments.
-  Note that root/pypi (PyPI-caching information) and all
-  uploaded documentation will not be exported/imported in this version
-  (planned for the future).
-
-- devpi-server now returns a X-DEVPI-API-VERSION header,
-  current is "1".  For future incompatible changes this
-  version will be incremented so that devpi-client can
-  bail out cleanly if it doesn't support the version.
-
 - speed up and make more reliable all operations on private packages which
   have no pypi.python.org release: we can now determine if a project
   exists on pypi and under which name exactly without
   remote queries or redirects to pypi.python.org.
+
+- fix issue45: register/upload package names are now properly 
+  validated and redirects take place if e.g. a project was
+  registered as "name-sub" and "+simple/name_sub" is queried.
+
+- new --upgrade-state command to allow for easy and safe
+  in-place upgrading of server state.  This is not guranteed
+  to be possible for all future releases which might require
+  using --export with an older version and --import with a newer
+  version.
+
+- new --export/--import options to dump and import server contents:
+  users, indexes, docs, release files and (test) attachments.
+  Note that root/pypi (PyPI-caching information) will not be exported/imported.
+  (maybe in the future if there is demand). 
+
+- fix issue49: both push and import/export now support docfiles.  Note,
+  however, that docfiles relate to a project as a whole and are not tied
+  to a particular version.  This property is inherited from the PyPI
+  standard upload_docs action and cannot be changed without interfering
+  or replacing the upload_docs protocol of setuptools/sphinx.
+
+- fix issue51: return 200 code if release file is successfully uploaded 
+  but jenkins could not be triggered (previously returned 500)
+
+- reject simple/NAME if NAME contains non-ascii characters
+  (PEP426 naming rules)
+
+- devpi-server now returns a X-DEVPI-API-VERSION and
+  X-DEVPI-SERVER-VERSION header.  For future incompatible changes 
+  these versions allow clients to reject interactions.
 
 - also add ".serverversion" file and write it if it does not
   exist, and make devpi-server use it to verify if
@@ -53,9 +61,6 @@
 
 - fix issue37: upload with expired login causes proper 401
 
-- fix issue45: register/upload package names are now properly 
-  validated and redirects take place if e.g. a project was
-  registered as "name-sub" and "+simple/name_sub" is queried.
 
 1.0
 ----------------

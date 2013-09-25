@@ -1,4 +1,5 @@
 import execnet
+import sys
 import json
 import os
 import py
@@ -10,6 +11,43 @@ from pkg_resources import parse_version
 
 from devpi_server.main import fatal
 import devpi_server
+
+def do_upgrade(xom):
+    tw = py.io.TerminalWriter()
+    import subprocess
+    serverdir = xom.config.serverdir
+    exportdir = serverdir + "-export"
+    if exportdir.check():
+        tw.line("removing exportdir: %s" % exportdir)
+        exportdir.remove()
+    newdir = serverdir + "-import"
+    script = sys.argv[0]
+    def rel(p):
+        return py.path.local().bestrelpath(p)
+    tw.sep("-", "exporting to %s" % rel(exportdir))
+    subprocess.check_call([sys.executable, script,
+                           "--serverdir", str(serverdir),
+                           "--export", str(exportdir)])
+    tw.sep("-", "importing from %s" % rel(exportdir))
+    subprocess.check_call([sys.executable, script,
+                           "--serverdir", str(newdir),
+                           "--import", str(exportdir)])
+    tw.sep("-", "replacing serverstate")
+    backup_dir = serverdir + "-backup"
+    if backup_dir.check():
+        tw.line("backup dir exists, not creating backup", bold=True)
+    else:
+        tw.line("moving serverstate to backupdir: %s" % (backup_dir), bold=True)
+        serverdir.move(backup_dir)
+    if serverdir.check():
+        tw.line("removing serverstate: %s" % (serverdir))
+        serverdir.remove()
+    tw.line("copying new serverstate to serverdir", bold=True)
+    newdir.move(serverdir)
+    version = serverdir.join(".serverversion").read()
+    tw.line("cleanup: removing exportdir: %s" % exportdir)
+    tw.line("have fun serving the new state :)")
+    exportdir.remove()
 
 def do_export(path, xom):
     path = py.path.local(path)

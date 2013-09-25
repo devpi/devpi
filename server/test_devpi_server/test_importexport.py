@@ -1,4 +1,5 @@
 import pytest
+import subprocess
 from devpi_server.importexport import *
 from devpi_server.main import main, Fatal
 from .test_db import create_zipfile
@@ -197,3 +198,30 @@ class TestImportExport:
         assert n("Hello_x") == "hello-X"
 
 
+
+def test_upgrade(makexom, monkeypatch):
+    def invoke_export(commands):
+        assert "--serverdir" in commands
+        assert "--export" in commands
+
+    def invoke_import(commands):
+        assert "--serverdir" in commands
+        assert "--import" in commands
+
+    def patch(commands):
+        try:
+            i = commands.index("--export")
+        except ValueError:
+            assert "--import" in commands
+            i = commands.index("--serverdir")
+            version = py.path.local(commands[i+1]).ensure(".serverversion")
+            version.write(devpi_server.__version__)
+        else:
+            py.path.local(commands[i+1]).ensure(dir=1)
+
+    monkeypatch.setattr(subprocess, "check_call", patch)
+    xom = makexom(["--upgrade-state"])
+    do_upgrade(xom)
+    assert xom.config.serverdir.check()
+    assert not (xom.config.serverdir + "-export").check()
+    assert (xom.config.serverdir + "-backup").check()
