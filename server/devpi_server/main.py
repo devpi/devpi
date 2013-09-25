@@ -285,7 +285,7 @@ class XOM:
     def create_app(self, catchall=True, immediatetasks=False):
         from devpi_server.views import PyPIView, route
         from bottle import Bottle
-        log.info("creating application in process %s", os.getpid())
+        log.debug("creating application in process %s", os.getpid())
         app = Bottle(catchall=catchall)
         if immediatetasks == -1:
             pass

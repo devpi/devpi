@@ -11,7 +11,7 @@ command line options
 A list of all devpi-server options::
 
     $ devpi-server -h
-    usage: devpi-server [-h] [--version] [--serverdir DIR] [--port PORT]
+    usage: devpi-server [-h] [--version] [serverdir DIR] [--port PORT]
                         [--host HOST] [--refresh SECS] [--gendeploy DIR]
                         [--secretfile path] [--bottleserver TYPE] [--debug]
     
@@ -26,7 +26,7 @@ A list of all devpi-server options::
       main options
     
       --version            show devpi_version (0.9.dev8)
-      --serverdir DIR        directory for server data [~/.devpi/server]
+      serverdir DIR        directory for server data [~/.devpi/server]
       --port PORT          port to listen for http requests [3141]
       --host HOST          domain/ip address to listen on [localhost]
       --refresh SECS       interval for consulting changelog api of

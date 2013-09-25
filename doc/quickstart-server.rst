@@ -188,7 +188,7 @@ one::
     # to a global /etc/supervisord/conf.d/devpi-server.conf
     
     [program:devpi-server]
-    command=/home/hpk/p/devpi/doc/TARGETDIR/bin/devpi-server --port 4040 --serverdir /home/hpk/p/devpi/doc/TARGETDIR/data
+    command=/home/hpk/p/devpi/doc/TARGETDIR/bin/devpi-server --port 4040 /home/hpk/p/devpi/doc/TARGETDIR/data
     priority=999
     startsecs = 5
     redirect_stderr = True
@@ -345,26 +345,45 @@ Using devpi-ctl again we can stop the server eventually::
 versioning, exporting and importing server state
 ----------------------------------------------------
 
-.. versionadded:: 1.0.1
-
-``devpi-server`` maintains its state in a ``serverdir``,
-by default in ``$HOME/.devpi/server``.
-
-You can use the ``--export`` option to dump state
-into a directory::
-
-    devpi-server --export somedir
-
-Using the same ``devpi-server`` or a future release you can then
-import it::
-
-    devpi-server --import somedir --serverdir newserver
-
-This will import the previously exported server dump and
-create a new server state structure.
+.. versionadded:: 1.1
 
 .. note::
 
-    With version 1.0.1 users, indices, release files and
-    all test results will be dumped.  The ``root/pypi`` pypi-caching
-    index and documentation files are **not currently dumped**.
+    you don't need to perform any explicit data migration if you are 
+    using devpi-server as a pure pypi mirror, i.e. not creating
+    users or uploading releases to indexes.  devpi-server
+    will automatically wipe and re-initialize the pypi cache 
+    in case of incompatible internal data-layout changes.
+
+``devpi-server`` maintains its state in a ``serverdir``,
+by default in ``$HOME/.devpi/server``, unless you specify
+a different location via the first positional argument.
+
+You can use the ``--export`` option to dump user and index state
+into a directory::
+
+    devpi-server ~/.devpi/server --export dumpdir
+
+``dumpdir`` will then contain a ``dataindex.json`` and the
+files that comprise the server state.  
+
+Using the same version of ``devpi-server`` or a future release you can
+then import this dumped server state::
+
+    devpi-server newserver --import dumpdir
+
+This will import the previously exported server dump and
+create a new server state structure in the ``newserver`` directory.
+You can then run a server from this new state::
+
+    devpi-server newserver --port 5000
+
+and check through a browser that all your data got migrated correctly.
+Once you are happy you can remove the old serverdir (Default
+at ``$HOME/.devpi/server``) 
+
+.. note::
+
+    With version 1.1 users, indices, release files,
+    test results and documentation files will be dumped.  
+    The ``root/pypi`` pypi-caching index is **not dumped**.

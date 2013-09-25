@@ -461,7 +461,7 @@ devpi command reference (server)
 ::
 
     $ devpi-server -h
-    usage: devpi-server [-h] [--version] [--serverdir DIR] [--host HOST]
+    usage: devpi-server [-h] [--version] [serverdir DIR] [--host HOST]
                         [--port PORT] [--outside-url URL] [--refresh SECS]
                         [--bypass-cdn] [--passwd USER] [--gendeploy DIR]
                         [--secretfile path] [--bottleserver TYPE] [--debug]
@@ -478,7 +478,7 @@ devpi command reference (server)
     
     main options:
       --version            show devpi_version (1.1.dev8)
-      --serverdir DIR      directory for server data. By default, $DEVPI_SERVERDIR
+      serverdir DIR      directory for server data. By default, $DEVPI_SERVERDIR
                            is used if it exists, otherwise the default is
                            '~/.devpi/server'
       --host HOST          domain/ip address to listen on [localhost]
@@ -518,7 +518,7 @@ devpi command reference (server)
                            directory which was created by an --export operation of
                            a prior devpi-server run (possibly earlier version).
                            You can only import into a fresh server state directory
-                           which you can set via --serverdir
+                           which you can set via serverdir
     
     background server:
       --start              start the background devpi-server

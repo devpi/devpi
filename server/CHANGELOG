@@ -60,7 +60,7 @@
 1.0
 ----------------
 
-- rename "--datadir" to "--serverdir" to better match
+- rename "--datadir" to "serverdir" to better match
   the also picked up DEVPI_SERVERDIR environment variable.
 
 - fix a strange effect in that sometimes tools ask to receive

@@ -13,27 +13,20 @@ def get_default_serverdir():
     return os.environ.get("DEVPI_SERVERDIR", "~/.devpi/server")
 
 def addoptions(parser):
-    group = parser.addgroup("main options")
-    group.addoption("--version", action="store_true",
-            help="show devpi_version (%s)" % devpi_server.__version__)
 
-    opt = group.addoption("--serverdir", type=str, metavar="DIR",
-            default=None,
-            help="directory for server data.  By default, "
-                 "$DEVPI_SERVERDIR is used if it exists, "
-                 "otherwise the default is '~/.devpi/server'")
 
-    group.addoption("--host",  type=str,
+    web = parser.addgroup("web serving options")
+    web.addoption("--host",  type=str,
             default="localhost",
             help="domain/ip address to listen on")
 
-    group.addoption("--port",  type=int,
+    web.addoption("--port",  type=int,
             default=3141,
             help="port to listen for http requests.  When used with "
                  "--gendeploy, port+1 will be used to prevent "
                  "accidental clashes with ad-hoc runs.")
 
-    group.addoption("--outside-url",  type=str, dest="outside_url",
+    web.addoption("--outside-url",  type=str, dest="outside_url",
             metavar="URL",
             default=None,
             help="the outside URL where this server will be reachable. "
@@ -41,21 +34,32 @@ def addoptions(parser):
                  "and the web server does not set or you want to override "
                  "the custom X-outside-url header.")
 
-    group.addoption("--refresh", type=float, metavar="SECS",
+    web.addoption("--bottleserver", metavar="TYPE",
+            default="auto",
+            help="bottle server class, tries 'eventlet', "
+                 "then 'wsgiref'  if set to 'auto' (default)")
+
+    web.addoption("--debug", action="store_true",
+            help="run wsgi application with debug logging")
+
+
+    mirror = parser.addgroup("pypi mirroring options (root/pypi)")
+    mirror.addoption("--refresh", type=float, metavar="SECS",
             default=60,
             help="interval for consulting changelog api of pypi.python.org")
 
-    group.addoption("--bypass-cdn", action="store_true",
+    mirror.addoption("--bypass-cdn", action="store_true",
             help="set this if you want to bypass pypi's CDN for access to "
                  "simple pages and packages, in order to rule out cache-"
                  "invalidation issues.  This will only work if you "
                  "are not using a http proxy.")
 
-    group.addoption("--passwd", action="store", metavar="USER",
-            help="set password for user USER (interactive)")
+    deploy = parser.addgroup("deployment and data options")
 
+    deploy.addoption("--version", action="store_true",
+            help="show devpi_version (%s)" % devpi_server.__version__)
 
-    group.addoption("--gendeploy", action="store", metavar="DIR",
+    deploy.addoption("--gendeploy", action="store", metavar="DIR",
             help="(unix only) install and generate a pre-configured "
                  "virtualenv directory which puts devpi-server "
                  "under supervisor control and provides some example "
@@ -63,43 +67,49 @@ def addoptions(parser):
                  "virtualenv creation will be skipped and only the "
                  "installation steps will be performed. ")
 
-    group.addoption("--secretfile", type=str, metavar="path",
+    deploy.addoption("--secretfile", type=str, metavar="path",
             default="{serverdir}/.secret",
             help="file containing the server side secret used for user "
                  "validation. If it does not exist, a random secret "
                  "is generated on start up and used subsequently. ")
 
-    group.addoption("--bottleserver", metavar="TYPE",
-            default="auto",
-            help="bottle server class, tries 'eventlet', "
-                 "then 'wsgiref'  if set to 'auto' (default)")
-
-    group.addoption("--debug", action="store_true",
-            help="run wsgi application with debug logging")
-
-    group.addoption("--export", type=str, metavar="PATH",
+    deploy.addoption("--export", type=str, metavar="PATH",
             help="export devpi-server database state into PATH. "
-                 "This will export all users, all indices (except root/pypi),"
-                 " release files and test results.  Documentation is NOT "
-                 "dumped at this point because it cannot be tied to "
-                 "a particular version."
+                 "This will export all users, indices (except root/pypi),"
+                 " release files, test results and documentation. "
     )
-    group.addoption("--import", type=str, metavar="PATH",
+    deploy.addoption("--import", type=str, metavar="PATH",
             dest="import_",
             help="import devpi-server database from PATH where PATH "
-                 "is a directory which was created by an --export operation "
-                 "of a prior devpi-server run (possibly earlier version). "
-                 "You can only import into a fresh server state directory "
-                 "which you can set via --serverdir")
+                 "is a directory which was created by a "
+                 "'devpi-server --export PATH' operation, "
+                 "using the same or an earlier devpi-server version. "
+                 "Note that you can only import into a fresh server "
+                 "state directory (positional argument to devpi-server).")
 
-    group = parser.addgroup("background server")
-    group.addoption("--start", action="store_true",
+    deploy.addoption("--passwd", action="store", metavar="USER",
+            help="set password for user USER (interactive)")
+
+    deploy.addoption("--serverdir", action="store_true",
+            help="deprecated/no-op option. Rather specify serverdir as "
+                 "positional argument.")
+
+    deploy.addoption("serverdir", type=str, nargs="?",
+            default=None,
+            help="directory for server data.  By default, "
+                 "$DEVPI_SERVERDIR is used if it exists, "
+                 "otherwise the default is '~/.devpi/server'")
+
+
+
+    bg = parser.addgroup("background server")
+    bg.addoption("--start", action="store_true",
             help="start the background devpi-server")
-    group.addoption("--stop", action="store_true",
+    bg.addoption("--stop", action="store_true",
             help="stop the background devpi-server")
-    group.addoption("--status", action="store_true",
+    bg.addoption("--status", action="store_true",
             help="show status of background devpi-server")
-    group.addoption("--log", action="store_true",
+    bg.addoption("--log", action="store_true",
             help="show logfile content of background server")
     #group.addoption("--pidfile", action="store",
     #        help="set pid file location")

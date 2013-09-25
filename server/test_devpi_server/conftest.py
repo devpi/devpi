@@ -64,7 +64,7 @@ def xom(request, makexom):
 def makexom(request, gentmp, httpget):
     def makexom(opts=(), httpget=httpget, proxy=None, mocking=True):
         serverdir = gentmp()
-        fullopts = ["devpi-server", "--serverdir", serverdir] + list(opts)
+        fullopts = ["devpi-server", serverdir] + list(opts)
         fullopts = [str(x) for x in fullopts]
         config = parseoptions(fullopts)
         if mocking:

@@ -37,10 +37,10 @@ def url_of_liveserver(request):
     import subprocess, random
     port = random.randint(2001, 64000)
     clientdir = request.config._tmpdirhandler.mktemp("liveserver")
-    subprocess.check_call(["devpi-server", "--serverdir", str(clientdir),
+    subprocess.check_call(["devpi-server", "serverdir", str(clientdir),
                              "--port", str(port), "--start"])
     def stop():
-        subprocess.check_call(["devpi-server", "--serverdir", str(clientdir),
+        subprocess.check_call(["devpi-server", "serverdir", str(clientdir),
                                  "--stop"])
     request.addfinalizer(stop)
     return "http://localhost:%s" % port

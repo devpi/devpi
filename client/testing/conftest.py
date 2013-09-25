@@ -123,10 +123,10 @@ def port_of_liveserver(request):
         pytest.skip("not running functional tests in --fast mode")
     port = random.randint(2001, 64000)
     clientdir = request.config._tmpdirhandler.mktemp("liveserver")
-    subprocess.check_call(["devpi-server", "--serverdir", str(clientdir),
+    subprocess.check_call(["devpi-server", str(clientdir),
                              "--port", str(port), "--start"])
     def stop():
-        subprocess.check_call(["devpi-server", "--serverdir", str(clientdir),
+        subprocess.check_call(["devpi-server", str(clientdir),
                                  "--stop"])
     request.addfinalizer(stop)
     return port
