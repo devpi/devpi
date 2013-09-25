@@ -76,7 +76,7 @@ class DevIndex:
         #                  packagemd5=link.md5)
         jsonreport = link.pkg.rootdir.join("toxreport.json")
         toxargs = ["--installpkg", str(path_archive),
-                   "-i ALL=%s" % self.current.simpleindex,
+                   "-i ALL=%s" % str(self.current.simpleindex),
                    "--result-json", str(jsonreport),
         ]
         toxargs.extend(self.get_tox_args())
