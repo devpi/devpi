@@ -20,8 +20,10 @@ def main(hub, args):
     # but we want to push to our local devpi server,
     # so we need to monkeypatch distutils in the setup.py process
 
-    #newest_version = hub.remoteindex.getnewestversion(
     current = hub.require_valid_current_with_index()
+    if not hub.current.pypisubmit:
+        hub.fatal("no pypisubmit endpoint available for: %s" %
+                  hub.current.index)
 
     if args.fromdir:
         return main_fromdir(hub, args)
@@ -33,10 +35,6 @@ def main(hub, args):
     uploadbase = hub.getdir("upload")
     exported = checkout.export(uploadbase)
 
-    #set_new_version(hub, args, exported)
-    if not hub.current.pypisubmit:
-        hub.fatal("no pypisubmit endpoint available for: %s" %
-                  hub.current.index)
     if not args.onlydocs:
         exported.setup_register()
         exported.setup_upload()

@@ -562,11 +562,8 @@ def upload(parser):
 
     This command wraps ``setup.py`` invocations to build and
     upload releases, release files and documentation to your
-    in-use index (see "devpi use").
+    current devpi-server index (see "devpi use").
     """
-    #parser.add_argument("-l", dest="showstatus",
-    #    action="store_true", default=None,
-    #    help="show remote versions, local version and package types")
     #parser.add_argument("--ver", dest="setversion",
     #    action="store", default=None,
     #    help="fill version string into setup.py, */__init__.py */conf.py files")
