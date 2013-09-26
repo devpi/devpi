@@ -236,6 +236,9 @@ class ProjectInfo:
         self.name = name
         self.stage = stage
 
+    def __str__(self):
+        return "<ProjectInfo %s stage %s>" %(self.name, self.stage.name)
+
 
 class PrivateStage:
     metadata_keys = """
@@ -318,6 +321,8 @@ class PrivateStage:
         else:
             log.debug("project %r does not exist, good", name)
         if info is not None and info.name != name:
+            log.error("project %r has other name %r in stage %s" %(
+                      name, info.name, self.name))
             raise self.RegisterNameConflict(info)
         self._register_metadata(metadata)
 

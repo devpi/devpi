@@ -1,3 +1,9 @@
+1.X
+----------------
+
+- fix normalization import/export issue: pypi names take precendence
+  for defining the "real" name of a project.
+
 1.1
 ----------------
 

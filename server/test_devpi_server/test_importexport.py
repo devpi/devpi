@@ -197,6 +197,24 @@ class TestImportExport:
         assert n("hello-x") == "hello-X"
         assert n("Hello_x") == "hello-X"
 
+    def test_10_pypi_names_precedence(self, impexp, monkeypatch):
+        mapp1 = impexp.mapp1
+        api = mapp1.create_and_use()
+        # in devpi-server 1.0 one could register X_Y and X-Y names
+        # and they would get registeded under different names.
+        # We simulate it here because 1.1 http API prevents this case.
+        stage = mapp1.xom.db.getstage(api.stagename)
+        monkeypatch.setattr(mapp1.xom.extdb, "getprojectnames_perstage",
+                            lambda: ["hello_X"])
+        stage._register_metadata({"name": "hello_x", "version": "1.1"})
+        stage._register_metadata({"name": "hello-X", "version": "1.0"})
+        impexp.export()
+        mapp2 = impexp.new_import()
+        stage2 = mapp2.xom.db.getstage(api.stagename)
+        def n(name):
+            return stage2.get_project_info(name).name
+        assert n("hello-x") == "hello_X"
+        assert n("Hello_x") == "hello_X"
 
 
 def test_upgrade(makexom, monkeypatch):

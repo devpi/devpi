@@ -131,10 +131,14 @@ class Exporter:
             user = self.db.user_get(username)
             for indexname in user.get("indexes", []):
                 stage = self.db.getstage(username, indexname)
-                if stage.name == "root/pypi":
-                    continue
                 names = stage.getprojectnames_perstage()
                 for name in names:
+                    # pypi names take precedence for defining the realname
+                    if stage.name == "root/pypi":
+                        version = Version("999999.99999")
+                        version.realname = name
+                        norm2maxversion[normalize_name(name)] = version
+                        continue
                     config = stage.get_projectconfig_perstage(name)
                     if config:
                         maxver = None
