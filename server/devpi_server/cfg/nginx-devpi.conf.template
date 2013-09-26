@@ -6,6 +6,8 @@ server {
     gzip_proxied     any;
     gzip_types       text/html application/json; 
 
+    client_max_body_size 30M;
+
     root %(serverdir)s;  # arbitrary for now
     location / {
         proxy_pass http://localhost:%(port)s;

@@ -412,7 +412,8 @@ class PyPIView:
             else:
                 # docs have no version (XXX but they are tied to the latest)
                 if len(content.value) > MAXDOCZIPSIZE:
-                    abort(413, "zipfile too large")
+                    abort_custom(413, "zipfile size %d too large, max=%s"
+                                   % (len(content.value), MAXDOCZIPSIZE))
                 stage.store_doczip(name, content.value)
         else:
             abort(400, "action %r not supported" % action)

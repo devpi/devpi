@@ -353,7 +353,7 @@ class Exported:
         out = self.hub.popen_output(
             [self.python, fn_setup, cwd, current.pypisubmit,
              user, password ] + doc_setup_command +
-             ["-r", "devpi",],
+             ["-r", "devpi", "--show-response"],
             cwd=cwd)
         if "Server response (200): OK" in out:
             for line in out.split("\n")[-10:]:
