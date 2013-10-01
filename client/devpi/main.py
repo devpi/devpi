@@ -331,12 +331,13 @@ class MyArgumentParser(argparse.ArgumentParser):
 #    pass
 
 def try_argcomplete(parser):
-    try:
-        import argcomplete
-    except ImportError:
-        pass
-    else:
-        argcomplete.autocomplete(parser)
+    if os.environ.get('_ARGCOMPLETE'):
+        try:
+            import argcomplete
+        except ImportError:
+            pass
+        else:
+            argcomplete.autocomplete(parser)
 
 def parse_args(argv):
     argv = map(str, argv)
