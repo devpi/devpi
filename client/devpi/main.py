@@ -559,40 +559,50 @@ def index(parser):
 
 @subcommand("devpi.upload.upload")
 def upload(parser):
-    """ prepare and upload packages to the current index.
+    """ (build and) upload packages to the current devpi-server index.
 
-    This command wraps ``setup.py`` invocations to build and
-    upload releases, release files and documentation to your
-    current devpi-server index (see "devpi use").
+    You can directly upload existing release files by specifying
+    their file system path as positional arguments.  Such release files
+    need to contain package metadata as created by setup.py or
+    wheel invocations.
+
+    Or, if you don't specify any path, a setup.py file must exist
+    and will be used to perform build and upload commands.
     """
     #parser.add_argument("--ver", dest="setversion",
     #    action="store", default=None,
     #    help="fill version string into setup.py, */__init__.py */conf.py files")
     #parser.add_argument("--incver", action="store_true",
     #    help="retrieve max remove version, increment and set it like --ver")
-    parser.add_argument("--no-vcs", action="store_true", dest="novcs",
+    build = parser.add_argument_group("build options")
+
+    build.add_argument("--no-vcs", action="store_true", dest="novcs",
         help="don't VCS-export to a fresh dir, just execute setup.py scripts "
              "directly using their dirname as current dir. ")
 
-    parser.add_argument("--formats", default="sdist.tgz", action="store",
+    build.add_argument("--formats", default="sdist.tgz", action="store",
         help="comma separated list of build formats (passed to setup.py). "
              "Examples sdist.zip,bdist_egg,bdist_wheel,bdist_dumb.")
-    parser.add_argument("--from-dir", action="store", default=None,
-        dest="fromdir",
-        help="upload all archive files from the specified directory")
-    parser.add_argument("--only-latest", action="store_true",
-        help="upload only latest version if multiple archives for a "
-             "package are found (only effective with --from-dir)")
-    parser.add_argument("--dry-run", dest="dryrun",
-        action="store_true", default=None,
-        help="don't perform any server-modifying actions")
-    parser.add_argument("--with-docs", action="store_true", default=None,
+    build.add_argument("--with-docs", action="store_true", default=None,
         dest="withdocs",
         help="build sphinx docs and upload them to index. "
              "this triggers 'setup.py build_sphinx ... upload_docs ...'")
-    parser.add_argument("--only-docs", action="store_true", default=None,
+    build.add_argument("--only-docs", action="store_true", default=None,
         dest="onlydocs",
         help="as --with-docs but don't upload release files")
+
+    direct = parser.add_argument_group("direct file upload options")
+    direct.add_argument("--from-dir", action="store_true", default=None,
+        dest="fromdir",
+        help="recursively look for archive files in path if it is a dir")
+    direct.add_argument("--only-latest", action="store_true",
+        help="upload only latest version if multiple archives for a "
+             "package are found (only effective with --from-dir)")
+    direct.add_argument("--dry-run", dest="dryrun",
+        action="store_true", default=None,
+        help="don't perform any server-modifying actions")
+    direct.add_argument("path", action="store", nargs="*",
+        help="path to archive file to be inspected and uploaded.")
     #parser.add_argument("-y", dest="yes",
     #    action="store_true", default=None,
     #    help="answer yes on interactive questions. ")

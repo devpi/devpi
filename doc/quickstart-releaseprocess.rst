@@ -66,6 +66,7 @@ a series of other devpi commands::
     using index: http://localhost:3141/testuser/dev/ (logged in as testuser)
     COMPLETED!  you can now work with your 'dev' index
       devpi install PKG   # install a pkg from pypi
+      devpi upload path   # upload existing release files
       devpi upload        # upload a setup.py based project
       devpi test PKG      # download and test a tox-based project 
       devpi PUSH ...      # to copy releases between indexes

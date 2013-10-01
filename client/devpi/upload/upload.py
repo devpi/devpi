@@ -21,12 +21,11 @@ def main(hub, args):
     # so we need to monkeypatch distutils in the setup.py process
 
     current = hub.require_valid_current_with_index()
-    if not hub.current.pypisubmit:
-        hub.fatal("no pypisubmit endpoint available for: %s" %
-                  hub.current.index)
+    if not current.pypisubmit:
+        hub.fatal("no pypisubmit endpoint available for: %s" % current.index)
 
-    if args.fromdir:
-        return main_fromdir(hub, args)
+    if args.path:
+        return main_fromfiles(hub, args)
 
     setup = hub.cwd.join("setup.py")
     if not setup.check():
@@ -56,24 +55,33 @@ def filter_latest(path_pkginfo):
         retval[x[2]] = x[1]
     return retval
 
-def main_fromdir(hub, args):
-    fromdir = py.path.local(os.path.expanduser(args.fromdir))
-    if not fromdir.check():
-        hub.fatal("directory does not exist: %s" % fromdir)
+def main_fromfiles(hub, args):
+    paths = []
+    for p in args.path:
+        p = py.path.local(os.path.expanduser(p))
+        if not p.check():
+            hub.fatal("path does not exist: %s" % p)
+        if p.isdir() and not args.fromdir:
+            hub.fatal("%s: is a directory but --from-dir not specified" % p)
+        paths.append(p)
 
-    path_pkginfo = {}
-    for archivepath in get_archive_files(fromdir):
-        pkginfo = get_pkginfo(archivepath)
-        if pkginfo is None or pkginfo.name is None:
-            hub.error("%s: does not contain PKGINFO, skipping" %
-                      archivepath.basename)
-            continue
-        path_pkginfo[archivepath] = pkginfo
-        #hub.debug("got pkginfo for %s-%s  %s" %
-        #          (pkginfo.name, pkginfo.version, pkginfo.author))
+    do_upload_paths(hub, args, paths)
+
+def do_upload_paths(hub, args, paths):
+    path2pkginfo = {}
+    for path in paths:
+        for archivepath in get_archive_files(path):
+            pkginfo = get_pkginfo(archivepath)
+            if pkginfo is None or pkginfo.name is None:
+                hub.error("%s: does not contain PKGINFO, skipping" %
+                          archivepath.basename)
+                continue
+            path2pkginfo[archivepath] = pkginfo
+            #hub.debug("got pkginfo for %s-%s  %s" %
+            #          (pkginfo.name, pkginfo.version, pkginfo.author))
     if args.only_latest:
-        path_pkginfo = filter_latest(path_pkginfo)
-    for archivepath, pkginfo in path_pkginfo.iteritems():
+        path_pkginfo = filter_latest(path2pkginfo)
+    for archivepath, pkginfo in path2pkginfo.items():
         upload_file_pypi(hub, archivepath, pkginfo)
 
 def upload_file_pypi(hub, path, pkginfo):
@@ -114,8 +122,11 @@ def upload_file_pypi(hub, path, pkginfo):
 
 # taken from devpi-server/extpypi.py
 ALLOWED_ARCHIVE_EXTS = ".egg .whl .tar.gz .tar.bz2 .tar .tgz .zip".split()
-def get_archive_files(fromdir):
-    for x in fromdir.visit():
+def get_archive_files(path):
+    if path.isfile():
+        yield path
+        return
+    for x in path.visit():
         if not x.check(file=1):
             continue
         for name in ALLOWED_ARCHIVE_EXTS:

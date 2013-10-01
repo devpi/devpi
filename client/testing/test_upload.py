@@ -188,21 +188,37 @@ class TestUploadFunctional:
         devpi("use", "root/pypi")
         devpi("upload", "--dry-run")
 
-    def test_fromdir(self, initproj, devpi, out_devpi, runproc):
+    def test_fromdir(self, initproj, devpi, out_devpi, runproc, monkeypatch):
         initproj("hello-1.1", {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
         tmpdir = py.path.local()
-        runproc(tmpdir, "python setup.py sdist".split())
+        runproc(tmpdir, "python setup.py sdist --format=zip".split())
+        initproj("hello-1.2")
+        runproc(tmpdir, "python setup.py sdist --format=zip".split())
         dist = tmpdir.join("dist")
-        assert dist.check()
+        assert len(dist.listdir()) == 2
         hub = devpi("upload", "--from-dir", dist)
-        out = out_devpi("getjson", hub.current.index + "hello/1.1/")
+        for ver in ("1.1", '1.2'):
+            out = out_devpi("getjson", hub.current.index + "hello/%s/" % ver)
+            data = json.loads(out.stdout.str())
+            assert ("hello-%s.zip" % ver) in data["result"]["+files"]
+
+    def test_frompath(self, initproj, devpi, out_devpi, runproc):
+        initproj("hello-1.3", {"doc": {
+            "conf.py": "",
+            "index.html": "<html/>"}})
+        tmpdir = py.path.local()
+        runproc(tmpdir, "python setup.py sdist --format=zip".split())
+        dist = tmpdir.join("dist")
+        assert len(dist.listdir()) == 1
+        p = dist.listdir()[0]
+        hub = devpi("upload", p)
+        out = out_devpi("getjson", hub.current.index + "hello/1.3/")
         data = json.loads(out.stdout.str())
-        if sys.platform == "win32":
-            assert "hello-1.1.zip" in data["result"]["+files"]
-        else:
-            assert "hello-1.1.tar.gz" in data["result"]["+files"]
+        assert "hello-1.3.zip" in data["result"]["+files"]
+
+
 
 def test_getpkginfo(datadir):
     info = get_pkginfo(datadir.join("dddttt-0.1.dev45-py27-none-any.whl"))

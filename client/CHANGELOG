@@ -3,11 +3,15 @@
 
 - show response when uploading documentation failed
 
-- fix issue54: upload --from-dir now works on wheel files as well.
+- allow to specify archive files as positional arguments (both files and
+  directories can be specified but the latter additionally require
+  a --upload-dirs option)
+
+- fix issue54: upload now works on wheel files as well.
   As pkginfo does not support wheels directly, we use the ``twine``
   project which extends pkginfo for now.
 
-- on upload --from-dir: skip rather than guess packages which contain no metadata
+- on upload release files: skip rather than guess packages which contain no metadata
 
 
 1.1

@@ -11,7 +11,7 @@ if __name__ == "__main__":
 
     install_requires=["tox>=1.6rc1", "archive>=0.3", "beautifulsoup4>=4.2.1",
                       "pkginfo>=1.1b1", "twine",
-                      "py>=1.4.15", "requests>=1.2.3",]
+                      "py>=1.4.16", "requests>=1.2.3",]
 
     if sys.version_info < (2,7):
         install_requires.append("argparse>=1.2.1")
