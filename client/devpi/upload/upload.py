@@ -135,6 +135,13 @@ def get_pkginfo(archivepath):
     #arch = Archive(str(archivepath))
     #for name in arch.namelist():
     #    if name.endswith("/PKG-INFO"):
+    if archivepath.ext == ".whl":
+        # workaround for https://bugs.launchpad.net/pkginfo/+bug/1227788
+        import twine.wheel
+        wheel = twine.wheel.Wheel(str(archivepath))
+        wheel.parse(wheel.read())
+        return wheel
+
     import pkginfo
     info = pkginfo.get_metadata(str(archivepath))
     return info

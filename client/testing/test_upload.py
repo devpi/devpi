@@ -3,11 +3,15 @@ import json
 import py
 import pytest
 import types
-from devpi.upload.upload import (setversion, Checkout, find_parent_subpath)
+from devpi.upload.upload import *
 from devpi.util import version as verlib
 from textwrap import dedent
 
 from devpi.main import check_output
+
+@pytest.fixture
+def datadir():
+    return py.path.local(__file__).dirpath("data")
 
 def runproc(cmd):
     args = cmd.split()
@@ -199,6 +203,11 @@ class TestUploadFunctional:
             assert "hello-1.1.zip" in data["result"]["+files"]
         else:
             assert "hello-1.1.tar.gz" in data["result"]["+files"]
+
+def test_getpkginfo(datadir):
+    info = get_pkginfo(datadir.join("dddttt-0.1.dev45-py27-none-any.whl"))
+    assert info.name == "dddttt"
+    assert info.metadata_version == "2.0"
 
 def test_minimal_pkginfo():
     from devpi.upload.upload import MinimalPkgInfo

@@ -3,6 +3,10 @@
 
 - show response when uploading documentation failed
 
+- fix issue54: upload --from-dir now works on wheel files as well.
+  As pkginfo does not support wheels directly, we use the ``twine``
+  project which extends pkginfo for now.
+
 
 1.1
 -------------------------------
