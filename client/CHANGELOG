@@ -7,6 +7,8 @@
   As pkginfo does not support wheels directly, we use the ``twine``
   project which extends pkginfo for now.
 
+- on upload --from-dir: skip rather than guess packages which contain no metadata
+
 
 1.1
 -------------------------------

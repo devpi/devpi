@@ -209,20 +209,17 @@ def test_getpkginfo(datadir):
     assert info.name == "dddttt"
     assert info.metadata_version == "2.0"
 
-def test_minimal_pkginfo():
-    from devpi.upload.upload import MinimalPkgInfo
-    minpack = MinimalPkgInfo('this/is/a/test-abc-0.1.2dev3.tar.gz')
-    assert minpack.version == '0.1.2dev3'
-    assert verlib.normversion(minpack.version) == (u'00000000', u'00000001',
-                                            u'00000002', u'*@', u'00000003', '*final')
-
 
 def test_filter_latest():
-    from devpi.upload.upload import MinimalPkgInfo, filter_latest
+    class PkgInfo(object):
+        def __init__(self, path):
+            self.name, ver = verlib.guess_pkgname_and_version(path)
+            self.version = unicode(ver)
+
     d = {}
     for idx in [1, 9, 10]:
         path = 'this/is/a/test-abc-0.%d' % (idx)
-        d[path] = MinimalPkgInfo(path)
+        d[path] = PkgInfo(path)
     assert len(d) == 3
     d = filter_latest(d)
     assert len(d) == 1

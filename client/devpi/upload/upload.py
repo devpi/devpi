@@ -42,14 +42,6 @@ def main(hub, args):
         exported.setup_upload_docs()
 
 
-class MinimalPkgInfo(object):
-    def __init__(self, path):
-        self.name, ver = verlib.guess_pkgname_and_version(path)
-        self.version = unicode(ver)
-
-    def __iter__(self):
-        for attr_name in ('name', 'version'):
-            yield attr_name
 
 def filter_latest(path_pkginfo):
     name_version_path = {}
@@ -73,10 +65,9 @@ def main_fromdir(hub, args):
     for archivepath in get_archive_files(fromdir):
         pkginfo = get_pkginfo(archivepath)
         if pkginfo is None or pkginfo.name is None:
-            hub.error("%s: does not contain PKGINFO, "
-                     "taking name/version from filename" %
-                     archivepath.basename)
-            pkginfo = MinimalPkgInfo(archivepath.basename)
+            hub.error("%s: does not contain PKGINFO, skipping" %
+                      archivepath.basename)
+            continue
         path_pkginfo[archivepath] = pkginfo
         #hub.debug("got pkginfo for %s-%s  %s" %
         #          (pkginfo.name, pkginfo.version, pkginfo.author))
