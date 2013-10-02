@@ -5,8 +5,6 @@ if sys.version_info >= (3, 0):
 else:
     import urlparse as urlp
 
-from bs4 import BeautifulSoup
-
 def urlparse(url):
     return urlp.urlparse(url)
 
@@ -61,19 +59,7 @@ def path2url(relpath):
     scheme, netlocpath = relpath.split("/", 1)
     return scheme + "://" + netlocpath
 
-def parselinks(htmlcontent, indexurl=None):
-    soup = BeautifulSoup(htmlcontent)
-    return list(map(A, soup.findAll("a")))
-
-class A:
-    def __init__(self, a):
-        self.href = a.get("href")
-        self.rel = a.get("rel", [])
-        self.text = a.text and a.text.strip() or ""
-
-    @property
-    def basename(self):
-        return posixpath.basename(self.href)
-
-    def __str__(self):
-        return "<A href=%r rel=%r text=%r>" % (self.href, self.rel, self.text)
+def parselinks(htmlcontent, indexurl):
+    from devpi_common.vendor._pip import HTMLPage
+    page = HTMLPage(htmlcontent, indexurl)
+    return list(page.links)

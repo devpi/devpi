@@ -13,6 +13,8 @@
 
 - on upload release files: skip rather than guess packages which contain no metadata
 
+- strike BeautifulSoup dependency and re-use vendored pip-link parser
+
 
 1.1
 -------------------------------

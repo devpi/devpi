@@ -73,26 +73,8 @@ def test_ishttp():
 
 def test_parselinks():
     content = """<html><a href="href" rel="rel">text</a></html>"""
-    link = parselinks(content)[0]
-    assert link.href == "href"
-    assert "rel" in link.rel
-    assert link.text == "text"
-
-def test_parselinks_norel_notext():
-    content = """<html><a href="href" ></a></html>"""
-    link = parselinks(content)[0]
-    assert link.href == "href"
-    assert link.rel == []
-    assert link.text == ""
-
-def test_parselinks_tworel():
-    content = """<html><a href="href" rel="homepage download"></a></html>"""
-    link = parselinks(content)[0]
-    assert link.href == "href"
-    assert "homepage" in link.rel
-    assert "download" in link.rel
-    assert link.text == ""
-
+    link = parselinks(content, "http://root")[0]
+    assert link.url == "http://root/href"
 
 def test_is_valid_url():
     assert is_valid_url("http://heise.de")

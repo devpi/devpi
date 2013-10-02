@@ -4,7 +4,7 @@
 import os, re
 import pkg_resources
 
-from . import _verlib as verlib
+from .vendor import _verlib as verlib
 from .types import cached_property
 
 class Version(object):

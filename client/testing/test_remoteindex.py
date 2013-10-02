@@ -8,9 +8,9 @@ def test_linkset():
         <a href="http://something/pkg-1.2.tar.gz"/>
         <a href="http://something/pkg-1.2dev1.zip"/>
         <a href="http://something/pkg-1.2dev2.zip"/>
-    """)
+    """, "http://something")
     ls = LinkSet(links)
-    assert ls.getnewestversion("pkg").href.endswith("pkg-1.2.tar.gz")
+    assert ls.getnewestversion("pkg").url.endswith("pkg-1.2.tar.gz")
 
 class TestRemoteIndex:
     def test_basic(self, monkeypatch, gen, tmpdir):
@@ -28,7 +28,7 @@ class TestRemoteIndex:
             """ % md5
         monkeypatch.setattr(ri, "getcontent", mockget)
         link = ri.getbestlink("pkg")
-        assert link.href == "http://my/pkg-1.2.tar.gz"
+        assert link.url == "http://my/pkg-1.2.tar.gz"
 
     def test_receive_error(self, monkeypatch, tmpdir):
         indexurl = "http://my/simple/"

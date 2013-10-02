@@ -9,7 +9,7 @@ import sys
 import threading
 html = py.xml.html
 
-from .vendor._pip import HTMLPage
+from devpi_common.vendor._pip import HTMLPage
 
 from devpi_common.s_url import DistURL
 from devpi_common.validation import normalize_name

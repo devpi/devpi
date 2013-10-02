@@ -1,5 +1,6 @@
 
 from __future__ import with_statement
+import posixpath
 import sys
 import shlex
 import hashlib
@@ -36,18 +37,18 @@ class DevIndex:
 
     def download_and_unpack(self, link):
         try:
-            content = self.remoteindex.getcontent(link.href)
+            content = self.remoteindex.getcontent(link.url)
         except self.remoteindex.ReceiveError:
-            self.hub.fatal("could not receive", link.href)
+            self.hub.fatal("could not receive", link.url)
 
-        self.hub.info("received", link.href)
+        self.hub.info("received", link.url)
         if hasattr(link, "md5"):
             md5 = hashlib.md5()
             md5.update(content)
             digest = md5.hexdigest()
             assert digest == link.md5, (digest, link.md5)
             #self.hub.info("verified md5 ok", link.md5)
-        path_archive = self.dir_download.join(link.basename)
+        path_archive = self.dir_download.join(posixpath.basename(link.url))
         with path_archive.open("wb") as f:
             f.write(content)
         pkg = UnpackedPackage(self.hub, self.rootdir, path_archive, link)
@@ -63,7 +64,7 @@ class DevIndex:
 
         # publishing some infos to the commands started by tox
         #setenv_devpi(self.hub, env, posturl=self.current.resultlog,
-        #                  packageurl=link.href,
+        #                  packageurl=link.url,
         #                  packagemd5=link.md5)
         jsonreport = link.pkg.rootdir.join("toxreport.json")
         toxargs = ["--installpkg", str(path_archive),
@@ -118,7 +119,8 @@ class UnpackedPackage:
     def unpack(self):
         self.hub.info("unpacking", self.path_archive, "to", str(self.rootdir))
         archive.extract(str(self.path_archive), to_path=str(self.rootdir))
-        pkgname, version = verlib.guess_pkgname_and_version(self.link.basename)
+        basename = posixpath.basename(self.link.url)
+        pkgname, version = verlib.guess_pkgname_and_version(basename)
         subdir = "%s-%s" %(pkgname, version)
         inpkgdir = self.rootdir.join(subdir)
         assert inpkgdir.check(), inpkgdir

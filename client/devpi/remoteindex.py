@@ -1,3 +1,4 @@
+import posixpath
 from devpi_common.version import guess_pkgname_and_version
 from devpi_common import c_url as urlutil
 import requests
@@ -9,7 +10,8 @@ class LinkSet:
     def getnewestversion(self, pkgname):
         best = None
         for link in self.links:
-            name, version = guess_pkgname_and_version(link.basename)
+            basename = posixpath.basename(link.url)
+            name, version = guess_pkgname_and_version(basename)
             if name != pkgname:
                 continue
             if best is None or version > best[0]:
@@ -47,15 +49,15 @@ class RemoteIndex:
 
 
 
-def parselinks(htmlcontent, indexurl=None):
+def parselinks(htmlcontent, indexurl):
     l = []
-    for link in urlutil.parselinks(htmlcontent):
-        parts = link.href.split("#md5=", 1)
+    for link in urlutil.parselinks(htmlcontent, indexurl):
+        parts = link.url.split("#md5=", 1)
         if len(parts) > 1:
-            link.href, link.md5 = parts
+            link.url, link.md5 = parts
         else:
             link.md5 = None
         if indexurl is not None:
-            link.href = urlutil.joinpath(indexurl, link.href)
+            link.url = urlutil.joinpath(indexurl, link.url)
         l.append(link)
     return l
