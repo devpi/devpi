@@ -37,29 +37,9 @@ def test_getpath():
     assert getpath("https://hello.com:807") == ""
     assert getpath("https://hello.com:807/hello") == "/hello"
 
-
-#
-# test url2path/path2url
-#
-@pytest.mark.parametrize("url", [
-    "http://codespeak.net", "https://codespeak.net",
-    "http://codespeak.net/path",
-    "http://codespeak.net:3123/path",
-    "https://codespeak.net:80/path",
-])
-def test_canonical_url_path_mappings(url):
-    path = url2path(url)
-    assert path[0] != "/"
-    assert posixpath.normpath(path) == path
-    back_url = path2url(path)
-    assert url == back_url
-
-
 def test_getscheme():
     assert getscheme("http://hello") == "http"
     assert getscheme("whatever://hello") == "whatever"
-
-
 
 def test_ishttp():
     assert ishttp("http://hello/path")

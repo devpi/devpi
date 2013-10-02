@@ -45,20 +45,6 @@ def getscheme(url):
 def getpath(url):
     return urlparse(url).path
 
-def url2path(url):
-    """ return scheme/netloc/path into a canonical relative filepath.
-    Only the scheme, netlocation and path are mapped, queries or fragments
-    are ignored.
-    """
-    parsed = urlparse(url)
-    assert parsed.scheme.startswith("http")
-    return "%s/%s%s" % (parsed.scheme, parsed.netloc, parsed.path)
-
-def path2url(relpath):
-    """ return url from canonical relative path. """
-    scheme, netlocpath = relpath.split("/", 1)
-    return scheme + "://" + netlocpath
-
 def parselinks(htmlcontent, indexurl):
     from devpi_common.vendor._pip import HTMLPage
     page = HTMLPage(htmlcontent, indexurl)
