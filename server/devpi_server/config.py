@@ -1,11 +1,10 @@
-import sys
 import os.path
 import logging
 from logging import getLogger, basicConfig
 import argparse
 
 import py
-from devpi_server.types import canraise, cached_property
+from devpi_common.types import cached_property
 import devpi_server
 log = getLogger(__name__)
 

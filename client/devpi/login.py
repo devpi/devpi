@@ -1,13 +1,4 @@
 
-import os
-import sys
-import py
-import json
-
-from devpi import log
-from devpi.use import parse_keyvalue_spec
-
-
 def main(hub, args):
     user = args.username
     if user is None:

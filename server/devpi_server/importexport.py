@@ -1,14 +1,9 @@
-import execnet
 import sys
 import json
-import os
 import py
 import logging
-from .validation import normalize_name
-from .types import cached_property
-from .urlutil import get_latest_version, Version
-from pkg_resources import parse_version
-
+from devpi_common.validation import normalize_name
+from devpi_common.s_url import Version
 from devpi_server.main import fatal
 import devpi_server
 

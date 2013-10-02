@@ -1,7 +1,6 @@
 import pytest
 
-from devpi.util.version import (guess_pkgname_and_version, normversion,
-    splitbasename, Version)
+from devpi_common.version import *
 
 @pytest.mark.parametrize(("releasename", "expected"), [
     ("pytest-2.3.4.zip", ("pytest", "2.3.4")),

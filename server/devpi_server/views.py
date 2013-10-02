@@ -1,19 +1,18 @@
 import py
 from py.xml import html
-from devpi_server.types import lazydecorator, cached_property
+from devpi_common.types import lazydecorator
 import devpi_server
 from bottle import response, request, abort, redirect, HTTPError
 from bottle import BaseResponse, HTTPResponse, static_file
 import bottle
 import json
 import logging
-import inspect
 import requests
-from .validation import normalize_name, is_valid_archive_name
+from devpi_common.validation import normalize_name, is_valid_archive_name
 
 from .auth import Auth
 from .config import render_string
-from . import urlutil
+from devpi_common import s_url
 
 log = logging.getLogger(__name__)
 
@@ -348,7 +347,7 @@ class PyPIView:
                     file_metadata = metadata.copy()
                     file_metadata[":action"] = "file_upload"
                     basename = entry.basename
-                    pyver, filetype = urlutil.get_pyversion_filetype(basename)
+                    pyver, filetype = s_url.get_pyversion_filetype(basename)
                     file_metadata["filetype"] = filetype
                     file_metadata["pyversion"] = pyver
                     openfile = entry.FILE.filepath.open("rb")
@@ -464,7 +463,7 @@ class PyPIView:
             apireturn(200, type="projectconfig", result=metadata)
         # html
         body = []
-        for version in urlutil.sorted_by_version(metadata.keys()):
+        for version in s_url.sorted_by_version(metadata.keys()):
             body.append(html.a(version, href=version + "/"))
             body.append(html.br())
         return simple_html_body("%s/%s: list of versions" % (stage.name,name),

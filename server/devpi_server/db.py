@@ -1,12 +1,10 @@
 
 import os
-import re
 import py
-from .urlutil import DistURL
+from devpi_common.s_url import DistURL, sorted_by_version, get_latest_version
+from devpi_common.validation import validate_metadata, normalize_name
 from .vendor._description_utils import processDescription
-from .urlutil import sorted_by_version, get_latest_version
 from .auth import crypt_password, verify_password
-from .validation import validate_metadata, normalize_name
 
 import logging
 

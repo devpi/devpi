@@ -4,9 +4,8 @@ import py
 
 import json
 
-from devpi import log, cached_property
-from devpi.util import url as urlutil
-import posixpath
+from devpi import log
+from devpi_common import c_url as urlutil
 
 if sys.platform == "win32":
     vbin = "Scripts"

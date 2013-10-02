@@ -2,14 +2,12 @@
 # removed extract_package_readme function
 
 import sys
-import zipfile
 import StringIO
 import cgi
 import urlparse
 
 from docutils.core import publish_doctree, Publisher
-from docutils.writers import get_writer_class
-from docutils.transforms import TransformError, Transform
+from docutils.transforms import TransformError
 from docutils import io, readers
 
 

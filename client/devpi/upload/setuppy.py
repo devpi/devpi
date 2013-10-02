@@ -1,7 +1,7 @@
 import os, sys
 
 def _prepare_distutils():
-    import os, sys, urlparse
+    import os, sys
     from distutils.config import PyPIRCCommand
 
     print ("sys.argv %s" % sys.argv)

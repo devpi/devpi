@@ -1,6 +1,6 @@
 import pytest
 import posixpath
-from devpi.util.url import *
+from devpi_common.c_url import *
 import os.path
 
 @pytest.mark.parametrize(("url", "path", "expected"), [
@@ -41,8 +41,6 @@ def test_getpath():
 #
 # test url2path/path2url
 #
-from devpi.util.url import url2path, path2url
-
 @pytest.mark.parametrize("url", [
     "http://codespeak.net", "https://codespeak.net",
     "http://codespeak.net/path",

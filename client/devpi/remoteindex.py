@@ -1,6 +1,5 @@
-import pkg_resources
-from devpi.util.version import guess_pkgname_and_version
-from devpi.util import url as urlutil
+from devpi_common.version import guess_pkgname_and_version
+from devpi_common import c_url as urlutil
 import requests
 
 class LinkSet:

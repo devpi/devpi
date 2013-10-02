@@ -1,10 +1,10 @@
 import pytest
-from devpi.util import lazydecorator
+from devpi_common.types  import lazydecorator
 
 pytest_plugins = "pytester"
 
 def test_simpler():
-    dec = lazydecorator.lazydecorator()
+    dec = lazydecorator()
     class A:
         @dec(5)
         @dec(1, kw=3)
@@ -26,7 +26,7 @@ def test_simpler():
     assert l2[1] == (a.f, 5, None)
 
 def test_simpler_dict():
-    dec = lazydecorator.lazydecorator()
+    dec = lazydecorator()
 
     @dec()
     def f():
@@ -41,7 +41,7 @@ def test_simpler_dict():
     assert l[1] == (g, (), dict(x=1))
 
 def test_multi():
-    dec = lazydecorator.lazydecorator()
+    dec = lazydecorator()
     class A:
         @dec(1)
         def c(self):
@@ -70,9 +70,9 @@ def test_multi():
 
 def test_simpler_mod(testdir):
     p = testdir.makepyfile("""
-        from devpi.util import lazydecorator
+        from devpi_common.types import lazydecorator
 
-        dec = lazydecorator.lazydecorator()
+        dec = lazydecorator()
         @dec("world")
         @dec("hello")
         def f():

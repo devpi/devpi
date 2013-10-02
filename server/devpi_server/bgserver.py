@@ -2,7 +2,7 @@
 """
 interact/control devpi-server background process.
 """
-import sys, os, time
+import sys, time
 import py
 if sys.version_info >= (3, 0):
     from urllib import parse as urlp

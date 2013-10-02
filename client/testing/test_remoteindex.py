@@ -1,6 +1,6 @@
 
 from devpi.remoteindex import RemoteIndex, LinkSet
-from devpi.util import url as urlutil
+from devpi_common import c_url as urlutil
 from devpi.use import Current
 
 def test_linkset():

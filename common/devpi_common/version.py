@@ -1,18 +1,11 @@
 #! /usr/bin/env python
 """minimal PyPI like server for use with pip/easy_install"""
 
-import os, sys, getopt, re, mimetypes
+import os, re
 import pkg_resources
 
-from tox import _verlib as verlib
-from devpi import cached_property
-
-import py
-
-
-mimetypes.add_type("application/octet-stream", ".egg")
-
-DEFAULT_SERVER = None
+from . import _verlib as verlib
+from .types import cached_property
 
 class Version(object):
     def __init__(self, version, pep386version = None):

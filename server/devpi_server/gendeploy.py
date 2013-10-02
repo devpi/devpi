@@ -3,7 +3,7 @@ import py
 import sys
 import os
 import subprocess
-from devpi_server import urlutil
+from devpi_common.s_url import urlparse
 
 from devpi_server.config import render, getpath
 import devpi_server
@@ -45,7 +45,7 @@ def gendeploycfg(config, venvdir, tw=None):
         outside_host = "localhost"
         outside_port = 80
     else:
-        parsed = urlutil.urlparse(outside_url)
+        parsed = urlparse(outside_url)
         parts = list(parsed.netloc.split(":"))
         if len(parts) < 2:
             parts.append(80)

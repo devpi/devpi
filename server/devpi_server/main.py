@@ -10,13 +10,11 @@ import threading
 from logging import getLogger
 log = getLogger(__name__)
 
-from .types import cached_property
+from devpi_common.types import cached_property
+from devpi_common.s_url import Version
 from .config import parseoptions, configure_logging
-from .urlutil import Version
 
 import devpi_server
-from pkg_resources import parse_version
-from . import extpypi
 
 PYPIURL_XMLRPC = "https://pypi.python.org/pypi/"
 

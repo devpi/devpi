@@ -5,7 +5,6 @@ storing basic python types.
 
 """
 
-import re
 import py
 import threading
 from tempfile import NamedTemporaryFile, mkdtemp
@@ -14,7 +13,7 @@ import os, sys
 from os.path import basename, isabs, join
 from os import listdir
 
-from devpi_server.types import cached_property
+from devpi_common.types import cached_property
 
 _nodefault = object()
 

@@ -4,7 +4,7 @@ import py
 import pytest
 import types
 from devpi.upload.upload import *
-from devpi.util import version as verlib
+from devpi_common import version as verlib
 from textwrap import dedent
 
 from devpi.main import check_output

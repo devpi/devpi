@@ -1,14 +1,7 @@
 
-import os
-import py
-import pkg_resources
-
-from devpi.util import version as verutil
-from devpi.util import url as urlutil
+from devpi_common import version as verutil
+from devpi_common import c_url as urlutil
 from pkg_resources import parse_version
-
-from devpi import log
-import posixpath
 
 def out_index(hub, data):
     for name in sorted(data):

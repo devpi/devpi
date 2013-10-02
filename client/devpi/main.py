@@ -5,9 +5,8 @@ import py
 import argparse
 import subprocess
 import devpi
-from devpi.util.lazydecorator import lazydecorator
-from devpi.util import url as urlutil
-from devpi import log, cached_property
+from devpi_common.types import lazydecorator, cached_property
+from devpi import log
 from devpi import __version__ as client_version
 from devpi.use import Current
 import requests

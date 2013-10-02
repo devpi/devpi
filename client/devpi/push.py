@@ -1,8 +1,6 @@
 import py
-from devpi import log
-from devpi.util import version as verlib
+from devpi_common import version as verlib
 from devpi.util import pypirc
-import re
 
 class PyPIPush:
     def __init__(self, posturl, user, password):

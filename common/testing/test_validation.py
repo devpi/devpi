@@ -1,5 +1,5 @@
 
-from devpi_server.validation import *
+from devpi_common.validation import *
 import pytest
 
 def names(*args):

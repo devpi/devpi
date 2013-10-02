@@ -1,5 +1,5 @@
 import pytest
-from devpi_server.urlutil import *
+from devpi_common.s_url import *
 
 class TestDistURL:
     def test_basename(self):

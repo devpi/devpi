@@ -1,11 +1,4 @@
-import os
-import sys
-import py
-import json
-
-from devpi import log
 from devpi.use import parse_keyvalue_spec
-from devpi.util import url as urlutil
 
 def index_create(hub, indexname, kvdict):
     url = hub.current.get_index_url(indexname, slash=False)

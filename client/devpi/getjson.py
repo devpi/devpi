@@ -1,12 +1,4 @@
-import os
-import sys
-import py
-
-import json
-
-from devpi import log, cached_property
-from devpi.util import url as urlutil
-import posixpath
+from devpi_common import c_url as urlutil
 
 def main(hub, args=None):
     hub.set_quiet()

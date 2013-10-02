@@ -1,8 +1,6 @@
 """
 perform a quickstart initialization of devpi-server and devpi-client.
 """
-import os
-import time
 import py
 
 def main(hub, args):

@@ -6,7 +6,7 @@ note XXX for changes:
 
 """
 import re
-from devpi_server.urlutil import urljoin
+from devpi_common.s_url import urljoin
 
 class HTMLPage(object):
     """Represents one page, along with its URL"""

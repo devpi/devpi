@@ -1,9 +1,9 @@
 
-import os, sys
+import sys
 import posixpath
 import re
 import pkg_resources
-from .types import cached_property, CompareMixin
+from devpi_common.types import cached_property, CompareMixin
 from .validation import normalize_name
 from requests.models import parse_url
 from logging import getLogger

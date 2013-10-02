@@ -19,8 +19,6 @@ std = py.std
 
 pytest_plugins = "pytester"
 
-from devpi.util import url as urlutil
-
 def pytest_runtest_makereport(item, call):
     if "incremental" in item.keywords:
         if call.excinfo is not None:
@@ -330,7 +328,6 @@ def runprocess(tmpdir, cmdargs):
 
 import pytest
 from mock import Mock
-import devpi.util.url as urlutil
 from devpi import log
 
 @pytest.fixture

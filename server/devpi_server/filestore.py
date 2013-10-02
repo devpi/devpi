@@ -11,9 +11,8 @@ from wsgiref.handlers import format_date_time
 from datetime import datetime
 from time import mktime
 
-import py
-from .types import propmapping
-from .urlutil import DistURL, splitbasename
+from devpi_common.types import propmapping
+from devpi_common.s_url import splitbasename
 
 from logging import getLogger
 log = getLogger(__name__)

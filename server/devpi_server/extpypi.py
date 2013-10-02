@@ -4,8 +4,6 @@ Implementation of the database layer for PyPI Package serving and
 testresult storage.
 
 """
-import json
-import re
 import py
 import sys
 import threading
@@ -13,11 +11,9 @@ html = py.xml.html
 
 from .vendor._pip import HTMLPage
 
-from .types import propmapping
-from .urlutil import DistURL, joinpath
-from pkg_resources import Requirement
+from devpi_common.s_url import DistURL
+from devpi_common.validation import normalize_name
 
-from .validation import normalize_name, safe_name
 from .db import ProjectInfo
 
 from logging import getLogger

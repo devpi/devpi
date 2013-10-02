@@ -1,7 +1,6 @@
 
 import py
 import pytest
-from devpi.util import url as urlutil
 from devpi.test import *
 from devpi.main import check_output
 from mock import Mock

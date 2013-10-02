@@ -9,22 +9,12 @@ if __name__ == "__main__":
     README = open(os.path.join(here, 'README.rst')).read()
     CHANGES = open(os.path.join(here, 'CHANGELOG')).read()
 
-    install_requires=["tox>=1.6rc1", "archive>=0.3", "beautifulsoup4>=4.2.1",
-                      "devpi_common>=0.1.dev1",
-                      "pkginfo>=1.1b1", "twine",
-                      "py>=1.4.16", "requests>=1.2.3",]
-
-    if sys.version_info < (2,7):
-        install_requires.append("argparse>=1.2.1")
-
     setup(
-      name="devpi-client",
-      description="devpi upload/install/... workflow commands for Python "
-                  "developers",
+      name="devpi-common",
+      description="utilities jointly used by devpi-server and devpi-client",
       long_description=open("README.rst").read(),
-      version='1.1.1.dev1',
+      version='0.1.dev1',
       packages=find_packages(),
-      install_requires=install_requires,
       url="https://bitbucket.org/hpk42/devpi",
       maintainer="Holger Krekel",
       maintainer_email="holger@merlinux.eu",

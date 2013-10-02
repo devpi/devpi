@@ -1,7 +1,7 @@
 
 import pytest
 import py
-from devpi_server.urlutil import DistURL
+from devpi_common.s_url import DistURL
 from devpi_server.filestore import *
 
 BytesIO = py.io.BytesIO

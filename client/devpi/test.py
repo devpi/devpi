@@ -1,24 +1,15 @@
 
 from __future__ import with_statement
-import os, sys
+import sys
 import shlex
 import hashlib
-import mimetypes
-import posixpath
 import py
-import devpi
-import argparse
-import pkg_resources
 import archive
 import json
 import tox
 
-from devpi.util import url as urlutil
-from devpi.util import version as verlib
-from devpi.util import pypirc
+from devpi_common import version as verlib
 from devpi.remoteindex import RemoteIndex
-
-import requests
 
 def setenv_devpi(hub, env, posturl, packageurl, packagemd5):
     if not packagemd5:

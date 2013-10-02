@@ -2,9 +2,6 @@
 import os
 import py
 
-from devpi import log
-import posixpath
-
 def main(hub, args):
     current = hub.require_valid_current_with_index()
 

@@ -1,13 +1,9 @@
 import os
 import re
-import sys
 import py
 from devpi.upload.setuppy import __file__ as fn_setup
-from devpi.use import Current
 from devpi import log
-from devpi.util import version as verlib
-from devpi import cached_property
-from subprocess import PIPE, STDOUT
+from devpi_common import version as verlib
 
 fn_setup = fn_setup.rstrip("oc")
 
