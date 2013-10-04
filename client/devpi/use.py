@@ -93,21 +93,20 @@ class Current(object):
         return self.path and self.path.check()
 
     def _normalize_url(self, url):
-        url = url.rstrip("/") + "/"
-        if not urlutil.ishttp(url):
-            base = urlutil.getnetloc(self.simpleindex, scheme=True)
-            url = DistURL(base).joinpath(url).url
+        url = DistURL(url, asdir=1)
+        if not url.is_valid_http_url():
+            url = DistURL(self.simpleindex, url.url).url
         return url
 
     def configure_fromurl(self, hub, url):
         url = self.get_index_url(url)
-        if not urlutil.is_valid_url(url):
+        if not DistURL(url).is_valid_http_url():
             hub.fatal("invalid URL: %s" % url)
         r = hub.http_api("get", url.rstrip("/") + "/+api", quiet=True)
         self._configure_from_server_api(r["result"], url)
 
     def _configure_from_server_api(self, result, url):
-        rooturl = urlutil.getnetloc(url, scheme=True) + "/"
+        rooturl = DistURL(url).joinpath("/").url
         data = {}
         url_keys = set(devpi_endpoints)
         for name in url_keys:

@@ -174,6 +174,10 @@ class DistURL:
         return x.scheme in ("http", "https")
 
     @property
+    def path(self):
+        return self._parsed.path
+
+    @property
     def basename(self):
         return posixpath.basename(self._parsed.path)
 

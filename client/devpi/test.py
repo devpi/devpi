@@ -1,6 +1,5 @@
 
 from __future__ import with_statement
-import posixpath
 import sys
 import shlex
 import hashlib
@@ -10,6 +9,7 @@ import json
 import tox
 
 from devpi_common import version as verlib
+from devpi_common.s_url import DistURL
 from devpi.remoteindex import RemoteIndex
 
 def setenv_devpi(hub, env, posturl, packageurl, packagemd5):
@@ -48,7 +48,8 @@ class DevIndex:
             digest = md5.hexdigest()
             assert digest == link.md5, (digest, link.md5)
             #self.hub.info("verified md5 ok", link.md5)
-        path_archive = self.dir_download.join(posixpath.basename(link.url))
+        basename = DistURL(link.url).basename
+        path_archive = self.dir_download.join(basename)
         with path_archive.open("wb") as f:
             f.write(content)
         pkg = UnpackedPackage(self.hub, self.rootdir, path_archive, link)
@@ -119,7 +120,7 @@ class UnpackedPackage:
     def unpack(self):
         self.hub.info("unpacking", self.path_archive, "to", str(self.rootdir))
         archive.extract(str(self.path_archive), to_path=str(self.rootdir))
-        basename = posixpath.basename(self.link.url)
+        basename = DistURL(self.link.url).basename
         pkgname, version = verlib.guess_pkgname_and_version(basename)
         subdir = "%s-%s" %(pkgname, version)
         inpkgdir = self.rootdir.join(subdir)

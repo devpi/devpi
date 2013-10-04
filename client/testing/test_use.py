@@ -45,7 +45,7 @@ class TestUnit:
         current = Current(tmpdir.join("current"))
         current.reconfigure(dict(simpleindex="http://my.serv/index1"))
         url = current._normalize_url("index2")
-        assert url == "http://my.serv/index2/"
+        assert url == "http://my.serv/index2"
 
     def test_auth_multisite(self, tmpdir):
         current = Current(tmpdir.join("current"))

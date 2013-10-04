@@ -1,6 +1,5 @@
 import posixpath
 from devpi_common.version import guess_pkgname_and_version
-from devpi_common import c_url as urlutil
 from devpi_common.s_url import DistURL
 import requests
 
@@ -52,7 +51,7 @@ class RemoteIndex:
 
 def parselinks(htmlcontent, indexurl):
     l = []
-    for link in urlutil.parselinks(htmlcontent, indexurl):
+    for link in parselinks(htmlcontent, indexurl):
         parts = link.url.split("#md5=", 1)
         if len(parts) > 1:
             link.url, link.md5 = parts
@@ -62,3 +61,8 @@ def parselinks(htmlcontent, indexurl):
             link.url = DistURL(indexurl, link.url).url
         l.append(link)
     return l
+
+def parselinks(htmlcontent, indexurl):
+    from devpi_common.vendor._pip import HTMLPage
+    page = HTMLPage(htmlcontent, indexurl)
+    return list(page.links)

@@ -1,16 +1,17 @@
 
-from devpi.remoteindex import RemoteIndex, LinkSet
-from devpi_common import c_url as urlutil
+from devpi.remoteindex import RemoteIndex, LinkSet, parselinks
+from devpi_common.s_url import DistURL
 from devpi.use import Current
 
 def test_linkset():
-    links = urlutil.parselinks("""
+    links = parselinks("""
         <a href="http://something/pkg-1.2.tar.gz"/>
         <a href="http://something/pkg-1.2dev1.zip"/>
         <a href="http://something/pkg-1.2dev2.zip"/>
     """, "http://something")
     ls = LinkSet(links)
-    assert ls.getnewestversion("pkg").url.endswith("pkg-1.2.tar.gz")
+    link = ls.getnewestversion("pkg")
+    assert DistURL(link.url).url_nofrag.endswith("pkg-1.2.tar.gz")
 
 class TestRemoteIndex:
     def test_basic(self, monkeypatch, gen, tmpdir):
@@ -28,7 +29,7 @@ class TestRemoteIndex:
             """ % md5
         monkeypatch.setattr(ri, "getcontent", mockget)
         link = ri.getbestlink("pkg")
-        assert link.url == "http://my/pkg-1.2.tar.gz"
+        assert DistURL(link.url).url_nofrag == "http://my/pkg-1.2.tar.gz"
 
     def test_receive_error(self, monkeypatch, tmpdir):
         indexurl = "http://my/simple/"
@@ -40,3 +41,8 @@ class TestRemoteIndex:
         monkeypatch.setattr(ri, "getcontent", mockget)
         link = ri.getbestlink("pkg")
         assert link is None
+
+def test_parselinks():
+    content = """<html><a href="href" rel="rel">text</a></html>"""
+    link = parselinks(content, "http://root")[0]
+    assert link.url == "http://root/href"

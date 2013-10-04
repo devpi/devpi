@@ -131,7 +131,7 @@ def main_remove(hub, args):
         hub.http_api("delete", url)
 
 def confirm_delete(hub, data):
-    basepath = urlutil.getpath(hub.current.index).lstrip("/")
+    basepath = DistURL(hub.current.index).path.lstrip("/")
     to_delete = []
     if data["type"] == "projectconfig":
         for version, verdata in data["result"].items():
