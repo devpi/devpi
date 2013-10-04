@@ -6,6 +6,7 @@ import json
 
 from devpi import log
 from devpi_common import c_url as urlutil
+from devpi_common.s_url import DistURL
 
 if sys.platform == "win32":
     vbin = "Scripts"
@@ -95,7 +96,7 @@ class Current(object):
         url = url.rstrip("/") + "/"
         if not urlutil.ishttp(url):
             base = urlutil.getnetloc(self.simpleindex, scheme=True)
-            url = urlutil.joinpath(base, url)
+            url = DistURL(base).joinpath(url).url
         return url
 
     def configure_fromurl(self, hub, url):
@@ -112,7 +113,7 @@ class Current(object):
         for name in url_keys:
             val = result.get(name, None)
             if val is not None:
-                val = urlutil.joinpath(rooturl, val)
+                val = DistURL(rooturl).joinpath(val).url
             data[name] = val
         self.reconfigure(data)
         status = result.get("authstatus", None)
@@ -133,14 +134,14 @@ class Current(object):
     @property
     def rooturl(self):
         if self.login:
-            return urlutil.joinpath(self.login, "/")
+            return DistURL(self.login, "/").url
 
     def get_user_url(self, user=None):
         if user is None:
             user = self.get_auth_user()
             if not user:
                 raise ValueError("no current authenticated user")
-        return urlutil.joinpath(self.rooturl, user)
+        return DistURL(self.rooturl, user).url
 
     def get_index_url(self, indexname=None, slash=True):
         if indexname is None:
@@ -149,8 +150,8 @@ class Current(object):
                 raise ValueError("no index name")
         if "/" not in indexname:
             userurl = self.get_user_url()
-            return urlutil.joinpath(userurl + "/", indexname)
-        url = urlutil.joinpath(self.rooturl, indexname)
+            return DistURL(userurl + "/", indexname).url
+        url = DistURL(self.rooturl).joinpath(indexname).url
         url = url.rstrip("/")
         if slash:
             url = url.rstrip("/") + "/"
@@ -158,8 +159,7 @@ class Current(object):
 
     def get_project_url(self, name):
         baseurl = self.get_index_url(slash=True)
-        url = urlutil.joinpath(baseurl, name) + "/"
-        return url
+        return DistURL(baseurl, name, asdir=1).url
 
 def out_index_list(hub, data):
     for user in data:

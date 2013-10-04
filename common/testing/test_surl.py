@@ -34,6 +34,34 @@ class TestDistURL:
         url = DistURL("http://a/sub/index.html#md5=123123")
         assert url.joinpath("../pkg/x.zip") == "http://a/pkg/x.zip"
 
+    @pytest.mark.parametrize("url,path,expected", [
+        ("http://root", "dir1", "http://root/dir1"),
+        ("http://root", "dir1/", "http://root/dir1/"),
+        ("http://root/", "dir1/", "http://root/dir1/"),
+        ("http://root/dir1", "dir2", "http://root/dir2"),
+        ("http://root/dir1/", "dir2/", "http://root/dir1/dir2/"),
+        ("http://root/dir1/", "/dir2", "http://root/dir2"),
+        ("http://root/dir1/", "/dir2/", "http://root/dir2/"),
+    ])
+    def test_joinpath(self, url, path, expected):
+        d_url = DistURL(url)
+        url_joined = d_url.joinpath(path).url
+        assert url_joined == expected
+        assert DistURL(url, path).url == expected
+
+        assert d_url.joinpath(path, "end").url == expected + "/end"
+        assert DistURL(url, path, "end").url == expected + "/end"
+
+        assert d_url.joinpath(path, "end", asdir=1).url == expected + "/end/"
+        assert DistURL(url, path, "end", asdir=1).url == expected + "/end/"
+
+    def test_joinpath_asdir(self):
+        url = DistURL("http://heise.de")
+        new = url.joinpath("hello", asdir=1)
+        assert new.url == "http://heise.de/hello/"
+        new = url.joinpath("hello/", asdir=1)
+        assert new.url == "http://heise.de/hello/"
+
     def test_geturl_nofrag(self):
         url = DistURL("http://a/py.tar.gz#egg=py-dev")
         assert url.geturl_nofragment() == "http://a/py.tar.gz"
@@ -56,22 +84,6 @@ class TestDistURL:
         url3 = DistURL("http://a/py.zip#egg=py-dev")
         assert url3.easyversion > url1.easyversion > url2.easyversion
         assert url3 > url1 > url2
-
-
-@pytest.mark.parametrize(("url", "path", "expected"), [
-    ("http://x/simple", "pytest", "http://x/pytest"),
-    ("http://x/simple/", "pytest", "http://x/simple/pytest"),
-    ("http://x/simple/", "pytest/", "http://x/simple/pytest/"),
-    ("http://x/simple/", "pytest/", "http://x/simple/pytest/")
-])
-def test_joinpath(url, path, expected):
-    new = joinpath(url, path)
-    assert new == expected
-
-def test_joinpath_multiple():
-    url = "http://x/simple/"
-    new = joinpath(url, "package", "version")
-    assert new == "http://x/simple/package/version"
 
 @pytest.mark.parametrize(("releasename", "expected"), [
     ("pytest-2.3.4.zip", ("pytest", "2.3.4", ".zip")),

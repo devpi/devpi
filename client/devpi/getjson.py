@@ -1,4 +1,5 @@
 from devpi_common import c_url as urlutil
+from devpi_common.s_url import DistURL
 
 def main(hub, args=None):
     hub.set_quiet()
@@ -12,9 +13,9 @@ def main(hub, args=None):
     if path[0] != "/":
         if not current.index:
             hub.fatal("cannot use relative path without an active index")
-        url = urlutil.joinpath(current.get_index_url(), path)
+        url = DistURL(current.get_index_url(), path).url
     else:
-        url = urlutil.joinpath(current.rooturl, path)
+        url = DistURL(current.rooturl, path).url
     r = hub.http_api("get", url, quiet=True, check_version=False)
     if hub.args.verbose:
         hub.line("GET REQUEST sent to %s" % url)

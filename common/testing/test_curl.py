@@ -3,21 +3,6 @@ import posixpath
 from devpi_common.c_url import *
 import os.path
 
-@pytest.mark.parametrize(("url", "path", "expected"), [
-    ("http://x/simple", "pytest", "http://x/pytest"),
-    ("http://x/simple/", "pytest", "http://x/simple/pytest"),
-    ("http://x/simple/", "pytest/", "http://x/simple/pytest/"),
-    ("http://x/simple/", "pytest/", "http://x/simple/pytest/")
-])
-def test_joinpath(url, path, expected):
-    new = joinpath(url, path)
-    assert new == expected
-
-def test_joinpath_multiple():
-    url = "http://x/simple/"
-    new = joinpath(url, "package", "version")
-    assert new == "http://x/simple/package/version"
-
 #def test_joinpath_justpath():
 #    import posixpath
 #    p = posixpath.join("/hello", "world/")

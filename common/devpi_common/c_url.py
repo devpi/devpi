@@ -19,13 +19,6 @@ def is_valid_url(url):
         return False
     return True
 
-def joinpath(url, *args):
-    new = url
-    for arg in args[:-1]:
-        new = urlp.urljoin(new, arg) + "/"
-    new = urlp.urljoin(new, args[-1])
-    return new
-
 def getnetloc(url, scheme=False):
     parsed = urlparse(url)
     netloc = parsed.netloc

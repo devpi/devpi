@@ -19,11 +19,13 @@ else:
 
 from pkg_resources import parse_version
 
-def joinpath(url, *args):
+def _joinpath(url, args, asdir=False):
     new = url
     for arg in args[:-1]:
         new = urljoin(new, arg) + "/"
     new = urljoin(new, args[-1])
+    if asdir:
+        new = new.rstrip("/") + "/"
     return new
 
 _releasefile_suffix_rx = re.compile(r"(\.zip|\.tar\.gz|\.tgz|\.tar\.bz2|"
@@ -103,7 +105,9 @@ def splitext_archive(basename):
 
 
 class DistURL:
-    def __init__(self, url):
+    def __init__(self, url, *args, **kwargs):
+        if args:
+            url = _joinpath(url, args, **kwargs)
         self.url = url
 
     def __repr__(self):
@@ -189,8 +193,8 @@ class DistURL:
         if val.startswith("md5="):
             return val[4:]
 
-    def joinpath(self, url):
-        newurl = joinpath(self.url, url)
+    def joinpath(self, *args, **kwargs):
+        newurl = _joinpath(self.url, args, **kwargs)
         return DistURL(newurl)
 
     def torelpath(self):

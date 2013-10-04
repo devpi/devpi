@@ -1,6 +1,7 @@
 import posixpath
 from devpi_common.version import guess_pkgname_and_version
 from devpi_common import c_url as urlutil
+from devpi_common.s_url import DistURL
 import requests
 
 class LinkSet:
@@ -28,7 +29,7 @@ class RemoteIndex:
 
     def getlinkset(self, pkgname):
         """ return list of links for given package. """
-        indexurl = urlutil.joinpath(self.current.simpleindex, pkgname + "/")
+        indexurl = DistURL(self.current.simpleindex, pkgname, asdir=1).url
         try:
             content = self.getcontent(indexurl)
         except self.ReceiveError:
@@ -58,6 +59,6 @@ def parselinks(htmlcontent, indexurl):
         else:
             link.md5 = None
         if indexurl is not None:
-            link.url = urlutil.joinpath(indexurl, link.url)
+            link.url = DistURL(indexurl, link.url).url
         l.append(link)
     return l

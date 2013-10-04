@@ -1,6 +1,7 @@
 
 from devpi_common import version as verutil
 from devpi_common import c_url as urlutil
+from devpi_common.s_url import DistURL
 from pkg_resources import parse_version
 
 def out_index(hub, data):
@@ -42,14 +43,14 @@ def query_file_status(hub, origin):
     # XXX this code is not auto-tested in all detail
     # so change with great care or write tests first
     rooturl = hub.current.rooturl
-    res = hub.http_api("get", urlutil.joinpath(rooturl, "/" + origin),
+    res = hub.http_api("get", DistURL(rooturl, "/" + origin).url,
                        quiet=True)
     assert res.status_code == 200
     md5 = res["result"].get("md5")
     if not md5:
         return
-    res = hub.http_api("get", urlutil.joinpath(rooturl,
-                                               "/+tests/%s/toxresult" % md5),
+    res = hub.http_api("get",
+                       DistURL(rooturl, "/+tests/%s/toxresult" % md5).url,
                        quiet=True)
     assert res.status_code == 200
     assert res["type"] == "list:toxresult"
@@ -164,7 +165,7 @@ def getjson(hub, path):
         check_verify_current(hub)
         url = current.get_index_url()
     else:
-        url = urlutil.joinpath(current.get_index_url(), path) + "/"
+        url = DistURL(current.get_index_url(), path).url + "/"
     return hub.http_api("get", url, quiet=True)
 
 def check_verify_current(hub):
