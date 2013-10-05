@@ -95,7 +95,6 @@ def splitbasename(path, checkarch=True):
     version = non_projectname[:-len(suffix)]
     return projectname, version, suffix
 
-
 def splitext_archive(basename):
     base, ext = posixpath.splitext(basename)
     if base.lower().endswith('.tar'):
@@ -103,6 +102,16 @@ def splitext_archive(basename):
         base = base[:-4]
     return base, ext
 
+class Version(CompareMixin):
+    def __init__(self, versionstring):
+        self.string = versionstring
+        self.cmpval = parse_version(versionstring)
+
+    def __str__(self):
+        return self.string
+
+def get_latest_version(seq):
+    return max(map(Version, seq))
 
 class DistURL:
     def __init__(self, url, *args, **kwargs):
@@ -216,13 +225,3 @@ class DistURL:
         scheme, netlocpath = relpath.split("/", 1)
         return cls(scheme + "://" + netlocpath)
 
-class Version(CompareMixin):
-    def __init__(self, versionstring):
-        self.string = versionstring
-        self.cmpval = parse_version(versionstring)
-
-    def __str__(self):
-        return self.string
-
-def get_latest_version(seq):
-    return max(map(Version, seq))

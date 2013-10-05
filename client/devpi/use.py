@@ -5,7 +5,6 @@ import py
 import json
 
 from devpi import log
-from devpi_common import c_url as urlutil
 from devpi_common.s_url import DistURL
 
 if sys.platform == "win32":

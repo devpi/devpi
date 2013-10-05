@@ -1,4 +1,3 @@
-from devpi_common import c_url as urlutil
 from devpi_common.s_url import DistURL
 
 def main(hub, args=None):

@@ -1,7 +1,5 @@
 
-from devpi_common import version as verutil
-from devpi_common import c_url as urlutil
-from devpi_common.s_url import DistURL
+from devpi_common.s_url import DistURL, splitbasename
 from pkg_resources import parse_version
 
 def out_index(hub, data):
@@ -120,7 +118,7 @@ def main_remove(hub, args):
     current = hub.require_valid_current_with_index()
     args = hub.args
 
-    name, ver, suffix = verutil.splitbasename(args.spec)
+    name, ver, suffix = splitbasename(args.spec, checkarch=False)
     if suffix:
         hub.fatal("can only delete releases, not single release files")
     url = hub.current.get_project_url(name)

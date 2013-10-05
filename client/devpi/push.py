@@ -1,5 +1,5 @@
 import py
-from devpi_common import version as verlib
+from devpi_common.s_url import splitbasename
 from devpi.util import pypirc
 
 class PyPIPush:
@@ -45,7 +45,7 @@ def parse_target(hub, args):
 
 def main(hub, args):
     pusher = parse_target(hub, args)
-    name, version = verlib.guess_pkgname_and_version(args.nameversion)
+    name, version = splitbasename(args.nameversion + ".zip")[:2]
     r = pusher.execute(hub, name, version)
     if r.status_code == 200:
         assert r["type"] == "actionlog"

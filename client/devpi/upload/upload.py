@@ -4,6 +4,7 @@ import py
 from devpi.upload.setuppy import __file__ as fn_setup
 from devpi import log
 from devpi_common import version as verlib
+from devpi_common.s_url import Version
 
 fn_setup = fn_setup.rstrip("oc")
 
@@ -42,7 +43,7 @@ def filter_latest(path_pkginfo):
     name_version_path = {}
     for archivepath, pkginfo in path_pkginfo.iteritems():
         name = pkginfo.name
-        iversion = verlib.normversion(pkginfo.version)
+        iversion = Version(pkginfo.version)
         data = name_version_path.get(name)
         if data is None or data[0] < iversion:
             name_version_path[name] = (iversion, pkginfo, archivepath)
@@ -150,7 +151,7 @@ def set_new_version(hub, args, exported):
         newversion = verlib.Version(args.setversion)
         exported.change_versions(newversion)
     else:
-        pkgname, version = exported.name_and_version()
+        pkgname, version = exported.setup_name_and_version()
         link = hub.remoteindex.getbestlink(pkgname)
         if link is None:
             log.info("no remote packages registered yet")
@@ -163,7 +164,7 @@ def set_new_version(hub, args, exported):
                 newversion = version.autoinc()
                 exported.change_versions(newversion)
                     #["setup.py", pkgname + os.sep + "__init__.py"])
-                n,v = exported.name_and_version()
+                n,v = exported.setup_name_and_version()
                 assert v == newversion, (str(v), str(newversion))
             else:
                 newversion = version
@@ -262,17 +263,17 @@ class Exported:
             path.write(newcontent)
             return True
 
-    def setup_fullname(self):
+    def setup_name_and_version(self):
         setup_py = self.rootpath.join("setup.py")
         if not setup_py.check():
             self.hub.fatal("no setup.py file")
-        fullname = self.hub.popen_output([self.python,
-                                          setup_py, "--fullname"]).strip()
-        self.hub.info("got local pypi-fullname", fullname)
-        return fullname
-
-    def name_and_version(self):
-        return verlib.guess_pkgname_and_version(self.setup_fullname())
+        name = self.hub.popen_output([self.python,
+                                      setup_py, "--name"]).strip()
+        version = self.hub.popen_output([self.python,
+                                      setup_py, "--version"]).strip()
+        assert name != version
+        self.hub.info("name, version = %s, %s" %(name, version))
+        return name, verlib.Version(version)
 
     def setup_register(self):
         self.check_setup()

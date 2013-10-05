@@ -56,34 +56,8 @@ class Version(object):
         newver = verlib.NormalizedVersion.from_parts(*newparts)
         return self.__class__(str(newver), newver)
 
-
-def normversion(version):
-    """ return a canonical NormalizedVersion which can be comparted
-    with other instances.
-    """
-    import pkg_resources
-    return pkg_resources.parse_version(version)
-
-    # old implementation
-    ver = verlib.suggest_normalized_version(version)
-    if not ver:
-        raise ValueError("not a version: %r" % (version,))
-    return verlib.NormalizedVersion(ver)
-
-def guess_pkgname(path):
-    pkgname = re.split(r"-\d+", os.path.basename(path))[0]
-    return pkgname
-
 _releasefile_suffix_rx = re.compile(r"(\.zip|\.tar\.gz|\.tgz|\.tar\.bz2|-py[23]\.\d-.*|\.win-amd64-py[23]\.\d\..*|\.win32-py[23]\.\d\..*)$", re.IGNORECASE)
 
-
-def splitbasename(basename):
-    basename = os.path.basename(basename)
-    pkgname = re.split(r"-\d+", basename, 1)[0]
-    version = suffix = basename[len(pkgname) + 1:]
-    version = _releasefile_suffix_rx.sub("", version)
-    suffix = suffix[len(version):]
-    return pkgname, version, suffix
 
 def guess_pkgname_and_version(path):
     path = os.path.basename(path)
@@ -91,8 +65,3 @@ def guess_pkgname_and_version(path):
     version = path[len(pkgname) + 1:]
     version = _releasefile_suffix_rx.sub("", version)
     return pkgname, Version(str(version))
-
-
-def is_allowed_path(path_part):
-    p = path_part.replace("\\", "/")
-    return not (p.startswith(".") or "/." in p)

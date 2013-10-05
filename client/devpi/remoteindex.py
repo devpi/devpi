@@ -1,6 +1,4 @@
-import posixpath
-from devpi_common.version import guess_pkgname_and_version
-from devpi_common.s_url import DistURL
+from devpi_common.s_url import DistURL, splitbasename, Version
 import requests
 
 class LinkSet:
@@ -10,12 +8,12 @@ class LinkSet:
     def getnewestversion(self, pkgname):
         best = None
         for link in self.links:
-            basename = posixpath.basename(link.url)
-            name, version = guess_pkgname_and_version(basename)
-            if name != pkgname:
-                continue
-            if best is None or version > best[0]:
-                best = version, link
+            basename = DistURL(link.url).basename
+            name, version = splitbasename(basename)[:2]
+            ver = Version(version)
+            if name == pkgname:
+                if best is None or ver > best[0]:
+                    best = ver, link
         return best and best[1] or None
 
 class RemoteIndex:

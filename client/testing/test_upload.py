@@ -86,25 +86,31 @@ class TestCheckout:
         with pytest.raises(SystemExit):
             exported.setup_upload()
 
-    def test_export_attributes(self, uploadhub, repo, tmpdir):
+    def test_export_attributes(self, uploadhub, repo, tmpdir, monkeypatch):
         checkout = Checkout(uploadhub, repo)
-        repo.join("setup.py").write("print 'xyz-1.2.3'")
+        repo.join("setup.py").write(dedent("""
+            from setuptools import setup
+            setup(name="xyz", version="1.2.3")
+        """))
         exported = checkout.export(tmpdir)
-        assert exported.setup_fullname() == "xyz-1.2.3"
-        name, version = exported.name_and_version()
+        name, version = exported.setup_name_and_version()
         assert name == "xyz"
-        assert str(version) == "1.2.3"
+        assert version.version == "1.2.3"
 
     def test_export_changeversions(self, uploadhub, repo, tmpdir):
         checkout = Checkout(uploadhub, repo)
         repo.join("setup.py").write(dedent("""
+            from setuptools import setup
             version = __version__ = "1.2.dev1"
-            print ("pkg-%s" % version)
+            setup(
+                version=version,
+                name="pkg"
+            )
         """))
         exported = checkout.export(tmpdir)
         newver = verlib.Version("1.2.dev1").autoinc()
         exported.change_versions(newver, ["setup.py"])
-        n,v = exported.name_and_version()
+        n,v = exported.setup_name_and_version()
         assert newver == v
         s1 = exported.rootpath.join("setup.py").read()
         s2 = checkout.rootpath.join("setup.py").read()

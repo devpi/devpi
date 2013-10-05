@@ -10,29 +10,6 @@ def test_guess_pkgname_and_version(releasename, expected):
     result = guess_pkgname_and_version(releasename)
     assert result == (expected[0], Version(expected[1]))
 
-def test_normversion():
-    n1 = normversion("1.0")
-    n2 = normversion("1.0.alpha")
-    #assert str(n2) == "1.0a0"
-    #assert str(n1) == "1.0"
-    assert n1 > n2
-
-    assert normversion("1.0-static") > n1
-
-@pytest.mark.parametrize(("releasename", "expected"), [
-    ("pytest-2.3.4.zip", ("pytest", "2.3.4", ".zip")),
-    ("http://x/pytest-2.3.4.zip", ("pytest", "2.3.4", ".zip")),
-    ("green-0.4.0-py2.5-win32.egg", ("green", "0.4.0", "-py2.5-win32.egg")),
-    # invalid package file names
-    ("fixture.html", ("fixture.html", "", "")),
-    ("fixture-2.4.html", ("fixture", "2.4.html", "")),
-    ("fixture2.4.html", ("fixture2.4.html", "", "")),
-])
-def test_splitbasename(releasename, expected):
-    result = splitbasename(releasename)
-    assert result == expected
-
-
 class TestVersion:
     def test_basic_sorting(self):
         ver1 = Version("1.3")

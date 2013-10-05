@@ -11,7 +11,7 @@ def test_linkset():
     """, "http://something")
     ls = LinkSet(links)
     link = ls.getnewestversion("pkg")
-    assert DistURL(link.url).url_nofrag.endswith("pkg-1.2.tar.gz")
+    assert DistURL(link.url).basename == "pkg-1.2.tar.gz"
 
 class TestRemoteIndex:
     def test_basic(self, monkeypatch, gen, tmpdir):

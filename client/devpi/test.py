@@ -8,8 +8,7 @@ import archive
 import json
 import tox
 
-from devpi_common import version as verlib
-from devpi_common.s_url import DistURL
+from devpi_common.s_url import DistURL, splitbasename
 from devpi.remoteindex import RemoteIndex
 
 def setenv_devpi(hub, env, posturl, packageurl, packagemd5):
@@ -121,7 +120,7 @@ class UnpackedPackage:
         self.hub.info("unpacking", self.path_archive, "to", str(self.rootdir))
         archive.extract(str(self.path_archive), to_path=str(self.rootdir))
         basename = DistURL(self.link.url).basename
-        pkgname, version = verlib.guess_pkgname_and_version(basename)
+        pkgname, version = splitbasename(basename)[:2]
         subdir = "%s-%s" %(pkgname, version)
         inpkgdir = self.rootdir.join(subdir)
         assert inpkgdir.check(), inpkgdir
