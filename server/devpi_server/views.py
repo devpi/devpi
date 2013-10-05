@@ -2,9 +2,8 @@ import py
 from py.xml import html
 from devpi_common.types import lazydecorator
 import devpi_server
-from bottle import response, request, abort, redirect, HTTPError
-from bottle import BaseResponse, HTTPResponse, static_file
-import bottle
+from bottle import response, request, redirect, HTTPError
+from bottle import HTTPResponse, static_file
 import json
 import logging
 import requests
@@ -512,12 +511,11 @@ class PyPIView:
             if key == "description":
                 continue
             rows.append(html.tr(html.td(key), html.td(value)))
-        body = html.table(*rows)
         title = "%s/: %s-%s metadata and description" % (
                 stage.name, name, version)
 
         content = stage.get_description(name, version)
-        css = "https://pypi.python.org/styles/styles.css"
+        #css = "https://pypi.python.org/styles/styles.css"
         return simple_html_body(title,
             [html.table(*rows), py.xml.raw(content)],
             extrahead=
@@ -689,7 +687,7 @@ class PyPIView:
             apireturn(409, "user already exists")
         kvdict = getjson(request)
         if "password" in kvdict:  # and "email" in kvdict:
-            hash = self.db.user_create(user, **kvdict)
+            self.db.user_create(user, **kvdict)
             apireturn(201, type="userconfig", result=self.db.user_get(user))
         apireturn(400, "password needs to be set")
 
@@ -769,7 +767,7 @@ def trigger_jenkins(stage, jenkins_url, testspec):
                     {"parameter": {"name": "jobscript.py", "file": "file0"}}),
             },
                 files={"file0": ("file0", inputfile)})
-    except requests.exceptions.RequestException as e:
+    except requests.exceptions.RequestException:
         log.error("%s: failed to connect to jenkins at %s",
                   testspec, jenkins_url)
         return -1

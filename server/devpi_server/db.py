@@ -115,17 +115,6 @@ class DB:
             user, index = user.split("/")
         return user, index
 
-    def index_get(self, user, index=None):
-        user, index = self._get_user_and_index(user, index)
-        userconfig = self.keyfs.USER(user=user).get()
-        try:
-            indexconfig = userconfig["indexes"][index]
-        except KeyError:
-            return None
-        if "acl_upload" not in indexconfig:
-            indexconfig["acl_upload"] = [user]
-        return indexconfig
-
     def _normalize_bases(self, bases):
         # check and normalize base indices
         messages = []
@@ -311,7 +300,6 @@ class PrivateStage:
         errors. """
         validate_metadata(metadata)
         name = metadata["name"]
-        version = metadata["version"]
         # check if the project exists already under its normalized
         info = self.get_project_info(name)
         if info:
@@ -347,7 +335,7 @@ class PrivateStage:
 
     def project_add(self, name):
         key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
-        with key.locked_update() as projectconfig:
+        with key.locked_update():
             pass
 
     def project_delete(self, name):

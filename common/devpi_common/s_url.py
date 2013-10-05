@@ -39,7 +39,6 @@ _releasefile_suffix_rx = re.compile(r"(\.zip|\.tar\.gz|\.tgz|\.tar\.bz2|"
     ")$", re.IGNORECASE)
 
 def sorted_by_version(versions, attr=None):
-    parse_version = pkg_resources.parse_version
     if attr:
         def ver(x):
             return parse_version(getattr(x, attr))
@@ -159,7 +158,7 @@ class DistURL:
     def easyversion(self):
         if self.eggfragment:
             return ('9' * 8, '*@')
-        return pkg_resources.parse_version(self.pkgname_and_version[1])
+        return parse_version(self.pkgname_and_version[1])
 
     def __cmp__(self, other):
         """ sorting as defined by UpstreamCache.getpackagelinks() """

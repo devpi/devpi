@@ -20,20 +20,6 @@ def bootstrapdict():
 
 @pytest.fixture(scope="session")
 def url_of_liveserver(request):
-    # XXX OLD VERSION, overwritten below
-    initmain = pytest.importorskip("devpi.main").initmain
-    AutoServer = pytest.importorskip("devpi.server").AutoServer
-    port = 7998
-    clientdir = request.config._tmpdirhandler.mktemp("liveserver")
-    hub, method = initmain(["devpi", "--clientdir", clientdir, "server"])
-    autoserver = AutoServer(hub)
-    url = "http://localhost:%s" % port
-    autoserver.start(url, removedata=True)
-    request.addfinalizer(autoserver.stop)
-    return url
-
-@pytest.fixture(scope="session")
-def url_of_liveserver(request):
     import subprocess, random
     port = random.randint(2001, 64000)
     clientdir = request.config._tmpdirhandler.mktemp("liveserver")

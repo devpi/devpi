@@ -38,10 +38,10 @@ def validate_metadata(data):
     if not data.get('version', ''):
         raise ValueError('Missing required field "version"')
     if data.has_key('metadata_version'):
-        metadata_version = data['metadata_version']
+        #metadata_version = data['metadata_version']
         del data['metadata_version']
-    else:
-        metadata_version = '1.0'  # default
+    #else:
+    #    metadata_version = '1.0'  # default
 
     # Ensure that package names follow a restricted set of characters.
     # These characters are:

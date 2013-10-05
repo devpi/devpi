@@ -2,7 +2,6 @@
 import pytest
 import re
 import py
-import webtest
 import requests, json
 from bs4 import BeautifulSoup
 from devpi_server.views import *

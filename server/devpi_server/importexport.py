@@ -39,7 +39,7 @@ def do_upgrade(xom):
         serverdir.remove()
     tw.line("copying new serverstate to serverdir", bold=True)
     newdir.move(serverdir)
-    version = serverdir.join(".serverversion").read()
+    serverdir.join(".serverversion").read()
     tw.line("cleanup: removing exportdir: %s" % exportdir)
     tw.line("have fun serving the new state :)")
     exportdir.remove()
@@ -102,7 +102,6 @@ class Exporter:
         self.export["devpi_server"] = devpi_server.__version__
         self.export["secret"] = self.config.secret
         self.compute_global_projectname_normalization()
-        users = self.export_users
         for username in self.db.user_list():
             userdir = path.join(username)
             data = self.db.user_get(username, credentials=True)
@@ -172,7 +171,7 @@ class IndexDump:
         self.stage = stage
         self.basedir = basedir
         indexmeta = exporter.export_indexes[stage.name] = {}
-        indexmeta["projects"] = projects = {}
+        indexmeta["projects"] = {}
         indexmeta["indexconfig"] = stage.ixconfig
         indexmeta["files"] = []
         self.indexmeta = indexmeta
@@ -286,7 +285,6 @@ class Importer:
         # create projects and releasefiles for each index
         for stage in stages:
             assert stage.name != "root/pypi"
-            indexdir = self.import_rootdir.join("users", stage.name)
             import_index = self.import_indexes[stage.name]
             projects = import_index["projects"]
             #normalized = self.normalize_index_projects(projects)

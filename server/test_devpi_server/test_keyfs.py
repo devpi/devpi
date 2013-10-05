@@ -99,7 +99,7 @@ class Test_addkey_combinations:
         assert not attr.exists()
         assert attr.get() == type()
 
-    def test_addkey(self, keyfs, type, val):
+    def test_addkey_param(self, keyfs, type, val):
         pattr = keyfs.addkey("hello/{some}", type)
         attr = pattr(some="this")
         assert not attr.exists()

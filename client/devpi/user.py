@@ -1,3 +1,4 @@
+import py
 from devpi.use import parse_keyvalue_spec
 
 def getnewpass(hub, username):
@@ -12,7 +13,7 @@ def getnewpass(hub, username):
 def user_create(hub, user, kvdict):
     if "password" not in kvdict:
         kvdict["password"] = getnewpass(hub, user)
-    res = hub.http_api("put", hub.current.get_user_url(user), kvdict)
+    hub.http_api("put", hub.current.get_user_url(user), kvdict)
     hub.info("user created: %s" % user)
 
 def user_modify(hub, user, kvdict):

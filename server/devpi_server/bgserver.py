@@ -42,8 +42,8 @@ class BackgroundServer:
         # receives a serials list which may take a while)
         while count > 0:
             try:
-                r = requests.get(url)
-            except requests.exceptions.ConnectionError as e:
+                requests.get(url)
+            except requests.exceptions.ConnectionError:
                 time.sleep(0.1)
                 count -= 1
             else:

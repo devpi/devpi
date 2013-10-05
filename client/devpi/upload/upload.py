@@ -1,5 +1,4 @@
 import os
-import re
 import py
 from devpi.upload.setuppy import __file__ as fn_setup
 from devpi import log
@@ -76,7 +75,7 @@ def do_upload_paths(hub, args, paths):
             #hub.debug("got pkginfo for %s-%s  %s" %
             #          (pkginfo.name, pkginfo.version, pkginfo.author))
     if args.only_latest:
-        path_pkginfo = filter_latest(path2pkginfo)
+        path2pkginfo = filter_latest(path2pkginfo)
     for archivepath, pkginfo in path2pkginfo.items():
         upload_file_pypi(hub, archivepath, pkginfo)
 

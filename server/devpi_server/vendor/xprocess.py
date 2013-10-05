@@ -12,7 +12,6 @@ def do_xkill(info):
     if not info.pid or not info.isrunning():
         return 0
 
-    msg = "%r, pid %d" % (info.name, info.pid)
     if sys.platform == "win32":
         std.subprocess.check_call("taskkill /F /PID %s" % info.pid)
         return 1
@@ -155,7 +154,6 @@ class XProcess:
                 raise RuntimeError("Could not start process %s" % name)
         logfiles = self.config.__dict__.setdefault("_extlogfiles", {})
         logfiles[name] = f
-        newinfo = self.getinfo(name)
         return info.pid, info.logpath
 
     def _checkpattern(self, f, pattern, count=50):

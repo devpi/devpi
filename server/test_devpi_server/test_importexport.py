@@ -1,7 +1,7 @@
 import pytest
 import subprocess
 from devpi_server.importexport import *
-from devpi_server.main import main, Fatal
+from devpi_server.main import Fatal
 from .test_db import create_zipfile
 
 import devpi_server

@@ -1,6 +1,8 @@
 import os
 import hashlib
 import itsdangerous
+from logging import getLogger
+log = getLogger(__name__)
 
 class Auth:
     LOGIN_EXPIRATION = 60*60*10  # 10 hours
@@ -48,7 +50,7 @@ class Auth:
         if not self.db.user_exists(user):
             return ["nouser", user]
         try:
-            auth_user = self.get_auth_user(userpassword)
+            self.get_auth_user(userpassword)
         except self.Expired:
             return ["expired", user]
         else:

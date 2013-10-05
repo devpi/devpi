@@ -11,7 +11,6 @@ from tempfile import NamedTemporaryFile, mkdtemp
 from execnet import dumps, loads
 import os, sys
 from os.path import basename, isabs, join
-from os import listdir
 
 from devpi_common.types import cached_property
 
@@ -74,7 +73,7 @@ class KeyFS(object):
         dest = join(str(self.basedir), destkey)
         try:
             os.rename(source, dest)
-        except OSError as e:
+        except OSError:
             destdir = os.path.dirname(dest)
             if not os.path.exists(destdir):
                 os.makedirs(destdir)

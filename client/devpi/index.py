@@ -12,7 +12,7 @@ def index_modify(hub, indexname, kvdict):
         hub.info("%s changing %s: %s" %(indexname, name, val))
 
     url = hub.current.get_index_url(indexname, slash=False)
-    res = hub.http_api("patch", url, indexconfig)
+    hub.http_api("patch", url, indexconfig)
     index_show(hub, indexname)
 
 def index_delete(hub, indexname):

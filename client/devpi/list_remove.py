@@ -54,7 +54,7 @@ def query_file_status(hub, origin):
     assert res["type"] == "list:toxresult"
     seen = set()
     for toxresult in reversed(res["result"]):
-        platform = toxresult["platform"]
+        toxresult["platform"]
         for envname, env in toxresult["testenvs"].items():
             prefix = "  {host} {platform} {envname}".format(
                      envname=envname, **toxresult)
@@ -103,7 +103,7 @@ def show_commands(hub, commands):
         hub.info("    OK:  %s" % shellcommand)
 
 def main_list(hub, args):
-    current = hub.require_valid_current_with_index()
+    hub.require_valid_current_with_index()
     args = hub.args
 
     hub.info("list result: %s" % (hub.current.index + (args.spec or '')))
@@ -115,7 +115,7 @@ def main_list(hub, args):
         out_project(hub, data["result"], args.spec)
 
 def main_remove(hub, args):
-    current = hub.require_valid_current_with_index()
+    hub.require_valid_current_with_index()
     args = hub.args
 
     name, ver, suffix = splitbasename(args.spec, checkarch=False)

@@ -42,24 +42,6 @@ class RemoteIndex:
     def getbestlink(self, pkgname):
         return self.getlinkset(pkgname).getnewestversion(pkgname)
 
-    def getindexcurrent(self, indexname):
-        r = self.getcontent(self.current.indexadmin)
-
-
-
-def parselinks(htmlcontent, indexurl):
-    l = []
-    for link in parselinks(htmlcontent, indexurl):
-        parts = link.url.split("#md5=", 1)
-        if len(parts) > 1:
-            link.url, link.md5 = parts
-        else:
-            link.md5 = None
-        if indexurl is not None:
-            link.url = DistURL(indexurl, link.url).url
-        l.append(link)
-    return l
-
 def parselinks(htmlcontent, indexurl):
     from devpi_common.vendor._pip import HTMLPage
     page = HTMLPage(htmlcontent, indexurl)

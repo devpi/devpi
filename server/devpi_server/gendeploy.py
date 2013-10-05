@@ -134,7 +134,6 @@ def gendeploy(config):
         return 1
     target = getpath(config.args.gendeploy)
     devpi_ctl = target.join("bin", "devpi-ctl")
-    prefix = ""
     if devpi_ctl.check():
         tw.line("detected existing devpi-ctl, ensuring it is shut down",
                 red=True)

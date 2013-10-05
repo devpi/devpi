@@ -6,15 +6,12 @@ import argparse
 import subprocess
 import devpi
 from devpi_common.types import lazydecorator, cached_property
-from devpi import log
 from devpi import __version__ as client_version
 from devpi.use import Current
 import requests
 import json
 std = py.std
 subcommand = lazydecorator()
-
-from devpi import __version__
 
 main_description = """
 The devpi commands (installed via devpi-client) wrap common Python
@@ -176,12 +173,7 @@ class Hub:
     def current(self):
         self.clientdir.ensure(dir=1)
         path = self.clientdir.join("current.json")
-        current = Current(path)
-        try:
-            cmd = self.args.mainloc.split(":")[0]
-        except AttributeError:
-            pass
-        return current
+        return Current(path)
 
     @property
     def remoteindex(self):

@@ -1,6 +1,5 @@
 import py
 import operator
-import py
 
 FunctionType = py.std.types.FunctionType
 
@@ -62,6 +61,7 @@ class CompareMixin(object):
     def __gt__(self, other):
         return self._cmp(other, operator.gt)
 
+
 class lazydecorator:
     """
     lazy decorators:  remove global state from your app, e.g. Bottle and Flask.
@@ -99,8 +99,6 @@ class lazydecorator:
 
     (c) holger krekel, 2013, License: MIT
     """
-
-class lazydecorator:
     def __init__(self):
         self.attrname = "_" + hex(id(self))
         self.num = 0

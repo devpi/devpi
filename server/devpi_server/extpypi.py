@@ -293,19 +293,16 @@ class ExtDB:
         """ set the current serial and fill normalization table
         if project does not exist.
         """
-        try:
-            current_serial = self.name2serials[name]
-        except KeyError:
+        if name in self.name2serials:
+            self.name2serials[name] = serial
+        else:
             self.name2serials[name] = serial
             n = normalize_name(name)
             if n != name:
                 self.normname2name[n] = name
-        else:
-            self.name2serials[name] = serial
 
     def spawned_pypichanges(self, proxy, proxysleep):
         log.info("changelog/update tasks starting")
-        keyfs = self.keyfs
         while 1:
             # get changes since the maximum serial we are aware of
             current_serial = max(itervalues(self.name2serials))
