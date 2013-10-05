@@ -4,8 +4,8 @@ import py
 import pytest
 import types
 from devpi.upload.upload import *
-from devpi_common import version as verlib
 from textwrap import dedent
+from devpi_common.s_url import splitbasename
 
 from devpi.main import check_output
 
@@ -95,34 +95,7 @@ class TestCheckout:
         exported = checkout.export(tmpdir)
         name, version = exported.setup_name_and_version()
         assert name == "xyz"
-        assert version.version == "1.2.3"
-
-    def test_export_changeversions(self, uploadhub, repo, tmpdir):
-        checkout = Checkout(uploadhub, repo)
-        repo.join("setup.py").write(dedent("""
-            from setuptools import setup
-            version = __version__ = "1.2.dev1"
-            setup(
-                version=version,
-                name="pkg"
-            )
-        """))
-        exported = checkout.export(tmpdir)
-        newver = verlib.Version("1.2.dev1").autoinc()
-        exported.change_versions(newver, ["setup.py"])
-        n,v = exported.setup_name_and_version()
-        assert newver == v
-        s1 = exported.rootpath.join("setup.py").read()
-        s2 = checkout.rootpath.join("setup.py").read()
-        assert s1 == s2
-
-    def test_detect_versionfiles(self, uploadhub, repo, tmpdir):
-        checkout = Checkout(uploadhub, repo)
-        exported = checkout.export(tmpdir)
-        p = exported.rootpath.ensure("a", "__init__.py")
-        p.write("__version__ = '1.2'")
-        l = exported.detect_versioncandidates()
-        assert p.relto(exported.rootpath) in l
+        assert version == "1.2.3"
 
 
 def test_parent_subpath(tmpdir):
@@ -131,22 +104,6 @@ def test_parent_subpath(tmpdir):
     assert find_parent_subpath(tmpdir.ensure("a", "b"), "xyz") == s
     assert find_parent_subpath(s, "xyz") == s
     pytest.raises(ValueError, lambda: find_parent_subpath(tmpdir, "poiqel123"))
-
-def test_setversion():
-    content = "\n".join([
-        "x=__version__",
-        "version = __version__='1.3.0.dev0'"
-    ])
-    expected = content.replace("1.3.0.dev0", "1.3.0a1").strip()
-    s = setversion(content, "1.3.0a1")
-    assert s.strip() == expected
-
-    content = "\n".join([
-        "x=__version__",
-        "__version__ = '1.3.0.dev0'"
-    ])
-    s = setversion(content, "1.3.0a5").strip()
-    assert s == content.replace("1.3.0.dev0", "1.3.0a5").strip()
 
 def test_readpypirc(monkeypatch, tmpdir):
     from devpi.upload.setuppy import _prepare_distutils
@@ -235,12 +192,11 @@ def test_getpkginfo(datadir):
 def test_filter_latest():
     class PkgInfo(object):
         def __init__(self, path):
-            self.name, ver = verlib.guess_pkgname_and_version(path)
-            self.version = unicode(ver)
+            self.name, self.version = splitbasename(path + ".zip")[:2]
 
     d = {}
     for idx in [1, 9, 10]:
-        path = 'this/is/a/test-abc-0.%d' % (idx)
+        path = 'test-abc-0.%d' % (idx)
         d[path] = PkgInfo(path)
     assert len(d) == 3
     d = filter_latest(d)

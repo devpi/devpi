@@ -3,7 +3,6 @@ import re
 import py
 from devpi.upload.setuppy import __file__ as fn_setup
 from devpi import log
-from devpi_common import version as verlib
 from devpi_common.s_url import Version
 
 fn_setup = fn_setup.rstrip("oc")
@@ -146,46 +145,6 @@ def get_pkginfo(archivepath):
     return info
 
 
-def set_new_version(hub, args, exported):
-    if args.setversion:
-        newversion = verlib.Version(args.setversion)
-        exported.change_versions(newversion)
-    else:
-        pkgname, version = exported.setup_name_and_version()
-        link = hub.remoteindex.getbestlink(pkgname)
-        if link is None:
-            log.info("no remote packages registered yet")
-        else:
-            indexversion = verlib.Version.frombasename(link.basename)
-            if version < indexversion:
-                hub.fatal(pkgname, "local", version, "lower than index",
-                          indexversion)
-            elif version == indexversion:
-                newversion = version.autoinc()
-                exported.change_versions(newversion)
-                    #["setup.py", pkgname + os.sep + "__init__.py"])
-                n,v = exported.setup_name_and_version()
-                assert v == newversion, (str(v), str(newversion))
-            else:
-                newversion = version
-                log.info("good, local", version, "newer than latest remote",
-                         indexversion)
-
-
-def setversion(s, newversion):
-    def replaceversion(match):
-        vername = match.group(1)
-        assign = match.group(2)
-        version = match.group(3)
-        if not (version[0] == version[-1]):
-           return match.group(0)
-        version = version[0] + str(newversion) + version[-1]
-        return "%s%s%s" %(vername, assign, version)
-    news = re.sub(r'''(version|__version__)(\s*=\s*)(['"]\S*['"])''',
-                  replaceversion, s)
-    return news
-
-
 def find_parent_subpath(startpath, relpath, raising=True):
     for x in startpath.parts(reversed):
         cand = x.join(relpath)
@@ -236,33 +195,6 @@ class Exported:
     def __str__(self):
         return "<Exported %s>" % self.rootpath
 
-    def detect_versioncandidates(self):
-        relpaths = ["setup.py"]
-        for x in self.rootpath.listdir():
-            init = x.join("__init__.py")
-            if init.check():
-                relpaths.append(init.relto(self.rootpath))
-        return relpaths
-
-    def change_versions(self, newversion, relpaths=None):
-        if relpaths is None:
-            relpaths = self.detect_versioncandidates()
-        for relpath in relpaths:
-            cand = self.rootpath.join(relpath)
-            if cand.check():
-                if self.check_setversion(cand, newversion):
-                    cand.copy(self.origrepo.join(relpath))
-                    self.hub.info("setversion", relpath, newversion)
-
-    def check_setversion(self, path, newversion):
-        log.debug("check_setversion", path)
-        content = path.read()
-        newcontent = setversion(content, str(newversion))
-        if newcontent != content:
-            log.debug("changing", path)
-            path.write(newcontent)
-            return True
-
     def setup_name_and_version(self):
         setup_py = self.rootpath.join("setup.py")
         if not setup_py.check():
@@ -273,7 +205,7 @@ class Exported:
                                       setup_py, "--version"]).strip()
         assert name != version
         self.hub.info("name, version = %s, %s" %(name, version))
-        return name, verlib.Version(version)
+        return name, version
 
     def setup_register(self):
         self.check_setup()
