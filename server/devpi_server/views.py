@@ -595,7 +595,12 @@ class PyPIView:
         latest_packages = html.ul()
         for projectname in stage.getprojectnames_perstage():
             metadata = stage.get_metadata_latest(projectname)
-            name, ver = metadata["name"], metadata["version"]
+            try:
+                name, ver = metadata["name"], metadata["version"]
+            except KeyError:
+                log.error("metadata for project %r empty: %s, skipping",
+                          projectname, metadata)
+                continue
             dockey = stage._doc_key(name)
             if dockey.exists():
                 docs = [" docs: ", html.a("%s-%s docs" %(name, ver),
