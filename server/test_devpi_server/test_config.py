@@ -1,6 +1,3 @@
-import pytest
-import py
-
 from devpi_server.config import MyArgumentParser, parseoptions
 
 class TestParser:
@@ -15,11 +12,6 @@ class TestParser:
         parser = MyArgumentParser()
         opt = parser.addoption("--hello", type=str, help="x", default="world")
         assert "[world]" in opt.help
-
-    def test_addoption_getdefault(self):
-        parser = MyArgumentParser()
-        opt = parser.addoption("--hello1", type=str, help="x", default="world1")
-        assert "[world1]" in opt.help
 
     def test_addoption_getdefault(self):
         def getter(name):

@@ -2,14 +2,13 @@
 import re
 import logging
 from webtest.forms import Upload
+import webtest
 import mimetypes
 import mock
 import pytest
 import py
 from devpi_server.main import XOM, parseoptions
 from devpi_server.extpypi import XMLProxy
-from devpi_common.metadata import splitbasename
-
 
 log = logging.getLogger(__name__)
 
@@ -101,7 +100,6 @@ def makemapp(request, maketestapp, makexom):
 
 @pytest.fixture
 def httpget(pypiurls):
-    url2response = {}
     class MockHTTPGet:
         def __init__(self):
             self.url2response = {}
@@ -238,7 +236,6 @@ class Mapp(MappMixin):
         return r.json["result"]
 
     def change_password(self, user, password):
-        auth = self.testapp.auth
         r = self.testapp.patch_json("/%s" % user, dict(password=password))
         assert r.status_code == 200
         self.testapp.auth = (self.testapp.auth[0],

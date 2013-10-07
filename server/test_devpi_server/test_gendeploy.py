@@ -32,19 +32,19 @@ def test_create_devpictl(tmpdir):
     tw = py.io.TerminalWriter()
     devpiserver = tmpdir.ensure("bin", "devpi-server")
     devpiserver.write("FIRST LINE\n")
-    devpictl = gendeploy.create_devpictl(tw, tmpdir)
-    assert devpictl.check()
-    assert devpictl.stat().mode & py.std.stat.S_IXUSR
-    firstline = devpictl.readlines(cr=0)[0]
+    path = gendeploy.create_devpictl(tw, tmpdir)
+    assert path.check()
+    assert path.stat().mode & py.std.stat.S_IXUSR
+    firstline = path.readlines(cr=0)[0]
     assert firstline == "FIRST LINE"
 
 
 def test_create_crontab(tmpdir, monkeypatch):
     monkeypatch.setattr(py.path.local, "sysexec", lambda x, y: "")
     tw = py.io.TerminalWriter()
-    devpictl = tmpdir.join("devpi-ctl")
+    path = tmpdir.join("devpi-ctl")
     if py.path.local.sysfind("crontab"):
-        cron = gendeploy.create_crontab(tw, tmpdir, devpictl)
+        cron = gendeploy.create_crontab(tw, tmpdir, path)
         assert cron
         expect = "crontab %s" % tmpdir.join("crontab")
         assert expect in cron
@@ -58,9 +58,9 @@ def test_create_crontab_empty(tmpdir, monkeypatch):
 
     monkeypatch.setattr(py.path.local, "sysexec", sysexec_raise)
     tw = py.io.TerminalWriter()
-    devpictl = tmpdir.join("devpi-ctl")
+    path = tmpdir.join("devpi-ctl")
     if py.path.local.sysfind("crontab"):
-        cron = gendeploy.create_crontab(tw, tmpdir, devpictl)
+        cron = gendeploy.create_crontab(tw, tmpdir, path)
         assert cron
         expect = "crontab %s" % tmpdir.join("crontab")
         assert expect in cron

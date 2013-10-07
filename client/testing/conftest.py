@@ -6,8 +6,8 @@ import pytest
 import textwrap
 import py
 import sys
-import os
 import json
+from devpi import log
 
 from _pytest.pytester import RunResult, LineMatcher
 from devpi.main import Hub, initmain, parse_args
@@ -18,23 +18,6 @@ print_ = py.builtin.print_
 std = py.std
 
 pytest_plugins = "pytester"
-
-def pytest_runtest_makereport(item, call):
-    if "incremental" in item.keywords:
-        if call.excinfo is not None:
-            item.failed = True
-
-def pytest_runtest_teardown(item, nextitem):
-    if nextitem and getattr(item, "failed", False):
-        nextitem.previousfailed = item
-
-def pytest_runtest_setup(item):
-    if "incremental" in item.keywords:
-        lastitem = getattr(item, "previousfailed", None)
-        if lastitem is not None:
-            pytest.xfail("previous test failed (%s)" %lastitem.name)
-    #else:
-    #    assert 0
 
 def pytest_addoption(parser):
     parser.addoption("--fast", help="skip functional/slow tests", default=False,
@@ -252,7 +235,6 @@ def pytest_runtest_makereport(__multicall__, item, call):
 def ext_devpi(request, tmpdir, devpi):
     def doit(*args, **kwargs):
         tmpdir.chdir()
-        clientdir = devpi.clientdir
         result = runprocess(tmpdir,
             ["devpi", "--clientdir", devpi.clientdir] + list(args))
         ret = kwargs.get("ret", 0)
@@ -292,9 +274,9 @@ def cmd_devpi(tmpdir):
         print_info("*** inline$ %s" % " ".join(callargs))
         hub, method = initmain(callargs)
         try:
-            ret = method(hub, hub.args)
+            method(hub, hub.args)
         except SystemExit as sysex:
-            ret = sysex.args[0] or 1
+            sysex.args[0] or 1
             hub.sysex = sysex
         expected = kwargs.get("code", None)
         if expected is not None:
@@ -325,10 +307,6 @@ def runprocess(tmpdir, cmdargs):
         outerr = f1.read().splitlines()
     return RunResult(ret, outerr, None, std.time.time()-now)
 
-
-import pytest
-from mock import Mock
-from devpi import log
 
 @pytest.fixture
 def mockhtml(monkeypatch):

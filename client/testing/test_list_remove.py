@@ -1,8 +1,5 @@
-import os, sys
-import json
 import py
 import pytest
-import types
 from mock import Mock
 from devpi.list_remove import *
 

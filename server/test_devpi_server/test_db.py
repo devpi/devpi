@@ -201,7 +201,6 @@ class TestStage:
 
     def test_store_and_get_releasefile(self, stage, bases):
         content = "123"
-        content2 = "1234"
         entry = register_and_store(stage, "some-1.0.zip", content)
         entries = stage.getreleaselinks("some")
         assert len(entries) == 1
@@ -219,7 +218,7 @@ class TestStage:
         extdb.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         content = "123"
-        entry = stage.store_releasefile("someproject-1.0.zip", content)
+        stage.store_releasefile("someproject-1.0.zip", content)
         projectconfig = stage.get_projectconfig("someproject")
         files = projectconfig["1.0"]["+files"]
         link = files.values()[0]
@@ -228,7 +227,7 @@ class TestStage:
 
     def test_store_and_delete_project(self, stage, bases):
         content = "123"
-        entry = register_and_store(stage, "some-1.0.zip", content)
+        register_and_store(stage, "some-1.0.zip", content)
         pconfig = stage.get_projectconfig_perstage("some")
         assert pconfig["1.0"]
         stage.project_delete("some")
@@ -236,8 +235,8 @@ class TestStage:
         assert not pconfig
 
     def test_store_and_delete_release(self, stage, bases):
-        entry = register_and_store(stage, "some-1.0.zip")
-        entry = register_and_store(stage, "some-1.1.zip")
+        register_and_store(stage, "some-1.0.zip")
+        register_and_store(stage, "some-1.1.zip")
         pconfig = stage.get_projectconfig_perstage("some")
         assert pconfig["1.0"] and pconfig["1.1"]
         stage.project_version_delete("some", "1.0")
@@ -247,25 +246,17 @@ class TestStage:
         assert not stage.project_exists("some")
 
     def test_releasefile_sorting(self, stage, bases):
-        entry = register_and_store(stage, "some-1.1.zip")
-        entry = register_and_store(stage, "some-1.0.zip")
+        register_and_store(stage, "some-1.1.zip")
+        register_and_store(stage, "some-1.0.zip")
         entries = stage.getreleaselinks("some")
         assert len(entries) == 2
         assert entries[0].basename == "some-1.1.zip"
-
-    def test_storedoczipfile(self, stage, bases):
-        content = create_zipfile({"index.html": "<html/>",
-            "_static": {}, "_templ": {"x.css": ""}})
-        filepath = stage.store_doczip("pkg1", content)
-        assert filepath.join("index.html").check()
-        assert filepath.join("_static").check(dir=1)
-        assert filepath.join("_templ", "x.css").check(file=1)
 
     def test_getdoczip(self, stage, bases, tmpdir):
         assert not stage.get_doczip("pkg1")
         content = create_zipfile({"index.html": "<html/>",
             "_static": {}, "_templ": {"x.css": ""}})
-        filepath = stage.store_doczip("pkg1", content)
+        stage.store_doczip("pkg1", content)
         doczip_content = stage.get_doczip("pkg1")
         assert doczip_content
         unzip_to_dir(doczip_content, tmpdir)

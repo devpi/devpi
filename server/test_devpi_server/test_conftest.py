@@ -24,9 +24,9 @@ def test_makexom(makexom, maketestapp):
     xom2 = makexom()
     assert xom1.config.serverdir != xom2.config.serverdir
     testapp1 = maketestapp(xom1)
-    r = testapp1.get("/")
+    testapp1.get("/")
     testapp2 = maketestapp(xom2)
-    r = testapp2.get("/")
+    testapp2.get("/")
 
 def test_makemapp(makemapp):
     mapp1 = makemapp()

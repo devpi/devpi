@@ -1,8 +1,5 @@
-import sys
 import py
 import json
-import pytest
-import types
 from devpi.main import Hub, check_output
 from devpi.push import parse_target, PyPIPush, DevpiPush
 
@@ -41,8 +38,8 @@ def test_push_devpi(loghub, monkeypatch, mock_http_api):
         target = "user/name"
     pusher = parse_target(loghub, args)
     mock_http_api.set(loghub.current.index, 200, result={})
-    res = pusher.execute(loghub, "pytest", "2.3.5")
-    req = dict(name="pytest", version="2.3.5", targetindex="user/name")
+    pusher.execute(loghub, "pytest", "2.3.5")
+    dict(name="pytest", version="2.3.5", targetindex="user/name")
     assert len(mock_http_api.called) == 1
     # loghub.http_api.assert_called_once_with(
     #            "push", loghub.current.index, kvdict=req)

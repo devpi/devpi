@@ -12,7 +12,6 @@ from devpi_common.validation import normalize_name, is_valid_archive_name
 
 from .auth import Auth
 from .config import render_string
-from devpi_common import url
 
 log = logging.getLogger(__name__)
 

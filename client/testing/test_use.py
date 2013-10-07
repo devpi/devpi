@@ -1,10 +1,5 @@
 
-import urllib
 import pytest
-import py
-from devpi import use
-from devpi import log
-from devpi.main import Hub, parse_args
 from devpi.use import *
 
 def test_ask_confirm(makehub, monkeypatch):
@@ -90,18 +85,17 @@ class TestUnit:
     def test_use_with_no_rooturl(self, capfd, cmd_devpi, monkeypatch):
         from devpi import main
         monkeypatch.setattr(main.Hub, "http_api", None)
-        hub = cmd_devpi("use", "some/index", code=None)
+        cmd_devpi("use", "some/index", code=None)
         out, err = capfd.readouterr()
         assert "invalid" in out
 
     def test_use_with_nonexistent_domain(self, capfd, cmd_devpi, monkeypatch):
-        from devpi import main
         from requests.sessions import Session
         from requests.exceptions import ConnectionError
         def raise_connectionerror(*args, **kwargs):
             raise ConnectionError("qwe")
         monkeypatch.setattr(Session, "request", raise_connectionerror)
-        hub = cmd_devpi("use", "http://qlwkejqlwke", code=-1)
+        cmd_devpi("use", "http://qlwkejqlwke", code=-1)
         out, err = capfd.readouterr()
         assert "could not connect" in out
 
@@ -167,7 +161,7 @@ class TestUnit:
                         authstatus=["noauth", ""],
                    ))
 
-        hub = cmd_devpi("use", "http://world/")
+        cmd_devpi("use", "http://world/")
         mock_http_api.set("http://world/", 200, result=dict(
             user1=dict(indexes={"dev": {"bases": ["x"],
                 "volatile": False}})

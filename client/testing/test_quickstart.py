@@ -1,5 +1,4 @@
 import py
-import pytest
 import subprocess
 
 def test_dryrun(cmd_devpi):

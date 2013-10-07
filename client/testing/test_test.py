@@ -1,9 +1,6 @@
 
-import py
 import pytest
 from devpi.test import *
-from devpi.main import check_output
-from mock import Mock
 
 pytest_plugins = "pytester"
 

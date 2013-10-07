@@ -17,6 +17,8 @@
 
 - use types/url/metadata/validation functionality of new depdency devpi_common 
 
+- internal cleanup wrt pytest-flakes discoveries
+
 
 1.1
 -------------------------------

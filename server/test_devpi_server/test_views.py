@@ -10,7 +10,7 @@ import devpi_server.views
 from test_db import create_zipfile
 from mock import Mock
 
-from .functional import TestUserThings, TestIndexThings
+from .functional import TestUserThings, TestIndexThings  # noqa
 
 
 def getfirstlink(text):
@@ -373,7 +373,7 @@ def test_upload_and_delete_project_version(mapp):
     assert not mapp.getjson(api.index + "pkg1/")["result"]
 
 def test_delete_version_fails_on_non_volatile(mapp):
-    api = mapp.create_and_use(indexconfig=dict(volatile=False))
+    mapp.create_and_use(indexconfig=dict(volatile=False))
     mapp.upload_file_pypi("pkg1-2.6.tgz", "123", "pkg1", "2.6")
     mapp.delete_project("pkg1/2.6", code=403)
 
@@ -405,7 +405,7 @@ def test_upload_docs_no_version(mapp, testapp):
     assert r.status_code == 200
 
 def test_upload_docs_no_project_ever_registered(mapp, testapp):
-    api = mapp.create_and_use()
+    mapp.create_and_use()
     content = create_zipfile({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "", code=400)
 

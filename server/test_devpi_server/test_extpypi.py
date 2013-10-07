@@ -1,9 +1,8 @@
 import mock
-import py
 import pytest
 
 from devpi_server.extpypi import *
-from devpi_server.main import FatalResponse, Fatal
+from devpi_server.main import Fatal
 
 class TestIndexParsing:
     simplepy = URL("http://pypi.python.org/simple/py/")
@@ -472,7 +471,6 @@ class TestRefreshManager:
     def test_changelog_since_serial_nonetwork(self, extdb,
                     raise_error, monkeypatch, caplog):
         extdb.mock_simple("pytest", pypiserial=10)
-        from xmlrpclib import ServerProxy
         got = []
         def raise_xmlrpcish(since_int):
             got.append(since_int)
@@ -491,7 +489,7 @@ class TestRefreshManager:
         xmlproxy = mock.create_autospec(XMLProxy)
         xmlproxy.list_packages_with_serial.return_value = None
         with pytest.raises(Fatal):
-            xom = makexom(proxy=xmlproxy)
+            makexom(proxy=xmlproxy)
         #assert not xom.keyfs.PYPISERIALS.exists()
 
 

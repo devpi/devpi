@@ -1,10 +1,7 @@
 
-import subprocess, time
-import py
+import subprocess
 import pytest
-from devpi_server.bgserver import BackgroundServer
 from devpi_server.main import main
-from requests.exceptions import ConnectionError
 
 @pytest.fixture
 def mockpopen(monkeypatch):

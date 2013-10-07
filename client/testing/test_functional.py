@@ -1,11 +1,9 @@
 
 import pytest
-import subprocess
-import textwrap
 from py import std
 import time
 
-from test_devpi_server.functional import TestUserThings, TestIndexThings
+from test_devpi_server.functional import TestUserThings, TestIndexThings # noqa
 from test_devpi_server.functional import MappMixin
 
 @pytest.fixture

@@ -128,7 +128,7 @@ def bottle_run(xom):
 def get_bottle_server(opt):
     if opt == "auto":
         try:
-            import eventlet  # flake8: noqa
+            import eventlet  # noqa
         except ImportError:
             log.debug("could not import 'eventlet'")
             opt = "wsgiref"
