@@ -5,7 +5,7 @@ import py
 import requests, json
 from bs4 import BeautifulSoup
 from devpi_server.views import *
-from devpi_common.s_url import splitbasename
+from devpi_common.metadata import splitbasename
 import devpi_server.views
 from test_db import create_zipfile
 from mock import Mock

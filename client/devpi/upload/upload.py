@@ -2,7 +2,7 @@ import os
 import py
 from devpi.upload.setuppy import __file__ as fn_setup
 from devpi import log
-from devpi_common.s_url import Version
+from devpi_common.metadata import Version
 
 fn_setup = fn_setup.rstrip("oc")
 

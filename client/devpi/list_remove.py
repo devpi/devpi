@@ -1,5 +1,6 @@
 
-from devpi_common.s_url import DistURL, splitbasename
+from devpi_common.s_url import DistURL
+from devpi_common.metadata import splitbasename
 from pkg_resources import parse_version
 
 def out_index(hub, data):

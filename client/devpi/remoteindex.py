@@ -1,4 +1,5 @@
-from devpi_common.s_url import DistURL, splitbasename, Version
+from devpi_common.s_url import DistURL
+from devpi_common.metadata import splitbasename, Version
 import requests
 
 class LinkSet:

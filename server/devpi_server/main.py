@@ -11,7 +11,7 @@ from logging import getLogger
 log = getLogger(__name__)
 
 from devpi_common.types import cached_property
-from devpi_common.s_url import Version
+from devpi_common.metadata import Version
 from .config import parseoptions, configure_logging
 
 import devpi_server

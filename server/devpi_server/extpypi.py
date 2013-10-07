@@ -12,6 +12,7 @@ html = py.xml.html
 from devpi_common.vendor._pip import HTMLPage
 
 from devpi_common.s_url import DistURL
+from devpi_common.metadata import is_archive_of_project, BasenameMeta
 from devpi_common.validation import normalize_name
 
 from .db import ProjectInfo
@@ -42,9 +43,9 @@ class IndexParser:
     @property
     def releaselinks(self):
         """ return sorted releaselinks list """
-        l = list(self.basename2link.values())
-        l.sort(reverse=True)
-        return self.egglinks + l
+        l = sorted(map(BasenameMeta, self.basename2link.values()),
+                   reverse=True)
+        return self.egglinks + [x.obj for x in l]
 
     def parse_index(self, disturl, html, scrape=True):
         p = HTMLPage(html, disturl.url)
@@ -65,10 +66,13 @@ class IndexParser:
                     log.debug("skip egg link %s (projectname: %s)",
                               newurl, self.projectname)
                 continue
-            if newurl.is_archive_of_project(self.projectname):
-                seen.add(newurl.url)
-                self._mergelink_ifbetter(newurl)
-                continue
+            if is_archive_of_project(newurl, self.projectname):
+                if not newurl.is_valid_http_url():
+                    log.warn("unparseable/unsupported url: %r", newurl)
+                else:
+                    seen.add(newurl.url)
+                    self._mergelink_ifbetter(newurl)
+                    continue
         if scrape:
             for link in p.rel_links():
                 if link.url not in seen:
@@ -250,14 +254,14 @@ class ExtDB:
             return releaselinks
         data = {}
         for link in releaselinks:
-            url = DistURL(link.url)
+            basename = link.basename
             if link.eggfragment:
                 version = "egg=" + link.eggfragment
             else:
-                _, version = url.pkgname_and_version
+                version = BasenameMeta(basename).version
             verdata = data.setdefault(version, {})
             files = verdata.setdefault("+files", {})
-            files[url.basename] = link.relpath
+            files[basename] = link.relpath
         return data
 
     get_projectconfig_perstage = get_projectconfig

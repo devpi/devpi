@@ -44,10 +44,8 @@ def cached_property(f):
 
 class CompareMixin(object):
     def _cmp(self, other, op):
-        try:
-            return op(self.cmpval, other.cmpval)
-        except AttributeError:
-            raise NotImplemented
+        return op(self.cmpval, other.cmpval)
+
     def __lt__(self, other):
         return self._cmp(other, operator.lt)
     def __le__(self, other):

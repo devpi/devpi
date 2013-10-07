@@ -3,7 +3,7 @@ import py
 import os
 import pytest
 
-from devpi_common.s_url import splitbasename
+from devpi_common.metadata import splitbasename
 from devpi_server.db import unzip_to_dir
 
 

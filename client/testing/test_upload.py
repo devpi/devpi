@@ -5,7 +5,7 @@ import pytest
 import types
 from devpi.upload.upload import *
 from textwrap import dedent
-from devpi_common.s_url import splitbasename
+from devpi_common.metadata import splitbasename
 
 from devpi.main import check_output
 

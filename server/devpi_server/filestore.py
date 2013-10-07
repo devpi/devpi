@@ -12,7 +12,7 @@ from datetime import datetime
 from time import mktime
 
 from devpi_common.types import propmapping
-from devpi_common.s_url import splitbasename
+from devpi_common.metadata import splitbasename
 
 from logging import getLogger
 log = getLogger(__name__)

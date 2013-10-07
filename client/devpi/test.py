@@ -8,7 +8,8 @@ import archive
 import json
 import tox
 
-from devpi_common.s_url import DistURL, splitbasename
+from devpi_common.s_url import DistURL
+from devpi_common.metadata import splitbasename
 from devpi.remoteindex import RemoteIndex
 
 def setenv_devpi(hub, env, posturl, packageurl, packagemd5):

@@ -3,7 +3,7 @@ import json
 import py
 import logging
 from devpi_common.validation import normalize_name
-from devpi_common.s_url import Version
+from devpi_common.metadata import Version
 from devpi_server.main import fatal
 import devpi_server
 

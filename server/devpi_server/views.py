@@ -1,6 +1,7 @@
 import py
 from py.xml import html
 from devpi_common.types import lazydecorator
+from devpi_common.metadata import sorted_by_version, get_pyversion_filetype
 import devpi_server
 from bottle import response, request, redirect, HTTPError
 from bottle import HTTPResponse, static_file
@@ -346,7 +347,7 @@ class PyPIView:
                     file_metadata = metadata.copy()
                     file_metadata[":action"] = "file_upload"
                     basename = entry.basename
-                    pyver, filetype = s_url.get_pyversion_filetype(basename)
+                    pyver, filetype = get_pyversion_filetype(basename)
                     file_metadata["filetype"] = filetype
                     file_metadata["pyversion"] = pyver
                     openfile = entry.FILE.filepath.open("rb")
@@ -462,7 +463,7 @@ class PyPIView:
             apireturn(200, type="projectconfig", result=metadata)
         # html
         body = []
-        for version in s_url.sorted_by_version(metadata.keys()):
+        for version in sorted_by_version(metadata.keys()):
             body.append(html.a(version, href=version + "/"))
             body.append(html.br())
         return simple_html_body("%s/%s: list of versions" % (stage.name,name),

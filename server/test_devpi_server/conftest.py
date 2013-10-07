@@ -8,7 +8,7 @@ import pytest
 import py
 from devpi_server.main import XOM, parseoptions
 from devpi_server.extpypi import XMLProxy
-from devpi_common.s_url import splitbasename
+from devpi_common.metadata import splitbasename
 
 
 log = logging.getLogger(__name__)

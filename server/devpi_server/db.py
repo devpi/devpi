@@ -1,7 +1,8 @@
 
 import os
 import py
-from devpi_common.s_url import DistURL, sorted_by_version, get_latest_version
+from devpi_common.metadata import (sorted_by_version, get_latest_version,
+                                   BasenameMeta)
 from devpi_common.validation import validate_metadata, normalize_name
 from .vendor._description_utils import processDescription
 from .auth import crypt_password, verify_password
@@ -464,7 +465,8 @@ class PrivateStage:
         """ store_releasefile requires pre-existing release metadata. """
 
     def store_releasefile(self, filename, content, last_modified=None):
-        name, version = DistURL(filename).pkgname_and_version
+        bmeta = BasenameMeta(filename)
+        name, version = bmeta.name, bmeta.version
         info = self.get_project_info(name)
         name = getattr(info, "name", name)
         if not self.get_metadata(name, version):
