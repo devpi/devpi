@@ -1,4 +1,3 @@
-import pytest
 from devpi_common.types  import lazydecorator
 
 pytest_plugins = "pytester"

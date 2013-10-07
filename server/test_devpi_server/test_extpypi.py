@@ -6,7 +6,7 @@ from devpi_server.extpypi import *
 from devpi_server.main import FatalResponse, Fatal
 
 class TestIndexParsing:
-    simplepy = DistURL("http://pypi.python.org/simple/py/")
+    simplepy = URL("http://pypi.python.org/simple/py/")
 
     def test_parse_index_simple(self):
         result = parse_index(self.simplepy,
@@ -23,7 +23,7 @@ class TestIndexParsing:
         assert link.url.endswith("/~user/py-1.4.12.zip#md5=12ab")
 
     def test_parse_index_simple_nocase(self):
-        simplepy = DistURL("http://pypi.python.org/simple/Py/")
+        simplepy = URL("http://pypi.python.org/simple/Py/")
         result = parse_index(simplepy,
             """<a href="../../pkg/py-1.4.12.zip#md5=12ab">qwe</a>
                <a href="../../pkg/PY-1.4.13.zip">qwe</a>
@@ -40,7 +40,7 @@ class TestIndexParsing:
         import urlparse
         monkeypatch.setattr(urlparse, "uses_fragment",
                             urlparse.uses_fragment + ["svn"])
-        simplepy = DistURL("https://pypi.python.org/simple/zope.sqlalchemy/")
+        simplepy = URL("https://pypi.python.org/simple/zope.sqlalchemy/")
         result = parse_index(simplepy,
             '<a href="svn://svn.zope.org/repos/main/'
             'zope.sqlalchemy/trunk#egg=zope.sqlalchemy-dev" />'
@@ -50,7 +50,7 @@ class TestIndexParsing:
         #assert 0, (result.releaselinks, result.egglinks)
 
     def test_parse_index_normalized_name(self):
-        simplepy = DistURL("http://pypi.python.org/simple/ndg-httpsclient/")
+        simplepy = URL("http://pypi.python.org/simple/ndg-httpsclient/")
         result = parse_index(simplepy, """
                <a href="../../pkg/ndg_httpsclient-1.0.tar.gz" />
         """)
@@ -58,7 +58,7 @@ class TestIndexParsing:
         assert result.releaselinks[0].url.endswith("ndg_httpsclient-1.0.tar.gz")
 
     def test_parse_index_two_eggs_same_url(self):
-        simplepy = DistURL("http://pypi.python.org/simple/Py/")
+        simplepy = URL("http://pypi.python.org/simple/Py/")
         result = parse_index(simplepy,
             """<a href="../../pkg/pyzip#egg=py-dev">qwe2</a>
                <a href="../../pkg/pyzip#egg=py-dev">qwe</a>
@@ -129,13 +129,13 @@ class TestIndexParsing:
         assert link.basename == basename
 
     def test_parse_index_with_num_in_projectname(self):
-        simple = DistURL("http://pypi.python.org/simple/py-4chan/")
+        simple = URL("http://pypi.python.org/simple/py-4chan/")
         result = parse_index(simple, '<a href="pkg/py-4chan-1.0.zip"/>')
         assert len(result.releaselinks) == 1
         assert result.releaselinks[0].basename == "py-4chan-1.0.zip"
 
     def test_parse_index_unparseable_url(self):
-        simple = DistURL("http://pypi.python.org/simple/x123/")
+        simple = URL("http://pypi.python.org/simple/x123/")
         result = parse_index(simple, '<a href="http:" />')
         assert len(result.releaselinks) == 0
 
@@ -186,7 +186,7 @@ class TestIndexParsing:
         """)
         assert len(result.releaselinks) == 1
         assert len(result.crawllinks) == 2
-        result.parse_index(DistURL("http://pylib.org"), """
+        result.parse_index(URL("http://pylib.org"), """
                <a href="http://pylib.org/py-1.1-py27.egg" />
                <a href="http://pylib.org/other" rel="download" />
         """, scrape=False)
@@ -218,7 +218,7 @@ class TestIndexParsing:
         """)
         assert len(result.releaselinks) == 3
         assert len(result.crawllinks) == 2
-        result.parse_index(DistURL("http://pylib.org"), """
+        result.parse_index(URL("http://pylib.org"), """
                <a href="http://pylib.org/py-1.4.12.zip" />
                <a href="http://pylib.org/py-1.4.11.zip#md5=1111" />
                <a href="http://pylib.org/py-1.4.10.zip#md5=12ab" />

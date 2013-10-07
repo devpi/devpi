@@ -8,7 +8,7 @@ import archive
 import json
 import tox
 
-from devpi_common.s_url import DistURL
+from devpi_common.url import URL
 from devpi_common.metadata import splitbasename
 from devpi.remoteindex import RemoteIndex
 
@@ -48,7 +48,7 @@ class DevIndex:
             digest = md5.hexdigest()
             assert digest == link.md5, (digest, link.md5)
             #self.hub.info("verified md5 ok", link.md5)
-        basename = DistURL(link.url).basename
+        basename = URL(link.url).basename
         path_archive = self.dir_download.join(basename)
         with path_archive.open("wb") as f:
             f.write(content)
@@ -120,7 +120,7 @@ class UnpackedPackage:
     def unpack(self):
         self.hub.info("unpacking", self.path_archive, "to", str(self.rootdir))
         archive.extract(str(self.path_archive), to_path=str(self.rootdir))
-        basename = DistURL(self.link.url).basename
+        basename = URL(self.link.url).basename
         pkgname, version = splitbasename(basename)[:2]
         subdir = "%s-%s" %(pkgname, version)
         inpkgdir = self.rootdir.join(subdir)

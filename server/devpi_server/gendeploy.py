@@ -3,7 +3,7 @@ import py
 import sys
 import os
 import subprocess
-from devpi_common.s_url import urlparse
+from devpi_common.url import urlparse
 
 from devpi_server.config import render, getpath
 import devpi_server

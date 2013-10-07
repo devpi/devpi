@@ -3,8 +3,6 @@ import sys
 import posixpath
 from devpi_common.types import cached_property
 from requests.models import parse_url
-from logging import getLogger
-log = getLogger(__name__)
 
 if sys.version_info >= (3, 0):
     from urllib.parse import urlparse, urlunsplit, urljoin
@@ -20,14 +18,14 @@ def _joinpath(url, args, asdir=False):
         new = new.rstrip("/") + "/"
     return new
 
-class DistURL:
+class URL:
     def __init__(self, url, *args, **kwargs):
         if args:
             url = _joinpath(url, args, **kwargs)
         self.url = url
 
     def __repr__(self):
-        return "<DistURL url=%r>" % (self.url, )
+        return "<URL url=%r>" % (self.url, )
 
     def __eq__(self, other):
         return self.url == getattr(other, "url", other)
@@ -35,7 +33,7 @@ class DistURL:
     def geturl_nofragment(self):
         """ return url without fragment """
         scheme, netloc, url, params, query, ofragment = self._parsed
-        return DistURL(urlunsplit((scheme, netloc, url, query, "")))
+        return URL(urlunsplit((scheme, netloc, url, query, "")))
 
     @property
     def scheme(self):
@@ -85,7 +83,7 @@ class DistURL:
 
     def joinpath(self, *args, **kwargs):
         newurl = _joinpath(self.url, args, **kwargs)
-        return DistURL(newurl)
+        return URL(newurl)
 
     def torelpath(self):
         """ return scheme/netloc/path/fragment into a canonical relative

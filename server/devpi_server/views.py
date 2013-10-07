@@ -12,7 +12,7 @@ from devpi_common.validation import normalize_name, is_valid_archive_name
 
 from .auth import Auth
 from .config import render_string
-from devpi_common import s_url
+from devpi_common import url
 
 log = logging.getLogger(__name__)
 
@@ -401,13 +401,13 @@ class PyPIView:
                 if res == 409:
                     abort(409, "%s already exists in non-volatile index" %(
                          content.filename,))
-                jenkins_url = stage.ixconfig["uploadtrigger_jenkins"]
-                if jenkins_url:
-                    jenkins_url = jenkins_url.format(pkgname=name)
-                    if trigger_jenkins(stage, jenkins_url, name) == -1:
+                jenkinurl = stage.ixconfig["uploadtrigger_jenkins"]
+                if jenkinurl:
+                    jenkinurl = jenkinurl.format(pkgname=name)
+                    if trigger_jenkins(stage, jenkinurl, name) == -1:
                         abort_custom(200,
                             "OK, but couldn't trigger jenkins at %s" %
-                            (jenkins_url,))
+                            (jenkinurl,))
             else:
                 # docs have no version (XXX but they are tied to the latest)
                 if len(content.value) > MAXDOCZIPSIZE:
@@ -747,7 +747,7 @@ def get_outside_url(headers, outsideurl):
     log.debug("host header: %s", url)
     return url
 
-def trigger_jenkins(stage, jenkins_url, testspec):
+def trigger_jenkins(stage, jenkinurl, testspec):
     baseurl = get_outside_url(request.headers,
                               stage.xom.config.args.outside_url)
 
@@ -761,7 +761,7 @@ def trigger_jenkins(stage, jenkins_url, testspec):
     )
     inputfile = py.io.BytesIO(source)
     try:
-        r = requests.post(jenkins_url, data={
+        r = requests.post(jenkinurl, data={
                         "Submit": "Build",
                         "name": "jobscript.py",
                         "json": json.dumps(
@@ -770,14 +770,14 @@ def trigger_jenkins(stage, jenkins_url, testspec):
                 files={"file0": ("file0", inputfile)})
     except requests.exceptions.RequestException:
         log.error("%s: failed to connect to jenkins at %s",
-                  testspec, jenkins_url)
+                  testspec, jenkinurl)
         return -1
 
     if 200 <= r.status_code < 300:
-        log.info("successfully triggered jenkins: %s", jenkins_url)
+        log.info("successfully triggered jenkins: %s", jenkinurl)
     else:
         log.error("%s: failed to trigger jenkins at %s", r.status_code,
-                  jenkins_url)
+                  jenkinurl)
         return -1
 
 def abort_if_invalid_filename(name, filename):

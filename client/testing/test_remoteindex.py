@@ -1,6 +1,6 @@
 
 from devpi.remoteindex import RemoteIndex, LinkSet, parselinks
-from devpi_common.s_url import DistURL
+from devpi_common.url import URL
 from devpi.use import Current
 
 def test_linkset():
@@ -11,7 +11,7 @@ def test_linkset():
     """, "http://something")
     ls = LinkSet(links)
     link = ls.getnewestversion("pkg")
-    assert DistURL(link.url).basename == "pkg-1.2.tar.gz"
+    assert URL(link.url).basename == "pkg-1.2.tar.gz"
 
 class TestRemoteIndex:
     def test_basic(self, monkeypatch, gen, tmpdir):
@@ -29,7 +29,7 @@ class TestRemoteIndex:
             """ % md5
         monkeypatch.setattr(ri, "getcontent", mockget)
         link = ri.getbestlink("pkg")
-        assert DistURL(link.url).url_nofrag == "http://my/pkg-1.2.tar.gz"
+        assert URL(link.url).url_nofrag == "http://my/pkg-1.2.tar.gz"
 
     def test_receive_error(self, monkeypatch, tmpdir):
         indexurl = "http://my/simple/"

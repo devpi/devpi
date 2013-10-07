@@ -5,7 +5,7 @@ import py
 import json
 
 from devpi import log
-from devpi_common.s_url import DistURL
+from devpi_common.url import URL
 
 if sys.platform == "win32":
     vbin = "Scripts"
@@ -92,26 +92,26 @@ class Current(object):
         return self.path and self.path.check()
 
     def _normalize_url(self, url):
-        url = DistURL(url, asdir=1)
+        url = URL(url, asdir=1)
         if not url.is_valid_http_url():
-            url = DistURL(self.simpleindex, url.url).url
+            url = URL(self.simpleindex, url.url).url
         return url
 
     def configure_fromurl(self, hub, url):
         url = self.get_index_url(url)
-        if not DistURL(url).is_valid_http_url():
+        if not URL(url).is_valid_http_url():
             hub.fatal("invalid URL: %s" % url)
         r = hub.http_api("get", url.rstrip("/") + "/+api", quiet=True)
         self._configure_from_server_api(r["result"], url)
 
     def _configure_from_server_api(self, result, url):
-        rooturl = DistURL(url).joinpath("/").url
+        rooturl = URL(url).joinpath("/").url
         data = {}
         url_keys = set(devpi_endpoints)
         for name in url_keys:
             val = result.get(name, None)
             if val is not None:
-                val = DistURL(rooturl).joinpath(val).url
+                val = URL(rooturl).joinpath(val).url
             data[name] = val
         self.reconfigure(data)
         status = result.get("authstatus", None)
@@ -132,14 +132,14 @@ class Current(object):
     @property
     def rooturl(self):
         if self.login:
-            return DistURL(self.login, "/").url
+            return URL(self.login, "/").url
 
     def get_user_url(self, user=None):
         if user is None:
             user = self.get_auth_user()
             if not user:
                 raise ValueError("no current authenticated user")
-        return DistURL(self.rooturl, user).url
+        return URL(self.rooturl, user).url
 
     def get_index_url(self, indexname=None, slash=True):
         if indexname is None:
@@ -148,8 +148,8 @@ class Current(object):
                 raise ValueError("no index name")
         if "/" not in indexname:
             userurl = self.get_user_url()
-            return DistURL(userurl + "/", indexname).url
-        url = DistURL(self.rooturl).joinpath(indexname).url
+            return URL(userurl + "/", indexname).url
+        url = URL(self.rooturl).joinpath(indexname).url
         url = url.rstrip("/")
         if slash:
             url = url.rstrip("/") + "/"
@@ -157,7 +157,7 @@ class Current(object):
 
     def get_project_url(self, name):
         baseurl = self.get_index_url(slash=True)
-        return DistURL(baseurl, name, asdir=1).url
+        return URL(baseurl, name, asdir=1).url
 
 def out_index_list(hub, data):
     for user in data:

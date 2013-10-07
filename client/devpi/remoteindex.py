@@ -1,4 +1,4 @@
-from devpi_common.s_url import DistURL
+from devpi_common.url import URL
 from devpi_common.metadata import splitbasename, Version
 import requests
 
@@ -9,7 +9,7 @@ class LinkSet:
     def getnewestversion(self, pkgname):
         best = None
         for link in self.links:
-            basename = DistURL(link.url).basename
+            basename = URL(link.url).basename
             name, version = splitbasename(basename)[:2]
             ver = Version(version)
             if name == pkgname:
@@ -27,7 +27,7 @@ class RemoteIndex:
 
     def getlinkset(self, pkgname):
         """ return list of links for given package. """
-        indexurl = DistURL(self.current.simpleindex, pkgname, asdir=1).url
+        indexurl = URL(self.current.simpleindex, pkgname, asdir=1).url
         try:
             content = self.getcontent(indexurl)
         except self.ReceiveError:

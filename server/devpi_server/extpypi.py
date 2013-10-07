@@ -11,7 +11,7 @@ html = py.xml.html
 
 from devpi_common.vendor._pip import HTMLPage
 
-from devpi_common.s_url import DistURL
+from devpi_common.url import URL
 from devpi_common.metadata import is_archive_of_project, BasenameMeta
 from devpi_common.validation import normalize_name
 
@@ -51,7 +51,7 @@ class IndexParser:
         p = HTMLPage(html, disturl.url)
         seen = set()
         for link in p.links:
-            newurl = DistURL(link.url)
+            newurl = URL(link.url)
             if not newurl.is_valid_http_url():
                 continue
             eggfragment = newurl.eggfragment
@@ -76,13 +76,13 @@ class IndexParser:
         if scrape:
             for link in p.rel_links():
                 if link.url not in seen:
-                    disturl = DistURL(link.url)
+                    disturl = URL(link.url)
                     if disturl.is_valid_http_url():
                         self.crawllinks.add(disturl)
 
 def parse_index(disturl, html, scrape=True):
-    if not isinstance(disturl, DistURL):
-        disturl = DistURL(disturl)
+    if not isinstance(disturl, URL):
+        disturl = URL(disturl)
     projectname = disturl.basename or disturl.parentbasename
     parser = IndexParser(projectname)
     parser.parse_index(disturl, html, scrape=scrape)
@@ -124,7 +124,7 @@ def perform_crawling(extdb, result, numthreads=10):
                 ct = response.headers.get("content-type", "").lower()
                 if ct.startswith("text/html"):
                     result.parse_index(
-                        DistURL(response.url), response.text, scrape=False)
+                        URL(response.url), response.text, scrape=False)
                     continue
             log.warn("crawlurl %s status %s", crawlurl, response)
 

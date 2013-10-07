@@ -1,7 +1,7 @@
 
 import pytest
 import py
-from devpi_common.s_url import DistURL
+from devpi_common.url import URL
 from devpi_server.filestore import *
 
 BytesIO = py.io.BytesIO
@@ -10,14 +10,14 @@ b = py.builtin.bytes
 class TestFileStore:
 
     def test_maplink_deterministic(self, filestore):
-        link = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=123")
+        link = URL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=123")
         entry1 = filestore.maplink(link)
         entry2 = filestore.maplink(link)
         assert entry1.relpath == entry2.relpath
         assert entry1.basename == "pytest-1.2.zip"
 
     def test_maplink(self, filestore):
-        link = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=123")
+        link = URL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=123")
         entry1 = filestore.maplink(link, refresh=False)
         entry2 = filestore.maplink(link, refresh=False)
         assert not entry1.iscached() and not entry2.iscached()
@@ -26,27 +26,27 @@ class TestFileStore:
         assert entry1.md5 == "123"
 
     def test_maplink_replaced_release_not_cached_yet(self, filestore):
-        link = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=123")
+        link = URL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=123")
         entry1 = filestore.maplink(link, refresh=False)
         assert not entry1.iscached()
         assert entry1.md5 == "123"
-        newlink = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=456")
+        newlink = URL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=456")
         entry2 = filestore.maplink(newlink, refresh=False)
         assert entry2.md5 == "456"
 
     def test_maplink_replaced_release_already_cached(self, filestore):
-        link = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=123")
+        link = URL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=123")
         entry1 = filestore.maplink(link, refresh=False)
         # pseudo-write a release file
         entry1.FILE.set(py.builtin.bytes("content"))
         assert entry1.iscached()
-        newlink = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=456")
+        newlink = URL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=456")
         entry2 = filestore.maplink(newlink, refresh=False)
         assert entry2.md5 == "456"
         assert not entry2.iscached()
 
     def test_maplink_file_there_but_no_entry(self, filestore, keyfs):
-        link = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=123")
+        link = URL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=123")
         entry1 = filestore.maplink(link, refresh=False)
         entry1.FILE.set("hello")
         entry1.PATHENTRY.delete()
@@ -54,7 +54,7 @@ class TestFileStore:
         assert itercontent is None
 
     def test_invalidate_cache(self, filestore):
-        link = DistURL("https://pypi.python.org/pkg/pytest-1.2.zip")
+        link = URL("https://pypi.python.org/pkg/pytest-1.2.zip")
         entry1 = filestore.maplink(link, refresh=False)
         entry1.FILE.set("")
         assert entry1.iscached()
@@ -62,7 +62,7 @@ class TestFileStore:
         assert not entry1.iscached()
 
     def test_maplink_egg(self, filestore):
-        link = DistURL("https://pypi.python.org/master#egg=pytest-dev")
+        link = URL("https://pypi.python.org/master#egg=pytest-dev")
         entry1 = filestore.maplink(link, refresh=False)
         entry2 = filestore.maplink(link, refresh=False)
         assert entry1 == entry2
@@ -72,7 +72,7 @@ class TestFileStore:
         assert entry1.url == link.url_nofrag
 
     def test_relpathentry(self, filestore):
-        link = DistURL("http://pypi.python.org/pkg/pytest-1.7.zip")
+        link = URL("http://pypi.python.org/pkg/pytest-1.7.zip")
         entry = filestore.maplink(link)
         assert entry.url == link.url
         assert not entry.iscached()
@@ -90,7 +90,7 @@ class TestFileStore:
         assert entry.md5 == "1" * 16
 
     def test_iterfile(self, filestore, httpget):
-        link = DistURL("http://pypi.python.org/pkg/pytest-1.8.zip")
+        link = URL("http://pypi.python.org/pkg/pytest-1.8.zip")
         entry = filestore.maplink(link, refresh=False)
         assert not entry.md5
         headers={"content-length": "3",
@@ -118,7 +118,7 @@ class TestFileStore:
         assert bytes == b("123")
 
     def test_iterfile_remote_no_headers(self, filestore, httpget):
-        link = DistURL("http://pypi.python.org/pkg/pytest-1.8.zip")
+        link = URL("http://pypi.python.org/pkg/pytest-1.8.zip")
         entry = filestore.maplink(link, refresh=False)
         assert not entry.md5
         headers={}
@@ -132,7 +132,7 @@ class TestFileStore:
         assert bytes == b("123")
 
     def test_iterfile_remote_error_size_mismatch(self, filestore, httpget):
-        link = DistURL("http://pypi.python.org/pkg/pytest-3.0.zip")
+        link = URL("http://pypi.python.org/pkg/pytest-3.0.zip")
         entry = filestore.maplink(link, refresh=False)
         assert not entry.md5
         headers={"content-length": "3",
@@ -149,7 +149,7 @@ class TestFileStore:
         assert not entry.iscached()
 
     def test_iterfile_remote_nosize(self, filestore, httpget):
-        link = DistURL("http://pypi.python.org/pkg/pytest-3.0.zip")
+        link = URL("http://pypi.python.org/pkg/pytest-3.0.zip")
         entry = filestore.maplink(link, refresh=False)
         assert not entry.md5
         headers={"last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
@@ -167,7 +167,7 @@ class TestFileStore:
         assert entry2.size == "1"
 
     def test_iterfile_remote_error_md5(self, filestore, httpget):
-        link = DistURL("http://pypi.python.org/pkg/pytest-3.0.zip#md5=123")
+        link = URL("http://pypi.python.org/pkg/pytest-3.0.zip#md5=123")
         entry = filestore.maplink(link, refresh=False)
         assert entry.md5 == "123"
         headers={"content-length": "3",
@@ -182,7 +182,7 @@ class TestFileStore:
         assert not entry.iscached()
 
     def test_iterfile_eggfragment(self, filestore, httpget):
-        link = DistURL("http://pypi.python.org/master#egg=pytest-dev")
+        link = URL("http://pypi.python.org/master#egg=pytest-dev")
         entry = filestore.maplink(link, refresh=False)
         assert entry.eggfragment
         assert entry.url
@@ -205,7 +205,7 @@ class TestFileStore:
         #assert py.builtin.bytes().join(riter) == py.builtin.bytes("1234")
 
     def test_iterfile_local_error(self, filestore, caplog):
-        link = DistURL("http://pypi.python.org/pkg/pytest-1.8.zip")
+        link = URL("http://pypi.python.org/pkg/pytest-1.8.zip")
         entry = filestore.maplink(link, refresh=False)
         assert not entry.md5
         testheaders = dict(size="3", content_type = "application/zip",
@@ -231,7 +231,7 @@ class TestFileStore:
     def test_iterfile_local_failing_will_retry_remote(self, httpget, filestore):
         def raising(*args, **kwargs):
             raise KeyError()
-        link = DistURL("http://pypi.python.org/pkg/pytest-2.8.zip")
+        link = URL("http://pypi.python.org/pkg/pytest-2.8.zip")
         entry = filestore.maplink(link, refresh=False)
         entry.FILE.set("")
         testheaders={"size": "2", "content_type": "application/zip",
@@ -264,7 +264,7 @@ class TestFileStore:
 
     def test_add_testresult(self, filestore):
         #
-        #link = DistURL("http://pypi.python.org/pkg/pytest-1.7.zip#md5=123")
+        #link = URL("http://pypi.python.org/pkg/pytest-1.7.zip#md5=123")
         #entry = filestore.maplink(link)
 
         from test_devpi_server.example import tox_result_data

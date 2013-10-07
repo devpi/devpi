@@ -4,6 +4,8 @@
 - fix normalization import/export issue: pypi names take precendence
   for defining the "real" name of a project.
 
+- use types/url/metadata/validation functionality of new depdency devpi_common 
+
 1.1
 ----------------
 

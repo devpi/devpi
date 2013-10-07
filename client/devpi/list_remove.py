@@ -1,5 +1,5 @@
 
-from devpi_common.s_url import DistURL
+from devpi_common.url import URL
 from devpi_common.metadata import splitbasename
 from pkg_resources import parse_version
 
@@ -42,14 +42,14 @@ def query_file_status(hub, origin):
     # XXX this code is not auto-tested in all detail
     # so change with great care or write tests first
     rooturl = hub.current.rooturl
-    res = hub.http_api("get", DistURL(rooturl, "/" + origin).url,
+    res = hub.http_api("get", URL(rooturl, "/" + origin).url,
                        quiet=True)
     assert res.status_code == 200
     md5 = res["result"].get("md5")
     if not md5:
         return
     res = hub.http_api("get",
-                       DistURL(rooturl, "/+tests/%s/toxresult" % md5).url,
+                       URL(rooturl, "/+tests/%s/toxresult" % md5).url,
                        quiet=True)
     assert res.status_code == 200
     assert res["type"] == "list:toxresult"
@@ -130,7 +130,7 @@ def main_remove(hub, args):
         hub.http_api("delete", url)
 
 def confirm_delete(hub, data):
-    basepath = DistURL(hub.current.index).path.lstrip("/")
+    basepath = URL(hub.current.index).path.lstrip("/")
     to_delete = []
     if data["type"] == "projectconfig":
         for version, verdata in data["result"].items():
@@ -164,7 +164,7 @@ def getjson(hub, path):
         check_verify_current(hub)
         url = current.get_index_url()
     else:
-        url = DistURL(current.get_index_url(), path).url + "/"
+        url = URL(current.get_index_url(), path).url + "/"
     return hub.http_api("get", url, quiet=True)
 
 def check_verify_current(hub):
