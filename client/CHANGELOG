@@ -19,6 +19,9 @@
 
 - internal cleanup wrt pytest-flakes discoveries
 
+- remove "archive" dependency in favour of a small implementation in
+  devpi_common
+
 
 1.1
 -------------------------------
