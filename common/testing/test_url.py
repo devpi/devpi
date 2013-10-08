@@ -51,6 +51,33 @@ class TestURL:
         assert d_url.joinpath(path, "end", asdir=1).url == expected + "/end/"
         assert URL(url, path, "end", asdir=1).url == expected + "/end/"
 
+    def test_addpath(self):
+        url = URL("http://root.com/path")
+        assert url.addpath("sub").url == "http://root.com/path/sub"
+        assert url.addpath("sub", asdir=1).url == "http://root.com/path/sub/"
+        url = URL("http://root.com/path/")
+        assert url.addpath("sub").url == "http://root.com/path/sub"
+        assert url.addpath("sub", asdir=1).url == "http://root.com/path/sub/"
+
+    def test_instantiate_with_url(self):
+        url = URL("http://hesie.de")
+        assert URL(url) == url
+
+    def test_empty_url(self):
+        assert not URL("")
+        assert not URL()
+
+    def test_asdir(self):
+        assert URL("http://heise.de").asdir().url == "http://heise.de/"
+        assert URL("http://py.org/path").asdir().url == "http://py.org/path/"
+        assert URL("http://py.org/path/").asdir().url == "http://py.org/path/"
+
+    def test_asfile(self):
+        assert URL("http://heise.de").asfile().url == "http://heise.de"
+        assert URL("http://heise.de/").asfile().url == "http://heise.de"
+        assert URL("http://x.de/path/").asfile().url == "http://x.de/path"
+        assert URL("http://x.de/path").asfile().url == "http://x.de/path"
+
     def test_joinpath_asdir(self):
         url = URL("http://heise.de")
         new = url.joinpath("hello", asdir=1)

@@ -9,12 +9,9 @@ def main(hub, args=None):
 
     current = hub.current
 
-    if path[0] != "/":
-        if not current.index:
-            hub.fatal("cannot use relative path without an active index")
-        url = URL(current.get_index_url(), path).url
-    else:
-        url = URL(current.rooturl, path).url
+    if path[0] != "/" and not current.index:
+        hub.fatal("cannot use relative path without an active index")
+    url = current.index_url.addpath(path)
     r = hub.http_api("get", url, quiet=True, check_version=False)
     if hub.args.verbose:
         hub.line("GET REQUEST sent to %s" % url)

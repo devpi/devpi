@@ -19,10 +19,15 @@ def _joinpath(url, args, asdir=False):
     return new
 
 class URL:
-    def __init__(self, url, *args, **kwargs):
+    def __init__(self, url="", *args, **kwargs):
+        if isinstance(url, URL):
+            url = url.url
         if args:
             url = _joinpath(url, args, **kwargs)
         self.url = url
+
+    def __nonzero__(self):
+        return bool(self.url)
 
     def __repr__(self):
         return "<URL url=%r>" % (self.url, )
@@ -84,6 +89,20 @@ class URL:
     def joinpath(self, *args, **kwargs):
         newurl = _joinpath(self.url, args, **kwargs)
         return URL(newurl)
+
+    def addpath(self, *args, **kwargs):
+        url = self.url.rstrip("/") + "/"
+        return URL(_joinpath(url, args, **kwargs))
+
+    def asdir(self):
+        if self.url[-1:] == "/":
+            return self
+        return self.__class__(self.url + "/")
+
+    def asfile(self):
+        if self.url[-1:] == "/":
+            return self.__class__(self.url.rstrip("/"))
+        return self
 
     def torelpath(self):
         """ return scheme/netloc/path/fragment into a canonical relative

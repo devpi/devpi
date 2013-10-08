@@ -21,6 +21,18 @@ def currentproperty(name):
         self._currentdict[name] = val
     return property(propget, propset)
 
+def urlproperty(name):
+    def propget(self):
+        val = self._currentdict.get(name, None)
+        if val:
+            return URL(val)
+
+    def propset(self, val):
+        if isinstance(val, URL):
+            val = val.url
+        self._currentdict[name] = val
+    return property(propget, propset)
+
 class Current(object):
     index = currentproperty("index")
     simpleindex = currentproperty("simpleindex")
@@ -29,6 +41,12 @@ class Current(object):
     resultlog = currentproperty("resultlog")
     venvdir = currentproperty("venvdir")
     _auth = currentproperty("auth")
+
+    @property
+    def index_url(self):
+        if self.index:
+            return URL(self.index)
+        return URL("")
 
     def __init__(self, path):
         self.path = path
@@ -99,19 +117,19 @@ class Current(object):
 
     def configure_fromurl(self, hub, url):
         url = self.get_index_url(url)
-        if not URL(url).is_valid_http_url():
-            hub.fatal("invalid URL: %s" % url)
-        r = hub.http_api("get", url.rstrip("/") + "/+api", quiet=True)
+        if not url.is_valid_http_url():
+            hub.fatal("invalid URL: %s" % url.url)
+        r = hub.http_api("get", url.addpath("+api"), quiet=True)
         self._configure_from_server_api(r["result"], url)
 
     def _configure_from_server_api(self, result, url):
-        rooturl = URL(url).joinpath("/").url
+        rooturl = url.joinpath("/")
         data = {}
         url_keys = set(devpi_endpoints)
         for name in url_keys:
             val = result.get(name, None)
             if val is not None:
-                val = URL(rooturl).joinpath(val).url
+                val = rooturl.joinpath(val).url
             data[name] = val
         self.reconfigure(data)
         status = result.get("authstatus", None)
@@ -139,7 +157,7 @@ class Current(object):
             user = self.get_auth_user()
             if not user:
                 raise ValueError("no current authenticated user")
-        return URL(self.rooturl, user).url
+        return URL(self.rooturl).addpath(user)
 
     def get_index_url(self, indexname=None, slash=True):
         if indexname is None:
@@ -147,17 +165,13 @@ class Current(object):
             if indexname is None:
                 raise ValueError("no index name")
         if "/" not in indexname:
-            userurl = self.get_user_url()
-            return URL(userurl + "/", indexname).url
-        url = URL(self.rooturl).joinpath(indexname).url
-        url = url.rstrip("/")
-        if slash:
-            url = url.rstrip("/") + "/"
-        return url
+            return self.get_user_url().addpath(indexname)
+        if not slash:
+            indexname = indexname.rstrip("/")
+        return URL(self.rooturl).joinpath(indexname, asdir=slash)
 
     def get_project_url(self, name):
-        baseurl = self.get_index_url(slash=True)
-        return URL(baseurl, name, asdir=1).url
+        return self.index_url.addpath(name, asdir=1)
 
 def out_index_list(hub, data):
     for user in data:

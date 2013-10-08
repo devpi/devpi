@@ -74,12 +74,12 @@ class TestUnit:
 
         # ok response
         d["authstatus"] = ["ok", "user"]
-        current._configure_from_server_api(d, current.rooturl)
+        current._configure_from_server_api(d, URL(current.rooturl))
         assert current.get_auth() == ("user", "password")
 
         # invalidation response
         d["authstatus"] = ["nouser", "user"]
-        current._configure_from_server_api(d, current.rooturl)
+        current._configure_from_server_api(d, URL(current.rooturl))
         assert not current.get_auth()
 
     def test_use_with_no_rooturl(self, capfd, cmd_devpi, monkeypatch):

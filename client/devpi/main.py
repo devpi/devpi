@@ -6,6 +6,7 @@ import argparse
 import subprocess
 import devpi
 from devpi_common.types import lazydecorator, cached_property
+from devpi_common.url import URL
 from devpi import __version__ as client_version
 from devpi.use import Current
 import requests
@@ -101,6 +102,8 @@ class Hub:
         This method will not output any information to the user
         if ``quiet`` is set to true.
         """
+        if isinstance(url, URL):
+            url = url.url
         jsontype = "application/json"
         headers = {"Accept": jsontype, "content-type": jsontype}
         try:

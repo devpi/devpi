@@ -162,9 +162,9 @@ def getjson(hub, path):
     current = hub.current
     if not path:
         check_verify_current(hub)
-        url = current.get_index_url()
+        url = current.index_url
     else:
-        url = URL(current.get_index_url(), path).url + "/"
+        url = current.index_url.addpath(path, asdir=1)
     return hub.http_api("get", url, quiet=True)
 
 def check_verify_current(hub):
