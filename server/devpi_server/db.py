@@ -237,9 +237,9 @@ class PrivateStage:
     metadata_list_fields = ('platform', 'classifier', 'classifiers',
                'obsoletes',
                'requires', 'provides', 'obsoletes-Dist',
-               'provides-Dist', 'requires-Dist', 'requires-External',
-               'project-URL', 'supported-Platform', 'setup-Requires-Dist',
-               'provides-Extra', 'extension')
+               'provides-dist', 'requires-dist', 'requires-external',
+               'project-url', 'supported-platform', 'setup-requires-Dist',
+               'provides-extra', 'extension')
 
     def __init__(self, db, user, index, ixconfig):
         self.db = db
