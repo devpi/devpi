@@ -320,7 +320,7 @@ class PyPIView:
             #results.append((r.status_code, "upload", entry.relpath))
             #apireturn(200, results=results, type="actionlog")
             if not target_stage.get_metadata(name, version):
-                self._register_metadata(target_stage, metadata)
+                self._register_metadata_dict(target_stage, metadata)
             results.append((200, "register", name, version,
                             "->", target_stage.name))
             for entry in matches:
@@ -385,7 +385,7 @@ class PyPIView:
         except KeyError:
             abort(400, ":action field not found")
         if action == "submit":
-            return self._register_metadata(stage, request.forms)
+            return self._register_metadata_form(stage, request.forms)
         elif action in ("doc_upload", "file_upload"):
             try:
                 content = request.files["content"]
@@ -399,7 +399,7 @@ class PyPIView:
             if action == "file_upload":
                 abort_if_invalid_filename(name, content.filename)
                 if not stage.get_metadata(name, version):
-                    self._register_metadata(stage, request.forms)
+                    self._register_metadata_form(stage, request.forms)
                 res = stage.store_releasefile(content.filename, content.value)
                 if res == 409:
                     abort(409, "%s already exists in non-volatile index" %(
@@ -421,10 +421,20 @@ class PyPIView:
             abort(400, "action %r not supported" % action)
         return ""
 
-    def _register_metadata(self, stage, form):
+    def _register_metadata_form(self, stage, form):
         metadata = {}
         for key in stage.metadata_keys:
-            metadata[key] = form.get(key, "")
+            if key.lower() in stage.metadata_list_fields:
+                val = list(filter(None, form.getall(key)))
+            else:
+                val = form.get(key)
+                if val == "UNKNOWN":
+                    val = ""
+            metadata[key] = val
+
+        self._register_metadata_dict(stage, metadata)
+
+    def _register_metadata_dict(self, stage, metadata):
         try:
             stage.register_metadata(metadata)
         except stage.RegisterNameConflict as e:
@@ -508,6 +518,8 @@ class PyPIView:
         for key, value in sorted(verdata.items()):
             if key == "description":
                 continue
+            if isinstance(value, list):
+                value = html.ul([html.li(x) for x in value])
             rows.append(html.tr(html.td(key), html.td(value)))
         title = "%s/: %s-%s metadata and description" % (
                 stage.name, name, version)

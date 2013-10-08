@@ -158,13 +158,31 @@ class TestSubmitValidation:
         r = submit.metadata(metadata, code=403)
         assert re.search("pKg1.*already.*registered", r.body)
 
-    def test_metadata_normalize_inheritance(self, extdb, submit):
-        extdb.mock_simple("pKg1")
+    def test_metadata_multifield(self, submit, mapp):
+        classifiers = ["Intended Audience :: Developers",
+                       "License :: OSI Approved :: MIT License"]
         metadata = {"name": "Pkg1", "version": "1.0", ":action": "submit",
-                    "description": "hello world"}
-        r = submit.metadata(metadata, code=403)
-        assert re.search("Pkg1.*because.*pKg1.*already.*registered.*pypi",
-                         r.body)
+                    "classifiers": classifiers, "platform": ["unix", "win32"]}
+        submit.metadata(metadata, code=200)
+        data = mapp.getjson("/%s/Pkg1/1.0/" % submit.stagename)["result"]
+        assert data["classifiers"] == classifiers
+        assert data["platform"] == ["unix", "win32"]
+
+    def test_metadata_multifield_singleval(self, submit, mapp):
+        classifiers = ["Intended Audience :: Developers"]
+        metadata = {"name": "Pkg1", "version": "1.0", ":action": "submit",
+                    "classifiers": classifiers}
+        submit.metadata(metadata, code=200)
+        data = mapp.getjson("/%s/Pkg1/1.0/" % submit.stagename)["result"]
+        assert data["classifiers"] == classifiers
+
+    def test_metadata_UNKNOWN_handling(self, submit, mapp):
+        metadata = {"name": "Pkg1", "version": "1.0", ":action": "submit",
+                    "download_url": "UNKNOWN", "platform": ""}
+        submit.metadata(metadata, code=200)
+        data = mapp.getjson("/%s/Pkg1/1.0/" % submit.stagename)["result"]
+        assert not data["download_url"]
+        assert not data["platform"]
 
     def test_upload_file(self, submit):
         metadata = {"name": "Pkg5", "version": "1.0", ":action": "submit"}

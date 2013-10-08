@@ -5,6 +5,9 @@
   redirecting non-json queries to /user/index/PROJ[/] to 
   /user/index/+simple/PROJ/
 
+- fix submission of multi-value fields like "classifiers" or "platform"
+  (previously they would be wrongly collapsed to become the last value of a list)
+
 - fix normalization import/export issue: pypi names take precendence
   for defining the "real" name of a project.
 

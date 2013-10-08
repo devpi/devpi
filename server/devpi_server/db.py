@@ -233,6 +233,13 @@ class PrivateStage:
         name version summary home_page author author_email
         license description keywords platform classifiers download_url
     """.split()
+    # taken from distlib.metadata (6th October)
+    metadata_list_fields = ('platform', 'classifier', 'classifiers',
+               'obsoletes',
+               'requires', 'provides', 'obsoletes-Dist',
+               'provides-Dist', 'requires-Dist', 'requires-External',
+               'project-URL', 'supported-Platform', 'setup-Requires-Dist',
+               'provides-Extra', 'extension')
 
     def __init__(self, db, user, index, ixconfig):
         self.db = db
