@@ -1,7 +1,7 @@
 import py
 from py.xml import html
 from devpi_common.types import lazydecorator
-from devpi_common.metadata import sorted_by_version, get_pyversion_filetype
+from devpi_common.metadata import get_pyversion_filetype
 import devpi_server
 from bottle import response, request, redirect, HTTPError
 from bottle import HTTPResponse, static_file
@@ -77,6 +77,10 @@ def apireturn(code, message=None, result=None, type=None):
 def json_preferred():
     # XXX do proper "best" matching
     return "application/json" in request.headers.get("Accept", "")
+
+def html_preferred():
+    accept = request.headers.get("Accept", "")
+    return not accept or "text/html" in accept
 
 route = lazydecorator()
 
@@ -451,31 +455,25 @@ class PyPIView:
     @route("/<user>/<index>/<name>")
     @route("/<user>/<index>/<name>/")
     def project_get(self, user, index, name):
+        #log.debug("HEADERS: %s", request.headers.items())
         stage = self.getstage(user, index)
         info = stage.get_project_info(name)
-        if info and info.name != name:
-            redirect("/%s/%s/" % (stage.name, info.name))
+        real_name = info.name if info else name
+        if html_preferred():
+            # we need to redirect because the simple pages
+            # may return status codes != 200, causing
+            # pip to look at the full simple list at the parent url
+            # but we don't serve this list on /user/index/
+            redirect("/%s/+simple/%s/" % (stage.name, real_name))
+        if not json_preferred():
+            apireturn(415, "unsupported media type %s" %
+                      request.headers.items())
+        if not info:
+            apireturn(404, "project %r does not exist" % name)
+        if real_name != name:
+            redirect("/%s/%s/" % (stage.name, real_name))
         metadata = stage.get_projectconfig(name)
-        #if not metadata:
-        #    apireturn("404", "project %r does not exist" % name)
-        if json_preferred():
-            apireturn(200, type="projectconfig", result=metadata)
-        # html
-        body = []
-        for version in sorted_by_version(metadata.keys()):
-            body.append(html.a(version, href=version + "/"))
-            body.append(html.br())
-        return simple_html_body("%s/%s: list of versions" % (stage.name,name),
-                                body).unicode(indent=2)
-
-    @route("/<user>/<index>/<name>", method="PUT")
-    def project_add(self, user, index, name):
-        self.require_user(user)
-        stage = self.getstage(user, index)
-        if stage.project_exists(name):
-            apireturn(409, "project %r exists" % name)
-        stage.project_add(name)
-        apireturn(201, "project %r created" % name)
+        apireturn(200, type="projectconfig", result=metadata)
 
     @route("/<user>/<index>/<name>", method="DELETE")
     @route("/<user>/<index>/<name>/", method="DELETE")
@@ -483,7 +481,7 @@ class PyPIView:
         self.require_user(user)
         stage = self.getstage(user, index)
         if stage.name == "root/pypi":
-            abort(405, "cannot delete on root/pypi index")
+            abort(405, "cannot delete root/pypi index")
         if not stage.project_exists(name):
             apireturn(404, "project %r does not exist" % name)
         if not stage.ixconfig["volatile"]:

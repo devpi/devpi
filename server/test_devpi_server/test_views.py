@@ -16,7 +16,7 @@ from .functional import TestUserThings, TestIndexThings  # noqa
 def getfirstlink(text):
     return BeautifulSoup(text).findAll("a")[0]
 
-def test_simple_project(pypiurls, extdb, testapp):
+def test_simple_project(extdb, testapp):
     name = "qpwoei"
     r = testapp.get("/root/pypi/+simple/" + name)
     assert r.status_code == 200
@@ -29,7 +29,16 @@ def test_simple_project(pypiurls, extdb, testapp):
     assert len(links) == 1
     assert links[0].get("href").endswith(path)
 
-def test_simple_project_unicode_rejected(pypiurls, extdb, testapp):
+def test_project_redirect(extdb, testapp):
+    name = "qpwoei"
+    r = testapp.get("/root/pypi/%s" % name)
+    assert r.status_code == 302
+    assert r.headers["location"].endswith("/root/pypi/+simple/%s/" % name)
+    r = testapp.get("/root/pypi/%s/" % name)
+    assert r.status_code == 302
+    assert r.headers["location"].endswith("/root/pypi/+simple/%s/" % name)
+
+def test_simple_project_unicode_rejected(extdb, testapp):
     name = "qpw\xc3"
     r = testapp.get("/root/pypi/+simple/" + name)
     assert r.status_code == 400
@@ -38,7 +47,7 @@ def test_simple_url_longer_triggers_404(testapp):
     assert testapp.get("/root/pypi/+simple/pytest/1.0/").status_code == 404
     assert testapp.get("/root/pypi/+simple/pytest/1.0").status_code == 404
 
-def test_simple_project_pypi_egg(pypiurls, extdb, testapp):
+def test_simple_project_pypi_egg(extdb, testapp):
     extdb.mock_simple("py",
         """<a href="http://bb.org/download/py.zip#egg=py-dev" />""")
     r = testapp.get("/root/pypi/+simple/py/")
@@ -48,7 +57,7 @@ def test_simple_project_pypi_egg(pypiurls, extdb, testapp):
     r = testapp.get("/root/pypi/")
     assert r.status_code == 200
 
-def test_simple_list(pypiurls, extdb, testapp):
+def test_simple_list(extdb, testapp):
     extdb.mock_simple("hello1", "<html/>")
     extdb.mock_simple("hello2", "<html/>")
     assert testapp.get("/root/pypi/+simple/hello1").status_code == 200
@@ -63,7 +72,7 @@ def test_simple_list(pypiurls, extdb, testapp):
     hrefs = [a.get("href") for a in links]
     assert hrefs == ["hello1/", "hello2/"]
 
-def test_indexroot(pypiurls, testapp, xom):
+def test_indexroot(testapp, xom):
     xom.db.create_stage("user/index", bases=("root/pypi",))
     r = testapp.get("/user/index/")
     assert r.status_code == 200
@@ -75,13 +84,13 @@ def test_indexroot_root_pypi(testapp, xom):
 
 
 @pytest.mark.parametrize("code", [-1, 500, 501, 502, 503])
-def test_upstream_not_reachable(pypiurls, extdb, testapp, xom, code):
+def test_upstream_not_reachable(extdb, testapp, xom, code):
     name = "whatever%d" % (code + 1)
     extdb.mock_simple(name, status_code = code)
     r = testapp.get("/root/pypi/+simple/%s" % name)
     assert r.status_code == 502
 
-def test_pkgserv(pypiurls, httpget, extdb, testapp):
+def test_pkgserv(httpget, extdb, testapp):
     extdb.mock_simple("package", '<a href="/package-1.0.zip" />')
     httpget.setextfile("/package-1.0.zip", "123")
     r = testapp.get("/root/pypi/+simple/package/")
@@ -311,9 +320,7 @@ def test_upload_and_delete_project(mapp, testapp):
     assert r.status_code == 200
     r = testapp.delete(api.index + "pkg1/")
     assert r.status_code == 200
-    data = mapp.getjson(api.index + "pkg1/")
-    #assert data["status"] == 404
-    assert not data["result"]
+    mapp.getjson(api.index + "pkg1/", code=404)
 
 def test_upload_with_acl(mapp):
     mapp.login("root")
@@ -370,7 +377,7 @@ def test_upload_and_delete_project_version(mapp):
     assert mapp.getjson(api.index + "pkg1/")["result"]
     mapp.delete_project("pkg1/2.7", code=200)
     #assert mapp.getjson("/user/name/pkg1/")["status"] == 404
-    assert not mapp.getjson(api.index + "pkg1/")["result"]
+    mapp.getjson(api.index + "pkg1/", code=404)
 
 def test_delete_version_fails_on_non_volatile(mapp):
     mapp.create_and_use(indexconfig=dict(volatile=False))

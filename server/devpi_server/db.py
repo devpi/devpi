@@ -334,11 +334,6 @@ class PrivateStage:
                 html = html.encode("utf8")
             key.set(html)
 
-    def project_add(self, name):
-        key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
-        with key.locked_update():
-            pass
-
     def project_delete(self, name):
         key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
         key.delete()

@@ -1,5 +1,4 @@
 from devpi.use import parse_keyvalue_spec
-from devpi_common.url import URL
 
 def index_create(hub, url, kvdict):
     hub.http_api("put", url, kvdict)
@@ -35,7 +34,7 @@ def get_indexconfig_reply(hub, url, ok404=False):
     elif res.status_code == 404 and ok404:
         return None
     hub.fatal("%s: trying to get json resulted in: %s %s"
-                %(indexname, res.status_code, res.reason))
+                %(url.path, res.status_code, res.reason))
 
 def index_show(hub, url):
     if not url:

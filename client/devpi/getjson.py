@@ -1,4 +1,3 @@
-from devpi_common.url import URL
 
 def main(hub, args=None):
     hub.set_quiet()

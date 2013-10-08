@@ -342,15 +342,6 @@ class Mapp(MappMixin):
         r = self.testapp.get_json("/%s" % indexname)
         return r.json["result"].get("acl_" + acltype, None)
 
-    def create_project(self, projectname, code=201, indexname=None):
-        indexname = self._getindexname(indexname)
-        user, password = self.testapp.auth
-        r = self.testapp.put_json("/%s/%s" % (indexname,
-                                  projectname), {}, expect_errors=True)
-        assert r.status_code == code
-        if code == 201:
-            assert "created" in r.json["message"]
-
     def delete_project(self, projectname, code=200, indexname=None):
         indexname = self._getindexname(indexname)
         r = self.testapp.delete_json("/%s/%s" % (indexname,

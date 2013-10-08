@@ -1,6 +1,10 @@
 1.X
 ----------------
 
+- allow to use /user/index as indexserver url for pip/easy_install by
+  redirecting non-json queries to /user/index/PROJ[/] to 
+  /user/index/+simple/PROJ/
+
 - fix normalization import/export issue: pypi names take precendence
   for defining the "real" name of a project.
 
