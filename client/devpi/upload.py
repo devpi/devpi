@@ -174,28 +174,37 @@ class Checkout:
         self.hub = hub
         self.rootpath = setupdir
         assert setupdir.join("setup.py").check(), setupdir
-        self.hashg = not hub.args.novcs \
-            and find_parent_subpath(self.rootpath, ".hg", raising=False) \
-            and py.path.local.sysfind("hg")
+        hasvcs = not hub.args.novcs
+        if hasvcs:
+            hasvcs = False
+            if find_parent_subpath(self.rootpath, ".hg", raising=False):
+                if py.path.local.sysfind("hg"):
+                    hasvcs = "hg"
+            elif find_parent_subpath(self.rootpath, ".git", raising=False):
+                if py.path.local.sysfind("git"):
+                    hasvcs = "git"
+        self.hasvcs = hasvcs
 
     def export(self, basetemp):
-        if self.hashg:
-            log.debug("detected hg, trying hg export")
-            newrepo = basetemp.join(self.rootpath.basename)
-            out = self.hub.popen_output("hg st -nmac .", cwd=self.rootpath)
-            num = 0
-            for fn in out.split("\n"):
-                if fn.strip():
-                    source = self.rootpath.join(fn)
-                    dest = newrepo.join(fn)
-                    dest.dirpath().ensure(dir=1)
-                    source.copy(dest)
-                    num += 1
-            log.debug("copied %s files to %s", num, newrepo)
-            self.hub.info("hg-exported project to %s -> new CWD" %(newrepo))
-            return Exported(self.hub, newrepo, self.rootpath)
-        else:
+        if not self.hasvcs:
             return Exported(self.hub, self.rootpath, self.rootpath)
+        newrepo = basetemp.join(self.rootpath.basename)
+        if self.hasvcs == "hg":
+            out = self.hub.popen_output("hg st -nmac .", cwd=self.rootpath)
+        elif self.hasvcs == "git":
+            out = self.hub.popen_output("git ls-files .", cwd=self.rootpath)
+        num = 0
+        for fn in out.split("\n"):
+            if fn.strip():
+                source = self.rootpath.join(fn)
+                dest = newrepo.join(fn)
+                dest.dirpath().ensure(dir=1)
+                source.copy(dest)
+                num += 1
+        log.debug("copied %s files to %s", num, newrepo)
+        self.hub.info("%s-exported project to %s -> new CWD" %(
+                      self.hasvcs, newrepo))
+        return Exported(self.hub, newrepo, self.rootpath)
 
 class Exported:
     def __init__(self, hub, rootpath, origrepo):

@@ -1,6 +1,9 @@
 1.X
 -------------------------------
 
+- support git and hg for exporting all versioned files of a directory 
+  before performing the build step when uploading
+
 - majorly change how upload works: there is now no "setup.py" wrapping
   anymore but instead "devpi upload" now uses setup.py to build the docs
   and performs all the uploading itself.  This gets rid of a number of hacks

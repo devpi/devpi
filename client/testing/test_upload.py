@@ -42,24 +42,29 @@ class TestCheckout:
         """ make sure sys.executable is not used accidentally. """
         monkeypatch.setattr(sys, "executable", None)
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture(scope="class", params=["hg", "git"])
     def repo(self, request):
-        if not py.path.local.sysfind("hg"):
-            pytest.skip("'hg' command not found")
         repo = request.config._tmpdirhandler.mktemp("repo", numbered=True)
         file = repo.join("file")
         file.write("hello")
         repo.ensure("setup.py")
-        old = repo.chdir()
-        try:
-            runproc("hg init")
-            runproc("hg add file setup.py")
-            runproc("hg commit --config ui.username=whatever -m message")
-        finally:
-            old.chdir()
+        if request.param == "hg":
+            if not py.path.local.sysfind("hg"):
+                pytest.skip("'hg' command not found")
+            with repo.as_cwd():
+                runproc("hg init")
+                runproc("hg add file setup.py")
+                runproc("hg commit --config ui.username=whatever -m message")
+            return repo
+        if not py.path.local.sysfind("git"):
+            pytest.skip("'git' command not found")
+        with repo.as_cwd():
+            runproc("git init")
+            runproc("git add file setup.py")
+            runproc("git commit -m message")
         return repo
 
-    def test_hg_export(self, uploadhub, repo, tmpdir, monkeypatch):
+    def test_vcs_export(self, uploadhub, repo, tmpdir, monkeypatch):
         checkout = Checkout(uploadhub, repo)
         assert checkout.rootpath == repo
         newrepo = tmpdir.mkdir("newrepo")
@@ -67,12 +72,14 @@ class TestCheckout:
         assert result.rootpath.join("file").check()
         assert result.rootpath == newrepo.join(repo.basename)
 
-    def test_hg_export_disabled(self, uploadhub, repo, tmpdir, monkeypatch):
+    def test_vcs_export_disabled(self, uploadhub, repo, tmpdir, monkeypatch):
         monkeypatch.setattr(uploadhub.args, "novcs", True)
         checkout = Checkout(uploadhub, repo)
-        assert not checkout.hashg
+        assert not checkout.hasvcs
+        exported = checkout.export(tmpdir)
+        assert exported.rootpath == checkout.rootpath
 
-    def test_hg_export_verify_setup(self, uploadhub, repo,
+    def test_vcs_export_verify_setup(self, uploadhub, repo,
                                           tmpdir, monkeypatch):
         subdir = repo.mkdir("subdir")
         subdir.ensure("setup.py")
