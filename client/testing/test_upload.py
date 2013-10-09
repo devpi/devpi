@@ -2,7 +2,7 @@ import os, sys
 import json
 import py
 import pytest
-from devpi.upload.upload import *
+from devpi.upload import *
 from textwrap import dedent
 from devpi_common.metadata import splitbasename
 from devpi_common.archive import Archive

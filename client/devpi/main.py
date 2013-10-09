@@ -549,7 +549,7 @@ def index(parser):
         help="key=value configuration item. Possible key=value are "
              "bases=CSV, volatile=True|False, acl_upload=CSV)")
 
-@subcommand("devpi.upload.upload")
+@subcommand("devpi.upload")
 def upload(parser):
     """ (build and) upload packages to the current devpi-server index.
 
@@ -578,10 +578,10 @@ def upload(parser):
     build.add_argument("--with-docs", action="store_true", default=None,
         dest="withdocs",
         help="build sphinx docs and upload them to index. "
-             "this triggers 'setup.py build_sphinx ... upload_docs ...'")
+             "this triggers 'setup.py build_sphinx' for building")
     build.add_argument("--only-docs", action="store_true", default=None,
         dest="onlydocs",
-        help="as --with-docs but don't upload release files")
+        help="as --with-docs but don't build or upload release files")
 
     direct = parser.add_argument_group("direct file upload options")
     direct.add_argument("--from-dir", action="store_true", default=None,
