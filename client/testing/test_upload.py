@@ -2,10 +2,10 @@ import os, sys
 import json
 import py
 import pytest
-import types
 from devpi.upload.upload import *
 from textwrap import dedent
 from devpi_common.metadata import splitbasename
+from devpi_common.archive import Archive
 
 from devpi.main import check_output
 
@@ -81,10 +81,6 @@ class TestCheckout:
         exported = checkout.export(wc)
         with pytest.raises(SystemExit):
             exported.check_setup()
-        with pytest.raises(SystemExit):
-            exported.setup_register()
-        with pytest.raises(SystemExit):
-            exported.setup_upload()
 
     def test_export_attributes(self, uploadhub, repo, tmpdir, monkeypatch):
         checkout = Checkout(uploadhub, repo)
@@ -105,31 +101,6 @@ def test_parent_subpath(tmpdir):
     assert find_parent_subpath(s, "xyz") == s
     pytest.raises(ValueError, lambda: find_parent_subpath(tmpdir, "poiqel123"))
 
-def test_readpypirc(monkeypatch, tmpdir):
-    from devpi.upload.setuppy import _prepare_distutils
-    from distutils.config import PyPIRCCommand
-    monkeypatch.setattr(sys, "argv", ["xxx", str(tmpdir), "http://something",
-                                      "user", "password",
-                                      "register", "1"])
-    assert str(tmpdir) not in sys.path
-    _prepare_distutils()
-    assert str(tmpdir) in sys.path
-    cmd = types.InstanceType(PyPIRCCommand)
-    current = PyPIRCCommand._read_pypirc(cmd)
-    assert current["server"] == "devpi"
-    assert current["repository"] == "http://something"
-    assert current["username"] == "user"
-    assert current["password"] == "password"
-    assert current["realm"] == "pypi"
-    assert sys.argv == ["setup.py", "register", "1"]
-
-def test_setuppy_execution_namespace(monkeypatch, tmpdir):
-    from devpi.upload.setuppy import run_setuppy
-    def mockexecfile(filename, global_ns, local_ns=None):
-        assert global_ns["__file__"] == os.path.join(str(tmpdir), "setup.py")
-    monkeypatch.setattr(py.builtin.builtins, 'execfile', mockexecfile)
-    tmpdir.chdir()
-    run_setuppy()
 
 class TestUploadFunctional:
     def test_all(self, initproj, devpi):
@@ -187,7 +158,9 @@ def test_getpkginfo(datadir):
     info = get_pkginfo(datadir.join("dddttt-0.1.dev45-py27-none-any.whl"))
     assert info.name == "dddttt"
     assert info.metadata_version == "2.0"
-
+    info = get_pkginfo(datadir.join("ddd-1.0.doc.zip"))
+    assert info.name == "ddd"
+    assert info.version == "1.0"
 
 def test_filter_latest():
     class PkgInfo(object):
@@ -206,4 +179,14 @@ def test_filter_latest():
     assert filtered.version == u'0.10'
 
 
-
+def test_create_zipfile(tmpdir):
+    source = tmpdir.join("source")
+    newdest = tmpdir.join("newdest")
+    dest = tmpdir.join("dest.zip")
+    source.ensure("file")
+    source.ensure("sub", "subfile")
+    create_zipfile(dest, source)
+    with Archive(dest) as archive:
+        archive.extract(newdest)
+    assert newdest.join("file").isfile()
+    assert newdest.join("sub", "subfile").isfile()

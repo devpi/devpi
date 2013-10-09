@@ -11,6 +11,7 @@ ALLOWED_ARCHIVE_EXTS = set(
 
 
 _releasefile_suffix_rx = re.compile(r"(\.zip|\.tar\.gz|\.tgz|\.tar\.bz2|"
+    "\.doc\.zip|"
     "\.macosx-\d+.*|"
     "\.linux-.*|"
     "\.[^\.]*\.rpm|"
@@ -49,6 +50,7 @@ def get_pyversion_filetype(basename):
 
 def splitbasename(path, checkarch=True):
     nameversion, ext = splitext_archive(path)
+    print nameversion, ext
     parts = re.split(r'-\d+', nameversion)
     projectname = parts[0]
     if not projectname:
@@ -66,12 +68,17 @@ def splitbasename(path, checkarch=True):
     version = non_projectname[:-len(suffix)]
     return projectname, version, suffix
 
+DOCZIPSUFFIX = ".doc.zip"
 def splitext_archive(basename):
     basename = getattr(basename, "basename", basename)
-    base, ext = posixpath.splitext(basename)
-    if base.lower().endswith('.tar'):
-        ext = base[-4:] + ext
-        base = base[:-4]
+    if basename.lower().endswith(DOCZIPSUFFIX):
+        ext = basename[-len(DOCZIPSUFFIX):]
+        base = basename[:-len(DOCZIPSUFFIX)]
+    else:
+        base, ext = posixpath.splitext(basename)
+        if base.lower().endswith('.tar'):
+            ext = base[-4:] + ext
+            base = base[:-4]
     return base, ext
 
 class Version(CompareMixin):

@@ -169,7 +169,7 @@ class Hub:
             return self.__workdir
         except AttributeError:
             self.__workdir = py.path.local.make_numbered_dir(prefix="devpi")
-            self.info("created workdir", self.__workdir)
+            self.info("using workdir", self.__workdir)
             return self.__workdir
 
     @cached_property
@@ -202,8 +202,6 @@ class Hub:
         if cwd == None:
             cwd = self.cwd
         self.report_popen(args, cwd)
-        if self.args.dryrun:
-            return
         return check_output(args, cwd=str(cwd))
 
     def popen(self, args, cwd=None):

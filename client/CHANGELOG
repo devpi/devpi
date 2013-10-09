@@ -1,6 +1,12 @@
 1.X
 -------------------------------
 
+- majorly change how upload works: there is now no "setup.py" wrapping
+  anymore but instead "devpi upload" now uses setup.py to build the docs
+  and performs all the uploading itself.  This gets rid of a number of hacks
+  that were done trying to get the Python shipped "distutils" to pick the
+  proper devpi index.
+
 - show response when uploading documentation failed
 
 - allow to specify archive files as positional arguments (both files and

@@ -1,12 +1,7 @@
 import os
 import py
-from devpi.upload.setuppy import __file__ as fn_setup
 from devpi import log
-from devpi_common.metadata import Version
-
-fn_setup = fn_setup.rstrip("oc")
-
-
+from devpi_common.metadata import Version, BasenameMeta
 
 def main(hub, args):
     # for now we use distutils/setup.py for register/upload commands.
@@ -29,13 +24,16 @@ def main(hub, args):
     uploadbase = hub.getdir("upload")
     exported = checkout.export(uploadbase)
 
+    exported.prepare()
+    archives = []
     if not args.onlydocs:
-        exported.setup_register()
-        exported.setup_upload()
+        archives.extend(exported.setup_build())
     if args.onlydocs or args.withdocs:
-        exported.setup_upload_docs()
-
-
+        archives.append(exported.setup_build_docs())
+    if not archives:
+        hub.fatal("nothing built!")
+    uploader = Uploader(hub, args)
+    uploader.do_upload_paths(archives)
 
 def filter_latest(path_pkginfo):
     name_version_path = {}
@@ -60,60 +58,73 @@ def main_fromfiles(hub, args):
             hub.fatal("%s: is a directory but --from-dir not specified" % p)
         paths.append(p)
 
-    do_upload_paths(hub, args, paths)
+    uploader = Uploader(hub, args)
+    uploader.do_upload_paths(paths)
 
-def do_upload_paths(hub, args, paths):
-    path2pkginfo = {}
-    for path in paths:
-        for archivepath in get_archive_files(path):
-            pkginfo = get_pkginfo(archivepath)
-            if pkginfo is None or pkginfo.name is None:
-                hub.error("%s: does not contain PKGINFO, skipping" %
-                          archivepath.basename)
-                continue
-            path2pkginfo[archivepath] = pkginfo
-            #hub.debug("got pkginfo for %s-%s  %s" %
-            #          (pkginfo.name, pkginfo.version, pkginfo.author))
-    if args.only_latest:
-        path2pkginfo = filter_latest(path2pkginfo)
-    for archivepath, pkginfo in path2pkginfo.items():
-        upload_file_pypi(hub, archivepath, pkginfo)
+class Uploader:
+    def __init__(self, hub, args):
+        self.hub = hub
+        self.args = args
 
-def upload_file_pypi(hub, path, pkginfo):
-    d = {}
-    for attr in pkginfo:
-        d[attr] = getattr(pkginfo, attr)
-    name, version = d["name"], d["version"]
-    d[":action"] = "submit"
-    index = hub.current.index
-    auth = hub.current.get_auth()
-    if not auth:
-        hub.fatal("need to be authenticated (use 'devpi login')")
-    if not hub.args.dryrun:
-        r = hub.http.post(hub.current.index, d, auth=auth)
-        if r.status_code != 200:
-            hub.error("%s %s: could not register %s to %s" % (r.status_code,
-                      r.reason, name + version, index))
-            return False
-        hub.info("%s-%s registered to %s" %(name, version, index))
-    else:
-        hub.info("would register %s-%s registered to %s" %(
-                 name, version, index))
-    d[":action"] = "file_upload"
-    files = {"content": (path.basename, path.open("rb"))}
-    #hub.info(d)
-    if hub.args.dryrun:
-        hub.info("would upload %s to %s" %(path.basename, index))
-        return True
-    r = hub.http.post(hub.current.index, d, files=files, auth=auth)
-    if r.status_code == 200:
-        hub.info("%s posted to %s" %(path.basename, index))
-        return True
-    else:
-        hub.error("%s %s: failed to post %s to %s" %(
-                  r.status_code, r.reason, path.basename, index))
-        return False
+    def do_upload_paths(self, paths):
+        hub = self.hub
+        path2pkginfo = {}
+        for path in paths:
+            for archivepath in get_archive_files(path):
+                pkginfo = get_pkginfo(archivepath)
+                if pkginfo is None or pkginfo.name is None:
+                    hub.error("%s: does not contain PKGINFO, skipping" %
+                              archivepath.basename)
+                    continue
+                path2pkginfo[archivepath] = pkginfo
+                #hub.debug("got pkginfo for %s-%s  %s" %
+                #          (pkginfo.name, pkginfo.version, pkginfo.author))
+        if self.args.only_latest:
+            path2pkginfo = filter_latest(path2pkginfo)
+        for archivepath, pkginfo in path2pkginfo.items():
+            if str(archivepath).endswith(".doc.zip"):
+                self.upload_doc(archivepath, pkginfo)
+            else:
+                self.upload_release_file(archivepath, pkginfo)
 
+    def upload_doc(self, path, pkginfo):
+        self.post("doc_upload", path,
+                {"name": pkginfo.name, "version": pkginfo.version})
+
+    def post(self, action, path, meta):
+        hub = self.hub
+        assert "name" in meta and "version" in meta, meta
+        dic = meta.copy()
+        dic[":action"] = action
+        auth = hub.current.get_auth()
+        if not auth:
+            hub.fatal("need to be authenticated (use 'devpi login')")
+        if path:
+            files = {"content": (path.basename, path.open("rb"))}
+        else:
+            files = None
+        if path:
+            msg = "%s of %s to %s" %(action, path.basename, hub.current.index)
+        else:
+            msg = "%s %s-%s to %s" %(action, meta["name"], meta["version"],
+                                     hub.current.index)
+        if self.args.dryrun:
+            hub.line("skipped: %s" % msg)
+        else:
+            r = hub.http.post(hub.current.index, dic, files=files, auth=auth)
+            if r.status_code == 200:
+                hub.info(msg)
+                return True
+            else:
+                hub.error("%s FAIL %s" %(r.status_code, msg))
+
+    def upload_release_file(self, path, pkginfo):
+        meta = {}
+        for attr in pkginfo:
+            meta[attr] = getattr(pkginfo, attr)
+
+        self.post("submit", None, meta=meta)
+        self.post("file_upload", path, meta=meta)
 
 # taken from devpi-server/extpypi.py
 ALLOWED_ARCHIVE_EXTS = ".egg .whl .tar.gz .tar.bz2 .tar .tgz .zip".split()
@@ -129,9 +140,9 @@ def get_archive_files(path):
                 yield x
 
 def get_pkginfo(archivepath):
-    #arch = Archive(str(archivepath))
-    #for name in arch.namelist():
-    #    if name.endswith("/PKG-INFO"):
+    if str(archivepath).endswith(".doc.zip"):
+        return BasenameMeta(archivepath)
+
     if archivepath.ext == ".whl":
         # workaround for https://bugs.launchpad.net/pkginfo/+bug/1227788
         import twine.wheel
@@ -176,7 +187,7 @@ class Checkout:
                     source.copy(dest)
                     num += 1
             log.debug("copied %s files to %s", num, newrepo)
-            self.hub.info("hg-exported project to", newrepo)
+            self.hub.info("hg-exported project to %s -> new CWD" %(newrepo))
             return Exported(self.hub, newrepo, self.rootpath)
         else:
             return Exported(self.hub, self.rootpath, self.rootpath)
@@ -186,6 +197,7 @@ class Exported:
         self.hub = hub
         self.rootpath = rootpath
         self.origrepo = origrepo
+        self.target_distdir = origrepo.join("dist")
         python = py.path.local.sysfind("python")
         if not python:
             raise ValueError("could not find 'python' executable")
@@ -206,24 +218,6 @@ class Exported:
         self.hub.info("name, version = %s, %s" %(name, version))
         return name, version
 
-    def setup_register(self):
-        self.check_setup()
-        hub = self.hub
-        pypisubmit = self.hub.current.pypisubmit
-        cwd = self.rootpath
-        user, password = self._getuserpassword()
-        if hub.args.dryrun:
-            hub.info("would register package at", cwd, "to", pypisubmit)
-            return
-        hub.debug("registering package at", cwd, "to", pypisubmit)
-        out = hub.popen_output([self.python, fn_setup, cwd,
-             pypisubmit, user, password, "register", "-r", "devpi",],
-             cwd = self.rootpath)
-        if "Server response (200): OK" in out:
-            hub.info("release registered to %s" % hub.current.index)
-        else:
-            hub.fatal(out + "\n", "release registration failed\n")
-
     def _getuserpassword(self):
         auth = self.hub.current.get_auth()
         if auth:
@@ -236,12 +230,17 @@ class Exported:
             self.hub.fatal("did not find %s after "
                            "export of versioned files" % p)
 
-    def setup_upload(self):
+    def prepare(self):
         self.check_setup()
-        current = self.hub.current
-        cwd = self.rootpath
-        user, password = self._getuserpassword()
+        if self.target_distdir.check():
+            self.hub.info("pre-build: cleaning %s" % self.target_distdir)
+            self.target_distdir.remove()
+        self.target_distdir.mkdir()
+
+    def setup_build(self):
         formats = [x.strip() for x in self.hub.args.formats.split(",")]
+
+        archives = []
         for format in formats:
             if not format:
                 continue
@@ -250,55 +249,42 @@ class Exported:
                 buildcommand = ["sdist"]
                 parts = format.split(".", 1)
                 if len(parts) > 1:
-                    buildcommand.extend(["--formats", sdistformat(parts[1])])
+                    setup_format = sdistformat(parts[1])
+                    buildcommand.extend(["--formats", setup_format])
             else:
                 buildcommand.append(format)
-            pre = [self.python, fn_setup, cwd, current.pypisubmit,
-                   user, password]
-            cmd = pre + buildcommand  + ["upload", "-r", "devpi",]
-            out = self.hub.popen_output(cmd, cwd=cwd)
+            pre = [self.python, "setup.py"]
+            cmd = pre + buildcommand
+
+            distdir = self.rootpath.join("dist")
+            if self.rootpath != self.origrepo:
+                if distdir.exists():
+                    distdir.remove()
+            out = self.hub.popen_output(cmd, cwd=self.rootpath)
             if out is None:  # dryrun
                 continue
-            ok = False
-            for line in out.split("\n"):
-                lower = line.lower()
-                if lower.startswith("server response "):
-                    ok = "(200): OK" in line
-                    self.hub.info(line)
-                    break
-            else:
-                self.hub.fatal("could not register releasefile")
-            if ok:
-                for line in out.split("\n")[-10:]:
-                    if line.startswith("Submitting"):
-                        self.hub.info(line.replace("Submitting", "submitted"))
-                        break
+            for x in distdir.listdir():  # usually just one
+                target = self.target_distdir.join(x.basename)
+                x.move(target)
+                archives.append(target)
+                self.log_build(target, "[%s]" %format.upper())
+        return archives
 
-    def setup_upload_docs(self):
-        current = self.hub.current
+    def setup_build_docs(self):
+        name, version = self.setup_name_and_version()
         cwd = self.rootpath
-        user, password = self._getuserpassword()
-        if self.hub.args.dryrun:
-            self.hub.info("would upload docs from", cwd, "to",
-                          current.pypisubmit)
-            return
         build = cwd.join("build")
-        upload_dir = build.join("html")
-        doc_setup_command = [
-            "build_sphinx", "-E", "--build-dir", build,
-            "upload_docs", "--upload-dir", upload_dir]
-        out = self.hub.popen_output(
-            [self.python, fn_setup, cwd, current.pypisubmit,
-             user, password ] + doc_setup_command +
-             ["-r", "devpi", "--show-response"],
-            cwd=cwd)
-        if "Server response (200): OK" in out:
-            for line in out.split("\n")[-10:]:
-                if line.startswith("Submitting"):
-                    self.hub.info(line.replace("Submitting", "submitted"))
-                    return
-        else:
-            self.hub.fatal(out, "\ncould not upload docs")
+        self.hub.popen_output(
+            [self.python, "setup.py", "build_sphinx", "-E",
+             "--build-dir", build])
+        p = self.target_distdir.join("%s-%s.doc.zip" %(name, version))
+        create_zipfile(p, build)
+        self.log_build(p, "[sphinx docs]")
+        return p
+
+    def log_build(self, path, suffix):
+        kb = path.size() / 1000
+        self.hub.info("built: %s %s %skb" %(path, suffix, kb))
 
 
 sdistformat2option = {
@@ -320,3 +306,11 @@ def sdistformat(format):
             raise ValueError("unknown sdist format option: %r" % res)
         res = format
     return res
+
+def create_zipfile(dest, source):
+    assert dest.ext == ".zip"
+    from zipfile import ZipFile
+    zipfile = ZipFile(str(dest), "w")
+    for fil in source.visit(py.path.local.isfile):
+        zipfile.write(str(fil), arcname=fil.relto(source))
+    zipfile.close()

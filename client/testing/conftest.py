@@ -1,6 +1,6 @@
 
 # content of conftest.py
-
+import os
 import random
 import pytest
 import textwrap
@@ -341,11 +341,7 @@ def create_venv(request, testdir, monkeypatch):
             bindir = "Scripts"
         else:
             bindir = "bin"
-        ac = venvdir.join(bindir, "activate_this.py")
-        assert ac.check(), ac
-        #print ac, os.environ["PATH"]
-        execfile(str(ac), dict(__file__=str(ac)))
-        #print ac, os.environ["PATH"]
+        monkeypatch.setenv("PATH", bindir + os.pathsep + os.environ["PATH"])
         return venvdir
     return do_create_venv
 

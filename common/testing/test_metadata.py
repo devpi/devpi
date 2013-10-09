@@ -44,6 +44,7 @@ def test_get_pyversion_filetype(releasename, expected):
     ("pytest-2.3.4.zip", ("pytest-2.3.4", ".zip")),
     ("green-0.4.0-py2.5-win32.egg", ("green-0.4.0-py2.5-win32", ".egg")),
     ("green-1.0.tar.gz", ("green-1.0", ".tar.gz")),
+    ("green-1.0.doc.zip", ("green-1.0", ".doc.zip")),
 ])
 def test_splitext_archive(releasename, expected):
     assert splitext_archive(releasename) == expected
@@ -54,6 +55,12 @@ def test_version():
     assert max([ver1, ver2]) == ver2
 
 class TestBasenameMeta:
+    def test_doczip(self):
+        meta1 = BasenameMeta("x-1.0.doc.zip")
+        assert meta1.name == "x"
+        assert meta1.version == "1.0"
+        assert meta1.ext == ".doc.zip"
+
     def test_two_comparison(self):
         meta1 = BasenameMeta("x-1.0.tar.gz")
         meta2 = BasenameMeta("x-1.1.tar.gz")
