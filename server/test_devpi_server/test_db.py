@@ -176,13 +176,16 @@ class TestStage:
     def test_getreleaselinks_inheritance_shadow_egg(self, extdb, stage):
         stage._reconfigure(bases=("root/pypi",))
         extdb.mock_simple("py",
-        """<a href="http://bb.org/download/py.zip#egg=py-dev" />""")
+        """<a href="http://bb.org/download/py.zip#egg=py-dev" />
+           <a href="http://bb.org/download/master#egg=py-dev2" />
+        """)
         register_and_store(stage, "py-1.0.tar.gz", "123")
         entries = stage.getreleaselinks("py")
-        assert len(entries) == 2
-        e0, e1 = entries
-        assert e0.basename == "py.zip"
-        assert e1.basename == "py-1.0.tar.gz"
+        assert len(entries) == 3
+        e0, e1, e2 = entries
+        assert e0.basename == "py-1.0.tar.gz"
+        assert e1.basename == "py.zip"
+        assert e2.basename == "master"
 
     def test_inheritance_error(self, extdb, stage):
         stage._reconfigure(bases=("root/pypi",))

@@ -20,16 +20,6 @@ _releasefile_suffix_rx = re.compile(r"(\.zip|\.tar\.gz|\.tgz|\.tar\.bz2|"
     "-(?:py|cp|ip|pp|jy)[23][\d\.]+.*\..*|"
     ")$", re.IGNORECASE)
 
-def sorted_by_version(versions, attr=None):
-    if attr:
-        def ver(x):
-            return parse_version(getattr(x, attr))
-    else:
-        ver = parse_version
-    def vercmp(x, y):
-        return cmp(ver(x), ver(y))
-    return sorted(versions, cmp=vercmp)
-
 # see also PEP425 for supported "python tags"
 _pyversion_type_rex = re.compile(
         r"(?:py|cp|ip|pp|jy)([\d\.py]+).*\.(exe|egg|msi|whl)", re.IGNORECASE)
@@ -93,17 +83,28 @@ class Version(CompareMixin):
         return self.string
 
 class BasenameMeta(CompareMixin):
-    def __init__(self, obj):
+    def __init__(self, obj, sameproject=False):
         self.obj = obj
         basename = getattr(obj, "basename", obj)
         if not isinstance(basename, py.builtin._basestring):
             raise ValueError("need object with basename attribute")
         assert "/" not in basename, (obj, basename)
-        name, version, ext = splitbasename(basename)
+        name, version, ext = splitbasename(basename, checkarch=False)
         self.name = name
         self.version = version
         self.ext = ext
-        self.cmpval = (normalize_name(name), parse_version(version), ext)
+        if sameproject:
+            self.cmpval = (parse_version(version), normalize_name(name), ext)
+        else:
+            self.cmpval = (normalize_name(name), parse_version(version), ext)
+
+    def __repr__(self):
+        return "<BasenameMeta name=%r version=%r>" %(self.name, self.version)
+
+def sorted_sameproject_links(links):
+    s = sorted((BasenameMeta(link, sameproject=True)
+                     for link in links), reverse=True)
+    return [x.obj for x in s]
 
 def get_latest_version(seq):
     return max(map(Version, seq))

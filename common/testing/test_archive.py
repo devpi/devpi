@@ -1,5 +1,5 @@
 import os
-from subprocess import check_output
+from subprocess import Popen, PIPE
 import py
 import pytest
 from devpi_common.archive import *
@@ -49,7 +49,8 @@ def create_tarfile(tmpdir, contentdict):
     _writedir(tardir, contentdict)
     files = [x.relto(tardir) for x in tardir.visit(lambda x: x.isfile())]
     with tardir.as_cwd():
-        out = check_output([str(tar), "cvf", "-" ] + files)
+        popen = Popen([str(tar), "cvf", "-" ] + files, stdout=PIPE)
+        out, err = popen.communicate()
     return out
 
 @pytest.fixture(params=["tar", "zip"])
@@ -82,15 +83,15 @@ class TestArchive:
 
     def test_unknown_archive(self):
         with pytest.raises(UnsupportedArchive):
-            Archive(py.io.BytesIO("123"))
+            Archive(py.io.BytesIO(b"123"))
 
     def test_read(self, archive):
-        assert archive.read("1") == "file1"
-        assert archive.read("sub/1") == "subfile"
+        assert archive.read("1") == b"file1"
+        assert archive.read("sub/1") == b"subfile"
 
     def test_getfile(self, archive):
-        assert archive.getfile("1").read() == "file1"
-        assert archive.getfile("sub/1").read() == "subfile"
+        assert archive.getfile("1").read() == b"file1"
+        assert archive.getfile("sub/1").read() == b"subfile"
 
     def test_getfile_not_exists(self, archive):
         with pytest.raises(archive.FileNotExist):

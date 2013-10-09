@@ -29,6 +29,8 @@ class URL:
     def __nonzero__(self):
         return bool(self.url)
 
+    __bool__ = __nonzero__
+
     def __repr__(self):
         return "<URL url=%r>" % (self.url, )
 

@@ -37,7 +37,7 @@ def validate_metadata(data):
         raise ValueError('Missing required field "name"')
     if not data.get('version', ''):
         raise ValueError('Missing required field "version"')
-    if data.has_key('metadata_version'):
+    if 'metadata_version' in data:
         #metadata_version = data['metadata_version']
         del data['metadata_version']
     #else:

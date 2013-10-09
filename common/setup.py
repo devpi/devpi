@@ -15,6 +15,7 @@ if __name__ == "__main__":
       long_description=open("README.rst").read(),
       version='0.1.dev1',
       packages=find_packages(),
+      install_requires=["requests>=1.2.3", "py>=1.1.17"],
       url="https://bitbucket.org/hpk42/devpi",
       maintainer="Holger Krekel",
       maintainer_email="holger@merlinux.eu",

@@ -1,8 +1,8 @@
 
 import os
 import py
-from devpi_common.metadata import (sorted_by_version, get_latest_version,
-                                   BasenameMeta)
+from devpi_common.metadata import (sorted_sameproject_links,
+                                   get_latest_version, BasenameMeta)
 from devpi_common.validation import validate_metadata, normalize_name
 from .vendor._description_utils import processDescription
 from .auth import crypt_password, verify_password
@@ -425,9 +425,7 @@ class PrivateStage:
                 if key not in basenames:
                     basenames.add(key)
                     all_links.append(entry)
-        all_links = sorted_by_version(all_links, attr="basename")
-        all_links.reverse()
-        return all_links
+        return sorted_sameproject_links(all_links)
 
     def getreleaselinks_perstage(self, projectname):
         projectconfig = self.get_projectconfig_perstage(projectname)
