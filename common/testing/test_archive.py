@@ -1,3 +1,4 @@
+import os
 from subprocess import check_output
 import py
 import pytest
@@ -52,16 +53,26 @@ def create_tarfile(tmpdir, contentdict):
     return out
 
 @pytest.fixture(params=["tar", "zip"])
-def content(request, tmpdir):
-    content = {"1": "file1", "sub": {"1": "subfile"}}
+def archive_path(request, tmpdir):
+    contentdict = {"1": "file1", "sub": {"1": "subfile"}}
     if request.param == "zip":
-        return create_zipfile(content)
-    return create_tarfile(tmpdir, content)
+        content = create_zipfile(contentdict)
+    else:
+        content = create_tarfile(tmpdir, contentdict)
+    p = tmpdir.join("content.%s" % request.param)
+    p.write(content, "wb")
+    return p
 
 class TestArchive:
-    @pytest.fixture
-    def archive(self, content):
-        return get_archive(content)
+    @pytest.yield_fixture(params=["path", "file"])
+    def archive(self, request, archive_path):
+        if request.param == "path":
+            arch = Archive(archive_path)
+        else:
+            f = archive_path.open("rb")
+            arch = Archive(f)
+        yield arch
+        arch.close()
 
     def test_namelist(self, archive):
         namelist = archive.namelist()
@@ -71,7 +82,7 @@ class TestArchive:
 
     def test_unknown_archive(self):
         with pytest.raises(UnsupportedArchive):
-            get_archive("123")
+            Archive(py.io.BytesIO("123"))
 
     def test_read(self, archive):
         assert archive.read("1") == "file1"
@@ -98,9 +109,9 @@ class TestArchive:
         assert "sub/1" in out
 
 def test_tarfile_outofbound(tmpdir):
-    archive = get_archive(datadir.join("slash.tar.gz").read())
-    with pytest.raises(ValueError):
-        archive.extract(tmpdir)
+    with Archive(datadir.join("slash.tar.gz")) as archive:
+        with pytest.raises(ValueError):
+            archive.extract(tmpdir)
 
 #def test_zipfile_outofbound(tmpdir):
 #    archive = get_archive(datadir.join("slash.zip").read())

@@ -4,7 +4,7 @@ import sys
 import shlex
 import hashlib
 import py
-from devpi_common.archive import get_archive
+from devpi_common.archive import Archive
 import json
 import tox
 
@@ -119,8 +119,8 @@ class UnpackedPackage:
 
     def unpack(self):
         self.hub.info("unpacking", self.path_archive, "to", str(self.rootdir))
-        archive = get_archive(self.path_archive.read())
-        archive.extract(self.rootdir)
+        with Archive(self.path_archive) as archive:
+            archive.extract(self.rootdir)
         basename = URL(self.link.url).basename
         pkgname, version = splitbasename(basename)[:2]
         subdir = "%s-%s" %(pkgname, version)

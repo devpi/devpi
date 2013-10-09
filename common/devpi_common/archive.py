@@ -1,31 +1,50 @@
 """
-
-based on ideas/some code from Gary Wilson Jr.'s MIT-licensed archive project
-(see https://pypi.python.org/pypi/Archive/0.3)
+remotely based on some code from https://pypi.python.org/pypi/Archive/0.3
 """
-import os
-import py
 import tarfile
 import zipfile
+import py
 
 class UnsupportedArchive(ValueError):
     pass
 
-def get_archive(content):
-    """ return ZipArchive or TarArchive object for further inspection. """
-    f = py.io.BytesIO(content)
-    try:
-        return ZipArchive(f)
-    except zipfile.BadZipfile:
-        f.seek(0)
-        try:
-            return TarArchive(f)
-        except tarfile.TarError:
-            raise UnsupportedArchive()
+def Archive(path_or_file):
+    """ return in-memory Archive object, wrapping ZipArchive or TarArchive
+    with uniform methods.  If an error is raised, any passed in file will
+    be closed. An Archive instance acts as a context manager so that
+    you can use::
 
-class BaseArchive:
+        with Archive(...) as archive:
+            archive.extract(...)  # or other methods
+
+    and be sure that file handles will be closed.
+    If you do not use it as a context manager, you need to call
+    archive.close() yourself.
+    """
+    if hasattr(path_or_file, "seek"):
+        f = path_or_file
+    else:
+        f = open(str(path_or_file), "rb")
+    try:
+        try:
+            return ZipArchive(f)
+        except zipfile.BadZipfile:
+            f.seek(0)
+            try:
+                return TarArchive(f)
+            except tarfile.TarError:
+                raise UnsupportedArchive()
+    except Exception:
+        f.close()
+        raise
+
+
+class BaseArchive(object):
     class FileNotExist(ValueError):
         """ File does not exist. """
+    def __init__(self, file):
+        self.file = file
+
     def read(self, name):
         f = self.getfile(name)
         try:
@@ -33,8 +52,18 @@ class BaseArchive:
         finally:
             f.close()
 
+    def close(self):
+        self.file.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.close()
+
 class TarArchive(BaseArchive):
     def __init__(self, file):
+        super(TarArchive, self).__init__(file)
         self._archive = tarfile.open(mode="r", fileobj=file)
 
     def namelist(self, *args, **kwargs):
@@ -63,6 +92,7 @@ class TarArchive(BaseArchive):
 
 class ZipArchive(BaseArchive):
     def __init__(self, file):
+        super(ZipArchive, self).__init__(file)
         self._archive = zipfile.ZipFile(file)
 
     def printdir(self, *args, **kwargs):
