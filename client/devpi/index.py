@@ -28,9 +28,9 @@ def get_indexconfig_reply(hub, url, ok404=False):
     or None if configuration query failed. """
     res = hub.http_api("get", url, None, quiet=True)
     if res.status_code == 200:
-        if res["type"] != "indexconfig":
+        if res.type != "indexconfig":
             hub.fatal("%s: wrong result type: %s" % (url, res["type"]))
-        return res["result"]
+        return res.result
     elif res.status_code == 404 and ok404:
         return None
     hub.fatal("%s: trying to get json resulted in: %s %s"

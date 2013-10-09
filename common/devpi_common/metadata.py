@@ -38,7 +38,8 @@ def get_pyversion_filetype(basename):
     if suffix in (".zip", ".tar.gz", ".tgz", "tar.bz2"):
         return ("source", "sdist")
     m = _pyversion_type_rex.search(suffix)
-    assert m, suffix
+    if not m:
+        return ("any", "bdist_dumb")
     pyversion, ext = m.groups()
     if pyversion == "2.py3":  # "universal" wheel with no C
         pyversion = "2.7"  # arbitrary but pypi/devpi makes no special use
@@ -50,7 +51,6 @@ def get_pyversion_filetype(basename):
 
 def splitbasename(path, checkarch=True):
     nameversion, ext = splitext_archive(path)
-    print nameversion, ext
     parts = re.split(r'-\d+', nameversion)
     projectname = parts[0]
     if not projectname:

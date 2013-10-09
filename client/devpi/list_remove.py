@@ -52,7 +52,7 @@ def query_file_status(hub, origin):
                        URL(rooturl, "/+tests/%s/toxresult" % md5).url,
                        quiet=True)
     assert res.status_code == 200
-    assert res["type"] == "list:toxresult"
+    assert res.type == "list:toxresult"
     seen = set()
     for toxresult in reversed(res["result"]):
         toxresult["platform"]

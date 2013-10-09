@@ -57,7 +57,7 @@ def test_main_push_pypi(monkeypatch, tmpdir):
                         ("upload", "pkg-1.3.tar.gz")]
             ))
             headers = {"content-type": "application/json"}
-            _json = dict(status=201)
+            _json = json.loads(content)
         r.url = url
         return r
 

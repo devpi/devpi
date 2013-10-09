@@ -92,7 +92,7 @@ class Hub:
         return session
 
     def http_api(self, method, url, kvdict=None, quiet=False, auth=notset,
-        check_version=True):
+        check_version=True, fatal=True):
         """ send a json request and return a HTTPReply object which
         adds some extra methods to the requests's Reply object.
 
@@ -135,7 +135,10 @@ class Hub:
             return reply
         # feedback reply info to user, possibly bailing out
         if r.status_code >= 400:
-            out = self.fatal
+            if fatal:
+                out = self.fatal
+            else:
+                out = self.error
         elif quiet and not self.args.debug:
             return reply
         else:
@@ -194,14 +197,15 @@ class Hub:
             return
         return py.path.local(path)
 
-    def popen_output(self, args, cwd=None):
+    def popen_output(self, args, cwd=None, report=True):
         if isinstance(args, str):
             args = std.shlex.split(args)
         assert args[0], args
         args = [str(x) for x in args]
         if cwd == None:
             cwd = self.cwd
-        self.report_popen(args, cwd)
+        if report:
+            self.report_popen(args, cwd)
         return check_output(args, cwd=str(cwd))
 
     def popen(self, args, cwd=None):
@@ -290,6 +294,14 @@ class HTTPReply(object):
 
     def __getattr__(self, name):
         return getattr(self._response, name)
+
+    @property
+    def type(self):
+        return self._json.get("type")
+
+    @property
+    def result(self):
+        return self._json.get("result")
 
     def json_get(self, jsonkey, default=None):
         r = self._response

@@ -35,6 +35,7 @@ def test_splitbasename(releasename, expected):
     ("wheel-0.21.0-py2.py3-none-any.whl", ("2.7", "bdist_wheel")),
     ("devpi-0.9.5.dev1-cp26-none-linux_x86_64.whl", ("2.6", "bdist_wheel")),
     ("greenlet-0.4.0-py3.3-win-amd64.egg", ("3.3", "bdist_egg")),
+    ("greenlet-0.4.0.linux-x86_64.tar.gz", ("any", "bdist_dumb")),
 ])
 def test_get_pyversion_filetype(releasename, expected):
     result = get_pyversion_filetype(releasename)
@@ -43,6 +44,8 @@ def test_get_pyversion_filetype(releasename, expected):
 @pytest.mark.parametrize(("releasename", "expected"), [
     ("pytest-2.3.4.zip", ("pytest-2.3.4", ".zip")),
     ("green-0.4.0-py2.5-win32.egg", ("green-0.4.0-py2.5-win32", ".egg")),
+    ("green-0.4.0-py2.5-win32.egg", ("green-0.4.0-py2.5-win32", ".egg")),
+    ("green-1.0.tar.gz", ("green-1.0", ".tar.gz")),
     ("green-1.0.tar.gz", ("green-1.0", ".tar.gz")),
     ("green-1.0.doc.zip", ("green-1.0", ".doc.zip")),
 ])

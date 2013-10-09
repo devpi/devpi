@@ -392,7 +392,8 @@ def mock_http_api(monkeypatch):
             self.called = []
             self._json_responses = {}
 
-        def __call__(self, method, url, kvdict=None, quiet=False, auth=None):
+        def __call__(self, method, url, kvdict=None, quiet=False, auth=None,
+                     fatal=True):
             self.called.append((method, url, kvdict))
             reply_data = self._json_responses.get(url)
             if reply_data is not None:

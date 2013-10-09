@@ -1,7 +1,7 @@
 import os
 import py
 from devpi import log
-from devpi_common.metadata import Version, BasenameMeta
+from devpi_common.metadata import Version, BasenameMeta, get_pyversion_filetype
 
 def main(hub, args):
     # for now we use distutils/setup.py for register/upload commands.
@@ -96,6 +96,7 @@ class Uploader:
         assert "name" in meta and "version" in meta, meta
         dic = meta.copy()
         dic[":action"] = action
+        dic["protocol_version"] = "1",
         auth = hub.current.get_auth()
         if not auth:
             hub.fatal("need to be authenticated (use 'devpi login')")
@@ -117,13 +118,17 @@ class Uploader:
                 return True
             else:
                 hub.error("%s FAIL %s" %(r.status_code, msg))
+                if r.type == "actionlog":
+                    for x in r["result"]:
+                        hub.error("  " + x)
 
     def upload_release_file(self, path, pkginfo):
         meta = {}
         for attr in pkginfo:
             meta[attr] = getattr(pkginfo, attr)
-
         self.post("submit", None, meta=meta)
+        pyver = get_pyversion_filetype(path.basename)
+        meta["pyversion"], meta["filetype"] = pyver
         self.post("file_upload", path, meta=meta)
 
 # taken from devpi-server/extpypi.py
@@ -210,12 +215,11 @@ class Exported:
         setup_py = self.rootpath.join("setup.py")
         if not setup_py.check():
             self.hub.fatal("no setup.py file")
-        name = self.hub.popen_output([self.python,
-                                      setup_py, "--name"]).strip()
-        version = self.hub.popen_output([self.python,
-                                      setup_py, "--version"]).strip()
-        assert name != version
-        self.hub.info("name, version = %s, %s" %(name, version))
+        name = self.hub.popen_output([self.python, setup_py, "--name"],
+                                     report=False).strip()
+        version = self.hub.popen_output(
+            [self.python, setup_py, "--version"], report=False).strip()
+        self.hub.debug("name, version = %s, %s" %(name, version))
         return name, version
 
     def _getuserpassword(self):
@@ -233,7 +237,7 @@ class Exported:
     def prepare(self):
         self.check_setup()
         if self.target_distdir.check():
-            self.hub.info("pre-build: cleaning %s" % self.target_distdir)
+            self.hub.line("pre-build: cleaning %s" % self.target_distdir)
             self.target_distdir.remove()
         self.target_distdir.mkdir()
 
@@ -284,7 +288,7 @@ class Exported:
 
     def log_build(self, path, suffix):
         kb = path.size() / 1000
-        self.hub.info("built: %s %s %skb" %(path, suffix, kb))
+        self.hub.line("built: %s %s %skb" %(path, suffix, kb))
 
 
 sdistformat2option = {

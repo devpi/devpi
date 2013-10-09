@@ -279,6 +279,7 @@ def test_upload_and_push_external(mapp, testapp, monkeypatch):
         rec.append((url, data, auth, files))
         class r:
             status_code = 200
+            content = "msg"
         return r
     monkeypatch.setattr(requests, "post", recpost)
     body = json.dumps(req)
@@ -322,6 +323,7 @@ def test_upload_and_push_egg(mapp, testapp, monkeypatch):
         rec.append((url, data, auth, files))
         class r:
             status_code = 200
+            content = "msg"
         return r
     monkeypatch.setattr(requests, "post", recpost)
     r = testapp.push(api.index, json.dumps(req))

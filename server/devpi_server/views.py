@@ -354,12 +354,14 @@ class PyPIView:
                     file_metadata["filetype"] = filetype
                     file_metadata["pyversion"] = pyver
                     openfile = entry.FILE.filepath.open("rb")
-                    log.info("sending %s to %s", basename, posturl)
+                    log.info("sending %s to %s, metadata %s",
+                             basename, posturl, file_metadata)
                     r = requests.post(posturl, data=file_metadata,
                           auth=pypiauth,
                           files={"content": (basename, openfile)})
                     log.debug("send finished, status: %s", r.status_code)
-                    results.append((r.status_code, "upload", entry.relpath))
+                    results.append((r.status_code, "upload", entry.relpath,
+                                    r.content))
                 if doczip:
                     doc_metadata = metadata.copy()
                     doc_metadata[":action"] = "doc_upload"
@@ -397,6 +399,7 @@ class PyPIView:
             if not info:
                 abort(400, "no project named %r was ever registered" %(name))
             if action == "file_upload":
+                log.debug("metadata in form: %s", request.forms.items())
                 abort_if_invalid_filename(name, content.filename)
                 if not stage.get_metadata(name, version):
                     self._register_metadata_form(stage, request.forms)
