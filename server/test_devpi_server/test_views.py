@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 from devpi_server.views import *
 from devpi_common.metadata import splitbasename
 import devpi_server.views
-from test_db import create_zipfile
+from devpi_common.archive import zip_dict
 from mock import Mock
 
 from .functional import TestUserThings, TestIndexThings  # noqa
@@ -241,7 +241,7 @@ def test_upload_and_push_internal(mapp, testapp, monkeypatch):
     mapp.create_index("dev")
     mapp.use("user1/dev")
     mapp.upload_file_pypi("pkg1-2.6.tgz", "123", "pkg1", "2.6")
-    content = create_zipfile({"index.html": "<html/>"})
+    content = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "")
 
     # check that push is authorized and executed towards user2/prod index
@@ -261,7 +261,7 @@ def test_upload_and_push_internal(mapp, testapp, monkeypatch):
 def test_upload_and_push_external(mapp, testapp, monkeypatch):
     api = mapp.create_and_use()
     mapp.upload_file_pypi("pkg1-2.6.tgz", "123", "pkg1", "2.6")
-    zipcontent = create_zipfile({"index.html": "<html/>"})
+    zipcontent = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", zipcontent, "pkg1", "")
 
     r = testapp.get(api.simpleindex + "pkg1")
@@ -427,7 +427,7 @@ def test_delete_volatile_fails(mapp):
 
 def test_upload_docs_no_version(mapp, testapp):
     api = mapp.create_and_use()
-    content = create_zipfile({"index.html": "<html/>"})
+    content = zip_dict({"index.html": "<html/>"})
     mapp.register_metadata(dict(name="Pkg1", version="1.0"))
     mapp.upload_doc("pkg1.zip", content, "Pkg1", "")
     r = testapp.get(api.index + "Pkg1/1.0/+doc/index.html")
@@ -435,7 +435,7 @@ def test_upload_docs_no_version(mapp, testapp):
 
 def test_upload_docs_no_project_ever_registered(mapp, testapp):
     mapp.create_and_use()
-    content = create_zipfile({"index.html": "<html/>"})
+    content = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "", code=400)
 
 def test_upload_docs_too_large(mapp):
@@ -447,7 +447,7 @@ def test_upload_docs_too_large(mapp):
 
 def test_upload_docs(mapp, testapp):
     api = mapp.create_and_use()
-    content = create_zipfile({"index.html": "<html/>"})
+    content = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6")
     r = testapp.get(api.index + "pkg1/2.6/+doc/index.html")
     assert r.status_code == 200

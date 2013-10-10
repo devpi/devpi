@@ -5,7 +5,6 @@ import pytest
 from devpi.upload import *
 from textwrap import dedent
 from devpi_common.metadata import splitbasename
-from devpi_common.archive import Archive
 
 from devpi.main import check_output
 
@@ -186,14 +185,3 @@ def test_filter_latest():
     assert filtered.version == u'0.10'
 
 
-def test_create_zipfile(tmpdir):
-    source = tmpdir.join("source")
-    newdest = tmpdir.join("newdest")
-    dest = tmpdir.join("dest.zip")
-    source.ensure("file")
-    source.ensure("sub", "subfile")
-    create_zipfile(dest, source)
-    with Archive(dest) as archive:
-        archive.extract(newdest)
-    assert newdest.join("file").isfile()
-    assert newdest.join("sub", "subfile").isfile()

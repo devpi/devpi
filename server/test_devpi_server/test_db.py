@@ -1,19 +1,14 @@
 
 import py
-import os
 import pytest
 
 from devpi_common.metadata import splitbasename
-from devpi_server.db import unzip_to_dir
+from devpi_common.archive import Archive, zip_dict
 
 
 @pytest.fixture(params=[(), ("root/pypi",)])
 def bases(request):
     return request.param
-
-def test_create_zipfile(tmpdir):
-    content = create_zipfile({"one": {"nested": "1"}, "two": {}})
-    tmpdir.join("hello.zip").write(content, "wb")
 
 def register_and_store(stage, basename, content="123", name=None):
     n, version = splitbasename(basename)[:2]
@@ -257,21 +252,22 @@ class TestStage:
 
     def test_getdoczip(self, stage, bases, tmpdir):
         assert not stage.get_doczip("pkg1", "version")
-        content = create_zipfile({"index.html": "<html/>",
+        content = zip_dict({"index.html": "<html/>",
             "_static": {}, "_templ": {"x.css": ""}})
         stage.store_doczip("pkg1", "1.0", content)
         doczip_content = stage.get_doczip("pkg1", "1.0")
         assert doczip_content
-        unzip_to_dir(doczip_content, tmpdir)
+        with Archive(py.io.BytesIO(doczip_content)) as archive:
+            archive.extract(tmpdir)
         assert tmpdir.join("index.html").read() == "<html/>"
         assert tmpdir.join("_static").check(dir=1)
         assert tmpdir.join("_templ", "x.css").check(file=1)
 
     def test_storedoczipfile(self, stage, bases):
-        content = create_zipfile({"index.html": "<html/>",
+        content = zip_dict({"index.html": "<html/>",
             "_static": {}, "_templ": {"x.css": ""}})
         filepath = stage.store_doczip("pkg1", "1.0", content)
-        content = create_zipfile({"nothing": "hello"})
+        content = zip_dict({"nothing": "hello"})
         filepath = stage.store_doczip("pkg1", "1.0", content)
         assert filepath.join("nothing").check()
         assert not filepath.join("index.html").check()
@@ -405,26 +401,4 @@ def test_setdefault_indexes(db):
     set_default_indexes(db)
     ixconfig = db.index_get("root/pypi")
     assert ixconfig["type"] == "mirror"
-
-def create_zipfile(contentdict):
-    f = py.io.BytesIO()
-    zip = py.std.zipfile.ZipFile(f, "w")
-    _writezip(zip, contentdict)
-    zip.close()
-    return f.getvalue()
-
-def _writezip(zip, contentdict, prefixes=()):
-    for name, val in contentdict.items():
-        if isinstance(val, dict):
-            newprefixes = prefixes + (name,)
-            if not val:
-                path = os.sep.join(newprefixes) + os.sep
-                zipinfo = py.std.zipfile.ZipInfo(path)
-                zip.writestr(zipinfo, "")
-            else:
-                _writezip(zip, val, newprefixes)
-        else:
-            path = os.sep.join(prefixes + (name,))
-            zip.writestr(path, val)
-
 

@@ -2,7 +2,7 @@ import pytest
 import subprocess
 from devpi_server.importexport import *
 from devpi_server.main import Fatal
-from .test_db import create_zipfile
+from devpi_common.archive import zip_dict
 
 import devpi_server
 
@@ -114,7 +114,7 @@ class TestImportExport:
         mapp1 = impexp.mapp1
         api = mapp1.create_and_use()
         mapp1.register_metadata({"name": "hello", "version": "1.0"})
-        content = create_zipfile({"index.html": "<html/>"})
+        content = zip_dict({"index.html": "<html/>"})
         mapp1.upload_doc("hello.zip", content, "hello", "")
         impexp.export()
         mapp2 = impexp.new_import()

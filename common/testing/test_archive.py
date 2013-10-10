@@ -1,4 +1,3 @@
-import os
 from subprocess import Popen, PIPE
 import py
 import pytest
@@ -8,27 +7,6 @@ datadir = py.path.local(__file__).dirpath("data")
 def check_files(tmpdir):
     assert tmpdir.join("1").isfile()
     assert tmpdir.join("sub", "1").isfile()
-
-def create_zipfile(contentdict):
-    f = py.io.BytesIO()
-    zip = py.std.zipfile.ZipFile(f, "w")
-    _writezip(zip, contentdict)
-    zip.close()
-    return f.getvalue()
-
-def _writezip(zip, contentdict, prefixes=()):
-    for name, val in contentdict.items():
-        if isinstance(val, dict):
-            newprefixes = prefixes + (name,)
-            if not val:
-                path = os.sep.join(newprefixes) + os.sep
-                zipinfo = py.std.zipfile.ZipInfo(path)
-                zip.writestr(zipinfo, "")
-            else:
-                _writezip(zip, val, newprefixes)
-        else:
-            path = os.sep.join(prefixes + (name,))
-            zip.writestr(path, val)
 
 def _writedir(tmpdir, contentdict, prefixes=()):
     for name, val in contentdict.items():
@@ -41,7 +19,7 @@ def _writedir(tmpdir, contentdict, prefixes=()):
         else:
             tmpdir.ensure(*(prefixes + (name,))).write(val)
 
-def create_tarfile(tmpdir, contentdict):
+def create_tarfile_fromdict(tmpdir, contentdict):
     tar = py.path.local.sysfind("tar")
     if not tar:
         pytest.skip("tar command not found")
@@ -57,9 +35,9 @@ def create_tarfile(tmpdir, contentdict):
 def archive_path(request, tmpdir):
     contentdict = {"1": "file1", "sub": {"1": "subfile"}}
     if request.param == "zip":
-        content = create_zipfile(contentdict)
+        content = zip_dict(contentdict)
     else:
-        content = create_tarfile(tmpdir, contentdict)
+        content = create_tarfile_fromdict(tmpdir, contentdict)
     p = tmpdir.join("content.%s" % request.param)
     p.write(content, "wb")
     return p
@@ -118,3 +96,29 @@ def test_tarfile_outofbound(tmpdir):
 #    archive = get_archive(datadir.join("slash.zip").read())
 #    with pytest.raises(ValueError):
 #        archive.extract(tmpdir)
+
+def test_zip_dict(tmpdir):
+    content = zip_dict({"one": {"nested": "1"}, "two": {}})
+    with Archive(py.io.BytesIO(content)) as archive:
+        archive.extract(tmpdir)
+    assert tmpdir.join("one", "nested").read() == "1"
+    assert tmpdir.join("two").isdir()
+
+def test_zip_dir(tmpdir):
+    source = tmpdir.join("source")
+    newdest = tmpdir.join("newdest")
+    dest = tmpdir.join("dest.zip")
+    source.ensure("file")
+    source.ensure("sub", "subfile")
+    zip_dir(source, dest)
+    with Archive(dest) as archive:
+        archive.extract(newdest)
+    assert newdest.join("file").isfile()
+    assert newdest.join("sub", "subfile").isfile()
+
+    newdest.remove()
+    with Archive(py.io.BytesIO(zip_dir(source))) as archive:
+        archive.extract(newdest)
+    assert newdest.join("file").isfile()
+    assert newdest.join("sub", "subfile").isfile()
+

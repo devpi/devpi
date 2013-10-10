@@ -308,7 +308,7 @@ class Importer:
     def import_filedesc(self, stage, filedesc):
         assert stage.ixconfig["type"] != "mirror"
         rel = filedesc["relpath"]
-        projectname = filedesc["projectname"]
+        #projectname = filedesc["projectname"]
         p = self.import_rootdir.join(rel)
         assert p.check(), p
         if filedesc["type"] == "releasefile":

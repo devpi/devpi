@@ -2,6 +2,7 @@ import os
 import py
 from devpi import log
 from devpi_common.metadata import Version, BasenameMeta, get_pyversion_filetype
+from devpi_common.archive import zip_dir
 
 def main(hub, args):
     # for now we use distutils/setup.py for register/upload commands.
@@ -292,7 +293,7 @@ class Exported:
              "--build-dir", build])
         p = self.target_distdir.join("%s-%s.doc.zip" %(name, version))
         html = build.join("html")
-        create_zipfile(p, html)
+        zip_dir(html, p)
         self.log_build(p, "[sphinx docs]")
         return p
 
@@ -321,10 +322,3 @@ def sdistformat(format):
         res = format
     return res
 
-def create_zipfile(dest, source):
-    assert dest.ext == ".zip"
-    from zipfile import ZipFile
-    zipfile = ZipFile(str(dest), "w")
-    for fil in source.visit(py.path.local.isfile):
-        zipfile.write(str(fil), arcname=fil.relto(source))
-    zipfile.close()

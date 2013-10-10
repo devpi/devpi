@@ -1,9 +1,9 @@
 
-import os
 import py
 from devpi_common.metadata import (sorted_sameproject_links,
                                    get_latest_version, BasenameMeta)
 from devpi_common.validation import validate_metadata, normalize_name
+from devpi_common.archive import Archive
 from .vendor._description_utils import processDescription
 from .auth import crypt_password, verify_password
 
@@ -499,7 +499,8 @@ class PrivateStage:
 
         # XXX locking (unzipping could happen concurrently in theory)
         tempdir = self.keyfs.mkdtemp(name)
-        unzip_to_dir(content, tempdir)
+        with Archive(zipfile_key.filepath.open("rb")) as archive:
+            archive.extract(tempdir)
         keypath = key.filepath
         if keypath.check():
             old = keypath.new(basename="old-" + keypath.basename)
@@ -523,37 +524,4 @@ class PrivateStage:
         assert version
         return self.keyfs.STAGEDOCS(user=self.user, index=self.index,
                                     name=name, version=version)
-
-
-def create_zipfile(basedir):
-    f = py.io.BytesIO()
-    zip = py.std.zipfile.ZipFile(f, "w")
-    _writezip(zip, basedir)
-    zip.close()
-    return f.getvalue()
-
-def _writezip(zip, basedir):
-    for p in basedir.visit():
-        if p.check(dir=1):
-            if not p.listdir():
-                path = p.relto(basedir) + "/"
-                zipinfo = py.std.zipfile.ZipInfo(path)
-                zip.writestr(zipinfo, "")
-        else:
-            path = p.relto(basedir)
-            zip.writestr(path, p.read("rb"))
-
-def unzip_to_dir(content, basedir):
-    unzipfile = py.std.zipfile.ZipFile(py.io.BytesIO(content))
-    members = unzipfile.namelist()
-    for name in members:
-        fpath = basedir.join(name, abs=True)
-        if not fpath.relto(basedir):
-            raise ValueError("invalid path name:" + name)
-        if name.endswith(os.sep) or name[-1] == "/":
-            fpath.ensure(dir=1)
-        else:
-            fpath.dirpath().ensure(dir=1)
-            with fpath.open("wb") as f:
-                f.write(unzipfile.read(name))
 
