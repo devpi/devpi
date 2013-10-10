@@ -2,15 +2,17 @@ import sys
 import posixpath
 import json
 import py
+import subprocess
 import logging
 from devpi_common.validation import normalize_name
 from devpi_common.metadata import Version, splitbasename
-from devpi_server.main import fatal
+from devpi_server.main import fatal, server_version
+from devpi_server.venv import create_server_venv
 import devpi_server
+
 
 def do_upgrade(xom):
     tw = py.io.TerminalWriter()
-    import subprocess
     serverdir = xom.config.serverdir
     exportdir = serverdir + "-export"
     if exportdir.check():
@@ -20,11 +22,27 @@ def do_upgrade(xom):
     script = sys.argv[0]
     def rel(p):
         return py.path.local().bestrelpath(p)
+    state_version = xom.get_state_version()
     tw.sep("-", "exporting to %s" % rel(exportdir))
-    subprocess.check_call([sys.executable, script,
-                           "--serverdir", str(serverdir),
-                           "--export", str(exportdir)])
+    if Version(state_version) > Version(server_version):
+        fatal("%s has state version %s which is newer than what we "
+              "can handle (%s)" %(
+                xom.config.serverdir, state_version, server_version))
+    elif Version(state_version) < Version(server_version):
+        tw.line("creating server venv %s ..." % state_version)
+        tmpdir = py.path.local.make_numbered_dir("devpi-upgrade")
+        venv = create_server_venv(tw, state_version, tmpdir)
+        tw.line("server venv %s created: %s" % (server_version, tmpdir))
+        venv.check_call(["devpi-server",
+                         "--serverdir", str(serverdir),
+                         "--export", str(exportdir)])
+    else:
+        #tw.sep("-", "creating venv" % rel(exportdir))
+        subprocess.check_call([sys.executable, script,
+                               "--serverdir", str(serverdir),
+                               "--export", str(exportdir)])
     tw.sep("-", "importing from %s" % rel(exportdir))
+    tw.line("importing into server version: %s" % server_version)
     subprocess.check_call([sys.executable, script,
                            "--serverdir", str(newdir),
                            "--import", str(exportdir)])

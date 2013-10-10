@@ -243,3 +243,4 @@ def test_upgrade(makexom, monkeypatch):
     assert xom.config.serverdir.check()
     assert not (xom.config.serverdir + "-export").check()
     assert (xom.config.serverdir + "-backup").check()
+

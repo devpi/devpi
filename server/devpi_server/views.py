@@ -622,7 +622,11 @@ class PyPIView:
                                 href="%s/%s/+doc/index.html" %(name, ver))]
             else:
                 docs = []
-            for basename, relpath in metadata["+files"].items():
+            files = metadata.get("+files", {})
+            if not files:
+                log.warn("project %r version %r has no files", projectname,
+                         metadata.get("version"))
+            for basename, relpath in files.items():
                 latest_packages.append(html.li(
                     html.a("%s-%s info page" % (name, ver),
                            href="%s/%s/" % (name, ver)),

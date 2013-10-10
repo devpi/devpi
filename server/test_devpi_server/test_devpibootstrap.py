@@ -63,7 +63,7 @@ def test_get_virtualenv(tmpdir, bootstrapdict, virtualenv_tar, monkeypatch):
 
 @pytest.mark.xfail(reason="cannot provide current devpi-server "
                    "safely in an index")
-@pytest.mark.skipif("not config.option.remote")
+@pytest.mark.skipif("not config.option.slow")
 def test_main(request, url_of_liveserver, mapp, tmpdir, monkeypatch):
     # not a very good test as it requires going to pypi.python.org
     mapp.login_root()

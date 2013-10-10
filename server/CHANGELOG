@@ -1,6 +1,10 @@
 1.2.dev1
 ----------------
 
+- rework "--upgrade-state" to detect the state version of the server dir
+  and create an appropriate virtualenv with a devpi-server install in order
+  to export data, and then import that version.
+
 - allow to use /user/index as indexserver url for pip/easy_install by
   redirecting non-json queries to /user/index/PROJ[/] to 
   /user/index/+simple/PROJ/

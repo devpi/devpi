@@ -17,7 +17,7 @@ def test_get_bottle_server_eventlet_if_exists(monkeypatch):
 
 
 def test_check_compatible_version_earlier(xom, monkeypatch):
-    monkeypatch.setattr(xom.db, "is_empty", lambda: False)
+    monkeypatch.setattr(xom, "get_state_version", lambda: "1.0")
     with pytest.raises(Fatal):
         check_compatible_version(xom)
 

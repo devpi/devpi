@@ -15,6 +15,7 @@ from devpi_common.metadata import Version
 from .config import parseoptions, configure_logging
 
 import devpi_server
+server_version = devpi_server.__version__
 
 PYPIURL_XMLRPC = "https://pypi.python.org/pypi/"
 
@@ -28,21 +29,11 @@ def check_compatible_version(xom):
     args = xom.config.args
     if args.upgrade_state or args.export:
         return
-    server_version = Version(devpi_server.__version__)
-    serverdir = xom.config.serverdir
-    versionfile = serverdir.join(".serverversion")
-    if not versionfile.check():
-        if not xom.db.is_empty():
-            fatal("serverdir %s is unversioned, assuming 1.0.\n"
-                  "Use --upgrade-state to migrate your data. " % serverdir)
-        # pypi mirror state is going to be invalidated anyway.
-    else:
-        state_version = Version(versionfile.read())
-        if server_version < state_version:
-            fatal("Incompatible state: server %s cannot run serverdir "
-                  "%s in %s. " %(server_version, serverdir, state_version))
-    versionfile.write(server_version.string)
-    log.info("setting new server version %s in serverdir" %(server_version))
+    state_version = xom.get_state_version()
+    if Version(server_version) != Version(state_version):
+        fatal("Incompatible state: server %s cannot run serverdir "
+              "%s created by %s. " %(server_version, xom.config.serverdir,
+                             state_version))
 
 def main(argv=None):
     """ devpi-server command line entry point. """
@@ -175,6 +166,22 @@ class XOM:
 
         if httpget is not None:
             self.httpget = httpget
+        sdir = config.serverdir
+        if not (sdir.exists() and sdir.listdir()):
+            self.set_state_version(devpi_server.__version__)
+
+    def get_state_version(self):
+        versionfile = self.config.serverdir.join(".serverversion")
+        if not versionfile.exists():
+            fatal("serverdir %s is unversioned, please use depvi-server-1.1 "
+              "with the --upgrade-state option to upgrade from versions "
+              "prior to 1.1\n" % self.config.serverdir)
+        return versionfile.read()
+
+    def set_state_version(self, version):
+        versionfile = self.config.serverdir.join(".serverversion")
+        versionfile.dirpath().ensure(dir=1)
+        versionfile.write(version)
 
     def main(self):
         xom = self
