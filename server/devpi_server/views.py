@@ -153,6 +153,7 @@ class PyPIView:
 
     #
     # index serving and upload
+    #
 
     #@route("/ext/pypi/simple<rest:re:.*>")  # deprecated
     #def extpypi_redirect(self, rest):
@@ -556,9 +557,8 @@ class PyPIView:
         stage.project_version_delete(name, version)
         apireturn(200, "project %r version %r deleted" % (name, version))
 
-    @route("/<user>/<index>/<name>/<version>/<relpath:re:.*>")
-    @route("/<user>/<index>/f/<relpath:re:.*>")
-    def pkgserv(self, user, index, name=None, version=None, relpath=None):
+    @route("/<user>/<index>/+f/<relpath:re:.*>")
+    def pkgserv(self, user, index, relpath):
         relpath = request.path.strip("/")
         if "#" in relpath:   # XXX unclear how this can happen (it does)
             relpath = relpath.split("#", 1)[0]
@@ -747,6 +747,7 @@ class PyPIView:
         for user in self.db.user_list():
             d[user] = self.db.user_get(user)
         apireturn(200, type="list:userconfig", result=d)
+
 
 def getjson(request, allowed_keys=None):
     try:

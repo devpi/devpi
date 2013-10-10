@@ -159,7 +159,7 @@ def invalidate_on_version_change(basedir):
     verfile.write(ExtDB.VERSION)
 
 class ExtDB:
-    VERSION = "1"
+    VERSION = "2"
     name = "root/pypi"
     ixconfig = dict(bases=(), volatile=False, type="mirror")
 

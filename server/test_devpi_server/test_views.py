@@ -251,7 +251,7 @@ def test_upload_and_push_internal(mapp, testapp, monkeypatch):
     r = testapp.get_json("/user2/prod/pkg1/2.6")
     assert r.status_code == 200
     relpath = r.json["result"]["+files"]["pkg1-2.6.tgz"]
-    assert relpath == "user2/prod/pkg1/2.6/pkg1-2.6.tgz"
+    assert relpath.endswith("/pkg1-2.6.tgz")
     # we check here that the upload of docs without version was
     # automatically tied to the newest release metadata
     r = testapp.get("/user2/prod/pkg1/2.6/+doc/index.html")

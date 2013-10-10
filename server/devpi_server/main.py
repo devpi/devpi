@@ -132,15 +132,13 @@ def add_keys(keyfs):
     keyfs.USER = keyfs.addkey("{user}/.config", dict)
 
     # type pypimirror related data
-    keyfs.PYPILINKS = keyfs.addkey("root/pypi/links/{name}", dict)
-    keyfs.PYPIFILES = keyfs.addkey("root/pypi/f/{relpath}", file)
-    keyfs.PYPISERIALS = keyfs.addkey("root/pypi/serials", dict)
+    keyfs.PYPILINKS = keyfs.addkey("root/pypi/+links/{name}", dict)
+    keyfs.PYPISERIALS = keyfs.addkey("root/pypi/+serials", dict)
 
     # type "stage" related
     keyfs.INDEXDIR = keyfs.addkey("{user}/{index}", "DIR")
     keyfs.PROJCONFIG = keyfs.addkey("{user}/{index}/{name}/.config", dict)
-    keyfs.STAGEFILE = keyfs.addkey(
-            "{user}/{index}/{proj}/{version}/{filename}", bytes)
+    keyfs.STAGEFILE = keyfs.addkey("{user}/{index}/+f/{md5}/{filename}", bytes)
     keyfs.STAGEDOCS = keyfs.addkey("{user}/{index}/{name}/{version}/.doc",
                                    "DIR")
     keyfs.STAGEDOCZIP = keyfs.addkey(
