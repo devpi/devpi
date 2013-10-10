@@ -1,6 +1,7 @@
 import sys
 import subprocess
 import py
+from .main import fatal
 
 def check_call(args):
     return subprocess.check_call([str(x) for x in args])

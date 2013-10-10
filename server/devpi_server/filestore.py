@@ -13,7 +13,6 @@ from time import mktime
 
 from py.io import BytesIO
 from devpi_common.types import propmapping
-from devpi_common.metadata import splitbasename
 
 from logging import getLogger
 log = getLogger(__name__)
@@ -121,7 +120,6 @@ class FileStore:
 
     def store_file(self, user, index, filename, fil, last_modified=None,
                    chunksize=524288):
-        tempfile = self.keyfs.tempfile()
         hash = hashlib.md5()
         with self.keyfs.tempfile() as w:
             size = 0
