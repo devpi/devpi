@@ -490,17 +490,19 @@ class PrivateStage:
         if not version:
             version = self.get_metadata_latest(name)["version"]
             log.info("store_doczip: derived version %s", version)
-        zipfile_key = self.keyfs.STAGEDOCZIP(
-                        user=self.user, index=self.index,
-                        name=name, version=version)
-        zipfile_key.set_from_file(docfile)
-
+        key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
+        with key.locked_update() as projectconfig:
+            verdata = projectconfig[version]
+            filename = "%s-%s.doc.zip" % (name, version)
+            entry = self.xom.filestore.store_file(self.user, self.index,
+                                filename, docfile)
+            verdata["+doczip"] = entry.relpath
         # unpack
         key = self._doc_key(name, version)
 
         # XXX locking? (unzipping could happen concurrently in theory)
         tempdir = self.keyfs.mkdtemp(name)
-        with Archive(zipfile_key.filepath.open("rb")) as archive:
+        with Archive(entry.filepath.open("rb")) as archive:
             archive.extract(tempdir)
         keypath = key.filepath
         if keypath.check():
@@ -516,12 +518,13 @@ class PrivateStage:
     def get_doczip(self, name, version):
         """ get documentation zip as an open file
         (or None if no docs exists). """
-        assert version
-        zipfile_key = self.keyfs.STAGEDOCZIP(
-                        user=self.user, index=self.index,
-                        name=name, version=version)
-        if zipfile_key.exists():
-            return zipfile_key.filepath.open("rb")
+        metadata = self.get_metadata(name, version)
+        if metadata:
+            doczip = metadata.get("+doczip")
+            if doczip:
+                entry = self.xom.filestore.getentry(doczip)
+                if entry:
+                    return entry.filepath.open("rb")
 
     def _doc_key(self, name, version):
         assert version

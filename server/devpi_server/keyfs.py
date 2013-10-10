@@ -47,7 +47,7 @@ class KeyFS(object):
             self._mode = 0666 ^ umask
         os.chmod(file_name, self._mode)
 
-    def tempfile(self, prefix):
+    def tempfile(self, prefix="tmp"):
         f = NamedTemporaryFile(prefix=prefix, dir=self.tmpdir, delete=False)
         relpath = os.path.relpath(f.name, str(self.basedir))
         # change from hardcoded default perm 0600 in tempfile._mkstemp_inner()
@@ -66,11 +66,11 @@ class KeyFS(object):
         self._rename(f.key.relpath, relpath)
         return True
 
-    def _rename(self, sourcekey, destkey):
-        assert not isabs(sourcekey), sourcekey
-        assert not isabs(destkey), destkey
-        source = join(str(self.basedir), sourcekey)
-        dest = join(str(self.basedir), destkey)
+    def _rename(self, rel_source, rel_dest):
+        assert not isabs(rel_source), rel_source
+        assert not isabs(rel_dest), rel_dest
+        source = join(str(self.basedir), rel_source)
+        dest = join(str(self.basedir), rel_dest)
         try:
             os.rename(source, dest)
         except OSError:

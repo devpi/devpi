@@ -253,6 +253,7 @@ class TestStage:
 
     def test_getdoczip(self, stage, bases, tmpdir):
         assert not stage.get_doczip("pkg1", "version")
+        stage.register_metadata(dict(name="pkg1", version="1.0"))
         content = zip_dict({"index.html": "<html/>",
             "_static": {}, "_templ": {"x.css": ""}})
         stage.store_doczip("pkg1", "1.0", BytesIO(content))
@@ -265,6 +266,7 @@ class TestStage:
         assert tmpdir.join("_templ", "x.css").check(file=1)
 
     def test_storedoczipfile(self, stage, bases):
+        stage.register_metadata(dict(name="pkg1", version="1.0"))
         content = zip_dict({"index.html": "<html/>",
             "_static": {}, "_templ": {"x.css": ""}})
         filepath = stage.store_doczip("pkg1", "1.0", BytesIO(content))

@@ -11,6 +11,7 @@ from wsgiref.handlers import format_date_time
 from datetime import datetime
 from time import mktime
 
+from py.io import BytesIO
 from devpi_common.types import propmapping
 from devpi_common.metadata import splitbasename
 
@@ -115,16 +116,31 @@ class FileStore:
         return entry.gethttpheaders(), iter_and_cache()
 
     def store(self, user, index, filename, content, last_modified=None):
-        md5 = getmd5(content)
-        proj, version = splitbasename(filename)[:2]
+        return self.store_file(user, index, filename, BytesIO(content),
+                               last_modified=last_modified)
+
+    def store_file(self, user, index, filename, fil, last_modified=None,
+                   chunksize=524288):
+        tempfile = self.keyfs.tempfile()
+        hash = hashlib.md5()
+        with self.keyfs.tempfile() as w:
+            size = 0
+            while 1:
+                s = fil.read(chunksize)
+                if not s:
+                    break
+                hash.update(s)
+                size += len(s)
+                w.write(s)
+
+        digest = hash.hexdigest()
         key = self.keyfs.STAGEFILE(user=user, index=index,
-                                   md5=md5, filename=filename)
+                                   md5=digest, filename=filename)
+        self.keyfs._rename(w.key.relpath, key.relpath)
         entry = self.getentry(key.relpath)
-        key.set(content)
         if last_modified is None:
             last_modified = http_date()
-        entry.set(md5=md5, size=len(content),
-                  last_modified=last_modified)
+        entry.set(md5=digest, size=size, last_modified=last_modified)
         return entry
 
     def add_attachment(self, md5, type, data):
@@ -169,6 +185,10 @@ class RelPathEntry(object):
         #log.debug("self.PATHENTRY %s", self.PATHENTRY.relpath)
         #log.debug("self.FILE %s", self.FILE)
         self._mapping = self.PATHENTRY.get()
+
+    @property
+    def filepath(self):
+        return self.FILE.filepath
 
     def __repr__(self):
         return "<RelPathEntry %r>" %(self.relpath)

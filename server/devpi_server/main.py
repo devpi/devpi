@@ -139,13 +139,12 @@ def add_keys(keyfs):
     keyfs.INDEXDIR = keyfs.addkey("{user}/{index}", "DIR")
     keyfs.PROJCONFIG = keyfs.addkey("{user}/{index}/{name}/.config", dict)
     keyfs.STAGEFILE = keyfs.addkey("{user}/{index}/+f/{md5}/{filename}", bytes)
+
     keyfs.STAGEDOCS = keyfs.addkey("{user}/{index}/{name}/{version}/.doc",
                                    "DIR")
-    keyfs.STAGEDOCZIP = keyfs.addkey(
-            "{user}/{index}/{name}/{version}/{name}-{version}.doc.zip", bytes)
-
     keyfs.RELDESCRIPTION = keyfs.addkey(
             "{user}/{index}/{name}/{version}/description_html", bytes)
+
     keyfs.PATHENTRY = keyfs.addkey("{relpath}-meta", dict)
     keyfs.ATTACHMENT = keyfs.addkey("+attach/{md5}/{type}/{num}", bytes)
     keyfs.FILEPATH = keyfs.addkey("{relpath}", bytes)
