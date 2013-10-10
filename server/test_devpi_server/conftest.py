@@ -377,8 +377,6 @@ class Mapp(MappMixin):
     def upload_doc(self, basename, content, name, version, indexname=None,
                          code=200):
         indexname = self._getindexname(indexname)
-        if version:
-            self.register_metadata(dict(name=name, version=version))
         r = self.testapp.post("/%s/" % indexname,
             {":action": "doc_upload", "name": name, "version": version,
              "content": Upload(basename, content)}, expect_errors=True)

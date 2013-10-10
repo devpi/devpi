@@ -294,7 +294,7 @@ def test_upload_and_push_external(mapp, testapp, monkeypatch):
     assert rec[2][0] == "whatever"
     upload_dict = rec[2][-1]
     assert upload_dict["content"][0] == "pkg1.zip"
-    assert upload_dict["content"][1] == zipcontent
+    assert upload_dict["content"][1].read() == zipcontent
 
     # push with error
     def posterror(url, data, auth, files=None):
@@ -448,7 +448,9 @@ def test_upload_docs_too_large(mapp):
 def test_upload_docs(mapp, testapp):
     api = mapp.create_and_use()
     content = zip_dict({"index.html": "<html/>"})
-    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6")
+    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=400)
+    mapp.register_metadata({"name": "pkg1", "version": "2.6"})
+    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200)
     r = testapp.get(api.index + "pkg1/2.6/+doc/index.html")
     assert r.status_code == 200
     #a = getfirstlink(r.text)

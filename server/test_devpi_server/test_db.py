@@ -4,6 +4,7 @@ import pytest
 
 from devpi_common.metadata import splitbasename
 from devpi_common.archive import Archive, zip_dict
+from py.io import BytesIO
 
 
 @pytest.fixture(params=[(), ("root/pypi",)])
@@ -254,10 +255,10 @@ class TestStage:
         assert not stage.get_doczip("pkg1", "version")
         content = zip_dict({"index.html": "<html/>",
             "_static": {}, "_templ": {"x.css": ""}})
-        stage.store_doczip("pkg1", "1.0", content)
-        doczip_content = stage.get_doczip("pkg1", "1.0")
-        assert doczip_content
-        with Archive(py.io.BytesIO(doczip_content)) as archive:
+        stage.store_doczip("pkg1", "1.0", BytesIO(content))
+        doczip_file = stage.get_doczip("pkg1", "1.0")
+        assert doczip_file
+        with Archive(doczip_file) as archive:
             archive.extract(tmpdir)
         assert tmpdir.join("index.html").read() == "<html/>"
         assert tmpdir.join("_static").check(dir=1)
@@ -266,9 +267,11 @@ class TestStage:
     def test_storedoczipfile(self, stage, bases):
         content = zip_dict({"index.html": "<html/>",
             "_static": {}, "_templ": {"x.css": ""}})
-        filepath = stage.store_doczip("pkg1", "1.0", content)
+        filepath = stage.store_doczip("pkg1", "1.0", BytesIO(content))
+        assert filepath.join("index.html").exists()
+
         content = zip_dict({"nothing": "hello"})
-        filepath = stage.store_doczip("pkg1", "1.0", content)
+        filepath = stage.store_doczip("pkg1", "1.0", BytesIO(content))
         assert filepath.join("nothing").check()
         assert not filepath.join("index.html").check()
         assert not filepath.join("_static").check()

@@ -419,7 +419,8 @@ class PyPIView:
                 if len(content.value) > MAXDOCZIPSIZE:
                     abort_custom(413, "zipfile size %d too large, max=%s"
                                    % (len(content.value), MAXDOCZIPSIZE))
-                stage.store_doczip(name, version, content.value)
+                stage.store_doczip(name, version,
+                                   py.io.BytesIO(content.value))
         else:
             abort(400, "action %r not supported" % action)
         return ""

@@ -314,7 +314,10 @@ class HTTPReply(object):
 
     @cached_property
     def _json(self):
-        return self._response.json()
+        try:
+            return self._response.json()
+        except ValueError:
+            return {}
 
     def __getitem__(self, name):
         return self._json[name]

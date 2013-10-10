@@ -1,4 +1,4 @@
-1.X
+1.2.dev1
 ----------------
 
 - allow to use /user/index as indexserver url for pip/easy_install by
@@ -11,6 +11,13 @@
 - fix normalization import/export issue: pypi names take precendence
   for defining the "real" name of a project.
 
+- always store uploaded documentation with a version.  While 
+  "devpi upload" will make sure to pass in the version, "setup.py upload_docs"
+  will not pass in a version.  In the latter case, devpi-server assumes
+  the documentation belongs to the highest yet registered release.
+  This change requires exporting with devpi-1.1 and importing with devpi-1.2
+  in order to properly store versioned docs internally.
+  
 - use types/url/metadata/validation functionality of new depdency devpi_common 
 
 - internal cleanup using pytest-flakes

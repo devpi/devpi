@@ -3,6 +3,7 @@ import py
 from devpi import log
 from devpi_common.metadata import Version, BasenameMeta, get_pyversion_filetype
 from devpi_common.archive import zip_dir
+from .main import HTTPReply
 
 def main(hub, args):
     # for now we use distutils/setup.py for register/upload commands.
@@ -114,6 +115,7 @@ class Uploader:
             hub.line("skipped: %s" % msg)
         else:
             r = hub.http.post(hub.current.index, dic, files=files, auth=auth)
+            r = HTTPReply(r)
             if r.status_code == 200:
                 hub.info(msg)
                 return True

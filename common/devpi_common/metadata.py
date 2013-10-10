@@ -7,7 +7,8 @@ from .validation import normalize_name
 
 
 ALLOWED_ARCHIVE_EXTS = set(
-    ".dmg .deb .msi .rpm .exe .egg .whl .tar.gz .tar.bz2 .tar .tgz .zip".split())
+    ".dmg .deb .msi .rpm .exe .egg .whl .tar.gz "
+    ".tar.bz2 .tar .tgz .zip .doc.zip".split())
 
 
 _releasefile_suffix_rx = re.compile(r"(\.zip|\.tar\.gz|\.tgz|\.tar\.bz2|"

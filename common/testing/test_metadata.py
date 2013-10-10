@@ -21,6 +21,7 @@ from devpi_common.metadata import *
     ("Cheetah-2.2.2.dev1.x85.rpm", ("Cheetah", "2.2.2.dev1", ".x85.rpm")),
     ("Cheetah-2.2.2.dev1.noarch.rpm", ("Cheetah", "2.2.2.dev1", ".noarch.rpm")),
     ("deferargs.tar.gz", ("deferargs", "", ".tar.gz")),
+    ("hello-1.0.doc.zip", ("hello", "1.0", ".doc.zip")),
     ("Twisted-12.0.0.win32-py2.7.msi",
         ("Twisted", "12.0.0", ".win32-py2.7.msi")),
 ])

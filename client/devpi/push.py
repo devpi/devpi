@@ -48,8 +48,8 @@ def main(hub, args):
     pusher = parse_target(hub, args)
     name, version = splitbasename(args.nameversion + ".zip")[:2]
     r = pusher.execute(hub, name, version)
-    assert r.type == "actionlog"
-    for action in r["result"]:
-        red = action[0] >= 400
-        for line in (" ".join(map(str, action))).split("\n"):
-            hub.line("   " + line, red=red)
+    if r.type == "actionlog":
+        for action in r["result"]:
+            red = action[0] >= 400
+            for line in (" ".join(map(str, action))).split("\n"):
+                hub.line("   " + line, red=red)

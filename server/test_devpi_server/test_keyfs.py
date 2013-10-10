@@ -229,3 +229,8 @@ class TestKey:
         assert not key1.exists()
 
 
+    def test_bytes_from_file(self, keyfs):
+        key1 = keyfs.addkey("somedir/file", bytes)
+        f = py.io.BytesIO(b"hello")
+        key1.set_from_file(f)
+        assert key1.get() == b"hello"
