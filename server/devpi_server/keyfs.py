@@ -8,7 +8,7 @@ storing basic python types.
 import py
 import threading
 from tempfile import NamedTemporaryFile, mkdtemp
-from execnet import dumps, loads
+from marshal import dumps, loads
 import os, sys
 from os.path import basename, isabs, join
 

@@ -8,9 +8,8 @@ if __name__ == "__main__":
     README = open(os.path.join(here, 'README.rst')).read()
     CHANGES = open(os.path.join(here, 'CHANGELOG')).read()
 
-    install_requires = ["py>=1.4.15",
-                        "devpi_common>=0.1.dev1",
-                        "execnet>=1.1",
+    install_requires = ["py>=1.4.17",
+                        "devpi_common>=1.2.dev1",
                         "requests>=1.2.3",
                         "itsdangerous>=0.23",
                         "docutils>=0.11",

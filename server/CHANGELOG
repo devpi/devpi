@@ -21,6 +21,8 @@
   the documentation belongs to the highest yet registered release.
   This change requires exporting with devpi-1.1 and importing with devpi-1.2
   in order to properly store versioned docs internally.
+
+- use "marshal" instead of "execnet" for storing/loading values
   
 - use types/url/metadata/validation functionality of new depdency devpi_common 
 

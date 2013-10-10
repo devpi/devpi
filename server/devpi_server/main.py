@@ -48,7 +48,7 @@ def _main(argv=None):
     if argv is None:
         argv = sys.argv
 
-    argv = map(str, argv)
+    argv = [str(x) for x in argv]
     config = parseoptions(argv)
     args = config.args
 

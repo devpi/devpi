@@ -179,7 +179,6 @@ class PyPIView:
                 abort(502, "upstream server has internal error")
             if result < 0:
                 abort(502, "upstream server not reachable")
-
         links = []
         for entry in result:
             relpath = entry.relpath
