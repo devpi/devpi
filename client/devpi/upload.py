@@ -291,7 +291,8 @@ class Exported:
             [self.python, "setup.py", "build_sphinx", "-E",
              "--build-dir", build])
         p = self.target_distdir.join("%s-%s.doc.zip" %(name, version))
-        create_zipfile(p, build)
+        html = build.join("html")
+        create_zipfile(p, html)
         self.log_build(p, "[sphinx docs]")
         return p
 

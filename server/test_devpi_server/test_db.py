@@ -256,11 +256,11 @@ class TestStage:
         assert entries[0].basename == "some-1.1.zip"
 
     def test_getdoczip(self, stage, bases, tmpdir):
-        assert not stage.get_doczip("pkg1")
+        assert not stage.get_doczip("pkg1", "version")
         content = create_zipfile({"index.html": "<html/>",
             "_static": {}, "_templ": {"x.css": ""}})
-        stage.store_doczip("pkg1", content)
-        doczip_content = stage.get_doczip("pkg1")
+        stage.store_doczip("pkg1", "1.0", content)
+        doczip_content = stage.get_doczip("pkg1", "1.0")
         assert doczip_content
         unzip_to_dir(doczip_content, tmpdir)
         assert tmpdir.join("index.html").read() == "<html/>"
@@ -270,9 +270,9 @@ class TestStage:
     def test_storedoczipfile(self, stage, bases):
         content = create_zipfile({"index.html": "<html/>",
             "_static": {}, "_templ": {"x.css": ""}})
-        filepath = stage.store_doczip("pkg1", content)
+        filepath = stage.store_doczip("pkg1", "1.0", content)
         content = create_zipfile({"nothing": "hello"})
-        filepath = stage.store_doczip("pkg1", content)
+        filepath = stage.store_doczip("pkg1", "1.0", content)
         assert filepath.join("nothing").check()
         assert not filepath.join("index.html").check()
         assert not filepath.join("_static").check()

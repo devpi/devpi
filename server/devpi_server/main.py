@@ -150,7 +150,10 @@ def add_keys(keyfs):
     keyfs.PROJCONFIG = keyfs.addkey("{user}/{index}/{name}/.config", dict)
     keyfs.STAGEFILE = keyfs.addkey(
             "{user}/{index}/{proj}/{version}/{filename}", bytes)
-    keyfs.STAGEDOCS = keyfs.addkey("{user}/{index}/{name}/.doc", "DIR")
+    keyfs.STAGEDOCS = keyfs.addkey("{user}/{index}/{name}/{version}/.doc",
+                                   "DIR")
+    keyfs.STAGEDOCZIP = keyfs.addkey(
+            "{user}/{index}/{name}/{version}/{name}-{version}.doc.zip", bytes)
 
     keyfs.RELDESCRIPTION = keyfs.addkey(
             "{user}/{index}/{name}/{version}/description_html", bytes)

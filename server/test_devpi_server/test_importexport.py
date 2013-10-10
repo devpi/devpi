@@ -119,7 +119,7 @@ class TestImportExport:
         impexp.export()
         mapp2 = impexp.new_import()
         stage = mapp2.xom.db.getstage(api.stagename)
-        path = stage._doc_key("hello").filepath
+        path = stage._doc_key("hello", "1.0").filepath
         assert path.check()
         assert path.join("index.html").read() == "<html/>"
 

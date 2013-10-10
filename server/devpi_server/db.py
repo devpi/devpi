@@ -484,10 +484,18 @@ class PrivateStage:
             self.log_info("store_releasefile %s", entry.relpath)
             return entry
 
-    def store_doczip(self, name, content):
-        """ unzip doc content for the specified "name" project. """
-        assert content
-        key = self._doc_key(name)
+    def store_doczip(self, name, version, content):
+        """ store zip file and unzip doc content for the
+        specified "name" project. """
+        if not version:
+            version = self.get_metadata_latest(name)["version"]
+        zipfile_key = self.keyfs.STAGEDOCZIP(
+                        user=self.user, index=self.index,
+                        name=name, version=version)
+        zipfile_key.set(content)
+
+        # unpack
+        key = self._doc_key(name, version)
 
         # XXX locking (unzipping could happen concurrently in theory)
         tempdir = self.keyfs.mkdtemp(name)
@@ -503,18 +511,18 @@ class PrivateStage:
             tempdir.move(keypath)
         return keypath
 
-    def get_doczip(self, name):
+    def get_doczip(self, name, version):
         """ get zip file content of the current docs or None. """
-        key = self._doc_key(name)
-        basedir = key.filepath
-        if not basedir.check():
-            return
-        content = create_zipfile(basedir)
-        return content
+        assert version
+        zipfile_key = self.keyfs.STAGEDOCZIP(
+                        user=self.user, index=self.index,
+                        name=name, version=version)
+        return zipfile_key.get()
 
-    def _doc_key(self, name):
+    def _doc_key(self, name, version):
+        assert version
         return self.keyfs.STAGEDOCS(user=self.user, index=self.index,
-                                    name=name)
+                                    name=name, version=version)
 
 
 def create_zipfile(basedir):

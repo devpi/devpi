@@ -252,7 +252,9 @@ def test_upload_and_push_internal(mapp, testapp, monkeypatch):
     assert r.status_code == 200
     relpath = r.json["result"]["+files"]["pkg1-2.6.tgz"]
     assert relpath == "user2/prod/pkg1/2.6/pkg1-2.6.tgz"
-    r = testapp.get("/user2/prod/pkg1/+doc/index.html")
+    # we check here that the upload of docs without version was
+    # automatically tied to the newest release metadata
+    r = testapp.get("/user2/prod/pkg1/2.6/+doc/index.html")
     assert r.status_code == 200
 
 
@@ -428,7 +430,7 @@ def test_upload_docs_no_version(mapp, testapp):
     content = create_zipfile({"index.html": "<html/>"})
     mapp.register_metadata(dict(name="Pkg1", version="1.0"))
     mapp.upload_doc("pkg1.zip", content, "Pkg1", "")
-    r = testapp.get(api.index + "Pkg1/+doc/index.html")
+    r = testapp.get(api.index + "Pkg1/1.0/+doc/index.html")
     assert r.status_code == 200
 
 def test_upload_docs_no_project_ever_registered(mapp, testapp):
@@ -447,7 +449,7 @@ def test_upload_docs(mapp, testapp):
     api = mapp.create_and_use()
     content = create_zipfile({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6")
-    r = testapp.get(api.index + "pkg1/+doc/index.html")
+    r = testapp.get(api.index + "pkg1/2.6/+doc/index.html")
     assert r.status_code == 200
     #a = getfirstlink(r.text)
     #assert "pkg1-2.6.tgz" in a.get("href")

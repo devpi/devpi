@@ -1,9 +1,10 @@
 import sys
+import posixpath
 import json
 import py
 import logging
 from devpi_common.validation import normalize_name
-from devpi_common.metadata import Version
+from devpi_common.metadata import Version, splitbasename
 from devpi_server.main import fatal
 import devpi_server
 
@@ -184,11 +185,13 @@ class IndexDump:
             projconfig.update(data)
             assert "+files" not in data
             for version, versiondata in data.items():
+                if not version:
+                    continue
                 versiondata["name"] = realname
                 self.dump_releasefiles(realname, versiondata)
-            content = self.stage.get_doczip(name)
-            if content:
-                self.dump_docfile(realname, content)
+                content = self.stage.get_doczip(name, version)
+                if content:
+                    self.dump_docfile(realname, content, version)
         self.exporter.completed("index %r" % self.stage.name)
 
     def dump_releasefiles(self, projectname, versiondata):
@@ -226,8 +229,8 @@ class IndexDump:
                 self.exporter.completed("wrote attachment %s [%s]" %
                                  (p.relto(self.basedir), entry.basename))
 
-    def dump_docfile(self, projectname, content):
-        p = self.basedir.join(projectname + ".zip")
+    def dump_docfile(self, projectname, content, version):
+        p = self.basedir.join("%s-%s.doc.zip" %(projectname, version))
         with p.open("wb") as f:
             f.write(content)
         relpath = p.relto(self.exporter.basepath)
@@ -316,7 +319,9 @@ class Importer:
             assert entry.size == mapping["size"]
             self.import_attachments(entry.md5)
         elif filedesc["type"] == "doczip":
-            stage.store_doczip(projectname, p.read("rb"))
+            basename = posixpath.basename(rel)
+            name, version, suffix = splitbasename(basename, checkarch=False)
+            stage.store_doczip(name, version, p.read("rb"))
         else:
             fatal("unknown file type: %s" % (type,))
 

@@ -299,7 +299,7 @@ class PyPIView:
                       message="no release/files found for %s-%s" %(
                       name, version))
 
-        doczip = stage.get_doczip(name)
+        doczip = stage.get_doczip(name, version)
 
         # prepare metadata for submission
         metadata[":action"] = "submit"
@@ -331,7 +331,7 @@ class PyPIView:
                 results.append((res, "store_releasefile", entry.basename,
                                 "->", target_stage.name))
             if doczip:
-                target_stage.store_doczip(name, doczip)
+                target_stage.store_doczip(name, version, doczip)
                 results.append((200, "uploaded documentation", name,
                                 "->", target_stage.name))
             apireturn(200, result=results, type="actionlog")
@@ -419,7 +419,7 @@ class PyPIView:
                 if len(content.value) > MAXDOCZIPSIZE:
                     abort_custom(413, "zipfile size %d too large, max=%s"
                                    % (len(content.value), MAXDOCZIPSIZE))
-                stage.store_doczip(name, content.value)
+                stage.store_doczip(name, version, content.value)
         else:
             abort(400, "action %r not supported" % action)
         return ""
@@ -455,12 +455,13 @@ class PyPIView:
     #
 
     # showing uploaded package documentation
-    @route("/<user>/<index>/<name>/+doc/<relpath:re:.*>",
+    @route("/<user>/<index>/<name>/<version>/+doc/<relpath:re:.*>",
            method="GET")
-    def doc_show(self, user, index, name, relpath):
+    def doc_show(self, user, index, name, version, relpath):
         if not relpath:
             redirect("index.html")
-        key = self.db.keyfs.STAGEDOCS(user=user, index=index, name=name)
+        stage = self.getstage(user, index)
+        key = stage._doc_key(name, version)
         if not key.filepath.check():
             abort(404, "no documentation available")
         return static_file(relpath, root=str(key.filepath))
@@ -614,10 +615,10 @@ class PyPIView:
                 log.error("metadata for project %r empty: %s, skipping",
                           projectname, metadata)
                 continue
-            dockey = stage._doc_key(name)
+            dockey = stage._doc_key(name, ver)
             if dockey.exists():
                 docs = [" docs: ", html.a("%s-%s docs" %(name, ver),
-                                href="%s/+doc/index.html" %(name))]
+                                href="%s/%s/+doc/index.html" %(name, ver))]
             else:
                 docs = []
             for basename, relpath in metadata["+files"].items():
