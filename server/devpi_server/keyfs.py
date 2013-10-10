@@ -214,16 +214,6 @@ class TypedKey:
             data = dumps(val)
         self.keyfs._set(self.relpath, data)
 
-    def set_from_file(self, fil, chunksize=524288):
-        assert self.type == bytes, self.type
-        with self.keyfs.tempfile(basename(self.relpath)) as w:
-            while 1:
-                s = fil.read(chunksize)
-                if not s:
-                    break
-                w.write(s)
-        self.keyfs._rename(w.key.relpath, self.relpath)
-
     def exists(self):
         return self.keyfs._exists(self.relpath)
 
