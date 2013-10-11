@@ -1,5 +1,5 @@
 import sys
-import posixpath
+import os
 import json
 import py
 import subprocess
@@ -337,7 +337,7 @@ class Importer:
             assert entry.size == mapping["size"]
             self.import_attachments(entry.md5)
         elif filedesc["type"] == "doczip":
-            basename = posixpath.basename(rel)
+            basename = os.path.basename(rel)
             name, version, suffix = splitbasename(basename)
             stage.store_doczip(name, version, p.open("rb"))
         else:

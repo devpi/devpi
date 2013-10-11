@@ -59,6 +59,8 @@ class TestCheckout:
             pytest.skip("'git' command not found")
         with repo.as_cwd():
             runproc("git init")
+            runproc("git config user.email 'you@example.com'")
+            runproc("git config user.name 'you'")
             runproc("git add file setup.py")
             runproc("git commit -m message")
         return repo

@@ -7,6 +7,7 @@ import subprocess
 import devpi
 from devpi_common.types import lazydecorator, cached_property
 from devpi_common.url import URL
+from devpi_common.proc import check_output
 from devpi import __version__ as client_version
 from devpi.use import Current
 import requests
@@ -34,22 +35,6 @@ def initmain(argv):
         mod, func = mod.split(":")
     mod = __import__(mod, None, None, ["__doc__"])
     return Hub(args), getattr(mod, func)
-
-def check_output(*args, **kwargs):
-    from subprocess import Popen, CalledProcessError, PIPE
-    # subprocess.check_output does not exist on python26
-    popen = Popen(stdout=PIPE, *args, **kwargs)
-    output, unused_err = popen.communicate()
-    retcode = popen.poll()
-    if retcode:
-        cmd = kwargs.get("args")
-        if cmd is None:
-            cmd = args[0]
-        if sys.version_info < (2,7) and sys.platform == "win32":
-            raise CalledProcessError(retcode, cmd)
-        else:
-            raise CalledProcessError(retcode, cmd, output=output)
-    return output
 
 notset = object()
 

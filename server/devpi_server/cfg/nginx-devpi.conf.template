@@ -8,7 +8,7 @@ server {
 
     client_max_body_size 30M;
 
-    root %(serverdir)s;  # arbitrary for now
+    root %(serverdir)s;  
 
     # try serving docs and (md5/immutable) directly
     location ~ \+(f|doc)/ {

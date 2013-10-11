@@ -2,12 +2,11 @@ import sys
 import subprocess
 import py
 from .main import fatal
+from devpi_common.proc import check_output
+
 
 def check_call(args):
     return subprocess.check_call([str(x) for x in args])
-
-def check_output(args):
-    return subprocess.check_output([str(x) for x in args])
 
 class VirtualenvDir:
     def __init__(self, venvdir, tw):
