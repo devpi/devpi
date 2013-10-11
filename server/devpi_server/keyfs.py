@@ -35,7 +35,7 @@ class KeyFS(object):
         try:
             with path.open("rb") as f:
                 return f.read()
-        except py.error.ENOENT:
+        except py.error.Error:
             if default is _nodefault:
                 raise KeyError(relpath)
             return default

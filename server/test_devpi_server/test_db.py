@@ -354,6 +354,11 @@ class TestStage:
 
 
 class TestUsers:
+
+    def test_secret(self, db):
+        db.keyfs.basedir.ensure(".something")
+        assert not db.user_get(".something")
+
     def test_create_and_validate(self, db):
         assert not db.user_exists("user")
         db.user_create("user", "password", email="some@email.com")
