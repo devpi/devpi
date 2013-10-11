@@ -9,7 +9,16 @@ server {
     client_max_body_size 30M;
 
     root %(serverdir)s;  # arbitrary for now
+
+    # try serving docs and (md5/immutable) directly
+    location ~ \+(f|doc)/ {
+        try_files $uri @proxy_to_app;
+    }
     location / {
+        # XXX how to tell nginx to just refer to @proxy_to_app here?
+        try_files /.lqkwje @proxy_to_app;
+    }   
+    location @proxy_to_app {
         proxy_pass http://localhost:%(port)s;
         proxy_set_header  X-outside-url $scheme://$host;
         proxy_set_header  X-Real-IP $remote_addr;

@@ -134,6 +134,8 @@ def add_keys(keyfs):
     # type pypimirror related data
     keyfs.PYPILINKS = keyfs.addkey("root/pypi/+links/{name}", dict)
     keyfs.PYPISERIALS = keyfs.addkey("root/pypi/+serials", dict)
+    keyfs.PYPIFILE_NOMD5 = keyfs.addkey(
+        "{user}/{index}/+e/{relpath}", bytes)
 
     # type "stage" related
     keyfs.INDEXDIR = keyfs.addkey("{user}/{index}", "DIR")

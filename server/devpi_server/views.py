@@ -556,6 +556,7 @@ class PyPIView:
         stage.project_version_delete(name, version)
         apireturn(200, "project %r version %r deleted" % (name, version))
 
+    @route("/<user>/<index>/+e/<relpath:re:.*>")
     @route("/<user>/<index>/+f/<relpath:re:.*>")
     def pkgserv(self, user, index, relpath):
         relpath = request.path.strip("/")

@@ -7,7 +7,7 @@ storing basic python types.
 
 import py
 import threading
-from tempfile import NamedTemporaryFile, mkdtemp
+from tempfile import NamedTemporaryFile
 from marshal import dumps, loads
 import os, sys
 from os.path import basename, isabs, join
@@ -56,9 +56,8 @@ class KeyFS(object):
         return f
 
     def mkdtemp(self, prefix):
-        return py.path.local(mkdtemp(prefix=prefix, dir=self.tmpdir))
-        #return get_typed_key(self, py.path.local(path).relto(self.basedir),
-        #                     "DIR")
+        return py.path.local.make_numbered_dir(
+                    prefix=prefix, rootdir=py.path.local(self.tmpdir))
 
     def _set(self, relpath, value):
         with self.tempfile(basename(relpath)) as f:

@@ -22,9 +22,13 @@ class FileStore:
         self.keyfs = keyfs
 
     def maplink(self, link, refresh=False):
-        key = self.keyfs.STAGEFILE(user="root", index="pypi",
-                                   md5=link.md5 or "unknown_md5",
-                                   filename=link.basename)
+        if link.md5:
+            key = self.keyfs.STAGEFILE(user="root", index="pypi",
+                                       md5=link.md5 or "unknown_md5",
+                                       filename=link.basename)
+        else:
+            key = self.keyfs.PYPIFILE_NOMD5(user="root", index="pypi",
+                   relpath=link.torelpath())
         entry = self.getentry(key.relpath)
         mapping = {"url": link.geturl_nofragment().url}
         mapping["eggfragment"] = link.eggfragment

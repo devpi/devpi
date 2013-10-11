@@ -1,6 +1,9 @@
 1.2.dev1
 ----------------
 
+- refactor locations to allow nginx serving static files more directly.
+  Also updated nginx template accordingly.
+
 - rework "--upgrade-state" to detect the state version of the server dir
   and create an appropriate virtualenv with a devpi-server install in order
   to export data, and then import that version.
