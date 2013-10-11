@@ -140,7 +140,7 @@ def add_keys(keyfs):
     keyfs.PROJCONFIG = keyfs.addkey("{user}/{index}/{name}/.config", dict)
     keyfs.STAGEFILE = keyfs.addkey("{user}/{index}/+f/{md5}/{filename}", bytes)
 
-    keyfs.STAGEDOCS = keyfs.addkey("{user}/{index}/{name}/{version}/.doc",
+    keyfs.STAGEDOCS = keyfs.addkey("{user}/{index}/{name}/{version}/+doc",
                                    "DIR")
     keyfs.RELDESCRIPTION = keyfs.addkey(
             "{user}/{index}/{name}/{version}/description_html", bytes)
