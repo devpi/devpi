@@ -2,13 +2,18 @@
 # removed extract_package_readme function
 
 import sys
-import StringIO
 import cgi
-import urlparse
 
 from docutils.core import publish_doctree, Publisher
 from docutils.transforms import TransformError
 from docutils import io, readers
+try:
+    from io import StringIO
+    import urllib.parse as urlparse
+except ImportError:
+    # PY2
+    from StringIO import StringIO
+    import urlparse
 
 
 # BEGIN PYGMENTS SUPPORT BLOCK
@@ -54,8 +59,12 @@ class Pygments(Directive):
             # no lexer found - use the text one instead of an exception
             lexer = TextLexer()
         # take an arbitrary option if more than one is given
-        formatter = self.options and VARIANTS[self.options.keys()[0]] or DEFAULT
-        parsed = highlight(u'\n'.join(self.content), lexer, formatter)
+        formatter = DEFAULT
+        if self.options:
+            variant = VARIANTS[list(self.options.keys())[0]]
+            if variant:
+                formatter = variant
+        parsed = highlight('\n'.join(self.content), lexer, formatter)
         return [nodes.raw('', parsed, format='html')]
 
 directives.register_directive('code', Pygments)
@@ -75,7 +84,7 @@ def trim_docstring(text):
     # and split into a list of lines:
     lines = text.expandtabs().splitlines()
     # Determine minimum indentation (first line doesn't count):
-    indent = sys.maxint
+    indent = sys.maxsize
     for line in lines[1:]:
         stripped = line.lstrip()
         if stripped:
@@ -120,7 +129,7 @@ def processDescription(source, output_encoding='unicode'):
 
     # capture publishing errors, they go to stderr
     old_stderr = sys.stderr
-    sys.stderr = s = StringIO.StringIO()
+    sys.stderr = s = StringIO()
     parts = None
 
     try:

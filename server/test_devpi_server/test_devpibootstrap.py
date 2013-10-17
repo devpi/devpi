@@ -40,7 +40,7 @@ def virtualenv_tar(tmpdir):
     tar  = tarfile.open(tarpath.strpath, "w:gz")
     tar.add(str(script), script.relto(base))
     tar.close()
-    print "created", tarpath.strpath
+    print("created %s" % tarpath.strpath)
     return tarpath.strpath
 
 def test_bootstrapdict_create(bootstrapdict):

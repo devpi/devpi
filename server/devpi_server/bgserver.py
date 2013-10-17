@@ -1,13 +1,15 @@
-
 """
 interact/control devpi-server background process.
 """
-import sys, time
+import time
 import py
-if sys.version_info >= (3, 0):
-    from urllib import parse as urlp
-else:
+
+from devpi_common._compat import PY2
+
+if PY2:
     import urlparse as urlp
+else:
+    from urllib import parse as urlp
 
 from devpi_server.vendor.xprocess import XProcess
 import requests

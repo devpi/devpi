@@ -9,12 +9,17 @@ import py
 import threading
 from tempfile import NamedTemporaryFile
 from marshal import dumps, loads
-import os, sys
+import os
+import sys
 from os.path import basename, isabs, join
 
 from devpi_common.types import cached_property
+from devpi_common._compat import PY2
+
 
 _nodefault = object()
+str_types = (str, unicode) if PY2 else str
+
 
 class KeyFS(object):
     def __init__(self, basedir):
@@ -44,7 +49,7 @@ class KeyFS(object):
         if self._mode is None:
             umask = os.umask(0)
             os.umask(umask)
-            self._mode = 0666 ^ umask
+            self._mode = 0o666 ^ umask
         os.chmod(file_name, self._mode)
 
     def tempfile(self, prefix="tmp"):
@@ -93,7 +98,7 @@ class KeyFS(object):
         return path.check()
 
     def _getpath(self, relpath):
-        assert isinstance(relpath, (str, unicode)), (type(relpath), relpath)
+        assert isinstance(relpath, str_types), (type(relpath), relpath)
         return self.basedir.join(relpath)
 
     def destroyall(self):

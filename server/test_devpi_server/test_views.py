@@ -383,7 +383,7 @@ def test_upload_and_access_releasefile_meta(mapp):
     api = mapp.create_and_use()
     mapp.upload_file_pypi("pkg5-2.6.tgz", "123", "pkg5", "2.6")
     json = mapp.getjson(api.index + "pkg5/")
-    href = json["result"]["2.6"]["+files"].values()[0]
+    href = list(json["result"]["2.6"]["+files"].values())[0]
     pkgmeta = mapp.getjson("/" + href)
     assert pkgmeta["type"] == "releasefilemeta"
     assert pkgmeta["result"]["size"] == "3"

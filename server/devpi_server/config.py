@@ -1,3 +1,4 @@
+import base64
 import os.path
 import logging
 from logging import getLogger, basicConfig
@@ -193,7 +194,7 @@ class Config:
     def secret(self):
         if not self.secretfile.check():
             self.secretfile.dirpath().ensure(dir=1)
-            self.secretfile.write(os.urandom(32).encode("base64"))
+            self.secretfile.write(base64.b64encode(os.urandom(32)))
             s = py.std.stat
             self.secretfile.chmod(s.S_IRUSR|s.S_IWUSR)
         return self.secretfile.read()
@@ -222,7 +223,7 @@ def render_string(confname, format=None, **kw):
     from pkg_resources import resource_string
     templatestring = resource_string("devpi_server.cfg", template)
 
-    kw = dict([(x[0],str(x[1])) for x in kw.items()])
+    kw = dict((x[0], str(x[1])) for x in kw.items())
     if format is None:
         result = templatestring.format(**kw)
     else:

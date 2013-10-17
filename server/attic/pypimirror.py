@@ -3,7 +3,7 @@ def fetch(url):
     import time
     res = timeout = 10.0
     now = time.time()
-    print "fetching", url
+    print("fetching %s" % url)
     try:
         r = requests.head(url, allow_redirects=True, timeout=timeout)
     except requests.exceptions.RequestException:
@@ -12,6 +12,7 @@ def fetch(url):
         if r.status_code == 200:
             res = time.time() - now
     client.zadd(key, timeout-res, url)
+
 
 if __name__ == "__main__":
     import eventlet
@@ -31,4 +32,4 @@ if __name__ == "__main__":
         pool.spawn_n(fetch, url)
     pool.waitall()
     for x in client.zrange(key, 0, 10, withscores=True):
-        print x
+        print(x)

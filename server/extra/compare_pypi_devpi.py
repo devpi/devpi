@@ -113,8 +113,12 @@ def get_names():
     listfile = logbase.join("simplelist")
     if listfile.check():
         return listfile.readlines(cr=0)
-    import xmlrpclib
-    proxy = xmlrpclib.ServerProxy("https://pypi.python.org/pypi")
+    try:
+        from xmlrpc.client import ServerProxy
+    except ImportError:
+        # PY2
+        from xmlrpclib import ServerProxy
+    proxy = ServerProxy("https://pypi.python.org/pypi")
     tw.line("getting simple list")
     d = proxy.list_packages_with_serial()
     names = sorted(list(d))

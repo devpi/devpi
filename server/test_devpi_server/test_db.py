@@ -220,7 +220,7 @@ class TestStage:
         stage.store_releasefile("someproject-1.0.zip", content)
         projectconfig = stage.get_projectconfig("someproject")
         files = projectconfig["1.0"]["+files"]
-        link = files.values()[0]
+        link = list(files.values())[0]
         assert link.endswith("someproject-1.0.zip")
         assert projectconfig["1.0"]["+shadowing"]
 
