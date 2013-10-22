@@ -260,6 +260,8 @@ class ExtDB:
             else:
                 version = BasenameMeta(basename).version
             verdata = data.setdefault(version, {})
+            verdata["name"] = name
+            verdata["version"] = version
             files = verdata.setdefault("+files", {})
             files[basename] = link.relpath
         return data

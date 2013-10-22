@@ -264,11 +264,14 @@ class TestExtPYPIDB:
 
 
     def test_getprojectconfig(self, extdb):
-        extdb.setextsimple("pytest", text='''
+        extdb.setextsimple("Pytest", text='''
             <a href="../../pkg/pytest-1.0.zip#md5=123" />''')
-        config = extdb.get_projectconfig("pytest")
+        config = extdb.get_projectconfig("Pytest")
         data = config["1.0"]
         assert data["+files"]
+        assert data["name"] == "Pytest"
+        assert data["version"] == "1.0"
+        name = extdb.get_project_info("pytest").name == "Pytest"
 
     def test_getdescription(self, extdb):
         extdb.setextsimple("pytest", text='''
