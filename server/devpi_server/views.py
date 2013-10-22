@@ -607,7 +607,8 @@ class PyPIView:
                 bases = [html.h2("inherited bases"), bases]
         else:
             bases = []
-        latest_packages = html.ul()
+        latest_packages = html.table(html.tr(html.td("info"), html.td("file"), html.td("docs")))
+
         for projectname in stage.getprojectnames_perstage():
             metadata = stage.get_metadata_latest(projectname)
             try:
@@ -618,8 +619,8 @@ class PyPIView:
                 continue
             dockey = stage._doc_key(name, ver)
             if dockey.exists():
-                docs = [" docs: ", html.a("%s-%s docs" %(name, ver),
-                                href="%s/%s/+doc/index.html" %(name, ver))]
+                docs = [html.a("%s-%s docs" %(name, ver),
+                        href="%s/%s/+doc/index.html" %(name, ver))]
             else:
                 docs = []
             files = metadata.get("+files", {})
@@ -627,12 +628,11 @@ class PyPIView:
                 log.warn("project %r version %r has no files", projectname,
                          metadata.get("version"))
             for basename, relpath in files.items():
-                latest_packages.append(html.li(
-                    html.a("%s-%s info page" % (name, ver),
-                           href="%s/%s/" % (name, ver)),
-                    " releasefiles: ",
-                    html.a(basename, href="/" + relpath),
-                    *docs
+                latest_packages.append(html.tr(
+                    html.td(html.a("%s-%s info page" % (name, ver),
+                           href="%s/%s/" % (name, ver))),
+                    html.td(html.a(basename, href="/" + relpath)),
+                    html.td(*docs),
                 ))
                 break  # could present more releasefiles
 
