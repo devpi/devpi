@@ -1,6 +1,8 @@
 import os
 import sys
 import py
+import re
+from textwrap import dedent
 
 import json
 
@@ -41,6 +43,7 @@ class Current(object):
     resultlog = currentproperty("resultlog")
     venvdir = currentproperty("venvdir")
     _auth = currentproperty("auth")
+    always_setcfg = currentproperty("always_setcfg")
 
     @property
     def index_url(self):
@@ -50,13 +53,10 @@ class Current(object):
 
     def __init__(self, path):
         self.path = path
-        self._setupcurrentdict()
-
-    def _setupcurrentdict(self):
-        self._currentdict = d = {}
+        self._currentdict = {}
         if self.path.check():
             log.debug("loading current from %s" % self.path)
-            d.update(json.loads(self.path.read()))
+            self._currentdict.update(json.loads(self.path.read()))
         else:
             log.debug("no client config found at %s" % self.path)
 
@@ -125,8 +125,7 @@ class Current(object):
     def _configure_from_server_api(self, result, url):
         rooturl = url.joinpath("/")
         data = {}
-        url_keys = set(devpi_endpoints)
-        for name in url_keys:
+        for name in devpi_endpoints:
             val = result.get(name, None)
             if val is not None:
                 val = rooturl.joinpath(val).url
@@ -240,8 +239,8 @@ def main(hub, args=None):
                 for name in devpi_endpoints:
                     hub.info("%16s: %s" %(name, getattr(current, name)))
             else:
-                hub.info("using index: %s (%s)" % (current.index, login_status))
-        elif current.rooturl:
+                hub.info("current devpi index: %s (%s)" % (current.index, login_status))
+        else:
             hub.info("using server: %s (%s)" % (current.rooturl, login_status))
             hub.error("no current index: type 'devpi use -l' "
                       "to discover indices")
@@ -252,7 +251,88 @@ def main(hub, args=None):
         hub.info("venv for install command: %s" % current.venvdir)
     #else:
     #    hub.line("no current install venv set")
+    if hub.args.always_setcfg:
+        always_setcfg = hub.args.always_setcfg == "yes"
+        hub.current.reconfigure(dict(always_setcfg=always_setcfg))
+    if hub.args.setcfg or hub.current.always_setcfg:
+        if not hub.current.index:
+            hub.error("no index configured: cannot set pip/easy_install index")
+        else:
+            DistutilsCfg().write_indexserver(hub.current.index)
+            PipCfg().write_indexserver(hub.current.index)
 
+    show_one_conf(hub, DistutilsCfg())
+    show_one_conf(hub, PipCfg())
+    hub.line("always-set-cfg: %s" % ("yes" if hub.current.always_setcfg else
+                                     "no"))
+
+def show_one_conf(hub, cfg):
+    if not cfg.exists():
+        status = "no config file exists"
+    elif not cfg.indexserver:
+        status = "no index server configured"
+    else:
+        status = cfg.indexserver
+    hub.info("%-19s: %s" %(cfg.screen_name, status))
+
+class BaseCfg:
+    def __init__(self, path=None):
+        if path is None:
+            path = self.default_location
+        self.screen_name = str(path)
+        self.path = py.path.local(path, expanduser=True)
+        self.backup_path = self.path + "-bak"
+
+    def exists(self):
+        return self.path.exists()
+
+    @property
+    def indexserver(self):
+        if self.path.exists():
+            for line in self.path.readlines(cr=0):
+                m = self.regex.match(line)
+                if m:
+                    return m.group(2)
+
+    def write_default(self, indexserver):
+        if self.path.exists():
+            raise ValueError("config file already exists")
+        content = self.template % indexserver
+        self.path.ensure().write(content)
+
+    def write_indexserver(self, indexserver):
+        self.ensure_backup_file()
+        if not self.path.exists():
+            self.write_default(indexserver)
+        else:
+            newlines = []
+            for line in self.path.readlines(cr=1):
+                m = self.regex.match(line)
+                if m:
+                    newlines.append("%s = %s\n" % (m.group(1), indexserver))
+                else:
+                    newlines.append(line)
+            self.path.write("".join(newlines))
+
+    def ensure_backup_file(self):
+        if self.path.exists() and not self.backup_path.exists():
+             self.path.copy(self.backup_path)
+
+class DistutilsCfg(BaseCfg):
+    regex = re.compile(r"(index_url)\s*=\s*(.*)")
+    default_location = "~/.pydistutils.cfg"
+    template = dedent("""\
+            [easy_install]
+            index_url = %s
+    """)
+
+class PipCfg(BaseCfg):
+    default_location = "~/.pip/pip.conf"
+    regex = re.compile(r"(index-url)\s*=\s*(.*)")
+    template = dedent("""\
+            [global]
+            index-url = %s
+    """)
 
 
 def parse_keyvalue_spec(keyvaluelist, keyset=None):

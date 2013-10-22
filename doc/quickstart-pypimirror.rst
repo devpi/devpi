@@ -46,7 +46,7 @@ an index server url.  We use it to point installers to a special
 ``root/pypi`` index, served by ``devpi-server`` by default. 
 Let's install the ``simplejson`` package as a test::
 
-    $ pip install -i http://localhost:3141/root/pypi/+simple/ simplejson
+    $ pip install -i http://localhost:3141/root/pypi/ simplejson
     Downloading/unpacking simplejson
       Running setup.py egg_info for package simplejson
         

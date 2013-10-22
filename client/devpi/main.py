@@ -422,6 +422,16 @@ def use(parser):
     for installation activities.
     """
 
+    parser.add_argument("--set-cfg", action="store_true", default=None,
+        dest="setcfg",
+        help="create or modify pip/setuptools config files in home directory "
+             "so pip/easy_install will pick up the current devpi index url")
+    parser.add_argument("--always-set-cfg",
+        choices=["yes", "no"], default=None,
+        dest="always_setcfg",
+        help="on 'yes', all subsequent 'devpi use' will implicitely use "
+             "--set-cfg.  The setting is stored with the devpi client "
+             "config file and can be cleared with '--always-set-cfg=no'.")
     parser.add_argument("--venv", action="store", default=None,
         help="set virtual environment to use for install activities. "
              "specify '-' to unset it.")

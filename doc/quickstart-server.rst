@@ -327,6 +327,23 @@ and use it::
 Our ``alice/dev`` index derives from ``root/pypi`` by default
 which makes all pypi.python.org releases available.
 
+automatically setting pip/easy_install config files
+++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+You can cause devpi to set ``$HOME`` configuration files which will
+cause ``pip`` and ``easy_install`` to use our in-use index server::
+
+    $ devpi use --set-cfg alice/dev
+
+This will modify or create common configuration files in your home directory
+so that subsequent ``pip`` or ``easy_install`` invocations will work against
+the ``user/indexname`` index.   You can configure ``devpi`` to perform
+this configuration modification::
+
+    $ devpi use --always-set-cfg=yes
+
+This will imply ``--set-cfg`` on all subsequent ``devpi use ...`` operations.
+
 Installing, uploading, testing and releasing
 +++++++++++++++++++++++++++++++++++++++++++++++++
 

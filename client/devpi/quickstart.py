@@ -39,6 +39,7 @@ def main(hub, args):
     hub.info("  devpi test PKG      # download and test a tox-based project ")
     hub.info("  devpi PUSH ...      # to copy releases between indexes")
     hub.info("  devpi index ...     # to manipulate/create indexes")
+    hub.info("  devpi use ...       # to change current index")
     hub.info("  devpi user ...      # to manipulate/create users")
     hub.info("  devpi CMD -h        # help for a specific command")
     hub.info("  devpi -h            # general help")

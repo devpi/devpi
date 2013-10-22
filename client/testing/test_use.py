@@ -1,4 +1,5 @@
 
+from textwrap import dedent
 import pytest
 from devpi.use import *
 
@@ -35,6 +36,24 @@ class TestUnit:
         assert newcurrent.resultlog == current.resultlog
         assert newcurrent.venvdir == current.venvdir
         assert newcurrent.login == current.login
+
+    def test_write_and_read_always_setcfg(self, tmpdir):
+        path=tmpdir.join("current")
+        current = Current(path)
+        assert not current.simpleindex
+        current.reconfigure(dict(
+                pypisubmit="/post",
+                simpleindex="/index",
+                login="/login",
+                resultlog="/"))
+        assert current.simpleindex
+        current.reconfigure(dict(always_setcfg=True))
+        newcurrent = Current(path)
+        assert newcurrent.always_setcfg == True
+        newcurrent.reconfigure(data=dict(simpleindex="/index2"))
+        current = Current(path)
+        assert current.always_setcfg
+        assert current.simpleindex == "/index2"
 
     def test_normalize_url(self, tmpdir):
         current = Current(tmpdir.join("current"))
@@ -188,6 +207,33 @@ class TestUnit:
         hub = cmd_devpi("use", "--venv=%s" % venvdir.basename)
         assert hub.current.venvdir == venvdir
 
+    def test_main_setcfg(self, mock_http_api, cmd_devpi, tmpdir, monkeypatch):
+        monkeypatch.setattr(PipCfg, "default_location", tmpdir.join("pip.cfg"))
+        monkeypatch.setattr(DistutilsCfg, "default_location",
+                            tmpdir.join("dist.cfg"))
+        mock_http_api.set("http://world/+api", 200,
+                    result=dict(
+                        pypisubmit="",
+                        simpleindex="/simple",
+                        resultlog="/resultlog/",
+                        index="/",
+                        bases="",
+                        login="/+login/",
+                        authstatus=["noauth", ""],
+                   ))
+
+        hub = cmd_devpi("use", "--set-cfg", "http://world")
+        assert PipCfg.default_location.exists()
+        content = PipCfg.default_location.read()
+        assert "index-url = http://world/" in content
+        assert DistutilsCfg.default_location.exists()
+        content = DistutilsCfg.default_location.read()
+        assert "index_url = http://world/" in content
+        hub = cmd_devpi("use", "--always-set-cfg=yes")
+        assert hub.current.always_setcfg
+        hub = cmd_devpi("use", "--always-set-cfg=no")
+        assert not hub.current.always_setcfg
+
 
 @pytest.mark.parametrize("input expected".split(), [
     (["hello=123", "world=42"], dict(hello="123", world="42")),
@@ -202,3 +248,44 @@ def test_parse_keyvalue_spec_unknown_key():
 
 def test_user_no_index(loghub):
     out_index_list(loghub, {"user": {"username": "user"}})
+
+class TestCfgParsing:
+    @pytest.fixture(scope="class", params=[DistutilsCfg, PipCfg])
+    def cfgclass(self, request):
+        return request.param
+
+    def test_empty(self, cfgclass, tmpdir):
+        p = tmpdir.join("cfg")
+        assert not cfgclass(p).exists()
+        assert cfgclass(p).indexserver is None
+        assert cfgclass(p).screen_name == str(p)
+        assert cfgclass.default_location
+
+    def test_read(self, cfgclass, tmpdir):
+        p = tmpdir.join("cfg")
+        cfg = cfgclass(p)
+        cfg.write_default("http://some.com/something")
+        with pytest.raises(ValueError):
+            cfg.write_default("http://some.com/something")
+        cfg = cfgclass(p)
+        assert cfg.exists()
+        assert cfg.indexserver == "http://some.com/something"
+        assert cfg.screen_name == str(p)
+
+    def test_write_fresh(self, cfgclass, tmpdir):
+        p = tmpdir.join("cfg")
+        cfg = cfgclass(p)
+        cfg.write_indexserver("http://hello.com")
+        assert cfg.indexserver == "http://hello.com"
+
+    def test_rewrite(self, cfgclass, tmpdir):
+        p = tmpdir.join("cfg")
+        cfgclass(p).write_default("http://some.com/something")
+        cfg = cfgclass(p)
+        cfg.write_indexserver("http://hello.com")
+        assert cfg.indexserver == "http://hello.com"
+        assert cfgclass(cfg.backup_path).indexserver == \
+               "http://some.com/something"
+        cfg.write_indexserver("http://hello.com")
+        assert cfgclass(cfg.backup_path).indexserver == \
+               "http://some.com/something"

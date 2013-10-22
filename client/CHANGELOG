@@ -1,6 +1,11 @@
 1.X
 -------------------------------
 
+- new "devpi use --set-cfg" option to set pip/easy_install configuration
+  files when changing indexes.  Also new "devpi use --always-set-cfg=yes"
+  option if you want to imply "--set-cfg" on future "devpi use" invocations
+  and "devpi use --always-st-cfg=no" to disable this implication.
+
 - support git and hg for exporting all versioned files of a directory 
   before performing the build step when uploading
 
