@@ -9,4 +9,3 @@ if __name__ == '__main__':
     p.strip_dirs()
     p.sort_stats('cumulative')
     print(p.print_stats(50))
-

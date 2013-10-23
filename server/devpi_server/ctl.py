@@ -1,4 +1,3 @@
-
 import os
 import sys
 import py
@@ -11,7 +10,7 @@ def devpictl(scriptpath):
     supervisorconfig = venvdir.join("etc", "supervisord.conf")
     assert supervisorconfig.check(), supervisorconfig
     ensure_supervisor_started(venvdir, supervisorconfig)
-    print "using supervisor config:", supervisorconfig
+    print("using supervisor config: %s" % supervisorconfig)
     return subprocess.call(
         [str(venvdir.join("bin", "supervisorctl")),
          "-c", str(supervisorconfig)] + sys.argv[1:])
@@ -30,7 +29,7 @@ def ensure_supervisor_started(venvdir, supervisorconfig):
     supervisord = venvdir.join("bin", "supervisord")
     subprocess.check_call([str(supervisord),
                     "-c", str(supervisorconfig)])
-    print ("restarted %s" % supervisord)
+    print("restarted %s" % supervisord)
 
 if __name__ == "__main__":
     raise SystemExit(devpictl(__file__))

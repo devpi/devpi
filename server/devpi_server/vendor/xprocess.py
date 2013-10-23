@@ -1,4 +1,3 @@
-
 import sys
 import os
 import py
@@ -81,9 +80,9 @@ class XProcess:
             class Log:
                 def debug(self, msg, *args):
                     if args:
-                        print (msg % args)
+                        print(msg % args)
                     else:
-                        print (args)
+                        print(args)
             log = Log()
         self.log = log
 
@@ -144,7 +143,7 @@ class XProcess:
         if not restart:
             f.seek(0, 2)
         else:
-            if not callable(wait):
+            if not hasattr(wait, '__call__'):
                 check = lambda: self._checkpattern(f, wait)
             else:
                 check = wait

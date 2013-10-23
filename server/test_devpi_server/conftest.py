@@ -1,4 +1,4 @@
-
+import base64
 import re
 import logging
 from webtest.forms import Upload
@@ -402,7 +402,7 @@ class MyTestApp(TApp):
             headers = kw.get("headers")
             if not headers:
                 headers = kw["headers"] = {}
-            auth = ("%s:%s" % self.auth).encode("base64")
+            auth = base64.b64encode("%s:%s" % self.auth)
             headers["Authorization"] = "Basic %s" % auth
             #print ("setting auth header %r %s %s" % (auth, method, url))
         return super(MyTestApp, self)._gen_request(method, url, **kw)

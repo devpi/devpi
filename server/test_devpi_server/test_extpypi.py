@@ -36,7 +36,11 @@ class TestIndexParsing:
         # it's not exactly clear how urlparse.uses_fragment
         # sometimes contains "svn" but it's good to check
         # that we are not sensitive to the issue.
-        import urlparse
+        try:
+            import urlib.parse as urlparse
+        except ImportError:
+            # PY2
+            import urlparse
         monkeypatch.setattr(urlparse, "uses_fragment",
                             urlparse.uses_fragment + ["svn"])
         simplepy = URL("https://pypi.python.org/simple/zope.sqlalchemy/")
@@ -462,7 +466,11 @@ class TestRefreshManager:
     @pytest.fixture(params=["protocol", "socket"])
     def raise_error(self, request):
         import socket
-        from xmlrpclib import ProtocolError
+        try:
+            from xmlrpc.client import ProtocolError
+        except ImportError:
+            # PY2
+            from xmlrpclib import ProtocolError
         if request.param == "protocol":
             exc = ProtocolError("http://pypi.python.org/pypi", 503, "", {})
         else:

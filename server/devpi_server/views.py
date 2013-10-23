@@ -429,7 +429,7 @@ class PyPIView:
         metadata = {}
         for key in stage.metadata_keys:
             if key.lower() in stage.metadata_list_fields:
-                val = list(filter(None, form.getall(key)))
+                val = [item for item in form.getall(key) if item]
             else:
                 val = form.get(key)
                 if val == "UNKNOWN":
@@ -751,7 +751,9 @@ class PyPIView:
 
 def getjson(request, allowed_keys=None):
     try:
-        dict = json.load(request.body)
+        # request.body is a StringIO on Py2 and a BytesIO on Py3. Convert
+        # it to a string, because json doesn't like bytes ...
+        dict = json.loads(request.body.getvalue().decode())
     except ValueError:
         abort(400, "Bad request: could not decode json")
     if allowed_keys is not None:

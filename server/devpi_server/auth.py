@@ -1,3 +1,4 @@
+import base64
 import os
 import hashlib
 import itsdangerous
@@ -31,7 +32,7 @@ class Auth:
                 return authuser
             return None
         else:
-            if not val.startswith(authuser + "-"):
+            if not val.startswith(authuser.encode() + b"-"):
                 log.debug("mismatch credential for user %r", authuser)
                 return None
             return authuser
@@ -61,11 +62,11 @@ class Auth:
 def getpwhash(password, salt):
     hash = hashlib.sha256()
     hash.update(salt)
-    hash.update(password)
+    hash.update(password.encode())
     return hash.hexdigest()
 
 def newsalt():
-    return os.urandom(16).encode("base_64")
+    return base64.b64encode(os.urandom(16))
 
 def verify_password(password, hash, salt):
     if getpwhash(password, salt) == hash:

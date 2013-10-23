@@ -53,7 +53,7 @@ def _main(argv=None):
     args = config.args
 
     if args.version:
-        print (devpi_server.__version__)
+        print(devpi_server.__version__)
         return
 
     # meta commmands (that will not instantiate server object in-process)
@@ -261,7 +261,11 @@ class XOM:
     @cached_property
     def proxy(self):
         from devpi_server.extpypi import XMLProxy
-        from xmlrpclib import ServerProxy
+        try:
+            from xmlrpc.client import ServerProxy
+        except ImportError:
+            # PY2
+            from xmlrpclib import ServerProxy
         return XMLProxy(ServerProxy(PYPIURL_XMLRPC))
 
     @cached_property
@@ -359,4 +363,4 @@ def set_default_indexes(db):
         if "root" not in db.user_list():
             db.user_create("root", password="")
         db.index_create(PYPI, bases=(), type="mirror", volatile=False)
-        print ("set root/pypi default index")
+        print("set root/pypi default index")
