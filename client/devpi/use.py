@@ -258,8 +258,9 @@ def main(hub, args=None):
         if not hub.current.index:
             hub.error("no index configured: cannot set pip/easy_install index")
         else:
-            DistutilsCfg().write_indexserver(hub.current.index)
-            PipCfg().write_indexserver(hub.current.index)
+            indexserver = hub.current.simpleindex
+            DistutilsCfg().write_indexserver(indexserver)
+            PipCfg().write_indexserver(indexserver)
 
     show_one_conf(hub, DistutilsCfg())
     show_one_conf(hub, PipCfg())
