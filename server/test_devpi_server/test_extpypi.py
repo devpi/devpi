@@ -271,7 +271,7 @@ class TestExtPYPIDB:
         assert data["+files"]
         assert data["name"] == "Pytest"
         assert data["version"] == "1.0"
-        name = extdb.get_project_info("pytest").name == "Pytest"
+        assert extdb.get_project_info("pytest").name == "Pytest"
 
     def test_getdescription(self, extdb):
         extdb.setextsimple("pytest", text='''

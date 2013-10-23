@@ -1,6 +1,5 @@
 import py
 import pytest
-from mock import Mock
 from devpi.list_remove import *
 
 @pytest.mark.parametrize(["input", "output"], [
@@ -32,7 +31,7 @@ def test_out_project(loghub, input, output, monkeypatch):
                 ))
     loghub.args.status = False
     monkeypatch.setattr(list_remove, "query_file_status", lambda *args: None)
-    out_project(loghub, input, "p1")
+    out_project(loghub, input)
     matcher = loghub._getmatcher()
     matcher.fnmatch_lines(output)
 
@@ -50,20 +49,16 @@ def test_confirm_delete(loghub, monkeypatch):
     assert confirm_delete(loghub, data)
 
 
-def test_getjson(loghub):
+def test_geturl(loghub):
     loghub.current.reconfigure(dict(
                 pypisubmit="/post",
                 simpleindex="/index",
                 index="/root/dev/",
                 login="/login",
                 ))
-    loghub.http_api = Mock(autospec=loghub.__class__.http_api)
-    getjson(loghub, None)
-    loghub.http_api.assert_called_once_with("get", "/root/dev/", quiet=True)
-    loghub.http_api = Mock(autospec=loghub.__class__.http_api)
-    getjson(loghub, "proj")
-    loghub.http_api.assert_called_once_with("get", "/root/dev/proj/",
-                                            quiet=True)
+    assert get_url(loghub, None).path == "/root/dev/"
+    assert get_url(loghub, "pytest").path == "/root/dev/pytest/"
+    assert get_url(loghub, "/hpk/rel/pytest").path == "/hpk/rel/pytest/"
 
 def test_has_failing_commands():
     assert not has_failing_commands([dict(retcode="0"), dict(retcode="0")])

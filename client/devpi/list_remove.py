@@ -7,7 +7,7 @@ def out_index(hub, data):
     for name in sorted(data):
         hub.info(name)
 
-def out_project(hub, data, name):
+def out_project(hub, data):
     versions = list(data)
     def cmpversion(x, y):
         return cmp(parse_version(x), parse_version(y))
@@ -105,15 +105,24 @@ def show_commands(hub, commands):
 
 def main_list(hub, args):
     hub.require_valid_current_with_index()
-    args = hub.args
-
-    hub.info("list result: %s" % (hub.current.index + (args.spec or '')))
-    if not args.spec:
-        data = getjson(hub, None)
-        out_index(hub, data["result"])
+    url = get_url(hub, hub.args.spec)
+    hub.info("list result: %s" % url.url)
+    reply = hub.http_api("get", url, quiet=True)
+    if reply.type == "list:projectconfig":
+        out_index(hub, reply.result)
+    elif reply.type == "projectconfig":
+        out_project(hub, reply.result)
     else:
-        data = getjson(hub, args.spec)
-        out_project(hub, data["result"], args.spec)
+        hub.fatal("cannot show result type: %s "
+                  "(use getjson to get raw data)" % (reply.type,))
+
+def get_url(hub, target):
+    if not target:
+        check_verify_current(hub)
+        url = hub.current.index_url
+    else:
+        url = hub.current.index_url.addpath(target, asdir=1)
+    return url
 
 def main_remove(hub, args):
     hub.require_valid_current_with_index()
@@ -157,15 +166,6 @@ def match_release_files(basepath, verdata):
 #    req = pkg_resources.Requirement.parse(spec)
 #    if ver in req:
 #        pass
-
-def getjson(hub, path):
-    current = hub.current
-    if not path:
-        check_verify_current(hub)
-        url = current.index_url
-    else:
-        url = current.index_url.addpath(path, asdir=1)
-    return hub.http_api("get", url, quiet=True)
 
 def check_verify_current(hub):
     if not hub.current.index:

@@ -1,5 +1,4 @@
 
-from textwrap import dedent
 import pytest
 from devpi.use import *
 

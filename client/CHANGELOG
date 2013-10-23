@@ -9,15 +9,15 @@
 - support git and hg for exporting all versioned files of a directory 
   before performing the build step when uploading
 
-- majorly change how upload works: there is now no "setup.py" wrapping
-  anymore but instead "devpi upload" now uses setup.py to build the docs
-  and performs all the uploading itself.  This gets rid of a number of hacks
-  that were done trying to get the Python shipped "distutils" to pick the
-  proper devpi index.
+- improve how upload works: setup.py is only used for building docs
+  and release files but not for the remote upload part.  This gets rid of a 
+  number of hacks that were done trying to get the Python shipped "distutils" 
+  to pick the proper devpi index and allows proper SSL verification on Python2.6
+  onwards.
 
-- show response when uploading documentation failed
+- upload: show response when uploading documentation failed
 
-- allow to specify archive files as positional arguments (both files and
+- upload: allow to specify archive files as positional arguments (both files and
   directories can be specified but the latter additionally require
   a --upload-dirs option)
 
