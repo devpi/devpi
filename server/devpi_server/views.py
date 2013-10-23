@@ -134,8 +134,11 @@ class PyPIView:
         filestore = self.xom.filestore
         data = getjson(request)
         md5 = data["installpkg"]["md5"]
+        data = request.body.read()
+        if not py.builtin._istext(data):
+            data = data.decode("utf-8")
         num = filestore.add_attachment(md5=md5, type="toxresult",
-                                       data=request.body.read())
+                                       data=data)
         relpath = "/+tests/%s/%s/%s" %(md5, "toxresult", num)
         apireturn(200, type="testresultpath", result=relpath)
 
@@ -197,6 +200,7 @@ class PyPIView:
 
     @route("/<user>/<index>/+simple/")
     def simple_list_all(self, user, index):
+        encoding = "utf-8"
         log.info("starting +simple")
         stage = self.getstage(user, index)
         stage_results = []
@@ -207,24 +211,24 @@ class PyPIView:
 
         # at this point we are sure we can produce the data without
         # depending on remote networks
-        response.content_type = "text/html ; charset=utf-8"
+        response.content_type = "text/html ; charset=%s" % encoding
         title =  "%s: simple list (including inherited indices)" %(
                  stage.name)
-        yield "<html><head><title>%s</title></head><body><h1>%s</h1>" %(
-              title, title)
+        yield ("<html><head><title>%s</title></head><body><h1>%s</h1>" %(
+              title, title)).encode(encoding)
         all_names = set()
         for stage, names in stage_results:
             h2 = stage.name
             bases = getattr(stage, "ixconfig", {}).get("bases")
             if bases:
                 h2 += " (bases: %s)" % ",".join(bases)
-            yield ("<h2>" + h2 + "</h2>").encode("utf-8")
+            yield ("<h2>" + h2 + "</h2>").encode(encoding)
             for name in names:
                 if name not in all_names:
                     anchor = '<a href="%s/">%s</a><br/>' % (name, name)
-                    yield anchor.encode("utf-8")
+                    yield anchor.encode(encoding)
                     all_names.add(name)
-        yield "</body>"
+        yield "</body>".encode(encoding)
 
     @route("/<user>/<index>", method=["PUT", "PATCH"])
     def index_create_or_modify(self, user, index):
@@ -753,7 +757,10 @@ def getjson(request, allowed_keys=None):
     try:
         # request.body is a StringIO on Py2 and a BytesIO on Py3. Convert
         # it to a string, because json doesn't like bytes ...
-        dict = json.loads(request.body.getvalue().decode())
+        content = request.body.read()
+        if not py.builtin._istext(content):
+            content = content.decode("utf-8")
+        dict = json.loads(content)
     except ValueError:
         abort(400, "Bad request: could not decode json")
     if allowed_keys is not None:
@@ -785,7 +792,7 @@ def trigger_jenkins(stage, jenkinurl, testspec):
         TESTSPEC=testspec,
         DEVPI_INSTALL_INDEX = baseurl + stage.name + "/+simple/"
     )
-    inputfile = py.io.BytesIO(source)
+    inputfile = py.io.BytesIO(source.encode("ascii"))
     try:
         r = requests.post(jenkinurl, data={
                         "Submit": "Build",
@@ -816,8 +823,11 @@ def abort_if_invalid_filename(name, filename):
 
 def abort_if_invalid_projectname(projectname):
     try:
-        projectname.decode("ascii")
-    except UnicodeDecodeError:
+        if isinstance(projectname, bytes):
+            projectname.decode("ascii")
+        else:
+            projectname.encode("ascii")
+    except (UnicodeEncodeError, UnicodeDecodeError):
         abort(400, "unicode project names not allowed")
 
 

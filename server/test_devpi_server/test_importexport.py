@@ -1,3 +1,4 @@
+import sys
 import pytest
 import subprocess
 from devpi_server.importexport import *
@@ -21,6 +22,7 @@ def test_empty_export(tmpdir, xom):
     assert not ret
     data = json.loads(tmpdir.join("dataindex.json").read())
     assert data["dumpversion"] == Exporter.DUMPVERSION
+    assert data["pythonversion"] == list(sys.version_info)
     assert data["devpi_server"] == devpi_server.__version__
     with pytest.raises(Fatal):
         do_export(tmpdir, xom)
@@ -87,10 +89,10 @@ class TestImportExport:
     def test_upload_releasefile_with_attachment(self, impexp):
         mapp1 = impexp.mapp1
         api = mapp1.create_and_use()
-        mapp1.upload_file_pypi("hello-1.0.tar.gz", "content",
+        mapp1.upload_file_pypi("hello-1.0.tar.gz", b"content",
                                "hello", "1.0")
 
-        md5 = py.std.md5.md5("content").hexdigest()
+        md5 = py.std.hashlib.md5(b"content").hexdigest()
         num = mapp1.xom.filestore.add_attachment(
                     md5=md5, type="toxresult", data="123")
         impexp.export()
@@ -98,7 +100,7 @@ class TestImportExport:
         stage = mapp2.xom.db.getstage(api.stagename)
         entries = stage.getreleaselinks("hello")
         assert len(entries) == 1
-        assert entries[0].FILE.get() == "content"
+        assert entries[0].FILE.get() == b"content"
         x = mapp2.xom.filestore.get_attachment(
             md5=md5, type="toxresult", num=num)
         assert x == "123"

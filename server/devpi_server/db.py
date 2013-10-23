@@ -365,7 +365,7 @@ class PrivateStage:
     def get_description(self, name, version):
         key = self.keyfs.RELDESCRIPTION(user=self.user, index=self.index,
             name=name, version=version)
-        return key.get()
+        return py.builtin._totext(key.get(), "utf-8")
 
     def get_description_versions(self, name):
         return self.keyfs.RELDESCRIPTION.listnames("version",

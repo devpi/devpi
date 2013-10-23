@@ -167,4 +167,6 @@ def _writezip_fromdict(zip, contentdict, prefixes=()):
                 _writezip_fromdict(zip, val, newprefixes)
         else:
             path = os.sep.join(prefixes + (name,))
+            if py.builtin._istext(val):
+                val = val.encode("ascii")
             zip.writestr(path, val)

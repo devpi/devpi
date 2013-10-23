@@ -4,12 +4,7 @@ interact/control devpi-server background process.
 import time
 import py
 
-from devpi_common._compat import PY2
-
-if PY2:
-    import urlparse as urlp
-else:
-    from urllib import parse as urlp
+from devpi_common.url import urlparse
 
 from devpi_server.vendor.xprocess import XProcess
 import requests
@@ -17,7 +12,7 @@ import requests
 default_rooturl = "http://localhost:3141"
 
 def getnetloc(url, scheme=False):
-    parsed = urlp.urlparse(url)
+    parsed = urlparse(url)
     netloc = parsed.netloc
     if netloc.endswith(":80"):
         netloc = netloc[:-3]

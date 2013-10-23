@@ -1,6 +1,7 @@
 
 import py
 import pytest
+from textwrap import dedent
 
 from devpi_common.metadata import splitbasename
 from devpi_common.archive import Archive, zip_dict
@@ -11,7 +12,8 @@ from py.io import BytesIO
 def bases(request):
     return request.param
 
-def register_and_store(stage, basename, content="123", name=None):
+def register_and_store(stage, basename, content=b"123", name=None):
+    assert py.builtin._isbytes(content), content
     n, version = splitbasename(basename)[:2]
     if name is None:
         name = n
@@ -163,8 +165,8 @@ class TestStage:
         stage._reconfigure(bases=("root/pypi",))
         extdb.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
-        register_and_store(stage, "someproject-1.0.zip", "123")
-        stage.store_releasefile("someproject-1.0.zip", "123")
+        register_and_store(stage, "someproject-1.0.zip", b"123")
+        stage.store_releasefile("someproject-1.0.zip", b"123")
         entries = stage.getreleaselinks("someproject")
         assert len(entries) == 1
         assert entries[0].relpath.endswith("someproject-1.0.zip")
@@ -175,7 +177,7 @@ class TestStage:
         """<a href="http://bb.org/download/py.zip#egg=py-dev" />
            <a href="http://bb.org/download/master#egg=py-dev2" />
         """)
-        register_and_store(stage, "py-1.0.tar.gz", "123")
+        register_and_store(stage, "py-1.0.tar.gz", b"123")
         entries = stage.getreleaselinks("py")
         assert len(entries) == 3
         e0, e1, e2 = entries
@@ -199,7 +201,7 @@ class TestStage:
         assert "someproject-1.0.zip" in projectconfig["1.0"]["+files"]
 
     def test_store_and_get_releasefile(self, stage, bases):
-        content = "123"
+        content = b"123"
         entry = register_and_store(stage, "some-1.0.zip", content)
         entries = stage.getreleaselinks("some")
         assert len(entries) == 1
@@ -210,13 +212,13 @@ class TestStage:
 
     def test_store_releasefile_fails_if_not_registered(self, stage):
         with pytest.raises(stage.MissesRegistration):
-            stage.store_releasefile("someproject-1.0.zip", "123")
+            stage.store_releasefile("someproject-1.0.zip", b"123")
 
     def test_project_config_shadowed(self, extdb, stage):
         stage._reconfigure(bases=("root/pypi",))
         extdb.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
-        content = "123"
+        content = b"123"
         stage.store_releasefile("someproject-1.0.zip", content)
         projectconfig = stage.get_projectconfig("someproject")
         files = projectconfig["1.0"]["+files"]
@@ -225,7 +227,7 @@ class TestStage:
         assert projectconfig["1.0"]["+shadowing"]
 
     def test_store_and_delete_project(self, stage, bases):
-        content = "123"
+        content = b"123"
         register_and_store(stage, "some-1.0.zip", content)
         pconfig = stage.get_projectconfig_perstage("some")
         assert pconfig["1.0"]
@@ -281,8 +283,8 @@ class TestStage:
 
     def test_store_and_get_volatile(self, stage):
         stage._reconfigure(volatile=False)
-        content = "123"
-        content2 = "1234"
+        content = b"123"
+        content2 = b"1234"
         entry = register_and_store(stage, "some-1.0.zip", content)
         assert len(stage.getreleaselinks("some")) == 1
 
@@ -333,22 +335,22 @@ class TestStage:
         assert project.name == "Hello"
 
     def test_releasedata_description(self, stage):
-        source = py.std.textwrap.dedent("""\
+        source = py.builtin._totext(dedent("""\
             test the *world*
-        """)
+        """))
         assert stage.metadata_keys
         assert not stage.get_description("hello", "1.0")
         stage.register_metadata(dict(name="hello", version="1.0",
             description=source))
         html = stage.get_description("hello", "1.0")
-        assert html
+        assert py.builtin._istext(html)
         assert "test" in html and "world" in html
 
     def test_releasedata_description_versions(self, stage):
         stage.register_metadata(dict(name="hello", version="1.0",
-            description="hello"))
+            description=py.builtin._totext("hello")))
         stage.register_metadata(dict(name="hello", version="1.1",
-            description="hello"))
+            description=py.builtin._totext("hello")))
         ver = stage.get_description_versions("hello")
         assert set(ver) == set(["1.0", "1.1"])
 

@@ -118,6 +118,7 @@ class Exporter:
     def dump_all(self, path):
         self.basepath = path
         self.export["dumpversion"] = self.DUMPVERSION
+        self.export["pythonversion"] = list(sys.version_info)
         self.export["devpi_server"] = devpi_server.__version__
         self.export["secret"] = self.config.secret
         self.compute_global_projectname_normalization()
@@ -264,7 +265,7 @@ class Importer:
 
     def read_json(self, path):
         self.tw.line("reading json: %s" %(path,))
-        return json.loads(path.read("rb"))
+        return json.loads(path.read())
 
     def warn(self, msg):
         self.tw.line(msg, red=True)

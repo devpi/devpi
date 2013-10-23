@@ -18,6 +18,8 @@ from logging import getLogger
 log = getLogger(__name__)
 
 class FileStore:
+    attachment_encoding = "utf-8"
+
     def __init__(self, keyfs):
         self.keyfs = keyfs
 
@@ -147,24 +149,24 @@ class FileStore:
 
     def add_attachment(self, md5, type, data):
         assert type in ("toxresult",)
-        assert isinstance(data, bytes)
         # XXX thread safety
         num = len(self.keyfs.ATTACHMENT.listnames("num",
                                                   type=type,
                                                   md5=md5))
         num = str(num)
         key = self.keyfs.ATTACHMENT(type=type, md5=md5, num=num)
-        key.set(data)
+        key.set(data.encode(self.attachment_encoding))
         return num
 
     def get_attachment(self, md5, type, num):
-        return self.keyfs.ATTACHMENT(type=type, md5=md5, num=num).get()
+        data = self.keyfs.ATTACHMENT(type=type, md5=md5, num=num).get()
+        return data.decode(self.attachment_encoding)
 
     def iter_attachments(self, md5, type):
         nums = self.keyfs.ATTACHMENT.listnames("num", type=type, md5=md5)
         for num in range(len(nums)):
             a = self.keyfs.ATTACHMENT(num=str(num), type=type, md5=md5).get()
-            yield json.loads(a)
+            yield json.loads(a.decode(self.attachment_encoding))
 
     def iter_attachment_types(self, md5):
         return self.keyfs.ATTACHMENT.listnames("type", md5=md5, num="0")

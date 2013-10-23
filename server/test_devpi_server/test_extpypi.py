@@ -37,7 +37,7 @@ class TestIndexParsing:
         # sometimes contains "svn" but it's good to check
         # that we are not sensitive to the issue.
         try:
-            import urlib.parse as urlparse
+            import urllib.parse as urlparse
         except ImportError:
             # PY2
             import urlparse

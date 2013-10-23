@@ -19,7 +19,7 @@ class TestKeyFS:
         assert keyfs._get("somekey", None) is None
         pytest.raises(KeyError, lambda: keyfs._get("somekey"))
 
-    @pytest.mark.parametrize("val", ["", "val"])
+    @pytest.mark.parametrize("val", [b"", b"val"])
     def test_get_set_del_exists(self, keyfs, key, val):
         assert not keyfs._exists(key)
         keyfs._set(key, val)
@@ -33,13 +33,13 @@ class TestKeyFS:
         pytest.raises(KeyError, lambda: keyfs._get(key))
 
     def test_set_twice_on_subdir(self, keyfs):
-        keyfs._set("a/b/c", "value")
-        keyfs._set("a/b/c", "value2")
-        assert keyfs._get("a/b/c") == "value2"
+        keyfs._set("a/b/c", b"value")
+        keyfs._set("a/b/c", b"value2")
+        assert keyfs._get("a/b/c") == b"value2"
 
     def test_tempfile(self, keyfs):
         with keyfs.tempfile("abc") as f:
-            f.write("hello")
+            f.write(b"hello")
         assert os.path.basename(f.name).startswith("abc")
         assert os.path.exists(f.name)
         assert f.key.exists()
@@ -52,7 +52,7 @@ class TestKeyFS:
 
     def test_tempfile_movekey(self, keyfs):
         with keyfs.tempfile("abc") as f:
-            f.write("x")
+            f.write(b"x")
         key = keyfs.addkey("abc", bytes)
         assert f.key.exists()
         f.key.move(key)
@@ -60,14 +60,14 @@ class TestKeyFS:
 
     def test_tempfile_movekey_typemismatch(self, keyfs):
         with keyfs.tempfile("abc") as f:
-            f.write("x")
+            f.write(b"x")
         key = keyfs.addkey("abc", int)
         assert f.key.exists()
         with pytest.raises(TypeError):
             f.key.move(key)
 
     def test_destroyall(self, keyfs):
-        keyfs._set("hello/world", "World")
+        keyfs._set("hello/world", b"World")
         keyfs.destroyall()
         assert not keyfs._exists("hello/world")
 
@@ -211,10 +211,9 @@ class TestKey:
 
     def test_filestore(self, keyfs):
         key1 = keyfs.addkey("hello", bytes)
-        key1.set("hello")
-        key1.get() == "hello"
+        key1.set(b"hello")
+        assert key1.get() == b"hello"
         assert key1.filepath.size() == 5
-        assert key1.filepath.read() == "hello"
 
     def test_dirkey(self, keyfs):
         key1 = keyfs.addkey("somedir", "DIR")

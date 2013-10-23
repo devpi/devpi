@@ -14,12 +14,8 @@ import sys
 from os.path import basename, isabs, join
 
 from devpi_common.types import cached_property
-from devpi_common._compat import PY2
-
 
 _nodefault = object()
-str_types = (str, unicode) if PY2 else str
-
 
 class KeyFS(object):
     def __init__(self, basedir):
@@ -98,7 +94,8 @@ class KeyFS(object):
         return path.check()
 
     def _getpath(self, relpath):
-        assert isinstance(relpath, str_types), (type(relpath), relpath)
+        assert isinstance(relpath, py.builtin._basestring), \
+               (type(relpath), relpath)
         return self.basedir.join(relpath)
 
     def destroyall(self):
@@ -106,6 +103,7 @@ class KeyFS(object):
             self.basedir.remove()
 
     def addkey(self, key, type):
+        assert isinstance(key, py.builtin._basestring)
         if "{" in key:
             key = PTypedKey(self, key, type)
         else:
@@ -117,18 +115,11 @@ class KeyFS(object):
 class PTypedKey:
     def __init__(self, keyfs, key, type):
         self.keyfs = keyfs
-        self.key = key
+        self.key = py.builtin._totext(key)
         self.type = type
 
     def __call__(self, **kw):
-        newkw = {}
-        for name, val in kw.items():
-            if py.builtin._istext(val):
-                val = val.encode("utf8")
-            else:
-                assert py.builtin._isbytes(val), (name, val)
-            newkw[name] = val
-        realkey = self.key.format(**newkw)
+        realkey = self.key.format(**kw)
         return get_typed_key(self.keyfs, realkey, self.type)
 
     def listnames(self, __name, **kw):

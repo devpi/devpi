@@ -1,4 +1,5 @@
 import base64
+import sys
 import re
 import logging
 from webtest.forms import Upload
@@ -360,6 +361,7 @@ class Mapp(MappMixin):
                          name=None, version=None, indexname=None,
                          register=True,
                          code=200):
+        assert py.builtin._isbytes(content)
         indexname = self._getindexname(indexname)
         #name_version = splitbasename(basename, checkarch=False)
         #if not name:
@@ -402,8 +404,13 @@ class MyTestApp(TApp):
             headers = kw.get("headers")
             if not headers:
                 headers = kw["headers"] = {}
-            auth = base64.b64encode("%s:%s" % self.auth)
-            headers["Authorization"] = "Basic %s" % auth
+            auth = "%s:%s" % self.auth
+            if sys.version_info[0] >= 3:
+                res = "Basic " + base64.b64encode(auth.encode("ascii")).decode("ascii")
+            else:
+                res = "Basic %s" % base64.b64encode(auth)
+            #base64.b64encode(("%s:%s" % self.auth).encode("ascii"))
+            headers["Authorization"] = res
             #print ("setting auth header %r %s %s" % (auth, method, url))
         return super(MyTestApp, self)._gen_request(method, url, **kw)
 

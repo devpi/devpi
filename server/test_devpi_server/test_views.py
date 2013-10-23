@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+from __future__ import unicode_literals
 
 import pytest
 import re
@@ -39,9 +41,12 @@ def test_project_redirect(extdb, testapp):
     assert r.headers["location"].endswith("/root/pypi/+simple/%s/" % name)
 
 def test_simple_project_unicode_rejected(extdb, testapp):
-    name = "qpw\xc3"
-    r = testapp.get("/root/pypi/+simple/" + name)
-    assert r.status_code == 400
+    from devpi_server.views import PyPIView
+    import bottle
+    view = PyPIView(testapp.xom)
+    name = py.builtin._totext(b"qpw\xc3\xb6", "utf-8")
+    with pytest.raises(bottle.HTTPError):
+        view.simple_list_project("x", "y", name)
 
 def test_simple_url_longer_triggers_404(testapp):
     assert testapp.get("/root/pypi/+simple/pytest/1.0/").status_code == 404
@@ -80,8 +85,7 @@ def test_indexroot(testapp, xom):
 def test_indexroot_root_pypi(testapp, xom):
     r = testapp.get("/root/pypi/")
     assert r.status_code == 200
-    assert "in-stage" not in r.body
-
+    assert b"in-stage" not in r.body
 
 @pytest.mark.parametrize("code", [-1, 500, 501, 502, 503])
 def test_upstream_not_reachable(extdb, testapp, xom, code):
@@ -92,12 +96,12 @@ def test_upstream_not_reachable(extdb, testapp, xom, code):
 
 def test_pkgserv(httpget, extdb, testapp):
     extdb.mock_simple("package", '<a href="/package-1.0.zip" />')
-    httpget.setextfile("/package-1.0.zip", "123")
+    httpget.setextfile("/package-1.0.zip", b"123")
     r = testapp.get("/root/pypi/+simple/package/")
     assert r.status_code == 200
     href = getfirstlink(r.text).get("href")
     r = testapp.get(href)
-    assert r.body == "123"
+    assert r.body == b"123"
 
 def test_apiconfig(testapp):
     r = testapp.get("/user/name/+api")
@@ -156,7 +160,10 @@ class TestSubmitValidation:
         metadata = {"name": "Pkg1", "version": "1.0", ":action": "submit",
                     "description": "hello world"}
         r = submit.metadata(metadata, code=403)
-        assert re.search("pKg1.*already.*registered", r.body)
+        body = r.body
+        if not py.builtin._istext(body):
+            body = body.decode("utf-8")
+        assert re.search("pKg1.*already.*registered", body)
 
     def test_metadata_multifield(self, submit, mapp):
         classifiers = ["Intended Audience :: Developers",
@@ -187,15 +194,15 @@ class TestSubmitValidation:
     def test_upload_file(self, submit):
         metadata = {"name": "Pkg5", "version": "1.0", ":action": "submit"}
         submit.metadata(metadata, code=200)
-        submit.file("pkg5-2.6.tgz", "123", {"name": "pkg5some"}, code=400)
-        submit.file("pkg5-2.6.tgz", "123", {"name": "Pkg5"}, code=200)
-        submit.file("pkg5-2.6.qwe", "123", {"name": "Pkg5"}, code=400)
-        submit.file("pkg5-2.7.tgz", "123", {"name": "pkg5"}, code=403)
+        submit.file("pkg5-2.6.tgz", b"123", {"name": "pkg5some"}, code=400)
+        submit.file("pkg5-2.6.tgz", b"123", {"name": "Pkg5"}, code=200)
+        submit.file("pkg5-2.6.qwe", b"123", {"name": "Pkg5"}, code=400)
+        submit.file("pkg5-2.7.tgz", b"123", {"name": "pkg5"}, code=403)
 
     def test_upload_and_simple_index(self, submit, testapp):
         metadata = {"name": "Pkg5", "version": "2.6", ":action": "submit"}
         submit.metadata(metadata, code=200)
-        submit.file("pkg5-2.6.tgz", "123", {"name": "Pkg5"}, code=200)
+        submit.file("pkg5-2.6.tgz", b"123", {"name": "Pkg5"}, code=200)
         r = testapp.get("/%s/+simple/pkg5" % submit.stagename)
         assert r.status_code == 302
 
@@ -226,7 +233,7 @@ def test_push_non_existent(mapp, testapp, monkeypatch):
     assert r.status_code == 404
     #
     mapp.use("user1/dev")
-    mapp.upload_file_pypi("pkg5-2.6.tgz", "123", "pkg5", "2.6")
+    mapp.upload_file_pypi("pkg5-2.6.tgz", b"123", "pkg5", "2.6")
     # check that push to non-authoried existent target index results in 401
     r = testapp.push("/user1/dev/", json.dumps(req), expect_errors=True)
     assert r.status_code == 401
@@ -240,7 +247,7 @@ def test_upload_and_push_internal(mapp, testapp, monkeypatch):
     mapp.login("user1", "1")
     mapp.create_index("dev")
     mapp.use("user1/dev")
-    mapp.upload_file_pypi("pkg1-2.6.tgz", "123", "pkg1", "2.6")
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
     content = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "")
 
@@ -260,7 +267,7 @@ def test_upload_and_push_internal(mapp, testapp, monkeypatch):
 
 def test_upload_and_push_external(mapp, testapp, monkeypatch):
     api = mapp.create_and_use()
-    mapp.upload_file_pypi("pkg1-2.6.tgz", "123", "pkg1", "2.6")
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
     zipcontent = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", zipcontent, "pkg1", "")
 
@@ -284,7 +291,7 @@ def test_upload_and_push_external(mapp, testapp, monkeypatch):
             content = "msg"
         return r
     monkeypatch.setattr(requests, "post", recpost)
-    body = json.dumps(req)
+    body = json.dumps(req).encode("utf-8")
     r = testapp.request(api.index, method="push", body=body,
                         expect_errors=True)
     assert r.status_code == 200
@@ -311,7 +318,7 @@ def test_upload_and_push_external(mapp, testapp, monkeypatch):
 
 def test_upload_and_push_egg(mapp, testapp, monkeypatch):
     api = mapp.create_and_use()
-    mapp.upload_file_pypi("pkg2-1.0-py27.egg", "123", "pkg2", "1.0")
+    mapp.upload_file_pypi("pkg2-1.0-py27.egg", b"123", "pkg2", "1.0")
     r = testapp.get(api.simpleindex + "pkg2/")
     assert r.status_code == 200
     a = getfirstlink(r.text)
@@ -337,7 +344,7 @@ def test_upload_and_push_egg(mapp, testapp, monkeypatch):
 def test_upload_and_delete_project(mapp, testapp):
     api = mapp.create_and_use()
     mapp.delete_project("pkg1", code=404)
-    mapp.upload_file_pypi("pkg1-2.6.tgz", "123", "pkg1", "2.6")
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
     r = testapp.get(api.simpleindex + "pkg1/")
     assert r.status_code == 200
     r = testapp.delete(api.index + "pkg1/")
@@ -351,19 +358,22 @@ def test_upload_with_acl(mapp):
     api = mapp.create_and_use()  # new context and login
     mapp.login("user", "123")
     # user cannot write to index now
-    mapp.upload_file_pypi("pkg1-2.6.tgz", "123", "pkg1", "2.6", code=403)
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=403)
     mapp.login(api.user, api.password)
     mapp.set_acl(["user"])
     mapp.login("user", "123")
-    mapp.upload_file_pypi("pkg1-2.6.tgz", "123", "pkg1", "2.6")
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
 
 def test_upload_with_jenkins(mapp, monkeypatch):
     mapp.create_and_use()
     mapp.set_uploadtrigger_jenkins("http://x.com/{pkgname}")
     from devpi_server import views
     post_mock = Mock(autospec=requests.post)
+    class response:
+        status_code = 200
+    post_mock.return_value = response
     monkeypatch.setattr(views.requests, "post", post_mock)
-    mapp.upload_file_pypi("pkg1-2.6.tgz", "123", "pkg1", "2.6", code=200)
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200)
     assert post_mock.call_count == 1
     args = post_mock.call_args
     assert args[0][0] == "http://x.com/pkg1"
@@ -372,7 +382,7 @@ def test_upload_with_jenkins(mapp, monkeypatch):
 def test_upload_and_testdata(mapp, testapp):
     from test_devpi_server.example import tox_result_data
     api = mapp.create_and_use()
-    mapp.upload_file_pypi("pkg1-2.6.tgz", "123", "pkg1", "2.6", code=200)
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200)
     r = testapp.post_json(api.resultlog, tox_result_data)
     path = r.json["result"]
     assert r.status_code == 200
@@ -381,7 +391,7 @@ def test_upload_and_testdata(mapp, testapp):
 
 def test_upload_and_access_releasefile_meta(mapp):
     api = mapp.create_and_use()
-    mapp.upload_file_pypi("pkg5-2.6.tgz", "123", "pkg5", "2.6")
+    mapp.upload_file_pypi("pkg5-2.6.tgz", b"123", "pkg5", "2.6")
     json = mapp.getjson(api.index + "pkg5/")
     href = list(json["result"]["2.6"]["+files"].values())[0]
     pkgmeta = mapp.getjson("/" + href)
@@ -391,8 +401,8 @@ def test_upload_and_access_releasefile_meta(mapp):
 def test_upload_and_delete_project_version(mapp):
     api = mapp.create_and_use()
     mapp.delete_project("pkg1", code=404)
-    mapp.upload_file_pypi("pkg1-2.6.tgz", "123", "pkg1", "2.6")
-    mapp.upload_file_pypi("pkg1-2.7.tgz", "123", "pkg1", "2.7")
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
+    mapp.upload_file_pypi("pkg1-2.7.tgz", b"123", "pkg1", "2.7")
     mapp.get_simple("pkg1", code=200)
     mapp.delete_project("pkg1/1.0", code=404)
     mapp.delete_project("pkg1/2.6", code=200)
@@ -403,13 +413,13 @@ def test_upload_and_delete_project_version(mapp):
 
 def test_delete_version_fails_on_non_volatile(mapp):
     mapp.create_and_use(indexconfig=dict(volatile=False))
-    mapp.upload_file_pypi("pkg1-2.6.tgz", "123", "pkg1", "2.6")
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
     mapp.delete_project("pkg1/2.6", code=403)
 
 
 def test_upload_pypi_fails(mapp):
     mapp.upload_file_pypi(
-            "pkg1-2.6.tgz", "123", "pkg1", "2.6", code=404,
+            "pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=404,
             indexname="root/pypi")
 
 def test_delete_pypi_fails(mapp):
@@ -422,7 +432,7 @@ def test_delete_volatile_fails(mapp):
     mapp.login_root()
     mapp.create_index("test", indexconfig=dict(volatile=False))
     mapp.use("root/test")
-    mapp.upload_file_pypi("pkg5-2.6.tgz", "123", "pkg5", "2.6")
+    mapp.upload_file_pypi("pkg5-2.6.tgz", b"123", "pkg5", "2.6")
     mapp.delete_project("pkg5", code=403)
 
 def test_upload_docs_no_version(mapp, testapp):
@@ -441,7 +451,7 @@ def test_upload_docs_no_project_ever_registered(mapp, testapp):
 def test_upload_docs_too_large(mapp):
     from devpi_server.views import MAXDOCZIPSIZE
     mapp.create_and_use()
-    content = "*" * (MAXDOCZIPSIZE + 1)
+    content = b"*" * (MAXDOCZIPSIZE + 1)
     mapp.register_metadata(dict(name="pkg1", version="0.0"))
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=413)
 
@@ -494,6 +504,12 @@ def test_get_outside_url():
     url = get_outside_url({"Host": "outside3.com"}, "http://out.com")
     assert url == "http://out.com/"
 
+def json_file(data):
+    dumped = json.dumps(data)
+    if py.builtin._istext(dumped):
+        dumped = dumped.encode("utf-8")
+    return py.io.BytesIO(dumped)
+
 class Test_getjson:
     @pytest.fixture
     def abort_calls(self, monkeypatch):
@@ -506,19 +522,19 @@ class Test_getjson:
 
     def test_getjson(self):
         class request:
-            body = py.io.BytesIO(json.dumps({"hello": "world"}))
+            body = json_file({"hello": "world"})
         assert getjson(request)["hello"] == "world"
 
     def test_getjson_error(self, abort_calls):
         class request:
-            body = py.io.BytesIO("123 123")
+            body = py.io.BytesIO(b"123 123")
         with pytest.raises(SystemExit):
             getjson(request)
         assert abort_calls[0][0][0] == 400
 
     def test_getjson_wrong_keys(self, abort_calls):
         class request:
-            body = py.io.BytesIO(json.dumps({"k1": "v1", "k2": "v2"}))
+            body = json_file({"k1": "v1", "k2": "v2"})
         with pytest.raises(SystemExit):
             getjson(request, allowed_keys=["k1", "k3"])
         assert abort_calls[0][0][0] == 400

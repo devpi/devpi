@@ -2,6 +2,7 @@ import base64
 import os
 import hashlib
 import itsdangerous
+import py
 from logging import getLogger
 log = getLogger(__name__)
 
@@ -41,6 +42,8 @@ class Auth:
         hash = self.db.user_validate(user, password)
         if hash:
             pseudopass = self.signer.sign(user + "-" + hash)
+            pseudopass = pseudopass.decode("ascii")
+            assert py.builtin._istext(pseudopass)
             return {"password":  pseudopass,
                     "expiration": self.LOGIN_EXPIRATION}
 
@@ -61,12 +64,12 @@ class Auth:
 
 def getpwhash(password, salt):
     hash = hashlib.sha256()
-    hash.update(salt)
-    hash.update(password.encode())
+    hash.update(salt.encode("ascii"))
+    hash.update(password.encode("utf-8"))
     return hash.hexdigest()
 
 def newsalt():
-    return base64.b64encode(os.urandom(16))
+    return py.builtin._totext(base64.b64encode(os.urandom(16)), "ascii")
 
 def verify_password(password, hash, salt):
     if getpwhash(password, salt) == hash:
