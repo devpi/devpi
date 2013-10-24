@@ -224,7 +224,7 @@ class TestUnit:
         hub = cmd_devpi("use", "--set-cfg", "http://world")
         assert PipCfg.default_location.exists()
         content = PipCfg.default_location.read()
-        assert "index-url = http://world/" in content
+        assert "index_url = http://world/" in content
         assert DistutilsCfg.default_location.exists()
         content = DistutilsCfg.default_location.read()
         assert "index_url = http://world/" in content
