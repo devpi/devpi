@@ -27,6 +27,12 @@ def test_passthrough_args_toxargs(makehub, tmpdir):
     args = index.get_tox_args()
     assert args == ["--", "-x"]
 
+def test_toxini(makehub, tmpdir):
+    hub = makehub(["test", "-c", "something", "somepkg"])
+    index = DevIndex(hub, tmpdir, None)
+    args = index.get_tox_args()
+    assert args == ["-c", str(py.path.local("something"))]
+
 def test_passthrough_args_env(makehub, tmpdir):
     hub = makehub(["test", "-epy27", "somepkg"])
     index = DevIndex(hub, tmpdir, None)

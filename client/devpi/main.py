@@ -626,13 +626,17 @@ def test(parser):
         default=None, action="store",
         help="virtual environment to run from the tox.ini")
 
-    parser.add_argument("pkgspec", metavar="pkgspec", type=str,
-        default=None, action="store", nargs=1,
-        help="package specification to download and test")
+    parser.add_argument("-c", metavar="PATH", type=str, dest="toxini",
+        default=None, action="store",
+        help="tox configuration file to use with unpacked package")
 
     parser.add_argument("--tox-args", metavar="toxargs", action="store",
         dest="toxargs", default=None,
         help="extra command line arguments for tox")
+
+    parser.add_argument("pkgspec", metavar="pkgspec", type=str,
+        default=None, action="store", nargs=1,
+        help="package specification to download and test")
 
 
 @subcommand("devpi.push")

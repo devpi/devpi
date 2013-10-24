@@ -100,6 +100,9 @@ class DevIndex:
             toxargs.append("-e" + args.venv)
         if args.toxargs:
             toxargs.extend(shlex.split(args.toxargs))
+        if args.toxini:
+            p = py.path.local(args.toxini, expanduser=True)
+            toxargs.extend(["-c", str(p)])
         return toxargs
 
 def post_tox_json_report(hub, href, jsondata):
