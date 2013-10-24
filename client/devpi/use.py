@@ -277,6 +277,9 @@ def show_one_conf(hub, cfg):
     hub.info("%-19s: %s" %(cfg.screen_name, status))
 
 class BaseCfg:
+    config_name = "index_url"
+    regex = re.compile(r"(index[_-]url)\s*=\s*(.*)")
+
     def __init__(self, path=None):
         if path is None:
             path = self.default_location
@@ -298,7 +301,8 @@ class BaseCfg:
     def write_default(self, indexserver):
         if self.path.exists():
             raise ValueError("config file already exists")
-        content = self.template % indexserver
+        content = "\n".join([self.section_name,
+                             "%s = %s\n" % (self.config_name, indexserver)])
         self.path.ensure().write(content)
 
     def write_indexserver(self, indexserver):
@@ -320,7 +324,8 @@ class BaseCfg:
                         found = True
                 else:
                     if section in line.lower():
-                        line = line + "%s = %s" %(self.config_name, indexserver)
+                        line = line + "%s = %s\n" %(
+                                                self.config_name, indexserver)
                         found = True
                 newlines.append(line)
             if not found:
@@ -334,25 +339,13 @@ class BaseCfg:
 
 class DistutilsCfg(BaseCfg):
     section_name = "[easy_install]"
-    config_name = "index_url"
-    regex = re.compile(r"(index_url)\s*=\s*(.*)")
     default_location = ("~/.pydistutils.cfg" if sys.platform != "win32"
                         else "~/pydistutils.cfg")
-    template = dedent("""\
-            [easy_install]
-            index_url = %s
-    """)
 
 class PipCfg(BaseCfg):
     section_name = "[global]"
-    config_name = "index-url"
     default_location = ("~/.pip/pip.conf" if sys.platform != "win32"
                         else "~/pip/pip.ini")
-    regex = re.compile(r"(index-url)\s*=\s*(.*)")
-    template = dedent("""\
-            [global]
-            index-url = %s
-    """)
 
 
 def parse_keyvalue_spec(keyvaluelist, keyset=None):
