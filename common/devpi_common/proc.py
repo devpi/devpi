@@ -3,6 +3,8 @@ from subprocess import Popen, CalledProcessError, PIPE
 
 def check_output(*args, **kwargs):
     # subprocess.check_output does not exist on python26
+    if "universal_newlines" not in kwargs:
+        kwargs["universal_newlines"] = True
     popen = Popen(stdout=PIPE, *args, **kwargs)
     output, unused_err = popen.communicate()
     retcode = popen.poll()

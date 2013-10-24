@@ -37,7 +37,7 @@ class DevIndex:
 
     def download_and_unpack(self, link):
         try:
-            content = self.remoteindex.getcontent(link.url)
+            content = self.remoteindex.getcontent(link.url, bytes=True)
         except self.remoteindex.ReceiveError:
             self.hub.fatal("could not receive", link.url)
 
@@ -85,7 +85,7 @@ class DevIndex:
         finally:
             old.chdir()
         if ret != 2:
-            jsondata = json.load(jsonreport.open("rb"))
+            jsondata = json.load(jsonreport.open("r"))
             post_tox_json_report(self.hub,
                                  self.hub.current.resultlog, jsondata)
         if ret != 0:

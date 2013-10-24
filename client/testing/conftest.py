@@ -34,7 +34,7 @@ class PopenFactory:
         self.addfinalizer = addfinalizer
 
     def __call__(self, args, pipe=False, **kwargs):
-        args = map(str, args)
+        args = [str(x) for x in args]
         if pipe:
             print ("$ %s [piped]" %(" ".join(args),))
             popen = gsub.Popen(args, stdout=gsub.PIPE, stderr=gsub.STDOUT)
@@ -133,15 +133,16 @@ def create_and_upload(request, devpi, initproj, Popen):
     def upload(name, filedefs=None):
         initproj(name, filedefs)
         # we need to patch .pypirc
-        with devpi.patched_pypirc as reponame:
-            popen = Popen([sys.executable, "setup.py",
-                           "register", "-r", reponame])
-            popen.communicate()
-            assert popen.returncode == 0
-            popen = Popen([sys.executable, "setup.py", "sdist", "upload",
-                           "-r", reponame])
-            popen.communicate()
-            assert popen.returncode == 0
+        #with devpi.patched_pypirc as reponame:
+        #    popen = Popen([sys.executable, "setup.py",
+        #                   "register", "-r", reponame])
+        #    popen.communicate()
+        #    assert popen.returncode == 0
+        #    popen = Popen([sys.executable, "setup.py", "sdist", "upload",
+        #                   "-r", reponame])
+        #    popen.communicate()
+        #    assert popen.returncode == 0
+        devpi("upload")
     return upload
 
 

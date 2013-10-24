@@ -1,6 +1,6 @@
 
 from devpi_common.url import URL
-from devpi_common.metadata import splitbasename
+from devpi_common.metadata import splitbasename, Version
 from pkg_resources import parse_version
 
 def out_index(hub, data):
@@ -8,14 +8,12 @@ def out_index(hub, data):
         hub.info(name)
 
 def out_project(hub, data):
-    versions = list(data)
-    def cmpversion(x, y):
-        return cmp(parse_version(x), parse_version(y))
 
     index = hub.current.index[len(hub.current.rooturl):]
 
-    versions.sort(cmp=cmpversion)
-    for version in reversed(versions):
+    versions = sorted(map(Version, data))
+    for ver in reversed(versions):
+        version = ver.string
         #hub.info("%s-%s:" % (name, version))
         verdata = data[version]
         out_project_version_files(hub, verdata, version, index)

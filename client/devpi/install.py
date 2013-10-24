@@ -17,7 +17,7 @@ def main(hub, args):
     if not pip_path:
         hub.fatal("no pip binary found")
     if args.listinstalled:
-        hub.info("list of installed packages on", current.venvdir)
+        hub.info("list of installed packages on", venv)
         return hub.popen_check([pip_path, "list"])
     elif args.editable:
         if args.pkgspecs:

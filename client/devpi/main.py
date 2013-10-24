@@ -332,7 +332,7 @@ def try_argcomplete(parser):
             argcomplete.autocomplete(parser)
 
 def parse_args(argv):
-    argv = map(str, argv)
+    argv = [str(x) for x in argv]
     parser = getbaseparser(argv[0])
     add_subparsers(parser)
     try_argcomplete(parser)
@@ -628,6 +628,7 @@ def test(parser):
     parser.add_argument("--tox-args", metavar="toxargs", action="store",
         dest="toxargs", default=None,
         help="extra command line arguments for tox")
+
 
 @subcommand("devpi.push")
 def push(parser):

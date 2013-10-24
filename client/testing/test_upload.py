@@ -113,7 +113,7 @@ def test_parent_subpath(tmpdir):
 class TestUploadFunctional:
     def test_all(self, initproj, devpi):
         initproj("hello-1.0", {"doc": {
-            "conf.py": "",
+            "conf.py": "#nothing",
             "index.html": "<html/>"}})
         assert py.path.local("setup.py").check()
         devpi("upload", "--dry-run")

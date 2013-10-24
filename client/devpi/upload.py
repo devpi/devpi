@@ -39,14 +39,14 @@ def main(hub, args):
 
 def filter_latest(path_pkginfo):
     name_version_path = {}
-    for archivepath, pkginfo in path_pkginfo.iteritems():
+    for archivepath, pkginfo in path_pkginfo.items():
         name = pkginfo.name
         iversion = Version(pkginfo.version)
         data = name_version_path.get(name)
         if data is None or data[0] < iversion:
             name_version_path[name] = (iversion, pkginfo, archivepath)
     retval = {}
-    for x in name_version_path.itervalues():
+    for x in name_version_path.values():
         retval[x[2]] = x[1]
     return retval
 
@@ -97,7 +97,10 @@ class Uploader:
         hub = self.hub
         assert "name" in meta and "version" in meta, meta
         dic = meta.copy()
-        dic[":action"] = action
+        pypi_action = action
+        if action == "register":
+            pypi_action = "submit"
+        dic[":action"] = pypi_action
         dic["protocol_version"] = "1",
         auth = hub.current.get_auth()
         if not auth:
@@ -129,7 +132,7 @@ class Uploader:
         meta = {}
         for attr in pkginfo:
             meta[attr] = getattr(pkginfo, attr)
-        self.post("submit", None, meta=meta)
+        self.post("register", None, meta=meta)
         pyver = get_pyversion_filetype(path.basename)
         meta["pyversion"], meta["filetype"] = pyver
         self.post("file_upload", path, meta=meta)

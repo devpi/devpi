@@ -1,6 +1,8 @@
 1.X
 -------------------------------
 
+- make devpi-client work with python3.3 and fix test bugs 
+
 - new "devpi use --set-cfg" option to set pip/easy_install configuration
   files when changing indexes.  Also new "devpi use --always-set-cfg=yes"
   option if you want to imply "--set-cfg" on future "devpi use" invocations

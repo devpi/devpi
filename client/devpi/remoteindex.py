@@ -34,11 +34,14 @@ class RemoteIndex:
             return LinkSet([])
         return LinkSet(parselinks(content, indexurl))
 
-    def getcontent(self, url):
+    def getcontent(self, url, bytes=False):
         r = self.requests.get(url)
         if r.status_code != 200:
             raise self.ReceiveError(r.status_code)
-        return r.content
+        if bytes:
+            return r.content
+        else:
+            return r.text
 
     def getbestlink(self, pkgname):
         return self.getlinkset(pkgname).getnewestversion(pkgname)

@@ -53,8 +53,8 @@ def test_main_push_pypi(monkeypatch, tmpdir):
             status_code = 201
             reason = "created"
             content = json.dumps(dict(type="actionlog", status=201,
-                result=[("register", "pkg", "1.0"),
-                        ("upload", "pkg-1.3.tar.gz")]
+                result=[("200", "register", "pkg", "1.0"),
+                        ("200", "upload", "pkg-1.3.tar.gz")]
             ))
             headers = {"content-type": "application/json"}
             _json = json.loads(content)

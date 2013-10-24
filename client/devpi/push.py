@@ -50,6 +50,6 @@ def main(hub, args):
     r = pusher.execute(hub, name, version)
     if r.type == "actionlog":
         for action in r["result"]:
-            red = action[0] >= 400
+            red = int(action[0]) >= 400
             for line in (" ".join(map(str, action))).split("\n"):
                 hub.line("   " + line, red=red)
