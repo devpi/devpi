@@ -306,13 +306,26 @@ class BaseCfg:
         if not self.path.exists():
             self.write_default(indexserver)
         else:
+            if self.indexserver:
+                section = None
+            else:
+                section = self.section_name
             newlines = []
+            found = False
             for line in self.path.readlines(cr=1):
-                m = self.regex.match(line)
-                if m:
-                    newlines.append("%s = %s\n" % (m.group(1), indexserver))
+                if not section:
+                    m = self.regex.match(line)
+                    if m:
+                        line = "%s = %s\n" % (m.group(1), indexserver)
+                        found = True
                 else:
-                    newlines.append(line)
+                    if section in line.lower():
+                        line = line + "%s = %s" %(self.config_name, indexserver)
+                        found = True
+                newlines.append(line)
+            if not found:
+                newlines.append(self.section_name + "\n")
+                newlines.append("%s = %s\n" %(self.config_name, indexserver))
             self.path.write("".join(newlines))
 
     def ensure_backup_file(self):
@@ -320,6 +333,8 @@ class BaseCfg:
              self.path.copy(self.backup_path)
 
 class DistutilsCfg(BaseCfg):
+    section_name = "[easy_install]"
+    config_name = "index_url"
     regex = re.compile(r"(index_url)\s*=\s*(.*)")
     default_location = ("~/.pydistutils.cfg" if sys.platform != "win32"
                         else "~/pydistutils.cfg")
@@ -329,6 +344,8 @@ class DistutilsCfg(BaseCfg):
     """)
 
 class PipCfg(BaseCfg):
+    section_name = "[global]"
+    config_name = "index-url"
     default_location = ("~/.pip/pip.conf" if sys.platform != "win32"
                         else "~/pip/pip.ini")
     regex = re.compile(r"(index-url)\s*=\s*(.*)")

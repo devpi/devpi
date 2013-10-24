@@ -271,6 +271,22 @@ class TestCfgParsing:
         assert cfg.indexserver == "http://some.com/something"
         assert cfg.screen_name == str(p)
 
+    def test_read_config_but_no_index(self, tmpdir, cfgclass):
+        path = tmpdir.join("cfg")
+        path.write(cfgclass.section_name + "\n")
+        cfg = cfgclass(path)
+        cfg.write_indexserver("http://qwe")
+        cfg = cfgclass(path)
+        assert cfg.indexserver == "http://qwe"
+
+    def test_read_config_but_no_section(self, tmpdir, cfgclass):
+        path = tmpdir.join("cfg")
+        path.write("")
+        cfg = cfgclass(path)
+        cfg.write_indexserver("http://qwe")
+        cfg = cfgclass(path)
+        assert cfg.indexserver == "http://qwe"
+
     def test_write_fresh(self, cfgclass, tmpdir):
         p = tmpdir.join("cfg")
         cfg = cfgclass(p)
