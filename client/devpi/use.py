@@ -321,14 +321,16 @@ class BaseCfg:
 
 class DistutilsCfg(BaseCfg):
     regex = re.compile(r"(index_url)\s*=\s*(.*)")
-    default_location = "~/.pydistutils.cfg"
+    default_location = ("~/.pydistutils.cfg" if sys.platform != "win32"
+                        else "~/pydistutils.cfg")
     template = dedent("""\
             [easy_install]
             index_url = %s
     """)
 
 class PipCfg(BaseCfg):
-    default_location = "~/.pip/pip.conf"
+    default_location = ("~/.pip/pip.conf" if sys.platform != "win32"
+                        else "~/pip.pip.ini")
     regex = re.compile(r"(index-url)\s*=\s*(.*)")
     template = dedent("""\
             [global]
