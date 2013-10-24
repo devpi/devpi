@@ -330,7 +330,7 @@ class DistutilsCfg(BaseCfg):
 
 class PipCfg(BaseCfg):
     default_location = ("~/.pip/pip.conf" if sys.platform != "win32"
-                        else "~/pip.pip.ini")
+                        else "~/pip/pip.ini")
     regex = re.compile(r"(index-url)\s*=\s*(.*)")
     template = dedent("""\
             [global]
