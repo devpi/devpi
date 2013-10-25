@@ -1,15 +1,13 @@
 devpi-server: consistent pypi.python.org cache, github-style internal indexes
 =============================================================================
 
-* issues: https://bitbucket.org/hpk42/devpi/issues
+* `issue tracker <https://bitbucket.org/hpk42/devpi/issues>`_, `repo
+  <https://bitbucket.org/hpk42/devpi>`_
 
-* IRC: #devpi on irc.freenode.net.
+* IRC: #devpi on freenode, `mailing list
+  <https://groups.google.com/d/forum/devpi-dev>`_ 
 
-* repository: https://bitbucket.org/hpk42/devpi
-
-* mailing list: https://groups.google.com/d/forum/devpi-dev
-
-* compatibility: unix-py26/py27 and windows/py27
+* compatibility: {win,unix}-py{26,27,33}
 
 consistent robust pypi-cache
 ----------------------------------------

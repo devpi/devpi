@@ -6,7 +6,6 @@ from setuptools import setup, find_packages
 if __name__ == "__main__":
     here = os.path.abspath(".")
     README = open(os.path.join(here, 'README.rst')).read()
-    CHANGES = open(os.path.join(here, 'CHANGELOG')).read()
 
     install_requires = ["py>=1.4.18.dev2",
                         "devpi_common>=1.2.dev1",
@@ -22,7 +21,7 @@ if __name__ == "__main__":
       name="devpi-server",
       description="devpi-server: reliable fast pypi.python.org caching server",
       keywords="pypi cache server wsgi",
-      long_description=README + '\n\n' + CHANGES,
+      long_description=README,
       url="http://doc.devpi.net",
       version='1.2.dev1',
       maintainer="Holger Krekel",
@@ -40,7 +39,9 @@ if __name__ == "__main__":
         "Programming Language :: Python",
         "Topic :: Internet :: WWW/HTTP",
         "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
-        ],
+        ] + [
+            ("Programming Language :: Python :: %s" % x) for x in
+                "2.6 2.7 3.3".split()],
       install_requires=install_requires,
       entry_points = {
         'console_scripts':

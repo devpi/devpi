@@ -7,7 +7,6 @@ from setuptools import setup, find_packages
 if __name__ == "__main__":
     here = os.path.abspath(".")
     README = open(os.path.join(here, 'README.rst')).read()
-    CHANGES = open(os.path.join(here, 'CHANGELOG')).read()
 
     install_requires=["tox>=1.6.1",
                       "devpi_common>=0.1.dev1",
@@ -34,6 +33,8 @@ if __name__ == "__main__":
         "Intended Audience :: Developers",
         "Intended Audience :: System Administrators",
         "License :: OSI Approved :: MIT License",
-        ],
+        ] + [
+            ("Programming Language :: Python :: %s" % x) for x in
+                "2.6 2.7 3.3".split()],
       entry_points = {'console_scripts': ["devpi = devpi.main:main"]},
       )

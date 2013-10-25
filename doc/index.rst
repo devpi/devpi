@@ -5,11 +5,11 @@ devpi: PyPI server and packaging/testing/release tool
 
 .. sidebar:: Links and contact
 
-   `issue tracker <https://bitbucket.org/hpk42/devpi/issues>`_
+   `issue tracker <https://bitbucket.org/hpk42/devpi/issues>`_, `mailing list <https://groups.google.com/d/forum/devpi-dev>`_
 
-   `mailing list <https://groups.google.com/d/forum/devpi-dev>`_
-    
    :ref:`tutorials and documentation <label_quickstart_section>`
+   
+   :doc:`changelog`
 
    #devpi on freenode
 
