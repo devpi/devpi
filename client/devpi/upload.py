@@ -125,7 +125,7 @@ class Uploader:
             else:
                 hub.error("%s FAIL %s" %(r.status_code, msg))
                 if r.type == "actionlog":
-                    for x in r["result"]:
+                    for x in r.result:
                         hub.error("  " + x)
 
     def upload_release_file(self, path, pkginfo):

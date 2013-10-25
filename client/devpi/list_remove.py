@@ -7,11 +7,12 @@ def out_index(hub, data):
         hub.info(name)
 
 def out_project(hub, data):
-
     index = hub.current.index[len(hub.current.rooturl):]
-
-    versions = sorted(map(Version, data))
-    for ver in reversed(versions):
+    num = -1
+    for ver in sorted(map(Version, data), reverse=True):
+        num += 1
+        if num > 0 and not hub.args.all:
+            continue
         version = ver.string
         #hub.info("%s-%s:" % (name, version))
         verdata = data[version]
@@ -19,6 +20,8 @@ def out_project(hub, data):
         shadowing = data[version].get("+shadowing", [])
         for verdata in shadowing:
             out_project_version_files(hub, verdata, version, None)
+    if not hub.args.all:
+        hub.info("%s older versions not shown, use --all to see" % num)
 
 def out_project_version_files(hub, verdata, version, index):
     files = verdata.get("+files")
@@ -42,7 +45,7 @@ def query_file_status(hub, origin):
     res = hub.http_api("get", URL(rooturl, "/" + origin).url,
                        quiet=True)
     assert res.status_code == 200
-    md5 = res["result"].get("md5")
+    md5 = res.result.get("md5")
     if not md5:
         return
     res = hub.http_api("get",
@@ -51,7 +54,7 @@ def query_file_status(hub, origin):
     assert res.status_code == 200
     assert res.type == "list:toxresult"
     seen = set()
-    for toxresult in reversed(res["result"]):
+    for toxresult in reversed(res.result):
         toxresult["platform"]
         for envname, env in toxresult["testenvs"].items():
             prefix = "  {host} {platform} {envname}".format(
@@ -131,18 +134,18 @@ def main_remove(hub, args):
     url = hub.current.get_project_url(name)
     if ver:
         url = url + ver + "/"
-    data = hub.http_api("get", url)
-    if confirm_delete(hub, data):
+    reply = hub.http_api("get", url)
+    if confirm_delete(hub, reply):
         hub.http_api("delete", url)
 
-def confirm_delete(hub, data):
+def confirm_delete(hub, reply):
     basepath = URL(hub.current.index).path.lstrip("/")
     to_delete = []
-    if data["type"] == "projectconfig":
-        for version, verdata in data["result"].items():
+    if reply.type == "projectconfig":
+        for version, verdata in reply.result.items():
             to_delete.extend(match_release_files(basepath, verdata))
-    elif data["type"] == "versiondata":
-        to_delete.extend(match_release_files(basepath, data["result"]))
+    elif reply.type == "versiondata":
+        to_delete.extend(match_release_files(basepath, reply.result))
     if not to_delete:
         hub.line("nothing to delete")
         return None

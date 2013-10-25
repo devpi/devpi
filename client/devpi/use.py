@@ -119,7 +119,7 @@ class Current(object):
         if not url.is_valid_http_url():
             hub.fatal("invalid URL: %s" % url.url)
         r = hub.http_api("get", url.addpath("+api"), quiet=True)
-        self._configure_from_server_api(r["result"], url)
+        self._configure_from_server_api(r.result, url)
 
     def _configure_from_server_api(self, result, url):
         rooturl = url.joinpath("/")
@@ -222,7 +222,7 @@ def main(hub, args=None):
         if not hub.current.rooturl:
             hub.fatal("not connected to any server")
         r = hub.http_api("GET", hub.current.rooturl, {}, quiet=True)
-        out_index_list(hub, r["result"])
+        out_index_list(hub, r.result)
         return 0
 
     showurls = args.urls or args.debug

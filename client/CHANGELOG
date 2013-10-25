@@ -22,6 +22,7 @@
   to pick the proper devpi index and allows proper SSL verification on Python2.6
   onwards.
 
+
 - upload: show response when uploading documentation failed
 
 - upload: allow to specify archive files as positional arguments (both files and
@@ -31,6 +32,9 @@
 - fix issue54: upload now works on wheel files as well.
   As pkginfo does not support wheels directly, we use the ``twine``
   project which extends pkginfo for now.
+
+- only show highest version in "devpi list PROJECT" output, unless
+  "--all" is specified.
 
 - on upload release files: skip rather than guess packages which contain no metadata
 
