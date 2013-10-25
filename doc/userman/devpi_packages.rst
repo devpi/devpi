@@ -367,6 +367,7 @@ Then switching back to her index::
 
    $ devpi use /sophie/dev
    using index: http://localhost:3141/sophie/dev/ (not logged in)
+
 Sophie would see the following::
 
    $ devpi list pysober

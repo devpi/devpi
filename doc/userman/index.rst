@@ -20,3 +20,8 @@ to get a overview of `devpi`_.
      devpi_packages
      devpi_misc
      devpi_commands
+
+.. toctree::
+    :hidden:
+    
+    pysober/doc/source/index

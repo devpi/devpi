@@ -1,5 +1,0 @@
-
-#
-#
-def hello():
-    return "world"
