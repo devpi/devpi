@@ -1,7 +1,6 @@
 
 from devpi_common.url import URL
 from devpi_common.metadata import splitbasename, Version
-from pkg_resources import parse_version
 
 def out_index(hub, data):
     for name in sorted(data):

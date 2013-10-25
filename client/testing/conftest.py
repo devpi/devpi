@@ -365,6 +365,7 @@ def loghub(tmpdir, mock_http_api):
 def makehub(request):
     handler = request.config._tmpdirhandler
     def mkhub(arglist):
+        arglist = [str(x) for x in arglist]
         tmp = handler.mktemp("hub")
         for x in arglist:
             if "--clientdir" in x:
@@ -372,11 +373,8 @@ def makehub(request):
         else:
             arglist.append("--clientdir=%s" % tmp)
         args = parse_args(["devpi_"] + arglist)
-        old = tmp.chdir()
-        try:
+        with tmp.as_cwd():
             return Hub(args)
-        finally:
-            old.chdir()
     return mkhub
 
 @pytest.fixture

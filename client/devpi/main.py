@@ -175,6 +175,14 @@ class Hub:
             self._remoteindex = RemoteIndex(self.current)
             return self._remoteindex
 
+    def get_existing_file(self, arg):
+        p = py.path.local(arg, expanduser=True)
+        if not p.exists():
+            self.fatal("file does not exist: %s" % p)
+        elif not p.isfile():
+            self.fatal("is not a file: %s" % p)
+        return p
+
     @property
     def path_venvbase(self):
         path = os.environ.get("WORKON_HOME", None)
@@ -622,17 +630,23 @@ def test(parser):
     Download a package and run tests as configured by the
     tox.ini file (which must be contained in the package).
     """
-    parser.add_argument("-e", metavar="VENV", type=str, dest="venv",
+    parser.add_argument("-e", metavar="ENVNAME", type=str, dest="venv",
         default=None, action="store",
-        help="virtual environment to run from the tox.ini")
+        help="tox test environment to run from the tox.ini")
 
     parser.add_argument("-c", metavar="PATH", type=str, dest="toxini",
         default=None, action="store",
         help="tox configuration file to use with unpacked package")
 
+    parser.add_argument("--fallback-ini", metavar="PATH", type=str,
+        dest="fallback_ini",
+        default=None, action="store",
+        help="tox ini file to be used if the downloaded package has none")
+
     parser.add_argument("--tox-args", metavar="toxargs", action="store",
         dest="toxargs", default=None,
-        help="extra command line arguments for tox")
+        help="extra command line arguments for tox. e.g. "
+             "--toxargs=\"-c othertox.ini\"")
 
     parser.add_argument("pkgspec", metavar="pkgspec", type=str,
         default=None, action="store", nargs=1,

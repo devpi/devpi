@@ -4,7 +4,9 @@
 - make devpi-client work with python3.3 and fix test bugs 
 
 - add "devpi test -c tox.ini package" to use a particular (external)
-  tox.ini for running tox with the unpackaged package
+  tox.ini for running tox with the unpackaged package.
+  also add "--fallback-ini tox.ini" option which will only 
+  be used if the download package has no tox.ini.
 
 - new "devpi use --set-cfg" option to set pip/easy_install configuration
   files when changing indexes.  Also new "devpi use --always-set-cfg=yes"

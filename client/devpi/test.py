@@ -1,5 +1,6 @@
 
 from __future__ import with_statement
+import os
 import sys
 import shlex
 import hashlib
@@ -61,29 +62,25 @@ class DevIndex:
         return self.remoteindex.getbestlink(pkgname)
 
     def runtox(self, link):
-        path_archive = link.pkg.path_archive
-
         # publishing some infos to the commands started by tox
         #setenv_devpi(self.hub, env, posturl=self.current.resultlog,
         #                  packageurl=link.url,
         #                  packagemd5=link.md5)
         jsonreport = link.pkg.rootdir.join("toxreport.json")
+        path_archive = link.pkg.path_archive
         toxargs = ["--installpkg", str(path_archive),
                    "-i ALL=%s" % str(self.current.simpleindex),
                    "--result-json", str(jsonreport),
         ]
-        toxargs.extend(self.get_tox_args())
+        unpack_path = link.pkg.path_unpacked
 
-        self.hub.info("%s$ tox %s" %(link.pkg.path_unpacked,
-                      " ".join(toxargs)))
-        old = link.pkg.path_unpacked.chdir()
-        try:
+        toxargs.extend(self.get_tox_args(unpack_path=unpack_path))
+        with link.pkg.path_unpacked.as_cwd():
+            self.hub.info("%s$ tox %s" %(os.getcwd(), " ".join(toxargs)))
             try:
                 ret = tox.cmdline(toxargs)
             except SystemExit as e:
                 ret = e.args[0]
-        finally:
-            old.chdir()
         if ret != 2:
             jsondata = json.load(jsonreport.open("r"))
             post_tox_json_report(self.hub,
@@ -93,16 +90,23 @@ class DevIndex:
             return 1
         return 0
 
-    def get_tox_args(self):
-        toxargs = []
+    def get_tox_args(self, unpack_path):
+        hub = self.hub
         args = self.hub.args
+        toxargs = []
         if args.venv is not None:
             toxargs.append("-e" + args.venv)
         if args.toxargs:
             toxargs.extend(shlex.split(args.toxargs))
         if args.toxini:
-            p = py.path.local(args.toxini, expanduser=True)
-            toxargs.extend(["-c", str(p)])
+            ini = hub.get_existing_file(args.toxini)
+        elif unpack_path.join("tox.ini").exists():
+            ini = hub.get_existing_file(unpack_path.join("tox.ini"))
+        elif args.fallback_ini:
+            ini = hub.get_existing_file(args.fallback_ini)
+        else:
+            hub.fatal("no tox.ini file found in %s" % unpack_path)
+        toxargs.extend(["-c", str(ini)])
         return toxargs
 
 def post_tox_json_report(hub, href, jsondata):

@@ -2,7 +2,6 @@ import os
 import sys
 import py
 import re
-from textwrap import dedent
 
 import json
 

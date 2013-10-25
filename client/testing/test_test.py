@@ -21,24 +21,51 @@ def test_post_tox_json_report_error(loghub, mock_http_api):
         *could not post*http://devpi.net/+tests*
     """)
 
-def test_passthrough_args_toxargs(makehub, tmpdir):
+@pytest.fixture
+def pseudo_current():
+    class Current:
+        simpleindex = "http://pseudo/user/index/"
+    return Current
+
+def contains_sublist(list1, sublist):
+    len_sublist = len(sublist)
+    assert len_sublist <= len(list1)
+    for i in range(len(list1)):
+        if list1[i:i+len_sublist] == sublist:
+            return True
+    return False
+
+def test_passthrough_args_toxargs(makehub, tmpdir, pseudo_current):
     hub = makehub(["test", "--tox-args", "-- -x", "somepkg"])
-    index = DevIndex(hub, tmpdir, None)
-    args = index.get_tox_args()
-    assert args == ["--", "-x"]
+    index = DevIndex(hub, tmpdir, pseudo_current)
+    tmpdir.ensure("tox.ini")
+    args = index.get_tox_args(unpack_path=tmpdir)
+    assert contains_sublist(args, ["--", "-x"])
 
-def test_toxini(makehub, tmpdir):
-    hub = makehub(["test", "-c", "something", "somepkg"])
-    index = DevIndex(hub, tmpdir, None)
-    args = index.get_tox_args()
-    assert args == ["-c", str(py.path.local("something"))]
+def test_toxini(makehub, tmpdir, pseudo_current):
+    toxini = tmpdir.ensure("new-tox.ini")
+    hub = makehub(["test", "-c", toxini, "somepkg"])
+    index = DevIndex(hub, tmpdir, pseudo_current)
+    tmpdir.ensure("tox.ini")
+    args = index.get_tox_args(unpack_path=tmpdir)
+    assert contains_sublist(args, ["-c", str(toxini)])
 
-def test_passthrough_args_env(makehub, tmpdir):
+def test_passthrough_args_env(makehub, tmpdir, pseudo_current):
     hub = makehub(["test", "-epy27", "somepkg"])
-    index = DevIndex(hub, tmpdir, None)
-    args = index.get_tox_args()
-    assert args == ["-epy27"]
+    index = DevIndex(hub, tmpdir, pseudo_current)
+    tmpdir.ensure("tox.ini")
+    args = index.get_tox_args(unpack_path=tmpdir)
+    assert contains_sublist(args, ["-epy27"])
 
+def test_fallback_ini(makehub, tmpdir, pseudo_current):
+    p = tmpdir.ensure("mytox.ini")
+    hub = makehub(["test", "--fallback-ini", str(p), "somepkg"])
+    index = DevIndex(hub, tmpdir, pseudo_current)
+    args = index.get_tox_args(unpack_path=tmpdir)
+    assert contains_sublist(args, ["-c", str(p)])
+    p2 = tmpdir.ensure("tox.ini")
+    args = index.get_tox_args(unpack_path=tmpdir)
+    assert contains_sublist(args, ["-c", str(p2)])
 
 class TestFunctional:
     @pytest.mark.xfail(reason="output capturing for devpi calls")
