@@ -14,6 +14,8 @@ from devpi_common.validation import normalize_name, is_valid_archive_name
 from .auth import Auth
 from .config import render_string
 
+server_version = devpi_server.__version__
+
 log = logging.getLogger(__name__)
 
 MAXDOCZIPSIZE = 30 * 1024 * 1024    # 30MB
@@ -41,7 +43,7 @@ def simple_html_body(title, bodytags, extrahead=""):
 API_VERSION = "1"
 
 meta_headers = {"X-DEVPI-API-VERSION": API_VERSION,
-                "X-DEVPI-SERVER-VERSION": devpi_server.__version__}
+                "X-DEVPI-SERVER-VERSION": server_version}
 
 def abort(code, body):
     if "application/json" in request.headers.get("Accept", ""):
@@ -347,7 +349,7 @@ class PyPIView:
             password = pushdata["password"]
             pypiauth = (username, password)
             log.info("registering %s-%s to %s", name, version, posturl)
-            session = new_requests_session()
+            session = new_requests_session(agent=("server", server_version))
             r = session.post(posturl, data=metadata, auth=pypiauth)
             log.debug("register returned: %s", r.status_code)
             ok_codes = (200, 201)
@@ -799,7 +801,7 @@ def trigger_jenkins(stage, jenkinurl, testspec):
         DEVPI_INSTALL_INDEX = baseurl + stage.name + "/+simple/"
     )
     inputfile = py.io.BytesIO(source.encode("ascii"))
-    req = new_requests_session()
+    req = new_requests_session(agent=("server", server_version))
     try:
         r = req.post(jenkinurl, data={
                         "Submit": "Build",

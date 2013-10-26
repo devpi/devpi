@@ -11,6 +11,8 @@ from devpi_common.proc import check_output
 from devpi import __version__ as client_version
 from devpi.use import Current
 from devpi_common.request import new_requests_session
+from devpi import __version__ as client_version
+
 import json
 std = py.std
 subcommand = lazydecorator()
@@ -52,7 +54,7 @@ class Hub:
         self.cwd = py.path.local()
         self.quiet = False
         self._last_http_status = None
-        self.http = new_requests_session()
+        self.http = new_requests_session(agent=("client", client_version))
 
     def set_quiet(self):
         self.quiet = True

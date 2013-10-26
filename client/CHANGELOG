@@ -49,6 +49,7 @@
 - remove "archive" dependency in favour of a small implementation in
   devpi_common
 
+- make devpi-client use a proper UserAgent string
 
 1.1
 -------------------------------

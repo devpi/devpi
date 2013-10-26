@@ -40,6 +40,7 @@
 
 - internal cleanup using pytest-flakes
 
+- make devpi-server use a proper UserAgent string
 
 1.1
 ----------------

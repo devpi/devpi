@@ -100,7 +100,7 @@ def bottle_run(xom):
     app = xom.create_app(immediatetasks=True,
                          catchall=not xom.config.args.debug)
     port = xom.config.args.port
-    log.info("devpi-server version: %s", devpi_server.__version__)
+    log.info("devpi-server version: %s", server_version)
     log.info("serverdir: %s" % xom.config.serverdir)
     hostaddr = "http://%s:%s" %(xom.config.args.host, xom.config.args.port)
     log.info("serving at url: %s", hostaddr)
@@ -168,7 +168,7 @@ class XOM:
             self.httpget = httpget
         sdir = config.serverdir
         if not (sdir.exists() and sdir.listdir()):
-            self.set_state_version(devpi_server.__version__)
+            self.set_state_version(server_version)
 
     def get_state_version(self):
         versionfile = self.config.serverdir.join(".serverversion")
@@ -278,7 +278,8 @@ class XOM:
 
     @cached_property
     def _httpsession(self):
-        return new_requests_session()
+        session = new_requests_session(agent=("server", server_version))
+        return session
 
     def httpget(self, url, allow_redirects, timeout=30):
         headers = {}
