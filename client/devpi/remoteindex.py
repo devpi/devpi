@@ -1,6 +1,6 @@
 from devpi_common.url import URL
 from devpi_common.metadata import splitbasename, Version
-import requests
+from devpi_common.request import new_requests_session
 
 class LinkSet:
     def __init__(self, links):
@@ -23,7 +23,7 @@ class RemoteIndex:
 
     def __init__(self, current):
         self.current = current
-        self.requests = requests.Session()
+        self.requests = new_requests_session()
 
     def getlinkset(self, pkgname):
         """ return list of links for given package. """

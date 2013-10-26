@@ -9,9 +9,9 @@ if __name__ == "__main__":
     README = open(os.path.join(here, 'README.rst')).read()
 
     install_requires=["tox>=1.6.1",
-                      "devpi_common>=0.1.dev1",
+                      "devpi_common>=1.1.dev1",
                       "pkginfo>=1.1b1", "twine",
-                      "py>=1.4.16", "requests>=1.2.3",]
+                      "py>=1.4.17"]
 
     if sys.version_info < (2,7):
         install_requires.append("argparse>=1.2.1")

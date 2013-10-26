@@ -5,7 +5,7 @@ def index_create(hub, url, kvdict):
     index_show(hub, url)
 
 def index_modify(hub, url, kvdict):
-    reply = get_indexconfig_reply(hub, url, ok404=False)
+    reply = hub.http_api("get", url, "indexconfig")
     for name, val in kvdict.items():
         reply.result[name] = val
         hub.info("%s changing %s: %s" %(url.path, name, val))
@@ -23,21 +23,11 @@ def index_list(hub, indexname):
     for name in res.result:
         hub.info(name)
 
-def get_indexconfig_reply(hub, url, ok404=False):
-    res = hub.http_api("get", url, None, quiet=True)
-    if res.status_code == 200:
-        if res.type != "indexconfig":
-            hub.fatal("%s: wrong result type: %s" % (url, res.type))
-        return res
-    elif res.status_code == 404 and ok404:
-        return None
-    hub.fatal("%s: trying to get json resulted in: %s %s"
-                %(url.path, res.status_code, res.reason))
-
 def index_show(hub, url):
     if not url:
         hub.fatal("no index specified and no index in use")
-    ixconfig = get_indexconfig_reply(hub, url, ok404=False).result
+    reply = hub.http_api("get", url, None, quiet=True, type="indexconfig")
+    ixconfig = reply.result
     hub.info(url.url + ":")
     hub.line("  type=%s" % ixconfig["type"])
     hub.line("  bases=%s" % ",".join(ixconfig["bases"]))

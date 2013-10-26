@@ -12,6 +12,7 @@ log = getLogger(__name__)
 
 from devpi_common.types import cached_property
 from devpi_common.metadata import Version
+from devpi_common.request import new_requests_session
 from .config import parseoptions, configure_logging
 
 import devpi_server
@@ -277,11 +278,9 @@ class XOM:
 
     @cached_property
     def _httpsession(self):
-        import requests
-        return requests.session()
+        return new_requests_session()
 
     def httpget(self, url, allow_redirects, timeout=30):
-        from requests.exceptions import RequestException
         headers = {}
         USE_FRONT = self.config.args.bypass_cdn
         if USE_FRONT:
@@ -298,7 +297,7 @@ class XOM:
                 resp.url = resp.url.replace("https://front.python.org",
                                             "https://pypi.python.org")
             return resp
-        except RequestException:
+        except self._httpsession.RequestException:
             return FatalResponse(sys.exc_info())
 
     def create_app(self, catchall=True, immediatetasks=False):

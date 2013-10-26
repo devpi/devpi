@@ -10,7 +10,7 @@ from devpi_common.url import URL
 from devpi_common.proc import check_output
 from devpi import __version__ as client_version
 from devpi.use import Current
-import requests
+from devpi_common.request import new_requests_session
 import json
 std = py.std
 subcommand = lazydecorator()
@@ -52,7 +52,7 @@ class Hub:
         self.cwd = py.path.local()
         self.quiet = False
         self._last_http_status = None
-        self._session = requests.session()
+        self.http = new_requests_session()
 
     def set_quiet(self):
         self.quiet = True
@@ -69,15 +69,8 @@ class Hub:
 
     # remote http hooks
 
-    @property
-    def http(self):
-        session = self._session
-        #session.auth = tuple(self.current.auth) if self.current.auth else None
-        session.ConnectionError = requests.exceptions.ConnectionError
-        return session
-
     def http_api(self, method, url, kvdict=None, quiet=False, auth=notset,
-        check_version=True, fatal=True):
+        check_version=True, fatal=True, type=None):
         """ send a json request and return a HTTPReply object which
         adds some extra methods to the requests's Reply object.
 
@@ -86,6 +79,9 @@ class Hub:
 
         This method will not output any information to the user
         if ``quiet`` is set to true.
+
+        If type is specified and the json result type does not match,
+        bail out fatally (unless fatal = False)
         """
         if isinstance(url, URL):
             url = url.url
@@ -117,6 +113,10 @@ class Hub:
 
         if r.status_code in (200, 201):
             # don't show any extra info on success code
+            if type is not None:
+                if reply.type != type:
+                    self.fatal("%s: got result type %r, expected %r" %(
+                                url, reply.type, type))
             return reply
         # feedback reply info to user, possibly bailing out
         if r.status_code >= 400:
@@ -708,7 +708,7 @@ def verify_reply_version(hub, reply):
         if not hasattr(hub, "_WARNAPI_DELIVERED"):
             hub.error("WARN: devpi-client-%s got an unversioned reply, "
                       "assuming API-VERSION 1 (as implemented by "
-                      "devpi-server-1.1)" % client_version)
+                      "devpi-server-1.1 and 1.2)" % client_version)
             hub._WARNAPI_DELIVERED = True
         return
     if version in acceptable_api_version:

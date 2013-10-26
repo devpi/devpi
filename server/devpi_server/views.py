@@ -7,7 +7,7 @@ from bottle import response, request, redirect, HTTPError
 from bottle import HTTPResponse, static_file
 import json
 import logging
-import requests
+from devpi_common.request import new_requests_session
 from devpi_common.validation import normalize_name, is_valid_archive_name
 
 from .auth import Auth
@@ -345,7 +345,8 @@ class PyPIView:
             password = pushdata["password"]
             pypiauth = (username, password)
             log.info("registering %s-%s to %s", name, version, posturl)
-            r = requests.post(posturl, data=metadata, auth=pypiauth)
+            session = new_requests_session()
+            r = session.post(posturl, data=metadata, auth=pypiauth)
             log.debug("register returned: %s", r.status_code)
             ok_codes = (200, 201)
             results.append((r.status_code, "register", name, version))
@@ -360,7 +361,7 @@ class PyPIView:
                     openfile = entry.FILE.filepath.open("rb")
                     log.info("sending %s to %s, metadata %s",
                              basename, posturl, file_metadata)
-                    r = requests.post(posturl, data=file_metadata,
+                    r = session.post(posturl, data=file_metadata,
                           auth=pypiauth,
                           files={"content": (basename, openfile)})
                     log.debug("send finished, status: %s", r.status_code)
@@ -369,7 +370,7 @@ class PyPIView:
                 if doczip:
                     doc_metadata = metadata.copy()
                     doc_metadata[":action"] = "doc_upload"
-                    r = requests.post(posturl, data=doc_metadata,
+                    r = session.post(posturl, data=doc_metadata,
                           auth=pypiauth,
                           files={"content": (name + ".zip", doczip)})
                     log.debug("send finished, status: %s", r.status_code)
@@ -793,15 +794,16 @@ def trigger_jenkins(stage, jenkinurl, testspec):
         DEVPI_INSTALL_INDEX = baseurl + stage.name + "/+simple/"
     )
     inputfile = py.io.BytesIO(source.encode("ascii"))
+    req = new_requests_session()
     try:
-        r = requests.post(jenkinurl, data={
+        r = req.post(jenkinurl, data={
                         "Submit": "Build",
                         "name": "jobscript.py",
                         "json": json.dumps(
                     {"parameter": {"name": "jobscript.py", "file": "file0"}}),
             },
                 files={"file0": ("file0", inputfile)})
-    except requests.exceptions.RequestException:
+    except req.RequestException:
         log.error("%s: failed to connect to jenkins at %s",
                   testspec, jenkinurl)
         return -1

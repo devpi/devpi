@@ -8,18 +8,20 @@ def out_index(hub, data):
 
 def out_project(hub, data):
     index = hub.current.index[len(hub.current.rooturl):]
-    num = -1
+    num = 0
     for ver in sorted(map(Version, data), reverse=True):
-        num += 1
         if num > 0 and not hub.args.all:
+            num += 1
             continue
         version = ver.string
         #hub.info("%s-%s:" % (name, version))
         verdata = data[version]
-        out_project_version_files(hub, verdata, version, index)
+        if out_project_version_files(hub, verdata, version, index):
+            num += 1
         shadowing = data[version].get("+shadowing", [])
         for verdata in shadowing:
-            out_project_version_files(hub, verdata, version, None)
+            if out_project_version_files(hub, verdata, version, None):
+                num += 1
     if not hub.args.all:
         hub.info("%s older versions not shown, use --all to see" % num)
 
@@ -37,6 +39,7 @@ def out_project_version_files(hub, verdata, version, index):
             else:
                 hub.line(origin)
             query_file_status(hub, origin)
+    return bool(files)
 
 def query_file_status(hub, origin):
     # XXX this code is not auto-tested in all detail
@@ -50,9 +53,7 @@ def query_file_status(hub, origin):
         return
     res = hub.http_api("get",
                        URL(rooturl, "/+tests/%s/toxresult" % md5).url,
-                       quiet=True)
-    assert res.status_code == 200
-    assert res.type == "list:toxresult"
+                       quiet=True, type="list:toxresult")
     seen = set()
     for toxresult in reversed(res.result):
         toxresult["platform"]

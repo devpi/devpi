@@ -3,6 +3,8 @@
 
 - make devpi-client work with python3.3 and fix test bugs 
 
+- use system http/s proxy settings from devpi-server.  fixes issue58.
+
 - add "devpi test -c tox.ini package" to use a particular (external)
   tox.ini for running tox with the unpackaged package.
   also add "--fallback-ini tox.ini" option which will only 

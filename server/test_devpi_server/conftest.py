@@ -458,3 +458,14 @@ def pytest_runtest_setup(item):
         previousfailed = getattr(item.parent, "_previousfailed", None)
         if previousfailed is not None:
             pytest.xfail("previous test failed (%s)" %previousfailed.name)
+
+@pytest.fixture
+def mockrequests(request, monkeypatch):
+    from requests import Session
+    class MockReq:
+        def set_post(self, postfunc):
+            def func(self, *args, **kwargs):
+                return postfunc(*args, **kwargs)
+            #target = getattr(Session, "post", .post, "im_func", Session.post)
+            monkeypatch.setattr(Session, "post", func)
+    return MockReq()

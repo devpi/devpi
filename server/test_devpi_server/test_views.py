@@ -265,7 +265,7 @@ def test_upload_and_push_internal(mapp, testapp, monkeypatch):
     assert r.status_code == 200
 
 
-def test_upload_and_push_external(mapp, testapp, monkeypatch):
+def test_upload_and_push_external(mapp, testapp, mockrequests):
     api = mapp.create_and_use()
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
     zipcontent = zip_dict({"index.html": "<html/>"})
@@ -290,7 +290,7 @@ def test_upload_and_push_external(mapp, testapp, monkeypatch):
             status_code = 200
             content = "msg"
         return r
-    monkeypatch.setattr(requests, "post", recpost)
+    mockrequests.set_post(recpost)
     body = json.dumps(req).encode("utf-8")
     r = testapp.request(api.index, method="push", body=body,
                         expect_errors=True)
@@ -308,7 +308,7 @@ def test_upload_and_push_external(mapp, testapp, monkeypatch):
         class r:
             status_code = 500
         return r
-    monkeypatch.setattr(requests, "post", posterror)
+    mockrequests.set_post(posterror)
     r = testapp.request(api.index, method="push", body=body,
                         expect_errors=True)
     assert r.status_code == 502
@@ -316,7 +316,7 @@ def test_upload_and_push_external(mapp, testapp, monkeypatch):
     assert len(result) == 1
     assert result[0][0] == 500
 
-def test_upload_and_push_egg(mapp, testapp, monkeypatch):
+def test_upload_and_push_egg(mapp, testapp, mockrequests):
     api = mapp.create_and_use()
     mapp.upload_file_pypi("pkg2-1.0-py27.egg", b"123", "pkg2", "1.0")
     r = testapp.get(api.simpleindex + "pkg2/")
@@ -334,7 +334,7 @@ def test_upload_and_push_egg(mapp, testapp, monkeypatch):
             status_code = 200
             content = "msg"
         return r
-    monkeypatch.setattr(requests, "post", recpost)
+    mockrequests.set_post(recpost)
     r = testapp.push(api.index, json.dumps(req))
     assert r.status_code == 200
     assert len(rec) == 2
@@ -364,7 +364,7 @@ def test_upload_with_acl(mapp):
     mapp.login("user", "123")
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
 
-def test_upload_with_jenkins(mapp, monkeypatch):
+def test_upload_with_jenkins(mapp, mockrequests):
     mapp.create_and_use()
     mapp.set_uploadtrigger_jenkins("http://x.com/{pkgname}")
     from devpi_server import views
@@ -372,7 +372,7 @@ def test_upload_with_jenkins(mapp, monkeypatch):
     class response:
         status_code = 200
     post_mock.return_value = response
-    monkeypatch.setattr(views.requests, "post", post_mock)
+    mockrequests.set_post(post_mock)
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200)
     assert post_mock.call_count == 1
     args = post_mock.call_args

@@ -7,7 +7,7 @@ import py
 from devpi_common.url import urlparse
 
 from devpi_server.vendor.xprocess import XProcess
-import requests
+from devpi_common.request import new_requests_session
 
 default_rooturl = "http://localhost:3141"
 
@@ -37,10 +37,11 @@ class BackgroundServer:
     def _waitup(self, url, count=500):
         # try for 20 seconds to start devpi-server (which remotely
         # receives a serials list which may take a while)
+        req = new_requests_session(proxies=False)
         while count > 0:
             try:
-                requests.get(url)
-            except requests.exceptions.ConnectionError:
+                req.get(url)
+            except req.ConnectionError:
                 time.sleep(0.1)
                 count -= 1
             else:

@@ -4,6 +4,8 @@
 - make devpi-server and devpi-common python3.3 compatible, addresses
   issue57
 
+- use system http/s proxy settings from devpi-server.  fixes issue58.
+
 - refactor locations to allow nginx serving static files more directly.
   Also updated nginx template accordingly.
 
