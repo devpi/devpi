@@ -1,5 +1,5 @@
 
-from requests import *
+from requests import *  # noqa
 from requests.exceptions import ConnectionError, RequestException
 
 try:

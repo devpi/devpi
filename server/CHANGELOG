@@ -1,6 +1,10 @@
 1.2.dev1
 ----------------
 
+- serve links to files on simple pages and index root as relative
+  paths so that it works more nicely with proxy-pass server setups.
+  fixes issue56.
+
 - make devpi-server and devpi-common python3.3 compatible, addresses
   issue57
 

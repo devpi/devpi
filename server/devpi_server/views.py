@@ -1,6 +1,7 @@
 import py
 from py.xml import html
 from devpi_common.types import lazydecorator
+from devpi_common.url import URL
 from devpi_common.metadata import get_pyversion_filetype
 import devpi_server
 from bottle import response, request, redirect, HTTPError
@@ -26,7 +27,7 @@ def simple_html_body(title, bodytags, extrahead=""):
             extrahead,
         ),
         html.body(
-            html.h1(title),
+            html.h1(title), "\n",
             bodytags
         )
     )
@@ -186,6 +187,7 @@ class PyPIView:
         for entry in result:
             relpath = entry.relpath
             href = "/" + relpath
+            href = URL(request.path).relpath(href)
             if entry.eggfragment:
                 href += "#egg=%s" % entry.eggfragment
             elif entry.md5:
@@ -193,10 +195,10 @@ class PyPIView:
             links.extend([
                  "/".join(relpath.split("/", 2)[:2]) + " ",
                  html.a(entry.basename, href=href),
-                 html.br(),
+                 html.br(), "\n",
             ])
         return simple_html_body("%s: links for %s" % (stage.name, projectname),
-                                links).unicode()
+                                links).unicode(indent=2)
 
     @route("/<user>/<index>/+simple/")
     def simple_list_all(self, user, index):
@@ -612,7 +614,8 @@ class PyPIView:
                 bases = [html.h2("inherited bases"), bases]
         else:
             bases = []
-        latest_packages = html.table(html.tr(html.td("info"), html.td("file"), html.td("docs")))
+        latest_packages = html.table(
+            html.tr(html.td("info"), html.td("file"), html.td("docs")))
 
         for projectname in stage.getprojectnames_perstage():
             metadata = stage.get_metadata_latest(projectname)
@@ -632,11 +635,13 @@ class PyPIView:
             if not files:
                 log.warn("project %r version %r has no files", projectname,
                          metadata.get("version"))
+            baseurl = URL(request.path)
             for basename, relpath in files.items():
                 latest_packages.append(html.tr(
                     html.td(html.a("%s-%s info page" % (name, ver),
                            href="%s/%s/" % (name, ver))),
-                    html.td(html.a(basename, href="/" + relpath)),
+                    html.td(html.a(basename,
+                                   href=baseurl.relpath("/" + relpath))),
                     html.td(*docs),
                 ))
                 break  # could present more releasefiles

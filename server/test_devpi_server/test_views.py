@@ -5,9 +5,11 @@ import pytest
 import re
 import py
 import requests, json
+import posixpath
 from bs4 import BeautifulSoup
 from devpi_server.views import *
 from devpi_common.metadata import splitbasename
+from devpi_common.url import URL
 import devpi_server.views
 from devpi_common.archive import zip_dict
 from mock import Mock
@@ -100,8 +102,13 @@ def test_pkgserv(httpget, extdb, testapp):
     r = testapp.get("/root/pypi/+simple/package/")
     assert r.status_code == 200
     href = getfirstlink(r.text).get("href")
-    r = testapp.get(href)
+    assert not posixpath.isabs(href)
+    url = resolve_link(r.request.url, href)
+    r = testapp.get(url)
     assert r.body == b"123"
+
+def resolve_link(url, href):
+    return URL(url).joinpath(href).url
 
 def test_apiconfig(testapp):
     r = testapp.get("/user/name/+api")
@@ -367,7 +374,6 @@ def test_upload_with_acl(mapp):
 def test_upload_with_jenkins(mapp, mockrequests):
     mapp.create_and_use()
     mapp.set_uploadtrigger_jenkins("http://x.com/{pkgname}")
-    from devpi_server import views
     post_mock = Mock(autospec=requests.post)
     class response:
         status_code = 200

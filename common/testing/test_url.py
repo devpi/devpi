@@ -95,6 +95,27 @@ class TestURL:
         assert not isinstance(res, URL)
         assert res == "http://a/py.tar.gz"
 
+    @pytest.mark.parametrize("url,path,expected", [
+        ("/something/this", "/something/that", "that"),
+        ("/something/this", "/something/that/", "that/"),
+        ("/something/this", "/something/this", "this"),
+        ("/something/this", "/something/this/", "this/"),
+        ("/something/this", "/", "../"),
+        ("/", "/this/that/", "this/that/"),
+        ("/something/this/", "/something/that", "../that"),
+        ("/something/this/", "/other/that", "../../other/that"),
+        ("/something/this/", "/other/that", "../../other/that"),
+        ("/something/this/", "/something/this/that", "that"),
+        ("/something/this/", "/something/this/that/there", "that/there"),
+    ])
+    def test_relpath(self, url, path, expected):
+        url = URL("http://example.com" + url)
+        relpath = url.relpath(path)
+        assert relpath == expected
+
+    def test_relpath_edge_case(self):
+        with pytest.raises(ValueError):
+            URL("http://qwe/path").relpath("lkjqwe")
 
 #
 # test torelpath/fromrelpath

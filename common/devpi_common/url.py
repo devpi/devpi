@@ -96,6 +96,22 @@ class URL:
         url = self.url.rstrip("/") + "/"
         return URL(_joinpath(url, args, **kwargs))
 
+    def relpath(self, target):
+        """ return a relative path which will point to the target resource."""
+        parts1 = self.path.split("/")
+        parts2 = target.split("/")
+        if not parts2 or parts2[0]:
+            raise ValueError("not an absolute target: %s" % (target,))
+        for i, part in enumerate(parts1):
+            if parts2[i] == part:
+                continue
+            prefix = "../" * (len(parts1)-i-1)
+            return prefix + "/".join(parts2[i:])
+        rest = parts2[len(parts1):]
+        if parts1[-1]: # ends not in slash
+            rest.insert(0, parts1[-1])
+        return "/".join(rest)
+
     def asdir(self):
         if self.url[-1:] == "/":
             return self
