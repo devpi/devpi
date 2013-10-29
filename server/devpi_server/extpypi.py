@@ -4,6 +4,9 @@ Implementation of the database layer for PyPI Package serving and
 testresult storage.
 
 """
+
+from __future__ import unicode_literals
+
 import py
 import sys
 import threading
@@ -287,6 +290,11 @@ class ExtDB:
             self.keyfs.PYPISERIALS.set(name2serials)
         else:
             log.info("reusing already cached name/serial list")
+        # normalize to unicode->serial mapping
+        for name in list(name2serials):
+            if not py.builtin._istext(name):
+                val = name2serials.pop(name)
+                name2serials[py.builtin._totext(name, "utf-8")] = val
         self.name2serials = name2serials
         # create a mapping of normalized name to real name
         self.normname2name = d = dict()

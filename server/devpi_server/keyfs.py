@@ -4,11 +4,12 @@ filesystem key/value storage with support for
 storing basic python types.
 
 """
+from __future__ import unicode_literals
 
 import py
 import threading
 from tempfile import NamedTemporaryFile
-from marshal import dumps, loads
+from execnet import dumps, loads
 import os
 import sys
 from os.path import basename, isabs, join
@@ -149,7 +150,7 @@ class PTypedKey:
         for x in current:
             key = x.relto(self.keyfs.basedir)
             parts = key.split(os.sep)
-            names.add(parts[position])
+            names.add(py.builtin._totext(parts[position]))
         return names
 
     def __repr__(self):

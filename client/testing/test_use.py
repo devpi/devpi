@@ -1,3 +1,4 @@
+#from __future__ import unicode_literals
 
 import pytest
 from devpi.use import *
@@ -77,7 +78,7 @@ class TestUnit:
     def test_invalid_url(self, loghub, tmpdir):
         current = Current(tmpdir.join("current"))
         with pytest.raises(SystemExit):
-            current.configure_fromurl(loghub, "http://heise.de:/qwe")
+            current.configure_fromurl(loghub, "http://heise.de:1802:31/qwe")
 
     def test_auth_handling(self, loghub, tmpdir):
         current = Current(tmpdir.join("current"))

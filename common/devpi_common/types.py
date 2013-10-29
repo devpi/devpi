@@ -1,17 +1,19 @@
+from __future__ import unicode_literals
+
 import py
 import operator
 
 FunctionType = py.std.types.FunctionType
 
-def propmapping(name, type=None):
-    if type is None:
+def propmapping(name, convert=None):
+    if convert is None:
         def fget(self):
             return self._mapping.get(name)
     else:
         def fget(self):
             x = self._mapping.get(name)
             if x is not None:
-                x = type(x)
+                x = convert(x)
             return x
     fget.__name__ = name
     return property(fget)
@@ -144,3 +146,8 @@ class lazydecorator:
             newfunc = dec(*args, **kwargs)(func)
             assert newfunc == func
 
+
+def ensure_unicode(x):
+    if py.builtin._istext(x):
+        return x
+    return py.builtin._totext(x, "utf8")

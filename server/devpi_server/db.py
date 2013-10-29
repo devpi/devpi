@@ -1,8 +1,10 @@
+from __future__ import unicode_literals
 
 import py
 from devpi_common.metadata import (sorted_sameproject_links,
                                    get_latest_version, BasenameMeta)
 from devpi_common.validation import validate_metadata, normalize_name
+from devpi_common.types import ensure_unicode
 from devpi_common.archive import Archive
 from .vendor._description_utils import processDescription
 from .auth import crypt_password, verify_password
@@ -111,9 +113,14 @@ class DB:
         return d
 
     def _get_user_and_index(self, user, index=None):
+        if not py.builtin._istext(user):
+            user = user.decode("utf8")
         if index is None:
             user = user.strip("/")
             user, index = user.split("/")
+        else:
+            if not py.builtin._istext(index):
+                index = index.decode("utf8")
         return user, index
 
     def _normalize_bases(self, bases):
@@ -156,10 +163,11 @@ class DB:
         with self.keyfs.USER(user=user).locked_update() as userconfig:
             indexes = userconfig.setdefault("indexes", {})
             assert index not in indexes, indexes[index]
-            indexes[index] = ixconfig = dict(
-                type=type, volatile=volatile, bases=bases,
-                uploadtrigger_jenkins=uploadtrigger_jenkins,
-                acl_upload=acl_upload)
+            indexes[index] = ixconfig = {
+                "type": type, "volatile": volatile, "bases": bases,
+                "uploadtrigger_jenkins": uploadtrigger_jenkins,
+                "acl_upload": acl_upload
+            }
             log.info("created index %s/%s: %s", user, index, ixconfig)
             return ixconfig
 
@@ -290,13 +298,15 @@ class PrivateStage:
     def get_project_info(self, name):
         """ return first matching project info object for the given name
         or None if no project exists. """
-        for stage, res in self.op_with_bases("get_project_info", name=name):
+        kwdict = {"name": name}
+        for stage, res in self.op_with_bases("get_project_info", **kwdict):
             if res is not None:
                 return res
 
     def get_project_info_perstage(self, name):
         """ return normalized name for the given name or None
         if no project exists. """
+        assert py.builtin._istext(name)
         names = self.getprojectnames_perstage()
         norm2name = dict([(normalize_name(x), x) for x in names])
         realname = norm2name.get(normalize_name(name), None)
@@ -390,6 +400,7 @@ class PrivateStage:
         return key.get()
 
     def get_projectconfig(self, name):
+        assert py.builtin._istext(name)
         all_projectconfig = {}
         for stage, res in self.op_with_bases("get_projectconfig", name=name):
             if isinstance(res, int):
@@ -465,6 +476,7 @@ class PrivateStage:
         """ store_releasefile requires pre-existing release metadata. """
 
     def store_releasefile(self, filename, content, last_modified=None):
+        filename = ensure_unicode(filename)
         bmeta = BasenameMeta(filename)
         name, version = bmeta.name, bmeta.version
         info = self.get_project_info(name)

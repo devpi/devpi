@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 import pytest
 from devpi_common.url import *
 
@@ -10,8 +12,7 @@ class TestURL:
 
     def test_repr(self):
         d = URL("http://host.com/path")
-        assert repr(d) == "<URL url='http://host.com/path'>"
-
+        assert repr(d) == "<URL 'http://host.com/path'>"
 
     def test_parentbasename(self):
         d = URL("http://codespeak.net/simple/basename/")
@@ -66,6 +67,9 @@ class TestURL:
     def test_empty_url(self):
         assert not URL("")
         assert not URL()
+        url = URL(None)
+        assert url.url == ""
+
 
     def test_asdir(self):
         assert URL("http://heise.de").asdir().url == "http://heise.de/"

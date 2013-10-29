@@ -1,7 +1,7 @@
 
 import sys
 import posixpath
-from devpi_common.types import cached_property
+from devpi_common.types import cached_property, ensure_unicode
 from requests.models import parse_url
 
 if sys.version_info >= (3, 0):
@@ -24,7 +24,9 @@ class URL:
             url = url.url
         if args:
             url = _joinpath(url, args, **kwargs)
-        self.url = url
+        if not url:
+            url = ""
+        self.url = ensure_unicode(url)
 
     def __nonzero__(self):
         return bool(self.url)
@@ -32,7 +34,10 @@ class URL:
     __bool__ = __nonzero__
 
     def __repr__(self):
-        return "<URL url=%r>" % (self.url, )
+        c = repr(self.url.encode("utf8"))
+        if sys.version_info >= (3,0):
+            c = c.lstrip("b")
+        return "<URL %s>" % c
 
     def __eq__(self, other):
         return self.url == getattr(other, "url", other)
@@ -86,7 +91,7 @@ class URL:
     def md5(self):
         val = self._parsed.fragment
         if val.startswith("md5="):
-            return val[4:]
+            return ensure_unicode(val[4:])
 
     def joinpath(self, *args, **kwargs):
         newurl = _joinpath(self.url, args, **kwargs)

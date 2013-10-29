@@ -14,6 +14,7 @@ class TestFileStore:
         entry2 = filestore.maplink(link)
         assert entry1.relpath == entry2.relpath
         assert entry1.basename == "pytest-1.2.zip"
+        assert py.builtin._istext(entry1.md5)
 
     def test_maplink(self, filestore):
         link = URL("https://pypi.python.org/pkg/pytest-1.2.zip#md5=123")
@@ -69,6 +70,7 @@ class TestFileStore:
         assert entry1.eggfragment == "pytest-dev"
         assert not entry1.md5
         assert entry1.url == link.url_nofrag
+        assert entry1.eggfragment == "pytest-dev"
 
     def test_relpathentry(self, filestore):
         link = URL("http://pypi.python.org/pkg/pytest-1.7.zip")
@@ -80,13 +82,20 @@ class TestFileStore:
         entry.FILE.set(b"")
         assert entry.iscached()
         assert entry.url == link.url
-        assert entry.md5 == "1" * 16
+        assert entry.md5 == u"1" * 16
 
         # reget
         entry = filestore.getentry(entry.relpath)
         assert entry.iscached()
         assert entry.url == link.url
-        assert entry.md5 == "1" * 16
+        assert entry.md5 == u"1" * 16
+
+    def test_relpathentry_size(self, filestore):
+        link = URL("http://pypi.python.org/pkg/pytest-1.7.zip")
+        entry = filestore.maplink(link)
+        entry.set(size=123123)
+        assert py.builtin._istext(entry._mapping["size"])
+        assert entry.size == u"123123"
 
     def test_iterfile(self, filestore, httpget):
         link = URL("http://pypi.python.org/pkg/pytest-1.8.zip")

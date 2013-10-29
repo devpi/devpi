@@ -3,16 +3,18 @@ Module for handling storage and proxy-streaming and caching of release files
 for all indexes.
 
 """
+from __future__ import unicode_literals
 import hashlib
 import posixpath
 import os
+import sys
 import json
 from wsgiref.handlers import format_date_time
 from datetime import datetime
 from time import mktime
 
-from py.io import BytesIO
-from devpi_common.types import propmapping
+import py
+from devpi_common.types import propmapping, ensure_unicode
 
 from logging import getLogger
 log = getLogger(__name__)
@@ -121,7 +123,7 @@ class FileStore:
         return entry.gethttpheaders(), iter_and_cache()
 
     def store(self, user, index, filename, content, last_modified=None):
-        return self.store_file(user, index, filename, BytesIO(content),
+        return self.store_file(user, index, filename, py.io.BytesIO(content),
                                last_modified=last_modified)
 
     def store_file(self, user, index, filename, fil, last_modified=None,
@@ -244,14 +246,14 @@ class RelPathEntry(object):
         for name, val in kw.items():
             assert name in self._attr
             if val is not None:
-                mapping[name] = str(val)
+                mapping[name] = "%s" % (val,)
         self._mapping.update(mapping)
-
         self.PATHENTRY.set(self._mapping)
 
 for _ in RelPathEntry._attr:
-    setattr(RelPathEntry, _, propmapping(_))
-
+    if sys.version_info < (3,0):
+        _ = _.encode("ascii")  # py2 needs str (bytes)
+    setattr(RelPathEntry, _, propmapping(_, convert=ensure_unicode))
 
 def http_date():
     now = datetime.now()

@@ -8,7 +8,6 @@ import devpi
 from devpi_common.types import lazydecorator, cached_property
 from devpi_common.url import URL
 from devpi_common.proc import check_output
-from devpi import __version__ as client_version
 from devpi.use import Current
 from devpi_common.request import new_requests_session
 from devpi import __version__ as client_version

@@ -1,6 +1,7 @@
+from __future__ import unicode_literals
 import py
 from py.xml import html
-from devpi_common.types import lazydecorator
+from devpi_common.types import lazydecorator, ensure_unicode
 from devpi_common.url import URL
 from devpi_common.metadata import get_pyversion_filetype
 import devpi_server
@@ -171,6 +172,7 @@ class PyPIView:
         # we only serve absolute links so we don't care about the route's slash
         abort_if_invalid_projectname(projectname)
         stage = self.getstage(user, index)
+        projectname = ensure_unicode(projectname)
         info = stage.get_project_info(projectname)
         if info and info.name != projectname:
             redirect("/%s/+simple/%s/" % (stage.name, info.name))
@@ -402,13 +404,13 @@ class PyPIView:
                 content = request.files["content"]
             except KeyError:
                 abort(400, "content file field not found")
-            name = request.forms.get("name")
-            version = request.forms.get("version")
+            name = ensure_unicode(request.forms.get("name"))
+            version = ensure_unicode(request.forms.get("version"))
             info = stage.get_project_info(name)
             if not info:
                 abort(400, "no project named %r was ever registered" %(name))
             if action == "file_upload":
-                log.debug("metadata in form: %s", request.forms.items())
+                log.debug("metadata in form: %s", list(request.forms.items()))
                 abort_if_invalid_filename(name, content.filename)
                 if not stage.get_metadata(name, version):
                     self._register_metadata_form(stage, request.forms)
@@ -438,11 +440,13 @@ class PyPIView:
         metadata = {}
         for key in stage.metadata_keys:
             if key.lower() in stage.metadata_list_fields:
-                val = [item for item in form.getall(key) if item]
+                val = [ensure_unicode(item)
+                        for item in form.getall(key) if item]
             else:
-                val = form.get(key)
+                val = getattr(form, key)  # returns unicode in bottle
                 if val == "UNKNOWN":
                     val = ""
+                assert py.builtin._istext(val), val
             metadata[key] = val
 
         self._register_metadata_dict(stage, metadata)
@@ -481,6 +485,7 @@ class PyPIView:
     def project_get(self, user, index, name):
         #log.debug("HEADERS: %s", request.headers.items())
         stage = self.getstage(user, index)
+        name = ensure_unicode(name)
         info = stage.get_project_info(name)
         real_name = info.name if info else name
         if html_preferred():
@@ -518,6 +523,8 @@ class PyPIView:
     @route("/<user>/<index>/<name>/<version>/")
     def version_get(self, user, index, name, version):
         stage = self.getstage(user, index)
+        name = ensure_unicode(name)
+        version = ensure_unicode(version)
         metadata = stage.get_projectconfig(name)
         if not metadata:
             abort(404, "project %r does not exist" % name)
@@ -552,6 +559,8 @@ class PyPIView:
     @route("/<user>/<index>/<name>/<version>/", method="DELETE")
     def project_version_delete(self, user, index, name, version):
         stage = self.getstage(user, index)
+        name = ensure_unicode(name)
+        version = ensure_unicode(version)
         if stage.name == "root/pypi":
             abort(405, "cannot delete on root/pypi index")
         if not stage.ixconfig["volatile"]:
@@ -867,3 +876,4 @@ def get_pure_metadata(somedict):
         if n[0] != "+":
             metadata[n] = v
     return metadata
+

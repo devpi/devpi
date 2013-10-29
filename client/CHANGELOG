@@ -24,7 +24,6 @@
   to pick the proper devpi index and allows proper SSL verification on Python2.6
   onwards.
 
-
 - upload: show response when uploading documentation failed
 
 - upload: allow to specify archive files as positional arguments (both files and

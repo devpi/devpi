@@ -1,4 +1,5 @@
 import re
+from .types import ensure_unicode
 
 # below code mostly taken from pypi's mini_pkg_resources.py and webui.py
 # on 13th Sep 2013 from http://bitbucket.org/pypa/pypi
@@ -14,6 +15,7 @@ def safe_name(name):
     return re.sub('[^A-Za-z0-9.]+', '-', name)
 
 def normalize_name(name):
+    name = ensure_unicode(name)
     return safe_name(name).lower()
 
 def safe_version(version):
