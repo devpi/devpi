@@ -7,8 +7,8 @@ if __name__ == "__main__":
     here = os.path.abspath(".")
     README = open(os.path.join(here, 'README.rst')).read()
 
-    install_requires = ["py>=1.4.18.dev2",
-                        "devpi_common>=1.2.dev1",
+    install_requires = ["py>=1.4.18",
+                        "devpi_common>=1.2",
                         "execnet>=1.1",
                         "itsdangerous>=0.23",
                         "docutils>=0.11",
@@ -23,7 +23,7 @@ if __name__ == "__main__":
       keywords="pypi cache server wsgi",
       long_description=README,
       url="http://doc.devpi.net",
-      version='1.2.dev1',
+      version='1.2',
       maintainer="Holger Krekel",
       maintainer_email="holger@merlinux.eu",
       packages=find_packages(),

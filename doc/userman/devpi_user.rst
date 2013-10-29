@@ -21,6 +21,9 @@ But before that, users must indicate to the devpi client which server to use::
    $ devpi use  http://localhost:3141
    using server: http://localhost:3141/ (not logged in)
    no current index: type 'devpi use -l' to discover indices
+   ~/.pydistutils.cfg : no config file exists
+   ~/.pip/pip.conf    : no config file exists
+   always-set-cfg: no
 
 In this case, we do not make use of a particular index. We could however
 use the default **root/pypi** index [#f1]_.
@@ -31,7 +34,10 @@ Once ``devpi`` uses a server, the server base url is cached on the client side.
 For instance, to use the ``pypi`` index, once could issue::
 
    $ devpi use /root/pypi
-   using index: http://localhost:3141/root/pypi/ (not logged in)
+   current devpi index: http://localhost:3141/root/pypi/ (not logged in)
+   ~/.pydistutils.cfg : no config file exists
+   ~/.pip/pip.conf    : no config file exists
+   always-set-cfg: no
    
 More on the use command can be found :ref:`here <devpi_um_indices_use_section>`
 

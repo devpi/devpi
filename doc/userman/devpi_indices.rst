@@ -35,6 +35,9 @@ client provides the :ref:`cmdref_use` sub-command to achieve this purpose::
    $ devpi use http://localhost:3141/
    using server: http://localhost:3141/ (logged in as root)
    no current index: type 'devpi use -l' to discover indices
+   ~/.pydistutils.cfg : no config file exists
+   ~/.pip/pip.conf    : no config file exists
+   always-set-cfg: no
    
 where ``http://devpi.mydomain:3141`` is the **base url** to a given `devpi`_ 
 server. To use an index, users must specify an API endpoint defined as:
@@ -52,7 +55,10 @@ To see the :ref:`um_concept_server_end_points`, login::
 set the index::
 
    $ devpi use /root/pypi
-   using index: http://localhost:3141/root/pypi/ (logged in as emilie)
+   current devpi index: http://localhost:3141/root/pypi/ (logged in as emilie)
+   ~/.pydistutils.cfg : no config file exists
+   ~/.pip/pip.conf    : no config file exists
+   always-set-cfg: no
 
 and then issue::
 
@@ -62,6 +68,9 @@ and then issue::
          pypisubmit: None
           resultlog: http://localhost:3141/+tests
               login: http://localhost:3141/+login
+   ~/.pydistutils.cfg : no config file exists
+   ~/.pip/pip.conf    : no config file exists
+   always-set-cfg: no
 
 .. addind a REsT comment here works around a regendoc bug.              
               
@@ -74,13 +83,16 @@ As explained in the previous chapter, once a new user is logged in,
 he or she doesn't have any index associated to his or her username::
 
    $ devpi use
-   using index: http://localhost:3141/root/pypi/ (logged in as emilie)
+   current devpi index: http://localhost:3141/root/pypi/ (logged in as emilie)
+   ~/.pydistutils.cfg : no config file exists
+   ~/.pip/pip.conf    : no config file exists
+   always-set-cfg: no
 
 In order to create an index, use the :ref:`cmdref_index` sub-command. In the 
 example below, we create the **emilie/prod** production index::
 
    $ devpi index -c prod volatile=False
-   prod:
+   http://localhost:3141/emilie/prod:
      type=stage
      bases=root/pypi
      volatile=False
@@ -122,7 +134,7 @@ Emilie can then creating a development index (:term:`volatile index`) by
 specifying her ``prod`` index as follow::
 
    $ devpi index -c dev bases=/emilie/prod volatile=True
-   dev:
+   http://localhost:3141/emilie/dev:
      type=stage
      bases=emilie/prod
      volatile=True
@@ -167,12 +179,18 @@ Once her indexes are created::
 She can start using them (short endpoint)::
 
    $ devpi use dev
-   using index: http://localhost:3141/emilie/dev/ (logged in as emilie)
+   current devpi index: http://localhost:3141/emilie/dev/ (logged in as emilie)
+   ~/.pydistutils.cfg : no config file exists
+   ~/.pip/pip.conf    : no config file exists
+   always-set-cfg: no
    
 or (long endpoint)::
 
    $ devpi use prod
-   using index: http://localhost:3141/emilie/prod/ (logged in as emilie)
+   current devpi index: http://localhost:3141/emilie/prod/ (logged in as emilie)
+   ~/.pydistutils.cfg : no config file exists
+   ~/.pip/pip.conf    : no config file exists
+   always-set-cfg: no
    
 And from there, the urls should be set to:: 
 
@@ -182,6 +200,9 @@ And from there, the urls should be set to::
          pypisubmit: http://localhost:3141/emilie/prod/
           resultlog: http://localhost:3141/+tests
               login: http://localhost:3141/+login
+   ~/.pydistutils.cfg : no config file exists
+   ~/.pip/pip.conf    : no config file exists
+   always-set-cfg: no
    
 .. note:: By default, a user index has its ``acl_upload`` property set to 
           himself/herself. This implies that other users are not allowed 
@@ -206,7 +227,7 @@ Assuming that Sophie has both index types as well::
 ::
 
    $ devpi index -c prod volatile=False
-   prod:
+   http://localhost:3141/sophie/prod:
      type=stage
      bases=root/pypi
      volatile=False
@@ -216,7 +237,7 @@ Assuming that Sophie has both index types as well::
 ::
 
    $ devpi index -c dev bases=/sophie/prod volatile=True
-   dev:
+   http://localhost:3141/sophie/dev:
      type=stage
      bases=sophie/prod
      volatile=True
@@ -240,7 +261,7 @@ bases::
 
    $ devpi index /emilie/dev bases=/emilie/prod,/sophie/dev
    /emilie/dev changing bases: ['/emilie/prod', '/sophie/dev']
-   /emilie/dev:
+   http://localhost:3141/emilie/dev:
      type=stage
      bases=emilie/prod,sophie/dev
      volatile=True
@@ -257,7 +278,7 @@ When the work is done, this relationship can be revoked by doing::
    
    $ devpi index /emilie/dev bases=/emilie/prod
    /emilie/dev changing bases: ['/emilie/prod']
-   /emilie/dev:
+   http://localhost:3141/emilie/dev:
      type=stage
      bases=emilie/prod
      volatile=True
@@ -269,7 +290,7 @@ When the work is done, this relationship can be revoked by doing::
 which now has the ``/emilie/dev`` as a base only::
    
    $ devpi index /emilie/dev
-   /emilie/dev:
+   http://localhost:3141/emilie/dev:
      type=stage
      bases=emilie/prod
      volatile=True
@@ -285,22 +306,34 @@ Switching Between Indices
 Now that we have two indices, we can switch between them by doing::
 
    $ devpi use /emilie/prod
-   using index: http://localhost:3141/emilie/prod/ (logged in as emilie)
+   current devpi index: http://localhost:3141/emilie/prod/ (logged in as emilie)
+   ~/.pydistutils.cfg : no config file exists
+   ~/.pip/pip.conf    : no config file exists
+   always-set-cfg: no
 
 checking::
 
    $ devpi use 
-   using index: http://localhost:3141/emilie/prod/ (logged in as emilie)
+   current devpi index: http://localhost:3141/emilie/prod/ (logged in as emilie)
+   ~/.pydistutils.cfg : no config file exists
+   ~/.pip/pip.conf    : no config file exists
+   always-set-cfg: no
 
 switching::
 
    $ devpi use /emilie/dev
-   using index: http://localhost:3141/emilie/dev/ (logged in as emilie)
+   current devpi index: http://localhost:3141/emilie/dev/ (logged in as emilie)
+   ~/.pydistutils.cfg : no config file exists
+   ~/.pip/pip.conf    : no config file exists
+   always-set-cfg: no
 
 and checking again::
 
    $ devpi use
-   using index: http://localhost:3141/emilie/dev/ (logged in as emilie)
+   current devpi index: http://localhost:3141/emilie/dev/ (logged in as emilie)
+   ~/.pydistutils.cfg : no config file exists
+   ~/.pip/pip.conf    : no config file exists
+   always-set-cfg: no
 
 Deleting an Index
 -----------------
@@ -310,7 +343,7 @@ Deleting an Index
 In the example below, we create a "bad" index and delete it::
 
    $ devpi index -c oups bases=/emilie/prod volatile=True
-   oups:
+   http://localhost:3141/emilie/oups:
      type=stage
      bases=emilie/prod
      volatile=True
@@ -338,7 +371,7 @@ here is the bad index::
 which is now deleted::  
 
    $ devpi index --delete /emilie/oups
-   index deleted: /emilie/oups
+   index deleted: <URL 'http://localhost:3141/emilie/oups'>
    
 And to prove it::
 

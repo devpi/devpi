@@ -22,8 +22,8 @@ def out_project(hub, data):
         for verdata in shadowing:
             if out_project_version_files(hub, verdata, version, None):
                 num += 1
-    if not hub.args.all:
-        hub.info("%s older versions not shown, use --all to see" % num)
+    if not hub.args.all and num > 1:
+        hub.info("%s older versions not shown, use --all to see" % (num-1))
 
 def out_project_version_files(hub, verdata, version, index):
     files = verdata.get("+files")

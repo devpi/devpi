@@ -43,8 +43,11 @@ def simple_html_body(title, bodytags, extrahead=""):
 
 API_VERSION = "1"
 
-meta_headers = {"X-DEVPI-API-VERSION": API_VERSION,
-                "X-DEVPI-SERVER-VERSION": server_version}
+# we use str() here so that python2.6 gets bytes, python3.3 gets string
+# so that wsgiref's parsing does not choke
+
+meta_headers = {str("X-DEVPI-API-VERSION"): API_VERSION,
+                str("X-DEVPI-SERVER-VERSION"): server_version}
 
 def abort(code, body):
     if "application/json" in request.headers.get("Accept", ""):
@@ -61,8 +64,8 @@ def abort_custom(code, msg):
 
 def abort_authenticate(msg="authentication required"):
     err = HTTPError(401, msg)
-    err.add_header('WWW-Authenticate', 'Basic realm="pypi"')
-    err.add_header('location', "/+login")
+    err.add_header(str('WWW-Authenticate'), 'Basic realm="pypi"')
+    err.add_header(str('location'), "/+login")
     raise err
 
 def apireturn(code, message=None, result=None, type=None):
@@ -75,7 +78,7 @@ def apireturn(code, message=None, result=None, type=None):
         d["message"] = message
     data = json.dumps(d, indent=2) + "\n"
     header = meta_headers.copy()
-    header["content-type"] = "application/json"
+    header[str("content-type")] = "application/json"
     raise HTTPResponse(body=data, status=code, header=header)
 
 def json_preferred():

@@ -120,21 +120,24 @@ list
 
     $ devpi list -h
     usage: /home/hpk/venv/0/bin/devpi list [-h] [--version] [--debug] [-y] [-v]
-                                           [--clientdir DIR] [-f]
+                                           [--clientdir DIR] [-f] [--all]
                                            [spec]
     
-    list project versions and files for the current index. Without a ``spec``
-    argument this command will show the names of all projects that have been used.
-    With a spec argument it will show all release files. RED files come from an an
-    inherited version which is shadowed by an inheriting index.
+    list project versions and files for the current index. Without a spec argument
+    this command will show the names of all projects which have releases on the
+    current index. You can use a pip/setuptools style spec argument to show files
+    for particular versions of a project. RED files come from an an inherited
+    version which is shadowed by an inheriting index.
     
     positional arguments:
-      spec             show only info for a project/version/release file. Example
-                       specs: 'pytest' or 'pytest-2.3.5' or 'pytest-2.3.5.tar.gz'
+      spec             show info for a project or a specific release. Example
+                       specs: pytest or 'pytest>=2.3.5' (Quotes are needed to
+                       prevent shell redirection)
     
     optional arguments:
       -h, --help       show this help message and exit
       -f, --failures   show test setup/failure logs
+      --all            show all versions instead of just the newest
     
     generic options:
       --version        show program's version number and exit
@@ -288,7 +291,7 @@ remove
     positional arguments:
       spec             remove info/files for a project/version/release file from
                        the current index. Example specs: 'pytest' or
-                       'pytest-2.3.5' or 'pytest-2.3.5.tar.gz'
+                       'pytest>=2.3.5'
     
     optional arguments:
       -h, --help       show this help message and exit
@@ -309,7 +312,8 @@ test
 
     $ devpi test -h
     usage: /home/hpk/venv/0/bin/devpi test [-h] [--version] [--debug] [-y] [-v]
-                                           [--clientdir DIR] [-e VENV]
+                                           [--clientdir DIR] [-e ENVNAME]
+                                           [-c PATH] [--fallback-ini PATH]
                                            [--tox-args toxargs]
                                            pkgspec
     
@@ -318,20 +322,24 @@ test
     package).
     
     positional arguments:
-      pkgspec             package specification to download and test
+      pkgspec              package specification to download and test
     
     optional arguments:
-      -h, --help          show this help message and exit
-      -e VENV             virtual environment to run from the tox.ini
-      --tox-args toxargs  extra command line arguments for tox
+      -h, --help           show this help message and exit
+      -e ENVNAME           tox test environment to run from the tox.ini
+      -c PATH              tox configuration file to use with unpacked package
+      --fallback-ini PATH  tox ini file to be used if the downloaded package has
+                           none
+      --tox-args toxargs   extra command line arguments for tox. e.g.
+                           --toxargs="-c othertox.ini"
     
     generic options:
-      --version           show program's version number and exit
-      --debug             show debug messages including more info on server
-                          requests
-      -y                  assume 'yes' on confirmation questions
-      -v, --verbose       increase verbosity
-      --clientdir DIR     directory for storing login and other state
+      --version            show program's version number and exit
+      --debug              show debug messages including more info on server
+                           requests
+      -y                   assume 'yes' on confirmation questions
+      -v, --verbose        increase verbosity
+      --clientdir DIR      directory for storing login and other state
 
 .. _cmdref_upload:
 
@@ -343,37 +351,45 @@ upload
     $ devpi upload -h
     usage: /home/hpk/venv/0/bin/devpi upload [-h] [--version] [--debug] [-y] [-v]
                                              [--clientdir DIR] [--no-vcs]
-                                             [--formats FORMATS]
-                                             [--from-dir FROMDIR] [--only-latest]
-                                             [--dry-run] [--with-docs]
-                                             [--only-docs]
+                                             [--formats FORMATS] [--with-docs]
+                                             [--only-docs] [--from-dir]
+                                             [--only-latest] [--dry-run]
+                                             [path [path ...]]
     
-    prepare and upload packages to the current index. This command wraps
-    ``setup.py`` invocations to build and upload releases, release files and
-    documentation to your in-use index (see "devpi use").
+    (build and) upload packages to the current devpi-server index. You can
+    directly upload existing release files by specifying their file system path as
+    positional arguments. Such release files need to contain package metadata as
+    created by setup.py or wheel invocations. Or, if you don't specify any path, a
+    setup.py file must exist and will be used to perform build and upload
+    commands.
     
     optional arguments:
-      -h, --help          show this help message and exit
-      --no-vcs            don't VCS-export to a fresh dir, just execute setup.py
-                          scripts directly using their dirname as current dir.
-      --formats FORMATS   comma separated list of build formats (passed to
-                          setup.py). Examples
-                          sdist.zip,bdist_egg,bdist_wheel,bdist_dumb.
-      --from-dir FROMDIR  upload all archive files from the specified directory
-      --only-latest       upload only latest version if multiple archives for a
-                          package are found (only effective with --from-dir)
-      --dry-run           don't perform any server-modifying actions
-      --with-docs         build sphinx docs and upload them to index. this
-                          triggers 'setup.py build_sphinx ... upload_docs ...'
-      --only-docs         as --with-docs but don't upload release files
+      -h, --help         show this help message and exit
     
     generic options:
-      --version           show program's version number and exit
-      --debug             show debug messages including more info on server
-                          requests
-      -y                  assume 'yes' on confirmation questions
-      -v, --verbose       increase verbosity
-      --clientdir DIR     directory for storing login and other state
+      --version          show program's version number and exit
+      --debug            show debug messages including more info on server
+                         requests
+      -y                 assume 'yes' on confirmation questions
+      -v, --verbose      increase verbosity
+      --clientdir DIR    directory for storing login and other state
+    
+    build options:
+      --no-vcs           don't VCS-export to a fresh dir, just execute setup.py
+                         scripts directly using their dirname as current dir.
+      --formats FORMATS  comma separated list of build formats (passed to
+                         setup.py). Examples
+                         sdist.zip,bdist_egg,bdist_wheel,bdist_dumb.
+      --with-docs        build sphinx docs and upload them to index. this triggers
+                         'setup.py build_sphinx' for building
+      --only-docs        as --with-docs but don't build or upload release files
+    
+    direct file upload options:
+      --from-dir         recursively look for archive files in path if it is a dir
+      --only-latest      upload only latest version if multiple archives for a
+                         package are found (only effective with --from-dir)
+      --dry-run          don't perform any server-modifying actions
+      path               path to archive file to be inspected and uploaded.
 
 .. _cmdref_use:
 
@@ -384,8 +400,9 @@ use
 
     $ devpi use -h
     usage: /home/hpk/venv/0/bin/devpi use [-h] [--version] [--debug] [-y] [-v]
-                                          [--clientdir DIR] [--venv VENV] [--urls]
-                                          [-l] [--delete]
+                                          [--clientdir DIR] [--set-cfg]
+                                          [--always-set-cfg {yes,no}]
+                                          [--venv VENV] [--urls] [-l] [--delete]
                                           [url]
     
     show/configure current index and target venv for install activities. This
@@ -394,26 +411,35 @@ use
     specify --urls) and the target virtualenv for installation activities.
     
     positional arguments:
-      url              set current API endpoints to the ones obtained from the
-                       given url. If already connected to a server, you can
-                       specify '/USER/INDEXNAME' which will use the same server
-                       context. If you specify the root url you will not be
-                       connected to a particular index.
+      url                   set current API endpoints to the ones obtained from
+                            the given url. If already connected to a server, you
+                            can specify '/USER/INDEXNAME' which will use the same
+                            server context. If you specify the root url you will
+                            not be connected to a particular index.
     
     optional arguments:
-      -h, --help       show this help message and exit
-      --venv VENV      set virtual environment to use for install activities.
-                       specify '-' to unset it.
-      --urls           show remote endpoint urls
-      -l               show all available indexes at the remote server
-      --delete         delete current association with server
+      -h, --help            show this help message and exit
+      --set-cfg             create or modify pip/setuptools config files in home
+                            directory so pip/easy_install will pick up the current
+                            devpi index url
+      --always-set-cfg {yes,no}
+                            on 'yes', all subsequent 'devpi use' will implicitely
+                            use --set-cfg. The setting is stored with the devpi
+                            client config file and can be cleared with '--always-
+                            set-cfg=no'.
+      --venv VENV           set virtual environment to use for install activities.
+                            specify '-' to unset it.
+      --urls                show remote endpoint urls
+      -l                    show all available indexes at the remote server
+      --delete              delete current association with server
     
     generic options:
-      --version        show program's version number and exit
-      --debug          show debug messages including more info on server requests
-      -y               assume 'yes' on confirmation questions
-      -v, --verbose    increase verbosity
-      --clientdir DIR  directory for storing login and other state
+      --version             show program's version number and exit
+      --debug               show debug messages including more info on server
+                            requests
+      -y                    assume 'yes' on confirmation questions
+      -v, --verbose         increase verbosity
+      --clientdir DIR       directory for storing login and other state
 
 .. _cmdref_user:
 
@@ -498,7 +524,7 @@ devpi command reference (server)
                            using a http proxy.
     
     deployment and data options:
-      --version            show devpi_version (1.1)
+      --version            show devpi_version (1.2)
       --gendeploy DIR      (unix only) install and generate a pre-configured
                            virtualenv directory which puts devpi-server under
                            supervisor control and provides some example files for

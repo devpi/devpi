@@ -96,8 +96,6 @@ class DevIndex:
         toxargs = []
         if args.venv is not None:
             toxargs.append("-e" + args.venv)
-        if args.toxargs:
-            toxargs.extend(shlex.split(args.toxargs))
         if args.toxini:
             ini = hub.get_existing_file(args.toxini)
         elif unpack_path.join("tox.ini").exists():
@@ -107,6 +105,8 @@ class DevIndex:
         else:
             hub.fatal("no tox.ini file found in %s" % unpack_path)
         toxargs.extend(["-c", str(ini)])
+        if args.toxargs:
+            toxargs.extend(shlex.split(args.toxargs))
         return toxargs
 
 def post_tox_json_report(hub, href, jsondata):

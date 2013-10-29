@@ -40,7 +40,7 @@ def test_passthrough_args_toxargs(makehub, tmpdir, pseudo_current):
     index = DevIndex(hub, tmpdir, pseudo_current)
     tmpdir.ensure("tox.ini")
     args = index.get_tox_args(unpack_path=tmpdir)
-    assert contains_sublist(args, ["--", "-x"])
+    assert args[-2:] == ["--", "-x"]
 
 def test_toxini(makehub, tmpdir, pseudo_current):
     toxini = tmpdir.ensure("new-tox.ini")

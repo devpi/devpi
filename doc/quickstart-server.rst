@@ -29,12 +29,12 @@ Installing devpi-server
 
 Install or upgrade ``devpi-server``::
 
-    $ pip install --pre -U -q devpi-server
+    pip install -U devpi-server
 
 And let's check the version::
 
     $ devpi-server --version
-    1.1
+    1.2
 
 .. _gendeploy:
 
@@ -151,8 +151,8 @@ Now that we have our "gendeploy" instance running, we can
 uninstall devpi-server from the original environment::
 
     $ pip uninstall -y devpi-server
-    Uninstalling devpi-server:
-      Successfully uninstalled devpi-server
+    Cannot uninstall requirement devpi-server, not installed
+    Storing complete log in /tmp/home/.pip/pip.log
 
 the supervisor configuration file
 +++++++++++++++++++++++++++++++++++
@@ -212,8 +212,19 @@ nginx site config file::
         gzip_proxied     any;
         gzip_types       text/html application/json; 
     
-        root /home/hpk/p/devpi/doc/TARGETDIR/data;  # arbitrary for now
+        client_max_body_size 30M;
+    
+        root /home/hpk/p/devpi/doc/TARGETDIR/data;  
+    
+        # try serving docs and (md5/immutable) directly
+        location ~ \+(f|doc)/ {
+            try_files $uri @proxy_to_app;
+        }
         location / {
+            # XXX how to tell nginx to just refer to @proxy_to_app here?
+            try_files /.lqkwje @proxy_to_app;
+        }   
+        location @proxy_to_app {
             proxy_pass http://localhost:4040;
             proxy_set_header  X-outside-url $scheme://$host;
             proxy_set_header  X-Real-IP $remote_addr;
@@ -268,6 +279,9 @@ For purposes of this tutorial, we use the direct
     $ devpi use http://localhost:4040
     using server: http://localhost:4040/ (not logged in)
     no current index: type 'devpi use -l' to discover indices
+    ~/.pydistutils.cfg : no config file exists
+    ~/.pip/pip.conf    : no config file exists
+    always-set-cfg: no
 
 At this point we have only a root user and a ``root/pypi``
 index (see :ref:`using root/pypi index <install_first>`).
@@ -285,6 +299,26 @@ For that we first need to login::
 and can then change it::
 
     $ devpi user -m root password=123
+    Traceback (most recent call last):
+      File "/tmp/docenv/bin/devpi", line 9, in <module>
+        load_entry_point('devpi-client==1.1', 'console_scripts', 'devpi')()
+      File "/tmp/docenv/local/lib/python2.7/site-packages/devpi/main.py", line 30, in main
+        return method(hub, hub.args)
+      File "/tmp/docenv/local/lib/python2.7/site-packages/devpi/user.py", line 47, in main
+        return user_modify(hub, username, kvdict)
+      File "/tmp/docenv/local/lib/python2.7/site-packages/devpi/user.py", line 25, in user_modify
+        hub.http_api("patch", hub.current.get_user_url(user), kvdict)
+      File "/tmp/docenv/local/lib/python2.7/site-packages/devpi/main.py", line 115, in http_api
+        auth=auth)
+      File "/tmp/docenv/local/lib/python2.7/site-packages/requests/sessions.py", line 324, in request
+        prep = self.prepare_request(req)
+      File "/tmp/docenv/local/lib/python2.7/site-packages/requests/sessions.py", line 265, in prepare_request
+        hooks=merge_setting(request.hooks, self.hooks),
+      File "/tmp/docenv/local/lib/python2.7/site-packages/requests/models.py", line 283, in prepare
+        self.prepare_url(url, params)
+      File "/tmp/docenv/local/lib/python2.7/site-packages/requests/models.py", line 327, in prepare_url
+        raise MissingSchema("Invalid URL %r: No schema supplied" % url)
+    requests.exceptions.MissingSchema: Invalid URL u'root': No schema supplied
 
 At this point we don't have any other users::
 
@@ -312,7 +346,7 @@ and then login::
 Alice can now create a new ``dev`` index::
 
     $ devpi index -c dev
-    dev:
+    http://localhost:4040/alice/dev:
       type=stage
       bases=root/pypi
       volatile=True
@@ -322,7 +356,10 @@ Alice can now create a new ``dev`` index::
 and use it::
 
     $ devpi use alice/dev
-    using index: http://localhost:4040/alice/dev/ (logged in as alice)
+    current devpi index: http://localhost:4040/alice/dev/ (logged in as alice)
+    ~/.pydistutils.cfg : no config file exists
+    ~/.pip/pip.conf    : no config file exists
+    always-set-cfg: no
 
 Our ``alice/dev`` index derives from ``root/pypi`` by default
 which makes all pypi.python.org releases available.
@@ -334,6 +371,10 @@ You can cause devpi to set ``$HOME`` configuration files which will
 cause ``pip`` and ``easy_install`` to use our in-use index server::
 
     $ devpi use --set-cfg alice/dev
+    current devpi index: http://localhost:4040/alice/dev/ (logged in as alice)
+    ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
+    ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
+    always-set-cfg: no
 
 This will modify or create common configuration files in your home directory
 so that subsequent ``pip`` or ``easy_install`` invocations will work against
@@ -341,6 +382,10 @@ the ``user/indexname`` index.   You can configure ``devpi`` to perform
 this configuration modification::
 
     $ devpi use --always-set-cfg=yes
+    current devpi index: http://localhost:4040/alice/dev/ (logged in as alice)
+    ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
+    ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
+    always-set-cfg: yes
 
 This will imply ``--set-cfg`` on all subsequent ``devpi use ...`` operations.
 
@@ -401,6 +446,6 @@ at ``$HOME/.devpi/server``)
 
 .. note::
 
-    With version 1.1 users, indices, release files,
+    With version 1.1 and above users, indices, release files,
     test results and documentation files will be dumped.  
     The ``root/pypi`` pypi-caching index is **not dumped**.

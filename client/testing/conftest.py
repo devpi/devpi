@@ -105,6 +105,7 @@ def port_of_liveserver(request):
     port = random.randint(2001, 64000)
     clientdir = request.config._tmpdirhandler.mktemp("liveserver")
     subprocess.check_call(["devpi-server", "--serverdir", str(clientdir),
+                           "--debug",
                              "--port", str(port), "--start"])
     def stop():
         subprocess.check_call(["devpi-server", "--serverdir", str(clientdir),
