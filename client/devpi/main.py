@@ -105,7 +105,7 @@ class Hub:
         reply = HTTPReply(r)
 
         # if we get a 401 it means our auth info is expired or not present
-        if r.status_code == 401:
+        if r.status_code == 401 and "location" in reply.headers:
             if self.current.del_auth():
                 self.error("removed expired authentication information")
 
@@ -474,8 +474,9 @@ def list_(parser):
 
     Without a spec argument this command will show the names
     of all projects which have releases on the current index.
-    You can use a spec argument to show files for a particular project or
-    release.  RED files come from an an inherited version which is
+    You can use a pip/setuptools style spec argument to show files
+    for particular versions of a project.
+    RED files come from an an inherited version which is
     shadowed by an inheriting index.
     """
     parser.add_argument("-f", "--failures", action="store_true",
@@ -487,7 +488,8 @@ def list_(parser):
 
     parser.add_argument("spec", nargs="?",
         help="show info for a project or a specific release. "
-             "Example specs: 'pytest' or 'pytest-2.3.5'")
+             "Example specs: pytest or 'pytest>=2.3.5'"
+             " (Quotes are needed to prevent shell redirection)")
 
 @subcommand("devpi.list_remove:main_remove")
 def remove(parser):
@@ -500,7 +502,7 @@ def remove(parser):
     parser.add_argument("spec",
         help="remove info/files for a project/version/release file from the "
              "current index. "
-             "Example specs: 'pytest' or 'pytest-2.3.5' or 'pytest-2.3.5.tar.gz'")
+             "Example specs: 'pytest' or 'pytest>=2.3.5'")
 
 @subcommand("devpi.user")
 def user(parser):

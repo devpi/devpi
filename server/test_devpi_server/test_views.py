@@ -352,9 +352,13 @@ def test_upload_and_delete_project(mapp, testapp):
     api = mapp.create_and_use()
     mapp.delete_project("pkg1", code=404)
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
+    mapp.upload_file_pypi("pkg1-2.7.tgz", b"123", "pkg1", "2.7")
     r = testapp.get(api.simpleindex + "pkg1/")
     assert r.status_code == 200
-    r = testapp.delete(api.index + "pkg1/")
+    r = testapp.delete(api.index + "pkg1/2.6/")
+    assert r.status_code == 200
+    mapp.getjson(api.index + "pkg1/", code=200)
+    r = testapp.delete(api.index + "pkg1/2.7/")
     assert r.status_code == 200
     mapp.getjson(api.index + "pkg1/", code=404)
 

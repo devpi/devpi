@@ -109,3 +109,12 @@ class TestBasenameMeta:
         links = ["master", "py-1.0.zip", "trunk.zip", "py-1.1.tgz"]
         newlinks = sorted_sameproject_links(links)
         assert newlinks == ["py-1.1.tgz", "py-1.0.zip", "trunk.zip", "master"]
+
+
+def test_parse_requirement():
+    req = parse_requirement("hello>=1.0")
+    assert req.project_name == "hello"
+    assert "1.0" in req
+    assert "0.9" not in req
+
+-1.0

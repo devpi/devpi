@@ -30,12 +30,12 @@ def test_out_project(loghub, input, output, monkeypatch):
     loghub.args.status = False
     loghub.args.all = True
     monkeypatch.setattr(list_remove, "query_file_status", lambda *args: None)
-    out_project(loghub, input)
+    out_project(loghub, input, parse_requirement("p1"))
     matcher = loghub._getmatcher()
     matcher.fnmatch_lines(output)
 
     loghub.args.all = False
-    out_project(loghub, input)
+    out_project(loghub, input, parse_requirement("p1"))
     matcher = loghub._getmatcher()
     matcher.fnmatch_lines(output[0])
 
@@ -48,21 +48,19 @@ def test_confirm_delete(loghub, monkeypatch):
                 ))
     monkeypatch.setattr(loghub, "ask_confirm", lambda msg: True)
     class r:
-        result={"+files": {"x-1.tar.gz": "root/dev/files/x-1.tar.gz"}}
-        type = "versiondata"
-    assert confirm_delete(loghub, r)
-
-
-def test_geturl(loghub):
-    loghub.current.reconfigure(dict(
-                pypisubmit="/post",
-                simpleindex="/index",
-                index="/root/dev/",
-                login="/login",
-                ))
-    assert get_url(loghub, None).path == "/root/dev/"
-    assert get_url(loghub, "pytest").path == "/root/dev/pytest/"
-    assert get_url(loghub, "/hpk/rel/pytest").path == "/hpk/rel/pytest/"
+        result={"1.0": {
+                    "+files": {"x-1.0.tar.gz": "root/dev/files/x-1.0tar.gz"}},
+                "1.1": {
+                    "+files": {"x-1.1.tar.gz": "root/dev/files/x-1.1.tar.gz"}},
+        }
+        type = "projectconfig"
+    req = parse_requirement("x>=1.1")
+    assert confirm_delete(loghub, r, req)
+    m = loghub._getmatcher()
+    m.fnmatch_lines("""
+        *x-1.1.tar.gz*
+    """)
+    assert "x-1.0" not in req
 
 def test_has_failing_commands():
     assert not has_failing_commands([dict(retcode="0"), dict(retcode="0")])
@@ -89,6 +87,11 @@ class TestList:
         assert py.path.local("setup.py").check()
         devpi("upload", "--formats", "sdist.zip")
         devpi("upload", "--formats", "sdist.zip,bdist_dumb")
-
+        initproj("hello-1.1", {"doc": {
+            "conf.py": "",
+            "index.html": "<html/>"}})
+        devpi("upload", "--formats", "sdist.zip")
         devpi("list", "hello")
-        devpi("remove", "-y", "hello")
+        devpi("remove", "-y", "hello==1.0", code=200)
+        devpi("list", "hello")
+        devpi("remove", "-y", "hello==1.1", code=200)

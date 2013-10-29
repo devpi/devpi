@@ -1,7 +1,10 @@
 1.X
 -------------------------------
 
-- make devpi-client work with python3.3 and fix test bugs 
+- "devpi list" and "devpi remove" now accept a pip/setuptools style
+  requirement like "pkg>=1.0" instead of the former for limited "pkg-1.0".
+
+- make devpi-client fully work with python3.3 and fix test bugs 
 
 - use system http/s proxy settings from devpi-server.  fixes issue58.
 

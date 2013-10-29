@@ -1,7 +1,7 @@
 import posixpath
 import re
 import py
-from pkg_resources import parse_version
+from pkg_resources import parse_version, Requirement
 from .types import CompareMixin
 from .validation import normalize_name
 
@@ -127,3 +127,6 @@ def is_archive_of_project(basename, targetname):
         return False
     return True
 
+
+def parse_requirement(s):
+    return Requirement.parse(s)

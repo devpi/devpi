@@ -1,20 +1,22 @@
 
 from devpi_common.url import URL
-from devpi_common.metadata import splitbasename, Version
+from devpi_common.metadata import splitbasename, Version, parse_requirement
 
 def out_index(hub, data):
     for name in sorted(data):
         hub.info(name)
 
-def out_project(hub, data):
+def out_project(hub, data, req):
     index = hub.current.index[len(hub.current.rooturl):]
     num = 0
+    maxshow = 2
     for ver in sorted(map(Version, data), reverse=True):
-        if num > 0 and not hub.args.all:
+        version = ver.string
+        if version not in req:
+            continue
+        if num > maxshow and not hub.args.all:
             num += 1
             continue
-        version = ver.string
-        #hub.info("%s-%s:" % (name, version))
         verdata = data[version]
         if out_project_version_files(hub, verdata, version, index):
             num += 1
@@ -22,8 +24,9 @@ def out_project(hub, data):
         for verdata in shadowing:
             if out_project_version_files(hub, verdata, version, None):
                 num += 1
-    if not hub.args.all and num > 1:
-        hub.info("%s older versions not shown, use --all to see" % (num-1))
+    if not hub.args.all and num > (maxshow+1):
+        hub.info("%s older versions not shown, use --all to see" %
+                 (num-maxshow-1))
 
 def out_project_version_files(hub, verdata, version, index):
     files = verdata.get("+files")
@@ -106,55 +109,47 @@ def show_commands(hub, commands):
 
 def main_list(hub, args):
     hub.require_valid_current_with_index()
-    url = get_url(hub, hub.args.spec)
-    hub.info("list result: %s" % url.url)
-    reply = hub.http_api("get", url, quiet=True)
-    if reply.type == "list:projectconfig":
+    if hub.args.spec:
+        req = parse_requirement(hub.args.spec)
+        url = hub.current.get_project_url(req.project_name)
+        reply = hub.http_api("get", url, type="projectconfig")
+        out_project(hub, reply.result, req)
+    else:
+        reply = hub.http_api("get", hub.current.index,
+                             type="list:projectconfig")
         out_index(hub, reply.result)
-    elif reply.type == "projectconfig":
-        out_project(hub, reply.result)
-    else:
-        hub.fatal("cannot show result type: %s "
-                  "(use getjson to get raw data)" % (reply.type,))
-
-def get_url(hub, target):
-    if not target:
-        check_verify_current(hub)
-        url = hub.current.index_url
-    else:
-        url = hub.current.index_url.addpath(target, asdir=1)
-    return url
 
 def main_remove(hub, args):
     hub.require_valid_current_with_index()
     args = hub.args
-
-    name, ver, suffix = splitbasename(args.spec, checkarch=False)
-    if suffix:
-        hub.fatal("can only delete releases, not single release files")
-    url = hub.current.get_project_url(name)
-    if ver:
-        url = url + ver + "/"
-    reply = hub.http_api("get", url)
-    if confirm_delete(hub, reply):
-        hub.http_api("delete", url)
-
-def confirm_delete(hub, reply):
-    basepath = URL(hub.current.index).path.lstrip("/")
-    to_delete = []
-    if reply.type == "projectconfig":
-        for version, verdata in reply.result.items():
-            to_delete.extend(match_release_files(basepath, verdata))
-    elif reply.type == "versiondata":
-        to_delete.extend(match_release_files(basepath, reply.result))
-    if not to_delete:
-        hub.line("nothing to delete")
-        return None
+    req = parse_requirement(args.spec)
+    url = hub.current.get_project_url(req.project_name)
+    reply = hub.http_api("get", url, type="projectconfig")
+    ver_to_delete = confirm_delete(hub, reply, req)
+    if ver_to_delete is None:
+        hub.error("not deleting anything")
+        return 1
     else:
-        hub.info("About to remove the following release files and metadata:")
-        for fil in to_delete:
-            hub.info("   " + fil)
-        return hub.ask_confirm("Are you sure")
+        for ver, files in ver_to_delete:
+            hub.info("deleting release %s of %s" % (ver, req.project_name))
+            hub.http_api("delete", url.addpath(ver))
+
+def confirm_delete(hub, reply, req):
+    basepath = URL(hub.current.index).path.lstrip("/")
+    ver_to_delete = []
+    for version, verdata in reply.result.items():
+        if version in req:
+            files_to_delete = list(match_release_files(basepath, verdata))
+            if files_to_delete:  # XXX need to delete metadata without files
+                ver_to_delete.append((version, files_to_delete))
+    if ver_to_delete:
+        hub.info("About to remove the following releases and distributions")
+        for ver, files in ver_to_delete:
+            hub.info("   version: " + ver)
+            for fil in files:
+                hub.info("   - " + fil)
+        if hub.ask_confirm("Are you sure"):
+            return ver_to_delete
 
 def match_release_files(basepath, verdata):
     files = verdata.get("+files", {})

@@ -93,9 +93,9 @@ Uploading a Release File
 Uploading the sample release file can be done as follow (default format is sdist)::
 
    $ cd pysober; devpi upload 
-   using workdir /tmp/devpi114
+   using workdir /tmp/devpi117
    --> $ hg st -nmac . 
-   hg-exported project to /tmp/devpi114/upload/pysober -> new CWD
+   hg-exported project to /tmp/devpi117/upload/pysober -> new CWD
    --> $ /home/hpk/venv/0/bin/python setup.py sdist --formats gztar 
    built: /home/hpk/p/devpi/doc/userman/pysober/dist/pysober-0.1.0.tar.gz [SDIST.TGZ] 2kb
    register pysober-0.1.0 to http://localhost:3141/emilie/dev/
@@ -111,7 +111,7 @@ Uploading the sample release file can be done as follow (default format is sdist
 Let's verify that the project has been uploaded::
 
    $ devpi list pysober
-   emilie/dev/+f/a6a585ade2adb2399b00b80265b4b79b/pysober-0.1.0.tar.gz
+   emilie/dev/+f/1b3e6a1f4f39c174a74a7aafa3aa0d3e/pysober-0.1.0.tar.gz
    
 Assuming that we create a new version::
 
@@ -120,9 +120,9 @@ Assuming that we create a new version::
 We can now upload the new version::
 
    $ cd pysober; devpi upload
-   using workdir /tmp/devpi115
+   using workdir /tmp/devpi118
    --> $ hg st -nmac . 
-   hg-exported project to /tmp/devpi115/upload/pysober -> new CWD
+   hg-exported project to /tmp/devpi118/upload/pysober -> new CWD
    pre-build: cleaning /home/hpk/p/devpi/doc/userman/pysober/dist
    --> $ /home/hpk/venv/0/bin/python setup.py sdist --formats gztar 
    built: /home/hpk/p/devpi/doc/userman/pysober/dist/pysober-0.2.0.tar.gz [SDIST.TGZ] 2kb
@@ -132,8 +132,8 @@ We can now upload the new version::
 We can verify that we uploaded two versions of our release file::
 
    $ devpi list pysober
-   emilie/dev/+f/83e2fe0a7168e75b45d2066e9d8e1e2e/pysober-0.2.0.tar.gz
-   emilie/dev/+f/a6a585ade2adb2399b00b80265b4b79b/pysober-0.1.0.tar.gz
+   emilie/dev/+f/1c9f49b88d65e978efcfa2f84ea2bfc4/pysober-0.2.0.tar.gz
+   emilie/dev/+f/1b3e6a1f4f39c174a74a7aafa3aa0d3e/pysober-0.1.0.tar.gz
    
 .. _devpi_um_packages_rf_remove: 
 
@@ -149,7 +149,7 @@ removed::
    $ devpi remove -y pysober==0.2.0
    About to remove the following releases and distributions
       version: 0.2.0
-      - emilie/dev/+f/83e2fe0a7168e75b45d2066e9d8e1e2e/pysober-0.2.0.tar.gz
+      - emilie/dev/+f/1c9f49b88d65e978efcfa2f84ea2bfc4/pysober-0.2.0.tar.gz
    Are you sure (yes/no)? yes (autoset from -y option)
    deleting release 0.2.0 of pysober
    
@@ -158,7 +158,7 @@ removed::
 ::
 
    $ devpi list pysober   
-   emilie/dev/+f/a6a585ade2adb2399b00b80265b4b79b/pysober-0.1.0.tar.gz
+   emilie/dev/+f/1b3e6a1f4f39c174a74a7aafa3aa0d3e/pysober-0.1.0.tar.gz
    
 In the event the entire project was wrongly created, it is also possible to 
 delete it (beware, this can't be undone)::
@@ -166,7 +166,7 @@ delete it (beware, this can't be undone)::
    $ devpi remove -y pysober
    About to remove the following releases and distributions
       version: 0.1.0
-      - emilie/dev/+f/a6a585ade2adb2399b00b80265b4b79b/pysober-0.1.0.tar.gz
+      - emilie/dev/+f/1b3e6a1f4f39c174a74a7aafa3aa0d3e/pysober-0.1.0.tar.gz
    Are you sure (yes/no)? yes (autoset from -y option)
    deleting release 0.1.0 of pysober
    
@@ -237,7 +237,7 @@ from a directory::
 which in our case would restore the project::
 
    $ devpi list pysober   
-   emilie/dev/+f/9767eb0796b96834d1e00892fb79e1d3/pysober-0.2.0.tar.gz
+   emilie/dev/+f/cfb73d146ba64a6721eacb7862f81324/pysober-0.2.0.tar.gz
 
 You can use the ``--only-latest`` option if you have multiple 
 :term:`release file` files with different versions, causing
@@ -310,7 +310,7 @@ can modify her ``dev`` index to use ``/emilie/prod`` index as a base::
 The list command now gives her a different picture::
 
    $ devpi list pysober
-   emilie/prod/+f/9767eb0796b96834d1e00892fb79e1d3/pysober-0.2.0.tar.gz
+   emilie/prod/+f/cfb73d146ba64a6721eacb7862f81324/pysober-0.2.0.tar.gz
    
 However, keep in mind that the :term:`release file` is not copied to Sophie's
 ``dev`` index but only made available through inheritance. Removing ``/emilie/prod``
@@ -328,9 +328,9 @@ She can however, modify the package::
 And upload a new version to her ``/sophie/dev`` index::
 
    $ cd pysober; devpi upload
-   using workdir /tmp/devpi116
+   using workdir /tmp/devpi119
    --> $ hg st -nmac . 
-   hg-exported project to /tmp/devpi116/upload/pysober -> new CWD
+   hg-exported project to /tmp/devpi119/upload/pysober -> new CWD
    pre-build: cleaning /home/hpk/p/devpi/doc/userman/pysober/dist
    --> $ /home/hpk/venv/0/bin/python setup.py sdist --formats gztar 
    built: /home/hpk/p/devpi/doc/userman/pysober/dist/pysober-0.2.1.tar.gz [SDIST.TGZ] 2kb
@@ -340,15 +340,15 @@ And upload a new version to her ``/sophie/dev`` index::
 which leads to::
 
    $ devpi list pysober
-   sophie/dev/+f/1899e26d0cdd65f061395076538bd94e/pysober-0.2.1.tar.gz
-   emilie/prod/+f/9767eb0796b96834d1e00892fb79e1d3/pysober-0.2.0.tar.gz
+   sophie/dev/+f/ed3c4c24e47428bb231d26560c86b205/pysober-0.2.1.tar.gz
+   emilie/prod/+f/cfb73d146ba64a6721eacb7862f81324/pysober-0.2.0.tar.gz
    
 Attempting to :term:`push` this :term:`release file` to Emilie's prod index would 
 fails unless Emilie added Sophie in the ``acl_upload`` list::
 
    $ devpi push  pysober-0.2.1 emilie/prod
    PUSH http://localhost:3141/sophie/dev/
-   403 Forbidden: user u'sophie' cannot upload to u'emilie/prod'
+   401 Unauthorized: user u'sophie' cannot upload to u'emilie/prod'
    
 Sophie could however :term:`push` (from Emilie's ``prod`` index) the ``0.2.0`` 
 version to her ``/sophie/dev`` index by first using the index::
@@ -376,9 +376,9 @@ Then switching back to her index::
 Sophie would see the following::
 
    $ devpi list pysober
-   sophie/dev/+f/1899e26d0cdd65f061395076538bd94e/pysober-0.2.1.tar.gz
-   sophie/dev/+f/9767eb0796b96834d1e00892fb79e1d3/pysober-0.2.0.tar.gz
-   emilie/prod/+f/9767eb0796b96834d1e00892fb79e1d3/pysober-0.2.0.tar.gz
+   sophie/dev/+f/ed3c4c24e47428bb231d26560c86b205/pysober-0.2.1.tar.gz
+   sophie/dev/+f/cfb73d146ba64a6721eacb7862f81324/pysober-0.2.0.tar.gz
+   emilie/prod/+f/cfb73d146ba64a6721eacb7862f81324/pysober-0.2.0.tar.gz
 
 .. note:: Now ``/emilie/prod/pysober-0.2.0 is now shadowed by the file 
           in the ``/dev`` index. Sophie could now reset her base and move 
@@ -390,15 +390,15 @@ the subsequent attempt would work::
    $ devpi remove -y pysober==0.2.0
    About to remove the following releases and distributions
       version: 0.2.0
-      - sophie/dev/+f/9767eb0796b96834d1e00892fb79e1d3/pysober-0.2.0.tar.gz
+      - sophie/dev/+f/cfb73d146ba64a6721eacb7862f81324/pysober-0.2.0.tar.gz
    Are you sure (yes/no)? yes (autoset from -y option)
    deleting release 0.2.0 of pysober
    
 Leaving now her index in that state::
 
    $ devpi list pysober
-   sophie/dev/+f/1899e26d0cdd65f061395076538bd94e/pysober-0.2.1.tar.gz
-   emilie/prod/+f/9767eb0796b96834d1e00892fb79e1d3/pysober-0.2.0.tar.gz
+   sophie/dev/+f/ed3c4c24e47428bb231d26560c86b205/pysober-0.2.1.tar.gz
+   emilie/prod/+f/cfb73d146ba64a6721eacb7862f81324/pysober-0.2.0.tar.gz
 
 .. _devpi_um_packages_shadow:
 

@@ -278,7 +278,6 @@ def cmd_devpi(tmpdir):
         try:
             method(hub, hub.args)
         except SystemExit as sysex:
-            sysex.args[0] or 1
             hub.sysex = sysex
         expected = kwargs.get("code", None)
         if expected is not None:
