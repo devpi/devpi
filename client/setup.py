@@ -35,6 +35,6 @@ if __name__ == "__main__":
         "License :: OSI Approved :: MIT License",
         ] + [
             ("Programming Language :: Python :: %s" % x) for x in
-                "2.6 2.7 3.3".split()],
+                "2.7 3.3".split()],
       entry_points = {'console_scripts': ["devpi = devpi.main:main"]},
       )

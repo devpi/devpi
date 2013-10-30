@@ -1,3 +1,102 @@
+1.2
+----------------------------
+
+devpi-server:
+
+- serve links to files on simple pages and index root as relative
+  paths so that it works more nicely with proxy-pass server setups.
+  fixes issue56.
+
+- make devpi-server and devpi-common python3.3 compatible, addresses
+  issue57
+
+- use system http/s proxy settings from devpi-server.  fixes issue58.
+
+- refactor locations to allow nginx serving static files more directly.
+  Also updated nginx template accordingly.
+
+- rework "--upgrade-state" to detect the state version of the server dir
+  and create an appropriate virtualenv with a devpi-server install in order
+  to export data, and then import that version.
+
+- allow to use /user/index as indexserver url for pip/easy_install by
+  redirecting non-json queries to /user/index/PROJ[/] to 
+  /user/index/+simple/PROJ/
+
+- fix submission of multi-value fields like "classifiers" or "platform"
+  (previously they would be wrongly collapsed to become the last value of a list)
+
+- fix normalization import/export issue: pypi names take precendence
+  for defining the "real" name of a project.
+
+- always store uploaded documentation with a version.  While 
+  "devpi upload" will make sure to pass in the version, "setup.py upload_docs"
+  will not pass in a version.  In the latter case, devpi-server assumes
+  the documentation belongs to the highest yet registered release.
+  This change requires exporting with devpi-1.1 and importing with devpi-1.2
+  in order to properly store versioned docs internally.
+
+- use types/url/metadata/validation functionality of new depdency devpi_common 
+
+- internal cleanup using pytest-flakes
+
+- make devpi-server use a proper UserAgent string
+
+devpi-client:
+
+- "devpi list" and "devpi remove" now accept a pip/setuptools style
+  requirement like "pkg>=1.0" instead of the former for limited "pkg-1.0".
+
+- make devpi-client fully work with python3.3 and fix test bugs 
+
+- use system http/s proxy settings.  fixes issue58.
+
+- add "devpi test -c tox.ini package" to use a particular (external)
+  tox.ini for running tox with the unpackaged package.
+  also add "--fallback-ini tox.ini" option which will only 
+  be used if the download package has no tox.ini.
+
+- new "devpi use --set-cfg" option to set pip/easy_install configuration
+  files when changing indexes.  Also new "devpi use --always-set-cfg=yes"
+  option if you want to imply "--set-cfg" on future "devpi use" invocations
+  and "devpi use --always-st-cfg=no" to disable this implication.
+
+- support git and hg for exporting all versioned files of a directory 
+  before performing the build step when uploading
+
+- improve how upload works: setup.py is only used for building docs
+  and release files but not for the remote upload part.  This gets rid of a 
+  number of hacks that were done trying to get the Python shipped "distutils" 
+  to pick the proper devpi index and allows proper SSL verification on Python2.6
+  onwards.
+
+- upload: show response when uploading documentation failed
+
+- upload: allow to specify archive files as positional arguments (both files and
+  directories can be specified but the latter additionally require
+  a --upload-dirs option)
+
+- fix issue54: upload now works on wheel files as well.
+  As pkginfo does not support wheels directly, we use the ``twine``
+  project which extends pkginfo for now.
+
+- only show highest version in "devpi list PROJECT" output, unless
+  "--all" is specified.
+
+- on upload release files: skip rather than guess packages which contain no metadata
+
+- strike BeautifulSoup dependency and re-use vendored pip-link parser
+
+- use types/url/metadata/validation functionality of new depdency devpi_common 
+
+- internal cleanup wrt pytest-flakes discoveries
+
+- remove "archive" dependency in favour of a small implementation in
+  devpi_common
+
+- make devpi-client use a proper UserAgent string
+
+
 1.1
 ----------------------------
 

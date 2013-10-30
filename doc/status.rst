@@ -9,26 +9,24 @@ Project status, roadmap and contact
 Latest release
 ++++++++++++++++++++++++++++
 
-As of August 2013, both ``devpi-server`` and the ``devpi`` tools 
-are released as 1.0 packages under the MIT license.  Around 380
-automated tests are passing on python2.7 and python2.6 on 
-Ubuntu 12.04 and Windows 7.
-
+As of October 2013, ``devpi-{server,client,common}`` are released as 1.2 
+packages under the MIT license.  Around 450 automated tests are passing 
+on python2.7 and python3.3 on Ubuntu 12.04 and Windows 7.
 
 Development background and road map
 +++++++++++++++++++++++++++++++++++++
 
-The MIT-licensed project is partly funded by a contract between a
+The initial devpi efforts were partly funded by a contract between a
 geo-distributed company and merlinux_ with Holger Krekel as the lead
-developer.  The project is actively developed and bound to see more
-releases in 2013, in particular in these areas:
+developer.  As of October 30th, the `bug tracker has no open bugs <https://bitbucket.org/hpk42/devpi/issues?status=new&status=open>`_.  There are plans to
+further improve devpi and collaborate with Donald Stufft who
+is working on the warehouse_ and twine_.
 
-- bugfixes, maintenance, streamlining
-- real-time mirroring between devpi-server instances
-
-**One area that is lacking is the web UI**.  I am looking for funding
-and/or a partner to push forward with the web UI and design.  The server 
-provides an evolving :doc:`REST API <curl>` to begin with.
+**One area that is lacking is the web UI**.  ``devpi-server`` has a 
+:doc:`JSON/REST API <curl>` and it should not be hard for a 
+frontend-developer or html templating designer to construct 
+a nice web UI around it.  and/or a partner to push forward 
+with the web UI and design.
 
 .. _contribute:
 

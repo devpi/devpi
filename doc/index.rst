@@ -63,7 +63,6 @@ Tutorials and Documentation
    status
 
    userman/index
-
    
    glossary
 
@@ -73,6 +72,8 @@ Tutorials and Documentation
 
    links
    curl
+   changelog
+   announce/1.2
 
 .. 
     Indices and tables

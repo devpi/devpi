@@ -40,7 +40,7 @@ a series of other devpi commands::
     --> $ devpi-server --start 
     starting background devpi-server at http://localhost:3141
     /tmp/home/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server
-    process u'devpi-server' started pid=27498
+    process u'devpi-server' started pid=6825
     devpi-server process startup detected
     logfile is at /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
     --> $ devpi use http://localhost:3141 
@@ -197,7 +197,7 @@ devpi test: testing an uploaded package
 If you have a package which uses tox_ for testing you may now invoke::
 
     $ devpi test example  # package needs to contain tox.ini
-    received http://localhost:3141/testuser/dev/+f/95e641778987a5f912e84d09e21a1a43/example-1.0.tar.gz#md5=95e641778987a5f912e84d09e21a1a43
+    received http://localhost:3141/testuser/dev/+f/5a4824eb4b00cedfb55e70ff2a64a263/example-1.0.tar.gz#md5=5a4824eb4b00cedfb55e70ff2a64a263
     unpacking /tmp/devpi-test0/downloads/example-1.0.tar.gz to /tmp/devpi-test0
     /tmp/devpi-test0/example-1.0$ tox --installpkg /tmp/devpi-test0/downloads/example-1.0.tar.gz -i ALL=http://localhost:3141/testuser/dev/+simple/ --result-json /tmp/devpi-test0/toxreport.json -c /tmp/devpi-test0/example-1.0/tox.ini
     python create: /tmp/devpi-test0/example-1.0/.tox/python
@@ -227,8 +227,7 @@ Here is what happened:
 We can verify that the test status was recorded via::
 
     $ devpi list example
-    list result: http://localhost:3141/testuser/dev/example/
-    testuser/dev/+f/95e641778987a5f912e84d09e21a1a43/example-1.0.tar.gz
+    testuser/dev/+f/5a4824eb4b00cedfb55e70ff2a64a263/example-1.0.tar.gz
       teta linux2 python 2.7.3 tests passed
 
 devpi push: staging a release to another index
@@ -284,8 +283,7 @@ Let's now use our ``testuser/staging`` index::
 and check the test result status again::
 
     $ devpi list example
-    list result: http://localhost:3141/testuser/staging/example/
-    testuser/staging/+f/95e641778987a5f912e84d09e21a1a43/example-1.0.tar.gz
+    testuser/staging/+f/5a4824eb4b00cedfb55e70ff2a64a263/example-1.0.tar.gz
       teta linux2 python 2.7.3 tests passed
 
 Good, the test result status is still available after the push
@@ -331,20 +329,20 @@ If we now switch back to using ``testuser/dev``::
 and look at our example release files::
 
     $ devpi list example
-    list result: http://localhost:3141/testuser/dev/example/
-    testuser/dev/+f/95e641778987a5f912e84d09e21a1a43/example-1.0.tar.gz
+    testuser/dev/+f/5a4824eb4b00cedfb55e70ff2a64a263/example-1.0.tar.gz
       teta linux2 python 2.7.3 tests passed
-    testuser/staging/+f/95e641778987a5f912e84d09e21a1a43/example-1.0.tar.gz
+    testuser/staging/+f/5a4824eb4b00cedfb55e70ff2a64a263/example-1.0.tar.gz
       teta linux2 python 2.7.3 tests passed
-    1 older versions not shown, use --all to see
 
 we'll see that ``example-1.0.tar.gz`` is contained in both
 indices.  Let's remove the ``testuser/dev`` ``example`` release::
 
     $ devpi remove -y example
-    About to remove the following release files and metadata:
-       testuser/dev/+f/95e641778987a5f912e84d09e21a1a43/example-1.0.tar.gz
+    About to remove the following releases and distributions
+       version: 1.0
+       - testuser/dev/+f/5a4824eb4b00cedfb55e70ff2a64a263/example-1.0.tar.gz
     Are you sure (yes/no)? yes (autoset from -y option)
+    deleting release 1.0 of example
 
 If you don't specify the ``-y`` option you will be asked to confirm
 the delete operation interactively.
@@ -353,8 +351,7 @@ The ``example-1.0`` release remains accessible through ``testuser/dev``
 because it inherits all releases from its ``testuser/staging`` base::
 
     $ devpi list example
-    list result: http://localhost:3141/testuser/dev/example/
-    testuser/staging/+f/95e641778987a5f912e84d09e21a1a43/example-1.0.tar.gz
+    testuser/staging/+f/5a4824eb4b00cedfb55e70ff2a64a263/example-1.0.tar.gz
       teta linux2 python 2.7.3 tests passed
 
 running devpi-server permanently

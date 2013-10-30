@@ -1,6 +1,6 @@
 import py
 from devpi_common.metadata import splitbasename
-from devpi.util import pypirc
+from . import pypirc
 
 class PyPIPush:
     def __init__(self, posturl, user, password):

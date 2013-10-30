@@ -35,8 +35,8 @@ client provides the :ref:`cmdref_use` sub-command to achieve this purpose::
    $ devpi use http://localhost:3141/
    using server: http://localhost:3141/ (logged in as root)
    no current index: type 'devpi use -l' to discover indices
-   ~/.pydistutils.cfg : no config file exists
-   ~/.pip/pip.conf    : no config file exists
+   ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
+   ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
    always-set-cfg: no
    
 where ``http://devpi.mydomain:3141`` is the **base url** to a given `devpi`_ 
@@ -56,8 +56,8 @@ set the index::
 
    $ devpi use /root/pypi
    current devpi index: http://localhost:3141/root/pypi/ (logged in as emilie)
-   ~/.pydistutils.cfg : no config file exists
-   ~/.pip/pip.conf    : no config file exists
+   ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
+   ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
    always-set-cfg: no
 
 and then issue::
@@ -68,8 +68,8 @@ and then issue::
          pypisubmit: None
           resultlog: http://localhost:3141/+tests
               login: http://localhost:3141/+login
-   ~/.pydistutils.cfg : no config file exists
-   ~/.pip/pip.conf    : no config file exists
+   ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
+   ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
    always-set-cfg: no
 
 .. addind a REsT comment here works around a regendoc bug.              
@@ -84,8 +84,8 @@ he or she doesn't have any index associated to his or her username::
 
    $ devpi use
    current devpi index: http://localhost:3141/root/pypi/ (logged in as emilie)
-   ~/.pydistutils.cfg : no config file exists
-   ~/.pip/pip.conf    : no config file exists
+   ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
+   ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
    always-set-cfg: no
 
 In order to create an index, use the :ref:`cmdref_index` sub-command. In the 
@@ -180,16 +180,16 @@ She can start using them (short endpoint)::
 
    $ devpi use dev
    current devpi index: http://localhost:3141/emilie/dev/ (logged in as emilie)
-   ~/.pydistutils.cfg : no config file exists
-   ~/.pip/pip.conf    : no config file exists
+   ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
+   ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
    always-set-cfg: no
    
 or (long endpoint)::
 
    $ devpi use prod
    current devpi index: http://localhost:3141/emilie/prod/ (logged in as emilie)
-   ~/.pydistutils.cfg : no config file exists
-   ~/.pip/pip.conf    : no config file exists
+   ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
+   ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
    always-set-cfg: no
    
 And from there, the urls should be set to:: 
@@ -200,8 +200,8 @@ And from there, the urls should be set to::
          pypisubmit: http://localhost:3141/emilie/prod/
           resultlog: http://localhost:3141/+tests
               login: http://localhost:3141/+login
-   ~/.pydistutils.cfg : no config file exists
-   ~/.pip/pip.conf    : no config file exists
+   ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
+   ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
    always-set-cfg: no
    
 .. note:: By default, a user index has its ``acl_upload`` property set to 
@@ -307,32 +307,32 @@ Now that we have two indices, we can switch between them by doing::
 
    $ devpi use /emilie/prod
    current devpi index: http://localhost:3141/emilie/prod/ (logged in as emilie)
-   ~/.pydistutils.cfg : no config file exists
-   ~/.pip/pip.conf    : no config file exists
+   ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
+   ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
    always-set-cfg: no
 
 checking::
 
    $ devpi use 
    current devpi index: http://localhost:3141/emilie/prod/ (logged in as emilie)
-   ~/.pydistutils.cfg : no config file exists
-   ~/.pip/pip.conf    : no config file exists
+   ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
+   ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
    always-set-cfg: no
 
 switching::
 
    $ devpi use /emilie/dev
    current devpi index: http://localhost:3141/emilie/dev/ (logged in as emilie)
-   ~/.pydistutils.cfg : no config file exists
-   ~/.pip/pip.conf    : no config file exists
+   ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
+   ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
    always-set-cfg: no
 
 and checking again::
 
    $ devpi use
    current devpi index: http://localhost:3141/emilie/dev/ (logged in as emilie)
-   ~/.pydistutils.cfg : no config file exists
-   ~/.pip/pip.conf    : no config file exists
+   ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
+   ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
    always-set-cfg: no
 
 Deleting an Index

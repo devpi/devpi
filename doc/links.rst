@@ -10,3 +10,5 @@
 .. _pypi: http://pypi.python.org/pypi
 .. _`devpi issue tracker`: https://bitbucket.org/hpk42/devpi/issues
 .. _supervisor: http://pypi.python.org/pypi/supervisor
+.. _warehouse: http://pypi.python.org/pypi/warehouse
+.. _twine: http://pypi.python.org/pypi/twine

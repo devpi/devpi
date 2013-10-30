@@ -6,7 +6,6 @@ from setuptools import setup
 if __name__ == "__main__":
     here = os.path.abspath(".")
     README = open(os.path.join(here, 'README.rst')).read()
-    CHANGES = open(os.path.join(here, 'CHANGELOG')).read()
 
     setup(
       name="devpi",
@@ -14,7 +13,7 @@ if __name__ == "__main__":
       install_requires = ["devpi-server>=1.2,<1.3",
                           "devpi-client>=1.2,<1.3"],
       keywords="pypi cache server installer wsgi",
-      long_description=README + '\n\n' + CHANGES,
+      long_description=README,
       url="http://doc.devpi.net",
       version='1.2',
       maintainer="Holger Krekel",

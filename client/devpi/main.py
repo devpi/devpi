@@ -104,7 +104,7 @@ class Hub:
 
         reply = HTTPReply(r)
 
-        # if we get a 401 it means our auth info is expired or not present
+        # if we get a 401 with a location, we assume our login data is expired
         if r.status_code == 401 and "location" in reply.headers:
             if self.current.del_auth():
                 self.error("removed expired authentication information")

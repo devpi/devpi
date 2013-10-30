@@ -41,7 +41,7 @@ if __name__ == "__main__":
         "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
         ] + [
             ("Programming Language :: Python :: %s" % x) for x in
-                "2.6 2.7 3.3".split()],
+                "2.7 3.3".split()],
       install_requires=install_requires,
       entry_points = {
         'console_scripts':

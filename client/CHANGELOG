@@ -1,4 +1,4 @@
-1.X
+1.2
 -------------------------------
 
 - "devpi list" and "devpi remove" now accept a pip/setuptools style

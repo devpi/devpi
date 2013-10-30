@@ -1,5 +1,5 @@
 
-from devpi.util import pypirc
+from devpi import pypirc
 from textwrap import dedent
 
 def test_pypirc(tmpdir):

@@ -23,9 +23,7 @@ def addoptions(parser):
 
     web.addoption("--port",  type=int,
             default=3141,
-            help="port to listen for http requests.  When used with "
-                 "--gendeploy, port+1 will be used to prevent "
-                 "accidental clashes with ad-hoc runs.")
+            help="port to listen for http requests.")
 
     web.addoption("--outside-url",  type=str, dest="outside_url",
             metavar="URL",
@@ -61,7 +59,7 @@ def addoptions(parser):
             help="show devpi_version (%s)" % devpi_server.__version__)
 
     deploy.addoption("--gendeploy", action="store", metavar="DIR",
-            help="(unix only) install and generate a pre-configured "
+            help="(unix only, deprecated) install and generate a pre-configured "
                  "virtualenv directory which puts devpi-server "
                  "under supervisor control and provides some example "
                  "files for nginx/crontab.  If the specified DIR exists "

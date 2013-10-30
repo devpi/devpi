@@ -14,4 +14,4 @@ devpi: PyPI server and packaging/testing/release tool
 
 For getting started see http://doc.devpi.net/
 
-Holger Krekel, August 2013
+Holger Krekel, October 2013

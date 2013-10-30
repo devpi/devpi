@@ -38,11 +38,15 @@ And let's check the version::
 
 .. _gendeploy:
 
-generating a deployment
+generating a deployment (deprecated in 1.2)
 -------------------------------------------------------
 
 devpi-server provides the ``--gendeploy`` option to create
 virtualenv-based supervisor_-controled deployments of ``devpi-server``.
+
+.. note::
+
+   This option is unix-only and is likely to go away in future versions.
 
 creating a virtualenv
 +++++++++++++++++++++++++++++++
@@ -279,8 +283,8 @@ For purposes of this tutorial, we use the direct
     $ devpi use http://localhost:4040
     using server: http://localhost:4040/ (not logged in)
     no current index: type 'devpi use -l' to discover indices
-    ~/.pydistutils.cfg : no config file exists
-    ~/.pip/pip.conf    : no config file exists
+    ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
+    ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
     always-set-cfg: no
 
 At this point we have only a root user and a ``root/pypi``
@@ -293,32 +297,13 @@ setting the root password
 The first thing to do is to set a password for the ``root`` user.
 For that we first need to login::
 
-    $ devpi login root --password ""
+    $ devpi login root --password ''
     logged in 'root', credentials valid for 10.00 hours
 
 and can then change it::
 
     $ devpi user -m root password=123
-    Traceback (most recent call last):
-      File "/tmp/docenv/bin/devpi", line 9, in <module>
-        load_entry_point('devpi-client==1.1', 'console_scripts', 'devpi')()
-      File "/tmp/docenv/local/lib/python2.7/site-packages/devpi/main.py", line 30, in main
-        return method(hub, hub.args)
-      File "/tmp/docenv/local/lib/python2.7/site-packages/devpi/user.py", line 47, in main
-        return user_modify(hub, username, kvdict)
-      File "/tmp/docenv/local/lib/python2.7/site-packages/devpi/user.py", line 25, in user_modify
-        hub.http_api("patch", hub.current.get_user_url(user), kvdict)
-      File "/tmp/docenv/local/lib/python2.7/site-packages/devpi/main.py", line 115, in http_api
-        auth=auth)
-      File "/tmp/docenv/local/lib/python2.7/site-packages/requests/sessions.py", line 324, in request
-        prep = self.prepare_request(req)
-      File "/tmp/docenv/local/lib/python2.7/site-packages/requests/sessions.py", line 265, in prepare_request
-        hooks=merge_setting(request.hooks, self.hooks),
-      File "/tmp/docenv/local/lib/python2.7/site-packages/requests/models.py", line 283, in prepare
-        self.prepare_url(url, params)
-      File "/tmp/docenv/local/lib/python2.7/site-packages/requests/models.py", line 327, in prepare_url
-        raise MissingSchema("Invalid URL %r: No schema supplied" % url)
-    requests.exceptions.MissingSchema: Invalid URL u'root': No schema supplied
+    user modified: root
 
 At this point we don't have any other users::
 
@@ -357,8 +342,8 @@ and use it::
 
     $ devpi use alice/dev
     current devpi index: http://localhost:4040/alice/dev/ (logged in as alice)
-    ~/.pydistutils.cfg : no config file exists
-    ~/.pip/pip.conf    : no config file exists
+    ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
+    ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
     always-set-cfg: no
 
 Our ``alice/dev`` index derives from ``root/pypi`` by default
