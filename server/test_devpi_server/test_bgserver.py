@@ -1,24 +1,5 @@
 
-import subprocess
-import pytest
 from devpi_server.main import main
-
-@pytest.fixture
-def mockpopen(monkeypatch):
-    # old code to mock creating of a process
-    called = []
-    class MockPopen:
-        def __init__(self, *args, **kwargs):
-            self.args = args
-            self.kwargs = kwargs
-            self.pid = 17
-            called.append(self)
-            f = kwargs["stdout"]
-            f.write("Listening on port ...\n")
-            f.flush()
-
-    monkeypatch.setattr(subprocess, "Popen", MockPopen)
-    return called
 
 def test_server_commands(tmpdir, monkeypatch):
     monkeypatch.setenv("DEVPI_SERVERDIR", tmpdir)

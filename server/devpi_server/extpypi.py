@@ -7,8 +7,12 @@ testresult storage.
 
 from __future__ import unicode_literals
 
+try:
+    import xmlrpc.client as xmlrpc
+except ImportError:
+    import xmlrpclib as xmlrpc
+
 import py
-import sys
 import threading
 html = py.xml.html
 
@@ -17,7 +21,9 @@ from devpi_common.vendor._pip import HTMLPage
 from devpi_common.url import URL
 from devpi_common.metadata import is_archive_of_project, BasenameMeta
 from devpi_common.validation import normalize_name
+from devpi_common.request import new_requests_session
 
+from . import __version__ as server_version
 from .db import ProjectInfo
 
 from logging import getLogger
@@ -92,8 +98,11 @@ def parse_index(disturl, html, scrape=True):
     return parser
 
 class XMLProxy(object):
-    def __init__(self, proxy):
-        self._proxy = proxy
+    def __init__(self, url):
+        self._url = url
+        self._session = new_requests_session(agent=("server", server_version))
+        self._session.headers["content-type"] = "text/xml"
+        self._session.headers["Accept"] = "text/xml"
 
     def list_packages_with_serial(self):
         return self._execute("list_packages_with_serial")
@@ -102,14 +111,18 @@ class XMLProxy(object):
         return self._execute("changelog_since_serial", serial)
 
     def _execute(self, method, *args):
+        payload = xmlrpc.dumps(args, method)
         try:
-            return getattr(self._proxy, method)(*args)
-        except KeyboardInterrupt:
-            raise
-        except Exception:
-            exc = sys.exc_info()[1]
-            log.warn("%s: error %s with remote %s", method, exc, self._proxy)
+            reply = self._session.post(self._url, data=payload, stream=False)
+        except Exception as exc:
+            log.warn("%s: error %s with remote %s", method, exc, self._url)
             return None
+        if reply.status_code != 200:
+            log.warn("%s: status_code %s with remote %s", method,
+                     reply.status_code, self._url)
+            return None
+        return xmlrpc.loads(reply.content)[0][0]
+
 
 def perform_crawling(extdb, result, numthreads=10):
     pending = set(result.crawllinks)

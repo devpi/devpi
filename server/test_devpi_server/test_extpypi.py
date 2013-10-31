@@ -2,7 +2,7 @@ import mock
 import pytest
 
 from devpi_server.extpypi import *
-from devpi_server.main import Fatal
+from devpi_server.main import Fatal, PYPIURL_XMLRPC
 
 class TestIndexParsing:
     simplepy = URL("http://pypi.python.org/simple/py/")
@@ -463,38 +463,18 @@ class TestRefreshManager:
         extdb.process_refreshes()
         assert extdb.getreleaselinks("pytest")[0].basename == "pytest-2.4.tgz"
 
-    @pytest.fixture(params=["protocol", "socket"])
-    def raise_error(self, request):
-        import socket
-        try:
-            from xmlrpc.client import ProtocolError
-        except ImportError:
-            # PY2
-            from xmlrpclib import ProtocolError
-        if request.param == "protocol":
-            exc = ProtocolError("http://pypi.python.org/pypi", 503, "", {})
-        else:
-            exc = socket.error(111)
-        def raise_error():
-            raise exc
-        return raise_error
-
-    def test_changelog_since_serial_nonetwork(self, extdb,
-                    raise_error, monkeypatch, caplog):
+    def test_changelog_since_serial_nonetwork(self, extdb, caplog, reqmock):
         extdb.mock_simple("pytest", pypiserial=10)
-        got = []
-        def raise_xmlrpcish(since_int):
-            got.append(since_int)
-            raise_error()
-        serverproxy = mock.Mock()
-        serverproxy.changelog_since_serial.side_effect = raise_xmlrpcish
-        xmlproxy = XMLProxy(serverproxy)
+        reqreply = reqmock.mockresponse(PYPIURL_XMLRPC, code=400)
+        xmlproxy = XMLProxy(PYPIURL_XMLRPC)
         with pytest.raises(ValueError):
             extdb.spawned_pypichanges(xmlproxy, proxysleep=raise_ValueError)
         with pytest.raises(ValueError):
             extdb.spawned_pypichanges(xmlproxy, proxysleep=raise_ValueError)
-        assert got == [10,10]
-        assert caplog.getrecords(".*since_serial.*error.*")
+        calls = reqreply.requests
+        assert len(calls) == 2
+        assert xmlrpc.loads(calls[0].body) == ((10,), "changelog_since_serial")
+        assert caplog.getrecords(".*changelog_since_serial.*")
 
     def test_changelog_list_packages_no_network(self, makexom):
         xmlproxy = mock.create_autospec(XMLProxy)

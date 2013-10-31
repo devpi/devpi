@@ -4,7 +4,7 @@ from __future__ import unicode_literals
 import pytest
 import re
 import py
-import requests, json
+import json
 import posixpath
 from bs4 import BeautifulSoup
 from devpi_server.views import *
@@ -12,7 +12,6 @@ from devpi_common.metadata import splitbasename
 from devpi_common.url import URL
 import devpi_server.views
 from devpi_common.archive import zip_dict
-from mock import Mock
 
 from .functional import TestUserThings, TestIndexThings  # noqa
 
@@ -272,7 +271,7 @@ def test_upload_and_push_internal(mapp, testapp, monkeypatch):
     assert r.status_code == 200
 
 
-def test_upload_and_push_external(mapp, testapp, mockrequests):
+def test_upload_and_push_external(mapp, testapp, reqmock):
     api = mapp.create_and_use()
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
     zipcontent = zip_dict({"index.html": "<html/>"})
@@ -287,43 +286,31 @@ def test_upload_and_push_external(mapp, testapp, mockrequests):
     r = testapp.get(api.index)
     assert r.status_code == 200
 
-    # push
-    req = dict(name="pkg1", version="2.6", posturl="whatever",
+    # push OK
+    req = dict(name="pkg1", version="2.6", posturl="http://whatever.com/",
                username="user", password="password")
-    rec = []
-    def recpost(url, data, auth, files=None):
-        rec.append((url, data, auth, files))
-        class r:
-            status_code = 200
-            content = "msg"
-        return r
-    mockrequests.set_post(recpost)
+    rec = reqmock.mockresponse(url=None, code=200, method="POST", data="msg")
     body = json.dumps(req).encode("utf-8")
     r = testapp.request(api.index, method="push", body=body,
                         expect_errors=True)
     assert r.status_code == 200
-    assert len(rec) == 3
-    assert rec[0][0] == "whatever"
-    assert rec[1][0] == "whatever"
-    assert rec[2][0] == "whatever"
-    upload_dict = rec[2][-1]
-    assert upload_dict["content"][0] == "pkg1.zip"
-    assert upload_dict["content"][1].read() == zipcontent
+    assert len(rec.requests) == 3
+    for i in range(3):
+        assert rec.requests[i].url == req["posturl"]
+    req = rec.requests[2]
+    # XXX properly decode www-url-encoded body and check zipcontent
+    assert b"pkg1.zip" in req.body
+    assert zipcontent in req.body
 
     # push with error
-    def posterror(url, data, auth, files=None):
-        class r:
-            status_code = 500
-        return r
-    mockrequests.set_post(posterror)
-    r = testapp.request(api.index, method="push", body=body,
-                        expect_errors=True)
+    reqmock.mockresponse(url=None, code=500, method="POST")
+    r = testapp.request(api.index, method="push", body=body, expect_errors=True)
     assert r.status_code == 502
     result = r.json["result"]
     assert len(result) == 1
     assert result[0][0] == 500
 
-def test_upload_and_push_egg(mapp, testapp, mockrequests):
+def test_upload_and_push_egg(mapp, testapp, reqmock):
     api = mapp.create_and_use()
     mapp.upload_file_pypi("pkg2-1.0-py27.egg", b"123", "pkg2", "1.0")
     r = testapp.get(api.simpleindex + "pkg2/")
@@ -332,21 +319,14 @@ def test_upload_and_push_egg(mapp, testapp, mockrequests):
     assert "pkg2-1.0-py27.egg" in a.get("href")
 
     # push
-    req = dict(name="pkg2", version="1.0", posturl="whatever",
+    req = dict(name="pkg2", version="1.0", posturl="http://whatever.com/",
                username="user", password="password")
-    rec = []
-    def recpost(url, data, auth, files=None):
-        rec.append((url, data, auth, files))
-        class r:
-            status_code = 200
-            content = "msg"
-        return r
-    mockrequests.set_post(recpost)
+    rec = reqmock.mockresponse(url=None, data="msg", code=200)
     r = testapp.push(api.index, json.dumps(req))
     assert r.status_code == 200
-    assert len(rec) == 2
-    assert rec[0][0] == "whatever"
-    assert rec[1][0] == "whatever"
+    assert len(rec.requests) == 2
+    assert rec.requests[0].url == req["posturl"]
+    assert rec.requests[1].url == req["posturl"]
 
 def test_upload_and_delete_project(mapp, testapp):
     api = mapp.create_and_use()
@@ -375,19 +355,15 @@ def test_upload_with_acl(mapp):
     mapp.login("user", "123")
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
 
-def test_upload_with_jenkins(mapp, mockrequests):
+def test_upload_with_jenkins(mapp, reqmock):
     mapp.create_and_use()
     mapp.set_uploadtrigger_jenkins("http://x.com/{pkgname}")
-    post_mock = Mock(autospec=requests.post)
-    class response:
-        status_code = 200
-    post_mock.return_value = response
-    mockrequests.set_post(post_mock)
+    rec = reqmock.mockresponse(code=200, url=None)
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200)
-    assert post_mock.call_count == 1
-    args = post_mock.call_args
-    assert args[0][0] == "http://x.com/pkg1"
-    assert args[1]["data"]["Submit"] == "Build"
+    assert len(rec.requests) == 1
+    assert rec.requests[0].url == "http://x.com/pkg1"
+    # XXX properly decode form
+    #assert args[1]["data"]["Submit"] == "Build"
 
 def test_upload_and_testdata(mapp, testapp):
     from test_devpi_server.example import tox_result_data

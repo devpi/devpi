@@ -15,9 +15,9 @@ from devpi_common.types import cached_property
 from devpi_common.metadata import Version
 from devpi_common.request import new_requests_session
 from .config import parseoptions, configure_logging
+from .extpypi import XMLProxy
+from . import __version__ as server_version
 
-import devpi_server
-server_version = devpi_server.__version__
 
 PYPIURL_XMLRPC = "https://pypi.python.org/pypi/"
 
@@ -55,7 +55,7 @@ def _main(argv=None):
     args = config.args
 
     if args.version:
-        print(devpi_server.__version__)
+        print(server_version)
         return
 
     # meta commmands (that will not instantiate server object in-process)
@@ -262,13 +262,7 @@ class XOM:
 
     @cached_property
     def proxy(self):
-        from devpi_server.extpypi import XMLProxy
-        try:
-            from xmlrpc.client import ServerProxy
-        except ImportError:
-            # PY2
-            from xmlrpclib import ServerProxy
-        return XMLProxy(ServerProxy(PYPIURL_XMLRPC))
+        return XMLProxy(PYPIURL_XMLRPC)
 
     @cached_property
     def db(self):
@@ -357,7 +351,6 @@ class FatalResponse:
     def __init__(self, excinfo=None):
         self.excinfo = excinfo
 
-
 def set_default_indexes(db):
     PYPI = "root/pypi"
     if not db.index_exists(PYPI):
@@ -365,3 +358,4 @@ def set_default_indexes(db):
             db.user_create("root", password="")
         db.index_create(PYPI, bases=(), type="mirror", volatile=False)
         print("set root/pypi default index")
+

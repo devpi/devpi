@@ -460,13 +460,79 @@ def pytest_runtest_setup(item):
         if previousfailed is not None:
             pytest.xfail("previous test failed (%s)" %previousfailed.name)
 
+#
+#  various requests related mocking functionality
+#  (XXX consolidate, release a plugin?)
+#
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.response import HTTPResponse
+import fnmatch
+
 @pytest.fixture
-def mockrequests(request, monkeypatch):
-    from requests import Session
-    class MockReq:
-        def set_post(self, postfunc):
-            def func(self, *args, **kwargs):
-                return postfunc(*args, **kwargs)
-            #target = getattr(Session, "post", .post, "im_func", Session.post)
-            monkeypatch.setattr(Session, "post", func)
-    return MockReq()
+def reqmock(monkeypatch):
+    mr = mocked_request()
+    def get_adapter(self, url):
+        return MockAdapter(mr, url)
+    monkeypatch.setattr("requests.sessions.Session.get_adapter", get_adapter)
+    return mr
+
+class MockAdapter:
+    def __init__(self, mock_request, url):
+        self.url = url
+        self.mock_request = mock_request
+
+    def send(self, request, **kwargs):
+        return self.mock_request.process_request(request, kwargs)
+
+
+class mocked_request:
+    def __init__(self):
+        self.url2reply = {}
+
+    def process_request(self, request, kwargs):
+        url = request.url
+        response = self.url2reply.get((url, request.method))
+        if response is None:
+            response = self.url2reply.get((url, None))
+            if response is None:
+                for (name, method), response in self.url2reply.items():
+                    if method is None or method == request.method:
+                        if fnmatch.fnmatch(request.url, name):
+                            break
+                else:
+                    raise Exception("not mocked call to %s" % url)
+        response.add_request(request)
+        r = HTTPAdapter().build_response(request, response)
+        return r
+
+    def mockresponse(self, url, code, method=None, data=None, headers=None,
+                     on_request=None):
+        if not url:
+            url = "*"
+        r = ReqReply(code=code, data=data, headers=headers,
+                     on_request=on_request)
+        if method is not None:
+            method = method.upper()
+        self.url2reply[(url, method)] = r
+        return r
+
+class ReqReply(HTTPResponse):
+    def __init__(self, code, data, headers, on_request):
+        if py.builtin._istext(data):
+            data = data.encode("utf-8")
+        super(ReqReply, self).__init__(body=py.io.BytesIO(data),
+                                       status=code,
+                                       headers=headers,
+                                       preload_content=False)
+        self.requests = []
+        self.on_request = on_request
+
+    def add_request(self, request):
+        if self.on_request:
+            self.on_request(request)
+        self.requests.append(request)
+
+#
+#  end requests related mocking functionality
+#
+
