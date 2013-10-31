@@ -375,7 +375,7 @@ class PyPIView:
                           files={"content": (basename, openfile)})
                     log.debug("send finished, status: %s", r.status_code)
                     results.append((r.status_code, "upload", entry.relpath,
-                                    r.content))
+                                    r.text))
                 if doczip:
                     doc_metadata = metadata.copy()
                     doc_metadata[":action"] = "doc_upload"

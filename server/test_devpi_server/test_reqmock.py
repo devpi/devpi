@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 import pytest
 import requests
 
@@ -9,7 +11,7 @@ def test_req(reqmock, method):
     r = requests.request(method or "GET", "http://heise.de")
     assert r.status_code == 201
     assert len(mr.requests) == 1
-    assert r.content == "hello"
+    assert r.content == b"hello"
 
 def test_req_diff(reqmock):
     mr = reqmock.mockresponse("http://heise.de/", 201, data="hello",
@@ -19,10 +21,10 @@ def test_req_diff(reqmock):
                          method="POST",
                          headers={"content-type": "text/plain"})
     r = requests.request("GET", "http://heise.de")
-    assert r.content == "hello"
+    assert r.content == b"hello"
     assert r.status_code == 201
     r = requests.request("POST", "http://heise.de")
-    assert r.content == "world"
+    assert r.content == b"world"
     assert r.status_code == 200
     assert len(mr.requests) == 1
     assert len(mr2.requests) == 1

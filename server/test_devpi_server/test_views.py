@@ -321,7 +321,7 @@ def test_upload_and_push_egg(mapp, testapp, reqmock):
     # push
     req = dict(name="pkg2", version="1.0", posturl="http://whatever.com/",
                username="user", password="password")
-    rec = reqmock.mockresponse(url=None, data="msg", code=200)
+    rec = reqmock.mockresponse(url=None, data=b"msg", code=200)
     r = testapp.push(api.index, json.dumps(req))
     assert r.status_code == 200
     assert len(rec.requests) == 2

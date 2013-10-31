@@ -6,8 +6,11 @@
 
 - make xmlrpc calls to pypi's changelog API use "requests" sessions 
   so that http proxies are respected there as well (fixes issue58).
+  thanks to riehlm for identifying the problem and testing the fix.
 
 - internally refactor and consolidate mocking against requests library
+
+- --upgrade-state will upgrade now between major.minor/major.minor+1 changes.
 
 1.2
 ----------------

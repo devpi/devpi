@@ -52,8 +52,11 @@ class VirtualenvDir:
 def create_server_venv(tw, serverversion, venv_dir):
     venv = VirtualenvDir(venv_dir, tw)
     venv.create()
+    parts = serverversion.split(".")
+    major, minor = map(int, parts[:2])
     venv.check_call(["pip", "install", "--pre",
-                     "devpi-server==%s" % serverversion])
+                     "devpi-server>=%s,<%s" % ("%s.%s" % (major,minor),
+                                               "%s.%s" % (major,minor+1))])
     devpiserver = venv.find_bin("devpi-server")
     assert devpiserver
     return venv
