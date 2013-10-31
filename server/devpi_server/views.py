@@ -234,7 +234,7 @@ class PyPIView:
             yield ("<h2>" + h2 + "</h2>").encode(encoding)
             for name in names:
                 if name not in all_names:
-                    anchor = '<a href="%s/">%s</a><br/>' % (name, name)
+                    anchor = '<a href="%s/">%s</a><br/>\n' % (name, name)
                     yield anchor.encode(encoding)
                     all_names.add(name)
         yield "</body>".encode(encoding)
