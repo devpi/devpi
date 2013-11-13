@@ -26,3 +26,9 @@ class TestVerifyAPIVersion:
         matcher = loghub._getmatcher()
         matcher.fnmatch_lines("*got*0*acceptable*")
 
+def test_main_devpi_invocation():
+    import sys, subprocess
+    subprocess.check_call([sys.executable,
+                           "-m", "devpi", "--version"])
+
+

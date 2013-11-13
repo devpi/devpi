@@ -721,6 +721,3 @@ def verify_reply_version(hub, reply):
                                      ",".join(acceptable_api_version)))
 
 
-
-if __name__ == "__main__":
-    main()

@@ -1,3 +1,8 @@
+not released
+-------------------------------
+
+- fix "python -m devpi" invocation. Thanks Sebastian Ralph.
+
 1.2
 -------------------------------
 

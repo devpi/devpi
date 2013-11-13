@@ -17,7 +17,7 @@ def user_create(hub, user, kvdict):
     hub.info("user created: %s" % user)
 
 def user_modify(hub, user, kvdict):
-    reply = hub.http_api("patch", hub.current.get_user_url(user), kvdict)
+    hub.http_api("patch", hub.current.get_user_url(user), kvdict)
     hub.info("user modified: %s" % user)
 
 def user_delete(hub, user):
