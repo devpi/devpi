@@ -77,7 +77,7 @@ class IndexParser:
                     if newurl not in self.egglinks:
                         self.egglinks.insert(0, newurl)
                 else:
-                    log.debug("cannot handle egg directory link (svn?) "
+                    log.warn("cannot handle egg directory link (svn?) "
                               "skipping: %s (projectname: %s)",
                               newurl, self.projectname)
                 continue
