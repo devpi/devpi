@@ -1,6 +1,10 @@
 1.2.X
 ----------------
 
+- fix issue63: skip egg links that go to a directory (this requires
+  doing a SVN checkout which devpi-server does not do).  Thanks
+  Ken Jung for analyzing the problem.
+
 - fix issue68: don't derive metadata from filename but instead
   look it up in metadata or submitted form.
 

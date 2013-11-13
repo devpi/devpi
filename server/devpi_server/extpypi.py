@@ -65,14 +65,20 @@ class IndexParser:
                 continue
             eggfragment = newurl.eggfragment
             if scrape and eggfragment:
-                if normalize_name(eggfragment).startswith(self.projectname):
+                if not normalize_name(eggfragment).startswith(
+                    self.projectname):
+                    log.debug("skip egg link %s (projectname: %s)",
+                              newurl, self.projectname)
+                    continue
+                if newurl.basename:
                     # XXX seems we have to maintain a particular
                     # order to keep pip/easy_install happy with some
                     # packages (e.g. nose)
                     if newurl not in self.egglinks:
                         self.egglinks.insert(0, newurl)
                 else:
-                    log.debug("skip egg link %s (projectname: %s)",
+                    log.debug("cannot handle egg directory link (svn?) "
+                              "skipping: %s (projectname: %s)",
                               newurl, self.projectname)
                 continue
             if is_archive_of_project(newurl, self.projectname):

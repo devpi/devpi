@@ -30,6 +30,14 @@ class TestIndexParsing:
         """)
         assert len(result.releaselinks) == 3
 
+    def test_parse_index_simple_dir_egg_issue63(self):
+        simplepy = URL("http://pypi.python.org/simple/py/")
+        result = parse_index(simplepy,
+            """<a href="../../pkg/py-1.4.12.zip#md5=12ab">qwe</a>
+               <a href="../../pkg/#egg=py-dev">qwe</a>
+        """)
+        assert len(result.releaselinks) == 1
+
     def test_parse_index_egg_svnurl(self, monkeypatch):
         # strange case reported by fschulze/witsch where
         # urlparsing will yield a fragment for svn urls.
