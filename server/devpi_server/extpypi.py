@@ -175,7 +175,7 @@ def invalidate_on_version_change(basedir):
     verfile.write(ExtDB.VERSION)
 
 class ExtDB:
-    VERSION = "2"
+    VERSION = "3"
     name = "root/pypi"
     ixconfig = dict(bases=(), volatile=False, type="mirror")
 
@@ -347,8 +347,9 @@ class ExtDB:
             name, version, action, date, serial = x
             # XXX remove names if action == "remove"
             # and version is None
-            self.name2serials[name] = max(self.name2serials.get(name, 0),
-                                     serial)
+            self._set_project_serial(name,
+                                     max(self.name2serials.get(name, 0),
+                                         serial))
             names.add(name)
         log.debug("processed changelog of size %d: %s" %(
                   len(changelog), names))
@@ -357,6 +358,8 @@ class ExtDB:
     def process_refreshes(self):
         # walk through all mirrored projects and trigger updates if needed
         for name in self.getcontained():
+            # name is a normalized name
+            name = self.get_project_info(name).name
             serial = self.name2serials.get(name, 0)
             self.getreleaselinks(name, refresh=serial)
 

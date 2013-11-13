@@ -449,19 +449,25 @@ class TestRefreshManager:
         assert not extdb.name2serials
         extdb.mock_simple("pytest", '<a href="pytest-2.3.tgz"/a>',
                           pypiserial=20)
-        assert len(extdb.name2serials) == 1
+        extdb.mock_simple("Django", '<a href="Django-1.6.tgz"/a>',
+                          pypiserial=11)
+        assert len(extdb.name2serials) == 2
         assert len(extdb.getreleaselinks("pytest")) == 1
+        assert len(extdb.getreleaselinks("Django")) == 1
         extdb.process_changelog([
-            ["Django", "1.4", 12123, 'new release', 11],
+            ["Django", "1.4", 12123, 'new release', 25],
             ["pytest", "2.4", 121231, 'new release', 27]
         ])
         assert len(extdb.name2serials) == 2
         assert keyfs.PYPISERIALS.get()["pytest"] == 27
-        assert keyfs.PYPISERIALS.get()["Django"] == 11
+        assert keyfs.PYPISERIALS.get()["Django"] == 25
         extdb.mock_simple("pytest", '<a href="pytest-2.4.tgz"/a>',
                           pypiserial=27)
+        extdb.mock_simple("Django", '<a href="Django-1.7.tgz"/a>',
+                          pypiserial=25)
         extdb.process_refreshes()
         assert extdb.getreleaselinks("pytest")[0].basename == "pytest-2.4.tgz"
+        assert extdb.getreleaselinks("Django")[0].basename == "Django-1.7.tgz"
 
     def test_changelog_since_serial_nonetwork(self, extdb, caplog, reqmock):
         extdb.mock_simple("pytest", pypiserial=10)

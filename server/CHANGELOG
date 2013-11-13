@@ -1,6 +1,9 @@
 1.2.X
 ----------------
 
+- fix cache-invalidation when normalized_project_name != real_name
+  (e.g. for Django but also many others). addresses issue59.
+
 - add newline to simple list output for better human readability of the
   page (thanks Brandon Maister)
 
