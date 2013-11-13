@@ -338,6 +338,7 @@ class PyPIView:
                             "->", target_stage.name))
             for entry in matches:
                 res = target_stage.store_releasefile(
+                    name, version,
                     entry.basename, entry.FILE.filepath.read(mode="rb"))
                 if not isinstance(res, int):
                     res = 200
@@ -415,9 +416,14 @@ class PyPIView:
             if action == "file_upload":
                 log.debug("metadata in form: %s", list(request.forms.items()))
                 abort_if_invalid_filename(name, content.filename)
-                if not stage.get_metadata(name, version):
+                metadata = stage.get_metadata(name, version)
+                if not metadata:
                     self._register_metadata_form(stage, request.forms)
-                res = stage.store_releasefile(content.filename, content.value)
+                    metadata = stage.get_metadata(name, version)
+                    if not metadata:
+                        abort_custom(400, "could not process form metadata")
+                res = stage.store_releasefile(name, version,
+                                              content.filename, content.value)
                 if res == 409:
                     abort(409, "%s already exists in non-volatile index" %(
                          content.filename,))

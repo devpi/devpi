@@ -12,7 +12,6 @@ from logging import getLogger
 log = getLogger(__name__)
 
 from devpi_common.types import cached_property
-from devpi_common.metadata import Version
 from devpi_common.request import new_requests_session
 from .config import parseoptions, configure_logging
 from .extpypi import XMLProxy

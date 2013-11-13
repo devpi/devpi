@@ -19,7 +19,7 @@ def register_and_store(stage, basename, content=b"123", name=None):
     if name is None:
         name = n
     stage.register_metadata(dict(name=name, version=version))
-    return stage.store_releasefile(basename, content)
+    return stage.store_releasefile(name, version, basename, content)
 
 def test_db_is_empty(db):
     assert db.is_empty()
@@ -167,7 +167,8 @@ class TestStage:
         extdb.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         register_and_store(stage, "someproject-1.0.zip", b"123")
-        stage.store_releasefile("someproject-1.0.zip", b"123")
+        stage.store_releasefile("someproject", "1.0",
+                                "someproject-1.0.zip", b"123")
         entries = stage.getreleaselinks("someproject")
         assert len(entries) == 1
         assert entries[0].relpath.endswith("someproject-1.0.zip")
@@ -213,14 +214,16 @@ class TestStage:
 
     def test_store_releasefile_fails_if_not_registered(self, stage):
         with pytest.raises(stage.MissesRegistration):
-            stage.store_releasefile("someproject-1.0.zip", b"123")
+            stage.store_releasefile("someproject", "1.0",
+                                    "someproject-1.0.zip", b"123")
 
     def test_project_config_shadowed(self, extdb, stage):
         stage._reconfigure(bases=("root/pypi",))
         extdb.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         content = b"123"
-        stage.store_releasefile("someproject-1.0.zip", content)
+        stage.store_releasefile("someproject", "1.0",
+                                "someproject-1.0.zip", content)
         projectconfig = stage.get_projectconfig("someproject")
         files = projectconfig["1.0"]["+files"]
         link = list(files.values())[0]
@@ -290,12 +293,14 @@ class TestStage:
         assert len(stage.getreleaselinks("some")) == 1
 
         # rewrite  fails
-        entry = stage.store_releasefile("some-1.0.zip", content2)
+        entry = stage.store_releasefile("some", "1.0",
+                                        "some-1.0.zip", content2)
         assert entry == 409
 
         # rewrite succeeds with volatile
         stage._reconfigure(volatile=True)
-        entry = stage.store_releasefile("some-1.0.zip", content2)
+        entry = stage.store_releasefile("some", "1.0",
+                                        "some-1.0.zip", content2)
         entries = stage.getreleaselinks("some")
         assert len(entries) == 1
         assert entries[0].FILE.get() == content2
@@ -306,6 +311,19 @@ class TestStage:
         stage.register_metadata(dict(name="hello", version="1.0", author="xy"))
         d = stage.get_metadata("hello", "1.0")
         assert d["author"] == "xy"
+        #stage.ixconfig["volatile"] = False
+        #with pytest.raises(stage.MetadataExists):
+        #    stage.register_metadata(dict(name="hello", version="1.0"))
+        #
+
+    def test_filename_version_mangling_issue68(self, stage):
+        assert not stage.get_metadata("hello", "1.0")
+        metadata = dict(name="hello", version="1.0-test")
+        stage.register_metadata(metadata)
+        stage.store_releasefile("hello", "1.0-test",
+                                "hello-1.0_test.whl", b"")
+        ver = stage.get_metadata_latest("hello")
+        assert ver["version"] == "1.0-test"
         #stage.ixconfig["volatile"] = False
         #with pytest.raises(stage.MetadataExists):
         #    stage.register_metadata(dict(name="hello", version="1.0"))

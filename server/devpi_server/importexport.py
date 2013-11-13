@@ -6,7 +6,7 @@ import py
 import subprocess
 import logging
 from devpi_common.validation import normalize_name
-from devpi_common.metadata import Version, splitbasename
+from devpi_common.metadata import Version, splitbasename, BasenameMeta
 from devpi_server.main import fatal, server_version
 from devpi_server.venv import create_server_venv
 import devpi_server
@@ -92,7 +92,7 @@ def do_import(path, xom):
 
 
 class Exporter:
-    DUMPVERSION = "1"
+    DUMPVERSION = "2"
     def __init__(self, tw, xom):
         self.tw = tw
         self.config = xom.config
@@ -224,6 +224,7 @@ class IndexDump:
                 entry.FILE.filepath,
                 self.basedir.join(projectname, entry.basename))
             self.add_filedesc("releasefile", projectname, rel,
+                               version=versiondata["version"],
                                entrymapping=file_meta)
             self.dump_attachments(entry)
 
@@ -254,7 +255,7 @@ class IndexDump:
         with p.open("wb") as f:
             f.write(fil.read())
         relpath = p.relto(self.exporter.basepath)
-        self.add_filedesc("doczip", projectname, relpath)
+        self.add_filedesc("doczip", projectname, relpath, version=version)
 
 class Importer:
     def __init__(self, tw, xom):
@@ -274,9 +275,9 @@ class Importer:
     def import_all(self, path):
         self.import_rootdir = path
         self.import_data = self.read_json(path.join("dataindex.json"))
-        dumpversion = self.import_data["dumpversion"]
-        if dumpversion != "1":
-            fatal("incompatible dumpversion: %r" %(dumpversion,))
+        self.dumpversion = self.import_data["dumpversion"]
+        if self.dumpversion not in ("1", "2"):
+            fatal("incompatible dumpversion: %r" %(self.dumpversion,))
         self.import_users = self.import_data["users"]
         self.import_indexes = self.import_data["indexes"]
         self.xom.config.secret = secret = self.import_data["secret"]
@@ -328,12 +329,18 @@ class Importer:
     def import_filedesc(self, stage, filedesc):
         assert stage.ixconfig["type"] != "mirror"
         rel = filedesc["relpath"]
-        #projectname = filedesc["projectname"]
+        projectname = filedesc["projectname"]
         p = self.import_rootdir.join(rel)
         assert p.check(), p
         if filedesc["type"] == "releasefile":
             mapping = filedesc["entrymapping"]
-            entry = stage.store_releasefile(p.basename, p.read("rb"),
+            if self.dumpversion == "1":
+                # previous versions would not add a version attribute
+                version = BasenameMeta(p.basename).version
+            else:
+                version = filedesc["version"]
+            entry = stage.store_releasefile(projectname, version,
+                        p.basename, p.read("rb"),
                         last_modified=mapping["last_modified"])
             assert entry.md5 == mapping["md5"]
             assert entry.size == mapping["size"]

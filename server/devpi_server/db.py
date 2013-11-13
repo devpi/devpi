@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 
 import py
 from devpi_common.metadata import (sorted_sameproject_links,
-                                   get_latest_version, BasenameMeta)
+                                   get_latest_version)
 from devpi_common.validation import validate_metadata, normalize_name
 from devpi_common.types import ensure_unicode
 from devpi_common.archive import Archive
@@ -475,16 +475,14 @@ class PrivateStage:
     class MissesRegistration(Exception):
         """ store_releasefile requires pre-existing release metadata. """
 
-    def store_releasefile(self, filename, content, last_modified=None):
+    def store_releasefile(self, name, version, filename, content,
+                          last_modified=None):
         filename = ensure_unicode(filename)
-        bmeta = BasenameMeta(filename)
-        name, version = bmeta.name, bmeta.version
-        info = self.get_project_info(name)
-        name = getattr(info, "name", name)
         if not self.get_metadata(name, version):
             raise self.MissesRegistration(name, version)
         log.debug("project name of %r is %r", filename, name)
-        key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
+        key = self.keyfs.PROJCONFIG(user=self.user,
+                                    index=self.index, name=name)
         with key.locked_update() as projectconfig:
             verdata = projectconfig.setdefault(version, {})
             files = verdata.setdefault("+files", {})

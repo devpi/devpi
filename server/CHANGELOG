@@ -1,6 +1,9 @@
 1.2.X
 ----------------
 
+- fix issue68: don't derive metadata from filename but instead
+  look it up in metadata or submitted form.
+
 - fix cache-invalidation when normalized_project_name != real_name
   (e.g. for Django but also many others). addresses issue59.
 
