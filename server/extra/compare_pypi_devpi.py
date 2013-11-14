@@ -73,12 +73,11 @@ class Result:
             if href.startswith("../../packages"):
                 count += 1
                 # stored at pypi, should appear directly with devpi
-                package_prefix = href[6:]
-                pypi_basenames.add(posixpath.basename(href))
-                #print package_prefix
+                basename = posixpath.basename(href)
+                pypi_basenames.add(basename)
                 for link2 in devpi_links:
                     #print "   ", link2.get("href")
-                    if link2.get("href").endswith(package_prefix):
+                    if link2.get("href").endswith(basename):
                         break
                 else:
                     misses.append((href))
