@@ -58,6 +58,7 @@ class TestRemoteIndex:
         ri = RemoteIndex(current)
         def mockget(url):
             assert url.startswith(indexurl)
+            assert url.endswith("pkg/")
             return """
                 <a href="http://my/pkg-0.3.tar.gz"/>
                 <a href="http://my/pkg-0.2.8.tar.gz"/>

@@ -31,7 +31,8 @@ class RemoteIndex:
 
     def getlinkset(self, pkgname):
         """ return list of links for given package. """
-        indexurl = URL(self.current.simpleindex, pkgname, asdir=1).url
+        req = next(pkg_resources.parse_requirements(pkgname))
+        indexurl = URL(self.current.simpleindex, req.project_name, asdir=1).url
         try:
             content = self.getcontent(indexurl)
         except self.ReceiveError:
