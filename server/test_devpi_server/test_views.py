@@ -116,6 +116,17 @@ def test_apiconfig(testapp):
     assert r.status_code == 200
     assert not "pypisubmit" in r.json["result"]
 
+def test_apiconfig_with_outside_url(testapp):
+    testapp.xom.config.args.outside_url = u = "http://outside.com/root"
+    r = testapp.get("/root/pypi/+api")
+    assert r.status_code == 200
+    result = r.json["result"]
+    assert "pypisubmit" not in result
+    assert result["index"] == u + "/root/pypi/"
+    assert result["login"] == u + "/+login"
+    assert result["resultlog"] == u + "/+tests"
+    assert result["simpleindex"] == u + "/root/pypi/+simple/"
+
     #for name in "pushrelease simpleindex login pypisubmit resultlog".split():
     #    assert name in r.json
     #
@@ -484,7 +495,7 @@ def test_get_outside_url():
     assert url == "http://outside.com/"
     url = get_outside_url({"X-outside-url": "http://outside.com"},
                           "http://outside2.com")
-    assert url == "http://outside.com/"
+    assert url == "http://outside2.com/"
     url = get_outside_url({"Host": "outside3.com"}, None)
     assert url == "http://outside3.com/"
     url = get_outside_url({"Host": "outside3.com"}, "http://out.com")

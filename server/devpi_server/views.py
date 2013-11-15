@@ -62,12 +62,6 @@ def abort_custom(code, msg):
     error.status = "%s %s" %(code, msg)
     raise error
 
-def abort_authenticate(msg="authentication required"):
-    err = HTTPError(401, msg)
-    err.add_header(str('WWW-Authenticate'), 'Basic realm="pypi"')
-    err.add_header(str('location'), "/+login")
-    raise err
-
 def apireturn(code, message=None, result=None, type=None):
     d = dict() # status=code)
     if result is not None:
@@ -108,12 +102,18 @@ class PyPIView:
     # supplying basic API locations for all services
     #
 
+    def get_root_url(self, path):
+        assert not path.startswith("/"), path
+        url = get_outside_url(request.headers,
+                              self.xom.config.args.outside_url)
+        return URL(url).addpath(path).url
+
     @route("/+api")
     @route("/<path:path>/+api")
     def apiconfig_index(self, path=None):
         api = {
-            "resultlog": "/+tests",
-            "login": "/+login",
+            "resultlog": self.get_root_url("+tests"),
+            "login": self.get_root_url("+login"),
             "authstatus": self.auth.get_auth_status(request.auth),
         }
         if path:
@@ -124,11 +124,13 @@ class PyPIView:
                 if not ixconfig:
                     abort(404, "index %s/%s does not exist" %(user, index))
                 api.update({
-                    "index": "/%s/%s/" % (user, index),
-                    "simpleindex": "/%s/%s/+simple/" % (user, index),
+                    "index": self.get_root_url("%s/%s/" % (user, index)),
+                    "simpleindex": self.get_root_url("%s/%s/+simple/"
+                                                     % (user, index))
                 })
                 if ixconfig["type"] == "stage":
-                    api["pypisubmit"] = "/%s/%s/" % (user, index)
+                    api["pypisubmit"] = self.get_root_url("%s/%s/"
+                                                          % (user, index))
         apireturn(200, type="apiconfig", result=api)
 
     #
@@ -682,6 +684,11 @@ class PyPIView:
     #
     # login and user handling
     #
+    def abort_authenticate(self, msg="authentication required"):
+        err = HTTPError(401, msg)
+        err.add_header(str('WWW-Authenticate'), 'Basic realm="pypi"')
+        err.add_header(str('location'), self.get_root_url("+login"))
+        raise err
 
     def require_user(self, user, stage=None, acltype="upload"):
         #log.debug("headers %r", request.headers.items())
@@ -692,9 +699,9 @@ class PyPIView:
         if status == "nouser":
             abort(404, "user %r does not exist" % auth_user)
         elif status == "expired":
-            abort_authenticate(msg="auth expired for %r" % auth_user)
+            self.abort_authenticate(msg="auth expired for %r" % auth_user)
         elif status == "noauth":
-            abort_authenticate()
+            self.abort_authenticate()
         if auth_user == "root" or auth_user == user:
             return
         if stage:
@@ -704,8 +711,9 @@ class PyPIView:
                 return
             apireturn(403, message="user %r not authorized for %s to %s"
                              % (auth_user, acltype, stage.name))
+        # XXX we should probably never reach here?
         log.info("user %r not authorized", auth_user)
-        abort_authenticate()
+        self.abort_authenticate()
 
 
     @route("/+login", method="POST")
@@ -796,14 +804,14 @@ def getjson(request, allowed_keys=None):
     return dict
 
 def get_outside_url(headers, outsideurl):
-    url = headers.get("X-outside-url", None)
-    if url is None:
-        if outsideurl:
-            url = outsideurl
-        else:
+    if outsideurl:
+        url = outsideurl
+    else:
+        url = headers.get("X-outside-url", None)
+        if url is None:
             url = "http://" + headers.get("Host")
     url = url.rstrip("/") + "/"
-    log.debug("host header: %s", url)
+    log.debug("outside host header: %s", url)
     return url
 
 def trigger_jenkins(stage, jenkinurl, testspec):

@@ -148,7 +148,7 @@ class Current(object):
     @property
     def rooturl(self):
         if self.login:
-            return URL(self.login, "/").url
+            return URL(self.login, ".").url
 
     def get_user_url(self, user=None):
         if user is None:

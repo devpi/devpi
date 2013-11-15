@@ -1,6 +1,10 @@
 1.2.X
 ----------------
 
+- fix issue66: api endpoints now also respect --outside-url setting
+  so that you can serve devpi from a subpath.  Thanks for Fabian
+  Snovna for reporting and analysis.
+
 - fix issue63: skip egg links that go to a directory (this requires
   doing a SVN checkout which devpi-server does not do).  Thanks
   Ken Jung for analyzing the problem.

@@ -101,6 +101,15 @@ class TestUnit:
         current._configure_from_server_api(d, URL(current.rooturl))
         assert not current.get_auth()
 
+    def test_rooturl_on_outside_url(self, loghub, tmpdir):
+        current = Current(tmpdir.join("current"))
+        d = {
+            "index": "http://l/subpath/some/index",
+            "login": "http://l/subpath/login",
+        }
+        current.reconfigure(data=d)
+        assert current.rooturl == "http://l/subpath/"
+
     def test_use_with_no_rooturl(self, capfd, cmd_devpi, monkeypatch):
         from devpi import main
         monkeypatch.setattr(main.Hub, "http_api", None)
@@ -122,12 +131,12 @@ class TestUnit:
         mock_http_api.set("http://world.com/+api", 200,
                     result=dict(
                         index="/index",
-                        login="/+login/",
+                        login="/+login",
                         authstatus=["noauth", ""],
                    ))
         mock_http_api.set("http://world2.com/+api", 200,
                     result=dict(
-                        login="/+login/",
+                        login="/+login",
                         authstatus=["noauth", ""],
                    ))
 
@@ -147,7 +156,7 @@ class TestUnit:
                         resultlog="/resultlog/",
                         index="root/some",
                         bases="root/dev",
-                        login="/+login/",
+                        login="/+login",
                         authstatus=["noauth", ""],
                    ))
 
@@ -176,7 +185,7 @@ class TestUnit:
                         resultlog="/resultlog/",
                         index="",
                         bases="",
-                        login="/+login/",
+                        login="/+login",
                         authstatus=["noauth", ""],
                    ))
 
@@ -218,7 +227,7 @@ class TestUnit:
                         resultlog="/resultlog/",
                         index="/",
                         bases="",
-                        login="/+login/",
+                        login="/+login",
                         authstatus=["noauth", ""],
                    ))
 

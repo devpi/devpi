@@ -3,6 +3,9 @@ not released
 
 - fix "python -m devpi" invocation. Thanks Sebastian Ralph.
 
+- fix issue66: "devpi use hpk/dev" can now switch between URLs
+  if user/index is mounted on a subpath.
+
 1.2
 -------------------------------
 
