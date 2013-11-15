@@ -1,4 +1,4 @@
-
+import pytest
 from devpi.remoteindex import RemoteIndex, LinkSet, parselinks
 from devpi_common.url import URL
 from devpi.use import Current
@@ -41,6 +41,40 @@ class TestRemoteIndex:
         monkeypatch.setattr(ri, "getcontent", mockget)
         link = ri.getbestlink("pkg")
         assert link is None
+
+    @pytest.mark.parametrize("specs,link", [
+        ("pkg==0.2.8", "http://my/pkg-0.2.8.tar.gz"),
+        ("pkg<=0.2.8", "http://my/pkg-0.2.8.tar.gz"),
+        ("pkg<0.3", "http://my/pkg-0.2.8.tar.gz"),
+        ("pkg!=0.3", "http://my/pkg-0.2.8.tar.gz"),
+        ("pkg>0.2.8", "http://my/pkg-0.3.tar.gz"),
+        ("pkg>=0.2.8", "http://my/pkg-0.3.tar.gz"),
+        ("pkg<0.2.4,>0.2.2", "http://my/pkg-0.2.3.tar.gz"),
+    ])
+    def test_package_with_version_specs(self, monkeypatch, tmpdir, specs, link):
+        indexurl = "http://my/simple/"
+        current = Current(tmpdir.join("client"))
+        current.reconfigure(dict(simpleindex=indexurl))
+        ri = RemoteIndex(current)
+        def mockget(url):
+            assert url.startswith(indexurl)
+            return """
+                <a href="http://my/pkg-0.3.tar.gz"/>
+                <a href="http://my/pkg-0.2.8.tar.gz"/>
+                <a href="http://my/pkg-0.2.7.tar.gz"/>
+                <a href="http://my/pkg-0.2.6.tar.gz"/>
+                <a href="http://my/pkg-0.2.5.tar.gz"/>
+                <a href="http://my/pkg-0.2.5a1.tar.gz"/>
+                <a href="http://my/pkg-0.2.4.1.tar.gz"/>
+                <a href="http://my/pkg-0.2.4.tar.gz"/>
+                <a href="http://my/pkg-0.2.3.tar.gz"/>
+                <a href="http://my/pkg-0.2.2.tar.gz"/>
+                <a href="http://my/pkg-0.2.1.tar.gz"/>
+                <a href="http://my/pkg-0.2.0.tar.gz"/>
+            """
+        monkeypatch.setattr(ri, "getcontent", mockget)
+        lnk = ri.getbestlink(specs)
+        assert URL(lnk.url).url_nofrag == link
 
 def test_parselinks():
     content = """<html><a href="href" rel="rel">text</a></html>"""

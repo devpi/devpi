@@ -1,3 +1,4 @@
+import pkg_resources
 from devpi_common.url import URL
 from devpi_common.metadata import splitbasename, Version
 from devpi_common.request import new_requests_session
@@ -8,12 +9,14 @@ class LinkSet:
         self.links = links
 
     def getnewestversion(self, pkgname):
+        """ returns newest applicable version of package """
+        req = next(pkg_resources.parse_requirements(pkgname))
         best = None
         for link in self.links:
             basename = URL(link.url).basename
             name, version = splitbasename(basename)[:2]
             ver = Version(version)
-            if name == pkgname:
+            if name == req.project_name and version in req:
                 if best is None or ver > best[0]:
                     best = ver, link
         return best and best[1] or None
