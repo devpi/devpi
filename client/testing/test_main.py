@@ -26,6 +26,7 @@ class TestVerifyAPIVersion:
         matcher = loghub._getmatcher()
         matcher.fnmatch_lines("*got*0*acceptable*")
 
+@pytest.mark.skipif("sys.version_info < (2,7)")
 def test_main_devpi_invocation():
     import sys, subprocess
     subprocess.check_call([sys.executable,
