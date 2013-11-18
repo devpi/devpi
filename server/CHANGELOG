@@ -1,6 +1,11 @@
 1.2.X
 ----------------
 
+- fix an import issue for doc files which were wrongly tied to a newer
+  version of a base index. now version "auto" detection for storing
+  doc files only works within a stage.  Thanks Laurent Brack for bringing
+  it up and providing the repo.
+
 - fix issue66: api endpoints now also respect --outside-url setting
   so that you can serve devpi from a subpath.  Thanks for Fabian
   Snovna for reporting and analysis.

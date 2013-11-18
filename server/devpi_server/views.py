@@ -640,7 +640,7 @@ class PyPIView:
             html.tr(html.td("info"), html.td("file"), html.td("docs")))
 
         for projectname in stage.getprojectnames_perstage():
-            metadata = stage.get_metadata_latest(projectname)
+            metadata = stage.get_metadata_latest_perstage(projectname)
             try:
                 name, ver = metadata["name"], metadata["version"]
             except KeyError:

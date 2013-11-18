@@ -390,8 +390,8 @@ class PrivateStage:
             projectconfig = self.get_projectconfig(name)
             return projectconfig.get(version)
 
-    def get_metadata_latest(self, name):
-        versions = self.get_projectconfig(name)
+    def get_metadata_latest_perstage(self, name):
+        versions = self.get_projectconfig_perstage(name)
         maxver = get_latest_version(versions)
         return self.get_metadata(name, maxver.string)
 
@@ -498,8 +498,9 @@ class PrivateStage:
         """ store zip file and unzip doc content for the
         specified "name" project. """
         if not version:
-            version = self.get_metadata_latest(name)["version"]
-            log.info("store_doczip: derived version %s", version)
+            version = self.get_metadata_latest_perstage(name)["version"]
+            log.info("store_doczip: derived version of %s is %s",
+                     name, version)
         key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
         with key.locked_update() as projectconfig:
             verdata = projectconfig[version]

@@ -322,7 +322,7 @@ class TestStage:
         stage.register_metadata(metadata)
         stage.store_releasefile("hello", "1.0-test",
                                 "hello-1.0_test.whl", b"")
-        ver = stage.get_metadata_latest("hello")
+        ver = stage.get_metadata_latest_perstage("hello")
         assert ver["version"] == "1.0-test"
         #stage.ixconfig["volatile"] = False
         #with pytest.raises(stage.MetadataExists):
@@ -333,7 +333,19 @@ class TestStage:
         stage.register_metadata(dict(name="hello", version="1.0"))
         stage.register_metadata(dict(name="hello", version="1.1"))
         stage.register_metadata(dict(name="hello", version="0.9"))
-        metadata = stage.get_metadata_latest("hello")
+        metadata = stage.get_metadata_latest_perstage("hello")
+        assert metadata["version"] == "1.1"
+
+    def test_get_metadata_latest_inheritance(self, db, stage):
+        stage_base_name = stage.index + "base"
+        db.index_create(user=stage.user, index=stage_base_name,
+                        bases=(stage.name,))
+        stage_sub = db.getstage(stage.user, stage_base_name)
+        stage_sub.register_metadata(dict(name="hello", version="1.0"))
+        stage.register_metadata(dict(name="hello", version="1.1"))
+        metadata = stage_sub.get_metadata_latest_perstage("hello")
+        assert metadata["version"] == "1.0"
+        metadata = stage.get_metadata_latest_perstage("hello")
         assert metadata["version"] == "1.1"
 
     def test_releasedata_validation(self, stage):
