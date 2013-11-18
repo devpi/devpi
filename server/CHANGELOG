@@ -1,4 +1,4 @@
-1.2.X
+1.2.1
 ----------------
 
 - fix an import issue for doc files which were wrongly tied to a newer

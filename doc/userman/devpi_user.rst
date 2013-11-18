@@ -102,6 +102,7 @@ First login at the user or root::
 Then modify the desired property::
 
    $ devpi user -m emilie email=emilienew@gmail.com
+   user modified: emilie
    
 Attempting to modify a user with the wrong credentials results in an 401 
 (unauthorized) error.

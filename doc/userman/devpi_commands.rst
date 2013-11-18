@@ -318,7 +318,8 @@ test
     package).
     
     positional arguments:
-      pkgspec              package specification to download and test
+      pkgspec              package specification in pip/setuptools requirement-
+                           syntax, e.g. 'pytest' or 'pytest==2.4.2'
     
     optional arguments:
       -h, --help           show this help message and exit
@@ -499,9 +500,7 @@ devpi command reference (server)
     
     web serving options:
       --host HOST          domain/ip address to listen on [localhost]
-      --port PORT          port to listen for http requests. When used with
-                           --gendeploy, port+1 will be used to prevent accidental
-                           clashes with ad-hoc runs. [3141]
+      --port PORT          port to listen for http requests. [3141]
       --outside-url URL    the outside URL where this server will be reachable.
                            Set this if you proxy devpi-server through a web server
                            and the web server does not set or you want to override
@@ -519,13 +518,13 @@ devpi command reference (server)
                            using a http proxy.
     
     deployment and data options:
-      --version            show devpi_version (1.2)
-      --gendeploy DIR      (unix only) install and generate a pre-configured
-                           virtualenv directory which puts devpi-server under
-                           supervisor control and provides some example files for
-                           nginx/crontab. If the specified DIR exists virtualenv
-                           creation will be skipped and only the installation
-                           steps will be performed.
+      --version            show devpi_version (1.2.1)
+      --gendeploy DIR      (unix only, deprecated) install and generate a pre-
+                           configured virtualenv directory which puts devpi-server
+                           under supervisor control and provides some example
+                           files for nginx/crontab. If the specified DIR exists
+                           virtualenv creation will be skipped and only the
+                           installation steps will be performed.
       --secretfile path    file containing the server side secret used for user
                            validation. If it does not exist, a random secret is
                            generated on start up and used subsequently.

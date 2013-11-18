@@ -40,7 +40,7 @@ a series of other devpi commands::
     --> $ devpi-server --start 
     starting background devpi-server at http://localhost:3141
     /tmp/home/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server
-    process u'devpi-server' started pid=6825
+    process u'devpi-server' started pid=12023
     devpi-server process startup detected
     logfile is at /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
     --> $ devpi use http://localhost:3141 
@@ -84,7 +84,7 @@ a series of other devpi commands::
 Show the version::
 
     $ devpi --version
-    1.2
+    1.2.1
 
 .. _`quickstart_release_steps`:
 
@@ -197,12 +197,13 @@ devpi test: testing an uploaded package
 If you have a package which uses tox_ for testing you may now invoke::
 
     $ devpi test example  # package needs to contain tox.ini
-    received http://localhost:3141/testuser/dev/+f/5a4824eb4b00cedfb55e70ff2a64a263/example-1.0.tar.gz#md5=5a4824eb4b00cedfb55e70ff2a64a263
+    received http://localhost:3141/testuser/dev/+f/43fefbdcf726734cacb3d44222477e4f/example-1.0.tar.gz#md5=43fefbdcf726734cacb3d44222477e4f
     unpacking /tmp/devpi-test0/downloads/example-1.0.tar.gz to /tmp/devpi-test0
     /tmp/devpi-test0/example-1.0$ tox --installpkg /tmp/devpi-test0/downloads/example-1.0.tar.gz -i ALL=http://localhost:3141/testuser/dev/+simple/ --result-json /tmp/devpi-test0/toxreport.json -c /tmp/devpi-test0/example-1.0/tox.ini
     python create: /tmp/devpi-test0/example-1.0/.tox/python
     python installdeps: pytest
     python inst: /tmp/devpi-test0/downloads/example-1.0.tar.gz
+    python runtests: PYTHONHASHSEED='1520080208'
     python runtests: commands[0] | py.test
     ___________________________________ summary ____________________________________
       python: commands succeeded
@@ -227,7 +228,7 @@ Here is what happened:
 We can verify that the test status was recorded via::
 
     $ devpi list example
-    testuser/dev/+f/5a4824eb4b00cedfb55e70ff2a64a263/example-1.0.tar.gz
+    testuser/dev/+f/43fefbdcf726734cacb3d44222477e4f/example-1.0.tar.gz
       teta linux2 python 2.7.3 tests passed
 
 devpi push: staging a release to another index
@@ -283,7 +284,7 @@ Let's now use our ``testuser/staging`` index::
 and check the test result status again::
 
     $ devpi list example
-    testuser/staging/+f/5a4824eb4b00cedfb55e70ff2a64a263/example-1.0.tar.gz
+    testuser/staging/+f/43fefbdcf726734cacb3d44222477e4f/example-1.0.tar.gz
       teta linux2 python 2.7.3 tests passed
 
 Good, the test result status is still available after the push
@@ -329,9 +330,9 @@ If we now switch back to using ``testuser/dev``::
 and look at our example release files::
 
     $ devpi list example
-    testuser/dev/+f/5a4824eb4b00cedfb55e70ff2a64a263/example-1.0.tar.gz
+    testuser/dev/+f/43fefbdcf726734cacb3d44222477e4f/example-1.0.tar.gz
       teta linux2 python 2.7.3 tests passed
-    testuser/staging/+f/5a4824eb4b00cedfb55e70ff2a64a263/example-1.0.tar.gz
+    testuser/staging/+f/43fefbdcf726734cacb3d44222477e4f/example-1.0.tar.gz
       teta linux2 python 2.7.3 tests passed
 
 we'll see that ``example-1.0.tar.gz`` is contained in both
@@ -340,7 +341,7 @@ indices.  Let's remove the ``testuser/dev`` ``example`` release::
     $ devpi remove -y example
     About to remove the following releases and distributions
        version: 1.0
-       - testuser/dev/+f/5a4824eb4b00cedfb55e70ff2a64a263/example-1.0.tar.gz
+       - testuser/dev/+f/43fefbdcf726734cacb3d44222477e4f/example-1.0.tar.gz
     Are you sure (yes/no)? yes (autoset from -y option)
     deleting release 1.0 of example
 
@@ -351,7 +352,7 @@ The ``example-1.0`` release remains accessible through ``testuser/dev``
 because it inherits all releases from its ``testuser/staging`` base::
 
     $ devpi list example
-    testuser/staging/+f/5a4824eb4b00cedfb55e70ff2a64a263/example-1.0.tar.gz
+    testuser/staging/+f/43fefbdcf726734cacb3d44222477e4f/example-1.0.tar.gz
       teta linux2 python 2.7.3 tests passed
 
 running devpi-server permanently

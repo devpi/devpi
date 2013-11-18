@@ -1,0 +1,69 @@
+devpi-1.2.1: bug fixes and improved test command
+==========================================================
+
+The devpi-{server,client}-1.2.1 releases bring important
+bug fixes and refinements.  See Changelog below.
+
+For getting started with deploying your own pypi server
+on a laptop or on  company server and for using the 
+"devpi" workflow tool (optional), see:
+
+    http://doc.devpi.net
+
+If you want to upgrade an existing installation, you should 
+be able to execute::
+
+    $ pip install -U devpi
+    $ devpi-server --upgrade-state [--serverdir YOUR_SERVER_DIR]
+
+Have fun,
+
+holger krekel
+
+Changelog 1.2.1
+----------------------
+
+devpi-server:
+
+- fix an import issue for doc files which were wrongly tied to a newer
+  version of a base index. now version "auto" detection for storing
+  doc files only works within a stage.  Thanks Laurent Brack for bringing
+  it up and providing the repo.
+
+- fix issue66: api endpoints now also respect --outside-url setting
+  so that you can serve devpi from a subpath.  Thanks for Fabian
+  Snovna for reporting and analysis.
+
+- fix issue63: skip egg links that go to a directory (this requires
+  doing a SVN checkout which devpi-server does not do).  Thanks
+  Ken Jung for analyzing the problem.
+
+- fix issue68: don't derive metadata from filename but instead
+  look it up in metadata or submitted form.
+
+- fix cache-invalidation when normalized_project_name != real_name
+  (e.g. for Django but also many others). addresses issue59.
+
+- add newline to simple list output for better human readability of the
+  page (thanks Brandon Maister)
+
+- make xmlrpc calls to pypi's changelog API use "requests" sessions 
+  so that http proxies are respected there as well (fixes issue58).
+  thanks to riehlm for identifying the problem and testing the fix.
+
+- internally refactor and consolidate mocking against requests library
+
+- --upgrade-state will upgrade now between major.minor/major.minor+1 changes.
+
+devpi-client:
+
+- fix "python -m devpi" invocation. Thanks Sebastian Ralph.
+
+- fix issue66: "devpi use user/index" can now switch between URLs
+  if user/index is mounted on a subpath.
+
+- fix issue71: allow pip/setuptools like requirements specs
+  with the test subcommand, e.g.  "devpi test 'pkg>=1.0'".
+  Thanks Sebastian Rahlf for the PR.
+
+

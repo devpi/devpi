@@ -34,7 +34,7 @@ Install or upgrade ``devpi-server``::
 And let's check the version::
 
     $ devpi-server --version
-    1.2
+    1.2.1
 
 .. _gendeploy:
 
@@ -283,8 +283,8 @@ For purposes of this tutorial, we use the direct
     $ devpi use http://localhost:4040
     using server: http://localhost:4040/ (not logged in)
     no current index: type 'devpi use -l' to discover indices
-    ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
-    ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
+    ~/.pydistutils.cfg : no config file exists
+    ~/.pip/pip.conf    : no config file exists
     always-set-cfg: no
 
 At this point we have only a root user and a ``root/pypi``
@@ -342,8 +342,8 @@ and use it::
 
     $ devpi use alice/dev
     current devpi index: http://localhost:4040/alice/dev/ (logged in as alice)
-    ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
-    ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
+    ~/.pydistutils.cfg : no config file exists
+    ~/.pip/pip.conf    : no config file exists
     always-set-cfg: no
 
 Our ``alice/dev`` index derives from ``root/pypi`` by default
