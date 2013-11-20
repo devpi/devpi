@@ -1,4 +1,11 @@
 
+unreleased
+-------------
+
+- avoid depending on requests-2.0.1 which does not support SNI.
+  addresses issue21
+
+
 1.2
 -------------
 
