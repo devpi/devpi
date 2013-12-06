@@ -10,7 +10,7 @@ if __name__ == "__main__":
 
     install_requires=["tox>=1.6.1",
                       "devpi_common>=1.2",
-                      "pkginfo>=1.1b1", "twine",
+                      "pkginfo>=1.2b1",
                       "py>=1.4.18"]
 
     if sys.version_info < (2,7):
@@ -21,7 +21,7 @@ if __name__ == "__main__":
       description="devpi upload/install/... workflow commands for Python "
                   "developers",
       long_description=open("README.rst").read(),
-      version='1.2.1',
+      version='1.2.2.dev1',
       packages=find_packages(),
       install_requires=install_requires,
       url="https://bitbucket.org/hpk42/devpi",

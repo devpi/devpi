@@ -1,3 +1,9 @@
+unreleased
+-------------------------------
+
+- depend on pkginfo>1.2b1 for wheel metadata reading support, 
+  remove twine dependency. Thanks Tres Seaver.
+
 1.2.1
 -------------------------------
 

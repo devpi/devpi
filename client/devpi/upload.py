@@ -154,13 +154,6 @@ def get_pkginfo(archivepath):
     if str(archivepath).endswith(".doc.zip"):
         return BasenameMeta(archivepath)
 
-    if archivepath.ext == ".whl":
-        # workaround for https://bugs.launchpad.net/pkginfo/+bug/1227788
-        import twine.wheel
-        wheel = twine.wheel.Wheel(str(archivepath))
-        wheel.parse(wheel.read())
-        return wheel
-
     import pkginfo
     info = pkginfo.get_metadata(str(archivepath))
     return info
