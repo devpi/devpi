@@ -232,13 +232,19 @@ class ExtDB:
         info = self.get_project_info(projectname)
         if not info:
             return 404
+
+        # get the simple page for the project
         url = PYPIURL_SIMPLE + info.name + "/"
         log.debug("visiting index %s", url)
         response = self.httpget(url, allow_redirects=True)
         if response.status_code != 200:
             return response.status_code
+
+        # determine and check real project name
         real_projectname = response.url.strip("/").split("/")[-1]
         assert real_projectname == info.name
+
+        # check that we got a fresh enough page
         serial = int(response.headers["X-PYPI-LAST-SERIAL"])
         if not isinstance(refresh, bool) and isinstance(refresh, int):
             if serial < refresh:
@@ -247,10 +253,14 @@ class ExtDB:
                 return -2  # the page we got is not fresh enough
         log.debug("%s: got response with serial %s" %
                   (real_projectname, serial))
+
+        # parse simple index's link and perform crawling
         assert response.text is not None, response.text
         result = parse_index(response.url, response.text)
         perform_crawling(self, result)
         releaselinks = list(result.releaselinks)
+
+        # compute release link entries and cache according to serial
         entries = [self.filestore.maplink(link, refresh=refresh)
                         for link in releaselinks]
         dumplist = [entry.relpath for entry in entries]

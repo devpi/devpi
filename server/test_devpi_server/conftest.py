@@ -10,6 +10,7 @@ import mock
 import pytest
 import py
 from devpi_server.main import XOM, parseoptions
+from devpi_common.url import URL
 from devpi_server.extpypi import XMLProxy
 
 log = logging.getLogger(__name__)
@@ -536,3 +537,17 @@ class ReqReply(HTTPResponse):
 #  end requests related mocking functionality
 #
 
+@pytest.fixture
+def gen():
+    return Gen()
+
+class Gen:
+    def __init__(self):
+        self._md5 = py.std.hashlib.md5()
+
+    def pypi_package_link(self, pkgname, md5=True):
+        link = "https://pypi.python.org/package/some/%s" % pkgname
+        if md5 == True:
+            self._md5.update(link)  # basically random
+            link += "#md5=%s" % self._md5.hexdigest()
+        return URL(link)

@@ -846,6 +846,7 @@ def trigger_jenkins(stage, jenkinurl, testspec):
     else:
         log.error("%s: failed to trigger jenkins at %s", r.status_code,
                   jenkinurl)
+        log.debug(r.content)
         return -1
 
 def abort_if_invalid_filename(name, filename):
