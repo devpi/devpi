@@ -384,21 +384,6 @@ class TestExtPYPIDB:
         links = extdb.getreleaselinks("pytest")
         assert len(links) == 1
 
-    def xxxtest_scrape_redirect_issue6(self, extdb):
-        extdb.url2response["http://github/path"] = dict(
-            status_code=302, headers=dict(location="/path"), content='''
-                <a rel="download" href="https://download.com/index.html" />
-            ''')
-        extdb.url2response["https://download.com/index.html"] = dict(
-            status_code=200, text = '''
-                <a href="../../pkg/pytest-1.0.zip#md5=123" />
-                <a rel="download" href="http://whatever.com" />'''
-        )
-        extdb.url2response["https://whatever.com"] = dict(
-            status_code=200, text = '<a href="pytest-1.1.zip#md5=123" />')
-        links = extdb.getreleaselinks("pytest")
-        assert len(links) == 1
-
     def test_getprojectnames(self, extdb):
         extdb.mock_simple("proj1", text='''
                            <a href="../../pkg/proj1-1.0.zip#md5=123" /> ''')
