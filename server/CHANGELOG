@@ -1,3 +1,10 @@
+unreleased
+----------------
+
+- fix issue78: create less directories for pypi package files by
+  splitting the md5 part into two. Avoids TooManyLinks errors in
+  large installations.
+
 1.2.1
 ----------------
 

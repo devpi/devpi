@@ -12,6 +12,7 @@ import py
 from devpi_server.main import XOM, parseoptions
 from devpi_common.url import URL
 from devpi_server.extpypi import XMLProxy
+import hashlib
 
 log = logging.getLogger(__name__)
 
@@ -106,6 +107,7 @@ def httpget(pypiurls):
     class MockHTTPGet:
         def __init__(self):
             self.url2response = {}
+            self._md5 = py.std.hashlib.md5()
 
         def __call__(self, url, allow_redirects=False):
             class mockresponse:
@@ -130,11 +132,27 @@ def httpget(pypiurls):
             log.debug("set mocking response %s %s", mockurl, kw)
             self.url2response[mockurl] = kw
 
-        def setextsimple(self, name, text=None, pypiserial=10000, **kw):
+        def setextsimple(self, name, text=None, pkgver=None,
+            pypiserial=10000, **kw):
+            class ret:
+                md5 = None
+            if pkgver is not None:
+                assert not text
+                if "#" not in pkgver:
+                    ret.md5 = self._getmd5digest(pkgver)
+                    pkgver += "#md5=" + ret.md5
+                text = '<a href="../../pkg/{pkgver}" />'.format(pkgver=pkgver)
+            elif text and "{md5}" in text:
+                text = text.format(md5=getmd5(text))
             headers = kw.setdefault("headers", {})
             headers["X-PYPI-LAST-SERIAL"] = pypiserial
-            return self.mockresponse(pypiurls.simple + name + "/",
+            self.mockresponse(pypiurls.simple + name + "/",
                                       text=text, **kw)
+            return ret
+
+        def _getmd5digest(self, s):
+            self._md5.update(s.encode("utf8"))
+            return self._md5.hexdigest()
 
         def setextfile(self, path, content, **kw):
             headers = {"content-length": len(content),
@@ -167,7 +185,8 @@ def add_extdb_mocks(extdb, httpget):
     extdb.url2response = httpget.url2response
     def setextsimple(name, text=None, pypiserial=10000, **kw):
         extdb._set_project_serial(name, pypiserial)
-        httpget.setextsimple(name, text=text, pypiserial=pypiserial, **kw)
+        return httpget.setextsimple(name,
+                text=text, pypiserial=pypiserial, **kw)
     extdb.setextsimple = setextsimple
     extdb.mock_simple = setextsimple
     extdb.httpget = httpget
@@ -548,6 +567,9 @@ class Gen:
     def pypi_package_link(self, pkgname, md5=True):
         link = "https://pypi.python.org/package/some/%s" % pkgname
         if md5 == True:
-            self._md5.update(link)  # basically random
+            self._md5.update(link.encode("utf8"))  # basically random
             link += "#md5=%s" % self._md5.hexdigest()
         return URL(link)
+
+def getmd5(s):
+    return hashlib.md5(s.encode("utf8")).hexdigest()

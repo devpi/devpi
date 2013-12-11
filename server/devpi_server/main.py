@@ -148,6 +148,8 @@ def add_keys(keyfs):
     keyfs.PYPISERIALS = keyfs.addkey("root/pypi/+serials", dict)
     keyfs.PYPIFILE_NOMD5 = keyfs.addkey(
         "{user}/{index}/+e/{relpath}", bytes)
+    keyfs.PYPISTAGEFILE = keyfs.addkey(
+        "{user}/{index}/+f/{md5a}/{md5b}/{filename}", bytes)
 
     # type "stage" related
     keyfs.INDEXDIR = keyfs.addkey("{user}/{index}", "DIR")

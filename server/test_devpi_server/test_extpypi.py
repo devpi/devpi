@@ -3,6 +3,8 @@ import pytest
 
 from devpi_server.extpypi import *
 from devpi_server.main import Fatal, PYPIURL_XMLRPC
+from test_devpi_server.conftest import getmd5
+
 
 class TestIndexParsing:
     simplepy = URL("http://pypi.python.org/simple/py/")
@@ -246,38 +248,34 @@ class TestIndexParsing:
 
 class TestExtPYPIDB:
     def test_parse_project_nomd5(self, extdb):
-        extdb.setextsimple("pytest", text='''
-            <a href="../../pkg/pytest-1.0.zip#md5=123" />''')
+        x = extdb.setextsimple("pytest", pkgver="pytest-1.0.zip")
         links = extdb.getreleaselinks("pytest")
         link, = links
         assert link.url == "https://pypi.python.org/pkg/pytest-1.0.zip"
-        assert link.md5 == "123"
+        assert link.md5 == x.md5
         assert link.relpath.endswith("/pytest-1.0.zip")
 
     def test_parse_project_replaced_eggfragment(self, extdb):
-        extdb.setextsimple("pytest", pypiserial=10, text='''
-            <a href="../../pkg/pytest-1.0.zip#egg=pytest-dev1" />''',)
+        extdb.setextsimple("pytest", pypiserial=10,
+            pkgver="pytest-1.0.zip#egg=pytest-dev1")
         links = extdb.getreleaselinks("pytest", refresh=10)
         assert links[0].eggfragment == "pytest-dev1"
-        extdb.setextsimple("pytest", pypiserial=11, text='''
-            <a href="../../pkg/pytest-1.0.zip#egg=pytest-dev2" />''')
+        extdb.setextsimple("pytest", pypiserial=11,
+            pkgver="pytest-1.0.zip#egg=pytest-dev2")
         links = extdb.getreleaselinks("pytest", refresh=11)
         assert links[0].eggfragment == "pytest-dev2"
 
     def test_parse_project_replaced_md5(self, extdb):
-        extdb.setextsimple("pytest", pypiserial=10, text='''
-            <a href="../../pkg/pytest-1.0.zip#md5=123" />''',)
+        x = extdb.setextsimple("pytest", pypiserial=10, pkgver="pytest-1.0.zip")
         links = extdb.getreleaselinks("pytest", refresh=10)
-        assert links[0].md5 == "123"
-        extdb.setextsimple("pytest", pypiserial=11, text='''
-            <a href="../../pkg/pytest-1.0.zip#md5=456" />''')
+        assert links[0].md5 == x.md5
+        y = extdb.setextsimple("pytest", pypiserial=11, pkgver="pytest-1.0.zip")
         links = extdb.getreleaselinks("pytest", refresh=11)
-        assert links[0].md5 == "456"
-
+        assert links[0].md5 == y.md5
+        assert x.md5 != y.md5
 
     def test_getprojectconfig(self, extdb):
-        extdb.setextsimple("Pytest", text='''
-            <a href="../../pkg/pytest-1.0.zip#md5=123" />''')
+        extdb.setextsimple("Pytest", pkgver="pytest-1.0.zip")
         config = extdb.get_projectconfig("Pytest")
         data = config["1.0"]
         assert data["+files"]
@@ -300,10 +298,11 @@ class TestExtPYPIDB:
         assert data["+files"]
 
     def test_parse_and_scrape(self, extdb):
+        md5 = getmd5("123")
         extdb.setextsimple("pytest", text='''
-                <a href="../../pkg/pytest-1.0.zip#md5=123" />
+                <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
                 <a rel="download" href="https://download.com/index.html" />
-            ''', pypiserial=20)
+            '''.format(md5=md5), pypiserial=20)
         extdb.url2response["https://download.com/index.html"] = dict(
             status_code=200, text = '''
                 <a href="pytest-1.1.tar.gz" /> ''',
@@ -314,11 +313,12 @@ class TestExtPYPIDB:
         assert links[0].relpath.endswith("/pytest-1.1.tar.gz")
 
         # check refresh
+        md5b = getmd5("456")
         extdb.setextsimple("pytest", text='''
-                <a href="../../pkg/pytest-1.0.1.zip#md5=456" />
-                <a href="../../pkg/pytest-1.0.zip#md5=123" />
+                <a href="../../pkg/pytest-1.0.1.zip#md5={md5b}" />
+                <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
                 <a rel="download" href="https://download.com/index.html" />
-            ''', pypiserial=25)
+            '''.format(md5=md5, md5b=md5b), pypiserial=25)
         assert len(extdb.getreleaselinks("pytest")) == 2  # no refresh
         links = extdb.getreleaselinks("pytest", refresh=25)
         assert len(links) == 3
@@ -327,7 +327,7 @@ class TestExtPYPIDB:
 
     def test_parse_and_scrape_non_html_ignored(self, extdb):
         extdb.setextsimple("pytest", text='''
-                <a href="../../pkg/pytest-1.0.zip#md5=123" />
+                <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
                 <a rel="download" href="https://download.com/index.html" />
             ''', pypiserial=20)
         extdb.url2response["https://download.com/index.html"] = dict(
@@ -339,7 +339,7 @@ class TestExtPYPIDB:
 
     def test_getreleaselinks_cache_refresh_semantics(self, extdb):
         extdb.setextsimple("pytest", text='''
-                <a href="../../pkg/pytest-1.0.zip#md5=123" />
+                <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
                 <a rel="download" href="https://download.com/index.html" />
             ''', pypiserial=10)
 
@@ -359,7 +359,7 @@ class TestExtPYPIDB:
     @pytest.mark.parametrize("errorcode", [404, -1, -2])
     def test_parse_and_scrape_error(self, extdb, errorcode):
         extdb.setextsimple("pytest", text='''
-                <a href="../../pkg/pytest-1.0.zip#md5=123" />
+                <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
                 <a rel="download" href="https://download.com/index.html" />
             ''')
         extdb.url2response["https://download.com/index.html"] = dict(
@@ -373,22 +373,23 @@ class TestExtPYPIDB:
         extdb.setextsimple("pytest", text='''
                 <a rel="download" href="https://download.com/index.html" />
             ''')
+        md5=getmd5("hello")
         extdb.url2response["https://download.com/index.html"] = dict(
             status_code=200, text = '''
-                <a href="../../pkg/pytest-1.0.zip#md5=123" />
-                <a rel="download" href="http://whatever.com" />''',
+                <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
+                <a rel="download" href="http://whatever.com" />'''.format(
+                md5=md5),
             headers = {"content-type": "text/html"},
         )
         extdb.url2response["https://whatever.com"] = dict(
-            status_code=200, text = '<a href="pytest-1.1.zip#md5=123" />')
+            status_code=200, text = '<a href="pytest-1.1.zip#md5={md5}" />'
+                             .format(md5=md5))
         links = extdb.getreleaselinks("pytest")
         assert len(links) == 1
 
     def test_getprojectnames(self, extdb):
-        extdb.mock_simple("proj1", text='''
-                           <a href="../../pkg/proj1-1.0.zip#md5=123" /> ''')
-        extdb.mock_simple("proj2", text='''
-                           <a href="../../pkg/proj2-1.0.zip#md5=123" /> ''')
+        extdb.mock_simple("proj1", pkgver="proj1-1.0.zip")
+        extdb.mock_simple("proj2", pkgver="proj2-1.0.zip")
         extdb.url2response["https://pypi.python.org/simple/proj3/"] = dict(
             status_code=404)
         assert len(extdb.getreleaselinks("proj1")) == 1

@@ -15,6 +15,15 @@ class TestFileStore:
         assert entry1.basename == "pytest-1.2.zip"
         assert py.builtin._istext(entry1.md5)
 
+    def test_maplink_splitmd5_issue78(self, filestore, gen):
+        link = gen.pypi_package_link("pytest-1.2.zip")
+        entry1 = filestore.maplink(link)
+        # check md5 directory structure (issue78)
+        parent2 = entry1.filepath.dirpath()
+        parent1 = parent2.dirpath()
+        assert parent1.basename == link.md5[:16]
+        assert parent2.basename == link.md5[16:]
+
     def test_maplink(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.2.zip")
         entry1 = filestore.maplink(link, refresh=False)
