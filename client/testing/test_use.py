@@ -220,6 +220,8 @@ class TestUnit:
         monkeypatch.setattr(PipCfg, "default_location", tmpdir.join("pip.cfg"))
         monkeypatch.setattr(DistutilsCfg, "default_location",
                             tmpdir.join("dist.cfg"))
+        monkeypatch.setattr(BuildoutCfg, "default_location",
+                            tmpdir.join("buildout.cfg"))
         mock_http_api.set("http://world/+api", 200,
                     result=dict(
                         pypisubmit="",
@@ -238,6 +240,9 @@ class TestUnit:
         assert DistutilsCfg.default_location.exists()
         content = DistutilsCfg.default_location.read()
         assert "index_url = http://world/" in content
+        assert BuildoutCfg.default_location.exists()
+        content = BuildoutCfg.default_location.read()
+        assert "index = http://world/" in content
         hub = cmd_devpi("use", "--always-set-cfg=yes")
         assert hub.current.always_setcfg
         hub = cmd_devpi("use", "--always-set-cfg=no")
@@ -259,7 +264,7 @@ def test_user_no_index(loghub):
     out_index_list(loghub, {"user": {"username": "user"}})
 
 class TestCfgParsing:
-    @pytest.fixture(scope="class", params=[DistutilsCfg, PipCfg])
+    @pytest.fixture(scope="class", params=[DistutilsCfg, PipCfg, BuildoutCfg])
     def cfgclass(self, request):
         return request.param
 

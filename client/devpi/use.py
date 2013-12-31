@@ -260,9 +260,11 @@ def main(hub, args=None):
             indexserver = hub.current.simpleindex
             DistutilsCfg().write_indexserver(indexserver)
             PipCfg().write_indexserver(indexserver)
+            BuildoutCfg().write_indexserver(indexserver)
 
     show_one_conf(hub, DistutilsCfg())
     show_one_conf(hub, PipCfg())
+    show_one_conf(hub, BuildoutCfg())
     hub.line("always-set-cfg: %s" % ("yes" if hub.current.always_setcfg else
                                      "no"))
 
@@ -273,7 +275,7 @@ def show_one_conf(hub, cfg):
         status = "no index server configured"
     else:
         status = cfg.indexserver
-    hub.info("%-19s: %s" %(cfg.screen_name, status))
+    hub.info("%-23s: %s" %(cfg.screen_name, status))
 
 class BaseCfg:
     config_name = "index_url"
@@ -345,6 +347,12 @@ class PipCfg(BaseCfg):
     section_name = "[global]"
     default_location = ("~/.pip/pip.conf" if sys.platform != "win32"
                         else "~/pip/pip.ini")
+
+class BuildoutCfg(BaseCfg):
+    section_name = "[buildout]"
+    config_name = "index"
+    regex = re.compile(r"(index)\s*=\s*(.*)")
+    default_location = "~/.buildout/default.cfg"
 
 
 def parse_keyvalue_spec(keyvaluelist, keyset=None):
