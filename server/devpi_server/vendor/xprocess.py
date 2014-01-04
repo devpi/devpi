@@ -130,6 +130,8 @@ class XProcess:
             kwargs = {}
             if sys.platform == "win32":
                 kwargs["startupinfo"] = sinfo = std.subprocess.STARTUPINFO()
+
+                # Protect the background process from Ctrl-C.
                 kwargs["creationflags"] = std.subprocess.CREATE_NEW_PROCESS_GROUP
                 if sys.version_info >= (2,7):
                     sinfo.dwFlags |= std.subprocess.STARTF_USESHOWWINDOW
