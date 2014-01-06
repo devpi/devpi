@@ -12,8 +12,12 @@ def do_xkill(info):
         return 0
 
     if sys.platform == "win32":
-        std.subprocess.check_call("taskkill /F /PID %s" % info.pid)
-        return 1
+        if hasattr(std.signal, "CTRL_BREAK_EVENT"):
+            os.kill(info.pid, std.signal.CTRL_BREAK_EVENT)
+            return 1
+        else:
+            std.subprocess.check_call("taskkill /F /PID %s" % info.pid)
+            return 1
     else:
         try:
             os.kill(info.pid, 9)
@@ -126,6 +130,9 @@ class XProcess:
             kwargs = {}
             if sys.platform == "win32":
                 kwargs["startupinfo"] = sinfo = std.subprocess.STARTUPINFO()
+
+                # Protect the background process from Ctrl-C.
+                kwargs["creationflags"] = std.subprocess.CREATE_NEW_PROCESS_GROUP
                 if sys.version_info >= (2,7):
                     sinfo.dwFlags |= std.subprocess.STARTF_USESHOWWINDOW
                     sinfo.wShowWindow |= std.subprocess.SW_HIDE
