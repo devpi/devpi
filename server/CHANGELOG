@@ -5,6 +5,8 @@ unreleased
   splitting the md5 part into two. Avoids TooManyLinks errors in
   large installations.
 
+- fix --stop on windows.  Thanks to Christian Ullrich for the PR.
+
 1.2.1
 ----------------
 

@@ -1,6 +1,7 @@
 import sys
 import os
 import py
+import subprocess
 std = py.std
 
 def do_xkill(info):
@@ -12,11 +13,13 @@ def do_xkill(info):
         return 0
 
     if sys.platform == "win32":
+        # send a break event to all processes in the process group
+        # (taskkill only kills the setuptools wrapper process)
         if hasattr(std.signal, "CTRL_BREAK_EVENT"):
             os.kill(info.pid, std.signal.CTRL_BREAK_EVENT)
             return 1
         else:
-            std.subprocess.check_call("taskkill /F /PID %s" % info.pid)
+            subprocess.check_call("taskkill /F /PID %s" % info.pid)
             return 1
     else:
         try:
@@ -129,13 +132,13 @@ class XProcess:
             stdout = open(str(info.logpath), "wb", 0)
             kwargs = {}
             if sys.platform == "win32":
-                kwargs["startupinfo"] = sinfo = std.subprocess.STARTUPINFO()
+                kwargs["startupinfo"] = sinfo = subprocess.STARTUPINFO()
 
                 # Protect the background process from Ctrl-C.
-                kwargs["creationflags"] = std.subprocess.CREATE_NEW_PROCESS_GROUP
+                kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
                 if sys.version_info >= (2,7):
-                    sinfo.dwFlags |= std.subprocess.STARTF_USESHOWWINDOW
-                    sinfo.wShowWindow |= std.subprocess.SW_HIDE
+                    sinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                    sinfo.wShowWindow |= subprocess.SW_HIDE
             else:
                 kwargs["close_fds"] = True
                 kwargs["preexec_fn"] = os.setpgrp  # no CONTROL-C
