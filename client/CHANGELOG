@@ -4,6 +4,9 @@ unreleased
 - depend on pkginfo>1.2b1 for wheel metadata reading support, 
   remove twine dependency. Thanks Tres Seaver.
 
+- new: also write buildout configuration file with --set-cfg.
+  Thanks Christian Ullrich for the PR.
+
 1.2.1
 -------------------------------
 
