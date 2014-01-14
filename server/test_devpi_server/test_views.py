@@ -537,3 +537,10 @@ class Test_getjson:
         assert abort_calls[0][0][0] == 400
 
 
+
+def test_html_preferred():
+    assert html_preferred(None)
+    assert html_preferred("")
+    assert html_preferred("*/*")
+    assert html_preferred("text/html")
+    assert not html_preferred("application/json")

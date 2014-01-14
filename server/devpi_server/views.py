@@ -79,9 +79,8 @@ def json_preferred():
     # XXX do proper "best" matching
     return "application/json" in request.headers.get("Accept", "")
 
-def html_preferred():
-    accept = request.headers.get("Accept", "")
-    return not accept or "text/html" in accept
+def html_preferred(accept):
+    return not accept or "text/html" in accept or "*/*" in accept
 
 route = lazydecorator()
 
@@ -499,7 +498,7 @@ class PyPIView:
         name = ensure_unicode(name)
         info = stage.get_project_info(name)
         real_name = info.name if info else name
-        if html_preferred():
+        if html_preferred(request.headers.get("Accept")):
             # we need to redirect because the simple pages
             # may return status codes != 200, causing
             # pip to look at the full simple list at the parent url
