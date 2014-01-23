@@ -28,7 +28,10 @@ class FileStore:
     def maplink(self, link, refresh=False):
         if link.md5:
             assert len(link.md5) == 32
-            md5a, md5b = link.md5[:16], link.md5[16:]
+            # we can only create 32K entries per directory
+            # so let's take the first 3 bytes which gives
+            # us a maximum of 16^3 = 4096 entries in the root dir
+            md5a, md5b = link.md5[:3], link.md5[3:]
             key = self.keyfs.PYPISTAGEFILE(user="root", index="pypi",
                                        md5a=md5a, md5b=md5b,
                                        filename=link.basename)

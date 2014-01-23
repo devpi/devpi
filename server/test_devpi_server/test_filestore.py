@@ -21,8 +21,8 @@ class TestFileStore:
         # check md5 directory structure (issue78)
         parent2 = entry1.filepath.dirpath()
         parent1 = parent2.dirpath()
-        assert parent1.basename == link.md5[:16]
-        assert parent2.basename == link.md5[16:]
+        assert parent1.basename == link.md5[:3]
+        assert parent2.basename == link.md5[3:]
 
     def test_maplink(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.2.zip")
