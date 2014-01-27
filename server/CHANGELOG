@@ -10,6 +10,8 @@ unreleased
 - fix issue79: interoperate with pip-1.5 by interpreting accept
   header as "*/*" as html_preferred.  Thanks Richard Jones.
 
+- use latest virtualenv-1.11.2 when bootstrapping on jenkins
+
 
 1.2.1
 ----------------

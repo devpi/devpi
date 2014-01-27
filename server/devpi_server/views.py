@@ -820,8 +820,9 @@ def trigger_jenkins(stage, jenkinurl, testspec):
     source = render_string("devpibootstrap.py",
         INDEXURL=baseurl + stage.name,
         VIRTUALENVTARURL= (baseurl +
-            "root/pypi/+f/3a04aa2b32c76c83725ed4d9918e362e/"
-            "virtualenv-1.10.1.tar.gz"),
+            "root/pypi/+f/d3d/915836c1ada1be731ccaa12412b98/"
+            "virtualenv-1.11.2.tar.gz",
+            ),
         TESTSPEC=testspec,
         DEVPI_INSTALL_INDEX = baseurl + stage.name + "/+simple/"
     )
