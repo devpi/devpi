@@ -71,9 +71,9 @@ def apireturn(code, message=None, result=None, type=None):
     if message:
         d["message"] = message
     data = json.dumps(d, indent=2) + "\n"
-    header = meta_headers.copy()
-    header[str("content-type")] = "application/json"
-    raise HTTPResponse(body=data, status=code, header=header)
+    headers = meta_headers.copy()
+    headers[str("content-type")] = "application/json"
+    raise HTTPResponse(body=data, status=code, headers=headers)
 
 def json_preferred():
     # XXX do proper "best" matching
