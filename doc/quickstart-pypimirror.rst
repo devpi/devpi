@@ -1,4 +1,3 @@
-
 .. include:: links.rst
 
 Quickstart: running a pypi mirror on your laptop
@@ -100,7 +99,7 @@ permanent index server configuration for pip
 
 To avoid having to re-type index URLs, you can configure pip by
 setting the index-url entry in your ``$HOME/.pip/pip.conf`` (posix) or 
-``$HOME/pip/pip.conf`` (windows).  Let's do it for the ``root/pypi``
+``$HOME/pip/pip.ini`` (windows).  Let's do it for the ``root/pypi``
 index::
     
     # $HOME/.pip/pip.conf
