@@ -12,6 +12,8 @@ unreleased
 
 - use latest virtualenv-1.11.2 when bootstrapping on jenkins
 
+- fix issue89: adapt for bottle changes in 0.12.1.  Thanks 
+  Alexey Sveshnikov.
 
 1.2.1
 ----------------
