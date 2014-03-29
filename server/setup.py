@@ -13,7 +13,7 @@ if __name__ == "__main__":
                         "itsdangerous>=0.23",
                         "docutils>=0.11",
                         "pygments>=1.6",
-                        "bottle>=0.11.6"]
+                        "bottle>=0.12.2"]
     if sys.version_info < (2,7):
         install_requires.append("argparse>=1.2.1")
 

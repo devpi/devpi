@@ -437,11 +437,12 @@ class PyPIView:
                             (jenkinurl,))
             else:
                 # docs have no version (XXX but they are tied to the latest)
-                if len(content.value) > MAXDOCZIPSIZE:
+                doczip = content.file.read()
+                if len(doczip) > MAXDOCZIPSIZE:
                     abort_custom(413, "zipfile size %d too large, max=%s"
-                                   % (len(content.value), MAXDOCZIPSIZE))
+                                   % (len(doczip), MAXDOCZIPSIZE))
                 stage.store_doczip(name, version,
-                                   py.io.BytesIO(content.value))
+                                   py.io.BytesIO(doczip))
         else:
             abort(400, "action %r not supported" % action)
         return ""
