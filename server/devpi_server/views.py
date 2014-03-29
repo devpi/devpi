@@ -424,7 +424,7 @@ class PyPIView:
                     if not metadata:
                         abort_custom(400, "could not process form metadata")
                 res = stage.store_releasefile(name, version,
-                                              content.filename, content.value)
+                                              content.filename, content.file.read())
                 if res == 409:
                     abort(409, "%s already exists in non-volatile index" %(
                          content.filename,))
