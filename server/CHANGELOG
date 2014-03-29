@@ -1,4 +1,4 @@
-unreleased
+1.2.2
 ----------------
 
 - fix issue78: create less directories for pypi package files by
