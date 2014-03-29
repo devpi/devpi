@@ -135,8 +135,8 @@ class XProcess:
                 kwargs["startupinfo"] = sinfo = subprocess.STARTUPINFO()
 
                 # Protect the background process from Ctrl-C.
-                kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
                 if sys.version_info >= (2,7):
+                    kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
                     sinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
                     sinfo.wShowWindow |= subprocess.SW_HIDE
             else:
