@@ -1,4 +1,4 @@
-unreleased
+1.2.2
 -------------------------------
 
 - depend on pkginfo>1.2b1 for wheel metadata reading support, 

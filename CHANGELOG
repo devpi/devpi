@@ -1,4 +1,32 @@
-1.2.1
+1.2.2
+----------------------------
+
+devpi-server:
+
+- fix issue78: create less directories for pypi package files by
+  splitting the md5 part into two. Avoids TooManyLinks errors in
+  large installations.
+
+- fix --stop on windows.  Thanks to Christian Ullrich for the PR.
+
+- fix issue79: interoperate with pip-1.5 by interpreting accept
+  header as "*/*" as html_preferred.  Thanks Richard Jones.
+
+- use latest virtualenv-1.11.2 when bootstrapping on jenkins
+
+- fix issue89: adapt for bottle changes in 0.12.1.  Thanks 
+  Alexey Sveshnikov.
+
+devpi-client:
+
+- depend on pkginfo>1.2b1 for wheel metadata reading support, 
+  remove twine dependency. Thanks Tres Seaver.
+
+- new: also write buildout configuration file with --set-cfg.
+  Thanks Christian Ullrich for the PR.
+
+
+1.2.2
 ----------------------------
 
 devpi-server:
