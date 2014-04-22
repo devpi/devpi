@@ -10,7 +10,6 @@ from devpi_common.url import urlparse
 from devpi_server.vendor.xprocess import XProcess
 from devpi_common.request import new_requests_session
 
-default_rooturl = "http://localhost:3141"
 
 def getnetloc(url, scheme=False):
     parsed = urlparse(url)
