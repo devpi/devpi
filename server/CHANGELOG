@@ -1,3 +1,9 @@
+1.3
+----------------
+
+- switch the wsgi app to use Pyramid. the wsgi server is still using Bottle,
+  so --bottleserver still works. Thanks to Florian Schulze for the PR.
+
 1.2.2
 ----------------
 

@@ -7,7 +7,6 @@ import py
 import json
 import posixpath
 from bs4 import BeautifulSoup
-from devpi_server.views import *
 from devpi_common.metadata import splitbasename
 from devpi_common.url import URL
 import devpi_server.views
@@ -43,11 +42,19 @@ def test_project_redirect(extdb, testapp):
 
 def test_simple_project_unicode_rejected(extdb, testapp):
     from devpi_server.views import PyPIView
-    import bottle
-    view = PyPIView(testapp.xom)
-    name = py.builtin._totext(b"qpw\xc3\xb6", "utf-8")
-    with pytest.raises(bottle.HTTPError):
-        view.simple_list_project("x", "y", name)
+    from pyramid.httpexceptions import HTTPClientError
+    from pyramid.testing import DummyRequest, setUp, tearDown
+    request = DummyRequest()
+    setUp(request=request)
+    try:
+        request.registry['xom'] = testapp.xom
+        view = PyPIView(request)
+        name = py.builtin._totext(b"qpw\xc3\xb6", "utf-8")
+        request.matchdict.update(user="x", index="y", projectname=name)
+        with pytest.raises(HTTPClientError):
+            view.simple_list_project()
+    finally:
+        tearDown()
 
 def test_simple_url_longer_triggers_404(testapp):
     assert testapp.get("/root/pypi/+simple/pytest/1.0/").status_code == 404
@@ -302,7 +309,7 @@ def test_upload_and_push_external(mapp, testapp, reqmock):
                username="user", password="password")
     rec = reqmock.mockresponse(url=None, code=200, method="POST", data="msg")
     body = json.dumps(req).encode("utf-8")
-    r = testapp.request(api.index, method="push", body=body,
+    r = testapp.request(api.index, method="PUSH", body=body,
                         expect_errors=True)
     assert r.status_code == 200
     assert len(rec.requests) == 3
@@ -315,7 +322,7 @@ def test_upload_and_push_external(mapp, testapp, reqmock):
 
     # push with error
     reqmock.mockresponse(url=None, code=500, method="POST")
-    r = testapp.request(api.index, method="push", body=body, expect_errors=True)
+    r = testapp.request(api.index, method="PUSH", body=body, expect_errors=True)
     assert r.status_code == 502
     result = r.json["result"]
     assert len(result) == 1
@@ -491,6 +498,7 @@ def test_kvdict(input, expected):
     assert result == expected
 
 def test_get_outside_url():
+    from devpi_server.views import get_outside_url
     url = get_outside_url({"X-outside-url": "http://outside.com"}, None)
     assert url == "http://outside.com/"
     url = get_outside_url({"X-outside-url": "http://outside.com"},
@@ -501,11 +509,6 @@ def test_get_outside_url():
     url = get_outside_url({"Host": "outside3.com"}, "http://out.com")
     assert url == "http://out.com/"
 
-def json_file(data):
-    dumped = json.dumps(data)
-    if py.builtin._istext(dumped):
-        dumped = dumped.encode("utf-8")
-    return py.io.BytesIO(dumped)
 
 class Test_getjson:
     @pytest.fixture
@@ -518,20 +521,23 @@ class Test_getjson:
         return l
 
     def test_getjson(self):
+        from devpi_server.views import getjson
         class request:
-            body = json_file({"hello": "world"})
+            body = json.dumps({"hello": "world"})
         assert getjson(request)["hello"] == "world"
 
     def test_getjson_error(self, abort_calls):
+        from devpi_server.views import getjson
         class request:
-            body = py.io.BytesIO(b"123 123")
+            body = u"123 123"
         with pytest.raises(SystemExit):
             getjson(request)
         assert abort_calls[0][0][0] == 400
 
     def test_getjson_wrong_keys(self, abort_calls):
+        from devpi_server.views import getjson
         class request:
-            body = json_file({"k1": "v1", "k2": "v2"})
+            body = json.dumps({"k1": "v1", "k2": "v2"})
         with pytest.raises(SystemExit):
             getjson(request, allowed_keys=["k1", "k3"])
         assert abort_calls[0][0][0] == 400
@@ -539,6 +545,7 @@ class Test_getjson:
 
 
 def test_html_preferred():
+    from devpi_server.views import html_preferred
     assert html_preferred(None)
     assert html_preferred("")
     assert html_preferred("*/*")

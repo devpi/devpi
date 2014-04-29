@@ -13,7 +13,8 @@ if __name__ == "__main__":
                         "itsdangerous>=0.23",
                         "docutils>=0.11",
                         "pygments>=1.6",
-                        "bottle>=0.12.2"]
+                        "bottle>=0.12.2",
+                        "pyramid>=1.5"]
     if sys.version_info < (2,7):
         install_requires.append("argparse>=1.2.1")
 
@@ -23,7 +24,7 @@ if __name__ == "__main__":
       keywords="pypi cache server wsgi",
       long_description=README,
       url="http://doc.devpi.net",
-      version='1.2.2',
+      version='1.3.dev1',
       maintainer="Holger Krekel",
       maintainer_email="holger@merlinux.eu",
       packages=find_packages(),

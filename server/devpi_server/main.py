@@ -106,7 +106,7 @@ def make_application():
     config = parseoptions([])
     return XOM(config).create_app()
 
-def bottle_run(xom):
+def wsgi_run(xom):
     import bottle
     app = xom.create_app(immediatetasks=True,
                          catchall=not xom.config.args.debug)
@@ -212,7 +212,7 @@ class XOM:
         if args.import_:
             from devpi_server.importexport import do_import
             return do_import(args.import_, xom)
-        return bottle_run(xom)
+        return wsgi_run(xom)
 
     def fatal(self, msg):
         self.shutdown()
@@ -309,10 +309,44 @@ class XOM:
             return FatalResponse(sys.exc_info())
 
     def create_app(self, catchall=True, immediatetasks=False):
-        from devpi_server.views import PyPIView, route
-        from bottle import Bottle
+        from pyramid.authentication import BasicAuthAuthenticationPolicy
+        from pyramid.config import Configurator
+        import functools
         log.debug("creating application in process %s", os.getpid())
-        app = Bottle(catchall=catchall)
+        pyramid_config = Configurator()
+        pyramid_config.add_route("/+api", "/+api")
+        pyramid_config.add_route("{path:.*}/+api", "{path:.*}/+api")
+        pyramid_config.add_route("/+login", "/+login")
+        pyramid_config.add_route("/+tests", "/+tests")
+        pyramid_config.add_route("/+tests/{md5}/{type}", "/+tests/{md5}/{type}")
+        pyramid_config.add_route("/+tests/{md5}/{type}/{num}", "/+tests/{md5}/{type}/{num}")
+        pyramid_config.add_route("/{user}/{index}/+e/{relpath:.*}", "/{user}/{index}/+e/{relpath:.*}")
+        pyramid_config.add_route("/{user}/{index}/+f/{relpath:.*}", "/{user}/{index}/+f/{relpath:.*}")
+        pyramid_config.add_route("/{user}/{index}/+simple/", "/{user}/{index}/+simple/")
+        pyramid_config.add_route("/{user}/{index}/+simple/{projectname}", "/{user}/{index}/+simple/{projectname}")
+        pyramid_config.add_route("/{user}/{index}/+simple/{projectname}/", "/{user}/{index}/+simple/{projectname}/")
+        pyramid_config.add_route("/{user}/{index}/{name}/{version}/+doc/{relpath:.*}", "/{user}/{index}/{name}/{version}/+doc/{relpath:.*}")
+        pyramid_config.add_route("/{user}/{index}/{name}/{version}/", "/{user}/{index}/{name}/{version}/")
+        pyramid_config.add_route("/{user}/{index}/{name}/{version}", "/{user}/{index}/{name}/{version}")
+        pyramid_config.add_route("/{user}/{index}/{name}/", "/{user}/{index}/{name}/")
+        pyramid_config.add_route("/{user}/{index}/{name}", "/{user}/{index}/{name}")
+        pyramid_config.add_route("/{user}/{index}/", "/{user}/{index}/")
+        pyramid_config.add_route("/{user}/{index}", "/{user}/{index}")
+        pyramid_config.add_route("/{user}/", "/{user}/")
+        pyramid_config.add_route("/{user}", "/{user}")
+        pyramid_config.add_route("/", "/")
+        # XXX hack for now until using proper Pyramid auth
+        _get_credentials = BasicAuthAuthenticationPolicy._get_credentials
+        # In Python 2 we need to get im_func, in Python 3 we already have
+        # the correct value
+        _get_credentials = getattr(_get_credentials, 'im_func', _get_credentials)
+        pyramid_config.add_request_method(
+            functools.partial(_get_credentials, None),
+            name=str('auth'), property=True)
+        # XXX end hack
+        pyramid_config.scan()
+        pyramid_config.registry['xom'] = self
+        app = pyramid_config.make_wsgi_app()
         if immediatetasks == -1:
             pass
         else:
@@ -320,10 +354,7 @@ class XOM:
             if immediatetasks:
                 plugin.start_background_tasks()
             else:  # defer to when the first request arrives
-                app.install(plugin)
-        app.xom = self
-        pypiview = PyPIView(self)
-        route.discover_and_call(pypiview, app.route)
+                raise NotImplementedError
         return app
 
 class BackgroundPlugin:

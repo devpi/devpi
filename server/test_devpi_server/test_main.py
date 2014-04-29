@@ -31,7 +31,7 @@ def test_check_incompatible_version_raises(xom):
         check_compatible_version(xom)
 
 def test_invalidate_is_called(monkeypatch, tmpdir):
-    monkeypatch.setattr(devpi_server.main, "bottle_run", lambda *args: None)
+    monkeypatch.setattr(devpi_server.main, "wsgi_run", lambda *args: None)
     def record(basedir):
         assert tmpdir.join("root", "pypi") == basedir
         0/0
@@ -41,8 +41,7 @@ def test_invalidate_is_called(monkeypatch, tmpdir):
         main(["devpi-server", "--serverdir", str(tmpdir)])
 
 def test_startup_fails_on_initial_setup_nonetwork(tmpdir, monkeypatch):
-    import bottle
-    monkeypatch.setattr(bottle, "run", lambda **kw: 0/0)
+    monkeypatch.setattr(devpi_server.main, "wsgi_run", lambda **kw: 0/0)
     monkeypatch.setattr(devpi_server.main, "PYPIURL_XMLRPC",
                         "http://qwqwlekjqwlekqwe.notexists")
     ret = main(["devpi-server", "--serverdir", str(tmpdir)])
