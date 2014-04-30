@@ -8,7 +8,6 @@ import devpi_server
 from pyramid.httpexceptions import HTTPException, HTTPFound, HTTPSuccessful
 from pyramid.httpexceptions import exception_response
 from pyramid.response import FileResponse, Response
-from pyramid.threadlocal import get_current_request
 from pyramid.view import view_config
 import functools
 import inspect
@@ -48,8 +47,7 @@ API_VERSION = "1"
 meta_headers = {str("X-DEVPI-API-VERSION"): str(API_VERSION),
                 str("X-DEVPI-SERVER-VERSION"): server_version}
 
-def abort(code, body):
-    request = get_current_request()
+def abort(request, code, body):
     if "application/json" in request.headers.get("Accept", ""):
         apireturn(code, body)
     raise exception_response(code, body=body, headers=meta_headers)
@@ -84,8 +82,7 @@ def apireturn(code, message=None, result=None, type=None):
     headers[str("content-type")] = str("application/json")
     raise HTTPResponse(body=data, status=code, headers=headers)
 
-def json_preferred():
-    request = get_current_request()
+def json_preferred(request):
     # XXX do proper "best" matching
     return "application/json" in request.headers.get("Accept", "")
 
@@ -128,7 +125,7 @@ class PyPIView:
     def getstage(self, user, index):
         stage = self.db.getstage(user, index)
         if not stage:
-            abort(404, "no such stage")
+            abort(self.request, 404, "no such stage")
         return stage
 
 
@@ -162,7 +159,7 @@ class PyPIView:
                 user, index = parts[:2]
                 ixconfig = self.db.index_get(user, index)
                 if not ixconfig:
-                    abort(404, "index %s/%s does not exist" %(user, index))
+                    abort(request, 404, "index %s/%s does not exist" % (user, index))
                 api.update({
                     "index": self.route_url(
                         "/{user}/{index}/", user=user, index=index),
@@ -221,7 +218,7 @@ class PyPIView:
     def simple_list_project(self, user, index, projectname):
         request = self.request
         # we only serve absolute links so we don't care about the route's slash
-        abort_if_invalid_projectname(projectname)
+        abort_if_invalid_projectname(request, projectname)
         stage = self.getstage(user, index)
         projectname = ensure_unicode(projectname)
         info = stage.get_project_info(projectname)
@@ -233,11 +230,11 @@ class PyPIView:
                 # we don't want pip/easy_install to try the whole simple
                 # page -- we know for sure there is no fitting project
                 # because all devpi indexes perform package name normalization
-                abort(200, "no such project %r" % projectname)
+                abort(request, 200, "no such project %r" % projectname)
             if result >= 500:
-                abort(502, "upstream server has internal error")
+                abort(request, 502, "upstream server has internal error")
             if result < 0:
-                abort(502, "upstream server not reachable")
+                abort(request, 502, "upstream server not reachable")
         links = []
         for entry in result:
             relpath = entry.relpath
@@ -265,7 +262,7 @@ class PyPIView:
         stage_results = []
         for stage, names in stage.op_with_bases("getprojectnames"):
             if isinstance(names, int):
-                abort(502, "could not get simple list of %s" % stage.name)
+                abort(self.request, 502, "could not get simple list of %s" % stage.name)
             stage_results.append((stage, names))
 
         # at this point we are sure we can produce the data without
@@ -364,7 +361,7 @@ class PyPIView:
                 for basename, relpath in files.items():
                     entry = stage.xom.filestore.getentry(relpath)
                     if not entry.iscached():
-                        abort(400, "cannot push non-cached files")
+                        abort(request, 400, "cannot push non-cached files")
                     matches.append(entry)
                 metadata = get_pure_metadata(verdata)
 
@@ -458,13 +455,13 @@ class PyPIView:
     def submit(self, user, index):
         request = self.request
         if user == "root" and index == "pypi":
-            abort(404, "cannot submit to pypi mirror")
+            abort(request, 404, "cannot submit to pypi mirror")
         stage = self.getstage(user, index)
         self.require_user(user, stage=stage)
         try:
             action = request.POST[":action"]
         except KeyError:
-            abort(400, ":action field not found")
+            abort(request, 400, ":action field not found")
         if action == "submit":
             self._register_metadata_form(stage, request.POST)
             return Response("")
@@ -472,12 +469,12 @@ class PyPIView:
             try:
                 content = request.POST["content"]
             except KeyError:
-                abort(400, "content file field not found")
+                abort(request, 400, "content file field not found")
             name = ensure_unicode(request.POST.get("name"))
             version = ensure_unicode(request.POST.get("version"))
             info = stage.get_project_info(name)
             if not info:
-                abort(400, "no project named %r was ever registered" %(name))
+                abort(request, 400, "no project named %r was ever registered" % (name))
             if action == "file_upload":
                 log.debug("metadata in form: %s", list(request.POST.items()))
                 abort_if_invalid_filename(name, content.filename)
@@ -490,12 +487,12 @@ class PyPIView:
                 res = stage.store_releasefile(name, version,
                                               content.filename, content.file.read())
                 if res == 409:
-                    abort(409, "%s already exists in non-volatile index" %(
+                    abort(request, 409, "%s already exists in non-volatile index" % (
                          content.filename,))
                 jenkinurl = stage.ixconfig["uploadtrigger_jenkins"]
                 if jenkinurl:
                     jenkinurl = jenkinurl.format(pkgname=name)
-                    if trigger_jenkins(stage, jenkinurl, name) == -1:
+                    if trigger_jenkins(request, stage, jenkinurl, name) == -1:
                         abort_custom(200,
                             "OK, but couldn't trigger jenkins at %s" %
                             (jenkinurl,))
@@ -508,7 +505,7 @@ class PyPIView:
                 stage.store_doczip(name, version,
                                    py.io.BytesIO(doczip))
         else:
-            abort(400, "action %r not supported" % action)
+            abort(request, 400, "action %r not supported" % action)
         return Response("")
 
     def _register_metadata_form(self, stage, form):
@@ -552,7 +549,7 @@ class PyPIView:
         stage = self.getstage(user, index)
         key = stage._doc_key(name, version)
         if not key.filepath.check():
-            abort(404, "no documentation available")
+            abort(self.request, 404, "no documentation available")
         return FileResponse(str(key.filepath.join(relpath)))
 
     @view_config(route_name="/{user}/{index}/{name}")
@@ -571,7 +568,7 @@ class PyPIView:
             # pip to look at the full simple list at the parent url
             # but we don't serve this list on /user/index/
             redirect("/%s/+simple/%s/" % (stage.name, real_name))
-        if not json_preferred():
+        if not json_preferred(request):
             apireturn(415, "unsupported media type %s" %
                       request.headers.items())
         if not info:
@@ -588,7 +585,7 @@ class PyPIView:
         self.require_user(user)
         stage = self.getstage(user, index)
         if stage.name == "root/pypi":
-            abort(405, "cannot delete root/pypi index")
+            abort(self.request, 405, "cannot delete root/pypi index")
         if not stage.project_exists(name):
             apireturn(404, "project %r does not exist" % name)
         if not stage.ixconfig["volatile"]:
@@ -606,11 +603,11 @@ class PyPIView:
         version = ensure_unicode(version)
         metadata = stage.get_projectconfig(name)
         if not metadata:
-            abort(404, "project %r does not exist" % name)
+            abort(self.request, 404, "project %r does not exist" % name)
         verdata = metadata.get(version, None)
         if not verdata:
-            abort(404, "version %r does not exist" % version)
-        if json_preferred():
+            abort(self.request, 404, "version %r does not exist" % version)
+        if json_preferred(self.request):
             apireturn(200, type="versiondata", result=verdata)
 
         # if html show description and metadata
@@ -642,15 +639,15 @@ class PyPIView:
         name = ensure_unicode(name)
         version = ensure_unicode(version)
         if stage.name == "root/pypi":
-            abort(405, "cannot delete on root/pypi index")
+            abort(self.request, 405, "cannot delete on root/pypi index")
         if not stage.ixconfig["volatile"]:
-            abort(403, "cannot delete version on non-volatile index")
+            abort(self.request, 403, "cannot delete version on non-volatile index")
         metadata = stage.get_projectconfig(name)
         if not metadata:
-            abort(404, "project %r does not exist" % name)
+            abort(self.request, 404, "project %r does not exist" % name)
         verdata = metadata.get(version, None)
         if not verdata:
-            abort(404, "version %r does not exist" % version)
+            abort(self.request, 404, "version %r does not exist" % version)
         stage.project_version_delete(name, version)
         apireturn(200, "project %r version %r deleted" % (name, version))
 
@@ -664,14 +661,14 @@ class PyPIView:
         if "#" in relpath:   # XXX unclear how this can happen (it does)
             relpath = relpath.split("#", 1)[0]
         filestore = self.xom.filestore
-        if json_preferred():
+        if json_preferred(request):
             entry = filestore.getentry(relpath)
             if not entry.exists():
                 apireturn(404, "no such release file")
             apireturn(200, type="releasefilemeta", result=entry._mapping)
         headers, itercontent = filestore.iterfile(relpath, self.xom.httpget)
         if headers is None:
-            abort(404, "no such file")
+            abort(request, 404, "no such file")
         response.content_type = headers["content-type"]
         if "content-length" in headers:
             response.content_length = headers["content-length"]
@@ -683,7 +680,7 @@ class PyPIView:
     def indexroot(self, user, index):
         request = self.request
         stage = self.getstage(user, index)
-        if json_preferred():
+        if json_preferred(request):
             projectlist = stage.getprojectnames_perstage()
             projectlist = sorted(projectlist)
             apireturn(200, type="list:projectconfig", result=projectlist)
@@ -772,9 +769,9 @@ class PyPIView:
         status, auth_user = self.auth.get_auth_status(request.auth)
         log.debug("got auth status %r for user %r" %(status, auth_user))
         if not self.db.user_exists(user):
-            abort(404, "required user %r does not exist" % auth_user)
+            abort(request, 404, "required user %r does not exist" % auth_user)
         if status == "nouser":
-            abort(404, "user %r does not exist" % auth_user)
+            abort(request, 404, "user %r does not exist" % auth_user)
         elif status == "expired":
             self.abort_authenticate(msg="auth expired for %r" % auth_user)
         elif status == "noauth":
@@ -801,7 +798,7 @@ class PyPIView:
         password = dict.get("password", None)
         #log.debug("got password %r" % password)
         if user is None or password is None:
-            abort(400, "Bad request: no user/password specified")
+            abort(request, 400, "Bad request: no user/password specified")
         proxyauth = self.auth.new_proxy_auth(user, password)
         if proxyauth:
             apireturn(200, "login successful", type="proxyauth",
@@ -883,11 +880,11 @@ def getjson(request, allowed_keys=None):
                 content = content.decode("utf-8")
         dict = json.loads(content)
     except ValueError:
-        abort(400, "Bad request: could not decode json")
+        abort(request, 400, "Bad request: could not decode json")
     if allowed_keys is not None:
         diff = set(dict).difference(allowed_keys)
         if diff:
-            abort(400, "json keys not recognized: %s" % ",".join(diff))
+            abort(request, 400, "json keys not recognized: %s" % ",".join(diff))
     return dict
 
 def get_outside_url(headers, outsideurl):
@@ -901,8 +898,7 @@ def get_outside_url(headers, outsideurl):
     log.debug("outside host header: %s", url)
     return url
 
-def trigger_jenkins(stage, jenkinurl, testspec):
-    request = get_current_request()
+def trigger_jenkins(request, stage, jenkinurl, testspec):
     baseurl = get_outside_url(request.headers,
                               stage.xom.config.args.outside_url)
 
@@ -946,14 +942,14 @@ def abort_if_invalid_filename(name, filename):
     abort_custom(400, "filename %r does not match project name %r"
                       %(filename, name))
 
-def abort_if_invalid_projectname(projectname):
+def abort_if_invalid_projectname(request, projectname):
     try:
         if isinstance(projectname, bytes):
             projectname.decode("ascii")
         else:
             projectname.encode("ascii")
     except (UnicodeEncodeError, UnicodeDecodeError):
-        abort(400, "unicode project names not allowed")
+        abort(request, 400, "unicode project names not allowed")
 
 
 def getkvdict_index(req):

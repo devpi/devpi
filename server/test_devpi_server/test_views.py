@@ -532,7 +532,9 @@ class Test_getjson:
             body = u"123 123"
         with pytest.raises(SystemExit):
             getjson(request)
-        assert abort_calls[0][0][0] == 400
+        assert len(abort_calls) == 1
+        abort_call_args = abort_calls[0][0]
+        assert abort_call_args[1] == 400
 
     def test_getjson_wrong_keys(self, abort_calls):
         from devpi_server.views import getjson
@@ -540,7 +542,9 @@ class Test_getjson:
             body = json.dumps({"k1": "v1", "k2": "v2"})
         with pytest.raises(SystemExit):
             getjson(request, allowed_keys=["k1", "k3"])
-        assert abort_calls[0][0][0] == 400
+        assert len(abort_calls) == 1
+        abort_call_args = abort_calls[0][0]
+        assert abort_call_args[1] == 400
 
 
 
