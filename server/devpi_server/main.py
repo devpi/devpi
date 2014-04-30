@@ -107,37 +107,32 @@ def make_application():
     return XOM(config).create_app()
 
 def wsgi_run(xom):
-    import bottle
+    from wsgiref.simple_server import make_server
     app = xom.create_app(immediatetasks=True,
                          catchall=not xom.config.args.debug)
+    host = xom.config.args.host
     port = xom.config.args.port
     log.info("devpi-server version: %s", server_version)
     log.info("serverdir: %s" % xom.config.serverdir)
-    hostaddr = "http://%s:%s" %(xom.config.args.host, xom.config.args.port)
+    hostaddr = "http://%s:%s" % (host, port)
     log.info("serving at url: %s", hostaddr)
     log.info("bug tracker: https://bitbucket.org/hpk42/devpi/issues")
     log.info("IRC: #devpi on irc.freenode.net")
     if "WEBTRACE" in os.environ and xom.config.args.debug:
         from weberror.evalexception import make_eval_exception
         app = make_eval_exception(app, {})
-    bottleserver = get_bottle_server(xom.config.args.bottleserver)
-    log.info("bottleserver type: %s" % bottleserver)
-    ret = bottle.run(app=app, server=bottleserver,
-                  host=xom.config.args.host,
-                  reloader=False, port=port)
-    xom.shutdown()
-    return ret
+    try:
+        server = make_server(host, port, app)
+    except Exception as e:
+        log.exception("Error while starting the server.")
+        return 1
+    try:
+        log.info("Hit Ctrl-C to quit.")
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    return 0
 
-def get_bottle_server(opt):
-    if opt == "auto":
-        try:
-            import eventlet  # noqa
-        except ImportError:
-            log.debug("could not import 'eventlet'")
-            opt = "wsgiref"
-        else:
-            opt = "eventlet"
-    return opt
 
 def add_keys(keyfs):
     # users and index configuration
@@ -212,7 +207,10 @@ class XOM:
         if args.import_:
             from devpi_server.importexport import do_import
             return do_import(args.import_, xom)
-        return wsgi_run(xom)
+        try:
+            return wsgi_run(xom)
+        finally:
+            xom.shutdown()
 
     def fatal(self, msg):
         self.shutdown()

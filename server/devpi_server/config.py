@@ -33,11 +33,6 @@ def addoptions(parser):
                  "and the web server does not set or you want to override "
                  "the custom X-outside-url header.")
 
-    web.addoption("--bottleserver", metavar="TYPE",
-            default="auto",
-            help="bottle server class, tries 'eventlet', "
-                 "then 'wsgiref'  if set to 'auto' (default)")
-
     web.addoption("--debug", action="store_true",
             help="run wsgi application with debug logging")
 
