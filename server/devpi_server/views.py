@@ -870,15 +870,7 @@ class PyPIView:
 
 def getjson(request, allowed_keys=None):
     try:
-        if hasattr(request, "text"):
-            content = request.text
-        else:
-            # request.body is a StringIO on Py2 and a BytesIO on Py3. Convert
-            # it to a string, because json doesn't like bytes ...
-            content = request.body
-            if not py.builtin._istext(content):
-                content = content.decode("utf-8")
-        dict = json.loads(content)
+        dict = request.json_body
     except ValueError:
         abort(request, 400, "Bad request: could not decode json")
     if allowed_keys is not None:

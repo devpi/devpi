@@ -522,14 +522,14 @@ class Test_getjson:
 
     def test_getjson(self):
         from devpi_server.views import getjson
-        class request:
-            body = json.dumps({"hello": "world"})
+        from pyramid.request import Request
+        request = Request({}, body=b'{"hello": "world"}')
         assert getjson(request)["hello"] == "world"
 
     def test_getjson_error(self, abort_calls):
         from devpi_server.views import getjson
-        class request:
-            body = u"123 123"
+        from pyramid.request import Request
+        request = Request({}, body=b"123 123")
         with pytest.raises(SystemExit):
             getjson(request)
         assert len(abort_calls) == 1
@@ -538,8 +538,8 @@ class Test_getjson:
 
     def test_getjson_wrong_keys(self, abort_calls):
         from devpi_server.views import getjson
-        class request:
-            body = json.dumps({"k1": "v1", "k2": "v2"})
+        from pyramid.request import Request
+        request = Request({}, body=b'{"k1": "v1", "k2": "v2"')
         with pytest.raises(SystemExit):
             getjson(request, allowed_keys=["k1", "k3"])
         assert len(abort_calls) == 1
