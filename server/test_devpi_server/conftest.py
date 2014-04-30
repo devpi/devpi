@@ -17,8 +17,6 @@ import hashlib
 log = logging.getLogger(__name__)
 
 def pytest_addoption(parser):
-    parser.addoption("--catchall", action="store_true", default=False,
-        help="run bottle apps in catchall mode to see exceptions")
     parser.addoption("--slow", action="store_true", default=False,
         help="run slow tests involving remote services (pypi.python.org)")
 
@@ -86,7 +84,7 @@ def makexom(request, gentmp, httpget):
 @pytest.fixture
 def maketestapp(request):
     def maketestapp(xom):
-        app = xom.create_app(catchall=False, immediatetasks=-1)
+        app = xom.create_app(immediatetasks=-1)
         mt = MyTestApp(app)
         mt.xom = xom
         return mt

@@ -108,8 +108,7 @@ def make_application():
 
 def wsgi_run(xom):
     from wsgiref.simple_server import make_server
-    app = xom.create_app(immediatetasks=True,
-                         catchall=not xom.config.args.debug)
+    app = xom.create_app(immediatetasks=True)
     host = xom.config.args.host
     port = xom.config.args.port
     log.info("devpi-server version: %s", server_version)
@@ -306,7 +305,7 @@ class XOM:
         except self._httpsession.RequestException:
             return FatalResponse(sys.exc_info())
 
-    def create_app(self, catchall=True, immediatetasks=False):
+    def create_app(self, immediatetasks=False):
         from pyramid.authentication import BasicAuthAuthenticationPolicy
         from pyramid.config import Configurator
         import functools
