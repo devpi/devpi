@@ -759,8 +759,8 @@ class PyPIView:
             str('HTTPError'), (HTTPException,), dict(
                 code=401, title=msg))
         err = err()
-        err.headers.add(str('WWW-Authenticate'), 'Basic realm="pypi"')
-        err.headers.add(str('location'), self.route_url("/+login"))
+        err.headers.add(str('WWW-Authenticate'), str('Basic realm="pypi"'))
+        err.headers.add(str('location'), str(self.route_url("/+login")))
         raise err
 
     def require_user(self, user, stage=None, acltype="upload"):
