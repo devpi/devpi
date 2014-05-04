@@ -108,6 +108,18 @@ def addoptions(parser):
     #group.addoption("--logfile", action="store",
     #        help="set log file file location")
 
+def load_setuptools_entrypoints():
+    try:
+        from pkg_resources import iter_entry_points, DistributionNotFound
+    except ImportError:
+        return # XXX issue a warning
+    for ep in iter_entry_points('devpi_server'):
+        name = ep.name
+        try:
+            plugin = ep.load()
+        except DistributionNotFound:
+            continue
+        yield plugin, ep.dist
 
 
 def try_argcomplete(parser):
@@ -118,7 +130,7 @@ def try_argcomplete(parser):
     else:
         argcomplete.autocomplete(parser)
 
-def parseoptions(argv, addoptions=addoptions):
+def parseoptions(argv, addoptions=addoptions, plugins=None):
     parser = MyArgumentParser(
         description="Start a server which serves multiples users and "
                     "indices. The special root/pypi index is a real-time "
@@ -132,7 +144,7 @@ def parseoptions(argv, addoptions=addoptions):
     raw = [str(x) for x in argv[1:]]
     args = parser.parse_args(raw)
     args._raw = raw
-    config = Config(args)
+    config = Config(args, plugins=plugins)
     return config
 
 class MyArgumentParser(argparse.ArgumentParser):
@@ -169,9 +181,21 @@ class MyArgumentParser(argparse.ArgumentParser):
 class ConfigurationError(Exception):
     """ incorrect configuration or environment settings. """
 
+class PluginManager:
+    def __init__(self, plugins):
+        self._plugins = plugins
+
+    def _call_plugins(self, name, **kwargs):
+        results = []
+        for plug, distinfo in self._plugins:
+            meth = getattr(plug, name, None)
+            if meth is not None:
+                results.append(meth(**kwargs))
+        return results
+
 
 class Config:
-    def __init__(self, args):
+    def __init__(self, args, plugins):
         self.args = args
         serverdir = args.serverdir
         if serverdir is None:
@@ -183,6 +207,8 @@ class Config:
         else:
             self.secretfile = py.path.local(
                     os.path.expanduser(args.secretfile))
+
+        self.hook = PluginManager(plugins)
 
     @cached_property
     def secret(self):
