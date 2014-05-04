@@ -193,6 +193,10 @@ class PluginManager:
                 results.append(meth(**kwargs))
         return results
 
+    def devpiserver_pyramid_configure(self, config, pyramid_config):
+        return self._call_plugins("devpiserver_pyramid_configure",
+                                  config=config, pyramid_config=pyramid_config)
+
 
 class Config:
     def __init__(self, args, plugins):

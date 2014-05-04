@@ -314,6 +314,9 @@ class XOM:
         import functools
         log.debug("creating application in process %s", os.getpid())
         pyramid_config = Configurator()
+        self.config.hook.devpiserver_pyramid_configure(
+                config=self.config,
+                pyramid_config=pyramid_config)
         pyramid_config.add_route("/+api", "/+api")
         pyramid_config.add_route("{path:.*}/+api", "{path:.*}/+api")
         pyramid_config.add_route("/+login", "/+login")
