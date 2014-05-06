@@ -63,11 +63,11 @@ def xom(request, makexom):
 
 @pytest.fixture
 def makexom(request, gentmp, httpget):
-    def makexom(opts=(), httpget=httpget, proxy=None, mocking=True):
+    def makexom(opts=(), httpget=httpget, proxy=None, mocking=True, plugins=()):
         serverdir = gentmp()
         fullopts = ["devpi-server", "--serverdir", serverdir] + list(opts)
         fullopts = [str(x) for x in fullopts]
-        config = parseoptions(fullopts)
+        config = parseoptions(fullopts, plugins=plugins)
         if mocking:
             if proxy is None:
                 proxy = mock.create_autospec(XMLProxy)

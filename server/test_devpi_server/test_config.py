@@ -1,4 +1,5 @@
 from devpi_server.config import MyArgumentParser, parseoptions
+import pytest
 
 class TestParser:
 
@@ -65,4 +66,37 @@ class TestConfig:
         monkeypatch.setenv("DEVPI_SERVERDIR", tmpdir)
         config = parseoptions(["devpi-server"])
         assert config.serverdir == tmpdir
+
+
+def test_pluginmanager_call():
+    from devpi_server.config import PluginManager
+    class Plugin:
+        def meth1(self, x, y):
+            return x + y
+    pm = PluginManager([(Plugin(), None)])
+    l = pm._call_plugins("meth1", x=1, y=2)
+    assert len(l) == 1
+    assert l[0] == 3
+    
+
+def test_load_setuptools_plugins(monkeypatch):
+    from devpi_server.config import load_setuptools_entrypoints
+    pkg_resources = pytest.importorskip("pkg_resources")
+    def my_iter(name):
+        assert name == "devpi_server"
+        class EntryPoint:
+            name = "mytestplugin"
+            class dist:
+                pass
+            def load(self):
+                class PseudoPlugin:
+                    x = 42
+                return PseudoPlugin()
+        return iter([EntryPoint()])
+    monkeypatch.setattr(pkg_resources, 'iter_entry_points', my_iter)
+    l = list(load_setuptools_entrypoints())
+    assert len(l) == 1
+    plugin, distinfo = l[0]
+    assert plugin.x == 42
+    assert distinfo.__name__ == "dist"
 

@@ -13,7 +13,7 @@ log = getLogger(__name__)
 
 from devpi_common.types import cached_property
 from devpi_common.request import new_requests_session
-from .config import parseoptions, configure_logging
+from .config import parseoptions, configure_logging, load_setuptools_entrypoints
 from .extpypi import XMLProxy
 from . import __version__ as server_version
 
@@ -47,21 +47,24 @@ def check_compatible_version(xom):
         tw.line("minor version upgrade: setting serverstate to %s from %s" %(
                 server_version, state_version), bold=True)
 
-def main(argv=None):
+def main(argv=None, plugins=None):
     """ devpi-server command line entry point. """
+    if plugins is None:
+        plugins = []
+    plugins.extend(load_setuptools_entrypoints())
     try:
-        return _main(argv)
+        return _main(argv, plugins=plugins)
     except Fatal as e:
         tw = py.io.TerminalWriter(sys.stderr)
         tw.line("fatal: %s" %  e.args[0], red=True)
         return 1
 
-def _main(argv=None):
+def _main(argv=None, plugins=None):
     if argv is None:
         argv = sys.argv
 
     argv = [str(x) for x in argv]
-    config = parseoptions(argv)
+    config = parseoptions(argv, plugins=plugins)
     args = config.args
 
     if args.version:
@@ -311,6 +314,9 @@ class XOM:
         import functools
         log.debug("creating application in process %s", os.getpid())
         pyramid_config = Configurator()
+        self.config.hook.devpiserver_pyramid_configure(
+                config=self.config,
+                pyramid_config=pyramid_config)
         pyramid_config.add_route("/+api", "/+api")
         pyramid_config.add_route("{path:.*}/+api", "{path:.*}/+api")
         pyramid_config.add_route("/+login", "/+login")
