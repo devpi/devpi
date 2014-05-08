@@ -18,8 +18,11 @@ def index_delete(hub, url):
     hub.info("index deleted: %s" % url)
 
 def index_list(hub, indexname):
-    url = hub.current.get_user_url().asdir()
-    res = hub.http_api("get", url, None)
+    url = hub.current.get_user_url()
+    res = hub.http_api("get", url.url + '?list_indices', None)
+    if res.type != 'list:indexconfig':
+        # compatibility with devpi-server < 1.3
+        res = hub.http_api("get", url.asdir(), None)
     for name in res.result:
         hub.info(name)
 
