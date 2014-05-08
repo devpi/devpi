@@ -142,7 +142,7 @@ class TestUploadFunctional:
         assert len(dist.listdir()) == 2
         hub = devpi("upload", "--from-dir", dist)
         for ver in ("1.1", '1.2'):
-            out = out_devpi("getjson", hub.current.index + "hello/%s/" % ver)
+            out = out_devpi("getjson", hub.current.get_index_url().url + "hello/%s/" % ver)
             data = json.loads(out.stdout.str())
             assert ("hello-%s.zip" % ver) in data["result"]["+files"]
 
@@ -156,7 +156,7 @@ class TestUploadFunctional:
         assert len(dist.listdir()) == 1
         p = dist.listdir()[0]
         hub = devpi("upload", p)
-        out = out_devpi("getjson", hub.current.index + "hello/1.3/")
+        out = out_devpi("getjson", hub.current.get_index_url().url + "hello/1.3/")
         data = json.loads(out.stdout.str())
         assert "hello-1.3.zip" in data["result"]["+files"]
 
