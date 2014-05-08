@@ -110,14 +110,14 @@ class Uploader:
         else:
             files = None
         if path:
-            msg = "%s of %s to %s" %(action, path.basename, hub.current.index)
+            msg = "%s of %s to %s" %(action, path.basename, hub.current.pypisubmit)
         else:
             msg = "%s %s-%s to %s" %(action, meta["name"], meta["version"],
-                                     hub.current.index)
+                                     hub.current.pypisubmit)
         if self.args.dryrun:
             hub.line("skipped: %s" % msg)
         else:
-            r = hub.http.post(hub.current.index, dic, files=files, auth=auth)
+            r = hub.http.post(hub.current.pypisubmit, dic, files=files, auth=auth)
             r = HTTPReply(r)
             if r.status_code == 200:
                 hub.info(msg)
