@@ -117,6 +117,31 @@ def matchdict_parameters(f):
     return wrapper
 
 
+class PkgInstallerPredicate(object):
+    installer_user_agents = (
+        'distribute/',
+        'setuptools/',
+        'pip/')
+
+    def __init__(self, val, config):
+        self.val = val
+
+    def text(self):
+        return 'pkg_installer = %s' % (self.val,)
+
+    phash = text
+
+    def __call__(self, context, request):
+        is_installer = False
+        if html_preferred(request.headers.get("Accept")):
+            if request.user_agent:
+                for part in request.user_agent.split():
+                    if part.startswith(self.installer_user_agents):
+                        is_installer = True
+                        break
+        return is_installer == self.val
+
+
 class PyPIView:
     def __init__(self, request):
         self.request = request
@@ -553,6 +578,15 @@ class PyPIView:
             abort(self.request, 404, "no documentation available")
         return FileResponse(str(key.filepath.join(relpath)))
 
+    @view_config(route_name="simple_redirect")
+    @matchdict_parameters
+    def simple_redirect(self, user, index, name):
+        stage = self.getstage(user, index)
+        name = ensure_unicode(name)
+        info = stage.get_project_info(name)
+        real_name = info.name if info else name
+        redirect("/%s/+simple/%s" % (stage.name, real_name))
+
     @view_config(route_name="/{user}/{index}/{name}")
     @matchdict_parameters
     def project_get(self, user, index, name):
@@ -562,12 +596,6 @@ class PyPIView:
         name = ensure_unicode(name)
         info = stage.get_project_info(name)
         real_name = info.name if info else name
-        if html_preferred(request.headers.get("Accept")):
-            # we need to redirect because the simple pages
-            # may return status codes != 200, causing
-            # pip to look at the full simple list at the parent url
-            # but we don't serve this list on /user/index/
-            redirect("/%s/+simple/%s" % (stage.name, real_name))
         if not json_preferred(request):
             apireturn(415, "unsupported media type %s" %
                       request.headers.items())
