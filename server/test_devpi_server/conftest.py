@@ -251,7 +251,7 @@ class Mapp(MappMixin):
     def getindexlist(self, user=None):
         if user is None:
             user = self.testapp.auth[0]
-        r = self.testapp.get("/%s/" % user, {"Accept": "*/json"})
+        r = self.testapp.get("/%s?list_indices" % user, {"Accept": "*/json"})
         assert r.status_code == 200
         return r.json["result"]
 
@@ -404,7 +404,7 @@ class Mapp(MappMixin):
         assert r.status_code == code
 
     def get_simple(self, projectname, code=200):
-        r = self.testapp.get(self.api.simpleindex + projectname + "/",
+        r = self.testapp.get(self.api.simpleindex + projectname,
                              expect_errors=True)
         assert r.status_code == code
         return r

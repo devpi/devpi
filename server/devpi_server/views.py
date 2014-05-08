@@ -5,10 +5,13 @@ from devpi_common.types import ensure_unicode
 from devpi_common.url import URL
 from devpi_common.metadata import get_pyversion_filetype
 import devpi_server
+from pyramid.compat import decode_path_info
 from pyramid.httpexceptions import HTTPException, HTTPFound, HTTPSuccessful
+from pyramid.httpexceptions import default_exceptionresponse_view
 from pyramid.httpexceptions import exception_response
+from pyramid.interfaces import IRoutesMapper
 from pyramid.response import FileResponse, Response
-from pyramid.view import view_config
+from pyramid.view import notfound_view_config, view_config
 import functools
 import inspect
 import json
@@ -143,6 +146,23 @@ class PyPIView:
         url = url.addpath(url.path.replace('%2B', '+'))
         return url.url
 
+    @notfound_view_config()
+    def notfound(self):
+        path = decode_path_info(self.request.environ['PATH_INFO'] or '/')
+        registry = self.request.registry
+        mapper = registry.queryUtility(IRoutesMapper)
+        if mapper is not None and path.endswith('/') and self.request.method == 'GET':
+            # redirect URLs with a trailing slash to URLs without one, if there
+            # is a matching route
+            nonslashpath = path.rstrip('/')
+            for route in mapper.get_routes():
+                if route.match(nonslashpath) is not None:
+                    qs = self.request.query_string
+                    if qs:
+                        qs = '?' + qs
+                    return HTTPFound(location=nonslashpath + qs)
+        return default_exceptionresponse_view(None, self.request)
+
     @view_config(route_name="/+api")
     @view_config(route_name="{path:.*}/+api")
     @matchdict_parameters
@@ -162,7 +182,7 @@ class PyPIView:
                     abort(request, 404, "index %s/%s does not exist" % (user, index))
                 api.update({
                     "index": self.route_url(
-                        "/{user}/{index}/", user=user, index=index),
+                        "/{user}/{index}", user=user, index=index),
                     "simpleindex": self.route_url(
                         "/{user}/{index}/+simple/", user=user, index=index)
                 })
@@ -213,7 +233,6 @@ class PyPIView:
     #    redirect("/ext/pypi/+simple%s" % rest)
 
     @view_config(route_name="/{user}/{index}/+simple/{projectname}")
-    @view_config(route_name="/{user}/{index}/+simple/{projectname}/")
     @matchdict_parameters
     def simple_list_project(self, user, index, projectname):
         request = self.request
@@ -286,7 +305,7 @@ class PyPIView:
             yield ("<h2>" + h2 + "</h2>").encode(encoding)
             for name in names:
                 if name not in all_names:
-                    anchor = '<a href="%s/">%s</a><br/>\n' % (name, name)
+                    anchor = '<a href="%s">%s</a><br/>\n' % (name, name)
                     yield anchor.encode(encoding)
                     all_names.add(name)
         yield "</body>".encode(encoding)
@@ -309,12 +328,6 @@ class PyPIView:
             apireturn(400, message=", ".join(e.messages))
         apireturn(200, type="indexconfig", result=ixconfig)
 
-    @view_config(route_name="/{user}/{index}", request_method="GET")
-    @matchdict_parameters
-    def index_get(self, user, index):
-        stage = self.getstage(user, index)
-        apireturn(200, type="indexconfig", result=stage.ixconfig)
-
     @view_config(route_name="/{user}/{index}", request_method="DELETE")
     @matchdict_parameters
     def index_delete(self, user, index):
@@ -328,19 +341,7 @@ class PyPIView:
         assert self.db.index_delete(user, index)
         apireturn(201, "index %s deleted" % indexname)
 
-    @view_config(route_name="/{user}/", request_method="GET")
-    @matchdict_parameters
-    def index_list(self, user):
-        userconfig = self.db.user_get(user)
-        if not userconfig:
-            apireturn(404, "user %s does not exist" % user)
-        indexes = {}
-        userindexes = userconfig.get("indexes", {})
-        for name, val in userindexes.items():
-            indexes["%s/%s" % (user, name)] = val
-        apireturn(200, type="list:indexconfig", result=indexes)
-
-    @view_config(route_name="/{user}/{index}/", request_method="PUSH")
+    @view_config(route_name="/{user}/{index}", request_method="PUSH")
     @matchdict_parameters
     def pushrelease(self, user, index):
         request = self.request
@@ -553,7 +554,6 @@ class PyPIView:
         return FileResponse(str(key.filepath.join(relpath)))
 
     @view_config(route_name="/{user}/{index}/{name}")
-    @view_config(route_name="/{user}/{index}/{name}/")
     @matchdict_parameters
     def project_get(self, user, index, name):
         request = self.request
@@ -567,19 +567,18 @@ class PyPIView:
             # may return status codes != 200, causing
             # pip to look at the full simple list at the parent url
             # but we don't serve this list on /user/index/
-            redirect("/%s/+simple/%s/" % (stage.name, real_name))
+            redirect("/%s/+simple/%s" % (stage.name, real_name))
         if not json_preferred(request):
             apireturn(415, "unsupported media type %s" %
                       request.headers.items())
         if not info:
             apireturn(404, "project %r does not exist" % name)
         if real_name != name:
-            redirect("/%s/%s/" % (stage.name, real_name))
+            redirect("/%s/%s" % (stage.name, real_name))
         metadata = stage.get_projectconfig(name)
         apireturn(200, type="projectconfig", result=metadata)
 
     @view_config(route_name="/{user}/{index}/{name}", request_method="DELETE")
-    @view_config(route_name="/{user}/{index}/{name}/", request_method="DELETE")
     @matchdict_parameters
     def project_delete(self, user, index, name):
         self.require_user(user)
@@ -595,7 +594,6 @@ class PyPIView:
         apireturn(200, "project %r deleted from stage %s" % (name, stage.name))
 
     @view_config(route_name="/{user}/{index}/{name}/{version}")
-    @view_config(route_name="/{user}/{index}/{name}/{version}/")
     @matchdict_parameters
     def version_get(self, user, index, name, version):
         stage = self.getstage(user, index)
@@ -632,7 +630,6 @@ class PyPIView:
         ).unicode(indent=2))
 
     @view_config(route_name="/{user}/{index}/{name}/{version}", request_method="DELETE")
-    @view_config(route_name="/{user}/{index}/{name}/{version}/", request_method="DELETE")
     @matchdict_parameters
     def project_version_delete(self, user, index, name, version):
         stage = self.getstage(user, index)
@@ -674,16 +671,23 @@ class PyPIView:
             response.content_length = headers["content-length"]
         return Response(app_iter=itercontent)
 
-
-    @view_config(route_name="/{user}/{index}/", request_method="GET")
+    @view_config(route_name="/{user}/{index}", request_method="GET")
     @matchdict_parameters
-    def indexroot(self, user, index):
+    def index_get(self, user, index):
         request = self.request
         stage = self.getstage(user, index)
         if json_preferred(request):
-            projectlist = stage.getprojectnames_perstage()
-            projectlist = sorted(projectlist)
-            apireturn(200, type="list:projectconfig", result=projectlist)
+            if not request.params:
+                apireturn(200, type="indexconfig", result=stage.ixconfig)
+            elif 'list_projects' in request.params:
+                if 'inherited' in request.params:
+                    projectlist = stage.getprojectnames()
+                else:
+                    projectlist = stage.getprojectnames_perstage()
+                projectlist = sorted(projectlist)
+                apireturn(200, type="list:projectconfig", result=projectlist)
+            else:
+                abort(self.request, 405, "unknown option(s): %s" % request.params.keys())
         if stage.name == "root/pypi":
             return Response(simple_html_body("%s index" % stage.name, [
                 html.ul(
@@ -806,7 +810,6 @@ class PyPIView:
         apireturn(401, "user %r could not be authenticated" % user)
 
     @view_config(route_name="/{user}", request_method="PATCH")
-    @view_config(route_name="/{user}/", request_method="PATCH")
     @matchdict_parameters
     def user_patch(self, user):
         request = self.request
@@ -851,11 +854,20 @@ class PyPIView:
     @view_config(route_name="/{user}", request_method="GET")
     @matchdict_parameters
     def user_get(self, user):
-        #self.require_user(user)
+        request = self.request
         userconfig = self.db.user_get(user)
         if not userconfig:
             apireturn(404, "user %r does not exist" % user)
-        apireturn(200, type="userconfig", result=userconfig)
+        if not request.params:
+            apireturn(200, type="userconfig", result=userconfig)
+        elif 'list_indices' in request.params:
+            indexes = {}
+            userindexes = userconfig.get("indexes", {})
+            for name, val in userindexes.items():
+                indexes["%s/%s" % (user, name)] = val
+            apireturn(200, type="list:indexconfig", result=indexes)
+        else:
+            abort(self.request, 405, "unknown option(s): %s" % request.params.keys())
 
     @view_config(route_name="/", request_method="GET")
     def user_list(self):
