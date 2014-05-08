@@ -37,19 +37,20 @@ class DevIndex:
         self.dir_download = self.rootdir.mkdir("downloads")
 
     def download_and_unpack(self, link):
+        url = link.url
         try:
-            content = self.remoteindex.getcontent(link.url, bytes=True)
+            (url, content) = self.remoteindex.getcontent(url, bytes=True)
         except self.remoteindex.ReceiveError:
-            self.hub.fatal("could not receive", link.url)
+            self.hub.fatal("could not receive", url)
 
-        self.hub.info("received", link.url)
+        self.hub.info("received", url)
         if hasattr(link, "md5"):
             md5 = hashlib.md5()
             md5.update(content)
             digest = md5.hexdigest()
             assert digest == link.md5, (digest, link.md5)
             #self.hub.info("verified md5 ok", link.md5)
-        basename = URL(link.url).basename
+        basename = URL(url).basename
         path_archive = self.dir_download.join(basename)
         with path_archive.open("wb") as f:
             f.write(content)

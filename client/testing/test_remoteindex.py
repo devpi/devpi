@@ -22,7 +22,7 @@ class TestRemoteIndex:
         ri = RemoteIndex(current)
         def mockget(url):
             assert url.startswith(indexurl)
-            return """
+            return url, """
                 <a href="../../pkg-1.2.tar.gz#md5=%s"/>
                 <a href="http://something/pkg-1.2dev1.zip"/>
                 <a href="http://something/pkg-1.2dev2.zip"/>
@@ -59,7 +59,7 @@ class TestRemoteIndex:
         def mockget(url):
             assert url.startswith(indexurl)
             assert url.endswith("pkg/")
-            return """
+            return url, """
                 <a href="http://my/pkg-0.3.tar.gz"/>
                 <a href="http://my/pkg-0.2.8.tar.gz"/>
                 <a href="http://my/pkg-0.2.7.tar.gz"/>

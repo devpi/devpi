@@ -34,7 +34,7 @@ class RemoteIndex:
         req = next(pkg_resources.parse_requirements(pkgname))
         indexurl = URL(self.current.simpleindex, req.project_name, asdir=1).url
         try:
-            content = self.getcontent(indexurl)
+            (indexurl, content) = self.getcontent(indexurl)
         except self.ReceiveError:
             return LinkSet([])
         return LinkSet(parselinks(content, indexurl))
@@ -44,9 +44,9 @@ class RemoteIndex:
         if r.status_code != 200:
             raise self.ReceiveError(r.status_code)
         if bytes:
-            return r.content
+            return (r.request.url, r.content)
         else:
-            return r.text
+            return (r.request.url, r.text)
 
     def getbestlink(self, pkgname):
         return self.getlinkset(pkgname).getnewestversion(pkgname)
