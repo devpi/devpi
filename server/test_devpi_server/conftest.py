@@ -251,9 +251,13 @@ class Mapp(MappMixin):
     def getindexlist(self, user=None):
         if user is None:
             user = self.testapp.auth[0]
-        r = self.testapp.get("/%s?list_indices" % user, {"Accept": "*/json"})
+        r = self.testapp.get("/%s" % user, {"Accept": "*/json"})
         assert r.status_code == 200
-        return r.json["result"]
+        name = r.json["result"]["username"]
+        result = {}
+        for index, data in r.json["result"].get("indexes", {}).items():
+            result["%s/%s" % (name, index)] = data
+        return result
 
     def change_password(self, user, password):
         r = self.testapp.patch_json("/%s" % user, dict(password=password))

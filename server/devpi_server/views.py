@@ -705,17 +705,9 @@ class PyPIView:
         request = self.request
         stage = self.getstage(user, index)
         if json_preferred(request):
-            if not request.params:
-                apireturn(200, type="indexconfig", result=stage.ixconfig)
-            elif 'list_projects' in request.params:
-                if 'inherited' in request.params:
-                    projectlist = stage.getprojectnames()
-                else:
-                    projectlist = stage.getprojectnames_perstage()
-                projectlist = sorted(projectlist)
-                apireturn(200, type="list:projectconfig", result=projectlist)
-            else:
-                abort(self.request, 405, "unknown option(s): %s" % request.params.keys())
+            result = dict(stage.ixconfig)
+            result['projects'] = sorted(stage.getprojectnames_perstage())
+            apireturn(200, type="indexconfig", result=result)
         if stage.name == "root/pypi":
             return Response(simple_html_body("%s index" % stage.name, [
                 html.ul(
@@ -882,20 +874,10 @@ class PyPIView:
     @view_config(route_name="/{user}", request_method="GET")
     @matchdict_parameters
     def user_get(self, user):
-        request = self.request
         userconfig = self.db.user_get(user)
         if not userconfig:
             apireturn(404, "user %r does not exist" % user)
-        if not request.params:
-            apireturn(200, type="userconfig", result=userconfig)
-        elif 'list_indices' in request.params:
-            indexes = {}
-            userindexes = userconfig.get("indexes", {})
-            for name, val in userindexes.items():
-                indexes["%s/%s" % (user, name)] = val
-            apireturn(200, type="list:indexconfig", result=indexes)
-        else:
-            abort(self.request, 405, "unknown option(s): %s" % request.params.keys())
+        apireturn(200, type="userconfig", result=userconfig)
 
     @view_config(route_name="/", request_method="GET")
     def user_list(self):

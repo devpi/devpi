@@ -164,20 +164,13 @@ class TestIndexThings:
         mapp.create_and_login_user("cuser1")
         data = mapp.getjson("/cuser1")
         assert data["type"] == "userconfig"
-        data = mapp.getjson("/cuser1?list_indices")
-        assert data["type"] == "list:indexconfig"
 
     def test_create_index_and_config_gets(self, mapp):
-        mapp.xom.db.getstage('root/pypi').name2serials['foo'] = {}
         mapp.create_and_login_user("cuser2")
-        mapp.create_index("dev", indexconfig=dict(bases=("/root/pypi",)))
-        assert mapp.getjson("/cuser2/dev")["type"] == "indexconfig"
-        res = mapp.getjson("/cuser2/dev?list_projects")
-        assert res["type"] == "list:projectconfig"
-        assert res["result"] == []
-        res = mapp.getjson("/cuser2/dev?list_projects&inherited")
-        assert res["type"] == "list:projectconfig"
-        assert res["result"] == [u'foo']
+        mapp.create_index("dev")
+        res =  mapp.getjson("/cuser2/dev")
+        assert res["type"] == "indexconfig"
+        assert res["result"]["projects"] == []
 
     def test_non_volatile_cannot_be_deleted(self, mapp):
         mapp.create_and_login_user("cuser4")
