@@ -18,7 +18,7 @@ the following user stories in mind:
   remote master devpi-server instance. The real-time replica serves the 
   same indices, packages and documentation that the master provides. 
 
-- user uploads to the replica node a package, documentation, test result 
+- user uploads to the replica server a package, documentation, test result 
   or modifies an index and expects the change to be visible at the master
   and other replicas.  The replica will proxy such operations to the master 
   and notify the user of a successful change only after the operation 
@@ -85,18 +85,78 @@ More precisely, we have the following change entry types:
 - ``test resultlog upload``: an upload of a test result file
   related to a specific MD5/archive
 
-- UNCLEAR: should pypi-mirror packages also be transferred
-  via the replication protocol?
+- ``[pypimirror] pypi project metadata``: metadata about a pypi project
 
+- ``[pypimirror] release archive``: a release file mirrored from
+  pypi.python.org, related to a project/version
 
-HTTP behaviour of replica server
--------------------------------------------
+The change entries marked with ``[pypimirror]`` are special because
+server-state changes are triggered by just accessing projects on
+the ``/root/pypi`` mirror.   Including pypi-changes in the replication
+protocol will increase replication traffic considerably, see also the
+discussion about `laptop replication`_.
+
+.. _`http relaying`:
+
+HTTP relaying of replica server to master
+-----------------------------------------------------------
 
 devpi-server in replica mode serves the same API and endpoints 
 as the master server but it will internally relay change-operations
 (see change entry types above).  In general such state-changing
 requests will be relayed to the master which should in its success
 code tell what serial this change refers to.  The replica server
-can then ensure, it only returns successfully to its client when
+can then return a success code to its client after
 that serial has been synchronized successfully.
+
+
+.. _`laptop replication`:
+
+Laptop replication (frequent disconnects)
+------------------------------------------------
+
+The primary user story for replication is maintaining a per-organisation
+multi-server install of devpi-server.  In principle, a local per-laptop
+replica can use the same replication mechanisms, however.  As laptops
+are often disconnected or sleeping, the replication pattern will look
+different: it will be more common to have relatively large
+lists of change entries to process.
+
+In the future, we can think about ways to minimize replication traffic by:
+
+a) subscribing to changes based on a filter (only things related to a user,
+   indices, etc.)
+
+b) only retrieving archive or documentation files into the replica
+   if they are actually accessed.  
+
+
+Handling concurrency within the replica server
+-------------------------------------------------
+
+Both master and replica servers can handle multiple concurrent requests.
+HTTP requests are run in threads (or greenlets) and we thus need to insure
+that the backend layer is thread safe and provides means for
+manipulating state in an atomic way.
+
+One particular complication is `http relaying`_ of state changes posted
+to the replica.  The replication thread needs to be able to signal
+the request-thread which triggered the change on the master so that
+a proper http response can be constructed.  Given a state-changing
+request to the replica, we can do the following:
+
+- trigger state changing on the master, wait for success response
+  which includes the related ``SERIAL``.
+
+- wait for the replica state serial to reach at least ``SERIAL``.
+
+- if the wait times out we need to return a 408/timeout or
+  504/GATEWAYTIMEOUT response code. 
+
+Note that this sequence could be interrupted at any point in time
+because of a partial network disconnect or failure between the three 
+parties (replica, master, client).  This may make it hard for the
+client to know the exact status of the operation.  To remedy this,
+we consider implementing a per-server (and maybe also per-index) view
+on "recent changes", also detailing the "local" serials and "remote serials".
 
