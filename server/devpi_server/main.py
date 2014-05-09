@@ -328,13 +328,13 @@ class XOM:
         pyramid_config.add_route("/{user}/{index}/+e/{relpath:.*}", "/{user}/{index}/+e/{relpath:.*}")
         pyramid_config.add_route("/{user}/{index}/+f/{relpath:.*}", "/{user}/{index}/+f/{relpath:.*}")
         pyramid_config.add_route("/{user}/{index}/+simple/", "/{user}/{index}/+simple/")
-        pyramid_config.add_route("/{user}/{index}/+simple/{projectname}", "/{user}/{index}/+simple/{projectname}")
+        pyramid_config.add_route("/{user}/{index}/+simple/{projectname}", "/{user}/{index}/+simple/{projectname:[^/]+/?}")
         pyramid_config.add_route("/{user}/{index}/{name}/{version}/+doc/{relpath:.*}", "/{user}/{index}/{name}/{version}/+doc/{relpath:.*}")
-        pyramid_config.add_route("/{user}/{index}/{name}/{version}", "/{user}/{index}/{name}/{version}")
+        pyramid_config.add_route("/{user}/{index}/{name}/{version}", "/{user}/{index}/{name}/{version:[^/]+/?}")
         pyramid_config.add_route(
-            "simple_redirect", "/{user}/{index}/{name}",
+            "simple_redirect", "/{user}/{index}/{name:[^/]+/?}",
             is_installer=True)
-        pyramid_config.add_route("/{user}/{index}/{name}", "/{user}/{index}/{name}")
+        pyramid_config.add_route("/{user}/{index}/{name}", "/{user}/{index}/{name:[^/]+/?}")
         pyramid_config.add_route("/{user}/{index}/", "/{user}/{index}/")
         pyramid_config.add_route("/{user}/{index}", "/{user}/{index}")
         pyramid_config.add_route("/{user}", "/{user}")

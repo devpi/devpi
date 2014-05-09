@@ -40,7 +40,7 @@ def test_project_redirect(extdb, testapp):
     # trailing slash will redirect to non trailing slash first
     r = testapp.get("/root/pypi/%s/" % name, headers=headers)
     assert r.status_code == 302
-    assert r.headers["location"].endswith("/root/pypi/%s" % name)
+    assert r.headers["location"].endswith("/root/pypi/+simple/%s" % name)
 
 def test_simple_project_unicode_rejected(extdb, testapp):
     from devpi_server.views import PyPIView

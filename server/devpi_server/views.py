@@ -5,13 +5,10 @@ from devpi_common.types import ensure_unicode
 from devpi_common.url import URL
 from devpi_common.metadata import get_pyversion_filetype
 import devpi_server
-from pyramid.compat import decode_path_info
 from pyramid.httpexceptions import HTTPException, HTTPFound, HTTPSuccessful
-from pyramid.httpexceptions import default_exceptionresponse_view
 from pyramid.httpexceptions import exception_response
-from pyramid.interfaces import IRoutesMapper
 from pyramid.response import FileResponse, Response
-from pyramid.view import notfound_view_config, view_config
+from pyramid.view import view_config
 import functools
 import inspect
 import json
@@ -103,7 +100,7 @@ def matchdict_parameters(f):
         defaults = spec.defaults
         args = [self]
         kw = {}
-        matchdict = self.request.matchdict
+        matchdict = dict((k, v.rstrip('/')) for k, v in self.request.matchdict.items())
         if defaults is not None:
             for arg in spec.args[1:-len(defaults)]:
                 args.append(matchdict[arg])
@@ -170,23 +167,6 @@ class PyPIView:
         # the urllib quoting function are a bit too much on the safe side
         url = url.addpath(url.path.replace('%2B', '+'))
         return url.url
-
-    @notfound_view_config()
-    def notfound(self):
-        path = decode_path_info(self.request.environ['PATH_INFO'] or '/')
-        registry = self.request.registry
-        mapper = registry.queryUtility(IRoutesMapper)
-        if mapper is not None and path.endswith('/') and self.request.method == 'GET':
-            # redirect URLs with a trailing slash to URLs without one, if there
-            # is a matching route
-            nonslashpath = path.rstrip('/')
-            for route in mapper.get_routes():
-                if route.match(nonslashpath) is not None:
-                    qs = self.request.query_string
-                    if qs:
-                        qs = '?' + qs
-                    return HTTPFound(location=nonslashpath + qs)
-        return default_exceptionresponse_view(None, self.request)
 
     @view_config(route_name="/+api")
     @view_config(route_name="{path:.*}/+api")
