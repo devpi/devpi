@@ -164,14 +164,13 @@ class TestIndexThings:
         mapp.create_and_login_user("cuser1")
         data = mapp.getjson("/cuser1")
         assert data["type"] == "userconfig"
-        data = mapp.getjson("/cuser1/")
-        assert data["type"] == "list:indexconfig"
 
     def test_create_index_and_config_gets(self, mapp):
         mapp.create_and_login_user("cuser2")
         mapp.create_index("dev")
-        assert mapp.getjson("/cuser2/dev")["type"] == "indexconfig"
-        assert mapp.getjson("/cuser2/dev/")["type"] == "list:projectconfig"
+        res =  mapp.getjson("/cuser2/dev")
+        assert res["type"] == "indexconfig"
+        assert res["result"]["projects"] == []
 
     def test_non_volatile_cannot_be_deleted(self, mapp):
         mapp.create_and_login_user("cuser4")

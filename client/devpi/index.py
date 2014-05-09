@@ -18,10 +18,11 @@ def index_delete(hub, url):
     hub.info("index deleted: %s" % url)
 
 def index_list(hub, indexname):
-    url = hub.current.get_user_url().asdir()
-    res = hub.http_api("get", url, None)
-    for name in res.result:
-        hub.info(name)
+    url = hub.current.get_user_url()
+    res = hub.http_api("get", url.url, None)
+    name = res.result['username']
+    for index in res.result.get('indexes', {}):
+        hub.info("%s/%s" % (name, index))
 
 def index_show(hub, url):
     if not url:

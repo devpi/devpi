@@ -84,8 +84,8 @@ class TestImportExport:
         mapp2 = impexp.new_import()
         assert api.user in mapp2.getuserlist()
         indexlist = mapp2.getindexlist(api.user)
-        assert indexlist[stagename2]["bases"] == [api.stagename]
         assert stagename2 in indexlist
+        assert indexlist[stagename2]["bases"] == [api.stagename]
         assert mapp2.xom.config.secret == mapp1.xom.config.secret
 
     def test_upload_releasefile_with_attachment(self, impexp):

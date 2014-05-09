@@ -309,11 +309,13 @@ class XOM:
             return FatalResponse(sys.exc_info())
 
     def create_app(self, immediatetasks=False):
+        from devpi_server.views import PkgInstallerPredicate
         from pyramid.authentication import BasicAuthAuthenticationPolicy
         from pyramid.config import Configurator
         import functools
         log.debug("creating application in process %s", os.getpid())
         pyramid_config = Configurator()
+        pyramid_config.add_route_predicate("is_installer", PkgInstallerPredicate)
         self.config.hook.devpiserver_pyramid_configure(
                 config=self.config,
                 pyramid_config=pyramid_config)
@@ -326,16 +328,15 @@ class XOM:
         pyramid_config.add_route("/{user}/{index}/+e/{relpath:.*}", "/{user}/{index}/+e/{relpath:.*}")
         pyramid_config.add_route("/{user}/{index}/+f/{relpath:.*}", "/{user}/{index}/+f/{relpath:.*}")
         pyramid_config.add_route("/{user}/{index}/+simple/", "/{user}/{index}/+simple/")
-        pyramid_config.add_route("/{user}/{index}/+simple/{projectname}", "/{user}/{index}/+simple/{projectname}")
-        pyramid_config.add_route("/{user}/{index}/+simple/{projectname}/", "/{user}/{index}/+simple/{projectname}/")
+        pyramid_config.add_route("/{user}/{index}/+simple/{projectname}", "/{user}/{index}/+simple/{projectname:[^/]+/?}")
         pyramid_config.add_route("/{user}/{index}/{name}/{version}/+doc/{relpath:.*}", "/{user}/{index}/{name}/{version}/+doc/{relpath:.*}")
-        pyramid_config.add_route("/{user}/{index}/{name}/{version}/", "/{user}/{index}/{name}/{version}/")
-        pyramid_config.add_route("/{user}/{index}/{name}/{version}", "/{user}/{index}/{name}/{version}")
-        pyramid_config.add_route("/{user}/{index}/{name}/", "/{user}/{index}/{name}/")
-        pyramid_config.add_route("/{user}/{index}/{name}", "/{user}/{index}/{name}")
+        pyramid_config.add_route("/{user}/{index}/{name}/{version}", "/{user}/{index}/{name}/{version:[^/]+/?}")
+        pyramid_config.add_route(
+            "simple_redirect", "/{user}/{index}/{name:[^/]+/?}",
+            is_installer=True)
+        pyramid_config.add_route("/{user}/{index}/{name}", "/{user}/{index}/{name:[^/]+/?}")
         pyramid_config.add_route("/{user}/{index}/", "/{user}/{index}/")
         pyramid_config.add_route("/{user}/{index}", "/{user}/{index}")
-        pyramid_config.add_route("/{user}/", "/{user}/")
         pyramid_config.add_route("/{user}", "/{user}")
         pyramid_config.add_route("/", "/")
         # XXX hack for now until using proper Pyramid auth

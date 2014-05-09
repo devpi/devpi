@@ -33,12 +33,14 @@ def test_simple_project(extdb, testapp):
 
 def test_project_redirect(extdb, testapp):
     name = "qpwoei"
-    r = testapp.get("/root/pypi/%s" % name)
+    headers = {'user-agent': str('pip/1.4.1')}
+    r = testapp.get("/root/pypi/%s" % name, headers=headers)
     assert r.status_code == 302
-    assert r.headers["location"].endswith("/root/pypi/+simple/%s/" % name)
-    r = testapp.get("/root/pypi/%s/" % name)
+    assert r.headers["location"].endswith("/root/pypi/+simple/%s" % name)
+    # trailing slash will redirect to non trailing slash first
+    r = testapp.get("/root/pypi/%s/" % name, headers=headers)
     assert r.status_code == 302
-    assert r.headers["location"].endswith("/root/pypi/+simple/%s/" % name)
+    assert r.headers["location"].endswith("/root/pypi/+simple/%s" % name)
 
 def test_simple_project_unicode_rejected(extdb, testapp):
     from devpi_server.views import PyPIView
@@ -63,11 +65,11 @@ def test_simple_url_longer_triggers_404(testapp):
 def test_simple_project_pypi_egg(extdb, testapp):
     extdb.mock_simple("py",
         """<a href="http://bb.org/download/py.zip#egg=py-dev" />""")
-    r = testapp.get("/root/pypi/+simple/py/")
+    r = testapp.get("/root/pypi/+simple/py")
     assert r.status_code == 200
     links = BeautifulSoup(r.text).findAll("a")
     assert len(links) == 1
-    r = testapp.get("/root/pypi/")
+    r = testapp.get("/root/pypi")
     assert r.status_code == 200
 
 def test_simple_list(extdb, testapp):
@@ -83,15 +85,15 @@ def test_simple_list(extdb, testapp):
     links = BeautifulSoup(r.text).findAll("a")
     assert len(links) == 2
     hrefs = [a.get("href") for a in links]
-    assert hrefs == ["hello1/", "hello2/"]
+    assert hrefs == ["hello1", "hello2"]
 
 def test_indexroot(testapp, xom):
     xom.db.create_stage("user/index", bases=("root/pypi",))
-    r = testapp.get("/user/index/")
+    r = testapp.get("/user/index")
     assert r.status_code == 200
 
 def test_indexroot_root_pypi(testapp, xom):
-    r = testapp.get("/root/pypi/")
+    r = testapp.get("/root/pypi")
     assert r.status_code == 200
     assert b"in-stage" not in r.body
 
@@ -105,7 +107,7 @@ def test_upstream_not_reachable(extdb, testapp, xom, code):
 def test_pkgserv(httpget, extdb, testapp):
     extdb.mock_simple("package", '<a href="/package-1.0.zip" />')
     httpget.setextfile("/package-1.0.zip", b"123")
-    r = testapp.get("/root/pypi/+simple/package/")
+    r = testapp.get("/root/pypi/+simple/package")
     assert r.status_code == 200
     href = getfirstlink(r.text).get("href")
     assert not posixpath.isabs(href)
@@ -129,7 +131,7 @@ def test_apiconfig_with_outside_url(testapp):
     assert r.status_code == 200
     result = r.json["result"]
     assert "pypisubmit" not in result
-    assert result["index"] == u + "/root/pypi/"
+    assert result["index"] == u + "/root/pypi"
     assert result["login"] == u + "/+login"
     assert result["resultlog"] == u + "/+tests"
     assert result["simpleindex"] == u + "/root/pypi/+simple/"
@@ -139,7 +141,7 @@ def test_apiconfig_with_outside_url(testapp):
     #
     #
 def test_root_pypi(testapp):
-    r = testapp.get("/root/pypi/")
+    r = testapp.get("/root/pypi")
     assert r.status_code == 200
 
 def test_register_metadata_and_get_description(mapp, testapp):
@@ -148,10 +150,10 @@ def test_register_metadata_and_get_description(mapp, testapp):
                 "description": "hello world"}
     r = testapp.post(api.pypisubmit, metadata)
     assert r.status_code == 200
-    r = testapp.get_json("/user/name/pkg1/1.0/")
+    r = testapp.get_json("/user/name/pkg1/1.0")
     assert r.status_code == 200
     assert "hello world" in r.json["result"]["description"]
-    r = testapp.get_json("/user/name/pkg1/")
+    r = testapp.get_json("/user/name/pkg1")
     assert r.status_code == 200
     assert "1.0" in r.json["result"]
 
@@ -195,7 +197,7 @@ class TestSubmitValidation:
         metadata = {"name": "Pkg1", "version": "1.0", ":action": "submit",
                     "classifiers": classifiers, "platform": ["unix", "win32"]}
         submit.metadata(metadata, code=200)
-        data = mapp.getjson("/%s/Pkg1/1.0/" % submit.stagename)["result"]
+        data = mapp.getjson("/%s/Pkg1/1.0" % submit.stagename)["result"]
         assert data["classifiers"] == classifiers
         assert data["platform"] == ["unix", "win32"]
 
@@ -204,14 +206,14 @@ class TestSubmitValidation:
         metadata = {"name": "Pkg1", "version": "1.0", ":action": "submit",
                     "classifiers": classifiers}
         submit.metadata(metadata, code=200)
-        data = mapp.getjson("/%s/Pkg1/1.0/" % submit.stagename)["result"]
+        data = mapp.getjson("/%s/Pkg1/1.0" % submit.stagename)["result"]
         assert data["classifiers"] == classifiers
 
     def test_metadata_UNKNOWN_handling(self, submit, mapp):
         metadata = {"name": "Pkg1", "version": "1.0", ":action": "submit",
                     "download_url": "UNKNOWN", "platform": ""}
         submit.metadata(metadata, code=200)
-        data = mapp.getjson("/%s/Pkg1/1.0/" % submit.stagename)["result"]
+        data = mapp.getjson("/%s/Pkg1/1.0" % submit.stagename)["result"]
         assert not data["download_url"]
         assert not data["platform"]
 
@@ -235,7 +237,7 @@ class TestSubmitValidation:
                     "description": "hello world"}
         submit.metadata(metadata, code=200)
         location = mapp.getjson("/%s/pkg1" % submit.stagename, code=302)
-        assert location.endswith("/Pkg1/")
+        assert location.endswith("/Pkg1")
 
 def test_push_non_existent(mapp, testapp, monkeypatch):
     # check that push from non-existent index results in 404
@@ -259,7 +261,7 @@ def test_push_non_existent(mapp, testapp, monkeypatch):
     mapp.use("user1/dev")
     mapp.upload_file_pypi("pkg5-2.6.tgz", b"123", "pkg5", "2.6")
     # check that push to non-authoried existent target index results in 401
-    r = testapp.push("/user1/dev/", json.dumps(req), expect_errors=True)
+    r = testapp.push("/user1/dev", json.dumps(req), expect_errors=True)
     assert r.status_code == 401
 
 def test_upload_and_push_internal(mapp, testapp, monkeypatch):
@@ -277,7 +279,7 @@ def test_upload_and_push_internal(mapp, testapp, monkeypatch):
 
     # check that push is authorized and executed towards user2/prod index
     req = dict(name="pkg1", version="2.6", targetindex="user2/prod")
-    r = testapp.push("/user1/dev/", json.dumps(req))
+    r = testapp.push("/user1/dev", json.dumps(req))
     assert r.status_code == 200
     r = testapp.get_json("/user2/prod/pkg1/2.6")
     assert r.status_code == 200
@@ -331,7 +333,7 @@ def test_upload_and_push_external(mapp, testapp, reqmock):
 def test_upload_and_push_egg(mapp, testapp, reqmock):
     api = mapp.create_and_use()
     mapp.upload_file_pypi("pkg2-1.0-py27.egg", b"123", "pkg2", "1.0")
-    r = testapp.get(api.simpleindex + "pkg2/")
+    r = testapp.get(api.simpleindex + "pkg2")
     assert r.status_code == 200
     a = getfirstlink(r.text)
     assert "pkg2-1.0-py27.egg" in a.get("href")
@@ -351,14 +353,14 @@ def test_upload_and_delete_project(mapp, testapp):
     mapp.delete_project("pkg1", code=404)
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
     mapp.upload_file_pypi("pkg1-2.7.tgz", b"123", "pkg1", "2.7")
-    r = testapp.get(api.simpleindex + "pkg1/")
+    r = testapp.get(api.simpleindex + "pkg1")
     assert r.status_code == 200
-    r = testapp.delete(api.index + "pkg1/2.6/")
+    r = testapp.delete(api.index + "/pkg1/2.6")
     assert r.status_code == 200
-    mapp.getjson(api.index + "pkg1/", code=200)
-    r = testapp.delete(api.index + "pkg1/2.7/")
+    mapp.getjson(api.index + "/pkg1", code=200)
+    r = testapp.delete(api.index + "/pkg1/2.7")
     assert r.status_code == 200
-    mapp.getjson(api.index + "pkg1/", code=404)
+    mapp.getjson(api.index + "/pkg1", code=404)
 
 def test_upload_with_acl(mapp):
     mapp.login("root")
@@ -396,7 +398,7 @@ def test_upload_and_testdata(mapp, testapp):
 def test_upload_and_access_releasefile_meta(mapp):
     api = mapp.create_and_use()
     mapp.upload_file_pypi("pkg5-2.6.tgz", b"123", "pkg5", "2.6")
-    json = mapp.getjson(api.index + "pkg5/")
+    json = mapp.getjson(api.index + "/pkg5")
     href = list(json["result"]["2.6"]["+files"].values())[0]
     pkgmeta = mapp.getjson("/" + href)
     assert pkgmeta["type"] == "releasefilemeta"
@@ -410,10 +412,10 @@ def test_upload_and_delete_project_version(mapp):
     mapp.get_simple("pkg1", code=200)
     mapp.delete_project("pkg1/1.0", code=404)
     mapp.delete_project("pkg1/2.6", code=200)
-    assert mapp.getjson(api.index + "pkg1/")["result"]
+    assert mapp.getjson(api.index + "/pkg1")["result"]
     mapp.delete_project("pkg1/2.7", code=200)
     #assert mapp.getjson("/user/name/pkg1/")["status"] == 404
-    mapp.getjson(api.index + "pkg1/", code=404)
+    mapp.getjson(api.index + "pkg1", code=404)
 
 def test_delete_version_fails_on_non_volatile(mapp):
     mapp.create_and_use(indexconfig=dict(volatile=False))
@@ -444,7 +446,7 @@ def test_upload_docs_no_version(mapp, testapp):
     content = zip_dict({"index.html": "<html/>"})
     mapp.register_metadata(dict(name="Pkg1", version="1.0"))
     mapp.upload_doc("pkg1.zip", content, "Pkg1", "")
-    r = testapp.get(api.index + "Pkg1/1.0/+doc/index.html")
+    r = testapp.get(api.index + "/Pkg1/1.0/+doc/index.html")
     assert r.status_code == 200
 
 def test_upload_docs_no_project_ever_registered(mapp, testapp):
@@ -465,7 +467,7 @@ def test_upload_docs(mapp, testapp):
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=400)
     mapp.register_metadata({"name": "pkg1", "version": "2.6"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200)
-    r = testapp.get(api.index + "pkg1/2.6/+doc/index.html")
+    r = testapp.get(api.index + "/pkg1/2.6/+doc/index.html")
     assert r.status_code == 200
     #a = getfirstlink(r.text)
     #assert "pkg1-2.6.tgz" in a.get("href")
