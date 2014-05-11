@@ -33,7 +33,8 @@ def test_simple_project(extdb, testapp):
 
 def test_project_redirect(extdb, testapp):
     name = "qpwoei"
-    headers = {'user-agent': str('pip/1.4.1')}
+    headers = {'User-Agent': str('pip/1.4.1'), "Accept": str("text/html")}
+
     r = testapp.get("/root/pypi/%s" % name, headers=headers)
     assert r.status_code == 302
     assert r.headers["location"].endswith("/root/pypi/+simple/%s" % name)

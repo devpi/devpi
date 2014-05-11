@@ -114,31 +114,6 @@ def matchdict_parameters(f):
     return wrapper
 
 
-class PkgInstallerPredicate(object):
-    installer_user_agents = (
-        'distribute/',
-        'setuptools/',
-        'pip/')
-
-    def __init__(self, val, config):
-        self.val = val
-
-    def text(self):
-        return 'pkg_installer = %s' % (self.val,)
-
-    phash = text
-
-    def __call__(self, context, request):
-        is_installer = False
-        if html_preferred(request.headers.get("Accept")):
-            if request.user_agent:
-                for part in request.user_agent.split():
-                    if part.startswith(self.installer_user_agents):
-                        is_installer = True
-                        break
-        return is_installer == self.val
-
-
 class PyPIView:
     def __init__(self, request):
         self.request = request
