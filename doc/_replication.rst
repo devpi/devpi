@@ -107,7 +107,8 @@ as the master server but it will internally relay change-operations
 requests will be relayed to the master which should in its success
 code tell what serial this change refers to.  The replica server
 can then return a success code to its client after
-that serial has been synchronized successfully.
+that serial has been synchronized successfully.  Other replicas
+may or may not have synchronized the same change.
 
 
 .. _`laptop replication`:
@@ -124,11 +125,11 @@ lists of change entries to process.
 
 In the future, we can think about ways to minimize replication traffic by:
 
-a) subscribing to changes based on a filter (only things related to a user,
-   indices, etc.)
+a) subscribing to changes based on a filter (only changes related to a user,
+   certain indices, etc.)
 
 b) only retrieving archive or documentation files into the replica
-   if they are actually accessed.  
+   if they are actually accessed on the replica side.
 
 
 Handling concurrency within the replica server
@@ -154,9 +155,10 @@ request to the replica, we can do the following:
   504/GATEWAYTIMEOUT response code. 
 
 Note that this sequence could be interrupted at any point in time
-because of a partial network disconnect or failure between the three 
+because of a partial network disconnect or a failure between the three 
 parties (replica, master, client).  This may make it hard for the
-client to know the exact status of the operation.  To remedy this,
-we consider implementing a per-server (and maybe also per-index) view
-on "recent changes", also detailing the "local" serials and "remote serials".
+client to know the exact result of the original state-changing operation.  
+To remedy this, we consider implementing a per-server (and maybe also
+per-index) view on "recent changes", and also detailing the "local" serials
+and "remote serials" as well as the replica/master connection status.
 
