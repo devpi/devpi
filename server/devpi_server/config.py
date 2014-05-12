@@ -114,7 +114,6 @@ def load_setuptools_entrypoints():
     except ImportError:
         return # XXX issue a warning
     for ep in iter_entry_points('devpi_server'):
-        name = ep.name
         try:
             plugin = ep.load()
         except DistributionNotFound:

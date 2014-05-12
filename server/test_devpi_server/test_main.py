@@ -1,5 +1,3 @@
-import sys
-import types
 import pytest
 from devpi_server.main import *
 import devpi_server
@@ -38,7 +36,6 @@ def test_startup_fails_on_initial_setup_nonetwork(tmpdir, monkeypatch):
 
 
 def test_pyramid_configure_called(makexom):
-    from devpi_server.config import parseoptions
     l = []
     class Plugin:
         def devpiserver_pyramid_configure(self, config, pyramid_config):

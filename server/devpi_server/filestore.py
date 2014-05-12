@@ -25,7 +25,7 @@ class FileStore:
     def __init__(self, keyfs):
         self.keyfs = keyfs
 
-    def maplink(self, link, refresh=False):
+    def maplink(self, link):
         if link.md5:
             assert len(link.md5) == 32
             # we can only create 32K entries per directory

@@ -26,8 +26,8 @@ class TestFileStore:
 
     def test_maplink(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.2.zip")
-        entry1 = filestore.maplink(link, refresh=False)
-        entry2 = filestore.maplink(link, refresh=False)
+        entry1 = filestore.maplink(link)
+        entry2 = filestore.maplink(link)
         assert not entry1.iscached() and not entry2.iscached()
         assert entry1 == entry2
         assert entry1.relpath.endswith("/pytest-1.2.zip")
@@ -35,27 +35,27 @@ class TestFileStore:
 
     def test_maplink_replaced_release_not_cached_yet(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.2.zip")
-        entry1 = filestore.maplink(link, refresh=False)
+        entry1 = filestore.maplink(link)
         assert not entry1.iscached()
         assert entry1.md5 == link.md5
         newlink = gen.pypi_package_link("pytest-1.2.zip")
-        entry2 = filestore.maplink(newlink, refresh=False)
+        entry2 = filestore.maplink(newlink)
         assert entry2.md5 == newlink.md5
 
     def test_maplink_replaced_release_already_cached(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.2.zip")
-        entry1 = filestore.maplink(link, refresh=False)
+        entry1 = filestore.maplink(link)
         # pseudo-write a release file
         entry1.FILE.set(b"content")
         assert entry1.iscached()
         newlink = gen.pypi_package_link("pytest-1.2.zip")
-        entry2 = filestore.maplink(newlink, refresh=False)
+        entry2 = filestore.maplink(newlink)
         assert entry2.md5 == newlink.md5
         assert not entry2.iscached()
 
     def test_maplink_file_there_but_no_entry(self, filestore, keyfs, gen):
         link = gen.pypi_package_link("pytest-1.2.zip")
-        entry1 = filestore.maplink(link, refresh=False)
+        entry1 = filestore.maplink(link)
         entry1.FILE.set(b"hello")
         entry1.PATHENTRY.delete()
         headers, itercontent = filestore.iterfile_local(entry1, 1)
@@ -63,7 +63,7 @@ class TestFileStore:
 
     def test_invalidate_cache(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.2.zip", md5=False)
-        entry1 = filestore.maplink(link, refresh=False)
+        entry1 = filestore.maplink(link)
         entry1.FILE.set(b"")
         assert entry1.iscached()
         entry1.invalidate_cache()
@@ -71,8 +71,8 @@ class TestFileStore:
 
     def test_maplink_egg(self, filestore, gen):
         link = gen.pypi_package_link("master#egg=pytest-dev", md5=False)
-        entry1 = filestore.maplink(link, refresh=False)
-        entry2 = filestore.maplink(link, refresh=False)
+        entry1 = filestore.maplink(link)
+        entry2 = filestore.maplink(link)
         assert entry1 == entry2
         assert entry1.relpath.endswith("/master")
         assert entry1.eggfragment == "pytest-dev"
@@ -107,7 +107,7 @@ class TestFileStore:
 
     def test_iterfile(self, filestore, httpget, gen):
         link = gen.pypi_package_link("pytest-1.8.zip", md5=False)
-        entry = filestore.maplink(link, refresh=False)
+        entry = filestore.maplink(link)
         assert not entry.md5
         headers={"content-length": "3",
                  "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
@@ -135,7 +135,7 @@ class TestFileStore:
 
     def test_iterfile_remote_no_headers(self, filestore, httpget, gen):
         link = gen.pypi_package_link("pytest-1.8.zip", md5=False)
-        entry = filestore.maplink(link, refresh=False)
+        entry = filestore.maplink(link)
         assert not entry.md5
         headers={}
         httpget.url2response[link.url] = dict(status_code=200,
@@ -149,7 +149,7 @@ class TestFileStore:
 
     def test_iterfile_remote_error_size_mismatch(self, filestore, httpget, gen):
         link = gen.pypi_package_link("pytest-3.0.zip", md5=False)
-        entry = filestore.maplink(link, refresh=False)
+        entry = filestore.maplink(link)
         assert not entry.md5
         headers={"content-length": "3",
                  "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
@@ -166,7 +166,7 @@ class TestFileStore:
 
     def test_iterfile_remote_nosize(self, filestore, httpget, gen):
         link = gen.pypi_package_link("pytest-3.0.zip", md5=False)
-        entry = filestore.maplink(link, refresh=False)
+        entry = filestore.maplink(link)
         assert not entry.md5
         headers={"last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
                  "content-length": None,
@@ -184,7 +184,7 @@ class TestFileStore:
 
     def test_iterfile_remote_error_md5(self, filestore, httpget, gen):
         link = gen.pypi_package_link("pytest-3.0.zip")
-        entry = filestore.maplink(link, refresh=False)
+        entry = filestore.maplink(link)
         assert entry.md5 == link.md5
         headers={"content-length": "3",
                  "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
@@ -199,7 +199,7 @@ class TestFileStore:
 
     def test_iterfile_eggfragment(self, filestore, httpget, gen):
         link = gen.pypi_package_link("master#egg=pytest-dev", md5=False)
-        entry = filestore.maplink(link, refresh=False)
+        entry = filestore.maplink(link)
         assert entry.eggfragment
         assert entry.url
         headers={"content-length": "4",
@@ -222,7 +222,7 @@ class TestFileStore:
 
     def test_iterfile_local_error(self, filestore, caplog, gen):
         link = gen.pypi_package_link("pytest-1.8.zip", md5=False)
-        entry = filestore.maplink(link, refresh=False)
+        entry = filestore.maplink(link)
         assert not entry.md5
         testheaders = dict(size="3", content_type = "application/zip",
                            last_modified = "Thu, 25 Nov 2010 20:00:27 GMT")
@@ -249,7 +249,7 @@ class TestFileStore:
         def raising(*args, **kwargs):
             raise KeyError()
         link = gen.pypi_package_link("pytest-2.8.zip", md5=False)
-        entry = filestore.maplink(link, refresh=False)
+        entry = filestore.maplink(link)
         entry.FILE.set(b"")
         testheaders={"size": "2", "content_type": "application/zip",
                  "last_modified": "Thu, 25 Nov 2010 20:00:27 GMT"}

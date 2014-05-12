@@ -261,8 +261,7 @@ class ExtDB:
         releaselinks = list(result.releaselinks)
 
         # compute release link entries and cache according to serial
-        entries = [self.filestore.maplink(link, refresh=refresh)
-                        for link in releaselinks]
+        entries = [self.filestore.maplink(link) for link in releaselinks]
         dumplist = [entry.relpath for entry in entries]
         self._dump_project_cache(real_projectname, dumplist, serial)
         return entries

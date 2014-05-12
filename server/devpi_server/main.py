@@ -126,7 +126,7 @@ def wsgi_run(xom):
     try:
         server = make_server(host, port, app)
     except Exception as e:
-        log.exception("Error while starting the server.")
+        log.exception("Error while starting the server: %s" %(e,))
         return 1
     try:
         log.info("Hit Ctrl-C to quit.")
