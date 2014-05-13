@@ -208,7 +208,7 @@ class TestImportExport:
         # and they would get registeded under different names.
         # We simulate it here because 1.1 http API prevents this case.
         stage = mapp1.xom.db.getstage(api.stagename)
-        monkeypatch.setattr(mapp1.xom.extdb, "getprojectnames_perstage",
+        monkeypatch.setattr(mapp1.xom.pypistage, "getprojectnames_perstage",
                             lambda: ["hello_X"])
         stage._register_metadata({"name": "hello_x", "version": "1.1"})
         stage._register_metadata({"name": "hello-X", "version": "1.0"})

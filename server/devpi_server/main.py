@@ -204,8 +204,8 @@ class XOM:
             from devpi_server.importexport import do_export
             return do_export(args.export, xom)
         configure_logging(xom.config)
-        # access extdb to make sure invalidation happens
-        xom.extdb
+        # access pypistage to make sure invalidation happens
+        xom.pypistage
         if args.import_:
             from devpi_server.importexport import do_import
             return do_import(args.import_, xom)
@@ -265,12 +265,12 @@ class XOM:
         return keyfs
 
     @cached_property
-    def extdb(self):
-        from devpi_server.extpypi import ExtDB
-        extdb = ExtDB(keyfs=self.keyfs, httpget=self.httpget,
+    def pypistage(self):
+        from devpi_server.extpypi import PyPIStage
+        pypistage = PyPIStage(keyfs=self.keyfs, httpget=self.httpget,
                       filestore=self.filestore,
                       proxy=self.proxy)
-        return extdb
+        return pypistage
 
     @cached_property
     def proxy(self):
@@ -363,7 +363,7 @@ class XOM:
 
 class BackgroundPlugin:
     api = 2
-    name = "extdb_refresh"
+    name = "pypistage_refresh"
 
     _thread = None
 
@@ -389,7 +389,7 @@ class BackgroundPlugin:
 
     def start_background_tasks(self):
         xom = self.xom
-        self._thread = xom.spawn(xom.extdb.spawned_pypichanges,
+        self._thread = xom.spawn(xom.pypistage.spawned_pypichanges,
             args=(xom.proxy, lambda: xom.sleep(xom.config.args.refresh)))
 
 class FatalResponse:

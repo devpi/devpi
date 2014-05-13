@@ -18,20 +18,20 @@ from .functional import TestUserThings, TestIndexThings  # noqa
 def getfirstlink(text):
     return BeautifulSoup(text).findAll("a")[0]
 
-def test_simple_project(extdb, testapp):
+def test_simple_project(pypistage, testapp):
     name = "qpwoei"
     r = testapp.get("/root/pypi/+simple/" + name)
     assert r.status_code == 200
     assert not BeautifulSoup(r.text).findAll("a")
     path = "/%s-1.0.zip" % name
-    extdb.mock_simple(name, text='<a href="%s"/>' % path)
+    pypistage.mock_simple(name, text='<a href="%s"/>' % path)
     r = testapp.get("/root/pypi/+simple/%s" % name)
     assert r.status_code == 200
     links = BeautifulSoup(r.text).findAll("a")
     assert len(links) == 1
     assert links[0].get("href").endswith(path)
 
-def test_project_redirect(extdb, testapp):
+def test_project_redirect(pypistage, testapp):
     name = "qpwoei"
     headers = {'User-Agent': str('pip/1.4.1'), "Accept": str("text/html")}
 
@@ -43,7 +43,7 @@ def test_project_redirect(extdb, testapp):
     assert r.status_code == 302
     assert r.headers["location"].endswith("/root/pypi/+simple/%s" % name)
 
-def test_simple_project_unicode_rejected(extdb, testapp):
+def test_simple_project_unicode_rejected(pypistage, testapp):
     from devpi_server.views import PyPIView
     from pyramid.httpexceptions import HTTPClientError
     from pyramid.testing import DummyRequest, setUp, tearDown
@@ -63,8 +63,8 @@ def test_simple_url_longer_triggers_404(testapp):
     assert testapp.get("/root/pypi/+simple/pytest/1.0/").status_code == 404
     assert testapp.get("/root/pypi/+simple/pytest/1.0").status_code == 404
 
-def test_simple_project_pypi_egg(extdb, testapp):
-    extdb.mock_simple("py",
+def test_simple_project_pypi_egg(pypistage, testapp):
+    pypistage.mock_simple("py",
         """<a href="http://bb.org/download/py.zip#egg=py-dev" />""")
     r = testapp.get("/root/pypi/+simple/py")
     assert r.status_code == 200
@@ -73,9 +73,9 @@ def test_simple_project_pypi_egg(extdb, testapp):
     r = testapp.get("/root/pypi")
     assert r.status_code == 200
 
-def test_simple_list(extdb, testapp):
-    extdb.mock_simple("hello1", "<html/>")
-    extdb.mock_simple("hello2", "<html/>")
+def test_simple_list(pypistage, testapp):
+    pypistage.mock_simple("hello1", "<html/>")
+    pypistage.mock_simple("hello2", "<html/>")
     assert testapp.get("/root/pypi/+simple/hello1").status_code == 200
     assert testapp.get("/root/pypi/+simple/hello2").status_code == 200
     r = testapp.get("/root/pypi/+simple/hello3")
@@ -99,14 +99,14 @@ def test_indexroot_root_pypi(testapp, xom):
     assert b"in-stage" not in r.body
 
 @pytest.mark.parametrize("code", [-1, 500, 501, 502, 503])
-def test_upstream_not_reachable(extdb, testapp, xom, code):
+def test_upstream_not_reachable(pypistage, testapp, xom, code):
     name = "whatever%d" % (code + 1)
-    extdb.mock_simple(name, status_code = code)
+    pypistage.mock_simple(name, status_code = code)
     r = testapp.get("/root/pypi/+simple/%s" % name)
     assert r.status_code == 502
 
-def test_pkgserv(httpget, extdb, testapp):
-    extdb.mock_simple("package", '<a href="/package-1.0.zip" />')
+def test_pkgserv(httpget, pypistage, testapp):
+    pypistage.mock_simple("package", '<a href="/package-1.0.zip" />')
     httpget.setextfile("/package-1.0.zip", b"123")
     r = testapp.get("/root/pypi/+simple/package")
     assert r.status_code == 200

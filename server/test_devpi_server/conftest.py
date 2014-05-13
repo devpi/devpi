@@ -73,7 +73,7 @@ def makexom(request, gentmp, httpget):
                 proxy = mock.create_autospec(XMLProxy)
                 proxy.list_packages_with_serial.return_value = {}
             xom = XOM(config, proxy=proxy, httpget=httpget)
-            add_extdb_mocks(xom.extdb, httpget)
+            add_pypistage_mocks(xom.pypistage, httpget)
         else:
             xom = XOM(config)
         request.addfinalizer(xom.shutdown)
@@ -175,19 +175,19 @@ def keyfs(xom):
     return xom.keyfs
 
 @pytest.fixture
-def extdb(xom):
-    return xom.extdb
+def pypistage(xom):
+    return xom.pypistage
 
-def add_extdb_mocks(extdb, httpget):
+def add_pypistage_mocks(pypistage, httpget):
     # add some mocking helpers
-    extdb.url2response = httpget.url2response
+    pypistage.url2response = httpget.url2response
     def setextsimple(name, text=None, pypiserial=10000, **kw):
-        extdb._set_project_serial(name, pypiserial)
+        pypistage._set_project_serial(name, pypiserial)
         return httpget.setextsimple(name,
                 text=text, pypiserial=pypiserial, **kw)
-    extdb.setextsimple = setextsimple
-    extdb.mock_simple = setextsimple
-    extdb.httpget = httpget
+    pypistage.setextsimple = setextsimple
+    pypistage.mock_simple = setextsimple
+    pypistage.httpget = httpget
 
 @pytest.fixture
 def pypiurls():

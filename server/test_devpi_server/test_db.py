@@ -122,20 +122,20 @@ class TestStage:
         exporter = Exporter(tw, stage.xom)
         exporter.compute_global_projectname_normalization()
 
-    def test_inheritance_simple(self, extdb, stage, db):
+    def test_inheritance_simple(self, pypistage, stage, db):
         stage._reconfigure(bases=("root/pypi",))
-        extdb.mock_simple("someproject", "<a href='someproject-1.0.zip' /a>")
+        pypistage.mock_simple("someproject", "<a href='someproject-1.0.zip' /a>")
         assert stage.getprojectnames() == ["someproject",]
         entries = stage.getreleaselinks("someproject")
         assert len(entries) == 1
         stage.register_metadata(dict(name="someproject", version="1.1"))
         assert stage.getprojectnames() == ["someproject",]
 
-    def test_inheritance_twice(self, extdb, db, stage):
+    def test_inheritance_twice(self, pypistage, db, stage):
         db.index_create(user="root", index="dev2", bases=("root/pypi",))
         stage_dev2 = db.getstage("root/dev2")
         stage._reconfigure(bases=("root/dev2",))
-        extdb.mock_simple("someproject", "<a href='someproject-1.0.zip' /a>")
+        pypistage.mock_simple("someproject", "<a href='someproject-1.0.zip' /a>")
         register_and_store(stage_dev2, "someproject-1.1.tar.gz")
         register_and_store(stage_dev2, "someproject-1.2.tar.gz")
         entries = stage.getreleaselinks("someproject")
@@ -145,9 +145,9 @@ class TestStage:
         assert entries[2].basename == "someproject-1.0.zip"
         assert stage.getprojectnames() == ["someproject",]
 
-    def test_inheritance_normalize_multipackage(self, extdb, stage):
+    def test_inheritance_normalize_multipackage(self, pypistage, stage):
         stage._reconfigure(bases=("root/pypi",))
-        extdb.mock_simple("some-project", """
+        pypistage.mock_simple("some-project", """
             <a href='some_project-1.0.zip' /a>
             <a href='some_project-1.0.tar.gz' /a>
         """)
@@ -162,9 +162,9 @@ class TestStage:
         assert entries[2].basename == "some_project-1.0.tar.gz"
         assert stage.getprojectnames() == ["some-project",]
 
-    def test_getreleaselinks_inheritance_shadow(self, extdb, stage):
+    def test_getreleaselinks_inheritance_shadow(self, pypistage, stage):
         stage._reconfigure(bases=("root/pypi",))
-        extdb.mock_simple("someproject",
+        pypistage.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         register_and_store(stage, "someproject-1.0.zip", b"123")
         stage.store_releasefile("someproject", "1.0",
@@ -173,9 +173,9 @@ class TestStage:
         assert len(entries) == 1
         assert entries[0].relpath.endswith("someproject-1.0.zip")
 
-    def test_getreleaselinks_inheritance_shadow_egg(self, extdb, stage):
+    def test_getreleaselinks_inheritance_shadow_egg(self, pypistage, stage):
         stage._reconfigure(bases=("root/pypi",))
-        extdb.mock_simple("py",
+        pypistage.mock_simple("py",
         """<a href="http://bb.org/download/py.zip#egg=py-dev" />
            <a href="http://bb.org/download/master#egg=py-dev2" />
         """)
@@ -187,17 +187,17 @@ class TestStage:
         assert e1.basename == "py.zip"
         assert e2.basename == "master"
 
-    def test_inheritance_error(self, extdb, stage):
+    def test_inheritance_error(self, pypistage, stage):
         stage._reconfigure(bases=("root/pypi",))
-        extdb.mock_simple("someproject", status_code = -1)
+        pypistage.mock_simple("someproject", status_code = -1)
         entries = stage.getreleaselinks("someproject")
         assert entries == -1
         #entries = stage.getprojectnames()
         #assert entries == -1
 
-    def test_get_projectconfig_inherited(self, extdb, stage):
+    def test_get_projectconfig_inherited(self, pypistage, stage):
         stage._reconfigure(bases=("root/pypi",))
-        extdb.mock_simple("someproject",
+        pypistage.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         projectconfig = stage.get_projectconfig("someproject")
         assert "someproject-1.0.zip" in projectconfig["1.0"]["+files"]
@@ -217,9 +217,9 @@ class TestStage:
             stage.store_releasefile("someproject", "1.0",
                                     "someproject-1.0.zip", b"123")
 
-    def test_project_config_shadowed(self, extdb, stage):
+    def test_project_config_shadowed(self, pypistage, stage):
         stage._reconfigure(bases=("root/pypi",))
-        extdb.mock_simple("someproject",
+        pypistage.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         content = b"123"
         stage.store_releasefile("someproject", "1.0",

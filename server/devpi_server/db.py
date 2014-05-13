@@ -216,7 +216,7 @@ class DB:
         if ixconfig["type"] == "stage":
             return PrivateStage(self, user, index, ixconfig)
         elif ixconfig["type"] == "mirror":
-            return self.xom.extdb
+            return self.xom.pypistage
         else:
             raise ValueError("unknown index type %r" % ixconfig["type"])
 
