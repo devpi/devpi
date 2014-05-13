@@ -30,7 +30,8 @@ class Auth:
             return None
         except itsdangerous.BadData:
             # check if we got user/password direct authentication
-            if self.db.user_validate(authuser, authpassword):
+            user = self.db.xom.get_user(authuser)
+            if user.validate(authpassword):
                 return authuser
             return None
         else:
@@ -40,9 +41,10 @@ class Auth:
             return authuser
 
     def new_proxy_auth(self, user, password):
-        hash = self.db.user_validate(user, password)
+        user = self.db.xom.get_user(user)
+        hash = user.validate(password)
         if hash:
-            pseudopass = self.signer.sign(user + "-" + hash)
+            pseudopass = self.signer.sign(user.name + "-" + hash)
             pseudopass = pseudopass.decode("ascii")
             assert py.builtin._istext(pseudopass)
             return {"password":  pseudopass,
@@ -51,15 +53,16 @@ class Auth:
     def get_auth_status(self, userpassword):
         if userpassword is None:
             return ["noauth", ""]
-        user, password = userpassword
-        if not self.db.user_exists(user):
-            return ["nouser", user]
+        username, password = userpassword
+        user = self.db.xom.get_user(username)
+        if not user.exists():
+            return ["nouser", user.name]
         try:
             self.get_auth_user(userpassword)
         except self.Expired:
-            return ["expired", user]
+            return ["expired", user.name]
         else:
-            return ["ok", user]
+            return ["ok", user.name]
 
 
 

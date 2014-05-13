@@ -23,9 +23,10 @@ def register_and_store(stage, basename, content=b"123", name=None):
 
 def test_db_is_empty(db):
     assert db.is_empty()
-    db.user_create("user", "password", email="some@email.com")
+    user = db.xom.get_user("user")
+    user.create(password="password", email="some@email.com")
     assert not db.is_empty()
-    db.user_delete("user")
+    user.delete()
     assert db.is_empty()
     db.index_create(user="root", index="dev", bases=(), type="stage",
                     volatile=False)
@@ -40,7 +41,8 @@ class TestStage:
                       type="stage", volatile=True)
         if "bases" in request.fixturenames:
             config["bases"] = request.getfuncargvalue("bases")
-        db.user_create("hello", "123")
+        user = db.xom.get_user("hello")
+        user.create(password="123") 
         db.index_create(**config)
         return db.getstage(user=config["user"], index=config["index"])
 
@@ -390,53 +392,56 @@ class TestUsers:
 
     def test_secret(self, db):
         db.keyfs.basedir.ensure(".something")
-        assert not db.user_get(".something")
+        assert not db.xom.get_user(".something").get()
 
     def test_create_and_validate(self, db):
-        assert not db.user_exists("user")
-        db.user_create("user", "password", email="some@email.com")
-        assert db.user_exists("user")
-        userconfig = db.user_get("user")
+        user = db.xom.get_user("user")
+        assert not user.exists()
+        user.create("password", email="some@email.com")
+        assert user.exists()
+        userconfig = user.get()
         assert userconfig["email"] == "some@email.com"
         assert not set(userconfig).intersection(["pwsalt", "pwhash"])
-        userconfig = db.user_get("user")
-        assert db.user_validate("user", "password")
-        assert not db.user_validate("user", "password2")
+        assert user.validate("password")
+        assert not user.validate("password2")
 
     def test_create_and_delete(self, db):
-        db.user_create("user", password="password")
-        assert db.user_exists("user")
-        db.user_delete("user")
-        assert not db.user_exists("user")
-        assert not db.user_validate("user", "password")
+        user = db.xom.get_user("user")
+        user.create(password="password")
+        assert user.exists()
+        user.delete()
+        assert not user.exists()
+        assert not user.validate("password")
 
     def test_create_and_list(self, db):
-        baselist = db.user_list()
-        db.user_modify("user1", password="password")
-        db.user_modify("user2", password="password")
-        db.user_modify("user3", password="password")
-        newusers = db.user_list().difference(baselist)
+        baselist = db.xom.get_usernames()
+        db.xom.get_user("user1").modify(password="password")
+        db.xom.get_user("user2").modify(password="password")
+        db.xom.get_user("user3").modify(password="password")
+        newusers = db.xom.get_usernames().difference(baselist)
         assert newusers == set("user1 user2 user3".split())
-        db.user_delete("user3")
-        newusers = db.user_list().difference(baselist)
+        db.xom.get_user("user3").delete()
+        newusers = db.xom.get_usernames().difference(baselist)
         assert newusers == set("user1 user2".split())
 
     def test_server_passwd(self, db, monkeypatch):
         from devpi_server.db import run_passwd
         monkeypatch.setattr(py.std.getpass, "getpass", lambda x: "123")
         run_passwd(db, "root")
-        assert db.user_validate("root", "123")
+        assert db.xom.get_user("root").validate("123")
 
     def test_server_email(self, db):
         email_address = "root_" + str(id) + "@mydomain"
-        db.user_modify('root', email=email_address)
-        assert db.user_get("root")["email"] == email_address
+        user = db.xom.get_user("root")
+        user.modify(email=email_address)
+        assert user.get()["email"] == email_address
 
 def test_user_set_without_indexes(db):
-    db.user_create("user", "password", email="some@email.com")
-    assert db.user_exists("user")
+    user = db.xom.get_user("user")
+    user.create("password", email="some@email.com")
+    assert user.exists()
     db.index_create("user/hello")
-    db._user_set("user", {"password": "pass2"})
+    user._set({"password": "pass2"})
     assert db.index_exists("user/hello")
 
 def test_setdefault_indexes(db):

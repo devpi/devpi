@@ -14,12 +14,13 @@ import logging
 log = logging.getLogger(__name__)
 
 def run_passwd(db, user):
-    if not db.user_exists(user):
-        log.error("user %r not found" % user)
+    user = db.xom.get_user(user)
+    if not user.exists():
+        log.error("user %r not found" % user.name)
         return 1
     for i in range(3):
-        pwd = py.std.getpass.getpass("enter password for %s: " % user)
-        pwd2 = py.std.getpass.getpass("repeat password for %s: " % user)
+        pwd = py.std.getpass.getpass("enter password for %s: " % user.name)
+        pwd2 = py.std.getpass.getpass("repeat password for %s: " % user.name)
         if pwd != pwd2:
             log.error("password don't match")
         else:
@@ -27,11 +28,94 @@ def run_passwd(db, user):
     else:
         log.error("no password set")
         return 1
-    db.user_modify(user, password=pwd)
+    user.modify(password=pwd)
 
 
 _ixconfigattr = set(
     "type volatile bases uploadtrigger_jenkins acl_upload".split())
+
+class UserList:
+    def __init__(self, xom, keyfs):
+        self.xom = xom
+        self.keyfs = keyfs
+
+    def __iter__(self):
+        return (User(self, name) 
+                    for name in self.keyfs.USER.listnames("user"))
+
+    def __getitem__(self, name):
+        return User(self, name)
+
+class User:
+    def __init__(self, parent, name):
+        self.__parent__ = parent
+        self.keyfs = parent.keyfs
+        self.xom = parent.xom
+        self.name = name
+
+    @property
+    def key(self):
+        return self.keyfs.USER(user=self.name)
+
+    def create(self, password, email=None):
+        with self.key.update() as userconfig:
+            self._setpassword(userconfig, password)
+            if email:
+                userconfig["email"] = email
+            log.info("created user %r with email %r" %(self.name, email))
+
+    def _set(self, newuserconfig):
+        with self.key.update() as userconfig:
+            if "indexes" not in newuserconfig:
+                newuserconfig["indexes"] = userconfig.get("indexes", {})
+            userconfig.clear()
+            userconfig.update(newuserconfig)
+            log.info("internal: set user information %r", self.name)
+
+    def modify(self, password=None, email=None):
+        with self.key.update() as userconfig:
+            modified = []
+            if password is not None:
+                self._setpassword(userconfig, password)
+                modified.append("password=*******")
+            if email:
+                userconfig["email"] = email
+                modified.append("email=%s" % email)
+            log.info("modified user %r: %s" %(self.name, ", ".join(modified)))
+
+    def _setpassword(self, userconfig, password):
+        salt, hash = crypt_password(password)
+        userconfig["pwsalt"] = salt
+        userconfig["pwhash"] = hash
+        log.info("setting password for user %r", self.name)
+
+    def delete(self):
+        self.key.delete()
+
+    def exists(self):
+        return self.key.exists()
+
+    def validate(self, password):
+        userconfig = self.key.get(None)
+        if userconfig is None:
+            return False
+        salt = userconfig["pwsalt"]
+        pwhash = userconfig["pwhash"]
+        if verify_password(password, pwhash, salt):
+            return pwhash
+        return None
+
+    def get(self, credentials=False):
+        d = self.key.get()
+        if not d:
+            return d
+        if not credentials:
+            del d["pwsalt"]
+            del d["pwhash"]
+        d["username"] = self.name
+        return d
+        
+ 
 
 class DB:
     class InvalidIndexconfig(Exception):
@@ -44,73 +128,13 @@ class DB:
         self.keyfs = xom.keyfs
 
     def is_empty(self):
-        userlist = self.user_list()
-        if len(userlist) != 1 or "root" not in userlist:
-            return False
-        userconfig = self.user_get("root")
-        rootindexes = list(userconfig.get("indexes", []))
-        return rootindexes == ["pypi"]
-
-    def user_create(self, user, password, email=None):
-        with self.keyfs.USER(user=user).update() as userconfig:
-            self._setpassword(userconfig, user, password)
-            if email:
-                userconfig["email"] = email
-            log.info("created user %r with email %r" %(user, email))
-
-    def _user_set(self, user, newuserconfig):
-        with self.keyfs.USER(user=user).update() as userconfig:
-            if "indexes" not in newuserconfig:
-                newuserconfig["indexes"] = userconfig.get("indexes", {})
-            userconfig.clear()
-            userconfig.update(newuserconfig)
-            log.info("internal: set user information %r", user)
-
-    def user_modify(self, user, password=None, email=None):
-        with self.keyfs.USER(user=user).update() as userconfig:
-            modified = []
-            if password is not None:
-                self._setpassword(userconfig, user, password)
-                modified.append("password=*******")
-            if email:
-                userconfig["email"] = email
-                modified.append("email=%s" % email)
-            log.info("modified user %r: %s" %(user, ", ".join(modified)))
-
-    def _setpassword(self, userconfig, user, password):
-        salt, hash = crypt_password(password)
-        userconfig["pwsalt"] = salt
-        userconfig["pwhash"] = hash
-        log.info("setting password for user %r", user)
-
-    def user_delete(self, user):
-        self.keyfs.USER(user=user).delete()
-
-    def user_exists(self, user):
-        return self.keyfs.USER(user=user).exists()
-
-    def user_list(self):
-        return self.keyfs.USER.listnames("user")
-
-    def user_validate(self, user, password):
-        userconfig = self.keyfs.USER(user=user).get(None)
-        if userconfig is None:
-            return False
-        salt = userconfig["pwsalt"]
-        pwhash = userconfig["pwhash"]
-        if verify_password(password, pwhash, salt):
-            return pwhash
-        return None
-
-    def user_get(self, user, credentials=False):
-        d = self.keyfs.USER(user=user).get()
-        if not d:
-            return d
-        if not credentials:
-            del d["pwsalt"]
-            del d["pwhash"]
-        d["username"] = user
-        return d
+        userlist = list(self.xom.get_userlist())
+        if len(userlist) == 1:
+            user, = userlist
+            if user.name == "root":
+                rootindexes = user.get().get("indexes", [])
+                return list(rootindexes) == ["pypi"]
+        return False
 
     def _get_user_and_index(self, user, index=None):
         if not py.builtin._istext(user):

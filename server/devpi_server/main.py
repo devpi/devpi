@@ -193,6 +193,16 @@ class XOM:
         versionfile.dirpath().ensure(dir=1)
         versionfile.write(version)
 
+    def get_user(self, name):
+        return self.get_userlist()[name]
+
+    def get_userlist(self):
+        from devpi_server.db import UserList
+        return UserList(self, self.keyfs)
+
+    def get_usernames(self):
+        return set(u.name for u in self.get_userlist())
+
     def main(self):
         xom = self
         args = xom.config.args
@@ -401,8 +411,8 @@ class FatalResponse:
 def set_default_indexes(db):
     PYPI = "root/pypi"
     if not db.index_exists(PYPI):
-        if "root" not in db.user_list():
-            db.user_create("root", password="")
+        root_user = db.xom.get_user("root")
+        root_user.create(password="")
         db.index_create(PYPI, bases=(), type="mirror", volatile=False)
         print("set root/pypi default index")
 

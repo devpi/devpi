@@ -12,11 +12,13 @@ class TestAuth:
         assert auth.get_auth_user(None) is None
 
     def test_auth_direct(self, db, auth):
-        db.user_create("user", password="world")
+        user = db.xom.get_user("user")
+        user.create(password="world")
         assert auth.get_auth_user(("user", "world")) == "user"
 
     def test_proxy_auth(self, db, auth):
-        db.user_create("user", password="world")
+        user = db.xom.get_user("user")
+        user.create(password="world")
         assert auth.new_proxy_auth("user", "wrongpass") is None
         assert auth.new_proxy_auth("uer", "wrongpass") is None
         res = auth.new_proxy_auth("user", "world")
@@ -24,20 +26,21 @@ class TestAuth:
         assert auth.get_auth_user(("user", res["password"]))
 
     def test_proxy_auth_expired(self, db, auth, monkeypatch):
-        user, password = "user", "world"
+        username, password = "user", "world"
 
-        db.user_create(user, password)
-        proxy = auth.new_proxy_auth(user, password)
+        user = db.xom.get_user(username)
+        user.create(password=password)
+        proxy = auth.new_proxy_auth(username, password)
 
         def r(*args): raise py.std.itsdangerous.SignatureExpired("123")
         monkeypatch.setattr(auth.signer, "unsign", r)
 
-        newauth = (user, proxy["password"])
+        newauth = (username, proxy["password"])
         res = auth.get_auth_user(newauth, raising=False)
         assert res is None
         with pytest.raises(auth.Expired):
             auth.get_auth_user(newauth)
-        assert auth.get_auth_status(newauth) == ["expired", user]
+        assert auth.get_auth_status(newauth) == ["expired", username]
 
     def test_auth_status_no_auth(self, db, auth):
         assert auth.get_auth_status(None) == ["noauth", ""]
@@ -46,10 +49,12 @@ class TestAuth:
         assert auth.get_auth_status(("user1", "123")) == ["nouser", "user1"]
 
     def test_auth_status_proxy_user(self, db, auth):
-        user, password = "user", "world"
-        db.user_create(user, password)
-        proxy = auth.new_proxy_auth(user, password)
-        assert auth.get_auth_status((user, proxy["password"])) == ["ok", user]
+        username, password = "user", "world"
+        user = db.xom.get_user(username)
+        user.create(password)
+        proxy = auth.new_proxy_auth(username, password)
+        assert auth.get_auth_status((username, proxy["password"])) == \
+               ["ok", username]
 
 def test_newsalt():
     assert newsalt() != newsalt()

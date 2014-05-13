@@ -123,14 +123,14 @@ class Exporter:
         self.export["devpi_server"] = devpi_server.__version__
         self.export["secret"] = self.config.secret
         self.compute_global_projectname_normalization()
-        for username in self.db.user_list():
-            userdir = path.join(username)
-            data = self.db.user_get(username, credentials=True)
+        for user in self.db.xom.get_userlist():
+            userdir = path.join(user.name)
+            data = user.get(credentials=True)
             indexes = data.pop("indexes", {})
-            self.export_users[username] = data
-            self.completed("user %r" % username)
+            self.export_users[user.name] = data
+            self.completed("user %r" % user.name)
             for indexname, indexconfig in indexes.items():
-                stage = self.db.getstage(username, indexname)
+                stage = self.db.getstage(user.name, indexname)
                 if stage.ixconfig["type"] == "mirror":
                     continue
                 indexdir = userdir.ensure(indexname, dir=1)
@@ -142,10 +142,10 @@ class Exporter:
 
         norm2maxversion = {}
         # compute latest normname version across all stages
-        for username in self.db.user_list():
-            user = self.db.user_get(username)
-            for indexname in user.get("indexes", []):
-                stage = self.db.getstage(username, indexname)
+        for user in self.db.xom.get_userlist():
+            userconfig = user.get()
+            for indexname in userconfig.get("indexes", []):
+                stage = self.db.getstage(user.name, indexname)
                 names = stage.getprojectnames_perstage()
                 for name in names:
                     # pypi names take precedence for defining the realname
@@ -284,8 +284,9 @@ class Importer:
         self.xom.config.secretfile.write(secret)
 
         # first create all users
-        for user, userconfig in self.import_users.items():
-            self.db._user_set(user, userconfig)
+        for username, userconfig in self.import_users.items():
+            user = self.db.xom.get_user(username)
+            user._set(userconfig) 
 
         # memorize index inheritance structure
         tree = IndexTree()
