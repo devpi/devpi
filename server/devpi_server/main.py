@@ -98,7 +98,7 @@ def _main(argv=None, plugins=None):
             return
 
     if args.passwd:
-        from devpi_server.db import run_passwd
+        from devpi_server.model import run_passwd
         return run_passwd(xom.db, config.args.passwd)
 
     return xom.main()
@@ -179,7 +179,7 @@ class XOM:
         sdir = config.serverdir
         if not (sdir.exists() and sdir.listdir()):
             self.set_state_version(server_version)
-        set_default_indexes(self)
+        set_default_indexes(self.model)
 
     def get_state_version(self):
         versionfile = self.config.serverdir.join(".serverversion")
@@ -194,54 +194,11 @@ class XOM:
         versionfile.dirpath().ensure(dir=1)
         versionfile.write(version)
 
-    #
-    # BEGIN access to model objects 
-    #
-    
-    def get_user(self, name):
-        return self.get_userlist()[name]
-
-    def get_userlist(self):
-        from devpi_server.db import UserList
-        return UserList(self, self.keyfs)
-
-    def create_user(self, username, password, email=None):
-        user = self.get_user(username)
-        user.create(password, email=email)
-        return user
-
-    def get_usernames(self):
-        return set(u.name for u in self.get_userlist())
-
-    def _get_user_and_index(self, user, index=None):
-        if not py.builtin._istext(user):
-            user = user.decode("utf8")
-        if index is None:
-            user = user.strip("/")
-            user, index = user.split("/")
-        else:
-            if not py.builtin._istext(index):
-                index = index.decode("utf8")
-        return user, index
-
-    def getstage(self, user, index=None):
-        username, index = self._get_user_and_index(user, index)
-        user = self.get_user(username)
-        if not user.exists():
-            return None
-        return user.getstage(index)
-
-    # END access to model objects 
-
-    def is_empty(self):
-        userlist = list(self.get_userlist())
-        if len(userlist) == 1:
-            user, = userlist
-            if user.name == "root":
-                rootindexes = user.get().get("indexes", [])
-                return list(rootindexes) == ["pypi"]
-        return False
-
+    @property
+    def model(self):
+        """ root model object. """
+        from devpi_server.model import Root
+        return Root(self)
 
     def main(self):
         xom = self
@@ -441,8 +398,8 @@ class FatalResponse:
     def __init__(self, excinfo=None):
         self.excinfo = excinfo
 
-def set_default_indexes(xom):
-    root_user = xom.get_user("root")
+def set_default_indexes(model):
+    root_user = model.get_user("root")
     if not root_user.exists():
         root_user.create(password="")
     with root_user.key.update() as userconfig:

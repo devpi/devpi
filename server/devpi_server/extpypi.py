@@ -24,7 +24,7 @@ from devpi_common.validation import normalize_name
 from devpi_common.request import new_requests_session
 
 from . import __version__ as server_version
-from .db import ProjectInfo
+from .model import ProjectInfo
 
 from logging import getLogger
 assert __name__ == "devpi_server.extpypi"

@@ -16,7 +16,7 @@ import logging
 from devpi_common.request import new_requests_session
 from devpi_common.validation import normalize_name, is_valid_archive_name
 
-from devpi_server.db import InvalidIndexconfig
+from devpi_server.model import InvalidIndexconfig
 
 from .auth import Auth
 from .config import render_string
@@ -121,14 +121,14 @@ class PyPIView:
         self.request = request
         xom = request.registry['xom']
         self.xom = xom
-        self.auth = Auth(xom, xom.config.secret)
+        self.model = xom.model
+        self.auth = Auth(self.model, xom.config.secret)
 
     def getstage(self, user, index):
-        stage = self.xom.getstage(user, index)
+        stage = self.model.getstage(user, index)
         if not stage:
             abort(self.request, 404, "no such stage")
         return stage
-
 
     #
     # supplying basic API locations for all services
@@ -294,7 +294,7 @@ class PyPIView:
     def index_create_or_modify(self, user, index):
         request = self.request
         self.require_user(user)
-        user = self.xom.get_user(user)
+        user = self.model.get_user(user)
         stage = user.getstage(index)
         if request.method == "PUT" and stage is not None:
             apireturn(409, "index %r exists" % stage.name)
@@ -745,7 +745,7 @@ class PyPIView:
         #log.debug("headers %r", request.headers.items())
         status, auth_user = self.auth.get_auth_status(request.auth)
         log.debug("got auth status %r for user %r" %(status, auth_user))
-        user = self.xom.get_user(user)
+        user = self.model.get_user(user)
         if not user.exists():
             abort(request, 404, "required user %r does not exist" % auth_user)
         if status == "nouser":
@@ -791,7 +791,7 @@ class PyPIView:
         dict = getjson(request, allowed_keys=["email", "password"])
         email = dict.get("email")
         password = dict.get("password")
-        user = self.xom.get_user(user)
+        user = self.model.get_user(user)
         user.modify(password=password, email=email)
         if password is not None:
             apireturn(200, "user updated, new proxy auth", type="userpassword",
@@ -803,7 +803,7 @@ class PyPIView:
     @matchdict_parameters
     def user_create(self, user):
         request = self.request
-        user = self.xom.get_user(user)
+        user = self.model.get_user(user)
         if user.exists():
             apireturn(409, "user already exists")
         kvdict = getjson(request)
@@ -818,7 +818,7 @@ class PyPIView:
         if user == "root":
             apireturn(403, "root user cannot be deleted")
         self.require_user(user)
-        user = self.xom.get_user(user)
+        user = self.model.get_user(user)
         userconfig = user.get()
         if not userconfig:
             apireturn(404, "user %r does not exist" % user.name)
@@ -832,7 +832,7 @@ class PyPIView:
     @view_config(route_name="/{user}", request_method="GET")
     @matchdict_parameters
     def user_get(self, user):
-        userconfig = self.xom.get_user(user).get()
+        userconfig = self.model.get_user(user).get()
         if not userconfig:
             apireturn(404, "user %r does not exist" % user)
         apireturn(200, type="userconfig", result=userconfig)
@@ -843,7 +843,7 @@ class PyPIView:
         #if accept is not None:
         #    if accept.endswith("/json"):
         d = {}
-        for user in self.xom.get_userlist():
+        for user in self.model.get_userlist():
             d[user.name] = user.get()
         apireturn(200, type="list:userconfig", result=d)
 

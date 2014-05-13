@@ -30,7 +30,7 @@ def test_empty_export(tmpdir, xom):
         do_export(tmpdir, xom)
 
 def test_import_on_existing_server_data(tmpdir, xom):
-    xom.get_user("someuser").create(password="qwe")
+    xom.model.get_user("someuser").create(password="qwe")
     assert not do_export(tmpdir, xom)
     with pytest.raises(Fatal):
         do_import(tmpdir, xom)
@@ -99,7 +99,7 @@ class TestImportExport:
                     md5=md5, type="toxresult", data="123")
         impexp.export()
         mapp2 = impexp.new_import()
-        stage = mapp2.xom.getstage(api.stagename)
+        stage = mapp2.xom.model.getstage(api.stagename)
         entries = stage.getreleaselinks("hello")
         assert len(entries) == 1
         assert entries[0].FILE.get() == b"content"
@@ -122,7 +122,7 @@ class TestImportExport:
         mapp1.upload_doc("hello.zip", content, "hello", "")
         impexp.export()
         mapp2 = impexp.new_import()
-        stage = mapp2.xom.getstage(api.stagename)
+        stage = mapp2.xom.model.getstage(api.stagename)
         path = stage._doc_key("hello", "1.0").filepath
         assert path.check()
         assert path.join("index.html").read() == "<html/>"
@@ -134,11 +134,11 @@ class TestImportExport:
         # without ever registering the project, leading to empty
         # versions.  We simulate it here because 1.1 http API
         # prevents this case.
-        stage = mapp1.xom.getstage(api.stagename)
+        stage = mapp1.xom.model.getstage(api.stagename)
         stage._register_metadata({"name": "hello", "version": ""})
         impexp.export()
         mapp2 = impexp.new_import()
-        stage = mapp2.xom.getstage(api.stagename)
+        stage = mapp2.xom.model.getstage(api.stagename)
         assert not stage.get_project_info("hello")
 
     def test_10_normalized_projectnames(self, impexp):
@@ -147,13 +147,13 @@ class TestImportExport:
         # in devpi-server 1.0 one could register X_Y and X-Y names
         # and they would get registeded under different names.
         # We simulate it here because 1.1 http API prevents this case.
-        stage = mapp1.xom.getstage(api.stagename)
+        stage = mapp1.xom.model.getstage(api.stagename)
         stage._register_metadata({"name": "hello_x", "version": "1.0"})
         stage._register_metadata({"name": "hello-X", "version": "1.1"})
         stage._register_metadata({"name": "Hello-X", "version": "1.2"})
         impexp.export()
         mapp2 = impexp.new_import()
-        stage = mapp2.xom.getstage(api.stagename)
+        stage = mapp2.xom.model.getstage(api.stagename)
         def n(name):
             return stage.get_project_info(name).name
         assert n("hello-x") == "Hello-X"
@@ -171,12 +171,12 @@ class TestImportExport:
         # in devpi-server 1.0 one could register X_Y and X-Y names
         # and they would get registeded under different names.
         # We simulate it here because 1.1 http API prevents this case.
-        stage = mapp1.xom.getstage(api.stagename)
+        stage = mapp1.xom.model.getstage(api.stagename)
         stage._register_metadata({"name": "hello_x", "version": "1.0"})
         stage._register_metadata({"name": "hello_x", "version": ""})
         impexp.export()
         mapp2 = impexp.new_import()
-        stage = mapp2.xom.getstage(api.stagename)
+        stage = mapp2.xom.model.getstage(api.stagename)
         projconfig = stage.get_projectconfig("hello_x")
         assert list(projconfig) == ["1.0"]
 
@@ -187,15 +187,15 @@ class TestImportExport:
         # in devpi-server 1.0 one could register X_Y and X-Y names
         # and they would get registeded under different names.
         # We simulate it here because 1.1 http API prevents this case.
-        stage = mapp1.xom.getstage(api.stagename)
+        stage = mapp1.xom.model.getstage(api.stagename)
         stage._register_metadata({"name": "hello_x", "version": "1.0"})
         stage._register_metadata({"name": "hello-X", "version": "1.1"})
         api2 = mapp1.create_index("new2", indexconfig={"bases": api.stagename})
-        stage2 = mapp1.xom.getstage(api2.stagename)
+        stage2 = mapp1.xom.model.getstage(api2.stagename)
         stage2._register_metadata({"name": "hello_X", "version": "0.9"})
         impexp.export()
         mapp2 = impexp.new_import()
-        stage2 = mapp2.xom.getstage(api2.stagename)
+        stage2 = mapp2.xom.model.getstage(api2.stagename)
         def n(name):
             return stage2.get_project_info(name).name
         assert n("hello-x") == "hello-X"
@@ -207,14 +207,14 @@ class TestImportExport:
         # in devpi-server 1.0 one could register X_Y and X-Y names
         # and they would get registeded under different names.
         # We simulate it here because 1.1 http API prevents this case.
-        stage = mapp1.xom.getstage(api.stagename)
+        stage = mapp1.xom.model.getstage(api.stagename)
         monkeypatch.setattr(mapp1.xom.pypistage, "getprojectnames_perstage",
                             lambda: ["hello_X"])
         stage._register_metadata({"name": "hello_x", "version": "1.1"})
         stage._register_metadata({"name": "hello-X", "version": "1.0"})
         impexp.export()
         mapp2 = impexp.new_import()
-        stage2 = mapp2.xom.getstage(api.stagename)
+        stage2 = mapp2.xom.model.getstage(api.stagename)
         def n(name):
             return stage2.get_project_info(name).name
         assert n("hello-x") == "hello_X"

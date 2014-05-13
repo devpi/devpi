@@ -88,8 +88,8 @@ def test_simple_list(pypistage, testapp):
     hrefs = [a.get("href") for a in links]
     assert hrefs == ["hello1", "hello2"]
 
-def test_indexroot(testapp, xom):
-    user = xom.create_user("user", "123")
+def test_indexroot(testapp, model):
+    user = model.create_user("user", "123")
     user.create_stage("index", bases=("root/pypi",))
     r = testapp.get("/user/index")
     assert r.status_code == 200

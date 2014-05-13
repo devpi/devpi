@@ -83,7 +83,7 @@ def do_import(path, xom):
     if not path.check():
         fatal("path for importing not found: %s" %(path))
 
-    if not xom.is_empty():
+    if not xom.model.is_empty():
         fatal("serverdir must not contain users or stages: %s" %
               xom.config.serverdir)
     importer = Importer(tw, xom)
@@ -123,14 +123,14 @@ class Exporter:
         self.export["devpi_server"] = devpi_server.__version__
         self.export["secret"] = self.config.secret
         self.compute_global_projectname_normalization()
-        for user in self.xom.get_userlist():
+        for user in self.xom.model.get_userlist():
             userdir = path.join(user.name)
             data = user.get(credentials=True)
             indexes = data.pop("indexes", {})
             self.export_users[user.name] = data
             self.completed("user %r" % user.name)
             for indexname, indexconfig in indexes.items():
-                stage = self.xom.getstage(user.name, indexname)
+                stage = self.xom.model.getstage(user.name, indexname)
                 if stage.ixconfig["type"] == "mirror":
                     continue
                 indexdir = userdir.ensure(indexname, dir=1)
@@ -142,10 +142,10 @@ class Exporter:
 
         norm2maxversion = {}
         # compute latest normname version across all stages
-        for user in self.xom.get_userlist():
+        for user in self.xom.model.get_userlist():
             userconfig = user.get()
             for indexname in userconfig.get("indexes", []):
-                stage = self.xom.getstage(user.name, indexname)
+                stage = self.xom.model.getstage(user.name, indexname)
                 names = stage.getprojectnames_perstage()
                 for name in names:
                     # pypi names take precedence for defining the realname
@@ -284,7 +284,7 @@ class Importer:
 
         # first create all users
         for username, userconfig in self.import_users.items():
-            user = self.xom.get_user(username)
+            user = self.xom.model.get_user(username)
             user._set(userconfig) 
 
         # memorize index inheritance structure
@@ -298,12 +298,12 @@ class Importer:
         stages = []
         for stagename in tree.iternames():
             if stagename == "root/pypi":
-                assert self.xom.getstage(stagename)
+                assert self.xom.model.getstage(stagename)
                 continue
             import_index = self.import_indexes[stagename]
             indexconfig = import_index["indexconfig"]
             user, index = stagename.split("/")
-            user = self.xom.get_user(user)
+            user = self.xom.model.get_user(user)
             stage = user.create_stage(index, **indexconfig)
             stages.append(stage)
         del tree

@@ -13,8 +13,8 @@ import logging
 
 log = logging.getLogger(__name__)
 
-def run_passwd(xom, user):
-    user = xom.get_user(user)
+def run_passwd(root, user):
+    user = root.get_user(user)
     if not user.exists():
         log.error("user %r not found" % user.name)
         return 1
@@ -34,17 +34,53 @@ def run_passwd(xom, user):
 _ixconfigattr = set(
     "type volatile bases uploadtrigger_jenkins acl_upload".split())
 
-class UserList:
-    def __init__(self, xom, keyfs):
+class Root:
+    def __init__(self, xom):
         self.xom = xom
-        self.keyfs = keyfs
+        self.keyfs = xom.keyfs
 
-    def __iter__(self):
-        return (User(self, name) 
-                    for name in self.keyfs.USER.listnames("user"))
+    def create_user(self, username, password, email=None):
+        user = self.get_user(username)
+        user.create(password, email=email)
+        return user
 
-    def __getitem__(self, name):
+    def get_user(self, name):
         return User(self, name)
+
+    def get_userlist(self):
+        return [User(self, name) 
+                    for name in self.keyfs.USER.listnames("user")]
+
+    def get_usernames(self):
+        return set(user.name for user in self.get_userlist())
+
+    def _get_user_and_index(self, user, index=None):
+        if not py.builtin._istext(user):
+            user = user.decode("utf8")
+        if index is None:
+            user = user.strip("/")
+            user, index = user.split("/")
+        else:
+            if not py.builtin._istext(index):
+                index = index.decode("utf8")
+        return user, index
+
+    def getstage(self, user, index=None):
+        username, index = self._get_user_and_index(user, index)
+        user = self.get_user(username)
+        if not user.exists():
+            return None
+        return user.getstage(index)
+
+    def is_empty(self):
+        userlist = list(self.get_userlist())
+        if len(userlist) == 1:
+            user, = userlist
+            if user.name == "root":
+                rootindexes = user.get().get("indexes", [])
+                return list(rootindexes) == ["pypi"]
+        return False
+
 
 class User:
     def __init__(self, parent, name):
@@ -121,7 +157,7 @@ class User:
                      acl_upload=None):
         if acl_upload is None:
             acl_upload = [self.name]
-        bases = tuple(normalize_bases(self.xom, bases))
+        bases = tuple(normalize_bases(self.xom.model, bases))
 
         # modify user/indexconfig
         with self.key.locked_update() as userconfig:
@@ -179,6 +215,7 @@ class PrivateStage:
 
     def __init__(self, xom, user, index, ixconfig):
         self.xom = xom
+        self.model = xom.model
         self.keyfs = xom.keyfs
         self.user = user
         self.index = index
@@ -195,13 +232,13 @@ class PrivateStage:
         self.ixconfig = self.modify(**kw)
 
     def modify(self, index=None, **kw):
-        user = self.xom.get_user(self.user)
+        user = self.model.get_user(self.user)
         diff = list(set(kw).difference(_ixconfigattr))
         if diff:
             raise InvalidIndexconfig(
                 ["invalid keys for index configuration: %s" %(diff,)])
         if "bases" in kw:
-            kw["bases"] = tuple(normalize_bases(self.xom, kw["bases"]))
+            kw["bases"] = tuple(normalize_bases(self.xom.model, kw["bases"]))
 
         # modify user/indexconfig
         with user.key.locked_update() as userconfig:
@@ -211,7 +248,7 @@ class PrivateStage:
             return ixconfig
 
     def get(self):
-        userconfig = self.xom.get_user(self.user).key.get()
+        userconfig = self.model.get_user(self.user).key.get()
         return userconfig.get("indexes", {}).get(self.index)
 
     def _get_sro(self):
@@ -224,10 +261,10 @@ class PrivateStage:
             seen.add(stage.name)
             for base in stage.ixconfig["bases"]:
                 if base not in seen:
-                    todo.append(self.xom.getstage(base))
+                    todo.append(self.model.getstage(base))
 
     def delete(self):
-        user = self.xom.get_user(self.user)
+        user = self.model.get_user(self.user)
         with user.key.locked_update() as userconfig:
             indexes = userconfig.get("indexes", {})
             if self.index not in indexes:
@@ -511,13 +548,13 @@ class PrivateStage:
         return self.keyfs.STAGEDOCS(user=self.user, index=self.index,
                                     name=name, version=version)
 
-def normalize_bases(xom, bases):
+def normalize_bases(model, bases):
     # check and normalize base indices
     messages = []
     newbases = []
     for base in bases:
         try:
-            stage_base = xom.getstage(base)
+            stage_base = model.getstage(base)
         except ValueError:
             messages.append("invalid base index spec: %r" % (base,))
         else:

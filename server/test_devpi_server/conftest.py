@@ -61,7 +61,7 @@ def xom_notmocked(request, makexom):
 def xom(request, makexom):
     xom = makexom([])
     from devpi_server.main import set_default_indexes
-    set_default_indexes(xom)
+    set_default_indexes(xom.model)
     return xom
 
 @pytest.fixture
@@ -176,6 +176,10 @@ def filestore(xom):
 @pytest.fixture
 def keyfs(xom):
     return xom.keyfs
+
+@pytest.fixture
+def model(xom):
+    return xom.model
 
 @pytest.fixture
 def pypistage(xom):
