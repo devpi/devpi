@@ -179,6 +179,7 @@ class XOM:
         sdir = config.serverdir
         if not (sdir.exists() and sdir.listdir()):
             self.set_state_version(server_version)
+        set_default_indexes(self)
 
     def get_state_version(self):
         versionfile = self.config.serverdir.join(".serverversion")
@@ -193,6 +194,10 @@ class XOM:
         versionfile.dirpath().ensure(dir=1)
         versionfile.write(version)
 
+    #
+    # BEGIN access to model objects 
+    #
+    
     def get_user(self, name):
         return self.get_userlist()[name]
 
@@ -200,8 +205,43 @@ class XOM:
         from devpi_server.db import UserList
         return UserList(self, self.keyfs)
 
+    def create_user(self, username, password, email=None):
+        user = self.get_user(username)
+        user.create(password, email=email)
+        return user
+
     def get_usernames(self):
         return set(u.name for u in self.get_userlist())
+
+    def _get_user_and_index(self, user, index=None):
+        if not py.builtin._istext(user):
+            user = user.decode("utf8")
+        if index is None:
+            user = user.strip("/")
+            user, index = user.split("/")
+        else:
+            if not py.builtin._istext(index):
+                index = index.decode("utf8")
+        return user, index
+
+    def getstage(self, user, index=None):
+        username, index = self._get_user_and_index(user, index)
+        user = self.get_user(username)
+        if not user.exists():
+            return None
+        return user.getstage(index)
+
+    # END access to model objects 
+
+    def is_empty(self):
+        userlist = list(self.get_userlist())
+        if len(userlist) == 1:
+            user, = userlist
+            if user.name == "root":
+                rootindexes = user.get().get("indexes", [])
+                return list(rootindexes) == ["pypi"]
+        return False
+
 
     def main(self):
         xom = self
@@ -285,13 +325,6 @@ class XOM:
     @cached_property
     def proxy(self):
         return XMLProxy(PYPIURL_XMLRPC)
-
-    @cached_property
-    def db(self):
-        from devpi_server.db import DB
-        db = DB(self)
-        set_default_indexes(db)
-        return db
 
     @cached_property
     def _httpsession(self):
@@ -408,11 +441,12 @@ class FatalResponse:
     def __init__(self, excinfo=None):
         self.excinfo = excinfo
 
-def set_default_indexes(db):
-    PYPI = "root/pypi"
-    if not db.index_exists(PYPI):
-        root_user = db.xom.get_user("root")
+def set_default_indexes(xom):
+    root_user = xom.get_user("root")
+    if not root_user.exists():
         root_user.create(password="")
-        db.index_create(PYPI, bases=(), type="mirror", volatile=False)
-        print("set root/pypi default index")
-
+    with root_user.key.update() as userconfig:
+        indexes = userconfig["indexes"]
+        if "pypi" not in indexes:
+            indexes["pypi"] = dict(bases=(), type="mirror", volatile=False)
+        print("created root/pypi index")

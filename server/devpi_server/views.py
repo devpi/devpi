@@ -16,6 +16,8 @@ import logging
 from devpi_common.request import new_requests_session
 from devpi_common.validation import normalize_name, is_valid_archive_name
 
+from devpi_server.db import InvalidIndexconfig
+
 from .auth import Auth
 from .config import render_string
 
@@ -119,11 +121,10 @@ class PyPIView:
         self.request = request
         xom = request.registry['xom']
         self.xom = xom
-        self.db = xom.db
-        self.auth = Auth(xom.db, xom.config.secret)
+        self.auth = Auth(xom, xom.config.secret)
 
     def getstage(self, user, index):
-        stage = self.db.getstage(user, index)
+        stage = self.xom.getstage(user, index)
         if not stage:
             abort(self.request, 404, "no such stage")
         return stage
@@ -157,16 +158,14 @@ class PyPIView:
             parts = path.split("/")
             if len(parts) >= 2:
                 user, index = parts[:2]
-                ixconfig = self.db.index_get(user, index)
-                if not ixconfig:
-                    abort(request, 404, "index %s/%s does not exist" % (user, index))
+                stage = self.getstage(user, index)
                 api.update({
                     "index": self.route_url(
                         "/{user}/{index}", user=user, index=index),
                     "simpleindex": self.route_url(
                         "/{user}/{index}/+simple/", user=user, index=index)
                 })
-                if ixconfig["type"] == "stage":
+                if stage.ixconfig["type"] == "stage":
                     api["pypisubmit"] = self.route_url(
                         "/{user}/{index}/", user=user, index=index)
         apireturn(200, type="apiconfig", result=api)
@@ -295,16 +294,18 @@ class PyPIView:
     def index_create_or_modify(self, user, index):
         request = self.request
         self.require_user(user)
-        ixconfig = self.db.index_get(user, index)
-        if request.method == "PUT" and ixconfig is not None:
-            apireturn(409, "index %s/%s exists" % (user, index))
+        user = self.xom.get_user(user)
+        stage = user.getstage(index)
+        if request.method == "PUT" and stage is not None:
+            apireturn(409, "index %r exists" % stage.name)
         kvdict = getkvdict_index(getjson(request))
         try:
-            if not ixconfig:
-                ixconfig = self.db.index_create(user, index, **kvdict)
+            if not stage:
+                stage = user.create_stage(index, **kvdict)
+                ixconfig = stage.ixconfig
             else:
-                ixconfig = self.db.index_modify(user, index, **kvdict)
-        except self.db.InvalidIndexconfig as e:
+                ixconfig = stage.modify(**kvdict)
+        except InvalidIndexconfig as e:
             apireturn(400, message=", ".join(e.messages))
         apireturn(200, type="indexconfig", result=ixconfig)
 
@@ -312,14 +313,11 @@ class PyPIView:
     @matchdict_parameters
     def index_delete(self, user, index):
         self.require_user(user)
-        indexname = user + "/" + index
-        ixconfig = self.db.index_get(user, index)
-        if not ixconfig:
-            apireturn(404, "index %s does not exist" % indexname)
-        if not ixconfig["volatile"]:
-            apireturn(403, "index %s non-volatile, cannot delete" % indexname)
-        assert self.db.index_delete(user, index)
-        apireturn(201, "index %s deleted" % indexname)
+        stage = self.getstage(user, index)
+        if not stage.ixconfig["volatile"]:
+            apireturn(403, "index %s non-volatile, cannot delete" % stage.name)
+        assert stage.delete()
+        apireturn(201, "index %s deleted" % stage.name)
 
     @view_config(route_name="/{user}/{index}", request_method="PUSH")
     @matchdict_parameters

@@ -89,7 +89,8 @@ def test_simple_list(pypistage, testapp):
     assert hrefs == ["hello1", "hello2"]
 
 def test_indexroot(testapp, xom):
-    xom.db.create_stage("user/index", bases=("root/pypi",))
+    user = xom.create_user("user", "123")
+    user.create_stage("index", bases=("root/pypi",))
     r = testapp.get("/user/index")
     assert r.status_code == 200
 

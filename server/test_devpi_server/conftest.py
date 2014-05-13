@@ -59,7 +59,10 @@ def xom_notmocked(request, makexom):
 
 @pytest.fixture
 def xom(request, makexom):
-    return makexom([])
+    xom = makexom([])
+    from devpi_server.main import set_default_indexes
+    set_default_indexes(xom)
+    return xom
 
 @pytest.fixture
 def makexom(request, gentmp, httpget):
@@ -198,13 +201,6 @@ def pypiurls():
             self.simple = PYPIURL_SIMPLE
     return PyPIURL()
 
-@pytest.fixture
-def db(xom):
-    from devpi_server.db import DB
-    from devpi_server.main import set_default_indexes
-    db = DB(xom)
-    set_default_indexes(db)
-    return db
 
 @pytest.fixture
 def mapp(makemapp, testapp):

@@ -6,6 +6,7 @@ from textwrap import dedent
 
 from devpi_common.metadata import splitbasename
 from devpi_common.archive import Archive, zip_dict
+from devpi_server.db import InvalidIndexconfig
 from py.io import BytesIO
 
 
@@ -21,85 +22,87 @@ def register_and_store(stage, basename, content=b"123", name=None):
     stage.register_metadata(dict(name=name, version=version))
     return stage.store_releasefile(name, version, basename, content)
 
-def test_db_is_empty(db):
-    assert db.is_empty()
-    user = db.xom.get_user("user")
+def test_db_is_empty(xom):
+    assert xom.is_empty()
+    user = xom.get_user("user")
     user.create(password="password", email="some@email.com")
-    assert not db.is_empty()
+    assert not xom.is_empty()
     user.delete()
-    assert db.is_empty()
-    db.index_create(user="root", index="dev", bases=(), type="stage",
-                    volatile=False)
-    assert not db.is_empty()
-    db.index_delete(user="root", index="dev")
-    assert db.is_empty()
+    assert xom.is_empty()
+    user.create(password="password", email="some@email.com")
+    stage = xom.getstage("root", "dev")
+    assert stage is None
+    user.create_stage("dev", bases=(), type="stage", volatile=False)
+    assert not xom.is_empty()
+    stage = xom.getstage("user/dev")
+    assert stage.delete()
+    user.delete()
+    assert xom.is_empty()
 
 class TestStage:
     @pytest.fixture
-    def stage(self, request, db):
-        config = dict(user="hello", index="world", bases=(),
+    def stage(self, request, user):
+        config = dict(index="world", bases=(),
                       type="stage", volatile=True)
         if "bases" in request.fixturenames:
             config["bases"] = request.getfuncargvalue("bases")
-        user = db.xom.get_user("hello")
+        return user.create_stage(**config)
+
+    @pytest.fixture
+    def user(self, xom):
+        user = xom.get_user("hello")
         user.create(password="123") 
-        db.index_create(**config)
-        return db.getstage(user=config["user"], index=config["index"])
+        return user
 
-    def test_create_and_delete(self, db):
-        db.index_create(user="hello", index="world", bases=(),
-                        type="stage", volatile=False)
-        db.index_create(user="hello", index="world2", bases=(),
-                        type="stage", volatile=False)
-        db.index_delete(user="hello", index="world2")
-        assert not db.index_get(user="hello", index="world2")
-        assert db.index_get(user="hello", index="world")
+    def test_create_and_delete(self, xom):
+        user = xom.create_user("hello", password="123")
+        user.create_stage("world", bases=(), type="stage", volatile=False)
+        user.create_stage("world2", bases=(), type="stage", volatile=False)
+        stage = xom.getstage("hello", "world2")
+        assert stage.delete()
+        assert xom.getstage("hello", "world2") is None
+        assert xom.getstage("hello", "world") is not None
 
-    def test_set_and_get_acl(self, db):
-        db.index_create(user="hello", index="world", bases=(),
-                        type="stage", volatile=False)
-        indexconfig = db.index_get(user="hello", index="world")
+    def test_set_and_get_acl(self, xom, stage):
+        indexconfig = stage.ixconfig
         # check that "hello" was included in acl_upload by default
         assert indexconfig["acl_upload"] == ["hello"]
-        stage = db.getstage("hello/world")
+        stage = xom.getstage("hello/world")
         # root cannot upload
         assert not stage.can_upload("root")
 
         # and we remove 'hello' from acl_upload ...
-        assert db.index_modify(user="hello", index="world", acl_upload=[])
+        stage.modify(acl_upload=[])
         # ... it cannot upload either
-        stage = db.getstage("hello/world")
+        stage = xom.getstage("hello/world")
         assert not stage.can_upload("hello")
 
-    def test_getstage_normalized(self, db):
-        assert db.getstage("/root/pypi/").name == "root/pypi"
+    def test_getstage_normalized(self, xom):
+        assert xom.getstage("/root/pypi/").name == "root/pypi"
 
-    def test_not_configured_index(self, db):
+    def test_not_configured_index(self, xom):
         stagename = "hello/world"
-        assert not db.index_get(stagename)
-        assert not db.getstage(stagename)
+        assert xom.getstage(stagename) is None
 
-    def test_indexconfig_set_throws_on_unknown_base_index(self, db):
-        with pytest.raises(db.InvalidIndexconfig) as excinfo:
-            db.index_create(user="hello", index="world",
-                            bases=("root/notexists", "root/notexists2"),)
+    def test_indexconfig_set_throws_on_unknown_base_index(self, stage, user):
+        with pytest.raises(InvalidIndexconfig) as excinfo:
+            user.create_stage(index="something",
+                              bases=("root/notexists", "root/notexists2"),)
         messages = excinfo.value.messages
         assert len(messages) == 2
         assert "root/notexists" in messages[0]
         assert "root/notexists2" in messages[1]
 
-    def test_indexconfig_set_throws_on_invalid_base_index(self, db):
-        with pytest.raises(db.InvalidIndexconfig) as excinfo:
-            db.index_create(user="hello", index="world",
-                            bases=("root/dev/123",),)
+    def test_indexconfig_set_throws_on_invalid_base_index(self, stage, user):
+        with pytest.raises(InvalidIndexconfig) as excinfo:
+            user.create_stage(index="world", bases=("root/dev/123",),)
         messages = excinfo.value.messages
         assert len(messages) == 1
         assert "root/dev/123" in messages[0]
 
-    def test_indexconfig_set_normalizes_bases(self, db):
-        ixconfig = db.index_create(user="hello", index="world",
-                                   bases=("/root/pypi/",))
-        assert ixconfig["bases"] == ("root/pypi",)
+    def test_indexconfig_set_normalizes_bases(self, user):
+        stage = user.create_stage(index="world", bases=("/root/pypi/",))
+        assert stage.ixconfig["bases"] == ("root/pypi",)
 
     def test_empty(self, stage, bases):
         assert not stage.getreleaselinks("someproject")
@@ -124,7 +127,7 @@ class TestStage:
         exporter = Exporter(tw, stage.xom)
         exporter.compute_global_projectname_normalization()
 
-    def test_inheritance_simple(self, pypistage, stage, db):
+    def test_inheritance_simple(self, pypistage, stage):
         stage._reconfigure(bases=("root/pypi",))
         pypistage.mock_simple("someproject", "<a href='someproject-1.0.zip' /a>")
         assert stage.getprojectnames() == ["someproject",]
@@ -133,11 +136,12 @@ class TestStage:
         stage.register_metadata(dict(name="someproject", version="1.1"))
         assert stage.getprojectnames() == ["someproject",]
 
-    def test_inheritance_twice(self, pypistage, db, stage):
-        db.index_create(user="root", index="dev2", bases=("root/pypi",))
-        stage_dev2 = db.getstage("root/dev2")
-        stage._reconfigure(bases=("root/dev2",))
-        pypistage.mock_simple("someproject", "<a href='someproject-1.0.zip' /a>")
+    def test_inheritance_twice(self, pypistage, stage, user):
+        user.create_stage(index="dev2", bases=("root/pypi",))
+        stage_dev2 = user.getstage("dev2")
+        stage._reconfigure(bases=(stage_dev2.name,))
+        pypistage.mock_simple("someproject", 
+                              "<a href='someproject-1.0.zip' /a>")
         register_and_store(stage_dev2, "someproject-1.1.tar.gz")
         register_and_store(stage_dev2, "someproject-1.2.tar.gz")
         entries = stage.getreleaselinks("someproject")
@@ -338,11 +342,10 @@ class TestStage:
         metadata = stage.get_metadata_latest_perstage("hello")
         assert metadata["version"] == "1.1"
 
-    def test_get_metadata_latest_inheritance(self, db, stage):
+    def test_get_metadata_latest_inheritance(self, user, xom, stage):
         stage_base_name = stage.index + "base"
-        db.index_create(user=stage.user, index=stage_base_name,
-                        bases=(stage.name,))
-        stage_sub = db.getstage(stage.user, stage_base_name)
+        user.create_stage(index=stage_base_name, bases=(stage.name,))
+        stage_sub = xom.getstage(stage.user, stage_base_name)
         stage_sub.register_metadata(dict(name="hello", version="1.0"))
         stage.register_metadata(dict(name="hello", version="1.1"))
         metadata = stage_sub.get_metadata_latest_perstage("hello")
@@ -390,12 +393,12 @@ class TestStage:
 
 class TestUsers:
 
-    def test_secret(self, db):
-        db.keyfs.basedir.ensure(".something")
-        assert not db.xom.get_user(".something").get()
+    def test_secret(self, xom):
+        xom.keyfs.basedir.ensure(".something")
+        assert not xom.get_user(".something").get()
 
-    def test_create_and_validate(self, db):
-        user = db.xom.get_user("user")
+    def test_create_and_validate(self, xom):
+        user = xom.get_user("user")
         assert not user.exists()
         user.create("password", email="some@email.com")
         assert user.exists()
@@ -405,48 +408,45 @@ class TestUsers:
         assert user.validate("password")
         assert not user.validate("password2")
 
-    def test_create_and_delete(self, db):
-        user = db.xom.get_user("user")
+    def test_create_and_delete(self, xom):
+        user = xom.get_user("user")
         user.create(password="password")
         assert user.exists()
         user.delete()
         assert not user.exists()
         assert not user.validate("password")
 
-    def test_create_and_list(self, db):
-        baselist = db.xom.get_usernames()
-        db.xom.get_user("user1").modify(password="password")
-        db.xom.get_user("user2").modify(password="password")
-        db.xom.get_user("user3").modify(password="password")
-        newusers = db.xom.get_usernames().difference(baselist)
+    def test_create_and_list(self, xom):
+        baselist = xom.get_usernames()
+        xom.get_user("user1").modify(password="password")
+        xom.get_user("user2").modify(password="password")
+        xom.get_user("user3").modify(password="password")
+        newusers = xom.get_usernames().difference(baselist)
         assert newusers == set("user1 user2 user3".split())
-        db.xom.get_user("user3").delete()
-        newusers = db.xom.get_usernames().difference(baselist)
+        xom.get_user("user3").delete()
+        newusers = xom.get_usernames().difference(baselist)
         assert newusers == set("user1 user2".split())
 
-    def test_server_passwd(self, db, monkeypatch):
+    def test_server_passwd(self, xom, monkeypatch):
         from devpi_server.db import run_passwd
         monkeypatch.setattr(py.std.getpass, "getpass", lambda x: "123")
-        run_passwd(db, "root")
-        assert db.xom.get_user("root").validate("123")
+        run_passwd(xom, "root")
+        assert xom.get_user("root").validate("123")
 
-    def test_server_email(self, db):
+    def test_server_email(self, xom):
         email_address = "root_" + str(id) + "@mydomain"
-        user = db.xom.get_user("root")
+        user = xom.get_user("root")
         user.modify(email=email_address)
         assert user.get()["email"] == email_address
 
-def test_user_set_without_indexes(db):
-    user = db.xom.get_user("user")
-    user.create("password", email="some@email.com")
+def test_user_set_without_indexes(xom):
+    user = xom.create_user("user", "password", email="some@email.com")
     assert user.exists()
-    db.index_create("user/hello")
+    user.create_stage("hello")
     user._set({"password": "pass2"})
-    assert db.index_exists("user/hello")
+    assert xom.getstage("user/hello")
 
-def test_setdefault_indexes(db):
+def test_setdefault_indexes(xom):
     from devpi_server.main import set_default_indexes
-    set_default_indexes(db)
-    ixconfig = db.index_get("root/pypi")
-    assert ixconfig["type"] == "mirror"
-
+    set_default_indexes(xom)
+    assert xom.getstage("root/pypi").ixconfig["type"] == "mirror"

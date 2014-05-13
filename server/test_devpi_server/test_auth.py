@@ -4,20 +4,20 @@ from devpi_server.auth import *
 
 class TestAuth:
     @pytest.fixture
-    def auth(self, db):
+    def auth(self, xom):
         from devpi_server.views import Auth
-        return Auth(db, "qweqwe")
+        return Auth(xom, "qweqwe")
 
     def test_no_auth(self, auth):
         assert auth.get_auth_user(None) is None
 
-    def test_auth_direct(self, db, auth):
-        user = db.xom.get_user("user")
+    def test_auth_direct(self, xom, auth):
+        user = xom.get_user("user")
         user.create(password="world")
         assert auth.get_auth_user(("user", "world")) == "user"
 
-    def test_proxy_auth(self, db, auth):
-        user = db.xom.get_user("user")
+    def test_proxy_auth(self, xom, auth):
+        user = xom.get_user("user")
         user.create(password="world")
         assert auth.new_proxy_auth("user", "wrongpass") is None
         assert auth.new_proxy_auth("uer", "wrongpass") is None
@@ -25,10 +25,10 @@ class TestAuth:
         assert "password" in res and "expiration" in res
         assert auth.get_auth_user(("user", res["password"]))
 
-    def test_proxy_auth_expired(self, db, auth, monkeypatch):
+    def test_proxy_auth_expired(self, xom, auth, monkeypatch):
         username, password = "user", "world"
 
-        user = db.xom.get_user(username)
+        user = xom.get_user(username)
         user.create(password=password)
         proxy = auth.new_proxy_auth(username, password)
 
@@ -42,15 +42,15 @@ class TestAuth:
             auth.get_auth_user(newauth)
         assert auth.get_auth_status(newauth) == ["expired", username]
 
-    def test_auth_status_no_auth(self, db, auth):
+    def test_auth_status_no_auth(self, auth):
         assert auth.get_auth_status(None) == ["noauth", ""]
 
-    def test_auth_status_no_user(self, db, auth):
+    def test_auth_status_no_user(self, auth):
         assert auth.get_auth_status(("user1", "123")) == ["nouser", "user1"]
 
-    def test_auth_status_proxy_user(self, db, auth):
+    def test_auth_status_proxy_user(self, xom, auth):
         username, password = "user", "world"
-        user = db.xom.get_user(username)
+        user = xom.get_user(username)
         user.create(password)
         proxy = auth.new_proxy_auth(username, password)
         assert auth.get_auth_status((username, proxy["password"])) == \

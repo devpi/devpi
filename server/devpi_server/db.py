@@ -13,8 +13,8 @@ import logging
 
 log = logging.getLogger(__name__)
 
-def run_passwd(db, user):
-    user = db.xom.get_user(user)
+def run_passwd(xom, user):
+    user = xom.get_user(user)
     if not user.exists():
         log.error("user %r not found" % user.name)
         return 1
@@ -62,13 +62,13 @@ class User:
             self._setpassword(userconfig, password)
             if email:
                 userconfig["email"] = email
+            if "indexes" not in userconfig:
+                userconfig["indexes"] = {}
             log.info("created user %r with email %r" %(self.name, email))
+
 
     def _set(self, newuserconfig):
         with self.key.update() as userconfig:
-            if "indexes" not in newuserconfig:
-                newuserconfig["indexes"] = userconfig.get("indexes", {})
-            userconfig.clear()
             userconfig.update(newuserconfig)
             log.info("internal: set user information %r", self.name)
 
@@ -114,77 +114,17 @@ class User:
             del d["pwhash"]
         d["username"] = self.name
         return d
-        
- 
 
-class DB:
-    class InvalidIndexconfig(Exception):
-        def __init__(self, messages):
-            self.messages = messages
-            Exception.__init__(self, messages)
-
-    def __init__(self, xom):
-        self.xom = xom
-        self.keyfs = xom.keyfs
-
-    def is_empty(self):
-        userlist = list(self.xom.get_userlist())
-        if len(userlist) == 1:
-            user, = userlist
-            if user.name == "root":
-                rootindexes = user.get().get("indexes", [])
-                return list(rootindexes) == ["pypi"]
-        return False
-
-    def _get_user_and_index(self, user, index=None):
-        if not py.builtin._istext(user):
-            user = user.decode("utf8")
-        if index is None:
-            user = user.strip("/")
-            user, index = user.split("/")
-        else:
-            if not py.builtin._istext(index):
-                index = index.decode("utf8")
-        return user, index
-
-    def _normalize_bases(self, bases):
-        # check and normalize base indices
-        messages = []
-        newbases = []
-        for base in bases:
-            try:
-                base_user, base_index = self._get_user_and_index(base)
-            except ValueError:
-                messages.append("invalid base index spec: %r" % (base,))
-            else:
-                if self.index_get(base) is None:
-                    messages.append("base index %r does not exist" %(base,))
-                else:
-                    newbases.append("%s/%s" % (base_user, base_index))
-        if messages:
-            raise self.InvalidIndexconfig(messages)
-        return newbases
-
-    def index_get(self, user, index=None):
-        user, index = self._get_user_and_index(user, index)
-        userconfig = self.keyfs.USER(user=user).get()
-        return userconfig.get("indexes", {}).get(index)
-
-    def index_exists(self, user, index=None):
-        return bool(self.index_get(user, index))
-
-    def index_create(self, user, index=None, type="stage",
+    def create_stage(self, index, type="stage",
                      volatile=True, bases=("root/pypi",),
                      uploadtrigger_jenkins=None,
                      acl_upload=None):
-        user, index = self._get_user_and_index(user, index)
-
         if acl_upload is None:
-            acl_upload = [user]
-        bases = tuple(self._normalize_bases(bases))
+            acl_upload = [self.name]
+        bases = tuple(normalize_bases(self.xom, bases))
 
         # modify user/indexconfig
-        with self.keyfs.USER(user=user).locked_update() as userconfig:
+        with self.key.locked_update() as userconfig:
             indexes = userconfig.setdefault("indexes", {})
             assert index not in indexes, indexes[index]
             indexes[index] = ixconfig = {
@@ -192,64 +132,28 @@ class DB:
                 "uploadtrigger_jenkins": uploadtrigger_jenkins,
                 "acl_upload": acl_upload
             }
-            log.info("created index %s/%s: %s", user, index, ixconfig)
-            return ixconfig
+        stage = self.getstage(index)
+        log.info("created index %s: %s", stage.name, stage.ixconfig)
+        return stage
 
-    def index_modify(self, user, index=None, **kw):
-        user, index = self._get_user_and_index(user, index)
-        diff = list(set(kw).difference(_ixconfigattr))
-        if diff:
-            raise self.InvalidIndexconfig(
-                ["invalid keys for index configuration: %s" %(diff,)])
-        if "bases" in kw:
-            kw["bases"] = tuple(self._normalize_bases(kw["bases"]))
-
-        # modify user/indexconfig
-        with self.keyfs.USER(user=user).locked_update() as userconfig:
-            ixconfig = userconfig["indexes"][index]
-            ixconfig.update(kw)
-            log.info("modified index %s/%s: %s", user, index, ixconfig)
-            return ixconfig
-
-    def index_delete(self, user, index=None):
-        user, index = self._get_user_and_index(user, index)
-        with self.keyfs.USER(user=user).locked_update() as userconfig:
-            indexes = userconfig.get("indexes", {})
-            if index not in indexes:
-                log.info("index %s/%s not exists", user, index)
-                return False
-            del indexes[index]
-            self._remove_indexdir(user, index)
-            log.info("deleted index config %s/%s" %(user, index))
-            return True
-
-    def _remove_indexdir(self, user, index):
-        p = self.keyfs.INDEXDIR(user=user, index=index).filepath
-        if p.check():
-            p.remove()
-            log.info("deleted index %s/%s" %(user, index))
-            return True
-
-    # stage handling
-
-    def getstage(self, user, index=None):
-        user, index = self._get_user_and_index(user, index)
-        ixconfig = self.index_get(user, index)
+    def getstage(self, indexname):
+        ixconfig = self.get()["indexes"].get(indexname, {})
         if not ixconfig:
             return None
         if ixconfig["type"] == "stage":
-            return PrivateStage(self, user, index, ixconfig)
+            return PrivateStage(self.xom, self.name, indexname, ixconfig)
         elif ixconfig["type"] == "mirror":
             return self.xom.pypistage
         else:
             raise ValueError("unknown index type %r" % ixconfig["type"])
+         
+ 
 
-    def getstagename(self, user, index):
-        return "%s/%s" % (user, index)
+class InvalidIndexconfig(Exception):
+    def __init__(self, messages):
+        self.messages = messages
+        Exception.__init__(self, messages)
 
-    def create_stage(self, user, index=None, **kw):
-        self.index_create(user, index, **kw)
-        return self.getstage(user, index)
 
 class ProjectInfo:
     def __init__(self, stage, name):
@@ -273,20 +177,42 @@ class PrivateStage:
                'project-url', 'supported-platform', 'setup-requires-Dist',
                'provides-extra', 'extension')
 
-    def __init__(self, db, user, index, ixconfig):
-        self.db = db
-        self.xom = db.xom
-        self.keyfs = db.keyfs
+    def __init__(self, xom, user, index, ixconfig):
+        self.xom = xom
+        self.keyfs = xom.keyfs
         self.user = user
         self.index = index
         self.name = user + "/" + index
         self.ixconfig = ixconfig
 
+    def exists(self):
+        return True
+
     def can_upload(self, username):
         return username in self.ixconfig.get("acl_upload", [])
 
     def _reconfigure(self, **kw):
-        self.ixconfig = self.db.index_modify(self.name, **kw)
+        self.ixconfig = self.modify(**kw)
+
+    def modify(self, index=None, **kw):
+        user = self.xom.get_user(self.user)
+        diff = list(set(kw).difference(_ixconfigattr))
+        if diff:
+            raise InvalidIndexconfig(
+                ["invalid keys for index configuration: %s" %(diff,)])
+        if "bases" in kw:
+            kw["bases"] = tuple(normalize_bases(self.xom, kw["bases"]))
+
+        # modify user/indexconfig
+        with user.key.locked_update() as userconfig:
+            ixconfig = userconfig["indexes"][self.index]
+            ixconfig.update(kw)
+            log.info("modified index %s: %s", self.name, ixconfig)
+            return ixconfig
+
+    def get(self):
+        userconfig = self.xom.get_user(self.user).key.get()
+        return userconfig.get("indexes", {}).get(self.index)
 
     def _get_sro(self):
         """ return stage resolution order. """
@@ -298,7 +224,26 @@ class PrivateStage:
             seen.add(stage.name)
             for base in stage.ixconfig["bases"]:
                 if base not in seen:
-                    todo.append(self.db.getstage(base))
+                    todo.append(self.xom.getstage(base))
+
+    def delete(self):
+        user = self.xom.get_user(self.user)
+        with user.key.locked_update() as userconfig:
+            indexes = userconfig.get("indexes", {})
+            if self.index not in indexes:
+                log.info("index %s not exists" % self.index)
+                return False
+            del indexes[self.index]
+            self._remove_indexdir()
+            log.info("deleted index config %s" % self.name)
+            return True
+
+    def _remove_indexdir(self):
+        p = self.keyfs.INDEXDIR(user=self.user, index=self.index).filepath
+        if p.check():
+            p.remove()
+            log.info("deleted index %s" % self.name)
+            return True
 
     def op_with_bases(self, opname, **kw):
         opname += "_perstage"
@@ -565,4 +510,23 @@ class PrivateStage:
         assert version
         return self.keyfs.STAGEDOCS(user=self.user, index=self.index,
                                     name=name, version=version)
+
+def normalize_bases(xom, bases):
+    # check and normalize base indices
+    messages = []
+    newbases = []
+    for base in bases:
+        try:
+            stage_base = xom.getstage(base)
+        except ValueError:
+            messages.append("invalid base index spec: %r" % (base,))
+        else:
+            if stage_base is None:
+                messages.append("base index %r does not exist" %(base,))
+            else:
+                newbases.append(stage_base.name)
+    if messages:
+        raise InvalidIndexconfig(messages)
+    return newbases
+
 

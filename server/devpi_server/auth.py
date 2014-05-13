@@ -13,8 +13,8 @@ class Auth:
     class Expired(Exception):
         """ proxy authentication expired. """
 
-    def __init__(self, db, secret):
-        self.db = db
+    def __init__(self, xom, secret):
+        self.xom = xom
         self.signer = itsdangerous.TimestampSigner(secret)
 
     def get_auth_user(self, auth, raising=True):
@@ -30,7 +30,7 @@ class Auth:
             return None
         except itsdangerous.BadData:
             # check if we got user/password direct authentication
-            user = self.db.xom.get_user(authuser)
+            user = self.xom.get_user(authuser)
             if user.validate(authpassword):
                 return authuser
             return None
@@ -41,7 +41,7 @@ class Auth:
             return authuser
 
     def new_proxy_auth(self, user, password):
-        user = self.db.xom.get_user(user)
+        user = self.xom.get_user(user)
         hash = user.validate(password)
         if hash:
             pseudopass = self.signer.sign(user.name + "-" + hash)
@@ -54,7 +54,7 @@ class Auth:
         if userpassword is None:
             return ["noauth", ""]
         username, password = userpassword
-        user = self.db.xom.get_user(username)
+        user = self.xom.get_user(username)
         if not user.exists():
             return ["nouser", user.name]
         try:
