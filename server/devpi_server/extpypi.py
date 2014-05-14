@@ -192,9 +192,6 @@ class PyPIStage:
         invalidate_on_version_change(keyfs.basedir.join("root", "pypi"))
         self.init_pypi_mirror(proxy)
 
-    def exists(self):
-        return True
-
     def getcontained(self):
         return self.keyfs.PYPILINKS.listnames("name")
 

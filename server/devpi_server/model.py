@@ -222,9 +222,6 @@ class PrivateStage:
         self.name = user + "/" + index
         self.ixconfig = ixconfig
 
-    def exists(self):
-        return True
-
     def can_upload(self, username):
         return username in self.ixconfig.get("acl_upload", [])
 
