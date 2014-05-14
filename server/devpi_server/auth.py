@@ -42,21 +42,22 @@ class Auth:
 
     def new_proxy_auth(self, user, password):
         user = self.model.get_user(user)
-        hash = user.validate(password)
-        if hash:
-            pseudopass = self.signer.sign(user.name + "-" + hash)
-            pseudopass = pseudopass.decode("ascii")
-            assert py.builtin._istext(pseudopass)
-            return {"password":  pseudopass,
-                    "expiration": self.LOGIN_EXPIRATION}
+        if user:
+            hash = user.validate(password)
+            if hash:
+                pseudopass = self.signer.sign(user.name + "-" + hash)
+                pseudopass = pseudopass.decode("ascii")
+                assert py.builtin._istext(pseudopass)
+                return {"password":  pseudopass,
+                        "expiration": self.LOGIN_EXPIRATION}
 
     def get_auth_status(self, userpassword):
         if userpassword is None:
             return ["noauth", ""]
         username, password = userpassword
         user = self.model.get_user(username)
-        if not user.exists():
-            return ["nouser", user.name]
+        if user is None:
+            return ["nouser", username]
         try:
             self.get_auth_user(userpassword)
         except self.Expired:

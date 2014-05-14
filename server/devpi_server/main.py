@@ -400,8 +400,8 @@ class FatalResponse:
 
 def set_default_indexes(model):
     root_user = model.get_user("root")
-    if not root_user.exists():
-        root_user.create(password="")
+    if not root_user:
+        root_user = model.create_user("root", "")
     with root_user.key.update() as userconfig:
         indexes = userconfig["indexes"]
         if "pypi" not in indexes:

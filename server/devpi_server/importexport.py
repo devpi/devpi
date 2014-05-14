@@ -284,7 +284,7 @@ class Importer:
 
         # first create all users
         for username, userconfig in self.import_users.items():
-            user = self.xom.model.get_user(username)
+            user = self.xom.model.create_user(username, password="")
             user._set(userconfig) 
 
         # memorize index inheritance structure

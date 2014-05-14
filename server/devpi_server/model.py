@@ -13,10 +13,10 @@ import logging
 
 log = logging.getLogger(__name__)
 
-def run_passwd(root, user):
-    user = root.get_user(user)
-    if not user.exists():
-        log.error("user %r not found" % user.name)
+def run_passwd(root, username):
+    user = root.get_user(username)
+    if user is None:
+        log.error("user %r not found" % username)
         return 1
     for i in range(3):
         pwd = py.std.getpass.getpass("enter password for %s: " % user.name)
@@ -40,12 +40,12 @@ class RootModel:
         self.keyfs = xom.keyfs
 
     def create_user(self, username, password, email=None):
-        user = self.get_user(username)
-        user.create(password, email=email)
-        return user
+        return User.create(self, username, password, email)
 
     def get_user(self, name):
-        return User(self, name)
+        user = User(self, name)
+        if user.key.exists():
+            return user
 
     def get_userlist(self):
         return [User(self, name) 
@@ -68,9 +68,8 @@ class RootModel:
     def getstage(self, user, index=None):
         username, index = self._get_user_and_index(user, index)
         user = self.get_user(username)
-        if not user.exists():
-            return None
-        return user.getstage(index)
+        if user is not None:
+            return user.getstage(index)
 
     def is_empty(self):
         userlist = list(self.get_userlist())
@@ -93,15 +92,16 @@ class User:
     def key(self):
         return self.keyfs.USER(user=self.name)
 
-    def create(self, password, email=None):
-        with self.key.update() as userconfig:
-            self._setpassword(userconfig, password)
+    @classmethod
+    def create(cls, model, username, password, email):
+        user = cls(model, username)
+        with user.key.update() as userconfig:
+            user._setpassword(userconfig, password)
             if email:
                 userconfig["email"] = email
-            if "indexes" not in userconfig:
-                userconfig["indexes"] = {}
-            log.info("created user %r with email %r" %(self.name, email))
-
+            userconfig.setdefault("indexes", {})
+            log.info("created user %r with email %r" %(username, email))
+            return user
 
     def _set(self, newuserconfig):
         with self.key.update() as userconfig:
@@ -127,9 +127,6 @@ class User:
 
     def delete(self):
         self.key.delete()
-
-    def exists(self):
-        return self.key.exists()
 
     def validate(self, password):
         userconfig = self.key.get(None)

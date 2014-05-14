@@ -12,13 +12,11 @@ class TestAuth:
         assert auth.get_auth_user(None) is None
 
     def test_auth_direct(self, model, auth):
-        user = model.get_user("user")
-        user.create(password="world")
+        user = model.create_user("user", password="world")
         assert auth.get_auth_user(("user", "world")) == "user"
 
     def test_proxy_auth(self, model, auth):
-        user = model.get_user("user")
-        user.create(password="world")
+        user = model.create_user("user", password="world")
         assert auth.new_proxy_auth("user", "wrongpass") is None
         assert auth.new_proxy_auth("uer", "wrongpass") is None
         res = auth.new_proxy_auth("user", "world")
@@ -28,8 +26,7 @@ class TestAuth:
     def test_proxy_auth_expired(self, model, auth, monkeypatch):
         username, password = "user", "world"
 
-        user = model.get_user(username)
-        user.create(password=password)
+        user = model.create_user(username, password=password)
         proxy = auth.new_proxy_auth(username, password)
 
         def r(*args): raise py.std.itsdangerous.SignatureExpired("123")
@@ -50,8 +47,7 @@ class TestAuth:
 
     def test_auth_status_proxy_user(self, model, auth):
         username, password = "user", "world"
-        user = model.get_user(username)
-        user.create(password)
+        user = model.create_user(username, password)
         proxy = auth.new_proxy_auth(username, password)
         assert auth.get_auth_status((username, proxy["password"])) == \
                ["ok", username]

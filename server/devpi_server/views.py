@@ -746,7 +746,7 @@ class PyPIView:
         status, auth_user = self.auth.get_auth_status(request.auth)
         log.debug("got auth status %r for user %r" %(status, auth_user))
         user = self.model.get_user(user)
-        if not user.exists():
+        if user is None:
             abort(request, 404, "required user %r does not exist" % auth_user)
         if status == "nouser":
             abort(request, 404, "user %r does not exist" % auth_user)
@@ -802,13 +802,14 @@ class PyPIView:
     @view_config(route_name="/{user}", request_method="PUT")
     @matchdict_parameters
     def user_create(self, user):
+        username = user
         request = self.request
-        user = self.model.get_user(user)
-        if user.exists():
+        user = self.model.get_user(username)
+        if user is not None:
             apireturn(409, "user already exists")
         kvdict = getjson(request)
         if "password" in kvdict:  # and "email" in kvdict:
-            user.create(**kvdict)
+            user = self.model.create_user(username, **kvdict)
             apireturn(201, type="userconfig", result=user.get())
         apireturn(400, "password needs to be set")
 
@@ -832,9 +833,10 @@ class PyPIView:
     @view_config(route_name="/{user}", request_method="GET")
     @matchdict_parameters
     def user_get(self, user):
-        userconfig = self.model.get_user(user).get()
-        if not userconfig:
+        user = self.model.get_user(user)
+        if user is None:
             apireturn(404, "user %r does not exist" % user)
+        userconfig = user.get()
         apireturn(200, type="userconfig", result=userconfig)
 
     @view_config(route_name="/", request_method="GET")

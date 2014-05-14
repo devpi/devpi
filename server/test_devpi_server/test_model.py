@@ -24,13 +24,9 @@ def register_and_store(stage, basename, content=b"123", name=None):
 
 def test_is_empty(model):
     assert model.is_empty()
-    user = model.get_user("user")
-    user.create(password="password", email="some@email.com")
+    user = model.create_user("user", "password", email="some@email.com")
     assert not model.is_empty()
-    user.delete()
-    assert model.is_empty()
-    user.create(password="password", email="some@email.com")
-    stage = model.getstage("root", "dev")
+    stage = model.getstage("user", "dev")
     assert stage is None
     user.create_stage("dev", bases=(), type="stage", volatile=False)
     assert not model.is_empty()
@@ -50,9 +46,7 @@ class TestStage:
 
     @pytest.fixture
     def user(self, model):
-        user = model.get_user("hello")
-        user.create(password="123") 
-        return user
+        return model.create_user("hello", password="123")
 
     def test_create_and_delete(self, model):
         user = model.create_user("hello", password="123")
@@ -395,13 +389,13 @@ class TestUsers:
 
     def test_secret(self, xom, model):
         xom.keyfs.basedir.ensure(".something")
-        assert not model.get_user(".something").get()
+        assert model.get_user(".something") is None
 
     def test_create_and_validate(self, model):
         user = model.get_user("user")
-        assert not user.exists()
-        user.create("password", email="some@email.com")
-        assert user.exists()
+        assert not user
+        user = model.create_user("user", "password", email="some@email.com")
+        assert user
         userconfig = user.get()
         assert userconfig["email"] == "some@email.com"
         assert not set(userconfig).intersection(["pwsalt", "pwhash"])
@@ -409,18 +403,15 @@ class TestUsers:
         assert not user.validate("password2")
 
     def test_create_and_delete(self, model):
-        user = model.get_user("user")
-        user.create(password="password")
-        assert user.exists()
+        user = model.create_user("user", password="password")
         user.delete()
-        assert not user.exists()
         assert not user.validate("password")
 
     def test_create_and_list(self, model):
         baselist = model.get_usernames()
-        model.get_user("user1").modify(password="password")
-        model.get_user("user2").modify(password="password")
-        model.get_user("user3").modify(password="password")
+        model.create_user("user1", password="password")
+        model.create_user("user2", password="password")
+        model.create_user("user3", password="password")
         newusers = model.get_usernames().difference(baselist)
         assert newusers == set("user1 user2 user3".split())
         model.get_user("user3").delete()
@@ -440,7 +431,6 @@ class TestUsers:
 
 def test_user_set_without_indexes(model):
     user = model.create_user("user", "password", email="some@email.com")
-    assert user.exists()
     user.create_stage("hello")
     user._set({"password": "pass2"})
     assert model.getstage("user/hello")
