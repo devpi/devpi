@@ -104,8 +104,7 @@ class TestStage:
 
     def test_10_metadata_name_mixup(self, stage, bases):
         stage._register_metadata({"name": "x-encoder", "version": "1.0"})
-        key = stage.keyfs.PROJCONFIG(user=stage.user, index=stage.index,
-                                     name="x_encoder")
+        key = stage.key_projconfig(name="x_encoder")
         with key.locked_update() as projectconfig:
             versionconfig = projectconfig["1.0"] = {}
             versionconfig.update({"+files":
@@ -339,7 +338,7 @@ class TestStage:
     def test_get_metadata_latest_inheritance(self, user, model, stage):
         stage_base_name = stage.index + "base"
         user.create_stage(index=stage_base_name, bases=(stage.name,))
-        stage_sub = model.getstage(stage.user, stage_base_name)
+        stage_sub = model.getstage(stage.user.name, stage_base_name)
         stage_sub.register_metadata(dict(name="hello", version="1.0"))
         stage.register_metadata(dict(name="hello", version="1.1"))
         metadata = stage_sub.get_metadata_latest_perstage("hello")

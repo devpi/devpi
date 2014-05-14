@@ -214,7 +214,7 @@ class PrivateStage:
         self.xom = xom
         self.model = xom.model
         self.keyfs = xom.keyfs
-        self.user = user
+        self.user = self.model.get_user(user)
         self.index = index
         self.name = user + "/" + index
         self.ixconfig = ixconfig
@@ -226,7 +226,6 @@ class PrivateStage:
         self.ixconfig = self.modify(**kw)
 
     def modify(self, index=None, **kw):
-        user = self.model.get_user(self.user)
         diff = list(set(kw).difference(_ixconfigattr))
         if diff:
             raise InvalidIndexconfig(
@@ -235,14 +234,14 @@ class PrivateStage:
             kw["bases"] = tuple(normalize_bases(self.xom.model, kw["bases"]))
 
         # modify user/indexconfig
-        with user.key.locked_update() as userconfig:
+        with self.user.key.locked_update() as userconfig:
             ixconfig = userconfig["indexes"][self.index]
             ixconfig.update(kw)
             log.info("modified index %s: %s", self.name, ixconfig)
             return ixconfig
 
     def get(self):
-        userconfig = self.model.get_user(self.user).key.get()
+        userconfig = self.user.get()
         return userconfig.get("indexes", {}).get(self.index)
 
     def _get_sro(self):
@@ -258,8 +257,7 @@ class PrivateStage:
                     todo.append(self.model.getstage(base))
 
     def delete(self):
-        user = self.model.get_user(self.user)
-        with user.key.locked_update() as userconfig:
+        with self.user.key.locked_update() as userconfig:
             indexes = userconfig.get("indexes", {})
             if self.index not in indexes:
                 log.info("index %s not exists" % self.index)
@@ -270,7 +268,7 @@ class PrivateStage:
             return True
 
     def _remove_indexdir(self):
-        p = self.keyfs.INDEXDIR(user=self.user, index=self.index).filepath
+        p = self.keyfs.INDEXDIR(user=self.user.name, index=self.index).filepath
         if p.check():
             p.remove()
             log.info("deleted index %s" % self.name)
@@ -330,10 +328,14 @@ class PrivateStage:
             raise self.RegisterNameConflict(info)
         self._register_metadata(metadata)
 
+    def key_projconfig(self, name):
+        return self.keyfs.PROJCONFIG(user=self.user.name,
+                                     index=self.index, name=name)
+
     def _register_metadata(self, metadata):
         name = metadata["name"]
         version = metadata["version"]
-        key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
+        key = self.key_projconfig(name)
         with key.locked_update() as projectconfig:
             #if not self.ixconfig["volatile"] and projectconfig:
             #    raise self.MetadataExists(
@@ -345,18 +347,17 @@ class PrivateStage:
         desc = metadata.get("description")
         if desc:
             html = processDescription(desc)
-            key = self.keyfs.RELDESCRIPTION(
-                user=self.user, index=self.index, name=name, version=version)
+            key = self.keyfs.RELDESCRIPTION(user=self.user.name, 
+                        index=self.index, name=name, version=version)
             if py.builtin._istext(html):
                 html = html.encode("utf8")
             key.set(html)
 
     def project_delete(self, name):
-        key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
-        key.delete()
+        self.key_projconfig(name).delete()
 
     def project_version_delete(self, name, version):
-        key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
+        key = self.key_projconfig(name)
         with key.locked_update() as projectconfig:
             if version not in projectconfig:
                 return False
@@ -369,17 +370,16 @@ class PrivateStage:
         return True
 
     def project_exists(self, name):
-        key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
-        return key.exists()
+        return self.key_projconfig(name).exists()
 
     def get_description(self, name, version):
-        key = self.keyfs.RELDESCRIPTION(user=self.user, index=self.index,
-            name=name, version=version)
+        key = self.keyfs.RELDESCRIPTION(user=self.user.name, 
+            index=self.index, name=name, version=version)
         return py.builtin._totext(key.get(), "utf-8")
 
     def get_description_versions(self, name):
         return self.keyfs.RELDESCRIPTION.listnames("version",
-            user=self.user, index=self.index, name=name)
+            user=self.user.name, index=self.index, name=name)
 
     def get_metadata(self, name, version):
         # on win32 we need to make sure that we only return
@@ -396,8 +396,7 @@ class PrivateStage:
         return self.get_metadata(name, maxver.string)
 
     def get_projectconfig_perstage(self, name):
-        key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
-        return key.get()
+        return self.key_projconfig(name).get()
 
     def get_projectconfig(self, name):
         assert py.builtin._istext(name)
@@ -460,7 +459,7 @@ class PrivateStage:
 
     def getprojectnames_perstage(self):
         names = self.keyfs.PROJCONFIG.listnames("name",
-                        user=self.user, index=self.index)
+                        user=self.user.name, index=self.index)
         # on case insensitive filesystems we can't be sure
         # we have case-sensitive names so we do a slow
         # iteration over all projectconfig files
@@ -481,14 +480,13 @@ class PrivateStage:
         if not self.get_metadata(name, version):
             raise self.MissesRegistration(name, version)
         log.debug("project name of %r is %r", filename, name)
-        key = self.keyfs.PROJCONFIG(user=self.user,
-                                    index=self.index, name=name)
+        key = self.key_projconfig(name=name)
         with key.locked_update() as projectconfig:
             verdata = projectconfig.setdefault(version, {})
             files = verdata.setdefault("+files", {})
             if not self.ixconfig.get("volatile") and filename in files:
                 return 409
-            entry = self.xom.filestore.store(self.user, self.index,
+            entry = self.xom.filestore.store(self.user.name, self.index,
                                 filename, content, last_modified=last_modified)
             files[filename] = entry.relpath
             self.log_info("store_releasefile %s", entry.relpath)
@@ -501,11 +499,11 @@ class PrivateStage:
             version = self.get_metadata_latest_perstage(name)["version"]
             log.info("store_doczip: derived version of %s is %s",
                      name, version)
-        key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
+        key = self.key_projconfig(name=name)
         with key.locked_update() as projectconfig:
             verdata = projectconfig[version]
             filename = "%s-%s.doc.zip" % (name, version)
-            entry = self.xom.filestore.store_file(self.user, self.index,
+            entry = self.xom.filestore.store_file(self.user.name, self.index,
                                 filename, docfile)
             verdata["+doczip"] = entry.relpath
         # unpack
@@ -539,7 +537,7 @@ class PrivateStage:
 
     def _doc_key(self, name, version):
         assert version
-        return self.keyfs.STAGEDOCS(user=self.user, index=self.index,
+        return self.keyfs.STAGEDOCS(user=self.user.name, index=self.index,
                                     name=name, version=version)
 
 def normalize_bases(model, bases):
