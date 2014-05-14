@@ -98,7 +98,7 @@ def _main(argv=None, plugins=None):
             return
 
     if args.passwd:
-        from devpi_server.db import run_passwd
+        from devpi_server.model import run_passwd
         return run_passwd(xom.db, config.args.passwd)
 
     return xom.main()
@@ -179,6 +179,7 @@ class XOM:
         sdir = config.serverdir
         if not (sdir.exists() and sdir.listdir()):
             self.set_state_version(server_version)
+        set_default_indexes(self.model)
 
     def get_state_version(self):
         versionfile = self.config.serverdir.join(".serverversion")
@@ -193,6 +194,12 @@ class XOM:
         versionfile.dirpath().ensure(dir=1)
         versionfile.write(version)
 
+    @property
+    def model(self):
+        """ root model object. """
+        from devpi_server.model import RootModel
+        return RootModel(self)
+
     def main(self):
         xom = self
         args = xom.config.args
@@ -204,8 +211,8 @@ class XOM:
             from devpi_server.importexport import do_export
             return do_export(args.export, xom)
         configure_logging(xom.config)
-        # access extdb to make sure invalidation happens
-        xom.extdb
+        # access pypistage to make sure invalidation happens
+        xom.pypistage
         if args.import_:
             from devpi_server.importexport import do_import
             return do_import(args.import_, xom)
@@ -265,23 +272,16 @@ class XOM:
         return keyfs
 
     @cached_property
-    def extdb(self):
-        from devpi_server.extpypi import ExtDB
-        extdb = ExtDB(keyfs=self.keyfs, httpget=self.httpget,
+    def pypistage(self):
+        from devpi_server.extpypi import PyPIStage
+        pypistage = PyPIStage(keyfs=self.keyfs, httpget=self.httpget,
                       filestore=self.filestore,
                       proxy=self.proxy)
-        return extdb
+        return pypistage
 
     @cached_property
     def proxy(self):
         return XMLProxy(PYPIURL_XMLRPC)
-
-    @cached_property
-    def db(self):
-        from devpi_server.db import DB
-        db = DB(self)
-        set_default_indexes(db)
-        return db
 
     @cached_property
     def _httpsession(self):
@@ -363,7 +363,7 @@ class XOM:
 
 class BackgroundPlugin:
     api = 2
-    name = "extdb_refresh"
+    name = "pypistage_refresh"
 
     _thread = None
 
@@ -389,7 +389,7 @@ class BackgroundPlugin:
 
     def start_background_tasks(self):
         xom = self.xom
-        self._thread = xom.spawn(xom.extdb.spawned_pypichanges,
+        self._thread = xom.spawn(xom.pypistage.spawned_pypichanges,
             args=(xom.proxy, lambda: xom.sleep(xom.config.args.refresh)))
 
 class FatalResponse:
@@ -398,11 +398,12 @@ class FatalResponse:
     def __init__(self, excinfo=None):
         self.excinfo = excinfo
 
-def set_default_indexes(db):
-    PYPI = "root/pypi"
-    if not db.index_exists(PYPI):
-        if "root" not in db.user_list():
-            db.user_create("root", password="")
-        db.index_create(PYPI, bases=(), type="mirror", volatile=False)
-        print("set root/pypi default index")
-
+def set_default_indexes(model):
+    root_user = model.get_user("root")
+    if not root_user:
+        root_user = model.create_user("root", "")
+    with root_user.key.update() as userconfig:
+        indexes = userconfig["indexes"]
+        if "pypi" not in indexes:
+            indexes["pypi"] = dict(bases=(), type="mirror", volatile=False)
+        print("created root/pypi index")

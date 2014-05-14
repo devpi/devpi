@@ -24,7 +24,7 @@ from devpi_common.validation import normalize_name
 from devpi_common.request import new_requests_session
 
 from . import __version__ as server_version
-from .db import ProjectInfo
+from .model import ProjectInfo
 
 from logging import getLogger
 assert __name__ == "devpi_server.extpypi"
@@ -130,7 +130,7 @@ class XMLProxy(object):
         return xmlrpc.loads(reply.content)[0][0]
 
 
-def perform_crawling(extdb, result, numthreads=10):
+def perform_crawling(pypistage, result, numthreads=10):
     pending = set(result.crawllinks)
     def process():
         while 1:
@@ -139,7 +139,7 @@ def perform_crawling(extdb, result, numthreads=10):
             except KeyError:
                 break
             log.info("visiting crawlurl %s", crawlurl)
-            response = extdb.httpget(crawlurl.url, allow_redirects=True)
+            response = pypistage.httpget(crawlurl.url, allow_redirects=True)
             log.info("crawlurl %s %s", crawlurl, response)
             assert hasattr(response, "status_code")
             if not isinstance(response, int) and response.status_code == 200:
@@ -173,14 +173,14 @@ def invalidate_on_version_change(basedir):
         ver = "0"
     else:
         ver = verfile.read()
-    if ver != ExtDB.VERSION:
+    if ver != PyPIStage.VERSION:
         if basedir.check():
             log.info("version format change: removing root/pypi state")
             basedir.remove()
     verfile.dirpath().ensure(dir=1)
-    verfile.write(ExtDB.VERSION)
+    verfile.write(PyPIStage.VERSION)
 
-class ExtDB:
+class PyPIStage:
     VERSION = "4"
     name = "root/pypi"
     ixconfig = dict(bases=(), volatile=False, type="mirror")

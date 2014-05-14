@@ -98,7 +98,7 @@ class TestIndexParsing:
         assert result.crawllinks == \
                     set(["http://pylib.org", "http://pylib2.org"])
 
-    def test_parse_index_invalid_link(self, extdb):
+    def test_parse_index_invalid_link(self, pypistage):
         result = parse_index(self.simplepy, '''
                 <a rel="download" href="http:/host.com/123" />
         ''')
@@ -247,184 +247,184 @@ class TestIndexParsing:
                 "http://pypi.python.org/pkg/py-1.4.10.zip#md5=2222"
 
 class TestExtPYPIDB:
-    def test_parse_project_nomd5(self, extdb):
-        x = extdb.setextsimple("pytest", pkgver="pytest-1.0.zip")
-        links = extdb.getreleaselinks("pytest")
+    def test_parse_project_nomd5(self, pypistage):
+        x = pypistage.setextsimple("pytest", pkgver="pytest-1.0.zip")
+        links = pypistage.getreleaselinks("pytest")
         link, = links
         assert link.url == "https://pypi.python.org/pkg/pytest-1.0.zip"
         assert link.md5 == x.md5
         assert link.relpath.endswith("/pytest-1.0.zip")
 
-    def test_parse_project_replaced_eggfragment(self, extdb):
-        extdb.setextsimple("pytest", pypiserial=10,
+    def test_parse_project_replaced_eggfragment(self, pypistage):
+        pypistage.setextsimple("pytest", pypiserial=10,
             pkgver="pytest-1.0.zip#egg=pytest-dev1")
-        links = extdb.getreleaselinks("pytest", refresh=10)
+        links = pypistage.getreleaselinks("pytest", refresh=10)
         assert links[0].eggfragment == "pytest-dev1"
-        extdb.setextsimple("pytest", pypiserial=11,
+        pypistage.setextsimple("pytest", pypiserial=11,
             pkgver="pytest-1.0.zip#egg=pytest-dev2")
-        links = extdb.getreleaselinks("pytest", refresh=11)
+        links = pypistage.getreleaselinks("pytest", refresh=11)
         assert links[0].eggfragment == "pytest-dev2"
 
-    def test_parse_project_replaced_md5(self, extdb):
-        x = extdb.setextsimple("pytest", pypiserial=10, pkgver="pytest-1.0.zip")
-        links = extdb.getreleaselinks("pytest", refresh=10)
+    def test_parse_project_replaced_md5(self, pypistage):
+        x = pypistage.setextsimple("pytest", pypiserial=10, pkgver="pytest-1.0.zip")
+        links = pypistage.getreleaselinks("pytest", refresh=10)
         assert links[0].md5 == x.md5
-        y = extdb.setextsimple("pytest", pypiserial=11, pkgver="pytest-1.0.zip")
-        links = extdb.getreleaselinks("pytest", refresh=11)
+        y = pypistage.setextsimple("pytest", pypiserial=11, pkgver="pytest-1.0.zip")
+        links = pypistage.getreleaselinks("pytest", refresh=11)
         assert links[0].md5 == y.md5
         assert x.md5 != y.md5
 
-    def test_getprojectconfig(self, extdb):
-        extdb.setextsimple("Pytest", pkgver="pytest-1.0.zip")
-        config = extdb.get_projectconfig("Pytest")
+    def test_getprojectconfig(self, pypistage):
+        pypistage.setextsimple("Pytest", pkgver="pytest-1.0.zip")
+        config = pypistage.get_projectconfig("Pytest")
         data = config["1.0"]
         assert data["+files"]
         assert data["name"] == "Pytest"
         assert data["version"] == "1.0"
-        assert extdb.get_project_info("pytest").name == "Pytest"
+        assert pypistage.get_project_info("pytest").name == "Pytest"
 
-    def test_getdescription(self, extdb):
-        extdb.setextsimple("pytest", text='''
+    def test_getdescription(self, pypistage):
+        pypistage.setextsimple("pytest", text='''
             <a href="../../pkg/pytest-1.0.zip#md5=123" />''')
-        content = extdb.get_description("pytest", "1.0")
+        content = pypistage.get_description("pytest", "1.0")
         assert "refer" in content
         assert "https://pypi.python.org/pypi/pytest/1.0/" in content
 
-    def test_getprojectconfig_with_egg(self, extdb):
-        extdb.setextsimple("pytest", text='''
+    def test_getprojectconfig_with_egg(self, pypistage):
+        pypistage.setextsimple("pytest", text='''
             <a href="../../pkg/tip.zip#egg=pytest-dev" />''')
-        config = extdb.get_projectconfig("pytest")
+        config = pypistage.get_projectconfig("pytest")
         data = config["egg=pytest-dev"]
         assert data["+files"]
 
-    def test_parse_and_scrape(self, extdb):
+    def test_parse_and_scrape(self, pypistage):
         md5 = getmd5("123")
-        extdb.setextsimple("pytest", text='''
+        pypistage.setextsimple("pytest", text='''
                 <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
                 <a rel="download" href="https://download.com/index.html" />
             '''.format(md5=md5), pypiserial=20)
-        extdb.url2response["https://download.com/index.html"] = dict(
+        pypistage.url2response["https://download.com/index.html"] = dict(
             status_code=200, text = '''
                 <a href="pytest-1.1.tar.gz" /> ''',
             headers = {"content-type": "text/html"})
-        links = extdb.getreleaselinks("pytest")
+        links = pypistage.getreleaselinks("pytest")
         assert len(links) == 2
         assert links[0].url == "https://download.com/pytest-1.1.tar.gz"
         assert links[0].relpath.endswith("/pytest-1.1.tar.gz")
 
         # check refresh
         md5b = getmd5("456")
-        extdb.setextsimple("pytest", text='''
+        pypistage.setextsimple("pytest", text='''
                 <a href="../../pkg/pytest-1.0.1.zip#md5={md5b}" />
                 <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
                 <a rel="download" href="https://download.com/index.html" />
             '''.format(md5=md5, md5b=md5b), pypiserial=25)
-        assert len(extdb.getreleaselinks("pytest")) == 2  # no refresh
-        links = extdb.getreleaselinks("pytest", refresh=25)
+        assert len(pypistage.getreleaselinks("pytest")) == 2  # no refresh
+        links = pypistage.getreleaselinks("pytest", refresh=25)
         assert len(links) == 3
         assert links[1].url == "https://pypi.python.org/pkg/pytest-1.0.1.zip"
         assert links[1].relpath.endswith("/pytest-1.0.1.zip")
 
-    def test_parse_and_scrape_non_html_ignored(self, extdb):
-        extdb.setextsimple("pytest", text='''
+    def test_parse_and_scrape_non_html_ignored(self, pypistage):
+        pypistage.setextsimple("pytest", text='''
                 <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
                 <a rel="download" href="https://download.com/index.html" />
             ''', pypiserial=20)
-        extdb.url2response["https://download.com/index.html"] = dict(
+        pypistage.url2response["https://download.com/index.html"] = dict(
             status_code=200, text = '''
                 <a href="pytest-1.1.tar.gz" /> ''',
             headers = {"content-type": "text/plain"})
-        links = extdb.getreleaselinks("pytest")
+        links = pypistage.getreleaselinks("pytest")
         assert len(links) == 1
 
-    def test_getreleaselinks_cache_refresh_semantics(self, extdb):
-        extdb.setextsimple("pytest", text='''
+    def test_getreleaselinks_cache_refresh_semantics(self, pypistage):
+        pypistage.setextsimple("pytest", text='''
                 <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
                 <a rel="download" href="https://download.com/index.html" />
             ''', pypiserial=10)
 
         # check getreleaselinks properly returns -2 on stale cache returns
-        ret = extdb.getreleaselinks("pytest", refresh=11)
+        ret = pypistage.getreleaselinks("pytest", refresh=11)
         assert ret == -2
-        ret = extdb.getreleaselinks("pytest", refresh=10)
+        ret = pypistage.getreleaselinks("pytest", refresh=10)
         assert len(ret) == 1
 
         # disable httpget and see if we still get releaselinks for lower
         # refresh serials
-        extdb.httpget = None
-        ret = extdb.getreleaselinks("pytest", refresh=9)
+        pypistage.httpget = None
+        ret = pypistage.getreleaselinks("pytest", refresh=9)
         assert len(ret) == 1
 
 
     @pytest.mark.parametrize("errorcode", [404, -1, -2])
-    def test_parse_and_scrape_error(self, extdb, errorcode):
-        extdb.setextsimple("pytest", text='''
+    def test_parse_and_scrape_error(self, pypistage, errorcode):
+        pypistage.setextsimple("pytest", text='''
                 <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
                 <a rel="download" href="https://download.com/index.html" />
             ''')
-        extdb.url2response["https://download.com/index.html"] = dict(
+        pypistage.url2response["https://download.com/index.html"] = dict(
             status_code=errorcode, text = 'not found')
-        links = extdb.getreleaselinks("pytest")
+        links = pypistage.getreleaselinks("pytest")
         assert len(links) == 1
         assert links[0].url == \
                 "https://pypi.python.org/pkg/pytest-1.0.zip"
 
-    def test_scrape_not_recursive(self, extdb):
-        extdb.setextsimple("pytest", text='''
+    def test_scrape_not_recursive(self, pypistage):
+        pypistage.setextsimple("pytest", text='''
                 <a rel="download" href="https://download.com/index.html" />
             ''')
         md5=getmd5("hello")
-        extdb.url2response["https://download.com/index.html"] = dict(
+        pypistage.url2response["https://download.com/index.html"] = dict(
             status_code=200, text = '''
                 <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
                 <a rel="download" href="http://whatever.com" />'''.format(
                 md5=md5),
             headers = {"content-type": "text/html"},
         )
-        extdb.url2response["https://whatever.com"] = dict(
+        pypistage.url2response["https://whatever.com"] = dict(
             status_code=200, text = '<a href="pytest-1.1.zip#md5={md5}" />'
                              .format(md5=md5))
-        links = extdb.getreleaselinks("pytest")
+        links = pypistage.getreleaselinks("pytest")
         assert len(links) == 1
 
-    def test_getprojectnames(self, extdb):
-        extdb.mock_simple("proj1", pkgver="proj1-1.0.zip")
-        extdb.mock_simple("proj2", pkgver="proj2-1.0.zip")
-        extdb.url2response["https://pypi.python.org/simple/proj3/"] = dict(
+    def test_getprojectnames(self, pypistage):
+        pypistage.mock_simple("proj1", pkgver="proj1-1.0.zip")
+        pypistage.mock_simple("proj2", pkgver="proj2-1.0.zip")
+        pypistage.url2response["https://pypi.python.org/simple/proj3/"] = dict(
             status_code=404)
-        assert len(extdb.getreleaselinks("proj1")) == 1
-        assert len(extdb.getreleaselinks("proj2")) == 1
-        assert extdb.getreleaselinks("proj3") == 404
-        names = extdb.getprojectnames()
+        assert len(pypistage.getreleaselinks("proj1")) == 1
+        assert len(pypistage.getreleaselinks("proj2")) == 1
+        assert pypistage.getreleaselinks("proj3") == 404
+        names = pypistage.getprojectnames()
         assert names == ["proj1", "proj2"]
 
-    def test_get_existing_with_302(self, extdb):
-        extdb.mock_simple("Hello_this")
-        extdb.mock_simple("hello-World")
-        extdb.mock_simple("s-p")
-        assert extdb.get_project_info("hello-this").name == "Hello_this"
-        assert extdb.get_project_info("hello_world").name == "hello-World"
-        assert extdb.get_project_info("hello-world").name == "hello-World"
-        assert extdb.get_project_info("s-p").name == "s-p"
-        assert extdb.get_project_info("s_p").name == "s-p"
+    def test_get_existing_with_302(self, pypistage):
+        pypistage.mock_simple("Hello_this")
+        pypistage.mock_simple("hello-World")
+        pypistage.mock_simple("s-p")
+        assert pypistage.get_project_info("hello-this").name == "Hello_this"
+        assert pypistage.get_project_info("hello_world").name == "hello-World"
+        assert pypistage.get_project_info("hello-world").name == "hello-World"
+        assert pypistage.get_project_info("s-p").name == "s-p"
+        assert pypistage.get_project_info("s_p").name == "s-p"
 
 def raise_ValueError():
     raise ValueError(42)
 
 class TestRefreshManager:
 
-    def test_init_pypi_mirror(self, extdb, keyfs):
+    def test_init_pypi_mirror(self, pypistage, keyfs):
         proxy = mock.create_autospec(XMLProxy)
         d = {"hello": 10, "abc": 42}
         proxy.list_packages_with_serial.return_value = d
-        extdb.init_pypi_mirror(proxy)
-        assert extdb.name2serials == d
+        pypistage.init_pypi_mirror(proxy)
+        assert pypistage.name2serials == d
         assert keyfs.PYPISERIALS.get() == d
-        assert extdb.getprojectnames() == ["abc", "hello"]
+        assert pypistage.getprojectnames() == ["abc", "hello"]
 
-    def test_pypichanges_loop(self, extdb, monkeypatch):
-        extdb.process_changelog = mock.Mock()
-        extdb.process_refreshes = mock.Mock()
+    def test_pypichanges_loop(self, pypistage, monkeypatch):
+        pypistage.process_changelog = mock.Mock()
+        pypistage.process_refreshes = mock.Mock()
         proxy = mock.create_autospec(XMLProxy)
         changelog = [
             ["pylib", "1.4", 12123, 'new release', 11],
@@ -433,44 +433,44 @@ class TestRefreshManager:
         proxy.changelog_since_serial.return_value = changelog
 
         # we need to have one entry in serials
-        extdb.mock_simple("pytest", pypiserial=27)
+        pypistage.mock_simple("pytest", pypiserial=27)
         with pytest.raises(ValueError):
-            extdb.spawned_pypichanges(proxy, proxysleep=raise_ValueError)
-        extdb.process_changelog.assert_called_once_with(changelog)
-        extdb.process_refreshes.assert_called_once()
+            pypistage.spawned_pypichanges(proxy, proxysleep=raise_ValueError)
+        pypistage.process_changelog.assert_called_once_with(changelog)
+        pypistage.process_refreshes.assert_called_once()
 
-    def test_pypichanges_changes(self, extdb, keyfs, monkeypatch):
-        assert not extdb.name2serials
-        extdb.mock_simple("pytest", '<a href="pytest-2.3.tgz"/a>',
+    def test_pypichanges_changes(self, pypistage, keyfs, monkeypatch):
+        assert not pypistage.name2serials
+        pypistage.mock_simple("pytest", '<a href="pytest-2.3.tgz"/a>',
                           pypiserial=20)
-        extdb.mock_simple("Django", '<a href="Django-1.6.tgz"/a>',
+        pypistage.mock_simple("Django", '<a href="Django-1.6.tgz"/a>',
                           pypiserial=11)
-        assert len(extdb.name2serials) == 2
-        assert len(extdb.getreleaselinks("pytest")) == 1
-        assert len(extdb.getreleaselinks("Django")) == 1
-        extdb.process_changelog([
+        assert len(pypistage.name2serials) == 2
+        assert len(pypistage.getreleaselinks("pytest")) == 1
+        assert len(pypistage.getreleaselinks("Django")) == 1
+        pypistage.process_changelog([
             ["Django", "1.4", 12123, 'new release', 25],
             ["pytest", "2.4", 121231, 'new release', 27]
         ])
-        assert len(extdb.name2serials) == 2
+        assert len(pypistage.name2serials) == 2
         assert keyfs.PYPISERIALS.get()["pytest"] == 27
         assert keyfs.PYPISERIALS.get()["Django"] == 25
-        extdb.mock_simple("pytest", '<a href="pytest-2.4.tgz"/a>',
+        pypistage.mock_simple("pytest", '<a href="pytest-2.4.tgz"/a>',
                           pypiserial=27)
-        extdb.mock_simple("Django", '<a href="Django-1.7.tgz"/a>',
+        pypistage.mock_simple("Django", '<a href="Django-1.7.tgz"/a>',
                           pypiserial=25)
-        extdb.process_refreshes()
-        assert extdb.getreleaselinks("pytest")[0].basename == "pytest-2.4.tgz"
-        assert extdb.getreleaselinks("Django")[0].basename == "Django-1.7.tgz"
+        pypistage.process_refreshes()
+        assert pypistage.getreleaselinks("pytest")[0].basename == "pytest-2.4.tgz"
+        assert pypistage.getreleaselinks("Django")[0].basename == "Django-1.7.tgz"
 
-    def test_changelog_since_serial_nonetwork(self, extdb, caplog, reqmock):
-        extdb.mock_simple("pytest", pypiserial=10)
+    def test_changelog_since_serial_nonetwork(self, pypistage, caplog, reqmock):
+        pypistage.mock_simple("pytest", pypiserial=10)
         reqreply = reqmock.mockresponse(PYPIURL_XMLRPC, code=400)
         xmlproxy = XMLProxy(PYPIURL_XMLRPC)
         with pytest.raises(ValueError):
-            extdb.spawned_pypichanges(xmlproxy, proxysleep=raise_ValueError)
+            pypistage.spawned_pypichanges(xmlproxy, proxysleep=raise_ValueError)
         with pytest.raises(ValueError):
-            extdb.spawned_pypichanges(xmlproxy, proxysleep=raise_ValueError)
+            pypistage.spawned_pypichanges(xmlproxy, proxysleep=raise_ValueError)
         calls = reqreply.requests
         assert len(calls) == 2
         assert xmlrpc.loads(calls[0].body) == ((10,), "changelog_since_serial")
@@ -505,10 +505,10 @@ def test_requests_httpget_timeout(xom_notmocked, monkeypatch):
     assert r.status_code == -1
 
 def test_invalidate_on_version_change(tmpdir, caplog):
-    from devpi_server.extpypi import invalidate_on_version_change, ExtDB
+    from devpi_server.extpypi import invalidate_on_version_change, PyPIStage
     p = tmpdir.ensure("something")
     invalidate_on_version_change(tmpdir)
     assert not p.check()
-    assert tmpdir.join(".mirrorversion").read() == ExtDB.VERSION
+    assert tmpdir.join(".mirrorversion").read() == PyPIStage.VERSION
     rec, = caplog.getrecords()
     assert "format change" in rec.msg

@@ -13,8 +13,8 @@ class Auth:
     class Expired(Exception):
         """ proxy authentication expired. """
 
-    def __init__(self, db, secret):
-        self.db = db
+    def __init__(self, model, secret):
+        self.model = model
         self.signer = itsdangerous.TimestampSigner(secret)
 
     def get_auth_user(self, auth, raising=True):
@@ -30,7 +30,8 @@ class Auth:
             return None
         except itsdangerous.BadData:
             # check if we got user/password direct authentication
-            if self.db.user_validate(authuser, authpassword):
+            user = self.model.get_user(authuser)
+            if user.validate(authpassword):
                 return authuser
             return None
         else:
@@ -40,26 +41,29 @@ class Auth:
             return authuser
 
     def new_proxy_auth(self, user, password):
-        hash = self.db.user_validate(user, password)
-        if hash:
-            pseudopass = self.signer.sign(user + "-" + hash)
-            pseudopass = pseudopass.decode("ascii")
-            assert py.builtin._istext(pseudopass)
-            return {"password":  pseudopass,
-                    "expiration": self.LOGIN_EXPIRATION}
+        user = self.model.get_user(user)
+        if user:
+            hash = user.validate(password)
+            if hash:
+                pseudopass = self.signer.sign(user.name + "-" + hash)
+                pseudopass = pseudopass.decode("ascii")
+                assert py.builtin._istext(pseudopass)
+                return {"password":  pseudopass,
+                        "expiration": self.LOGIN_EXPIRATION}
 
     def get_auth_status(self, userpassword):
         if userpassword is None:
             return ["noauth", ""]
-        user, password = userpassword
-        if not self.db.user_exists(user):
-            return ["nouser", user]
+        username, password = userpassword
+        user = self.model.get_user(username)
+        if user is None:
+            return ["nouser", username]
         try:
             self.get_auth_user(userpassword)
         except self.Expired:
-            return ["expired", user]
+            return ["expired", user.name]
         else:
-            return ["ok", user]
+            return ["ok", user.name]
 
 
 

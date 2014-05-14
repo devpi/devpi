@@ -13,13 +13,14 @@ import logging
 
 log = logging.getLogger(__name__)
 
-def run_passwd(db, user):
-    if not db.user_exists(user):
-        log.error("user %r not found" % user)
+def run_passwd(root, username):
+    user = root.get_user(username)
+    if user is None:
+        log.error("user %r not found" % username)
         return 1
     for i in range(3):
-        pwd = py.std.getpass.getpass("enter password for %s: " % user)
-        pwd2 = py.std.getpass.getpass("repeat password for %s: " % user)
+        pwd = py.std.getpass.getpass("enter password for %s: " % user.name)
+        pwd2 = py.std.getpass.getpass("repeat password for %s: " % user.name)
         if pwd != pwd2:
             log.error("password don't match")
         else:
@@ -27,90 +28,31 @@ def run_passwd(db, user):
     else:
         log.error("no password set")
         return 1
-    db.user_modify(user, password=pwd)
+    user.modify(password=pwd)
 
 
 _ixconfigattr = set(
     "type volatile bases uploadtrigger_jenkins acl_upload".split())
 
-class DB:
-    class InvalidIndexconfig(Exception):
-        def __init__(self, messages):
-            self.messages = messages
-            Exception.__init__(self, messages)
-
+class RootModel:
     def __init__(self, xom):
         self.xom = xom
         self.keyfs = xom.keyfs
 
-    def is_empty(self):
-        userlist = self.user_list()
-        if len(userlist) != 1 or "root" not in userlist:
-            return False
-        userconfig = self.user_get("root")
-        rootindexes = list(userconfig.get("indexes", []))
-        return rootindexes == ["pypi"]
+    def create_user(self, username, password, email=None):
+        return User.create(self, username, password, email)
 
-    def user_create(self, user, password, email=None):
-        with self.keyfs.USER(user=user).update() as userconfig:
-            self._setpassword(userconfig, user, password)
-            if email:
-                userconfig["email"] = email
-            log.info("created user %r with email %r" %(user, email))
+    def get_user(self, name):
+        user = User(self, name)
+        if user.key.exists():
+            return user
 
-    def _user_set(self, user, newuserconfig):
-        with self.keyfs.USER(user=user).update() as userconfig:
-            if "indexes" not in newuserconfig:
-                newuserconfig["indexes"] = userconfig.get("indexes", {})
-            userconfig.clear()
-            userconfig.update(newuserconfig)
-            log.info("internal: set user information %r", user)
+    def get_userlist(self):
+        return [User(self, name) 
+                    for name in self.keyfs.USER.listnames("user")]
 
-    def user_modify(self, user, password=None, email=None):
-        with self.keyfs.USER(user=user).update() as userconfig:
-            modified = []
-            if password is not None:
-                self._setpassword(userconfig, user, password)
-                modified.append("password=*******")
-            if email:
-                userconfig["email"] = email
-                modified.append("email=%s" % email)
-            log.info("modified user %r: %s" %(user, ", ".join(modified)))
-
-    def _setpassword(self, userconfig, user, password):
-        salt, hash = crypt_password(password)
-        userconfig["pwsalt"] = salt
-        userconfig["pwhash"] = hash
-        log.info("setting password for user %r", user)
-
-    def user_delete(self, user):
-        self.keyfs.USER(user=user).delete()
-
-    def user_exists(self, user):
-        return self.keyfs.USER(user=user).exists()
-
-    def user_list(self):
-        return self.keyfs.USER.listnames("user")
-
-    def user_validate(self, user, password):
-        userconfig = self.keyfs.USER(user=user).get(None)
-        if userconfig is None:
-            return False
-        salt = userconfig["pwsalt"]
-        pwhash = userconfig["pwhash"]
-        if verify_password(password, pwhash, salt):
-            return pwhash
-        return None
-
-    def user_get(self, user, credentials=False):
-        d = self.keyfs.USER(user=user).get()
-        if not d:
-            return d
-        if not credentials:
-            del d["pwsalt"]
-            del d["pwhash"]
-        d["username"] = user
-        return d
+    def get_usernames(self):
+        return set(user.name for user in self.get_userlist())
 
     def _get_user_and_index(self, user, index=None):
         if not py.builtin._istext(user):
@@ -123,44 +65,99 @@ class DB:
                 index = index.decode("utf8")
         return user, index
 
-    def _normalize_bases(self, bases):
-        # check and normalize base indices
-        messages = []
-        newbases = []
-        for base in bases:
-            try:
-                base_user, base_index = self._get_user_and_index(base)
-            except ValueError:
-                messages.append("invalid base index spec: %r" % (base,))
-            else:
-                if self.index_get(base) is None:
-                    messages.append("base index %r does not exist" %(base,))
-                else:
-                    newbases.append("%s/%s" % (base_user, base_index))
-        if messages:
-            raise self.InvalidIndexconfig(messages)
-        return newbases
+    def getstage(self, user, index=None):
+        username, index = self._get_user_and_index(user, index)
+        user = self.get_user(username)
+        if user is not None:
+            return user.getstage(index)
 
-    def index_get(self, user, index=None):
-        user, index = self._get_user_and_index(user, index)
-        userconfig = self.keyfs.USER(user=user).get()
-        return userconfig.get("indexes", {}).get(index)
+    def is_empty(self):
+        userlist = list(self.get_userlist())
+        if len(userlist) == 1:
+            user, = userlist
+            if user.name == "root":
+                rootindexes = user.get().get("indexes", [])
+                return list(rootindexes) == ["pypi"]
+        return False
 
-    def index_exists(self, user, index=None):
-        return bool(self.index_get(user, index))
 
-    def index_create(self, user, index=None, type="stage",
+class User:
+    def __init__(self, parent, name):
+        self.__parent__ = parent
+        self.keyfs = parent.keyfs
+        self.xom = parent.xom
+        self.name = name
+
+    @property
+    def key(self):
+        return self.keyfs.USER(user=self.name)
+
+    @classmethod
+    def create(cls, model, username, password, email):
+        user = cls(model, username)
+        with user.key.update() as userconfig:
+            user._setpassword(userconfig, password)
+            if email:
+                userconfig["email"] = email
+            userconfig.setdefault("indexes", {})
+            log.info("created user %r with email %r" %(username, email))
+            return user
+
+    def _set(self, newuserconfig):
+        with self.key.update() as userconfig:
+            userconfig.update(newuserconfig)
+            log.info("internal: set user information %r", self.name)
+
+    def modify(self, password=None, email=None):
+        with self.key.update() as userconfig:
+            modified = []
+            if password is not None:
+                self._setpassword(userconfig, password)
+                modified.append("password=*******")
+            if email:
+                userconfig["email"] = email
+                modified.append("email=%s" % email)
+            log.info("modified user %r: %s" %(self.name, ", ".join(modified)))
+
+    def _setpassword(self, userconfig, password):
+        salt, hash = crypt_password(password)
+        userconfig["pwsalt"] = salt
+        userconfig["pwhash"] = hash
+        log.info("setting password for user %r", self.name)
+
+    def delete(self):
+        self.key.delete()
+
+    def validate(self, password):
+        userconfig = self.key.get(None)
+        if userconfig is None:
+            return False
+        salt = userconfig["pwsalt"]
+        pwhash = userconfig["pwhash"]
+        if verify_password(password, pwhash, salt):
+            return pwhash
+        return None
+
+    def get(self, credentials=False):
+        d = self.key.get()
+        if not d:
+            return d
+        if not credentials:
+            del d["pwsalt"]
+            del d["pwhash"]
+        d["username"] = self.name
+        return d
+
+    def create_stage(self, index, type="stage",
                      volatile=True, bases=("root/pypi",),
                      uploadtrigger_jenkins=None,
                      acl_upload=None):
-        user, index = self._get_user_and_index(user, index)
-
         if acl_upload is None:
-            acl_upload = [user]
-        bases = tuple(self._normalize_bases(bases))
+            acl_upload = [self.name]
+        bases = tuple(normalize_bases(self.xom.model, bases))
 
         # modify user/indexconfig
-        with self.keyfs.USER(user=user).locked_update() as userconfig:
+        with self.key.locked_update() as userconfig:
             indexes = userconfig.setdefault("indexes", {})
             assert index not in indexes, indexes[index]
             indexes[index] = ixconfig = {
@@ -168,64 +165,28 @@ class DB:
                 "uploadtrigger_jenkins": uploadtrigger_jenkins,
                 "acl_upload": acl_upload
             }
-            log.info("created index %s/%s: %s", user, index, ixconfig)
-            return ixconfig
+        stage = self.getstage(index)
+        log.info("created index %s: %s", stage.name, stage.ixconfig)
+        return stage
 
-    def index_modify(self, user, index=None, **kw):
-        user, index = self._get_user_and_index(user, index)
-        diff = list(set(kw).difference(_ixconfigattr))
-        if diff:
-            raise self.InvalidIndexconfig(
-                ["invalid keys for index configuration: %s" %(diff,)])
-        if "bases" in kw:
-            kw["bases"] = tuple(self._normalize_bases(kw["bases"]))
-
-        # modify user/indexconfig
-        with self.keyfs.USER(user=user).locked_update() as userconfig:
-            ixconfig = userconfig["indexes"][index]
-            ixconfig.update(kw)
-            log.info("modified index %s/%s: %s", user, index, ixconfig)
-            return ixconfig
-
-    def index_delete(self, user, index=None):
-        user, index = self._get_user_and_index(user, index)
-        with self.keyfs.USER(user=user).locked_update() as userconfig:
-            indexes = userconfig.get("indexes", {})
-            if index not in indexes:
-                log.info("index %s/%s not exists", user, index)
-                return False
-            del indexes[index]
-            self._remove_indexdir(user, index)
-            log.info("deleted index config %s/%s" %(user, index))
-            return True
-
-    def _remove_indexdir(self, user, index):
-        p = self.keyfs.INDEXDIR(user=user, index=index).filepath
-        if p.check():
-            p.remove()
-            log.info("deleted index %s/%s" %(user, index))
-            return True
-
-    # stage handling
-
-    def getstage(self, user, index=None):
-        user, index = self._get_user_and_index(user, index)
-        ixconfig = self.index_get(user, index)
+    def getstage(self, indexname):
+        ixconfig = self.get()["indexes"].get(indexname, {})
         if not ixconfig:
             return None
         if ixconfig["type"] == "stage":
-            return PrivateStage(self, user, index, ixconfig)
+            return PrivateStage(self.xom, self.name, indexname, ixconfig)
         elif ixconfig["type"] == "mirror":
-            return self.xom.extdb
+            return self.xom.pypistage
         else:
             raise ValueError("unknown index type %r" % ixconfig["type"])
+         
+ 
 
-    def getstagename(self, user, index):
-        return "%s/%s" % (user, index)
+class InvalidIndexconfig(Exception):
+    def __init__(self, messages):
+        self.messages = messages
+        Exception.__init__(self, messages)
 
-    def create_stage(self, user, index=None, **kw):
-        self.index_create(user, index, **kw)
-        return self.getstage(user, index)
 
 class ProjectInfo:
     def __init__(self, stage, name):
@@ -249,11 +210,11 @@ class PrivateStage:
                'project-url', 'supported-platform', 'setup-requires-Dist',
                'provides-extra', 'extension')
 
-    def __init__(self, db, user, index, ixconfig):
-        self.db = db
-        self.xom = db.xom
-        self.keyfs = db.keyfs
-        self.user = user
+    def __init__(self, xom, user, index, ixconfig):
+        self.xom = xom
+        self.model = xom.model
+        self.keyfs = xom.keyfs
+        self.user = self.model.get_user(user)
         self.index = index
         self.name = user + "/" + index
         self.ixconfig = ixconfig
@@ -262,7 +223,26 @@ class PrivateStage:
         return username in self.ixconfig.get("acl_upload", [])
 
     def _reconfigure(self, **kw):
-        self.ixconfig = self.db.index_modify(self.name, **kw)
+        self.ixconfig = self.modify(**kw)
+
+    def modify(self, index=None, **kw):
+        diff = list(set(kw).difference(_ixconfigattr))
+        if diff:
+            raise InvalidIndexconfig(
+                ["invalid keys for index configuration: %s" %(diff,)])
+        if "bases" in kw:
+            kw["bases"] = tuple(normalize_bases(self.xom.model, kw["bases"]))
+
+        # modify user/indexconfig
+        with self.user.key.locked_update() as userconfig:
+            ixconfig = userconfig["indexes"][self.index]
+            ixconfig.update(kw)
+            log.info("modified index %s: %s", self.name, ixconfig)
+            return ixconfig
+
+    def get(self):
+        userconfig = self.user.get()
+        return userconfig.get("indexes", {}).get(self.index)
 
     def _get_sro(self):
         """ return stage resolution order. """
@@ -274,7 +254,25 @@ class PrivateStage:
             seen.add(stage.name)
             for base in stage.ixconfig["bases"]:
                 if base not in seen:
-                    todo.append(self.db.getstage(base))
+                    todo.append(self.model.getstage(base))
+
+    def delete(self):
+        with self.user.key.locked_update() as userconfig:
+            indexes = userconfig.get("indexes", {})
+            if self.index not in indexes:
+                log.info("index %s not exists" % self.index)
+                return False
+            del indexes[self.index]
+            self._remove_indexdir()
+            log.info("deleted index config %s" % self.name)
+            return True
+
+    def _remove_indexdir(self):
+        p = self.keyfs.INDEXDIR(user=self.user.name, index=self.index).filepath
+        if p.check():
+            p.remove()
+            log.info("deleted index %s" % self.name)
+            return True
 
     def op_with_bases(self, opname, **kw):
         opname += "_perstage"
@@ -330,10 +328,14 @@ class PrivateStage:
             raise self.RegisterNameConflict(info)
         self._register_metadata(metadata)
 
+    def key_projconfig(self, name):
+        return self.keyfs.PROJCONFIG(user=self.user.name,
+                                     index=self.index, name=name)
+
     def _register_metadata(self, metadata):
         name = metadata["name"]
         version = metadata["version"]
-        key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
+        key = self.key_projconfig(name)
         with key.locked_update() as projectconfig:
             #if not self.ixconfig["volatile"] and projectconfig:
             #    raise self.MetadataExists(
@@ -345,18 +347,17 @@ class PrivateStage:
         desc = metadata.get("description")
         if desc:
             html = processDescription(desc)
-            key = self.keyfs.RELDESCRIPTION(
-                user=self.user, index=self.index, name=name, version=version)
+            key = self.keyfs.RELDESCRIPTION(user=self.user.name, 
+                        index=self.index, name=name, version=version)
             if py.builtin._istext(html):
                 html = html.encode("utf8")
             key.set(html)
 
     def project_delete(self, name):
-        key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
-        key.delete()
+        self.key_projconfig(name).delete()
 
     def project_version_delete(self, name, version):
-        key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
+        key = self.key_projconfig(name)
         with key.locked_update() as projectconfig:
             if version not in projectconfig:
                 return False
@@ -369,17 +370,16 @@ class PrivateStage:
         return True
 
     def project_exists(self, name):
-        key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
-        return key.exists()
+        return self.key_projconfig(name).exists()
 
     def get_description(self, name, version):
-        key = self.keyfs.RELDESCRIPTION(user=self.user, index=self.index,
-            name=name, version=version)
+        key = self.keyfs.RELDESCRIPTION(user=self.user.name, 
+            index=self.index, name=name, version=version)
         return py.builtin._totext(key.get(), "utf-8")
 
     def get_description_versions(self, name):
         return self.keyfs.RELDESCRIPTION.listnames("version",
-            user=self.user, index=self.index, name=name)
+            user=self.user.name, index=self.index, name=name)
 
     def get_metadata(self, name, version):
         # on win32 we need to make sure that we only return
@@ -396,8 +396,7 @@ class PrivateStage:
         return self.get_metadata(name, maxver.string)
 
     def get_projectconfig_perstage(self, name):
-        key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
-        return key.get()
+        return self.key_projconfig(name).get()
 
     def get_projectconfig(self, name):
         assert py.builtin._istext(name)
@@ -460,7 +459,7 @@ class PrivateStage:
 
     def getprojectnames_perstage(self):
         names = self.keyfs.PROJCONFIG.listnames("name",
-                        user=self.user, index=self.index)
+                        user=self.user.name, index=self.index)
         # on case insensitive filesystems we can't be sure
         # we have case-sensitive names so we do a slow
         # iteration over all projectconfig files
@@ -481,14 +480,13 @@ class PrivateStage:
         if not self.get_metadata(name, version):
             raise self.MissesRegistration(name, version)
         log.debug("project name of %r is %r", filename, name)
-        key = self.keyfs.PROJCONFIG(user=self.user,
-                                    index=self.index, name=name)
+        key = self.key_projconfig(name=name)
         with key.locked_update() as projectconfig:
             verdata = projectconfig.setdefault(version, {})
             files = verdata.setdefault("+files", {})
             if not self.ixconfig.get("volatile") and filename in files:
                 return 409
-            entry = self.xom.filestore.store(self.user, self.index,
+            entry = self.xom.filestore.store(self.user.name, self.index,
                                 filename, content, last_modified=last_modified)
             files[filename] = entry.relpath
             self.log_info("store_releasefile %s", entry.relpath)
@@ -501,11 +499,11 @@ class PrivateStage:
             version = self.get_metadata_latest_perstage(name)["version"]
             log.info("store_doczip: derived version of %s is %s",
                      name, version)
-        key = self.keyfs.PROJCONFIG(user=self.user, index=self.index, name=name)
+        key = self.key_projconfig(name=name)
         with key.locked_update() as projectconfig:
             verdata = projectconfig[version]
             filename = "%s-%s.doc.zip" % (name, version)
-            entry = self.xom.filestore.store_file(self.user, self.index,
+            entry = self.xom.filestore.store_file(self.user.name, self.index,
                                 filename, docfile)
             verdata["+doczip"] = entry.relpath
         # unpack
@@ -539,6 +537,25 @@ class PrivateStage:
 
     def _doc_key(self, name, version):
         assert version
-        return self.keyfs.STAGEDOCS(user=self.user, index=self.index,
+        return self.keyfs.STAGEDOCS(user=self.user.name, index=self.index,
                                     name=name, version=version)
+
+def normalize_bases(model, bases):
+    # check and normalize base indices
+    messages = []
+    newbases = []
+    for base in bases:
+        try:
+            stage_base = model.getstage(base)
+        except ValueError:
+            messages.append("invalid base index spec: %r" % (base,))
+        else:
+            if stage_base is None:
+                messages.append("base index %r does not exist" %(base,))
+            else:
+                newbases.append(stage_base.name)
+    if messages:
+        raise InvalidIndexconfig(messages)
+    return newbases
+
 

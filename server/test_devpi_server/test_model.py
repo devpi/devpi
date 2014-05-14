@@ -6,6 +6,7 @@ from textwrap import dedent
 
 from devpi_common.metadata import splitbasename
 from devpi_common.archive import Archive, zip_dict
+from devpi_server.model import InvalidIndexconfig, run_passwd
 from py.io import BytesIO
 
 
@@ -21,83 +22,81 @@ def register_and_store(stage, basename, content=b"123", name=None):
     stage.register_metadata(dict(name=name, version=version))
     return stage.store_releasefile(name, version, basename, content)
 
-def test_db_is_empty(db):
-    assert db.is_empty()
-    db.user_create("user", "password", email="some@email.com")
-    assert not db.is_empty()
-    db.user_delete("user")
-    assert db.is_empty()
-    db.index_create(user="root", index="dev", bases=(), type="stage",
-                    volatile=False)
-    assert not db.is_empty()
-    db.index_delete(user="root", index="dev")
-    assert db.is_empty()
+def test_is_empty(model):
+    assert model.is_empty()
+    user = model.create_user("user", "password", email="some@email.com")
+    assert not model.is_empty()
+    stage = model.getstage("user", "dev")
+    assert stage is None
+    user.create_stage("dev", bases=(), type="stage", volatile=False)
+    assert not model.is_empty()
+    stage = model.getstage("user/dev")
+    assert stage.delete()
+    user.delete()
+    assert model.is_empty()
 
 class TestStage:
     @pytest.fixture
-    def stage(self, request, db):
-        config = dict(user="hello", index="world", bases=(),
+    def stage(self, request, user):
+        config = dict(index="world", bases=(),
                       type="stage", volatile=True)
         if "bases" in request.fixturenames:
             config["bases"] = request.getfuncargvalue("bases")
-        db.user_create("hello", "123")
-        db.index_create(**config)
-        return db.getstage(user=config["user"], index=config["index"])
+        return user.create_stage(**config)
 
-    def test_create_and_delete(self, db):
-        db.index_create(user="hello", index="world", bases=(),
-                        type="stage", volatile=False)
-        db.index_create(user="hello", index="world2", bases=(),
-                        type="stage", volatile=False)
-        db.index_delete(user="hello", index="world2")
-        assert not db.index_get(user="hello", index="world2")
-        assert db.index_get(user="hello", index="world")
+    @pytest.fixture
+    def user(self, model):
+        return model.create_user("hello", password="123")
 
-    def test_set_and_get_acl(self, db):
-        db.index_create(user="hello", index="world", bases=(),
-                        type="stage", volatile=False)
-        indexconfig = db.index_get(user="hello", index="world")
+    def test_create_and_delete(self, model):
+        user = model.create_user("hello", password="123")
+        user.create_stage("world", bases=(), type="stage", volatile=False)
+        user.create_stage("world2", bases=(), type="stage", volatile=False)
+        stage = model.getstage("hello", "world2")
+        assert stage.delete()
+        assert model.getstage("hello", "world2") is None
+        assert model.getstage("hello", "world") is not None
+
+    def test_set_and_get_acl(self, model, stage):
+        indexconfig = stage.ixconfig
         # check that "hello" was included in acl_upload by default
         assert indexconfig["acl_upload"] == ["hello"]
-        stage = db.getstage("hello/world")
+        stage = model.getstage("hello/world")
         # root cannot upload
         assert not stage.can_upload("root")
 
         # and we remove 'hello' from acl_upload ...
-        assert db.index_modify(user="hello", index="world", acl_upload=[])
+        stage.modify(acl_upload=[])
         # ... it cannot upload either
-        stage = db.getstage("hello/world")
+        stage = model.getstage("hello/world")
         assert not stage.can_upload("hello")
 
-    def test_getstage_normalized(self, db):
-        assert db.getstage("/root/pypi/").name == "root/pypi"
+    def test_getstage_normalized(self, model):
+        assert model.getstage("/root/pypi/").name == "root/pypi"
 
-    def test_not_configured_index(self, db):
+    def test_not_configured_index(self, model):
         stagename = "hello/world"
-        assert not db.index_get(stagename)
-        assert not db.getstage(stagename)
+        assert model.getstage(stagename) is None
 
-    def test_indexconfig_set_throws_on_unknown_base_index(self, db):
-        with pytest.raises(db.InvalidIndexconfig) as excinfo:
-            db.index_create(user="hello", index="world",
-                            bases=("root/notexists", "root/notexists2"),)
+    def test_indexconfig_set_throws_on_unknown_base_index(self, stage, user):
+        with pytest.raises(InvalidIndexconfig) as excinfo:
+            user.create_stage(index="something",
+                              bases=("root/notexists", "root/notexists2"),)
         messages = excinfo.value.messages
         assert len(messages) == 2
         assert "root/notexists" in messages[0]
         assert "root/notexists2" in messages[1]
 
-    def test_indexconfig_set_throws_on_invalid_base_index(self, db):
-        with pytest.raises(db.InvalidIndexconfig) as excinfo:
-            db.index_create(user="hello", index="world",
-                            bases=("root/dev/123",),)
+    def test_indexconfig_set_throws_on_invalid_base_index(self, stage, user):
+        with pytest.raises(InvalidIndexconfig) as excinfo:
+            user.create_stage(index="world", bases=("root/dev/123",),)
         messages = excinfo.value.messages
         assert len(messages) == 1
         assert "root/dev/123" in messages[0]
 
-    def test_indexconfig_set_normalizes_bases(self, db):
-        ixconfig = db.index_create(user="hello", index="world",
-                                   bases=("/root/pypi/",))
-        assert ixconfig["bases"] == ("root/pypi",)
+    def test_indexconfig_set_normalizes_bases(self, user):
+        stage = user.create_stage(index="world", bases=("/root/pypi/",))
+        assert stage.ixconfig["bases"] == ("root/pypi",)
 
     def test_empty(self, stage, bases):
         assert not stage.getreleaselinks("someproject")
@@ -105,8 +104,7 @@ class TestStage:
 
     def test_10_metadata_name_mixup(self, stage, bases):
         stage._register_metadata({"name": "x-encoder", "version": "1.0"})
-        key = stage.keyfs.PROJCONFIG(user=stage.user, index=stage.index,
-                                     name="x_encoder")
+        key = stage.key_projconfig(name="x_encoder")
         with key.locked_update() as projectconfig:
             versionconfig = projectconfig["1.0"] = {}
             versionconfig.update({"+files":
@@ -122,20 +120,21 @@ class TestStage:
         exporter = Exporter(tw, stage.xom)
         exporter.compute_global_projectname_normalization()
 
-    def test_inheritance_simple(self, extdb, stage, db):
+    def test_inheritance_simple(self, pypistage, stage):
         stage._reconfigure(bases=("root/pypi",))
-        extdb.mock_simple("someproject", "<a href='someproject-1.0.zip' /a>")
+        pypistage.mock_simple("someproject", "<a href='someproject-1.0.zip' /a>")
         assert stage.getprojectnames() == ["someproject",]
         entries = stage.getreleaselinks("someproject")
         assert len(entries) == 1
         stage.register_metadata(dict(name="someproject", version="1.1"))
         assert stage.getprojectnames() == ["someproject",]
 
-    def test_inheritance_twice(self, extdb, db, stage):
-        db.index_create(user="root", index="dev2", bases=("root/pypi",))
-        stage_dev2 = db.getstage("root/dev2")
-        stage._reconfigure(bases=("root/dev2",))
-        extdb.mock_simple("someproject", "<a href='someproject-1.0.zip' /a>")
+    def test_inheritance_twice(self, pypistage, stage, user):
+        user.create_stage(index="dev2", bases=("root/pypi",))
+        stage_dev2 = user.getstage("dev2")
+        stage._reconfigure(bases=(stage_dev2.name,))
+        pypistage.mock_simple("someproject", 
+                              "<a href='someproject-1.0.zip' /a>")
         register_and_store(stage_dev2, "someproject-1.1.tar.gz")
         register_and_store(stage_dev2, "someproject-1.2.tar.gz")
         entries = stage.getreleaselinks("someproject")
@@ -145,9 +144,9 @@ class TestStage:
         assert entries[2].basename == "someproject-1.0.zip"
         assert stage.getprojectnames() == ["someproject",]
 
-    def test_inheritance_normalize_multipackage(self, extdb, stage):
+    def test_inheritance_normalize_multipackage(self, pypistage, stage):
         stage._reconfigure(bases=("root/pypi",))
-        extdb.mock_simple("some-project", """
+        pypistage.mock_simple("some-project", """
             <a href='some_project-1.0.zip' /a>
             <a href='some_project-1.0.tar.gz' /a>
         """)
@@ -162,9 +161,9 @@ class TestStage:
         assert entries[2].basename == "some_project-1.0.tar.gz"
         assert stage.getprojectnames() == ["some-project",]
 
-    def test_getreleaselinks_inheritance_shadow(self, extdb, stage):
+    def test_getreleaselinks_inheritance_shadow(self, pypistage, stage):
         stage._reconfigure(bases=("root/pypi",))
-        extdb.mock_simple("someproject",
+        pypistage.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         register_and_store(stage, "someproject-1.0.zip", b"123")
         stage.store_releasefile("someproject", "1.0",
@@ -173,9 +172,9 @@ class TestStage:
         assert len(entries) == 1
         assert entries[0].relpath.endswith("someproject-1.0.zip")
 
-    def test_getreleaselinks_inheritance_shadow_egg(self, extdb, stage):
+    def test_getreleaselinks_inheritance_shadow_egg(self, pypistage, stage):
         stage._reconfigure(bases=("root/pypi",))
-        extdb.mock_simple("py",
+        pypistage.mock_simple("py",
         """<a href="http://bb.org/download/py.zip#egg=py-dev" />
            <a href="http://bb.org/download/master#egg=py-dev2" />
         """)
@@ -187,17 +186,17 @@ class TestStage:
         assert e1.basename == "py.zip"
         assert e2.basename == "master"
 
-    def test_inheritance_error(self, extdb, stage):
+    def test_inheritance_error(self, pypistage, stage):
         stage._reconfigure(bases=("root/pypi",))
-        extdb.mock_simple("someproject", status_code = -1)
+        pypistage.mock_simple("someproject", status_code = -1)
         entries = stage.getreleaselinks("someproject")
         assert entries == -1
         #entries = stage.getprojectnames()
         #assert entries == -1
 
-    def test_get_projectconfig_inherited(self, extdb, stage):
+    def test_get_projectconfig_inherited(self, pypistage, stage):
         stage._reconfigure(bases=("root/pypi",))
-        extdb.mock_simple("someproject",
+        pypistage.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         projectconfig = stage.get_projectconfig("someproject")
         assert "someproject-1.0.zip" in projectconfig["1.0"]["+files"]
@@ -217,9 +216,9 @@ class TestStage:
             stage.store_releasefile("someproject", "1.0",
                                     "someproject-1.0.zip", b"123")
 
-    def test_project_config_shadowed(self, extdb, stage):
+    def test_project_config_shadowed(self, pypistage, stage):
         stage._reconfigure(bases=("root/pypi",))
-        extdb.mock_simple("someproject",
+        pypistage.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         content = b"123"
         stage.store_releasefile("someproject", "1.0",
@@ -336,11 +335,10 @@ class TestStage:
         metadata = stage.get_metadata_latest_perstage("hello")
         assert metadata["version"] == "1.1"
 
-    def test_get_metadata_latest_inheritance(self, db, stage):
+    def test_get_metadata_latest_inheritance(self, user, model, stage):
         stage_base_name = stage.index + "base"
-        db.index_create(user=stage.user, index=stage_base_name,
-                        bases=(stage.name,))
-        stage_sub = db.getstage(stage.user, stage_base_name)
+        user.create_stage(index=stage_base_name, bases=(stage.name,))
+        stage_sub = model.getstage(stage.user.name, stage_base_name)
         stage_sub.register_metadata(dict(name="hello", version="1.0"))
         stage.register_metadata(dict(name="hello", version="1.1"))
         metadata = stage_sub.get_metadata_latest_perstage("hello")
@@ -388,60 +386,55 @@ class TestStage:
 
 class TestUsers:
 
-    def test_secret(self, db):
-        db.keyfs.basedir.ensure(".something")
-        assert not db.user_get(".something")
+    def test_secret(self, xom, model):
+        xom.keyfs.basedir.ensure(".something")
+        assert model.get_user(".something") is None
 
-    def test_create_and_validate(self, db):
-        assert not db.user_exists("user")
-        db.user_create("user", "password", email="some@email.com")
-        assert db.user_exists("user")
-        userconfig = db.user_get("user")
+    def test_create_and_validate(self, model):
+        user = model.get_user("user")
+        assert not user
+        user = model.create_user("user", "password", email="some@email.com")
+        assert user
+        userconfig = user.get()
         assert userconfig["email"] == "some@email.com"
         assert not set(userconfig).intersection(["pwsalt", "pwhash"])
-        userconfig = db.user_get("user")
-        assert db.user_validate("user", "password")
-        assert not db.user_validate("user", "password2")
+        assert user.validate("password")
+        assert not user.validate("password2")
 
-    def test_create_and_delete(self, db):
-        db.user_create("user", password="password")
-        assert db.user_exists("user")
-        db.user_delete("user")
-        assert not db.user_exists("user")
-        assert not db.user_validate("user", "password")
+    def test_create_and_delete(self, model):
+        user = model.create_user("user", password="password")
+        user.delete()
+        assert not user.validate("password")
 
-    def test_create_and_list(self, db):
-        baselist = db.user_list()
-        db.user_modify("user1", password="password")
-        db.user_modify("user2", password="password")
-        db.user_modify("user3", password="password")
-        newusers = db.user_list().difference(baselist)
+    def test_create_and_list(self, model):
+        baselist = model.get_usernames()
+        model.create_user("user1", password="password")
+        model.create_user("user2", password="password")
+        model.create_user("user3", password="password")
+        newusers = model.get_usernames().difference(baselist)
         assert newusers == set("user1 user2 user3".split())
-        db.user_delete("user3")
-        newusers = db.user_list().difference(baselist)
+        model.get_user("user3").delete()
+        newusers = model.get_usernames().difference(baselist)
         assert newusers == set("user1 user2".split())
 
-    def test_server_passwd(self, db, monkeypatch):
-        from devpi_server.db import run_passwd
+    def test_server_passwd(self, model, monkeypatch):
         monkeypatch.setattr(py.std.getpass, "getpass", lambda x: "123")
-        run_passwd(db, "root")
-        assert db.user_validate("root", "123")
+        run_passwd(model, "root")
+        assert model.get_user("root").validate("123")
 
-    def test_server_email(self, db):
+    def test_server_email(self, model):
         email_address = "root_" + str(id) + "@mydomain"
-        db.user_modify('root', email=email_address)
-        assert db.user_get("root")["email"] == email_address
+        user = model.get_user("root")
+        user.modify(email=email_address)
+        assert user.get()["email"] == email_address
 
-def test_user_set_without_indexes(db):
-    db.user_create("user", "password", email="some@email.com")
-    assert db.user_exists("user")
-    db.index_create("user/hello")
-    db._user_set("user", {"password": "pass2"})
-    assert db.index_exists("user/hello")
+def test_user_set_without_indexes(model):
+    user = model.create_user("user", "password", email="some@email.com")
+    user.create_stage("hello")
+    user._set({"password": "pass2"})
+    assert model.getstage("user/hello")
 
-def test_setdefault_indexes(db):
+def test_setdefault_indexes(model):
     from devpi_server.main import set_default_indexes
-    set_default_indexes(db)
-    ixconfig = db.index_get("root/pypi")
-    assert ixconfig["type"] == "mirror"
-
+    set_default_indexes(model)
+    assert model.getstage("root/pypi").ixconfig["type"] == "mirror"

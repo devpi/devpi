@@ -16,6 +16,8 @@ import logging
 from devpi_common.request import new_requests_session
 from devpi_common.validation import normalize_name, is_valid_archive_name
 
+from devpi_server.model import InvalidIndexconfig
+
 from .auth import Auth
 from .config import render_string
 
@@ -119,15 +121,14 @@ class PyPIView:
         self.request = request
         xom = request.registry['xom']
         self.xom = xom
-        self.db = xom.db
-        self.auth = Auth(xom.db, xom.config.secret)
+        self.model = xom.model
+        self.auth = Auth(self.model, xom.config.secret)
 
     def getstage(self, user, index):
-        stage = self.db.getstage(user, index)
+        stage = self.model.getstage(user, index)
         if not stage:
             abort(self.request, 404, "no such stage")
         return stage
-
 
     #
     # supplying basic API locations for all services
@@ -157,16 +158,14 @@ class PyPIView:
             parts = path.split("/")
             if len(parts) >= 2:
                 user, index = parts[:2]
-                ixconfig = self.db.index_get(user, index)
-                if not ixconfig:
-                    abort(request, 404, "index %s/%s does not exist" % (user, index))
+                stage = self.getstage(user, index)
                 api.update({
                     "index": self.route_url(
                         "/{user}/{index}", user=user, index=index),
                     "simpleindex": self.route_url(
                         "/{user}/{index}/+simple/", user=user, index=index)
                 })
-                if ixconfig["type"] == "stage":
+                if stage.ixconfig["type"] == "stage":
                     api["pypisubmit"] = self.route_url(
                         "/{user}/{index}/", user=user, index=index)
         apireturn(200, type="apiconfig", result=api)
@@ -295,16 +294,18 @@ class PyPIView:
     def index_create_or_modify(self, user, index):
         request = self.request
         self.require_user(user)
-        ixconfig = self.db.index_get(user, index)
-        if request.method == "PUT" and ixconfig is not None:
-            apireturn(409, "index %s/%s exists" % (user, index))
+        user = self.model.get_user(user)
+        stage = user.getstage(index)
+        if request.method == "PUT" and stage is not None:
+            apireturn(409, "index %r exists" % stage.name)
         kvdict = getkvdict_index(getjson(request))
         try:
-            if not ixconfig:
-                ixconfig = self.db.index_create(user, index, **kvdict)
+            if not stage:
+                stage = user.create_stage(index, **kvdict)
+                ixconfig = stage.ixconfig
             else:
-                ixconfig = self.db.index_modify(user, index, **kvdict)
-        except self.db.InvalidIndexconfig as e:
+                ixconfig = stage.modify(**kvdict)
+        except InvalidIndexconfig as e:
             apireturn(400, message=", ".join(e.messages))
         apireturn(200, type="indexconfig", result=ixconfig)
 
@@ -312,14 +313,11 @@ class PyPIView:
     @matchdict_parameters
     def index_delete(self, user, index):
         self.require_user(user)
-        indexname = user + "/" + index
-        ixconfig = self.db.index_get(user, index)
-        if not ixconfig:
-            apireturn(404, "index %s does not exist" % indexname)
-        if not ixconfig["volatile"]:
-            apireturn(403, "index %s non-volatile, cannot delete" % indexname)
-        assert self.db.index_delete(user, index)
-        apireturn(201, "index %s deleted" % indexname)
+        stage = self.getstage(user, index)
+        if not stage.ixconfig["volatile"]:
+            apireturn(403, "index %s non-volatile, cannot delete" % stage.name)
+        assert stage.delete()
+        apireturn(201, "index %s deleted" % stage.name)
 
     @view_config(route_name="/{user}/{index}", request_method="PUSH")
     @matchdict_parameters
@@ -747,7 +745,8 @@ class PyPIView:
         #log.debug("headers %r", request.headers.items())
         status, auth_user = self.auth.get_auth_status(request.auth)
         log.debug("got auth status %r for user %r" %(status, auth_user))
-        if not self.db.user_exists(user):
+        user = self.model.get_user(user)
+        if user is None:
             abort(request, 404, "required user %r does not exist" % auth_user)
         if status == "nouser":
             abort(request, 404, "user %r does not exist" % auth_user)
@@ -755,7 +754,7 @@ class PyPIView:
             self.abort_authenticate(msg="auth expired for %r" % auth_user)
         elif status == "noauth":
             self.abort_authenticate()
-        if auth_user == "root" or auth_user == user:
+        if auth_user == "root" or auth_user == user.name:
             return
         if stage:
             acl = stage.ixconfig.get("acl_" + acltype, [])
@@ -792,22 +791,26 @@ class PyPIView:
         dict = getjson(request, allowed_keys=["email", "password"])
         email = dict.get("email")
         password = dict.get("password")
-        self.db.user_modify(user, password=password, email=email)
+        user = self.model.get_user(user)
+        user.modify(password=password, email=email)
         if password is not None:
             apireturn(200, "user updated, new proxy auth", type="userpassword",
-                      result=self.auth.new_proxy_auth(user, password=password))
+                      result=self.auth.new_proxy_auth(user.name, 
+                                                      password=password))
         apireturn(200, "user updated")
 
     @view_config(route_name="/{user}", request_method="PUT")
     @matchdict_parameters
     def user_create(self, user):
+        username = user
         request = self.request
-        if self.db.user_exists(user):
+        user = self.model.get_user(username)
+        if user is not None:
             apireturn(409, "user already exists")
         kvdict = getjson(request)
         if "password" in kvdict:  # and "email" in kvdict:
-            self.db.user_create(user, **kvdict)
-            apireturn(201, type="userconfig", result=self.db.user_get(user))
+            user = self.model.create_user(username, **kvdict)
+            apireturn(201, type="userconfig", result=user.get())
         apireturn(400, "password needs to be set")
 
     @view_config(route_name="/{user}", request_method="DELETE")
@@ -816,22 +819,24 @@ class PyPIView:
         if user == "root":
             apireturn(403, "root user cannot be deleted")
         self.require_user(user)
-        userconfig = self.db.user_get(user)
+        user = self.model.get_user(user)
+        userconfig = user.get()
         if not userconfig:
-            apireturn(404, "user %r does not exist" % user)
+            apireturn(404, "user %r does not exist" % user.name)
         for name, ixconfig in userconfig.get("indexes", {}).items():
             if not ixconfig["volatile"]:
                 apireturn(403, "user %r has non-volatile index: %s" %(
                                user, name))
-        self.db.user_delete(user)
-        apireturn(200, "user %r deleted" % user)
+        user.delete()
+        apireturn(200, "user %r deleted" % user.name)
 
     @view_config(route_name="/{user}", request_method="GET")
     @matchdict_parameters
     def user_get(self, user):
-        userconfig = self.db.user_get(user)
-        if not userconfig:
+        user = self.model.get_user(user)
+        if user is None:
             apireturn(404, "user %r does not exist" % user)
+        userconfig = user.get()
         apireturn(200, type="userconfig", result=userconfig)
 
     @view_config(route_name="/", request_method="GET")
@@ -840,8 +845,8 @@ class PyPIView:
         #if accept is not None:
         #    if accept.endswith("/json"):
         d = {}
-        for user in self.db.user_list():
-            d[user] = self.db.user_get(user)
+        for user in self.model.get_userlist():
+            d[user.name] = user.get()
         apireturn(200, type="list:userconfig", result=d)
 
 
