@@ -34,7 +34,7 @@ def run_passwd(root, user):
 _ixconfigattr = set(
     "type volatile bases uploadtrigger_jenkins acl_upload".split())
 
-class Root:
+class RootModel:
     def __init__(self, xom):
         self.xom = xom
         self.keyfs = xom.keyfs

@@ -197,8 +197,8 @@ class XOM:
     @property
     def model(self):
         """ root model object. """
-        from devpi_server.model import Root
-        return Root(self)
+        from devpi_server.model import RootModel
+        return RootModel(self)
 
     def main(self):
         xom = self
