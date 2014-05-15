@@ -97,7 +97,6 @@ class Exporter:
         self.tw = tw
         self.xom = xom
         self.config = xom.config
-        self.keyfs = xom.keyfs
         self.filestore = xom.filestore
 
         self.export = {}
