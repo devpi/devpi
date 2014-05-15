@@ -88,13 +88,24 @@ More precisely, we have the following change entry types:
 - ``[pypimirror] pypi project metadata``: metadata about a pypi project
 
 - ``[pypimirror] release archive``: a release file mirrored from
-  pypi.python.org, related to a project/version
+  pypi.python.org or an external site, related to a particular
+  project/version of a pypi project.
 
-The change entries marked with ``[pypimirror]`` are special because
+The change entries marked with ``[pypimirror]`` are a bit special because
 server-state changes are triggered by just accessing projects on
 the ``/root/pypi`` mirror.   Including pypi-changes in the replication
 protocol will increase replication traffic considerably, see also the
 discussion about `laptop replication`_.
+
+Note that all non-upload changelog entries will carry the full
+information of the change while upload changelog entries will
+only contain a checksummed reference to allow replicas to 
+obtain the respective file.  This distinction is done to minimize
+the size of changelog entries and the bandwidth used by the replica
+protocol.  Also, the changelog entry information will be encoded
+using JSON.  Release archives, documentation zips and test results
+are rather binary files that are more efficient for a replica
+to download in binary mode.
 
 .. _`http relaying`:
 
@@ -162,3 +173,16 @@ To remedy this, we consider implementing a per-server (and maybe also
 per-index) view on "recent changes", and also detailing the "local" serials
 and "remote serials" as well as the replica/master connection status.
 
+
+Transactional master sate changes / SQL
+-------------------------------------------------------
+
+Every change on the devpi-server master side needs to happen
+atomically and needs to be associated with a unique serial number.  
+``devpi-server-1.2`` uses simple internal filesystem storage. 
+While we could go for implementing some transaction mechanism
+on top we rather aim to use an SQL database and use its 
+inbuilt ACID guarantees.  We'll use the simple ``sqlite`` database
+support and `sqlalchemy <https://pypi.python.org/pypi/sqlalchemy>`_
+to perform SQL operations.  Binary or larger files will remain
+to be stored outside.
