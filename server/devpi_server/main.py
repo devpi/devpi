@@ -80,6 +80,14 @@ def _main(argv=None, hook=None):
 
     xom = XOM(config)
     check_compatible_version(xom)
+
+    results = hook.devpiserver_run_commands(xom)
+    if [x for x in results if x is not None]:
+        errors = list(filter(None, results))
+        if errors:
+            return errors[0]
+        return 0
+
     if args.start or args.stop or args.log or args.status:
         xprocdir = config.serverdir.join(".xproc")
         from devpi_server.bgserver import BackgroundServer
