@@ -129,7 +129,7 @@ def try_argcomplete(parser):
     else:
         argcomplete.autocomplete(parser)
 
-def parseoptions(argv, addoptions=addoptions, plugins=None):
+def parseoptions(argv, addoptions=addoptions, hook=None):
     parser = MyArgumentParser(
         description="Start a server which serves multiples users and "
                     "indices. The special root/pypi index is a real-time "
@@ -143,7 +143,7 @@ def parseoptions(argv, addoptions=addoptions, plugins=None):
     raw = [str(x) for x in argv[1:]]
     args = parser.parse_args(raw)
     args._raw = raw
-    config = Config(args, plugins=plugins)
+    config = Config(args, hook=hook)
     return config
 
 class MyArgumentParser(argparse.ArgumentParser):
@@ -198,7 +198,7 @@ class PluginManager:
 
 
 class Config:
-    def __init__(self, args, plugins):
+    def __init__(self, args, hook):
         self.args = args
         serverdir = args.serverdir
         if serverdir is None:
@@ -211,7 +211,7 @@ class Config:
             self.secretfile = py.path.local(
                     os.path.expanduser(args.secretfile))
 
-        self.hook = PluginManager(plugins)
+        self.hook = hook
 
     @cached_property
     def secret(self):

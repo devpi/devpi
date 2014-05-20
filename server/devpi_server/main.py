@@ -13,6 +13,7 @@ log = getLogger(__name__)
 
 from devpi_common.types import cached_property
 from devpi_common.request import new_requests_session
+from .config import PluginManager
 from .config import parseoptions, configure_logging, load_setuptools_entrypoints
 from .extpypi import XMLProxy
 from . import __version__ as server_version
@@ -52,19 +53,20 @@ def main(argv=None, plugins=None):
     if plugins is None:
         plugins = []
     plugins.extend(load_setuptools_entrypoints())
+    hook = PluginManager(plugins)
     try:
-        return _main(argv, plugins=plugins)
+        return _main(argv, hook=hook)
     except Fatal as e:
         tw = py.io.TerminalWriter(sys.stderr)
         tw.line("fatal: %s" %  e.args[0], red=True)
         return 1
 
-def _main(argv=None, plugins=None):
+def _main(argv=None, hook=None):
     if argv is None:
         argv = sys.argv
 
     argv = [str(x) for x in argv]
-    config = parseoptions(argv, plugins=plugins)
+    config = parseoptions(argv, hook=hook)
     args = config.args
 
     if args.version:

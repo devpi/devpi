@@ -9,6 +9,7 @@ import mimetypes
 import mock
 import pytest
 import py
+from devpi_server.config import PluginManager
 from devpi_server.main import XOM, parseoptions
 from devpi_common.url import URL
 from devpi_server.extpypi import XMLProxy
@@ -67,10 +68,11 @@ def xom(request, makexom):
 @pytest.fixture
 def makexom(request, gentmp, httpget):
     def makexom(opts=(), httpget=httpget, proxy=None, mocking=True, plugins=()):
+        hook = PluginManager(plugins)
         serverdir = gentmp()
         fullopts = ["devpi-server", "--serverdir", serverdir] + list(opts)
         fullopts = [str(x) for x in fullopts]
-        config = parseoptions(fullopts, plugins=plugins)
+        config = parseoptions(fullopts, hook=hook)
         if mocking:
             if proxy is None:
                 proxy = mock.create_autospec(XMLProxy)
