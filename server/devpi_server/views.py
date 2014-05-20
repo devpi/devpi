@@ -5,6 +5,7 @@ from devpi_common.types import ensure_unicode
 from devpi_common.url import URL
 from devpi_common.metadata import get_pyversion_filetype
 import devpi_server
+from pyramid.compat import urlparse
 from pyramid.httpexceptions import HTTPException, HTTPFound, HTTPSuccessful
 from pyramid.httpexceptions import exception_response
 from pyramid.response import FileResponse, Response
@@ -120,12 +121,13 @@ def route_url(self, *args, **kw):
     xom = self.registry['xom']
     outside_url = get_outside_url(
         self.headers, xom.config.args.outside_url)
-    url = URL(super(self.__class__, self).route_url(
-        _app_url=outside_url.rstrip("/"), *args, **kw))
+    url = super(self.__class__, self).route_url(
+        _app_url=outside_url.rstrip("/"), *args, **kw)
     # Unquote plus signs in path segment. The settings in pyramid for
     # the urllib quoting function are a bit too much on the safe side
-    url = url.addpath(url.path.replace('%2B', '+'))
-    return url.url
+    url = urlparse.urlparse(url)
+    url = url._replace(path=url.path.replace('%2B', '+'))
+    return url.geturl()
 
 
 class PyPIView:
