@@ -1,0 +1,28 @@
+<html>
+    <head>
+        <title>${title}</title>
+    </head>
+    <body>
+        <h1>${title}</h1>
+
+        <table>
+            <tr tal:repeat="info infos">
+                <td>${info[0]}</td>
+                <td tal:content="structure info[1]"></td>
+            </tr>
+        </table>
+
+        <div class="docs" tal:condition="docs">
+            <h2>Documentation</h2>
+            <a href="${docs.url}">${docs.title}</a>
+        </div>
+        <div class="files" tal:condition="files">
+            <h2>Release files</h2>
+            <ul>
+                <li tal:repeat="file files"><a href="${file.url}">${file.title}</a></li>
+            </ul>
+        </div>
+
+        <div class="description" tal:content="structure content" />
+    </body>
+</html>

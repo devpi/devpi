@@ -328,10 +328,10 @@ class XOM:
         self.config.hook.devpiserver_pyramid_configure(
                 config=self.config,
                 pyramid_config=pyramid_config)
-        pyramid_config.add_route("/+api", "/+api")
-        pyramid_config.add_route("{path:.*}/+api", "{path:.*}/+api")
-        pyramid_config.add_route("/+login", "/+login")
-        pyramid_config.add_route("/+tests", "/+tests")
+        pyramid_config.add_route("/+api", "/+api", accept="application/json")
+        pyramid_config.add_route("{path:.*}/+api", "{path:.*}/+api", accept="application/json")
+        pyramid_config.add_route("/+login", "/+login", accept="application/json")
+        pyramid_config.add_route("/+tests", "/+tests", accept="application/json")
         pyramid_config.add_route("/+tests/{md5}/{type}", "/+tests/{md5}/{type}")
         pyramid_config.add_route("/+tests/{md5}/{type}/{num}", "/+tests/{md5}/{type}/{num}")
         pyramid_config.add_route("/{user}/{index}/+e/{relpath:.*}", "/{user}/{index}/+e/{relpath:.*}")

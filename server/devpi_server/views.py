@@ -29,19 +29,6 @@ log = logging.getLogger(__name__)
 MAXDOCZIPSIZE = 30 * 1024 * 1024    # 30MB
 
 
-def simple_html_body(title, bodytags, extrahead=""):
-    return html.html(
-        html.head(
-            html.title(title),
-            extrahead,
-        ),
-        html.body(
-            html.h1(title), "\n",
-            bodytags
-        )
-    )
-
-
 API_VERSION = "1"
 
 # we use str() here so that python2.6 gets bytes, python3.3 gets string
@@ -88,9 +75,6 @@ def apireturn(code, message=None, result=None, type=None):
 def json_preferred(request):
     # XXX do proper "best" matching
     return "application/json" in request.headers.get("Accept", "")
-
-def html_preferred(accept):
-    return not accept or "text/html" in accept or "*/*" in accept
 
 
 def matchdict_parameters(f):
@@ -256,10 +240,13 @@ class PyPIView:
                  html.a(entry.basename, href=href),
                  html.br(), "\n",
             ])
-        return Response(
-            simple_html_body(
-                "%s: links for %s" % (stage.name, projectname),
-                links).unicode(indent=2))
+        title = "%s: links for %s" % (stage.name, projectname)
+        return Response(html.html(
+            html.head(
+                html.title(title)),
+            html.body(
+                html.h1(title), "\n",
+                links)).unicode(indent=2))
 
     @view_config(route_name="/{user}/{index}/+simple/")
     @matchdict_parameters
@@ -537,7 +524,7 @@ class PyPIView:
         real_name = info.name if info else name
         redirect("/%s/+simple/%s" % (stage.name, real_name))
 
-    @view_config(route_name="/{user}/{index}/{name}")
+    @view_config(route_name="/{user}/{index}/{name}", accept="application/json", request_method="GET")
     @matchdict_parameters
     def project_get(self, user, index, name):
         request = self.request
@@ -571,7 +558,7 @@ class PyPIView:
         stage.project_delete(name)
         apireturn(200, "project %r deleted from stage %s" % (name, stage.name))
 
-    @view_config(route_name="/{user}/{index}/{name}/{version}")
+    @view_config(route_name="/{user}/{index}/{name}/{version}", accept="application/json", request_method="GET")
     @matchdict_parameters
     def version_get(self, user, index, name, version):
         stage = self.getstage(user, index)
@@ -583,29 +570,7 @@ class PyPIView:
         verdata = metadata.get(version, None)
         if not verdata:
             abort(self.request, 404, "version %r does not exist" % version)
-        if json_preferred(self.request):
-            apireturn(200, type="versiondata", result=verdata)
-
-        # if html show description and metadata
-        rows = []
-        for key, value in sorted(verdata.items()):
-            if key == "description":
-                continue
-            if isinstance(value, list):
-                value = html.ul([html.li(x) for x in value])
-            rows.append(html.tr(html.td(key), html.td(value)))
-        title = "%s/: %s-%s metadata and description" % (
-                stage.name, name, version)
-
-        content = stage.get_description(name, version)
-        #css = "https://pypi.python.org/styles/styles.css"
-        return Response(simple_html_body(title,
-            [html.table(*rows), py.xml.raw(content)],
-            extrahead=
-            [html.link(media="screen", type="text/css",
-                rel="stylesheet", title="text",
-                href="https://pypi.python.org/styles/styles.css")]
-        ).unicode(indent=2))
+        apireturn(200, type="versiondata", result=verdata)
 
     @view_config(route_name="/{user}/{index}/{name}/{version}", request_method="DELETE")
     @matchdict_parameters
@@ -649,74 +614,13 @@ class PyPIView:
             response.content_length = headers["content-length"]
         return Response(app_iter=itercontent)
 
-    @view_config(route_name="/{user}/{index}", request_method="GET")
+    @view_config(route_name="/{user}/{index}", accept="application/json", request_method="GET")
     @matchdict_parameters
     def index_get(self, user, index):
-        request = self.request
         stage = self.getstage(user, index)
-        if json_preferred(request):
-            result = dict(stage.ixconfig)
-            result['projects'] = sorted(stage.getprojectnames_perstage())
-            apireturn(200, type="indexconfig", result=result)
-        if stage.name == "root/pypi":
-            return Response(simple_html_body("%s index" % stage.name, [
-                html.ul(
-                    html.li(html.a("simple index", href="+simple/")),
-                ),
-            ]).unicode())
-
-
-        # XXX this should go to a template
-        if hasattr(stage, "ixconfig"):
-            bases = html.ul()
-            for base in stage.ixconfig["bases"]:
-                bases.append(html.li(
-                    html.a("%s" % base, href="/%s/" % base),
-                    " (",
-                    html.a("simple", href="/%s/+simple/" % base),
-                    " )",
-                ))
-            if bases:
-                bases = [html.h2("inherited bases"), bases]
-        else:
-            bases = []
-        latest_packages = html.table(
-            html.tr(html.td("info"), html.td("file"), html.td("docs")))
-
-        for projectname in stage.getprojectnames_perstage():
-            metadata = stage.get_metadata_latest_perstage(projectname)
-            try:
-                name, ver = metadata["name"], metadata["version"]
-            except KeyError:
-                log.error("metadata for project %r empty: %s, skipping",
-                          projectname, metadata)
-                continue
-            files = metadata.get("+files", {})
-            if not files:
-                log.warn("project %r version %r has no files", projectname,
-                         metadata.get("version"))
-            baseurl = URL(request.path)
-            for basename, relpath in files.items():
-                latest_packages.append(html.tr(
-                    html.td(html.a("%s-%s info page" % (name, ver),
-                           href="%s/%s/" % (name, ver))),
-                    html.td(html.a(basename,
-                                   href=baseurl.relpath("/" + relpath))),
-                ))
-                break  # could present more releasefiles
-
-        latest_packages = [
-            html.h2("in-stage latest packages, at least as recent as bases"),
-            latest_packages]
-
-        return Response(simple_html_body("%s index" % stage.name, [
-            html.ul(
-                html.li(html.a("simple index", href="+simple/")),
-            ),
-            latest_packages,
-            bases,
-        ]).unicode())
-
+        result = dict(stage.ixconfig)
+        result['projects'] = sorted(stage.getprojectnames_perstage())
+        apireturn(200, type="indexconfig", result=result)
 
     #
     # login and user handling
@@ -820,7 +724,7 @@ class PyPIView:
         user.delete()
         apireturn(200, "user %r deleted" % user.name)
 
-    @view_config(route_name="/{user}", request_method="GET")
+    @view_config(route_name="/{user}", accept="application/json", request_method="GET")
     @matchdict_parameters
     def user_get(self, user):
         user = self.model.get_user(user)
@@ -829,7 +733,7 @@ class PyPIView:
         userconfig = user.get()
         apireturn(200, type="userconfig", result=userconfig)
 
-    @view_config(route_name="/", request_method="GET")
+    @view_config(route_name="/", accept="application/json", request_method="GET")
     def user_list(self):
         #accept = request.headers.get("accept")
         #if accept is not None:

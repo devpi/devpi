@@ -24,7 +24,9 @@ setup(
         'devpi_server': [
             "devpi-web = devpi_web.main"]},
     install_requires=[
-        'devpi-server',
+        'devpi-server>=1.3dev2',
         'pyramid',
         'pyramid-chameleon'],
+    include_package_data=True,
+    zip_safe=False,
     packages=['devpi_web'])

@@ -121,15 +121,15 @@ def resolve_link(url, href):
     return URL(url).joinpath(href).url
 
 def test_apiconfig(testapp):
-    r = testapp.get("/user/name/+api")
+    r = testapp.get_json("/user/name/+api", status=404)
     assert r.status_code == 404
-    r = testapp.get("/root/pypi/+api")
+    r = testapp.get_json("/root/pypi/+api")
     assert r.status_code == 200
     assert not "pypisubmit" in r.json["result"]
 
 def test_apiconfig_with_outside_url(testapp):
     testapp.xom.config.args.outside_url = u = "http://outside.com/root"
-    r = testapp.get("/root/pypi/+api")
+    r = testapp.get_json("/root/pypi/+api")
     assert r.status_code == 200
     result = r.json["result"]
     assert "pypisubmit" not in result
@@ -560,13 +560,3 @@ class Test_getjson:
         assert len(abort_calls) == 1
         abort_call_args = abort_calls[0][0]
         assert abort_call_args[1] == 400
-
-
-
-def test_html_preferred():
-    from devpi_server.views import html_preferred
-    assert html_preferred(None)
-    assert html_preferred("")
-    assert html_preferred("*/*")
-    assert html_preferred("text/html")
-    assert not html_preferred("application/json")

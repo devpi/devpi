@@ -246,7 +246,7 @@ class Mapp(MappMixin):
         self.login("root", "")
 
     def getuserlist(self):
-        r = self.testapp.get("/", {"indexes": False}, {"Accept": "*/json"})
+        r = self.testapp.get("/", {"indexes": False}, {"Accept": "application/json"})
         assert r.status_code == 200
         return r.json["result"]
 
