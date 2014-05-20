@@ -105,6 +105,38 @@ def test_index_view_project_docs(mapp, testapp):
         ("simple", "http://localhost:80/root/pypi/+simple/")]
 
 
+def test_project_view(mapp, testapp):
+    api = mapp.create_and_use()
+    mapp.upload_file_pypi(
+        "pkg1-2.6.tar.gz", b"content", "pkg1", "2.6")
+    mapp.upload_file_pypi(
+        "pkg1-2.7.tar.gz", b"content", "pkg1", "2.7")
+    r = testapp.get(api.index + '/pkg1', headers=dict(accept="text/html"))
+    assert r.status_code == 200
+    links = r.html.findAll('a')
+    assert [(l.text, l.attrs['href']) for l in links] == [
+        ("2.7", "http://localhost:80/%s/pkg1/2.7" % api.stagename),
+        ("2.6", "http://localhost:80/%s/pkg1/2.6" % api.stagename)]
+
+
+def test_project_view_root_pypi(mapp, testapp):
+    pypistage = mapp.xom.model.getstage('root/pypi')
+    pypistage.name2serials['pkg1'] = {}
+    cache = {
+        "serial": 0,
+        "entrylist": [
+            'root/pypi/+f/9a0364b9e99bb480dd25e1f0284c8555/pkg1-2.7.zip',
+            'root/pypi/+f/52360ae08d733016c5603d54b06b5300/pkg1-2.6.zip'],
+        "projectname": 'pkg1'}
+    pypistage.keyfs.PYPILINKS(name='pkg1').set(cache)
+    r = testapp.get('/root/pypi/pkg1', headers=dict(accept="text/html"))
+    assert r.status_code == 200
+    links = r.html.findAll('a')
+    assert [(l.text, l.attrs['href']) for l in links] == [
+        ("2.7", "http://localhost:80/root/pypi/pkg1/2.7"),
+        ("2.6", "http://localhost:80/root/pypi/pkg1/2.6")]
+
+
 def test_version_view(mapp, testapp):
     api = mapp.create_and_use()
     mapp.register_metadata({

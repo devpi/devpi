@@ -1,5 +1,6 @@
 # coding: utf-8
 from __future__ import unicode_literals
+from devpi_common.metadata import splitbasename
 from devpi_common.types import ensure_unicode
 from devpi_server.views import matchdict_parameters
 from devpi_web.doczip import doc_key
@@ -158,6 +159,33 @@ def index_get(request, user, index):
             docs=get_docs_info(request, stage, metadata)))
 
     return result
+
+
+@view_config(
+    route_name="/{user}/{index}/{name}",
+    accept="text/html", request_method="GET",
+    renderer="templates/project.pt")
+@matchdict_parameters
+def project_get(request, user, index, name):
+    xom = request.registry['xom']
+    stage = xom.model.getstage(user, index)
+    if not stage:
+        raise HTTPNotFound("no such stage")
+    name = ensure_unicode(name)
+    releases = stage.getreleaselinks(name)
+    if not releases:
+        raise HTTPNotFound("project %r does not exist" % name)
+    versions = []
+    for release in releases:
+        name, version = splitbasename(release)[:2]
+        versions.append(dict(
+            title=version,
+            url=request.route_url(
+                "/{user}/{index}/{name}/{version}",
+                user=user, index=index, name=name, version=version)))
+    return dict(
+        title="%s/: %s versions" % (stage.name, name),
+        versions=versions)
 
 
 @view_config(

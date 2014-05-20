@@ -1,0 +1,13 @@
+<!doctype html>
+<html>
+    <head>
+        <title>${title}</title>
+    </head>
+    <body>
+        <h1>${title}</h1>
+
+        <ul tal:condition="versions">
+            <li tal:repeat="version versions"><a href="${version.url}">${version.title}</a></li>
+        </ul>
+    </body>
+</html>
