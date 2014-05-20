@@ -5,7 +5,6 @@ from devpi_common.metadata import (sorted_sameproject_links,
                                    get_latest_version)
 from devpi_common.validation import validate_metadata, normalize_name
 from devpi_common.types import ensure_unicode
-from devpi_common.archive import Archive
 from .vendor._description_utils import processDescription
 from .auth import crypt_password, verify_password
 
@@ -506,23 +505,8 @@ class PrivateStage:
             entry = self.xom.filestore.store_file(self.user.name, self.index,
                                 filename, docfile)
             verdata["+doczip"] = entry.relpath
-        # unpack
-        key = self._doc_key(name, version)
-
-        # XXX locking? (unzipping could happen concurrently in theory)
-        tempdir = self.keyfs.mkdtemp(name)
-        with Archive(entry.filepath.open("rb")) as archive:
-            archive.extract(tempdir)
-        keypath = key.filepath
-        if keypath.check():
-            old = keypath.new(basename="old-" + keypath.basename)
-            keypath.move(old)
-            tempdir.move(keypath)
-            old.remove()
-        else:
-            keypath.dirpath().ensure(dir=1)
-            tempdir.move(keypath)
-        return keypath
+        self.xom.config.hook.devpiserver_docs_uploaded(self, name, version, entry)
+        return key.filepath
 
     def get_doczip(self, name, version):
         """ get documentation zip as an open file
@@ -535,10 +519,6 @@ class PrivateStage:
                 if entry:
                     return entry.filepath.open("rb")
 
-    def _doc_key(self, name, version):
-        assert version
-        return self.keyfs.STAGEDOCS(user=self.user.name, index=self.index,
-                                    name=name, version=version)
 
 def normalize_bases(model, bases):
     # check and normalize base indices
@@ -557,5 +537,3 @@ def normalize_bases(model, bases):
     if messages:
         raise InvalidIndexconfig(messages)
     return newbases
-
-

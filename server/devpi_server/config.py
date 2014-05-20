@@ -186,10 +186,10 @@ class PluginManager:
     def __init__(self, plugins):
         self._plugins = plugins
 
-    def _call_plugins(self, name, **kwargs):
+    def _call_plugins(self, _name, **kwargs):
         results = []
         for plug, distinfo in self._plugins:
-            meth = getattr(plug, name, None)
+            meth = getattr(plug, _name, None)
             if meth is not None:
                 results.append(meth(**kwargs))
         return results
@@ -205,6 +205,11 @@ class PluginManager:
     def devpiserver_run_commands(self, xom):
         return self._call_plugins("devpiserver_run_commands",
                                   xom=xom)
+
+    def devpiserver_docs_uploaded(self, stage, name, version, entry):
+        return self._call_plugins("devpiserver_docs_uploaded",
+                                  stage=stage, name=name,
+                                  version=version, entry=entry)
 
 
 class Config:

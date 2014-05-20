@@ -115,6 +115,7 @@ class TestImportExport:
         mapp2.login("exp", "pass")
 
     def test_docs_are_preserved(self, impexp):
+        from devpi_common.archive import Archive
         mapp1 = impexp.mapp1
         api = mapp1.create_and_use()
         mapp1.register_metadata({"name": "hello", "version": "1.0"})
@@ -123,9 +124,12 @@ class TestImportExport:
         impexp.export()
         mapp2 = impexp.new_import()
         stage = mapp2.xom.model.getstage(api.stagename)
-        path = stage._doc_key("hello", "1.0").filepath
-        assert path.check()
-        assert path.join("index.html").read() == "<html/>"
+        doczip = stage.get_doczip("hello", "1.0")
+        assert doczip.name.endswith('/hello-1.0.doc.zip')
+        archive = Archive(doczip)
+        assert 'index.html' in archive.namelist()
+        assert py.builtin._totext(
+            archive.read("index.html"), 'utf-8') == "<html/>"
 
     def test_10_upload_docs_no_version(self, impexp):
         mapp1 = impexp.mapp1

@@ -8,7 +8,7 @@ import devpi_server
 from pyramid.compat import urlparse
 from pyramid.httpexceptions import HTTPException, HTTPFound, HTTPSuccessful
 from pyramid.httpexceptions import exception_response
-from pyramid.response import FileResponse, Response
+from pyramid.response import Response
 from pyramid.view import view_config
 import functools
 import inspect
@@ -97,13 +97,18 @@ def matchdict_parameters(f):
     """ Looks at the arguments specification of the wrapped method and applies
         values from the request matchdict when calling the wrapped method.
     """
+    from pyramid.request import Request
     @functools.wraps(f)
     def wrapper(self):
         spec = inspect.getargspec(f)
+        if isinstance(self, Request):
+            request = self
+        else:
+            request = self.request
         defaults = spec.defaults
         args = [self]
         kw = {}
-        matchdict = dict((k, v.rstrip('/')) for k, v in self.request.matchdict.items())
+        matchdict = dict((k, v.rstrip('/')) for k, v in request.matchdict.items())
         if defaults is not None:
             for arg in spec.args[1:-len(defaults)]:
                 args.append(matchdict[arg])
@@ -523,18 +528,6 @@ class PyPIView:
     #  per-project and version data
     #
 
-    # showing uploaded package documentation
-    @view_config(route_name="/{user}/{index}/{name}/{version}/+doc/{relpath:.*}", request_method="GET")
-    @matchdict_parameters
-    def doc_show(self, user, index, name, version, relpath):
-        if not relpath:
-            redirect("index.html")
-        stage = self.getstage(user, index)
-        key = stage._doc_key(name, version)
-        if not key.filepath.check():
-            abort(self.request, 404, "no documentation available")
-        return FileResponse(str(key.filepath.join(relpath)))
-
     @view_config(route_name="simple_redirect")
     @matchdict_parameters
     def simple_redirect(self, user, index, name):
@@ -698,12 +691,6 @@ class PyPIView:
                 log.error("metadata for project %r empty: %s, skipping",
                           projectname, metadata)
                 continue
-            dockey = stage._doc_key(name, ver)
-            if dockey.exists():
-                docs = [html.a("%s-%s docs" %(name, ver),
-                        href="%s/%s/+doc/index.html" %(name, ver))]
-            else:
-                docs = []
             files = metadata.get("+files", {})
             if not files:
                 log.warn("project %r version %r has no files", projectname,
@@ -715,7 +702,6 @@ class PyPIView:
                            href="%s/%s/" % (name, ver))),
                     html.td(html.a(basename,
                                    href=baseurl.relpath("/" + relpath))),
-                    html.td(*docs),
                 ))
                 break  # could present more releasefiles
 
