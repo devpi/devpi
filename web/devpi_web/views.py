@@ -4,10 +4,12 @@ from devpi_common.types import ensure_unicode
 from devpi_server.views import matchdict_parameters
 from devpi_web.doczip import doc_key
 from py.xml import html
+from pyramid.compat import decode_path_info
 from pyramid.httpexceptions import HTTPFound, HTTPNotFound
+from pyramid.httpexceptions import default_exceptionresponse_view
 from pyramid.interfaces import IRoutesMapper
 from pyramid.response import FileResponse
-from pyramid.view import view_config
+from pyramid.view import notfound_view_config, view_config
 import logging
 import py
 
@@ -29,6 +31,24 @@ def doc_show(request, user, index, name, version, relpath):
     if not key.filepath.check():
         raise HTTPNotFound("no documentation available")
     return FileResponse(str(key.filepath.join(relpath)))
+
+
+@notfound_view_config(request_method="GET")
+def notfound(request):
+    path = decode_path_info(request.environ['PATH_INFO'] or '/')
+    registry = request.registry
+    mapper = registry.queryUtility(IRoutesMapper)
+    if mapper is not None and path.endswith('/'):
+        # redirect URLs with a trailing slash to URLs without one, if there
+        # is a matching route
+        nonslashpath = path.rstrip('/')
+        for route in mapper.get_routes():
+            if route.match(nonslashpath) is not None:
+                qs = request.query_string
+                if qs:
+                    qs = '?' + qs
+                return HTTPFound(location=nonslashpath + qs)
+    return default_exceptionresponse_view(None, request)
 
 
 def get_files_info(request, user, index, metadata):
