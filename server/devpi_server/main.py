@@ -319,6 +319,7 @@ class XOM:
             return FatalResponse(sys.exc_info())
 
     def create_app(self, immediatetasks=False):
+        from devpi_server.views import route_url
         from pyramid.authentication import BasicAuthAuthenticationPolicy
         from pyramid.config import Configurator
         import functools
@@ -357,6 +358,8 @@ class XOM:
         pyramid_config.add_request_method(
             functools.partial(_get_credentials, None),
             name=str('auth'), property=True)
+        # overwrite route_url method with our own
+        pyramid_config.add_request_method(route_url)
         # XXX end hack
         pyramid_config.scan()
         pyramid_config.registry['xom'] = self

@@ -116,6 +116,18 @@ def matchdict_parameters(f):
     return wrapper
 
 
+def route_url(self, *args, **kw):
+    xom = self.registry['xom']
+    outside_url = get_outside_url(
+        self.headers, xom.config.args.outside_url)
+    url = URL(super(self.__class__, self).route_url(
+        _app_url=outside_url.rstrip("/"), *args, **kw))
+    # Unquote plus signs in path segment. The settings in pyramid for
+    # the urllib quoting function are a bit too much on the safe side
+    url = url.addpath(url.path.replace('%2B', '+'))
+    return url.url
+
+
 class PyPIView:
     def __init__(self, request):
         self.request = request
@@ -134,24 +146,14 @@ class PyPIView:
     # supplying basic API locations for all services
     #
 
-    def route_url(self, *args, **kw):
-        outside_url = get_outside_url(
-            self.request.headers, self.xom.config.args.outside_url)
-        url = URL(self.request.route_url(
-            _app_url=outside_url.rstrip("/"), *args, **kw))
-        # Unquote plus signs in path segment. The settings in pyramid for
-        # the urllib quoting function are a bit too much on the safe side
-        url = url.addpath(url.path.replace('%2B', '+'))
-        return url.url
-
     @view_config(route_name="/+api")
     @view_config(route_name="{path:.*}/+api")
     @matchdict_parameters
     def apiconfig_index(self, path=None):
         request = self.request
         api = {
-            "resultlog": self.route_url("/+tests"),
-            "login": self.route_url('/+login'),
+            "resultlog": request.route_url("/+tests"),
+            "login": request.route_url('/+login'),
             "authstatus": self.auth.get_auth_status(request.auth),
         }
         if path:
@@ -160,13 +162,13 @@ class PyPIView:
                 user, index = parts[:2]
                 stage = self.getstage(user, index)
                 api.update({
-                    "index": self.route_url(
+                    "index": request.route_url(
                         "/{user}/{index}", user=user, index=index),
-                    "simpleindex": self.route_url(
+                    "simpleindex": request.route_url(
                         "/{user}/{index}/+simple/", user=user, index=index)
                 })
                 if stage.ixconfig["type"] == "stage":
-                    api["pypisubmit"] = self.route_url(
+                    api["pypisubmit"] = request.route_url(
                         "/{user}/{index}/", user=user, index=index)
         apireturn(200, type="apiconfig", result=api)
 
@@ -737,7 +739,7 @@ class PyPIView:
                 code=401, title=msg))
         err = err()
         err.headers.add(str('WWW-Authenticate'), str('Basic realm="pypi"'))
-        err.headers.add(str('location'), str(self.route_url("/+login")))
+        err.headers.add(str('location'), str(self.request.route_url("/+login")))
         raise err
 
     def require_user(self, user, stage=None, acltype="upload"):
