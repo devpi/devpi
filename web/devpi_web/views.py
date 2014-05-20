@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 from devpi_common.types import ensure_unicode
 from devpi_server.views import matchdict_parameters
 from devpi_web.doczip import doc_key
+from operator import itemgetter
 from py.xml import html
 from pyramid.compat import decode_path_info
 from pyramid.httpexceptions import HTTPFound, HTTPNotFound
@@ -81,6 +82,29 @@ def get_docs_info(request, stage, metadata):
             url=request.route_url(
                 "docroot", user=stage.user.name, index=stage.index,
                 name=name, version=ver, relpath="index.html"))
+
+
+@view_config(
+    route_name='root',
+    renderer='templates/root.pt')
+def root(request):
+    xom = request.registry['xom']
+    rawusers = sorted(
+        (x.get() for x in xom.model.get_userlist()),
+        key=itemgetter('username'))
+    users = []
+    for user in rawusers:
+        username = user['username']
+        indexes = []
+        for index in sorted(user.get('indexes', [])):
+            indexes.append(dict(
+                title="%s/%s" % (username, index),
+                url=request.route_url(
+                    "/{user}/{index}", user=username, index=index)))
+        users.append(dict(
+            title=username,
+            indexes=indexes))
+    return dict(users=users)
 
 
 @view_config(

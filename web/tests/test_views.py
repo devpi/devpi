@@ -12,6 +12,24 @@ def test_docs_view(mapp, testapp):
     assert r.status_code == 200
 
 
+def test_root_view(testapp):
+    r = testapp.get('/', headers=dict(accept="text/html"))
+    assert r.status_code == 200
+    links = r.html.findAll('a')
+    assert [(l.text, l.attrs['href']) for l in links] == [
+        ("root/pypi", "http://localhost:80/root/pypi")]
+
+
+def test_root_view_with_index(mapp, testapp):
+    api = mapp.create_and_use()
+    r = testapp.get('/', headers=dict(accept="text/html"))
+    assert r.status_code == 200
+    links = r.html.findAll('a')
+    assert [(l.text, l.attrs['href']) for l in links] == [
+        ("root/pypi", "http://localhost:80/root/pypi"),
+        (api.stagename, "http://localhost:80/%s" % api.stagename)]
+
+
 def test_index_view_root_pypi(testapp):
     r = testapp.get('/root/pypi', headers=dict(accept="text/html"))
     assert r.status_code == 200

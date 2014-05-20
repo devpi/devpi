@@ -7,6 +7,7 @@ from devpi_web.doczip import devpiserver_docs_uploaded
 
 def includeme(config):
     config.include('pyramid_chameleon')
+    config.add_route('root', '/', accept='text/html')
     config.add_route(
         "docroot",
         "/{user}/{index}/{name}/{version}/+doc/{relpath:.*}")
