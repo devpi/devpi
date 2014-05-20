@@ -80,6 +80,7 @@ def _main(argv=None, hook=None):
 
     xom = XOM(config)
     check_compatible_version(xom)
+    configure_logging(config)
 
     results = hook.devpiserver_run_commands(xom)
     if [x for x in results if x is not None]:
@@ -220,7 +221,6 @@ class XOM:
         if args.export:
             from devpi_server.importexport import do_export
             return do_export(args.export, xom)
-        configure_logging(xom.config)
         # access pypistage to make sure invalidation happens
         xom.pypistage
         if args.import_:
