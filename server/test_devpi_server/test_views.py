@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 from devpi_common.metadata import splitbasename
 from devpi_common.url import URL
 import devpi_server.views
-from devpi_common.archive import zip_dict
+from devpi_common.archive import Archive, zip_dict
 
 from .functional import TestUserThings, TestIndexThings  # noqa
 
@@ -121,15 +121,15 @@ def resolve_link(url, href):
     return URL(url).joinpath(href).url
 
 def test_apiconfig(testapp):
-    r = testapp.get("/user/name/+api")
+    r = testapp.get_json("/user/name/+api", status=404)
     assert r.status_code == 404
-    r = testapp.get("/root/pypi/+api")
+    r = testapp.get_json("/root/pypi/+api")
     assert r.status_code == 200
     assert not "pypisubmit" in r.json["result"]
 
 def test_apiconfig_with_outside_url(testapp):
     testapp.xom.config.args.outside_url = u = "http://outside.com/root"
-    r = testapp.get("/root/pypi/+api")
+    r = testapp.get_json("/root/pypi/+api")
     assert r.status_code == 200
     result = r.json["result"]
     assert "pypisubmit" not in result
@@ -289,8 +289,11 @@ def test_upload_and_push_internal(mapp, testapp, monkeypatch):
     assert relpath.endswith("/pkg1-2.6.tgz")
     # we check here that the upload of docs without version was
     # automatically tied to the newest release metadata
-    r = testapp.get("/user2/prod/pkg1/2.6/+doc/index.html")
-    assert r.status_code == 200
+    relpath = r.json["result"]["+doczip"]
+    assert relpath.endswith("/pkg1-2.6.doc.zip")
+    r = testapp.get("/" + relpath)
+    archive = Archive(py.io.BytesIO(r.body))
+    assert 'index.html' in archive.namelist()
 
 
 def test_upload_and_push_external(mapp, testapp, reqmock):
@@ -448,8 +451,13 @@ def test_upload_docs_no_version(mapp, testapp):
     content = zip_dict({"index.html": "<html/>"})
     mapp.register_metadata(dict(name="Pkg1", version="1.0"))
     mapp.upload_doc("pkg1.zip", content, "Pkg1", "")
-    r = testapp.get(api.index + "/Pkg1/1.0/+doc/index.html")
+    r = testapp.get_json(api.index + "/Pkg1/1.0")
     assert r.status_code == 200
+    relpath = r.json["result"]["+doczip"]
+    assert relpath.endswith("/Pkg1-1.0.doc.zip")
+    r = testapp.get("/" + relpath)
+    archive = Archive(py.io.BytesIO(r.body))
+    assert 'index.html' in archive.namelist()
 
 def test_upload_docs_no_project_ever_registered(mapp, testapp):
     mapp.create_and_use()
@@ -469,10 +477,13 @@ def test_upload_docs(mapp, testapp):
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=400)
     mapp.register_metadata({"name": "pkg1", "version": "2.6"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200)
-    r = testapp.get(api.index + "/pkg1/2.6/+doc/index.html")
+    r = testapp.get_json(api.index + "/pkg1/2.6")
     assert r.status_code == 200
-    #a = getfirstlink(r.text)
-    #assert "pkg1-2.6.tgz" in a.get("href")
+    relpath = r.json["result"]["+doczip"]
+    assert relpath.endswith("/pkg1-2.6.doc.zip")
+    r = testapp.get("/" + relpath)
+    archive = Archive(py.io.BytesIO(r.body))
+    assert 'index.html' in archive.namelist()
 
 def test_wrong_login_format(testapp, mapp):
     api = mapp.getapi()
@@ -549,13 +560,3 @@ class Test_getjson:
         assert len(abort_calls) == 1
         abort_call_args = abort_calls[0][0]
         assert abort_call_args[1] == 400
-
-
-
-def test_html_preferred():
-    from devpi_server.views import html_preferred
-    assert html_preferred(None)
-    assert html_preferred("")
-    assert html_preferred("*/*")
-    assert html_preferred("text/html")
-    assert not html_preferred("application/json")

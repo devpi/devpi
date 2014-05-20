@@ -1,0 +1,16 @@
+<!doctype html>
+<html>
+    <head>
+        <title>devpi</title>
+    </head>
+    <body>
+        <tal:users repeat="user users">
+        <h1>${user.title}</h1>
+        <ul tal:condition="user.indexes">
+            <li tal:repeat="index user.indexes">
+                <a href="${index.url}">${index.title}</a>
+            </li>
+        </ul>
+        </tal:users>
+    </body>
+</html>

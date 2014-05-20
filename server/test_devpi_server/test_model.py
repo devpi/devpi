@@ -271,18 +271,24 @@ class TestStage:
         assert tmpdir.join("_templ", "x.css").check(file=1)
 
     def test_storedoczipfile(self, stage, bases):
+        from devpi_common.archive import Archive
         stage.register_metadata(dict(name="pkg1", version="1.0"))
         content = zip_dict({"index.html": "<html/>",
             "_static": {}, "_templ": {"x.css": ""}})
         filepath = stage.store_doczip("pkg1", "1.0", BytesIO(content))
-        assert filepath.join("index.html").exists()
+        assert filepath.exists()
+        archive = Archive(stage.get_doczip("pkg1", "1.0"))
+        assert 'index.html' in archive.namelist()
 
         content = zip_dict({"nothing": "hello"})
         filepath = stage.store_doczip("pkg1", "1.0", BytesIO(content))
-        assert filepath.join("nothing").check()
-        assert not filepath.join("index.html").check()
-        assert not filepath.join("_static").check()
-        assert not filepath.join("_templ").check()
+        assert filepath.exists()
+        archive = Archive(stage.get_doczip("pkg1", "1.0"))
+        namelist = archive.namelist()
+        assert 'nothing' in namelist
+        assert 'index.html' not in namelist
+        assert '_static' not in namelist
+        assert '_templ' not in namelist
 
     def test_store_and_get_volatile(self, stage):
         stage._reconfigure(volatile=False)

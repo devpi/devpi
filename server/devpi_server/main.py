@@ -13,6 +13,7 @@ log = getLogger(__name__)
 
 from devpi_common.types import cached_property
 from devpi_common.request import new_requests_session
+from .config import PluginManager
 from .config import parseoptions, configure_logging, load_setuptools_entrypoints
 from .extpypi import XMLProxy
 from . import __version__ as server_version
@@ -52,19 +53,20 @@ def main(argv=None, plugins=None):
     if plugins is None:
         plugins = []
     plugins.extend(load_setuptools_entrypoints())
+    hook = PluginManager(plugins)
     try:
-        return _main(argv, plugins=plugins)
+        return _main(argv, hook=hook)
     except Fatal as e:
         tw = py.io.TerminalWriter(sys.stderr)
         tw.line("fatal: %s" %  e.args[0], red=True)
         return 1
 
-def _main(argv=None, plugins=None):
+def _main(argv=None, hook=None):
     if argv is None:
         argv = sys.argv
 
     argv = [str(x) for x in argv]
-    config = parseoptions(argv, plugins=plugins)
+    config = parseoptions(argv, hook=hook)
     args = config.args
 
     if args.version:
@@ -78,6 +80,15 @@ def _main(argv=None, plugins=None):
 
     xom = XOM(config)
     check_compatible_version(xom)
+    configure_logging(config)
+
+    results = hook.devpiserver_run_commands(xom)
+    if [x for x in results if x is not None]:
+        errors = list(filter(None, results))
+        if errors:
+            return errors[0]
+        return 0
+
     if args.start or args.stop or args.log or args.status:
         xprocdir = config.serverdir.join(".xproc")
         from devpi_server.bgserver import BackgroundServer
@@ -210,7 +221,6 @@ class XOM:
         if args.export:
             from devpi_server.importexport import do_export
             return do_export(args.export, xom)
-        configure_logging(xom.config)
         # access pypistage to make sure invalidation happens
         xom.pypistage
         if args.import_:
@@ -309,6 +319,7 @@ class XOM:
             return FatalResponse(sys.exc_info())
 
     def create_app(self, immediatetasks=False):
+        from devpi_server.views import route_url
         from pyramid.authentication import BasicAuthAuthenticationPolicy
         from pyramid.config import Configurator
         import functools
@@ -317,17 +328,16 @@ class XOM:
         self.config.hook.devpiserver_pyramid_configure(
                 config=self.config,
                 pyramid_config=pyramid_config)
-        pyramid_config.add_route("/+api", "/+api")
-        pyramid_config.add_route("{path:.*}/+api", "{path:.*}/+api")
-        pyramid_config.add_route("/+login", "/+login")
-        pyramid_config.add_route("/+tests", "/+tests")
+        pyramid_config.add_route("/+api", "/+api", accept="application/json")
+        pyramid_config.add_route("{path:.*}/+api", "{path:.*}/+api", accept="application/json")
+        pyramid_config.add_route("/+login", "/+login", accept="application/json")
+        pyramid_config.add_route("/+tests", "/+tests", accept="application/json")
         pyramid_config.add_route("/+tests/{md5}/{type}", "/+tests/{md5}/{type}")
         pyramid_config.add_route("/+tests/{md5}/{type}/{num}", "/+tests/{md5}/{type}/{num}")
         pyramid_config.add_route("/{user}/{index}/+e/{relpath:.*}", "/{user}/{index}/+e/{relpath:.*}")
         pyramid_config.add_route("/{user}/{index}/+f/{relpath:.*}", "/{user}/{index}/+f/{relpath:.*}")
         pyramid_config.add_route("/{user}/{index}/+simple/", "/{user}/{index}/+simple/")
         pyramid_config.add_route("/{user}/{index}/+simple/{projectname}", "/{user}/{index}/+simple/{projectname:[^/]+/?}")
-        pyramid_config.add_route("/{user}/{index}/{name}/{version}/+doc/{relpath:.*}", "/{user}/{index}/{name}/{version}/+doc/{relpath:.*}")
         pyramid_config.add_route("/{user}/{index}/{name}/{version}", "/{user}/{index}/{name}/{version:[^/]+/?}")
         pyramid_config.add_route(
             "simple_redirect", "/{user}/{index}/{name:[^/]+/?}",
@@ -347,6 +357,8 @@ class XOM:
         pyramid_config.add_request_method(
             functools.partial(_get_credentials, None),
             name=str('auth'), property=True)
+        # overwrite route_url method with our own
+        pyramid_config.add_request_method(route_url)
         # XXX end hack
         pyramid_config.scan()
         pyramid_config.registry['xom'] = self

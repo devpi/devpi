@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+    <head>
+        <title>${title}</title>
+    </head>
+    <body>
+        <h1>${title}</h1>
+
+        <ul>
+            <li><a href="${simple_index_url}">simple index</a></li>
+        </ul>
+
+        <tal:packages condition="packages">
+        <h2>in-stage latest packages, at least as recent as bases</h2>
+        <table>
+            <tr>
+                <td>info</td>
+                <td>file</td>
+                <td>docs</td>
+            </tr>
+            <tr tal:repeat="package packages">
+                <td><a href="${package.info.url}">${package.info.title}</a></td>
+                <td>
+                    <tal:files condition="package.files">
+                        <tal:file repeat="file package.files"><a href="${file.url}">${file.title}</a><br tal:condition="not repeat.file.end" /></tal:file>
+                    </tal:files>
+                </td>
+                <td><a tal:condition="package.docs" href="${package.docs.url}">${package.docs.title}</a></td>
+            </tr>
+        </table>
+        </tal:packages>
+
+        <tal:bases condition="bases">
+        <h2>inherited bases</h2>
+        <ul>
+            <li tal:repeat="base bases">
+                <a href="${base.url}">${base.title}</a> (<a href="${base.simple_url}">simple</a>)
+            </li>
+        </ul>
+        </tal:bases>
+    </body>
+</html>

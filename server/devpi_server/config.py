@@ -129,7 +129,7 @@ def try_argcomplete(parser):
     else:
         argcomplete.autocomplete(parser)
 
-def parseoptions(argv, addoptions=addoptions, plugins=None):
+def parseoptions(argv, addoptions=addoptions, hook=None):
     parser = MyArgumentParser(
         description="Start a server which serves multiples users and "
                     "indices. The special root/pypi index is a real-time "
@@ -139,11 +139,13 @@ def parseoptions(argv, addoptions=addoptions, plugins=None):
     )
 
     addoptions(parser)
+    if hook:
+        hook.devpiserver_add_parser_options(parser)
     try_argcomplete(parser)
     raw = [str(x) for x in argv[1:]]
     args = parser.parse_args(raw)
     args._raw = raw
-    config = Config(args, plugins=plugins)
+    config = Config(args, hook=hook)
     return config
 
 class MyArgumentParser(argparse.ArgumentParser):
@@ -184,10 +186,10 @@ class PluginManager:
     def __init__(self, plugins):
         self._plugins = plugins
 
-    def _call_plugins(self, name, **kwargs):
+    def _call_plugins(self, _name, **kwargs):
         results = []
         for plug, distinfo in self._plugins:
-            meth = getattr(plug, name, None)
+            meth = getattr(plug, _name, None)
             if meth is not None:
                 results.append(meth(**kwargs))
         return results
@@ -196,9 +198,22 @@ class PluginManager:
         return self._call_plugins("devpiserver_pyramid_configure",
                                   config=config, pyramid_config=pyramid_config)
 
+    def devpiserver_add_parser_options(self, parser):
+        return self._call_plugins("devpiserver_add_parser_options",
+                                  parser=parser)
+
+    def devpiserver_run_commands(self, xom):
+        return self._call_plugins("devpiserver_run_commands",
+                                  xom=xom)
+
+    def devpiserver_docs_uploaded(self, stage, name, version, entry):
+        return self._call_plugins("devpiserver_docs_uploaded",
+                                  stage=stage, name=name,
+                                  version=version, entry=entry)
+
 
 class Config:
-    def __init__(self, args, plugins):
+    def __init__(self, args, hook):
         self.args = args
         serverdir = args.serverdir
         if serverdir is None:
@@ -211,7 +226,7 @@ class Config:
             self.secretfile = py.path.local(
                     os.path.expanduser(args.secretfile))
 
-        self.hook = PluginManager(plugins)
+        self.hook = hook
 
     @cached_property
     def secret(self):

@@ -5,9 +5,10 @@ from devpi_common.types import ensure_unicode
 from devpi_common.url import URL
 from devpi_common.metadata import get_pyversion_filetype
 import devpi_server
+from pyramid.compat import urlparse
 from pyramid.httpexceptions import HTTPException, HTTPFound, HTTPSuccessful
 from pyramid.httpexceptions import exception_response
-from pyramid.response import FileResponse, Response
+from pyramid.response import Response
 from pyramid.view import view_config
 import functools
 import inspect
@@ -26,19 +27,6 @@ server_version = devpi_server.__version__
 log = logging.getLogger(__name__)
 
 MAXDOCZIPSIZE = 30 * 1024 * 1024    # 30MB
-
-
-def simple_html_body(title, bodytags, extrahead=""):
-    return html.html(
-        html.head(
-            html.title(title),
-            extrahead,
-        ),
-        html.body(
-            html.h1(title), "\n",
-            bodytags
-        )
-    )
 
 
 API_VERSION = "1"
@@ -88,21 +76,23 @@ def json_preferred(request):
     # XXX do proper "best" matching
     return "application/json" in request.headers.get("Accept", "")
 
-def html_preferred(accept):
-    return not accept or "text/html" in accept or "*/*" in accept
-
 
 def matchdict_parameters(f):
     """ Looks at the arguments specification of the wrapped method and applies
         values from the request matchdict when calling the wrapped method.
     """
+    from pyramid.request import Request
     @functools.wraps(f)
     def wrapper(self):
         spec = inspect.getargspec(f)
+        if isinstance(self, Request):
+            request = self
+        else:
+            request = self.request
         defaults = spec.defaults
         args = [self]
         kw = {}
-        matchdict = dict((k, v.rstrip('/')) for k, v in self.request.matchdict.items())
+        matchdict = dict((k, v.rstrip('/')) for k, v in request.matchdict.items())
         if defaults is not None:
             for arg in spec.args[1:-len(defaults)]:
                 args.append(matchdict[arg])
@@ -114,6 +104,19 @@ def matchdict_parameters(f):
         return f(*args, **kw)
 
     return wrapper
+
+
+def route_url(self, *args, **kw):
+    xom = self.registry['xom']
+    outside_url = get_outside_url(
+        self.headers, xom.config.args.outside_url)
+    url = super(self.__class__, self).route_url(
+        _app_url=outside_url.rstrip("/"), *args, **kw)
+    # Unquote plus signs in path segment. The settings in pyramid for
+    # the urllib quoting function are a bit too much on the safe side
+    url = urlparse.urlparse(url)
+    url = url._replace(path=url.path.replace('%2B', '+'))
+    return url.geturl()
 
 
 class PyPIView:
@@ -134,24 +137,14 @@ class PyPIView:
     # supplying basic API locations for all services
     #
 
-    def route_url(self, *args, **kw):
-        outside_url = get_outside_url(
-            self.request.headers, self.xom.config.args.outside_url)
-        url = URL(self.request.route_url(
-            _app_url=outside_url.rstrip("/"), *args, **kw))
-        # Unquote plus signs in path segment. The settings in pyramid for
-        # the urllib quoting function are a bit too much on the safe side
-        url = url.addpath(url.path.replace('%2B', '+'))
-        return url.url
-
     @view_config(route_name="/+api")
     @view_config(route_name="{path:.*}/+api")
     @matchdict_parameters
     def apiconfig_index(self, path=None):
         request = self.request
         api = {
-            "resultlog": self.route_url("/+tests"),
-            "login": self.route_url('/+login'),
+            "resultlog": request.route_url("/+tests"),
+            "login": request.route_url('/+login'),
             "authstatus": self.auth.get_auth_status(request.auth),
         }
         if path:
@@ -160,13 +153,13 @@ class PyPIView:
                 user, index = parts[:2]
                 stage = self.getstage(user, index)
                 api.update({
-                    "index": self.route_url(
+                    "index": request.route_url(
                         "/{user}/{index}", user=user, index=index),
-                    "simpleindex": self.route_url(
+                    "simpleindex": request.route_url(
                         "/{user}/{index}/+simple/", user=user, index=index)
                 })
                 if stage.ixconfig["type"] == "stage":
-                    api["pypisubmit"] = self.route_url(
+                    api["pypisubmit"] = request.route_url(
                         "/{user}/{index}/", user=user, index=index)
         apireturn(200, type="apiconfig", result=api)
 
@@ -247,10 +240,13 @@ class PyPIView:
                  html.a(entry.basename, href=href),
                  html.br(), "\n",
             ])
-        return Response(
-            simple_html_body(
-                "%s: links for %s" % (stage.name, projectname),
-                links).unicode(indent=2))
+        title = "%s: links for %s" % (stage.name, projectname)
+        return Response(html.html(
+            html.head(
+                html.title(title)),
+            html.body(
+                html.h1(title), "\n",
+                links)).unicode(indent=2))
 
     @view_config(route_name="/{user}/{index}/+simple/")
     @matchdict_parameters
@@ -519,18 +515,6 @@ class PyPIView:
     #  per-project and version data
     #
 
-    # showing uploaded package documentation
-    @view_config(route_name="/{user}/{index}/{name}/{version}/+doc/{relpath:.*}", request_method="GET")
-    @matchdict_parameters
-    def doc_show(self, user, index, name, version, relpath):
-        if not relpath:
-            redirect("index.html")
-        stage = self.getstage(user, index)
-        key = stage._doc_key(name, version)
-        if not key.filepath.check():
-            abort(self.request, 404, "no documentation available")
-        return FileResponse(str(key.filepath.join(relpath)))
-
     @view_config(route_name="simple_redirect")
     @matchdict_parameters
     def simple_redirect(self, user, index, name):
@@ -540,7 +524,7 @@ class PyPIView:
         real_name = info.name if info else name
         redirect("/%s/+simple/%s" % (stage.name, real_name))
 
-    @view_config(route_name="/{user}/{index}/{name}")
+    @view_config(route_name="/{user}/{index}/{name}", accept="application/json", request_method="GET")
     @matchdict_parameters
     def project_get(self, user, index, name):
         request = self.request
@@ -574,7 +558,7 @@ class PyPIView:
         stage.project_delete(name)
         apireturn(200, "project %r deleted from stage %s" % (name, stage.name))
 
-    @view_config(route_name="/{user}/{index}/{name}/{version}")
+    @view_config(route_name="/{user}/{index}/{name}/{version}", accept="application/json", request_method="GET")
     @matchdict_parameters
     def version_get(self, user, index, name, version):
         stage = self.getstage(user, index)
@@ -586,29 +570,7 @@ class PyPIView:
         verdata = metadata.get(version, None)
         if not verdata:
             abort(self.request, 404, "version %r does not exist" % version)
-        if json_preferred(self.request):
-            apireturn(200, type="versiondata", result=verdata)
-
-        # if html show description and metadata
-        rows = []
-        for key, value in sorted(verdata.items()):
-            if key == "description":
-                continue
-            if isinstance(value, list):
-                value = html.ul([html.li(x) for x in value])
-            rows.append(html.tr(html.td(key), html.td(value)))
-        title = "%s/: %s-%s metadata and description" % (
-                stage.name, name, version)
-
-        content = stage.get_description(name, version)
-        #css = "https://pypi.python.org/styles/styles.css"
-        return Response(simple_html_body(title,
-            [html.table(*rows), py.xml.raw(content)],
-            extrahead=
-            [html.link(media="screen", type="text/css",
-                rel="stylesheet", title="text",
-                href="https://pypi.python.org/styles/styles.css")]
-        ).unicode(indent=2))
+        apireturn(200, type="versiondata", result=verdata)
 
     @view_config(route_name="/{user}/{index}/{name}/{version}", request_method="DELETE")
     @matchdict_parameters
@@ -652,81 +614,13 @@ class PyPIView:
             response.content_length = headers["content-length"]
         return Response(app_iter=itercontent)
 
-    @view_config(route_name="/{user}/{index}", request_method="GET")
+    @view_config(route_name="/{user}/{index}", accept="application/json", request_method="GET")
     @matchdict_parameters
     def index_get(self, user, index):
-        request = self.request
         stage = self.getstage(user, index)
-        if json_preferred(request):
-            result = dict(stage.ixconfig)
-            result['projects'] = sorted(stage.getprojectnames_perstage())
-            apireturn(200, type="indexconfig", result=result)
-        if stage.name == "root/pypi":
-            return Response(simple_html_body("%s index" % stage.name, [
-                html.ul(
-                    html.li(html.a("simple index", href="+simple/")),
-                ),
-            ]).unicode())
-
-
-        # XXX this should go to a template
-        if hasattr(stage, "ixconfig"):
-            bases = html.ul()
-            for base in stage.ixconfig["bases"]:
-                bases.append(html.li(
-                    html.a("%s" % base, href="/%s/" % base),
-                    " (",
-                    html.a("simple", href="/%s/+simple/" % base),
-                    " )",
-                ))
-            if bases:
-                bases = [html.h2("inherited bases"), bases]
-        else:
-            bases = []
-        latest_packages = html.table(
-            html.tr(html.td("info"), html.td("file"), html.td("docs")))
-
-        for projectname in stage.getprojectnames_perstage():
-            metadata = stage.get_metadata_latest_perstage(projectname)
-            try:
-                name, ver = metadata["name"], metadata["version"]
-            except KeyError:
-                log.error("metadata for project %r empty: %s, skipping",
-                          projectname, metadata)
-                continue
-            dockey = stage._doc_key(name, ver)
-            if dockey.exists():
-                docs = [html.a("%s-%s docs" %(name, ver),
-                        href="%s/%s/+doc/index.html" %(name, ver))]
-            else:
-                docs = []
-            files = metadata.get("+files", {})
-            if not files:
-                log.warn("project %r version %r has no files", projectname,
-                         metadata.get("version"))
-            baseurl = URL(request.path)
-            for basename, relpath in files.items():
-                latest_packages.append(html.tr(
-                    html.td(html.a("%s-%s info page" % (name, ver),
-                           href="%s/%s/" % (name, ver))),
-                    html.td(html.a(basename,
-                                   href=baseurl.relpath("/" + relpath))),
-                    html.td(*docs),
-                ))
-                break  # could present more releasefiles
-
-        latest_packages = [
-            html.h2("in-stage latest packages, at least as recent as bases"),
-            latest_packages]
-
-        return Response(simple_html_body("%s index" % stage.name, [
-            html.ul(
-                html.li(html.a("simple index", href="+simple/")),
-            ),
-            latest_packages,
-            bases,
-        ]).unicode())
-
+        result = dict(stage.ixconfig)
+        result['projects'] = sorted(stage.getprojectnames_perstage())
+        apireturn(200, type="indexconfig", result=result)
 
     #
     # login and user handling
@@ -737,7 +631,7 @@ class PyPIView:
                 code=401, title=msg))
         err = err()
         err.headers.add(str('WWW-Authenticate'), str('Basic realm="pypi"'))
-        err.headers.add(str('location'), str(self.route_url("/+login")))
+        err.headers.add(str('location'), str(self.request.route_url("/+login")))
         raise err
 
     def require_user(self, user, stage=None, acltype="upload"):
@@ -830,7 +724,7 @@ class PyPIView:
         user.delete()
         apireturn(200, "user %r deleted" % user.name)
 
-    @view_config(route_name="/{user}", request_method="GET")
+    @view_config(route_name="/{user}", accept="application/json", request_method="GET")
     @matchdict_parameters
     def user_get(self, user):
         user = self.model.get_user(user)
@@ -839,7 +733,7 @@ class PyPIView:
         userconfig = user.get()
         apireturn(200, type="userconfig", result=userconfig)
 
-    @view_config(route_name="/", request_method="GET")
+    @view_config(route_name="/", accept="application/json", request_method="GET")
     def user_list(self):
         #accept = request.headers.get("accept")
         #if accept is not None:

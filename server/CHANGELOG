@@ -1,6 +1,9 @@
 1.3
 ----------------
 
+- moved all html views except for files and the simple index to new
+  devpi-web package. Thanks to Florian Schulze for the PR.
+
 - change json api to get rid of the different meaning of URLs with and
   without a trailing slash. "/{user}/" is now "/{user}?list_indices" and
   "/{user}/{index}/" is now "/{user}/{index}?list_projects".
