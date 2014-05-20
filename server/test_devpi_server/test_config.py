@@ -67,6 +67,17 @@ class TestConfig:
         config = parseoptions(["devpi-server"])
         assert config.serverdir == tmpdir
 
+    def test_add_parser_options_called(self):
+        from devpi_server.config import PluginManager
+        l = []
+        class Plugin:
+            def devpiserver_add_parser_options(self, parser):
+                l.append(parser)
+        hook = PluginManager([(Plugin(), None)])
+        parseoptions(["devpi-server"], hook=hook)
+        assert len(l) == 1
+        assert isinstance(l[0], MyArgumentParser)
+
 
 def test_pluginmanager_call():
     from devpi_server.config import PluginManager

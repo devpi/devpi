@@ -130,6 +130,8 @@ def try_argcomplete(parser):
         argcomplete.autocomplete(parser)
 
 def parseoptions(argv, addoptions=addoptions, hook=None):
+    hook = PluginManager(plugins)
+
     parser = MyArgumentParser(
         description="Start a server which serves multiples users and "
                     "indices. The special root/pypi index is a real-time "
@@ -139,6 +141,8 @@ def parseoptions(argv, addoptions=addoptions, hook=None):
     )
 
     addoptions(parser)
+    if hook:
+        hook.devpiserver_add_parser_options(parser)
     try_argcomplete(parser)
     raw = [str(x) for x in argv[1:]]
     args = parser.parse_args(raw)
@@ -195,6 +199,10 @@ class PluginManager:
     def devpiserver_pyramid_configure(self, config, pyramid_config):
         return self._call_plugins("devpiserver_pyramid_configure",
                                   config=config, pyramid_config=pyramid_config)
+
+    def devpiserver_add_parser_options(self, parser):
+        return self._call_plugins("devpiserver_add_parser_options",
+                                  parser=parser)
 
 
 class Config:
