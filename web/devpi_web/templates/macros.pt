@@ -1,0 +1,7 @@
+<metal:search define-macro="search">
+    <form method="get" id="search" action="${request.route_url('search')}">
+        <h1><a href="${request.route_url('root')}">devpi</a></h1>
+        <input type="text" size="60" name="query" tal:attributes="value query|None" />
+        <input type="submit" value="Search" />
+    </form>
+</metal:search>

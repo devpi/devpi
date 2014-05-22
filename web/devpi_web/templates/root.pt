@@ -4,6 +4,7 @@
         <title>devpi</title>
     </head>
     <body>
+        <metal:search use-macro="request.macros['search']" />
         <tal:users repeat="user users">
         <h1>${user.title}</h1>
         <ul tal:condition="user.indexes">
