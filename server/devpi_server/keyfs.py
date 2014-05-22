@@ -32,15 +32,13 @@ class KeyFS(object):
     def _getlock(self, relpath):
         return self._locks.setdefault(relpath, threading.RLock())
 
-    def _get(self, relpath, default=_nodefault):
+    def _get(self, relpath):
         path = self._getpath(relpath)
         try:
             with path.open("rb") as f:
                 return f.read()
         except py.error.Error:
-            if default is _nodefault:
-                raise KeyError(relpath)
-            return default
+            raise KeyError(relpath)
 
     def chmod(self, file_name):
         if self._mode is None:

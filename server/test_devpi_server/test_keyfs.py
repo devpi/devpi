@@ -16,7 +16,6 @@ def key(request):
 class TestKeyFS:
 
     def test_getempty(self, keyfs):
-        assert keyfs._get("somekey", None) is None
         pytest.raises(KeyError, lambda: keyfs._get("somekey"))
 
     @pytest.mark.parametrize("val", [b"", b"val"])
