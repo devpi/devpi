@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+    <head>
+        <link rel="stylesheet" type="text/css" href="${request.static_url('devpi_web:static/style.css')}" />
+    </head>
+    <body>
+        <metal:search use-macro="request.macros['search']" />
+        <div class="searchresults" tal:condition="result|None">
+            <dl>
+                <tal:item tal:repeat="item result['items']">
+                    <dt class="packagename">
+                        <a tal:omit-tag="not item.get('url')" tal:attributes="href item.url">
+                            ${item.data.name}
+                        </a>
+                    </dt>
+                    <dd class="packageinfo">
+                        <div class="packagedetails"><span>${item.data.path}</span></div>
+                        <ul>
+                            <li tal:repeat="sub_hit item.sub_hits">
+                                <a tal:omit-tag="not sub_hit.get('url')" tal:attributes="href sub_hit.url">
+                                    ${sub_hit.title}
+                                </a>
+                            </li>
+                        </ul>
+                        <div class="packagefurther" tal:condition="item.get('more_count')">
+                            <a tal:omit-tag="not item.get('more_url')" tal:attributes="href item.more_url">
+                                ${item.more_count} more results for ${item.data.name} …
+                            </a>
+                        </div>
+                    </dd>
+                </tal:item>
+            </dl>
+            <ul tal:condition="batch_links|None">
+                <li tal:repeat="link batch_links">
+                    <a tal:omit-tag="not link.get('url')" tal:attributes="href link.get('url')">${link.title}</a>
+                </li>
+            </ul>
+        </div>
+    </body>
+</html>

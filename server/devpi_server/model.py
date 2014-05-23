@@ -351,6 +351,7 @@ class PrivateStage:
             if py.builtin._istext(html):
                 html = html.encode("utf8")
             key.set(html)
+        self.xom.config.hook.devpiserver_register_metadata(self, metadata)
 
     def project_delete(self, name):
         self.key_projconfig(name).delete()

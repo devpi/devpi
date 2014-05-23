@@ -221,3 +221,94 @@ def version_get(request, user, index, name, version):
         infos=infos,
         files=get_files_info(request, user, index, verdata),
         docs=get_docs_info(request, stage, verdata))
+
+
+def batch_list(num, current, left=3, right=3):
+    result = []
+    if not num:
+        return result
+    if current >= num:
+        raise ValueError("Current position (%s) can't be greater than total (%s)." % (current, num))
+    result.append(0)
+    first = current - left
+    if first < 1:
+        first = 1
+    if first > 1:
+        result.append(None)
+    last = current + right + 1
+    if last >= num:
+        last = num - 1
+    result.extend(range(first, last))
+    if last < (num - 1):
+        result.append(None)
+    if num > 1:
+        result.append(num - 1)
+    return result
+
+
+@view_config(
+    route_name='search',
+    renderer='templates/search.pt')
+def search(request):
+    params = dict(request.params)
+    params['query'] = params.get('query', '')
+    try:
+        params['page'] = int(params.get('page'))
+    except TypeError:
+        params['page'] = 1
+    batch_links = []
+    if params['query']:
+        search_index = request.registry['search_index']
+        result = search_index.query_projects(
+            params['query'], page=params['page'])
+        result_info = result['info']
+        for item in batch_list(result_info['pagecount'], result_info['pagenum'] - 1):
+            if item is None:
+                batch_links.append(dict(
+                    title='…'))
+            elif item == (params['page'] - 1):
+                batch_links.append(dict(
+                    title=item + 1))
+            else:
+                new_params = dict(params)
+                new_params['page'] = item + 1
+                batch_links.append(dict(
+                    title=item + 1,
+                    url=request.route_url(
+                        'search',
+                        _query=new_params)))
+        for item in result['items']:
+            data = item['data']
+            if 'version' in data:
+                item['url'] = request.route_url(
+                    "/{user}/{index}/{name}/{version}",
+                    user=data['user'], index=data['index'],
+                    name=data['name'], version=data['version'])
+            else:
+                item['url'] = request.route_url(
+                    "/{user}/{index}/{name}",
+                    user=data['user'], index=data['index'], name=data['name'])
+            for sub_hit in item['sub_hits']:
+                sub_hit['title'] = sub_hit['data'].get(
+                    'text_title', sub_hit['data']['text_type'])
+                text_path = sub_hit['data'].get('text_path')
+                if text_path:
+                    sub_hit['url'] = request.route_url(
+                        "docroot", user=data['user'], index=data['index'],
+                        name=data['name'], version=data['doc_version'],
+                        relpath="%s.html" % text_path)
+            more_results = result_info['collapsed_counts'][data['path']]
+            if more_results:
+                new_params = dict(params)
+                new_params['query'] = "%s path:%s" % (params['query'], data['path'])
+                item['more_url'] = request.route_url(
+                    'search',
+                    _query=new_params)
+                item['more_count'] = more_results
+    else:
+        result = None
+    return dict(
+        query=params['query'],
+        page=params['page'],
+        batch_links=batch_links,
+        result=result)

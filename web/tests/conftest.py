@@ -9,6 +9,11 @@ import pytest
  pypiurls, testapp)  # shut up pyflakes
 
 
+def pytest_addoption(parser):
+    parser.addoption("--fast", help="skip functional/slow tests", default=False,
+                     action="store_true")
+
+
 @pytest.fixture
 def xom(request, makexom):
     import devpi_web.main

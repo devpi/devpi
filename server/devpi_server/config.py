@@ -211,6 +211,11 @@ class PluginManager:
                                   stage=stage, name=name,
                                   version=version, entry=entry)
 
+    def devpiserver_register_metadata(self, stage, metadata):
+        return self._call_plugins("devpiserver_register_metadata",
+                                  stage=stage,
+                                  metadata=metadata)
+
 
 class Config:
     def __init__(self, args, hook):

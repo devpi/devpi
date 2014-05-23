@@ -3,6 +3,7 @@
         <title>${title}</title>
     </head>
     <body>
+        <metal:search use-macro="request.macros['search']" />
         <h1>${title}</h1>
 
         <table>

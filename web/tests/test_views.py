@@ -1,5 +1,34 @@
 from devpi_common.archive import zip_dict
 import py
+import pytest
+
+
+@pytest.mark.parametrize("input, expected", [
+    ((0, 0), []),
+    ((1, 0), [0]),
+    ((2, 0), [0, 1]),
+    ((2, 1), [0, 1]),
+    ((3, 0), [0, 1, 2]),
+    ((3, 1), [0, 1, 2]),
+    ((3, 2), [0, 1, 2]),
+    ((4, 0), [0, 1, 2, 3]),
+    ((4, 1), [0, 1, 2, 3]),
+    ((4, 2), [0, 1, 2, 3]),
+    ((4, 3), [0, 1, 2, 3]),
+    ((10, 3), [0, 1, 2, 3, 4, 5, 6, None, 9]),
+    ((10, 4), [0, 1, 2, 3, 4, 5, 6, 7, None, 9]),
+    ((10, 5), [0, None, 2, 3, 4, 5, 6, 7, 8, 9]),
+    ((10, 6), [0, None, 3, 4, 5, 6, 7, 8, 9]),
+    ((20, 5), [0, None, 2, 3, 4, 5, 6, 7, 8, None, 19]),
+    ((4, 4), ValueError),
+])
+def test_projectnametokenizer(input, expected):
+    from devpi_web.views import batch_list
+    if isinstance(expected, list):
+        assert batch_list(*input) == expected
+    else:
+        with pytest.raises(expected):
+            batch_list(*input)
 
 
 def test_docs_view(mapp, testapp):
@@ -17,6 +46,7 @@ def test_root_view(testapp):
     assert r.status_code == 200
     links = r.html.findAll('a')
     assert [(l.text, l.attrs['href']) for l in links] == [
+        ("devpi", "http://localhost:80/"),
         ("root/pypi", "http://localhost:80/root/pypi")]
 
 
@@ -26,6 +56,7 @@ def test_root_view_with_index(mapp, testapp):
     assert r.status_code == 200
     links = r.html.findAll('a')
     assert [(l.text, l.attrs['href']) for l in links] == [
+        ("devpi", "http://localhost:80/"),
         ("root/pypi", "http://localhost:80/root/pypi"),
         (api.stagename, "http://localhost:80/%s" % api.stagename)]
 
@@ -35,6 +66,7 @@ def test_index_view_root_pypi(testapp):
     assert r.status_code == 200
     links = r.html.findAll('a')
     assert [(l.text, l.attrs['href']) for l in links] == [
+        ("devpi", "http://localhost:80/"),
         ("simple index", "http://localhost:80/root/pypi/+simple/")]
 
 
@@ -44,6 +76,7 @@ def test_index_view(mapp, testapp):
     assert r.status_code == 200
     links = r.html.findAll('a')
     assert [(l.text, l.attrs['href']) for l in links] == [
+        ("devpi", "http://localhost:80/"),
         ("simple index", "http://localhost:80/%s/+simple/" % api.stagename),
         ("root/pypi", "http://localhost:80/root/pypi"),
         ("simple", "http://localhost:80/root/pypi/+simple/")]
@@ -56,6 +89,7 @@ def test_index_view_project_info(mapp, testapp):
     assert r.status_code == 200
     links = r.html.findAll('a')
     assert [(l.text, l.attrs['href']) for l in links] == [
+        ("devpi", "http://localhost:80/"),
         ("simple index", "http://localhost:80/%s/+simple/" % api.stagename),
         ("pkg1-2.6 info page", "http://localhost:80/%s/pkg1/2.6" % api.stagename),
         ("root/pypi", "http://localhost:80/root/pypi"),
@@ -70,6 +104,7 @@ def test_index_view_project_files(mapp, testapp):
     assert r.status_code == 200
     links = r.html.findAll('a')
     assert [(l.text, l.attrs['href']) for l in links] == [
+        ("devpi", "http://localhost:80/"),
         ("simple index", "http://localhost:80/%s/+simple/" % api.stagename),
         ("pkg1-2.6 info page", "http://localhost:80/%s/pkg1/2.6" % api.stagename),
         ("pkg1-2.6.tar.gz", "http://localhost:80/%s/+f/9a0364b9e99bb480dd25e1f0284c8555/pkg1-2.6.tar.gz" % api.stagename),
@@ -81,6 +116,7 @@ def test_index_view_project_files(mapp, testapp):
     assert r.status_code == 200
     links = r.html.findAll('a')
     assert [(l.text, l.attrs['href']) for l in links] == [
+        ("devpi", "http://localhost:80/"),
         ("simple index", "http://localhost:80/%s/+simple/" % api.stagename),
         ("pkg1-2.6 info page", "http://localhost:80/%s/pkg1/2.6" % api.stagename),
         ("pkg1-2.6.tar.gz", "http://localhost:80/%s/+f/9a0364b9e99bb480dd25e1f0284c8555/pkg1-2.6.tar.gz" % api.stagename),
@@ -98,6 +134,7 @@ def test_index_view_project_docs(mapp, testapp):
     assert r.status_code == 200
     links = r.html.findAll('a')
     assert [(l.text, l.attrs['href']) for l in links] == [
+        ("devpi", "http://localhost:80/"),
         ("simple index", "http://localhost:80/%s/+simple/" % api.stagename),
         ("pkg1-2.6 info page", "http://localhost:80/%s/pkg1/2.6" % api.stagename),
         ("pkg1-2.6 docs", "http://localhost:80/%s/pkg1/2.6/+doc/index.html" % api.stagename),
@@ -115,6 +152,7 @@ def test_project_view(mapp, testapp):
     assert r.status_code == 200
     links = r.html.findAll('a')
     assert [(l.text, l.attrs['href']) for l in links] == [
+        ("devpi", "http://localhost:80/"),
         ("2.7", "http://localhost:80/%s/pkg1/2.7" % api.stagename),
         ("2.6", "http://localhost:80/%s/pkg1/2.6" % api.stagename)]
 
@@ -133,6 +171,7 @@ def test_project_view_root_pypi(mapp, testapp):
     assert r.status_code == 200
     links = r.html.findAll('a')
     assert [(l.text, l.attrs['href']) for l in links] == [
+        ("devpi", "http://localhost:80/"),
         ("2.7", "http://localhost:80/root/pypi/pkg1/2.7"),
         ("2.6", "http://localhost:80/root/pypi/pkg1/2.6")]
 
@@ -166,6 +205,7 @@ def test_version_view(mapp, testapp):
         'utf-8') == '<p>foo</p>'
     links = r.html.findAll('a')
     assert [(l.text, l.attrs['href']) for l in links] == [
+        ("devpi", "http://localhost:80/"),
         ("pkg1-2.6 docs", "http://localhost:80/%s/pkg1/2.6/+doc/index.html" % api.stagename),
         ("pkg1-2.6.tar.gz", "http://localhost:80/%s/+f/9a0364b9e99bb480dd25e1f0284c8555/pkg1-2.6.tar.gz" % api.stagename),
         ("pkg1-2.6.zip", "http://localhost:80/%s/+f/52360ae08d733016c5603d54b06b5300/pkg1-2.6.zip" % api.stagename)]
@@ -183,5 +223,30 @@ def test_version_view_root_pypi(mapp, testapp):
     assert r.status_code == 200
     links = r.html.findAll('a')
     assert [(l.text, l.attrs['href']) for l in links] == [
+        ("devpi", "http://localhost:80/"),
         ("pkg1-2.6.zip", "http://localhost:80/root/pypi/+f/None/pkg1-2.6.zip"),
         ("https://pypi.python.org/pypi/pkg1/2.6/", "https://pypi.python.org/pypi/pkg1/2.6/")]
+
+
+def test_search_docs(mapp, testapp):
+    api = mapp.create_and_use()
+    mapp.register_metadata({
+        "name": "pkg1",
+        "version": "2.6",
+        "description": "foo"})
+    mapp.upload_file_pypi(
+        "pkg1-2.6.tar.gz", b"content", "pkg1", "2.6")
+    content = zip_dict(
+        {"index.html": "\n".join([
+            "<html>",
+            "<head><title>Foo</title></head>",
+            "<body>Bar</body>",
+            "</html>"])})
+    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200)
+    r = testapp.get('/+search?query=bar')
+    assert r.status_code == 200
+    links = r.html.findAll('a')
+    assert [(l.text.strip(), l.attrs['href']) for l in links] == [
+        ("devpi", "http://localhost:80/"),
+        ("pkg1", "http://localhost:80/%s/pkg1/2.6" % api.stagename),
+        ("Foo", "http://localhost:80/%s/pkg1/2.6/+doc/index.html" % api.stagename)]

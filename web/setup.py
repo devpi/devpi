@@ -5,7 +5,7 @@ setup(
     name="devpi-web",
     description="devpi-web: a web view for devpi-server",
     url="http://doc.devpi.net",
-    version="0.1",
+    version="0.2",
     maintainer="Holger Krekel",
     maintainer_email="holger@merlinux.eu",
     license="MIT",
@@ -24,6 +24,7 @@ setup(
         'devpi_server': [
             "devpi-web = devpi_web.main"]},
     install_requires=[
+        'Whoosh',
         'devpi-server>=1.3dev2',
         'pyramid',
         'pyramid-chameleon'],
