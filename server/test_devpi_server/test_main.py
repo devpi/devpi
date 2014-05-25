@@ -30,7 +30,7 @@ def test_invalidate_is_called(monkeypatch, tmpdir):
 def test_startup_fails_on_initial_setup_nonetwork(tmpdir, monkeypatch):
     monkeypatch.setattr(devpi_server.main, "wsgi_run", lambda **kw: 0/0)
     monkeypatch.setattr(devpi_server.main, "PYPIURL_XMLRPC",
-                        "http://qwqwlekjqwlekqwe.notexists")
+                        "http://localhost:1")
     ret = main(["devpi-server", "--serverdir", str(tmpdir)])
     assert ret
 
