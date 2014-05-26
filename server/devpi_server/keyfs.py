@@ -11,7 +11,6 @@ from __future__ import unicode_literals
 import contextlib
 import py
 import threading
-from tempfile import NamedTemporaryFile
 import os
 import sys
 from os.path import basename, isabs, join
@@ -79,6 +78,18 @@ class Filesystem:
         return self._read(p)
 
 
+def rename(source, dest):
+    try:
+        os.rename(source, dest)
+    except OSError:
+        destdir = os.path.dirname(dest)
+        if not os.path.exists(destdir):
+            os.makedirs(destdir)
+        if sys.platform == "win32" and os.path.exists(dest):
+            os.remove(dest)
+        os.rename(source, dest)
+
+
 class KeyFS(object):
     """ singleton storage object. """
     def __init__(self, basedir):
@@ -97,10 +108,6 @@ class KeyFS(object):
         except AttributeError:
             return self
 
-    @cached_property
-    def tmpdir(self):
-        return str(self.basedir.ensure(".tmp", dir=1))
-
     def _get(self, relpath):
         try:
             with self._getpath(relpath).open("rb") as f:
@@ -108,24 +115,27 @@ class KeyFS(object):
         except py.error.Error:
             raise KeyError(relpath)
 
-    def chmod(self, file_name):
-        if self._mode is None:
-            umask = os.umask(0)
-            os.umask(umask)
-            self._mode = 0o666 ^ umask
-        os.chmod(file_name, self._mode)
-
-    def tempfile(self, prefix="tmp"):
-        f = NamedTemporaryFile(prefix=prefix, dir=self.tmpdir, delete=False)
-        relpath = os.path.relpath(f.name, str(self.basedir))
-        # change from hardcoded default perm 0600 in tempfile._mkstemp_inner()
-        self.chmod(f.name)
-        f.key = get_typed_key(self, relpath, bytes)
-        return f
+    @contextlib.contextmanager
+    def _writing(self, relpath):
+        target_path = self.basedir.join(relpath)
+        tmp_path = target_path.dirpath("." + target_path.basename + ".tmp")
+        try:
+            f = tmp_path.open("wb")
+        except py.error.ENOENT:
+            target_path.dirpath().ensure(dir=1)
+            f = tmp_path.open("wb")
+        try:
+            with f:
+                yield f
+        except Exception:
+            tmp_path.remove()
+            raise
+        rename(f.name, target_path.strpath)
 
     def mkdtemp(self, prefix):
-        return py.path.local.make_numbered_dir(
-                    prefix=prefix, rootdir=py.path.local(self.tmpdir))
+        # XXX only used from devpi-web, could be managed there
+        tmpdir = self.basedir.ensure(".tmp", dir=1)
+        return py.path.local.make_numbered_dir(prefix=prefix, rootdir=tmpdir)
 
     def _set_mutable(self, relpath, serial, value=_nodefault):
         try:
@@ -133,12 +143,11 @@ class KeyFS(object):
                 history_serials = [serial] + Unserializer(f).load()
         except py.error.Error:
             history_serials = [serial]
-        with self.tempfile(basename(relpath)) as f:
+        with self._writing(relpath) as f:
             serializer = Serializer(f)
             serializer.save(history_serials)
             if value is not _nodefault: 
                 serializer.save(value)
-        self._rename(f.key.relpath, relpath)
 
     def _get_mutable(self, relpath, target_serial):
         try:
@@ -170,25 +179,9 @@ class KeyFS(object):
         raise KeyError(relpath)
 
     def _set(self, relpath, value):
-        with self.tempfile(basename(relpath)) as f:
+        with self._writing(relpath) as f:
             f.write(value)
-        self._rename(f.key.relpath, relpath)
         return True
-
-    def _rename(self, rel_source, rel_dest):
-        assert not isabs(rel_source), rel_source
-        assert not isabs(rel_dest), rel_dest
-        source = join(str(self.basedir), rel_source)
-        dest = join(str(self.basedir), rel_dest)
-        try:
-            os.rename(source, dest)
-        except OSError:
-            destdir = os.path.dirname(dest)
-            if not os.path.exists(destdir):
-                os.makedirs(destdir)
-            if sys.platform == "win32" and os.path.exists(dest):
-                os.remove(dest)
-            os.rename(source, dest)
 
     def _exists(self, relpath):
         return self._getpath(relpath).check()
@@ -340,13 +333,6 @@ class TypedKey:
     def delete(self):
         return self.keyfs.tx.delete(self)
 
-    def move(self, destkey):
-        if self.type != destkey.type:
-            raise TypeError("key %r has type %r, destkey %r has type %r" % (
-                            self.relpath, self.type.__name__,
-                            destkey.relpath, destkey.type.__name__))
-        assert self.type == bytes
-        self.keyfs.tx.move(self, destkey)
 
 
 class Transaction:
@@ -399,13 +385,6 @@ class Transaction:
     def delete(self, typedkey):
         self.cache.pop(typedkey, None)
         self.dirty.add(typedkey)
-
-    def move(self, sourcekey, destkey):
-        val = self.get(sourcekey)
-        if destkey.type == bytes:
-            assert not destkey.exists()
-        self.set(destkey, val)
-        self.delete(sourcekey)
 
     def commit(self):
         if not self.dirty:

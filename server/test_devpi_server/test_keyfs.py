@@ -37,55 +37,6 @@ class TestKeyFS:
         keyfs._set("a/b/c", b"value2")
         assert keyfs._get("a/b/c") == b"value2"
 
-    def test_tempfile(self, keyfs):
-        with keyfs.tempfile("abc") as f:
-            f.write(b"hello")
-        assert os.path.basename(f.name).startswith("abc")
-        assert os.path.exists(f.name)
-        assert f.key.exists()
-        org_stat = stat.S_IMODE(os.stat(f.name).st_mode)
-        os.remove(f.name)
-        # normal create follows umask
-        with open(f.name, "w") as fp:
-            fp.write("hello")
-        assert org_stat == stat.S_IMODE(os.stat(f.name).st_mode)
-
-    def test_tempfile_movekey(self, keyfs):
-        with keyfs.tempfile("abc") as f:
-            f.write(b"x")
-        key = keyfs.addkey("abc", bytes)
-        assert f.key.exists()
-        assert not key.exists()
-        with keyfs.transaction():
-            f.key.move(key)
-        assert not f.key.exists()
-
-    @pytest.mark.notransaction
-    def test_move_visibility_in_transaction(self, keyfs, monkeypatch):
-        with keyfs.tempfile("abc") as f:
-            f.write(b"x")
-        key = keyfs.addkey("123", bytes)
-        assert f.key.exists()
-        assert not key.exists()
-        monkeypatch.setattr("os.rename", None)
-        with keyfs.transaction():
-            f.key.move(key)
-            # within the transaction the moved key exists
-            assert key.exists()
-            # but not on the file system yet
-            assert not key.filepath.exists()
-            monkeypatch.undo()  # so that transaction commit works
-        assert key.exists()
-        assert key.filepath.exists()
-
-    def test_tempfile_movekey_typemismatch(self, keyfs):
-        with keyfs.tempfile("abc") as f:
-            f.write(b"x")
-        key = keyfs.addkey("abc", int)
-        assert f.key.exists()
-        with pytest.raises(TypeError):
-            f.key.move(key)
-
     def test_destroyall(self, keyfs):
         keyfs._set("hello/world", b"World")
         keyfs.destroyall()
