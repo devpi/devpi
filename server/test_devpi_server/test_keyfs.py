@@ -135,18 +135,6 @@ class TestKey:
         assert key1.get() == b"hello"
         assert key1.filepath.size() == 5
 
-    def test_dirkey(self, keyfs):
-        key1 = keyfs.addkey("somedir", "DIR")
-        assert key1.filepath.strpath.endswith("somedir")
-        assert key1.filepath.strpath.endswith(key1.relpath)
-        assert not hasattr(key1, "get")
-        assert not hasattr(key1, "set")
-        assert not key1.exists()
-        key1.filepath.ensure("hello")
-        assert key1.exists()
-        key1.delete()
-        assert not key1.exists()
-
 
 @pytest.mark.parametrize(("type", "val"),
         [(dict, {1:2}),

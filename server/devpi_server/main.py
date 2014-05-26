@@ -165,7 +165,6 @@ def add_keys(keyfs):
     keyfs.addkey("{user}/{index}/.projectnames", set, "PROJNAMES") 
     keyfs.addkey("{user}/{index}/+f/{md5}/{filename}", bytes, "STAGEFILE") 
 
-    keyfs.addkey("{user}/{index}/{name}/{version}/+doc", "DIR", "STAGEDOCS") 
     keyfs.addkey("{user}/{index}/{name}/{version}/description_html", bytes,
                  "RELDESCRIPTION")
 

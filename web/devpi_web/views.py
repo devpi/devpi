@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 from devpi_common.metadata import splitbasename
 from devpi_common.types import ensure_unicode
 from devpi_server.views import matchdict_parameters
-from devpi_web.doczip import doc_key
+from devpi_web.doczip import get_unpack_path
 from operator import itemgetter
 from py.xml import html
 from pyramid.compat import decode_path_info
@@ -29,10 +29,10 @@ def doc_show(request, user, index, name, version, relpath):
     stage = xom.model.getstage(user, index)
     if not stage:
         raise HTTPNotFound("no such stage")
-    key = doc_key(stage, name, version)
-    if not key.filepath.check():
+    doc_path = get_unpack_path(stage, name, version)
+    if not doc_path.check():
         raise HTTPNotFound("no documentation available")
-    return FileResponse(str(key.filepath.join(relpath)))
+    return FileResponse(str(doc_path.join(relpath)))
 
 
 @notfound_view_config(request_method="GET")
@@ -76,8 +76,8 @@ def get_docs_info(request, stage, metadata):
     if stage.name == 'root/pypi':
         return
     name, ver = metadata["name"], metadata["version"]
-    dockey = doc_key(stage, name, ver)
-    if dockey.exists():
+    doc_path = get_unpack_path(stage, name, ver)
+    if doc_path.exists():
         return dict(
             title="%s-%s docs" % (name, ver),
             url=request.route_url(

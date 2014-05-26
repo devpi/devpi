@@ -207,7 +207,7 @@ class KeyFS(object):
         if "{" in key:
             key = PTypedKey(self, key, type)
         else:
-            key = get_typed_key(self, key, type)
+            key = TypedKey(self, key, type)
         if name is not None:
             self._keys[name] = key
             setattr(self, name, key)
@@ -266,15 +266,11 @@ class PTypedKey:
 
     def __call__(self, **kw):
         realkey = self.key.format(**kw)
-        return get_typed_key(self.keyfs, realkey, self.type)
+        return TypedKey(self.keyfs, realkey, self.type)
 
     def __repr__(self):
         return "<PTypedKey %r type %r>" %(self.key, self.type.__name__)
 
-def get_typed_key(keyfs, relpath, type):
-    if type == "DIR":
-        return DirKey(keyfs, relpath)
-    return TypedKey(keyfs, relpath, type)
 
 class DirKey:
     def __init__(self, keyfs, relpath):
