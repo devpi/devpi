@@ -5,6 +5,8 @@ unreleased
 - avoid depending on requests-2.0.1 which does not support SNI.
   addresses issue21
 
+- fix issue104: don't define an entrypoint. Thanks Maximilien Riehl.
+
 
 1.2
 -------------
