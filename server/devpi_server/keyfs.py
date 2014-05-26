@@ -44,15 +44,15 @@ class Unserializer:
 
 
 class KeyFS(object):
+    """ singleton storage object. """
     def __init__(self, basedir):
         self.basedir = py.path.local(basedir).ensure(dir=1)
-        self.keys = []
-        self._locks = {}
+        self._keys = {}
         self._mode = None
         # a non-recursive lock because we don't support nested transactions
         self.write_lock = threading.Lock()
         self._threadlocal = threading.local()
-        self.CURRENT_SERIAL = get_typed_key(self, ".currentserial", int)
+        self.CURRENT_SERIAL = TypedKey(self, ".currentserial", int)
         self.SERIALS = PTypedKey(self, ".serials/{serial}", dict)
         try:
             dumped_serial = self._get(self.CURRENT_SERIAL.relpath)
@@ -66,7 +66,7 @@ class KeyFS(object):
         try:
             return self._threadlocal.tx
         except AttributeError:
-            return RootState(self)
+            return self
 
     @cached_property
     def tmpdir(self):
@@ -182,13 +182,15 @@ class KeyFS(object):
         if self.basedir.check():
             self.basedir.remove()
 
-    def addkey(self, key, type):
+    def addkey(self, key, type, name=None):
         assert isinstance(key, py.builtin._basestring)
         if "{" in key:
             key = PTypedKey(self, key, type)
         else:
             key = get_typed_key(self, key, type)
-        self.keys.append(key)
+        if name is not None:
+            self._keys[name] = key
+            setattr(self, name, key)
         return key
 
     @contextlib.contextmanager
@@ -204,7 +206,7 @@ class KeyFS(object):
         finally:
             del self._threadlocal.tx
 
-    def commit_changes(self, from_serial, record_set, record_deleted, nohist):
+    def commit_changes(self, record_set, record_deleted, nohist):
         # this is the only place that ever writes changes 
         # to the filesystem.  We play it safe and simple and 
         # completely serialize all writes.
@@ -212,8 +214,6 @@ class KeyFS(object):
             #print "starting transaction", self
             #print "  record_set", record_set
             #print "  record_deleted", record_deleted
-            #print "  record_immutable", record_immutable
-            #print "  record_immutable_deleted", record_immutable_deleted
             # we get our current serial number for changes
             serial = self.current_serial
             key = self.SERIALS(serial=serial)
@@ -242,6 +242,14 @@ class KeyFS(object):
             self._set(self.CURRENT_SERIAL.relpath, dumps(self.current_serial))
             # XXX we need to fsync for the D in ACID
             log.info("transaction committed %s" %(serial,))
+
+    def exists(self, typedkey):
+        with self.transaction():
+            return typedkey.exists()
+
+    def get(self, typedkey):
+        with self.transaction():
+            return typedkey.get()
 
 
 class PTypedKey:
@@ -328,19 +336,6 @@ class TypedKey:
         self.keyfs.tx.move(self, destkey)
 
 
-class RootState:
-    def __init__(self, keyfs):
-        self.keyfs = keyfs
-
-    def exists(self, typedkey):
-        with self.keyfs.transaction():
-            return typedkey.exists()
-
-    def get(self, typedkey):
-        with self.keyfs.transaction():
-            return typedkey.get()
-
-
 class Transaction:
     def __init__(self, keyfs):
         self.keyfs = keyfs
@@ -348,8 +343,7 @@ class Transaction:
         self.cache = {}
         self.dirty = set()
         self.rootstate = keyfs.tx
-        assert isinstance(self.rootstate, RootState), (
-                    "nested transactions not supported")
+        assert self.rootstate == keyfs, "nested transactions not supported"
 
     def get_typed_state(self, typedkey):
         if typedkey.type == bytes:
@@ -417,7 +411,6 @@ class Transaction:
             else:
                 record_set.append((relpath, val))
         new_serial = self.keyfs.commit_changes(
-            from_serial=self.from_serial,
             record_set=record_set, record_deleted=record_deleted,
             nohist=nohist
         )

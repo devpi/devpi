@@ -149,34 +149,32 @@ def wsgi_run(xom):
 
 def add_keys(keyfs):
     # users and index configuration
-    keyfs.USER = keyfs.addkey("{user}/.config", dict)
-    keyfs.USERLIST = keyfs.addkey(".config", set)
+    keyfs.addkey("{user}/.config", dict, "USER")
+    keyfs.addkey(".config", set, "USERLIST")
 
     # type pypimirror related data
-    keyfs.PYPILINKS = keyfs.addkey("root/pypi/+links/{name}", dict)
-    keyfs.PYPILINKS_CONTAINED = keyfs.addkey("root/pypi/+links/.contained",
-                                             set)
-    keyfs.PYPISERIALS = keyfs.addkey("root/pypi/+serials", dict)
-    keyfs.PYPIFILE_NOMD5 = keyfs.addkey(
-        "{user}/{index}/+e/{relpath}", bytes)
-    keyfs.PYPISTAGEFILE = keyfs.addkey(
-        "{user}/{index}/+f/{md5a}/{md5b}/{filename}", bytes)
+    keyfs.addkey("root/pypi/+links/{name}", dict, "PYPILINKS")
+    keyfs.addkey("root/pypi/+links/.contained", set, "PYPILINKS_CONTAINED") 
+    keyfs.addkey("root/pypi/+serials", dict, "PYPISERIALS") 
+    keyfs.addkey("{user}/{index}/+e/{relpath}", bytes, "PYPIFILE_NOMD5") 
+    keyfs.addkey("{user}/{index}/+f/{md5a}/{md5b}/{filename}", bytes,
+                 "PYPISTAGEFILE")
 
     # type "stage" related
-    keyfs.INDEXDIR = keyfs.addkey("{user}/{index}", "DIR")
-    keyfs.PROJCONFIG = keyfs.addkey("{user}/{index}/{name}/.config", dict)
-    keyfs.PROJNAMES  = keyfs.addkey("{user}/{index}/.projectnames", set)
-    keyfs.STAGEFILE = keyfs.addkey("{user}/{index}/+f/{md5}/{filename}", bytes)
+    keyfs.addkey("{user}/{index}", "DIR", "INDEXDIR") 
+    keyfs.addkey("{user}/{index}/{name}/.config", dict, "PROJCONFIG") 
+    keyfs.addkey("{user}/{index}/.projectnames", set, "PROJNAMES") 
+    keyfs.addkey("{user}/{index}/+f/{md5}/{filename}", bytes, "STAGEFILE") 
 
-    keyfs.STAGEDOCS = keyfs.addkey("{user}/{index}/{name}/{version}/+doc",
-                                   "DIR")
-    keyfs.RELDESCRIPTION = keyfs.addkey(
-            "{user}/{index}/{name}/{version}/description_html", bytes)
+    keyfs.addkey("{user}/{index}/{name}/{version}/+doc", "DIR", "STAGEDOCS") 
+    keyfs.addkey("{user}/{index}/{name}/{version}/description_html", bytes,
+                 "RELDESCRIPTION")
 
-    keyfs.PATHENTRY = keyfs.addkey("{relpath}-meta", dict)
-    keyfs.ATTACHMENT = keyfs.addkey("+attach/{md5}/{type}/{num}", bytes)
-    keyfs.ATTACHMENTS = keyfs.addkey("+attach/.att", dict)
-    keyfs.FILEPATH = keyfs.addkey("{relpath}", bytes)
+    keyfs.addkey("{relpath}-meta", dict, "PATHENTRY") 
+    keyfs.addkey("+attach/{md5}/{type}/{num}", bytes, "ATTACHMENT") 
+    keyfs.addkey("+attach/.att", dict, "ATTACHMENTS") 
+    keyfs.addkey("{relpath}", bytes, "FILEPATH") 
+
 
 class XOM:
     class Exiting(SystemExit):

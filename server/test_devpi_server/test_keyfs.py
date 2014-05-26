@@ -149,11 +149,11 @@ class TestKey:
             pytest.raises(TypeError, lambda: dictkey(that="t").set("hello"))
 
     def test_addkey_registered(self, keyfs):
-        key1 = keyfs.addkey("some1", dict)
-        key2 = keyfs.addkey("some2", list)
-        assert len(keyfs.keys) == 2
-        assert key1 in keyfs.keys
-        assert key2 in keyfs.keys
+        key1 = keyfs.addkey("some1", dict, "SOME1")
+        key2 = keyfs.addkey("some2", list, "SOME2")
+        assert len(keyfs._keys) == 2
+        assert keyfs._keys["SOME1"] == key1
+        assert keyfs._keys["SOME2"] == key2
 
     def test_update(self, keyfs):
         key1 = keyfs.addkey("some1", dict)
