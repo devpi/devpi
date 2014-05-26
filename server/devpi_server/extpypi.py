@@ -212,7 +212,7 @@ class PyPIStage:
 
     def _load_project_cache(self, projectname):
         normname = normalize_name(projectname)
-        return self.keyfs.PYPILINKS(name=normname).get(None)
+        return self.keyfs.PYPILINKS(name=normname).get()
 
     def getreleaselinks(self, projectname, refresh=0):
         """ return all releaselinks from the index and referenced scrape
@@ -227,7 +227,7 @@ class PyPIStage:
         """
         assert not isinstance(refresh, bool), repr(refresh)
         cache = self._load_project_cache(projectname)
-        if cache is not None and cache["serial"] >= refresh:
+        if cache and cache["serial"] >= refresh:
             return [self.filestore.getentry(relpath)
                         for relpath in cache["entrylist"]]
 
@@ -309,7 +309,7 @@ class PyPIStage:
     def init_pypi_mirror(self, proxy):
         """ initialize pypi mirror if no mirror state exists. """
         self.proxy = proxy
-        name2serials = self.keyfs.PYPISERIALS.get({})
+        name2serials = self.keyfs.PYPISERIALS.get()
         if not name2serials:
             log.info("retrieving initial name/serial list")
             name2serials = proxy.list_packages_with_serial()
@@ -317,7 +317,8 @@ class PyPIStage:
                 from devpi_server.main import fatal
                 fatal("mirror initialization failed: "
                       "pypi.python.org not reachable")
-            self.keyfs.PYPISERIALS.set(name2serials)
+            with self.keyfs.transaction():
+                self.keyfs.PYPISERIALS.set(name2serials)
         else:
             log.info("reusing already cached name/serial list")
         # normalize to unicode->serial mapping
@@ -370,14 +371,16 @@ class PyPIStage:
             names.add(name)
         log.debug("processed changelog of size %d: %s" %(
                   len(changelog), names))
-        self.keyfs.PYPISERIALS.set(self.name2serials)
+        with self.keyfs.transaction():
+            self.keyfs.PYPISERIALS.set(self.name2serials)
 
     def process_refreshes(self):
         # walk through all mirrored projects and trigger updates if needed
         for name in self.getcontained():
             name = self.get_project_info(name).name
             serial = self.name2serials.get(name, 0)
-            self.getreleaselinks(name, refresh=serial)
+            with self.keyfs.transaction():
+                self.getreleaselinks(name, refresh=serial)
 
 PYPIURL_SIMPLE = "https://pypi.python.org/simple/"
 PYPIURL = "https://pypi.python.org/"

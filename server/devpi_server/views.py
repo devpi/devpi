@@ -1,4 +1,6 @@
 from __future__ import unicode_literals
+import sys
+import contextlib
 import py
 from py.xml import html
 from devpi_common.types import ensure_unicode
@@ -126,6 +128,20 @@ class PyPIView:
         self.xom = xom
         self.model = xom.model
         self.auth = Auth(self.model, xom.config.secret)
+       
+    @contextlib.contextmanager 
+    def transaction(self):
+        excinfo = None
+        with self.xom.keyfs.transaction():
+            try:
+                yield
+            except HTTPResponse as e:
+                excinfo = sys.exc_info()
+                if 200 <= e.status < 300:
+                    pass
+        if excinfo:
+            py.builtin._reraise(*excinfo)
+        
 
     def getstage(self, user, index):
         stage = self.model.getstage(user, index)
@@ -177,10 +193,11 @@ class PyPIView:
         data = request.text
         if not py.builtin._istext(data):
             data = data.decode("utf-8")
-        num = filestore.add_attachment(md5=md5, type="toxresult",
-                                       data=data)
-        relpath = "/+tests/%s/%s/%s" %(md5, "toxresult", num)
-        apireturn(200, type="testresultpath", result=relpath)
+        with self.transaction():
+            num = filestore.add_attachment(md5=md5, type="toxresult",
+                                           data=data)
+            relpath = "/+tests/%s/%s/%s" %(md5, "toxresult", num)
+            apireturn(200, type="testresultpath", result=relpath)
 
     @view_config(route_name="/+tests/{md5}/{type}", request_method="GET")
     @matchdict_parameters
@@ -215,7 +232,8 @@ class PyPIView:
         info = stage.get_project_info(projectname)
         if info and info.name != projectname:
             redirect("/%s/+simple/%s/" % (stage.name, info.name))
-        result = stage.getreleaselinks(projectname)
+        with self.transaction():  # extpypi might update state
+            result = stage.getreleaselinks(projectname)
         if isinstance(result, int):
             if result == 404:
                 # we don't want pip/easy_install to try the whole simple
@@ -296,11 +314,12 @@ class PyPIView:
             apireturn(409, "index %r exists" % stage.name)
         kvdict = getkvdict_index(getjson(request))
         try:
-            if not stage:
-                stage = user.create_stage(index, **kvdict)
-                ixconfig = stage.ixconfig
-            else:
-                ixconfig = stage.modify(**kvdict)
+            with self.transaction():
+                if not stage:
+                    stage = user.create_stage(index, **kvdict)
+                    ixconfig = stage.ixconfig
+                else:
+                    ixconfig = stage.modify(**kvdict)
         except InvalidIndexconfig as e:
             apireturn(400, message=", ".join(e.messages))
         apireturn(200, type="indexconfig", result=ixconfig)
@@ -309,11 +328,13 @@ class PyPIView:
     @matchdict_parameters
     def index_delete(self, user, index):
         self.require_user(user)
-        stage = self.getstage(user, index)
-        if not stage.ixconfig["volatile"]:
-            apireturn(403, "index %s non-volatile, cannot delete" % stage.name)
-        assert stage.delete()
-        apireturn(201, "index %s deleted" % stage.name)
+        with self.transaction():
+            stage = self.getstage(user, index)
+            if not stage.ixconfig["volatile"]:
+                apireturn(403, "index %s non-volatile, cannot delete" % 
+                               stage.name)
+            assert stage.delete()
+            apireturn(201, "index %s deleted" % stage.name)
 
     @view_config(route_name="/{user}/{index}", request_method="PUSH")
     @matchdict_parameters
@@ -327,6 +348,10 @@ class PyPIView:
         except KeyError:
             apireturn(400, message="no name/version specified in json")
 
+        with self.transaction():
+            self._pushrelease(request, stage, name, version, pushdata)
+
+    def _pushrelease(self, request, stage, name, version, pushdata):
         projectconfig = stage.get_projectconfig(name)
         matches = []
         if projectconfig:
@@ -438,7 +463,8 @@ class PyPIView:
         except KeyError:
             abort(request, 400, ":action field not found")
         if action == "submit":
-            self._register_metadata_form(stage, request.POST)
+            with self.transaction():
+                self._register_metadata_form(stage, request.POST)
             return Response("")
         elif action in ("doc_upload", "file_upload"):
             try:
@@ -451,34 +477,36 @@ class PyPIView:
             if not info:
                 abort(request, 400, "no project named %r was ever registered" % (name))
             if action == "file_upload":
-                log.debug("metadata in form: %s", list(request.POST.items()))
-                abort_if_invalid_filename(name, content.filename)
-                metadata = stage.get_metadata(name, version)
-                if not metadata:
-                    self._register_metadata_form(stage, request.POST)
+                with self.transaction():
+                    log.debug("metadata in form: %s", list(request.POST.items()))
+                    abort_if_invalid_filename(name, content.filename)
                     metadata = stage.get_metadata(name, version)
                     if not metadata:
-                        abort_custom(400, "could not process form metadata")
-                res = stage.store_releasefile(name, version,
-                                              content.filename, content.file.read())
-                if res == 409:
-                    abort(request, 409, "%s already exists in non-volatile index" % (
-                         content.filename,))
-                jenkinurl = stage.ixconfig["uploadtrigger_jenkins"]
-                if jenkinurl:
-                    jenkinurl = jenkinurl.format(pkgname=name)
-                    if trigger_jenkins(request, stage, jenkinurl, name) == -1:
-                        abort_custom(200,
-                            "OK, but couldn't trigger jenkins at %s" %
-                            (jenkinurl,))
+                        self._register_metadata_form(stage, request.POST)
+                        metadata = stage.get_metadata(name, version)
+                        if not metadata:
+                            abort_custom(400, "could not process form metadata")
+                    res = stage.store_releasefile(name, version,
+                                                  content.filename, content.file.read())
+                    if res == 409:
+                        abort(request, 409, "%s already exists in non-volatile index" % (
+                             content.filename,))
+                    jenkinurl = stage.ixconfig["uploadtrigger_jenkins"]
+                    if jenkinurl:
+                        jenkinurl = jenkinurl.format(pkgname=name)
+                        if trigger_jenkins(request, stage, jenkinurl, name) == -1:
+                            abort_custom(200,
+                                "OK, but couldn't trigger jenkins at %s" %
+                                (jenkinurl,))
             else:
                 # docs have no version (XXX but they are tied to the latest)
-                doczip = content.file.read()
-                if len(doczip) > MAXDOCZIPSIZE:
-                    abort_custom(413, "zipfile size %d too large, max=%s"
-                                   % (len(doczip), MAXDOCZIPSIZE))
-                stage.store_doczip(name, version,
-                                   py.io.BytesIO(doczip))
+                with self.transaction():
+                    doczip = content.file.read()
+                    if len(doczip) > MAXDOCZIPSIZE:
+                        abort_custom(413, "zipfile size %d too large, max=%s"
+                                       % (len(doczip), MAXDOCZIPSIZE))
+                    stage.store_doczip(name, version,
+                                       py.io.BytesIO(doczip))
         else:
             abort(request, 400, "action %r not supported" % action)
         return Response("")
@@ -588,7 +616,8 @@ class PyPIView:
         verdata = metadata.get(version, None)
         if not verdata:
             abort(self.request, 404, "version %r does not exist" % version)
-        stage.project_version_delete(name, version)
+        with self.transaction(): 
+            stage.project_version_delete(name, version)
         apireturn(200, "project %r version %r deleted" % (name, version))
 
     @view_config(route_name="/{user}/{index}/+e/{relpath:.*}")
@@ -606,13 +635,16 @@ class PyPIView:
             if not entry.exists():
                 apireturn(404, "no such release file")
             apireturn(200, type="releasefilemeta", result=entry._mapping)
-        headers, itercontent = filestore.iterfile(relpath, self.xom.httpget)
-        if headers is None:
-            abort(request, 404, "no such file")
+        with self.transaction():  # we might cache the file / change state
+            headers, itercontent = filestore.iterfile(relpath, 
+                                                      self.xom.httpget)
+            if headers is None:
+                abort(request, 404, "no such file")
+            content = b''.join(itercontent)
         response.content_type = headers["content-type"]
         if "content-length" in headers:
             response.content_length = headers["content-length"]
-        return Response(app_iter=itercontent)
+        return Response(content)
 
     @view_config(route_name="/{user}/{index}", accept="application/json", request_method="GET")
     @matchdict_parameters
@@ -686,12 +718,14 @@ class PyPIView:
         email = dict.get("email")
         password = dict.get("password")
         user = self.model.get_user(user)
-        user.modify(password=password, email=email)
-        if password is not None:
-            apireturn(200, "user updated, new proxy auth", type="userpassword",
-                      result=self.auth.new_proxy_auth(user.name, 
-                                                      password=password))
-        apireturn(200, "user updated")
+        with self.transaction():
+            user.modify(password=password, email=email)
+            if password is not None:
+                apireturn(200, "user updated, new proxy auth", 
+                          type="userpassword",
+                          result=self.auth.new_proxy_auth(user.name, 
+                                                          password=password))
+            apireturn(200, "user updated")
 
     @view_config(route_name="/{user}", request_method="PUT")
     @matchdict_parameters
@@ -703,8 +737,9 @@ class PyPIView:
             apireturn(409, "user already exists")
         kvdict = getjson(request)
         if "password" in kvdict:  # and "email" in kvdict:
-            user = self.model.create_user(username, **kvdict)
-            apireturn(201, type="userconfig", result=user.get())
+            with self.transaction(): 
+                user = self.model.create_user(username, **kvdict)
+                apireturn(201, type="userconfig", result=user.get())
         apireturn(400, "password needs to be set")
 
     @view_config(route_name="/{user}", request_method="DELETE")
@@ -721,7 +756,8 @@ class PyPIView:
             if not ixconfig["volatile"]:
                 apireturn(403, "user %r has non-volatile index: %s" %(
                                user, name))
-        user.delete()
+        with self.transaction():
+            user.delete()
         apireturn(200, "user %r deleted" % user.name)
 
     @view_config(route_name="/{user}", accept="application/json", request_method="GET")

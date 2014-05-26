@@ -5,6 +5,13 @@ from devpi_server.extpypi import *
 from devpi_server.main import Fatal, PYPIURL_XMLRPC
 from test_devpi_server.conftest import getmd5
 
+@pytest.yield_fixture(autouse=True)
+def auto_transact(request, keyfs):
+    if request.node.get_marker("notransaction"):
+        yield
+    else:
+        with keyfs.transaction():
+            yield
 
 class TestIndexParsing:
     simplepy = URL("http://pypi.python.org/simple/py/")
@@ -413,6 +420,7 @@ def raise_ValueError():
 
 class TestRefreshManager:
 
+    @pytest.mark.notransaction
     def test_init_pypi_mirror(self, pypistage, keyfs):
         proxy = mock.create_autospec(XMLProxy)
         d = {"hello": 10, "abc": 42}
@@ -439,6 +447,7 @@ class TestRefreshManager:
         pypistage.process_changelog.assert_called_once_with(changelog)
         pypistage.process_refreshes.assert_called_once()
 
+    @pytest.mark.notransaction
     def test_pypichanges_changes(self, pypistage, keyfs, monkeypatch):
         assert not pypistage.name2serials
         pypistage.mock_simple("pytest", '<a href="pytest-2.3.tgz"/a>',
@@ -446,8 +455,9 @@ class TestRefreshManager:
         pypistage.mock_simple("Django", '<a href="Django-1.6.tgz"/a>',
                           pypiserial=11)
         assert len(pypistage.name2serials) == 2
-        assert len(pypistage.getreleaselinks("pytest")) == 1
-        assert len(pypistage.getreleaselinks("Django")) == 1
+        with keyfs.transaction():
+            assert len(pypistage.getreleaselinks("pytest")) == 1
+            assert len(pypistage.getreleaselinks("Django")) == 1
         pypistage.process_changelog([
             ["Django", "1.4", 12123, 'new release', 25],
             ["pytest", "2.4", 121231, 'new release', 27]
@@ -504,11 +514,12 @@ def test_requests_httpget_timeout(xom_notmocked, monkeypatch):
                               timeout=1.2)
     assert r.status_code == -1
 
+@pytest.mark.notransaction
 def test_invalidate_on_version_change(tmpdir, caplog):
     from devpi_server.extpypi import invalidate_on_version_change, PyPIStage
     p = tmpdir.ensure("something")
     invalidate_on_version_change(tmpdir)
     assert not p.check()
     assert tmpdir.join(".mirrorversion").read() == PyPIStage.VERSION
-    rec, = caplog.getrecords()
+    rec = caplog.getrecords()[-1]
     assert "format change" in rec.msg

@@ -14,6 +14,11 @@ from py.io import BytesIO
 def bases(request):
     return request.param
 
+@pytest.yield_fixture(autouse=True)
+def transact(request, keyfs):
+    with keyfs.transaction():
+        yield
+
 def register_and_store(stage, basename, content=b"123", name=None):
     assert py.builtin._isbytes(content), content
     n, version = splitbasename(basename)[:2]
@@ -22,7 +27,7 @@ def register_and_store(stage, basename, content=b"123", name=None):
     stage.register_metadata(dict(name=name, version=version))
     return stage.store_releasefile(name, version, basename, content)
 
-def test_is_empty(model):
+def test_is_empty(model, keyfs):
     assert model.is_empty()
     user = model.create_user("user", "password", email="some@email.com")
     assert not model.is_empty()
@@ -105,7 +110,7 @@ class TestStage:
     def test_10_metadata_name_mixup(self, stage, bases):
         stage._register_metadata({"name": "x-encoder", "version": "1.0"})
         key = stage.key_projconfig(name="x_encoder")
-        with key.locked_update() as projectconfig:
+        with key.update() as projectconfig:
             versionconfig = projectconfig["1.0"] = {}
             versionconfig.update({"+files":
                 {"x_encoder-1.0.zip": "%s/x_encoder/1.0/x_encoder-1.0.zip" %
@@ -279,13 +284,11 @@ class TestStage:
         content = zip_dict({"index.html": "<html/>",
             "_static": {}, "_templ": {"x.css": ""}})
         filepath = stage.store_doczip("pkg1", "1.0", BytesIO(content))
-        assert filepath.exists()
         archive = Archive(stage.get_doczip("pkg1", "1.0"))
         assert 'index.html' in archive.namelist()
 
         content = zip_dict({"nothing": "hello"})
         filepath = stage.store_doczip("pkg1", "1.0", BytesIO(content))
-        assert filepath.exists()
         archive = Archive(stage.get_doczip("pkg1", "1.0"))
         namelist = archive.namelist()
         assert 'nothing' in namelist
@@ -329,7 +332,7 @@ class TestStage:
         metadata = dict(name="hello", version="1.0-test")
         stage.register_metadata(metadata)
         stage.store_releasefile("hello", "1.0-test",
-                                "hello-1.0_test.whl", b"")
+                            "hello-1.0_test.whl", b"")
         ver = stage.get_metadata_latest_perstage("hello")
         assert ver["version"] == "1.0-test"
         #stage.ixconfig["volatile"] = False
@@ -357,13 +360,12 @@ class TestStage:
 
     def test_releasedata_validation(self, stage):
         with pytest.raises(ValueError):
-             stage.register_metadata( dict(name="hello_", version="1.0"))
+             stage.register_metadata(dict(name="hello_", version="1.0"))
 
     def test_register_metadata_normalized_name_clash(self, stage):
         stage.register_metadata(dict(name="hello-World", version="1.0"))
         with pytest.raises(stage.RegisterNameConflict):
             stage.register_metadata(dict(name="Hello-world", version="1.0"))
-        with pytest.raises(stage.RegisterNameConflict):
             stage.register_metadata(dict(name="Hello_world", version="1.0"))
 
     def test_get_existing_project(self, stage):
@@ -379,7 +381,7 @@ class TestStage:
         assert stage.metadata_keys
         assert not stage.get_description("hello", "1.0")
         stage.register_metadata(dict(name="hello", version="1.0",
-            description=source))
+                description=source))
         html = stage.get_description("hello", "1.0")
         assert py.builtin._istext(html)
         assert "test" in html and "world" in html

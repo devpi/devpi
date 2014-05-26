@@ -3,6 +3,8 @@ import pytest
 import py
 from devpi_server.filestore import *
 
+from test_extpypi import auto_transact
+
 BytesIO = py.io.BytesIO
 
 class TestFileStore:
@@ -197,6 +199,8 @@ class TestFileStore:
         assert link.md5 in str(excinfo.value)
         assert not entry.iscached()
 
+    @pytest.mark.xfail(reason="disambiguation of downloads from urls"
+            " whose content changes over time")
     def test_iterfile_eggfragment(self, filestore, httpget, gen):
         link = gen.pypi_package_link("master#egg=pytest-dev", md5=False)
         entry = filestore.maplink(link)

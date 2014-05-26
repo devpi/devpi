@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import contextlib
 import py
 from devpi_common.metadata import (sorted_sameproject_links,
                                    get_latest_version)
@@ -39,10 +40,7 @@ class RootModel:
         self.keyfs = xom.keyfs
 
     def create_user(self, username, password, email=None):
-        user = User.create(self, username, password, email)
-        with self.keyfs.USERLIST.update() as userlist:
-            userlist.add(username)
-        return user
+        return User.create(self, username, password, email)
 
     def get_user(self, name):
         user = User(self, name)
@@ -95,14 +93,19 @@ class User:
 
     @classmethod
     def create(cls, model, username, password, email):
+        userlist = model.keyfs.USERLIST.get()
+        if username in userlist:
+            raise ValueError("username already exists")
         user = cls(model, username)
         with user.key.update() as userconfig:
             user._setpassword(userconfig, password)
             if email:
                 userconfig["email"] = email
             userconfig.setdefault("indexes", {})
-            log.info("created user %r with email %r" %(username, email))
-            return user
+        userlist.add(username)
+        model.keyfs.USERLIST.set(userlist)
+        log.info("created user %r with email %r" %(username, email))
+        return user
 
     def _set(self, newuserconfig):
         with self.key.update() as userconfig:
@@ -132,8 +135,8 @@ class User:
             userlist.remove(self.name)
 
     def validate(self, password):
-        userconfig = self.key.get(None)
-        if userconfig is None:
+        userconfig = self.key.get()
+        if not userconfig:
             return False
         salt = userconfig["pwsalt"]
         pwhash = userconfig["pwhash"]
@@ -142,7 +145,7 @@ class User:
         return None
 
     def get(self, credentials=False):
-        d = self.key.get()
+        d = self.key.get().copy()
         if not d:
             return d
         if not credentials:
@@ -160,7 +163,7 @@ class User:
         bases = tuple(normalize_bases(self.xom.model, bases))
 
         # modify user/indexconfig
-        with self.key.locked_update() as userconfig:
+        with self.key.update() as userconfig:
             indexes = userconfig.setdefault("indexes", {})
             assert index not in indexes, indexes[index]
             indexes[index] = ixconfig = {
@@ -239,11 +242,16 @@ class PrivateStage:
             kw["bases"] = tuple(normalize_bases(self.xom.model, kw["bases"]))
 
         # modify user/indexconfig
-        with self.user.key.locked_update() as userconfig:
+        with self.user.key.update() as userconfig:
             ixconfig = userconfig["indexes"][self.index]
             ixconfig.update(kw)
             log.info("modified index %s: %s", self.name, ixconfig)
             return ixconfig
+
+    @contextlib.contextmanager
+    def transaction(self):
+        with self.keyfs.transaction():
+            yield
 
     def get(self):
         userconfig = self.user.get()
@@ -262,7 +270,7 @@ class PrivateStage:
                     todo.append(self.model.getstage(base))
 
     def delete(self):
-        with self.user.key.locked_update() as userconfig:
+        with self.user.key.update() as userconfig:
             indexes = userconfig.get("indexes", {})
             if self.index not in indexes:
                 log.info("index %s not exists" % self.index)
@@ -341,7 +349,7 @@ class PrivateStage:
         name = metadata["name"]
         version = metadata["version"]
         key = self.key_projconfig(name)
-        with key.locked_update() as projectconfig:
+        with key.update() as projectconfig:
             #if not self.ixconfig["volatile"] and projectconfig:
             #    raise self.MetadataExists(
             #        "%s-%s exists on non-volatile %s" %(
@@ -354,11 +362,11 @@ class PrivateStage:
         desc = metadata.get("description")
         if desc:
             html = processDescription(desc)
-            key = self.keyfs.RELDESCRIPTION(user=self.user.name, 
+            doc_key = self.keyfs.RELDESCRIPTION(user=self.user.name, 
                         index=self.index, name=name, version=version)
             if py.builtin._istext(html):
                 html = html.encode("utf8")
-            key.set(html)
+            doc_key.set(html)
         self.xom.config.hook.devpiserver_register_metadata(self, metadata)
 
     def project_delete(self, name):
@@ -368,7 +376,7 @@ class PrivateStage:
 
     def project_version_delete(self, name, version):
         key = self.key_projconfig(name)
-        with key.locked_update() as projectconfig:
+        with key.update() as projectconfig:
             if version not in projectconfig:
                 return False
             self.log_info("deleting version %r of project %r", version, name)
@@ -497,7 +505,7 @@ class PrivateStage:
             raise self.MissesRegistration(name, version)
         log.debug("project name of %r is %r", filename, name)
         key = self.key_projconfig(name=name)
-        with key.locked_update() as projectconfig:
+        with key.update() as projectconfig:
             verdata = projectconfig.setdefault(version, {})
             files = verdata.setdefault("+files", {})
             if not self.ixconfig.get("volatile") and filename in files:
@@ -516,14 +524,13 @@ class PrivateStage:
             log.info("store_doczip: derived version of %s is %s",
                      name, version)
         key = self.key_projconfig(name=name)
-        with key.locked_update() as projectconfig:
+        with key.update() as projectconfig:
             verdata = projectconfig[version]
             filename = "%s-%s.doc.zip" % (name, version)
             entry = self.xom.filestore.store_file(self.user.name, self.index,
                                 filename, docfile)
             verdata["+doczip"] = entry.relpath
         self.xom.config.hook.devpiserver_docs_uploaded(self, name, version, entry)
-        return key.filepath
 
     def get_doczip(self, name, version):
         """ get documentation zip as an open file

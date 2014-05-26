@@ -418,9 +418,13 @@ class FatalResponse:
 def set_default_indexes(model):
     root_user = model.get_user("root")
     if not root_user:
-        root_user = model.create_user("root", "")
-    with root_user.key.update() as userconfig:
-        indexes = userconfig["indexes"]
-        if "pypi" not in indexes:
+        with model.keyfs.transaction():
+            root_user = model.create_user("root", "")
+            print("created root user")
+    userconfig = root_user.key.get()
+    indexes = userconfig["indexes"]
+    if "pypi" not in indexes:
+        with model.keyfs.transaction():
             indexes["pypi"] = dict(bases=(), type="mirror", volatile=False)
+            root_user.key.set(userconfig)
         print("created root/pypi index")

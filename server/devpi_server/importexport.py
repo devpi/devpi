@@ -283,8 +283,12 @@ class Importer:
 
         # first create all users
         for username, userconfig in self.import_users.items():
-            user = self.xom.model.create_user(username, password="")
-            user._set(userconfig) 
+            with self.xom.keyfs.transaction():
+                if username == "root":
+                    user = self.xom.model.get_user(username)
+                else:
+                    user = self.xom.model.create_user(username, password="")
+                user._set(userconfig) 
 
         # memorize index inheritance structure
         tree = IndexTree()
@@ -303,7 +307,8 @@ class Importer:
             indexconfig = import_index["indexconfig"]
             user, index = stagename.split("/")
             user = self.xom.model.get_user(user)
-            stage = user.create_stage(index, **indexconfig)
+            with self.xom.keyfs.transaction():
+                stage = user.create_stage(index, **indexconfig)
             stages.append(stage)
         del tree
 
@@ -315,17 +320,19 @@ class Importer:
             #normalized = self.normalize_index_projects(projects)
             for project, versions in projects.items():
                 for version, versiondata in versions.items():
-                    assert "+files" not in versiondata
-                    if not versiondata.get("version"):
-                        name = versiondata["name"]
-                        self.warn("%r: ignoring project metadata without "
-                                  "version information. " % name)
-                        continue
-                    stage.register_metadata(versiondata)
+                    with self.xom.keyfs.transaction():
+                        assert "+files" not in versiondata
+                        if not versiondata.get("version"):
+                            name = versiondata["name"]
+                            self.warn("%r: ignoring project metadata without "
+                                      "version information. " % name)
+                            continue
+                        stage.register_metadata(versiondata)
 
             # import release files
             for filedesc in import_index["files"]:
-                self.import_filedesc(stage, filedesc)
+                with self.xom.keyfs.transaction():
+                    self.import_filedesc(stage, filedesc)
 
     def import_filedesc(self, stage, filedesc):
         assert stage.ixconfig["type"] != "mirror"

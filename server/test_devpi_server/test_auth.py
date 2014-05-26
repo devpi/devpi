@@ -2,6 +2,11 @@ import py
 import pytest
 from devpi_server.auth import *
 
+@pytest.yield_fixture(autouse=True)
+def transact(request, keyfs):
+    with keyfs.transaction():
+        yield
+
 class TestAuth:
     @pytest.fixture
     def auth(self, model):

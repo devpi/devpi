@@ -7,6 +7,7 @@ from devpi_server.importexport import *
 from devpi_server.main import Fatal
 from devpi_common.archive import zip_dict
 
+
 import devpi_server
 
 def test_not_exists(tmpdir, xom):
@@ -30,7 +31,8 @@ def test_empty_export(tmpdir, xom):
         do_export(tmpdir, xom)
 
 def test_import_on_existing_server_data(tmpdir, xom):
-    xom.model.create_user("someuser", password="qwe")
+    with xom.keyfs.transaction():
+        xom.model.create_user("someuser", password="qwe")
     assert not do_export(tmpdir, xom)
     with pytest.raises(Fatal):
         do_import(tmpdir, xom)
@@ -95,8 +97,9 @@ class TestImportExport:
                                "hello", "1.0")
 
         md5 = py.std.hashlib.md5(b"content").hexdigest()
-        num = mapp1.xom.filestore.add_attachment(
-                    md5=md5, type="toxresult", data="123")
+        with mapp1.xom.keyfs.transaction():
+            num = mapp1.xom.filestore.add_attachment(
+                        md5=md5, type="toxresult", data="123")
         impexp.export()
         mapp2 = impexp.new_import()
         stage = mapp2.xom.model.getstage(api.stagename)
@@ -139,7 +142,8 @@ class TestImportExport:
         # versions.  We simulate it here because 1.1 http API
         # prevents this case.
         stage = mapp1.xom.model.getstage(api.stagename)
-        stage._register_metadata({"name": "hello", "version": ""})
+        with stage.transaction():
+            stage._register_metadata({"name": "hello", "version": ""})
         impexp.export()
         mapp2 = impexp.new_import()
         stage = mapp2.xom.model.getstage(api.stagename)
@@ -152,9 +156,10 @@ class TestImportExport:
         # and they would get registeded under different names.
         # We simulate it here because 1.1 http API prevents this case.
         stage = mapp1.xom.model.getstage(api.stagename)
-        stage._register_metadata({"name": "hello_x", "version": "1.0"})
-        stage._register_metadata({"name": "hello-X", "version": "1.1"})
-        stage._register_metadata({"name": "Hello-X", "version": "1.2"})
+        with stage.transaction():
+            stage._register_metadata({"name": "hello_x", "version": "1.0"})
+            stage._register_metadata({"name": "hello-X", "version": "1.1"})
+            stage._register_metadata({"name": "Hello-X", "version": "1.2"})
         impexp.export()
         mapp2 = impexp.new_import()
         stage = mapp2.xom.model.getstage(api.stagename)
@@ -176,8 +181,9 @@ class TestImportExport:
         # and they would get registeded under different names.
         # We simulate it here because 1.1 http API prevents this case.
         stage = mapp1.xom.model.getstage(api.stagename)
-        stage._register_metadata({"name": "hello_x", "version": "1.0"})
-        stage._register_metadata({"name": "hello_x", "version": ""})
+        with stage.transaction():
+            stage._register_metadata({"name": "hello_x", "version": "1.0"})
+            stage._register_metadata({"name": "hello_x", "version": ""})
         impexp.export()
         mapp2 = impexp.new_import()
         stage = mapp2.xom.model.getstage(api.stagename)
@@ -192,11 +198,13 @@ class TestImportExport:
         # and they would get registeded under different names.
         # We simulate it here because 1.1 http API prevents this case.
         stage = mapp1.xom.model.getstage(api.stagename)
-        stage._register_metadata({"name": "hello_x", "version": "1.0"})
-        stage._register_metadata({"name": "hello-X", "version": "1.1"})
+        with stage.transaction():
+            stage._register_metadata({"name": "hello_x", "version": "1.0"})
+            stage._register_metadata({"name": "hello-X", "version": "1.1"})
         api2 = mapp1.create_index("new2", indexconfig={"bases": api.stagename})
         stage2 = mapp1.xom.model.getstage(api2.stagename)
-        stage2._register_metadata({"name": "hello_X", "version": "0.9"})
+        with stage2.transaction():
+            stage2._register_metadata({"name": "hello_X", "version": "0.9"})
         impexp.export()
         mapp2 = impexp.new_import()
         stage2 = mapp2.xom.model.getstage(api2.stagename)
@@ -214,8 +222,9 @@ class TestImportExport:
         stage = mapp1.xom.model.getstage(api.stagename)
         monkeypatch.setattr(mapp1.xom.pypistage, "getprojectnames_perstage",
                             lambda: ["hello_X"])
-        stage._register_metadata({"name": "hello_x", "version": "1.1"})
-        stage._register_metadata({"name": "hello-X", "version": "1.0"})
+        with stage.transaction():
+            stage._register_metadata({"name": "hello_x", "version": "1.1"})
+            stage._register_metadata({"name": "hello-X", "version": "1.0"})
         impexp.export()
         mapp2 = impexp.new_import()
         stage2 = mapp2.xom.model.getstage(api.stagename)
