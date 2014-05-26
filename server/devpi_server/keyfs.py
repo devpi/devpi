@@ -272,18 +272,6 @@ class PTypedKey:
         return "<PTypedKey %r type %r>" %(self.key, self.type.__name__)
 
 
-class DirKey:
-    def __init__(self, keyfs, relpath):
-        self.keyfs = keyfs
-        self.relpath = relpath
-        self.filepath = self.keyfs._getpath(self.relpath)
-
-    def exists(self):
-        return self.filepath.check()
-
-    def delete(self):
-        return self.filepath.remove()
-
 class TypedKey:
     def __init__(self, keyfs, relpath, type):
         self.keyfs = keyfs
