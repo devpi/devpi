@@ -499,14 +499,12 @@ class PyPIView:
                                 "OK, but couldn't trigger jenkins at %s" %
                                 (jenkinurl,))
             else:
-                # docs have no version (XXX but they are tied to the latest)
+                doczip = content.file.read()
+                if len(doczip) > MAXDOCZIPSIZE:
+                    abort_custom(413, "zipfile size %d too large, max=%s"
+                                   % (len(doczip), MAXDOCZIPSIZE))
                 with self.transaction():
-                    doczip = content.file.read()
-                    if len(doczip) > MAXDOCZIPSIZE:
-                        abort_custom(413, "zipfile size %d too large, max=%s"
-                                       % (len(doczip), MAXDOCZIPSIZE))
-                    stage.store_doczip(name, version,
-                                       py.io.BytesIO(doczip))
+                    stage.store_doczip(name, version, doczip)
         else:
             abort(request, 400, "action %r not supported" % action)
         return Response("")
@@ -636,11 +634,9 @@ class PyPIView:
                 apireturn(404, "no such release file")
             apireturn(200, type="releasefilemeta", result=entry._mapping)
         with self.transaction():  # we might cache the file / change state
-            headers, itercontent = filestore.iterfile(relpath, 
-                                                      self.xom.httpget)
+            headers, content = filestore.getfile(relpath, self.xom.httpget)
             if headers is None:
                 abort(request, 404, "no such file")
-            content = b''.join(itercontent)
         response.content_type = headers["content-type"]
         if "content-length" in headers:
             response.content_length = headers["content-length"]

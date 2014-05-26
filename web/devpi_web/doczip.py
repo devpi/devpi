@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup
 from devpi_common.archive import Archive
 import json
+import py
 
 
 def doc_key(stage, name, version):
@@ -13,7 +14,7 @@ def unpack_docs(stage, name, version, entry):
     key = doc_key(stage, name, version)
     # XXX locking? (unzipping could happen concurrently in theory)
     tempdir = stage.keyfs.mkdtemp(name)
-    with Archive(entry.filepath.open("rb")) as archive:
+    with Archive(py.io.BytesIO(entry.FILE.get())) as archive:
         archive.extract(tempdir)
     keypath = key.filepath
     if keypath.check():

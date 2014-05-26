@@ -516,9 +516,10 @@ class PrivateStage:
             self.log_info("store_releasefile %s", entry.relpath)
             return entry
 
-    def store_doczip(self, name, version, docfile):
+    def store_doczip(self, name, version, content):
         """ store zip file and unzip doc content for the
         specified "name" project. """
+        assert isinstance(content, bytes)
         if not version:
             version = self.get_metadata_latest_perstage(name)["version"]
             log.info("store_doczip: derived version of %s is %s",
@@ -527,10 +528,11 @@ class PrivateStage:
         with key.update() as projectconfig:
             verdata = projectconfig[version]
             filename = "%s-%s.doc.zip" % (name, version)
-            entry = self.xom.filestore.store_file(self.user.name, self.index,
-                                filename, docfile)
+            entry = self.xom.filestore.store(self.user.name, self.index,
+                                filename, content)
             verdata["+doczip"] = entry.relpath
-        self.xom.config.hook.devpiserver_docs_uploaded(self, name, version, entry)
+        self.xom.config.hook.devpiserver_docs_uploaded(self, name, 
+                    version, entry)
 
     def get_doczip(self, name, version):
         """ get documentation zip as an open file
@@ -541,7 +543,7 @@ class PrivateStage:
             if doczip:
                 entry = self.xom.filestore.getentry(doczip)
                 if entry:
-                    return entry.filepath.open("rb")
+                    return entry.FILE.get()
 
 
 def normalize_bases(model, bases):

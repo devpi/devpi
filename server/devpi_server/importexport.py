@@ -208,9 +208,9 @@ class IndexDump:
                     continue
                 versiondata["name"] = realname
                 self.dump_releasefiles(realname, versiondata)
-                fil = self.stage.get_doczip(name, version)
-                if fil:
-                    self.dump_docfile(realname, version, fil)
+                content = self.stage.get_doczip(name, version)
+                if content:
+                    self.dump_docfile(realname, version, content)
         self.exporter.completed("index %r" % self.stage.name)
 
     def dump_releasefiles(self, projectname, versiondata):
@@ -249,10 +249,10 @@ class IndexDump:
                 self.exporter.completed("wrote attachment %s [%s]" %
                                  (p.relto(self.basedir), entry.basename))
 
-    def dump_docfile(self, projectname, version, fil):
+    def dump_docfile(self, projectname, version, content):
         p = self.basedir.join("%s-%s.doc.zip" %(projectname, version))
         with p.open("wb") as f:
-            f.write(fil.read())
+            f.write(content)
         relpath = p.relto(self.exporter.basepath)
         self.add_filedesc("doczip", projectname, relpath, version=version)
 
@@ -356,7 +356,7 @@ class Importer:
         elif filedesc["type"] == "doczip":
             basename = os.path.basename(rel)
             name, version, suffix = splitbasename(basename)
-            stage.store_doczip(name, version, p.open("rb"))
+            stage.store_doczip(name, version, p.read("rb"))
         else:
             fatal("unknown file type: %s" % (type,))
 

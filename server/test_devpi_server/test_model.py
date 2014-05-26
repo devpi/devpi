@@ -269,10 +269,10 @@ class TestStage:
         stage.register_metadata(dict(name="pkg1", version="1.0"))
         content = zip_dict({"index.html": "<html/>",
             "_static": {}, "_templ": {"x.css": ""}})
-        stage.store_doczip("pkg1", "1.0", BytesIO(content))
-        doczip_file = stage.get_doczip("pkg1", "1.0")
-        assert doczip_file
-        with Archive(doczip_file) as archive:
+        stage.store_doczip("pkg1", "1.0", content)
+        doczip = stage.get_doczip("pkg1", "1.0")
+        assert doczip
+        with Archive(BytesIO(doczip)) as archive:
             archive.extract(tmpdir)
         assert tmpdir.join("index.html").read() == "<html/>"
         assert tmpdir.join("_static").check(dir=1)
@@ -283,13 +283,13 @@ class TestStage:
         stage.register_metadata(dict(name="pkg1", version="1.0"))
         content = zip_dict({"index.html": "<html/>",
             "_static": {}, "_templ": {"x.css": ""}})
-        filepath = stage.store_doczip("pkg1", "1.0", BytesIO(content))
-        archive = Archive(stage.get_doczip("pkg1", "1.0"))
+        filepath = stage.store_doczip("pkg1", "1.0", content)
+        archive = Archive(BytesIO(stage.get_doczip("pkg1", "1.0")))
         assert 'index.html' in archive.namelist()
 
         content = zip_dict({"nothing": "hello"})
-        filepath = stage.store_doczip("pkg1", "1.0", BytesIO(content))
-        archive = Archive(stage.get_doczip("pkg1", "1.0"))
+        filepath = stage.store_doczip("pkg1", "1.0", content)
+        archive = Archive(BytesIO(stage.get_doczip("pkg1", "1.0")))
         namelist = archive.namelist()
         assert 'nothing' in namelist
         assert 'index.html' not in namelist

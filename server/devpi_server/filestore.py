@@ -56,102 +56,50 @@ class FileStore:
     def getentry(self, relpath):
         return RelPathEntry(self.keyfs, relpath)
 
-    def iterfile(self, relpath, httpget, chunksize=8192*16):
+    def getfile(self, relpath, httpget, chunksize=8192*16):
         entry = self.getentry(relpath)
         if not entry.PATHENTRY.exists():
             return None, None
         cached = entry.iscached() and not entry.eggfragment
         if cached:
-            headers, iterable = self.iterfile_local(entry, chunksize)
-            if iterable is None:
-                cached = False
-        if not cached:
-            headers, iterable = self.iterfile_remote(entry, httpget, chunksize)
-        #entry.incdownloads()
-        log.info("starting file iteration: %s (size %s)" % (
-                entry.relpath, entry.size or "unknown"))
-        return headers, iterable
-
-    def iterfile_local(self, entry, chunksize):
-        error = None
-        content = entry.FILE.get()
-        if entry.size and int(entry.size) != len(content):
-            error = "local size %s does not match header size %s" %(
-                     len(content), entry.size)
+            return entry.gethttpheaders(), entry.FILE.get()
         else:
-            if entry.md5:
-                md5 = getmd5(content)
-                if entry.md5 != md5:
-                    error = "got md5 %s expected %s" %(md5, entry.md5)
-        if error is not None:
-            log.error("%s: %s -- invalidating cache", entry.FILE.relpath, error)
-            entry.invalidate_cache()
-            return None, None
-        # serve previously cached file and http headers
-        def iterfile():
-            yield content
-        return entry.gethttpheaders(), iterfile()
+            return self.getfile_remote(entry, httpget)
 
-    def iterfile_remote(self, entry, httpget, chunksize):
+    def getfile_remote(self, entry, httpget):
         # we get and cache the file and some http headers from remote
         r = httpget(entry.url, allow_redirects=True)
         assert r.status_code >= 0, r.status_code
-        entry.sethttpheaders(r.headers)
-        # XXX check if we still have the file locally
         log.info("cache-streaming: %s, target %s", r.url, entry.FILE.relpath)
-        def iter_and_cache():
-            hash = hashlib.md5()
-            with self.keyfs.tempfile(entry.basename) as tempfile:
-                while 1:
-                    x = r.raw.read(chunksize)
-                    if not x:
-                        break
-                    tempfile.write(x)
-                    hash.update(x)
-                    yield x
-            digest = hash.hexdigest()
-            err = None
-            filesize = os.stat(tempfile.name).st_size
-            if entry.size and int(entry.size) != filesize:
-                err = ValueError(
-                          "%s: got %s bytes of %r from remote, expected %s" % (
-                          tempfile.name, filesize, r.url, entry.size))
-            if not entry.eggfragment and entry.md5 and digest != entry.md5:
-                err = ValueError("%s: md5 mismatch, got %s, expected %s",
-                                 tempfile.name, digest, entry.md5)
-            if err is not None:
-                log.error(err)
-                raise err
-            tempfile.key.move(entry.FILE)
-            entry.set(md5=digest, size=filesize)
-            log.info("finished getting remote %r", entry.url)
-        return entry.gethttpheaders(), iter_and_cache()
+        content = r.raw.read()
+        digest = hashlib.md5(content).hexdigest()
+        filesize = len(content)
+        err = None
+        entry.sethttpheaders(r.headers)
+        if entry.size and int(entry.size) != filesize:
+            err = ValueError(
+                      "%s: got %s bytes of %r from remote, expected %s" % (
+                      entry.FILE.relpath, filesize, r.url, entry.size))
+        if not entry.eggfragment and entry.md5 and digest != entry.md5:
+            err = ValueError("%s: md5 mismatch, got %s, expected %s",
+                             entry.FILE.relpath, digest, entry.md5)
+        if err is not None:
+            log.error(err)
+            raise err
+        entry.FILE.set(content)
+        entry.set(md5=digest, size=filesize)
+        return entry.gethttpheaders(), content
 
     def store(self, user, index, filename, content, last_modified=None):
-        return self.store_file(user, index, filename, py.io.BytesIO(content),
-                               last_modified=last_modified)
-
-    def store_file(self, user, index, filename, fil, last_modified=None,
-                   chunksize=524288):
-        hash = hashlib.md5()
-        with self.keyfs.tempfile() as w:
-            size = 0
-            while 1:
-                s = fil.read(chunksize)
-                if not s:
-                    break
-                hash.update(s)
-                size += len(s)
-                w.write(s)
-
-        digest = hash.hexdigest()
+        digest = hashlib.md5(content).hexdigest()
         key = self.keyfs.STAGEFILE(user=user, index=index,
                                    md5=digest, filename=filename)
-        self.keyfs._rename(w.key.relpath, key.relpath)
+        key.set(content)
+        log.info("setting stagefile %s" % key.relpath)
         entry = self.getentry(key.relpath)
         if last_modified is None:
             last_modified = http_date()
-        entry.set(md5=digest, size=size, last_modified=last_modified)
+        entry.set(md5=digest, size=len(content), last_modified=last_modified)
         return entry
 
     def add_attachment(self, md5, type, data):

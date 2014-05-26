@@ -128,8 +128,7 @@ class TestImportExport:
         mapp2 = impexp.new_import()
         stage = mapp2.xom.model.getstage(api.stagename)
         doczip = stage.get_doczip("hello", "1.0")
-        assert doczip.name.endswith('/hello-1.0.doc.zip')
-        archive = Archive(doczip)
+        archive = Archive(py.io.BytesIO(doczip))
         assert 'index.html' in archive.namelist()
         assert py.builtin._totext(
             archive.read("index.html"), 'utf-8') == "<html/>"
