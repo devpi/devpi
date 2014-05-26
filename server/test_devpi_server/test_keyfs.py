@@ -237,10 +237,10 @@ class TestTransactionIsolation:
         D = keyfs.addkey("hello", dict)
         tx_1 = Transaction(keyfs)
         tx_2 = Transaction(keyfs)
-        ser = keyfs.current_serial
+        ser = keyfs._fs.current_serial
         tx_1.set(D, {1:1})
         tx_1.commit()
-        assert keyfs.current_serial == ser + 1
+        assert keyfs._fs.current_serial == ser + 1
         assert tx_2.from_serial == ser
         assert D not in tx_2.cache and D not in tx_2.dirty
         assert tx_2.get(D) == {}

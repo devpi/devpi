@@ -15,7 +15,7 @@ from tempfile import NamedTemporaryFile
 import os
 import sys
 from os.path import basename, isabs, join
-from execnet import dumps, loads
+from execnet import dumps, loads, load, dump
 
 from devpi_common.types import cached_property
 import logging
@@ -43,6 +43,42 @@ class Unserializer:
         return self.stream.load(versioned=False)
 
 
+class Filesystem:
+    def __init__(self, basedir):
+        self._path_current_serial = basedir.join(".currentserial")
+        self._path_changelogdir = basedir.ensure(".changelog", dir=1)
+        try:
+            self.current_serial = self._read(self._path_current_serial)
+        except py.error.Error:
+            self.current_serial = 0
+       
+    def _read(self, path):
+        with path.open("rb") as f:
+            return load(f)
+
+    def _write(self, path, val):
+        tmpfile = path + "-tmp"
+        with tmpfile.open("wb") as f:
+            dump(f, val)
+        tmpfile.rename(path)
+
+    @contextlib.contextmanager
+    def write_transaction(self, entry):
+        # first write out the complete change entry for our serial
+        p = self._path_changelogdir.join(str(self.current_serial))
+        assert not p.exists(), (  # XXX recover
+                    "change entry already exists, unclean shutdown?")
+        self._write(p, entry)
+        yield self.current_serial
+        self.current_serial += 1
+        self._write(self._path_current_serial, self.current_serial)
+        log.info("transaction committed %s" %(self.current_serial-1))
+
+    def get_transaction_entry(self, serial):
+        p = self._path_changelogdir.join(str(serial))
+        return self._read(p)
+
+
 class KeyFS(object):
     """ singleton storage object. """
     def __init__(self, basedir):
@@ -52,14 +88,7 @@ class KeyFS(object):
         # a non-recursive lock because we don't support nested transactions
         self.write_lock = threading.Lock()
         self._threadlocal = threading.local()
-        self.CURRENT_SERIAL = TypedKey(self, ".currentserial", int)
-        self.SERIALS = PTypedKey(self, ".serials/{serial}", dict)
-        try:
-            dumped_serial = self._get(self.CURRENT_SERIAL.relpath)
-        except KeyError:
-            self.current_serial = 0
-        else:
-            self.current_serial = loads(dumped_serial)
+        self._fs = Filesystem(self.basedir)
 
     @property
     def tx(self):
@@ -129,9 +158,7 @@ class KeyFS(object):
         for serial in history_serials:
             if serial < target_serial:
                 # we found the latest state fit for what we require
-                key = self.SERIALS(serial=serial)
-                key_relpath = key.relpath
-                change_entry = loads(self._get(key_relpath))
+                change_entry = self._fs.get_transaction_entry(serial)
                 if relpath in change_entry["record_deleted"]:
                     raise KeyError(relpath)
                 for rp, val in change_entry["record_set"]:
@@ -215,33 +242,19 @@ class KeyFS(object):
             #print "  record_set", record_set
             #print "  record_deleted", record_deleted
             # we get our current serial number for changes
-            serial = self.current_serial
-            key = self.SERIALS(serial=serial)
-            assert not self._exists(key.relpath), (  # XXX recover
-                    "change entry already exists, unclean shutdown?")
-
-            # first write out the complete change entry for our serial
-            d = dict(record_set=record_set, record_deleted=record_deleted)
-            self._set(key.relpath, dumps(d))
-
-            # then perform the actual key/val changes on the file system
-            for relpath in record_deleted:
-                if relpath in nohist:
-                    self._delete(relpath)
-                else:
-                    self._set_mutable(relpath, serial)
-            for relpath, val in record_set:
-                if relpath in nohist:
-                    self._set(relpath, val)
-                else:
-                    self._set_mutable(relpath, serial, val)
-
-            # finally increment the current serial and write it out
-            # thus completing the transaction
-            self.current_serial += 1
-            self._set(self.CURRENT_SERIAL.relpath, dumps(self.current_serial))
-            # XXX we need to fsync for the D in ACID
-            log.info("transaction committed %s" %(serial,))
+            entry = dict(record_set=record_set, record_deleted=record_deleted)
+            with self._fs.write_transaction(entry) as serial:
+                # then perform the actual key/val changes on the file system
+                for relpath in record_deleted:
+                    if relpath in nohist:
+                        self._delete(relpath)
+                    else:
+                        self._set_mutable(relpath, serial)
+                for relpath, val in record_set:
+                    if relpath in nohist:
+                        self._set(relpath, val)
+                    else:
+                        self._set_mutable(relpath, serial, val)
 
     def exists(self, typedkey):
         with self.transaction():
@@ -339,7 +352,7 @@ class TypedKey:
 class Transaction:
     def __init__(self, keyfs):
         self.keyfs = keyfs
-        self.from_serial = keyfs.current_serial
+        self.from_serial = keyfs._fs.current_serial
         self.cache = {}
         self.dirty = set()
         self.rootstate = keyfs.tx
