@@ -36,7 +36,7 @@ def test_is_empty(model, keyfs):
     user.create_stage("dev", bases=(), type="stage", volatile=False)
     assert not model.is_empty()
     stage = model.getstage("user/dev")
-    assert stage.delete()
+    stage.delete()
     user.delete()
     assert model.is_empty()
 
@@ -58,7 +58,7 @@ class TestStage:
         user.create_stage("world", bases=(), type="stage", volatile=False)
         user.create_stage("world2", bases=(), type="stage", volatile=False)
         stage = model.getstage("hello", "world2")
-        assert stage.delete()
+        stage.delete()
         assert model.getstage("hello", "world2") is None
         assert model.getstage("hello", "world") is not None
 

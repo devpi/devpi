@@ -204,6 +204,11 @@ class RelPathEntry(object):
         self._mapping.update(mapping)
         self.PATHENTRY.set(self._mapping)
 
+    def delete(self, **kw):
+        self.PATHENTRY.delete()
+        self.FILE.delete()
+
+
 for _ in RelPathEntry._attr:
     if sys.version_info < (3,0):
         _ = _.encode("ascii")  # py2 needs str (bytes)

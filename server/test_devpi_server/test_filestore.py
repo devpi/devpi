@@ -99,6 +99,9 @@ class TestFileStore:
         assert entry.iscached()
         assert entry.url == link.url
         assert entry.md5 == u"1" * 16
+        entry.delete()
+        assert not entry.iscached()
+        assert not entry.FILE.exists()
 
     def test_relpathentry_size(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.7.zip")

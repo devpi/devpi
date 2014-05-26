@@ -270,22 +270,15 @@ class PrivateStage:
                     todo.append(self.model.getstage(base))
 
     def delete(self):
+        # delete all projects on this index
+        for name in self.getprojectnames_perstage():
+            self.project_delete(name)
         with self.user.key.update() as userconfig:
             indexes = userconfig.get("indexes", {})
             if self.index not in indexes:
                 log.info("index %s not exists" % self.index)
                 return False
             del indexes[self.index]
-            self._remove_indexdir()
-            log.info("deleted index config %s" % self.name)
-            return True
-
-    def _remove_indexdir(self):
-        p = self.keyfs.INDEXDIR(user=self.user.name, index=self.index).filepath
-        if p.check():
-            p.remove()
-            log.info("deleted index %s" % self.name)
-            return True
 
     def op_with_bases(self, opname, **kw):
         opname += "_perstage"
@@ -370,19 +363,23 @@ class PrivateStage:
         self.xom.config.hook.devpiserver_register_metadata(self, metadata)
 
     def project_delete(self, name):
+        for version in self.get_projectconfig_perstage(name):
+            self.project_version_delete(name, version, cleanup=False)
         with self.key_projectnames.update() as projectnames:
             projectnames.remove(name)
         self.key_projconfig(name).delete()
 
-    def project_version_delete(self, name, version):
+    def project_version_delete(self, name, version, cleanup=True):
         key = self.key_projconfig(name)
         with key.update() as projectconfig:
-            if version not in projectconfig:
+            verdata = projectconfig.pop(version, None)
+            if verdata is None:
                 return False
             self.log_info("deleting version %r of project %r", version, name)
-            del projectconfig[version]
-        # XXX race condition if concurrent addition happens
-        if not projectconfig:
+            for relpath in verdata.get("+files", {}).values():
+                entry = self.xom.filestore.getentry(relpath)
+                entry.delete()
+        if cleanup and not projectconfig:
             self.log_info("no version left, deleting project %r", name)
             self.project_delete(name)
         return True

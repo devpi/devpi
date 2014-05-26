@@ -161,7 +161,6 @@ def add_keys(keyfs):
                  "PYPISTAGEFILE")
 
     # type "stage" related
-    keyfs.addkey("{user}/{index}", "DIR", "INDEXDIR") 
     keyfs.addkey("{user}/{index}/{name}/.config", dict, "PROJCONFIG") 
     keyfs.addkey("{user}/{index}/.projectnames", set, "PROJNAMES") 
     keyfs.addkey("{user}/{index}/+f/{md5}/{filename}", bytes, "STAGEFILE") 

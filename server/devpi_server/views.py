@@ -333,7 +333,7 @@ class PyPIView:
             if not stage.ixconfig["volatile"]:
                 apireturn(403, "index %s non-volatile, cannot delete" % 
                                stage.name)
-            assert stage.delete()
+            stage.delete()
             apireturn(201, "index %s deleted" % stage.name)
 
     @view_config(route_name="/{user}/{index}", request_method="PUSH")
