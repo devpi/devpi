@@ -121,36 +121,6 @@ class PTypedKey:
         realkey = self.key.format(**kw)
         return get_typed_key(self.keyfs, realkey, self.type)
 
-    def listnames(self, __name, **kw):
-        parts = self.key.split("/")
-        current = [self.keyfs.basedir]
-        expected = "{" + __name + "}"
-        position = -1
-        for i, part in enumerate(parts):
-            next = []
-            if part == expected:
-                assert position == -1
-                position = i
-                for p in current:
-                    next.extend(p.listdir())
-            else:
-                if "{" in part:
-                    part = part.format(**kw)
-                for p in current:
-                    try:
-                        next.extend(p.listdir(part))
-                    except py.error.ENOTDIR:
-                        pass
-            current = next
-        if position == -1:
-            return []
-        names = set()
-        for x in current:
-            key = x.relto(self.keyfs.basedir)
-            parts = key.split(os.sep)
-            names.add(py.builtin._totext(parts[position]))
-        return names
-
     def __repr__(self):
         return "<PTypedKey %r type %r>" %(self.key, self.type.__name__)
 

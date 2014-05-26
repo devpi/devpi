@@ -156,13 +156,12 @@ class FileStore:
 
     def add_attachment(self, md5, type, data):
         assert type in ("toxresult",)
-        # XXX thread safety
-        num = len(self.keyfs.ATTACHMENT.listnames("num",
-                                                  type=type,
-                                                  md5=md5))
-        num = str(num)
-        key = self.keyfs.ATTACHMENT(type=type, md5=md5, num=num)
-        key.set(data.encode(self.attachment_encoding))
+        with self.keyfs.ATTACHMENTS.update() as attachments:
+            l = attachments.setdefault(md5, {}).setdefault(type, [])
+            num = str(len(l))
+            key = self.keyfs.ATTACHMENT(type=type, md5=md5, num=num)
+            key.set(data.encode(self.attachment_encoding))
+            l.append(num)
         return num
 
     def get_attachment(self, md5, type, num):
@@ -170,13 +169,15 @@ class FileStore:
         return data.decode(self.attachment_encoding)
 
     def iter_attachments(self, md5, type):
-        nums = self.keyfs.ATTACHMENT.listnames("num", type=type, md5=md5)
-        for num in range(len(nums)):
-            a = self.keyfs.ATTACHMENT(num=str(num), type=type, md5=md5).get()
+        attachments = self.keyfs.ATTACHMENTS.get()
+        l = attachments.get(md5, {}).get(type, [])
+        for num in l:
+            a = self.keyfs.ATTACHMENT(num=num, type=type, md5=md5).get()
             yield json.loads(a.decode(self.attachment_encoding))
 
     def iter_attachment_types(self, md5):
-        return self.keyfs.ATTACHMENT.listnames("type", md5=md5, num="0")
+        attachments = self.keyfs.ATTACHMENTS.get()
+        return list(attachments.get(md5, {}))
 
 
 def getmd5(content):

@@ -140,40 +140,6 @@ class TestKey:
         assert key1 in keyfs.keys
         assert key2 in keyfs.keys
 
-    def test_addkey_listkeys(self, keyfs):
-        key = keyfs.addkey("{name}/some1/{other}", int)
-        pytest.raises(KeyError, lambda: key.listnames("name"))
-        pytest.raises(KeyError, lambda: key.listnames("other"))
-        assert not key.listnames("other", name="this")
-        key(name="this", other="1").set(1)
-        key(name="this", other="2").set(2)
-        key(name="that", other="0").set(1)
-        key(name="world", other="0").set(1)
-        names = key.listnames("other", name="this")
-        assert len(names) == 2
-        assert set(names) == set(["1", "2"])
-
-    def test_addkey_listkeys_arbitrary_position(self, keyfs):
-        key = keyfs.addkey("{name}/some1/this", int)
-        key2 = keyfs.addkey("{name}/some2/this", int)
-        names = key.listnames("name")
-        assert not names
-        key(name="this").set(1)
-        key(name="that").set(1)
-        key2(name="murg").set(1)
-        names = key.listnames("name")
-        assert names == set(["this", "that"])
-
-    def test_addkey_listkeys_mismatch(self, keyfs):
-        key = keyfs.addkey("{name}/some1/this", int)
-        key2 = keyfs.addkey("some/some1", int)
-        key2.set(1)
-        key(name="x").set(2)
-        names = key.listnames("name")
-        assert names == set(["x"])
-
-
-
     def test_locked_update(self, keyfs):
         key1 = keyfs.addkey("some1", dict)
         key2 = keyfs.addkey("some2", list)

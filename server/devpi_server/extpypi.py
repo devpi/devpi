@@ -193,7 +193,7 @@ class PyPIStage:
         self.init_pypi_mirror(proxy)
 
     def getcontained(self):
-        return self.keyfs.PYPILINKS.listnames("name")
+        return self.keyfs.PYPILINKS_CONTAINED.get()
 
     def getprojectnames(self):
         """ return list of all projects which have been served. """
@@ -207,6 +207,8 @@ class PyPIStage:
                 "entrylist": dumplist,
                 "projectname": projectname}
         self.keyfs.PYPILINKS(name=normname).set(data)
+        with self.keyfs.PYPILINKS_CONTAINED.update() as contained:
+            contained.add(normname)
 
     def _load_project_cache(self, projectname):
         normname = normalize_name(projectname)
@@ -373,7 +375,6 @@ class PyPIStage:
     def process_refreshes(self):
         # walk through all mirrored projects and trigger updates if needed
         for name in self.getcontained():
-            # name is a normalized name
             name = self.get_project_info(name).name
             serial = self.name2serials.get(name, 0)
             self.getreleaselinks(name, refresh=serial)

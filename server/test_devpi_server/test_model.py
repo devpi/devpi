@@ -110,6 +110,9 @@ class TestStage:
             versionconfig.update({"+files":
                 {"x_encoder-1.0.zip": "%s/x_encoder/1.0/x_encoder-1.0.zip" %
                  stage.name}})
+        with stage.key_projectnames.update() as projectnames:
+            projectnames.add("x_encoder")
+
         names = stage.getprojectnames_perstage()
         assert len(names) == 2
         assert "x-encoder" in names

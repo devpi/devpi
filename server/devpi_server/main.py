@@ -150,9 +150,12 @@ def wsgi_run(xom):
 def add_keys(keyfs):
     # users and index configuration
     keyfs.USER = keyfs.addkey("{user}/.config", dict)
+    keyfs.USERLIST = keyfs.addkey(".config", set)
 
     # type pypimirror related data
     keyfs.PYPILINKS = keyfs.addkey("root/pypi/+links/{name}", dict)
+    keyfs.PYPILINKS_CONTAINED = keyfs.addkey("root/pypi/+links/.contained",
+                                             set)
     keyfs.PYPISERIALS = keyfs.addkey("root/pypi/+serials", dict)
     keyfs.PYPIFILE_NOMD5 = keyfs.addkey(
         "{user}/{index}/+e/{relpath}", bytes)
@@ -162,6 +165,7 @@ def add_keys(keyfs):
     # type "stage" related
     keyfs.INDEXDIR = keyfs.addkey("{user}/{index}", "DIR")
     keyfs.PROJCONFIG = keyfs.addkey("{user}/{index}/{name}/.config", dict)
+    keyfs.PROJNAMES  = keyfs.addkey("{user}/{index}/.projectnames", set)
     keyfs.STAGEFILE = keyfs.addkey("{user}/{index}/+f/{md5}/{filename}", bytes)
 
     keyfs.STAGEDOCS = keyfs.addkey("{user}/{index}/{name}/{version}/+doc",
@@ -171,6 +175,7 @@ def add_keys(keyfs):
 
     keyfs.PATHENTRY = keyfs.addkey("{relpath}-meta", dict)
     keyfs.ATTACHMENT = keyfs.addkey("+attach/{md5}/{type}/{num}", bytes)
+    keyfs.ATTACHMENTS = keyfs.addkey("+attach/.att", dict)
     keyfs.FILEPATH = keyfs.addkey("{relpath}", bytes)
 
 class XOM:

@@ -39,7 +39,10 @@ class RootModel:
         self.keyfs = xom.keyfs
 
     def create_user(self, username, password, email=None):
-        return User.create(self, username, password, email)
+        user = User.create(self, username, password, email)
+        with self.keyfs.USERLIST.update() as userlist:
+            userlist.add(username)
+        return user
 
     def get_user(self, name):
         user = User(self, name)
@@ -47,8 +50,7 @@ class RootModel:
             return user
 
     def get_userlist(self):
-        return [User(self, name) 
-                    for name in self.keyfs.USER.listnames("user")]
+        return [User(self, name) for name in self.keyfs.USERLIST.get()]
 
     def get_usernames(self):
         return set(user.name for user in self.get_userlist())
@@ -126,6 +128,8 @@ class User:
 
     def delete(self):
         self.key.delete()
+        with self.keyfs.USERLIST.update() as userlist:
+            userlist.remove(self.name)
 
     def validate(self, password):
         userconfig = self.key.get(None)
@@ -217,6 +221,8 @@ class PrivateStage:
         self.index = index
         self.name = user + "/" + index
         self.ixconfig = ixconfig
+        self.key_projectnames = self.keyfs.PROJNAMES(
+                    user=self.user.name, index=self.index)
 
     def can_upload(self, username):
         return username in self.ixconfig.get("acl_upload", [])
@@ -343,6 +349,8 @@ class PrivateStage:
             versionconfig = projectconfig.setdefault(version, {})
             versionconfig.update(metadata)
             self.log_info("store_metadata %s-%s", name, version)
+        with self.key_projectnames.update() as projectnames:
+            projectnames.add(name)
         desc = metadata.get("description")
         if desc:
             html = processDescription(desc)
@@ -354,6 +362,8 @@ class PrivateStage:
         self.xom.config.hook.devpiserver_register_metadata(self, metadata)
 
     def project_delete(self, name):
+        with self.key_projectnames.update() as projectnames:
+            projectnames.remove(name)
         self.key_projconfig(name).delete()
 
     def project_version_delete(self, name, version):
@@ -366,7 +376,7 @@ class PrivateStage:
         # XXX race condition if concurrent addition happens
         if not projectconfig:
             self.log_info("no version left, deleting project %r", name)
-            key.delete()
+            self.project_delete(name)
         return True
 
     def project_exists(self, name):
@@ -378,8 +388,14 @@ class PrivateStage:
         return py.builtin._totext(key.get(), "utf-8")
 
     def get_description_versions(self, name):
-        return self.keyfs.RELDESCRIPTION.listnames("version",
-            user=self.user.name, index=self.index, name=name)
+        versions = []
+        projectconfig = self.key_projconfig(name).get()
+        for ver in projectconfig:
+            key_reldesc = self.keyfs.RELDESCRIPTION(version=ver,
+                user=self.user.name, index=self.index, name=name)
+            if key_reldesc.exists():
+                versions.append(ver)
+        return versions
 
     def get_metadata(self, name, version):
         # on win32 we need to make sure that we only return
@@ -458,8 +474,8 @@ class PrivateStage:
 
 
     def getprojectnames_perstage(self):
-        names = self.keyfs.PROJCONFIG.listnames("name",
-                        user=self.user.name, index=self.index)
+        return self.key_projectnames.get()
+
         # on case insensitive filesystems we can't be sure
         # we have case-sensitive names so we do a slow
         # iteration over all projectconfig files
