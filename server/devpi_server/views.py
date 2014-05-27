@@ -9,6 +9,7 @@ from pyramid.compat import urlparse
 from pyramid.httpexceptions import HTTPException, HTTPFound, HTTPSuccessful
 from pyramid.httpexceptions import exception_response
 from pyramid.response import Response
+from pyramid.events import NewResponse, subscriber, NewRequest
 from pyramid.view import view_config
 import functools
 import inspect
@@ -118,6 +119,27 @@ def route_url(self, *args, **kw):
     url = url._replace(path=url.path.replace('%2B', '+'))
     return url.geturl()
 
+@subscriber(NewResponse)
+def handle_response(event):
+    keyfs = event.request.registry["xom"].keyfs
+    tx = getattr(keyfs._threadlocal, "tx", None)
+    r = event.response
+    if tx is not None:
+        if 200 <= r.status_code < 400:
+            serial = tx.commit()
+        else:
+            serial = tx.rollback()
+        assert serial
+        r.headers[str("X-DEVPI-SERIAL")] = str(serial)
+        log.debug("setting X-DEVPI-SERIAL %s" %(serial,))
+        keyfs.clear_transaction()
+
+@subscriber(NewRequest)
+def handle_request(event):
+    keyfs = event.request.registry["xom"].keyfs
+    write = False if event.request.method in ("GET", "HEAD") else True
+    tx = keyfs.begin_transaction_in_thread(write=write)
+    event.request.registry["tx"] = tx
 
 class PyPIView:
     def __init__(self, request):
@@ -126,7 +148,7 @@ class PyPIView:
         self.xom = xom
         self.model = xom.model
         self.auth = Auth(self.model, xom.config.secret)
-
+       
     def getstage(self, user, index):
         stage = self.model.getstage(user, index)
         if not stage:
@@ -311,8 +333,9 @@ class PyPIView:
         self.require_user(user)
         stage = self.getstage(user, index)
         if not stage.ixconfig["volatile"]:
-            apireturn(403, "index %s non-volatile, cannot delete" % stage.name)
-        assert stage.delete()
+            apireturn(403, "index %s non-volatile, cannot delete" % 
+                           stage.name)
+        stage.delete()
         apireturn(201, "index %s deleted" % stage.name)
 
     @view_config(route_name="/{user}/{index}", request_method="PUSH")
@@ -327,6 +350,9 @@ class PyPIView:
         except KeyError:
             apireturn(400, message="no name/version specified in json")
 
+        self._pushrelease(request, stage, name, version, pushdata)
+
+    def _pushrelease(self, request, stage, name, version, pushdata):
         projectconfig = stage.get_projectconfig(name)
         matches = []
         if projectconfig:
@@ -472,13 +498,11 @@ class PyPIView:
                             "OK, but couldn't trigger jenkins at %s" %
                             (jenkinurl,))
             else:
-                # docs have no version (XXX but they are tied to the latest)
                 doczip = content.file.read()
                 if len(doczip) > MAXDOCZIPSIZE:
                     abort_custom(413, "zipfile size %d too large, max=%s"
                                    % (len(doczip), MAXDOCZIPSIZE))
-                stage.store_doczip(name, version,
-                                   py.io.BytesIO(doczip))
+                stage.store_doczip(name, version, doczip)
         else:
             abort(request, 400, "action %r not supported" % action)
         return Response("")
@@ -606,13 +630,13 @@ class PyPIView:
             if not entry.exists():
                 apireturn(404, "no such release file")
             apireturn(200, type="releasefilemeta", result=entry._mapping)
-        headers, itercontent = filestore.iterfile(relpath, self.xom.httpget)
+        headers, content = filestore.getfile(relpath, self.xom.httpget)
         if headers is None:
             abort(request, 404, "no such file")
         response.content_type = headers["content-type"]
         if "content-length" in headers:
             response.content_length = headers["content-length"]
-        return Response(app_iter=itercontent)
+        return Response(content)
 
     @view_config(route_name="/{user}/{index}", accept="application/json", request_method="GET")
     @matchdict_parameters
@@ -688,7 +712,8 @@ class PyPIView:
         user = self.model.get_user(user)
         user.modify(password=password, email=email)
         if password is not None:
-            apireturn(200, "user updated, new proxy auth", type="userpassword",
+            apireturn(200, "user updated, new proxy auth", 
+                      type="userpassword",
                       result=self.auth.new_proxy_auth(user.name, 
                                                       password=password))
         apireturn(200, "user updated")
@@ -763,7 +788,7 @@ def get_outside_url(headers, outsideurl):
         if url is None:
             url = "http://" + headers.get("Host")
     url = url.rstrip("/") + "/"
-    log.debug("outside host header: %s", url)
+    #log.debug("outside host header: %s", url)
     return url
 
 def trigger_jenkins(request, stage, jenkinurl, testspec):

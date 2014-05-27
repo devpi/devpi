@@ -1,38 +1,29 @@
 from bs4 import BeautifulSoup
 from devpi_common.archive import Archive
 import json
+import py
 
 
-def doc_key(stage, name, version):
-    return stage.keyfs.STAGEDOCS(
-        user=stage.user.name, index=stage.index, name=name, version=version)
+def get_unpack_path(stage, name, version):
+    # XXX this should rather be in some devpi-web managed directory area
+    return stage.keyfs.basedir.join(stage.user.name, stage.index,
+                                    name, version, "+doc")
 
 
 def unpack_docs(stage, name, version, entry):
-    # unpack
-    key = doc_key(stage, name, version)
-    # XXX locking? (unzipping could happen concurrently in theory)
-    tempdir = stage.keyfs.mkdtemp(name)
-    with Archive(entry.filepath.open("rb")) as archive:
-        archive.extract(tempdir)
-    keypath = key.filepath
-    if keypath.check():
-        old = keypath.new(basename="old-" + keypath.basename)
-        keypath.move(old)
-        tempdir.move(keypath)
-        old.remove()
-    else:
-        keypath.dirpath().ensure(dir=1)
-        tempdir.move(keypath)
-    return keypath
+    # unpack, maybe a bit uncarefully but in principle
+    # we are not loosing the original zip file anyway
+    unpack_path = get_unpack_path(stage, name, version)
+    with Archive(py.io.BytesIO(entry.FILE.get())) as archive:
+        archive.extract(unpack_path)
+    return unpack_path
 
 
 def iter_doc_contents(stage, name, version):
-    key = doc_key(stage, name, version)
-    keypath = key.filepath
+    unpack_path = get_unpack_path(stage, name, version)
     html = set()
     fjson = set()
-    for entry in keypath.visit():
+    for entry in unpack_path.visit():
         if entry.basename.endswith('.fjson'):
             fjson.add(entry)
         elif entry.basename.endswith('.html'):

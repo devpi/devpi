@@ -3,10 +3,11 @@ import pytest
 import py
 from devpi_server.filestore import *
 
+pytestmark = [pytest.mark.writetransaction]
+
 BytesIO = py.io.BytesIO
 
 class TestFileStore:
-
     def test_maplink_deterministic(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.2.zip")
         entry1 = filestore.maplink(link)
@@ -58,7 +59,7 @@ class TestFileStore:
         entry1 = filestore.maplink(link)
         entry1.FILE.set(b"hello")
         entry1.PATHENTRY.delete()
-        headers, itercontent = filestore.iterfile_local(entry1, 1)
+        headers, itercontent = filestore.getfile(entry1.relpath, 1)
         assert itercontent is None
 
     def test_invalidate_cache(self, filestore, gen):
@@ -97,6 +98,9 @@ class TestFileStore:
         assert entry.iscached()
         assert entry.url == link.url
         assert entry.md5 == u"1" * 16
+        entry.delete()
+        assert not entry.iscached()
+        assert not entry.FILE.exists()
 
     def test_relpathentry_size(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.7.zip")
@@ -105,7 +109,7 @@ class TestFileStore:
         assert py.builtin._istext(entry._mapping["size"])
         assert entry.size == u"123123"
 
-    def test_iterfile(self, filestore, httpget, gen):
+    def test_getfile(self, filestore, httpget, gen):
         link = gen.pypi_package_link("pytest-1.8.zip", md5=False)
         entry = filestore.maplink(link)
         assert not entry.md5
@@ -115,12 +119,11 @@ class TestFileStore:
 
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw = BytesIO(b"123"))
-        rheaders, riter = filestore.iterfile(entry.relpath,
-                                             httpget, chunksize=1)
+        rheaders, bytes = filestore.getfile(entry.relpath,
+                                            httpget, chunksize=1)
         assert rheaders["content-length"] == "3"
         assert rheaders["content-type"] == "application/zip"
         assert rheaders["last-modified"] == headers["last-modified"]
-        bytes = b"".join(riter)
         assert bytes == b"123"
 
         # reget entry and check about content
@@ -128,9 +131,8 @@ class TestFileStore:
         assert entry.iscached()
         assert entry.md5 == getmd5(bytes)
         assert entry.size == "3"
-        rheaders, riter = filestore.iterfile(entry.relpath, None, chunksize=1)
+        rheaders, bytes = filestore.getfile(entry.relpath, None, chunksize=1)
         assert rheaders == headers
-        bytes = b"".join(riter)
         assert bytes == b"123"
 
     def test_iterfile_remote_no_headers(self, filestore, httpget, gen):
@@ -140,11 +142,10 @@ class TestFileStore:
         headers={}
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw = BytesIO(b"123"))
-        rheaders, riter = filestore.iterfile(entry.relpath,
-                                             httpget, chunksize=1)
-        assert "content-length" not in rheaders
+        rheaders, bytes = filestore.getfile(entry.relpath,
+                                            httpget, chunksize=1)
+        assert rheaders["content-length"] == "3"
         assert rheaders.get("content-type") is None
-        bytes = b"".join(riter)
         assert bytes == b"123"
 
     def test_iterfile_remote_error_size_mismatch(self, filestore, httpget, gen):
@@ -156,13 +157,8 @@ class TestFileStore:
                  "content-type": "application/zip"}
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw = BytesIO(b"1"))
-        rheaders, riter = filestore.iterfile(entry.relpath,
-                                             httpget, chunksize=3)
-        assert rheaders["content-length"] == "3"
-        assert rheaders["content-type"] == "application/zip"
-        assert rheaders["last-modified"] == headers["last-modified"]
-        pytest.raises(ValueError, lambda: b"".join(riter))
-        assert not entry.iscached()
+        with pytest.raises(ValueError):
+            filestore.getfile(entry.relpath, httpget)
 
     def test_iterfile_remote_nosize(self, filestore, httpget, gen):
         link = gen.pypi_package_link("pytest-3.0.zip", md5=False)
@@ -175,9 +171,8 @@ class TestFileStore:
         assert entry.size is None
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw=BytesIO(b"1"))
-        rheaders, riter = filestore.iterfile(entry.relpath,
-                                             httpget, chunksize=3)
-        received = b"".join(riter)
+        rheaders, received = filestore.getfile(entry.relpath,
+                                               httpget, chunksize=3)
         assert received == b"1"
         entry2 = filestore.getentry(entry.relpath)
         assert entry2.size == "1"
@@ -191,12 +186,13 @@ class TestFileStore:
                  "content-type": "application/zip"}
         httpget.url2response[link.url_nofrag] = dict(status_code=200,
                 headers=headers, raw=BytesIO(b"123"))
-        rheaders, riter = filestore.iterfile(entry.relpath,
-                                             httpget, chunksize=3)
-        excinfo = pytest.raises(ValueError, lambda: b"".join(riter))
+        with pytest.raises(ValueError) as excinfo:
+            filestore.getfile(entry.relpath, httpget)
         assert link.md5 in str(excinfo.value)
         assert not entry.iscached()
 
+    @pytest.mark.xfail(reason="disambiguation of downloads from urls"
+            " whose content changes over time")
     def test_iterfile_eggfragment(self, filestore, httpget, gen):
         link = gen.pypi_package_link("master#egg=pytest-dev", md5=False)
         entry = filestore.maplink(link)
@@ -220,51 +216,6 @@ class TestFileStore:
         #rheaders, riter = store.iterfile(entry.relpath, httpget, chunksize=10)
         #assert py.builtin.bytes().join(riter) == py.builtin.bytes("1234")
 
-    def test_iterfile_local_error(self, filestore, caplog, gen):
-        link = gen.pypi_package_link("pytest-1.8.zip", md5=False)
-        entry = filestore.maplink(link)
-        assert not entry.md5
-        testheaders = dict(size="3", content_type = "application/zip",
-                           last_modified = "Thu, 25 Nov 2010 20:00:27 GMT")
-        content = b"1234"
-        entry.FILE.set(content)
-        entry.set(md5=getmd5(content), **testheaders)
-
-        assert entry.iscached()
-        assert entry.size == "3"
-        headers, iterable = filestore.iterfile_local(entry, 8192)
-        assert headers is None and iterable is None  # the file is not valid
-        assert not entry.iscached()
-        assert caplog.getrecords("size")
-
-        entry.set(md5="wrongmd5", **testheaders)
-        entry.FILE.set(b"123")
-        headers, iterable = filestore.iterfile_local(entry, 8192)
-        assert headers is None and iterable is None
-        assert caplog.getrecords("md5")
-
-
-    def test_iterfile_local_failing_will_retry_remote(
-                self, gen, httpget, filestore):
-        def raising(*args, **kwargs):
-            raise KeyError()
-        link = gen.pypi_package_link("pytest-2.8.zip", md5=False)
-        entry = filestore.maplink(link)
-        entry.FILE.set(b"")
-        testheaders={"size": "2", "content_type": "application/zip",
-                 "last_modified": "Thu, 25 Nov 2010 20:00:27 GMT"}
-        digest = getmd5(b"12")
-        entry.set(md5=digest, **testheaders)
-        assert entry.iscached()
-        httpget.mockresponse(link.url, headers=entry.gethttpheaders(),
-                             raw=BytesIO(b"12"))
-        rheaders, riter = filestore.iterfile(entry.relpath,
-                                             httpget, chunksize=1)
-        assert rheaders["content-length"] == "2"
-        assert rheaders["content-type"] == "application/zip"
-        bytes = b"".join(riter)
-        assert bytes == b"12"
-
     def test_store_and_iter(self, filestore):
         content = b"hello"
         entry = filestore.store("user", "index", "something-1.0.zip", content)
@@ -276,8 +227,8 @@ class TestFileStore:
         assert entry2.FILE.exists()
         assert entry2.md5 == entry.md5
         assert entry2.last_modified
-        headers, iterable = filestore.iterfile(entry.relpath, httpget=None)
-        assert b"".join(iterable) == content
+        headers, c = filestore.getfile(entry.relpath, httpget=None)
+        assert c == content
 
     def test_add_testresult(self, filestore):
         #

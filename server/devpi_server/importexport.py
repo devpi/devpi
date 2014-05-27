@@ -72,7 +72,8 @@ def do_export(path, xom):
     path.ensure(dir=1)
     tw.line("creating %s" % path)
     dumper = Exporter(tw, xom)
-    dumper.dump_all(path)
+    with xom.keyfs.transaction(write=False):
+        dumper.dump_all(path)
     return 0
 
 def do_import(path, xom):
@@ -83,9 +84,10 @@ def do_import(path, xom):
     if not path.check():
         fatal("path for importing not found: %s" %(path))
 
-    if not xom.model.is_empty():
-        fatal("serverdir must not contain users or stages: %s" %
-              xom.config.serverdir)
+    with xom.keyfs.transaction():
+        if not xom.model.is_empty():
+            fatal("serverdir must not contain users or stages: %s" %
+                  xom.config.serverdir)
     importer = Importer(tw, xom)
     importer.import_all(path)
     return 0
@@ -208,9 +210,9 @@ class IndexDump:
                     continue
                 versiondata["name"] = realname
                 self.dump_releasefiles(realname, versiondata)
-                fil = self.stage.get_doczip(name, version)
-                if fil:
-                    self.dump_docfile(realname, version, fil)
+                content = self.stage.get_doczip(name, version)
+                if content:
+                    self.dump_docfile(realname, version, content)
         self.exporter.completed("index %r" % self.stage.name)
 
     def dump_releasefiles(self, projectname, versiondata):
@@ -249,10 +251,10 @@ class IndexDump:
                 self.exporter.completed("wrote attachment %s [%s]" %
                                  (p.relto(self.basedir), entry.basename))
 
-    def dump_docfile(self, projectname, version, fil):
+    def dump_docfile(self, projectname, version, content):
         p = self.basedir.join("%s-%s.doc.zip" %(projectname, version))
         with p.open("wb") as f:
-            f.write(fil.read())
+            f.write(content)
         relpath = p.relto(self.exporter.basepath)
         self.add_filedesc("doczip", projectname, relpath, version=version)
 
@@ -283,8 +285,12 @@ class Importer:
 
         # first create all users
         for username, userconfig in self.import_users.items():
-            user = self.xom.model.create_user(username, password="")
-            user._set(userconfig) 
+            with self.xom.keyfs.transaction():
+                if username == "root":
+                    user = self.xom.model.get_user(username)
+                else:
+                    user = self.xom.model.create_user(username, password="")
+                user._set(userconfig) 
 
         # memorize index inheritance structure
         tree = IndexTree()
@@ -296,14 +302,15 @@ class Importer:
         # create stages in inheritance/root-first order
         stages = []
         for stagename in tree.iternames():
-            if stagename == "root/pypi":
-                assert self.xom.model.getstage(stagename)
-                continue
-            import_index = self.import_indexes[stagename]
-            indexconfig = import_index["indexconfig"]
-            user, index = stagename.split("/")
-            user = self.xom.model.get_user(user)
-            stage = user.create_stage(index, **indexconfig)
+            with self.xom.keyfs.transaction():
+                if stagename == "root/pypi":
+                    assert self.xom.model.getstage(stagename)
+                    continue
+                import_index = self.import_indexes[stagename]
+                indexconfig = import_index["indexconfig"]
+                user, index = stagename.split("/")
+                user = self.xom.model.get_user(user)
+                stage = user.create_stage(index, **indexconfig)
             stages.append(stage)
         del tree
 
@@ -315,17 +322,19 @@ class Importer:
             #normalized = self.normalize_index_projects(projects)
             for project, versions in projects.items():
                 for version, versiondata in versions.items():
-                    assert "+files" not in versiondata
-                    if not versiondata.get("version"):
-                        name = versiondata["name"]
-                        self.warn("%r: ignoring project metadata without "
-                                  "version information. " % name)
-                        continue
-                    stage.register_metadata(versiondata)
+                    with self.xom.keyfs.transaction():
+                        assert "+files" not in versiondata
+                        if not versiondata.get("version"):
+                            name = versiondata["name"]
+                            self.warn("%r: ignoring project metadata without "
+                                      "version information. " % name)
+                            continue
+                        stage.register_metadata(versiondata)
 
             # import release files
             for filedesc in import_index["files"]:
-                self.import_filedesc(stage, filedesc)
+                with self.xom.keyfs.transaction():
+                    self.import_filedesc(stage, filedesc)
 
     def import_filedesc(self, stage, filedesc):
         assert stage.ixconfig["type"] != "mirror"
@@ -349,7 +358,7 @@ class Importer:
         elif filedesc["type"] == "doczip":
             basename = os.path.basename(rel)
             name, version, suffix = splitbasename(basename)
-            stage.store_doczip(name, version, p.open("rb"))
+            stage.store_doczip(name, version, p.read("rb"))
         else:
             fatal("unknown file type: %s" % (type,))
 

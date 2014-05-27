@@ -9,6 +9,8 @@ from devpi_common.archive import Archive, zip_dict
 from devpi_server.model import InvalidIndexconfig, run_passwd
 from py.io import BytesIO
 
+pytestmark = [pytest.mark.writetransaction]
+
 
 @pytest.fixture(params=[(), ("root/pypi",)])
 def bases(request):
@@ -22,7 +24,7 @@ def register_and_store(stage, basename, content=b"123", name=None):
     stage.register_metadata(dict(name=name, version=version))
     return stage.store_releasefile(name, version, basename, content)
 
-def test_is_empty(model):
+def test_is_empty(model, keyfs):
     assert model.is_empty()
     user = model.create_user("user", "password", email="some@email.com")
     assert not model.is_empty()
@@ -31,7 +33,7 @@ def test_is_empty(model):
     user.create_stage("dev", bases=(), type="stage", volatile=False)
     assert not model.is_empty()
     stage = model.getstage("user/dev")
-    assert stage.delete()
+    stage.delete()
     user.delete()
     assert model.is_empty()
 
@@ -53,7 +55,7 @@ class TestStage:
         user.create_stage("world", bases=(), type="stage", volatile=False)
         user.create_stage("world2", bases=(), type="stage", volatile=False)
         stage = model.getstage("hello", "world2")
-        assert stage.delete()
+        stage.delete()
         assert model.getstage("hello", "world2") is None
         assert model.getstage("hello", "world") is not None
 
@@ -105,11 +107,14 @@ class TestStage:
     def test_10_metadata_name_mixup(self, stage, bases):
         stage._register_metadata({"name": "x-encoder", "version": "1.0"})
         key = stage.key_projconfig(name="x_encoder")
-        with key.locked_update() as projectconfig:
+        with key.update() as projectconfig:
             versionconfig = projectconfig["1.0"] = {}
             versionconfig.update({"+files":
                 {"x_encoder-1.0.zip": "%s/x_encoder/1.0/x_encoder-1.0.zip" %
                  stage.name}})
+        with stage.key_projectnames.update() as projectnames:
+            projectnames.add("x_encoder")
+
         names = stage.getprojectnames_perstage()
         assert len(names) == 2
         assert "x-encoder" in names
@@ -261,10 +266,10 @@ class TestStage:
         stage.register_metadata(dict(name="pkg1", version="1.0"))
         content = zip_dict({"index.html": "<html/>",
             "_static": {}, "_templ": {"x.css": ""}})
-        stage.store_doczip("pkg1", "1.0", BytesIO(content))
-        doczip_file = stage.get_doczip("pkg1", "1.0")
-        assert doczip_file
-        with Archive(doczip_file) as archive:
+        stage.store_doczip("pkg1", "1.0", content)
+        doczip = stage.get_doczip("pkg1", "1.0")
+        assert doczip
+        with Archive(BytesIO(doczip)) as archive:
             archive.extract(tmpdir)
         assert tmpdir.join("index.html").read() == "<html/>"
         assert tmpdir.join("_static").check(dir=1)
@@ -275,15 +280,13 @@ class TestStage:
         stage.register_metadata(dict(name="pkg1", version="1.0"))
         content = zip_dict({"index.html": "<html/>",
             "_static": {}, "_templ": {"x.css": ""}})
-        filepath = stage.store_doczip("pkg1", "1.0", BytesIO(content))
-        assert filepath.exists()
-        archive = Archive(stage.get_doczip("pkg1", "1.0"))
+        stage.store_doczip("pkg1", "1.0", content)
+        archive = Archive(BytesIO(stage.get_doczip("pkg1", "1.0")))
         assert 'index.html' in archive.namelist()
 
         content = zip_dict({"nothing": "hello"})
-        filepath = stage.store_doczip("pkg1", "1.0", BytesIO(content))
-        assert filepath.exists()
-        archive = Archive(stage.get_doczip("pkg1", "1.0"))
+        stage.store_doczip("pkg1", "1.0", content)
+        archive = Archive(BytesIO(stage.get_doczip("pkg1", "1.0")))
         namelist = archive.namelist()
         assert 'nothing' in namelist
         assert 'index.html' not in namelist
@@ -326,7 +329,7 @@ class TestStage:
         metadata = dict(name="hello", version="1.0-test")
         stage.register_metadata(metadata)
         stage.store_releasefile("hello", "1.0-test",
-                                "hello-1.0_test.whl", b"")
+                            "hello-1.0_test.whl", b"")
         ver = stage.get_metadata_latest_perstage("hello")
         assert ver["version"] == "1.0-test"
         #stage.ixconfig["volatile"] = False
@@ -354,13 +357,12 @@ class TestStage:
 
     def test_releasedata_validation(self, stage):
         with pytest.raises(ValueError):
-             stage.register_metadata( dict(name="hello_", version="1.0"))
+             stage.register_metadata(dict(name="hello_", version="1.0"))
 
     def test_register_metadata_normalized_name_clash(self, stage):
         stage.register_metadata(dict(name="hello-World", version="1.0"))
         with pytest.raises(stage.RegisterNameConflict):
             stage.register_metadata(dict(name="Hello-world", version="1.0"))
-        with pytest.raises(stage.RegisterNameConflict):
             stage.register_metadata(dict(name="Hello_world", version="1.0"))
 
     def test_get_existing_project(self, stage):
@@ -376,7 +378,7 @@ class TestStage:
         assert stage.metadata_keys
         assert not stage.get_description("hello", "1.0")
         stage.register_metadata(dict(name="hello", version="1.0",
-            description=source))
+                description=source))
         html = stage.get_description("hello", "1.0")
         assert py.builtin._istext(html)
         assert "test" in html and "world" in html
@@ -440,7 +442,9 @@ def test_user_set_without_indexes(model):
     user._set({"password": "pass2"})
     assert model.getstage("user/hello")
 
+@pytest.mark.notransaction
 def test_setdefault_indexes(model):
     from devpi_server.main import set_default_indexes
     set_default_indexes(model)
-    assert model.getstage("root/pypi").ixconfig["type"] == "mirror"
+    with model.keyfs.transaction(write=False):
+        assert model.getstage("root/pypi").ixconfig["type"] == "mirror"

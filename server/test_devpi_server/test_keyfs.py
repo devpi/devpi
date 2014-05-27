@@ -1,9 +1,7 @@
 import py
 import pytest
-import os
-import stat
 
-from devpi_server.keyfs import KeyFS
+from devpi_server.keyfs import KeyFS, WriteTransaction, ReadTransaction
 
 @pytest.fixture
 def keyfs(gentmp):
@@ -18,64 +16,21 @@ class TestKeyFS:
     def test_getempty(self, keyfs):
         pytest.raises(KeyError, lambda: keyfs._get("somekey"))
 
+    @pytest.mark.writetransaction
     @pytest.mark.parametrize("val", [b"", b"val"])
     def test_get_set_del_exists(self, keyfs, key, val):
-        assert not keyfs._exists(key)
-        keyfs._set(key, val)
-        assert keyfs._exists(key)
-        newval = keyfs._get(key)
+        k = keyfs.addkey(key, bytes)
+        assert not k.exists()
+        k.set(val)
+        assert k.exists()
+        keyfs.restart_as_write_transaction()
+        newval = k.get()
         assert val == newval
         assert isinstance(newval, type(val))
-        assert keyfs._getpath(key).check()
-        assert keyfs._delete(key)
-        assert not keyfs._delete(key)
-        pytest.raises(KeyError, lambda: keyfs._get(key))
-
-    def test_set_twice_on_subdir(self, keyfs):
-        keyfs._set("a/b/c", b"value")
-        keyfs._set("a/b/c", b"value2")
-        assert keyfs._get("a/b/c") == b"value2"
-
-    def test_tempfile(self, keyfs):
-        with keyfs.tempfile("abc") as f:
-            f.write(b"hello")
-        assert os.path.basename(f.name).startswith("abc")
-        assert os.path.exists(f.name)
-        assert f.key.exists()
-        org_stat = stat.S_IMODE(os.stat(f.name).st_mode)
-        os.remove(f.name)
-        # normal create follows umask
-        with open(f.name, "w") as fp:
-            fp.write("hello")
-        assert org_stat == stat.S_IMODE(os.stat(f.name).st_mode)
-
-    def test_tempfile_movekey(self, keyfs):
-        with keyfs.tempfile("abc") as f:
-            f.write(b"x")
-        key = keyfs.addkey("abc", bytes)
-        assert f.key.exists()
-        f.key.move(key)
-        assert not f.key.exists()
-
-    def test_tempfile_movekey_typemismatch(self, keyfs):
-        with keyfs.tempfile("abc") as f:
-            f.write(b"x")
-        key = keyfs.addkey("abc", int)
-        assert f.key.exists()
-        with pytest.raises(TypeError):
-            f.key.move(key)
-
-    def test_destroyall(self, keyfs):
-        keyfs._set("hello/world", b"World")
-        keyfs.destroyall()
-        assert not keyfs._exists("hello/world")
-
-    def test_getlock(self, keyfs):
-        lock1 = keyfs._getlock("hello/world")
-        lock2 = keyfs._getlock("hello/world")
-        assert lock1 == lock2
-        lock1.acquire()
-        lock1.acquire(0)
+        k.delete()
+        assert not k.exists()
+        keyfs.restart_as_write_transaction()
+        assert not k.exists()
 
 
 @pytest.mark.parametrize(("type", "val"),
@@ -89,8 +44,8 @@ class Test_addkey_combinations:
         attr = keyfs.addkey(key, type)
         assert not attr.exists()
         assert attr.get() == type()
-        assert attr.get(val) == val
         assert not attr.exists()
+        keyfs.restart_as_write_transaction()
         attr.set(val)
         assert attr.exists()
         assert attr.get() == val
@@ -103,8 +58,8 @@ class Test_addkey_combinations:
         attr = pattr(some="this")
         assert not attr.exists()
         assert attr.get() == type()
-        assert attr.get(val) == val
         assert not attr.exists()
+        keyfs.restart_as_write_transaction()
         attr.set(val)
         assert attr.exists()
         assert attr.get() == val
@@ -120,8 +75,8 @@ class Test_addkey_combinations:
         attr = pattr(some=py.builtin._totext(b'\xe4', "latin1"))
         assert not attr.exists()
         assert attr.get() == type()
-        assert attr.get(val) == val
         assert not attr.exists()
+        keyfs.restart_as_write_transaction()
         attr.set(val)
         assert attr.exists()
         assert attr.get() == val
@@ -134,95 +89,131 @@ class TestKey:
         pytest.raises(TypeError, lambda: dictkey(that="t").set("hello"))
 
     def test_addkey_registered(self, keyfs):
+        key1 = keyfs.addkey("some1", dict, "SOME1")
+        key2 = keyfs.addkey("some2", list, "SOME2")
+        assert len(keyfs._keys) == 2
+        assert keyfs._keys["SOME1"] == key1
+        assert keyfs._keys["SOME2"] == key2
+
+    def test_update(self, keyfs):
         key1 = keyfs.addkey("some1", dict)
         key2 = keyfs.addkey("some2", list)
-        assert len(keyfs.keys) == 2
-        assert key1 in keyfs.keys
-        assert key2 in keyfs.keys
-
-    def test_addkey_listkeys(self, keyfs):
-        key = keyfs.addkey("{name}/some1/{other}", int)
-        pytest.raises(KeyError, lambda: key.listnames("name"))
-        pytest.raises(KeyError, lambda: key.listnames("other"))
-        assert not key.listnames("other", name="this")
-        key(name="this", other="1").set(1)
-        key(name="this", other="2").set(2)
-        key(name="that", other="0").set(1)
-        key(name="world", other="0").set(1)
-        names = key.listnames("other", name="this")
-        assert len(names) == 2
-        assert set(names) == set(["1", "2"])
-
-    def test_addkey_listkeys_arbitrary_position(self, keyfs):
-        key = keyfs.addkey("{name}/some1/this", int)
-        key2 = keyfs.addkey("{name}/some2/this", int)
-        names = key.listnames("name")
-        assert not names
-        key(name="this").set(1)
-        key(name="that").set(1)
-        key2(name="murg").set(1)
-        names = key.listnames("name")
-        assert names == set(["this", "that"])
-
-    def test_addkey_listkeys_mismatch(self, keyfs):
-        key = keyfs.addkey("{name}/some1/this", int)
-        key2 = keyfs.addkey("some/some1", int)
-        key2.set(1)
-        key(name="x").set(2)
-        names = key.listnames("name")
-        assert names == set(["x"])
-
-
-
-    def test_locked_update(self, keyfs):
-        key1 = keyfs.addkey("some1", dict)
-        key2 = keyfs.addkey("some2", list)
-        with key1.locked_update() as d:
-            with key2.locked_update() as l:
+        keyfs.restart_as_write_transaction()
+        with key1.update() as d:
+            with key2.update() as l:
                 l.append(1)
                 d["hello"] = l
         assert key1.get()["hello"] == l
 
-    def test_locked_update_error(self, keyfs):
+    def test_get_inplace(self, keyfs):
         key1 = keyfs.addkey("some1", dict)
+        keyfs.restart_as_write_transaction()
         key1.set({1:2})
         try:
-            with key1.locked_update() as d:
+            with key1.update() as d:
                 d["hello"] = "world"
                 raise ValueError()
         except ValueError:
             pass
-        assert key1.get() == {1:2}
-
-    def test_update(self, keyfs):
-        key1 = keyfs.addkey("some1", dict)
-        with key1.update() as d:
-            d["hello"] = 1
-        assert key1.get()["hello"] == 1
-        try:
-            with key1.update() as d:
-                d["hello"] = 2
-                raise ValueError()
-        except ValueError:
-            pass
-        assert key1.get()["hello"] == 1
-
+        assert key1.get() == {1:2, "hello": "world"}
 
     def test_filestore(self, keyfs):
         key1 = keyfs.addkey("hello", bytes)
+        keyfs.restart_as_write_transaction()
         key1.set(b"hello")
         assert key1.get() == b"hello"
+        keyfs.commit_transaction_in_thread()
         assert key1.filepath.size() == 5
 
-    def test_dirkey(self, keyfs):
-        key1 = keyfs.addkey("somedir", "DIR")
-        assert key1.filepath.strpath.endswith("somedir")
-        assert key1.filepath.strpath.endswith(key1.relpath)
-        assert not hasattr(key1, "get")
-        assert not hasattr(key1, "set")
-        assert not key1.exists()
-        key1.filepath.ensure("hello")
-        assert key1.exists()
-        key1.delete()
-        assert not key1.exists()
 
+@pytest.mark.notransaction
+@pytest.mark.parametrize(("type", "val"),
+        [(dict, {1:2}),
+         (set, set([1,2])),
+         (int, 3),
+         (tuple, (3,4)),
+         (str, "hello")])
+def test_trans_get_not_modify(keyfs, type, val, monkeypatch):
+    attr = keyfs.addkey("hello", type)
+    with keyfs.transaction():
+        attr.set(val)
+    with keyfs.transaction():
+        assert attr.get() == val
+    # make sure keyfs doesn't write during the transaction and its commit
+    orig_write = py.path.local.write
+    def write_checker(path, content):
+        assert path != attr.filepath
+        orig_write(path, content)
+    monkeypatch.setattr(py.path.local, "write", write_checker)
+    with keyfs.transaction():
+        x = attr.get()
+    assert x == val 
+
+@pytest.mark.notransaction
+class TestTransactionIsolation:
+    def test_cannot_write_on_read_trans(self, keyfs):
+        tx_1 = ReadTransaction(keyfs)
+        assert not hasattr(tx_1, "set")
+        assert not hasattr(tx_1, "delete")
+        
+    def test_serialized_writing(self, keyfs, monkeypatch):
+        D = keyfs.addkey("hello", dict)
+        tx_1 = WriteTransaction(keyfs)
+        class lockity:
+            def acquire(self):
+                raise ValueError()
+        monkeypatch.setattr(keyfs, "_write_lock", lockity())
+        with pytest.raises(ValueError):
+            WriteTransaction(keyfs)
+        monkeypatch.undo()
+        tx_2 = ReadTransaction(keyfs)
+        tx_1.set(D, {1:1})
+        assert tx_2.get(D) == {}
+        assert tx_1.get(D) == {1:1}
+        tx_1.commit()
+        assert tx_2.get(D) == {}
+
+    def test_concurrent_tx_sees_original_value_on_write(self, keyfs):
+        D = keyfs.addkey("hello", dict)
+        tx_1 = WriteTransaction(keyfs)
+        tx_2 = ReadTransaction(keyfs)
+        ser = keyfs._fs.current_serial
+        tx_1.set(D, {1:1})
+        tx_1.commit()
+        assert keyfs._fs.current_serial == ser + 1
+        assert tx_2.from_serial == ser
+        assert D not in tx_2.cache and D not in tx_2.dirty
+        assert tx_2.get(D) == {}
+
+    def test_concurrent_tx_sees_original_value_on_delete(self, keyfs):
+        D = keyfs.addkey("hello", dict)
+        with keyfs.transaction():
+            D.set({1:2})
+        tx_1 = WriteTransaction(keyfs)
+        tx_2 = ReadTransaction(keyfs)
+        tx_1.delete(D)
+        tx_1.commit()
+        assert tx_2.get(D) == {1:2}
+
+    @pytest.mark.xfail(run=False, reason="no support for concurrent writes")
+    def test_concurrent_tx_sees_deleted_while_newer_was_committed(self, keyfs):
+        D = keyfs.addkey("hello", dict)
+        with keyfs.transaction():
+            D.set({1:1})
+        with keyfs.transaction():
+            D.delete()
+        tx_1 = WriteTransaction(keyfs)
+        tx_2 = WriteTransaction(keyfs)
+        tx_1.set(D, {2:2})
+        tx_1.commit()
+        assert not tx_2.exists(D)
+        tx_3 = WriteTransaction(keyfs)
+        assert tx_3.exists(D)
+
+    def test_tx_delete(self, keyfs):
+        D = keyfs.addkey("hello", dict)
+        with keyfs.transaction():
+            D.set({1:1})
+        with keyfs.transaction():
+            D.delete()
+            assert not D.exists()

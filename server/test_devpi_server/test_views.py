@@ -14,6 +14,7 @@ from devpi_common.archive import Archive, zip_dict
 
 from .functional import TestUserThings, TestIndexThings  # noqa
 
+pytestmark = [pytest.mark.notransaction]
 
 def getfirstlink(text):
     return BeautifulSoup(text).findAll("a")[0]
@@ -22,6 +23,7 @@ def test_simple_project(pypistage, testapp):
     name = "qpwoei"
     r = testapp.get("/root/pypi/+simple/" + name)
     assert r.status_code == 200
+    assert r.headers["X-DEVPI-SERIAL"]
     assert not BeautifulSoup(r.text).findAll("a")
     path = "/%s-1.0.zip" % name
     pypistage.mock_simple(name, text='<a href="%s"/>' % path)
@@ -89,8 +91,9 @@ def test_simple_list(pypistage, testapp):
     assert hrefs == ["hello1", "hello2"]
 
 def test_indexroot(testapp, model):
-    user = model.create_user("user", "123")
-    user.create_stage("index", bases=("root/pypi",))
+    with model.keyfs.transaction():
+        user = model.create_user("user", "123")
+        user.create_stage("index", bases=("root/pypi",))
     r = testapp.get("/user/index")
     assert r.status_code == 200
 
@@ -150,7 +153,11 @@ def test_register_metadata_and_get_description(mapp, testapp):
     api = mapp.create_and_use("user/name")
     metadata = {"name": "pkg1", "version": "1.0", ":action": "submit",
                 "description": "hello world"}
+    r = testapp.get("/user/name/+simple/pkg1")
+    serial = int(r.headers["X-DEVPI-SERIAL"])
     r = testapp.post(api.pypisubmit, metadata)
+    new_serial = int(r.headers["X-DEVPI-SERIAL"])
+    assert new_serial == serial + 1
     assert r.status_code == 200
     r = testapp.get_json("/user/name/pkg1/1.0")
     assert r.status_code == 200

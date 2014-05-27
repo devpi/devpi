@@ -413,14 +413,16 @@ def raise_ValueError():
 
 class TestRefreshManager:
 
+    @pytest.mark.notransaction
     def test_init_pypi_mirror(self, pypistage, keyfs):
         proxy = mock.create_autospec(XMLProxy)
         d = {"hello": 10, "abc": 42}
         proxy.list_packages_with_serial.return_value = d
         pypistage.init_pypi_mirror(proxy)
         assert pypistage.name2serials == d
-        assert keyfs.PYPISERIALS.get() == d
-        assert pypistage.getprojectnames() == ["abc", "hello"]
+        with keyfs.transaction():
+            assert keyfs.PYPISERIALS.get() == d
+            assert pypistage.getprojectnames() == ["abc", "hello"]
 
     def test_pypichanges_loop(self, pypistage, monkeypatch):
         pypistage.process_changelog = mock.Mock()
@@ -439,6 +441,7 @@ class TestRefreshManager:
         pypistage.process_changelog.assert_called_once_with(changelog)
         pypistage.process_refreshes.assert_called_once()
 
+    @pytest.mark.notransaction
     def test_pypichanges_changes(self, pypistage, keyfs, monkeypatch):
         assert not pypistage.name2serials
         pypistage.mock_simple("pytest", '<a href="pytest-2.3.tgz"/a>',
@@ -446,23 +449,29 @@ class TestRefreshManager:
         pypistage.mock_simple("Django", '<a href="Django-1.6.tgz"/a>',
                           pypiserial=11)
         assert len(pypistage.name2serials) == 2
-        assert len(pypistage.getreleaselinks("pytest")) == 1
-        assert len(pypistage.getreleaselinks("Django")) == 1
+        with keyfs.transaction():
+            assert len(pypistage.getreleaselinks("pytest")) == 1
+            assert len(pypistage.getreleaselinks("Django")) == 1
         pypistage.process_changelog([
             ["Django", "1.4", 12123, 'new release', 25],
             ["pytest", "2.4", 121231, 'new release', 27]
         ])
         assert len(pypistage.name2serials) == 2
-        assert keyfs.PYPISERIALS.get()["pytest"] == 27
-        assert keyfs.PYPISERIALS.get()["Django"] == 25
+        with keyfs.transaction(write=False):
+            assert keyfs.PYPISERIALS.get()["pytest"] == 27
+            assert keyfs.PYPISERIALS.get()["Django"] == 25
         pypistage.mock_simple("pytest", '<a href="pytest-2.4.tgz"/a>',
                           pypiserial=27)
         pypistage.mock_simple("Django", '<a href="Django-1.7.tgz"/a>',
                           pypiserial=25)
         pypistage.process_refreshes()
-        assert pypistage.getreleaselinks("pytest")[0].basename == "pytest-2.4.tgz"
-        assert pypistage.getreleaselinks("Django")[0].basename == "Django-1.7.tgz"
+        with keyfs.transaction():
+            b = pypistage.getreleaselinks("pytest")[0].basename
+            assert b == "pytest-2.4.tgz"
+            b = pypistage.getreleaselinks("Django")[0].basename
+            assert b == "Django-1.7.tgz"
 
+    @pytest.mark.notransaction
     def test_changelog_since_serial_nonetwork(self, pypistage, caplog, reqmock):
         pypistage.mock_simple("pytest", pypiserial=10)
         reqreply = reqmock.mockresponse(PYPIURL_XMLRPC, code=400)
@@ -504,11 +513,12 @@ def test_requests_httpget_timeout(xom_notmocked, monkeypatch):
                               timeout=1.2)
     assert r.status_code == -1
 
+@pytest.mark.notransaction
 def test_invalidate_on_version_change(tmpdir, caplog):
     from devpi_server.extpypi import invalidate_on_version_change, PyPIStage
     p = tmpdir.ensure("something")
     invalidate_on_version_change(tmpdir)
     assert not p.check()
     assert tmpdir.join(".mirrorversion").read() == PyPIStage.VERSION
-    rec, = caplog.getrecords()
+    rec = caplog.getrecords()[-1]
     assert "format change" in rec.msg

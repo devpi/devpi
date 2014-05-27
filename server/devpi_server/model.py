@@ -47,8 +47,7 @@ class RootModel:
             return user
 
     def get_userlist(self):
-        return [User(self, name) 
-                    for name in self.keyfs.USER.listnames("user")]
+        return [User(self, name) for name in self.keyfs.USERLIST.get()]
 
     def get_usernames(self):
         return set(user.name for user in self.get_userlist())
@@ -93,14 +92,19 @@ class User:
 
     @classmethod
     def create(cls, model, username, password, email):
+        userlist = model.keyfs.USERLIST.get()
+        if username in userlist:
+            raise ValueError("username already exists")
         user = cls(model, username)
         with user.key.update() as userconfig:
             user._setpassword(userconfig, password)
             if email:
                 userconfig["email"] = email
             userconfig.setdefault("indexes", {})
-            log.info("created user %r with email %r" %(username, email))
-            return user
+        userlist.add(username)
+        model.keyfs.USERLIST.set(userlist)
+        log.info("created user %r with email %r" %(username, email))
+        return user
 
     def _set(self, newuserconfig):
         with self.key.update() as userconfig:
@@ -126,10 +130,12 @@ class User:
 
     def delete(self):
         self.key.delete()
+        with self.keyfs.USERLIST.update() as userlist:
+            userlist.remove(self.name)
 
     def validate(self, password):
-        userconfig = self.key.get(None)
-        if userconfig is None:
+        userconfig = self.key.get()
+        if not userconfig:
             return False
         salt = userconfig["pwsalt"]
         pwhash = userconfig["pwhash"]
@@ -138,7 +144,7 @@ class User:
         return None
 
     def get(self, credentials=False):
-        d = self.key.get()
+        d = self.key.get().copy()
         if not d:
             return d
         if not credentials:
@@ -156,10 +162,10 @@ class User:
         bases = tuple(normalize_bases(self.xom.model, bases))
 
         # modify user/indexconfig
-        with self.key.locked_update() as userconfig:
+        with self.key.update() as userconfig:
             indexes = userconfig.setdefault("indexes", {})
             assert index not in indexes, indexes[index]
-            indexes[index] = ixconfig = {
+            indexes[index] = {
                 "type": type, "volatile": volatile, "bases": bases,
                 "uploadtrigger_jenkins": uploadtrigger_jenkins,
                 "acl_upload": acl_upload
@@ -217,6 +223,8 @@ class PrivateStage:
         self.index = index
         self.name = user + "/" + index
         self.ixconfig = ixconfig
+        self.key_projectnames = self.keyfs.PROJNAMES(
+                    user=self.user.name, index=self.index)
 
     def can_upload(self, username):
         return username in self.ixconfig.get("acl_upload", [])
@@ -233,7 +241,7 @@ class PrivateStage:
             kw["bases"] = tuple(normalize_bases(self.xom.model, kw["bases"]))
 
         # modify user/indexconfig
-        with self.user.key.locked_update() as userconfig:
+        with self.user.key.update() as userconfig:
             ixconfig = userconfig["indexes"][self.index]
             ixconfig.update(kw)
             log.info("modified index %s: %s", self.name, ixconfig)
@@ -256,22 +264,15 @@ class PrivateStage:
                     todo.append(self.model.getstage(base))
 
     def delete(self):
-        with self.user.key.locked_update() as userconfig:
+        # delete all projects on this index
+        for name in self.getprojectnames_perstage():
+            self.project_delete(name)
+        with self.user.key.update() as userconfig:
             indexes = userconfig.get("indexes", {})
             if self.index not in indexes:
                 log.info("index %s not exists" % self.index)
                 return False
             del indexes[self.index]
-            self._remove_indexdir()
-            log.info("deleted index config %s" % self.name)
-            return True
-
-    def _remove_indexdir(self):
-        p = self.keyfs.INDEXDIR(user=self.user.name, index=self.index).filepath
-        if p.check():
-            p.remove()
-            log.info("deleted index %s" % self.name)
-            return True
 
     def op_with_bases(self, opname, **kw):
         opname += "_perstage"
@@ -335,7 +336,7 @@ class PrivateStage:
         name = metadata["name"]
         version = metadata["version"]
         key = self.key_projconfig(name)
-        with key.locked_update() as projectconfig:
+        with key.update() as projectconfig:
             #if not self.ixconfig["volatile"] and projectconfig:
             #    raise self.MetadataExists(
             #        "%s-%s exists on non-volatile %s" %(
@@ -343,30 +344,38 @@ class PrivateStage:
             versionconfig = projectconfig.setdefault(version, {})
             versionconfig.update(metadata)
             self.log_info("store_metadata %s-%s", name, version)
+        with self.key_projectnames.update() as projectnames:
+            projectnames.add(name)
         desc = metadata.get("description")
         if desc:
             html = processDescription(desc)
-            key = self.keyfs.RELDESCRIPTION(user=self.user.name, 
+            doc_key = self.keyfs.RELDESCRIPTION(user=self.user.name, 
                         index=self.index, name=name, version=version)
             if py.builtin._istext(html):
                 html = html.encode("utf8")
-            key.set(html)
+            doc_key.set(html)
         self.xom.config.hook.devpiserver_register_metadata(self, metadata)
 
     def project_delete(self, name):
+        for version in self.get_projectconfig_perstage(name):
+            self.project_version_delete(name, version, cleanup=False)
+        with self.key_projectnames.update() as projectnames:
+            projectnames.remove(name)
         self.key_projconfig(name).delete()
 
-    def project_version_delete(self, name, version):
+    def project_version_delete(self, name, version, cleanup=True):
         key = self.key_projconfig(name)
-        with key.locked_update() as projectconfig:
-            if version not in projectconfig:
+        with key.update() as projectconfig:
+            verdata = projectconfig.pop(version, None)
+            if verdata is None:
                 return False
             self.log_info("deleting version %r of project %r", version, name)
-            del projectconfig[version]
-        # XXX race condition if concurrent addition happens
-        if not projectconfig:
+            for relpath in verdata.get("+files", {}).values():
+                entry = self.xom.filestore.getentry(relpath)
+                entry.delete()
+        if cleanup and not projectconfig:
             self.log_info("no version left, deleting project %r", name)
-            key.delete()
+            self.project_delete(name)
         return True
 
     def project_exists(self, name):
@@ -378,8 +387,14 @@ class PrivateStage:
         return py.builtin._totext(key.get(), "utf-8")
 
     def get_description_versions(self, name):
-        return self.keyfs.RELDESCRIPTION.listnames("version",
-            user=self.user.name, index=self.index, name=name)
+        versions = []
+        projectconfig = self.key_projconfig(name).get()
+        for ver in projectconfig:
+            key_reldesc = self.keyfs.RELDESCRIPTION(version=ver,
+                user=self.user.name, index=self.index, name=name)
+            if key_reldesc.exists():
+                versions.append(ver)
+        return versions
 
     def get_metadata(self, name, version):
         # on win32 we need to make sure that we only return
@@ -458,18 +473,7 @@ class PrivateStage:
 
 
     def getprojectnames_perstage(self):
-        names = self.keyfs.PROJCONFIG.listnames("name",
-                        user=self.user.name, index=self.index)
-        # on case insensitive filesystems we can't be sure
-        # we have case-sensitive names so we do a slow
-        # iteration over all projectconfig files
-        realnames = set()
-        for name in names:
-            projectconfig = self.get_projectconfig_perstage(name)
-            for metadata in projectconfig.values():
-                realnames.add(metadata.get("name", name))
-        return list(realnames)
-
+        return self.key_projectnames.get()
 
     class MissesRegistration(Exception):
         """ store_releasefile requires pre-existing release metadata. """
@@ -481,7 +485,7 @@ class PrivateStage:
             raise self.MissesRegistration(name, version)
         log.debug("project name of %r is %r", filename, name)
         key = self.key_projconfig(name=name)
-        with key.locked_update() as projectconfig:
+        with key.update() as projectconfig:
             verdata = projectconfig.setdefault(version, {})
             files = verdata.setdefault("+files", {})
             if not self.ixconfig.get("volatile") and filename in files:
@@ -492,22 +496,23 @@ class PrivateStage:
             self.log_info("store_releasefile %s", entry.relpath)
             return entry
 
-    def store_doczip(self, name, version, docfile):
+    def store_doczip(self, name, version, content):
         """ store zip file and unzip doc content for the
         specified "name" project. """
+        assert isinstance(content, bytes)
         if not version:
             version = self.get_metadata_latest_perstage(name)["version"]
             log.info("store_doczip: derived version of %s is %s",
                      name, version)
         key = self.key_projconfig(name=name)
-        with key.locked_update() as projectconfig:
+        with key.update() as projectconfig:
             verdata = projectconfig[version]
             filename = "%s-%s.doc.zip" % (name, version)
-            entry = self.xom.filestore.store_file(self.user.name, self.index,
-                                filename, docfile)
+            entry = self.xom.filestore.store(self.user.name, self.index,
+                                filename, content)
             verdata["+doczip"] = entry.relpath
-        self.xom.config.hook.devpiserver_docs_uploaded(self, name, version, entry)
-        return key.filepath
+        self.xom.config.hook.devpiserver_docs_uploaded(self, name, 
+                    version, entry)
 
     def get_doczip(self, name, version):
         """ get documentation zip as an open file
@@ -518,7 +523,7 @@ class PrivateStage:
             if doczip:
                 entry = self.xom.filestore.getentry(doczip)
                 if entry:
-                    return entry.filepath.open("rb")
+                    return entry.FILE.get()
 
 
 def normalize_bases(model, bases):

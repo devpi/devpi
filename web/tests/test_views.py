@@ -149,15 +149,17 @@ def test_project_view(mapp, testapp):
 
 
 def test_project_view_root_pypi(mapp, testapp):
-    pypistage = mapp.xom.model.getstage('root/pypi')
-    pypistage.name2serials['pkg1'] = {}
-    cache = {
-        "serial": 0,
-        "entrylist": [
-            'root/pypi/+f/9a0364b9e99bb480dd25e1f0284c8555/pkg1-2.7.zip',
-            'root/pypi/+f/52360ae08d733016c5603d54b06b5300/pkg1-2.6.zip'],
-        "projectname": 'pkg1'}
-    pypistage.keyfs.PYPILINKS(name='pkg1').set(cache)
+    with mapp.xom.keyfs.transaction():
+        pypistage = mapp.xom.model.getstage('root/pypi')
+        pypistage.name2serials['pkg1'] = {}
+        cache = {
+            "serial": 0,
+            "entrylist": [
+                'root/pypi/+f/9a0364b9e99bb480dd25e1f0284c8555/pkg1-2.7.zip',
+                'root/pypi/+f/52360ae08d733016c5603d54b06b5300/pkg1-2.6.zip'],
+            "projectname": 'pkg1'}
+        pypistage.keyfs.PYPILINKS(name='pkg1').set(cache)
+
     r = testapp.get('/root/pypi/pkg1', headers=dict(accept="text/html"))
     assert r.status_code == 200
     links = r.html.select('#content a')
@@ -201,13 +203,14 @@ def test_version_view(mapp, testapp):
 
 
 def test_version_view_root_pypi(mapp, testapp):
-    pypistage = mapp.xom.model.getstage('root/pypi')
-    pypistage.name2serials['pkg1'] = {}
-    cache = {
-        "serial": 0,
-        "entrylist": ['root/pypi/+f/52360ae08d733016c5603d54b06b5300/pkg1-2.6.zip'],
-        "projectname": 'pkg1'}
-    pypistage.keyfs.PYPILINKS(name='pkg1').set(cache)
+    with mapp.xom.keyfs.transaction():
+        pypistage = mapp.xom.model.getstage('root/pypi')
+        pypistage.name2serials['pkg1'] = {}
+        cache = {
+            "serial": 0,
+            "entrylist": ['root/pypi/+f/52360ae08d733016c5603d54b06b5300/pkg1-2.6.zip'],
+            "projectname": 'pkg1'}
+        pypistage.keyfs.PYPILINKS(name='pkg1').set(cache)
     r = testapp.get('/root/pypi/pkg1/2.6', headers=dict(accept="text/html"))
     assert r.status_code == 200
     links = r.html.select('#content a')
