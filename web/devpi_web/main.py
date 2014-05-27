@@ -18,6 +18,9 @@ def includeme(config):
     config.add_route(
         "docroot",
         "/{user}/{index}/{name}/{version}/+doc/{relpath:.*}")
+    config.add_route(
+        "docviewroot",
+        "/{user}/{index}/{name}/{version}/+d/{relpath:.*}")
     config.add_request_method(macros, reify=True)
     config.scan()
 
