@@ -74,18 +74,21 @@ class FileStore:
         content = r.raw.read()
         digest = hashlib.md5(content).hexdigest()
         filesize = len(content)
+        content_size = r.headers.get("content-length")
         err = None
-        entry.sethttpheaders(r.headers)
-        if entry.size and int(entry.size) != filesize:
+        
+        if content_size and int(content_size) != filesize:
             err = ValueError(
                       "%s: got %s bytes of %r from remote, expected %s" % (
-                      entry.FILE.relpath, filesize, r.url, entry.size))
+                      entry.FILE.relpath, filesize, r.url, content_size))
         if not entry.eggfragment and entry.md5 and digest != entry.md5:
             err = ValueError("%s: md5 mismatch, got %s, expected %s",
                              entry.FILE.relpath, digest, entry.md5)
         if err is not None:
             log.error(err)
             raise err
+        self.keyfs.restart_as_write_transaction()
+        entry.sethttpheaders(r.headers)
         entry.FILE.set(content)
         entry.set(md5=digest, size=filesize)
         return entry.gethttpheaders(), content

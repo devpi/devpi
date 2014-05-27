@@ -8,16 +8,14 @@ from devpi_common.metadata import splitbasename
 from devpi_common.archive import Archive, zip_dict
 from devpi_server.model import InvalidIndexconfig, run_passwd
 from py.io import BytesIO
+from test_extpypi import auto_transact
+
+pytestmark = [pytest.mark.writetransaction]
 
 
 @pytest.fixture(params=[(), ("root/pypi",)])
 def bases(request):
     return request.param
-
-@pytest.yield_fixture(autouse=True)
-def transact(request, keyfs):
-    with keyfs.transaction():
-        yield
 
 def register_and_store(stage, basename, content=b"123", name=None):
     assert py.builtin._isbytes(content), content
@@ -445,6 +443,7 @@ def test_user_set_without_indexes(model):
     user._set({"password": "pass2"})
     assert model.getstage("user/hello")
 
+@pytest.mark.notransaction
 def test_setdefault_indexes(model):
     from devpi_server.main import set_default_indexes
     set_default_indexes(model)

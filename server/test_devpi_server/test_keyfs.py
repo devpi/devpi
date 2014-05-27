@@ -4,7 +4,7 @@ import os
 import stat
 import threading
 
-from devpi_server.keyfs import KeyFS, Transaction
+from devpi_server.keyfs import KeyFS, WriteTransaction, ReadTransaction
 
 @pytest.fixture
 def keyfs(gentmp):
@@ -158,24 +158,33 @@ def test_trans_get_not_modify(keyfs, type, val, monkeypatch):
     assert x == val 
 
 class TestTransactionIsolation:
-    def test_latest_writer_wins(self, keyfs):
+    def test_cannot_write_on_read_trans(self, keyfs):
         D = keyfs.addkey("hello", dict)
-        tx_1 = Transaction(keyfs)
-        tx_2 = Transaction(keyfs)
+        tx_1 = ReadTransaction(keyfs)
+        assert not hasattr(tx_1, "set")
+        assert not hasattr(tx_1, "delete")
+        
+    def test_serialized_writing(self, keyfs, monkeypatch):
+        D = keyfs.addkey("hello", dict)
+        tx_1 = WriteTransaction(keyfs)
+        class lockity:
+            def acquire(self):
+                raise ValueError()
+        monkeypatch.setattr(keyfs, "_write_lock", lockity())
+        with pytest.raises(ValueError):
+            WriteTransaction(keyfs)
+        monkeypatch.undo()
+        tx_2 = ReadTransaction(keyfs)
         tx_1.set(D, {1:1})
         assert tx_2.get(D) == {}
-        tx_2.set(D, {2:2})
         assert tx_1.get(D) == {1:1}
-        assert tx_2.get(D) == {2:2}
         tx_1.commit()
-        assert tx_2.get(D) == {2:2}
-        tx_2.commit()
-        assert D.get() == {2:2}
+        assert tx_2.get(D) == {}
 
     def test_concurrent_tx_sees_original_value_on_write(self, keyfs):
         D = keyfs.addkey("hello", dict)
-        tx_1 = Transaction(keyfs)
-        tx_2 = Transaction(keyfs)
+        tx_1 = WriteTransaction(keyfs)
+        tx_2 = ReadTransaction(keyfs)
         ser = keyfs._fs.current_serial
         tx_1.set(D, {1:1})
         tx_1.commit()
@@ -188,24 +197,25 @@ class TestTransactionIsolation:
         D = keyfs.addkey("hello", dict)
         with keyfs.transaction():
             D.set({1:2})
-        tx_1 = Transaction(keyfs)
-        tx_2 = Transaction(keyfs)
+        tx_1 = WriteTransaction(keyfs)
+        tx_2 = ReadTransaction(keyfs)
         tx_1.delete(D)
         tx_1.commit()
         assert tx_2.get(D) == {1:2}
 
+    @pytest.mark.xfail(run=False, reason="no support for concurrent writes")
     def test_concurrent_tx_sees_deleted_while_newer_was_committed(self, keyfs):
         D = keyfs.addkey("hello", dict)
         with keyfs.transaction():
             D.set({1:1})
         with keyfs.transaction():
             D.delete()
-        tx_1 = Transaction(keyfs)
-        tx_2 = Transaction(keyfs)
+        tx_1 = WriteTransaction(keyfs)
+        tx_2 = WriteTransaction(keyfs)
         tx_1.set(D, {2:2})
         tx_1.commit()
         assert not tx_2.exists(D)
-        tx_3 = Transaction(keyfs)
+        tx_3 = WriteTransaction(keyfs)
         assert tx_3.exists(D)
 
     def test_tx_delete(self, keyfs):

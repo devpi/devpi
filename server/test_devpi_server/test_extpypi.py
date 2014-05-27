@@ -9,9 +9,11 @@ from test_devpi_server.conftest import getmd5
 def auto_transact(request, keyfs):
     if request.node.get_marker("notransaction"):
         yield
-    else:
-        with keyfs.transaction():
-            yield
+        return
+    write = True if request.node.get_marker("writetransaction") else False
+    keyfs.begin_transaction_in_thread(write=write)
+    yield
+    keyfs.rollback_transaction_in_thread()
 
 class TestIndexParsing:
     simplepy = URL("http://pypi.python.org/simple/py/")
@@ -470,8 +472,11 @@ class TestRefreshManager:
         pypistage.mock_simple("Django", '<a href="Django-1.7.tgz"/a>',
                           pypiserial=25)
         pypistage.process_refreshes()
-        assert pypistage.getreleaselinks("pytest")[0].basename == "pytest-2.4.tgz"
-        assert pypistage.getreleaselinks("Django")[0].basename == "Django-1.7.tgz"
+        with keyfs.transaction():
+            b = pypistage.getreleaselinks("pytest")[0].basename
+            assert b == "pytest-2.4.tgz"
+            b = pypistage.getreleaselinks("Django")[0].basename
+            assert b == "Django-1.7.tgz"
 
     def test_changelog_since_serial_nonetwork(self, pypistage, caplog, reqmock):
         pypistage.mock_simple("pytest", pypiserial=10)

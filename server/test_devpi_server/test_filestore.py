@@ -7,8 +7,8 @@ from test_extpypi import auto_transact
 
 BytesIO = py.io.BytesIO
 
+@pytest.mark.writetransaction
 class TestFileStore:
-
     def test_maplink_deterministic(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.2.zip")
         entry1 = filestore.maplink(link)

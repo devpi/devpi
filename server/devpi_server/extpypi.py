@@ -214,6 +214,12 @@ class PyPIStage:
         normname = normalize_name(projectname)
         return self.keyfs.PYPILINKS(name=normname).get()
 
+    def _load_cache_entries(self, projectname, refresh):
+        cache = self._load_project_cache(projectname)
+        if cache and cache["serial"] >= refresh:
+            return [self.filestore.getentry(relpath)
+                        for relpath in cache["entrylist"]]
+
     def getreleaselinks(self, projectname, refresh=0):
         """ return all releaselinks from the index and referenced scrape
         pages.   If we have cached entries return them if they relate to
@@ -226,11 +232,9 @@ class PyPIStage:
 
         """
         assert not isinstance(refresh, bool), repr(refresh)
-        cache = self._load_project_cache(projectname)
-        if cache and cache["serial"] >= refresh:
-            return [self.filestore.getentry(relpath)
-                        for relpath in cache["entrylist"]]
-
+        entries = self._load_cache_entries(projectname, refresh)
+        if entries is not None:
+            return entries
         info = self.get_project_info(projectname)
         if not info:
             return 404
@@ -262,6 +266,12 @@ class PyPIStage:
         perform_crawling(self, result)
         releaselinks = list(result.releaselinks)
 
+        # restart transaction and see if a concurrent task already
+        # got us the entries
+        self.keyfs.restart_as_write_transaction()
+        entries = self._load_cache_entries(projectname, refresh)
+        if entries is not None:
+            return entries
         # compute release link entries and cache according to serial
         entries = [self.filestore.maplink(link) for link in releaselinks]
         dumplist = [entry.relpath for entry in entries]

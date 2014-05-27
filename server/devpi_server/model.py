@@ -248,11 +248,6 @@ class PrivateStage:
             log.info("modified index %s: %s", self.name, ixconfig)
             return ixconfig
 
-    @contextlib.contextmanager
-    def transaction(self):
-        with self.keyfs.transaction():
-            yield
-
     def get(self):
         userconfig = self.user.get()
         return userconfig.get("indexes", {}).get(self.index)

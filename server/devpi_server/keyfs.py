@@ -97,7 +97,7 @@ class KeyFS(object):
         self._keys = {}
         self._mode = None
         # a non-recursive lock because we don't support nested transactions
-        self.write_lock = threading.Lock()
+        self._write_lock = threading.Lock()
         self._threadlocal = threading.local()
         self._fs = Filesystem(self.basedir)
 
@@ -213,41 +213,59 @@ class KeyFS(object):
             setattr(self, name, key)
         return key
 
+    def begin_transaction_in_thread(self, write=False):
+        assert not hasattr(self._threadlocal, "tx")
+        tx = WriteTransaction(self) if write else ReadTransaction(self)
+        self._threadlocal.tx = tx
+        return tx
+
+    def clear_transaction(self):
+        del self._threadlocal.tx
+
+    def restart_as_write_transaction(self):
+        self.commit_transaction_in_thread()
+        self.begin_transaction_in_thread(write=True)
+
+    def rollback_transaction_in_thread(self):
+        self._threadlocal.tx.rollback()
+        self.clear_transaction()
+
+    def commit_transaction_in_thread(self):
+        self._threadlocal.tx.commit()
+        self.clear_transaction()
+
     @contextlib.contextmanager
-    def transaction(self):
-        self._threadlocal.tx = tx = Transaction(self)
+    def transaction(self, write=True):
+        self.begin_transaction_in_thread(write=write) 
         try:
-            try:
-                yield
-            except:
-                tx.rollback()
-                raise
-            tx.commit()
-        finally:
-            del self._threadlocal.tx
+            yield
+        except:
+            self.rollback_transaction_in_thread()
+            raise
+        self.commit_transaction_in_thread()
 
     def commit_changes(self, record_set, record_deleted, nohist):
         # this is the only place that ever writes changes 
         # to the filesystem.  We play it safe and simple and 
         # completely serialize all writes.
-        with self.write_lock:
-            #print "starting transaction", self
-            #print "  record_set", record_set
-            #print "  record_deleted", record_deleted
-            # we get our current serial number for changes
-            entry = dict(record_set=record_set, record_deleted=record_deleted)
-            with self._fs.write_transaction(entry) as serial:
-                # then perform the actual key/val changes on the file system
-                for relpath in record_deleted:
-                    if relpath in nohist:
-                        self._delete(relpath)
-                    else:
-                        self._set_mutable(relpath, serial)
-                for relpath, val in record_set:
-                    if relpath in nohist:
-                        self._set(relpath, val)
-                    else:
-                        self._set_mutable(relpath, serial, val)
+        #print "starting transaction", self
+        #print "  record_set", record_set
+        #print "  record_deleted", record_deleted
+        # we get our current serial number for changes
+        entry = dict(record_set=record_set, record_deleted=record_deleted)
+        with self._fs.write_transaction(entry) as serial:
+            # then perform the actual key/val changes on the file system
+            for relpath in record_deleted:
+                if relpath in nohist:
+                    self._delete(relpath)
+                else:
+                    self._set_mutable(relpath, serial)
+            for relpath, val in record_set:
+                if relpath in nohist:
+                    self._set(relpath, val)
+                else:
+                    self._set_mutable(relpath, serial, val)
+        return serial
 
     def exists(self, typedkey):
         with self.transaction():
@@ -319,7 +337,7 @@ class TypedKey:
 
 
 
-class Transaction:
+class ReadTransaction(object):
     def __init__(self, keyfs):
         self.keyfs = keyfs
         self.from_serial = keyfs._fs.current_serial
@@ -355,10 +373,6 @@ class Transaction:
             self.cache[typedkey] = copy_if_mutable(val)
             return val
 
-    def set(self, typedkey, val):
-        self.cache[typedkey] = val
-        self.dirty.add(typedkey)
-
     def exists(self, typedkey):
         if typedkey in self.cache:
             return True
@@ -366,8 +380,24 @@ class Transaction:
             return False
         return self.exists_typed_state(typedkey)
 
+    def _close(self):
+        del self.cache
+        del self.dirty
+        return self.from_serial - 1
+
+    commit = rollback = _close
+
+class WriteTransaction(ReadTransaction):
+    def __init__(self, keyfs):
+        keyfs._write_lock.acquire()
+        super(WriteTransaction, self).__init__(keyfs)
+
     def delete(self, typedkey):
         self.cache.pop(typedkey, None)
+        self.dirty.add(typedkey)
+
+    def set(self, typedkey, val):
+        self.cache[typedkey] = val
         self.dirty.add(typedkey)
 
     def commit(self):
@@ -386,20 +416,23 @@ class Transaction:
                 record_deleted.add(relpath)
             else:
                 record_set.append((relpath, val))
-        new_serial = self.keyfs.commit_changes(
-            record_set=record_set, record_deleted=record_deleted,
-            nohist=nohist
-        )
-        self._close()
+        try:
+            new_serial = self.keyfs.commit_changes(
+                record_set=record_set, record_deleted=record_deleted,
+                nohist=nohist
+            )
+        finally:
+            self._close()
         return new_serial
 
     def _close(self):
-        del self.cache
-        del self.dirty
+        serial = super(WriteTransaction, self)._close()
+        self.keyfs._write_lock.release()
+        return serial
 
     def rollback(self):
-        print("rolling back transaction" % self)
-        self._close()
+        log.debug("transaction rollback at %s" % (self.from_serial - 1))
+        return self._close()
         
 
 def copy_if_mutable(val):
