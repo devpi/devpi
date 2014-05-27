@@ -48,8 +48,8 @@ def doc_show(request, user, index, name, version, relpath):
     stage = xom.model.getstage(user, index)
     if not stage:
         raise HTTPNotFound("no such stage")
-    key = doc_key(stage, name, version)
-    if not key.filepath.check():
+    doc_path = get_unpack_path(stage, name, version)
+    if not doc_path.check():
         raise HTTPNotFound("no documentation available")
     return dict(
         base_url=request.route_url(
