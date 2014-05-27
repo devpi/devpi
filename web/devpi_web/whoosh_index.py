@@ -182,8 +182,9 @@ class Index(object):
             searcher = self.tl.searcher
         except AttributeError:
             searcher = self.project_ix.searcher()
-            self.tl.searcher = searcher
-        return searcher.refresh()
+        searcher = searcher.refresh()
+        self.tl.searcher = searcher
+        return searcher
 
     def _process_results(self, raw, page=1):
         items = []
