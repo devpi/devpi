@@ -435,4 +435,4 @@ def load_name2serials(keyfs, proxy):
 
 
 def make_split_key(name):
-    return md5(name).hexdigest()[:2]
+    return md5(name.encode("utf8")).hexdigest()[:2]
