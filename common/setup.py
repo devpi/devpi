@@ -26,5 +26,4 @@ if __name__ == "__main__":
         "Intended Audience :: System Administrators",
         "License :: OSI Approved :: MIT License",
         ],
-      entry_points = {'console_scripts': ["devpi = devpi.main:main"]},
       )

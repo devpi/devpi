@@ -32,3 +32,12 @@ form#search input[type=submit] {
     font-size: 85%;
     color: #202020;
 }
+
+iframe {
+    margin: 0.5em 0 0 0;
+    position: absolute;
+    left: 0;
+    right: 0;
+    width: 100%;
+    border: 0;
+}

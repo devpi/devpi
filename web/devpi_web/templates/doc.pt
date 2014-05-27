@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+    <head>
+        <title>$ {title}</title>
+        <link rel="stylesheet" type="text/css" href="${request.static_url('devpi_web:static/style.css')}" />
+        <script src="${request.static_url('devpi_web:static/jquery-1.11.1.min.js')}"></script>
+        <script src="${request.static_url('devpi_web:static/docview.js')}"></script>
+    </head>
+    <body>
+        <metal:search use-macro="request.macros['navigation']" />
+        <iframe
+            src="${url}" data-base_url="${base_url}" data-baseview_url="${baseview_url}"
+            width="100%" height="100%" scrolling="no"
+            onload="onIFrameLoad(this)">
+        </iframe>
+    </body>
+</html>

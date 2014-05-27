@@ -19,10 +19,10 @@ import py
 log = logging.getLogger(__name__)
 
 
-# showing uploaded package documentation
 @view_config(route_name="docroot", request_method="GET")
 @matchdict_parameters
-def doc_show(request, user, index, name, version, relpath):
+def doc_serve(request, user, index, name, version, relpath):
+    """ Serves the raw documentation files. """
     if not relpath:
         raise HTTPFound(location="index.html")
     xom = request.registry['xom']
@@ -33,6 +33,34 @@ def doc_show(request, user, index, name, version, relpath):
     if not doc_path.check():
         raise HTTPNotFound("no documentation available")
     return FileResponse(str(doc_path.join(relpath)))
+
+
+@view_config(
+    route_name="docviewroot",
+    request_method="GET",
+    renderer="templates/doc.pt")
+@matchdict_parameters
+def doc_show(request, user, index, name, version, relpath):
+    """ Shows the documentation wrapped in an iframe """
+    if not relpath:
+        raise HTTPFound(location="index.html")
+    xom = request.registry['xom']
+    stage = xom.model.getstage(user, index)
+    if not stage:
+        raise HTTPNotFound("no such stage")
+    key = doc_key(stage, name, version)
+    if not key.filepath.check():
+        raise HTTPNotFound("no documentation available")
+    return dict(
+        base_url=request.route_url(
+            "docroot", user=stage.user.name, index=stage.index,
+            name=name, version=version, relpath=''),
+        baseview_url=request.route_url(
+            "docviewroot", user=stage.user.name, index=stage.index,
+            name=name, version=version, relpath=''),
+        url=request.route_url(
+            "docroot", user=stage.user.name, index=stage.index,
+            name=name, version=version, relpath=relpath))
 
 
 @notfound_view_config(request_method="GET")
@@ -81,7 +109,7 @@ def get_docs_info(request, stage, metadata):
         return dict(
             title="%s-%s docs" % (name, ver),
             url=request.route_url(
-                "docroot", user=stage.user.name, index=stage.index,
+                "docviewroot", user=stage.user.name, index=stage.index,
                 name=name, version=ver, relpath="index.html"))
 
 
@@ -294,7 +322,7 @@ def search(request):
                 text_path = sub_hit['data'].get('text_path')
                 if text_path:
                     sub_hit['url'] = request.route_url(
-                        "docroot", user=data['user'], index=data['index'],
+                        "docviewroot", user=data['user'], index=data['index'],
                         name=data['name'], version=data['doc_version'],
                         relpath="%s.html" % text_path)
             more_results = result_info['collapsed_counts'][data['path']]
