@@ -22,6 +22,7 @@ from devpi_common.url import URL
 from devpi_common.metadata import is_archive_of_project, BasenameMeta
 from devpi_common.validation import normalize_name
 from devpi_common.request import new_requests_session
+from hashlib import md5
 
 from . import __version__ as server_version
 from .model import ProjectInfo
@@ -317,28 +318,11 @@ class PyPIStage:
     def init_pypi_mirror(self, proxy):
         """ initialize pypi mirror if no mirror state exists. """
         self.proxy = proxy
-        with self.keyfs.transaction(write=False):
-            name2serials = self.keyfs.PYPISERIALS.get()
-        if not name2serials:
-            log.info("retrieving initial name/serial list")
-            name2serials = proxy.list_packages_with_serial()
-            if name2serials is None:
-                from devpi_server.main import fatal
-                fatal("mirror initialization failed: "
-                      "pypi.python.org not reachable")
-            with self.keyfs.transaction():
-                self.keyfs.PYPISERIALS.set(name2serials)
-        else:
-            log.info("reusing already cached name/serial list")
-        # normalize to unicode->serial mapping
-        for name in list(name2serials):
-            if not py.builtin._istext(name):
-                val = name2serials.pop(name)
-                name2serials[py.builtin._totext(name, "utf-8")] = val
-        self.name2serials = name2serials
+
+        self.name2serials = load_name2serials(self.keyfs, proxy)
         # create a mapping of normalized name to real name
         self.normname2name = d = dict()
-        for name in name2serials:
+        for name in self.name2serials:
             norm = normalize_name(name)
             if norm != name:
                 d[norm] = name
@@ -369,26 +353,40 @@ class PyPIStage:
     def process_changelog(self, changelog):
         if not changelog:
             return
-        names = set()
-        for x in changelog:
-            name, version, action, date, serial = x
-            # XXX remove names if action == "remove"
-            # and version is None
-            self._set_project_serial(name,
-                                     max(self.name2serials.get(name, 0),
-                                         serial))
-            names.add(name)
+        name_maxserial = []
+        with self.keyfs.transaction(write=True):
+            for x in changelog:
+                name, version, action, date, serial = x
+                # XXX remove names if action == "remove" and version is None
+                maxserial = max(self.name2serials.get(name, 0), serial)
+                name_maxserial.append((name, maxserial))
+
+                # fill splitkey structure
+                splitkey = make_split_key(name)
+                splitkeys = self.keyfs.PYPISERIALSPLITKEYS.get()
+                subkey = self.keyfs.PYPISERIALS(splitkey=splitkey)
+                if splitkey not in splitkeys:
+                    splitkeys.add(splitkey)
+                    self.keyfs.PYPISERIALSPLITKEYS.set(splitkeys)
+                    subkey.set({name:maxserial})
+                else:
+                    subdict = subkey.get()
+                    subdict[name] = maxserial
+                    subkey.set(subdict)
+        names = []
+        for name, maxserial in names:
+            self._set_project_serial(name, maxserial)
+            names.append(name)
+
         log.debug("processed changelog of size %d: %s" %(
                   len(changelog), names))
-        with self.keyfs.transaction():
-            self.keyfs.PYPISERIALS.set(self.name2serials)
 
     def process_refreshes(self):
         # walk through all mirrored projects and trigger updates if needed
         with self.keyfs.transaction(write=False):
             names = self.getcontained()
         for name in names:
-            with self.keyfs.transaction():
+            with self.keyfs.transaction(write=False):
                 name = self.get_project_info(name).name
                 serial = self.name2serials.get(name, 0)
                 self.getreleaselinks(name, refresh=serial)
@@ -400,3 +398,41 @@ def itervalues(d):
     return getattr(d, "itervalues", d.values)()
 def iteritems(d):
     return getattr(d, "iteritems", d.items)()
+
+def load_name2serials(keyfs, proxy):
+    name2serials = {}
+    with keyfs.transaction(write=False):
+        keys = keyfs.PYPISERIALSPLITKEYS.get()
+        if keys:
+            log.info("reusing already cached name/serial list")
+            for splitkey in keys:
+                d = keyfs.PYPISERIALS(splitkey=splitkey).get()
+                name2serials.update(d)
+    if not name2serials:
+        log.info("retrieving initial name/serial list")
+        result = proxy.list_packages_with_serial()
+        if result is None:
+            from devpi_server.main import fatal
+            fatal("mirror initialization failed: "
+                  "pypi.python.org not reachable")
+
+        # build name2serials and splitkey data structure
+        splitkey2dict = {}
+        for name, val in iteritems(result):
+            name = py.builtin._totext(name, "utf-8")
+            name2serials[name] = val
+            splitkey = make_split_key(name)
+            splitkey2dict.setdefault(splitkey, {})[name] = val
+
+        # write out splitkey data structure
+        with keyfs.transaction(write=True):
+            splitkeys = set()
+            for splitkey, subdict in splitkey2dict.items():
+                keyfs.PYPISERIALS(splitkey=splitkey).set(subdict)
+                splitkeys.add(splitkey)
+            keyfs.PYPISERIALSPLITKEYS.set(splitkeys) 
+    return name2serials
+
+
+def make_split_key(name):
+    return md5(name).hexdigest()[:2]

@@ -420,8 +420,8 @@ class TestRefreshManager:
         proxy.list_packages_with_serial.return_value = d
         pypistage.init_pypi_mirror(proxy)
         assert pypistage.name2serials == d
+        assert load_name2serials(keyfs, None) == d
         with keyfs.transaction():
-            assert keyfs.PYPISERIALS.get() == d
             assert pypistage.getprojectnames() == ["abc", "hello"]
 
     def test_pypichanges_loop(self, pypistage, monkeypatch):
@@ -457,9 +457,9 @@ class TestRefreshManager:
             ["pytest", "2.4", 121231, 'new release', 27]
         ])
         assert len(pypistage.name2serials) == 2
-        with keyfs.transaction(write=False):
-            assert keyfs.PYPISERIALS.get()["pytest"] == 27
-            assert keyfs.PYPISERIALS.get()["Django"] == 25
+        name2serials = load_name2serials(keyfs, None)
+        assert name2serials["pytest"] == 27
+        assert name2serials["Django"] == 25
         pypistage.mock_simple("pytest", '<a href="pytest-2.4.tgz"/a>',
                           pypiserial=27)
         pypistage.mock_simple("Django", '<a href="Django-1.7.tgz"/a>',
