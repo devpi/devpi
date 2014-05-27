@@ -53,9 +53,14 @@ class Filesystem:
     def write_transaction(self):
         return FSWriter(self)
 
-    def get_transaction_entry(self, serial):
+    def get_from_transaction_entry(self, serial, relpath):
         p = self.path_changelogdir.join(str(serial))
-        return self._read(p)
+        change_entry = self._read(p)
+        if relpath in change_entry["record_deleted"]:
+            raise KeyError(relpath)
+        for rp, val in change_entry["record_set"]:
+            if rp == relpath:
+                return val
 
 
 class FSWriter:
@@ -80,6 +85,8 @@ class FSWriter:
         try:
             with target_path.open("rb") as f:
                 history_serials = [current_serial] + Unserializer(f).load()
+                # we record a maximum of the last three changing serials
+                del history_serials[3:] 
         except py.error.Error:
             history_serials = [current_serial]
             tmp_path.dirpath().ensure(dir=1)
@@ -203,15 +210,22 @@ class KeyFS(object):
         for serial in history_serials:
             if serial < target_serial:
                 # we found the latest state fit for what we require
-                change_entry = self._fs.get_transaction_entry(serial)
-                if relpath in change_entry["record_deleted"]:
-                    raise KeyError(relpath)
-                for rp, val in change_entry["record_set"]:
-                    if rp == relpath:
-                        return val
+                val = self._fs.get_from_transaction_entry(serial, relpath)
+                if val is not _nodefault:
+                    return val
+        
+        log.warn("performing exhaustive search on %s, %s", 
+                 relpath, target_serial)
+        # the history_serials are all newer than what we need
+        # let's do an exhaustive search for the last change
+        while target_serial > 0:
+            target_serial -= 1
+            val = self._fs.get_from_transaction_entry(target_serial, relpath)
+            if val is not _nodefault:
+                return val
 
         # we could not find any historic serial lower than target_serial
-        # which means the key didn't exist
+        # which means the key didn't exist at that point in time
         raise KeyError(relpath)
 
     def _exists(self, relpath):
