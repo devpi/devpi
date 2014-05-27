@@ -5,3 +5,12 @@
         <input type="submit" value="Search" />
     </form>
 </metal:search>
+<metal:search define-macro="navigation">
+    <metal:search use-macro="request.macros['search']" />
+    <div>
+        <span tal:repeat="part request.navigation_info.path">
+            <tal:separator condition="not repeat.part.start">»</tal:separator>
+            <a href="${part.url}">${part.title}</a>
+        </span>
+    </div>
+</metal:search>

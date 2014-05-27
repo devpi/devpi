@@ -1,9 +1,11 @@
 <html>
     <head>
         <title>${title}</title>
+        <link rel="stylesheet" type="text/css" href="${request.static_url('devpi_web:static/style.css')}" />
     </head>
     <body>
-        <metal:search use-macro="request.macros['search']" />
+        <metal:search use-macro="request.macros['navigation']" />
+        <div id="content">
         <h1>${title}</h1>
 
         <table>
@@ -25,5 +27,6 @@
         </div>
 
         <div class="description" tal:content="structure content" />
+        </div>
     </body>
 </html>
