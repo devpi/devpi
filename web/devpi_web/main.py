@@ -10,6 +10,43 @@ def macros(request):
     return renderer.implementation().macros
 
 
+def navigation_info(request):
+    path = [dict(
+        url=request.route_url("root"),
+        title="devpi")]
+    result = dict(path=path)
+    if 'user' in request.matchdict:
+        user = request.matchdict['user']
+    else:
+        return result
+    if 'index' in request.matchdict:
+        index = request.matchdict['index']
+        path.append(dict(
+            url=request.route_url(
+                "/{user}/{index}", user=user, index=index),
+            title="%s/%s" % (user, index)))
+    else:
+        return result
+    if 'name' in request.matchdict:
+        name = request.matchdict['name']
+        path.append(dict(
+            url=request.route_url(
+                "/{user}/{index}/{name}", user=user, index=index, name=name),
+            title=name))
+    else:
+        return result
+    if 'version' in request.matchdict:
+        version = request.matchdict['version']
+        path.append(dict(
+            url=request.route_url(
+                "/{user}/{index}/{name}/{version}",
+                user=user, index=index, name=name, version=version),
+            title=version))
+    else:
+        return result
+    return result
+
+
 def includeme(config):
     config.include('pyramid_chameleon')
     config.add_static_view('static', 'static')
@@ -22,6 +59,7 @@ def includeme(config):
         "docviewroot",
         "/{user}/{index}/{name}/{version}/+d/{relpath:.*}")
     config.add_request_method(macros, reify=True)
+    config.add_request_method(navigation_info, reify=True)
     config.scan()
 
 

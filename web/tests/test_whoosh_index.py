@@ -32,9 +32,8 @@ def test_search_after_register(mapp, testapp):
         "description": "foo"})
     r = testapp.get('/+search?query=foo')
     assert r.status_code == 200
-    links = r.html.findAll('a')
+    links = r.html.select('.searchresults a')
     assert [(l.text.strip(), l.attrs['href']) for l in links] == [
-        ("devpi", "http://localhost:80/"),
         ("pkg1", "http://localhost:80/%s/pkg1/2.6" % api.stagename)]
     mapp.register_metadata({
         "name": "pkg1",
@@ -42,13 +41,11 @@ def test_search_after_register(mapp, testapp):
         "description": "foo"})
     r = testapp.get('/+search?query=foo')
     assert r.status_code == 200
-    links = r.html.findAll('a')
+    links = r.html.select('.searchresults a')
     assert [(l.text.strip(), l.attrs['href']) for l in links] == [
-        ("devpi", "http://localhost:80/"),
         ("pkg1", "http://localhost:80/%s/pkg1/2.7" % api.stagename)]
     r = testapp.get('/+search?query=foo')
     assert r.status_code == 200
-    links = r.html.findAll('a')
+    links = r.html.select('.searchresults a')
     assert [(l.text.strip(), l.attrs['href']) for l in links] == [
-        ("devpi", "http://localhost:80/"),
         ("pkg1", "http://localhost:80/%s/pkg1/2.7" % api.stagename)]
