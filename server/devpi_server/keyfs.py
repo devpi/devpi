@@ -12,7 +12,8 @@ import py
 import threading
 import os
 import sys
-from execnet import load, dump
+from execnet.gateway_base import _Serializer
+from execnet.gateway_base import Unserializer as _Unserializer
 
 import logging
 
@@ -22,7 +23,6 @@ _nodefault = object()
 
 class Serializer:
     def __init__(self, stream):
-        from execnet.gateway_base import _Serializer
         self.stream = _Serializer(write=stream.write)
 
     def save(self, obj):
@@ -30,8 +30,7 @@ class Serializer:
 
 class Unserializer:
     def __init__(self, stream):
-        from execnet.gateway_base import Unserializer
-        self.stream = Unserializer(stream, (False, False))
+        self.stream = _Unserializer(stream, (False, False))
 
     def load(self):
         return self.stream.load(versioned=False)
@@ -49,7 +48,7 @@ class Filesystem:
        
     def _read(self, path):
         with path.open("rb") as f:
-            return load(f)
+            return Unserializer(f).load()
 
     def write_transaction(self):
         return FSWriter(self)
@@ -70,7 +69,7 @@ class FSWriter:
     def direct_write(self, path, val):
         tmpfile = path + "-tmp"
         with tmpfile.open("wb") as f:
-            dump(f, val)
+            Serializer(f).save(val)
         tmpfile.rename(path)
 
     def set_mutable(self, relpath, value=_nodefault):
