@@ -130,7 +130,7 @@ def handle_response(event):
         else:
             serial = tx.rollback()
         assert serial
-        r.headers["X-DEVPI-SERIAL"] = str(serial)
+        r.headers[str("X-DEVPI-SERIAL")] = str(serial)
         log.debug("setting X-DEVPI-SERIAL %s" %(serial,))
         keyfs.clear_transaction()
 

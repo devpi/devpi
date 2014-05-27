@@ -39,10 +39,11 @@ class Unserializer:
 
 class Filesystem:
     def __init__(self, basedir):
-        self._path_current_serial = basedir.join(".currentserial")
-        self._path_changelogdir = basedir.ensure(".changelog", dir=1)
+        self.basedir = basedir
+        self.path_current_serial = basedir.join(".currentserial")
+        self.path_changelogdir = basedir.ensure(".changelog", dir=1)
         try:
-            self.current_serial = self._read(self._path_current_serial)
+            self.current_serial = self._read(self.path_current_serial)
         except py.error.Error:
             self.current_serial = 0
        
@@ -50,27 +51,100 @@ class Filesystem:
         with path.open("rb") as f:
             return load(f)
 
-    def _write(self, path, val):
+    def write_transaction(self):
+        return FSWriter(self)
+
+    def get_transaction_entry(self, serial):
+        p = self.path_changelogdir.join(str(serial))
+        return self._read(p)
+
+
+class FSWriter:
+    def __init__(self, fs):
+        self.fs = fs
+        self.pending_removes = []
+        self.pending_renames = []
+        self.record_deleted = []
+        self.record_set = []
+
+    def direct_write(self, path, val):
         tmpfile = path + "-tmp"
         with tmpfile.open("wb") as f:
             dump(f, val)
         tmpfile.rename(path)
 
-    @contextlib.contextmanager
-    def write_transaction(self, entry):
-        # first write out the complete change entry for our serial
-        p = self._path_changelogdir.join(str(self.current_serial))
+    def set_mutable(self, relpath, value=_nodefault):
+        target_path = self.fs.basedir.join(relpath)
+        tmp_path = target_path + ".tmp"
+        # read history serials
+        current_serial = self.fs.current_serial
+        try:
+            with target_path.open("rb") as f:
+                history_serials = [current_serial] + Unserializer(f).load()
+        except py.error.Error:
+            history_serials = [current_serial]
+            tmp_path.dirpath().ensure(dir=1)
+        with tmp_path.open("wb") as f:
+            serializer = Serializer(f)
+            serializer.save(history_serials)
+            if value is not _nodefault: 
+                serializer.save(value)
+                self.record_set.append((relpath, value))
+            else:
+                self.record_deleted.append(relpath)
+        self.pending_renames.append((tmp_path.strpath, target_path.strpath))
+
+    def set(self, relpath, value):
+        target_path = self.fs.basedir.join(relpath)
+        tmp_path = target_path + ".tmp"
+        tmp_path.write(value, mode="wb", ensure=True)
+        self.pending_renames.append((tmp_path.strpath, target_path.strpath))
+        self.record_set.append((relpath, value))
+
+    def delete(self, relpath):
+        self.pending_removes.append(self.fs.basedir.join(relpath).strpath)
+        self.record_deleted.append(relpath)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, cls, val, tb):
+        if cls is None:
+            changed = [x[0] for x in self.record_set]
+            self.commit()
+            log.info("fstransaction committed " + str(self.fs.current_serial-1))
+            if changed:
+                log.debug(" changed:%s" % ",".join(changed))
+            if self.record_deleted:
+                log.debug(" deleted:%s" % ",".join(self.record_deleted))
+        else:
+            while self.pending_renames:
+                source, dest = self.pending_renames.pop()
+                os.remove(source)
+            log.info("fstransaction roll back at %s" %(self.fs.current_serial))
+
+    def commit(self):
+        # XXX assumption: we don't crash in the middle of this function
+        # write out changelog entry
+        p = self.fs.path_changelogdir.join(str(self.fs.current_serial))
         assert not p.exists(), (  # XXX recover
                     "change entry already exists, unclean shutdown?")
-        self._write(p, entry)
-        yield self.current_serial
-        self.current_serial += 1
-        self._write(self._path_current_serial, self.current_serial)
-        log.info("transaction committed %s" %(self.current_serial-1))
+        entry = dict(record_deleted=self.record_deleted, 
+                     record_set=self.record_set)
+        self.direct_write(p, entry)
 
-    def get_transaction_entry(self, serial):
-        p = self._path_changelogdir.join(str(serial))
-        return self._read(p)
+        # do all renames and then removes
+        for source, dest in self.pending_renames:
+            rename(source, dest)
+        for dest in self.pending_removes:
+            try:
+                os.remove(dest)
+            except py.error.ENOENT:
+                pass
+
+        # finally increment the serial and write it out
+        self.fs.current_serial += 1
+        self.direct_write(self.fs.path_current_serial, self.fs.current_serial)
 
 
 def rename(source, dest):
@@ -107,39 +181,10 @@ class KeyFS(object):
         except py.error.Error:
             raise KeyError(relpath)
 
-    @contextlib.contextmanager
-    def _writing(self, relpath):
-        target_path = self.basedir.join(relpath)
-        tmp_path = target_path.dirpath("." + target_path.basename + ".tmp")
-        try:
-            f = tmp_path.open("wb")
-        except py.error.ENOENT:
-            target_path.dirpath().ensure(dir=1)
-            f = tmp_path.open("wb")
-        try:
-            with f:
-                yield f
-        except Exception:
-            tmp_path.remove()
-            raise
-        rename(f.name, target_path.strpath)
-
     def mkdtemp(self, prefix):
         # XXX only used from devpi-web, could be managed there
         tmpdir = self.basedir.ensure(".tmp", dir=1)
         return py.path.local.make_numbered_dir(prefix=prefix, rootdir=tmpdir)
-
-    def _set_mutable(self, relpath, serial, value=_nodefault):
-        try:
-            with self._getpath(relpath).open("rb") as f:
-                history_serials = [serial] + Unserializer(f).load()
-        except py.error.Error:
-            history_serials = [serial]
-        with self._writing(relpath) as f:
-            serializer = Serializer(f)
-            serializer.save(history_serials)
-            if value is not _nodefault: 
-                serializer.save(value)
 
     def _get_mutable(self, relpath, target_serial):
         try:
@@ -170,29 +215,13 @@ class KeyFS(object):
         # which means the key didn't exist
         raise KeyError(relpath)
 
-    def _set(self, relpath, value):
-        with self._writing(relpath) as f:
-            f.write(value)
-        return True
-
     def _exists(self, relpath):
         return self._getpath(relpath).check()
-
-    def _delete(self, relpath):
-        try:
-            self._getpath(relpath).remove()
-        except py.error.ENOENT:  # XXX can this happen?
-            return False
-        return True
 
     def _getpath(self, relpath):
         assert isinstance(relpath, py.builtin._basestring), \
                (type(relpath), relpath)
         return self.basedir.join(relpath)
-
-    def destroyall(self):
-        if self.basedir.check():
-            self.basedir.remove()
 
     def addkey(self, key, type, name=None):
         assert isinstance(key, py.builtin._basestring)
@@ -236,28 +265,6 @@ class KeyFS(object):
             raise
         self.commit_transaction_in_thread()
 
-    def commit_changes(self, record_set, record_deleted, nohist):
-        # this is the only place that ever writes changes 
-        # to the filesystem.  We play it safe and simple and 
-        # completely serialize all writes.
-        #print "starting transaction", self
-        #print "  record_set", record_set
-        #print "  record_deleted", record_deleted
-        # we get our current serial number for changes
-        entry = dict(record_set=record_set, record_deleted=record_deleted)
-        with self._fs.write_transaction(entry) as serial:
-            # then perform the actual key/val changes on the file system
-            for relpath in record_deleted:
-                if relpath in nohist:
-                    self._delete(relpath)
-                else:
-                    self._set_mutable(relpath, serial)
-            for relpath, val in record_set:
-                if relpath in nohist:
-                    self._set(relpath, val)
-                else:
-                    self._set_mutable(relpath, serial, val)
-        return serial
 
 
 class PTypedKey:
@@ -382,27 +389,26 @@ class WriteTransaction(ReadTransaction):
     def commit(self):
         if not self.dirty:
             return self._close()
-        record_deleted = set()
-        record_set = []
-        nohist = set()
-        for typedkey in self.dirty:
-            relpath = typedkey.relpath
-            if typedkey.type == bytes:
-                nohist.add(relpath)
-            try:
-                val = self.cache[typedkey]
-            except KeyError:
-                record_deleted.add(relpath)
-            else:
-                record_set.append((relpath, val))
         try:
-            new_serial = self.keyfs.commit_changes(
-                record_set=record_set, record_deleted=record_deleted,
-                nohist=nohist
-            )
+            with self.keyfs._fs.write_transaction() as fswriter:
+                for typedkey in self.dirty:
+                    relpath = typedkey.relpath
+                    try:
+                        val = self.cache[typedkey]
+                    except KeyError:
+                        if typedkey.type == bytes:
+                            fswriter.delete(relpath)
+                        else:
+                            fswriter.set_mutable(relpath)
+                    else:
+                        if typedkey.type == bytes:
+                            fswriter.set(relpath, val)
+                        else:
+                            fswriter.set_mutable(relpath, val)
+                current_serial = fswriter.fs.current_serial
         finally:
             self._close()
-        return new_serial
+        return current_serial
 
     def _close(self):
         serial = super(WriteTransaction, self)._close()

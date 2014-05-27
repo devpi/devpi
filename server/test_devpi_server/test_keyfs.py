@@ -16,28 +16,21 @@ class TestKeyFS:
     def test_getempty(self, keyfs):
         pytest.raises(KeyError, lambda: keyfs._get("somekey"))
 
+    @pytest.mark.writetransaction
     @pytest.mark.parametrize("val", [b"", b"val"])
     def test_get_set_del_exists(self, keyfs, key, val):
-        assert not keyfs._exists(key)
-        keyfs._set(key, val)
-        assert keyfs._exists(key)
-        newval = keyfs._get(key)
+        k = keyfs.addkey(key, bytes)
+        assert not k.exists()
+        k.set(val)
+        assert k.exists()
+        keyfs.restart_as_write_transaction()
+        newval = k.get()
         assert val == newval
         assert isinstance(newval, type(val))
-        assert keyfs._getpath(key).check()
-        assert keyfs._delete(key)
-        assert not keyfs._delete(key)
-        pytest.raises(KeyError, lambda: keyfs._get(key))
-
-    def test_set_twice_on_subdir(self, keyfs):
-        keyfs._set("a/b/c", b"value")
-        keyfs._set("a/b/c", b"value2")
-        assert keyfs._get("a/b/c") == b"value2"
-
-    def test_destroyall(self, keyfs):
-        keyfs._set("hello/world", b"World")
-        keyfs.destroyall()
-        assert not keyfs._exists("hello/world")
+        k.delete()
+        assert not k.exists()
+        keyfs.restart_as_write_transaction()
+        assert not k.exists()
 
 
 @pytest.mark.parametrize(("type", "val"),
