@@ -1,11 +1,10 @@
 """
-
-filesystem key/value storage with support for
-storing basic python types.
-
-With thread-safe transaction support in the following manner.
-
-
+filesystem key/value storage with support for storing and retrieving
+basic python types based on parametrizable keys.  Multiple
+ReadTransactions can execute concurrently while at most one
+WriteTransaction is ongoing.  Each ReadTransaction will see a consistent
+view of key/values refering to the point in time it was started,
+independent from any future changes.
 """
 from __future__ import unicode_literals
 import contextlib
@@ -19,8 +18,6 @@ import logging
 
 log = logging.getLogger(__name__)
 _nodefault = object()
-HIST = 2
-NOHIST = 3
 
 
 class Serializer:
@@ -263,7 +260,6 @@ class KeyFS(object):
         return serial
 
 
-
 class PTypedKey:
     def __init__(self, keyfs, key, type):
         self.keyfs = keyfs
@@ -297,12 +293,6 @@ class TypedKey:
     def __repr__(self):
         return "<TypedKey %r type %r>" %(self.relpath, self.type.__name__)
 
-    def verify_type(self, val):
-        if not isinstance(val, self.type):
-            raise TypeError("%r requires value of type %r, got %r" %(
-                            self.relpath, self.type.__name__,
-                            type(val).__name__))
-
     def get(self):
         return copy_if_mutable(self.keyfs.tx.get(self))
 
@@ -314,7 +304,10 @@ class TypedKey:
         self.set(val)
 
     def set(self, val):
-        self.verify_type(val)
+        if not isinstance(val, self.type):
+            raise TypeError("%r requires value of type %r, got %r" %(
+                            self.relpath, self.type.__name__,
+                            type(val).__name__))
         self.keyfs.tx.set(self, val)
 
     def exists(self):
@@ -322,7 +315,6 @@ class TypedKey:
 
     def delete(self):
         return self.keyfs.tx.delete(self)
-
 
 
 class ReadTransaction(object):
@@ -372,6 +364,7 @@ class ReadTransaction(object):
         return self.from_serial - 1
 
     commit = rollback = _close
+
 
 class WriteTransaction(ReadTransaction):
     def __init__(self, keyfs):
@@ -427,4 +420,3 @@ def copy_if_mutable(val):
     elif isinstance(val, list):
         return list(val)
     return val
-
