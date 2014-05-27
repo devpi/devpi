@@ -72,7 +72,8 @@ def do_export(path, xom):
     path.ensure(dir=1)
     tw.line("creating %s" % path)
     dumper = Exporter(tw, xom)
-    dumper.dump_all(path)
+    with xom.keyfs.transaction(write=False):
+        dumper.dump_all(path)
     return 0
 
 def do_import(path, xom):
@@ -83,9 +84,10 @@ def do_import(path, xom):
     if not path.check():
         fatal("path for importing not found: %s" %(path))
 
-    if not xom.model.is_empty():
-        fatal("serverdir must not contain users or stages: %s" %
-              xom.config.serverdir)
+    with xom.keyfs.transaction():
+        if not xom.model.is_empty():
+            fatal("serverdir must not contain users or stages: %s" %
+                  xom.config.serverdir)
     importer = Importer(tw, xom)
     importer.import_all(path)
     return 0
@@ -300,14 +302,14 @@ class Importer:
         # create stages in inheritance/root-first order
         stages = []
         for stagename in tree.iternames():
-            if stagename == "root/pypi":
-                assert self.xom.model.getstage(stagename)
-                continue
-            import_index = self.import_indexes[stagename]
-            indexconfig = import_index["indexconfig"]
-            user, index = stagename.split("/")
-            user = self.xom.model.get_user(user)
             with self.xom.keyfs.transaction():
+                if stagename == "root/pypi":
+                    assert self.xom.model.getstage(stagename)
+                    continue
+                import_index = self.import_indexes[stagename]
+                indexconfig = import_index["indexconfig"]
+                user, index = stagename.split("/")
+                user = self.xom.model.get_user(user)
                 stage = user.create_stage(index, **indexconfig)
             stages.append(stage)
         del tree

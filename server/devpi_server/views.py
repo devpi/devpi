@@ -1,6 +1,4 @@
 from __future__ import unicode_literals
-import sys
-import contextlib
 import py
 from py.xml import html
 from devpi_common.types import ensure_unicode

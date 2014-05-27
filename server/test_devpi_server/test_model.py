@@ -8,7 +8,6 @@ from devpi_common.metadata import splitbasename
 from devpi_common.archive import Archive, zip_dict
 from devpi_server.model import InvalidIndexconfig, run_passwd
 from py.io import BytesIO
-from test_extpypi import auto_transact
 
 pytestmark = [pytest.mark.writetransaction]
 
@@ -281,12 +280,12 @@ class TestStage:
         stage.register_metadata(dict(name="pkg1", version="1.0"))
         content = zip_dict({"index.html": "<html/>",
             "_static": {}, "_templ": {"x.css": ""}})
-        filepath = stage.store_doczip("pkg1", "1.0", content)
+        stage.store_doczip("pkg1", "1.0", content)
         archive = Archive(BytesIO(stage.get_doczip("pkg1", "1.0")))
         assert 'index.html' in archive.namelist()
 
         content = zip_dict({"nothing": "hello"})
-        filepath = stage.store_doczip("pkg1", "1.0", content)
+        stage.store_doczip("pkg1", "1.0", content)
         archive = Archive(BytesIO(stage.get_doczip("pkg1", "1.0")))
         namelist = archive.namelist()
         assert 'nothing' in namelist
@@ -447,4 +446,5 @@ def test_user_set_without_indexes(model):
 def test_setdefault_indexes(model):
     from devpi_server.main import set_default_indexes
     set_default_indexes(model)
-    assert model.getstage("root/pypi").ixconfig["type"] == "mirror"
+    with model.keyfs.transaction(write=False):
+        assert model.getstage("root/pypi").ixconfig["type"] == "mirror"

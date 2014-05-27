@@ -185,12 +185,10 @@ class PyPIStage:
     name = "root/pypi"
     ixconfig = dict(bases=(), volatile=False, type="mirror")
 
-    def __init__(self, keyfs, httpget, filestore, proxy):
+    def __init__(self, keyfs, httpget, filestore):
         self.keyfs = keyfs
         self.httpget = httpget
         self.filestore = filestore
-        invalidate_on_version_change(keyfs.basedir.join("root", "pypi"))
-        self.init_pypi_mirror(proxy)
 
     def getcontained(self):
         return self.keyfs.PYPILINKS_CONTAINED.get()
@@ -319,7 +317,8 @@ class PyPIStage:
     def init_pypi_mirror(self, proxy):
         """ initialize pypi mirror if no mirror state exists. """
         self.proxy = proxy
-        name2serials = self.keyfs.PYPISERIALS.get()
+        with self.keyfs.transaction(write=False):
+            name2serials = self.keyfs.PYPISERIALS.get()
         if not name2serials:
             log.info("retrieving initial name/serial list")
             name2serials = proxy.list_packages_with_serial()
@@ -386,10 +385,12 @@ class PyPIStage:
 
     def process_refreshes(self):
         # walk through all mirrored projects and trigger updates if needed
-        for name in self.getcontained():
-            name = self.get_project_info(name).name
-            serial = self.name2serials.get(name, 0)
+        with self.keyfs.transaction(write=False):
+            names = self.getcontained()
+        for name in names:
             with self.keyfs.transaction():
+                name = self.get_project_info(name).name
+                serial = self.name2serials.get(name, 0)
                 self.getreleaselinks(name, refresh=serial)
 
 PYPIURL_SIMPLE = "https://pypi.python.org/simple/"

@@ -5,15 +5,6 @@ from devpi_server.extpypi import *
 from devpi_server.main import Fatal, PYPIURL_XMLRPC
 from test_devpi_server.conftest import getmd5
 
-@pytest.yield_fixture(autouse=True)
-def auto_transact(request, keyfs):
-    if request.node.get_marker("notransaction"):
-        yield
-        return
-    write = True if request.node.get_marker("writetransaction") else False
-    keyfs.begin_transaction_in_thread(write=write)
-    yield
-    keyfs.rollback_transaction_in_thread()
 
 class TestIndexParsing:
     simplepy = URL("http://pypi.python.org/simple/py/")
@@ -429,8 +420,9 @@ class TestRefreshManager:
         proxy.list_packages_with_serial.return_value = d
         pypistage.init_pypi_mirror(proxy)
         assert pypistage.name2serials == d
-        assert keyfs.PYPISERIALS.get() == d
-        assert pypistage.getprojectnames() == ["abc", "hello"]
+        with keyfs.transaction():
+            assert keyfs.PYPISERIALS.get() == d
+            assert pypistage.getprojectnames() == ["abc", "hello"]
 
     def test_pypichanges_loop(self, pypistage, monkeypatch):
         pypistage.process_changelog = mock.Mock()
@@ -465,8 +457,9 @@ class TestRefreshManager:
             ["pytest", "2.4", 121231, 'new release', 27]
         ])
         assert len(pypistage.name2serials) == 2
-        assert keyfs.PYPISERIALS.get()["pytest"] == 27
-        assert keyfs.PYPISERIALS.get()["Django"] == 25
+        with keyfs.transaction(write=False):
+            assert keyfs.PYPISERIALS.get()["pytest"] == 27
+            assert keyfs.PYPISERIALS.get()["Django"] == 25
         pypistage.mock_simple("pytest", '<a href="pytest-2.4.tgz"/a>',
                           pypiserial=27)
         pypistage.mock_simple("Django", '<a href="Django-1.7.tgz"/a>',
@@ -478,6 +471,7 @@ class TestRefreshManager:
             b = pypistage.getreleaselinks("Django")[0].basename
             assert b == "Django-1.7.tgz"
 
+    @pytest.mark.notransaction
     def test_changelog_since_serial_nonetwork(self, pypistage, caplog, reqmock):
         pypistage.mock_simple("pytest", pypiserial=10)
         reqreply = reqmock.mockresponse(PYPIURL_XMLRPC, code=400)

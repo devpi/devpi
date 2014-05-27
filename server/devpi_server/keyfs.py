@@ -13,10 +13,8 @@ import py
 import threading
 import os
 import sys
-from os.path import basename, isabs, join
-from execnet import dumps, loads, load, dump
+from execnet import load, dump
 
-from devpi_common.types import cached_property
 import logging
 
 log = logging.getLogger(__name__)
@@ -103,10 +101,7 @@ class KeyFS(object):
 
     @property
     def tx(self):
-        try:
-            return self._threadlocal.tx
-        except AttributeError:
-            return self
+        return getattr(self._threadlocal, "tx")
 
     def _get(self, relpath):
         try:
@@ -267,13 +262,6 @@ class KeyFS(object):
                     self._set_mutable(relpath, serial, val)
         return serial
 
-    def exists(self, typedkey):
-        with self.transaction():
-            return typedkey.exists()
-
-    def get(self, typedkey):
-        with self.transaction():
-            return typedkey.get()
 
 
 class PTypedKey:
@@ -343,8 +331,6 @@ class ReadTransaction(object):
         self.from_serial = keyfs._fs.current_serial
         self.cache = {}
         self.dirty = set()
-        self.rootstate = keyfs.tx
-        assert self.rootstate == keyfs, "nested transactions not supported"
 
     def get_typed_state(self, typedkey):
         if typedkey.type == bytes:

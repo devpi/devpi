@@ -3,11 +3,10 @@ import pytest
 import py
 from devpi_server.filestore import *
 
-from test_extpypi import auto_transact
+pytestmark = [pytest.mark.writetransaction]
 
 BytesIO = py.io.BytesIO
 
-@pytest.mark.writetransaction
 class TestFileStore:
     def test_maplink_deterministic(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.2.zip")

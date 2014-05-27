@@ -6,14 +6,12 @@ for all indexes.
 from __future__ import unicode_literals
 import hashlib
 import posixpath
-import os
 import sys
 import json
 from wsgiref.handlers import format_date_time
 from datetime import datetime
 from time import mktime
 
-import py
 from devpi_common.types import propmapping, ensure_unicode
 
 from logging import getLogger

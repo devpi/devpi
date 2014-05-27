@@ -54,9 +54,10 @@ def test_run_commands_called(monkeypatch, tmpdir):
         def devpiserver_run_commands(self, xom):
             l.append(xom)
             return 1
+    monkeypatch.setattr(devpi_server.extpypi.PyPIStage, "init_pypi_mirror",
+                        lambda self, proxy: None)
     # catch if _main doesn't return after run_commands
-    monkeypatch.setattr(devpi_server.main.XOM, "main",
-                        lambda xom: 0 / 0)
+    monkeypatch.setattr(devpi_server.main, "wsgi_run", lambda xom: 0 / 0)
     result = _main(
         argv=["devpi-server", "--serverdir", str(tmpdir)],
         hook=PluginManager([(Plugin(), None)]))
@@ -71,9 +72,10 @@ def test_main_starts_server_if_run_commands_returns_none(monkeypatch, tmpdir):
     class Plugin:
         def devpiserver_run_commands(self, xom):
             l.append(xom)
+    monkeypatch.setattr(devpi_server.extpypi.PyPIStage, "init_pypi_mirror",
+                        lambda self, proxy: None)
     # catch if _main doesn't return after run_commands
-    monkeypatch.setattr(devpi_server.main.XOM, "main",
-                        lambda xom: 0 / 0)
+    monkeypatch.setattr(devpi_server.main, "wsgi_run", lambda xom: 0 / 0)
     with pytest.raises(ZeroDivisionError):
         _main(
             argv=["devpi-server", "--serverdir", str(tmpdir)],

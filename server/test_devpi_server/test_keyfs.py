@@ -1,8 +1,5 @@
 import py
 import pytest
-import os
-import stat
-import threading
 
 from devpi_server.keyfs import KeyFS, WriteTransaction, ReadTransaction
 
@@ -55,13 +52,13 @@ class Test_addkey_combinations:
         assert not attr.exists()
         assert attr.get() == type()
         assert not attr.exists()
-        with keyfs.transaction():
-            attr.set(val)
-            assert attr.exists()
-            assert attr.get() == val
-            attr.delete()
-            assert not attr.exists()
-            assert attr.get() == type()
+        keyfs.restart_as_write_transaction()
+        attr.set(val)
+        assert attr.exists()
+        assert attr.get() == val
+        attr.delete()
+        assert not attr.exists()
+        assert attr.get() == type()
 
     def test_addkey_param(self, keyfs, type, val):
         pattr = keyfs.addkey("hello/{some}", type)
@@ -69,35 +66,34 @@ class Test_addkey_combinations:
         assert not attr.exists()
         assert attr.get() == type()
         assert not attr.exists()
-        with keyfs.transaction():
-            attr.set(val)
-            assert attr.exists()
-            assert attr.get() == val
+        keyfs.restart_as_write_transaction()
+        attr.set(val)
+        assert attr.exists()
+        assert attr.get() == val
 
-            attr2 = pattr(some="that")
-            assert not attr2.exists()
-            attr.delete()
-            assert not attr.exists()
-            assert attr.get() == type()
+        attr2 = pattr(some="that")
+        assert not attr2.exists()
+        attr.delete()
+        assert not attr.exists()
+        assert attr.get() == type()
 
     def test_addkey_unicode(self, keyfs, type, val):
         pattr = keyfs.addkey("hello/{some}", type)
         attr = pattr(some=py.builtin._totext(b'\xe4', "latin1"))
-        with keyfs.transaction():
-            assert not attr.exists()
-            assert attr.get() == type()
-            assert not attr.exists()
-            attr.set(val)
-            assert attr.exists()
-            assert attr.get() == val
+        assert not attr.exists()
+        assert attr.get() == type()
+        assert not attr.exists()
+        keyfs.restart_as_write_transaction()
+        attr.set(val)
+        assert attr.exists()
+        assert attr.get() == val
 
 class TestKey:
     def test_addkey_type_mismatch(self, keyfs):
         dictkey = keyfs.addkey("some", dict)
-        with keyfs.transaction():
-            pytest.raises(TypeError, lambda: dictkey.set("hello"))
-            dictkey = keyfs.addkey("{that}/some", dict)
-            pytest.raises(TypeError, lambda: dictkey(that="t").set("hello"))
+        pytest.raises(TypeError, lambda: dictkey.set("hello"))
+        dictkey = keyfs.addkey("{that}/some", dict)
+        pytest.raises(TypeError, lambda: dictkey(that="t").set("hello"))
 
     def test_addkey_registered(self, keyfs):
         key1 = keyfs.addkey("some1", dict, "SOME1")
@@ -109,33 +105,35 @@ class TestKey:
     def test_update(self, keyfs):
         key1 = keyfs.addkey("some1", dict)
         key2 = keyfs.addkey("some2", list)
-        with keyfs.transaction():
-            with key1.update() as d:
-                with key2.update() as l:
-                    l.append(1)
-                    d["hello"] = l
-            assert key1.get()["hello"] == l
+        keyfs.restart_as_write_transaction()
+        with key1.update() as d:
+            with key2.update() as l:
+                l.append(1)
+                d["hello"] = l
+        assert key1.get()["hello"] == l
 
     def test_get_inplace(self, keyfs):
         key1 = keyfs.addkey("some1", dict)
-        with keyfs.transaction():
-            key1.set({1:2})
-            try:
-                with key1.update() as d:
-                    d["hello"] = "world"
-                    raise ValueError()
-            except ValueError:
-                pass
-            assert key1.get() == {1:2, "hello": "world"}
+        keyfs.restart_as_write_transaction()
+        key1.set({1:2})
+        try:
+            with key1.update() as d:
+                d["hello"] = "world"
+                raise ValueError()
+        except ValueError:
+            pass
+        assert key1.get() == {1:2, "hello": "world"}
 
     def test_filestore(self, keyfs):
         key1 = keyfs.addkey("hello", bytes)
-        with keyfs.transaction():
-            key1.set(b"hello")
+        keyfs.restart_as_write_transaction()
+        key1.set(b"hello")
         assert key1.get() == b"hello"
+        keyfs.commit_transaction_in_thread()
         assert key1.filepath.size() == 5
 
 
+@pytest.mark.notransaction
 @pytest.mark.parametrize(("type", "val"),
         [(dict, {1:2}),
          (set, set([1,2])),
@@ -146,7 +144,8 @@ def test_trans_get_not_modify(keyfs, type, val, monkeypatch):
     attr = keyfs.addkey("hello", type)
     with keyfs.transaction():
         attr.set(val)
-    assert attr.get() == val
+    with keyfs.transaction():
+        assert attr.get() == val
     # make sure keyfs doesn't write during the transaction and its commit
     orig_write = py.path.local.write
     def write_checker(path, content):
@@ -157,9 +156,9 @@ def test_trans_get_not_modify(keyfs, type, val, monkeypatch):
         x = attr.get()
     assert x == val 
 
+@pytest.mark.notransaction
 class TestTransactionIsolation:
     def test_cannot_write_on_read_trans(self, keyfs):
-        D = keyfs.addkey("hello", dict)
         tx_1 = ReadTransaction(keyfs)
         assert not hasattr(tx_1, "set")
         assert not hasattr(tx_1, "delete")

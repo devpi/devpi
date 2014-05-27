@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 
-import contextlib
 import py
 from devpi_common.metadata import (sorted_sameproject_links,
                                    get_latest_version)
@@ -166,7 +165,7 @@ class User:
         with self.key.update() as userconfig:
             indexes = userconfig.setdefault("indexes", {})
             assert index not in indexes, indexes[index]
-            indexes[index] = ixconfig = {
+            indexes[index] = {
                 "type": type, "volatile": volatile, "bases": bases,
                 "uploadtrigger_jenkins": uploadtrigger_jenkins,
                 "acl_upload": acl_upload
@@ -475,17 +474,6 @@ class PrivateStage:
 
     def getprojectnames_perstage(self):
         return self.key_projectnames.get()
-
-        # on case insensitive filesystems we can't be sure
-        # we have case-sensitive names so we do a slow
-        # iteration over all projectconfig files
-        realnames = set()
-        for name in names:
-            projectconfig = self.get_projectconfig_perstage(name)
-            for metadata in projectconfig.values():
-                realnames.add(metadata.get("name", name))
-        return list(realnames)
-
 
     class MissesRegistration(Exception):
         """ store_releasefile requires pre-existing release metadata. """

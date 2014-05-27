@@ -58,6 +58,23 @@ def gentmp(request):
 def xom_notmocked(request, makexom):
     return makexom(mocking=False)
 
+@pytest.yield_fixture(autouse=True)
+def auto_transact(request):
+    names = request.fixturenames
+    if ("xom" not in names and "keyfs" not in names) or (
+        request.node.get_marker("notransaction")):
+        yield
+        return
+    keyfs = request.getfuncargvalue("keyfs")
+    write = True if request.node.get_marker("writetransaction") else False
+    keyfs.begin_transaction_in_thread(write=write)
+    yield
+    try:
+        keyfs.rollback_transaction_in_thread()
+    except AttributeError:  # already finished within the test
+        pass
+    
+
 @pytest.fixture
 def xom(request, makexom):
     xom = makexom([])
@@ -79,6 +96,7 @@ def makexom(request, gentmp, httpget):
                 proxy.list_packages_with_serial.return_value = {}
             xom = XOM(config, proxy=proxy, httpget=httpget)
             add_pypistage_mocks(xom.pypistage, httpget)
+            xom.pypistage.init_pypi_mirror(proxy)
         else:
             xom = XOM(config)
         request.addfinalizer(xom.shutdown)
@@ -185,7 +203,8 @@ def model(xom):
 
 @pytest.fixture
 def pypistage(xom):
-    return xom.pypistage
+    pypistage = xom.pypistage
+    return pypistage
 
 def add_pypistage_mocks(pypistage, httpget):
     # add some mocking helpers

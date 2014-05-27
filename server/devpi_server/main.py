@@ -15,7 +15,7 @@ from devpi_common.types import cached_property
 from devpi_common.request import new_requests_session
 from .config import PluginManager
 from .config import parseoptions, configure_logging, load_setuptools_entrypoints
-from .extpypi import XMLProxy
+from . import extpypi
 from . import __version__ as server_version
 
 
@@ -81,13 +81,7 @@ def _main(argv=None, hook=None):
     xom = XOM(config)
     check_compatible_version(xom)
     configure_logging(config)
-
-    results = hook.devpiserver_run_commands(xom)
-    if [x for x in results if x is not None]:
-        errors = list(filter(None, results))
-        if errors:
-            return errors[0]
-        return 0
+    extpypi.invalidate_on_version_change(xom.keyfs.basedir.join("root", "pypi"))
 
     if args.start or args.stop or args.log or args.status:
         xprocdir = config.serverdir.join(".xproc")
@@ -222,12 +216,22 @@ class XOM:
         if args.export:
             from devpi_server.importexport import do_export
             return do_export(args.export, xom)
-        # access pypistage to make sure invalidation happens
-        xom.pypistage
+
+        # need to initialize the pypi mirror state before importing
+        # because importing may access data
+        xom.pypistage.init_pypi_mirror(self.proxy)
         if args.import_:
             from devpi_server.importexport import do_import
             return do_import(args.import_, xom)
         try:
+            with xom.keyfs.transaction():
+                results = xom.config.hook.devpiserver_run_commands(xom)
+            if [x for x in results if x is not None]:
+                errors = list(filter(None, results))
+                if errors:
+                    return errors[0]
+                return 0
+
             return wsgi_run(xom)
         finally:
             xom.shutdown()
@@ -286,13 +290,12 @@ class XOM:
     def pypistage(self):
         from devpi_server.extpypi import PyPIStage
         pypistage = PyPIStage(keyfs=self.keyfs, httpget=self.httpget,
-                      filestore=self.filestore,
-                      proxy=self.proxy)
+                              filestore=self.filestore)
         return pypistage
 
     @cached_property
     def proxy(self):
-        return XMLProxy(PYPIURL_XMLRPC)
+        return extpypi.XMLProxy(PYPIURL_XMLRPC)
 
     @cached_property
     def _httpsession(self):

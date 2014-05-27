@@ -14,6 +14,7 @@ from devpi_common.archive import Archive, zip_dict
 
 from .functional import TestUserThings, TestIndexThings  # noqa
 
+pytestmark = [pytest.mark.notransaction]
 
 def getfirstlink(text):
     return BeautifulSoup(text).findAll("a")[0]
