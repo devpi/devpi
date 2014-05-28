@@ -24,12 +24,12 @@ _nodefault = object()
 class Filesystem:
     def __init__(self, basedir):
         self.basedir = basedir
-        self.path_current_serial = basedir.join(".currentserial")
+        self.path_next_serial = basedir.join(".nextserial")
         self.path_changelogdir = basedir.ensure(".changelog", dir=1)
         try:
-            self.current_serial = self._read(self.path_current_serial)
+            self.next_serial = self._read(self.path_next_serial)
         except py.error.Error:
-            self.current_serial = 0
+            self.next_serial = 0
        
     def _read(self, path):
         with path.open("rb") as f:
@@ -46,6 +46,11 @@ class Filesystem:
         for rp, val in change_entry["record_set"]:
             if rp == relpath:
                 return val
+
+    def get_raw_changelog_entry(self, serial):
+        p = self.path_changelogdir.join(str(serial))
+        with p.open("rb") as f:
+            return f.read()
 
 
 class FSWriter:
@@ -66,14 +71,14 @@ class FSWriter:
         target_path = self.fs.basedir.join(relpath)
         tmp_path = target_path + ".tmp"
         # read history serials
-        current_serial = self.fs.current_serial
+        next_serial = self.fs.next_serial
         try:
             with target_path.open("rb") as f:
-                history_serials = [current_serial] + marshal.load(f)
+                history_serials = [next_serial] + marshal.load(f)
                 # we record a maximum of the last three changing serials
                 del history_serials[3:] 
         except py.error.Error:
-            history_serials = [current_serial]
+            history_serials = [next_serial]
             tmp_path.dirpath().ensure(dir=1)
         with tmp_path.open("wb") as f:
             marshal.dump(history_serials, f)
@@ -101,8 +106,8 @@ class FSWriter:
     def __exit__(self, cls, val, tb):
         if cls is None:
             changed = [x[0] for x in self.record_set]
-            self.commit()
-            log.info("fstransaction committed " + str(self.fs.current_serial-1))
+            self.commit_to_filesystem()
+            log.info("fstransaction committed " + str(self.fs.next_serial-1))
             if changed:
                 log.debug(" changed:%s" % ",".join(changed))
             if self.record_deleted:
@@ -111,15 +116,15 @@ class FSWriter:
             while self.pending_renames:
                 source, dest = self.pending_renames.pop()
                 os.remove(source)
-            log.info("fstransaction roll back at %s" %(self.fs.current_serial))
+            log.info("fstransaction roll back at %s" %(self.fs.next_serial))
 
-    def commit(self):
+    def commit_to_filesystem(self):
         # XXX assumption: we don't crash in the middle of this function
         # write out changelog entry
-        p = self.fs.path_changelogdir.join(str(self.fs.current_serial))
+        p = self.fs.path_changelogdir.join(str(self.fs.next_serial))
         assert not p.exists(), (  # XXX recover
                     "change entry already exists, unclean shutdown?")
-        entry = dict(record_deleted=self.record_deleted, 
+        entry = dict(record_deleted=self.record_deleted,
                      record_set=self.record_set)
         self.direct_write(p, entry)
 
@@ -133,8 +138,8 @@ class FSWriter:
                 pass
 
         # finally increment the serial and write it out
-        self.fs.current_serial += 1
-        self.direct_write(self.fs.path_current_serial, self.fs.current_serial)
+        self.fs.next_serial += 1
+        self.direct_write(self.fs.path_next_serial, self.fs.next_serial)
 
 
 def rename(source, dest):
@@ -176,14 +181,14 @@ class KeyFS(object):
         tmpdir = self.basedir.ensure(".tmp", dir=1)
         return py.path.local.make_numbered_dir(prefix=prefix, rootdir=tmpdir)
 
-    def _get_mutable(self, relpath, target_serial):
+    def _get_mutable(self, relpath, at_serial):
         try:
             f = self._getpath(relpath).open("rb")
         except py.error.Error:
             raise KeyError(relpath)
         with f:
             history_serials = marshal.load(f)
-            if history_serials.pop(0) < target_serial:
+            if history_serials.pop(0) <= at_serial:
                 # latest state is older already than what we require
                 try:
                     return marshal.load(f)
@@ -191,21 +196,20 @@ class KeyFS(object):
                     raise KeyError(relpath)
            
         for serial in history_serials:
-            if serial < target_serial:
+            if serial <= at_serial:
                 # we found the latest state fit for what we require
                 val = self._fs.get_from_transaction_entry(serial, relpath)
                 if val is not _nodefault:
                     return val
         
-        log.warn("performing exhaustive search on %s, %s", 
-                 relpath, target_serial)
+        log.warn("performing exhaustive search on %s, %s", relpath, at_serial)
         # the history_serials are all newer than what we need
         # let's do an exhaustive search for the last change
-        while target_serial > 0:
-            target_serial -= 1
-            val = self._fs.get_from_transaction_entry(target_serial, relpath)
+        while at_serial > 0:
+            val = self._fs.get_from_transaction_entry(at_serial, relpath)
             if val is not _nodefault:
                 return val
+            at_serial -= 1
 
         # we could not find any historic serial lower than target_serial
         # which means the key didn't exist at that point in time
@@ -323,14 +327,14 @@ class TypedKey:
 class ReadTransaction(object):
     def __init__(self, keyfs):
         self.keyfs = keyfs
-        self.from_serial = keyfs._fs.current_serial
+        self.at_serial = keyfs._fs.next_serial - 1
         self.cache = {}
         self.dirty = set()
 
     def get_typed_state(self, typedkey):
         if typedkey.type == bytes:
             return self.keyfs._get(typedkey.relpath)
-        val = self.keyfs._get_mutable(typedkey.relpath, self.from_serial)
+        val = self.keyfs._get_mutable(typedkey.relpath, self.at_serial)
         assert isinstance(val, typedkey.type), val
         return val
 
@@ -364,7 +368,7 @@ class ReadTransaction(object):
     def _close(self):
         del self.cache
         del self.dirty
-        return self.from_serial - 1
+        return self.at_serial
 
     commit = rollback = _close
 
@@ -401,10 +405,10 @@ class WriteTransaction(ReadTransaction):
                             fswriter.set(relpath, val)
                         else:
                             fswriter.set_mutable(relpath, val)
-                current_serial = fswriter.fs.current_serial
+                at_serial = fswriter.fs.next_serial
         finally:
             self._close()
-        return current_serial
+        return at_serial
 
     def _close(self):
         serial = super(WriteTransaction, self)._close()
@@ -412,7 +416,7 @@ class WriteTransaction(ReadTransaction):
         return serial
 
     def rollback(self):
-        log.debug("transaction rollback at %s" % (self.from_serial - 1))
+        log.debug("transaction rollback at %s" % (self.at_serial))
         return self._close()
         
 

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import marshal
 import pytest
 import re
 import py
@@ -567,3 +568,25 @@ class Test_getjson:
         assert len(abort_calls) == 1
         abort_call_args = abort_calls[0][0]
         assert abort_call_args[1] == 400
+
+class TestChangelog:
+    def test_get_latest_serial(self, testapp):
+        r = testapp.get("/+changelog")
+        serial = int(r.headers["X-DEVPI-SERIAL"])
+        assert serial > 0
+        assert len(r.body) == 0
+    
+    def test_get_since(self, testapp, mapp, noiter):
+        r = testapp.get("/+changelog?since=0")
+        entries = list(r.app_iter)
+        num = len(entries)
+        serial = int(r.headers["X-DEVPI-SERIAL"])
+        assert num == serial + 1
+        mapp.create_user("this", password="p")
+        r2 = testapp.get("/+changelog?since=%s" % num)
+        entries2 = [marshal.loads(x) for x in r2.app_iter]
+        assert len(entries2) == 1
+        record_set = dict(entries2[0]["record_set"])
+        assert "this/.config" in record_set
+        serial2 = int(r2.headers["X-DEVPI-SERIAL"])
+        assert serial2 == serial + 1

@@ -129,7 +129,6 @@ def handle_response(event):
             serial = tx.commit()
         else:
             serial = tx.rollback()
-        assert serial
         r.headers[str("X-DEVPI-SERIAL")] = str(serial)
         log.debug("setting X-DEVPI-SERIAL %s" %(serial,))
         keyfs.clear_transaction()
@@ -154,6 +153,27 @@ class PyPIView:
         if not stage:
             abort(self.request, 404, "no such stage")
         return stage
+
+    #
+    # primary changelog API for replicas
+    #
+    @view_config(route_name="/+changelog")
+    def changelog(self):
+        since = self.request.params.get("since")
+        keyfs = self.xom.keyfs
+        if since:
+            since = int(since)
+            def iterentries(since):
+                while since < keyfs._fs.next_serial:
+                    raw_entry = keyfs._fs.get_raw_changelog_entry(since)
+                    yield raw_entry
+                    since += 1
+            return Response(app_iter=iterentries(since),
+                    headers={str("Content-Type"):
+                             str("application/octet-stream")})
+        r = self.request.response
+        r.content_type = str("application/octet-stream")
+        return r
 
     #
     # supplying basic API locations for all services

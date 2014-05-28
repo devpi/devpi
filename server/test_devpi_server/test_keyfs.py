@@ -177,11 +177,12 @@ class TestTransactionIsolation:
         D = keyfs.addkey("hello", dict)
         tx_1 = WriteTransaction(keyfs)
         tx_2 = ReadTransaction(keyfs)
-        ser = keyfs._fs.current_serial
+        ser = keyfs._fs.next_serial
         tx_1.set(D, {1:1})
-        tx_1.commit()
-        assert keyfs._fs.current_serial == ser + 1
-        assert tx_2.from_serial == ser
+        tx1_serial = tx_1.commit()
+        assert tx1_serial == ser
+        assert keyfs._fs.next_serial == ser + 1
+        assert tx_2.at_serial == ser - 1
         assert D not in tx_2.cache and D not in tx_2.dirty
         assert tx_2.get(D) == {}
 
