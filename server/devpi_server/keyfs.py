@@ -12,28 +12,13 @@ import py
 import threading
 import os
 import sys
-from execnet.gateway_base import _Serializer
-from execnet.gateway_base import Unserializer as _Unserializer
+import marshal
 
 import logging
 
 log = logging.getLogger(__name__)
 _nodefault = object()
 
-
-class Serializer:
-    def __init__(self, stream):
-        self.stream = _Serializer(write=stream.write)
-
-    def save(self, obj):
-        self.stream.save(obj, versioned=False)
-
-class Unserializer:
-    def __init__(self, stream):
-        self.stream = _Unserializer(stream, (False, False))
-
-    def load(self):
-        return self.stream.load(versioned=False)
 
 
 class Filesystem:
@@ -48,14 +33,19 @@ class Filesystem:
        
     def _read(self, path):
         with path.open("rb") as f:
-            return Unserializer(f).load()
+            return marshal.load(f)
 
     def write_transaction(self):
         return FSWriter(self)
 
-    def get_transaction_entry(self, serial):
+    def get_from_transaction_entry(self, serial, relpath):
         p = self.path_changelogdir.join(str(serial))
-        return self._read(p)
+        change_entry = self._read(p)
+        if relpath in change_entry["record_deleted"]:
+            raise KeyError(relpath)
+        for rp, val in change_entry["record_set"]:
+            if rp == relpath:
+                return val
 
 
 class FSWriter:
@@ -69,7 +59,7 @@ class FSWriter:
     def direct_write(self, path, val):
         tmpfile = path + "-tmp"
         with tmpfile.open("wb") as f:
-            Serializer(f).save(val)
+            marshal.dump(val, f)
         tmpfile.rename(path)
 
     def set_mutable(self, relpath, value=_nodefault):
@@ -79,15 +69,16 @@ class FSWriter:
         current_serial = self.fs.current_serial
         try:
             with target_path.open("rb") as f:
-                history_serials = [current_serial] + Unserializer(f).load()
+                history_serials = [current_serial] + marshal.load(f)
+                # we record a maximum of the last three changing serials
+                del history_serials[3:] 
         except py.error.Error:
             history_serials = [current_serial]
             tmp_path.dirpath().ensure(dir=1)
         with tmp_path.open("wb") as f:
-            serializer = Serializer(f)
-            serializer.save(history_serials)
+            marshal.dump(history_serials, f)
             if value is not _nodefault: 
-                serializer.save(value)
+                marshal.dump(value, f)
                 self.record_set.append((relpath, value))
             else:
                 self.record_deleted.append(relpath)
@@ -191,27 +182,33 @@ class KeyFS(object):
         except py.error.Error:
             raise KeyError(relpath)
         with f:
-            unserializer = Unserializer(f)
-            history_serials = unserializer.load()
+            history_serials = marshal.load(f)
             if history_serials.pop(0) < target_serial:
                 # latest state is older already than what we require
                 try:
-                    return unserializer.load()
+                    return marshal.load(f)
                 except EOFError:  # a delete entry
                     raise KeyError(relpath)
            
         for serial in history_serials:
             if serial < target_serial:
                 # we found the latest state fit for what we require
-                change_entry = self._fs.get_transaction_entry(serial)
-                if relpath in change_entry["record_deleted"]:
-                    raise KeyError(relpath)
-                for rp, val in change_entry["record_set"]:
-                    if rp == relpath:
-                        return val
+                val = self._fs.get_from_transaction_entry(serial, relpath)
+                if val is not _nodefault:
+                    return val
+        
+        log.warn("performing exhaustive search on %s, %s", 
+                 relpath, target_serial)
+        # the history_serials are all newer than what we need
+        # let's do an exhaustive search for the last change
+        while target_serial > 0:
+            target_serial -= 1
+            val = self._fs.get_from_transaction_entry(target_serial, relpath)
+            if val is not _nodefault:
+                return val
 
         # we could not find any historic serial lower than target_serial
-        # which means the key didn't exist
+        # which means the key didn't exist at that point in time
         raise KeyError(relpath)
 
     def _exists(self, relpath):

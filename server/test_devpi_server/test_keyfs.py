@@ -217,3 +217,21 @@ class TestTransactionIsolation:
         with keyfs.transaction():
             D.delete()
             assert not D.exists()
+
+@pytest.mark.notransaction
+def test_bound_history_size(keyfs):
+    D = keyfs.addkey("some", dict)
+    tx = ReadTransaction(keyfs)
+    for i in range(3):
+        with keyfs.transaction():
+            D.set({i:i})
+    with keyfs.transaction():
+        assert D.get() == {i:i}
+
+    size = D.filepath.size()
+    for i in range(3):
+        with keyfs.transaction():
+            D.set({i:i})
+        assert D.filepath.size() == size
+    # let's trigger an exhaustive search
+    assert not tx.exists(D)
