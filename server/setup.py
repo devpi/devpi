@@ -9,7 +9,6 @@ if __name__ == "__main__":
 
     install_requires = ["py>=1.4.18",
                         "devpi_common>=1.2",
-                        "execnet>=1.1",
                         "itsdangerous>=0.23",
                         "docutils>=0.11",
                         "pygments>=1.6",
