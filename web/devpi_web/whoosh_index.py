@@ -10,6 +10,7 @@ from whoosh.index import IndexError as WhooshIndexError
 from whoosh.qparser import QueryParser
 from whoosh.util.text import rcompile
 from whoosh.writing import CLEAR
+import shutil
 import threading
 
 
@@ -100,6 +101,9 @@ class Index(object):
             schema = getattr(self, '%s_schema' % name)
             return create_in(self.index_path, schema, indexname=name)
         return open_dir(self.index_path, indexname=name)
+
+    def delete_index(self):
+        shutil.rmtree(self.index_path)
 
     def needs_reindex(self):
         if self.project_ix.is_empty():
