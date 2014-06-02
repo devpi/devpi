@@ -436,6 +436,25 @@ class Mapp(MappMixin):
 
 
 from webtest import TestApp as TApp
+from webtest import TestResponse
+
+
+@pytest.yield_fixture
+def noiter(monkeypatch, request):
+    l = []
+    @property
+    def body(self):
+        if self.headers["Content-Type"] != "application/octet-stream":
+            return self.body_old
+        if self.app_iter:
+            l.append(self.app_iter)
+    monkeypatch.setattr(TestResponse, "body_old", TestResponse.body, 
+                        raising=False)
+    monkeypatch.setattr(TestResponse, "body", body)
+    yield
+    for x in l:
+        x.close()
+
 
 class MyTestApp(TApp):
     auth = None
@@ -466,6 +485,7 @@ class MyTestApp(TApp):
         if code is not None:
             assert r.status_code == code
         return r
+
 
     def push(self, url, params=None, **kw):
         kw.setdefault("expect_errors", True)

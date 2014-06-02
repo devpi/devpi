@@ -333,6 +333,7 @@ class XOM:
         self.config.hook.devpiserver_pyramid_configure(
                 config=self.config,
                 pyramid_config=pyramid_config)
+        pyramid_config.add_route("/+changelog", "/+changelog")
         pyramid_config.add_route("/+api", "/+api", accept="application/json")
         pyramid_config.add_route("{path:.*}/+api", "{path:.*}/+api", accept="application/json")
         pyramid_config.add_route("/+login", "/+login", accept="application/json")
