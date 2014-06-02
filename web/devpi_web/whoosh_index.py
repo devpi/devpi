@@ -3,6 +3,7 @@ from collections import defaultdict
 from devpi_common.types import cached_property
 from logging import getLogger
 from whoosh import fields
+from whoosh.analysis import Filter, LowercaseFilter, RegexTokenizer
 from whoosh.analysis import Token, Tokenizer
 from whoosh.compat import text_type, u
 from whoosh.index import create_in, exists_in, open_dir
@@ -85,6 +86,84 @@ def project_name(name, tokenizer=ProjectNameTokenizer()):
     return ' '.join(x[2] for x in tokenizer.iter_value(name))
 
 
+class NgramFilter(Filter):
+    """Splits token text into N-grams.
+
+    >>> rext = RegexTokenizer()
+    >>> stream = rext("hello there")
+    >>> ngf = NgramFilter(4)
+    >>> [token.text for token in ngf(stream)]
+    ["hell", "ello", "ther", "here"]
+    """
+
+    __inittypes__ = dict(minsize=int, maxsize=int)
+
+    def __init__(self):
+        """
+        :param minsize: The minimum size of the N-grams.
+        :param maxsize: The maximum size of the N-grams. If you omit this
+            parameter, maxsize == minsize.
+        :param at: If 'start', only take N-grams from the start of each word.
+            if 'end', only take N-grams from the end of each word. Otherwise,
+            take all N-grams from the word (the default).
+        """
+
+        self.min = 2
+        self.max = 4
+
+    def __eq__(self, other):
+        return other and self.__class__ is other.__class__\
+            and self.min == other.min and self.max == other.max
+
+    def __call__(self, tokens):
+        assert hasattr(tokens, "__iter__")
+        for t in tokens:
+            text = t.text
+            len_text = len(text)
+            if len_text < self.min:
+                continue
+            size_weight_base = 0.25 / len_text
+
+            chars = t.chars
+            if chars:
+                startchar = t.startchar
+            # Token positions don't mean much for N-grams,
+            # so we'll leave the token's original position
+            # untouched.
+
+            if t.mode == "query":
+                size = min(self.max, len(t.text))
+                for start in xrange(0, len_text - size + 1):
+                    t.text = text[start:start + size]
+                    if chars:
+                        t.startchar = startchar + start
+                        t.endchar = startchar + start + size
+                    yield t
+            else:
+                for start in xrange(0, len_text - self.min + 1):
+                    for size in xrange(self.min, self.max + 1):
+                        end = start + size
+                        if end > len_text:
+                            continue
+
+                        t.text = text[start:end]
+
+                        if chars:
+                            t.startchar = startchar + start
+                            t.endchar = startchar + end
+
+                        # boost ngrams at start of words and ones closer to
+                        # the original length of the word
+                        pos_weight = 0.05 / end * (end - start)
+                        size_weight = size_weight_base * size
+                        t.boost = 1.0 + pos_weight + size_weight
+                        yield t
+
+
+def NgramWordAnalyzer():
+    return RegexTokenizer() | LowercaseFilter() | NgramFilter()
+
+
 class SearchUnavailableException(Exception):
     pass
 
@@ -128,7 +207,7 @@ class Index(object):
             text_type=fields.ID(stored=True),
             text_path=fields.STORED(),
             text_title=fields.STORED(),
-            text=fields.TEXT(stored=False))
+            text=fields.TEXT(analyzer=NgramWordAnalyzer(), stored=False, phrase=False))
 
     def update_projects(self, projects, clear=False):
         writer = self.project_ix.writer()
@@ -145,7 +224,7 @@ class Index(object):
             if not clear:
                 writer.delete_by_term('path', data['path'])
             data['text_type'] = "project"
-            data['text'] = project_name(data['name'])
+            data['text'] = "%s %s" % (data['name'], project_name(data['name']))
             data['_text_boost'] = 0.5
             with writer.group():
                 writer.add_document(**data)
@@ -238,7 +317,6 @@ class Index(object):
             plugins.SingleQuotePlugin(),
             plugins.FieldsPlugin(),
             plugins.PrefixPlugin(),
-            plugins.PhrasePlugin(),
             plugins.GroupPlugin(),
             plugins.OperatorsPlugin(),
             plugins.BoostPlugin(),
