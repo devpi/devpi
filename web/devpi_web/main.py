@@ -86,6 +86,7 @@ def devpiserver_add_parser_options(parser):
 def devpiserver_run_commands(xom):
     ix = get_indexer(xom.config)
     if ix.needs_reindex() or xom.config.args.index_projects:
+        ix.delete_index()
         indexer = get_indexer(xom.config)
         indexer.update_projects(iter_projects(xom), clear=True)
         if xom.config.args.index_projects:
