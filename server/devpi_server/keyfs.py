@@ -69,6 +69,7 @@ class Filesystem:
         self.path_next_serial = str(basedir.join(".nextserial"))
         self.path_changelogdir = basedir.ensure(".changelog", dir=1)
         self.next_serial = read_int_from_file(self.path_next_serial)
+        self._changelog_cache = {}
 
     def write_transaction(self):
         return FSWriter(self)
@@ -82,8 +83,14 @@ class Filesystem:
             return f.read()
 
     def get_changelog_entry(self, serial):
-        p = self.path_changelogdir.join(str(serial))
-        return load_from_file(str(p))
+        try:
+            return self._changelog_cache[serial]
+        except KeyError:
+            p = self.path_changelogdir.join(str(serial))
+            val = load_from_file(str(p))
+            # XXX fix unboundedness of cache
+            self._changelog_cache[serial] = val
+            return val
 
 
 class FSWriter:
