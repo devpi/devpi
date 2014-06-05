@@ -205,13 +205,17 @@ def project_get(request, user, index, name):
     if not releases:
         raise HTTPNotFound("project %r does not exist" % name)
     versions = []
+    seen = set()
     for release in releases:
         name, version = splitbasename(release)[:2]
+        if version in seen:
+            continue
         versions.append(dict(
             title=version,
             url=request.route_url(
                 "/{user}/{index}/{name}/{version}",
                 user=user, index=index, name=name, version=version)))
+        seen.add(version)
     return dict(
         title="%s/: %s versions" % (stage.name, name),
         versions=versions)

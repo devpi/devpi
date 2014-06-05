@@ -139,6 +139,8 @@ def test_project_view(mapp, testapp):
     mapp.upload_file_pypi(
         "pkg1-2.6.tar.gz", b"content", "pkg1", "2.6")
     mapp.upload_file_pypi(
+        "pkg1-2.6.zip", b"contentzip", "pkg1", "2.6")
+    mapp.upload_file_pypi(
         "pkg1-2.7.tar.gz", b"content", "pkg1", "2.7")
     r = testapp.get(api.index + '/pkg1', headers=dict(accept="text/html"))
     assert r.status_code == 200
