@@ -13,6 +13,7 @@ from devpi_server.config import PluginManager
 from devpi_server.main import XOM, parseoptions
 from devpi_common.url import URL
 from devpi_server.extpypi import XMLProxy
+from devpi_server.extpypi import PyPIStage
 import hashlib
 
 log = logging.getLogger(__name__)
@@ -83,7 +84,7 @@ def xom(request, makexom):
     return xom
 
 @pytest.fixture
-def makexom(request, gentmp, httpget):
+def makexom(request, gentmp, httpget, monkeypatch):
     def makexom(opts=(), httpget=httpget, proxy=None, mocking=True, plugins=()):
         hook = PluginManager(plugins)
         serverdir = gentmp()
@@ -95,8 +96,8 @@ def makexom(request, gentmp, httpget):
                 proxy = mock.create_autospec(XMLProxy)
                 proxy.list_packages_with_serial.return_value = {}
             xom = XOM(config, proxy=proxy, httpget=httpget)
-            add_pypistage_mocks(xom.pypistage, httpget)
-            xom.pypistage.init_pypi_mirror(proxy)
+            add_pypistage_mocks(monkeypatch, httpget)
+            xom.pypimirror.init_pypi_mirror(proxy)
         else:
             xom = XOM(config)
         request.addfinalizer(xom.shutdown)
@@ -203,19 +204,17 @@ def model(xom):
 
 @pytest.fixture
 def pypistage(xom):
-    pypistage = xom.pypistage
-    return pypistage
+    return PyPIStage(xom)
 
-def add_pypistage_mocks(pypistage, httpget):
+def add_pypistage_mocks(monkeypatch, httpget):
     # add some mocking helpers
-    pypistage.url2response = httpget.url2response
-    def setextsimple(name, text=None, pypiserial=10000, **kw):
-        pypistage._set_project_serial(name, pypiserial)
-        return httpget.setextsimple(name,
+    PyPIStage.url2response = httpget.url2response
+    def setextsimple(self, name, text=None, pypiserial=10000, **kw):
+        self.pypimirror._set_project_serial(name, pypiserial)
+        return self.httpget.setextsimple(name,
                 text=text, pypiserial=pypiserial, **kw)
-    pypistage.setextsimple = setextsimple
-    pypistage.mock_simple = setextsimple
-    pypistage.httpget = httpget
+    monkeypatch.setattr(PyPIStage, "setextsimple", setextsimple, raising=False)
+    monkeypatch.setattr(PyPIStage, "mock_simple", setextsimple, raising=False)
 
 @pytest.fixture
 def pypiurls():

@@ -12,7 +12,7 @@ def test_index_created_on_first_run(monkeypatch, tmpdir):
     import devpi_web.main
     iter_projects = MagicMock()
     iter_projects.return_value = iter([])
-    monkeypatch.setattr(devpi_server.extpypi.PyPIStage, "init_pypi_mirror",
+    monkeypatch.setattr(devpi_server.extpypi.PrimaryMirror, "init_pypi_mirror",
                         lambda self, proxy: None)
     monkeypatch.setattr(devpi_web.main, "iter_projects", iter_projects)
     monkeypatch.setattr(devpi_server.main, "wsgi_run", lambda xom: 0 / 0)
@@ -35,11 +35,11 @@ def test_index_projects_arg(monkeypatch, tmpdir):
     n2s = {u'foo': 1}
     n2n = {u'foo': u'foo'}
     monkeypatch.setattr(
-        devpi_server.extpypi.PyPIStage, "init_pypi_mirror", lambda s, p: None)
+        devpi_server.extpypi.PrimaryMirror, "init_pypi_mirror", lambda s, p: None)
     monkeypatch.setattr(
-        devpi_server.extpypi.PyPIStage, "name2serials", n2s, raising=False)
+        devpi_server.extpypi.PrimaryMirror, "name2serials", n2s, raising=False)
     monkeypatch.setattr(
-        devpi_server.extpypi.PyPIStage, "normname2name", n2n, raising=False)
+        devpi_server.extpypi.PrimaryMirror, "normname2name", n2n, raising=False)
     monkeypatch.setattr(devpi_server.main, "XOM", MyXOM)
     # if the webserver is started, we fail
     monkeypatch.setattr(devpi_server.main, "wsgi_run", lambda xom: 0 / 0)

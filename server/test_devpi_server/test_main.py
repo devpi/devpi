@@ -54,7 +54,7 @@ def test_run_commands_called(monkeypatch, tmpdir):
         def devpiserver_run_commands(self, xom):
             l.append(xom)
             return 1
-    monkeypatch.setattr(devpi_server.extpypi.PyPIStage, "init_pypi_mirror",
+    monkeypatch.setattr(devpi_server.extpypi.PrimaryMirror, "init_pypi_mirror",
                         lambda self, proxy: None)
     # catch if _main doesn't return after run_commands
     monkeypatch.setattr(devpi_server.main, "wsgi_run", lambda xom: 0 / 0)
@@ -72,7 +72,7 @@ def test_main_starts_server_if_run_commands_returns_none(monkeypatch, tmpdir):
     class Plugin:
         def devpiserver_run_commands(self, xom):
             l.append(xom)
-    monkeypatch.setattr(devpi_server.extpypi.PyPIStage, "init_pypi_mirror",
+    monkeypatch.setattr(devpi_server.extpypi.PrimaryMirror, "init_pypi_mirror",
                         lambda self, proxy: None)
     # catch if _main doesn't return after run_commands
     monkeypatch.setattr(devpi_server.main, "wsgi_run", lambda xom: 0 / 0)

@@ -186,14 +186,15 @@ class PyPIStage:
     name = "root/pypi"
     ixconfig = dict(bases=(), volatile=False, type="mirror")
 
-    def __init__(self, keyfs, httpget, filestore):
-        self.keyfs = keyfs
-        self.httpget = httpget
-        self.filestore = filestore
+    def __init__(self, xom):
+        self.keyfs = xom.keyfs
+        self.httpget = xom.httpget
+        self.filestore = xom.filestore
+        self.pypimirror = xom.pypimirror
 
     def getprojectnames(self):
         """ return list of all projects which have been served. """
-        return sorted(self.name2serials)
+        return sorted(self.pypimirror.name2serials)
 
     getprojectnames_perstage = getprojectnames
 
@@ -223,7 +224,7 @@ class PyPIStage:
         If pypi does not return a fresh enough page although we know it
         must exist, return -2.
         """
-        newest_serial = self.name2serials.get(projectname, 0)
+        newest_serial = self.pypimirror.name2serials.get(projectname, 0)
         entries = self._load_cache_entries(projectname, newest_serial)
         if entries is not None:
             return entries
@@ -273,8 +274,8 @@ class PyPIStage:
 
     def get_project_info(self, name):
         norm_name = normalize_name(name)
-        name = self.normname2name.get(norm_name, norm_name)
-        if name in self.name2serials:
+        name = self.pypimirror.normname2name.get(norm_name, norm_name)
+        if name in self.pypimirror.name2serials:
             return ProjectInfo(self, name)
 
     get_project_info_perstage = get_project_info
@@ -307,10 +308,14 @@ class PyPIStage:
         return html.div("please refer to description on remote server ",
             html.a(link, href=link)).unicode(indent=2)
 
+
+class PrimaryMirror:
+    def __init__(self, keyfs):
+        self.keyfs = keyfs
+
     def init_pypi_mirror(self, proxy):
         """ initialize pypi mirror if no mirror state exists. """
         self.proxy = proxy
-
         self.name2serials = load_name2serials(self.keyfs, proxy)
         # create a mapping of normalized name to real name
         self.normname2name = d = dict()
@@ -363,7 +368,6 @@ class PyPIStage:
                 else:
                     subdict = subkey.get()
                     subdict[name] = maxserial
-                    log.info("changing serial of %s to %s" %(name, maxserial))
                     subkey.set(subdict)
         names = []
         for name, maxserial in names:

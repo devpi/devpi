@@ -5,6 +5,7 @@ import pytest
 import subprocess
 from devpi_server.importexport import *
 from devpi_server.main import Fatal
+from devpi_server.extpypi import PyPIStage
 from devpi_common.archive import zip_dict
 
 import devpi_server
@@ -225,8 +226,8 @@ class TestImportExport:
         # in devpi-server 1.0 one could register X_Y and X-Y names
         # and they would get registeded under different names.
         # We simulate it here because 1.1 http API prevents this case.
-        monkeypatch.setattr(mapp1.xom.pypistage, "getprojectnames_perstage",
-                            lambda: ["hello_X"])
+        monkeypatch.setattr(PyPIStage, "getprojectnames_perstage",
+                            lambda self: ["hello_X"])
         with mapp1.xom.keyfs.transaction():
             stage = mapp1.xom.model.getstage(api.stagename)
             stage._register_metadata({"name": "hello_x", "version": "1.1"})

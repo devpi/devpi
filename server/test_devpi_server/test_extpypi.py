@@ -347,14 +347,14 @@ class TestExtPYPIDB:
         # check getreleaselinks properly returns -2 on stale cache returns
         ret = pypistage.getreleaselinks("pytest")
         assert len(ret) == 1
-        pypistage.name2serials["pytest"] = 11
+        pypistage.pypimirror.name2serials["pytest"] = 11
         ret = pypistage.getreleaselinks("pytest")
         assert ret == -2
 
         # disable httpget and see if we still get releaselinks for lower
         # refresh serials
         pypistage.httpget = None
-        pypistage.name2serials["pytest"] = 10
+        pypistage.pypimirror.name2serials["pytest"] = 10
         ret = pypistage.getreleaselinks("pytest")
         assert len(ret) == 1
 
@@ -421,15 +421,16 @@ class TestRefreshManager:
         proxy = mock.create_autospec(XMLProxy)
         d = {"hello": 10, "abc": 42}
         proxy.list_packages_with_serial.return_value = d
-        pypistage.init_pypi_mirror(proxy)
-        assert pypistage.name2serials == d
+        pypistage.pypimirror.init_pypi_mirror(proxy)
+        assert pypistage.pypimirror.name2serials == d
         assert load_name2serials(keyfs, None) == d
         with keyfs.transaction():
             assert pypistage.getprojectnames() == ["abc", "hello"]
 
+    @pytest.mark.notransaction
     def test_pypichanges_loop(self, pypistage, monkeypatch):
-        pypistage.process_changelog = mock.Mock()
-        pypistage.process_refreshes = mock.Mock()
+        pypistage.pypimirror.process_changelog = mock.Mock()
+        pypistage.pypimirror.process_refreshes = mock.Mock()
         proxy = mock.create_autospec(XMLProxy)
         changelog = [
             ["pylib", "1.4", 12123, 'new release', 11],
@@ -439,27 +440,28 @@ class TestRefreshManager:
 
         # we need to have one entry in serials
         pypistage.mock_simple("pytest", pypiserial=27)
+        mirror = pypistage.pypimirror
         with pytest.raises(ValueError):
-            pypistage.spawned_pypichanges(proxy, proxysleep=raise_ValueError)
-        pypistage.process_changelog.assert_called_once_with(changelog)
-        pypistage.process_refreshes.assert_called_once()
+            mirror.spawned_pypichanges(proxy, proxysleep=raise_ValueError)
+        mirror.process_changelog.assert_called_once_with(changelog)
+        mirror.process_refreshes.assert_called_once()
 
     @pytest.mark.notransaction
     def test_pypichanges_changes(self, pypistage, keyfs, monkeypatch):
-        assert not pypistage.name2serials
+        assert not pypistage.pypimirror.name2serials
         pypistage.mock_simple("pytest", '<a href="pytest-2.3.tgz"/a>',
                           pypiserial=20)
         pypistage.mock_simple("Django", '<a href="Django-1.6.tgz"/a>',
                           pypiserial=11)
-        assert len(pypistage.name2serials) == 2
+        assert len(pypistage.pypimirror.name2serials) == 2
         with keyfs.transaction():
             assert len(pypistage.getreleaselinks("pytest")) == 1
             assert len(pypistage.getreleaselinks("Django")) == 1
-        pypistage.process_changelog([
+        pypistage.pypimirror.process_changelog([
             ["Django", "1.4", 12123, 'new release', 25],
             ["pytest", "2.4", 121231, 'new release', 27]
         ])
-        assert len(pypistage.name2serials) == 2
+        assert len(pypistage.pypimirror.name2serials) == 2
         name2serials = load_name2serials(keyfs, None)
         assert name2serials["pytest"] == 27
         assert name2serials["Django"] == 25
@@ -480,9 +482,9 @@ class TestRefreshManager:
         reqreply = reqmock.mockresponse(PYPIURL_XMLRPC, code=400)
         xmlproxy = XMLProxy(PYPIURL_XMLRPC)
         with pytest.raises(ValueError):
-            pypistage.spawned_pypichanges(xmlproxy, proxysleep=raise_ValueError)
+            pypistage.pypimirror.spawned_pypichanges(xmlproxy, proxysleep=raise_ValueError)
         with pytest.raises(ValueError):
-            pypistage.spawned_pypichanges(xmlproxy, proxysleep=raise_ValueError)
+            pypistage.pypimirror.spawned_pypichanges(xmlproxy, proxysleep=raise_ValueError)
         calls = reqreply.requests
         assert len(calls) == 2
         assert xmlrpc.loads(calls[0].body) == ((10,), "changelog_since_serial")

@@ -181,7 +181,8 @@ class User:
         if ixconfig["type"] == "stage":
             return PrivateStage(self.xom, self.name, indexname, ixconfig)
         elif ixconfig["type"] == "mirror":
-            return self.xom.pypistage
+            from .extpypi import PyPIStage
+            return PyPIStage(self.xom)
         else:
             raise ValueError("unknown index type %r" % ixconfig["type"])
          
@@ -415,7 +416,7 @@ class PrivateStage:
             if isinstance(res, int):
                 if res == 404:
                     continue
-                return res
+                assert 0, res
             for ver in res:
                 if ver not in all_projectconfig:
                     all_projectconfig[ver] = res[ver]

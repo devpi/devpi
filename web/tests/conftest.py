@@ -1,6 +1,6 @@
 from test_devpi_server.conftest import gentmp, httpget
 from test_devpi_server.conftest import makemapp, maketestapp, makexom, mapp
-from test_devpi_server.conftest import pypiurls, testapp
+from test_devpi_server.conftest import pypiurls, testapp, pypistage  # noqa
 import pytest
 
 

@@ -219,7 +219,7 @@ class XOM:
 
         # need to initialize the pypi mirror state before importing
         # because importing may access data
-        xom.pypistage.init_pypi_mirror(self.proxy)
+        xom.pypimirror.init_pypi_mirror(self.proxy)
         if args.import_:
             from devpi_server.importexport import do_import
             return do_import(args.import_, xom)
@@ -287,11 +287,9 @@ class XOM:
         return keyfs
 
     @cached_property
-    def pypistage(self):
-        from devpi_server.extpypi import PyPIStage
-        pypistage = PyPIStage(keyfs=self.keyfs, httpget=self.httpget,
-                              filestore=self.filestore)
-        return pypistage
+    def pypimirror(self):
+        from devpi_server.extpypi import PrimaryMirror
+        return PrimaryMirror(self.keyfs)
 
     @cached_property
     def proxy(self):
@@ -406,7 +404,7 @@ class BackgroundPlugin:
 
     def start_background_tasks(self):
         xom = self.xom
-        self._thread = xom.spawn(xom.pypistage.spawned_pypichanges,
+        self._thread = xom.spawn(xom.pypimirror.spawned_pypichanges,
             args=(xom.proxy, lambda: xom.sleep(xom.config.args.refresh)))
 
 class FatalResponse:
