@@ -54,6 +54,7 @@ def doc_show(request, user, index, name, version, relpath):
     if not doc_path.check():
         raise HTTPNotFound("no documentation available")
     return dict(
+        title="%s-%s Documentation" % (name, version),
         base_url=request.route_url(
             "docroot", user=stage.user.name, index=stage.index,
             name=name, version=version, relpath=''),
