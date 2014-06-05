@@ -68,13 +68,13 @@ class FSWriter:
         self.pending_renames = []
         self.changes = {}
 
-    def direct_write(self, path, val):
+    def _direct_write(self, path, val):
         tmpfile = path + "-tmp"
         with tmpfile.open("wb") as f:
             dump(val, f)
         tmpfile.rename(path)
 
-    def set_mutable(self, typedkey, value=_nodefault):
+    def _set_mutable(self, typedkey, value=_nodefault):
         relpath = typedkey.relpath
         target_path = self.fs.basedir.join(relpath)
         tmp_path = target_path + ".tmp"
@@ -98,17 +98,24 @@ class FSWriter:
         self.pending_renames.append((tmp_path.strpath, target_path.strpath))
 
     def set(self, typedkey, value):
-        relpath = typedkey.relpath
-        target_path = self.fs.basedir.join(relpath)
-        tmp_path = target_path + ".tmp"
-        tmp_path.write(value, mode="wb", ensure=True)
-        self.pending_renames.append((tmp_path.strpath, target_path.strpath))
-        self.changes[relpath] = (typedkey.name, value)
+        if typedkey.immutable:
+            assert isinstance(value, bytes), (typedkey, type(val))
+            relpath = typedkey.relpath
+            target_path = self.fs.basedir.join(relpath)
+            tmp_path = target_path + ".tmp"
+            tmp_path.write(value, mode="wb", ensure=True)
+            self.pending_renames.append((tmp_path.strpath, target_path.strpath))
+            self.changes[relpath] = (typedkey.name, value)
+        else:
+            self._set_mutable(typedkey, value)
 
     def delete(self, typedkey):
-        relpath = typedkey.relpath
-        self.pending_removes.append(self.fs.basedir.join(relpath).strpath)
-        self.changes[relpath] = (typedkey.name,)
+        if typedkey.immutable:
+            relpath = typedkey.relpath
+            self.pending_removes.append(self.fs.basedir.join(relpath).strpath)
+            self.changes[relpath] = (typedkey.name,)
+        else:
+            self._set_mutable(typedkey)
 
     def __enter__(self):
         return self
@@ -131,8 +138,9 @@ class FSWriter:
         # write out changelog entry
         p = self.fs.path_changelogdir.join(str(self.fs.next_serial))
         assert not p.exists(), (  # XXX recover
-                    "change entry already exists, unclean shutdown?")
-        self.direct_write(p, self.changes)
+                    "change entry %s already exists, unclean shutdown?" %
+                    self.fs.next_serial)
+        self._direct_write(p, self.changes)
 
         # do all renames and then removes
         for source, dest in self.pending_renames:
@@ -145,7 +153,7 @@ class FSWriter:
 
         # finally increment the serial and write it out
         self.fs.next_serial += 1
-        self.direct_write(self.fs.path_next_serial, self.fs.next_serial)
+        self._direct_write(self.fs.path_next_serial, self.fs.next_serial)
 
 
 def rename(source, dest):
@@ -171,9 +179,41 @@ class KeyFS(object):
         self._threadlocal = threading.local()
         self._fs = Filesystem(self.basedir)
 
+    def _get_typed_key(self, name, relpath):
+        key = self.get_key(name)
+        # XXX avoid parse out and parse back
+        if isinstance(key, PTypedKey):
+            key = key(**key.match_params(relpath))
+        return key
+
+    def import_changelog_entry(self, serial, entry):
+        with self._write_lock:
+            with self._fs.write_transaction() as fswriter:
+                next_serial = self.get_next_serial()
+                assert next_serial == serial, (next_serial, serial)
+                for relpath, tup in entry.items():
+                    name = tup[0]
+                    typedkey = self._get_typed_key(name, relpath)
+                    try:
+                        val = tup[1]
+                    except IndexError:
+                        fswriter.delete(typedkey)
+                    else:
+                        fswriter.set(typedkey, val)
+
+    def get_next_serial(self):
+        return self._fs.next_serial
+
     @property
     def tx(self):
         return getattr(self._threadlocal, "tx")
+
+    def get(self, typedkey, serial):
+        if typedkey.immutable:
+            return self._get(typedkey.relpath)
+        val = self._get_mutable(typedkey.relpath, serial)
+        assert isinstance(val, typedkey.type), val
+        return val
 
     def _get(self, relpath):
         try:
@@ -327,6 +367,7 @@ class TypedKey:
         self.relpath = relpath
         self.type = type
         self.name = name
+        self.immutable = (type == bytes)
 
     def __hash__(self):
         return hash(self.relpath)
@@ -368,20 +409,13 @@ class TypedKey:
 class ReadTransaction(object):
     def __init__(self, keyfs):
         self.keyfs = keyfs
-        self.at_serial = keyfs._fs.next_serial - 1
+        self.at_serial = keyfs.get_next_serial() - 1
         self.cache = {}
         self.dirty = set()
 
-    def get_typed_state(self, typedkey):
-        if typedkey.type == bytes:
-            return self.keyfs._get(typedkey.relpath)
-        val = self.keyfs._get_mutable(typedkey.relpath, self.at_serial)
-        assert isinstance(val, typedkey.type), val
-        return val
-
     def exists_typed_state(self, typedkey):
         try:
-            self.get_typed_state(typedkey)
+            self.keyfs.get(typedkey, self.at_serial)
         except KeyError:
             return False
         return True
@@ -393,7 +427,7 @@ class ReadTransaction(object):
             if typedkey in self.dirty:
                 return typedkey.type()
             try:
-                val = self.get_typed_state(typedkey)
+                val = self.keyfs.get(typedkey, self.at_serial)
             except KeyError:
                 return typedkey.type()
             self.cache[typedkey] = copy_if_mutable(val)
@@ -436,15 +470,9 @@ class WriteTransaction(ReadTransaction):
                     try:
                         val = self.cache[typedkey]
                     except KeyError:
-                        if typedkey.type == bytes:
-                            fswriter.delete(typedkey)
-                        else:
-                            fswriter.set_mutable(typedkey)
+                        fswriter.delete(typedkey)
                     else:
-                        if typedkey.type == bytes:
-                            fswriter.set(typedkey, val)
-                        else:
-                            fswriter.set_mutable(typedkey, val)
+                        fswriter.set(typedkey, val)
                 at_serial = fswriter.fs.next_serial
         finally:
             self._close()
