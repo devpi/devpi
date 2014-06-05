@@ -13,8 +13,9 @@ def key(request):
 
 class TestKeyFS:
 
-    def test_getempty(self, keyfs):
-        pytest.raises(KeyError, lambda: keyfs._get("somekey"))
+    def test_get_non_existent(self, keyfs):
+        key = keyfs.add_key("NAME", "somekey", dict)
+        pytest.raises(KeyError, lambda: keyfs.get_value_at(key, 0))
 
     @pytest.mark.writetransaction
     @pytest.mark.parametrize("val", [b"", b"val"])
@@ -149,7 +150,6 @@ class TestKey:
         key1.set(b"hello")
         assert key1.get() == b"hello"
         keyfs.commit_transaction_in_thread()
-        assert key1.filepath.size() == 5
 
 
 @pytest.mark.notransaction

@@ -74,7 +74,7 @@ class FSWriter:
             dump(val, f)
         tmpfile.rename(path)
 
-    def _set_mutable(self, typedkey, value=_nodefault):
+    def record_set(self, typedkey, value=_nodefault):
         relpath = typedkey.relpath
         target_path = self.fs.basedir.join(relpath)
         tmp_path = target_path + ".tmp"
@@ -97,25 +97,8 @@ class FSWriter:
                 self.changes[relpath] = (typedkey.name,)
         self.pending_renames.append((tmp_path.strpath, target_path.strpath))
 
-    def set(self, typedkey, value):
-        if typedkey.immutable:
-            assert isinstance(value, bytes), (typedkey, type(val))
-            relpath = typedkey.relpath
-            target_path = self.fs.basedir.join(relpath)
-            tmp_path = target_path + ".tmp"
-            tmp_path.write(value, mode="wb", ensure=True)
-            self.pending_renames.append((tmp_path.strpath, target_path.strpath))
-            self.changes[relpath] = (typedkey.name, value)
-        else:
-            self._set_mutable(typedkey, value)
-
-    def delete(self, typedkey):
-        if typedkey.immutable:
-            relpath = typedkey.relpath
-            self.pending_removes.append(self.fs.basedir.join(relpath).strpath)
-            self.changes[relpath] = (typedkey.name,)
-        else:
-            self._set_mutable(typedkey)
+    def record_delete(self, typedkey):
+        self.record_set(typedkey)
 
     def __enter__(self):
         return self
@@ -179,7 +162,7 @@ class KeyFS(object):
         self._threadlocal = threading.local()
         self._fs = Filesystem(self.basedir)
 
-    def _get_typed_key(self, name, relpath):
+    def derive_typed_key(self, name, relpath):
         key = self.get_key(name)
         # XXX avoid parse out and parse back
         if isinstance(key, PTypedKey):
@@ -193,13 +176,13 @@ class KeyFS(object):
                 assert next_serial == serial, (next_serial, serial)
                 for relpath, tup in entry.items():
                     name = tup[0]
-                    typedkey = self._get_typed_key(name, relpath)
+                    typedkey = self.derive_typed_key(name, relpath)
                     try:
                         val = tup[1]
                     except IndexError:
-                        fswriter.delete(typedkey)
+                        fswriter.record_delete(typedkey)
                     else:
-                        fswriter.set(typedkey, val)
+                        fswriter.record_set(typedkey, val)
 
     def get_next_serial(self):
         return self._fs.next_serial
@@ -208,26 +191,8 @@ class KeyFS(object):
     def tx(self):
         return getattr(self._threadlocal, "tx")
 
-    def get(self, typedkey, serial):
-        if typedkey.immutable:
-            return self._get(typedkey.relpath)
-        val = self._get_mutable(typedkey.relpath, serial)
-        assert isinstance(val, typedkey.type), val
-        return val
-
-    def _get(self, relpath):
-        try:
-            with self._getpath(relpath).open("rb") as f:
-                return f.read()
-        except py.error.Error:
-            raise KeyError(relpath)
-
-    def mkdtemp(self, prefix):
-        # XXX only used from devpi-web, could be managed there
-        tmpdir = self.basedir.ensure(".tmp", dir=1)
-        return py.path.local.make_numbered_dir(prefix=prefix, rootdir=tmpdir)
-
-    def _get_mutable(self, relpath, at_serial):
+    def get_value_at(self, typedkey, at_serial):
+        relpath = typedkey.relpath
         try:
             f = self._getpath(relpath).open("rb")
         except py.error.Error:
@@ -260,6 +225,11 @@ class KeyFS(object):
         # we could not find any historic serial lower than target_serial
         # which means the key didn't exist at that point in time
         raise KeyError(relpath)
+
+    def mkdtemp(self, prefix):
+        # XXX only used from devpi-web, could be managed there
+        tmpdir = self.basedir.ensure(".tmp", dir=1)
+        return py.path.local.make_numbered_dir(prefix=prefix, rootdir=tmpdir)
 
     def _exists(self, relpath):
         return self._getpath(relpath).check()
@@ -367,7 +337,6 @@ class TypedKey:
         self.relpath = relpath
         self.type = type
         self.name = name
-        self.immutable = (type == bytes)
 
     def __hash__(self):
         return hash(self.relpath)
@@ -415,7 +384,7 @@ class ReadTransaction(object):
 
     def exists_typed_state(self, typedkey):
         try:
-            self.keyfs.get(typedkey, self.at_serial)
+            self.keyfs.get_value_at(typedkey, self.at_serial)
         except KeyError:
             return False
         return True
@@ -427,7 +396,7 @@ class ReadTransaction(object):
             if typedkey in self.dirty:
                 return typedkey.type()
             try:
-                val = self.keyfs.get(typedkey, self.at_serial)
+                val = self.keyfs.get_value_at(typedkey, self.at_serial)
             except KeyError:
                 return typedkey.type()
             self.cache[typedkey] = copy_if_mutable(val)
@@ -470,9 +439,9 @@ class WriteTransaction(ReadTransaction):
                     try:
                         val = self.cache[typedkey]
                     except KeyError:
-                        fswriter.delete(typedkey)
+                        fswriter.record_delete(typedkey)
                     else:
-                        fswriter.set(typedkey, val)
+                        fswriter.record_set(typedkey, val)
                 at_serial = fswriter.fs.next_serial
         finally:
             self._close()

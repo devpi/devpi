@@ -78,7 +78,7 @@ class FileStore:
         filesize = len(content)
         content_size = r.headers.get("content-length")
         err = None
-        
+
         if content_size and int(content_size) != filesize:
             err = ValueError(
                       "%s: got %s bytes of %r from remote, expected %s" % (
@@ -132,11 +132,6 @@ class FileStore:
         attachments = self.keyfs.ATTACHMENTS.get()
         return list(attachments.get(md5, {}))
 
-
-def getmd5(content):
-    md5 = hashlib.md5()
-    md5.update(content)
-    return md5.hexdigest()
 
 class RelPathEntry(object):
     _attr = set("md5 eggfragment size last_modified content_type url".split())

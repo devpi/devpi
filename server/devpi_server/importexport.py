@@ -105,10 +105,10 @@ class Exporter:
         self.export_users = self.export["users"] = {}
         self.export_indexes = self.export["indexes"] = {}
 
-    def copy_file(self, source, dest):
+    def write_file(self, content, dest):
         dest.dirpath().ensure(dir=1)
-        source.copy(dest)
-        self.tw.line("copied %s to %s" %(source, dest.relto(self.basepath)))
+        dest.write(content)
+        self.tw.line("write file at %s" %(dest.relto(self.basepath),))
         return dest.relto(self.basepath)
 
     def warn(self, msg):
@@ -221,8 +221,9 @@ class IndexDump:
             entry = self.exporter.filestore.getentry(file)
             file_meta = entry._mapping
             assert entry.iscached(), entry.FILE.filepath
-            rel = self.exporter.copy_file(
-                entry.FILE.filepath,
+            content = entry.FILE.get()
+            rel = self.exporter.write_file(
+                content,
                 self.basedir.join(projectname, entry.basename))
             self.add_filedesc("releasefile", projectname, rel,
                                version=versiondata["version"],
@@ -290,7 +291,7 @@ class Importer:
                     user = self.xom.model.get_user(username)
                 else:
                     user = self.xom.model.create_user(username, password="")
-                user._set(userconfig) 
+                user._set(userconfig)
 
         # memorize index inheritance structure
         tree = IndexTree()

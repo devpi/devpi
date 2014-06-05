@@ -129,7 +129,7 @@ class TestFileStore:
         # reget entry and check about content
         entry = filestore.getentry(entry.relpath)
         assert entry.iscached()
-        assert entry.md5 == getmd5(bytes)
+        assert entry.md5 == hashlib.md5(bytes).hexdigest()
         assert entry.size == "3"
         rheaders, bytes = filestore.getfile(entry.relpath, None, chunksize=1)
         assert rheaders == headers
@@ -219,7 +219,7 @@ class TestFileStore:
     def test_store_and_iter(self, filestore):
         content = b"hello"
         entry = filestore.store("user", "index", "something-1.0.zip", content)
-        assert entry.md5 == getmd5(content)
+        assert entry.md5 == hashlib.md5(content).hexdigest()
         assert entry.iscached()
         entry2 = filestore.getentry(entry.relpath)
         assert entry2.basename == "something-1.0.zip"
