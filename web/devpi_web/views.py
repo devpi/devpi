@@ -10,7 +10,6 @@ from py.xml import html
 from pyramid.compat import decode_path_info
 from pyramid.decorator import reify
 from pyramid.httpexceptions import HTTPFound, HTTPNotFound
-from pyramid.httpexceptions import default_exceptionresponse_view
 from pyramid.interfaces import IRoutesMapper
 from pyramid.response import FileResponse
 from pyramid.view import notfound_view_config, view_config
@@ -30,10 +29,12 @@ def doc_serve(request, user, index, name, version, relpath):
     xom = request.registry['xom']
     stage = xom.model.getstage(user, index)
     if not stage:
-        raise HTTPNotFound("no such stage")
+        raise HTTPNotFound("The stage %s/%s could not be found." % (user, index))
     doc_path = get_unpack_path(stage, name, version)
     if not doc_path.check():
-        raise HTTPNotFound("no documentation available")
+        raise HTTPNotFound("No documentation available.")
+    if not doc_path.join(relpath).check():
+        raise HTTPNotFound("File %s not found in documentation." % relpath)
     return FileResponse(str(doc_path.join(relpath)))
 
 
@@ -49,10 +50,12 @@ def doc_show(request, user, index, name, version, relpath):
     xom = request.registry['xom']
     stage = xom.model.getstage(user, index)
     if not stage:
-        raise HTTPNotFound("no such stage")
+        raise HTTPNotFound("The stage %s/%s could not be found." % (user, index))
     doc_path = get_unpack_path(stage, name, version)
     if not doc_path.check():
-        raise HTTPNotFound("no documentation available")
+        raise HTTPNotFound("No documentation available.")
+    if not doc_path.join(relpath).check():
+        raise HTTPNotFound("File %s not found in documentation." % relpath)
     return dict(
         title="%s-%s Documentation" % (name, version),
         base_url=request.route_url(
@@ -66,7 +69,8 @@ def doc_show(request, user, index, name, version, relpath):
             name=name, version=version, relpath=relpath))
 
 
-@notfound_view_config(request_method="GET")
+@notfound_view_config(
+    request_method="GET", renderer="templates/notfound.pt")
 def notfound(request):
     path = decode_path_info(request.environ['PATH_INFO'] or '/')
     registry = request.registry
@@ -81,7 +85,8 @@ def notfound(request):
                 if qs:
                     qs = '?' + qs
                 return HTTPFound(location=nonslashpath + qs)
-    return default_exceptionresponse_view(None, request)
+    request.response.status = 404
+    return dict(msg=request.exception)
 
 
 dist_file_types = {
@@ -178,7 +183,7 @@ def index_get(request, user, index):
     xom = request.registry['xom']
     stage = xom.model.getstage(user, index)
     if not stage:
-        raise HTTPNotFound("no such stage")
+        raise HTTPNotFound("The stage %s/%s could not be found." % (user, index))
     bases = []
     packages = []
     result = dict(
@@ -232,11 +237,11 @@ def project_get(request, user, index, name):
     xom = request.registry['xom']
     stage = xom.model.getstage(user, index)
     if not stage:
-        raise HTTPNotFound("no such stage")
+        raise HTTPNotFound("The stage %s/%s could not be found." % (user, index))
     name = ensure_unicode(name)
     releases = stage.getreleaselinks(name)
     if not releases:
-        raise HTTPNotFound("project %r does not exist" % name)
+        raise HTTPNotFound("The project %s does not exist." % name)
     versions = []
     seen = set()
     for release in releases:
@@ -263,15 +268,15 @@ def version_get(request, user, index, name, version):
     xom = request.registry['xom']
     stage = xom.model.getstage(user, index)
     if not stage:
-        raise HTTPNotFound("no such stage")
+        raise HTTPNotFound("The stage %s/%s could not be found." % (user, index))
     name = ensure_unicode(name)
     version = ensure_unicode(version)
     metadata = stage.get_projectconfig(name)
     if not metadata:
-        raise HTTPNotFound("project %r does not exist" % name)
+        raise HTTPNotFound("The project %s does not exist." % name)
     verdata = metadata.get(version, None)
     if not verdata:
-        raise HTTPNotFound("version %r does not exist" % version)
+        raise HTTPNotFound("The version %s of project %s does not exist." % (version, name))
     infos = []
     skipped_keys = frozenset(
         ("description", "home_page", "name", "summary", "version"))

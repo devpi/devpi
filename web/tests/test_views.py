@@ -46,14 +46,60 @@ def test_sizeof_fmt(input, expected):
     assert sizeof_fmt(input) == expected
 
 
+def test_docs_raw_view(mapp, testapp):
+    api = mapp.create_and_use()
+    content = zip_dict({"index.html": "<html/>"})
+    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=400)
+    mapp.register_metadata({"name": "pkg1", "version": "2.6"})
+    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200)
+    r = testapp.get(api.index + "/pkg1/2.6/+doc/")
+    assert r.status_code == 302
+    r = testapp.get(r.location)
+    assert r.status_code == 200
+    r = testapp.get("/blubber/blubb/pkg1/2.6/+doc/index.html")
+    assert r.status_code == 404
+    content, = r.html.select('#content')
+    assert content.text.strip() == 'The stage blubber/blubb could not be found.'
+    r = testapp.get(api.index + "/pkg1/2.7/+doc/index.html")
+    assert r.status_code == 404
+    content, = r.html.select('#content')
+    assert content.text.strip() == 'No documentation available.'
+    r = testapp.get(api.index + "/pkg1/2.6/+doc/foo.html")
+    assert r.status_code == 404
+    content, = r.html.select('#content')
+    assert content.text.strip() == 'File foo.html not found in documentation.'
+
+
 def test_docs_view(mapp, testapp):
     api = mapp.create_and_use()
     content = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=400)
     mapp.register_metadata({"name": "pkg1", "version": "2.6"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200)
-    r = testapp.get(api.index + "/pkg1/2.6/+d/index.html")
+    r = testapp.get(api.index + "/pkg1/2.6/+d/")
+    assert r.status_code == 302
+    r = testapp.get(r.location)
     assert r.status_code == 200
+    iframe, = r.html.findAll('iframe')
+    assert iframe.attrs['src'] == api.index + "/pkg1/2.6/+doc/index.html"
+    r = testapp.get("/blubber/blubb/pkg1/2.6/+d/index.html")
+    assert r.status_code == 404
+    content, = r.html.select('#content')
+    assert content.text.strip() == 'The stage blubber/blubb could not be found.'
+    r = testapp.get(api.index + "/pkg1/2.7/+d/index.html")
+    assert r.status_code == 404
+    content, = r.html.select('#content')
+    assert content.text.strip() == 'No documentation available.'
+    r = testapp.get(api.index + "/pkg1/2.6/+d/foo.html")
+    assert r.status_code == 404
+    content, = r.html.select('#content')
+    assert content.text.strip() == 'File foo.html not found in documentation.'
+
+
+def test_not_found_redirect(testapp):
+    r = testapp.get('/root/pypi/?foo=bar', headers=dict(accept="text/html"))
+    assert r.status_code == 302
+    assert r.location == 'http://localhost/root/pypi?foo=bar'
 
 
 def test_root_view(testapp):
@@ -91,6 +137,13 @@ def test_index_view(mapp, testapp):
         ("simple index", "http://localhost:80/%s/+simple/" % api.stagename),
         ("root/pypi", "http://localhost:80/root/pypi"),
         ("simple", "http://localhost:80/root/pypi/+simple/")]
+
+
+def test_index_not_found(testapp):
+    r = testapp.get("/blubber/blubb", headers=dict(accept="text/html"))
+    assert r.status_code == 404
+    content, = r.html.select('#content')
+    assert content.text.strip() == 'The stage blubber/blubb could not be found.'
 
 
 def test_index_view_project_info(mapp, testapp):
@@ -165,6 +218,18 @@ def test_project_view(mapp, testapp):
         ("2.6", "http://localhost:80/%s/pkg1/2.6" % api.stagename)]
 
 
+def test_project_not_found(mapp, testapp):
+    api = mapp.create_and_use()
+    r = testapp.get("/blubber/blubb/pkg1", headers=dict(accept="text/html"))
+    assert r.status_code == 404
+    content, = r.html.select('#content')
+    assert content.text.strip() == 'The stage blubber/blubb could not be found.'
+    r = testapp.get(api.index + "/pkg1", headers=dict(accept="text/html"))
+    assert r.status_code == 404
+    content, = r.html.select('#content')
+    assert content.text.strip() == 'The project pkg1 does not exist.'
+
+
 def test_project_view_root_pypi(mapp, testapp):
     with mapp.xom.keyfs.transaction():
         pypistage = mapp.xom.model.getstage('root/pypi')
@@ -219,6 +284,24 @@ def test_version_view(mapp, testapp):
         ("Documentation", "http://localhost:80/%s/pkg1/2.6/+d/index.html" % api.stagename),
         ("pkg1-2.6.tar.gz", "http://localhost/%s/+f/9a0364b9e99bb480dd25e1f0284c8555/pkg1-2.6.tar.gz#md5=9a0364b9e99bb480dd25e1f0284c8555" % api.stagename),
         ("pkg1-2.6.zip", "http://localhost/%s/+f/52360ae08d733016c5603d54b06b5300/pkg1-2.6.zip#md5=52360ae08d733016c5603d54b06b5300" % api.stagename)]
+
+
+def test_version_not_found(mapp, testapp):
+    api = mapp.create_and_use()
+    mapp.upload_file_pypi(
+        "pkg1-2.6.tar.gz", b"content", "pkg1", "2.6")
+    r = testapp.get("/blubber/blubb/pkg1/2.6", headers=dict(accept="text/html"))
+    assert r.status_code == 404
+    content, = r.html.select('#content')
+    assert content.text.strip() == 'The stage blubber/blubb could not be found.'
+    r = testapp.get(api.index + "/pkg2/2.6", headers=dict(accept="text/html"))
+    assert r.status_code == 404
+    content, = r.html.select('#content')
+    assert content.text.strip() == 'The project pkg2 does not exist.'
+    r = testapp.get(api.index + "/pkg1/2.7", headers=dict(accept="text/html"))
+    assert r.status_code == 404
+    content, = r.html.select('#content')
+    assert content.text.strip() == 'The version 2.7 of project pkg1 does not exist.'
 
 
 def test_version_view_root_pypi(mapp, testapp):
