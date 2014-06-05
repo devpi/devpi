@@ -5,14 +5,12 @@ for all indexes.
 """
 from __future__ import unicode_literals
 import hashlib
-import posixpath
-import sys
 import json
 from wsgiref.handlers import format_date_time
 from datetime import datetime
 from time import mktime
-
-from devpi_common.types import propmapping, ensure_unicode
+from devpi_common.types import cached_property
+from .keyfs import _nodefault
 
 from logging import getLogger
 log = getLogger(__name__)
@@ -38,16 +36,16 @@ class FileStore:
             assert parts
             dirname = "_".join(parts[:-1])
             key = self.keyfs.PYPIFILE_NOMD5(user="root", index="pypi",
-                   dirname="_".join(parts[:-1]),
+                   dirname=dirname,
                    basename=parts[-1])
-        entry = self.getentry(key.relpath)
+        entry = FileEntry(key)
         mapping = {"url": link.geturl_nofragment().url}
         mapping["eggfragment"] = link.eggfragment
         mapping["md5"] = link.md5
         if link.md5 != entry.md5:
-            if entry._FILE.exists():
+            if entry.file_exists():
                 log.info("replaced md5, deleting stale %s" % entry.relpath)
-                entry._FILE.delete()
+                entry.file_delete()
             else:
                 if entry.md5:
                     log.info("replaced md5 info for %s" % entry.relpath)
@@ -55,14 +53,25 @@ class FileStore:
         assert entry.url
         return entry
 
-    def getentry(self, relpath):
-        return RelPathEntry(self.keyfs, relpath)
+    def get_file_entry(self, relpath):
+        try:
+            key = self.keyfs.derive_key(relpath)
+        except KeyError:
+            return None
+        return FileEntry(key)
+
+    def get_proxy_file_entry(self, relpath, md5, keyname):
+        try:
+            key = self.keyfs.derive_key(relpath, keyname=keyname)
+        except KeyError:
+            raise # return None
+        return FileEntry(key, md5=md5)
 
     def getfile(self, relpath, httpget, chunksize=8192*16):
-        entry = self.getentry(relpath)
-        if not entry.PATHENTRY.exists():
+        entry = self.get_file_entry(relpath)
+        if entry is None:
             return None, None
-        cached = entry.iscached() and not entry.eggfragment
+        cached = entry.file_exists() and not entry.eggfragment
         if cached:
             return entry.gethttpheaders(), entry.get_file_content()
         else:
@@ -72,7 +81,7 @@ class FileStore:
         # we get and cache the file and some http headers from remote
         r = httpget(entry.url, allow_redirects=True)
         assert r.status_code >= 0, r.status_code
-        log.info("remote-streaming: %s, target %s", r.url, entry.relpath)
+        log.info("reading remote: %s, target %s", r.url, entry.relpath)
         content = r.raw.read()
         digest = hashlib.md5(content).hexdigest()
         filesize = len(content)
@@ -92,19 +101,18 @@ class FileStore:
         self.keyfs.restart_as_write_transaction()
         entry.sethttpheaders(r.headers)
         entry.set_file_content(content)
-        entry.set(md5=digest, size=filesize)
+        entry.set(md5=digest)
         return entry.gethttpheaders(), content
 
     def store(self, user, index, filename, content, last_modified=None):
         digest = hashlib.md5(content).hexdigest()
         key = self.keyfs.STAGEFILE(user=user, index=index,
                                    md5=digest, filename=filename)
-        key.set(content)
-        log.info("setting stagefile %s" % key.relpath)
-        entry = self.getentry(key.relpath)
+        entry = FileEntry(key)
+        entry.set_file_content(content)
         if last_modified is None:
             last_modified = http_date()
-        entry.set(md5=digest, size=len(content), last_modified=last_modified)
+        entry.set(md5=digest, last_modified=last_modified)
         return entry
 
     def add_attachment(self, md5, type, data):
@@ -133,25 +141,54 @@ class FileStore:
         return list(attachments.get(md5, {}))
 
 
-class RelPathEntry(object):
-    _attr = set("md5 eggfragment size last_modified content_type url".split())
+class FileEntry(object):
+    _attr = set("md5 eggfragment last_modified content_type url".split())
 
-    def __init__(self, keyfs, relpath):
-        self.keyfs = keyfs
-        self.relpath = relpath
-        self._FILE = keyfs.FILEPATH(relpath=relpath)
-        self.basename = posixpath.basename(relpath)
-        self.PATHENTRY = keyfs.PATHENTRY(relpath=relpath)
-        self._mapping = self.PATHENTRY.get()
+    def __init__(self, key, md5=_nodefault):
+        self.key = key
+        self.relpath = key.relpath
+        self.basename = self.relpath.split("/")[-1]
+        if md5 is not _nodefault:
+            self.md5 = md5
+
+    @cached_property
+    def key_content(self):
+        return self.key.get()
+
+    def __getattr__(self, name):
+        if name in self._attr:
+            return self.key_content.get(name)
+        raise AttributeError(name)
+
+    @property
+    def meta(self):
+        meta = self.key_content.copy()
+        meta.pop("content", None)
+        return meta
+
+    def file_exists(self):
+        return "content" in self.key_content
+
+    @property
+    def size(self):
+        content = self.get_file_content()
+        if content is not None:
+            return len(content)
 
     def __repr__(self):
-        return "<RelPathEntry %r>" %(self.relpath)
+        return "<FileEntry %r>" %(self.key)
 
     def get_file_content(self):
-        return self._FILE.get()
+        return self.key_content.get("content")
 
     def set_file_content(self, content):
-        self._FILE.set(content)
+        assert isinstance(content, bytes)
+        self.key_content["content"] = content
+        self.key.set(self.key_content)
+
+    def file_delete(self):
+        self.key_content.pop("content", None)
+        self.key.set(self.key_content)
 
     def gethttpheaders(self):
         headers = {}
@@ -164,33 +201,11 @@ class RelPathEntry(object):
 
     def sethttpheaders(self, headers):
         self.set(content_type = headers.get("content-type"),
-                 size = headers.get("content-length"),
                  last_modified = headers.get("last-modified"))
-
-    def exists(self):
-        return bool(self._mapping)
-
-    def invalidate_cache(self):
-        try:
-            del self._mapping["_headers"]
-        except KeyError:
-            pass
-        else:
-            self.PATHENTRY.set(self._mapping)
-        self._FILE.delete()
-
-    def iscached(self):
-        # compare md5 hash if exists with self.filepath
-        # XXX move file store scheme to have md5 hash within the filename
-        # but a filename should only contain the md5 hash if it is verified
-        # i.e. we maintain an invariant that <md5>/filename has a content
-        # that matches the md5 hash. It is therefore possible that a
-        # entry.md5 is set, but entry.relpath
-        return self._FILE.exists()
 
     def __eq__(self, other):
         return (self.relpath == getattr(other, "relpath", None) and
-                self._mapping == other._mapping)
+                self.key == other.key)
 
     def __hash__(self):
         return hash(self.relpath)
@@ -201,18 +216,13 @@ class RelPathEntry(object):
             assert name in self._attr
             if val is not None:
                 mapping[name] = "%s" % (val,)
-        self._mapping.update(mapping)
-        self.PATHENTRY.set(self._mapping)
+        self.key_content.update(mapping)
+        self.key.set(self.key_content)
 
     def delete(self, **kw):
-        self.PATHENTRY.delete()
-        self._FILE.delete()
+        self.key.delete()
+        self.key_content = {}
 
-
-for _ in RelPathEntry._attr:
-    if sys.version_info < (3,0):
-        _ = _.encode("ascii")  # py2 needs str (bytes)
-    setattr(RelPathEntry, _, propmapping(_, convert=ensure_unicode))
 
 def http_date():
     now = datetime.now()

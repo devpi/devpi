@@ -218,10 +218,10 @@ class IndexDump:
     def dump_releasefiles(self, projectname, versiondata):
         files = versiondata.pop("+files", {})
         for basename, file in files.items():
-            entry = self.exporter.filestore.getentry(file)
-            file_meta = entry._mapping
-            assert entry.iscached(), entry.relpath
-            content = entry.get_file_content()
+            entry = self.exporter.filestore.get_file_entry(file)
+            assert entry.file_exists(), entry.relpath
+            file_meta = entry.key_content.copy()
+            content = file_meta.pop("content")
             rel = self.exporter.write_file(
                 content,
                 self.basedir.join(projectname, entry.basename))
@@ -354,7 +354,6 @@ class Importer:
                         p.basename, p.read("rb"),
                         last_modified=mapping["last_modified"])
             assert entry.md5 == mapping["md5"]
-            assert entry.size == mapping["size"]
             self.import_attachments(entry.md5)
         elif filedesc["type"] == "doczip":
             basename = os.path.basename(rel)

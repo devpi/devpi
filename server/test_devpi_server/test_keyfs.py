@@ -272,7 +272,9 @@ class TestTransactionIsolation:
             assert new_keyfs.get_value_at(D2, 1)
         assert new_keyfs.get_value_at(D2, 2) == {2:2}
 
-    def test_derive_key_direct(self, keyfs):
+@notransaction
+class TestDeriveKey:
+    def test_direct_from_file(self, keyfs):
         D = keyfs.add_key("NAME", "hello", dict)
         with keyfs.transaction(write=True):
             D.set({1:1})
@@ -280,15 +282,35 @@ class TestTransactionIsolation:
         assert key == D
         assert key.params == {}
 
-    def test_derive_key_pattern(self, keyfs):
+    def test_pattern_from_file(self, keyfs):
         pkey = keyfs.add_key("NAME", "{name}/{index}", dict)
         params = dict(name="hello", index="world")
         D = pkey(**params)
         with keyfs.transaction(write=True):
             D.set({1:1})
+        assert not hasattr(keyfs, "tx")
         key = keyfs.derive_key(D.relpath)
         assert key == D
         assert key.params == params
+
+    def test_direct_not_committed(self, keyfs):
+        D = keyfs.add_key("NAME", "hello", dict)
+        with keyfs.transaction(write=True):
+            D.set({})
+            key = keyfs.derive_key(D.relpath)
+            assert key == D
+            assert key.params == {}
+
+    def test_pattern_not_committed(self, keyfs):
+        pkey = keyfs.add_key("NAME", "{name}/{index}", dict)
+        params = dict(name="hello", index="world")
+        D = pkey(**params)
+        with keyfs.transaction(write=True):
+            D.set({})
+            key = keyfs.derive_key(D.relpath)
+            assert key == D
+            assert key.params == params
+
 
 
 @notransaction

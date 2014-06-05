@@ -22,7 +22,8 @@ def register_and_store(stage, basename, content=b"123", name=None):
     if name is None:
         name = n
     stage.register_metadata(dict(name=name, version=version))
-    return stage.store_releasefile(name, version, basename, content)
+    res = stage.store_releasefile(name, version, basename, content)
+    return res
 
 def test_is_empty(model, keyfs):
     assert model.is_empty()
@@ -300,7 +301,7 @@ class TestStage:
         entry = register_and_store(stage, "some-1.0.zip", content)
         assert len(stage.getreleaselinks("some")) == 1
 
-        # rewrite  fails
+        # rewrite  fails because index is non-volatile
         entry = stage.store_releasefile("some", "1.0",
                                         "some-1.0.zip", content2)
         assert entry == 409
@@ -309,6 +310,7 @@ class TestStage:
         stage.modify(volatile=True)
         entry = stage.store_releasefile("some", "1.0",
                                         "some-1.0.zip", content2)
+        assert not isinstance(entry, int), entry
         entries = stage.getreleaselinks("some")
         assert len(entries) == 1
         assert entries[0].get_file_content() == content2

@@ -235,11 +235,14 @@ class KeyFS(object):
         If keyname is not specified, the relpath key must exist
         to extract its name. """
         if keyname is None:
-            filepath = os.path.join(str(self.basedir), relpath)
             try:
-                keyname, last_serial = load_from_file(filepath)
-            except IOError:
-                raise KeyError(relpath)
+                return self.tx.get_key_in_transaction(relpath)
+            except (AttributeError, KeyError):
+                filepath = os.path.join(str(self.basedir), relpath)
+                try:
+                    keyname, last_serial = load_from_file(filepath)
+                except IOError:
+                    raise KeyError(relpath)
         key = self.get_key(keyname)
         if isinstance(key, PTypedKey):
             key = key(**key.extract_params(relpath))
@@ -409,7 +412,7 @@ class TypedKey:
     def params(self):
         key = self.keyfs.get_key(self.name)
         if isinstance(key, PTypedKey):
-            return key.extract_params(relpath)
+            return key.extract_params(self.relpath)
         return {}
 
     def register_subscriber(self, func):
@@ -462,6 +465,12 @@ class ReadTransaction(object):
         except KeyError:
             return False
         return True
+
+    def get_key_in_transaction(self, relpath):
+        for key in self.cache:
+            if key.relpath == relpath:
+                return key
+        raise KeyError(relpath)
 
     def get(self, typedkey):
         try:

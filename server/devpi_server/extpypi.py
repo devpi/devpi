@@ -198,22 +198,28 @@ class PyPIStage:
 
     getprojectnames_perstage = getprojectnames
 
-    def _dump_project_cache(self, projectname, dumplist, serial):
+    def _dump_project_cache(self, projectname, entries, serial):
         normname = normalize_name(projectname)
+        dumplist = [(entry.relpath, entry.md5, entry.key.name)
+                            for entry in entries]
         data = {"serial": serial,
                 "entrylist": dumplist,
                 "projectname": projectname}
+        log.debug("saving data for %s: %s", projectname, data)
         self.keyfs.PYPILINKS(name=normname).set(data)
 
     def _load_project_cache(self, projectname):
         normname = normalize_name(projectname)
-        return self.keyfs.PYPILINKS(name=normname).get()
+        data = self.keyfs.PYPILINKS(name=normname).get()
+        log.debug("load data for %s: %s", projectname, data)
+        return data
 
     def _load_cache_entries(self, projectname, required_serial):
         cache = self._load_project_cache(projectname)
         if cache and cache["serial"] >= required_serial:
-            return [self.filestore.getentry(relpath)
-                        for relpath in cache["entrylist"]]
+            get_proxy = self.filestore.get_proxy_file_entry
+            return [get_proxy(relpath, md5, keyname=keyname)
+                        for relpath, md5, keyname in cache["entrylist"]]
 
     def getreleaselinks(self, projectname):
         """ return all releaselinks from the index and referenced scrape
@@ -266,8 +272,7 @@ class PyPIStage:
             return entries
         # compute release link entries and cache according to serial
         entries = [self.filestore.maplink(link) for link in releaselinks]
-        dumplist = [entry.relpath for entry in entries]
-        self._dump_project_cache(real_projectname, dumplist, serial)
+        self._dump_project_cache(real_projectname, entries, serial)
         return entries
 
     getreleaselinks_perstage = getreleaselinks
@@ -417,7 +422,7 @@ def load_name2serials(keyfs, proxy):
             for splitkey, subdict in splitkey2dict.items():
                 keyfs.PYPISERIALS(splitkey=splitkey).set(subdict)
                 splitkeys.add(splitkey)
-            keyfs.PYPISERIALSPLITKEYS.set(splitkeys) 
+            keyfs.PYPISERIALSPLITKEYS.set(splitkeys)
     return name2serials
 
 

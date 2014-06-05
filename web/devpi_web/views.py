@@ -90,7 +90,7 @@ def get_files_info(request, user, index, metadata):
             "project %r version %r has no files",
             metadata["name"], metadata.get("version"))
     for basename in sorted(filedata):
-        entry = xom.filestore.getentry(filedata[basename])
+        entry = xom.filestore.get_file_entry(filedata[basename])
         files.append(dict(
             title=basename,
             url=request.route_url(

@@ -419,7 +419,7 @@ def test_upload_and_access_releasefile_meta(mapp):
     href = list(json["result"]["2.6"]["+files"].values())[0]
     pkgmeta = mapp.getjson("/" + href)
     assert pkgmeta["type"] == "releasefilemeta"
-    assert pkgmeta["result"]["size"] == "3"
+    assert pkgmeta["result"]["md5"]
 
 def test_upload_and_delete_project_version(mapp):
     api = mapp.create_and_use()

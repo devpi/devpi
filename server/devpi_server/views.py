@@ -380,8 +380,8 @@ class PyPIView:
             if verdata:
                 files = verdata.get("+files")
                 for basename, relpath in files.items():
-                    entry = stage.xom.filestore.getentry(relpath)
-                    if not entry.iscached():
+                    entry = stage.xom.filestore.get_file_entry(relpath)
+                    if not entry.file_exists():
                         abort(request, 400, "cannot push non-cached files")
                     matches.append(entry)
                 metadata = get_pure_metadata(verdata)
@@ -646,10 +646,10 @@ class PyPIView:
             relpath = relpath.split("#", 1)[0]
         filestore = self.xom.filestore
         if json_preferred(request):
-            entry = filestore.getentry(relpath)
-            if not entry.exists():
+            entry = filestore.get_file_entry(relpath)
+            if not entry or not entry.meta:
                 apireturn(404, "no such release file")
-            apireturn(200, type="releasefilemeta", result=entry._mapping)
+            apireturn(200, type="releasefilemeta", result=entry.meta)
         headers, content = filestore.getfile(relpath, self.xom.httpget)
         if headers is None:
             abort(request, 404, "no such file")

@@ -151,23 +151,21 @@ def add_keys(keyfs):
     keyfs.add_key("PYPISERIALSPLITKEYS", "root/pypi/serials/+splitkeys", set)
     keyfs.add_key("PYPISERIALS", "root/pypi/serials/{splitkey}", dict)
     keyfs.add_key("PYPIFILE_NOMD5",
-                 "{user}/{index}/+e/{dirname}/{basename}", bytes)
+                 "{user}/{index}/+e/{dirname}/{basename}", dict)
     keyfs.add_key("PYPISTAGEFILE",
-                  "{user}/{index}/+f/{md5a}/{md5b}/{filename}", bytes)
+                  "{user}/{index}/+f/{md5a}/{md5b}/{filename}", dict)
 
     # type "stage" related
     keyfs.add_key("PROJCONFIG", "{user}/{index}/{name}/.config", dict)
     keyfs.add_key("PROJNAMES", "{user}/{index}/.projectnames", set)
-    keyfs.add_key("STAGEFILE", "{user}/{index}/+f/{md5}/{filename}", bytes)
+    keyfs.add_key("STAGEFILE", "{user}/{index}/+f/{md5}/{filename}", dict)
 
     keyfs.add_key("RELDESCRIPTION",
                   "{user}/{index}/{name}/{version}/description_html", bytes)
 
     keyfs.add_key("ATTACHMENT", "+attach/{md5}/{type}/{num}", bytes)
     keyfs.add_key("ATTACHMENTS", "+attach/.att", dict)
-    # generic
-    keyfs.add_key("PATHENTRY", "{relpath*}-meta", dict)
-    keyfs.add_key("FILEPATH", "{relpath*}", bytes)
+
 
 class XOM:
     class Exiting(SystemExit):
@@ -372,8 +370,8 @@ class XOM:
             pass
         else:
             assert immediatetasks
-            xom.spawn(xom.pypimirror.spawned_pypichanges,
-                args=(xom.proxy, lambda: xom.sleep(xom.config.args.refresh)))
+            self.spawn(self.pypimirror.spawned_pypichanges,
+                args=(self.proxy, lambda: self.sleep(self.config.args.refresh)))
         return app
 
 

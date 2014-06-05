@@ -243,6 +243,7 @@ class PrivateStage:
             ixconfig = userconfig["indexes"][self.index]
             ixconfig.update(kw)
             log.info("modified index %s: %s", self.name, ixconfig)
+            self.ixconfig = ixconfig
             return ixconfig
 
     def get(self):
@@ -369,7 +370,7 @@ class PrivateStage:
                 return False
             self.log_info("deleting version %r of project %r", version, name)
             for relpath in verdata.get("+files", {}).values():
-                entry = self.xom.filestore.getentry(relpath)
+                entry = self.xom.filestore.get_file_entry(relpath)
                 entry.delete()
         if cleanup and not projectconfig:
             self.log_info("no version left, deleting project %r", name)
@@ -457,7 +458,7 @@ class PrivateStage:
         files = []
         for verdata in projectconfig.values():
             files.extend(
-                map(self.xom.filestore.getentry,
+                map(self.xom.filestore.get_file_entry,
                     verdata.get("+files", {}).values()))
         return files
 
@@ -519,7 +520,7 @@ class PrivateStage:
         if metadata:
             doczip = metadata.get("+doczip")
             if doczip:
-                entry = self.xom.filestore.getentry(doczip)
+                entry = self.xom.filestore.get_file_entry(doczip)
                 if entry:
                     return entry.get_file_content()
 
