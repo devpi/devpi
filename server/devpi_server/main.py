@@ -369,43 +369,11 @@ class XOM:
         if immediatetasks == -1:
             pass
         else:
-            plugin = BackgroundPlugin(xom=self)
-            if immediatetasks:
-                plugin.start_background_tasks()
-            else:  # defer to when the first request arrives
-                raise NotImplementedError
+            assert immediatetasks
+            xom.spawn(xom.pypimirror.spawned_pypichanges,
+                args=(xom.proxy, lambda: xom.sleep(xom.config.args.refresh)))
         return app
 
-class BackgroundPlugin:
-    api = 2
-    name = "pypistage_refresh"
-
-    _thread = None
-
-    def __init__(self, xom):
-        self.xom = xom
-        assert xom.proxy
-
-    def setup(self, app):
-        log.debug("plugin.setup(%r)", app)
-        self.app = app
-
-    def apply(self, callback, route):
-        log.debug("plugin.apply() with %r, %r", callback, route)
-        def mywrapper(*args, **kwargs):
-            if not self._thread:
-                self.start_background_tasks()
-                self.app.uninstall(self)
-            return callback(*args, **kwargs)
-        return mywrapper
-
-    def close(self):
-        log.debug("plugin.close() called")
-
-    def start_background_tasks(self):
-        xom = self.xom
-        self._thread = xom.spawn(xom.pypimirror.spawned_pypichanges,
-            args=(xom.proxy, lambda: xom.sleep(xom.config.args.refresh)))
 
 class FatalResponse:
     status_code = -1
