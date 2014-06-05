@@ -1,3 +1,8 @@
+body, html {
+    background: white;
+    color: black;
+}
+
 form#search h1 {
     font-family: sans-serif;
     display: inline-block;
@@ -76,6 +81,45 @@ form#search input[type=submit] {
 .batch_links li.prev,
 .batch_links li.next {
     width: 3em;
+}
+
+table.projectinfos .key {
+    vertical-align: top;
+    font-weight: bold;
+}
+
+table.projectinfos ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+table.files {
+    margin: 0.5em 0;
+    border-collapse: collapse;
+    border: 1px solid #ccc;
+}
+
+table.files th {
+    background: #ccc;
+    border-left: 1px solid #ccc;
+    border-right: 1px solid #ccc;
+    padding: 0.15em 0.4em;
+}
+
+table.files td {
+    border-left: 1px solid #ccc;
+    border-right: 1px solid #ccc;
+    padding: 0.15em 0.4em;
+}
+
+table.files tr:nth-child(even) {
+    background: #efefef;
+}
+
+table.files thead {
+    text-align: left;
+    font-weight: bold;
 }
 
 iframe {

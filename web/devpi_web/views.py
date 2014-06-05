@@ -236,17 +236,25 @@ def version_get(request, user, index, name, version):
     if not verdata:
         raise HTTPNotFound("version %r does not exist" % version)
     infos = []
+    skipped_keys = frozenset(
+        ("description", "home_page", "name", "summary", "version"))
     for key, value in sorted(verdata.items()):
-        if key == "description" or key.startswith('+'):
+        if key in skipped_keys or key.startswith('+'):
             continue
         if isinstance(value, list):
+            if not len(value):
+                continue
             value = html.ul([html.li(x) for x in value]).unicode()
         else:
+            if not value:
+                continue
             value = py.xml.escape(value)
         infos.append((py.xml.escape(key), value))
     return dict(
         title="%s/: %s-%s metadata and description" % (stage.name, name, version),
         content=stage.get_description(name, version),
+        home_page=verdata.get("home_page"),
+        summary=verdata.get("summary"),
         infos=infos,
         files=get_files_info(request, user, index, verdata),
         docs=get_docs_info(request, stage, verdata))

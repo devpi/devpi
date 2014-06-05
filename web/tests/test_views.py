@@ -170,25 +170,23 @@ def test_project_view_root_pypi(mapp, testapp):
 
 def test_version_view(mapp, testapp):
     api = mapp.create_and_use()
-    mapp.register_metadata({
-        "name": "pkg1",
-        "version": "2.6",
-        "description": "foo"})
     mapp.upload_file_pypi(
         "pkg1-2.6.tar.gz", b"content", "pkg1", "2.6")
     mapp.upload_file_pypi(
         "pkg1-2.6.zip", b"contentzip", "pkg1", "2.6")
     content = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200)
+    mapp.register_metadata({
+        "name": "pkg1",
+        "version": "2.6",
+        "author": "Foo Bear",
+        "description": "foo"})
     r = testapp.get(api.index + '/pkg1/2.6', headers=dict(accept="text/html"))
     assert r.status_code == 200
     assert r.html.find('title').text == "user1/dev/: pkg1-2.6 metadata and description"
-    info = dict((t.text for t in x.findAll('td')) for x in r.html.findAll('tr'))
-    assert sorted(info.keys()) == [
-        'author', 'author_email', 'classifiers', 'download_url', 'home_page',
-        'keywords', 'license', 'name', 'platform', 'summary', 'version']
-    assert info['name'] == 'pkg1'
-    assert info['version'] == '2.6'
+    info = dict((t.text for t in x.findAll('td')) for x in r.html.select('.projectinfos tr'))
+    assert sorted(info.keys()) == ['author']
+    assert info['author'] == 'Foo Bear'
     description = r.html.select('#description')
     assert len(description) == 1
     description = description[0]
@@ -197,7 +195,7 @@ def test_version_view(mapp, testapp):
         'utf-8') == '<p>foo</p>'
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
-        ("pkg1-2.6 docs", "http://localhost:80/%s/pkg1/2.6/+d/index.html" % api.stagename),
+        ("Documentation", "http://localhost:80/%s/pkg1/2.6/+d/index.html" % api.stagename),
         ("pkg1-2.6.tar.gz", "http://localhost:80/%s/+f/9a0364b9e99bb480dd25e1f0284c8555/pkg1-2.6.tar.gz" % api.stagename),
         ("pkg1-2.6.zip", "http://localhost:80/%s/+f/52360ae08d733016c5603d54b06b5300/pkg1-2.6.zip" % api.stagename)]
 
