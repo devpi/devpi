@@ -3,9 +3,13 @@ import pytest
 
 from devpi_server.keyfs import KeyFS, WriteTransaction, ReadTransaction, load
 
-@pytest.fixture
-def keyfs(gentmp):
-    return KeyFS(gentmp())
+notransaction = pytest.mark.notransaction
+
+@pytest.yield_fixture
+def keyfs(gentmp, xom):
+    keyfs = KeyFS(gentmp())
+    yield keyfs
+    keyfs.shutdown()
 
 @pytest.fixture(params=["direct", "a/b/c", ])
 def key(request):
@@ -152,7 +156,7 @@ class TestKey:
         keyfs.commit_transaction_in_thread()
 
 
-@pytest.mark.notransaction
+@notransaction
 @pytest.mark.parametrize(("type", "val"),
         [(dict, {1:2}),
          (set, set([1,2])),
@@ -175,7 +179,7 @@ def test_trans_get_not_modify(keyfs, type, val, monkeypatch):
         x = attr.get()
     assert x == val
 
-@pytest.mark.notransaction
+@notransaction
 class TestTransactionIsolation:
     def test_cannot_write_on_read_trans(self, keyfs):
         tx_1 = ReadTransaction(keyfs)
@@ -267,8 +271,39 @@ class TestTransactionIsolation:
             assert new_keyfs.get_value_at(D2, 1)
         assert new_keyfs.get_value_at(D2, 2) == {2:2}
 
+class TestSubscriber:
+    @notransaction
+    def test_change_subscription(self, keyfs, queue):
+        key1 = keyfs.add_key("NAME1", "hello", int)
+        key1.register_subscriber(queue.put)
+        with keyfs.transaction():
+            key1.set(1)
+            assert queue.empty()
+        event = queue.get()
+        assert event.value == 1
+        assert event.typedkey == key1
+        assert event.at_serial == 0
+        assert event.back_serial == -1
 
-@pytest.mark.notransaction
+    @notransaction
+    def test_change_subscription_fails(self, keyfs, queue):
+        key1 = keyfs.add_key("NAME1", "hello", int)
+        def failing(event):
+            queue.put("willfail")
+            0/0
+        key1.register_subscriber(failing)
+        key1.register_subscriber(queue.put)
+        with keyfs.transaction():
+            key1.set(1)
+            assert queue.empty()
+        msg = queue.get()
+        assert msg == "willfail"
+        event = queue.get()
+        assert event.typedkey == key1
+
+
+
+@notransaction
 def test_bound_history_size(keyfs):
     D = keyfs.add_key("NAME", "some", dict)
     tx = ReadTransaction(keyfs)

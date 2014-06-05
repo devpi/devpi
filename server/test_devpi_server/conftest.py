@@ -15,12 +15,24 @@ from devpi_common.url import URL
 from devpi_server.extpypi import XMLProxy
 from devpi_server.extpypi import PyPIStage
 import hashlib
+try:
+    from queue import Queue
+except ImportError:
+    from Queue import Queue
+
+class TimeoutQueue(Queue):
+    def get(self, timeout=10):
+        return Queue.get(self, timeout=timeout)
 
 log = logging.getLogger(__name__)
 
 def pytest_addoption(parser):
     parser.addoption("--slow", action="store_true", default=False,
         help="run slow tests involving remote services (pypi.python.org)")
+
+@pytest.fixture
+def queue():
+    return TimeoutQueue()
 
 @pytest.fixture()
 def caplog(caplog):
@@ -74,7 +86,7 @@ def auto_transact(request):
         keyfs.rollback_transaction_in_thread()
     except AttributeError:  # already finished within the test
         pass
-    
+
 
 @pytest.fixture
 def xom(request, makexom):
@@ -447,7 +459,7 @@ def noiter(monkeypatch, request):
             return self.body_old
         if self.app_iter:
             l.append(self.app_iter)
-    monkeypatch.setattr(TestResponse, "body_old", TestResponse.body, 
+    monkeypatch.setattr(TestResponse, "body_old", TestResponse.body,
                         raising=False)
     monkeypatch.setattr(TestResponse, "body", body)
     yield

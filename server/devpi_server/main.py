@@ -169,7 +169,6 @@ def add_keys(keyfs):
     keyfs.add_key("PATHENTRY", "{relpath*}-meta", dict)
     keyfs.add_key("FILEPATH", "{relpath*}", bytes)
 
-
 class XOM:
     class Exiting(SystemExit):
         pass
@@ -286,6 +285,7 @@ class XOM:
         from devpi_server.keyfs import KeyFS
         keyfs = KeyFS(self.config.serverdir)
         add_keys(keyfs)
+        self.addshutdownfunc("keyfs shutdown", keyfs.shutdown)
         return keyfs
 
     @cached_property
