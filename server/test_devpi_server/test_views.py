@@ -12,6 +12,10 @@ from devpi_common.metadata import splitbasename
 from devpi_common.url import URL
 import devpi_server.views
 from devpi_common.archive import Archive, zip_dict
+from devpi_server.keyfs import load
+
+def loads(bytestring):
+    return load(py.io.BytesIO(bytestring))
 
 from .functional import TestUserThings, TestIndexThings  # noqa
 
@@ -584,7 +588,7 @@ class TestChangelog:
         assert num == serial + 1
         mapp.create_user("this", password="p")
         r2 = testapp.get("/+changelog?since=%s" % num)
-        entries2 = [marshal.loads(x) for x in r2.app_iter]
+        entries2 = [loads(x) for x in r2.app_iter]
         assert len(entries2) == 1
         record_set = dict(entries2[0]["record_set"])
         assert "this/.config" in record_set

@@ -12,13 +12,18 @@ import py
 import threading
 import os
 import sys
-import marshal
+from execnet.gateway_base import Unserializer, _Serializer
 
 import logging
 
 log = logging.getLogger(__name__)
 _nodefault = object()
 
+def load(io):
+    return Unserializer(io, strconfig=(False, False)).load(versioned=False)
+
+def dump(obj, io):
+    return _Serializer(io.write).save(obj)
 
 
 class Filesystem:
@@ -33,7 +38,7 @@ class Filesystem:
        
     def _read(self, path):
         with path.open("rb") as f:
-            return marshal.load(f)
+            return load(f)
 
     def write_transaction(self):
         return FSWriter(self)
@@ -64,7 +69,7 @@ class FSWriter:
     def direct_write(self, path, val):
         tmpfile = path + "-tmp"
         with tmpfile.open("wb") as f:
-            marshal.dump(val, f)
+            dump(val, f)
         tmpfile.rename(path)
 
     def set_mutable(self, relpath, value=_nodefault):
@@ -74,16 +79,16 @@ class FSWriter:
         next_serial = self.fs.next_serial
         try:
             with target_path.open("rb") as f:
-                history_serials = [next_serial] + marshal.load(f)
+                history_serials = [next_serial] + load(f)
                 # we record a maximum of the last three changing serials
                 del history_serials[3:] 
         except py.error.Error:
             history_serials = [next_serial]
             tmp_path.dirpath().ensure(dir=1)
         with tmp_path.open("wb") as f:
-            marshal.dump(history_serials, f)
+            dump(history_serials, f)
             if value is not _nodefault: 
-                marshal.dump(value, f)
+                dump(value, f)
                 self.record_set.append((relpath, value))
             else:
                 self.record_deleted.append(relpath)
@@ -187,11 +192,11 @@ class KeyFS(object):
         except py.error.Error:
             raise KeyError(relpath)
         with f:
-            history_serials = marshal.load(f)
+            history_serials = load(f)
             if history_serials.pop(0) <= at_serial:
                 # latest state is older already than what we require
                 try:
-                    return marshal.load(f)
+                    return load(f)
                 except EOFError:  # a delete entry
                     raise KeyError(relpath)
            
