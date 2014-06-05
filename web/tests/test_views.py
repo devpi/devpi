@@ -189,7 +189,7 @@ def test_version_view(mapp, testapp):
         'keywords', 'license', 'name', 'platform', 'summary', 'version']
     assert info['name'] == 'pkg1'
     assert info['version'] == '2.6'
-    description = r.html.select('div.description')
+    description = r.html.select('#description')
     assert len(description) == 1
     description = description[0]
     assert py.builtin._totext(

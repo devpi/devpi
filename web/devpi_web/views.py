@@ -380,6 +380,12 @@ class SearchView:
             elif text_type in ('keywords', 'description', 'summary'):
                 text = metadata.get(text_type)
                 highlight = search_index.highlight(text, sub_hit.get('words'))
+                if 'version' in data:
+                    sub_hit['url'] = self.request.route_url(
+                        "/{user}/{index}/{name}/{version}",
+                        user=data['user'], index=data['index'],
+                        name=data['name'], version=data['version'],
+                        _anchor=text_type)
             else:
                 log.error("Unknown text_type %s" % text_type)
                 continue
