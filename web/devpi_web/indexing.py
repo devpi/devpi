@@ -1,4 +1,5 @@
 from devpi_common.metadata import Version
+from devpi_common.types import ensure_unicode
 from devpi_web.doczip import iter_doc_contents
 from logging import getLogger
 import py
@@ -43,9 +44,10 @@ def iter_projects(xom):
     tw = py.io.TerminalWriter()
     timestamp = time.time()
     for user in xom.model.get_userlist():
-        username = user.name
+        username = ensure_unicode(user.name)
         user_info = user.get(user)
         for index, index_info in user_info.get('indexes', {}).items():
+            index = ensure_unicode(index)
             stage = xom.model.getstage('%s/%s' % (username, index))
             # if stage is None:
             #     continue
@@ -55,6 +57,7 @@ def iter_projects(xom):
             names = stage.getprojectnames_perstage()
             length = len(names)
             for count, name in enumerate(names, start=1):
+                name = ensure_unicode(name)
                 current_time = time.time()
                 if current_time - timestamp > 1:
                     timestamp = current_time
