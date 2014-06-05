@@ -342,6 +342,22 @@ def test_version_view_root_pypi_external_files(mapp, testapp):
         ("https://pypi.python.org/pypi/pkg1/2.7/", "https://pypi.python.org/pypi/pkg1/2.7/")]
 
 
+def test_search_nothing(testapp):
+    r = testapp.get('/+search?query=')
+    assert r.status_code == 200
+    assert r.html.select('.searchresults') == []
+    content, = r.html.select('#content')
+    assert content.text.strip() == 'Your search  did not match anything.'
+
+
+def test_search_no_results(testapp):
+    r = testapp.get('/+search?query=blubber')
+    assert r.status_code == 200
+    assert r.html.select('.searchresults') == []
+    content, = r.html.select('#content')
+    assert content.text.strip() == 'Your search blubber did not match anything.'
+
+
 def test_search_docs(mapp, testapp):
     api = mapp.create_and_use()
     mapp.register_metadata({
@@ -363,3 +379,77 @@ def test_search_docs(mapp, testapp):
     assert [(l.text.strip(), l.attrs['href']) for l in links] == [
         ("pkg1-2.6", "http://localhost:80/%s/pkg1/2.6" % api.stagename),
         ("Foo", "http://localhost:80/%s/pkg1/2.6/+d/index.html" % api.stagename)]
+
+
+def test_search_root_pypi(mapp, testapp):
+    from devpi_web.main import get_indexer
+    with mapp.xom.keyfs.transaction():
+        pypistage = mapp.xom.model.getstage('root/pypi')
+        pypistage.name2serials['pkg1'] = {}
+        cache = {
+            "serial": 0,
+            "entrylist": ['root/pypi/+f/52360ae08d733016c5603d54b06b5300/pkg1-2.6.zip'],
+            "projectname": 'pkg1'}
+        pypistage.keyfs.PYPILINKS(name='pkg1').set(cache)
+        pypistage.name2serials['pkg2'] = {}
+    indexer = get_indexer(mapp.xom.config)
+    indexer.update_projects([
+        dict(name=u'pkg1', user=u'root', index=u'pypi'),
+        dict(name=u'pkg2', user=u'root', index=u'pypi')], clear=True)
+    r = testapp.get('/+search?query=pkg')
+    assert r.status_code == 200
+    search_results = r.html.select('.searchresults > dl > dt')
+    assert len(search_results) == 2
+    links = search_results[0].findAll('a')
+    assert sorted((l.text.strip(), l.attrs['href']) for l in links) == [
+        ("pkg1", "http://localhost:80/root/pypi/pkg1")]
+    links = search_results[1].findAll('a')
+    assert sorted((l.text.strip(), l.attrs['href']) for l in links) == [
+        ("pkg2", "http://localhost:80/root/pypi/pkg2")]
+
+
+@pytest.mark.parametrize("pagecount, pagenum, expected", [
+    (1, 1, [
+        {'class': 'prev'}, {'class': 'current', 'title': 1}, {'class': 'next'}]),
+    (2, 1, [
+        {'class': 'prev'},
+        {'class': 'current', 'title': 1},
+        {'title': 2, 'url': u'search?page=2&query='},
+        {'class': 'next', 'title': 'Next', 'url': 'search?page=2&query='}]),
+    (2, 2, [
+        {'class': 'prev', 'title': 'Prev', 'url': 'search?page=1&query='},
+        {'title': 1, 'url': u'search?page=1&query='},
+        {'class': 'current', 'title': 2},
+        {'class': 'next'}]),
+    (3, 1, [
+        {'class': 'prev'},
+        {'class': 'current', 'title': 1},
+        {'title': 2, 'url': u'search?page=2&query='},
+        {'title': 3, 'url': u'search?page=3&query='},
+        {'class': 'next', 'title': 'Next', 'url': 'search?page=2&query='}]),
+    (3, 2, [
+        {'class': 'prev', 'title': 'Prev', 'url': 'search?page=1&query='},
+        {'title': 1, 'url': u'search?page=1&query='},
+        {'class': 'current', 'title': 2},
+        {'title': 3, 'url': u'search?page=3&query='},
+        {'class': 'next', 'title': 'Next', 'url': 'search?page=3&query='}]),
+    (10, 2, [
+        {'class': 'prev', 'title': 'Prev', 'url': 'search?page=1&query='},
+        {'title': 1, 'url': u'search?page=1&query='},
+        {'class': 'current', 'title': 2},
+        {'title': 3, 'url': u'search?page=3&query='},
+        {'title': 4, 'url': u'search?page=4&query='},
+        {'title': 5, 'url': u'search?page=5&query='},
+        {'title': u'\u2026'},
+        {'title': 10, 'url': u'search?page=10&query='},
+        {'class': 'next', 'title': 'Next', 'url': 'search?page=3&query='}])])
+def test_search_batch_links(dummyrequest, pagecount, pagenum, expected):
+    from devpi_web.views import SearchView
+    view = SearchView(dummyrequest)
+    items = [dict()]
+    view.__dict__['search_result'] = dict(items=items, info=dict(
+        pagecount=pagecount, pagenum=pagenum))
+    dummyrequest.params['page'] = str(pagenum)
+    dummyrequest.route_url = lambda r, **kw: "search?%s" % "&".join(
+        "%s=%s" % x for x in sorted(kw['_query'].items()))
+    assert view.batch_links == expected

@@ -352,6 +352,8 @@ class SearchView:
     @reify
     def batch_links(self):
         batch_links = []
+        if not self.search_result or not self.search_result['items']:
+            return
         result_info = self.search_result['info']
         batch = batch_list(result_info['pagecount'], result_info['pagenum'] - 1)
         for index, item in enumerate(batch):
@@ -453,6 +455,8 @@ class SearchView:
     @reify
     def result(self):
         result = self.search_result
+        if not result or not result['items']:
+            return
         for item in result['items']:
             data = item['data']
             if 'version' in data:

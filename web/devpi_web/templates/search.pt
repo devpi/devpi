@@ -39,5 +39,8 @@
                 </li>
             </ul>
         </div>
+        <div id="content" tal:condition="not result|None">
+            <p>Your search <strong>${query}</strong> did not match anything.</p>
+        </div>
     </body>
 </html>
