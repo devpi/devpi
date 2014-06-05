@@ -229,9 +229,6 @@ class PrivateStage:
     def can_upload(self, username):
         return username in self.ixconfig.get("acl_upload", [])
 
-    def _reconfigure(self, **kw):
-        self.ixconfig = self.modify(**kw)
-
     def modify(self, index=None, **kw):
         diff = list(set(kw).difference(_ixconfigattr))
         if diff:
@@ -335,8 +332,7 @@ class PrivateStage:
     def _register_metadata(self, metadata):
         name = metadata["name"]
         version = metadata["version"]
-        key = self.key_projconfig(name)
-        with key.update() as projectconfig:
+        with self.key_projconfig(name).update() as projectconfig:
             #if not self.ixconfig["volatile"] and projectconfig:
             #    raise self.MetadataExists(
             #        "%s-%s exists on non-volatile %s" %(
@@ -364,8 +360,7 @@ class PrivateStage:
         self.key_projconfig(name).delete()
 
     def project_version_delete(self, name, version, cleanup=True):
-        key = self.key_projconfig(name)
-        with key.update() as projectconfig:
+        with self.key_projconfig(name).update() as projectconfig:
             verdata = projectconfig.pop(version, None)
             if verdata is None:
                 return False
