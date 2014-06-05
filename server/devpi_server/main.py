@@ -250,7 +250,7 @@ class XOM:
         log.debug("shutdown procedure finished")
 
     def addshutdownfunc(self, name, shutdownfunc):
-        log.debug("appending shutdown func %s", name)
+        log.debug("appending shutdown func %r", name)
         self._shutdownfuncs.append((name, shutdownfunc))
 
     def sleep(self, secs):

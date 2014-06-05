@@ -30,3 +30,6 @@ There are currently two hooks notifying plugins of changes:
 
 - the hooks are called in the same way from within a master and
   replica process.
+
+- hook subscribers must honour **idempotency**: they should properly
+  deal with getting executed multiple times for each serial.

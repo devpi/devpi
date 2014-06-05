@@ -21,7 +21,7 @@ except ImportError:
     from Queue import Queue
 
 class TimeoutQueue(Queue):
-    def get(self, timeout=10):
+    def get(self, timeout=2):
         return Queue.get(self, timeout=timeout)
 
 log = logging.getLogger(__name__)

@@ -29,38 +29,56 @@ def dump(obj, io):
     return _Serializer(io.write).save(obj)
 
 
+def read_int_from_file(path, default=0):
+    try:
+        with open(path, "rb") as f:
+            return int(f.read())
+    except IOError:
+        return default
+
+def write_int_to_file(val, path):
+    tmp_path = path + "-tmp"
+    with get_write_file_ensure_dir(tmp_path) as f:
+        f.write(str(val))
+    rename(tmp_path, path)
+
+def load_from_file(path):
+    with open(path, "rb") as f:
+        return load(f)
+
+def get_write_file_ensure_dir(path):
+    try:
+        return open(path, "wb")
+    except IOError:
+        dirname = os.path.dirname(path)
+        if os.path.exists(dirname):
+            raise
+        os.makedirs(dirname)
+        return open(path, "wb")
+
+
 class Filesystem:
-    def __init__(self, basedir):
+    def __init__(self, basedir, notify_on_transaction):
         self.basedir = basedir
-        self.path_next_serial = basedir.join(".nextserial")
+        self._notify_on_transaction = notify_on_transaction
+        self.path_next_serial = str(basedir.join(".nextserial"))
         self.path_changelogdir = basedir.ensure(".changelog", dir=1)
-        try:
-            self.next_serial = self._read(self.path_next_serial)
-        except py.error.Error:
-            self.next_serial = 0
-        self._notification_thread = t = TxNotificationThread(self)
-        self._notification_thread.start()
-
-    def shutdown(self):
-        self._notification_thread.finished.set()
-        self._notification_thread.inbox.put(None)
-
-    def _read(self, path):
-        with path.open("rb") as f:
-            return load(f)
+        self.next_serial = read_int_from_file(self.path_next_serial)
 
     def write_transaction(self):
         return FSWriter(self)
 
     def get_from_transaction_entry(self, serial, relpath):
-        p = self.path_changelogdir.join(str(serial))
-        change_entry = self._read(p)
-        return change_entry.get(relpath)
+        return self.get_changelog_entry(serial).get(relpath)
 
     def get_raw_changelog_entry(self, serial):
         p = self.path_changelogdir.join(str(serial))
         with p.open("rb") as f:
             return f.read()
+
+    def get_changelog_entry(self, serial):
+        p = self.path_changelogdir.join(str(serial))
+        return load_from_file(str(p))
 
 
 class FSWriter:
@@ -69,7 +87,6 @@ class FSWriter:
         self.pending_removes = []
         self.pending_renames = []
         self.changes = {}
-        self.change_events = []
 
     def _direct_write(self, path, val):
         tmpfile = path + "-tmp"
@@ -77,31 +94,16 @@ class FSWriter:
             dump(val, f)
         tmpfile.rename(path)
 
-    def _write_file(self, path):
-        try:
-            return open(path, "wb")
-        except IOError:
-            dirname = os.path.dirname(path)
-            if os.path.exists(dirname):
-                raise
-            os.makedirs(dirname)
-            return open(path, "wb")
-
     def record_set(self, typedkey, value=None):
         """ record setting typedkey to value (None means it's deleted) """
         relpath = typedkey.relpath
         target_path = self.fs.basedir.join(relpath)
         tmp_path = target_path + ".tmp"
         next_serial = self.fs.next_serial
-        try:
-            back_serial = int(target_path.read(mode="rb"))
-        except py.error.Error:
-            back_serial = -1  # didn't exist before
-        with self._write_file(str(tmp_path)) as f:
+        back_serial = read_int_from_file(str(target_path), -1)
+        with get_write_file_ensure_dir(str(tmp_path)) as f:
             f.write(str(next_serial))
         self.changes[relpath] = (typedkey.name, back_serial, value)
-        ev = KeyChangeEvent(typedkey, value, next_serial, back_serial)
-        self.change_events.append(ev)
         self.pending_renames.append((tmp_path.strpath, target_path.strpath))
 
     def __enter__(self):
@@ -110,11 +112,11 @@ class FSWriter:
     def __exit__(self, cls, val, tb):
         if cls is None:
             self.commit_to_filesystem()
-            at_serial = self.fs.next_serial - 1
-            log.info("tx%s committed", at_serial)
+            commit_serial = self.fs.next_serial - 1
+            log.info("tx%s committed", commit_serial)
             if self.changes:
                 log.debug(" changed:%s" % ",".join(self.changes))
-                self.fs._notification_thread.inbox.put(self.change_events)
+                self.fs._notify_on_transaction(commit_serial)
             return
         while self.pending_renames:
             source, dest = self.pending_renames.pop()
@@ -140,7 +142,7 @@ class FSWriter:
 
         # finally increment the serial and write it out
         self.fs.next_serial += 1
-        self._direct_write(self.fs.path_next_serial, self.fs.next_serial)
+        write_int_to_file(self.fs.next_serial, self.fs.path_next_serial)
 
 
 def rename(source, dest):
@@ -160,20 +162,48 @@ class TxNotificationThread(threading.Thread):
         threading.Thread.__init__(self)
         self.setDaemon(True)
         self.keyfs = keyfs
-        self.inbox = Queue()
-        self.finished = threading.Event()
+        self.new_transaction = threading.Event()
+        self.event_serial_path = str(self.keyfs.basedir.join(".event_serial"))
+        self.running = True
+
+    def read_event_serial(self):
+        return read_int_from_file(self.event_serial_path, 0)
+
+    def write_event_serial(self, serial):
+        write_int_to_file(serial, self.event_serial_path)
+
+    def notify_on_transaction(self, serial):
+        self.new_transaction.set()
+
+    def shutdown(self):
+        self.running = False
+        self.new_transaction.set()
 
     def run(self):
         while 1:
-            change_events = self.inbox.get()
-            if change_events is None or self.finished.isSet():
+            event_serial = self.read_event_serial()
+            if event_serial >= self.keyfs._fs.next_serial:
+                self.new_transaction.wait()
+                self.new_transaction.clear()
+            if not self.running:
                 break
-            for change_event in change_events:
-                for sub in change_event.typedkey._subscribers:
-                    try:
-                        sub(change_event)
-                    except Exception:
-                        log.exception("calling %s failed", sub)
+            while event_serial < self.keyfs._fs.next_serial:
+                self.execute_hooks(event_serial)
+                event_serial += 1
+                self.write_event_serial(event_serial)
+
+    def execute_hooks(self, event_serial):
+        log.debug("calling key hooks for tx%s", event_serial)
+        changes = self.keyfs._fs.get_changelog_entry(event_serial)
+        for relpath, (keyname, back_serial, val) in changes.items():
+            key = self.keyfs.derive_typed_key(keyname, relpath)
+            ev = KeyChangeEvent(key, val, event_serial, back_serial)
+            for sub in key._subscribers:
+                log.debug("calling %s", sub)
+                try:
+                    sub(ev)
+                except Exception:
+                    log.exception("calling %s failed", sub)
 
 
 class KeyFS(object):
@@ -185,10 +215,15 @@ class KeyFS(object):
         # a non-recursive lock because we don't support nested transactions
         self._write_lock = threading.Lock()
         self._threadlocal = threading.local()
-        self._fs = Filesystem(self.basedir)
+        self._notifier = t = TxNotificationThread(self)
+        self._fs = Filesystem(self.basedir,
+                              notify_on_transaction=t.notify_on_transaction)
+
+    def start_notifier(self):
+        self._notifier.start()
 
     def shutdown(self):
-        self._fs.shutdown()
+        self._notifier.shutdown()
 
     def derive_typed_key(self, name, relpath):
         key = self.get_key(name)
@@ -301,6 +336,7 @@ class PTypedKey:
         self.pattern = py.builtin._totext(key)
         self.type = type
         self.name = name
+        self._subscribers = []
         self.slash = "*}" in self.pattern
         def repl(match):
             name = match.group(1)
@@ -310,6 +346,9 @@ class PTypedKey:
         rex_pattern = self.pattern.replace("+", r"\+")
         rex_pattern = self.rex_braces.sub(repl, rex_pattern)
         self.rex_reverse = re.compile("^" + rex_pattern + "$")
+
+    def register_subscriber(self, func):
+        self._subscribers.append(func)
 
     def __call__(self, **kw):
         if not self.slash:
@@ -328,7 +367,8 @@ class PTypedKey:
                         raise ValueError(val)
                 return val
             relpath = self.rex_braces.sub(repl, self.pattern)
-        return TypedKey(self.keyfs, relpath, self.type, self.name)
+        return TypedKey(self.keyfs, relpath, self.type, self.name,
+                        frompattern=(self._subscribers, kw))
 
     def match_params(self, relpath):
         m = self.rex_reverse.match(relpath)
@@ -349,16 +389,19 @@ class KeyChangeEvent:
 
 
 class TypedKey:
-    def __init__(self, keyfs, relpath, type, name):
+    def __init__(self, keyfs, relpath, type, name, frompattern=None):
         self.keyfs = keyfs
         self.relpath = relpath
         self.type = type
         self.name = name
-        self._subscribers = []
+        if frompattern is None:
+            self._subscribers = []
+        else:
+            self._subscribers, self.params = frompattern
 
     def register_subscriber(self, func):
+        log.debug("registering subscriber %s", func)
         self._subscribers.append(func)
-
 
     def __hash__(self):
         return hash(self.relpath)
