@@ -2,6 +2,7 @@
 from __future__ import unicode_literals
 from devpi_common.metadata import splitbasename
 from devpi_common.types import ensure_unicode
+from devpi_common.url import URL
 from devpi_server.views import matchdict_parameters
 from devpi_web.doczip import Docs, get_unpack_path
 from operator import itemgetter
@@ -92,12 +93,14 @@ def get_files_info(request, user, index, metadata):
             metadata["name"], metadata.get("version"))
     for basename in sorted(filedata):
         entry = xom.filestore.getentry(filedata[basename])
+        relurl = URL(request.path).relpath("/" + entry.relpath)
+        if entry.eggfragment:
+            relurl += "#egg=%s" % entry.eggfragment
+        elif entry.md5:
+            relurl += "#md5=%s" % entry.md5
         files.append(dict(
             title=basename,
-            url=request.route_url(
-                "/{user}/{index}/+f/{relpath:.*}",
-                user=user, index=index,
-                relpath="%s/%s" % (entry.md5, entry.basename))))
+            url=request.relative_url(relurl)))
     return files
 
 

@@ -101,7 +101,7 @@ def test_index_view_project_files(mapp, testapp):
     assert [(l.text, l.attrs['href']) for l in links] == [
         ("simple index", "http://localhost:80/%s/+simple/" % api.stagename),
         ("pkg1-2.6 info page", "http://localhost:80/%s/pkg1/2.6" % api.stagename),
-        ("pkg1-2.6.tar.gz", "http://localhost:80/%s/+f/9a0364b9e99bb480dd25e1f0284c8555/pkg1-2.6.tar.gz" % api.stagename),
+        ("pkg1-2.6.tar.gz", "http://localhost/%s/+f/9a0364b9e99bb480dd25e1f0284c8555/pkg1-2.6.tar.gz#md5=9a0364b9e99bb480dd25e1f0284c8555" % api.stagename),
         ("root/pypi", "http://localhost:80/root/pypi"),
         ("simple", "http://localhost:80/root/pypi/+simple/")]
     mapp.upload_file_pypi(
@@ -112,8 +112,8 @@ def test_index_view_project_files(mapp, testapp):
     assert [(l.text, l.attrs['href']) for l in links] == [
         ("simple index", "http://localhost:80/%s/+simple/" % api.stagename),
         ("pkg1-2.6 info page", "http://localhost:80/%s/pkg1/2.6" % api.stagename),
-        ("pkg1-2.6.tar.gz", "http://localhost:80/%s/+f/9a0364b9e99bb480dd25e1f0284c8555/pkg1-2.6.tar.gz" % api.stagename),
-        ("pkg1-2.6.zip", "http://localhost:80/%s/+f/52360ae08d733016c5603d54b06b5300/pkg1-2.6.zip" % api.stagename),
+        ("pkg1-2.6.tar.gz", "http://localhost/%s/+f/9a0364b9e99bb480dd25e1f0284c8555/pkg1-2.6.tar.gz#md5=9a0364b9e99bb480dd25e1f0284c8555" % api.stagename),
+        ("pkg1-2.6.zip", "http://localhost/%s/+f/52360ae08d733016c5603d54b06b5300/pkg1-2.6.zip#md5=52360ae08d733016c5603d54b06b5300" % api.stagename),
         ("root/pypi", "http://localhost:80/root/pypi"),
         ("simple", "http://localhost:80/root/pypi/+simple/")]
 
@@ -198,8 +198,8 @@ def test_version_view(mapp, testapp):
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
         ("Documentation", "http://localhost:80/%s/pkg1/2.6/+d/index.html" % api.stagename),
-        ("pkg1-2.6.tar.gz", "http://localhost:80/%s/+f/9a0364b9e99bb480dd25e1f0284c8555/pkg1-2.6.tar.gz" % api.stagename),
-        ("pkg1-2.6.zip", "http://localhost:80/%s/+f/52360ae08d733016c5603d54b06b5300/pkg1-2.6.zip" % api.stagename)]
+        ("pkg1-2.6.tar.gz", "http://localhost/%s/+f/9a0364b9e99bb480dd25e1f0284c8555/pkg1-2.6.tar.gz#md5=9a0364b9e99bb480dd25e1f0284c8555" % api.stagename),
+        ("pkg1-2.6.zip", "http://localhost/%s/+f/52360ae08d733016c5603d54b06b5300/pkg1-2.6.zip#md5=52360ae08d733016c5603d54b06b5300" % api.stagename)]
 
 
 def test_version_view_root_pypi(mapp, testapp):
@@ -215,8 +215,25 @@ def test_version_view_root_pypi(mapp, testapp):
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
-        ("pkg1-2.6.zip", "http://localhost:80/root/pypi/+f/None/pkg1-2.6.zip"),
+        ("pkg1-2.6.zip", "http://localhost/root/pypi/+f/52360ae08d733016c5603d54b06b5300/pkg1-2.6.zip"),
         ("https://pypi.python.org/pypi/pkg1/2.6/", "https://pypi.python.org/pypi/pkg1/2.6/")]
+
+
+def test_version_view_root_pypi_external_files(mapp, testapp):
+    with mapp.xom.keyfs.transaction():
+        pypistage = mapp.xom.model.getstage('root/pypi')
+        pypistage.name2serials['pkg1'] = {}
+        cache = {
+            "serial": 0,
+            "entrylist": ['root/pypi/+e/http/example.com/releases/pkg1-2.7.zip'],
+            "projectname": 'pkg1'}
+        pypistage.keyfs.PYPILINKS(name='pkg1').set(cache)
+    r = testapp.get('/root/pypi/pkg1/2.7', headers=dict(accept="text/html"))
+    assert r.status_code == 200
+    links = r.html.select('#content a')
+    assert [(l.text, l.attrs['href']) for l in links] == [
+        ("pkg1-2.7.zip", "http://localhost/root/pypi/+e/http/example.com/releases/pkg1-2.7.zip"),
+        ("https://pypi.python.org/pypi/pkg1/2.7/", "https://pypi.python.org/pypi/pkg1/2.7/")]
 
 
 def test_search_docs(mapp, testapp):
