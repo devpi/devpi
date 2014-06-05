@@ -362,7 +362,7 @@ class SearchView:
         result = []
         for sub_hit in sub_hits:
             sub_data = sub_hit['data']
-            text_type = sub_data['text_type']
+            text_type = sub_data['type']
             if 'version' in data:
                 metadata = projectconfig[data['version']]
             else:
@@ -393,7 +393,7 @@ class SearchView:
                         name=data['name'], version=data['version'],
                         _anchor=text_type)
             else:
-                log.error("Unknown text_type %s" % text_type)
+                log.error("Unknown type %s" % text_type)
                 continue
             sub_hit['title'] = title
             sub_hit['highlight'] = highlight

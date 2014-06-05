@@ -205,7 +205,7 @@ class Index(object):
             keywords=fields.KEYWORD(stored=True, commas=True, scorable=True),
             version=fields.STORED(),
             doc_version=fields.STORED(),
-            text_type=fields.ID(stored=True),
+            type=fields.ID(stored=True),
             text_path=fields.STORED(),
             text_title=fields.STORED(),
             text=fields.TEXT(analyzer=NgramWordAnalyzer(), stored=False, phrase=False))
@@ -224,7 +224,7 @@ class Index(object):
             data['path'] = u"/{user}/{index}/{name}".format(**data)
             if not clear:
                 writer.delete_by_term('path', data['path'])
-            data['text_type'] = "project"
+            data['type'] = "project"
             data['text'] = "%s %s" % (data['name'], project_name(data['name']))
             data['_text_boost'] = 0.5
             with writer.group():
@@ -234,7 +234,7 @@ class Index(object):
                         continue
                     writer.add_document(**{
                         "path": data['path'],
-                        "text_type": key,
+                        "type": key,
                         "text": project[key],
                         "_text_boost": boost})
                 if '+doczip' not in project:
@@ -242,14 +242,14 @@ class Index(object):
                 for page in project['+doczip']:
                     writer.add_document(**{
                         "path": data['path'],
-                        "text_type": "title",
+                        "type": "title",
                         "text": page['title'],
                         "text_path": page['path'],
                         "text_title": page['title'],
                         "_text_boost": 1.5})
                     writer.add_document(**{
                         "path": data['path'],
-                        "text_type": "page",
+                        "type": "page",
                         "text": page['text'],
                         "text_path": page['path'],
                         "text_title": page['title'],
@@ -297,7 +297,7 @@ class Index(object):
             path = item['path']
             if path in parents:
                 parent = parents[path]
-            elif info['data'].get('text_type') == 'project':
+            elif info['data'].get('type') == 'project':
                 parent = parents[path] = dict(info)
                 parent['sub_hits'] = []
                 items.append(parent)
