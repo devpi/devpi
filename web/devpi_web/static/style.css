@@ -1,6 +1,17 @@
 body, html {
     background: white;
     color: black;
+    font-family: sans-serif;
+}
+
+form, #content, #navigation, .searchresults {
+    position: relative;
+    margin: 0 1em;
+}
+
+#navigation {
+    border-bottom: 1px solid #ccc;
+    padding: 0.25em 0 0.25em 0;
 }
 
 form#search h1 {
@@ -28,27 +39,60 @@ form#search input[type=submit] {
     -webkit-appearance: button;
 }
 
+table.packages {
+    width: 100%;
+    margin: 0.5em 0;
+    border-collapse: collapse;
+    border: 1px solid #ccc;
+}
+
+table.packages th {
+    background: #ccc;
+    border-left: 1px solid #ccc;
+    border-right: 1px solid #ccc;
+    padding: 0.15em 0.4em;
+}
+
+table.packages td {
+    vertical-align: top;
+    border-left: 1px solid #ccc;
+    border-right: 1px solid #ccc;
+    padding: 0.25em 0.4em;
+}
+
+table.packages tr:nth-child(odd) {
+    background: #efefef;
+}
+
 .packagename {
     font-weight: bold;
     font-size: 125%;
 }
 
 .packageinfo {
-    width: 42em;
     margin: 0 0 1em 2em;
     padding: 0;
 }
 
 .packageinfo dl {
     vertical-align: top;
-    width: 20em;
+    width: 49%;
+    max-width: 350px;
     display: inline-block;
-    margin: 0.5em 0.5em 0 0;
+    margin: 0.5em 0 0 0;
     padding: 0;
 }
 
+.packageinfo dt {
+    margin: 0;
+    padding: 0.125em;
+}
+
 .packageinfo dd {
-    height: 2.4em;
+    margin: 0;
+    padding: 0.125em 0.125em 0.125em 0.125em;
+    line-height: 1.25em;
+    height: 2.5em;
     overflow: hidden;
     text-overflow: ellipsis;
 }
@@ -59,7 +103,6 @@ form#search input[type=submit] {
 }
 
 .batch_links {
-    width: 44em;
     list-style: none;
     margin: 0;
     padding: 0;
@@ -95,6 +138,7 @@ table.projectinfos ul {
 }
 
 table.files {
+    width: 100%;
     margin: 0.5em 0;
     border-collapse: collapse;
     border: 1px solid #ccc;
@@ -129,4 +173,49 @@ iframe {
     right: 0;
     width: 100%;
     border: 0;
+}
+
+@media (max-width:991px) {
+    form#search input {
+        font-size: 18px;
+    }
+    .files .md5 {
+        display: none;
+    }
+}
+
+@media (max-width:767px) {
+    form#search input[type=text] {
+        width: 20em;
+    }
+}
+
+@media (max-width:615px) {
+    form#search h1 {
+        display: block;
+    }
+    form#search input[type=text] {
+        width: 15em;
+    }
+    .packageinfo dl {
+        width: 100%;
+    }
+}
+
+@media (min-width:768px) {
+    form, #content, #navigation, .searchresults {
+        width: 750px;
+    }
+}
+
+@media (min-width:992px) {
+    form, #content, #navigation, .searchresults {
+        width: 970px;
+    }
+}
+
+@media (min-width:1200px) {
+    form, #content, #navigation, .searchresults {
+        width: 1170px;
+    }
 }

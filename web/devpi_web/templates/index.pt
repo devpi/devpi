@@ -15,12 +15,7 @@
 
         <tal:packages condition="packages">
         <h2>in-stage latest packages, at least as recent as bases</h2>
-        <table>
-            <tr>
-                <td>info</td>
-                <td>file</td>
-                <td>docs</td>
-            </tr>
+        <table class="packages">
             <tr tal:repeat="package packages">
                 <td><a href="${package.info.url}">${package.info.title}</a></td>
                 <td>

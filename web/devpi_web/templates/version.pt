@@ -8,7 +8,7 @@
         <div id="content">
         <h1>${title}</h1>
 
-        <p>
+        <p class="projectnavigation">
             <tal:docs tal:condition="docs"><a href="${docs.url}">Documentation</a></tal:docs>
             <tal:home_page tal:condition="home_page"><a href="${home_page}">Homepage</a></tal:home_page>
         </p>
@@ -27,7 +27,7 @@
                 <th>Type</th>
                 <th>Py Version</th>
                 <th>Size</th>
-                <th>MD5</th>
+                <th class="md5">MD5</th>
             </thead>
             <tbody>
                 <tr tal:repeat="file files">
@@ -35,7 +35,7 @@
                     <td>${file.dist_type}</td>
                     <td>${file.py_version}</td>
                     <td>${file.size}</td>
-                    <td><code>${file.md5}</code></td>
+                    <td class="md5"><code>${file.md5}</code></td>
                 </tr>
             </tbody>
         </table>
