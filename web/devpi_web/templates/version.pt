@@ -24,10 +24,18 @@
         <table class="files" tal:condition="files">
             <thead>
                 <th>File</th>
+                <th>Type</th>
+                <th>Py Version</th>
+                <th>Size</th>
+                <th>MD5</th>
             </thead>
             <tbody>
                 <tr tal:repeat="file files">
                     <td><a href="${file.url}">${file.title}</a></td>
+                    <td>${file.dist_type}</td>
+                    <td>${file.py_version}</td>
+                    <td>${file.size}</td>
+                    <td><code>${file.md5}</code></td>
                 </tr>
             </tbody>
         </table>

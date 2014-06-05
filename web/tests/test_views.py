@@ -31,6 +31,21 @@ def test_projectnametokenizer(input, expected):
             batch_list(*input)
 
 
+@pytest.mark.parametrize("input, expected", [
+    (0, (0, "bytes")),
+    (1000, (1000, "bytes")),
+    (1024, (1, "KB")),
+    (2047, (1.9990234375, "KB")),
+    (1024 * 1024 - 1, (1023.9990234375, "KB")),
+    (1024 * 1024, (1, "MB")),
+    (1024 * 1024 * 1024, (1, "GB")),
+    (1024 * 1024 * 1024 * 1024, (1, "TB")),
+    (1024 * 1024 * 1024 * 1024 * 1024, (1024, "TB"))])
+def test_sizeof_fmt(input, expected):
+    from devpi_web.views import sizeof_fmt
+    assert sizeof_fmt(input) == expected
+
+
 def test_docs_view(mapp, testapp):
     api = mapp.create_and_use()
     content = zip_dict({"index.html": "<html/>"})
@@ -195,6 +210,10 @@ def test_version_view(mapp, testapp):
     assert py.builtin._totext(
         description.renderContents().strip(),
         'utf-8') == '<p>foo</p>'
+    filesinfo = [tuple(t.text for t in x.findAll('td')) for x in r.html.select('.files tr')]
+    assert filesinfo == [
+        ('pkg1-2.6.tar.gz', 'Source', '', '7 bytes', '9a0364b9e99bb480dd25e1f0284c8555'),
+        ('pkg1-2.6.zip', 'Source', '', '10 bytes', '52360ae08d733016c5603d54b06b5300')]
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
         ("Documentation", "http://localhost:80/%s/pkg1/2.6/+d/index.html" % api.stagename),
@@ -213,6 +232,8 @@ def test_version_view_root_pypi(mapp, testapp):
         pypistage.keyfs.PYPILINKS(name='pkg1').set(cache)
     r = testapp.get('/root/pypi/pkg1/2.6', headers=dict(accept="text/html"))
     assert r.status_code == 200
+    filesinfo = [tuple(t.text for t in x.findAll('td')) for x in r.html.select('.files tr')]
+    assert filesinfo == [('pkg1-2.6.zip', 'Source', '', '', '')]
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
         ("pkg1-2.6.zip", "http://localhost/root/pypi/+f/52360ae08d733016c5603d54b06b5300/pkg1-2.6.zip"),
@@ -230,6 +251,8 @@ def test_version_view_root_pypi_external_files(mapp, testapp):
         pypistage.keyfs.PYPILINKS(name='pkg1').set(cache)
     r = testapp.get('/root/pypi/pkg1/2.7', headers=dict(accept="text/html"))
     assert r.status_code == 200
+    filesinfo = [tuple(t.text for t in x.findAll('td')) for x in r.html.select('.files tr')]
+    assert filesinfo == [('pkg1-2.7.zip', 'Source', '', '', '')]
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
         ("pkg1-2.7.zip", "http://localhost/root/pypi/+e/http/example.com/releases/pkg1-2.7.zip"),

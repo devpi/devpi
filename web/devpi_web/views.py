@@ -1,6 +1,6 @@
 # coding: utf-8
 from __future__ import unicode_literals
-from devpi_common.metadata import splitbasename
+from devpi_common.metadata import get_pyversion_filetype, splitbasename
 from devpi_common.types import ensure_unicode
 from devpi_common.url import URL
 from devpi_server.views import matchdict_parameters
@@ -83,6 +83,25 @@ def notfound(request):
     return default_exceptionresponse_view(None, request)
 
 
+dist_file_types = {
+    'sdist': 'Source',
+    'bdist_dumb': '"dumb" binary',
+    'bdist_rpm': 'RPM',
+    'bdist_wininst': 'MS Windows installer',
+    'bdist_msi': 'MS Windows MSI installer',
+    'bdist_egg': 'Python Egg',
+    'bdist_dmg': 'OS X Disk Image',
+    'bdist_wheel': 'Python Wheel'}
+
+
+def sizeof_fmt(num):
+    for x in ['bytes', 'KB', 'MB', 'GB']:
+        if num < 1024.0:
+            return (num, x)
+        num /= 1024.0
+    return (num, 'TB')
+
+
 def get_files_info(request, user, index, metadata):
     xom = request.registry['xom']
     files = []
@@ -98,9 +117,19 @@ def get_files_info(request, user, index, metadata):
             relurl += "#egg=%s" % entry.eggfragment
         elif entry.md5:
             relurl += "#md5=%s" % entry.md5
+        py_version, file_type = get_pyversion_filetype(entry.basename)
+        if py_version == 'source':
+            py_version = ''
+        size = ''
+        if entry.filepath.exists():
+            size = "%.0f %s" % sizeof_fmt(entry.filepath.size())
         files.append(dict(
             title=basename,
-            url=request.relative_url(relurl)))
+            url=request.relative_url(relurl),
+            md5=entry.md5,
+            dist_type=dist_file_types.get(file_type, ''),
+            py_version=py_version,
+            size=size))
     return files
 
 
