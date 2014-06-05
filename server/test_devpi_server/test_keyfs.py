@@ -1,7 +1,7 @@
 import py
 import pytest
 
-from devpi_server.keyfs import KeyFS, WriteTransaction, ReadTransaction
+from devpi_server.keyfs import KeyFS, WriteTransaction, ReadTransaction, load
 
 @pytest.fixture
 def keyfs(gentmp):
@@ -244,6 +244,29 @@ class TestTransactionIsolation:
         with keyfs.transaction():
             D.delete()
             assert not D.exists()
+
+    def test_import_changelog_entry(self, keyfs, tmpdir):
+        D = keyfs.add_key("NAME", "hello", dict)
+        with keyfs.transaction(write=True):
+            D.set({1:1})
+        with keyfs.transaction(write=True):
+            D.delete()
+        with keyfs.transaction(write=True):
+            D.set({2:2})
+        serial = keyfs._fs.next_serial - 1
+        assert serial == 2
+        # load entries into new keyfs instance
+        new_keyfs = KeyFS(tmpdir.join("newkeyfs"))
+        D2 = new_keyfs.add_key("NAME", "hello", dict)
+        for serial in range(3):
+            raw_entry = keyfs._fs.get_raw_changelog_entry(serial)
+            entry = load(py.io.BytesIO(raw_entry))
+            new_keyfs.import_changelog_entry(serial, entry)
+        assert new_keyfs.get_value_at(D2, 0) == {1:1}
+        with pytest.raises(KeyError):
+            assert new_keyfs.get_value_at(D2, 1)
+        assert new_keyfs.get_value_at(D2, 2) == {2:2}
+
 
 @pytest.mark.notransaction
 def test_bound_history_size(keyfs):

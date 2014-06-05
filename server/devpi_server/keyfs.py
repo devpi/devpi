@@ -47,13 +47,7 @@ class Filesystem:
     def get_from_transaction_entry(self, serial, relpath):
         p = self.path_changelogdir.join(str(serial))
         change_entry = self._read(p)
-        tup = change_entry.get(relpath)
-        if tup is not None:
-            try:
-                keyname, val = tup
-            except ValueError:  # only one value
-                raise KeyError(relpath)
-            return val
+        return change_entry.get(relpath)
 
     def get_raw_changelog_entry(self, serial):
         p = self.path_changelogdir.join(str(serial))
@@ -74,31 +68,30 @@ class FSWriter:
             dump(val, f)
         tmpfile.rename(path)
 
-    def record_set(self, typedkey, value=_nodefault):
+    def _write_file(self, path):
+        try:
+            return open(path, "wb")
+        except IOError:
+            dirname = os.path.dirname(path)
+            if os.path.exists(dirname):
+                raise
+            os.makedirs(dirname)
+            return open(path, "wb")
+
+    def record_set(self, typedkey, value=None):
+        """ record setting typedkey to value (None means it's deleted) """
         relpath = typedkey.relpath
         target_path = self.fs.basedir.join(relpath)
         tmp_path = target_path + ".tmp"
-        # read history serials
         next_serial = self.fs.next_serial
         try:
-            with target_path.open("rb") as f:
-                history_serials = [next_serial] + load(f)
-                # we record a maximum of the last three changing serials
-                del history_serials[3:]
+            back_serial = int(target_path.read(mode="rb"))
         except py.error.Error:
-            history_serials = [next_serial]
-            tmp_path.dirpath().ensure(dir=1)
-        with tmp_path.open("wb") as f:
-            dump(history_serials, f)
-            if value is not _nodefault:
-                dump(value, f)
-                self.changes[relpath] = (typedkey.name, value)
-            else:
-                self.changes[relpath] = (typedkey.name,)
+            back_serial = -1  # didn't exist before
+        with self._write_file(str(tmp_path)) as f:
+            f.write(str(next_serial))
+        self.changes[relpath] = (typedkey.name, back_serial, value)
         self.pending_renames.append((tmp_path.strpath, target_path.strpath))
-
-    def record_delete(self, typedkey):
-        self.record_set(typedkey)
 
     def __enter__(self):
         return self
@@ -175,14 +168,9 @@ class KeyFS(object):
                 next_serial = self.get_next_serial()
                 assert next_serial == serial, (next_serial, serial)
                 for relpath, tup in entry.items():
-                    name = tup[0]
+                    name, back_serial, val = tup
                     typedkey = self.derive_typed_key(name, relpath)
-                    try:
-                        val = tup[1]
-                    except IndexError:
-                        fswriter.record_delete(typedkey)
-                    else:
-                        fswriter.record_set(typedkey, val)
+                    fswriter.record_set(typedkey, val)
 
     def get_next_serial(self):
         return self._fs.next_serial
@@ -194,36 +182,22 @@ class KeyFS(object):
     def get_value_at(self, typedkey, at_serial):
         relpath = typedkey.relpath
         try:
-            f = self._getpath(relpath).open("rb")
+            last_serial = int(self._getpath(relpath).read(mode="rb"))
         except py.error.Error:
             raise KeyError(relpath)
-        with f:
-            history_serials = load(f)
-            if history_serials.pop(0) <= at_serial:
-                # latest state is older already than what we require
-                try:
-                    return load(f)
-                except EOFError:  # a delete entry
-                    raise KeyError(relpath)
-
-        for serial in history_serials:
-            if serial <= at_serial:
-                # we found the latest state fit for what we require
-                val = self._fs.get_from_transaction_entry(serial, relpath)
-                if val is not _nodefault:
-                    return val
-
-        log.warn("performing exhaustive search on %s, %s", relpath, at_serial)
-        # the history_serials are all newer than what we need
-        # let's do an exhaustive search for the last change
-        while at_serial > 0:
-            val = self._fs.get_from_transaction_entry(at_serial, relpath)
-            if val is not _nodefault:
+        while last_serial >= 0:
+            tup = self._fs.get_from_transaction_entry(last_serial, relpath)
+            assert tup, "no transaction entry at %s" %(last_serial)
+            keyname, back_serial, val = tup
+            if last_serial > at_serial:
+                last_serial = back_serial
+                continue
+            if val is not None:
                 return val
-            at_serial -= 1
+            raise KeyError(relpath)  # was deleted
 
-        # we could not find any historic serial lower than target_serial
-        # which means the key didn't exist at that point in time
+        # we could not find any change below at_serial which means
+        # the key didn't exist at that point in time
         raise KeyError(relpath)
 
     def mkdtemp(self, prefix):
@@ -439,9 +413,8 @@ class WriteTransaction(ReadTransaction):
                     try:
                         val = self.cache[typedkey]
                     except KeyError:
-                        fswriter.record_delete(typedkey)
-                    else:
-                        fswriter.record_set(typedkey, val)
+                        val = None
+                    fswriter.record_set(typedkey, val)
                 at_serial = fswriter.fs.next_serial
         finally:
             self._close()
