@@ -10,7 +10,7 @@
                 <tal:item tal:repeat="item result['items']">
                     <dt class="packagename">
                         <a tal:omit-tag="not item.get('url')" tal:attributes="href item.url">
-                            ${item.data.name}
+                            ${item.title}
                         </a>
                     </dt>
                     <dd class="packageinfo">

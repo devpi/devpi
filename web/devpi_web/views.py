@@ -337,17 +337,6 @@ class SearchView:
             batch_links.insert(0, {'class': 'prev'})
         return batch_links
 
-    def add_item_url(self, item, data):
-        if 'version' in data:
-            item['url'] = self.request.route_url(
-                "/{user}/{index}/{name}/{version}",
-                user=data['user'], index=data['index'],
-                name=data['name'], version=data['version'])
-        else:
-            item['url'] = self.request.route_url(
-                "/{user}/{index}/{name}",
-                user=data['user'], index=data['index'], name=data['name'])
-
     def get_projectinfo(self, path):
         if path not in self._projectinfo:
             xom = self.request.registry['xom']
@@ -416,7 +405,17 @@ class SearchView:
         result = self.search_result
         for item in result['items']:
             data = item['data']
-            self.add_item_url(item, data)
+            if 'version' in data:
+                item['url'] = self.request.route_url(
+                    "/{user}/{index}/{name}/{version}",
+                    user=data['user'], index=data['index'],
+                    name=data['name'], version=data['version'])
+                item['title'] = "%s-%s" % (data['name'], data['version'])
+            else:
+                item['url'] = self.request.route_url(
+                    "/{user}/{index}/{name}",
+                    user=data['user'], index=data['index'], name=data['name'])
+                item['title'] = data['name']
             item['sub_hits'] = self.process_sub_hits(item['sub_hits'], data)
             more_results = result['info']['collapsed_counts'][data['path']]
             if more_results:
