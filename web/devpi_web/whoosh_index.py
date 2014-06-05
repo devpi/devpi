@@ -19,6 +19,12 @@ import threading
 log = getLogger(__name__)
 
 
+try:
+    xrange
+except NameError:
+    xrange = range
+
+
 class ProjectNameTokenizer(Tokenizer):
     def __init__(self):
         self.expression = rcompile('(\W|_)')

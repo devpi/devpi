@@ -1,4 +1,7 @@
-from UserDict import DictMixin
+try:
+    from UserDict import DictMixin
+except ImportError:
+    from collections import MutableMapping as DictMixin
 from bs4 import BeautifulSoup
 from devpi_common.archive import Archive
 from devpi_common.types import cached_property
@@ -53,6 +56,18 @@ class Docs(DictMixin):
 
     def keys(self):
         return self._entries.keys()
+
+    def __len__(self):
+        return len(self.keys())
+
+    def __iter__(self):
+        return iter(self.keys())
+
+    def __delitem__(self, name):
+        raise NotImplementedError
+
+    def __setitem__(self, name, value):
+        raise NotImplementedError
 
     def __getitem__(self, name):
         entry = self._entries[name]
