@@ -185,8 +185,8 @@ class User:
             return PyPIStage(self.xom)
         else:
             raise ValueError("unknown index type %r" % ixconfig["type"])
-         
- 
+
+
 
 class InvalidIndexconfig(Exception):
     def __init__(self, messages):
@@ -341,12 +341,14 @@ class PrivateStage:
             versionconfig = projectconfig.setdefault(version, {})
             versionconfig.update(metadata)
             self.log_info("store_metadata %s-%s", name, version)
-        with self.key_projectnames.update() as projectnames:
+        projectnames = self.key_projectnames.get()
+        if name not in projectnames:
             projectnames.add(name)
+            self.key_projectnames.set(projectnames)
         desc = metadata.get("description")
         if desc:
             html = processDescription(desc)
-            doc_key = self.keyfs.RELDESCRIPTION(user=self.user.name, 
+            doc_key = self.keyfs.RELDESCRIPTION(user=self.user.name,
                         index=self.index, name=name, version=version)
             if py.builtin._istext(html):
                 html = html.encode("utf8")
@@ -378,7 +380,7 @@ class PrivateStage:
         return self.key_projconfig(name).exists()
 
     def get_description(self, name, version):
-        key = self.keyfs.RELDESCRIPTION(user=self.user.name, 
+        key = self.keyfs.RELDESCRIPTION(user=self.user.name,
             index=self.index, name=name, version=version)
         return py.builtin._totext(key.get(), "utf-8")
 
@@ -507,7 +509,7 @@ class PrivateStage:
             entry = self.xom.filestore.store(self.user.name, self.index,
                                 filename, content)
             verdata["+doczip"] = entry.relpath
-        self.xom.config.hook.devpiserver_docs_uploaded(self, name, 
+        self.xom.config.hook.devpiserver_docs_uploaded(self, name,
                     version, entry)
 
     def get_doczip(self, name, version):
