@@ -21,6 +21,10 @@ def unpack_docs(stage, name, version, entry):
 
 def iter_doc_contents(stage, name, version):
     unpack_path = get_unpack_path(stage, name, version)
+    if not unpack_path.exists():
+        # this happens on import, when the metadata is registered, but the docs
+        # aren't uploaded yet
+        return
     html = set()
     fjson = set()
     for entry in unpack_path.visit():
