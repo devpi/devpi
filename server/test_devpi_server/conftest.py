@@ -616,3 +616,12 @@ class Gen:
 
 def getmd5(s):
     return hashlib.md5(s.encode("utf8")).hexdigest()
+
+
+@pytest.yield_fixture
+def dummyrequest():
+    from pyramid.testing import DummyRequest, setUp, tearDown
+    request = DummyRequest()
+    setUp(request=request)
+    yield request
+    tearDown()
