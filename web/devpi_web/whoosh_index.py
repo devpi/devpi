@@ -226,7 +226,6 @@ class Index(object):
                 writer.delete_by_term('path', data['path'])
             data['type'] = "project"
             data['text'] = "%s %s" % (data['name'], project_name(data['name']))
-            data['_text_boost'] = 0.5
             with writer.group():
                 writer.add_document(**data)
                 for key, boost in text_keys:
@@ -245,15 +244,13 @@ class Index(object):
                         "type": "title",
                         "text": page['title'],
                         "text_path": page['path'],
-                        "text_title": page['title'],
-                        "_text_boost": 1.5})
+                        "text_title": page['title']})
                     writer.add_document(**{
                         "path": data['path'],
                         "type": "page",
                         "text": page['text'],
                         "text_path": page['path'],
-                        "text_title": page['title'],
-                        "_text_boost": 1.0})
+                        "text_title": page['title']})
         log.info("Committing index.")
         if clear:
             writer.commit(mergetype=CLEAR)
