@@ -143,29 +143,31 @@ def wsgi_run(xom):
 
 def add_keys(keyfs):
     # users and index configuration
-    keyfs.addkey("{user}/.config", dict, "USER")
-    keyfs.addkey(".config", set, "USERLIST")
+    keyfs.add_key("USER", "{user}/.config", dict)
+    keyfs.add_key("USERLIST", ".config", set)
 
     # type pypimirror related data
-    keyfs.addkey("root/pypi/+links/{name}", dict, "PYPILINKS")
-    keyfs.addkey("root/pypi/serials/+splitkeys", set, "PYPISERIALSPLITKEYS") 
-    keyfs.addkey("root/pypi/serials/{splitkey}", dict, "PYPISERIALS") 
-    keyfs.addkey("{user}/{index}/+e/{relpath}", bytes, "PYPIFILE_NOMD5") 
-    keyfs.addkey("{user}/{index}/+f/{md5a}/{md5b}/{filename}", bytes,
-                 "PYPISTAGEFILE")
+    keyfs.add_key("PYPILINKS", "root/pypi/+links/{name}", dict)
+    keyfs.add_key("PYPISERIALSPLITKEYS", "root/pypi/serials/+splitkeys", set)
+    keyfs.add_key("PYPISERIALS", "root/pypi/serials/{splitkey}", dict)
+    keyfs.add_key("PYPIFILE_NOMD5",
+                 "{user}/{index}/+e/{dirname}/{basename}", bytes)
+    keyfs.add_key("PYPISTAGEFILE",
+                  "{user}/{index}/+f/{md5a}/{md5b}/{filename}", bytes)
 
     # type "stage" related
-    keyfs.addkey("{user}/{index}/{name}/.config", dict, "PROJCONFIG") 
-    keyfs.addkey("{user}/{index}/.projectnames", set, "PROJNAMES") 
-    keyfs.addkey("{user}/{index}/+f/{md5}/{filename}", bytes, "STAGEFILE") 
+    keyfs.add_key("PROJCONFIG", "{user}/{index}/{name}/.config", dict)
+    keyfs.add_key("PROJNAMES", "{user}/{index}/.projectnames", set)
+    keyfs.add_key("STAGEFILE", "{user}/{index}/+f/{md5}/{filename}", bytes)
 
-    keyfs.addkey("{user}/{index}/{name}/{version}/description_html", bytes,
-                 "RELDESCRIPTION")
+    keyfs.add_key("RELDESCRIPTION",
+                  "{user}/{index}/{name}/{version}/description_html", bytes)
 
-    keyfs.addkey("{relpath}-meta", dict, "PATHENTRY") 
-    keyfs.addkey("+attach/{md5}/{type}/{num}", bytes, "ATTACHMENT") 
-    keyfs.addkey("+attach/.att", dict, "ATTACHMENTS") 
-    keyfs.addkey("{relpath}", bytes, "FILEPATH") 
+    keyfs.add_key("ATTACHMENT", "+attach/{md5}/{type}/{num}", bytes)
+    keyfs.add_key("ATTACHMENTS", "+attach/.att", dict)
+    # generic
+    keyfs.add_key("PATHENTRY", "{relpath*}-meta", dict)
+    keyfs.add_key("FILEPATH", "{relpath*}", bytes)
 
 
 class XOM:

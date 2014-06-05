@@ -579,7 +579,7 @@ class TestChangelog:
         serial = int(r.headers["X-DEVPI-SERIAL"])
         assert serial > 0
         assert len(r.body) == 0
-    
+
     def test_get_since(self, testapp, mapp, noiter):
         r = testapp.get("/+changelog?since=0")
         entries = list(r.app_iter)
@@ -590,7 +590,7 @@ class TestChangelog:
         r2 = testapp.get("/+changelog?since=%s" % num)
         entries2 = [loads(x) for x in r2.app_iter]
         assert len(entries2) == 1
-        record_set = dict(entries2[0]["record_set"])
-        assert "this/.config" in record_set
+        changes = entries2[0]
+        assert "this/.config" in changes
         serial2 = int(r2.headers["X-DEVPI-SERIAL"])
         assert serial2 == serial + 1

@@ -34,8 +34,12 @@ class FileStore:
                                        md5a=md5a, md5b=md5b,
                                        filename=link.basename)
         else:
+            parts = link.torelpath().split("/")
+            assert parts
+            dirname = "_".join(parts[:-1])
             key = self.keyfs.PYPIFILE_NOMD5(user="root", index="pypi",
-                   relpath=link.torelpath())
+                   dirname="_".join(parts[:-1]),
+                   basename=parts[-1])
         entry = self.getentry(key.relpath)
         mapping = {"url": link.geturl_nofragment().url}
         mapping["eggfragment"] = link.eggfragment
