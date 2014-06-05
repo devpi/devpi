@@ -33,9 +33,9 @@
                     </dd>
                 </tal:item>
             </dl>
-            <ul tal:condition="batch_links|None">
-                <li tal:repeat="link batch_links">
-                    <a tal:omit-tag="not link.get('url')" tal:attributes="href link.get('url')">${link.title}</a>
+            <ul class="batch_links" tal:condition="batch_links|None">
+                <li tal:repeat="link batch_links" tal:attributes="class link.get('class')">
+                    <a tal:omit-tag="not link.get('url')" tal:attributes="href link.get('url')">${link.get('title', '')}</a>
                 </li>
             </ul>
         </div>

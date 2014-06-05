@@ -303,13 +303,16 @@ class SearchView:
     def batch_links(self):
         batch_links = []
         result_info = self.search_result['info']
-        for item in batch_list(result_info['pagecount'], result_info['pagenum'] - 1):
+        batch = batch_list(result_info['pagecount'], result_info['pagenum'] - 1)
+        for index, item in enumerate(batch):
             if item is None:
                 batch_links.append(dict(
                     title='…'))
             elif item == (self.params['page'] - 1):
-                batch_links.append(dict(
-                    title=item + 1))
+                current = index
+                batch_links.append({
+                    'title': item + 1,
+                    'class': 'current'})
             else:
                 new_params = dict(self.params)
                 new_params['page'] = item + 1
@@ -318,6 +321,20 @@ class SearchView:
                     url=self.request.route_url(
                         'search',
                         _query=new_params)))
+        if current < (len(batch_links) - 1):
+            next = dict(batch_links[current + 1])
+            next['title'] = 'Next'
+            next['class'] = 'next'
+            batch_links.append(next)
+        else:
+            batch_links.append({'class': 'next'})
+        if current > 0:
+            prev = dict(batch_links[current - 1])
+            prev['title'] = 'Prev'
+            prev['class'] = 'prev'
+            batch_links.insert(0, prev)
+        else:
+            batch_links.insert(0, {'class': 'prev'})
         return batch_links
 
     def add_item_url(self, item, data):
