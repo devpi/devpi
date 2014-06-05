@@ -1,5 +1,7 @@
+from UserDict import DictMixin
 from bs4 import BeautifulSoup
 from devpi_common.archive import Archive
+from devpi_common.types import cached_property
 import json
 import py
 
@@ -19,34 +21,67 @@ def unpack_docs(stage, name, version, entry):
     return unpack_path
 
 
-def iter_doc_contents(stage, name, version):
-    unpack_path = get_unpack_path(stage, name, version)
-    html = set()
-    fjson = set()
-    for entry in unpack_path.visit():
+class Docs(DictMixin):
+    def __init__(self, stage, name, version):
+        self.stage = stage
+        self.name = name
+        self.version = version
+        self.unpack_path = get_unpack_path(stage, name, version)
+
+    @cached_property
+    def _entries(self):
+        if not self.unpack_path.exists():
+            # this happens on import, when the metadata is registered, but the docs
+            # aren't uploaded yet
+            return []
+        html = []
+        fjson = []
+        for entry in self.unpack_path.visit():
+            if entry.basename.endswith('.fjson'):
+                fjson.append(entry)
+            elif entry.basename.endswith('.html'):
+                html.append(entry)
+        if fjson:
+            entries = dict(
+                (x.relto(self.unpack_path)[:-6], x)
+                for x in fjson)
+        else:
+            entries = dict(
+                (x.relto(self.unpack_path)[:-5], x)
+                for x in html)
+        return entries
+
+    def keys(self):
+        return self._entries.keys()
+
+    def __getitem__(self, name):
+        entry = self._entries[name]
         if entry.basename.endswith('.fjson'):
-            fjson.add(entry)
-        elif entry.basename.endswith('.html'):
-            html.add(entry)
-    if fjson:
-        for entry in fjson:
             info = json.loads(entry.read())
-            yield dict(
+            return dict(
                 title=BeautifulSoup(info.get('title', '')).text,
                 text=BeautifulSoup(info.get('body', '')).text,
-                path=info.get('current_page_name', entry.purebasename))
-    elif html:
-        for entry in html:
+                path=info.get('current_page_name', name))
+        else:
             soup = BeautifulSoup(entry.read())
             body = soup.find('body')
             if body is None:
-                continue
+                return
             title = soup.find('title')
             if title is None:
                 title = ''
             else:
                 title = title.text
-            yield dict(
+            return dict(
                 title=title,
                 text=body.text,
-                path=entry.purebasename)
+                path=name)
+
+
+def iter_doc_contents(stage, name, version):
+    docs = Docs(stage, name, version)
+    for entry in docs:
+        result = docs[entry]
+        if result is None:
+            continue
+        yield result

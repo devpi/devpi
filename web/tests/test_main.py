@@ -54,5 +54,5 @@ def test_index_projects_arg(monkeypatch, tmpdir):
         u'index': u'pypi',
         u'name': u'foo',
         u'path': u'/root/pypi/foo',
-        u'text_type': u'project',
+        u'type': u'project',
         u'user': u'root'}

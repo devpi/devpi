@@ -6,6 +6,7 @@ from whoosh import fields
 from whoosh.analysis import Filter, LowercaseFilter, RegexTokenizer
 from whoosh.analysis import Token, Tokenizer
 from whoosh.compat import text_type, u
+from whoosh.highlight import ContextFragmenter, HtmlFormatter, highlight
 from whoosh.index import create_in, exists_in, open_dir
 from whoosh.index import IndexError as WhooshIndexError
 from whoosh.qparser import QueryParser
@@ -204,7 +205,7 @@ class Index(object):
             keywords=fields.KEYWORD(stored=True, commas=True, scorable=True),
             version=fields.STORED(),
             doc_version=fields.STORED(),
-            text_type=fields.ID(stored=True),
+            type=fields.ID(stored=True),
             text_path=fields.STORED(),
             text_title=fields.STORED(),
             text=fields.TEXT(analyzer=NgramWordAnalyzer(), stored=False, phrase=False))
@@ -223,9 +224,8 @@ class Index(object):
             data['path'] = u"/{user}/{index}/{name}".format(**data)
             if not clear:
                 writer.delete_by_term('path', data['path'])
-            data['text_type'] = "project"
+            data['type'] = "project"
             data['text'] = "%s %s" % (data['name'], project_name(data['name']))
-            data['_text_boost'] = 0.5
             with writer.group():
                 writer.add_document(**data)
                 for key, boost in text_keys:
@@ -233,7 +233,7 @@ class Index(object):
                         continue
                     writer.add_document(**{
                         "path": data['path'],
-                        "text_type": key,
+                        "type": key,
                         "text": project[key],
                         "_text_boost": boost})
                 if '+doczip' not in project:
@@ -241,18 +241,16 @@ class Index(object):
                 for page in project['+doczip']:
                     writer.add_document(**{
                         "path": data['path'],
-                        "text_type": "title",
+                        "type": "title",
                         "text": page['title'],
                         "text_path": page['path'],
-                        "text_title": page['title'],
-                        "_text_boost": 1.5})
+                        "text_title": page['title']})
                     writer.add_document(**{
                         "path": data['path'],
-                        "text_type": "page",
+                        "type": "page",
                         "text": page['text'],
                         "text_path": page['path'],
-                        "text_title": page['title'],
-                        "_text_boost": 1.0})
+                        "text_title": page['title']})
         log.info("Committing index.")
         if clear:
             writer.commit(mergetype=CLEAR)
@@ -283,14 +281,20 @@ class Index(object):
         fields = set(x.field() for x in raw.results.q.leaves())
         collapse = "path" not in fields
         parents = {}
+        text_field = raw.results.searcher.schema['text']
         for item in raw:
-            info = {"data": dict(item)}
+            info = {
+                "data": dict(item),
+                "words": frozenset(
+                    text_field.from_bytes(term[1])
+                    for term in item.matched_terms()
+                    if term[0] == 'text')}
             for attr in ('docnum', 'pos', 'rank', 'score'):
                 info[attr] = getattr(item, attr)
             path = item['path']
             if path in parents:
                 parent = parents[path]
-            elif info['data'].get('text_type') == 'project':
+            elif info['data'].get('type') == 'project':
                 parent = parents[path] = dict(info)
                 parent['sub_hits'] = []
                 items.append(parent)
@@ -300,7 +304,7 @@ class Index(object):
                     "sub_hits": []}
                 parents[path] = parent
                 items.append(parent)
-            if collapse and len(parent['sub_hits']) > 2:
+            if collapse and len(parent['sub_hits']) > 3:
                 collapsed_counts[path] = collapsed_counts[path] + 1
             else:
                 parent['sub_hits'].append(info)
@@ -308,7 +312,7 @@ class Index(object):
 
     def _search_projects(self, query, page=1):
         searcher = self.project_searcher
-        return searcher.search_page(query, page)
+        return searcher.search_page(query, page, terms=True)
 
     def _query_parser_plugins(self):
         from whoosh.qparser import plugins
@@ -342,3 +346,9 @@ class Index(object):
                 self._query_projects(querystring, page=page))
         except (OSError, WhooshIndexError) as e:
             raise SearchUnavailableException(e)
+
+    def highlight(self, text, words):
+        fragmenter = ContextFragmenter()
+        formatter = HtmlFormatter()
+        analyzer = self.project_schema['text'].analyzer
+        return highlight(text, words, analyzer, fragmenter, formatter, top=1)

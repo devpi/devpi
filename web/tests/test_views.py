@@ -189,7 +189,7 @@ def test_version_view(mapp, testapp):
         'keywords', 'license', 'name', 'platform', 'summary', 'version']
     assert info['name'] == 'pkg1'
     assert info['version'] == '2.6'
-    description = r.html.select('div.description')
+    description = r.html.select('#description')
     assert len(description) == 1
     description = description[0]
     assert py.builtin._totext(
@@ -238,5 +238,5 @@ def test_search_docs(mapp, testapp):
     assert r.status_code == 200
     links = r.html.select('.searchresults a')
     assert [(l.text.strip(), l.attrs['href']) for l in links] == [
-        ("pkg1", "http://localhost:80/%s/pkg1/2.6" % api.stagename),
+        ("pkg1-2.6", "http://localhost:80/%s/pkg1/2.6" % api.stagename),
         ("Foo", "http://localhost:80/%s/pkg1/2.6/+d/index.html" % api.stagename)]

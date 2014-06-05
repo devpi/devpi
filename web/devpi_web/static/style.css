@@ -25,12 +25,57 @@ form#search input[type=submit] {
 
 .packagename {
     font-weight: bold;
-    font-size: 110%;
+    font-size: 125%;
+}
+
+.packageinfo {
+    width: 42em;
+    margin: 0 0 1em 2em;
+    padding: 0;
+}
+
+.packageinfo dl {
+    vertical-align: top;
+    width: 20em;
+    display: inline-block;
+    margin: 0.5em 0.5em 0 0;
+    padding: 0;
+}
+
+.packageinfo dd {
+    height: 2.4em;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .packagedetails {
     font-size: 85%;
     color: #202020;
+}
+
+.batch_links {
+    width: 44em;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    text-align: center;
+}
+
+.batch_links li {
+    margin: 0;
+    padding: 0;
+    display: inline-block;
+    width: 1.25em;
+    overflow: hidden;
+}
+
+.batch_links li.current {
+    font-weight: bold;
+}
+
+.batch_links li.prev,
+.batch_links li.next {
+    width: 3em;
 }
 
 iframe {
