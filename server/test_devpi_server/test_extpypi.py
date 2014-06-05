@@ -258,19 +258,21 @@ class TestExtPYPIDB:
     def test_parse_project_replaced_eggfragment(self, pypistage):
         pypistage.setextsimple("pytest", pypiserial=10,
             pkgver="pytest-1.0.zip#egg=pytest-dev1")
-        links = pypistage.getreleaselinks("pytest", refresh=10)
+        links = pypistage.getreleaselinks("pytest")
         assert links[0].eggfragment == "pytest-dev1"
         pypistage.setextsimple("pytest", pypiserial=11,
             pkgver="pytest-1.0.zip#egg=pytest-dev2")
-        links = pypistage.getreleaselinks("pytest", refresh=11)
+        links = pypistage.getreleaselinks("pytest")
         assert links[0].eggfragment == "pytest-dev2"
 
     def test_parse_project_replaced_md5(self, pypistage):
-        x = pypistage.setextsimple("pytest", pypiserial=10, pkgver="pytest-1.0.zip")
-        links = pypistage.getreleaselinks("pytest", refresh=10)
+        x = pypistage.setextsimple("pytest", pypiserial=10, 
+                                   pkgver="pytest-1.0.zip")
+        links = pypistage.getreleaselinks("pytest")
         assert links[0].md5 == x.md5
-        y = pypistage.setextsimple("pytest", pypiserial=11, pkgver="pytest-1.0.zip")
-        links = pypistage.getreleaselinks("pytest", refresh=11)
+        y = pypistage.setextsimple("pytest", pypiserial=11, 
+                                   pkgver="pytest-1.0.zip")
+        links = pypistage.getreleaselinks("pytest")
         assert links[0].md5 == y.md5
         assert x.md5 != y.md5
 
@@ -319,8 +321,7 @@ class TestExtPYPIDB:
                 <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
                 <a rel="download" href="https://download.com/index.html" />
             '''.format(md5=md5, md5b=md5b), pypiserial=25)
-        assert len(pypistage.getreleaselinks("pytest")) == 2  # no refresh
-        links = pypistage.getreleaselinks("pytest", refresh=25)
+        links = pypistage.getreleaselinks("pytest")
         assert len(links) == 3
         assert links[1].url == "https://pypi.python.org/pkg/pytest-1.0.1.zip"
         assert links[1].relpath.endswith("/pytest-1.0.1.zip")
@@ -344,15 +345,17 @@ class TestExtPYPIDB:
             ''', pypiserial=10)
 
         # check getreleaselinks properly returns -2 on stale cache returns
-        ret = pypistage.getreleaselinks("pytest", refresh=11)
-        assert ret == -2
-        ret = pypistage.getreleaselinks("pytest", refresh=10)
+        ret = pypistage.getreleaselinks("pytest")
         assert len(ret) == 1
+        pypistage.name2serials["pytest"] = 11
+        ret = pypistage.getreleaselinks("pytest")
+        assert ret == -2
 
         # disable httpget and see if we still get releaselinks for lower
         # refresh serials
         pypistage.httpget = None
-        ret = pypistage.getreleaselinks("pytest", refresh=9)
+        pypistage.name2serials["pytest"] = 10
+        ret = pypistage.getreleaselinks("pytest")
         assert len(ret) == 1
 
 
@@ -464,7 +467,7 @@ class TestRefreshManager:
                           pypiserial=27)
         pypistage.mock_simple("Django", '<a href="Django-1.7.tgz"/a>',
                           pypiserial=25)
-        pypistage.process_refreshes()
+        
         with keyfs.transaction():
             b = pypistage.getreleaselinks("pytest")[0].basename
             assert b == "pytest-2.4.tgz"

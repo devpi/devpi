@@ -191,9 +191,6 @@ class PyPIStage:
         self.httpget = httpget
         self.filestore = filestore
 
-    def getcontained(self):
-        return self.keyfs.PYPILINKS_CONTAINED.get()
-
     def getprojectnames(self):
         """ return list of all projects which have been served. """
         return sorted(self.name2serials)
@@ -206,32 +203,28 @@ class PyPIStage:
                 "entrylist": dumplist,
                 "projectname": projectname}
         self.keyfs.PYPILINKS(name=normname).set(data)
-        with self.keyfs.PYPILINKS_CONTAINED.update() as contained:
-            contained.add(normname)
 
     def _load_project_cache(self, projectname):
         normname = normalize_name(projectname)
         return self.keyfs.PYPILINKS(name=normname).get()
 
-    def _load_cache_entries(self, projectname, refresh):
+    def _load_cache_entries(self, projectname, required_serial):
         cache = self._load_project_cache(projectname)
-        if cache and cache["serial"] >= refresh:
+        if cache and cache["serial"] >= required_serial:
             return [self.filestore.getentry(relpath)
                         for relpath in cache["entrylist"]]
 
-    def getreleaselinks(self, projectname, refresh=0):
+    def getreleaselinks(self, projectname):
         """ return all releaselinks from the index and referenced scrape
-        pages.   If we have cached entries return them if they relate to
-        at least the specified "refresh" serial number.  Otherwise
-        ask pypi.python.org for the simple page and process it if
-        it relates to at least the specified refresh serial.
+        pages, returning cached entries if we have a recent enough
+        request stored locally.
 
         If the pypi server cannot be reached return -1
-        If the cache is stale and could not be refreshed return -2.
-
+        If pypi does not return a fresh enough page although we know it
+        must exist, return -2.
         """
-        assert not isinstance(refresh, bool), repr(refresh)
-        entries = self._load_cache_entries(projectname, refresh)
+        newest_serial = self.name2serials.get(projectname, 0)
+        entries = self._load_cache_entries(projectname, newest_serial)
         if entries is not None:
             return entries
         info = self.get_project_info(projectname)
@@ -251,11 +244,10 @@ class PyPIStage:
 
         # check that we got a fresh enough page
         serial = int(response.headers["X-PYPI-LAST-SERIAL"])
-        if not isinstance(refresh, bool) and isinstance(refresh, int):
-            if serial < refresh:
-                log.warn("%s: pypi returned serial %s, expected %s",
-                         real_projectname, serial, refresh)
-                return -2  # the page we got is not fresh enough
+        if serial < newest_serial:
+            log.warn("%s: pypi returned serial %s, expected %s",
+                     real_projectname, serial, newest_serial)
+            return -2  # the page we got is not fresh enough
         log.debug("%s: got response with serial %s" %
                   (real_projectname, serial))
 
@@ -268,7 +260,7 @@ class PyPIStage:
         # restart transaction and see if a concurrent task already
         # got us the entries
         self.keyfs.restart_as_write_transaction()
-        entries = self._load_cache_entries(projectname, refresh)
+        entries = self._load_cache_entries(projectname, newest_serial)
         if entries is not None:
             return entries
         # compute release link entries and cache according to serial
@@ -347,7 +339,6 @@ class PyPIStage:
             log.debug("querying pypi changelog since %s", current_serial)
             changelog = proxy.changelog_since_serial(current_serial)
             self.process_changelog(changelog)
-            self.process_refreshes()
             proxysleep()
 
     def process_changelog(self, changelog):
@@ -372,6 +363,7 @@ class PyPIStage:
                 else:
                     subdict = subkey.get()
                     subdict[name] = maxserial
+                    log.info("changing serial of %s to %s" %(name, maxserial))
                     subkey.set(subdict)
         names = []
         for name, maxserial in names:
@@ -381,15 +373,6 @@ class PyPIStage:
         log.debug("processed changelog of size %d: %s" %(
                   len(changelog), names))
 
-    def process_refreshes(self):
-        # walk through all mirrored projects and trigger updates if needed
-        with self.keyfs.transaction(write=False):
-            names = self.getcontained()
-        for name in names:
-            with self.keyfs.transaction(write=False):
-                name = self.get_project_info(name).name
-                serial = self.name2serials.get(name, 0)
-                self.getreleaselinks(name, refresh=serial)
 
 PYPIURL_SIMPLE = "https://pypi.python.org/simple/"
 PYPIURL = "https://pypi.python.org/"

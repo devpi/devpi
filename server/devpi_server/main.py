@@ -148,7 +148,6 @@ def add_keys(keyfs):
 
     # type pypimirror related data
     keyfs.addkey("root/pypi/+links/{name}", dict, "PYPILINKS")
-    keyfs.addkey("root/pypi/+links/.contained", set, "PYPILINKS_CONTAINED") 
     keyfs.addkey("root/pypi/serials/+splitkeys", set, "PYPISERIALSPLITKEYS") 
     keyfs.addkey("root/pypi/serials/{splitkey}", dict, "PYPISERIALS") 
     keyfs.addkey("{user}/{index}/+e/{relpath}", bytes, "PYPIFILE_NOMD5") 
