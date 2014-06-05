@@ -173,7 +173,7 @@ def test_trans_get_not_modify(keyfs, type, val, monkeypatch):
     # make sure keyfs doesn't write during the transaction and its commit
     orig_write = py.path.local.write
     def write_checker(path, content):
-        assert path != attr.filepath
+        assert not path.endswith(attr.relpath)
         orig_write(path, content)
     monkeypatch.setattr(py.path.local, "write", write_checker)
     with keyfs.transaction():
@@ -346,20 +346,3 @@ class TestSubscriber:
         assert ev.typedkey.name == pkey.name
 
 
-@notransaction
-def test_bound_history_size(keyfs):
-    D = keyfs.add_key("NAME", "some", dict)
-    tx = ReadTransaction(keyfs)
-    for i in range(3):
-        with keyfs.transaction():
-            D.set({i:i})
-    with keyfs.transaction():
-        assert D.get() == {i:i}
-
-    size = D.filepath.size()
-    for i in range(3):
-        with keyfs.transaction():
-            D.set({i:i})
-        assert D.filepath.size() == size
-    # let's trigger an exhaustive search
-    assert not tx.exists(D)

@@ -138,7 +138,7 @@ class TestStage:
         user.create_stage(index="dev2", bases=("root/pypi",))
         stage_dev2 = user.getstage("dev2")
         stage.modify(bases=(stage_dev2.name,))
-        pypistage.mock_simple("someproject", 
+        pypistage.mock_simple("someproject",
                               "<a href='someproject-1.0.zip' /a>")
         register_and_store(stage_dev2, "someproject-1.1.tar.gz")
         register_and_store(stage_dev2, "someproject-1.2.tar.gz")
@@ -311,7 +311,7 @@ class TestStage:
                                         "some-1.0.zip", content2)
         entries = stage.getreleaselinks("some")
         assert len(entries) == 1
-        assert entries[0].FILE.get() == content2
+        assert entries[0].get_file_content() == content2
 
     def test_releasedata(self, stage):
         assert stage.metadata_keys

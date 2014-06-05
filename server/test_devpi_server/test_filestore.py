@@ -20,10 +20,11 @@ class TestFileStore:
         link = gen.pypi_package_link("pytest-1.2.zip")
         entry1 = filestore.maplink(link)
         # check md5 directory structure (issue78)
-        parent2 = entry1.filepath.dirpath()
-        parent1 = parent2.dirpath()
-        assert parent1.basename == link.md5[:3]
-        assert parent2.basename == link.md5[3:]
+        parts = entry1.relpath.split("/")
+        parent2 = parts[-2]
+        parent1 = parts[-3]
+        assert parent1 == link.md5[:3]
+        assert parent2 == link.md5[3:]
 
     def test_maplink(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.2.zip")
@@ -47,7 +48,7 @@ class TestFileStore:
         link = gen.pypi_package_link("pytest-1.2.zip")
         entry1 = filestore.maplink(link)
         # pseudo-write a release file
-        entry1.FILE.set(b"content")
+        entry1.set_file_content(b"content")
         assert entry1.iscached()
         newlink = gen.pypi_package_link("pytest-1.2.zip")
         entry2 = filestore.maplink(newlink)
@@ -57,7 +58,7 @@ class TestFileStore:
     def test_maplink_file_there_but_no_entry(self, filestore, keyfs, gen):
         link = gen.pypi_package_link("pytest-1.2.zip")
         entry1 = filestore.maplink(link)
-        entry1.FILE.set(b"hello")
+        entry1.set_file_content(b"hello")
         entry1.PATHENTRY.delete()
         headers, itercontent = filestore.getfile(entry1.relpath, 1)
         assert itercontent is None
@@ -65,7 +66,7 @@ class TestFileStore:
     def test_invalidate_cache(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.2.zip", md5=False)
         entry1 = filestore.maplink(link)
-        entry1.FILE.set(b"")
+        entry1.set_file_content(b"")
         assert entry1.iscached()
         entry1.invalidate_cache()
         assert not entry1.iscached()
@@ -88,7 +89,7 @@ class TestFileStore:
         assert not entry.iscached()
         entry.set(md5="1" * 16)
         assert not entry.iscached()
-        entry.FILE.set(b"")
+        entry.set_file_content(b"")
         assert entry.iscached()
         assert entry.url == link.url
         assert entry.md5 == u"1" * 16
@@ -100,7 +101,6 @@ class TestFileStore:
         assert entry.md5 == u"1" * 16
         entry.delete()
         assert not entry.iscached()
-        assert not entry.FILE.exists()
 
     def test_relpathentry_size(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.7.zip")
@@ -224,7 +224,6 @@ class TestFileStore:
         entry2 = filestore.getentry(entry.relpath)
         assert entry2.basename == "something-1.0.zip"
         assert entry2.iscached()
-        assert entry2.FILE.exists()
         assert entry2.md5 == entry.md5
         assert entry2.last_modified
         headers, c = filestore.getfile(entry.relpath, httpget=None)

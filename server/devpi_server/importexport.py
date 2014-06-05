@@ -220,8 +220,8 @@ class IndexDump:
         for basename, file in files.items():
             entry = self.exporter.filestore.getentry(file)
             file_meta = entry._mapping
-            assert entry.iscached(), entry.FILE.filepath
-            content = entry.FILE.get()
+            assert entry.iscached(), entry.relpath
+            content = entry.get_file_content()
             rel = self.exporter.write_file(
                 content,
                 self.basedir.join(projectname, entry.basename))

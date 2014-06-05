@@ -409,10 +409,6 @@ class TypedKey:
     def __eq__(self, other):
         return self.relpath == other.relpath
 
-    @property
-    def filepath(self):
-        return self.keyfs._getpath(self.relpath)
-
     def __repr__(self):
         return "<TypedKey %r type %r>" %(self.relpath, self.type.__name__)
 

@@ -45,9 +45,9 @@ class FileStore:
         mapping["eggfragment"] = link.eggfragment
         mapping["md5"] = link.md5
         if link.md5 != entry.md5:
-            if entry.FILE.exists():
+            if entry._FILE.exists():
                 log.info("replaced md5, deleting stale %s" % entry.relpath)
-                entry.FILE.delete()
+                entry._FILE.delete()
             else:
                 if entry.md5:
                     log.info("replaced md5 info for %s" % entry.relpath)
@@ -64,7 +64,7 @@ class FileStore:
             return None, None
         cached = entry.iscached() and not entry.eggfragment
         if cached:
-            return entry.gethttpheaders(), entry.FILE.get()
+            return entry.gethttpheaders(), entry.get_file_content()
         else:
             return self.getfile_remote(entry, httpget)
 
@@ -72,7 +72,7 @@ class FileStore:
         # we get and cache the file and some http headers from remote
         r = httpget(entry.url, allow_redirects=True)
         assert r.status_code >= 0, r.status_code
-        log.info("cache-streaming: %s, target %s", r.url, entry.FILE.relpath)
+        log.info("remote-streaming: %s, target %s", r.url, entry.relpath)
         content = r.raw.read()
         digest = hashlib.md5(content).hexdigest()
         filesize = len(content)
@@ -82,16 +82,16 @@ class FileStore:
         if content_size and int(content_size) != filesize:
             err = ValueError(
                       "%s: got %s bytes of %r from remote, expected %s" % (
-                      entry.FILE.relpath, filesize, r.url, content_size))
+                      entry.relpath, filesize, r.url, content_size))
         if not entry.eggfragment and entry.md5 and digest != entry.md5:
             err = ValueError("%s: md5 mismatch, got %s, expected %s",
-                             entry.FILE.relpath, digest, entry.md5)
+                             entry.relpath, digest, entry.md5)
         if err is not None:
             log.error(err)
             raise err
         self.keyfs.restart_as_write_transaction()
         entry.sethttpheaders(r.headers)
-        entry.FILE.set(content)
+        entry.set_file_content(content)
         entry.set(md5=digest, size=filesize)
         return entry.gethttpheaders(), content
 
@@ -139,19 +139,21 @@ class RelPathEntry(object):
     def __init__(self, keyfs, relpath):
         self.keyfs = keyfs
         self.relpath = relpath
-        self.FILE = keyfs.FILEPATH(relpath=relpath)
+        self._FILE = keyfs.FILEPATH(relpath=relpath)
         self.basename = posixpath.basename(relpath)
         self.PATHENTRY = keyfs.PATHENTRY(relpath=relpath)
         #log.debug("self.PATHENTRY %s", self.PATHENTRY.relpath)
         #log.debug("self.FILE %s", self.FILE)
         self._mapping = self.PATHENTRY.get()
 
-    @property
-    def filepath(self):
-        return self.FILE.filepath
-
     def __repr__(self):
         return "<RelPathEntry %r>" %(self.relpath)
+
+    def get_file_content(self):
+        return self._FILE.get()
+
+    def set_file_content(self, content):
+        self._FILE.set(content)
 
     def gethttpheaders(self):
         headers = {}
@@ -177,7 +179,7 @@ class RelPathEntry(object):
             pass
         else:
             self.PATHENTRY.set(self._mapping)
-        self.FILE.delete()
+        self._FILE.delete()
 
     def iscached(self):
         # compare md5 hash if exists with self.filepath
@@ -186,7 +188,7 @@ class RelPathEntry(object):
         # i.e. we maintain an invariant that <md5>/filename has a content
         # that matches the md5 hash. It is therefore possible that a
         # entry.md5 is set, but entry.relpath
-        return self.FILE.exists()
+        return self._FILE.exists()
 
     def __eq__(self, other):
         return (self.relpath == getattr(other, "relpath", None) and
@@ -206,7 +208,7 @@ class RelPathEntry(object):
 
     def delete(self, **kw):
         self.PATHENTRY.delete()
-        self.FILE.delete()
+        self._FILE.delete()
 
 
 for _ in RelPathEntry._attr:

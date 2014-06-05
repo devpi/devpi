@@ -147,7 +147,7 @@ class PyPIView:
         self.xom = xom
         self.model = xom.model
         self.auth = Auth(self.model, xom.config.secret)
-       
+
     def getstage(self, user, index):
         stage = self.model.getstage(user, index)
         if not stage:
@@ -353,7 +353,7 @@ class PyPIView:
         self.require_user(user)
         stage = self.getstage(user, index)
         if not stage.ixconfig["volatile"]:
-            apireturn(403, "index %s non-volatile, cannot delete" % 
+            apireturn(403, "index %s non-volatile, cannot delete" %
                            stage.name)
         stage.delete()
         apireturn(201, "index %s deleted" % stage.name)
@@ -419,7 +419,7 @@ class PyPIView:
             for entry in matches:
                 res = target_stage.store_releasefile(
                     name, version,
-                    entry.basename, entry.FILE.filepath.read(mode="rb"))
+                    entry.basename, entry.get_file_content())
                 if not isinstance(res, int):
                     res = 200
                 results.append((res, "store_releasefile", entry.basename,
@@ -448,12 +448,12 @@ class PyPIView:
                     pyver, filetype = get_pyversion_filetype(basename)
                     file_metadata["filetype"] = filetype
                     file_metadata["pyversion"] = pyver
-                    openfile = entry.FILE.filepath.open("rb")
+                    content = entry.get_file_content()
                     log.info("sending %s to %s, metadata %s",
                              basename, posturl, file_metadata)
                     r = session.post(posturl, data=file_metadata,
                           auth=pypiauth,
-                          files={"content": (basename, openfile)})
+                          files={"content": (basename, content)})
                     log.debug("send finished, status: %s", r.status_code)
                     results.append((r.status_code, "upload", entry.relpath,
                                     r.text))
@@ -732,9 +732,9 @@ class PyPIView:
         user = self.model.get_user(user)
         user.modify(password=password, email=email)
         if password is not None:
-            apireturn(200, "user updated, new proxy auth", 
+            apireturn(200, "user updated, new proxy auth",
                       type="userpassword",
-                      result=self.auth.new_proxy_auth(user.name, 
+                      result=self.auth.new_proxy_auth(user.name,
                                                       password=password))
         apireturn(200, "user updated")
 

@@ -521,7 +521,7 @@ class PrivateStage:
             if doczip:
                 entry = self.xom.filestore.getentry(doczip)
                 if entry:
-                    return entry.FILE.get()
+                    return entry.get_file_content()
 
 
 def normalize_bases(model, bases):

@@ -108,7 +108,7 @@ class TestImportExport:
             stage = mapp2.xom.model.getstage(api.stagename)
             entries = stage.getreleaselinks("hello")
             assert len(entries) == 1
-            assert entries[0].FILE.get() == b"content"
+            assert entries[0].get_file_content() == b"content"
             x = mapp2.xom.filestore.get_attachment(
                 md5=md5, type="toxresult", num=num)
             assert x == "123"
