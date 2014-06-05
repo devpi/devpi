@@ -13,9 +13,9 @@ import py
 import threading
 import os
 import sys
-try: from queue import Queue
-except ImportError: from Queue import Queue
+
 from execnet.gateway_base import Unserializer, _Serializer
+from devpi_common.types import cached_property
 
 import logging
 
@@ -42,9 +42,14 @@ def write_int_to_file(val, path):
         f.write(str(val))
     rename(tmp_path, path)
 
-def load_from_file(path):
-    with open(path, "rb") as f:
-        return load(f)
+def load_from_file(path, default=_nodefault):
+    try:
+        with open(path, "rb") as f:
+            return load(f)
+    except IOError:
+        if default is _nodefault:
+            raise
+        return default
 
 def get_write_file_ensure_dir(path):
     try:
@@ -97,14 +102,14 @@ class FSWriter:
     def record_set(self, typedkey, value=None):
         """ record setting typedkey to value (None means it's deleted) """
         relpath = typedkey.relpath
-        target_path = self.fs.basedir.join(relpath)
+        target_path = typedkey.filepath
         tmp_path = target_path + ".tmp"
         next_serial = self.fs.next_serial
-        back_serial = read_int_from_file(str(target_path), -1)
-        with get_write_file_ensure_dir(str(tmp_path)) as f:
-            f.write(str(next_serial))
+        name, back_serial = load_from_file(target_path, (typedkey.name, -1))
+        with get_write_file_ensure_dir(tmp_path) as f:
+            dump((typedkey.name, next_serial), f)
         self.changes[relpath] = (typedkey.name, back_serial, value)
-        self.pending_renames.append((tmp_path.strpath, target_path.strpath))
+        self.pending_renames.append((tmp_path, target_path))
 
     def __enter__(self):
         return self
@@ -196,7 +201,7 @@ class TxNotificationThread(threading.Thread):
         log.debug("calling key hooks for tx%s", event_serial)
         changes = self.keyfs._fs.get_changelog_entry(event_serial)
         for relpath, (keyname, back_serial, val) in changes.items():
-            key = self.keyfs.derive_typed_key(keyname, relpath)
+            key = self.keyfs.derive_key(relpath, keyname)
             ev = KeyChangeEvent(key, val, event_serial, back_serial)
             for sub in key._subscribers:
                 log.debug("calling %s", sub)
@@ -225,11 +230,19 @@ class KeyFS(object):
     def shutdown(self):
         self._notifier.shutdown()
 
-    def derive_typed_key(self, name, relpath):
-        key = self.get_key(name)
-        # XXX avoid parse out and parse back
+    def derive_key(self, relpath, keyname=None):
+        """ return direct key for a given path and keyname.
+        If keyname is not specified, the relpath key must exist
+        to extract its name. """
+        if keyname is None:
+            filepath = os.path.join(str(self.basedir), relpath)
+            try:
+                keyname, last_serial = load_from_file(filepath)
+            except IOError:
+                raise KeyError(relpath)
+        key = self.get_key(keyname)
         if isinstance(key, PTypedKey):
-            key = key(**key.match_params(relpath))
+            key = key(**key.extract_params(relpath))
         return key
 
     def import_changelog_entry(self, serial, entry):
@@ -239,7 +252,7 @@ class KeyFS(object):
                 assert next_serial == serial, (next_serial, serial)
                 for relpath, tup in entry.items():
                     name, back_serial, val = tup
-                    typedkey = self.derive_typed_key(name, relpath)
+                    typedkey = self.derive_key(relpath, name)
                     fswriter.record_set(typedkey, val)
 
     def get_next_serial(self):
@@ -252,8 +265,8 @@ class KeyFS(object):
     def get_value_at(self, typedkey, at_serial):
         relpath = typedkey.relpath
         try:
-            last_serial = int(self._getpath(relpath).read(mode="rb"))
-        except py.error.Error:
+            keyname, last_serial = load_from_file(typedkey.filepath)
+        except IOError:
             raise KeyError(relpath)
         while last_serial >= 0:
             tup = self._fs.get_from_transaction_entry(last_serial, relpath)
@@ -274,14 +287,6 @@ class KeyFS(object):
         # XXX only used from devpi-web, could be managed there
         tmpdir = self.basedir.ensure(".tmp", dir=1)
         return py.path.local.make_numbered_dir(prefix=prefix, rootdir=tmpdir)
-
-    def _exists(self, relpath):
-        return self._getpath(relpath).check()
-
-    def _getpath(self, relpath):
-        assert isinstance(relpath, py.builtin._basestring), \
-               (type(relpath), relpath)
-        return self.basedir.join(relpath)
 
     def add_key(self, name, path, type):
         assert isinstance(path, py.builtin._basestring)
@@ -370,7 +375,7 @@ class PTypedKey:
         return TypedKey(self.keyfs, relpath, self.type, self.name,
                         frompattern=(self._subscribers, kw))
 
-    def match_params(self, relpath):
+    def extract_params(self, relpath):
         m = self.rex_reverse.match(relpath)
         if m is not None:
             return m.groupdict()
@@ -394,10 +399,18 @@ class TypedKey:
         self.relpath = relpath
         self.type = type
         self.name = name
+        self.filepath = os.path.join(str(keyfs.basedir), relpath)
         if frompattern is None:
             self._subscribers = []
         else:
             self._subscribers, self.params = frompattern
+
+    @cached_property
+    def params(self):
+        key = self.keyfs.get_key(self.name)
+        if isinstance(key, PTypedKey):
+            return key.extract_params(relpath)
+        return {}
 
     def register_subscriber(self, func):
         log.debug("registering subscriber %s", func)

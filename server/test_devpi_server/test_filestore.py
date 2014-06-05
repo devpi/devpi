@@ -55,14 +55,6 @@ class TestFileStore:
         assert entry2.md5 == newlink.md5
         assert not entry2.iscached()
 
-    def test_maplink_file_there_but_no_entry(self, filestore, keyfs, gen):
-        link = gen.pypi_package_link("pytest-1.2.zip")
-        entry1 = filestore.maplink(link)
-        entry1.set_file_content(b"hello")
-        entry1.PATHENTRY.delete()
-        headers, itercontent = filestore.getfile(entry1.relpath, 1)
-        assert itercontent is None
-
     def test_invalidate_cache(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.2.zip", md5=False)
         entry1 = filestore.maplink(link)

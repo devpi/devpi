@@ -142,8 +142,6 @@ class RelPathEntry(object):
         self._FILE = keyfs.FILEPATH(relpath=relpath)
         self.basename = posixpath.basename(relpath)
         self.PATHENTRY = keyfs.PATHENTRY(relpath=relpath)
-        #log.debug("self.PATHENTRY %s", self.PATHENTRY.relpath)
-        #log.debug("self.FILE %s", self.FILE)
         self._mapping = self.PATHENTRY.get()
 
     def __repr__(self):

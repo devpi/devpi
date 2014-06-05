@@ -58,8 +58,8 @@ class TestGetKey:
         pkey = keyfs.add_key("NAME", "{hello}/{this}", dict)
         found_key = keyfs.get_key("NAME")
         assert found_key == pkey
-        assert pkey.match_params("cat/dog") == dict(hello="cat", this="dog")
-        assert pkey.match_params("cat") == {}
+        assert pkey.extract_params("cat/dog") == dict(hello="cat", this="dog")
+        assert pkey.extract_params("cat") == {}
         assert pkey.name == "NAME"
         key = pkey(hello="cat", this="dog")
         assert key.name == "NAME"
@@ -271,6 +271,25 @@ class TestTransactionIsolation:
         with pytest.raises(KeyError):
             assert new_keyfs.get_value_at(D2, 1)
         assert new_keyfs.get_value_at(D2, 2) == {2:2}
+
+    def test_derive_key_direct(self, keyfs):
+        D = keyfs.add_key("NAME", "hello", dict)
+        with keyfs.transaction(write=True):
+            D.set({1:1})
+        key = keyfs.derive_key(D.relpath)
+        assert key == D
+        assert key.params == {}
+
+    def test_derive_key_pattern(self, keyfs):
+        pkey = keyfs.add_key("NAME", "{name}/{index}", dict)
+        params = dict(name="hello", index="world")
+        D = pkey(**params)
+        with keyfs.transaction(write=True):
+            D.set({1:1})
+        key = keyfs.derive_key(D.relpath)
+        assert key == D
+        assert key.params == params
+
 
 @notransaction
 class TestSubscriber:
