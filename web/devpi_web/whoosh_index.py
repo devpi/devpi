@@ -307,7 +307,7 @@ class Index(object):
                     "sub_hits": []}
                 parents[path] = parent
                 items.append(parent)
-            if collapse and len(parent['sub_hits']) > 2:
+            if collapse and len(parent['sub_hits']) > 3:
                 collapsed_counts[path] = collapsed_counts[path] + 1
             else:
                 parent['sub_hits'].append(info)

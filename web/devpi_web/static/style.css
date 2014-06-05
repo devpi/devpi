@@ -25,7 +25,27 @@ form#search input[type=submit] {
 
 .packagename {
     font-weight: bold;
-    font-size: 110%;
+    font-size: 125%;
+}
+
+.packageinfo {
+    width: 42em;
+    margin: 0 0 1em 2em;
+    padding: 0;
+}
+
+.packageinfo dl {
+    vertical-align: top;
+    width: 20em;
+    display: inline-block;
+    margin: 0.5em 0.5em 0 0;
+    padding: 0;
+}
+
+.packageinfo dd {
+    height: 2.4em;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .packagedetails {

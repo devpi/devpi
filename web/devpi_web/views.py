@@ -365,34 +365,26 @@ class SearchView:
             highlight = None
             if text_type == 'project':
                 continue
-            elif text_type == 'title':
-                title = sub_data.get('text_title', title)
-            elif text_type == 'page':
+            elif text_type in ('title', 'page'):
                 docs = self.get_docs(stage, data)
                 entry = docs[sub_data['text_path']]
                 text = entry['text']
                 highlight = search_index.highlight(text, sub_hit.get('words'))
                 title = sub_data.get('text_title', title)
-            elif text_type == 'keywords':
-                text = metadata.get('keywords')
-                highlight = search_index.highlight(text, sub_hit.get('words'))
-            elif text_type == 'description':
-                text = metadata.get('description')
-                highlight = search_index.highlight(text, sub_hit.get('words'))
-            elif text_type == 'summary':
-                text = metadata.get('summary')
+                text_path = sub_data.get('text_path')
+                if text_path:
+                    sub_hit['url'] = self.request.route_url(
+                        "docviewroot", user=data['user'], index=data['index'],
+                        name=data['name'], version=data['doc_version'],
+                        relpath="%s.html" % text_path)
+            elif text_type in ('keywords', 'description', 'summary'):
+                text = metadata.get(text_type)
                 highlight = search_index.highlight(text, sub_hit.get('words'))
             else:
                 log.error("Unknown text_type %s" % text_type)
                 continue
             sub_hit['title'] = title
             sub_hit['highlight'] = highlight
-            text_path = sub_data.get('text_path')
-            if text_path:
-                sub_hit['url'] = self.request.route_url(
-                    "docviewroot", user=data['user'], index=data['index'],
-                    name=data['name'], version=data['doc_version'],
-                    relpath="%s.html" % text_path)
             result.append(sub_hit)
         return result
 

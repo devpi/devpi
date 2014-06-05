@@ -15,16 +15,16 @@
                     </dt>
                     <dd class="packageinfo">
                         <div class="packagedetails"><span>${item.data.path}</span></div>
-                        <ul>
-                            <li tal:repeat="sub_hit item.sub_hits">
+                        <dl tal:repeat="sub_hit item.sub_hits">
+                            <dt>
                                 <a tal:omit-tag="not sub_hit.get('url')" tal:attributes="href sub_hit.url">
                                     ${sub_hit.title}
                                 </a>
-                                <tal:highlight condition="sub_hit.highlight">
-                                <br /><span tal:replace="structure sub_hit.highlight" />
-                                </tal:highlight>
-                            </li>
-                        </ul>
+                            </dt>
+                            <dd condition="sub_hit.highlight">
+                                <span tal:replace="structure sub_hit.highlight" />
+                            </dd>
+                        </dl>
                         <div class="packagefurther" tal:condition="item.get('more_count')">
                             <a tal:omit-tag="not item.get('more_url')" tal:attributes="href item.more_url">
                                 ${item.more_count} more results for ${item.data.name} …
