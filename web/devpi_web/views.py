@@ -3,10 +3,11 @@ from __future__ import unicode_literals
 from devpi_common.metadata import splitbasename
 from devpi_common.types import ensure_unicode
 from devpi_server.views import matchdict_parameters
-from devpi_web.doczip import get_unpack_path
+from devpi_web.doczip import Docs, get_unpack_path
 from operator import itemgetter
 from py.xml import html
 from pyramid.compat import decode_path_info
+from pyramid.decorator import reify
 from pyramid.httpexceptions import HTTPFound, HTTPNotFound
 from pyramid.httpexceptions import default_exceptionresponse_view
 from pyramid.interfaces import IRoutesMapper
@@ -274,69 +275,150 @@ def batch_list(num, current, left=3, right=3):
     return result
 
 
-@view_config(
-    route_name='search',
-    renderer='templates/search.pt')
-def search(request):
-    params = dict(request.params)
-    params['query'] = params.get('query', '')
-    try:
-        params['page'] = int(params.get('page'))
-    except TypeError:
-        params['page'] = 1
-    batch_links = []
-    if params['query']:
-        search_index = request.registry['search_index']
-        result = search_index.query_projects(
-            params['query'], page=params['page'])
-        result_info = result['info']
+class SearchView:
+    def __init__(self, request):
+        self.request = request
+        self._projectinfo = {}
+        self._docs = {}
+
+    @reify
+    def params(self):
+        params = dict(self.request.params)
+        params['query'] = params.get('query', '')
+        try:
+            params['page'] = int(params.get('page'))
+        except TypeError:
+            params['page'] = 1
+        return params
+
+    @reify
+    def search_result(self):
+        if not self.params['query']:
+            return None
+        search_index = self.request.registry['search_index']
+        return search_index.query_projects(
+            self.params['query'], page=self.params['page'])
+
+    @reify
+    def batch_links(self):
+        batch_links = []
+        result_info = self.search_result['info']
         for item in batch_list(result_info['pagecount'], result_info['pagenum'] - 1):
             if item is None:
                 batch_links.append(dict(
                     title='…'))
-            elif item == (params['page'] - 1):
+            elif item == (self.params['page'] - 1):
                 batch_links.append(dict(
                     title=item + 1))
             else:
-                new_params = dict(params)
+                new_params = dict(self.params)
                 new_params['page'] = item + 1
                 batch_links.append(dict(
                     title=item + 1,
-                    url=request.route_url(
+                    url=self.request.route_url(
                         'search',
                         _query=new_params)))
+        return batch_links
+
+    def add_item_url(self, item, data):
+        if 'version' in data:
+            item['url'] = self.request.route_url(
+                "/{user}/{index}/{name}/{version}",
+                user=data['user'], index=data['index'],
+                name=data['name'], version=data['version'])
+        else:
+            item['url'] = self.request.route_url(
+                "/{user}/{index}/{name}",
+                user=data['user'], index=data['index'], name=data['name'])
+
+    def get_projectinfo(self, path):
+        if path not in self._projectinfo:
+            xom = self.request.registry['xom']
+            user, index, name = path[1:].split('/')
+            stage = xom.model.getstage(user, index)
+            _load_project_cache = getattr(stage, '_load_project_cache', None)
+            if _load_project_cache is None or _load_project_cache(name):
+                projectconfig = stage.get_projectconfig(name)
+            else:
+                projectconfig = {}
+            self._projectinfo['path'] = (stage, projectconfig)
+        return self._projectinfo['path']
+
+    def get_docs(self, stage, data):
+        path = data['path']
+        if path not in self._docs:
+            self._docs[path] = Docs(stage, data['name'], data['doc_version'])
+        return self._docs[path]
+
+    def process_sub_hits(self, sub_hits, data):
+        search_index = self.request.registry['search_index']
+        stage, projectconfig = self.get_projectinfo(data['path'])
+        result = []
+        for sub_hit in sub_hits:
+            sub_data = sub_hit['data']
+            text_type = sub_data['text_type']
+            if 'version' in data:
+                metadata = projectconfig[data['version']]
+            else:
+                metadata = {}
+            title = text_type.title()
+            highlight = None
+            if text_type == 'project':
+                continue
+            elif text_type == 'title':
+                title = sub_data.get('text_title', title)
+            elif text_type == 'page':
+                docs = self.get_docs(stage, data)
+                entry = docs[sub_data['text_path']]
+                text = entry['text']
+                highlight = search_index.highlight(text, sub_hit.get('words'))
+                title = sub_data.get('text_title', title)
+            elif text_type == 'keywords':
+                text = metadata.get('keywords')
+                highlight = search_index.highlight(text, sub_hit.get('words'))
+            elif text_type == 'description':
+                text = metadata.get('description')
+                highlight = search_index.highlight(text, sub_hit.get('words'))
+            elif text_type == 'summary':
+                text = metadata.get('summary')
+                highlight = search_index.highlight(text, sub_hit.get('words'))
+            else:
+                log.error("Unknown text_type %s" % text_type)
+                continue
+            sub_hit['title'] = title
+            sub_hit['highlight'] = highlight
+            text_path = sub_data.get('text_path')
+            if text_path:
+                sub_hit['url'] = self.request.route_url(
+                    "docviewroot", user=data['user'], index=data['index'],
+                    name=data['name'], version=data['doc_version'],
+                    relpath="%s.html" % text_path)
+            result.append(sub_hit)
+        return result
+
+    @reify
+    def result(self):
+        result = self.search_result
         for item in result['items']:
             data = item['data']
-            if 'version' in data:
-                item['url'] = request.route_url(
-                    "/{user}/{index}/{name}/{version}",
-                    user=data['user'], index=data['index'],
-                    name=data['name'], version=data['version'])
-            else:
-                item['url'] = request.route_url(
-                    "/{user}/{index}/{name}",
-                    user=data['user'], index=data['index'], name=data['name'])
-            for sub_hit in item['sub_hits']:
-                sub_hit['title'] = sub_hit['data'].get(
-                    'text_title', sub_hit['data']['text_type'])
-                text_path = sub_hit['data'].get('text_path')
-                if text_path:
-                    sub_hit['url'] = request.route_url(
-                        "docviewroot", user=data['user'], index=data['index'],
-                        name=data['name'], version=data['doc_version'],
-                        relpath="%s.html" % text_path)
-            more_results = result_info['collapsed_counts'][data['path']]
+            self.add_item_url(item, data)
+            item['sub_hits'] = self.process_sub_hits(item['sub_hits'], data)
+            more_results = result['info']['collapsed_counts'][data['path']]
             if more_results:
-                new_params = dict(params)
-                new_params['query'] = "%s path:%s" % (params['query'], data['path'])
-                item['more_url'] = request.route_url(
+                new_params = dict(self.params)
+                new_params['query'] = "%s path:%s" % (self.params['query'], data['path'])
+                item['more_url'] = self.request.route_url(
                     'search',
                     _query=new_params)
                 item['more_count'] = more_results
-    else:
-        result = None
-    return dict(
-        query=params['query'],
-        page=params['page'],
-        batch_links=batch_links,
-        result=result)
+        return result
+
+    @view_config(
+        route_name='search',
+        renderer='templates/search.pt')
+    def __call__(self):
+        return dict(
+            query=self.params['query'],
+            page=self.params['page'],
+            batch_links=self.batch_links,
+            result=self.result)

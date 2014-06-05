@@ -6,6 +6,7 @@ from whoosh import fields
 from whoosh.analysis import Filter, LowercaseFilter, RegexTokenizer
 from whoosh.analysis import Token, Tokenizer
 from whoosh.compat import text_type, u
+from whoosh.highlight import ContextFragmenter, HtmlFormatter, highlight
 from whoosh.index import create_in, exists_in, open_dir
 from whoosh.index import IndexError as WhooshIndexError
 from whoosh.qparser import QueryParser
@@ -283,8 +284,14 @@ class Index(object):
         fields = set(x.field() for x in raw.results.q.leaves())
         collapse = "path" not in fields
         parents = {}
+        text_field = raw.results.searcher.schema['text']
         for item in raw:
-            info = {"data": dict(item)}
+            info = {
+                "data": dict(item),
+                "words": frozenset(
+                    text_field.from_bytes(term[1])
+                    for term in item.matched_terms()
+                    if term[0] == 'text')}
             for attr in ('docnum', 'pos', 'rank', 'score'):
                 info[attr] = getattr(item, attr)
             path = item['path']
@@ -308,7 +315,7 @@ class Index(object):
 
     def _search_projects(self, query, page=1):
         searcher = self.project_searcher
-        return searcher.search_page(query, page)
+        return searcher.search_page(query, page, terms=True)
 
     def _query_parser_plugins(self):
         from whoosh.qparser import plugins
@@ -342,3 +349,9 @@ class Index(object):
                 self._query_projects(querystring, page=page))
         except (OSError, WhooshIndexError) as e:
             raise SearchUnavailableException(e)
+
+    def highlight(self, text, words):
+        fragmenter = ContextFragmenter()
+        formatter = HtmlFormatter()
+        analyzer = self.project_schema['text'].analyzer
+        return highlight(text, words, analyzer, fragmenter, formatter, top=1)

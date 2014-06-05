@@ -20,6 +20,9 @@
                                 <a tal:omit-tag="not sub_hit.get('url')" tal:attributes="href sub_hit.url">
                                     ${sub_hit.title}
                                 </a>
+                                <tal:highlight condition="sub_hit.highlight">
+                                <br /><span tal:replace="structure sub_hit.highlight" />
+                                </tal:highlight>
                             </li>
                         </ul>
                         <div class="packagefurther" tal:condition="item.get('more_count')">
