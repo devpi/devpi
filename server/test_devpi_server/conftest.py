@@ -118,6 +118,15 @@ def makexom(request, gentmp, httpget, monkeypatch):
 
 
 @pytest.fixture
+def replica_xom(request, makexom):
+    from devpi_server.replica import PyPIProxy
+    master_url = "http://localhost:3111"
+    xom = makexom(["--master", master_url])
+    xom.proxy = PyPIProxy(xom, master_url)
+    return xom
+
+
+@pytest.fixture
 def maketestapp(request):
     def maketestapp(xom):
         app = xom.create_app(immediatetasks=-1)
@@ -222,7 +231,11 @@ def add_pypistage_mocks(monkeypatch, httpget):
     # add some mocking helpers
     PyPIStage.url2response = httpget.url2response
     def setextsimple(self, name, text=None, pypiserial=10000, **kw):
-        self.pypimirror._set_project_serial(name, pypiserial)
+        if not hasattr(self.keyfs, "tx"):
+            with self.keyfs.transaction(write=True):
+                self.pypimirror.set_project_serial(name, pypiserial)
+        else:
+            self.pypimirror.set_project_serial(name, pypiserial)
         return self.httpget.setextsimple(name,
                 text=text, pypiserial=pypiserial, **kw)
     monkeypatch.setattr(PyPIStage, "setextsimple", setextsimple, raising=False)
@@ -230,7 +243,7 @@ def add_pypistage_mocks(monkeypatch, httpget):
 
 @pytest.fixture
 def pypiurls():
-    from devpi_server.extpypi import PYPIURL_SIMPLE, PYPIURL
+    from devpi_server.extpypi import PYPIURL, PYPIURL_SIMPLE
     class PyPIURL:
         def __init__(self):
             self.base = PYPIURL
@@ -404,13 +417,18 @@ class Mapp(MappMixin):
                 projectname), {}, expect_errors=True)
         assert r.status_code == code
 
-    def register_metadata(self, metadata, indexname=None, code=200):
+    def register_metadata(self, metadata, indexname=None, code=200,
+                          waithooks=False):
         indexname = self._getindexname(indexname)
         metadata = metadata.copy()
         metadata[":action"] = "submit"
         r = self.testapp.post("/%s/" % indexname, metadata,
                               expect_errors=True)
         assert r.status_code == code
+        if waithooks:
+            commit_serial = int(r.headers["X-DEVPI-SERIAL"])
+            self.xom.keyfs.notifier.wait_for_event_serial(commit_serial)
+        return r
 
     def upload_file_pypi(self, basename, content,
                          name=None, version=None, indexname=None,
@@ -503,8 +521,7 @@ class MyTestApp(TApp):
         return self._gen_request("PUSH", url, params=params, **kw)
 
     def get(self, *args, **kwargs):
-        if "expect_errors" not in kwargs:
-            kwargs["expect_errors"] = True
+        kwargs.setdefault("expect_errors", True)
         return super(MyTestApp, self).get(*args, **kwargs)
 
     def get_json(self, *args, **kwargs):

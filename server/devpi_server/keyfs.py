@@ -85,8 +85,12 @@ class Filesystem:
 
     def get_raw_changelog_entry(self, serial):
         p = self.path_changelogdir.join(str(serial))
-        with p.open("rb") as f:
-            return f.read()
+        try:
+            with p.open("rb") as f:
+                return f.read()
+        except py.error.Error:
+            log.error("could not open %s" % p)
+            return None
 
     def get_changelog_entry(self, serial):
         try:
@@ -131,15 +135,17 @@ class FSWriter:
         if cls is None:
             self.commit_to_filesystem()
             commit_serial = self.fs.next_serial - 1
-            log.info("tx%s committed", commit_serial)
             if self.changes:
-                log.debug(" changed:%s" % ",".join(self.changes))
+                log.info("tx%s committed %s", commit_serial,
+                         ",".join(self.changes))
                 self.fs._notify_on_transaction(commit_serial)
-            return
-        while self.pending_renames:
-            source, dest = self.pending_renames.pop()
-            os.remove(source)
-        log.info("fstransaction roll back at %s" %(self.fs.next_serial))
+            else:
+                log.error("tx%s committed but empty!", commit_serial)
+        else:
+            while self.pending_renames:
+                source, dest = self.pending_renames.pop()
+                os.remove(source)
+            log.info("fstransaction roll back at %s" %(self.fs.next_serial))
 
     def commit_to_filesystem(self):
         # XXX assumption: we don't crash in the middle of this function
@@ -181,20 +187,36 @@ class TxNotificationThread(threading.Thread):
         self.setDaemon(True)
         self.keyfs = keyfs
         self.new_transaction = threading.Event()
+        self.new_event_serial = threading.Event()
         self.event_serial_path = str(self.keyfs.basedir.join(".event_serial"))
-        self.running = True
+        self._on_key_change = {}
+
+    def on_key_change(self, key, subscriber):
+        assert not self.isAlive(), (
+               "cannot register handlers after thread is started")
+        keyname = getattr(key, "name", key)
+        assert py.builtin._istext(keyname) or py.builtin._isbytes(keyname)
+        self._on_key_change.setdefault(keyname, []).append(subscriber)
+
+    def wait_for_event_serial(self, serial):
+        log.info("waiting for event-serial %s, current %s",
+                 serial, self.read_event_serial())
+        while serial >= self.read_event_serial():
+            self.new_event_serial.wait()
+            # XXX verify: will all threads wake up when we clear the
+            # event with the first one waking up here?
+            self.new_event_serial.clear()
+        log.info("finished waiting for event-serial %s, current %s",
+                 serial, self.read_event_serial())
 
     def read_event_serial(self):
         return read_int_from_file(self.event_serial_path, 0)
-
-    def write_event_serial(self, serial):
-        write_int_to_file(serial, self.event_serial_path)
 
     def notify_on_transaction(self, serial):
         self.new_transaction.set()
 
     def shutdown(self):
-        self.running = False
+        self._shuttingdown = True
         self.new_transaction.set()
 
     def run(self):
@@ -203,20 +225,23 @@ class TxNotificationThread(threading.Thread):
             if event_serial >= self.keyfs._fs.next_serial:
                 self.new_transaction.wait()
                 self.new_transaction.clear()
-            if not self.running:
+            if hasattr(self, "_shuttingdown"):
                 break
             while event_serial < self.keyfs._fs.next_serial:
-                self.execute_hooks(event_serial)
+                self._execute_hooks(event_serial)
                 event_serial += 1
-                self.write_event_serial(event_serial)
+                # write event serial
+                write_int_to_file(event_serial, self.event_serial_path)
+                self.new_event_serial.set()
 
-    def execute_hooks(self, event_serial):
-        log.debug("calling key hooks for tx%s", event_serial)
+    def _execute_hooks(self, event_serial):
+        log.debug("calling hooks for tx%s", event_serial)
         changes = self.keyfs._fs.get_changelog_entry(event_serial)
         for relpath, (keyname, back_serial, val) in changes.items():
             key = self.keyfs.derive_key(relpath, keyname)
             ev = KeyChangeEvent(key, val, event_serial, back_serial)
-            for sub in key._subscribers:
+            subscribers = self._on_key_change.get(keyname, [])
+            for sub in subscribers:
                 log.debug("calling %s", sub)
                 try:
                     sub(ev)
@@ -233,15 +258,9 @@ class KeyFS(object):
         # a non-recursive lock because we don't support nested transactions
         self._write_lock = threading.Lock()
         self._threadlocal = threading.local()
-        self._notifier = t = TxNotificationThread(self)
+        self.notifier = t = TxNotificationThread(self)
         self._fs = Filesystem(self.basedir,
                               notify_on_transaction=t.notify_on_transaction)
-
-    def start_notifier(self):
-        self._notifier.start()
-
-    def shutdown(self):
-        self._notifier.shutdown()
 
     def derive_key(self, relpath, keyname=None):
         """ return direct key for a given path and keyname.
@@ -300,7 +319,7 @@ class KeyFS(object):
         raise KeyError(relpath)
 
     def mkdtemp(self, prefix):
-        # XXX only used from devpi-web, could be managed there
+        # XXX only used from devpi-web, should be managed there
         tmpdir = self.basedir.ensure(".tmp", dir=1)
         return py.path.local.make_numbered_dir(prefix=prefix, rootdir=tmpdir)
 
@@ -317,9 +336,10 @@ class KeyFS(object):
     def get_key(self, name):
         return self._keys.get(name)
 
-    def begin_transaction_in_thread(self, write=False):
+    def begin_transaction_in_thread(self, write=False, at_serial=None):
         assert not hasattr(self._threadlocal, "tx")
-        tx = WriteTransaction(self) if write else ReadTransaction(self)
+        tx = WriteTransaction(self) if write \
+                                    else ReadTransaction(self, at_serial)
         self._threadlocal.tx = tx
         return tx
 
@@ -339,10 +359,10 @@ class KeyFS(object):
         self.clear_transaction()
 
     @contextlib.contextmanager
-    def transaction(self, write=True):
-        self.begin_transaction_in_thread(write=write)
+    def transaction(self, write=True, at_serial=None):
+        tx = self.begin_transaction_in_thread(write=write, at_serial=at_serial)
         try:
-            yield
+            yield tx
         except:
             self.rollback_transaction_in_thread()
             raise
@@ -357,7 +377,6 @@ class PTypedKey:
         self.pattern = py.builtin._totext(key)
         self.type = type
         self.name = name
-        self._subscribers = []
         def repl(match):
             name = match.group(1)
             return r'(?P<%s>[^\/]+)' % name
@@ -365,16 +384,13 @@ class PTypedKey:
         rex_pattern = self.rex_braces.sub(repl, rex_pattern)
         self.rex_reverse = re.compile("^" + rex_pattern + "$")
 
-    def register_subscriber(self, func):
-        self._subscribers.append(func)
-
     def __call__(self, **kw):
         for val in kw.values():
             if "/" in val:
                 raise ValueError(val)
         relpath = self.pattern.format(**kw)
         return TypedKey(self.keyfs, relpath, self.type, self.name,
-                        frompattern=(self._subscribers, kw))
+                        params=kw)
 
     def extract_params(self, relpath):
         m = self.rex_reverse.match(relpath)
@@ -393,16 +409,13 @@ class KeyChangeEvent:
 
 
 class TypedKey:
-    def __init__(self, keyfs, relpath, type, name, frompattern=None):
+    def __init__(self, keyfs, relpath, type, name, params=None):
         self.keyfs = keyfs
         self.relpath = relpath
         self.type = type
         self.name = name
         self.filepath = os.path.join(str(keyfs.basedir), relpath)
-        if frompattern is None:
-            self._subscribers = []
-        else:
-            self._subscribers, self.params = frompattern
+        self.params = params or {}
 
     @cached_property
     def params(self):
@@ -410,10 +423,6 @@ class TypedKey:
         if isinstance(key, PTypedKey):
             return key.extract_params(self.relpath)
         return {}
-
-    def register_subscriber(self, func):
-        log.debug("registering subscriber %s", func)
-        self._subscribers.append(func)
 
     def __hash__(self):
         return hash(self.relpath)
@@ -449,9 +458,11 @@ class TypedKey:
 
 
 class ReadTransaction(object):
-    def __init__(self, keyfs):
+    def __init__(self, keyfs, at_serial=None):
         self.keyfs = keyfs
-        self.at_serial = keyfs.get_next_serial() - 1
+        if at_serial is None:
+            at_serial = keyfs.get_next_serial() - 1
+        self.at_serial = at_serial
         self.cache = {}
         self.dirty = set()
 

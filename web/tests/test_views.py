@@ -35,7 +35,8 @@ def test_docs_view(mapp, testapp):
     api = mapp.create_and_use()
     content = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=400)
-    mapp.register_metadata({"name": "pkg1", "version": "2.6"})
+    mapp.register_metadata({"name": "pkg1", "version": "2.6"}, waithooks=True)
+
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200)
     r = testapp.get(api.index + "/pkg1/2.6/+d/index.html")
     assert r.status_code == 200
@@ -120,7 +121,7 @@ def test_index_view_project_files(mapp, testapp):
 
 def test_index_view_project_docs(mapp, testapp):
     api = mapp.create_and_use()
-    mapp.register_metadata({"name": "pkg1", "version": "2.6"})
+    mapp.register_metadata({"name": "pkg1", "version": "2.6"}, waithooks=True)
     content = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200)
     r = testapp.get(api.index, headers=dict(accept="text/html"))
@@ -166,7 +167,7 @@ def test_version_view(mapp, testapp):
     mapp.register_metadata({
         "name": "pkg1",
         "version": "2.6",
-        "description": "foo"})
+        "description": "foo"}, waithooks=True)
     mapp.upload_file_pypi(
         "pkg1-2.6.tar.gz", b"content", "pkg1", "2.6")
     mapp.upload_file_pypi(
@@ -212,7 +213,7 @@ def test_search_docs(mapp, testapp):
     mapp.register_metadata({
         "name": "pkg1",
         "version": "2.6",
-        "description": "foo"})
+        "description": "foo"}, waithooks=True)
     mapp.upload_file_pypi(
         "pkg1-2.6.tar.gz", b"content", "pkg1", "2.6")
     content = zip_dict(

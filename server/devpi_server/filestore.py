@@ -142,7 +142,8 @@ class FileStore:
 
 
 class FileEntry(object):
-    _attr = set("md5 eggfragment last_modified content_type url".split())
+    _attr = set("md5 eggfragment last_modified content_type url "
+                "projectname version".split())
 
     def __init__(self, key, md5=_nodefault):
         self.key = key

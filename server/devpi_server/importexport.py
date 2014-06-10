@@ -90,6 +90,7 @@ def do_import(path, xom):
                   xom.config.serverdir)
     importer = Importer(tw, xom)
     importer.import_all(path)
+    importer.wait_for_events()
     return 0
 
 
@@ -336,6 +337,13 @@ class Importer:
             for filedesc in import_index["files"]:
                 with self.xom.keyfs.transaction():
                     self.import_filedesc(stage, filedesc)
+
+    def wait_for_events(self):
+        latest_serial = self.xom.keyfs.get_next_serial() - 1
+        self.tw.line("waiting for events until latest_serial %s"
+                     % latest_serial)
+        self.xom.keyfs.notifier.wait_for_event_serial(latest_serial)
+        self.tw.line("importing finished")
 
     def import_filedesc(self, stage, filedesc):
         assert stage.ixconfig["type"] != "mirror"

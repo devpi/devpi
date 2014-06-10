@@ -367,6 +367,30 @@ class TestStage:
             stage.register_metadata(dict(name="Hello-world", version="1.0"))
             stage.register_metadata(dict(name="Hello_world", version="1.0"))
 
+    def test_register_metadata_hook(self, stage, queue):
+        class Plugin:
+            def devpiserver_register_metadata(self, stage, metadata):
+                queue.put((stage, metadata))
+        stage.xom.config.hook._plugins = [(Plugin(), None)]
+        stage.register_metadata(dict(name="hello", version="1.0"))
+        stage.xom.keyfs.commit_transaction_in_thread()
+        stage2, metadata = queue.get()
+        assert stage2.name == stage.name
+
+    def test_doczip_uploaded_hook(self, stage, queue):
+        class Plugin:
+            def devpiserver_docs_uploaded(self, stage, name, version, entry):
+                queue.put((stage, name, version, entry))
+        stage.xom.config.hook._plugins = [(Plugin(), None)]
+        stage.register_metadata(dict(name="pkg1", version="1.0"))
+        content = zip_dict({"index.html": "<html/>",
+            "_static": {}, "_templ": {"x.css": ""}})
+        stage.store_doczip("pkg1", "1.0", content)
+        stage.xom.keyfs.commit_transaction_in_thread()
+        nstage, name, version, entry = queue.get()
+        assert name == "pkg1"
+        assert version == "1.0"
+
     def test_get_existing_project(self, stage):
         stage.register_metadata(dict(name="Hello", version="1.0"))
         stage.register_metadata(dict(name="this", version="1.0"))

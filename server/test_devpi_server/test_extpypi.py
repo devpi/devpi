@@ -246,6 +246,7 @@ class TestIndexParsing:
         assert link3.url == \
                 "http://pypi.python.org/pkg/py-1.4.10.zip#md5=2222"
 
+@pytest.mark.writetransaction
 class TestExtPYPIDB:
     def test_parse_project_nomd5(self, pypistage):
         x = pypistage.setextsimple("pytest", pkgver="pytest-1.0.zip")
@@ -417,15 +418,13 @@ def raise_ValueError():
 class TestRefreshManager:
 
     @pytest.mark.notransaction
-    def test_init_pypi_mirror(self, pypistage, keyfs):
+    def test_init_pypi_mirror(self, xom, keyfs):
         proxy = mock.create_autospec(XMLProxy)
         d = {"hello": 10, "abc": 42}
         proxy.list_packages_with_serial.return_value = d
-        pypistage.pypimirror.init_pypi_mirror(proxy)
-        assert pypistage.pypimirror.name2serials == d
-        assert load_name2serials(keyfs, None) == d
-        with keyfs.transaction():
-            assert pypistage.getprojectnames() == ["abc", "hello"]
+        mirror = PyPIMirror(xom)
+        mirror.init_pypi_mirror(proxy)
+        assert mirror.name2serials == d
 
     @pytest.mark.notransaction
     def test_pypichanges_loop(self, pypistage, monkeypatch):
@@ -447,7 +446,7 @@ class TestRefreshManager:
         mirror.process_refreshes.assert_called_once()
 
     @pytest.mark.notransaction
-    def test_pypichanges_changes(self, pypistage, keyfs, monkeypatch):
+    def test_pypichanges_changes(self, xom, pypistage, keyfs, monkeypatch):
         assert not pypistage.pypimirror.name2serials
         pypistage.mock_simple("pytest", '<a href="pytest-2.3.tgz"/a>',
                           pypiserial=20)
@@ -462,7 +461,7 @@ class TestRefreshManager:
             ["pytest", "2.4", 121231, 'new release', 27]
         ])
         assert len(pypistage.pypimirror.name2serials) == 2
-        name2serials = load_name2serials(keyfs, None)
+        name2serials = pypistage.pypimirror.load_name2serials(None)
         assert name2serials["pytest"] == 27
         assert name2serials["Django"] == 25
         pypistage.mock_simple("pytest", '<a href="pytest-2.4.tgz"/a>',

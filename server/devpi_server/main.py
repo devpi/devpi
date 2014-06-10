@@ -15,7 +15,7 @@ from devpi_common.types import cached_property
 from devpi_common.request import new_requests_session
 from .config import PluginManager
 from .config import parseoptions, configure_logging, load_setuptools_entrypoints
-from . import extpypi
+from . import extpypi, replica
 from . import __version__ as server_version
 
 
@@ -141,30 +141,6 @@ def wsgi_run(xom):
     return 0
 
 
-def add_keys(keyfs):
-    # users and index configuration
-    keyfs.add_key("USER", "{user}/.config", dict)
-    keyfs.add_key("USERLIST", ".config", set)
-
-    # type pypimirror related data
-    keyfs.add_key("PYPILINKS", "root/pypi/+links/{name}", dict)
-    keyfs.add_key("PYPIFILE_NOMD5",
-                 "{user}/{index}/+e/{dirname}/{basename}", dict)
-    keyfs.add_key("PYPISTAGEFILE",
-                  "{user}/{index}/+f/{md5a}/{md5b}/{filename}", dict)
-
-    # type "stage" related
-    keyfs.add_key("PROJCONFIG", "{user}/{index}/{name}/.config", dict)
-    keyfs.add_key("PROJNAMES", "{user}/{index}/.projectnames", set)
-    keyfs.add_key("STAGEFILE", "{user}/{index}/+f/{md5}/{filename}", dict)
-
-    keyfs.add_key("RELDESCRIPTION",
-                  "{user}/{index}/{name}/{version}/description_html", bytes)
-
-    keyfs.add_key("ATTACHMENT", "+attach/{md5}/{type}/{num}", bytes)
-    keyfs.add_key("ATTACHMENTS", "+attach/.att", dict)
-
-
 class XOM:
     class Exiting(SystemExit):
         pass
@@ -215,19 +191,24 @@ class XOM:
             return do_export(args.export, xom)
 
         # need to initialize the pypi mirror state before importing
-        # because importing may access data
-        xom.pypimirror.init_pypi_mirror(self.proxy)
+        # because importing may need pypi mirroring state
+        if xom.is_replica():
+            proxy = replica.PyPIProxy(xom, xom.config.args.master_url)
+        else:
+            proxy = self.proxy
+        xom.pypimirror.init_pypi_mirror(proxy)
         if args.import_:
             from devpi_server.importexport import do_import
             return do_import(args.import_, xom)
         try:
-            with xom.keyfs.transaction():
-                results = xom.config.hook.devpiserver_run_commands(xom)
-            if [x for x in results if x is not None]:
-                errors = list(filter(None, results))
-                if errors:
-                    return errors[0]
-                return 0
+            if 1:
+                with xom.keyfs.transaction():
+                    results = xom.config.hook.devpiserver_run_commands(xom)
+                if [x for x in results if x is not None]:
+                    errors = list(filter(None, results))
+                    if errors:
+                        return errors[0]
+                    return 0
 
             return wsgi_run(xom)
         finally:
@@ -279,24 +260,34 @@ class XOM:
     @cached_property
     def keyfs(self):
         from devpi_server.keyfs import KeyFS
+        from devpi_server.model import add_keys
         keyfs = KeyFS(self.config.serverdir)
-        add_keys(keyfs)
-        self.addshutdownfunc("keyfs shutdown", keyfs.shutdown)
+        add_keys(self, keyfs)
+        keyfs.notifier.start()
+        self.addshutdownfunc("keyfs notifier shutdown",
+                             keyfs.notifier.shutdown)
         return keyfs
 
     @cached_property
     def pypimirror(self):
-        from devpi_server.extpypi import PrimaryMirror
-        return PrimaryMirror(self.keyfs)
+        from devpi_server.extpypi import PyPIMirror
+        return PyPIMirror(self)
+
+    @cached_property
+    def replica_thread(self):
+        from devpi_server.replica import ReplicaThread
+        return ReplicaThread(self)
 
     @cached_property
     def proxy(self):
         return extpypi.XMLProxy(PYPIURL_XMLRPC)
 
+    def new_http_session(self, component_name):
+        return new_requests_session(agent=("component_name", server_version))
+
     @cached_property
     def _httpsession(self):
-        session = new_requests_session(agent=("server", server_version))
-        return session
+        return self.new_http_session("server")
 
     def httpget(self, url, allow_redirects, timeout=30):
         headers = {}
@@ -328,9 +319,10 @@ class XOM:
         self.config.hook.devpiserver_pyramid_configure(
                 config=self.config,
                 pyramid_config=pyramid_config)
-        pyramid_config.add_route("/+changelog", "/+changelog")
-        pyramid_config.add_route("/root/pypi/+pypi_serials",
-                                 "/root/pypi/+pypi_serials")
+        pyramid_config.add_route("/+changelog/{serial}",
+                                 "/+changelog/{serial}")
+        pyramid_config.add_route("/root/pypi/+name2serials",
+                                 "/root/pypi/+name2serials")
         pyramid_config.add_route("/+api", "/+api", accept="application/json")
         pyramid_config.add_route("{path:.*}/+api", "{path:.*}/+api", accept="application/json")
         pyramid_config.add_route("/+login", "/+login", accept="application/json")
@@ -356,7 +348,8 @@ class XOM:
         _get_credentials = BasicAuthAuthenticationPolicy._get_credentials
         # In Python 2 we need to get im_func, in Python 3 we already have
         # the correct value
-        _get_credentials = getattr(_get_credentials, 'im_func', _get_credentials)
+        _get_credentials = getattr(_get_credentials, 'im_func',
+                                   _get_credentials)
         pyramid_config.add_request_method(
             functools.partial(_get_credentials, None),
             name=str('auth'), property=True)
@@ -370,9 +363,21 @@ class XOM:
             pass
         else:
             assert immediatetasks
-            self.spawn(self.pypimirror.spawned_pypichanges,
-                args=(self.proxy, lambda: self.sleep(self.config.args.refresh)))
+            if self.is_replica():
+                # the replica thread replays keyfs changes
+                # and pypimirror.name2serials changes are discovered
+                # and replayed through the PypiProjectChange event
+                self.spawn(self.replica_thread.run, args=())
+            else:
+                # the master thread directly syncs using the
+                # pypi changelog protocol
+                self.spawn(self.pypimirror.spawned_pypichanges,
+                    args=(self.proxy,
+                          lambda: self.sleep(self.config.args.refresh)))
         return app
+
+    def is_replica(self):
+        return bool(self.config.args.master_url)
 
 
 class FatalResponse:

@@ -10,14 +10,14 @@ notransaction = pytest.mark.notransaction
 def keyfs(gentmp):
     keyfs = KeyFS(gentmp())
     yield keyfs
-    keyfs.shutdown()
+    keyfs.notifier.shutdown()
 
 @pytest.fixture(params=["direct", "a/b/c", ])
 def key(request):
     return request.param
 
-class TestKeyFS:
 
+class TestKeyFS:
     def test_get_non_existent(self, keyfs):
         key = keyfs.add_key("NAME", "somekey", dict)
         pytest.raises(KeyError, lambda: keyfs.get_value_at(key, 0))
@@ -314,8 +314,8 @@ class TestDeriveKey:
 class TestSubscriber:
     def test_change_subscription(self, keyfs, queue):
         key1 = keyfs.add_key("NAME1", "hello", int)
-        key1.register_subscriber(queue.put)
-        keyfs.start_notifier()
+        keyfs.notifier.on_key_change(key1, queue.put)
+        keyfs.notifier.start()
         with keyfs.transaction():
             key1.set(1)
             assert queue.empty()
@@ -330,9 +330,9 @@ class TestSubscriber:
         def failing(event):
             queue.put("willfail")
             0/0
-        key1.register_subscriber(failing)
-        key1.register_subscriber(queue.put)
-        keyfs.start_notifier()
+        keyfs.notifier.on_key_change(key1, failing)
+        keyfs.notifier.on_key_change(key1, queue.put)
+        keyfs.notifier.start()
         with keyfs.transaction():
             key1.set(1)
             assert queue.empty()
@@ -347,12 +347,12 @@ class TestSubscriber:
         def make_keyfs():
             keyfs = KeyFS(tmpdir)
             key1 = keyfs.add_key("NAME1", "hello", int)
-            key1.register_subscriber(queue.put)
-            keyfs.start_notifier()
+            keyfs.notifier.on_key_change(key1, queue.put)
+            keyfs.notifier.start()
             try:
                 yield key1
             finally:
-                keyfs.shutdown()
+                keyfs.notifier.shutdown()
 
         with make_keyfs() as key1:
             keyfs = key1.keyfs
@@ -363,24 +363,34 @@ class TestSubscriber:
                 with keyfs.transaction():
                     key1.set(1)
             assert keyfs.get_next_serial() == 1
-            assert keyfs._notifier.read_event_serial() == 0
+            assert keyfs.notifier.read_event_serial() == 0
         # and then we restart keyfs and see if the hook still gets called
         monkeypatch.undo()
         with make_keyfs() as key1:
             event = queue.get()
         assert event.typedkey == key1
-        assert key1.keyfs._notifier.read_event_serial() == 1
+        assert key1.keyfs.notifier.read_event_serial() == 1
 
     def test_subscribe_pattern_key(self, keyfs, queue):
         pkey = keyfs.add_key("NAME1", "{name}", int)
-        pkey.register_subscriber(queue.put)
+        keyfs.notifier.on_key_change(pkey, queue.put)
         key = pkey(name="hello")
-        keyfs.start_notifier()
+        keyfs.notifier.start()
         with keyfs.transaction():
             key.set(1)
         ev = queue.get()
         assert ev.typedkey == key
         assert ev.typedkey.params == {"name": "hello"}
         assert ev.typedkey.name == pkey.name
+
+    def test_wait_for_event(self, keyfs):
+        pkey = keyfs.add_key("NAME1", "{name}", int)
+        key = pkey(name="hello")
+        keyfs.notifier.start()
+        for i in range(10):
+            with keyfs.transaction():
+                key.set(1)
+        keyfs.notifier.wait_for_event_serial(9)
+
 
 

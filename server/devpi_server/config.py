@@ -14,8 +14,6 @@ def get_default_serverdir():
     return os.environ.get("DEVPI_SERVERDIR", "~/.devpi/server")
 
 def addoptions(parser):
-
-
     web = parser.addgroup("web serving options")
     web.addoption("--host",  type=str,
             default="localhost",
@@ -52,6 +50,10 @@ def addoptions(parser):
 
     deploy.addoption("--version", action="store_true",
             help="show devpi_version (%s)" % devpi_server.__version__)
+
+    deploy.addoption("--master", action="store", dest="master_url",
+            help="run as a replica of the specified master server",
+            default=None)
 
     deploy.addoption("--gendeploy", action="store", metavar="DIR",
             help="(unix only, deprecated) install and generate a pre-configured "

@@ -154,34 +154,6 @@ class PyPIView:
             abort(self.request, 404, "no such stage")
         return stage
 
-    #
-    # master changelog API for replicas
-    #
-    @view_config(route_name="/+changelog")
-    def changelog(self):
-        since = self.request.params.get("since")
-        keyfs = self.xom.keyfs
-        if since:
-            since = int(since)
-            def iterentries(since):
-                while since < keyfs._fs.next_serial:
-                    raw_entry = keyfs._fs.get_raw_changelog_entry(since)
-                    yield raw_entry
-                    since += 1
-            return Response(app_iter=iterentries(since),
-                    headers={str("Content-Type"):
-                             str("application/octet-stream")})
-        r = self.request.response
-        r.content_type = str("application/octet-stream")
-        return r
-
-    @view_config(route_name="/root/pypi/+pypi_serials")
-    def get_name2serials(self):
-        import execnet
-        data = execnet.dumps(self.xom.pypimirror.name2serials)
-        headers = {str("Content-Type"): str("application/octet-stream")}
-        return HTTPResponse(body=data, status=200, headers=headers)
-
 
     #
     # supplying basic API locations for all services

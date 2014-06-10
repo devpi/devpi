@@ -7,6 +7,7 @@ from devpi_common.validation import validate_metadata, normalize_name
 from devpi_common.types import ensure_unicode
 from .vendor._description_utils import processDescription
 from .auth import crypt_password, verify_password
+from .filestore import FileEntry
 
 import logging
 
@@ -354,7 +355,6 @@ class PrivateStage:
             if py.builtin._istext(html):
                 html = html.encode("utf8")
             doc_key.set(html)
-        self.xom.config.hook.devpiserver_register_metadata(self, metadata)
 
     def project_delete(self, name):
         for version in self.get_projectconfig_perstage(name):
@@ -491,6 +491,7 @@ class PrivateStage:
                 return 409
             entry = self.xom.filestore.store(self.user.name, self.index,
                                 filename, content, last_modified=last_modified)
+            entry.set(projectname=name, version=version)
             files[filename] = entry.relpath
             self.log_info("store_releasefile %s", entry.relpath)
             return entry
@@ -509,9 +510,8 @@ class PrivateStage:
             filename = "%s-%s.doc.zip" % (name, version)
             entry = self.xom.filestore.store(self.user.name, self.index,
                                 filename, content)
+            entry.set(projectname=name, version=version)
             verdata["+doczip"] = entry.relpath
-        self.xom.config.hook.devpiserver_docs_uploaded(self, name,
-                    version, entry)
 
     def get_doczip(self, name, version):
         """ get documentation zip as an open file
@@ -542,3 +542,79 @@ def normalize_bases(model, bases):
     if messages:
         raise InvalidIndexconfig(messages)
     return newbases
+
+
+def add_keys(xom, keyfs):
+    # users and index configuration
+    keyfs.add_key("USER", "{user}/.config", dict)
+    keyfs.add_key("USERLIST", ".config", set)
+
+    # type pypimirror related data
+    keyfs.add_key("PYPILINKS", "root/pypi/+links/{name}", dict)
+    keyfs.add_key("PYPIFILE_NOMD5",
+                 "{user}/{index}/+e/{dirname}/{basename}", dict)
+    keyfs.add_key("PYPISTAGEFILE",
+                  "{user}/{index}/+f/{md5a}/{md5b}/{filename}", dict)
+
+    # type "stage" related
+    keyfs.add_key("PROJCONFIG", "{user}/{index}/{name}/.config", dict)
+    keyfs.add_key("PROJNAMES", "{user}/{index}/.projectnames", set)
+    keyfs.add_key("STAGEFILE", "{user}/{index}/+f/{md5}/{filename}", dict)
+    keyfs.add_key("RELDESCRIPTION",
+                  "{user}/{index}/{name}/{version}/description_html", bytes)
+
+    keyfs.add_key("ATTACHMENT", "+attach/{md5}/{type}/{num}", bytes)
+    keyfs.add_key("ATTACHMENTS", "+attach/.att", dict)
+
+    keyfs.notifier.on_key_change("PROJCONFIG", ProjectChanged(xom))
+    keyfs.notifier.on_key_change("STAGEFILE", FileUploaded(xom))
+
+
+
+class ProjectChanged:
+    """ Event executed in notification thread based on a metadata change. """
+    def __init__(self, xom):
+        self.xom = xom
+
+    def __call__(self, ev):
+        log.info("project_config_changed %s", ev.typedkey)
+        params = ev.typedkey.params
+        user = params["user"]
+        index = params["index"]
+        keyfs = self.xom.keyfs
+        hook = self.xom.config.hook
+        # find out which version changed
+        with keyfs.transaction(write=False, at_serial=ev.at_serial):
+            projconfig = ev.typedkey.get()
+            if ev.back_serial == -1:
+                old = {}
+            else:
+                old = keyfs.get_value_at(ev.typedkey, ev.back_serial)
+            for ver, verdata in projconfig.items():
+                if verdata != old.get(ver):
+                    stage = self.xom.model.getstage(user, index)
+                    hook.devpiserver_register_metadata(stage, verdata)
+
+
+class FileUploaded:
+    """ Event executed in notification thread when a file is uploaded
+    to a stage. """
+    def __init__(self, xom):
+        self.xom = xom
+
+    def __call__(self, ev):
+        log.info("FileUploaded %s", ev.typedkey)
+        params = ev.typedkey.params
+        user = params.get("user")
+        index = params.get("index")
+        keyfs = self.xom.keyfs
+        with keyfs.transaction(write=False, at_serial=ev.at_serial):
+            entry = FileEntry(ev.typedkey)  # XXX pass value as well
+            stage = self.xom.model.getstage(user, index)
+            if entry.basename.endswith(".doc.zip"):
+                self.xom.config.hook.devpiserver_docs_uploaded(
+                    stage=stage, name=entry.projectname,
+                    version=entry.version,
+                    entry=entry)
+            # XXX we could add register_releasefile event here
+

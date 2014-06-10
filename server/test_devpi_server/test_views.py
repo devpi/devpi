@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-import marshal
 import pytest
 import re
 import py
@@ -12,10 +11,7 @@ from devpi_common.metadata import splitbasename
 from devpi_common.url import URL
 import devpi_server.views
 from devpi_common.archive import Archive, zip_dict
-from devpi_server.keyfs import load
 
-def loads(bytestring):
-    return load(py.io.BytesIO(bytestring))
 
 from .functional import TestUserThings, TestIndexThings  # noqa
 
@@ -573,27 +569,3 @@ class Test_getjson:
         abort_call_args = abort_calls[0][0]
         assert abort_call_args[1] == 400
 
-class TestChangelog:
-    def test_get_latest_serial(self, testapp, mapp):
-        r = testapp.get("/+changelog")
-        serial = int(r.headers["X-DEVPI-SERIAL"])
-        assert serial >= 0
-        assert len(r.body) == 0
-        mapp.create_user("hello", "pass")
-        r = testapp.get("/+changelog")
-        assert int(r.headers["X-DEVPI-SERIAL"]) == serial + 1
-
-    def test_get_since(self, testapp, mapp, noiter):
-        r = testapp.get("/+changelog?since=0")
-        entries = list(r.app_iter)
-        num = len(entries)
-        serial = int(r.headers["X-DEVPI-SERIAL"])
-        assert num == serial + 1
-        mapp.create_user("this", password="p")
-        r2 = testapp.get("/+changelog?since=%s" % num)
-        entries2 = [loads(x) for x in r2.app_iter]
-        assert len(entries2) == 1
-        changes = entries2[0]
-        assert "this/.config" in changes
-        serial2 = int(r2.headers["X-DEVPI-SERIAL"])
-        assert serial2 == serial + 1

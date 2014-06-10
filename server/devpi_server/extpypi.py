@@ -6,8 +6,6 @@ testresult storage.
 """
 
 from __future__ import unicode_literals
-import os
-
 try:
     import xmlrpc.client as xmlrpc
 except ImportError:
@@ -21,9 +19,8 @@ from devpi_common.vendor._pip import HTMLPage
 
 from devpi_common.url import URL
 from devpi_common.metadata import is_archive_of_project, BasenameMeta
-from devpi_common.validation import normalize_name
+from devpi_common.validation import normalize_name, ensure_unicode
 from devpi_common.request import new_requests_session
-from hashlib import md5
 
 from . import __version__ as server_version
 from .model import ProjectInfo
@@ -193,6 +190,12 @@ class PyPIStage:
         self.httpget = xom.httpget
         self.filestore = xom.filestore
         self.pypimirror = xom.pypimirror
+        self.xom = xom
+        if xom.is_replica():
+            self.PYPIURL_SIMPLE = xom.config.args.master_url + \
+                                  "/root/pypi/+simple/"
+        else:
+            self.PYPIURL_SIMPLE = PYPIURL_SIMPLE
 
     def getprojectnames(self):
         """ return list of all projects served through the mirror. """
@@ -205,6 +208,7 @@ class PyPIStage:
         dumplist = [(entry.relpath, entry.md5, entry.key.name)
                             for entry in entries]
         data = {"serial": serial,
+                "latest_serial": serial,
                 "entrylist": dumplist,
                 "projectname": projectname}
         log.debug("saving data for %s: %s", projectname, data)
@@ -218,10 +222,13 @@ class PyPIStage:
 
     def _load_cache_entries(self, projectname, required_serial):
         cache = self._load_project_cache(projectname)
-        if cache and cache["serial"] >= required_serial:
-            get_proxy = self.filestore.get_proxy_file_entry
-            return [get_proxy(relpath, md5, keyname=keyname)
-                        for relpath, md5, keyname in cache["entrylist"]]
+        if cache:
+            cache_serial = cache["serial"]
+            if cache_serial >= required_serial and \
+               cache["latest_serial"] <= cache_serial:
+                get_proxy = self.filestore.get_proxy_file_entry
+                return [get_proxy(relpath, md5, keyname=keyname)
+                            for relpath, md5, keyname in cache["entrylist"]]
 
     def getreleaselinks(self, projectname):
         """ return all releaselinks from the index and referenced scrape
@@ -239,9 +246,8 @@ class PyPIStage:
         info = self.get_project_info(projectname)
         if not info:
             return 404
-
         # get the simple page for the project
-        url = PYPIURL_SIMPLE + info.name + "/"
+        url = self.PYPIURL_SIMPLE + info.name + "/"
         log.debug("visiting index %s", url)
         response = self.httpget(url, allow_redirects=True)
         if response.status_code != 200:
@@ -252,17 +258,25 @@ class PyPIStage:
         assert real_projectname == info.name
 
         # check that we got a fresh enough page
-        serial = int(response.headers["X-PYPI-LAST-SERIAL"])
-        if serial < newest_serial:
-            log.warn("%s: pypi returned serial %s, expected %s",
-                     real_projectname, serial, newest_serial)
-            return -2  # the page we got is not fresh enough
-        log.debug("%s: got response with serial %s" %
-                  (real_projectname, serial))
+        if not self.xom.is_replica():
+            serial = int(response.headers["X-PYPI-LAST-SERIAL"])
+            if serial < newest_serial:
+                log.warn("%s: pypi returned serial %s, expected %s",
+                         real_projectname, serial, newest_serial)
+                return -2  # the page we got is not fresh enough
+            log.debug("%s: got response with serial %s" %
+                      (real_projectname, serial))
 
         # parse simple index's link and perform crawling
         assert response.text is not None, response.text
         result = parse_index(response.url, response.text)
+        if self.xom.is_replica():
+            # in the replica we can just return the links
+            # as the replica thread will take care for merging
+            # cache_entries
+            return [self.filestore.maplink(link)
+                        for link in result.releaselinks]
+
         perform_crawling(self, result)
         releaselinks = list(result.releaselinks)
 
@@ -316,15 +330,16 @@ class PyPIStage:
             html.a(link, href=link)).unicode(indent=2)
 
 
-class PrimaryMirror:
-    def __init__(self, keyfs):
-        self.keyfs = keyfs
-        keyfs.path_name2serials = str(keyfs.basedir.join(".name2serials"))
+class PyPIMirror:
+    def __init__(self, xom):
+        self.xom = xom
+        self.keyfs = keyfs = xom.keyfs
+        self.path_name2serials = str(
+            keyfs.basedir.join(PyPIStage.name, ".name2serials"))
 
     def init_pypi_mirror(self, proxy):
         """ initialize pypi mirror if no mirror state exists. """
-        self.proxy = proxy
-        self.name2serials = load_name2serials(self.keyfs, proxy)
+        self.name2serials = self.load_name2serials(proxy)
         # create a mapping of normalized name to real name
         self.normname2name = d = dict()
         for name in self.name2serials:
@@ -332,17 +347,32 @@ class PrimaryMirror:
             if norm != name:
                 d[norm] = name
 
-    def _set_project_serial(self, name, serial):
+    def load_name2serials(self, proxy):
+        name2serials = load_from_file(self.path_name2serials, {})
+        if name2serials:
+            log.info("reusing already cached name/serial list")
+        else:
+            log.info("retrieving initial name/serial list")
+            name2serials = proxy.list_packages_with_serial()
+            if name2serials is None:
+                from devpi_server.main import fatal
+                fatal("mirror initialization failed: "
+                      "pypi.python.org not reachable")
+            dump_to_file(name2serials, self.path_name2serials)
+        return name2serials
+
+    def set_project_serial(self, name, serial):
         """ set the current serial and fill normalization table
         if project does not exist.
         """
-        if name in self.name2serials:
-            self.name2serials[name] = serial
-        else:
-            self.name2serials[name] = serial
+        existed = name in self.name2serials
+        self.name2serials[name] = serial
+        if not existed:
             n = normalize_name(name)
             if n != name:
                 self.normname2name[n] = name
+                name = n
+        return name
 
     def spawned_pypichanges(self, proxy, proxysleep):
         log.info("changelog/update tasks starting")
@@ -357,19 +387,42 @@ class PrimaryMirror:
     def process_changelog(self, changelog):
         if not changelog:
             return
-        names = []
+        changed = {}
         for x in changelog:
             name, version, action, date, serial = x
             # XXX remove names if action == "remove" and version is None
+            name = ensure_unicode(name)
             cur_serial = self.name2serials.get(name, -1)
             if serial <= cur_serial:
                 continue
-            self._set_project_serial(name, serial)
-            names.append(name)
+            normname = self.set_project_serial(name, serial)
+            changed[normname] = serial
+
+        # persist to pypilinks
+        with self.keyfs.transaction(write=True):
+            for normname, serial in changed.items():
+                key = self.keyfs.PYPILINKS(name=normname)
+                cache = key.get()
+                if cache:
+                    if cache["latest_serial"] >= serial:  # should this happen?
+                        return  # the cached serial is new enough
+                    cache["latest_serial"] = serial
+                    key.set(cache)
+                    log.debug("set latest_serial of %s to %s",
+                              normname, serial)
+                else:
+                    log.debug("no cache found for %s", normname)
+
+        # XXX consider writing name2serials within the transaction
+        # which requires a WriteTransaction to integrate external renames
         if self.name2serials:
-            dump_to_file(self.name2serials, self.keyfs.path_name2serials)
+            dump_to_file(self.name2serials, self.path_name2serials)
+
         log.debug("processed changelog of size %d: %s" %(
-                  len(changelog), names))
+                  len(changelog), ",".join(changed)))
+
+
+
 
 
 PYPIURL_SIMPLE = "https://pypi.python.org/simple/"
@@ -379,18 +432,3 @@ def itervalues(d):
     return getattr(d, "itervalues", d.values)()
 def iteritems(d):
     return getattr(d, "iteritems", d.items)()
-
-def load_name2serials(keyfs, proxy):
-    name2serials = load_from_file(keyfs.path_name2serials, {})
-    if name2serials:
-        log.info("reusing already cached name/serial list")
-    else:
-        log.info("retrieving initial name/serial list")
-        name2serials = proxy.list_packages_with_serial()
-        if name2serials is None:
-            from devpi_server.main import fatal
-            fatal("mirror initialization failed: "
-                  "pypi.python.org not reachable")
-        dump_to_file(name2serials, keyfs.path_name2serials)
-    return name2serials
-

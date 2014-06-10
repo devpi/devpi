@@ -83,7 +83,7 @@ def test_search_after_register(mapp, testapp):
     mapp.register_metadata({
         "name": "pkg1",
         "version": "2.6",
-        "description": "foo"})
+        "description": "foo"}, waithooks=True)
     r = testapp.get('/+search?query=foo')
     assert r.status_code == 200
     links = r.html.select('.searchresults a')
@@ -92,7 +92,7 @@ def test_search_after_register(mapp, testapp):
     mapp.register_metadata({
         "name": "pkg1",
         "version": "2.7",
-        "description": "foo"})
+        "description": "foo"}, waithooks=True)
     r = testapp.get('/+search?query=foo')
     assert r.status_code == 200
     links = r.html.select('.searchresults a')
