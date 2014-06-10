@@ -1,16 +1,19 @@
 import contextlib
 import py
 import pytest
+from devpi_server.mythread import ThreadPool
 
 from devpi_server.keyfs import KeyFS, WriteTransaction, ReadTransaction, load
 
 notransaction = pytest.mark.notransaction
 
+
+
 @pytest.yield_fixture
-def keyfs(gentmp):
+def keyfs(gentmp, pool):
     keyfs = KeyFS(gentmp())
+    pool.register(keyfs.notifier)
     yield keyfs
-    keyfs.notifier.shutdown()
 
 @pytest.fixture(params=["direct", "a/b/c", ])
 def key(request):
@@ -312,10 +315,10 @@ class TestDeriveKey:
 
 @notransaction
 class TestSubscriber:
-    def test_change_subscription(self, keyfs, queue):
+    def test_change_subscription(self, keyfs, queue, pool):
         key1 = keyfs.add_key("NAME1", "hello", int)
         keyfs.notifier.on_key_change(key1, queue.put)
-        keyfs.notifier.start()
+        pool.start()
         with keyfs.transaction():
             key1.set(1)
             assert queue.empty()
@@ -325,14 +328,14 @@ class TestSubscriber:
         assert event.at_serial == 0
         assert event.back_serial == -1
 
-    def test_change_subscription_fails(self, keyfs, queue):
+    def test_change_subscription_fails(self, keyfs, queue, pool):
         key1 = keyfs.add_key("NAME1", "hello", int)
         def failing(event):
             queue.put("willfail")
             0/0
         keyfs.notifier.on_key_change(key1, failing)
         keyfs.notifier.on_key_change(key1, queue.put)
-        keyfs.notifier.start()
+        pool.start()
         with keyfs.transaction():
             key1.set(1)
             assert queue.empty()
@@ -342,17 +345,18 @@ class TestSubscriber:
         assert event.typedkey == key1
 
     def test_persistent(self, tmpdir, queue, monkeypatch):
-
         @contextlib.contextmanager
         def make_keyfs():
             keyfs = KeyFS(tmpdir)
             key1 = keyfs.add_key("NAME1", "hello", int)
             keyfs.notifier.on_key_change(key1, queue.put)
-            keyfs.notifier.start()
+            pool = ThreadPool()
+            pool.register(keyfs.notifier)
+            pool.start()
             try:
                 yield key1
             finally:
-                keyfs.notifier.shutdown()
+                pool.shutdown()
 
         with make_keyfs() as key1:
             keyfs = key1.keyfs
@@ -371,11 +375,11 @@ class TestSubscriber:
         assert event.typedkey == key1
         assert key1.keyfs.notifier.read_event_serial() == 1
 
-    def test_subscribe_pattern_key(self, keyfs, queue):
+    def test_subscribe_pattern_key(self, keyfs, queue, pool):
         pkey = keyfs.add_key("NAME1", "{name}", int)
         keyfs.notifier.on_key_change(pkey, queue.put)
         key = pkey(name="hello")
-        keyfs.notifier.start()
+        pool.start()
         with keyfs.transaction():
             key.set(1)
         ev = queue.get()
@@ -383,10 +387,10 @@ class TestSubscriber:
         assert ev.typedkey.params == {"name": "hello"}
         assert ev.typedkey.name == pkey.name
 
-    def test_wait_for_event(self, keyfs):
+    def test_wait_for_event(self, keyfs, pool):
         pkey = keyfs.add_key("NAME1", "{name}", int)
         key = pkey(name="hello")
-        keyfs.notifier.start()
+        pool.start()
         for i in range(10):
             with keyfs.transaction():
                 key.set(1)

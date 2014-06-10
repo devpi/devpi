@@ -427,7 +427,7 @@ class TestRefreshManager:
         assert mirror.name2serials == d
 
     @pytest.mark.notransaction
-    def test_pypichanges_loop(self, pypistage, monkeypatch):
+    def test_pypichanges_loop(self, pypistage, monkeypatch, pool):
         pypistage.pypimirror.process_changelog = mock.Mock()
         pypistage.pypimirror.process_refreshes = mock.Mock()
         proxy = mock.create_autospec(XMLProxy)
@@ -440,8 +440,10 @@ class TestRefreshManager:
         # we need to have one entry in serials
         pypistage.mock_simple("pytest", pypiserial=27)
         mirror = pypistage.pypimirror
-        with pytest.raises(ValueError):
-            mirror.spawned_pypichanges(proxy, proxysleep=raise_ValueError)
+        pool.register(mirror)
+        pool.shutdown()
+        with pytest.raises(pool.Shutdown):
+            mirror.thread_run(proxy)
         mirror.process_changelog.assert_called_once_with(changelog)
         mirror.process_refreshes.assert_called_once()
 
@@ -476,14 +478,18 @@ class TestRefreshManager:
             assert b == "Django-1.7.tgz"
 
     @pytest.mark.notransaction
-    def test_changelog_since_serial_nonetwork(self, pypistage, caplog, reqmock):
+    def test_changelog_since_serial_nonetwork(self, pypistage, caplog,
+            reqmock, pool):
         pypistage.mock_simple("pytest", pypiserial=10)
         reqreply = reqmock.mockresponse(PYPIURL_XMLRPC, code=400)
         xmlproxy = XMLProxy(PYPIURL_XMLRPC)
-        with pytest.raises(ValueError):
-            pypistage.pypimirror.spawned_pypichanges(xmlproxy, proxysleep=raise_ValueError)
-        with pytest.raises(ValueError):
-            pypistage.pypimirror.spawned_pypichanges(xmlproxy, proxysleep=raise_ValueError)
+        mirror = pypistage.pypimirror
+        pool.register(mirror)
+        pool.shutdown()
+        with pytest.raises(pool.Shutdown):
+            mirror.thread_run(xmlproxy)
+        with pytest.raises(pool.Shutdown):
+            mirror.thread_run(xmlproxy)
         calls = reqreply.requests
         assert len(calls) == 2
         assert xmlrpc.loads(calls[0].body) == ((10,), "changelog_since_serial")

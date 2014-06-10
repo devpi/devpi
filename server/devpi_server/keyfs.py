@@ -10,7 +10,7 @@ from __future__ import unicode_literals
 import re
 import contextlib
 import py
-import threading
+from . import mythread
 import os
 import sys
 
@@ -181,19 +181,17 @@ def rename(source, dest):
         os.rename(source, dest)
 
 
-class TxNotificationThread(threading.Thread):
+class TxNotificationThread:
     def __init__(self, keyfs):
-        threading.Thread.__init__(self)
-        self.setDaemon(True)
         self.keyfs = keyfs
-        self.new_transaction = threading.Event()
-        self.new_event_serial = threading.Event()
+        self.new_transaction = mythread.threading.Event()
+        self.new_event_serial = mythread.threading.Event()
         self.event_serial_path = str(self.keyfs.basedir.join(".event_serial"))
         self._on_key_change = {}
 
     def on_key_change(self, key, subscriber):
-        assert not self.isAlive(), (
-               "cannot register handlers after thread is started")
+        assert not mythread.has_active_thread(self), (
+               "cannot register handlers after thread has started")
         keyname = getattr(key, "name", key)
         assert py.builtin._istext(keyname) or py.builtin._isbytes(keyname)
         self._on_key_change.setdefault(keyname, []).append(subscriber)
@@ -215,19 +213,17 @@ class TxNotificationThread(threading.Thread):
     def notify_on_transaction(self, serial):
         self.new_transaction.set()
 
-    def shutdown(self):
-        self._shuttingdown = True
+    def thread_shutdown(self):
         self.new_transaction.set()
 
-    def run(self):
+    def thread_run(self):
         self.new_transaction.set()
         while 1:
             event_serial = self.read_event_serial()
             if event_serial >= self.keyfs._fs.next_serial:
                 self.new_transaction.wait()
                 self.new_transaction.clear()
-            if hasattr(self, "_shuttingdown"):
-                break
+            self.thread.exit_if_shutdown()
             while event_serial < self.keyfs._fs.next_serial:
                 self._execute_hooks(event_serial)
                 event_serial += 1
@@ -257,8 +253,8 @@ class KeyFS(object):
         self._keys = {}
         self._mode = None
         # a non-recursive lock because we don't support nested transactions
-        self._write_lock = threading.Lock()
-        self._threadlocal = threading.local()
+        self._write_lock = mythread.threading.Lock()
+        self._threadlocal = mythread.threading.local()
         self.notifier = t = TxNotificationThread(self)
         self._fs = Filesystem(self.basedir,
                               notify_on_transaction=t.notify_on_transaction)

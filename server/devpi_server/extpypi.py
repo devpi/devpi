@@ -12,8 +12,8 @@ except ImportError:
     import xmlrpclib as xmlrpc
 
 import py
-import threading
 html = py.xml.html
+from . import mythread
 
 from devpi_common.vendor._pip import HTMLPage
 
@@ -29,8 +29,6 @@ from .keyfs import load_from_file, dump_to_file
 from logging import getLogger
 assert __name__ == "devpi_server.extpypi"
 log = getLogger(__name__)
-
-CONCUCCRENT_CRAWL = False
 
 
 class IndexParser:
@@ -132,39 +130,22 @@ class XMLProxy(object):
 
 def perform_crawling(pypistage, result, numthreads=10):
     pending = set(result.crawllinks)
-    def process():
-        while 1:
-            try:
-                crawlurl = pending.pop()
-            except KeyError:
-                break
-            log.info("visiting crawlurl %s", crawlurl)
-            response = pypistage.httpget(crawlurl.url, allow_redirects=True)
-            log.info("crawlurl %s %s", crawlurl, response)
-            assert hasattr(response, "status_code")
-            if not isinstance(response, int) and response.status_code == 200:
-                ct = response.headers.get("content-type", "").lower()
-                if ct.startswith("text/html"):
-                    result.parse_index(
-                        URL(response.url), response.text, scrape=False)
-                    continue
-            log.warn("crawlurl %s status %s", crawlurl, response)
-
-    if not CONCUCCRENT_CRAWL:
-        while pending:
-            process()
-    else:
-        threads = []
-        numpending = len(pending)
-        for i in range(min(numthreads, numpending)):
-            t = threading.Thread(target=process)
-            t.setDaemon(True)
-            threads.append(t)
-            t.start()
-
-        log.debug("joining threads")
-        for t in threads:
-            t.join()
+    while pending:
+        try:
+            crawlurl = pending.pop()
+        except KeyError:
+            break
+        log.info("visiting crawlurl %s", crawlurl)
+        response = pypistage.httpget(crawlurl.url, allow_redirects=True)
+        log.info("crawlurl %s %s", crawlurl, response)
+        assert hasattr(response, "status_code")
+        if not isinstance(response, int) and response.status_code == 200:
+            ct = response.headers.get("content-type", "").lower()
+            if ct.startswith("text/html"):
+                result.parse_index(
+                    URL(response.url), response.text, scrape=False)
+                continue
+        log.warn("crawlurl %s status %s", crawlurl, response)
 
 
 def invalidate_on_version_change(basedir):
@@ -374,7 +355,7 @@ class PyPIMirror:
                 name = n
         return name
 
-    def spawned_pypichanges(self, proxy, proxysleep):
+    def thread_run(self, proxy):
         log.info("changelog/update tasks starting")
         while 1:
             # get changes since the maximum serial we are aware of
@@ -382,7 +363,7 @@ class PyPIMirror:
             log.debug("querying pypi changelog since %s", current_serial)
             changelog = proxy.changelog_since_serial(current_serial)
             self.process_changelog(changelog)
-            proxysleep()
+            self.thread.sleep(self.xom.config.args.refresh)
 
     def process_changelog(self, changelog):
         if not changelog:

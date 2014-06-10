@@ -3,7 +3,6 @@ from pyramid.httpexceptions import HTTPNotFound
 from pyramid.view import view_config
 from pyramid.response import Response
 from .keyfs import load, dump
-from .mythread import XOMThread
 
 import logging
 
@@ -44,9 +43,8 @@ class MasterChangelogRequest:
         return Response(body=io.getvalue(), status=200, headers=headers)
 
 
-class ReplicaThread(XOMThread):
+class ReplicaThread:
     def __init__(self, xom):
-        XOMThread.__init__(self)
         self.xom = xom
         r = xom.config.args.master_url
         assert r
@@ -56,7 +54,7 @@ class ReplicaThread(XOMThread):
             xom.keyfs.notifier.on_key_change("PYPILINKS",
                                              PypiProjectChanged(xom))
 
-    def run(self):
+    def thread_run(self):
         session = self.xom.new_http_session("replica")
         keyfs = self.xom.keyfs
         while 1:

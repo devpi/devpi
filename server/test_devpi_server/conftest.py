@@ -16,13 +16,13 @@ from devpi_server.extpypi import XMLProxy
 from devpi_server.extpypi import PyPIStage
 import hashlib
 try:
-    from queue import Queue
+    from queue import Queue as BaseQueue
 except ImportError:
-    from Queue import Queue
+    from Queue import Queue as BaseQueue
 
-class TimeoutQueue(Queue):
+class TimeoutQueue(BaseQueue):
     def get(self, timeout=2):
-        return Queue.get(self, timeout=timeout)
+        return BaseQueue.get(self, timeout=timeout)
 
 log = logging.getLogger(__name__)
 
@@ -30,9 +30,21 @@ def pytest_addoption(parser):
     parser.addoption("--slow", action="store_true", default=False,
         help="run slow tests involving remote services (pypi.python.org)")
 
+
+@pytest.yield_fixture
+def pool():
+    from devpi_server.mythread  import ThreadPool
+    pool = ThreadPool()
+    yield pool
+    pool.shutdown()
+
 @pytest.fixture
 def queue():
     return TimeoutQueue()
+
+@pytest.fixture
+def Queue():
+    return TimeoutQueue
 
 @pytest.fixture()
 def caplog(caplog):
@@ -113,8 +125,8 @@ def makexom(request, gentmp, httpget, monkeypatch):
         else:
             xom = XOM(config)
         if request.node.get_marker("start_threads"):
-            xom.thread_pool.start_registered_threads()
-        request.addfinalizer(xom.shutdown)
+            xom.thread_pool.start()
+        request.addfinalizer(xom.thread_pool.shutdown)
         return xom
     return makexom
 

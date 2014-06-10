@@ -134,7 +134,6 @@ def wsgi_run(xom):
         log.exception("Error while making the server: %s" %(e,))
         return 1
 
-    xom.thread_pool.start_registered_threads()
     try:
         log.info("Hit Ctrl-C to quit.")
         server.serve_forever()
@@ -149,14 +148,9 @@ class XOM:
 
     def __init__(self, config, proxy=None, httpget=None):
         self.config = config
-        self._spawned = []
-        self._shutdown = threading.Event()
-        self._shutdownfuncs = []
         if proxy is not None:
             self.proxy = proxy
         self.thread_pool = mythread.ThreadPool()
-        self.addshutdownfunc("threadpool", self.thread_pool.shutdown)
-
         if httpget is not None:
             self.httpget = httpget
         sdir = config.serverdir
@@ -201,10 +195,10 @@ class XOM:
         else:
             proxy = self.proxy
         xom.pypimirror.init_pypi_mirror(proxy)
-        if args.import_:
-            from devpi_server.importexport import do_import
-            return do_import(args.import_, xom)
-        try:
+        with xom.thread_pool.live():
+            if args.import_:
+                from devpi_server.importexport import do_import
+                return do_import(args.import_, xom)
             if 1:
                 with xom.keyfs.transaction():
                     results = xom.config.hook.devpiserver_run_commands(xom)
@@ -215,46 +209,10 @@ class XOM:
                     return 0
 
             return wsgi_run(xom)
-        finally:
-            xom.shutdown()
 
     def fatal(self, msg):
-        self.shutdown()
+        self.thread_pool.shutdown()
         fatal(msg)
-
-    def shutdown(self):
-        log.debug("shutting down")
-        self._shutdown.set()
-        for name, func in reversed(self._shutdownfuncs):
-            log.info("shutdown: %s", name)
-            func()
-        log.debug("shutdown procedure finished")
-
-    def addshutdownfunc(self, name, shutdownfunc):
-        log.debug("appending shutdown func %r", name)
-        self._shutdownfuncs.append((name, shutdownfunc))
-
-    def sleep(self, secs):
-        self._shutdown.wait(secs)
-        if self._shutdown.is_set():
-            raise self.Exiting()
-
-    def spawn(self, func, args=(), kwargs={}):
-        def logging_spawn():
-            self._spawned.append(thread)
-            log.debug("execution starts %s", func.__name__)
-            try:
-                func(*args, **kwargs)
-            except self.Exiting:
-                log.debug("received Exiting signal")
-            finally:
-                log.debug("execution finished %s", func.__name__)
-            self._spawned.remove(thread)
-
-        thread = threading.Thread(target=logging_spawn)
-        thread.setDaemon(True)
-        thread.start()
-        return thread
 
     @cached_property
     def filestore(self):
@@ -370,9 +328,8 @@ class XOM:
             else:
                 # the master thread directly syncs using the
                 # pypi changelog protocol
-                self.spawn(self.pypimirror.spawned_pypichanges,
-                    args=(self.proxy,
-                          lambda: self.sleep(self.config.args.refresh)))
+                self.thread_pool.register(self.pypimirror,
+                                          dict(proxy=self.proxy))
         return app
 
     def is_replica(self):
