@@ -143,7 +143,7 @@ def replica_xom(request, makexom):
 @pytest.fixture
 def maketestapp(request):
     def maketestapp(xom):
-        app = xom.create_app(immediatetasks=-1)
+        app = xom.create_app()
         mt = MyTestApp(app)
         mt.xom = xom
         return mt

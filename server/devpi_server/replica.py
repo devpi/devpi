@@ -62,8 +62,7 @@ class ReplicaThread:
             serial = keyfs.get_next_serial()
             r = session.get(self.master_changelog_url + "/%s" % serial,
                             stream=True)
-            if self.is_shutting_down():
-                break
+            self.thread.exit_if_shutdown()
             if r.status_code == 200:
                 try:
                     entry = load(r.raw)
@@ -73,7 +72,7 @@ class ReplicaThread:
                     keyfs.import_changelog_entry(serial, entry)
                     serial += 1
             else: # we got an error, let's wait a bit
-                self.xom.sleep(5.0)
+                self.thread.sleep(5.0)
 
 
 class PyPIProxy(object):

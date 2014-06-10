@@ -114,9 +114,8 @@ def make_application():
     config = parseoptions([])
     return XOM(config).create_app()
 
-def wsgi_run(xom):
+def wsgi_run(xom, app):
     from wsgiref.simple_server import make_server
-    app = xom.create_app(immediatetasks=True)
     host = xom.config.args.host
     port = xom.config.args.port
     log.info("devpi-server version: %s", server_version)
@@ -195,10 +194,11 @@ class XOM:
         else:
             proxy = self.proxy
         xom.pypimirror.init_pypi_mirror(proxy)
+        if args.import_:
+            from devpi_server.importexport import do_import
+            return do_import(args.import_, xom)
+        app = xom.create_app()
         with xom.thread_pool.live():
-            if args.import_:
-                from devpi_server.importexport import do_import
-                return do_import(args.import_, xom)
             if 1:
                 with xom.keyfs.transaction():
                     results = xom.config.hook.devpiserver_run_commands(xom)
@@ -208,7 +208,7 @@ class XOM:
                         return errors[0]
                     return 0
 
-            return wsgi_run(xom)
+            return wsgi_run(xom, app)
 
     def fatal(self, msg):
         self.thread_pool.shutdown()
@@ -264,7 +264,7 @@ class XOM:
         except self._httpsession.RequestException:
             return FatalResponse(sys.exc_info())
 
-    def create_app(self, immediatetasks=False):
+    def create_app(self):
         from devpi_server.views import route_url
         from pyramid.authentication import BasicAuthAuthenticationPolicy
         from pyramid.config import Configurator
@@ -314,22 +314,18 @@ class XOM:
         pyramid_config.scan()
         pyramid_config.registry['xom'] = self
         app = pyramid_config.make_wsgi_app()
-        if immediatetasks == -1:
-            pass
+        if self.is_replica():
+            from devpi_server.replica import ReplicaThread
+            replica_thread = ReplicaThread(self)
+            # the replica thread replays keyfs changes
+            # and pypimirror.name2serials changes are discovered
+            # and replayed through the PypiProjectChange event
+            self.thread_pool.register(replica_thread)
         else:
-            assert immediatetasks
-            if self.is_replica():
-                from devpi_server.replica import ReplicaThread
-                replica_thread = ReplicaThread(self)
-                # the replica thread replays keyfs changes
-                # and pypimirror.name2serials changes are discovered
-                # and replayed through the PypiProjectChange event
-                self.thread_pool.register(replica_thread)
-            else:
-                # the master thread directly syncs using the
-                # pypi changelog protocol
-                self.thread_pool.register(self.pypimirror,
-                                          dict(proxy=self.proxy))
+            # the master thread directly syncs using the
+            # pypi changelog protocol
+            self.thread_pool.register(self.pypimirror,
+                                      dict(proxy=self.proxy))
         return app
 
     def is_replica(self):
