@@ -359,9 +359,12 @@ class PrimaryMirror:
             for x in changelog:
                 name, version, action, date, serial = x
                 # XXX remove names if action == "remove" and version is None
-                maxserial = max(self.name2serials.get(name, 0), serial)
-                name_maxserial.append((name, maxserial))
-
+                cur_serial = self.name2serials.get(name, -1)
+                if serial <= cur_serial:
+                    continue
+                name_maxserial.append((name, serial))
+                log.debug("looking at changelog %s %s serial=%s curserial %s",
+                          name, action, serial, cur_serial)
                 # fill splitkey structure
                 splitkey = make_split_key(name)
                 splitkeys = self.keyfs.PYPISERIALSPLITKEYS.get()
@@ -369,11 +372,12 @@ class PrimaryMirror:
                 if splitkey not in splitkeys:
                     splitkeys.add(splitkey)
                     self.keyfs.PYPISERIALSPLITKEYS.set(splitkeys)
-                    subkey.set({name:maxserial})
+                    subkey.set({name:serial})
                 else:
                     subdict = subkey.get()
-                    subdict[name] = maxserial
-                    subkey.set(subdict)
+                    if subdict.get(name) != cur_serial:
+                        subdict[name] = serial
+                        subkey.set(subdict)
         names = []
         for name, maxserial in names:
             self._set_project_serial(name, maxserial)
@@ -427,4 +431,9 @@ def load_name2serials(keyfs, proxy):
 
 
 def make_split_key(name):
-    return md5(name.encode("utf8")).hexdigest()[:2]
+    m = md5(name.encode("utf8")).hexdigest()[:3]
+    x = hex(int(m, 16) / 4)[2:]
+    if not x:
+        return "0"
+    return x
+
