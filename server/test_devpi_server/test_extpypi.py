@@ -266,11 +266,11 @@ class TestExtPYPIDB:
         assert links[0].eggfragment == "pytest-dev2"
 
     def test_parse_project_replaced_md5(self, pypistage):
-        x = pypistage.setextsimple("pytest", pypiserial=10, 
+        x = pypistage.setextsimple("pytest", pypiserial=10,
                                    pkgver="pytest-1.0.zip")
         links = pypistage.getreleaselinks("pytest")
         assert links[0].md5 == x.md5
-        y = pypistage.setextsimple("pytest", pypiserial=11, 
+        y = pypistage.setextsimple("pytest", pypiserial=11,
                                    pkgver="pytest-1.0.zip")
         links = pypistage.getreleaselinks("pytest")
         assert links[0].md5 == y.md5
@@ -469,7 +469,7 @@ class TestRefreshManager:
                           pypiserial=27)
         pypistage.mock_simple("Django", '<a href="Django-1.7.tgz"/a>',
                           pypiserial=25)
-        
+
         with keyfs.transaction():
             b = pypistage.getreleaselinks("pytest")[0].basename
             assert b == "pytest-2.4.tgz"

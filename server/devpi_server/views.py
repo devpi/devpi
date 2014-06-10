@@ -155,7 +155,7 @@ class PyPIView:
         return stage
 
     #
-    # primary changelog API for replicas
+    # master changelog API for replicas
     #
     @view_config(route_name="/+changelog")
     def changelog(self):
@@ -174,6 +174,14 @@ class PyPIView:
         r = self.request.response
         r.content_type = str("application/octet-stream")
         return r
+
+    @view_config(route_name="/root/pypi/+pypi_serials")
+    def get_name2serials(self):
+        import execnet
+        data = execnet.dumps(self.xom.pypimirror.name2serials)
+        headers = {str("Content-Type"): str("application/octet-stream")}
+        return HTTPResponse(body=data, status=200, headers=headers)
+
 
     #
     # supplying basic API locations for all services

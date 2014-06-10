@@ -51,6 +51,12 @@ def load_from_file(path, default=_nodefault):
             raise
         return default
 
+def dump_to_file(value, path):
+    tmp_path = path + "-tmp"
+    with get_write_file_ensure_dir(tmp_path) as f:
+        dump(value, f)
+    rename(tmp_path, path)
+
 def get_write_file_ensure_dir(path):
     try:
         return open(path, "wb")

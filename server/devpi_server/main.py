@@ -148,8 +148,6 @@ def add_keys(keyfs):
 
     # type pypimirror related data
     keyfs.add_key("PYPILINKS", "root/pypi/+links/{name}", dict)
-    keyfs.add_key("PYPISERIALSPLITKEYS", "root/pypi/serials/+splitkeys", set)
-    keyfs.add_key("PYPISERIALS", "root/pypi/serials/{splitkey}", dict)
     keyfs.add_key("PYPIFILE_NOMD5",
                  "{user}/{index}/+e/{dirname}/{basename}", dict)
     keyfs.add_key("PYPISTAGEFILE",
@@ -331,6 +329,8 @@ class XOM:
                 config=self.config,
                 pyramid_config=pyramid_config)
         pyramid_config.add_route("/+changelog", "/+changelog")
+        pyramid_config.add_route("/root/pypi/+pypi_serials",
+                                 "/root/pypi/+pypi_serials")
         pyramid_config.add_route("/+api", "/+api", accept="application/json")
         pyramid_config.add_route("{path:.*}/+api", "{path:.*}/+api", accept="application/json")
         pyramid_config.add_route("/+login", "/+login", accept="application/json")

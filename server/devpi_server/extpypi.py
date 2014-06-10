@@ -6,6 +6,7 @@ testresult storage.
 """
 
 from __future__ import unicode_literals
+import os
 
 try:
     import xmlrpc.client as xmlrpc
@@ -26,6 +27,7 @@ from hashlib import md5
 
 from . import __version__ as server_version
 from .model import ProjectInfo
+from .keyfs import load_from_file, dump_to_file
 
 from logging import getLogger
 assert __name__ == "devpi_server.extpypi"
@@ -317,6 +319,7 @@ class PyPIStage:
 class PrimaryMirror:
     def __init__(self, keyfs):
         self.keyfs = keyfs
+        keyfs.path_name2serials = str(keyfs.basedir.join(".name2serials"))
 
     def init_pypi_mirror(self, proxy):
         """ initialize pypi mirror if no mirror state exists. """
@@ -354,35 +357,17 @@ class PrimaryMirror:
     def process_changelog(self, changelog):
         if not changelog:
             return
-        name_maxserial = []
-        with self.keyfs.transaction(write=True):
-            for x in changelog:
-                name, version, action, date, serial = x
-                # XXX remove names if action == "remove" and version is None
-                cur_serial = self.name2serials.get(name, -1)
-                if serial <= cur_serial:
-                    continue
-                name_maxserial.append((name, serial))
-                log.debug("looking at changelog %s %s serial=%s curserial %s",
-                          name, action, serial, cur_serial)
-                # fill splitkey structure
-                splitkey = make_split_key(name)
-                splitkeys = self.keyfs.PYPISERIALSPLITKEYS.get()
-                subkey = self.keyfs.PYPISERIALS(splitkey=splitkey)
-                if splitkey not in splitkeys:
-                    splitkeys.add(splitkey)
-                    self.keyfs.PYPISERIALSPLITKEYS.set(splitkeys)
-                    subkey.set({name:serial})
-                else:
-                    subdict = subkey.get()
-                    if subdict.get(name) != cur_serial:
-                        subdict[name] = serial
-                        subkey.set(subdict)
         names = []
-        for name, maxserial in names:
-            self._set_project_serial(name, maxserial)
+        for x in changelog:
+            name, version, action, date, serial = x
+            # XXX remove names if action == "remove" and version is None
+            cur_serial = self.name2serials.get(name, -1)
+            if serial <= cur_serial:
+                continue
+            self._set_project_serial(name, serial)
             names.append(name)
-
+        if self.name2serials:
+            dump_to_file(self.name2serials, self.keyfs.path_name2serials)
         log.debug("processed changelog of size %d: %s" %(
                   len(changelog), names))
 
@@ -396,44 +381,16 @@ def iteritems(d):
     return getattr(d, "iteritems", d.items)()
 
 def load_name2serials(keyfs, proxy):
-    name2serials = {}
-    with keyfs.transaction(write=False):
-        keys = keyfs.PYPISERIALSPLITKEYS.get()
-        if keys:
-            log.info("reusing already cached name/serial list")
-            for splitkey in keys:
-                d = keyfs.PYPISERIALS(splitkey=splitkey).get()
-                name2serials.update(d)
-    if not name2serials:
+    name2serials = load_from_file(keyfs.path_name2serials, {})
+    if name2serials:
+        log.info("reusing already cached name/serial list")
+    else:
         log.info("retrieving initial name/serial list")
-        result = proxy.list_packages_with_serial()
-        if result is None:
+        name2serials = proxy.list_packages_with_serial()
+        if name2serials is None:
             from devpi_server.main import fatal
             fatal("mirror initialization failed: "
                   "pypi.python.org not reachable")
-
-        # build name2serials and splitkey data structure
-        splitkey2dict = {}
-        for name, val in iteritems(result):
-            name = py.builtin._totext(name, "utf-8")
-            name2serials[name] = val
-            splitkey = make_split_key(name)
-            splitkey2dict.setdefault(splitkey, {})[name] = val
-
-        # write out splitkey data structure
-        with keyfs.transaction(write=True):
-            splitkeys = set()
-            for splitkey, subdict in splitkey2dict.items():
-                keyfs.PYPISERIALS(splitkey=splitkey).set(subdict)
-                splitkeys.add(splitkey)
-            keyfs.PYPISERIALSPLITKEYS.set(splitkeys)
+        dump_to_file(name2serials, keyfs.path_name2serials)
     return name2serials
-
-
-def make_split_key(name):
-    m = md5(name.encode("utf8")).hexdigest()[:3]
-    x = hex(int(m, 16) / 4)[2:]
-    if not x:
-        return "0"
-    return x
 

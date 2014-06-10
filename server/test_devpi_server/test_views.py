@@ -574,11 +574,14 @@ class Test_getjson:
         assert abort_call_args[1] == 400
 
 class TestChangelog:
-    def test_get_latest_serial(self, testapp):
+    def test_get_latest_serial(self, testapp, mapp):
         r = testapp.get("/+changelog")
         serial = int(r.headers["X-DEVPI-SERIAL"])
-        assert serial > 0
+        assert serial >= 0
         assert len(r.body) == 0
+        mapp.create_user("hello", "pass")
+        r = testapp.get("/+changelog")
+        assert int(r.headers["X-DEVPI-SERIAL"]) == serial + 1
 
     def test_get_since(self, testapp, mapp, noiter):
         r = testapp.get("/+changelog?since=0")
