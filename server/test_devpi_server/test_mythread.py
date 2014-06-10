@@ -58,6 +58,17 @@ def test_live(pool):
         assert mythread.has_active_thread(t)
     t.thread.join()
 
+def test_start_one(pool):
+    class T:
+        def thread_run(self):
+            self.thread.sleep(100)
+
+    t = T()
+    pool.register(t)
+    pool.start_one(t)
+    assert mythread.has_active_thread(t)
+    pool.shutdown()
+    t.thread.join()
 
 
 #def test_sleep_shutdown_wait(self, xom, monkeypatch):

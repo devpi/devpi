@@ -196,7 +196,13 @@ class XOM:
         xom.pypimirror.init_pypi_mirror(proxy)
         if args.import_:
             from devpi_server.importexport import do_import
+            # we need to start the keyfs notifier so that import
+            # can wait on completion of events
+            xom.thread_pool.start_one(xom.keyfs.notifier)
             return do_import(args.import_, xom)
+
+        # creation of app will register handlers of key change events
+        # which cannot happen anymore after the tx notifier has started
         app = xom.create_app()
         with xom.thread_pool.live():
             if 1:
