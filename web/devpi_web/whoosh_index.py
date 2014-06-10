@@ -209,7 +209,7 @@ class Index(object):
             user=fields.ID(stored=True),
             index=fields.ID(stored=True),
             classifiers=fields.KEYWORD(commas=True, scorable=True),
-            keywords=fields.KEYWORD(stored=True, commas=True, scorable=True),
+            keywords=fields.KEYWORD(stored=True, commas=False, scorable=True),
             version=fields.STORED(),
             doc_version=fields.STORED(),
             type=fields.ID(stored=True),
