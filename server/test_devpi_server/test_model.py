@@ -367,6 +367,7 @@ class TestStage:
             stage.register_metadata(dict(name="Hello-world", version="1.0"))
             stage.register_metadata(dict(name="Hello_world", version="1.0"))
 
+    @pytest.mark.start_threads
     def test_register_metadata_hook(self, stage, queue):
         class Plugin:
             def devpiserver_register_metadata(self, stage, metadata):
@@ -377,6 +378,7 @@ class TestStage:
         stage2, metadata = queue.get()
         assert stage2.name == stage.name
 
+    @pytest.mark.start_threads
     def test_doczip_uploaded_hook(self, stage, queue):
         class Plugin:
             def devpiserver_docs_uploaded(self, stage, name, version, entry):

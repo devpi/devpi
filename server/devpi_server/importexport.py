@@ -89,8 +89,10 @@ def do_import(path, xom):
             fatal("serverdir must not contain users or stages: %s" %
                   xom.config.serverdir)
     importer = Importer(tw, xom)
+    xom.thread_pool.start_registered_threads()
     importer.import_all(path)
     importer.wait_for_events()
+    xom.thread_pool.shutdown()
     return 0
 
 

@@ -112,6 +112,8 @@ def makexom(request, gentmp, httpget, monkeypatch):
             xom.pypimirror.init_pypi_mirror(proxy)
         else:
             xom = XOM(config)
+        if request.node.get_marker("start_threads"):
+            xom.thread_pool.start_registered_threads()
         request.addfinalizer(xom.shutdown)
         return xom
     return makexom

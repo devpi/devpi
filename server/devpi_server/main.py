@@ -15,7 +15,7 @@ from devpi_common.types import cached_property
 from devpi_common.request import new_requests_session
 from .config import PluginManager
 from .config import parseoptions, configure_logging, load_setuptools_entrypoints
-from . import extpypi, replica
+from . import extpypi, replica, mythread
 from . import __version__ as server_version
 
 
@@ -131,8 +131,10 @@ def wsgi_run(xom):
     try:
         server = make_server(host, port, app)
     except Exception as e:
-        log.exception("Error while starting the server: %s" %(e,))
+        log.exception("Error while making the server: %s" %(e,))
         return 1
+
+    xom.thread_pool.start_registered_threads()
     try:
         log.info("Hit Ctrl-C to quit.")
         server.serve_forever()
@@ -152,6 +154,8 @@ class XOM:
         self._shutdownfuncs = []
         if proxy is not None:
             self.proxy = proxy
+        self.thread_pool = mythread.ThreadPool()
+        self.addshutdownfunc("threadpool", self.thread_pool.shutdown)
 
         if httpget is not None:
             self.httpget = httpget
@@ -263,20 +267,13 @@ class XOM:
         from devpi_server.model import add_keys
         keyfs = KeyFS(self.config.serverdir)
         add_keys(self, keyfs)
-        keyfs.notifier.start()
-        self.addshutdownfunc("keyfs notifier shutdown",
-                             keyfs.notifier.shutdown)
+        self.thread_pool.register(keyfs.notifier)
         return keyfs
 
     @cached_property
     def pypimirror(self):
         from devpi_server.extpypi import PyPIMirror
         return PyPIMirror(self)
-
-    @cached_property
-    def replica_thread(self):
-        from devpi_server.replica import ReplicaThread
-        return ReplicaThread(self)
 
     @cached_property
     def proxy(self):
@@ -364,10 +361,12 @@ class XOM:
         else:
             assert immediatetasks
             if self.is_replica():
+                from devpi_server.replica import ReplicaThread
+                replica_thread = ReplicaThread(self)
                 # the replica thread replays keyfs changes
                 # and pypimirror.name2serials changes are discovered
                 # and replayed through the PypiProjectChange event
-                self.spawn(self.replica_thread.run, args=())
+                self.thread_pool.register(replica_thread)
             else:
                 # the master thread directly syncs using the
                 # pypi changelog protocol

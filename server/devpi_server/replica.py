@@ -3,6 +3,7 @@ from pyramid.httpexceptions import HTTPNotFound
 from pyramid.view import view_config
 from pyramid.response import Response
 from .keyfs import load, dump
+from .mythread import XOMThread
 
 import logging
 
@@ -43,8 +44,9 @@ class MasterChangelogRequest:
         return Response(body=io.getvalue(), status=200, headers=headers)
 
 
-class ReplicaThread:
+class ReplicaThread(XOMThread):
     def __init__(self, xom):
+        XOMThread.__init__(self)
         self.xom = xom
         r = xom.config.args.master_url
         assert r
@@ -62,8 +64,9 @@ class ReplicaThread:
             serial = keyfs.get_next_serial()
             r = session.get(self.master_changelog_url + "/%s" % serial,
                             stream=True)
-            r.raise_for_status()
-            while 1:
+            if self.is_shutting_down():
+                break
+            if r.status_code == 200:
                 try:
                     entry = load(r.raw)
                 except EOFError:
@@ -71,7 +74,8 @@ class ReplicaThread:
                 else:
                     keyfs.import_changelog_entry(serial, entry)
                     serial += 1
-            self.xom.sleep(5.0)
+            else: # we got an error, let's wait a bit
+                self.xom.sleep(5.0)
 
 
 class PyPIProxy(object):

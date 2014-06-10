@@ -220,6 +220,7 @@ class TxNotificationThread(threading.Thread):
         self.new_transaction.set()
 
     def run(self):
+        self.new_transaction.set()
         while 1:
             event_serial = self.read_event_serial()
             if event_serial >= self.keyfs._fs.next_serial:
