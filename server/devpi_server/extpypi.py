@@ -362,13 +362,13 @@ class PyPIMirror:
             current_serial = max(itervalues(self.name2serials))
             log.debug("querying pypi changelog since %s", current_serial)
             changelog = proxy.changelog_since_serial(current_serial)
-            self.process_changelog(changelog)
+            if changelog:
+                with self.keyfs.transaction(write=True):
+                    self.process_changelog(changelog)
             self.thread.sleep(self.xom.config.args.refresh)
 
     def process_changelog(self, changelog):
-        if not changelog:
-            return
-        changed = {}
+        changed = set()
         for x in changelog:
             name, version, action, date, serial = x
             # XXX remove names if action == "remove" and version is None
@@ -377,25 +377,18 @@ class PyPIMirror:
             if serial <= cur_serial:
                 continue
             normname = self.set_project_serial(name, serial)
-            changed[normname] = serial
-
-        # persist to pypilinks
-        with self.keyfs.transaction(write=True):
-            for normname, serial in changed.items():
-                key = self.keyfs.PYPILINKS(name=normname)
-                cache = key.get()
-                if cache:
-                    if cache["latest_serial"] >= serial:  # should this happen?
-                        return  # the cached serial is new enough
-                    cache["latest_serial"] = serial
-                    key.set(cache)
-                    log.debug("set latest_serial of %s to %s",
-                              normname, serial)
-                else:
-                    log.debug("no cache found for %s", normname)
-
-        # XXX consider writing name2serials within the transaction
-        # which requires a WriteTransaction to integrate external renames
+            changed.add(normname)
+            key = self.keyfs.PYPILINKS(name=normname)
+            cache = key.get()
+            if cache:
+                if cache["latest_serial"] >= serial:  # should this happen?
+                    return  # the cached serial is new enough
+                cache["latest_serial"] = serial
+                key.set(cache)
+                log.debug("set latest_serial of %s to %s",
+                          normname, serial)
+        # XXX include name2serials into the transaction
+        # (requires WriteTransaction to integrate external renames)
         if self.name2serials:
             dump_to_file(self.name2serials, self.path_name2serials)
 

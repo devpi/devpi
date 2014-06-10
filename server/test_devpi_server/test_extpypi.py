@@ -458,10 +458,11 @@ class TestRefreshManager:
         with keyfs.transaction():
             assert len(pypistage.getreleaselinks("pytest")) == 1
             assert len(pypistage.getreleaselinks("Django")) == 1
-        pypistage.pypimirror.process_changelog([
-            ["Django", "1.4", 12123, 'new release', 25],
-            ["pytest", "2.4", 121231, 'new release', 27]
-        ])
+        with keyfs.transaction(write=True):
+            pypistage.pypimirror.process_changelog([
+                ["Django", "1.4", 12123, 'new release', 25],
+                ["pytest", "2.4", 121231, 'new release', 27]
+            ])
         assert len(pypistage.pypimirror.name2serials) == 2
         name2serials = pypistage.pypimirror.load_name2serials(None)
         assert name2serials["pytest"] == 27

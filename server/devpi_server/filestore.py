@@ -67,7 +67,7 @@ class FileStore:
             raise # return None
         return FileEntry(key, md5=md5)
 
-    def getfile(self, relpath, httpget, chunksize=8192*16):
+    def getfile(self, relpath, httpget):
         entry = self.get_file_entry(relpath)
         if entry is None:
             return None, None

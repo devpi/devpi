@@ -104,8 +104,7 @@ class TestFileStore:
                  "content-type": "application/zip"}
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw = BytesIO(b"123"))
-        rheaders, bytes = filestore.getfile(entry.relpath,
-                                            httpget, chunksize=1)
+        rheaders, bytes = filestore.getfile(entry.relpath, httpget)
         assert rheaders["content-length"] == "3"
         assert rheaders["content-type"] == "application/zip"
         assert rheaders["last-modified"] == headers["last-modified"]
@@ -117,7 +116,7 @@ class TestFileStore:
         assert entry.file_exists()
         assert entry.md5 == hashlib.md5(bytes).hexdigest()
         assert entry.size == 3
-        rheaders, bytes = filestore.getfile(entry.relpath, None, chunksize=1)
+        rheaders, bytes = filestore.getfile(entry.relpath, None)
         assert rheaders == headers
         assert bytes == b"123"
 
@@ -129,8 +128,7 @@ class TestFileStore:
         headers={}
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw = BytesIO(b"123"))
-        rheaders, bytes = filestore.getfile(entry.relpath,
-                                            httpget, chunksize=1)
+        rheaders, bytes = filestore.getfile(entry.relpath, httpget)
         assert rheaders["content-length"] == "3"
         assert rheaders.get("content-type") is None
         assert bytes == b"123"
@@ -160,8 +158,7 @@ class TestFileStore:
         assert entry.size is None
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw=BytesIO(b"1"))
-        rheaders, received = filestore.getfile(entry.relpath,
-                                               httpget, chunksize=3)
+        rheaders, received = filestore.getfile(entry.relpath, httpget)
         assert received == b"1"
         entry2 = filestore.get_file_entry(entry.relpath)
         assert entry2.size == 1
