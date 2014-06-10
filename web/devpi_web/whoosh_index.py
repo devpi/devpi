@@ -384,11 +384,9 @@ class Index(object):
             plugins.WhitespacePlugin(),
             plugins.SingleQuotePlugin(),
             plugins.FieldsPlugin(),
-            plugins.PrefixPlugin(),
             plugins.GroupPlugin(),
             plugins.OperatorsPlugin(),
-            plugins.BoostPlugin(),
-            plugins.EveryPlugin()]
+            plugins.BoostPlugin()]
 
     def _query_projects(self, querystring, page=1):
         parser = QueryParser(
