@@ -189,7 +189,7 @@ def httpget(pypiurls):
             log.debug("set mocking response %s %s", mockurl, kw)
             self.url2response[mockurl] = kw
 
-        def setextsimple(self, name, text=None, pkgver=None,
+        def mock_simple(self, name, text=None, pkgver=None,
             pypiserial=10000, **kw):
             class ret:
                 md5 = None
@@ -244,16 +244,17 @@ def pypistage(xom):
 def add_pypistage_mocks(monkeypatch, httpget):
     # add some mocking helpers
     PyPIStage.url2response = httpget.url2response
-    def setextsimple(self, name, text=None, pypiserial=10000, **kw):
+    def mock_simple(self, name, text=None, pypiserial=10000, **kw):
+        call = lambda: \
+                 self.pypimirror.process_changelog([(name, 0,0,0, pypiserial)])
         if not hasattr(self.keyfs, "tx"):
-            with self.keyfs.transaction(write=True):
-                self.pypimirror.set_project_serial(name, pypiserial)
+            with self.keyfs.transaction():
+                call()
         else:
-            self.pypimirror.set_project_serial(name, pypiserial)
-        return self.httpget.setextsimple(name,
+            call()
+        return self.httpget.mock_simple(name,
                 text=text, pypiserial=pypiserial, **kw)
-    monkeypatch.setattr(PyPIStage, "setextsimple", setextsimple, raising=False)
-    monkeypatch.setattr(PyPIStage, "mock_simple", setextsimple, raising=False)
+    monkeypatch.setattr(PyPIStage, "mock_simple", mock_simple, raising=False)
 
 @pytest.fixture
 def pypiurls():

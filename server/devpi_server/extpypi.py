@@ -201,15 +201,12 @@ class PyPIStage:
         log.debug("load data for %s: %s", projectname, data)
         return data
 
-    def _load_cache_entries(self, projectname, required_serial):
+    def _load_cache_entries(self, projectname):
         cache = self._load_project_cache(projectname)
-        if cache:
-            cache_serial = cache["serial"]
-            if cache_serial >= required_serial and \
-               cache["latest_serial"] <= cache_serial:
-                get_proxy = self.filestore.get_proxy_file_entry
-                return [get_proxy(relpath, md5, keyname=keyname)
-                            for relpath, md5, keyname in cache["entrylist"]]
+        if cache and cache["serial"] >= cache["latest_serial"]:
+            get_proxy = self.filestore.get_proxy_file_entry
+            return [get_proxy(relpath, md5, keyname=keyname)
+                        for relpath, md5, keyname in cache["entrylist"]]
 
     def getreleaselinks(self, projectname):
         """ return all releaselinks from the index and referenced scrape
@@ -220,8 +217,7 @@ class PyPIStage:
         If pypi does not return a fresh enough page although we know it
         must exist, return -2.
         """
-        newest_serial = self.pypimirror.name2serials.get(projectname, 0)
-        entries = self._load_cache_entries(projectname, newest_serial)
+        entries = self._load_cache_entries(projectname)
         if entries is not None:
             return entries
         info = self.get_project_info(projectname)
@@ -241,6 +237,7 @@ class PyPIStage:
         # check that we got a fresh enough page
         if not self.xom.is_replica():
             serial = int(response.headers["X-PYPI-LAST-SERIAL"])
+            newest_serial = self.pypimirror.name2serials.get(info.name, -1)
             if serial < newest_serial:
                 log.warn("%s: pypi returned serial %s, expected %s",
                          real_projectname, serial, newest_serial)
@@ -253,20 +250,14 @@ class PyPIStage:
         result = parse_index(response.url, response.text)
         if self.xom.is_replica():
             # in the replica we can just return the links
-            # as the replica thread will take care for merging
-            # cache_entries
+            # as the replica thread will take care for replaying cache entries
             return [self.filestore.maplink(link)
                         for link in result.releaselinks]
 
         perform_crawling(self, result)
         releaselinks = list(result.releaselinks)
-
-        # restart transaction and see if a concurrent task already
-        # got us the entries
         self.keyfs.restart_as_write_transaction()
-        entries = self._load_cache_entries(projectname, newest_serial)
-        if entries is not None:
-            return entries
+
         # compute release link entries and cache according to serial
         entries = [self.filestore.maplink(link) for link in releaselinks]
         self._dump_project_cache(real_projectname, entries, serial)
@@ -343,17 +334,12 @@ class PyPIMirror:
         return name2serials
 
     def set_project_serial(self, name, serial):
-        """ set the current serial and fill normalization table
-        if project does not exist.
-        """
-        existed = name in self.name2serials
+        """ set the current serial and fill normalization table. """
         self.name2serials[name] = serial
-        if not existed:
-            n = normalize_name(name)
-            if n != name:
-                self.normname2name[n] = name
-                name = n
-        return name
+        n = normalize_name(name)
+        if n != name:
+            self.normname2name[n] = name
+        return n
 
     def thread_run(self, proxy):
         log.info("changelog/update tasks starting")
@@ -373,9 +359,6 @@ class PyPIMirror:
             name, version, action, date, serial = x
             # XXX remove names if action == "remove" and version is None
             name = ensure_unicode(name)
-            cur_serial = self.name2serials.get(name, -1)
-            if serial <= cur_serial:
-                continue
             normname = self.set_project_serial(name, serial)
             changed.add(normname)
             key = self.keyfs.PYPILINKS(name=normname)
@@ -387,7 +370,9 @@ class PyPIMirror:
                 key.set(cache)
                 log.debug("set latest_serial of %s to %s",
                           normname, serial)
-        # XXX include name2serials into the transaction
+            else:
+                log.debug("no cache found for %s" % name)
+        # XXX include name2serials into the ongoing transaction
         # (requires WriteTransaction to integrate external renames)
         if self.name2serials:
             dump_to_file(self.name2serials, self.path_name2serials)
