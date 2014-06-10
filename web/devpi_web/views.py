@@ -490,3 +490,9 @@ class SearchView:
             page=self.params['page'],
             batch_links=self.batch_links,
             result=self.result)
+
+    @view_config(
+        route_name='search_help',
+        renderer='templates/search_help.pt')
+    def search_help(self):
+        return dict()

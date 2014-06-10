@@ -2,7 +2,7 @@
 <html>
     <head>
         <title>${title}</title>
-        <link rel="stylesheet" type="text/css" href="${request.static_url('devpi_web:static/style.css')}" />
+        <metal:head use-macro="request.macros['head']" />
     </head>
     <body>
         <metal:search use-macro="request.macros['navigation']" />

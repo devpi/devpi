@@ -10,8 +10,21 @@ form, #content, #navigation, .searchresults {
 }
 
 #navigation {
+    position: relative;
     border-bottom: 1px solid #ccc;
     padding: 0.25em 0 0.25em 0;
+}
+
+.help {
+    position: absolute;
+    right: 1em;
+}
+
+.query_doc.inline {
+    text-align: left;
+    background: #efefef;
+    border: 1px solid #ccc;
+    padding: 1em;
 }
 
 form#search h1 {
