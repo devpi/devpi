@@ -193,7 +193,7 @@ class PyPIStage:
         self.pypimirror = xom.pypimirror
 
     def getprojectnames(self):
-        """ return list of all projects which have been served. """
+        """ return list of all projects served through the mirror. """
         return sorted(self.pypimirror.name2serials)
 
     getprojectnames_perstage = getprojectnames
