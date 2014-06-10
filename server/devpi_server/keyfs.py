@@ -352,11 +352,8 @@ class PTypedKey:
         self.type = type
         self.name = name
         self._subscribers = []
-        self.slash = "*}" in self.pattern
         def repl(match):
             name = match.group(1)
-            if name[-1] == "*":
-                return r'(?P<%s>.+)' % name[:-1]
             return r'(?P<%s>[^\/]+)' % name
         rex_pattern = self.pattern.replace("+", r"\+")
         rex_pattern = self.rex_braces.sub(repl, rex_pattern)
@@ -366,30 +363,16 @@ class PTypedKey:
         self._subscribers.append(func)
 
     def __call__(self, **kw):
-        if not self.slash:
-            for val in kw.values():
-                if "/" in val:
-                    raise ValueError(val)
-            relpath = self.pattern.format(**kw)
-        else:
-            def repl(match):
-                name = match.group(1)
-                if name[-1] == "*":
-                    val = kw[name[:-1]]
-                else:
-                    val = kw[name]
-                    if "/" in val:
-                        raise ValueError(val)
-                return val
-            relpath = self.rex_braces.sub(repl, self.pattern)
+        for val in kw.values():
+            if "/" in val:
+                raise ValueError(val)
+        relpath = self.pattern.format(**kw)
         return TypedKey(self.keyfs, relpath, self.type, self.name,
                         frompattern=(self._subscribers, kw))
 
     def extract_params(self, relpath):
         m = self.rex_reverse.match(relpath)
-        if m is not None:
-            return m.groupdict()
-        return {}
+        return m.groupdict() if m is not None else {}
 
     def __repr__(self):
         return "<PTypedKey %r type %r>" %(self.pattern, self.type.__name__)

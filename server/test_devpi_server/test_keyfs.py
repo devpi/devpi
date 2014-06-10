@@ -43,9 +43,6 @@ class TestKeyFS:
         with pytest.raises(ValueError):
             pkey(hello="this/that")
 
-    def test_slashkey(self, keyfs):
-        pkey = keyfs.add_key("NAME", "{hello*}", dict)
-        assert pkey(hello="this/that").relpath
 
 
 class TestGetKey:
