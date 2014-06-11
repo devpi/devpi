@@ -210,6 +210,7 @@ class TxNotificationThread:
         with self.cv_new_transaction:
             while serial > self.keyfs.get_current_serial():
                 self.cv_new_transaction.wait()
+        log.info("waiting for tx serial %s finished", serial)
 
     def read_event_serial(self):
         return read_int_from_file(self.event_serial_path, 0)

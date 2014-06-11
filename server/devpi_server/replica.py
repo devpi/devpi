@@ -17,6 +17,7 @@ class MasterChangelogRequest:
     @view_config(route_name="/+changelog/{serial}")
     def get_changelog_entry(self):
         serial = self.request.matchdict["serial"]
+        keyfs = self.xom.keyfs
         if serial.lower() == "nop":
             raw_entry = b""
         else:
@@ -24,11 +25,19 @@ class MasterChangelogRequest:
                 serial = int(serial)
             except ValueError:
                 raise HTTPNotFound("serial needs to be int")
-            raw_entry = self.xom.keyfs._fs.get_raw_changelog_entry(serial)
+            raw_entry = keyfs._fs.get_raw_changelog_entry(serial)
             if not raw_entry:
-                # XXX wait on a change if serial == current_serial+1
-                raise HTTPNotFound("no changelog entry for %r" %(serial))
-        devpi_serial = self.xom.keyfs.get_next_serial() - 1
+                with keyfs.notifier.cv_new_transaction:
+                    next_serial = keyfs.get_next_serial()
+                    if serial > next_serial:
+                        raise HTTPNotFound("can only wait for next serial")
+                    while serial >= next_serial:
+                        log.debug("waiting for tx%s", serial)
+                        keyfs.notifier.cv_new_transaction.wait(2)
+                        log.debug("woke up")
+                raw_entry = keyfs._fs.get_raw_changelog_entry(serial)
+
+        devpi_serial = keyfs.get_current_serial()
         r = Response(body=raw_entry, status=200, headers={
             str("Content-Type"): str("application/octet-stream"),
             str("X-DEVPI-SERIAL"): str(devpi_serial),
@@ -60,9 +69,9 @@ class ReplicaThread:
         while 1:
             # within a replica this thread should be the only writer
             serial = keyfs.get_next_serial()
-            r = session.get(self.master_changelog_url + "/%s" % serial,
-                            stream=True)
-            self.thread.exit_if_shutdown()
+            url = self.master_changelog_url + "/%s" % serial
+            log.info("trying %s", url)
+            r = session.get(url, stream=True)
             if r.status_code == 200:
                 try:
                     entry = load(r.raw)

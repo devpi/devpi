@@ -5,6 +5,7 @@ for all indexes.
 """
 from __future__ import unicode_literals
 import hashlib
+import mimetypes
 import json
 from wsgiref.handlers import format_date_time
 from datetime import datetime
@@ -67,53 +68,13 @@ class FileStore:
             raise # return None
         return FileEntry(key, md5=md5)
 
-    def getfile(self, relpath, httpget):
-        entry = self.get_file_entry(relpath)
-        if entry is None:
-            return None, None
-        cached = entry.file_exists() and not entry.eggfragment
-        if cached:
-            return entry.gethttpheaders(), entry.get_file_content()
-        else:
-            return self.getfile_remote(entry, httpget)
-
-    def getfile_remote(self, entry, httpget):
-        # we get and cache the file and some http headers from remote
-        r = httpget(entry.url, allow_redirects=True)
-        assert r.status_code >= 0, r.status_code
-        log.info("reading remote: %s, target %s", r.url, entry.relpath)
-        content = r.raw.read()
-        digest = hashlib.md5(content).hexdigest()
-        filesize = len(content)
-        content_size = r.headers.get("content-length")
-        err = None
-
-        if content_size and int(content_size) != filesize:
-            err = ValueError(
-                      "%s: got %s bytes of %r from remote, expected %s" % (
-                      entry.relpath, filesize, r.url, content_size))
-        if not entry.eggfragment and entry.md5 and digest != entry.md5:
-            err = ValueError("%s: md5 mismatch, got %s, expected %s",
-                             entry.relpath, digest, entry.md5)
-        if err is not None:
-            log.error(err)
-            raise err
-
-        self.keyfs.restart_as_write_transaction()
-        entry.sethttpheaders(r.headers)
-        entry.set_file_content(content)
-        entry.set(md5=digest)
-        return entry.gethttpheaders(), content
-
     def store(self, user, index, filename, content, last_modified=None):
         digest = hashlib.md5(content).hexdigest()
         key = self.keyfs.STAGEFILE(user=user, index=index,
                                    md5=digest, filename=filename)
         entry = FileEntry(key)
         entry.set_file_content(content)
-        if last_modified is None:
-            last_modified = http_date()
-        entry.set(md5=digest, last_modified=last_modified)
+        entry.set(md5=digest)
         return entry
 
     def add_attachment(self, md5, type, data):
@@ -143,8 +104,8 @@ class FileStore:
 
 
 class FileEntry(object):
-    _attr = set("md5 eggfragment last_modified content_type url "
-                "projectname version".split())
+    _attr = set("md5 eggfragment last_modified "
+                "url projectname version".split())
 
     def __init__(self, key, md5=_nodefault):
         self.key = key
@@ -183,9 +144,12 @@ class FileEntry(object):
     def get_file_content(self):
         return self.key_content.get("content")
 
-    def set_file_content(self, content):
+    def set_file_content(self, content, last_modified=None):
         assert isinstance(content, bytes)
         self.key_content["content"] = content
+        if last_modified is None:
+            last_modified = http_date()
+        self.set(last_modified=last_modified)
         self.key.set(self.key_content)
 
     def file_delete(self):
@@ -193,17 +157,13 @@ class FileEntry(object):
         self.key.set(self.key_content)
 
     def gethttpheaders(self):
+        assert self.file_exists()
         headers = {}
-        if self.last_modified:
-            headers["last-modified"] = self.last_modified
-        headers["content-type"] = self.content_type
-        if self.size is not None:
-            headers["content-length"] = str(self.size)
+        headers[str("last-modified")] = str(self.last_modified)
+        m = mimetypes.guess_type(self.basename)[0]
+        headers[str("content-type")] = str(m)
+        headers[str("content-length")] = str(len(self.get_file_content()))
         return headers
-
-    def sethttpheaders(self, headers):
-        self.set(content_type = headers.get("content-type"),
-                 last_modified = headers.get("last-modified"))
 
     def __eq__(self, other):
         return (self.relpath == getattr(other, "relpath", None) and
@@ -224,6 +184,31 @@ class FileEntry(object):
     def delete(self, **kw):
         self.key.delete()
         self.key_content = {}
+
+    def cache_remote_file(self, httpget):
+        # we get and cache the file and some http headers from remote
+        r = httpget(self.url, allow_redirects=True)
+        assert r.status_code >= 0, r.status_code
+        log.info("reading remote: %s, target %s", r.url, self.relpath)
+        content = r.raw.read()
+        digest = hashlib.md5(content).hexdigest()
+        filesize = len(content)
+        content_size = r.headers.get("content-length")
+        err = None
+
+        if content_size and int(content_size) != filesize:
+            err = ValueError(
+                      "%s: got %s bytes of %r from remote, expected %s" % (
+                      self.relpath, filesize, r.url, content_size))
+        if not self.eggfragment and self.md5 and digest != self.md5:
+            err = ValueError("%s: md5 mismatch, got %s, expected %s",
+                             self.relpath, digest, self.md5)
+        if err is not None:
+            log.error(err)
+            raise err
+
+        self.set_file_content(content, r.headers.get("last-modified", None))
+        self.set(md5=digest)
 
 
 def http_date():

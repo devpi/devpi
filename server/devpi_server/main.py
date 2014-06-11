@@ -8,7 +8,7 @@ from __future__ import unicode_literals
 import os, sys
 import py
 import threading
-from logging import getLogger
+from logging import getLogger, INFO, DEBUG
 log = getLogger(__name__)
 
 from devpi_common.types import cached_property
@@ -115,7 +115,7 @@ def make_application():
     return XOM(config).create_app()
 
 def wsgi_run(xom, app):
-    from wsgiref.simple_server import make_server
+    from waitress import serve
     host = xom.config.args.host
     port = xom.config.args.port
     log.info("devpi-server version: %s", server_version)
@@ -127,15 +127,10 @@ def wsgi_run(xom, app):
     if "WEBTRACE" in os.environ and xom.config.args.debug:
         from weberror.evalexception import make_eval_exception
         app = make_eval_exception(app, {})
-    try:
-        server = make_server(host, port, app)
-    except Exception as e:
-        log.exception("Error while making the server: %s" %(e,))
-        return 1
-
+    getLogger("waitress").setLevel(INFO)
     try:
         log.info("Hit Ctrl-C to quit.")
-        server.serve_forever()
+        serve(app, host=host, port=port, threads=50)
     except KeyboardInterrupt:
         pass
     return 0

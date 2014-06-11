@@ -69,8 +69,7 @@ def apireturn(code, message=None, result=None, type=None):
     if message:
         d["message"] = message
     data = json.dumps(d, indent=2) + "\n"
-    headers = meta_headers.copy()
-    headers[str("content-type")] = str("application/json")
+    headers = {str("content-type"): str("application/json")}
     raise HTTPResponse(body=data, status=code, headers=headers)
 
 def json_preferred(request):
@@ -129,17 +128,19 @@ def handle_response(event):
             serial = tx.commit()
         else:
             serial = tx.rollback()
+        keyfs.clear_transaction()
         r.headers[str("X-DEVPI-SERIAL")] = str(serial)
         log.debug("setting X-DEVPI-SERIAL %s" %(serial,))
-        keyfs.clear_transaction()
+    r.headers.update(meta_headers)
+
 
 @subscriber(NewRequest)
 def handle_request(event):
     xom = event.request.registry["xom"]
     write = not xom.is_replica() and event.request.method in (
-                                        "PUT", "POST", "PATCH", "DELETE")
+                                 "PUT", "POST", "PATCH", "DELETE", "PUSH")
     tx = xom.keyfs.begin_transaction_in_thread(write=write)
-    event.request.registry["tx"] = tx
+
 
 class PyPIView:
     def __init__(self, request):
@@ -624,21 +625,38 @@ class PyPIView:
         request = self.request
         response = request.response
         relpath = request.path.strip("/")
-        if "#" in relpath:   # XXX unclear how this can happen (it does)
+        if "#" in relpath:   # XXX unclear how this happens (did with bottle)
             relpath = relpath.split("#", 1)[0]
         filestore = self.xom.filestore
+        entry = filestore.get_file_entry(relpath)
         if json_preferred(request):
-            entry = filestore.get_file_entry(relpath)
             if not entry or not entry.meta:
                 apireturn(404, "no such release file")
             apireturn(200, type="releasefilemeta", result=entry.meta)
-        headers, content = filestore.getfile(relpath, self.xom.httpget)
-        if headers is None:
+        if not entry or not entry.meta:
             abort(request, 404, "no such file")
-        response.content_type = headers["content-type"]
-        if "content-length" in headers:
-            response.content_length = headers["content-length"]
-        return Response(content)
+        if not entry.file_exists() or entry.eggfragment:
+            keyfs = self.xom.keyfs
+            if not self.xom.is_replica():
+                keyfs.restart_as_write_transaction()
+                entry.cache_remote_file(self.xom.httpget)
+            else:
+                master_url = URL(self.xom.config.args.master_url)
+                url = master_url.joinpath(request.path).url
+                r = self.xom.httpget(url, allow_redirects=True)  # XXX HEAD
+                if not r.status_code == 200:
+                    abort(request, 502, "%s: received %s from master" %(
+                                         url, r.status_code))
+                serial = int(r.headers["X-DEVPI-SERIAL"])
+                keyfs.notifier.wait_tx_serial(serial)
+                keyfs.commit_transaction_in_thread()
+                keyfs.begin_transaction_in_thread()
+                entry = filestore.get_file_entry(relpath)
+                if not entry.file_exists():
+                   abort(request, 502, "%s: did not get file from transaction")
+        headers = entry.gethttpheaders()
+        content = entry.get_file_content()
+        return Response(body=content, headers=headers)
 
     @view_config(route_name="/{user}/{index}", accept="application/json", request_method="GET")
     @matchdict_parameters

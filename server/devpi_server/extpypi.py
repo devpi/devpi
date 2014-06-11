@@ -198,7 +198,7 @@ class PyPIStage:
     def _load_project_cache(self, projectname):
         normname = normalize_name(projectname)
         data = self.keyfs.PYPILINKS(name=normname).get()
-        log.debug("load data for %s: %s", projectname, data)
+        #log.debug("load data for %s: %s", projectname, data)
         return data
 
     def _load_cache_entries(self, projectname):
