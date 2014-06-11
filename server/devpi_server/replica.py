@@ -13,7 +13,6 @@ class MasterChangelogRequest:
 
     @view_config(route_name="/+changelog/{serial}")
     def get_changelog_entry(self):
-        log = self.request.log
         serial = self.request.matchdict["serial"]
         keyfs = self.xom.keyfs
         if serial.lower() == "nop":

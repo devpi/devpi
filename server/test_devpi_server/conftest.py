@@ -132,6 +132,8 @@ def makexom(request, gentmp, httpget, monkeypatch):
             xom = XOM(config)
         if request.node.get_marker("start_threads"):
             xom.thread_pool.start()
+        elif request.node.get_marker("with_notifier"):
+            xom.thread_pool.start_one(xom.keyfs.notifier)
         request.addfinalizer(xom.thread_pool.shutdown)
         return xom
     return makexom
@@ -448,7 +450,7 @@ class Mapp(MappMixin):
         assert r.status_code == code
         if waithooks:
             commit_serial = int(r.headers["X-DEVPI-SERIAL"])
-            self.xom.keyfs.notifier.wait_for_event_serial(commit_serial)
+            self.xom.keyfs.notifier.wait_event_serial(commit_serial)
         return r
 
     def upload_file_pypi(self, basename, content,
@@ -471,12 +473,16 @@ class Mapp(MappMixin):
 
 
     def upload_doc(self, basename, content, name, version, indexname=None,
-                         code=200):
+                         code=200, waithooks=False):
         indexname = self._getindexname(indexname)
         r = self.testapp.post("/%s/" % indexname,
             {":action": "doc_upload", "name": name, "version": version,
              "content": Upload(basename, content)}, expect_errors=True)
         assert r.status_code == code
+        if waithooks:
+            commit_serial = int(r.headers["X-DEVPI-SERIAL"])
+            self.xom.keyfs.notifier.wait_event_serial(commit_serial)
+        return r
 
     def get_simple(self, projectname, code=200):
         r = self.testapp.get(self.api.simpleindex + projectname,

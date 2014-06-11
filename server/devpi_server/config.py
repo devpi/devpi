@@ -193,7 +193,11 @@ class PluginManager:
         for plug, distinfo in self._plugins:
             meth = getattr(plug, _name, None)
             if meth is not None:
-                results.append(meth(**kwargs))
+                name = plug.__name__ + "." + meth.__name__
+                with threadlog.around("debug", "call: %s %s", name, kwargs):
+                    results.append(meth(**kwargs))
+            #else:
+            #    threadlog.error("no plugin hook %s on %s", _name, plug)
         return results
 
     def devpiserver_pyramid_configure(self, config, pyramid_config):

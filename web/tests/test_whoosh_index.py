@@ -78,14 +78,14 @@ def test_ngramfilter(input, expected):
     assert [x[1] for x in result] == expected
 
 
+@pytest.mark.with_notifier
 def test_search_after_register(mapp, testapp):
     api = mapp.create_and_use()
     mapp.register_metadata({
         "name": "pkg1",
         "version": "2.6",
         "description": "foo"}, waithooks=True)
-    r = testapp.get('/+search?query=foo')
-    assert r.status_code == 200
+    r = testapp.get('/+search?query=foo', expect_errors=False)
     links = r.html.select('.searchresults a')
     assert [(l.text.strip(), l.attrs['href']) for l in links] == [
         ("pkg1", "http://localhost:80/%s/pkg1/2.6" % api.stagename)]
@@ -93,13 +93,11 @@ def test_search_after_register(mapp, testapp):
         "name": "pkg1",
         "version": "2.7",
         "description": "foo"}, waithooks=True)
-    r = testapp.get('/+search?query=foo')
-    assert r.status_code == 200
+    r = testapp.get('/+search?query=foo', expect_errors=False)
     links = r.html.select('.searchresults a')
     assert [(l.text.strip(), l.attrs['href']) for l in links] == [
         ("pkg1", "http://localhost:80/%s/pkg1/2.7" % api.stagename)]
-    r = testapp.get('/+search?query=foo')
-    assert r.status_code == 200
+    r = testapp.get('/+search?query=foo', expect_errors=False)
     links = r.html.select('.searchresults a')
     assert [(l.text.strip(), l.attrs['href']) for l in links] == [
         ("pkg1", "http://localhost:80/%s/pkg1/2.7" % api.stagename)]

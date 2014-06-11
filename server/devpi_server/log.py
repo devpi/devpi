@@ -16,7 +16,6 @@ def configure_logging(config):
          format='%(asctime)s %(levelname)-5.5s %(message)s')
     requests_log = logging.getLogger("requests.packages.urllib3")
     requests_log.setLevel(logging.ERROR)
-    thread_push_log("[boot]")
 
 
 class TagLogger:

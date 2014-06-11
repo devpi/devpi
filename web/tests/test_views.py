@@ -31,13 +31,14 @@ def test_projectnametokenizer(input, expected):
             batch_list(*input)
 
 
+@pytest.mark.with_notifier
 def test_docs_view(mapp, testapp):
     api = mapp.create_and_use()
     content = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=400)
-    mapp.register_metadata({"name": "pkg1", "version": "2.6"}, waithooks=True)
-
-    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200)
+    mapp.register_metadata({"name": "pkg1", "version": "2.6"})
+    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
+                    waithooks=True)
     r = testapp.get(api.index + "/pkg1/2.6/+d/index.html")
     assert r.status_code == 200
 
@@ -119,11 +120,13 @@ def test_index_view_project_files(mapp, testapp):
         ("simple", "http://localhost:80/root/pypi/+simple/")]
 
 
+@pytest.mark.with_notifier
 def test_index_view_project_docs(mapp, testapp):
     api = mapp.create_and_use()
-    mapp.register_metadata({"name": "pkg1", "version": "2.6"}, waithooks=True)
+    mapp.register_metadata({"name": "pkg1", "version": "2.6"})
     content = zip_dict({"index.html": "<html/>"})
-    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200)
+    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
+                    waithooks=True)
     r = testapp.get(api.index, headers=dict(accept="text/html"))
     assert r.status_code == 200
     links = r.html.select('#content a')
@@ -150,7 +153,7 @@ def test_project_view(mapp, testapp):
 
 
 def test_project_view_root_pypi(mapp, testapp, pypistage):
-    pypistage.setextsimple("pkg1", text='''
+    pypistage.mock_simple("pkg1", text='''
             <a href="../../pkg/pkg1-2.7.zip" />
             <a href="../../pkg/pkg1-2.6.zip" />
         ''', pypiserial=10)
@@ -162,6 +165,7 @@ def test_project_view_root_pypi(mapp, testapp, pypistage):
         ("2.6", "http://localhost:80/root/pypi/pkg1/2.6")]
 
 
+@pytest.mark.with_notifier
 def test_version_view(mapp, testapp):
     api = mapp.create_and_use()
     mapp.register_metadata({
@@ -173,7 +177,8 @@ def test_version_view(mapp, testapp):
     mapp.upload_file_pypi(
         "pkg1-2.6.zip", b"contentzip", "pkg1", "2.6")
     content = zip_dict({"index.html": "<html/>"})
-    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200)
+    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
+                    waithooks=True)
     r = testapp.get(api.index + '/pkg1/2.6', headers=dict(accept="text/html"))
     assert r.status_code == 200
     assert r.html.find('title').text == "user1/dev/: pkg1-2.6 metadata and description"
@@ -197,7 +202,7 @@ def test_version_view(mapp, testapp):
 
 
 def test_version_view_root_pypi(mapp, testapp, pypistage):
-    pypistage.setextsimple("pkg1", text='''
+    pypistage.mock_simple("pkg1", text='''
             <a href="../../pkg/pkg1-2.6.zip" />
         ''', pypiserial=10)
     r = testapp.get('/root/pypi/pkg1/2.6', headers=dict(accept="text/html"))
@@ -208,6 +213,7 @@ def test_version_view_root_pypi(mapp, testapp, pypistage):
         ("https://pypi.python.org/pypi/pkg1/2.6/", "https://pypi.python.org/pypi/pkg1/2.6/")]
 
 
+@pytest.mark.with_notifier
 def test_search_docs(mapp, testapp):
     api = mapp.create_and_use()
     mapp.register_metadata({
@@ -222,7 +228,8 @@ def test_search_docs(mapp, testapp):
             "<head><title>Foo</title></head>",
             "<body>Bar</body>",
             "</html>"])})
-    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200)
+    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
+                    waithooks=True)
     r = testapp.get('/+search?query=bar')
     assert r.status_code == 200
     links = r.html.select('.searchresults a')

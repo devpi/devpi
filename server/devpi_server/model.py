@@ -582,16 +582,22 @@ class ProjectChanged:
         keyfs = self.xom.keyfs
         hook = self.xom.config.hook
         # find out which version changed
+        if ev.back_serial == -1:
+            old = {}
+        else:
+            assert ev.back_serial < ev.at_serial
+            old = keyfs.get_value_at(ev.typedkey, ev.back_serial)
         with keyfs.transaction(write=False, at_serial=ev.at_serial):
-            projconfig = ev.typedkey.get()
-            if ev.back_serial == -1:
-                old = {}
-            else:
-                old = keyfs.get_value_at(ev.typedkey, ev.back_serial)
-            for ver, verdata in projconfig.items():
-                if verdata != old.get(ver):
+            projconfig = ev.value
+            assert projconfig != old, (
+             "at_serial=%s back_serial=%s" %(ev.at_serial, ev.back_serial))
+            for ver, metadata in projconfig.items():
+                if metadata != old.get(ver):
                     stage = self.xom.model.getstage(user, index)
-                    hook.devpiserver_register_metadata(stage, verdata)
+                    hook.devpiserver_register_metadata(stage, metadata)
+                else:
+                    threadlog.debug("no metadata change on %s, %s", metadata,
+                                    old.get(ver))
 
 
 class FileUploaded:

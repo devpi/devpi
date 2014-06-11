@@ -41,8 +41,8 @@ class TestChangelog:
         monkeypatch.setattr(testapp.xom.keyfs.notifier.cv_new_transaction,
                             "wait", lambda *x: 0/0)
         with pytest.raises(ZeroDivisionError):
-            r = testapp.get("/+changelog/%s" % (latest_serial+1,),
-                            expect_errors=False)
+            testapp.get("/+changelog/%s" % (latest_serial+1,),
+                        expect_errors=False)
 
 
 class TestPyPIProxy:

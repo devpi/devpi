@@ -315,7 +315,7 @@ class KeyFS(object):
                 last_serial = back_serial
                 continue
             if val is not None:
-                return val
+                return copy_if_mutable(val)
             raise KeyError(relpath)  # was deleted
 
         # we could not find any change below at_serial which means
@@ -487,7 +487,7 @@ class ReadTransaction(object):
 
     def get(self, typedkey):
         try:
-            return self.cache[typedkey]
+            return copy_if_mutable(self.cache[typedkey])
         except KeyError:
             if typedkey in self.dirty:
                 return typedkey.type()
@@ -495,8 +495,8 @@ class ReadTransaction(object):
                 val = self.keyfs.get_value_at(typedkey, self.at_serial)
             except KeyError:
                 return typedkey.type()
-            self.cache[typedkey] = copy_if_mutable(val)
-            return val
+            self.cache[typedkey] = val
+            return copy_if_mutable(val)
 
     def exists(self, typedkey):
         if typedkey in self.cache:
