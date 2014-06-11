@@ -193,7 +193,9 @@ class PluginManager:
         for plug, distinfo in self._plugins:
             meth = getattr(plug, _name, None)
             if meth is not None:
-                name = plug.__name__ + "." + meth.__name__
+                name = "%s.%s" % (
+                            getattr(plug, "__class__", plug).__name__,
+                            meth.__name__)
                 with threadlog.around("debug", "call: %s %s", name, kwargs):
                     results.append(meth(**kwargs))
             #else:

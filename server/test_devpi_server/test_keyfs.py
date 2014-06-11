@@ -147,7 +147,7 @@ class TestKey:
                 raise ValueError()
         except ValueError:
             pass
-        assert key1.get() == {1:2, "hello": "world"}
+        assert key1.get() == {1:2}  # , "hello": "world"}
 
     def test_filestore(self, keyfs):
         key1 = keyfs.add_key("NAME", "hello", bytes)
