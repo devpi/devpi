@@ -1,14 +1,14 @@
 from __future__ import unicode_literals
 import base64
 import os.path
-import logging
-from logging import getLogger, basicConfig
 import argparse
 
 import py
 from devpi_common.types import cached_property
+from .log import threadlog
 import devpi_server
-log = getLogger(__name__)
+
+log = threadlog
 
 def get_default_serverdir():
     return os.environ.get("DEVPI_SERVERDIR", "~/.devpi/server")
@@ -244,13 +244,6 @@ class Config:
             self.secretfile.chmod(s.S_IRUSR|s.S_IWUSR)
         return self.secretfile.read()
 
-def configure_logging(config):
-    if config.args.debug:
-        loglevel = logging.DEBUG
-    else:
-        loglevel = logging.INFO
-    basicConfig(level=loglevel,
-                format='%(asctime)s [%(levelname)-5.5s] %(name)s: %(message)s')
 
 def getpath(path):
     return py.path.local(os.path.expanduser(str(path)))

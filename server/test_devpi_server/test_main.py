@@ -2,7 +2,6 @@ import pytest
 from devpi_server.main import *
 import devpi_server
 
-
 def test_check_compatible_version_earlier(xom, monkeypatch):
     monkeypatch.setattr(xom, "get_state_version", lambda: "1.0")
     with pytest.raises(Fatal):

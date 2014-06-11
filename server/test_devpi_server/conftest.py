@@ -14,6 +14,8 @@ from devpi_server.main import XOM, parseoptions
 from devpi_common.url import URL
 from devpi_server.extpypi import XMLProxy
 from devpi_server.extpypi import PyPIStage
+from devpi_server.log import threadlog, thread_clear_log
+
 import hashlib
 try:
     from queue import Queue as BaseQueue
@@ -24,11 +26,15 @@ class TimeoutQueue(BaseQueue):
     def get(self, timeout=2):
         return BaseQueue.get(self, timeout=timeout)
 
-log = logging.getLogger(__name__)
+log = threadlog
 
 def pytest_addoption(parser):
     parser.addoption("--slow", action="store_true", default=False,
         help="run slow tests involving remote services (pypi.python.org)")
+
+@pytest.fixture(autouse=True)
+def _clear():
+    thread_clear_log()
 
 
 @pytest.yield_fixture

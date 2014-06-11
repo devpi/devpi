@@ -13,7 +13,9 @@ if __name__ == "__main__":
                         "execnet>=1.1",
                         "docutils>=0.11",
                         "pygments>=1.6",
-                        "pyramid>=1.5"]
+                        "pyramid>=1.5",
+                        "waitress",
+                        ]
     if sys.version_info < (2,7):
         install_requires.append("argparse>=1.2.1")
 

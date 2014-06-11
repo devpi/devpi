@@ -12,9 +12,9 @@ from datetime import datetime
 from time import mktime
 from devpi_common.types import cached_property
 from .keyfs import _nodefault
+from .log import threadlog
 
-from logging import getLogger
-log = getLogger(__name__)
+log = threadlog
 
 class FileStore:
     attachment_encoding = "utf-8"
@@ -204,7 +204,7 @@ class FileEntry(object):
             err = ValueError("%s: md5 mismatch, got %s, expected %s",
                              self.relpath, digest, self.md5)
         if err is not None:
-            log.error(err)
+            log.error(str(err))
             raise err
 
         self.set_file_content(content, r.headers.get("last-modified", None))

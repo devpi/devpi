@@ -11,15 +11,15 @@ import re
 import contextlib
 import py
 from . import mythread
+from .log import (threadlog, thread_push_log,
+                  thread_pop_log, thread_current_log)
 import os
 import sys
 
 from execnet.gateway_base import Unserializer, _Serializer
 from devpi_common.types import cached_property
 
-import logging
 
-log = logging.getLogger(__name__)
 _nodefault = object()
 
 def load(io):
@@ -39,7 +39,7 @@ def read_int_from_file(path, default=0):
 def write_int_to_file(val, path):
     tmp_path = path + "-tmp"
     with get_write_file_ensure_dir(tmp_path) as f:
-        f.write(str(val))
+        f.write(str(val).encode("utf-8"))
     rename(tmp_path, path)
 
 def load_from_file(path, default=_nodefault):
@@ -89,7 +89,7 @@ class Filesystem:
             with p.open("rb") as f:
                 return f.read()
         except py.error.Error:
-            log.error("could not open %s" % p)
+            threadlog.error("could not open %s" % p)
             return None
 
     def get_changelog_entry(self, serial):
@@ -129,22 +129,24 @@ class FSWriter:
         self.pending_renames.append((tmp_path, target_path))
 
     def __enter__(self):
+        self.log = thread_push_log("fswriter:")
         return self
 
     def __exit__(self, cls, val, tb):
+        thread_pop_log("fswriter:")
         if cls is None:
             assert self.changes, "commit cannot be empty"
             self.commit_to_filesystem()
             commit_serial = self.fs.next_serial - 1
             if self.changes:
-                log.info("tx%s committed %s", commit_serial,
+                self.log.info("committed tx%s: %s", commit_serial,
                          ",".join(self.changes))
                 self.fs._notify_on_commit(commit_serial)
         else:
             while self.pending_renames:
                 source, dest = self.pending_renames.pop()
                 os.remove(source)
-            log.info("fstransaction roll back at %s" %(self.fs.next_serial))
+            self.log.info("roll back at %s" %(self.fs.next_serial))
 
     def commit_to_filesystem(self):
         # XXX assumption: we don't crash in the middle of this function
@@ -196,21 +198,16 @@ class TxNotificationThread:
         self._on_key_change.setdefault(keyname, []).append(subscriber)
 
     def wait_event_serial(self, serial):
-        log.info("waiting for event-serial %s, current %s",
-                 serial, self.read_event_serial())
-        with self.cv_new_event_serial:
-            while serial >= self.read_event_serial():
-                self.cv_new_event_serial.wait()
-        log.info("finished waiting for event-serial %s, current %s",
-                 serial, self.read_event_serial())
+        with threadlog.around("info", "waiting for event-serial %s", serial):
+            with self.cv_new_event_serial:
+                while serial >= self.read_event_serial():
+                    self.cv_new_event_serial.wait()
 
     def wait_tx_serial(self, serial):
-        log.info("waiting for tx serial %s, current %s",
-                 serial, self.keyfs.get_current_serial())
-        with self.cv_new_transaction:
-            while serial > self.keyfs.get_current_serial():
-                self.cv_new_transaction.wait()
-        log.info("waiting for tx serial %s finished", serial)
+        with threadlog.around("info", "waiting for tx-serial %s", serial):
+            with self.cv_new_transaction:
+                while serial > self.keyfs.get_current_serial():
+                    self.cv_new_transaction.wait()
 
     def read_event_serial(self):
         return read_int_from_file(self.event_serial_path, 0)
@@ -225,10 +222,11 @@ class TxNotificationThread:
 
     def thread_run(self):
         event_serial = self.read_event_serial()
+        log = thread_push_log("[NOTI]")
         while 1:
             while event_serial < self.keyfs._fs.next_serial:
                 self.thread.exit_if_shutdown()
-                self._execute_hooks(event_serial)
+                self._execute_hooks(event_serial, log)
                 with self.cv_new_event_serial:
                     event_serial += 1
                     write_int_to_file(event_serial, self.event_serial_path)
@@ -238,7 +236,7 @@ class TxNotificationThread:
                     self.cv_new_transaction.wait()
                     self.thread.exit_if_shutdown()
 
-    def _execute_hooks(self, event_serial):
+    def _execute_hooks(self, event_serial, log):
         log.debug("calling hooks for tx%s", event_serial)
         changes = self.keyfs._fs.get_changelog_entry(event_serial)
         for relpath, (keyname, back_serial, val) in changes.items():
@@ -347,9 +345,11 @@ class KeyFS(object):
         tx = WriteTransaction(self) if write \
                                     else ReadTransaction(self, at_serial)
         self._threadlocal.tx = tx
+        thread_push_log("[%stx%s]" %("W" if write else "R", tx.at_serial))
         return tx
 
     def clear_transaction(self):
+        thread_pop_log()
         del self._threadlocal.tx
 
     def restart_as_write_transaction(self):
@@ -528,6 +528,7 @@ class WriteTransaction(ReadTransaction):
 
     def commit(self):
         if not self.dirty:
+            threadlog.debug("nothing to commit, just closing tx")
             return self._close()
         try:
             with self.keyfs._fs.write_transaction() as fswriter:
@@ -548,6 +549,7 @@ class WriteTransaction(ReadTransaction):
         return serial
 
     def rollback(self):
+        log = thread_current_log()
         log.debug("transaction rollback at %s" % (self.at_serial))
         return self._close()
 

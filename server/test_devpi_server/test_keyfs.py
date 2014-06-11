@@ -272,6 +272,9 @@ class TestTransactionIsolation:
             assert new_keyfs.get_value_at(D2, 1)
         assert new_keyfs.get_value_at(D2, 2) == {2:2}
 
+    def test_get_raw_changelog_entry_not_exist(self, keyfs):
+        assert keyfs._fs.get_raw_changelog_entry(10000) is None
+
 @notransaction
 class TestDeriveKey:
     def test_direct_from_file(self, keyfs):
@@ -359,20 +362,22 @@ class TestSubscriber:
                 pool.shutdown()
 
         with make_keyfs() as key1:
-            keyfs = key1.keyfs
-            monkeypatch.setattr(keyfs._fs, "_notify_on_commit",
+            monkeypatch.setattr(key1.keyfs._fs, "_notify_on_commit",
                                 lambda x: 0/0)
             # we prevent the hooks from getting called
             with pytest.raises(ZeroDivisionError):
-                with keyfs.transaction():
+                with key1.keyfs.transaction():
                     key1.set(1)
-            assert keyfs.get_next_serial() == 1
-            assert keyfs.notifier.read_event_serial() == 0
+            assert key1.keyfs.get_next_serial() == 1
+            assert key1.keyfs.notifier.read_event_serial() == 0
+            monkeypatch.undo()
+
         # and then we restart keyfs and see if the hook still gets called
-        monkeypatch.undo()
         with make_keyfs() as key1:
             event = queue.get()
+        assert event.at_serial == 0
         assert event.typedkey == key1
+        key1.keyfs.notifier.wait_event_serial(0)
         assert key1.keyfs.notifier.read_event_serial() == 1
 
     def test_subscribe_pattern_key(self, keyfs, queue, pool):
@@ -406,4 +411,4 @@ class TestSubscriber:
                 key.set(1)
 
         l = [queue.get() for i in range(10)]
-        assert sorted(l) == range(10)
+        assert sorted(l) == list(range(10))

@@ -3,19 +3,17 @@ from pyramid.httpexceptions import HTTPNotFound
 from pyramid.view import view_config
 from pyramid.response import Response
 from .keyfs import load, dump
+from .log import thread_push_log, threadlog
 
-import logging
-
-log = logging.getLogger(__name__)
 
 class MasterChangelogRequest:
     def __init__(self, request):
         self.request = request
         self.xom = request.registry["xom"]
 
-
     @view_config(route_name="/+changelog/{serial}")
     def get_changelog_entry(self):
+        log = self.request.log
         serial = self.request.matchdict["serial"]
         keyfs = self.xom.keyfs
         if serial.lower() == "nop":
@@ -31,10 +29,11 @@ class MasterChangelogRequest:
                     next_serial = keyfs.get_next_serial()
                     if serial > next_serial:
                         raise HTTPNotFound("can only wait for next serial")
-                    while serial >= next_serial:
-                        log.debug("waiting for tx%s", serial)
-                        keyfs.notifier.cv_new_transaction.wait(2)
-                        log.debug("woke up")
+                    with threadlog.around("debug",
+                                          "waiting for tx%s", serial):
+                        while serial >= keyfs.get_next_serial():
+                            # we loop because we want control-c to get through
+                            keyfs.notifier.cv_new_transaction.wait(2)
                 raw_entry = keyfs._fs.get_raw_changelog_entry(serial)
 
         devpi_serial = keyfs.get_current_serial()
@@ -47,7 +46,7 @@ class MasterChangelogRequest:
     @view_config(route_name="/root/pypi/+name2serials")
     def get_name2serials(self):
         io = py.io.BytesIO()
-        data = dump(self.xom.pypimirror.name2serials, io)
+        dump(self.xom.pypimirror.name2serials, io)
         headers = {str("Content-Type"): str("application/octet-stream")}
         return Response(body=io.getvalue(), status=200, headers=headers)
 
@@ -64,24 +63,33 @@ class ReplicaThread:
                                              PypiProjectChanged(xom))
 
     def thread_run(self):
+        # within a devpi replica server this thread is the only writer
+        log = thread_push_log("[REP]")
         session = self.xom.new_http_session("replica")
         keyfs = self.xom.keyfs
         while 1:
-            # within a replica this thread should be the only writer
+            self.thread.exit_if_shutdown()
             serial = keyfs.get_next_serial()
             url = self.master_changelog_url + "/%s" % serial
-            log.info("trying %s", url)
-            r = session.get(url, stream=True)
-            if r.status_code == 200:
-                try:
-                    entry = load(r.raw)
-                except EOFError:
-                    break
+            log.info("fetching %s", url)
+            try:
+                r = session.get(url, stream=True)
+            except Exception:
+                log.exception("error fetching %s", url)
+            else:
+                if r.status_code == 200:
+                    try:
+                        entry = load(r.raw)
+                    except Exception:
+                        log.error("could not read answer %s", url)
+                    else:
+                        keyfs.import_changelog_entry(serial, entry)
+                        serial += 1
+                        continue
                 else:
-                    keyfs.import_changelog_entry(serial, entry)
-                    serial += 1
-            else: # we got an error, let's wait a bit
-                self.thread.sleep(5.0)
+                    log.debug("%s: failed fetching %s", r.status_code, url)
+            # we got an error, let's wait a bit
+            self.thread.sleep(60.0)
 
 
 class PyPIProxy(object):
@@ -104,7 +112,7 @@ class PypiProjectChanged:
         self.xom = xom
 
     def __call__(self, ev):
-        log.info("PypiProjectChanged %s", ev.typedkey)
+        threadlog.info("PypiProjectChanged %s", ev.typedkey)
         cache = ev.value
         name = cache["projectname"]
         name2serials = self.xom.pypimirror.name2serials

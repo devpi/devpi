@@ -7,14 +7,12 @@ from __future__ import unicode_literals
 
 import os, sys
 import py
-import threading
-from logging import getLogger, INFO, DEBUG
-log = getLogger(__name__)
 
 from devpi_common.types import cached_property
 from devpi_common.request import new_requests_session
 from .config import PluginManager
-from .config import parseoptions, configure_logging, load_setuptools_entrypoints
+from .config import parseoptions, load_setuptools_entrypoints
+from .log import configure_logging, threadlog
 from . import extpypi, replica, mythread
 from . import __version__ as server_version
 
@@ -118,6 +116,7 @@ def wsgi_run(xom, app):
     from waitress import serve
     host = xom.config.args.host
     port = xom.config.args.port
+    log = xom.log
     log.info("devpi-server version: %s", server_version)
     log.info("serverdir: %s" % xom.config.serverdir)
     hostaddr = "http://%s:%s" % (host, port)
@@ -127,7 +126,6 @@ def wsgi_run(xom, app):
     if "WEBTRACE" in os.environ and xom.config.args.debug:
         from weberror.evalexception import make_eval_exception
         app = make_eval_exception(app, {})
-    getLogger("waitress").setLevel(INFO)
     try:
         log.info("Hit Ctrl-C to quit.")
         serve(app, host=host, port=port, threads=50)
@@ -151,6 +149,7 @@ class XOM:
         if not (sdir.exists() and sdir.listdir()):
             self.set_state_version(server_version)
         set_default_indexes(self.model)
+        self.log = threadlog
 
     def get_state_version(self):
         versionfile = self.config.serverdir.join(".serverversion")
@@ -252,7 +251,7 @@ class XOM:
         headers = {}
         USE_FRONT = self.config.args.bypass_cdn
         if USE_FRONT:
-            log.debug("bypassing pypi CDN for: %s", url)
+            self.log.debug("bypassing pypi CDN for: %s", url)
             if url.startswith("https://pypi.python.org/simple/"):
                 url = url.replace("https://pypi", "https://front")
                 headers["HOST"] = "pypi.python.org"
@@ -273,6 +272,7 @@ class XOM:
         from pyramid.authentication import BasicAuthAuthenticationPolicy
         from pyramid.config import Configurator
         import functools
+        log = self.log
         log.debug("creating application in process %s", os.getpid())
         pyramid_config = Configurator()
         self.config.hook.devpiserver_pyramid_configure(
@@ -347,10 +347,10 @@ def set_default_indexes(model):
         root_user = model.get_user("root")
         if not root_user:
             root_user = model.create_user("root", "")
-            print("created root user")
+            threadlog.info("created root user")
         userconfig = root_user.key.get()
         indexes = userconfig["indexes"]
         if "pypi" not in indexes:
             indexes["pypi"] = dict(bases=(), type="mirror", volatile=False)
             root_user.key.set(userconfig)
-            print("created root/pypi index")
+            threadlog.info("created root/pypi index")

@@ -8,13 +8,12 @@ from devpi_common.types import ensure_unicode
 from .vendor._description_utils import processDescription
 from .auth import crypt_password, verify_password
 from .filestore import FileEntry
+from .log import threadlog, thread_current_log
 
-import logging
-
-log = logging.getLogger(__name__)
 
 def run_passwd(root, username):
     user = root.get_user(username)
+    log = thread_current_log()
     if user is None:
         log.error("user %r not found" % username)
         return 1
@@ -104,13 +103,13 @@ class User:
             userconfig.setdefault("indexes", {})
         userlist.add(username)
         model.keyfs.USERLIST.set(userlist)
-        log.info("created user %r with email %r" %(username, email))
+        threadlog.info("created user %r with email %r" %(username, email))
         return user
 
     def _set(self, newuserconfig):
         with self.key.update() as userconfig:
             userconfig.update(newuserconfig)
-            log.info("internal: set user information %r", self.name)
+            threadlog.info("internal: set user information %r", self.name)
 
     def modify(self, password=None, email=None):
         with self.key.update() as userconfig:
@@ -121,13 +120,14 @@ class User:
             if email:
                 userconfig["email"] = email
                 modified.append("email=%s" % email)
-            log.info("modified user %r: %s" %(self.name, ", ".join(modified)))
+            threadlog.info("modified user %r: %s", self.name,
+                           ", ".join(modified))
 
     def _setpassword(self, userconfig, password):
         salt, hash = crypt_password(password)
         userconfig["pwsalt"] = salt
         userconfig["pwhash"] = hash
-        log.info("setting password for user %r", self.name)
+        threadlog.info("setting password for user %r", self.name)
 
     def delete(self):
         self.key.delete()
@@ -172,7 +172,7 @@ class User:
                 "acl_upload": acl_upload
             }
         stage = self.getstage(index)
-        log.info("created index %s: %s", stage.name, stage.ixconfig)
+        threadlog.info("created index %s: %s", stage.name, stage.ixconfig)
         return stage
 
     def getstage(self, indexname):
@@ -243,7 +243,7 @@ class PrivateStage:
         with self.user.key.update() as userconfig:
             ixconfig = userconfig["indexes"][self.index]
             ixconfig.update(kw)
-            log.info("modified index %s: %s", self.name, ixconfig)
+            threadlog.info("modified index %s: %s", self.name, ixconfig)
             self.ixconfig = ixconfig
             return ixconfig
 
@@ -270,7 +270,7 @@ class PrivateStage:
         with self.user.key.update() as userconfig:
             indexes = userconfig.get("indexes", {})
             if self.index not in indexes:
-                log.info("index %s not exists" % self.index)
+                threadlog.info("index %s not exists" % self.index)
                 return False
             del indexes[self.index]
 
@@ -282,9 +282,6 @@ class PrivateStage:
             results.append((stage, stage_result))
         return results
 
-    def log_info(self, *args):
-        log.info("%s: %s" % (self.name, args[0]), *args[1:])
-    #
     # registering project and version metadata
     #
     #class MetadataExists(Exception):
@@ -318,6 +315,7 @@ class PrivateStage:
         name = metadata["name"]
         # check if the project exists already under its normalized
         info = self.get_project_info(name)
+        log = thread_current_log()
         if info:
             log.info("got project info with name %r" % info.name)
         else:
@@ -342,7 +340,7 @@ class PrivateStage:
             #        name, version, self.name))
             versionconfig = projectconfig.setdefault(version, {})
             versionconfig.update(metadata)
-            self.log_info("store_metadata %s-%s", name, version)
+            threadlog.info("store_metadata %s-%s", name, version)
         projectnames = self.key_projectnames.get()
         if name not in projectnames:
             projectnames.add(name)
@@ -368,12 +366,12 @@ class PrivateStage:
             verdata = projectconfig.pop(version, None)
             if verdata is None:
                 return False
-            self.log_info("deleting version %r of project %r", version, name)
+            threadlog.info("deleting version %r of project %r", version, name)
             for relpath in verdata.get("+files", {}).values():
                 entry = self.xom.filestore.get_file_entry(relpath)
                 entry.delete()
         if cleanup and not projectconfig:
-            self.log_info("no version left, deleting project %r", name)
+            threadlog.info("no version left, deleting project %r", name)
             self.project_delete(name)
         return True
 
@@ -482,7 +480,7 @@ class PrivateStage:
         filename = ensure_unicode(filename)
         if not self.get_metadata(name, version):
             raise self.MissesRegistration(name, version)
-        log.debug("project name of %r is %r", filename, name)
+        threadlog.debug("project name of %r is %r", filename, name)
         key = self.key_projconfig(name=name)
         with key.update() as projectconfig:
             verdata = projectconfig.setdefault(version, {})
@@ -493,7 +491,7 @@ class PrivateStage:
                                 filename, content, last_modified=last_modified)
             entry.set(projectname=name, version=version)
             files[filename] = entry.relpath
-            self.log_info("store_releasefile %s", entry.relpath)
+            threadlog.info("store_releasefile %s", entry.relpath)
             return entry
 
     def store_doczip(self, name, version, content):
@@ -502,8 +500,8 @@ class PrivateStage:
         assert isinstance(content, bytes)
         if not version:
             version = self.get_metadata_latest_perstage(name)["version"]
-            log.info("store_doczip: derived version of %s is %s",
-                     name, version)
+            threadlog.info("store_doczip: derived version of %s is %s",
+                           name, version)
         key = self.key_projconfig(name=name)
         with key.update() as projectconfig:
             verdata = projectconfig[version]
@@ -577,7 +575,7 @@ class ProjectChanged:
         self.xom = xom
 
     def __call__(self, ev):
-        log.info("project_config_changed %s", ev.typedkey)
+        threadlog.info("project_config_changed %s", ev.typedkey)
         params = ev.typedkey.params
         user = params["user"]
         index = params["index"]
@@ -603,7 +601,7 @@ class FileUploaded:
         self.xom = xom
 
     def __call__(self, ev):
-        log.info("FileUploaded %s", ev.typedkey)
+        threadlog.info("FileUploaded %s", ev.typedkey)
         params = ev.typedkey.params
         user = params.get("user")
         index = params.get("index")

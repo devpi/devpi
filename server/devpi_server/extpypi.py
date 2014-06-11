@@ -13,7 +13,6 @@ except ImportError:
 
 import py
 html = py.xml.html
-from . import mythread
 
 from devpi_common.vendor._pip import HTMLPage
 
@@ -25,10 +24,8 @@ from devpi_common.request import new_requests_session
 from . import __version__ as server_version
 from .model import ProjectInfo
 from .keyfs import load_from_file, dump_to_file
+from .log import threadlog, thread_current_log, thread_push_log
 
-from logging import getLogger
-assert __name__ == "devpi_server.extpypi"
-log = getLogger(__name__)
 
 
 class IndexParser:
@@ -43,9 +40,9 @@ class IndexParser:
         entry = self.basename2link.get(newurl.basename)
         if entry is None or (not entry.md5 and newurl.md5):
             self.basename2link[newurl.basename] = newurl
-            log.debug("adding link %s", newurl)
+            threadlog.debug("adding link %s", newurl)
         else:
-            log.debug("ignoring candidate link %s", newurl)
+            threadlog.debug("ignoring candidate link %s", newurl)
 
     @property
     def releaselinks(self):
@@ -65,7 +62,7 @@ class IndexParser:
             if scrape and eggfragment:
                 if not normalize_name(eggfragment).startswith(
                     self.projectname):
-                    log.debug("skip egg link %s (projectname: %s)",
+                    threadlog.debug("skip egg link %s (projectname: %s)",
                               newurl, self.projectname)
                     continue
                 if newurl.basename:
@@ -75,13 +72,13 @@ class IndexParser:
                     if newurl not in self.egglinks:
                         self.egglinks.insert(0, newurl)
                 else:
-                    log.warn("cannot handle egg directory link (svn?) "
+                    threadlog.warn("cannot handle egg directory link (svn?) "
                               "skipping: %s (projectname: %s)",
                               newurl, self.projectname)
                 continue
             if is_archive_of_project(newurl, self.projectname):
                 if not newurl.is_valid_http_url():
-                    log.warn("unparseable/unsupported url: %r", newurl)
+                    threadlog.warn("unparseable/unsupported url: %r", newurl)
                 else:
                     seen.add(newurl.url)
                     self._mergelink_ifbetter(newurl)
@@ -116,16 +113,20 @@ class XMLProxy(object):
 
     def _execute(self, method, *args):
         payload = xmlrpc.dumps(args, method)
+        threadlog.debug("-> %s%s" %(method, args))
         try:
             reply = self._session.post(self._url, data=payload, stream=False)
         except Exception as exc:
-            log.warn("%s: error %s with remote %s", method, exc, self._url)
+            threadlog.warn("%s: error %s with remote %s",
+                           method, exc, self._url)
             return None
         if reply.status_code != 200:
-            log.warn("%s: status_code %s with remote %s", method,
+            threadlog.warn("%s: status_code %s with remote %s", method,
                      reply.status_code, self._url)
             return None
-        return xmlrpc.loads(reply.content)[0][0]
+        res = xmlrpc.loads(reply.content)[0][0]
+        threadlog.debug("<- %s%s: %s" %(method, args, res))
+        return res
 
 
 def perform_crawling(pypistage, result, numthreads=10):
@@ -135,9 +136,9 @@ def perform_crawling(pypistage, result, numthreads=10):
             crawlurl = pending.pop()
         except KeyError:
             break
-        log.info("visiting crawlurl %s", crawlurl)
+        threadlog.info("visiting crawlurl %s", crawlurl)
         response = pypistage.httpget(crawlurl.url, allow_redirects=True)
-        log.info("crawlurl %s %s", crawlurl, response)
+        threadlog.info("crawlurl %s %s", crawlurl, response)
         assert hasattr(response, "status_code")
         if not isinstance(response, int) and response.status_code == 200:
             ct = response.headers.get("content-type", "").lower()
@@ -145,7 +146,7 @@ def perform_crawling(pypistage, result, numthreads=10):
                 result.parse_index(
                     URL(response.url), response.text, scrape=False)
                 continue
-        log.warn("crawlurl %s status %s", crawlurl, response)
+        threadlog.warn("crawlurl %s status %s", crawlurl, response)
 
 
 def invalidate_on_version_change(basedir):
@@ -156,7 +157,7 @@ def invalidate_on_version_change(basedir):
         ver = verfile.read()
     if ver != PyPIStage.VERSION:
         if basedir.check():
-            log.info("version format change: removing root/pypi state")
+            threadlog.info("version format change: removing root/pypi state")
             basedir.remove()
     verfile.dirpath().ensure(dir=1)
     verfile.write(PyPIStage.VERSION)
@@ -192,7 +193,7 @@ class PyPIStage:
                 "latest_serial": serial,
                 "entrylist": dumplist,
                 "projectname": projectname}
-        log.debug("saving data for %s: %s", projectname, data)
+        threadlog.debug("saving data for %s: %s", projectname, data)
         self.keyfs.PYPILINKS(name=normname).set(data)
 
     def _load_project_cache(self, projectname):
@@ -225,7 +226,7 @@ class PyPIStage:
             return 404
         # get the simple page for the project
         url = self.PYPIURL_SIMPLE + info.name + "/"
-        log.debug("visiting index %s", url)
+        threadlog.debug("visiting index %s", url)
         response = self.httpget(url, allow_redirects=True)
         if response.status_code != 200:
             return response.status_code
@@ -239,7 +240,7 @@ class PyPIStage:
             entries = self._load_cache_entries(projectname)
             if entries is not None:
                 return entries
-            log.error("did not get cached entries for %s", projectname)
+            threadlog.error("did not get cached entries for %s", projectname)
             return 502
 
         # determine and check real project name
@@ -250,10 +251,10 @@ class PyPIStage:
         serial = int(response.headers["X-PYPI-LAST-SERIAL"])
         newest_serial = self.pypimirror.name2serials.get(info.name, -1)
         if serial < newest_serial:
-            log.warn("%s: pypi returned serial %s, expected %s",
+            threadlog.warn("%s: pypi returned serial %s, expected %s",
                      real_projectname, serial, newest_serial)
             return -2  # the page we got is not fresh enough
-        log.debug("%s: got response with serial %s" %
+        threadlog.debug("%s: got response with serial %s" %
                   (real_projectname, serial))
 
         # parse simple index's link and perform crawling
@@ -328,9 +329,9 @@ class PyPIMirror:
     def load_name2serials(self, proxy):
         name2serials = load_from_file(self.path_name2serials, {})
         if name2serials:
-            log.info("reusing already cached name/serial list")
+            threadlog.info("reusing already cached name/serial list")
         else:
-            log.info("retrieving initial name/serial list")
+            threadlog.info("retrieving initial name/serial list")
             name2serials = proxy.list_packages_with_serial()
             if name2serials is None:
                 from devpi_server.main import fatal
@@ -348,11 +349,11 @@ class PyPIMirror:
         return n
 
     def thread_run(self, proxy):
+        log = thread_push_log("[MIR]")
         log.info("changelog/update tasks starting")
         while 1:
             # get changes since the maximum serial we are aware of
             current_serial = max(itervalues(self.name2serials))
-            log.debug("querying pypi changelog since %s", current_serial)
             changelog = proxy.changelog_since_serial(current_serial)
             if changelog:
                 with self.keyfs.transaction(write=True):
@@ -361,6 +362,7 @@ class PyPIMirror:
 
     def process_changelog(self, changelog):
         changed = set()
+        log = thread_current_log()
         for x in changelog:
             name, version, action, date, serial = x
             # XXX remove names if action == "remove" and version is None

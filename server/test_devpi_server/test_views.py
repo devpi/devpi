@@ -51,6 +51,7 @@ def test_simple_project_unicode_rejected(pypistage, testapp):
     from pyramid.httpexceptions import HTTPClientError
     from pyramid.testing import DummyRequest, setUp, tearDown
     request = DummyRequest()
+    request.log = pypistage.xom.log
     setUp(request=request)
     try:
         request.registry['xom'] = testapp.xom

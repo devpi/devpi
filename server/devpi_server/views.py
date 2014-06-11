@@ -12,20 +12,20 @@ from pyramid.response import Response
 from pyramid.events import NewResponse, subscriber, NewRequest
 from pyramid.view import view_config
 import functools
+import itertools
 import inspect
 import json
-import logging
 from devpi_common.request import new_requests_session
 from devpi_common.validation import normalize_name, is_valid_archive_name
 
-from devpi_server.model import InvalidIndexconfig
+from .model import InvalidIndexconfig
+from .log import thread_push_log, thread_pop_log, thread_current_log
 
 from .auth import Auth
 from .config import render_string
 
 server_version = devpi_server.__version__
 
-log = logging.getLogger(__name__)
 
 MAXDOCZIPSIZE = 30 * 1024 * 1024    # 30MB
 
@@ -118,9 +118,23 @@ def route_url(self, *args, **kw):
     url = url._replace(path=url.path.replace('%2B', '+'))
     return url.geturl()
 
+
+@subscriber(NewRequest)
+def handle_request(event, req_count=itertools.count()):
+    xom = event.request.registry["xom"]
+    write = not xom.is_replica() and event.request.method in (
+                                 "PUT", "POST", "PATCH", "DELETE", "PUSH")
+    thread_push_log("[req%s]" %(next(req_count)))
+    xom.keyfs.begin_transaction_in_thread(write=write)
+    event.request.log = log = thread_current_log()
+    log.info("%s %s" % (event.request.method, event.request.path,))
+
+
 @subscriber(NewResponse)
 def handle_response(event):
-    keyfs = event.request.registry["xom"].keyfs
+    registry = event.request.registry
+    keyfs = registry["xom"].keyfs
+    log = event.request.log
     tx = getattr(keyfs._threadlocal, "tx", None)
     r = event.response
     if tx is not None:
@@ -130,16 +144,13 @@ def handle_response(event):
             serial = tx.rollback()
         keyfs.clear_transaction()
         r.headers[str("X-DEVPI-SERIAL")] = str(serial)
-        log.debug("setting X-DEVPI-SERIAL %s" %(serial,))
     r.headers.update(meta_headers)
-
-
-@subscriber(NewRequest)
-def handle_request(event):
-    xom = event.request.registry["xom"]
-    write = not xom.is_replica() and event.request.method in (
-                                 "PUT", "POST", "PATCH", "DELETE", "PUSH")
-    tx = xom.keyfs.begin_transaction_in_thread(write=write)
+    log.debug("%s serial=%s length=%s type=%s",
+              event.response.status_code, serial,
+              r.headers.get("content-length"),
+              r.headers.get("content-type"),
+    )
+    thread_pop_log()
 
 
 class PyPIView:
@@ -149,6 +160,7 @@ class PyPIView:
         self.xom = xom
         self.model = xom.model
         self.auth = Auth(self.model, xom.config.secret)
+        self.log = request.log
 
     def getstage(self, user, index):
         stage = self.model.getstage(user, index)
@@ -276,7 +288,7 @@ class PyPIView:
     @view_config(route_name="/{user}/{index}/+simple/")
     @matchdict_parameters
     def simple_list_all(self, user, index):
-        log.info("starting +simple")
+        self.log.info("starting +simple")
         stage = self.getstage(user, index)
         stage_results = []
         for stage, names in stage.op_with_bases("getprojectnames"):
@@ -370,7 +382,8 @@ class PyPIView:
                 metadata = get_pure_metadata(verdata)
 
         if not matches:
-            log.info("%s: no release files %s-%s" %(stage.name, name, version))
+            self.log.info("%s: no release files %s-%s" %(stage.name,
+                                                         name, version))
             apireturn(404,
                       message="no release/files found for %s-%s" %(
                       name, version))
@@ -388,7 +401,8 @@ class PyPIView:
                 apireturn(400, message="targetindex not in format user/index")
             target_stage = self.getstage(*parts)
             auth_user = self.auth.get_auth_user(request.auth, raising=False)
-            log.debug("targetindex %r, auth_user %r", targetindex, auth_user)
+            self.log.debug("targetindex %r, auth_user %r", targetindex,
+                           auth_user)
             if not target_stage.can_upload(auth_user):
                apireturn(401, message="user %r cannot upload to %r"
                                       %(auth_user, targetindex))
@@ -417,10 +431,10 @@ class PyPIView:
             username = pushdata["username"]
             password = pushdata["password"]
             pypiauth = (username, password)
-            log.info("registering %s-%s to %s", name, version, posturl)
+            self.log.info("registering %s-%s to %s", name, version, posturl)
             session = new_requests_session(agent=("server", server_version))
             r = session.post(posturl, data=metadata, auth=pypiauth)
-            log.debug("register returned: %s", r.status_code)
+            self.log.debug("register returned: %s", r.status_code)
             ok_codes = (200, 201)
             results.append((r.status_code, "register", name, version))
             if r.status_code in ok_codes:
@@ -432,12 +446,12 @@ class PyPIView:
                     file_metadata["filetype"] = filetype
                     file_metadata["pyversion"] = pyver
                     content = entry.get_file_content()
-                    log.info("sending %s to %s, metadata %s",
+                    self.log.info("sending %s to %s, metadata %s",
                              basename, posturl, file_metadata)
                     r = session.post(posturl, data=file_metadata,
                           auth=pypiauth,
                           files={"content": (basename, content)})
-                    log.debug("send finished, status: %s", r.status_code)
+                    self.log.debug("send finished, status: %s", r.status_code)
                     results.append((r.status_code, "upload", entry.relpath,
                                     r.text))
                 if doczip:
@@ -446,7 +460,7 @@ class PyPIView:
                     r = session.post(posturl, data=doc_metadata,
                           auth=pypiauth,
                           files={"content": (name + ".zip", doczip)})
-                    log.debug("send finished, status: %s", r.status_code)
+                    self.log.debug("send finished, status: %s", r.status_code)
                     results.append((r.status_code, "docfile", name))
                 #
             if r.status_code in ok_codes:
@@ -480,7 +494,8 @@ class PyPIView:
             if not info:
                 abort(request, 400, "no project named %r was ever registered" % (name))
             if action == "file_upload":
-                log.debug("metadata in form: %s", list(request.POST.items()))
+                self.log.debug("metadata in form: %s",
+                               list(request.POST.items()))
                 abort_if_invalid_filename(name, content.filename)
                 metadata = stage.get_metadata(name, version)
                 if not metadata:
@@ -535,7 +550,7 @@ class PyPIView:
                   metadata["name"], info.name, info.stage.name))
         except ValueError as e:
             abort_custom(400, "invalid metadata: %s" % (e,))
-        log.info("%s: got submit release info %r",
+        self.log.info("%s: got submit release info %r",
                  stage.name, metadata["name"])
 
     #
@@ -555,7 +570,7 @@ class PyPIView:
     @matchdict_parameters
     def project_get(self, user, index, name):
         request = self.request
-        #log.debug("HEADERS: %s", request.headers.items())
+        #self.log.debug("HEADERS: %s", request.headers.items())
         stage = self.getstage(user, index)
         name = ensure_unicode(name)
         info = stage.get_project_info(name)
@@ -623,7 +638,6 @@ class PyPIView:
     @matchdict_parameters
     def pkgserv(self, user, index, relpath):
         request = self.request
-        response = request.response
         relpath = request.path.strip("/")
         if "#" in relpath:   # XXX unclear how this happens (did with bottle)
             relpath = relpath.split("#", 1)[0]
@@ -682,7 +696,7 @@ class PyPIView:
         request = self.request
         #log.debug("headers %r", request.headers.items())
         status, auth_user = self.auth.get_auth_status(request.auth)
-        log.debug("got auth status %r for user %r" %(status, auth_user))
+        self.log.debug("got auth status %r for user %r" %(status, auth_user))
         user = self.model.get_user(user)
         if user is None:
             abort(request, 404, "required user %r does not exist" % auth_user)
@@ -697,12 +711,12 @@ class PyPIView:
         if stage:
             acl = stage.ixconfig.get("acl_" + acltype, [])
             if auth_user in acl:
-                log.debug("user %r is acl_upload list", auth_user)
+                self.log.debug("user %r is acl_upload list", auth_user)
                 return
             apireturn(403, message="user %r not authorized for %s to %s"
                              % (auth_user, acltype, stage.name))
         # XXX we should probably never reach here?
-        log.info("user %r not authorized", auth_user)
+        self.log.info("user %r not authorized", auth_user)
         self.abort_authenticate()
 
 
@@ -712,7 +726,7 @@ class PyPIView:
         dict = getjson(request)
         user = dict.get("user", None)
         password = dict.get("password", None)
-        #log.debug("got password %r" % password)
+        #self.log.debug("got password %r" % password)
         if user is None or password is None:
             abort(request, 400, "Bad request: no user/password specified")
         proxyauth = self.auth.new_proxy_auth(user, password)
@@ -808,10 +822,11 @@ def get_outside_url(headers, outsideurl):
         if url is None:
             url = "http://" + headers.get("Host")
     url = url.rstrip("/") + "/"
-    #log.debug("outside host header: %s", url)
+    #self.log.debug("outside host header: %s", url)
     return url
 
 def trigger_jenkins(request, stage, jenkinurl, testspec):
+    log = request.log
     baseurl = get_outside_url(request.headers,
                               stage.xom.config.args.outside_url)
 
