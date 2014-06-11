@@ -342,7 +342,7 @@ class Importer:
         latest_serial = self.xom.keyfs.get_next_serial() - 1
         self.tw.line("waiting for events until latest_serial %s"
                      % latest_serial)
-        self.xom.keyfs.notifier.wait_for_event_serial(latest_serial)
+        self.xom.keyfs.notifier.wait_event_serial(latest_serial)
         self.tw.line("importing finished")
 
     def import_filedesc(self, stage, filedesc):

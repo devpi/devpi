@@ -135,9 +135,10 @@ def handle_response(event):
 
 @subscriber(NewRequest)
 def handle_request(event):
-    keyfs = event.request.registry["xom"].keyfs
-    write = False if event.request.method in ("GET", "HEAD") else True
-    tx = keyfs.begin_transaction_in_thread(write=write)
+    xom = event.request.registry["xom"]
+    write = not xom.is_replica() and event.request.method in (
+                                        "PUT", "POST", "PATCH", "DELETE")
+    tx = xom.keyfs.begin_transaction_in_thread(write=write)
     event.request.registry["tx"] = tx
 
 class PyPIView:
@@ -229,6 +230,7 @@ class PyPIView:
     @view_config(route_name="/{user}/{index}/+simple/{projectname}")
     @matchdict_parameters
     def simple_list_project(self, user, index, projectname):
+        #user, index, projectname = self.reqmatch("user", "index", "projectname")
         request = self.request
         # we only serve absolute links so we don't care about the route's slash
         abort_if_invalid_projectname(request, projectname)

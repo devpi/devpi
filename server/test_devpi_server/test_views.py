@@ -79,8 +79,11 @@ def test_simple_project_pypi_egg(pypistage, testapp):
 def test_simple_list(pypistage, testapp):
     pypistage.mock_simple("hello1", "<html/>")
     pypistage.mock_simple("hello2", "<html/>")
-    assert testapp.get("/root/pypi/+simple/hello1").status_code == 200
-    assert testapp.get("/root/pypi/+simple/hello2").status_code == 200
+    r = testapp.get("/root/pypi/+simple/hello1", expect_errors=False)
+    serial = int(r.headers["X-DEVPI-SERIAL"])
+    r2 = testapp.get("/root/pypi/+simple/hello2", expect_errors=False)
+    assert int(r2.headers["X-DEVPI-SERIAL"]) == serial + 1
+
     r = testapp.get("/root/pypi/+simple/hello3")
     assert r.status_code == 200
     assert "no such project" in r.text

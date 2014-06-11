@@ -360,7 +360,7 @@ class TestSubscriber:
 
         with make_keyfs() as key1:
             keyfs = key1.keyfs
-            monkeypatch.setattr(keyfs._fs, "_notify_on_transaction",
+            monkeypatch.setattr(keyfs._fs, "_notify_on_commit",
                                 lambda x: 0/0)
             # we prevent the hooks from getting called
             with pytest.raises(ZeroDivisionError):
@@ -387,14 +387,23 @@ class TestSubscriber:
         assert ev.typedkey.params == {"name": "hello"}
         assert ev.typedkey.name == pkey.name
 
-    def test_wait_for_event(self, keyfs, pool):
+    @pytest.mark.parametrize("meth", ["wait_event_serial", "wait_tx_serial"])
+    def test_wait_event_serial(self, keyfs, pool, queue, meth):
         pkey = keyfs.add_key("NAME1", "{name}", int)
         key = pkey(name="hello")
+        class T:
+            def __init__(self, num):
+                self.num = num
+            def thread_run(self):
+                getattr(keyfs.notifier, meth)(self.num)
+                queue.put(self.num)
+
+        for i in range(10):
+            pool.register(T(i))
         pool.start()
         for i in range(10):
             with keyfs.transaction():
                 key.set(1)
-        keyfs.notifier.wait_for_event_serial(9)
 
-
-
+        l = [queue.get() for i in range(10)]
+        assert sorted(l) == range(10)

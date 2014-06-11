@@ -98,6 +98,7 @@ class FileStore:
         if err is not None:
             log.error(err)
             raise err
+
         self.keyfs.restart_as_write_transaction()
         entry.sethttpheaders(r.headers)
         entry.set_file_content(content)

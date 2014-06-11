@@ -230,32 +230,38 @@ class PyPIStage:
         if response.status_code != 200:
             return response.status_code
 
+        if self.xom.is_replica():
+            devpi_serial = int(response.headers["X-DEVPI-SERIAL"])
+            self.keyfs.notifier.wait_tx_serial(devpi_serial)
+            # XXX raise TransactionRestart to get a consistent clean view
+            self.keyfs.commit_transaction_in_thread()
+            self.keyfs.begin_transaction_in_thread()
+            entries = self._load_cache_entries(projectname)
+            if entries is not None:
+                return entries
+            log.error("did not get cached entries for %s", projectname)
+            return 502
+
         # determine and check real project name
         real_projectname = response.url.strip("/").split("/")[-1]
         assert real_projectname == info.name
 
         # check that we got a fresh enough page
-        if not self.xom.is_replica():
-            serial = int(response.headers["X-PYPI-LAST-SERIAL"])
-            newest_serial = self.pypimirror.name2serials.get(info.name, -1)
-            if serial < newest_serial:
-                log.warn("%s: pypi returned serial %s, expected %s",
-                         real_projectname, serial, newest_serial)
-                return -2  # the page we got is not fresh enough
-            log.debug("%s: got response with serial %s" %
-                      (real_projectname, serial))
+        serial = int(response.headers["X-PYPI-LAST-SERIAL"])
+        newest_serial = self.pypimirror.name2serials.get(info.name, -1)
+        if serial < newest_serial:
+            log.warn("%s: pypi returned serial %s, expected %s",
+                     real_projectname, serial, newest_serial)
+            return -2  # the page we got is not fresh enough
+        log.debug("%s: got response with serial %s" %
+                  (real_projectname, serial))
 
         # parse simple index's link and perform crawling
         assert response.text is not None, response.text
         result = parse_index(response.url, response.text)
-        if self.xom.is_replica():
-            # in the replica we can just return the links
-            # as the replica thread will take care for replaying cache entries
-            return [self.filestore.maplink(link)
-                        for link in result.releaselinks]
-
         perform_crawling(self, result)
         releaselinks = list(result.releaselinks)
+
         self.keyfs.restart_as_write_transaction()
 
         # compute release link entries and cache according to serial

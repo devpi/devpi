@@ -69,9 +69,9 @@ def get_write_file_ensure_dir(path):
 
 
 class Filesystem:
-    def __init__(self, basedir, notify_on_transaction):
+    def __init__(self, basedir, notify_on_commit):
         self.basedir = basedir
-        self._notify_on_transaction = notify_on_transaction
+        self._notify_on_commit = notify_on_commit
         self.path_next_serial = str(basedir.join(".nextserial"))
         self.path_changelogdir = basedir.ensure(".changelog", dir=1)
         self.next_serial = read_int_from_file(self.path_next_serial)
@@ -133,14 +133,13 @@ class FSWriter:
 
     def __exit__(self, cls, val, tb):
         if cls is None:
+            assert self.changes, "commit cannot be empty"
             self.commit_to_filesystem()
             commit_serial = self.fs.next_serial - 1
             if self.changes:
                 log.info("tx%s committed %s", commit_serial,
                          ",".join(self.changes))
-                self.fs._notify_on_transaction(commit_serial)
-            else:
-                log.error("tx%s committed but empty!", commit_serial)
+                self.fs._notify_on_commit(commit_serial)
         else:
             while self.pending_renames:
                 source, dest = self.pending_renames.pop()
@@ -184,8 +183,8 @@ def rename(source, dest):
 class TxNotificationThread:
     def __init__(self, keyfs):
         self.keyfs = keyfs
-        self.new_transaction = mythread.threading.Event()
-        self.new_event_serial = mythread.threading.Event()
+        self.cv_new_transaction = mythread.threading.Condition()
+        self.cv_new_event_serial = mythread.threading.Condition()
         self.event_serial_path = str(self.keyfs.basedir.join(".event_serial"))
         self._on_key_change = {}
 
@@ -196,40 +195,47 @@ class TxNotificationThread:
         assert py.builtin._istext(keyname) or py.builtin._isbytes(keyname)
         self._on_key_change.setdefault(keyname, []).append(subscriber)
 
-    def wait_for_event_serial(self, serial):
+    def wait_event_serial(self, serial):
         log.info("waiting for event-serial %s, current %s",
                  serial, self.read_event_serial())
-        while serial >= self.read_event_serial():
-            self.new_event_serial.wait()
-            # XXX verify: will all threads wake up when we clear the
-            # event with the first one waking up here?
-            self.new_event_serial.clear()
+        with self.cv_new_event_serial:
+            while serial >= self.read_event_serial():
+                self.cv_new_event_serial.wait()
         log.info("finished waiting for event-serial %s, current %s",
                  serial, self.read_event_serial())
+
+    def wait_tx_serial(self, serial):
+        log.info("waiting for tx serial %s, current %s",
+                 serial, self.keyfs.get_current_serial())
+        with self.cv_new_transaction:
+            while serial > self.keyfs.get_current_serial():
+                self.cv_new_transaction.wait()
 
     def read_event_serial(self):
         return read_int_from_file(self.event_serial_path, 0)
 
-    def notify_on_transaction(self, serial):
-        self.new_transaction.set()
+    def notify_on_commit(self, serial):
+        with self.cv_new_transaction:
+            self.cv_new_transaction.notify_all()
 
     def thread_shutdown(self):
-        self.new_transaction.set()
+        with self.cv_new_transaction:
+            self.cv_new_transaction.notify_all()
 
     def thread_run(self):
-        self.new_transaction.set()
+        event_serial = self.read_event_serial()
         while 1:
-            event_serial = self.read_event_serial()
-            if event_serial >= self.keyfs._fs.next_serial:
-                self.new_transaction.wait()
-                self.new_transaction.clear()
-            self.thread.exit_if_shutdown()
             while event_serial < self.keyfs._fs.next_serial:
+                self.thread.exit_if_shutdown()
                 self._execute_hooks(event_serial)
-                event_serial += 1
-                # write event serial
-                write_int_to_file(event_serial, self.event_serial_path)
-                self.new_event_serial.set()
+                with self.cv_new_event_serial:
+                    event_serial += 1
+                    write_int_to_file(event_serial, self.event_serial_path)
+                    self.cv_new_event_serial.notify_all()
+            if event_serial >= self.keyfs._fs.next_serial:
+                with self.cv_new_transaction:
+                    self.cv_new_transaction.wait()
+                    self.thread.exit_if_shutdown()
 
     def _execute_hooks(self, event_serial):
         log.debug("calling hooks for tx%s", event_serial)
@@ -256,8 +262,7 @@ class KeyFS(object):
         self._write_lock = mythread.threading.Lock()
         self._threadlocal = mythread.threading.local()
         self.notifier = t = TxNotificationThread(self)
-        self._fs = Filesystem(self.basedir,
-                              notify_on_transaction=t.notify_on_transaction)
+        self._fs = Filesystem(self.basedir, notify_on_commit=t.notify_on_commit)
 
     def derive_key(self, relpath, keyname=None):
         """ return direct key for a given path and keyname.
@@ -289,6 +294,9 @@ class KeyFS(object):
 
     def get_next_serial(self):
         return self._fs.next_serial
+
+    def get_current_serial(self):
+        return self.get_next_serial() - 1
 
     @property
     def tx(self):

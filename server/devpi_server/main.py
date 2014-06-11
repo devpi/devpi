@@ -214,6 +214,9 @@ class XOM:
                         return errors[0]
                     return 0
 
+            # XXX ground restart_as_write_transaction better
+            if xom.is_replica():
+                xom.keyfs.restart_as_write_transaction = None
             return wsgi_run(xom, app)
 
     def fatal(self, msg):
