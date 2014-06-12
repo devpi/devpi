@@ -380,8 +380,8 @@ class PyPIMirror:
                           normname, serial)
             else:
                 log.debug("no cache found for %s" % name)
-        # XXX include name2serials into the ongoing transaction
-        # (requires WriteTransaction to integrate external renames)
+        # XXX include name2serials writing into the ongoing transaction
+        # as an external rename (not managed through keyfs)
         if self.name2serials:
             dump_to_file(self.name2serials, self.path_name2serials)
 

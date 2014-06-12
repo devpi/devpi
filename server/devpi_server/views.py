@@ -19,7 +19,7 @@ from devpi_common.request import new_requests_session
 from devpi_common.validation import normalize_name, is_valid_archive_name
 
 from .model import InvalidIndexconfig
-from .log import thread_push_log, thread_pop_log, thread_current_log
+from .log import thread_push_log, thread_pop_log, thread_current_log, threadlog
 
 from .auth import Auth
 from .config import render_string
@@ -51,6 +51,9 @@ def abort_custom(code, msg):
 
 
 class HTTPResponse(HTTPSuccessful):
+    body_template = None
+    comment = None
+    detail = None
     def __init__(self, **kw):
         Response.__init__(self, **kw)
         Exception.__init__(self)
@@ -121,10 +124,16 @@ def route_url(self, *args, **kw):
 
 @subscriber(NewRequest)
 def handle_request(event, req_count=itertools.count()):
+    thread_push_log("[req%s]" %(next(req_count)))
     xom = event.request.registry["xom"]
+    if xom.is_replica():
+        threadlog.debug("matched_route %s", event.request.matched_route)
+        if event.request.method in ("PUT", "POST", "PATCH", "DELETE", "PUSH"):
+            event.request._PROXIED = True
+            proxy_write_to_master(xom, event.request)
+
     write = not xom.is_replica() and event.request.method in (
                                  "PUT", "POST", "PATCH", "DELETE", "PUSH")
-    thread_push_log("[req%s]" %(next(req_count)))
     xom.keyfs.begin_transaction_in_thread(write=write)
     event.request.log = log = thread_current_log()
     log.info("%s %s" % (event.request.method, event.request.path,))
@@ -132,25 +141,46 @@ def handle_request(event, req_count=itertools.count()):
 
 @subscriber(NewResponse)
 def handle_response(event):
-    registry = event.request.registry
-    keyfs = registry["xom"].keyfs
-    log = event.request.log
-    tx = getattr(keyfs._threadlocal, "tx", None)
     r = event.response
-    if tx is not None:
-        if 200 <= r.status_code < 400:
-            serial = tx.commit()
-        else:
-            serial = tx.rollback()
-        keyfs.clear_transaction()
-        r.headers[str("X-DEVPI-SERIAL")] = str(serial)
-    r.headers.update(meta_headers)
-    log.debug("%s serial=%s length=%s type=%s",
+    if not hasattr(event.request, "_PROXIED"):
+        registry = event.request.registry
+        keyfs = registry["xom"].keyfs
+        log = event.request.log
+        tx = getattr(keyfs._threadlocal, "tx", None)
+        if tx is not None:
+            if 200 <= r.status_code < 400:
+                serial = tx.commit()
+            else:
+                serial = tx.rollback()
+            keyfs.clear_transaction()
+            r.headers[str("X-DEVPI-SERIAL")] = str(serial)
+        r.headers.update(meta_headers)
+    else:
+        serial = event.request.registry["xom"].keyfs.get_current_serial()
+    threadlog.debug("%s serial=%s length=%s type=%s",
               event.response.status_code, serial,
               r.headers.get("content-length"),
               r.headers.get("content-type"),
     )
     thread_pop_log()
+
+
+def proxy_write_to_master(xom, request):
+    master_url = URL(xom.config.args.master_url)
+    url = master_url.joinpath(request.path).url
+    requests = xom.new_http_session("relay")
+    with threadlog.around("info", "relaying: %s %s", request.method, url):
+        r = requests.request(request.method, url,
+                             data=request.body,
+                             headers=request.headers)
+    if r.status_code < 400:
+        commit_serial = int(r.headers["X-DEVPI-SERIAL"])
+        xom.keyfs.notifier.wait_tx_serial(commit_serial)
+    headers = r.headers.copy()
+    headers[str("X-DEVPI-PROXY")] = str("replica")
+    raise HTTPResponse(status=r.status_code,
+                       body=r.content,
+                       headers=r.headers)
 
 
 class PyPIView:
@@ -161,6 +191,13 @@ class PyPIView:
         self.model = xom.model
         self.auth = Auth(self.model, xom.config.secret)
         self.log = request.log
+
+    def pmatch(self, *args, **kwargs):
+        matchdict = self.request.matchdict
+        if kwargs.get("loose"):
+            return map(matchdict.get, args)
+        else:
+            return map(matchdict.__getitem__, args)
 
     def getstage(self, user, index):
         stage = self.model.getstage(user, index)
@@ -469,8 +506,8 @@ class PyPIView:
                 apireturn(502, result=results, type="actionlog")
 
     @view_config(route_name="/{user}/{index}/", request_method="POST")
-    @matchdict_parameters
-    def submit(self, user, index):
+    def submit(self):
+        user, index = self.pmatch("user", "index")
         request = self.request
         if user == "root" and index == "pypi":
             abort(request, 404, "cannot submit to pypi mirror")

@@ -278,6 +278,7 @@ class XOM:
         self.config.hook.devpiserver_pyramid_configure(
                 config=self.config,
                 pyramid_config=pyramid_config)
+
         pyramid_config.add_route("/+changelog/{serial}",
                                  "/+changelog/{serial}")
         pyramid_config.add_route("/root/pypi/+name2serials",
