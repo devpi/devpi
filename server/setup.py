@@ -10,9 +10,12 @@ if __name__ == "__main__":
     install_requires = ["py>=1.4.18",
                         "devpi_common>=1.2",
                         "itsdangerous>=0.23",
+                        "execnet>=1.1",
                         "docutils>=0.11",
                         "pygments>=1.6",
-                        "pyramid>=1.5"]
+                        "pyramid>=1.5",
+                        "waitress",
+                        ]
     if sys.version_info < (2,7):
         install_requires.append("argparse>=1.2.1")
 

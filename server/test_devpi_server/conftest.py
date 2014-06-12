@@ -13,13 +13,44 @@ from devpi_server.config import PluginManager
 from devpi_server.main import XOM, parseoptions
 from devpi_common.url import URL
 from devpi_server.extpypi import XMLProxy
-import hashlib
+from devpi_server.extpypi import PyPIStage
+from devpi_server.log import threadlog, thread_clear_log
 
-log = logging.getLogger(__name__)
+import hashlib
+try:
+    from queue import Queue as BaseQueue
+except ImportError:
+    from Queue import Queue as BaseQueue
+
+class TimeoutQueue(BaseQueue):
+    def get(self, timeout=2):
+        return BaseQueue.get(self, timeout=timeout)
+
+log = threadlog
 
 def pytest_addoption(parser):
     parser.addoption("--slow", action="store_true", default=False,
         help="run slow tests involving remote services (pypi.python.org)")
+
+@pytest.fixture(autouse=True)
+def _clear():
+    thread_clear_log()
+
+
+@pytest.yield_fixture
+def pool():
+    from devpi_server.mythread  import ThreadPool
+    pool = ThreadPool()
+    yield pool
+    pool.shutdown()
+
+@pytest.fixture
+def queue():
+    return TimeoutQueue()
+
+@pytest.fixture
+def Queue():
+    return TimeoutQueue
 
 @pytest.fixture()
 def caplog(caplog):
@@ -73,7 +104,7 @@ def auto_transact(request):
         keyfs.rollback_transaction_in_thread()
     except AttributeError:  # already finished within the test
         pass
-    
+
 
 @pytest.fixture
 def xom(request, makexom):
@@ -83,7 +114,7 @@ def xom(request, makexom):
     return xom
 
 @pytest.fixture
-def makexom(request, gentmp, httpget):
+def makexom(request, gentmp, httpget, monkeypatch):
     def makexom(opts=(), httpget=httpget, proxy=None, mocking=True, plugins=()):
         hook = PluginManager(plugins)
         serverdir = gentmp()
@@ -95,19 +126,32 @@ def makexom(request, gentmp, httpget):
                 proxy = mock.create_autospec(XMLProxy)
                 proxy.list_packages_with_serial.return_value = {}
             xom = XOM(config, proxy=proxy, httpget=httpget)
-            add_pypistage_mocks(xom.pypistage, httpget)
-            xom.pypistage.init_pypi_mirror(proxy)
+            add_pypistage_mocks(monkeypatch, httpget)
+            xom.pypimirror.init_pypi_mirror(proxy)
         else:
             xom = XOM(config)
-        request.addfinalizer(xom.shutdown)
+        if request.node.get_marker("start_threads"):
+            xom.thread_pool.start()
+        elif request.node.get_marker("with_notifier"):
+            xom.thread_pool.start_one(xom.keyfs.notifier)
+        request.addfinalizer(xom.thread_pool.shutdown)
         return xom
     return makexom
 
 
 @pytest.fixture
+def replica_xom(request, makexom):
+    from devpi_server.replica import PyPIProxy
+    master_url = "http://localhost:3111"
+    xom = makexom(["--master", master_url])
+    xom.proxy = PyPIProxy(xom, master_url)
+    return xom
+
+
+@pytest.fixture
 def maketestapp(request):
     def maketestapp(xom):
-        app = xom.create_app(immediatetasks=-1)
+        app = xom.create_app()
         mt = MyTestApp(app)
         mt.xom = xom
         return mt
@@ -153,7 +197,7 @@ def httpget(pypiurls):
             log.debug("set mocking response %s %s", mockurl, kw)
             self.url2response[mockurl] = kw
 
-        def setextsimple(self, name, text=None, pkgver=None,
+        def mock_simple(self, name, text=None, pkgver=None,
             pypiserial=10000, **kw):
             class ret:
                 md5 = None
@@ -203,23 +247,26 @@ def model(xom):
 
 @pytest.fixture
 def pypistage(xom):
-    pypistage = xom.pypistage
-    return pypistage
+    return PyPIStage(xom)
 
-def add_pypistage_mocks(pypistage, httpget):
+def add_pypistage_mocks(monkeypatch, httpget):
     # add some mocking helpers
-    pypistage.url2response = httpget.url2response
-    def setextsimple(name, text=None, pypiserial=10000, **kw):
-        pypistage._set_project_serial(name, pypiserial)
-        return httpget.setextsimple(name,
+    PyPIStage.url2response = httpget.url2response
+    def mock_simple(self, name, text=None, pypiserial=10000, **kw):
+        call = lambda: \
+                 self.pypimirror.process_changelog([(name, 0,0,0, pypiserial)])
+        if not hasattr(self.keyfs, "tx"):
+            with self.keyfs.transaction():
+                call()
+        else:
+            call()
+        return self.httpget.mock_simple(name,
                 text=text, pypiserial=pypiserial, **kw)
-    pypistage.setextsimple = setextsimple
-    pypistage.mock_simple = setextsimple
-    pypistage.httpget = httpget
+    monkeypatch.setattr(PyPIStage, "mock_simple", mock_simple, raising=False)
 
 @pytest.fixture
 def pypiurls():
-    from devpi_server.extpypi import PYPIURL_SIMPLE, PYPIURL
+    from devpi_server.extpypi import PYPIURL, PYPIURL_SIMPLE
     class PyPIURL:
         def __init__(self):
             self.base = PYPIURL
@@ -393,13 +440,18 @@ class Mapp(MappMixin):
                 projectname), {}, expect_errors=True)
         assert r.status_code == code
 
-    def register_metadata(self, metadata, indexname=None, code=200):
+    def register_metadata(self, metadata, indexname=None, code=200,
+                          waithooks=False):
         indexname = self._getindexname(indexname)
         metadata = metadata.copy()
         metadata[":action"] = "submit"
         r = self.testapp.post("/%s/" % indexname, metadata,
                               expect_errors=True)
         assert r.status_code == code
+        if waithooks:
+            commit_serial = int(r.headers["X-DEVPI-SERIAL"])
+            self.xom.keyfs.notifier.wait_event_serial(commit_serial)
+        return r
 
     def upload_file_pypi(self, basename, content,
                          name=None, version=None, indexname=None,
@@ -421,12 +473,16 @@ class Mapp(MappMixin):
 
 
     def upload_doc(self, basename, content, name, version, indexname=None,
-                         code=200):
+                         code=200, waithooks=False):
         indexname = self._getindexname(indexname)
         r = self.testapp.post("/%s/" % indexname,
             {":action": "doc_upload", "name": name, "version": version,
              "content": Upload(basename, content)}, expect_errors=True)
         assert r.status_code == code
+        if waithooks:
+            commit_serial = int(r.headers["X-DEVPI-SERIAL"])
+            self.xom.keyfs.notifier.wait_event_serial(commit_serial)
+        return r
 
     def get_simple(self, projectname, code=200):
         r = self.testapp.get(self.api.simpleindex + projectname,
@@ -448,7 +504,7 @@ def noiter(monkeypatch, request):
             return self.body_old
         if self.app_iter:
             l.append(self.app_iter)
-    monkeypatch.setattr(TestResponse, "body_old", TestResponse.body, 
+    monkeypatch.setattr(TestResponse, "body_old", TestResponse.body,
                         raising=False)
     monkeypatch.setattr(TestResponse, "body", body)
     yield
@@ -492,9 +548,14 @@ class MyTestApp(TApp):
         return self._gen_request("PUSH", url, params=params, **kw)
 
     def get(self, *args, **kwargs):
-        if "expect_errors" not in kwargs:
-            kwargs["expect_errors"] = True
+        kwargs.setdefault("expect_errors", True)
         return super(MyTestApp, self).get(*args, **kwargs)
+
+    def xget(self, code, *args, **kwargs):
+        r = self.get(*args, **kwargs)
+        assert r.status_code == code
+        return r
+
 
     def get_json(self, *args, **kwargs):
         headers = kwargs.setdefault("headers", {})

@@ -1,0 +1,32 @@
+
+replication issues
+------------------------
+
+- pushrelease operation should happen at model level?
+
+- replica/master authentication handling: currently salt-hashed passwords leak through
+  replication protocol.  Should replica's get a key which needs to be generated
+  by the master? 
+
+- remove unbounded cache for transaction entries
+
+keyfs 
+------------------
+
+- durability: fsync on commit
+
+- remove mkdtempdir() / web needs to manage its own directories
+
+deployment / API
+-----------------
+
+- instead of the replica thread polling every five secs, do a long-poll
+
+- use a unified API for Thread/background task handling
+  based on threading.Thread
+
+ext pypi mirror
+--------------------
+
+- what happens when the master is upgraded / removes root/pypi state?
+

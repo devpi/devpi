@@ -7,15 +7,13 @@ from __future__ import unicode_literals
 
 import os, sys
 import py
-import threading
-from logging import getLogger
-log = getLogger(__name__)
 
 from devpi_common.types import cached_property
 from devpi_common.request import new_requests_session
 from .config import PluginManager
-from .config import parseoptions, configure_logging, load_setuptools_entrypoints
-from . import extpypi
+from .config import parseoptions, load_setuptools_entrypoints
+from .log import configure_logging, threadlog
+from . import extpypi, replica, mythread
 from . import __version__ as server_version
 
 
@@ -114,11 +112,11 @@ def make_application():
     config = parseoptions([])
     return XOM(config).create_app()
 
-def wsgi_run(xom):
-    from wsgiref.simple_server import make_server
-    app = xom.create_app(immediatetasks=True)
+def wsgi_run(xom, app):
+    from waitress import serve
     host = xom.config.args.host
     port = xom.config.args.port
+    log = xom.log
     log.info("devpi-server version: %s", server_version)
     log.info("serverdir: %s" % xom.config.serverdir)
     hostaddr = "http://%s:%s" % (host, port)
@@ -129,44 +127,11 @@ def wsgi_run(xom):
         from weberror.evalexception import make_eval_exception
         app = make_eval_exception(app, {})
     try:
-        server = make_server(host, port, app)
-    except Exception as e:
-        log.exception("Error while starting the server: %s" %(e,))
-        return 1
-    try:
         log.info("Hit Ctrl-C to quit.")
-        server.serve_forever()
+        serve(app, host=host, port=port, threads=50)
     except KeyboardInterrupt:
         pass
     return 0
-
-
-def add_keys(keyfs):
-    # users and index configuration
-    keyfs.addkey("{user}/.config", dict, "USER")
-    keyfs.addkey(".config", set, "USERLIST")
-
-    # type pypimirror related data
-    keyfs.addkey("root/pypi/+links/{name}", dict, "PYPILINKS")
-    keyfs.addkey("root/pypi/+links/.contained", set, "PYPILINKS_CONTAINED") 
-    keyfs.addkey("root/pypi/serials/+splitkeys", set, "PYPISERIALSPLITKEYS") 
-    keyfs.addkey("root/pypi/serials/{splitkey}", dict, "PYPISERIALS") 
-    keyfs.addkey("{user}/{index}/+e/{relpath}", bytes, "PYPIFILE_NOMD5") 
-    keyfs.addkey("{user}/{index}/+f/{md5a}/{md5b}/{filename}", bytes,
-                 "PYPISTAGEFILE")
-
-    # type "stage" related
-    keyfs.addkey("{user}/{index}/{name}/.config", dict, "PROJCONFIG") 
-    keyfs.addkey("{user}/{index}/.projectnames", set, "PROJNAMES") 
-    keyfs.addkey("{user}/{index}/+f/{md5}/{filename}", bytes, "STAGEFILE") 
-
-    keyfs.addkey("{user}/{index}/{name}/{version}/description_html", bytes,
-                 "RELDESCRIPTION")
-
-    keyfs.addkey("{relpath}-meta", dict, "PATHENTRY") 
-    keyfs.addkey("+attach/{md5}/{type}/{num}", bytes, "ATTACHMENT") 
-    keyfs.addkey("+attach/.att", dict, "ATTACHMENTS") 
-    keyfs.addkey("{relpath}", bytes, "FILEPATH") 
 
 
 class XOM:
@@ -175,18 +140,16 @@ class XOM:
 
     def __init__(self, config, proxy=None, httpget=None):
         self.config = config
-        self._spawned = []
-        self._shutdown = threading.Event()
-        self._shutdownfuncs = []
         if proxy is not None:
             self.proxy = proxy
-
+        self.thread_pool = mythread.ThreadPool()
         if httpget is not None:
             self.httpget = httpget
         sdir = config.serverdir
         if not (sdir.exists() and sdir.listdir()):
             self.set_state_version(server_version)
         set_default_indexes(self.model)
+        self.log = threadlog
 
     def get_state_version(self):
         versionfile = self.config.serverdir.join(".serverversion")
@@ -219,61 +182,40 @@ class XOM:
             return do_export(args.export, xom)
 
         # need to initialize the pypi mirror state before importing
-        # because importing may access data
-        xom.pypistage.init_pypi_mirror(self.proxy)
+        # because importing may need pypi mirroring state
+        if xom.is_replica():
+            proxy = replica.PyPIProxy(xom, xom.config.args.master_url)
+        else:
+            proxy = self.proxy
+        xom.pypimirror.init_pypi_mirror(proxy)
         if args.import_:
             from devpi_server.importexport import do_import
+            # we need to start the keyfs notifier so that import
+            # can wait on completion of events
+            xom.thread_pool.start_one(xom.keyfs.notifier)
             return do_import(args.import_, xom)
-        try:
-            with xom.keyfs.transaction():
-                results = xom.config.hook.devpiserver_run_commands(xom)
-            if [x for x in results if x is not None]:
-                errors = list(filter(None, results))
-                if errors:
-                    return errors[0]
-                return 0
 
-            return wsgi_run(xom)
-        finally:
-            xom.shutdown()
+        # creation of app will register handlers of key change events
+        # which cannot happen anymore after the tx notifier has started
+        app = xom.create_app()
+        with xom.thread_pool.live():
+            if 1:
+                with xom.keyfs.transaction():
+                    results = xom.config.hook.devpiserver_run_commands(xom)
+                if [x for x in results if x is not None]:
+                    errors = list(filter(None, results))
+                    if errors:
+                        return errors[0]
+                    return 0
+
+            # XXX ground restart_as_write_transaction better
+            if xom.is_replica():
+                xom.keyfs.restart_as_write_transaction = None
+            return wsgi_run(xom, app)
 
     def fatal(self, msg):
-        self.shutdown()
+        self.thread_pool.shutdown()
         fatal(msg)
-
-    def shutdown(self):
-        log.debug("shutting down")
-        self._shutdown.set()
-        for name, func in reversed(self._shutdownfuncs):
-            log.info("shutdown: %s", name)
-            func()
-        log.debug("shutdown procedure finished")
-
-    def addshutdownfunc(self, name, shutdownfunc):
-        log.debug("appending shutdown func %s", name)
-        self._shutdownfuncs.append((name, shutdownfunc))
-
-    def sleep(self, secs):
-        self._shutdown.wait(secs)
-        if self._shutdown.is_set():
-            raise self.Exiting()
-
-    def spawn(self, func, args=(), kwargs={}):
-        def logging_spawn():
-            self._spawned.append(thread)
-            log.debug("execution starts %s", func.__name__)
-            try:
-                func(*args, **kwargs)
-            except self.Exiting:
-                log.debug("received Exiting signal")
-            finally:
-                log.debug("execution finished %s", func.__name__)
-            self._spawned.remove(thread)
-
-        thread = threading.Thread(target=logging_spawn)
-        thread.setDaemon(True)
-        thread.start()
-        return thread
 
     @cached_property
     def filestore(self):
@@ -283,31 +225,33 @@ class XOM:
     @cached_property
     def keyfs(self):
         from devpi_server.keyfs import KeyFS
+        from devpi_server.model import add_keys
         keyfs = KeyFS(self.config.serverdir)
-        add_keys(keyfs)
+        add_keys(self, keyfs)
+        self.thread_pool.register(keyfs.notifier)
         return keyfs
 
     @cached_property
-    def pypistage(self):
-        from devpi_server.extpypi import PyPIStage
-        pypistage = PyPIStage(keyfs=self.keyfs, httpget=self.httpget,
-                              filestore=self.filestore)
-        return pypistage
+    def pypimirror(self):
+        from devpi_server.extpypi import PyPIMirror
+        return PyPIMirror(self)
 
     @cached_property
     def proxy(self):
         return extpypi.XMLProxy(PYPIURL_XMLRPC)
 
+    def new_http_session(self, component_name):
+        return new_requests_session(agent=("component_name", server_version))
+
     @cached_property
     def _httpsession(self):
-        session = new_requests_session(agent=("server", server_version))
-        return session
+        return self.new_http_session("server")
 
     def httpget(self, url, allow_redirects, timeout=30):
         headers = {}
         USE_FRONT = self.config.args.bypass_cdn
         if USE_FRONT:
-            log.debug("bypassing pypi CDN for: %s", url)
+            self.log.debug("bypassing pypi CDN for: %s", url)
             if url.startswith("https://pypi.python.org/simple/"):
                 url = url.replace("https://pypi", "https://front")
                 headers["HOST"] = "pypi.python.org"
@@ -323,17 +267,21 @@ class XOM:
         except self._httpsession.RequestException:
             return FatalResponse(sys.exc_info())
 
-    def create_app(self, immediatetasks=False):
+    def create_app(self):
         from devpi_server.views import route_url
         from pyramid.authentication import BasicAuthAuthenticationPolicy
         from pyramid.config import Configurator
         import functools
+        log = self.log
         log.debug("creating application in process %s", os.getpid())
         pyramid_config = Configurator()
         self.config.hook.devpiserver_pyramid_configure(
                 config=self.config,
                 pyramid_config=pyramid_config)
-        pyramid_config.add_route("/+changelog", "/+changelog")
+        pyramid_config.add_route("/+changelog/{serial}",
+                                 "/+changelog/{serial}")
+        pyramid_config.add_route("/root/pypi/+name2serials",
+                                 "/root/pypi/+name2serials")
         pyramid_config.add_route("/+api", "/+api", accept="application/json")
         pyramid_config.add_route("{path:.*}/+api", "{path:.*}/+api", accept="application/json")
         pyramid_config.add_route("/+login", "/+login", accept="application/json")
@@ -359,7 +307,8 @@ class XOM:
         _get_credentials = BasicAuthAuthenticationPolicy._get_credentials
         # In Python 2 we need to get im_func, in Python 3 we already have
         # the correct value
-        _get_credentials = getattr(_get_credentials, 'im_func', _get_credentials)
+        _get_credentials = getattr(_get_credentials, 'im_func',
+                                   _get_credentials)
         pyramid_config.add_request_method(
             functools.partial(_get_credentials, None),
             name=str('auth'), property=True)
@@ -369,46 +318,23 @@ class XOM:
         pyramid_config.scan()
         pyramid_config.registry['xom'] = self
         app = pyramid_config.make_wsgi_app()
-        if immediatetasks == -1:
-            pass
+        if self.is_replica():
+            from devpi_server.replica import ReplicaThread
+            replica_thread = ReplicaThread(self)
+            # the replica thread replays keyfs changes
+            # and pypimirror.name2serials changes are discovered
+            # and replayed through the PypiProjectChange event
+            self.thread_pool.register(replica_thread)
         else:
-            plugin = BackgroundPlugin(xom=self)
-            if immediatetasks:
-                plugin.start_background_tasks()
-            else:  # defer to when the first request arrives
-                raise NotImplementedError
+            # the master thread directly syncs using the
+            # pypi changelog protocol
+            self.thread_pool.register(self.pypimirror,
+                                      dict(proxy=self.proxy))
         return app
 
-class BackgroundPlugin:
-    api = 2
-    name = "pypistage_refresh"
+    def is_replica(self):
+        return bool(self.config.args.master_url)
 
-    _thread = None
-
-    def __init__(self, xom):
-        self.xom = xom
-        assert xom.proxy
-
-    def setup(self, app):
-        log.debug("plugin.setup(%r)", app)
-        self.app = app
-
-    def apply(self, callback, route):
-        log.debug("plugin.apply() with %r, %r", callback, route)
-        def mywrapper(*args, **kwargs):
-            if not self._thread:
-                self.start_background_tasks()
-                self.app.uninstall(self)
-            return callback(*args, **kwargs)
-        return mywrapper
-
-    def close(self):
-        log.debug("plugin.close() called")
-
-    def start_background_tasks(self):
-        xom = self.xom
-        self._thread = xom.spawn(xom.pypistage.spawned_pypichanges,
-            args=(xom.proxy, lambda: xom.sleep(xom.config.args.refresh)))
 
 class FatalResponse:
     status_code = -1
@@ -421,10 +347,10 @@ def set_default_indexes(model):
         root_user = model.get_user("root")
         if not root_user:
             root_user = model.create_user("root", "")
-            print("created root user")
+            threadlog.info("created root user")
         userconfig = root_user.key.get()
         indexes = userconfig["indexes"]
         if "pypi" not in indexes:
             indexes["pypi"] = dict(bases=(), type="mirror", volatile=False)
             root_user.key.set(userconfig)
-            print("created root/pypi index")
+            threadlog.info("created root/pypi index")

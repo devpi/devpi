@@ -117,7 +117,7 @@ def get_files_info(request, user, index, metadata):
             "project %r version %r has no files",
             metadata["name"], metadata.get("version"))
     for basename in sorted(filedata):
-        entry = xom.filestore.getentry(filedata[basename])
+        entry = xom.filestore.get_file_entry(filedata[basename])
         relurl = URL(request.path).relpath("/" + entry.relpath)
         if entry.eggfragment:
             relurl += "#egg=%s" % entry.eggfragment
@@ -127,8 +127,8 @@ def get_files_info(request, user, index, metadata):
         if py_version == 'source':
             py_version = ''
         size = ''
-        if entry.filepath.exists():
-            size = "%.0f %s" % sizeof_fmt(entry.filepath.size())
+        if entry.file_exists():
+            size = "%.0f %s" % sizeof_fmt(len(entry.get_file_content()))
         files.append(dict(
             title=basename,
             url=request.relative_url(relurl),

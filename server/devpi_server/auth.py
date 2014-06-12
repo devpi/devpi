@@ -4,8 +4,7 @@ import os
 import hashlib
 import itsdangerous
 import py
-from logging import getLogger
-log = getLogger(__name__)
+from .log import threadlog
 
 class Auth:
     LOGIN_EXPIRATION = 60*60*10  # 10 hours
@@ -36,7 +35,7 @@ class Auth:
             return None
         else:
             if not val.startswith(authuser.encode() + b"-"):
-                log.debug("mismatch credential for user %r", authuser)
+                threadlog.debug("mismatch credential for user %r", authuser)
                 return None
             return authuser
 

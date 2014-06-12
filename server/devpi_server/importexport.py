@@ -90,6 +90,7 @@ def do_import(path, xom):
                   xom.config.serverdir)
     importer = Importer(tw, xom)
     importer.import_all(path)
+    importer.wait_for_events()
     return 0
 
 
@@ -105,10 +106,10 @@ class Exporter:
         self.export_users = self.export["users"] = {}
         self.export_indexes = self.export["indexes"] = {}
 
-    def copy_file(self, source, dest):
+    def write_file(self, content, dest):
         dest.dirpath().ensure(dir=1)
-        source.copy(dest)
-        self.tw.line("copied %s to %s" %(source, dest.relto(self.basepath)))
+        dest.write(content)
+        self.tw.line("write file at %s" %(dest.relto(self.basepath),))
         return dest.relto(self.basepath)
 
     def warn(self, msg):
@@ -218,11 +219,12 @@ class IndexDump:
     def dump_releasefiles(self, projectname, versiondata):
         files = versiondata.pop("+files", {})
         for basename, file in files.items():
-            entry = self.exporter.filestore.getentry(file)
-            file_meta = entry._mapping
-            assert entry.iscached(), entry.FILE.filepath
-            rel = self.exporter.copy_file(
-                entry.FILE.filepath,
+            entry = self.exporter.filestore.get_file_entry(file)
+            assert entry.file_exists(), entry.relpath
+            file_meta = entry.key_content.copy()
+            content = file_meta.pop("content")
+            rel = self.exporter.write_file(
+                content,
                 self.basedir.join(projectname, entry.basename))
             self.add_filedesc("releasefile", projectname, rel,
                                version=versiondata["version"],
@@ -290,7 +292,7 @@ class Importer:
                     user = self.xom.model.get_user(username)
                 else:
                     user = self.xom.model.create_user(username, password="")
-                user._set(userconfig) 
+                user._set(userconfig)
 
         # memorize index inheritance structure
         tree = IndexTree()
@@ -336,6 +338,13 @@ class Importer:
                 with self.xom.keyfs.transaction():
                     self.import_filedesc(stage, filedesc)
 
+    def wait_for_events(self):
+        latest_serial = self.xom.keyfs.get_next_serial() - 1
+        self.tw.line("waiting for events until latest_serial %s"
+                     % latest_serial)
+        self.xom.keyfs.notifier.wait_event_serial(latest_serial)
+        self.tw.line("importing finished")
+
     def import_filedesc(self, stage, filedesc):
         assert stage.ixconfig["type"] != "mirror"
         rel = filedesc["relpath"]
@@ -353,7 +362,6 @@ class Importer:
                         p.basename, p.read("rb"),
                         last_modified=mapping["last_modified"])
             assert entry.md5 == mapping["md5"]
-            assert entry.size == mapping["size"]
             self.import_attachments(entry.md5)
         elif filedesc["type"] == "doczip":
             basename = os.path.basename(rel)

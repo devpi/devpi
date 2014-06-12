@@ -7,13 +7,13 @@ from devpi_common.validation import validate_metadata, normalize_name
 from devpi_common.types import ensure_unicode
 from .vendor._description_utils import processDescription
 from .auth import crypt_password, verify_password
+from .filestore import FileEntry
+from .log import threadlog, thread_current_log
 
-import logging
-
-log = logging.getLogger(__name__)
 
 def run_passwd(root, username):
     user = root.get_user(username)
+    log = thread_current_log()
     if user is None:
         log.error("user %r not found" % username)
         return 1
@@ -103,13 +103,13 @@ class User:
             userconfig.setdefault("indexes", {})
         userlist.add(username)
         model.keyfs.USERLIST.set(userlist)
-        log.info("created user %r with email %r" %(username, email))
+        threadlog.info("created user %r with email %r" %(username, email))
         return user
 
     def _set(self, newuserconfig):
         with self.key.update() as userconfig:
             userconfig.update(newuserconfig)
-            log.info("internal: set user information %r", self.name)
+            threadlog.info("internal: set user information %r", self.name)
 
     def modify(self, password=None, email=None):
         with self.key.update() as userconfig:
@@ -120,13 +120,14 @@ class User:
             if email:
                 userconfig["email"] = email
                 modified.append("email=%s" % email)
-            log.info("modified user %r: %s" %(self.name, ", ".join(modified)))
+            threadlog.info("modified user %r: %s", self.name,
+                           ", ".join(modified))
 
     def _setpassword(self, userconfig, password):
         salt, hash = crypt_password(password)
         userconfig["pwsalt"] = salt
         userconfig["pwhash"] = hash
-        log.info("setting password for user %r", self.name)
+        threadlog.info("setting password for user %r", self.name)
 
     def delete(self):
         self.key.delete()
@@ -171,7 +172,7 @@ class User:
                 "acl_upload": acl_upload
             }
         stage = self.getstage(index)
-        log.info("created index %s: %s", stage.name, stage.ixconfig)
+        threadlog.info("created index %s: %s", stage.name, stage.ixconfig)
         return stage
 
     def getstage(self, indexname):
@@ -181,11 +182,12 @@ class User:
         if ixconfig["type"] == "stage":
             return PrivateStage(self.xom, self.name, indexname, ixconfig)
         elif ixconfig["type"] == "mirror":
-            return self.xom.pypistage
+            from .extpypi import PyPIStage
+            return PyPIStage(self.xom)
         else:
             raise ValueError("unknown index type %r" % ixconfig["type"])
-         
- 
+
+
 
 class InvalidIndexconfig(Exception):
     def __init__(self, messages):
@@ -229,9 +231,6 @@ class PrivateStage:
     def can_upload(self, username):
         return username in self.ixconfig.get("acl_upload", [])
 
-    def _reconfigure(self, **kw):
-        self.ixconfig = self.modify(**kw)
-
     def modify(self, index=None, **kw):
         diff = list(set(kw).difference(_ixconfigattr))
         if diff:
@@ -244,7 +243,8 @@ class PrivateStage:
         with self.user.key.update() as userconfig:
             ixconfig = userconfig["indexes"][self.index]
             ixconfig.update(kw)
-            log.info("modified index %s: %s", self.name, ixconfig)
+            threadlog.info("modified index %s: %s", self.name, ixconfig)
+            self.ixconfig = ixconfig
             return ixconfig
 
     def get(self):
@@ -270,7 +270,7 @@ class PrivateStage:
         with self.user.key.update() as userconfig:
             indexes = userconfig.get("indexes", {})
             if self.index not in indexes:
-                log.info("index %s not exists" % self.index)
+                threadlog.info("index %s not exists" % self.index)
                 return False
             del indexes[self.index]
 
@@ -282,9 +282,6 @@ class PrivateStage:
             results.append((stage, stage_result))
         return results
 
-    def log_info(self, *args):
-        log.info("%s: %s" % (self.name, args[0]), *args[1:])
-    #
     # registering project and version metadata
     #
     #class MetadataExists(Exception):
@@ -318,6 +315,7 @@ class PrivateStage:
         name = metadata["name"]
         # check if the project exists already under its normalized
         info = self.get_project_info(name)
+        log = thread_current_log()
         if info:
             log.info("got project info with name %r" % info.name)
         else:
@@ -335,26 +333,26 @@ class PrivateStage:
     def _register_metadata(self, metadata):
         name = metadata["name"]
         version = metadata["version"]
-        key = self.key_projconfig(name)
-        with key.update() as projectconfig:
+        with self.key_projconfig(name).update() as projectconfig:
             #if not self.ixconfig["volatile"] and projectconfig:
             #    raise self.MetadataExists(
             #        "%s-%s exists on non-volatile %s" %(
             #        name, version, self.name))
             versionconfig = projectconfig.setdefault(version, {})
             versionconfig.update(metadata)
-            self.log_info("store_metadata %s-%s", name, version)
-        with self.key_projectnames.update() as projectnames:
+            threadlog.info("store_metadata %s-%s", name, version)
+        projectnames = self.key_projectnames.get()
+        if name not in projectnames:
             projectnames.add(name)
+            self.key_projectnames.set(projectnames)
         desc = metadata.get("description")
         if desc:
             html = processDescription(desc)
-            doc_key = self.keyfs.RELDESCRIPTION(user=self.user.name, 
+            doc_key = self.keyfs.RELDESCRIPTION(user=self.user.name,
                         index=self.index, name=name, version=version)
             if py.builtin._istext(html):
                 html = html.encode("utf8")
             doc_key.set(html)
-        self.xom.config.hook.devpiserver_register_metadata(self, metadata)
 
     def project_delete(self, name):
         for version in self.get_projectconfig_perstage(name):
@@ -364,17 +362,16 @@ class PrivateStage:
         self.key_projconfig(name).delete()
 
     def project_version_delete(self, name, version, cleanup=True):
-        key = self.key_projconfig(name)
-        with key.update() as projectconfig:
+        with self.key_projconfig(name).update() as projectconfig:
             verdata = projectconfig.pop(version, None)
             if verdata is None:
                 return False
-            self.log_info("deleting version %r of project %r", version, name)
+            threadlog.info("deleting version %r of project %r", version, name)
             for relpath in verdata.get("+files", {}).values():
-                entry = self.xom.filestore.getentry(relpath)
+                entry = self.xom.filestore.get_file_entry(relpath)
                 entry.delete()
         if cleanup and not projectconfig:
-            self.log_info("no version left, deleting project %r", name)
+            threadlog.info("no version left, deleting project %r", name)
             self.project_delete(name)
         return True
 
@@ -382,7 +379,7 @@ class PrivateStage:
         return self.key_projconfig(name).exists()
 
     def get_description(self, name, version):
-        key = self.keyfs.RELDESCRIPTION(user=self.user.name, 
+        key = self.keyfs.RELDESCRIPTION(user=self.user.name,
             index=self.index, name=name, version=version)
         return py.builtin._totext(key.get(), "utf-8")
 
@@ -420,7 +417,7 @@ class PrivateStage:
             if isinstance(res, int):
                 if res == 404:
                     continue
-                return res
+                assert 0, res
             for ver in res:
                 if ver not in all_projectconfig:
                     all_projectconfig[ver] = res[ver]
@@ -459,7 +456,7 @@ class PrivateStage:
         files = []
         for verdata in projectconfig.values():
             files.extend(
-                map(self.xom.filestore.getentry,
+                map(self.xom.filestore.get_file_entry,
                     verdata.get("+files", {}).values()))
         return files
 
@@ -483,7 +480,7 @@ class PrivateStage:
         filename = ensure_unicode(filename)
         if not self.get_metadata(name, version):
             raise self.MissesRegistration(name, version)
-        log.debug("project name of %r is %r", filename, name)
+        threadlog.debug("project name of %r is %r", filename, name)
         key = self.key_projconfig(name=name)
         with key.update() as projectconfig:
             verdata = projectconfig.setdefault(version, {})
@@ -492,8 +489,9 @@ class PrivateStage:
                 return 409
             entry = self.xom.filestore.store(self.user.name, self.index,
                                 filename, content, last_modified=last_modified)
+            entry.set(projectname=name, version=version)
             files[filename] = entry.relpath
-            self.log_info("store_releasefile %s", entry.relpath)
+            threadlog.info("store_releasefile %s", entry.relpath)
             return entry
 
     def store_doczip(self, name, version, content):
@@ -502,17 +500,16 @@ class PrivateStage:
         assert isinstance(content, bytes)
         if not version:
             version = self.get_metadata_latest_perstage(name)["version"]
-            log.info("store_doczip: derived version of %s is %s",
-                     name, version)
+            threadlog.info("store_doczip: derived version of %s is %s",
+                           name, version)
         key = self.key_projconfig(name=name)
         with key.update() as projectconfig:
             verdata = projectconfig[version]
             filename = "%s-%s.doc.zip" % (name, version)
             entry = self.xom.filestore.store(self.user.name, self.index,
                                 filename, content)
+            entry.set(projectname=name, version=version)
             verdata["+doczip"] = entry.relpath
-        self.xom.config.hook.devpiserver_docs_uploaded(self, name, 
-                    version, entry)
 
     def get_doczip(self, name, version):
         """ get documentation zip as an open file
@@ -521,9 +518,9 @@ class PrivateStage:
         if metadata:
             doczip = metadata.get("+doczip")
             if doczip:
-                entry = self.xom.filestore.getentry(doczip)
+                entry = self.xom.filestore.get_file_entry(doczip)
                 if entry:
-                    return entry.FILE.get()
+                    return entry.get_file_content()
 
 
 def normalize_bases(model, bases):
@@ -543,3 +540,84 @@ def normalize_bases(model, bases):
     if messages:
         raise InvalidIndexconfig(messages)
     return newbases
+
+
+def add_keys(xom, keyfs):
+    # users and index configuration
+    keyfs.add_key("USER", "{user}/.config", dict)
+    keyfs.add_key("USERLIST", ".config", set)
+
+    # type pypimirror related data
+    keyfs.add_key("PYPILINKS", "root/pypi/+links/{name}", dict)
+    keyfs.add_key("PYPIFILE_NOMD5",
+                 "{user}/{index}/+e/{dirname}/{basename}", dict)
+    keyfs.add_key("PYPISTAGEFILE",
+                  "{user}/{index}/+f/{md5a}/{md5b}/{filename}", dict)
+
+    # type "stage" related
+    keyfs.add_key("PROJCONFIG", "{user}/{index}/{name}/.config", dict)
+    keyfs.add_key("PROJNAMES", "{user}/{index}/.projectnames", set)
+    keyfs.add_key("STAGEFILE", "{user}/{index}/+f/{md5}/{filename}", dict)
+    keyfs.add_key("RELDESCRIPTION",
+                  "{user}/{index}/{name}/{version}/description_html", bytes)
+
+    keyfs.add_key("ATTACHMENT", "+attach/{md5}/{type}/{num}", bytes)
+    keyfs.add_key("ATTACHMENTS", "+attach/.att", dict)
+
+    keyfs.notifier.on_key_change("PROJCONFIG", ProjectChanged(xom))
+    keyfs.notifier.on_key_change("STAGEFILE", FileUploaded(xom))
+
+
+
+class ProjectChanged:
+    """ Event executed in notification thread based on a metadata change. """
+    def __init__(self, xom):
+        self.xom = xom
+
+    def __call__(self, ev):
+        threadlog.info("project_config_changed %s", ev.typedkey)
+        params = ev.typedkey.params
+        user = params["user"]
+        index = params["index"]
+        keyfs = self.xom.keyfs
+        hook = self.xom.config.hook
+        # find out which version changed
+        if ev.back_serial == -1:
+            old = {}
+        else:
+            assert ev.back_serial < ev.at_serial
+            old = keyfs.get_value_at(ev.typedkey, ev.back_serial)
+        with keyfs.transaction(write=False, at_serial=ev.at_serial):
+            # XXX slightly flaky logic for detecting metadata changes
+            projconfig = ev.value
+            for ver, metadata in projconfig.items():
+                if metadata != old.get(ver):
+                    stage = self.xom.model.getstage(user, index)
+                    hook.devpiserver_register_metadata(stage, metadata)
+                else:
+                    threadlog.debug("no metadata change on %s, %s", metadata,
+                                    old.get(ver))
+
+
+class FileUploaded:
+    """ Event executed in notification thread when a file is uploaded
+    to a stage. """
+    def __init__(self, xom):
+        self.xom = xom
+
+    def __call__(self, ev):
+        threadlog.info("FileUploaded %s", ev.typedkey)
+        params = ev.typedkey.params
+        user = params.get("user")
+        index = params.get("index")
+        keyfs = self.xom.keyfs
+        with keyfs.transaction(write=False, at_serial=ev.at_serial):
+            entry = FileEntry(ev.typedkey)  # XXX pass value as well
+            stage = self.xom.model.getstage(user, index)
+            if entry.basename.endswith(".doc.zip"):
+                self.xom.config.hook.devpiserver_docs_uploaded(
+                    stage=stage, name=entry.projectname,
+                    version=entry.version,
+                    entry=entry)
+            # XXX we could add register_releasefile event here
+

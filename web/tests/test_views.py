@@ -46,52 +46,46 @@ def test_sizeof_fmt(input, expected):
     assert sizeof_fmt(input) == expected
 
 
+@pytest.mark.with_notifier
 def test_docs_raw_view(mapp, testapp):
     api = mapp.create_and_use()
     content = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=400)
     mapp.register_metadata({"name": "pkg1", "version": "2.6"})
-    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200)
-    r = testapp.get(api.index + "/pkg1/2.6/+doc/")
-    assert r.status_code == 302
-    r = testapp.get(r.location)
-    assert r.status_code == 200
-    r = testapp.get("/blubber/blubb/pkg1/2.6/+doc/index.html")
-    assert r.status_code == 404
+    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
+                    waithooks=True)
+    r = testapp.xget(302, api.index + "/pkg1/2.6/+doc/")
+    testapp.xget(200, r.location)
+    r = testapp.xget(404, "/blubber/blubb/pkg1/2.6/+doc/index.html")
     content, = r.html.select('#content')
     assert content.text.strip() == 'The stage blubber/blubb could not be found.'
-    r = testapp.get(api.index + "/pkg1/2.7/+doc/index.html")
-    assert r.status_code == 404
+    r = testapp.xget(404, api.index + "/pkg1/2.7/+doc/index.html")
     content, = r.html.select('#content')
     assert content.text.strip() == 'No documentation available.'
-    r = testapp.get(api.index + "/pkg1/2.6/+doc/foo.html")
-    assert r.status_code == 404
+    r = testapp.xget(404, api.index + "/pkg1/2.6/+doc/foo.html")
     content, = r.html.select('#content')
     assert content.text.strip() == 'File foo.html not found in documentation.'
 
 
+@pytest.mark.with_notifier
 def test_docs_view(mapp, testapp):
     api = mapp.create_and_use()
     content = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=400)
     mapp.register_metadata({"name": "pkg1", "version": "2.6"})
-    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200)
-    r = testapp.get(api.index + "/pkg1/2.6/+d/")
-    assert r.status_code == 302
-    r = testapp.get(r.location)
-    assert r.status_code == 200
+    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
+                    waithooks=True)
+    r = testapp.xget(302, api.index + "/pkg1/2.6/+d/")
+    r = testapp.xget(200, r.location)
     iframe, = r.html.findAll('iframe')
     assert iframe.attrs['src'] == api.index + "/pkg1/2.6/+doc/index.html"
-    r = testapp.get("/blubber/blubb/pkg1/2.6/+d/index.html")
-    assert r.status_code == 404
+    r = testapp.xget(404, "/blubber/blubb/pkg1/2.6/+d/index.html")
     content, = r.html.select('#content')
     assert content.text.strip() == 'The stage blubber/blubb could not be found.'
-    r = testapp.get(api.index + "/pkg1/2.7/+d/index.html")
-    assert r.status_code == 404
+    r = testapp.xget(404, api.index + "/pkg1/2.7/+d/index.html")
     content, = r.html.select('#content')
     assert content.text.strip() == 'No documentation available.'
-    r = testapp.get(api.index + "/pkg1/2.6/+d/foo.html")
-    assert r.status_code == 404
+    r = testapp.xget(404, api.index + "/pkg1/2.6/+d/foo.html")
     content, = r.html.select('#content')
     assert content.text.strip() == 'File foo.html not found in documentation.'
 
@@ -159,12 +153,11 @@ def test_index_view_project_info(mapp, testapp):
         ("simple", "http://localhost:80/root/pypi/+simple/")]
 
 
+@pytest.mark.with_notifier
 def test_index_view_project_files(mapp, testapp):
     api = mapp.create_and_use()
-    mapp.upload_file_pypi(
-        "pkg1-2.6.tar.gz", b"content", "pkg1", "2.6")
-    r = testapp.get(api.index, headers=dict(accept="text/html"))
-    assert r.status_code == 200
+    mapp.upload_file_pypi("pkg1-2.6.tar.gz", b"content", "pkg1", "2.6")
+    r = testapp.xget(200, api.index, headers=dict(accept="text/html"))
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
         ("simple index", "http://localhost:80/%s/+simple/" % api.stagename),
@@ -186,11 +179,13 @@ def test_index_view_project_files(mapp, testapp):
         ("simple", "http://localhost:80/root/pypi/+simple/")]
 
 
+@pytest.mark.with_notifier
 def test_index_view_project_docs(mapp, testapp):
     api = mapp.create_and_use()
     mapp.register_metadata({"name": "pkg1", "version": "2.6"})
     content = zip_dict({"index.html": "<html/>"})
-    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200)
+    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
+                    waithooks=True)
     r = testapp.get(api.index, headers=dict(accept="text/html"))
     assert r.status_code == 200
     links = r.html.select('#content a')
@@ -230,18 +225,11 @@ def test_project_not_found(mapp, testapp):
     assert content.text.strip() == 'The project pkg1 does not exist.'
 
 
-def test_project_view_root_pypi(mapp, testapp):
-    with mapp.xom.keyfs.transaction():
-        pypistage = mapp.xom.model.getstage('root/pypi')
-        pypistage.name2serials['pkg1'] = {}
-        cache = {
-            "serial": 0,
-            "entrylist": [
-                'root/pypi/+f/9a0364b9e99bb480dd25e1f0284c8555/pkg1-2.7.zip',
-                'root/pypi/+f/52360ae08d733016c5603d54b06b5300/pkg1-2.6.zip'],
-            "projectname": 'pkg1'}
-        pypistage.keyfs.PYPILINKS(name='pkg1').set(cache)
-
+def test_project_view_root_pypi(mapp, testapp, pypistage):
+    pypistage.mock_simple("pkg1", text='''
+            <a href="../../pkg/pkg1-2.7.zip" />
+            <a href="../../pkg/pkg1-2.6.zip" />
+        ''', pypiserial=10)
     r = testapp.get('/root/pypi/pkg1', headers=dict(accept="text/html"))
     assert r.status_code == 200
     links = r.html.select('#content a')
@@ -250,6 +238,7 @@ def test_project_view_root_pypi(mapp, testapp):
         ("2.6", "http://localhost:80/root/pypi/pkg1/2.6")]
 
 
+@pytest.mark.with_notifier
 def test_version_view(mapp, testapp):
     api = mapp.create_and_use()
     mapp.upload_file_pypi(
@@ -257,7 +246,7 @@ def test_version_view(mapp, testapp):
     mapp.upload_file_pypi(
         "pkg1-2.6.zip", b"contentzip", "pkg1", "2.6")
     content = zip_dict({"index.html": "<html/>"})
-    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200)
+    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200, waithooks=1)
     mapp.register_metadata({
         "name": "pkg1",
         "version": "2.6",
@@ -304,42 +293,33 @@ def test_version_not_found(mapp, testapp):
     assert content.text.strip() == 'The version 2.7 of project pkg1 does not exist.'
 
 
-def test_version_view_root_pypi(mapp, testapp):
-    with mapp.xom.keyfs.transaction():
-        pypistage = mapp.xom.model.getstage('root/pypi')
-        pypistage.name2serials['pkg1'] = {}
-        cache = {
-            "serial": 0,
-            "entrylist": ['root/pypi/+f/52360ae08d733016c5603d54b06b5300/pkg1-2.6.zip'],
-            "projectname": 'pkg1'}
-        pypistage.keyfs.PYPILINKS(name='pkg1').set(cache)
-    r = testapp.get('/root/pypi/pkg1/2.6', headers=dict(accept="text/html"))
-    assert r.status_code == 200
+def test_version_view_root_pypi(mapp, testapp, pypistage):
+    pypistage.mock_simple("pkg1", text='''
+            <a href="../../pkg/pkg1-2.6.zip" />
+        ''', pypiserial=10)
+    r = testapp.xget(200, '/root/pypi/pkg1/2.6',
+                     headers=dict(accept="text/html"))
     filesinfo = [tuple(t.text for t in x.findAll('td')) for x in r.html.select('.files tr')]
     assert filesinfo == [('pkg1-2.6.zip', 'Source', '', '', '')]
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
-        ("pkg1-2.6.zip", "http://localhost/root/pypi/+f/52360ae08d733016c5603d54b06b5300/pkg1-2.6.zip"),
+        ("pkg1-2.6.zip", "http://localhost/root/pypi/+e/https_pypi.python.org_pkg/pkg1-2.6.zip"),
         ("https://pypi.python.org/pypi/pkg1/2.6/", "https://pypi.python.org/pypi/pkg1/2.6/")]
 
 
-def test_version_view_root_pypi_external_files(mapp, testapp):
-    with mapp.xom.keyfs.transaction():
-        pypistage = mapp.xom.model.getstage('root/pypi')
-        pypistage.name2serials['pkg1'] = {}
-        cache = {
-            "serial": 0,
-            "entrylist": ['root/pypi/+e/http/example.com/releases/pkg1-2.7.zip'],
-            "projectname": 'pkg1'}
-        pypistage.keyfs.PYPILINKS(name='pkg1').set(cache)
+def test_version_view_root_pypi_external_files(mapp, testapp, pypistage):
+    pypistage.mock_simple(
+        "pkg1", '<a href="http://example.com/releases/pkg1-2.7.zip" /a>)')
     r = testapp.get('/root/pypi/pkg1/2.7', headers=dict(accept="text/html"))
     assert r.status_code == 200
-    filesinfo = [tuple(t.text for t in x.findAll('td')) for x in r.html.select('.files tr')]
+    filesinfo = [tuple(t.text for t in x.findAll('td'))
+                 for x in r.html.select('.files tr')]
     assert filesinfo == [('pkg1-2.7.zip', 'Source', '', '', '')]
-    links = r.html.select('#content a')
-    assert [(l.text, l.attrs['href']) for l in links] == [
-        ("pkg1-2.7.zip", "http://localhost/root/pypi/+e/http/example.com/releases/pkg1-2.7.zip"),
-        ("https://pypi.python.org/pypi/pkg1/2.7/", "https://pypi.python.org/pypi/pkg1/2.7/")]
+    link1, link2 = list(r.html.select("#content a"))
+    assert link1.text == "pkg1-2.7.zip"
+    assert link1.attrs["href"].endswith("pkg1-2.7.zip")
+    assert link2.text == "https://pypi.python.org/pypi/pkg1/2.7/"
+    assert link2.attrs["href"] == "https://pypi.python.org/pypi/pkg1/2.7/"
 
 
 def test_search_nothing(testapp):
@@ -358,12 +338,13 @@ def test_search_no_results(testapp):
     assert content.text.strip() == 'Your search blubber did not match anything.'
 
 
+@pytest.mark.with_notifier
 def test_search_docs(mapp, testapp):
     api = mapp.create_and_use()
     mapp.register_metadata({
         "name": "pkg1",
         "version": "2.6",
-        "description": "foo"})
+        "description": "foo"}, waithooks=True)
     mapp.upload_file_pypi(
         "pkg1-2.6.tar.gz", b"content", "pkg1", "2.6")
     content = zip_dict(
@@ -372,7 +353,8 @@ def test_search_docs(mapp, testapp):
             "<head><title>Foo</title></head>",
             "<body>Bar</body>",
             "</html>"])})
-    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200)
+    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
+                    waithooks=True)
     r = testapp.get('/+search?query=bar')
     assert r.status_code == 200
     links = r.html.select('.searchresults a')
@@ -381,23 +363,15 @@ def test_search_docs(mapp, testapp):
         ("Foo", "http://localhost:80/%s/pkg1/2.6/+d/index.html" % api.stagename)]
 
 
-def test_search_root_pypi(mapp, testapp):
+def test_search_root_pypi(mapp, testapp, pypistage):
     from devpi_web.main import get_indexer
-    with mapp.xom.keyfs.transaction():
-        pypistage = mapp.xom.model.getstage('root/pypi')
-        pypistage.name2serials['pkg1'] = {}
-        cache = {
-            "serial": 0,
-            "entrylist": ['root/pypi/+f/52360ae08d733016c5603d54b06b5300/pkg1-2.6.zip'],
-            "projectname": 'pkg1'}
-        pypistage.keyfs.PYPILINKS(name='pkg1').set(cache)
-        pypistage.name2serials['pkg2'] = {}
+    pypistage.mock_simple("pkg1", '<a href="/pkg1-2.6.zip" /a>')
+    pypistage.mock_simple("pkg2", '')
     indexer = get_indexer(mapp.xom.config)
     indexer.update_projects([
         dict(name=u'pkg1', user=u'root', index=u'pypi'),
         dict(name=u'pkg2', user=u'root', index=u'pypi')], clear=True)
-    r = testapp.get('/+search?query=pkg')
-    assert r.status_code == 200
+    r = testapp.xget(200, '/+search?query=pkg')
     search_results = r.html.select('.searchresults > dl > dt')
     assert len(search_results) == 2
     links = search_results[0].findAll('a')

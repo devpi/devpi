@@ -14,6 +14,10 @@
 - switch the wsgi app to use Pyramid. the wsgi server is still using Bottle,
   so --bottleserver still works. Thanks to Florian Schulze for the PR.
 
+- don't refresh releaselinks from the mirroring thread but rather
+  rely on the next access to do it.
+
+
 1.2.2
 ----------------
 

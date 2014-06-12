@@ -19,7 +19,7 @@ def unpack_docs(stage, name, version, entry):
     # unpack, maybe a bit uncarefully but in principle
     # we are not loosing the original zip file anyway
     unpack_path = get_unpack_path(stage, name, version)
-    with Archive(py.io.BytesIO(entry.FILE.get())) as archive:
+    with Archive(py.io.BytesIO(entry.get_file_content())) as archive:
         archive.extract(unpack_path)
     return unpack_path
 
@@ -36,7 +36,7 @@ class Docs(DictMixin):
         if not self.unpack_path.exists():
             # this happens on import, when the metadata is registered, but the docs
             # aren't uploaded yet
-            return []
+            return {}
         html = []
         fjson = []
         for entry in self.unpack_path.visit():

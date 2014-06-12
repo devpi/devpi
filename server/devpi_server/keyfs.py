@@ -7,50 +7,100 @@ view of key/values refering to the point in time it was started,
 independent from any future changes.
 """
 from __future__ import unicode_literals
+import re
 import contextlib
 import py
-import threading
+from . import mythread
+from .log import (threadlog, thread_push_log,
+                  thread_pop_log, thread_current_log)
 import os
 import sys
-import marshal
 
-import logging
+from execnet.gateway_base import Unserializer, _Serializer
+from devpi_common.types import cached_property
 
-log = logging.getLogger(__name__)
+
 _nodefault = object()
 
+def load(io):
+    return Unserializer(io, strconfig=(False, False)).load(versioned=False)
+
+def dump(obj, io):
+    return _Serializer(io.write).save(obj)
+
+
+def read_int_from_file(path, default=0):
+    try:
+        with open(path, "rb") as f:
+            return int(f.read())
+    except IOError:
+        return default
+
+def write_int_to_file(val, path):
+    tmp_path = path + "-tmp"
+    with get_write_file_ensure_dir(tmp_path) as f:
+        f.write(str(val).encode("utf-8"))
+    rename(tmp_path, path)
+
+def load_from_file(path, default=_nodefault):
+    try:
+        with open(path, "rb") as f:
+            return load(f)
+    except IOError:
+        if default is _nodefault:
+            raise
+        return default
+
+def dump_to_file(value, path):
+    tmp_path = path + "-tmp"
+    with get_write_file_ensure_dir(tmp_path) as f:
+        dump(value, f)
+    rename(tmp_path, path)
+
+def get_write_file_ensure_dir(path):
+    try:
+        return open(path, "wb")
+    except IOError:
+        dirname = os.path.dirname(path)
+        if os.path.exists(dirname):
+            raise
+        os.makedirs(dirname)
+        return open(path, "wb")
 
 
 class Filesystem:
-    def __init__(self, basedir):
+    def __init__(self, basedir, notify_on_commit):
         self.basedir = basedir
-        self.path_next_serial = basedir.join(".nextserial")
+        self._notify_on_commit = notify_on_commit
+        self.path_next_serial = str(basedir.join(".nextserial"))
         self.path_changelogdir = basedir.ensure(".changelog", dir=1)
-        try:
-            self.next_serial = self._read(self.path_next_serial)
-        except py.error.Error:
-            self.next_serial = 0
-       
-    def _read(self, path):
-        with path.open("rb") as f:
-            return marshal.load(f)
+        self.next_serial = read_int_from_file(self.path_next_serial)
+        self._changelog_cache = {}
 
     def write_transaction(self):
         return FSWriter(self)
 
     def get_from_transaction_entry(self, serial, relpath):
-        p = self.path_changelogdir.join(str(serial))
-        change_entry = self._read(p)
-        if relpath in change_entry["record_deleted"]:
-            raise KeyError(relpath)
-        for rp, val in change_entry["record_set"]:
-            if rp == relpath:
-                return val
+        return self.get_changelog_entry(serial).get(relpath)
 
     def get_raw_changelog_entry(self, serial):
         p = self.path_changelogdir.join(str(serial))
-        with p.open("rb") as f:
-            return f.read()
+        try:
+            with p.open("rb") as f:
+                return f.read()
+        except py.error.Error:
+            threadlog.error("could not open %s" % p)
+            return None
+
+    def get_changelog_entry(self, serial):
+        try:
+            return self._changelog_cache[serial]
+        except KeyError:
+            p = self.path_changelogdir.join(str(serial))
+            val = load_from_file(str(p))
+            # XXX fix unboundedness of cache
+            self._changelog_cache[serial] = val
+            return val
 
 
 class FSWriter:
@@ -58,75 +108,53 @@ class FSWriter:
         self.fs = fs
         self.pending_removes = []
         self.pending_renames = []
-        self.record_deleted = []
-        self.record_set = []
+        self.changes = {}
 
-    def direct_write(self, path, val):
+    def _direct_write(self, path, val):
         tmpfile = path + "-tmp"
         with tmpfile.open("wb") as f:
-            marshal.dump(val, f)
+            dump(val, f)
         tmpfile.rename(path)
 
-    def set_mutable(self, relpath, value=_nodefault):
-        target_path = self.fs.basedir.join(relpath)
+    def record_set(self, typedkey, value=None):
+        """ record setting typedkey to value (None means it's deleted) """
+        relpath = typedkey.relpath
+        target_path = typedkey.filepath
         tmp_path = target_path + ".tmp"
-        # read history serials
         next_serial = self.fs.next_serial
-        try:
-            with target_path.open("rb") as f:
-                history_serials = [next_serial] + marshal.load(f)
-                # we record a maximum of the last three changing serials
-                del history_serials[3:] 
-        except py.error.Error:
-            history_serials = [next_serial]
-            tmp_path.dirpath().ensure(dir=1)
-        with tmp_path.open("wb") as f:
-            marshal.dump(history_serials, f)
-            if value is not _nodefault: 
-                marshal.dump(value, f)
-                self.record_set.append((relpath, value))
-            else:
-                self.record_deleted.append(relpath)
-        self.pending_renames.append((tmp_path.strpath, target_path.strpath))
-
-    def set(self, relpath, value):
-        target_path = self.fs.basedir.join(relpath)
-        tmp_path = target_path + ".tmp"
-        tmp_path.write(value, mode="wb", ensure=True)
-        self.pending_renames.append((tmp_path.strpath, target_path.strpath))
-        self.record_set.append((relpath, value))
-
-    def delete(self, relpath):
-        self.pending_removes.append(self.fs.basedir.join(relpath).strpath)
-        self.record_deleted.append(relpath)
+        name, back_serial = load_from_file(target_path, (typedkey.name, -1))
+        with get_write_file_ensure_dir(tmp_path) as f:
+            dump((typedkey.name, next_serial), f)
+        self.changes[relpath] = (typedkey.name, back_serial, value)
+        self.pending_renames.append((tmp_path, target_path))
 
     def __enter__(self):
+        self.log = thread_push_log("fswriter:")
         return self
 
     def __exit__(self, cls, val, tb):
+        thread_pop_log("fswriter:")
         if cls is None:
-            changed = [x[0] for x in self.record_set]
+            assert self.changes, "commit cannot be empty"
             self.commit_to_filesystem()
-            log.info("fstransaction committed " + str(self.fs.next_serial-1))
-            if changed:
-                log.debug(" changed:%s" % ",".join(changed))
-            if self.record_deleted:
-                log.debug(" deleted:%s" % ",".join(self.record_deleted))
+            commit_serial = self.fs.next_serial - 1
+            if self.changes:
+                self.log.info("committed tx%s: %s", commit_serial,
+                         ",".join(self.changes))
+                self.fs._notify_on_commit(commit_serial)
         else:
             while self.pending_renames:
                 source, dest = self.pending_renames.pop()
                 os.remove(source)
-            log.info("fstransaction roll back at %s" %(self.fs.next_serial))
+            self.log.info("roll back at %s" %(self.fs.next_serial))
 
     def commit_to_filesystem(self):
         # XXX assumption: we don't crash in the middle of this function
-        # write out changelog entry
         p = self.fs.path_changelogdir.join(str(self.fs.next_serial))
         assert not p.exists(), (  # XXX recover
-                    "change entry already exists, unclean shutdown?")
-        entry = dict(record_deleted=self.record_deleted,
-                     record_set=self.record_set)
-        self.direct_write(p, entry)
+                    "change entry %s already exists, unclean shutdown?" %
+                    self.fs.next_serial)
+        self._direct_write(p, self.changes)
 
         # do all renames and then removes
         for source, dest in self.pending_renames:
@@ -139,7 +167,7 @@ class FSWriter:
 
         # finally increment the serial and write it out
         self.fs.next_serial += 1
-        self.direct_write(self.fs.path_next_serial, self.fs.next_serial)
+        write_int_to_file(self.fs.next_serial, self.fs.path_next_serial)
 
 
 def rename(source, dest):
@@ -154,6 +182,75 @@ def rename(source, dest):
         os.rename(source, dest)
 
 
+class TxNotificationThread:
+    def __init__(self, keyfs):
+        self.keyfs = keyfs
+        self.cv_new_transaction = mythread.threading.Condition()
+        self.cv_new_event_serial = mythread.threading.Condition()
+        self.event_serial_path = str(self.keyfs.basedir.join(".event_serial"))
+        self._on_key_change = {}
+
+    def on_key_change(self, key, subscriber):
+        assert not mythread.has_active_thread(self), (
+               "cannot register handlers after thread has started")
+        keyname = getattr(key, "name", key)
+        assert py.builtin._istext(keyname) or py.builtin._isbytes(keyname)
+        self._on_key_change.setdefault(keyname, []).append(subscriber)
+
+    def wait_event_serial(self, serial):
+        with threadlog.around("info", "waiting for event-serial %s", serial):
+            with self.cv_new_event_serial:
+                while serial >= self.read_event_serial():
+                    self.cv_new_event_serial.wait()
+
+    def wait_tx_serial(self, serial):
+        with threadlog.around("info", "waiting for tx-serial %s", serial):
+            with self.cv_new_transaction:
+                while serial > self.keyfs.get_current_serial():
+                    self.cv_new_transaction.wait()
+
+    def read_event_serial(self):
+        return read_int_from_file(self.event_serial_path, 0)
+
+    def notify_on_commit(self, serial):
+        with self.cv_new_transaction:
+            self.cv_new_transaction.notify_all()
+
+    def thread_shutdown(self):
+        with self.cv_new_transaction:
+            self.cv_new_transaction.notify_all()
+
+    def thread_run(self):
+        event_serial = self.read_event_serial()
+        log = thread_push_log("[NOTI]")
+        while 1:
+            while event_serial < self.keyfs._fs.next_serial:
+                self.thread.exit_if_shutdown()
+                self._execute_hooks(event_serial, log)
+                with self.cv_new_event_serial:
+                    event_serial += 1
+                    write_int_to_file(event_serial, self.event_serial_path)
+                    self.cv_new_event_serial.notify_all()
+            if event_serial >= self.keyfs._fs.next_serial:
+                with self.cv_new_transaction:
+                    self.cv_new_transaction.wait()
+                    self.thread.exit_if_shutdown()
+
+    def _execute_hooks(self, event_serial, log):
+        log.debug("calling hooks for tx%s", event_serial)
+        changes = self.keyfs._fs.get_changelog_entry(event_serial)
+        for relpath, (keyname, back_serial, val) in changes.items():
+            key = self.keyfs.derive_key(relpath, keyname)
+            ev = KeyChangeEvent(key, val, event_serial, back_serial)
+            subscribers = self._on_key_change.get(keyname, [])
+            for sub in subscribers:
+                log.debug("calling %s", sub)
+                try:
+                    sub(ev)
+                except Exception:
+                    log.exception("calling %s failed", sub)
+
+
 class KeyFS(object):
     """ singleton storage object. """
     def __init__(self, basedir):
@@ -161,86 +258,98 @@ class KeyFS(object):
         self._keys = {}
         self._mode = None
         # a non-recursive lock because we don't support nested transactions
-        self._write_lock = threading.Lock()
-        self._threadlocal = threading.local()
-        self._fs = Filesystem(self.basedir)
+        self._write_lock = mythread.threading.Lock()
+        self._threadlocal = mythread.threading.local()
+        self.notifier = t = TxNotificationThread(self)
+        self._fs = Filesystem(self.basedir, notify_on_commit=t.notify_on_commit)
+
+    def derive_key(self, relpath, keyname=None):
+        """ return direct key for a given path and keyname.
+        If keyname is not specified, the relpath key must exist
+        to extract its name. """
+        if keyname is None:
+            try:
+                return self.tx.get_key_in_transaction(relpath)
+            except (AttributeError, KeyError):
+                filepath = os.path.join(str(self.basedir), relpath)
+                try:
+                    keyname, last_serial = load_from_file(filepath)
+                except IOError:
+                    raise KeyError(relpath)
+        key = self.get_key(keyname)
+        if isinstance(key, PTypedKey):
+            key = key(**key.extract_params(relpath))
+        return key
+
+    def import_changelog_entry(self, serial, entry):
+        with self._write_lock:
+            with self._fs.write_transaction() as fswriter:
+                next_serial = self.get_next_serial()
+                assert next_serial == serial, (next_serial, serial)
+                for relpath, tup in entry.items():
+                    name, back_serial, val = tup
+                    typedkey = self.derive_key(relpath, name)
+                    fswriter.record_set(typedkey, val)
+
+    def get_next_serial(self):
+        return self._fs.next_serial
+
+    def get_current_serial(self):
+        return self.get_next_serial() - 1
 
     @property
     def tx(self):
         return getattr(self._threadlocal, "tx")
 
-    def _get(self, relpath):
+    def get_value_at(self, typedkey, at_serial):
+        relpath = typedkey.relpath
         try:
-            with self._getpath(relpath).open("rb") as f:
-                return f.read()
-        except py.error.Error:
+            keyname, last_serial = load_from_file(typedkey.filepath)
+        except IOError:
             raise KeyError(relpath)
+        while last_serial >= 0:
+            tup = self._fs.get_from_transaction_entry(last_serial, relpath)
+            assert tup, "no transaction entry at %s" %(last_serial)
+            keyname, back_serial, val = tup
+            if last_serial > at_serial:
+                last_serial = back_serial
+                continue
+            if val is not None:
+                return copy_if_mutable(val)
+            raise KeyError(relpath)  # was deleted
+
+        # we could not find any change below at_serial which means
+        # the key didn't exist at that point in time
+        raise KeyError(relpath)
 
     def mkdtemp(self, prefix):
-        # XXX only used from devpi-web, could be managed there
+        # XXX only used from devpi-web, should be managed there
         tmpdir = self.basedir.ensure(".tmp", dir=1)
         return py.path.local.make_numbered_dir(prefix=prefix, rootdir=tmpdir)
 
-    def _get_mutable(self, relpath, at_serial):
-        try:
-            f = self._getpath(relpath).open("rb")
-        except py.error.Error:
-            raise KeyError(relpath)
-        with f:
-            history_serials = marshal.load(f)
-            if history_serials.pop(0) <= at_serial:
-                # latest state is older already than what we require
-                try:
-                    return marshal.load(f)
-                except EOFError:  # a delete entry
-                    raise KeyError(relpath)
-           
-        for serial in history_serials:
-            if serial <= at_serial:
-                # we found the latest state fit for what we require
-                val = self._fs.get_from_transaction_entry(serial, relpath)
-                if val is not _nodefault:
-                    return val
-        
-        log.warn("performing exhaustive search on %s, %s", relpath, at_serial)
-        # the history_serials are all newer than what we need
-        # let's do an exhaustive search for the last change
-        while at_serial > 0:
-            val = self._fs.get_from_transaction_entry(at_serial, relpath)
-            if val is not _nodefault:
-                return val
-            at_serial -= 1
-
-        # we could not find any historic serial lower than target_serial
-        # which means the key didn't exist at that point in time
-        raise KeyError(relpath)
-
-    def _exists(self, relpath):
-        return self._getpath(relpath).check()
-
-    def _getpath(self, relpath):
-        assert isinstance(relpath, py.builtin._basestring), \
-               (type(relpath), relpath)
-        return self.basedir.join(relpath)
-
-    def addkey(self, key, type, name=None):
-        assert isinstance(key, py.builtin._basestring)
-        if "{" in key:
-            key = PTypedKey(self, key, type)
+    def add_key(self, name, path, type):
+        assert isinstance(path, py.builtin._basestring)
+        if "{" in path:
+            key = PTypedKey(self, path, type, name)
         else:
-            key = TypedKey(self, key, type)
-        if name is not None:
-            self._keys[name] = key
-            setattr(self, name, key)
+            key = TypedKey(self, path, type, name)
+        self._keys[name] = key
+        setattr(self, name, key)
         return key
 
-    def begin_transaction_in_thread(self, write=False):
+    def get_key(self, name):
+        return self._keys.get(name)
+
+    def begin_transaction_in_thread(self, write=False, at_serial=None):
         assert not hasattr(self._threadlocal, "tx")
-        tx = WriteTransaction(self) if write else ReadTransaction(self)
+        tx = WriteTransaction(self) if write \
+                                    else ReadTransaction(self, at_serial)
         self._threadlocal.tx = tx
+        thread_push_log("[%stx%s]" %("W" if write else "R", tx.at_serial))
         return tx
 
     def clear_transaction(self):
+        thread_pop_log()
         del self._threadlocal.tx
 
     def restart_as_write_transaction(self):
@@ -256,10 +365,10 @@ class KeyFS(object):
         self.clear_transaction()
 
     @contextlib.contextmanager
-    def transaction(self, write=True):
-        self.begin_transaction_in_thread(write=write) 
+    def transaction(self, write=True, at_serial=None):
+        tx = self.begin_transaction_in_thread(write=write, at_serial=at_serial)
         try:
-            yield
+            yield tx
         except:
             self.rollback_transaction_in_thread()
             raise
@@ -268,34 +377,64 @@ class KeyFS(object):
 
 
 class PTypedKey:
-    def __init__(self, keyfs, key, type):
+    rex_braces = re.compile(r'\{(.+?)\}')
+    def __init__(self, keyfs, key, type, name):
         self.keyfs = keyfs
-        self.key = py.builtin._totext(key)
+        self.pattern = py.builtin._totext(key)
         self.type = type
+        self.name = name
+        def repl(match):
+            name = match.group(1)
+            return r'(?P<%s>[^\/]+)' % name
+        rex_pattern = self.pattern.replace("+", r"\+")
+        rex_pattern = self.rex_braces.sub(repl, rex_pattern)
+        self.rex_reverse = re.compile("^" + rex_pattern + "$")
 
     def __call__(self, **kw):
-        realkey = self.key.format(**kw)
-        return TypedKey(self.keyfs, realkey, self.type)
+        for val in kw.values():
+            if "/" in val:
+                raise ValueError(val)
+        relpath = self.pattern.format(**kw)
+        return TypedKey(self.keyfs, relpath, self.type, self.name,
+                        params=kw)
+
+    def extract_params(self, relpath):
+        m = self.rex_reverse.match(relpath)
+        return m.groupdict() if m is not None else {}
 
     def __repr__(self):
-        return "<PTypedKey %r type %r>" %(self.key, self.type.__name__)
+        return "<PTypedKey %r type %r>" %(self.pattern, self.type.__name__)
+
+
+class KeyChangeEvent:
+    def __init__(self, typedkey, value, at_serial, back_serial):
+        self.typedkey = typedkey
+        self.value = value
+        self.at_serial = at_serial
+        self.back_serial = back_serial
 
 
 class TypedKey:
-    def __init__(self, keyfs, relpath, type):
+    def __init__(self, keyfs, relpath, type, name, params=None):
         self.keyfs = keyfs
         self.relpath = relpath
         self.type = type
+        self.name = name
+        self.filepath = os.path.join(str(keyfs.basedir), relpath)
+        self.params = params or {}
+
+    @cached_property
+    def params(self):
+        key = self.keyfs.get_key(self.name)
+        if isinstance(key, PTypedKey):
+            return key.extract_params(self.relpath)
+        return {}
 
     def __hash__(self):
         return hash(self.relpath)
 
     def __eq__(self, other):
         return self.relpath == other.relpath
-
-    @property
-    def filepath(self):
-        return self.keyfs._getpath(self.relpath)
 
     def __repr__(self):
         return "<TypedKey %r type %r>" %(self.relpath, self.type.__name__)
@@ -325,38 +464,39 @@ class TypedKey:
 
 
 class ReadTransaction(object):
-    def __init__(self, keyfs):
+    def __init__(self, keyfs, at_serial=None):
         self.keyfs = keyfs
-        self.at_serial = keyfs._fs.next_serial - 1
+        if at_serial is None:
+            at_serial = keyfs.get_next_serial() - 1
+        self.at_serial = at_serial
         self.cache = {}
         self.dirty = set()
 
-    def get_typed_state(self, typedkey):
-        if typedkey.type == bytes:
-            return self.keyfs._get(typedkey.relpath)
-        val = self.keyfs._get_mutable(typedkey.relpath, self.at_serial)
-        assert isinstance(val, typedkey.type), val
-        return val
-
     def exists_typed_state(self, typedkey):
         try:
-            self.get_typed_state(typedkey)
+            self.keyfs.get_value_at(typedkey, self.at_serial)
         except KeyError:
             return False
         return True
 
+    def get_key_in_transaction(self, relpath):
+        for key in self.cache:
+            if key.relpath == relpath:
+                return key
+        raise KeyError(relpath)
+
     def get(self, typedkey):
         try:
-            return self.cache[typedkey]
+            return copy_if_mutable(self.cache[typedkey])
         except KeyError:
             if typedkey in self.dirty:
                 return typedkey.type()
             try:
-                val = self.get_typed_state(typedkey)
+                val = self.keyfs.get_value_at(typedkey, self.at_serial)
             except KeyError:
                 return typedkey.type()
-            self.cache[typedkey] = copy_if_mutable(val)
-            return val
+            self.cache[typedkey] = val
+            return copy_if_mutable(val)
 
     def exists(self, typedkey):
         if typedkey in self.cache:
@@ -388,23 +528,16 @@ class WriteTransaction(ReadTransaction):
 
     def commit(self):
         if not self.dirty:
+            threadlog.debug("nothing to commit, just closing tx")
             return self._close()
         try:
             with self.keyfs._fs.write_transaction() as fswriter:
                 for typedkey in self.dirty:
-                    relpath = typedkey.relpath
                     try:
                         val = self.cache[typedkey]
                     except KeyError:
-                        if typedkey.type == bytes:
-                            fswriter.delete(relpath)
-                        else:
-                            fswriter.set_mutable(relpath)
-                    else:
-                        if typedkey.type == bytes:
-                            fswriter.set(relpath, val)
-                        else:
-                            fswriter.set_mutable(relpath, val)
+                        val = None
+                    fswriter.record_set(typedkey, val)
                 at_serial = fswriter.fs.next_serial
         finally:
             self._close()
@@ -416,9 +549,10 @@ class WriteTransaction(ReadTransaction):
         return serial
 
     def rollback(self):
+        log = thread_current_log()
         log.debug("transaction rollback at %s" % (self.at_serial))
         return self._close()
-        
+
 
 def copy_if_mutable(val):
     if isinstance(val, dict):

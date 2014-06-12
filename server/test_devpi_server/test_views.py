@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-import marshal
 import pytest
 import re
 import py
@@ -12,6 +11,7 @@ from devpi_common.metadata import splitbasename
 from devpi_common.url import URL
 import devpi_server.views
 from devpi_common.archive import Archive, zip_dict
+
 
 from .functional import TestUserThings, TestIndexThings  # noqa
 
@@ -50,6 +50,7 @@ def test_simple_project_unicode_rejected(pypistage, testapp, dummyrequest):
     from devpi_server.views import PyPIView
     from pyramid.httpexceptions import HTTPClientError
     dummyrequest.registry['xom'] = testapp.xom
+    dummyrequest.log = pypistage.xom.log
     view = PyPIView(dummyrequest)
     name = py.builtin._totext(b"qpw\xc3\xb6", "utf-8")
     dummyrequest.matchdict.update(user="x", index="y", projectname=name)
@@ -73,8 +74,11 @@ def test_simple_project_pypi_egg(pypistage, testapp):
 def test_simple_list(pypistage, testapp):
     pypistage.mock_simple("hello1", "<html/>")
     pypistage.mock_simple("hello2", "<html/>")
-    assert testapp.get("/root/pypi/+simple/hello1").status_code == 200
-    assert testapp.get("/root/pypi/+simple/hello2").status_code == 200
+    r = testapp.get("/root/pypi/+simple/hello1", expect_errors=False)
+    serial = int(r.headers["X-DEVPI-SERIAL"])
+    r2 = testapp.get("/root/pypi/+simple/hello2", expect_errors=False)
+    assert int(r2.headers["X-DEVPI-SERIAL"]) == serial + 1
+
     r = testapp.get("/root/pypi/+simple/hello3")
     assert r.status_code == 200
     assert "no such project" in r.text
@@ -409,7 +413,7 @@ def test_upload_and_access_releasefile_meta(mapp):
     href = list(json["result"]["2.6"]["+files"].values())[0]
     pkgmeta = mapp.getjson("/" + href)
     assert pkgmeta["type"] == "releasefilemeta"
-    assert pkgmeta["result"]["size"] == "3"
+    assert pkgmeta["result"]["md5"]
 
 def test_upload_and_delete_project_version(mapp):
     api = mapp.create_and_use()
@@ -563,24 +567,3 @@ class Test_getjson:
         abort_call_args = abort_calls[0][0]
         assert abort_call_args[1] == 400
 
-class TestChangelog:
-    def test_get_latest_serial(self, testapp):
-        r = testapp.get("/+changelog")
-        serial = int(r.headers["X-DEVPI-SERIAL"])
-        assert serial > 0
-        assert len(r.body) == 0
-    
-    def test_get_since(self, testapp, mapp, noiter):
-        r = testapp.get("/+changelog?since=0")
-        entries = list(r.app_iter)
-        num = len(entries)
-        serial = int(r.headers["X-DEVPI-SERIAL"])
-        assert num == serial + 1
-        mapp.create_user("this", password="p")
-        r2 = testapp.get("/+changelog?since=%s" % num)
-        entries2 = [marshal.loads(x) for x in r2.app_iter]
-        assert len(entries2) == 1
-        record_set = dict(entries2[0]["record_set"])
-        assert "this/.config" in record_set
-        serial2 = int(r2.headers["X-DEVPI-SERIAL"])
-        assert serial2 == serial + 1

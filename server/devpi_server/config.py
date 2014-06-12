@@ -1,21 +1,19 @@
 from __future__ import unicode_literals
 import base64
 import os.path
-import logging
-from logging import getLogger, basicConfig
 import argparse
 
 import py
 from devpi_common.types import cached_property
+from .log import threadlog
 import devpi_server
-log = getLogger(__name__)
+
+log = threadlog
 
 def get_default_serverdir():
     return os.environ.get("DEVPI_SERVERDIR", "~/.devpi/server")
 
 def addoptions(parser):
-
-
     web = parser.addgroup("web serving options")
     web.addoption("--host",  type=str,
             default="localhost",
@@ -52,6 +50,10 @@ def addoptions(parser):
 
     deploy.addoption("--version", action="store_true",
             help="show devpi_version (%s)" % devpi_server.__version__)
+
+    deploy.addoption("--master", action="store", dest="master_url",
+            help="run as a replica of the specified master server",
+            default=None)
 
     deploy.addoption("--gendeploy", action="store", metavar="DIR",
             help="(unix only, deprecated) install and generate a pre-configured "
@@ -191,7 +193,13 @@ class PluginManager:
         for plug, distinfo in self._plugins:
             meth = getattr(plug, _name, None)
             if meth is not None:
-                results.append(meth(**kwargs))
+                name = "%s.%s" % (
+                            getattr(plug, "__class__", plug).__name__,
+                            meth.__name__)
+                with threadlog.around("debug", "call: %s %s", name, kwargs):
+                    results.append(meth(**kwargs))
+            #else:
+            #    threadlog.error("no plugin hook %s on %s", _name, plug)
         return results
 
     def devpiserver_pyramid_configure(self, config, pyramid_config):
@@ -242,13 +250,6 @@ class Config:
             self.secretfile.chmod(s.S_IRUSR|s.S_IWUSR)
         return self.secretfile.read()
 
-def configure_logging(config):
-    if config.args.debug:
-        loglevel = logging.DEBUG
-    else:
-        loglevel = logging.INFO
-    basicConfig(level=loglevel,
-                format='%(asctime)s [%(levelname)-5.5s] %(name)s: %(message)s')
 
 def getpath(path):
     return py.path.local(os.path.expanduser(str(path)))

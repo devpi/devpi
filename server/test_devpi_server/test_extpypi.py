@@ -246,9 +246,10 @@ class TestIndexParsing:
         assert link3.url == \
                 "http://pypi.python.org/pkg/py-1.4.10.zip#md5=2222"
 
+@pytest.mark.writetransaction
 class TestExtPYPIDB:
     def test_parse_project_nomd5(self, pypistage):
-        x = pypistage.setextsimple("pytest", pkgver="pytest-1.0.zip")
+        x = pypistage.mock_simple("pytest", pkgver="pytest-1.0.zip")
         links = pypistage.getreleaselinks("pytest")
         link, = links
         assert link.url == "https://pypi.python.org/pkg/pytest-1.0.zip"
@@ -256,26 +257,28 @@ class TestExtPYPIDB:
         assert link.relpath.endswith("/pytest-1.0.zip")
 
     def test_parse_project_replaced_eggfragment(self, pypistage):
-        pypistage.setextsimple("pytest", pypiserial=10,
+        pypistage.mock_simple("pytest", pypiserial=10,
             pkgver="pytest-1.0.zip#egg=pytest-dev1")
-        links = pypistage.getreleaselinks("pytest", refresh=10)
+        links = pypistage.getreleaselinks("pytest")
         assert links[0].eggfragment == "pytest-dev1"
-        pypistage.setextsimple("pytest", pypiserial=11,
+        pypistage.mock_simple("pytest", pypiserial=11,
             pkgver="pytest-1.0.zip#egg=pytest-dev2")
-        links = pypistage.getreleaselinks("pytest", refresh=11)
+        links = pypistage.getreleaselinks("pytest")
         assert links[0].eggfragment == "pytest-dev2"
 
     def test_parse_project_replaced_md5(self, pypistage):
-        x = pypistage.setextsimple("pytest", pypiserial=10, pkgver="pytest-1.0.zip")
-        links = pypistage.getreleaselinks("pytest", refresh=10)
+        x = pypistage.mock_simple("pytest", pypiserial=10,
+                                   pkgver="pytest-1.0.zip")
+        links = pypistage.getreleaselinks("pytest")
         assert links[0].md5 == x.md5
-        y = pypistage.setextsimple("pytest", pypiserial=11, pkgver="pytest-1.0.zip")
-        links = pypistage.getreleaselinks("pytest", refresh=11)
+        y = pypistage.mock_simple("pytest", pypiserial=11,
+                                   pkgver="pytest-1.0.zip")
+        links = pypistage.getreleaselinks("pytest")
         assert links[0].md5 == y.md5
         assert x.md5 != y.md5
 
     def test_getprojectconfig(self, pypistage):
-        pypistage.setextsimple("Pytest", pkgver="pytest-1.0.zip")
+        pypistage.mock_simple("Pytest", pkgver="pytest-1.0.zip")
         config = pypistage.get_projectconfig("Pytest")
         data = config["1.0"]
         assert data["+files"]
@@ -284,14 +287,14 @@ class TestExtPYPIDB:
         assert pypistage.get_project_info("pytest").name == "Pytest"
 
     def test_getdescription(self, pypistage):
-        pypistage.setextsimple("pytest", text='''
+        pypistage.mock_simple("pytest", text='''
             <a href="../../pkg/pytest-1.0.zip#md5=123" />''')
         content = pypistage.get_description("pytest", "1.0")
         assert "refer" in content
         assert "https://pypi.python.org/pypi/pytest/1.0/" in content
 
     def test_getprojectconfig_with_egg(self, pypistage):
-        pypistage.setextsimple("pytest", text='''
+        pypistage.mock_simple("pytest", text='''
             <a href="../../pkg/tip.zip#egg=pytest-dev" />''')
         config = pypistage.get_projectconfig("pytest")
         data = config["egg=pytest-dev"]
@@ -299,7 +302,7 @@ class TestExtPYPIDB:
 
     def test_parse_and_scrape(self, pypistage):
         md5 = getmd5("123")
-        pypistage.setextsimple("pytest", text='''
+        pypistage.mock_simple("pytest", text='''
                 <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
                 <a rel="download" href="https://download.com/index.html" />
             '''.format(md5=md5), pypiserial=20)
@@ -314,19 +317,18 @@ class TestExtPYPIDB:
 
         # check refresh
         md5b = getmd5("456")
-        pypistage.setextsimple("pytest", text='''
+        pypistage.mock_simple("pytest", text='''
                 <a href="../../pkg/pytest-1.0.1.zip#md5={md5b}" />
                 <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
                 <a rel="download" href="https://download.com/index.html" />
             '''.format(md5=md5, md5b=md5b), pypiserial=25)
-        assert len(pypistage.getreleaselinks("pytest")) == 2  # no refresh
-        links = pypistage.getreleaselinks("pytest", refresh=25)
+        links = pypistage.getreleaselinks("pytest")
         assert len(links) == 3
         assert links[1].url == "https://pypi.python.org/pkg/pytest-1.0.1.zip"
         assert links[1].relpath.endswith("/pytest-1.0.1.zip")
 
     def test_parse_and_scrape_non_html_ignored(self, pypistage):
-        pypistage.setextsimple("pytest", text='''
+        pypistage.mock_simple("pytest", text='''
                 <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
                 <a rel="download" href="https://download.com/index.html" />
             ''', pypiserial=20)
@@ -338,27 +340,21 @@ class TestExtPYPIDB:
         assert len(links) == 1
 
     def test_getreleaselinks_cache_refresh_semantics(self, pypistage):
-        pypistage.setextsimple("pytest", text='''
+        pypistage.mock_simple("pytest", text='''
                 <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
                 <a rel="download" href="https://download.com/index.html" />
             ''', pypiserial=10)
 
         # check getreleaselinks properly returns -2 on stale cache returns
-        ret = pypistage.getreleaselinks("pytest", refresh=11)
+        ret = pypistage.getreleaselinks("pytest")
+        assert len(ret) == 1
+        pypistage.pypimirror.process_changelog([("pytest", 0,0,0, 11)])
+        ret = pypistage.getreleaselinks("pytest")
         assert ret == -2
-        ret = pypistage.getreleaselinks("pytest", refresh=10)
-        assert len(ret) == 1
-
-        # disable httpget and see if we still get releaselinks for lower
-        # refresh serials
-        pypistage.httpget = None
-        ret = pypistage.getreleaselinks("pytest", refresh=9)
-        assert len(ret) == 1
-
 
     @pytest.mark.parametrize("errorcode", [404, -1, -2])
     def test_parse_and_scrape_error(self, pypistage, errorcode):
-        pypistage.setextsimple("pytest", text='''
+        pypistage.mock_simple("pytest", text='''
                 <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
                 <a rel="download" href="https://download.com/index.html" />
             ''')
@@ -370,7 +366,7 @@ class TestExtPYPIDB:
                 "https://pypi.python.org/pkg/pytest-1.0.zip"
 
     def test_scrape_not_recursive(self, pypistage):
-        pypistage.setextsimple("pytest", text='''
+        pypistage.mock_simple("pytest", text='''
                 <a rel="download" href="https://download.com/index.html" />
             ''')
         md5=getmd5("hello")
@@ -414,19 +410,17 @@ def raise_ValueError():
 class TestRefreshManager:
 
     @pytest.mark.notransaction
-    def test_init_pypi_mirror(self, pypistage, keyfs):
+    def test_init_pypi_mirror(self, xom, keyfs):
         proxy = mock.create_autospec(XMLProxy)
         d = {"hello": 10, "abc": 42}
         proxy.list_packages_with_serial.return_value = d
-        pypistage.init_pypi_mirror(proxy)
-        assert pypistage.name2serials == d
-        assert load_name2serials(keyfs, None) == d
-        with keyfs.transaction():
-            assert pypistage.getprojectnames() == ["abc", "hello"]
+        mirror = PyPIMirror(xom)
+        mirror.init_pypi_mirror(proxy)
+        assert mirror.name2serials == d
 
-    def test_pypichanges_loop(self, pypistage, monkeypatch):
-        pypistage.process_changelog = mock.Mock()
-        pypistage.process_refreshes = mock.Mock()
+    @pytest.mark.notransaction
+    def test_pypichanges_loop(self, pypistage, monkeypatch, pool):
+        pypistage.pypimirror.process_changelog = mock.Mock()
         proxy = mock.create_autospec(XMLProxy)
         changelog = [
             ["pylib", "1.4", 12123, 'new release', 11],
@@ -435,51 +429,49 @@ class TestRefreshManager:
         proxy.changelog_since_serial.return_value = changelog
 
         # we need to have one entry in serials
-        pypistage.mock_simple("pytest", pypiserial=27)
-        with pytest.raises(ValueError):
-            pypistage.spawned_pypichanges(proxy, proxysleep=raise_ValueError)
-        pypistage.process_changelog.assert_called_once_with(changelog)
-        pypistage.process_refreshes.assert_called_once()
+        pypistage.httpget.mock_simple("pytest", pypiserial=27)
+        pypistage.pypimirror.name2serials["pytest"] = 27
+        mirror = pypistage.pypimirror
+        pool.register(mirror)
+        pool.shutdown()
+        with pytest.raises(pool.Shutdown):
+            mirror.thread_run(proxy)
+        mirror.process_changelog.assert_called_once_with(changelog)
 
-    @pytest.mark.notransaction
-    def test_pypichanges_changes(self, pypistage, keyfs, monkeypatch):
-        assert not pypistage.name2serials
+    def test_pypichanges_changes(self, xom, pypistage, keyfs, monkeypatch):
+        assert not pypistage.pypimirror.name2serials
         pypistage.mock_simple("pytest", '<a href="pytest-2.3.tgz"/a>',
                           pypiserial=20)
         pypistage.mock_simple("Django", '<a href="Django-1.6.tgz"/a>',
                           pypiserial=11)
-        assert len(pypistage.name2serials) == 2
-        with keyfs.transaction():
-            assert len(pypistage.getreleaselinks("pytest")) == 1
-            assert len(pypistage.getreleaselinks("Django")) == 1
-        pypistage.process_changelog([
-            ["Django", "1.4", 12123, 'new release', 25],
-            ["pytest", "2.4", 121231, 'new release', 27]
-        ])
-        assert len(pypistage.name2serials) == 2
-        name2serials = load_name2serials(keyfs, None)
-        assert name2serials["pytest"] == 27
-        assert name2serials["Django"] == 25
+        assert len(pypistage.pypimirror.name2serials) == 2
+        assert len(pypistage.getreleaselinks("pytest")) == 1
+        assert len(pypistage.getreleaselinks("Django")) == 1
         pypistage.mock_simple("pytest", '<a href="pytest-2.4.tgz"/a>',
                           pypiserial=27)
         pypistage.mock_simple("Django", '<a href="Django-1.7.tgz"/a>',
                           pypiserial=25)
-        pypistage.process_refreshes()
-        with keyfs.transaction():
-            b = pypistage.getreleaselinks("pytest")[0].basename
-            assert b == "pytest-2.4.tgz"
-            b = pypistage.getreleaselinks("Django")[0].basename
-            assert b == "Django-1.7.tgz"
+        assert len(pypistage.pypimirror.name2serials) == 2
+        name2serials = pypistage.pypimirror.load_name2serials(None)
+        assert name2serials["pytest"] == 27
+        assert name2serials["Django"] == 25
+        b = pypistage.getreleaselinks("pytest")[0].basename
+        assert b == "pytest-2.4.tgz"
+        b = pypistage.getreleaselinks("Django")[0].basename
+        assert b == "Django-1.7.tgz"
 
-    @pytest.mark.notransaction
-    def test_changelog_since_serial_nonetwork(self, pypistage, caplog, reqmock):
+    def test_changelog_since_serial_nonetwork(self, pypistage, caplog,
+            reqmock, pool):
         pypistage.mock_simple("pytest", pypiserial=10)
         reqreply = reqmock.mockresponse(PYPIURL_XMLRPC, code=400)
         xmlproxy = XMLProxy(PYPIURL_XMLRPC)
-        with pytest.raises(ValueError):
-            pypistage.spawned_pypichanges(xmlproxy, proxysleep=raise_ValueError)
-        with pytest.raises(ValueError):
-            pypistage.spawned_pypichanges(xmlproxy, proxysleep=raise_ValueError)
+        mirror = pypistage.pypimirror
+        pool.register(mirror)
+        pool.shutdown()
+        with pytest.raises(pool.Shutdown):
+            mirror.thread_run(xmlproxy)
+        with pytest.raises(pool.Shutdown):
+            mirror.thread_run(xmlproxy)
         calls = reqreply.requests
         assert len(calls) == 2
         assert xmlrpc.loads(calls[0].body) == ((10,), "changelog_since_serial")

@@ -2,7 +2,6 @@ import pytest
 from devpi_server.main import *
 import devpi_server
 
-
 def test_check_compatible_version_earlier(xom, monkeypatch):
     monkeypatch.setattr(xom, "get_state_version", lambda: "1.0")
     with pytest.raises(Fatal):
@@ -41,7 +40,7 @@ def test_pyramid_configure_called(makexom):
         def devpiserver_pyramid_configure(self, config, pyramid_config):
             l.append((config, pyramid_config))
     xom = makexom(plugins=[(Plugin(),None)])
-    xom.create_app(immediatetasks=-1)
+    xom.create_app()
     assert len(l) == 1
     config, pyramid_config = l[0]
     assert config == xom.config
@@ -54,10 +53,10 @@ def test_run_commands_called(monkeypatch, tmpdir):
         def devpiserver_run_commands(self, xom):
             l.append(xom)
             return 1
-    monkeypatch.setattr(devpi_server.extpypi.PyPIStage, "init_pypi_mirror",
+    monkeypatch.setattr(devpi_server.extpypi.PyPIMirror, "init_pypi_mirror",
                         lambda self, proxy: None)
     # catch if _main doesn't return after run_commands
-    monkeypatch.setattr(devpi_server.main, "wsgi_run", lambda xom: 0 / 0)
+    monkeypatch.setattr(devpi_server.main, "wsgi_run", lambda *args: 0 / 0)
     result = _main(
         argv=["devpi-server", "--serverdir", str(tmpdir)],
         hook=PluginManager([(Plugin(), None)]))
@@ -72,10 +71,10 @@ def test_main_starts_server_if_run_commands_returns_none(monkeypatch, tmpdir):
     class Plugin:
         def devpiserver_run_commands(self, xom):
             l.append(xom)
-    monkeypatch.setattr(devpi_server.extpypi.PyPIStage, "init_pypi_mirror",
+    monkeypatch.setattr(devpi_server.extpypi.PyPIMirror, "init_pypi_mirror",
                         lambda self, proxy: None)
     # catch if _main doesn't return after run_commands
-    monkeypatch.setattr(devpi_server.main, "wsgi_run", lambda xom: 0 / 0)
+    monkeypatch.setattr(devpi_server.main, "wsgi_run", lambda *args: 0 / 0)
     with pytest.raises(ZeroDivisionError):
         _main(
             argv=["devpi-server", "--serverdir", str(tmpdir)],

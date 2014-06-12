@@ -22,7 +22,8 @@ def register_and_store(stage, basename, content=b"123", name=None):
     if name is None:
         name = n
     stage.register_metadata(dict(name=name, version=version))
-    return stage.store_releasefile(name, version, basename, content)
+    res = stage.store_releasefile(name, version, basename, content)
+    return res
 
 def test_is_empty(model, keyfs):
     assert model.is_empty()
@@ -126,7 +127,7 @@ class TestStage:
         exporter.compute_global_projectname_normalization()
 
     def test_inheritance_simple(self, pypistage, stage):
-        stage._reconfigure(bases=("root/pypi",))
+        stage.modify(bases=("root/pypi",))
         pypistage.mock_simple("someproject", "<a href='someproject-1.0.zip' /a>")
         assert stage.getprojectnames() == ["someproject",]
         entries = stage.getreleaselinks("someproject")
@@ -137,8 +138,8 @@ class TestStage:
     def test_inheritance_twice(self, pypistage, stage, user):
         user.create_stage(index="dev2", bases=("root/pypi",))
         stage_dev2 = user.getstage("dev2")
-        stage._reconfigure(bases=(stage_dev2.name,))
-        pypistage.mock_simple("someproject", 
+        stage.modify(bases=(stage_dev2.name,))
+        pypistage.mock_simple("someproject",
                               "<a href='someproject-1.0.zip' /a>")
         register_and_store(stage_dev2, "someproject-1.1.tar.gz")
         register_and_store(stage_dev2, "someproject-1.2.tar.gz")
@@ -150,7 +151,7 @@ class TestStage:
         assert stage.getprojectnames() == ["someproject",]
 
     def test_inheritance_normalize_multipackage(self, pypistage, stage):
-        stage._reconfigure(bases=("root/pypi",))
+        stage.modify(bases=("root/pypi",))
         pypistage.mock_simple("some-project", """
             <a href='some_project-1.0.zip' /a>
             <a href='some_project-1.0.tar.gz' /a>
@@ -167,7 +168,7 @@ class TestStage:
         assert stage.getprojectnames() == ["some-project",]
 
     def test_getreleaselinks_inheritance_shadow(self, pypistage, stage):
-        stage._reconfigure(bases=("root/pypi",))
+        stage.modify(bases=("root/pypi",))
         pypistage.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         register_and_store(stage, "someproject-1.0.zip", b"123")
@@ -178,7 +179,7 @@ class TestStage:
         assert entries[0].relpath.endswith("someproject-1.0.zip")
 
     def test_getreleaselinks_inheritance_shadow_egg(self, pypistage, stage):
-        stage._reconfigure(bases=("root/pypi",))
+        stage.modify(bases=("root/pypi",))
         pypistage.mock_simple("py",
         """<a href="http://bb.org/download/py.zip#egg=py-dev" />
            <a href="http://bb.org/download/master#egg=py-dev2" />
@@ -192,7 +193,7 @@ class TestStage:
         assert e2.basename == "master"
 
     def test_inheritance_error(self, pypistage, stage):
-        stage._reconfigure(bases=("root/pypi",))
+        stage.modify(bases=("root/pypi",))
         pypistage.mock_simple("someproject", status_code = -1)
         entries = stage.getreleaselinks("someproject")
         assert entries == -1
@@ -200,7 +201,7 @@ class TestStage:
         #assert entries == -1
 
     def test_get_projectconfig_inherited(self, pypistage, stage):
-        stage._reconfigure(bases=("root/pypi",))
+        stage.modify(bases=("root/pypi",))
         pypistage.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         projectconfig = stage.get_projectconfig("someproject")
@@ -222,7 +223,7 @@ class TestStage:
                                     "someproject-1.0.zip", b"123")
 
     def test_project_config_shadowed(self, pypistage, stage):
-        stage._reconfigure(bases=("root/pypi",))
+        stage.modify(bases=("root/pypi",))
         pypistage.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         content = b"123"
@@ -294,24 +295,25 @@ class TestStage:
         assert '_templ' not in namelist
 
     def test_store_and_get_volatile(self, stage):
-        stage._reconfigure(volatile=False)
+        stage.modify(volatile=False)
         content = b"123"
         content2 = b"1234"
         entry = register_and_store(stage, "some-1.0.zip", content)
         assert len(stage.getreleaselinks("some")) == 1
 
-        # rewrite  fails
+        # rewrite  fails because index is non-volatile
         entry = stage.store_releasefile("some", "1.0",
                                         "some-1.0.zip", content2)
         assert entry == 409
 
         # rewrite succeeds with volatile
-        stage._reconfigure(volatile=True)
+        stage.modify(volatile=True)
         entry = stage.store_releasefile("some", "1.0",
                                         "some-1.0.zip", content2)
+        assert not isinstance(entry, int), entry
         entries = stage.getreleaselinks("some")
         assert len(entries) == 1
-        assert entries[0].FILE.get() == content2
+        assert entries[0].get_file_content() == content2
 
     def test_releasedata(self, stage):
         assert stage.metadata_keys
@@ -364,6 +366,32 @@ class TestStage:
         with pytest.raises(stage.RegisterNameConflict):
             stage.register_metadata(dict(name="Hello-world", version="1.0"))
             stage.register_metadata(dict(name="Hello_world", version="1.0"))
+
+    @pytest.mark.start_threads
+    def test_register_metadata_hook(self, stage, queue):
+        class Plugin:
+            def devpiserver_register_metadata(self, stage, metadata):
+                queue.put((stage, metadata))
+        stage.xom.config.hook._plugins = [(Plugin(), None)]
+        stage.register_metadata(dict(name="hello", version="1.0"))
+        stage.xom.keyfs.commit_transaction_in_thread()
+        stage2, metadata = queue.get()
+        assert stage2.name == stage.name
+
+    @pytest.mark.start_threads
+    def test_doczip_uploaded_hook(self, stage, queue):
+        class Plugin:
+            def devpiserver_docs_uploaded(self, stage, name, version, entry):
+                queue.put((stage, name, version, entry))
+        stage.xom.config.hook._plugins = [(Plugin(), None)]
+        stage.register_metadata(dict(name="pkg1", version="1.0"))
+        content = zip_dict({"index.html": "<html/>",
+            "_static": {}, "_templ": {"x.css": ""}})
+        stage.store_doczip("pkg1", "1.0", content)
+        stage.xom.keyfs.commit_transaction_in_thread()
+        nstage, name, version, entry = queue.get()
+        assert name == "pkg1"
+        assert version == "1.0"
 
     def test_get_existing_project(self, stage):
         stage.register_metadata(dict(name="Hello", version="1.0"))
