@@ -184,7 +184,7 @@ class XOM:
         # need to initialize the pypi mirror state before importing
         # because importing may need pypi mirroring state
         if xom.is_replica():
-            proxy = replica.PyPIProxy(xom, xom.config.args.master_url)
+            proxy = replica.PyPIProxy(xom._httpsession, xom.config.master_url)
         else:
             proxy = self.proxy
         xom.pypimirror.init_pypi_mirror(proxy)

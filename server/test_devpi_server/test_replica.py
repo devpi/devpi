@@ -1,6 +1,7 @@
 import pytest
 import py
 from devpi_server.replica import *
+from devpi_common.url import URL
 
 def loads(bytestring):
     return load(py.io.BytesIO(bytestring))
@@ -49,8 +50,8 @@ class TestPyPIProxy:
     def test_pypi_proxy(self, xom, reqmock):
         from devpi_server.keyfs import dump
         url = "http://localhost:3141/root/pypi/+name2serials"
-        master_url = "http://localhost:3141"
-        proxy = PyPIProxy(xom, master_url)
+        master_url = URL("http://localhost:3141")
+        proxy = PyPIProxy(xom._httpsession, master_url)
         io = py.io.BytesIO()
         dump({"hello": 42}, io)
         data = io.getvalue()

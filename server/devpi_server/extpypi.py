@@ -174,8 +174,8 @@ class PyPIStage:
         self.pypimirror = xom.pypimirror
         self.xom = xom
         if xom.is_replica():
-            self.PYPIURL_SIMPLE = xom.config.args.master_url + \
-                                  "/root/pypi/+simple/"
+            url = xom.config.master_url
+            self.PYPIURL_SIMPLE = url.joinpath("root/pypi/+simple/").url
         else:
             self.PYPIURL_SIMPLE = PYPIURL_SIMPLE
 

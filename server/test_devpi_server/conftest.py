@@ -144,7 +144,7 @@ def replica_xom(request, makexom):
     from devpi_server.replica import PyPIProxy
     master_url = "http://localhost:3111"
     xom = makexom(["--master", master_url])
-    xom.proxy = PyPIProxy(xom, master_url)
+    xom.proxy = PyPIProxy(xom._httpsession, xom.config.master_url)
     return xom
 
 

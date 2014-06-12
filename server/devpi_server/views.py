@@ -127,7 +127,6 @@ def handle_request(event, req_count=itertools.count()):
     thread_push_log("[req%s]" %(next(req_count)))
     xom = event.request.registry["xom"]
     if xom.is_replica():
-        threadlog.debug("matched_route %s", event.request.matched_route)
         if event.request.method in ("PUT", "POST", "PATCH", "DELETE", "PUSH"):
             event.request._PROXIED = True
             proxy_write_to_master(xom, event.request)
@@ -166,13 +165,15 @@ def handle_response(event):
 
 
 def proxy_write_to_master(xom, request):
-    master_url = URL(xom.config.args.master_url)
-    url = master_url.joinpath(request.path).url
-    requests = xom.new_http_session("relay")
+    """ method used to relay modifying requests to the master which originally
+    arrive at the replica site.
+    """
+    url = xom.config.master_url.joinpath(request.path).url
+    http = xom._httpsession
     with threadlog.around("info", "relaying: %s %s", request.method, url):
-        r = requests.request(request.method, url,
-                             data=request.body,
-                             headers=request.headers)
+        r = http.request(request.method, url,
+                         data=request.body,
+                         headers=request.headers)
     if r.status_code < 400:
         commit_serial = int(r.headers["X-DEVPI-SERIAL"])
         xom.keyfs.notifier.wait_tx_serial(commit_serial)
@@ -692,8 +693,7 @@ class PyPIView:
                 keyfs.restart_as_write_transaction()
                 entry.cache_remote_file(self.xom.httpget)
             else:
-                master_url = URL(self.xom.config.args.master_url)
-                url = master_url.joinpath(request.path).url
+                url = self.xom.config.master_url.joinpath(request.path).url
                 r = self.xom.httpget(url, allow_redirects=True)  # XXX HEAD
                 if not r.status_code == 200:
                     abort(request, 502, "%s: received %s from master" %(

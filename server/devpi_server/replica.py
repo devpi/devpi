@@ -2,6 +2,7 @@ import py
 from pyramid.httpexceptions import HTTPNotFound
 from pyramid.view import view_config
 from pyramid.response import Response
+
 from .keyfs import load, dump
 from .log import thread_push_log, threadlog
 
@@ -53,10 +54,7 @@ class MasterChangelogRequest:
 class ReplicaThread:
     def __init__(self, xom):
         self.xom = xom
-        r = xom.config.args.master_url
-        assert r
-        r = r.rstrip("/") + "/+changelog"
-        self.master_changelog_url = r
+        self.master_url = xom.config.master_url
         if xom.is_replica():
             xom.keyfs.notifier.on_key_change("PYPILINKS",
                                              PypiProjectChanged(xom))
@@ -69,7 +67,7 @@ class ReplicaThread:
         while 1:
             self.thread.exit_if_shutdown()
             serial = keyfs.get_next_serial()
-            url = self.master_changelog_url + "/%s" % serial
+            url = self.master_url.joinpath("+changelog", str(serial)).url
             log.info("fetching %s", url)
             try:
                 r = session.get(url, stream=True)
@@ -92,17 +90,20 @@ class ReplicaThread:
 
 
 class PyPIProxy(object):
-    def __init__(self, xom, master_url):
-        self._url = master_url.rstrip("/") + "/root/pypi/+name2serials"
-        self.xom = xom
+    def __init__(self, http, master_url):
+        self._url = master_url.joinpath("root/pypi/+name2serials").url
+        self._http = http
 
     def list_packages_with_serial(self):
-        session = self.xom.new_http_session("devpi-rpc")
-        r = session.get(self._url, stream=True)
-        if r.status_code != 200:
-            from devpi_server.main import fatal
-            fatal("replica: could not get serials from remote")
-        return load(r.raw)
+        try:
+            r = self._http.get(self._url, stream=True)
+        except self._http.RequestException as exc:
+            threadlog.exception("proxy request failed")
+        else:
+            if r.status_code == 200:
+                return load(r.raw)
+        from devpi_server.main import fatal
+        fatal("replica: could not get serials from remote")
 
 
 class PypiProjectChanged:

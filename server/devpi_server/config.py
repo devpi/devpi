@@ -7,6 +7,7 @@ import py
 from devpi_common.types import cached_property
 from .log import threadlog
 import devpi_server
+from devpi_common.url import URL
 
 log = threadlog
 
@@ -228,6 +229,8 @@ class PluginManager:
 class Config:
     def __init__(self, args, hook):
         self.args = args
+        if self.args.master_url:
+            self.master_url = URL(self.args.master_url)
         serverdir = args.serverdir
         if serverdir is None:
             serverdir = get_default_serverdir()
