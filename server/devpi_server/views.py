@@ -144,7 +144,6 @@ def handle_response(event):
     if not hasattr(event.request, "_PROXIED"):
         registry = event.request.registry
         keyfs = registry["xom"].keyfs
-        log = event.request.log
         tx = getattr(keyfs._threadlocal, "tx", None)
         if tx is not None:
             if 200 <= r.status_code < 400:

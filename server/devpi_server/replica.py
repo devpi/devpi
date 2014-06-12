@@ -97,8 +97,8 @@ class PyPIProxy(object):
     def list_packages_with_serial(self):
         try:
             r = self._http.get(self._url, stream=True)
-        except self._http.RequestException as exc:
-            threadlog.exception("proxy request failed")
+        except self._http.RequestException:
+            threadlog.exception("proxy request failed, no connection?")
         else:
             if r.status_code == 200:
                 return load(r.raw)
