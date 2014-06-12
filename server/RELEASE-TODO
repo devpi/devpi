@@ -2,13 +2,38 @@
 replication issues
 ------------------------
 
-- pushrelease operation should happen at model level?
+- consider what it takes to externally manage root/pypi files (and maybe
+  also other stage files) wrt to replication and internal refactoring.
 
 - replica/master authentication handling: currently salt-hashed passwords leak through
   replication protocol.  Should replica's get a key which needs to be generated
   by the master? 
 
-- remove unbounded cache for transaction entries
+- remove unbounded cache for transaction entries (repoze.lru?)
+
+- ProjectChanged should deal with deleted entries (it breaks currently)
+  (maybe refactor projconfig into multiple version-data files
+  which would make things more efficient likely.) Exc:
+    Traceback (most recent call last):
+      File "/home/hpk/p/devpi/server/devpi_server/keyfs.py", line 249, in _execute_hooks
+        sub(ev)
+      File "/home/hpk/p/devpi/server/devpi_server/model.py", line 593, in __call__
+        for ver, metadata in projconfig.items():
+    AttributeError: 'NoneType' object has no attribute 'items'
+    2014-06-12 17:39:16,519 DEBUG [NOTI] calling <devpi_server.model
+
+- look into EXC:
+  Traceback (most recent call last):
+  File "/home/hpk/p/devpi/server/devpi_server/keyfs.py", line 249, in _execute_hooks
+    sub(ev)
+  File "/home/hpk/p/devpi/server/devpi_server/model.py", line 589, in __call__
+    old = keyfs.get_value_at(ev.typedkey, ev.back_serial)
+  File "/home/hpk/p/devpi/server/devpi_server/keyfs.py", line 319, in get_value_at
+    raise KeyError(relpath)  # was deleted
+KeyError: u'user1/dev/hello/.config'
+
+  
+  
 
 keyfs 
 ------------------
