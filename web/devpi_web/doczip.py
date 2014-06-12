@@ -100,4 +100,3 @@ def iter_doc_contents(stage, name, version):
         if result is None:
             continue
         yield result
-
