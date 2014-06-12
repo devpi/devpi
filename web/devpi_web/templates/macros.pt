@@ -1,16 +1,40 @@
+<metal:head define-macro="head">
+    <link rel="stylesheet" type="text/css" href="${request.static_url('devpi_web:static/style.css')}" />
+    <script src="${request.static_url('devpi_web:static/jquery-1.11.1.min.js')}"></script>
+</metal:head>
 <metal:search define-macro="search">
     <form method="get" id="search" action="${request.route_url('search')}">
         <h1><a href="${request.route_url('root')}">devpi</a></h1>
         <input type="text" size="60" name="query" tal:attributes="value query|None" />
         <input type="submit" value="Search" />
+        <div class="query_doc inline" style="display: none">
+            <span class="help">
+                <a href="#">Close help</a>
+            </span>
+            <metal:query_doc use-macro="request.macros['query_doc']" />
+        </div>
     </form>
+    <script type="text/javascript"><!--
+        $(function() {
+            $('.help a').click(function() {
+                $('.query_doc.inline').slideToggle();
+                return false;
+            });
+        });
+    //--></script>
 </metal:search>
 <metal:search define-macro="navigation">
     <metal:search use-macro="request.macros['search']" />
-    <div>
+    <div id="navigation">
         <span tal:repeat="part request.navigation_info.path">
             <tal:separator condition="not repeat.part.start">»</tal:separator>
             <a href="${part.url}">${part.title}</a>
         </span>
+        <span class="help">
+            <a href="${request.route_url('search_help')}">How to search?</a>
+        </span>
     </div>
 </metal:search>
+<metal:query_doc define-macro="query_doc">
+    <p tal:repeat="html request.query_docs_html" tal:content="structure html"></p>
+</metal:query_doc>

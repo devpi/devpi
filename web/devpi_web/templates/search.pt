@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
     <head>
-        <link rel="stylesheet" type="text/css" href="${request.static_url('devpi_web:static/style.css')}" />
+        <metal:head use-macro="request.macros['head']" />
     </head>
     <body>
         <metal:search use-macro="request.macros['navigation']" />
@@ -10,18 +10,21 @@
                 <tal:item tal:repeat="item result['items']">
                     <dt class="packagename">
                         <a tal:omit-tag="not item.get('url')" tal:attributes="href item.url">
-                            ${item.data.name}
+                            ${item.title}
                         </a>
                     </dt>
                     <dd class="packageinfo">
                         <div class="packagedetails"><span>${item.data.path}</span></div>
-                        <ul>
-                            <li tal:repeat="sub_hit item.sub_hits">
+                        <dl tal:repeat="sub_hit item.sub_hits">
+                            <dt>
                                 <a tal:omit-tag="not sub_hit.get('url')" tal:attributes="href sub_hit.url">
                                     ${sub_hit.title}
                                 </a>
-                            </li>
-                        </ul>
+                            </dt>
+                            <dd condition="sub_hit.highlight">
+                                <span tal:replace="structure sub_hit.highlight" />
+                            </dd>
+                        </dl>
                         <div class="packagefurther" tal:condition="item.get('more_count')">
                             <a tal:omit-tag="not item.get('more_url')" tal:attributes="href item.more_url">
                                 ${item.more_count} more results for ${item.data.name} …
@@ -30,11 +33,14 @@
                     </dd>
                 </tal:item>
             </dl>
-            <ul tal:condition="batch_links|None">
-                <li tal:repeat="link batch_links">
-                    <a tal:omit-tag="not link.get('url')" tal:attributes="href link.get('url')">${link.title}</a>
+            <ul class="batch_links" tal:condition="batch_links|None">
+                <li tal:repeat="link batch_links" tal:attributes="class link.get('class')">
+                    <a tal:omit-tag="not link.get('url')" tal:attributes="href link.get('url')">${link.get('title', '')}</a>
                 </li>
             </ul>
+        </div>
+        <div id="content" tal:condition="not result|None">
+            <p>Your search <strong>${query}</strong> did not match anything.</p>
         </div>
     </body>
 </html>

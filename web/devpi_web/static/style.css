@@ -1,3 +1,32 @@
+body, html {
+    background: white;
+    color: black;
+    font-family: sans-serif;
+}
+
+form, #content, #navigation, .searchresults {
+    position: relative;
+    margin: 0 1em;
+}
+
+#navigation {
+    position: relative;
+    border-bottom: 1px solid #ccc;
+    padding: 0.25em 0 0.25em 0;
+}
+
+.help {
+    position: absolute;
+    right: 1em;
+}
+
+.query_doc.inline {
+    text-align: left;
+    background: #efefef;
+    border: 1px solid #ccc;
+    padding: 1em;
+}
+
 form#search h1 {
     font-family: sans-serif;
     display: inline-block;
@@ -23,14 +52,131 @@ form#search input[type=submit] {
     -webkit-appearance: button;
 }
 
+table.packages {
+    width: 100%;
+    margin: 0.5em 0;
+    border-collapse: collapse;
+    border: 1px solid #ccc;
+}
+
+table.packages th {
+    background: #ccc;
+    border-left: 1px solid #ccc;
+    border-right: 1px solid #ccc;
+    padding: 0.15em 0.4em;
+}
+
+table.packages td {
+    vertical-align: top;
+    border-left: 1px solid #ccc;
+    border-right: 1px solid #ccc;
+    padding: 0.25em 0.4em;
+}
+
+table.packages tr:nth-child(odd) {
+    background: #efefef;
+}
+
 .packagename {
     font-weight: bold;
-    font-size: 110%;
+    font-size: 125%;
+}
+
+.packageinfo {
+    margin: 0 0 1em 2em;
+    padding: 0;
+}
+
+.packageinfo dl {
+    vertical-align: top;
+    width: 49%;
+    max-width: 350px;
+    display: inline-block;
+    margin: 0.5em 0 0 0;
+    padding: 0;
+}
+
+.packageinfo dt {
+    margin: 0;
+    padding: 0.125em;
+}
+
+.packageinfo dd {
+    margin: 0;
+    padding: 0.125em 0.125em 0.125em 0.125em;
+    line-height: 1.25em;
+    height: 2.5em;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .packagedetails {
     font-size: 85%;
     color: #202020;
+}
+
+.batch_links {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    text-align: center;
+}
+
+.batch_links li {
+    margin: 0;
+    padding: 0;
+    display: inline-block;
+    width: 1.25em;
+    overflow: hidden;
+}
+
+.batch_links li.current {
+    font-weight: bold;
+}
+
+.batch_links li.prev,
+.batch_links li.next {
+    width: 3em;
+}
+
+table.projectinfos .key {
+    vertical-align: top;
+    font-weight: bold;
+}
+
+table.projectinfos ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+table.files {
+    width: 100%;
+    margin: 0.5em 0;
+    border-collapse: collapse;
+    border: 1px solid #ccc;
+}
+
+table.files th {
+    background: #ccc;
+    border-left: 1px solid #ccc;
+    border-right: 1px solid #ccc;
+    padding: 0.15em 0.4em;
+}
+
+table.files td {
+    border-left: 1px solid #ccc;
+    border-right: 1px solid #ccc;
+    padding: 0.15em 0.4em;
+}
+
+table.files tr:nth-child(even) {
+    background: #efefef;
+}
+
+table.files thead {
+    text-align: left;
+    font-weight: bold;
 }
 
 iframe {
@@ -40,4 +186,49 @@ iframe {
     right: 0;
     width: 100%;
     border: 0;
+}
+
+@media (max-width:991px) {
+    form#search input {
+        font-size: 18px;
+    }
+    .files .md5 {
+        display: none;
+    }
+}
+
+@media (max-width:767px) {
+    form#search input[type=text] {
+        width: 20em;
+    }
+}
+
+@media (max-width:615px) {
+    form#search h1 {
+        display: block;
+    }
+    form#search input[type=text] {
+        width: 15em;
+    }
+    .packageinfo dl {
+        width: 100%;
+    }
+}
+
+@media (min-width:768px) {
+    form, #content, #navigation, .searchresults {
+        width: 750px;
+    }
+}
+
+@media (min-width:992px) {
+    form, #content, #navigation, .searchresults {
+        width: 970px;
+    }
+}
+
+@media (min-width:1200px) {
+    form, #content, #navigation, .searchresults {
+        width: 1170px;
+    }
 }

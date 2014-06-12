@@ -1,32 +1,46 @@
 <html>
     <head>
         <title>${title}</title>
-        <link rel="stylesheet" type="text/css" href="${request.static_url('devpi_web:static/style.css')}" />
+        <metal:head use-macro="request.macros['head']" />
     </head>
     <body>
         <metal:search use-macro="request.macros['navigation']" />
         <div id="content">
         <h1>${title}</h1>
 
-        <table>
+        <p class="projectnavigation">
+            <tal:docs tal:condition="docs"><a href="${docs.url}">Documentation</a></tal:docs>
+            <tal:home_page tal:condition="home_page"><a href="${home_page}">Homepage</a></tal:home_page>
+        </p>
+        <p id="summary" tal:condition="summary" tal:content="summary" />
+
+        <table class="projectinfos">
             <tr tal:repeat="info infos">
-                <td>${info[0]}</td>
-                <td tal:content="structure info[1]"></td>
+                <td class="key">${info[0]}</td>
+                <td class="value" tal:content="structure info[1]"></td>
             </tr>
         </table>
 
-        <div class="docs" tal:condition="docs">
-            <h2>Documentation</h2>
-            <a href="${docs.url}">${docs.title}</a>
-        </div>
-        <div class="files" tal:condition="files">
-            <h2>Release files</h2>
-            <ul>
-                <li tal:repeat="file files"><a href="${file.url}">${file.title}</a></li>
-            </ul>
-        </div>
+        <table class="files" tal:condition="files">
+            <thead>
+                <th>File</th>
+                <th>Type</th>
+                <th>Py Version</th>
+                <th>Size</th>
+                <th class="md5">MD5</th>
+            </thead>
+            <tbody>
+                <tr tal:repeat="file files">
+                    <td><a href="${file.url}">${file.title}</a></td>
+                    <td>${file.dist_type}</td>
+                    <td>${file.py_version}</td>
+                    <td>${file.size}</td>
+                    <td class="md5"><code>${file.md5}</code></td>
+                </tr>
+            </tbody>
+        </table>
 
-        <div class="description" tal:content="structure content" />
+        <div id="description" tal:content="structure content" />
         </div>
     </body>
 </html>

@@ -551,6 +551,12 @@ class MyTestApp(TApp):
         kwargs.setdefault("expect_errors", True)
         return super(MyTestApp, self).get(*args, **kwargs)
 
+    def xget(self, code, *args, **kwargs):
+        r = self.get(*args, **kwargs)
+        assert r.status_code == code
+        return r
+
+
     def get_json(self, *args, **kwargs):
         headers = kwargs.setdefault("headers", {})
         headers["Accept"] = "application/json"
@@ -671,3 +677,12 @@ class Gen:
 
 def getmd5(s):
     return hashlib.md5(s.encode("utf8")).hexdigest()
+
+
+@pytest.yield_fixture
+def dummyrequest():
+    from pyramid.testing import DummyRequest, setUp, tearDown
+    request = DummyRequest()
+    setUp(request=request)
+    yield request
+    tearDown()

@@ -1,17 +1,13 @@
 <!doctype html>
 <html>
     <head>
-        <title>${title}</title>
+        <title>devpi - Not Found</title>
         <metal:head use-macro="request.macros['head']" />
     </head>
     <body>
         <metal:search use-macro="request.macros['navigation']" />
         <div id="content">
-        <h1>${title}</h1>
-
-        <ul tal:condition="versions">
-            <li tal:repeat="version versions"><a href="${version.url}">${version.title}</a></li>
-        </ul>
+            <p>${msg}</p>
         </div>
     </body>
 </html>

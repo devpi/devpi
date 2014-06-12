@@ -1,17 +1,15 @@
 <!doctype html>
 <html>
     <head>
-        <title>${title}</title>
+        <title>devpi</title>
         <metal:head use-macro="request.macros['head']" />
     </head>
     <body>
         <metal:search use-macro="request.macros['navigation']" />
         <div id="content">
-        <h1>${title}</h1>
-
-        <ul tal:condition="versions">
-            <li tal:repeat="version versions"><a href="${version.url}">${version.title}</a></li>
-        </ul>
+            <div class="query_doc">
+                <metal:search use-macro="request.macros['query_doc']" />
+            </div>
         </div>
     </body>
 </html>

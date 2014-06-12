@@ -6,9 +6,11 @@ from whoosh import fields
 from whoosh.analysis import Filter, LowercaseFilter, RegexTokenizer
 from whoosh.analysis import Token, Tokenizer
 from whoosh.compat import text_type, u
+from whoosh.highlight import ContextFragmenter, HtmlFormatter, highlight
 from whoosh.index import create_in, exists_in, open_dir
 from whoosh.index import IndexError as WhooshIndexError
 from whoosh.qparser import QueryParser
+from whoosh.qparser import plugins
 from whoosh.util.text import rcompile
 from whoosh.writing import CLEAR
 import shutil
@@ -16,6 +18,12 @@ import threading
 
 
 log = getLogger(__name__)
+
+
+try:
+    xrange
+except NameError:
+    xrange = range
 
 
 class ProjectNameTokenizer(Tokenizer):
@@ -201,10 +209,10 @@ class Index(object):
             user=fields.ID(stored=True),
             index=fields.ID(stored=True),
             classifiers=fields.KEYWORD(commas=True, scorable=True),
-            keywords=fields.KEYWORD(stored=True, commas=True, scorable=True),
+            keywords=fields.KEYWORD(stored=True, commas=False, scorable=True),
             version=fields.STORED(),
             doc_version=fields.STORED(),
-            text_type=fields.ID(stored=True),
+            type=fields.ID(stored=True),
             text_path=fields.STORED(),
             text_title=fields.STORED(),
             text=fields.TEXT(analyzer=NgramWordAnalyzer(), stored=False, phrase=False))
@@ -223,9 +231,8 @@ class Index(object):
             data['path'] = u"/{user}/{index}/{name}".format(**data)
             if not clear:
                 writer.delete_by_term('path', data['path'])
-            data['text_type'] = "project"
+            data['type'] = "project"
             data['text'] = "%s %s" % (data['name'], project_name(data['name']))
-            data['_text_boost'] = 0.5
             with writer.group():
                 writer.add_document(**data)
                 for key, boost in text_keys:
@@ -233,7 +240,7 @@ class Index(object):
                         continue
                     writer.add_document(**{
                         "path": data['path'],
-                        "text_type": key,
+                        "type": key,
                         "text": project[key],
                         "_text_boost": boost})
                 if '+doczip' not in project:
@@ -241,18 +248,16 @@ class Index(object):
                 for page in project['+doczip']:
                     writer.add_document(**{
                         "path": data['path'],
-                        "text_type": "title",
+                        "type": "title",
                         "text": page['title'],
                         "text_path": page['path'],
-                        "text_title": page['title'],
-                        "_text_boost": 1.5})
+                        "text_title": page['title']})
                     writer.add_document(**{
                         "path": data['path'],
-                        "text_type": "page",
+                        "type": "page",
                         "text": page['text'],
                         "text_path": page['path'],
-                        "text_title": page['title'],
-                        "_text_boost": 1.0})
+                        "text_title": page['title']})
         log.info("Committing index.")
         if clear:
             writer.commit(mergetype=CLEAR)
@@ -283,14 +288,20 @@ class Index(object):
         fields = set(x.field() for x in raw.results.q.leaves())
         collapse = "path" not in fields
         parents = {}
+        text_field = raw.results.searcher.schema['text']
         for item in raw:
-            info = {"data": dict(item)}
+            info = {
+                "data": dict(item),
+                "words": frozenset(
+                    text_field.from_bytes(term[1])
+                    for term in item.matched_terms()
+                    if term[0] == 'text')}
             for attr in ('docnum', 'pos', 'rank', 'score'):
                 info[attr] = getattr(item, attr)
             path = item['path']
             if path in parents:
                 parent = parents[path]
-            elif info['data'].get('text_type') == 'project':
+            elif info['data'].get('type') == 'project':
                 parent = parents[path] = dict(info)
                 parent['sub_hits'] = []
                 items.append(parent)
@@ -300,7 +311,7 @@ class Index(object):
                     "sub_hits": []}
                 parents[path] = parent
                 items.append(parent)
-            if collapse and len(parent['sub_hits']) > 2:
+            if collapse and len(parent['sub_hits']) > 3:
                 collapsed_counts[path] = collapsed_counts[path] + 1
             else:
                 parent['sub_hits'].append(info)
@@ -308,19 +319,74 @@ class Index(object):
 
     def _search_projects(self, query, page=1):
         searcher = self.project_searcher
-        return searcher.search_page(query, page)
+        return searcher.search_page(query, page, terms=True)
+
+    @property
+    def _query_parser_help(self):
+        field_docs = dict(
+            classifiers="""
+                The <a href="https://pypi.python.org/pypi?%3Aaction=list_classifiers" target="_blank">trove classifiers</a> of a package.
+                Use single quotes to specify a classifier, as they contain spaces:
+                <code>classifiers:'Programming Language :: Python :: 3'</code>""",
+            index="The name of the index.",
+            keywords="The keywords of a package.",
+            name="The package name.",
+            path="The path of the package in the form '/{user}/{index}/{name}'.",
+            text=None,
+            type="""
+                The type of text.
+                One of <code>project</code> for the project name,
+                <code>title</code> for the title of a documentation page,
+                <code>page</code> for a documentation page,
+                or one of the following project metadata fields:
+                <code>author</code>, <code>author_email</code>,
+                <code>description</code>, <code>keywords</code>,
+                <code>summary</code>.
+                """,
+            user="The user name.")
+        schema = self.project_schema
+        fields = []
+        for name in schema.names():
+            field = schema[name]
+            if not field.indexed:
+                continue
+            if name not in field_docs:
+                fields.append((name, "Undocumented"))
+                continue
+            field_doc = field_docs[name]
+            if field_doc is None:
+                continue
+            fields.append((name, field_doc))
+        fields_doc = "<dl>%s</dl>" % ''.join("<dt><code>%s</code></dt><dd>%s</dd>" % x for x in fields)
+        return {
+            plugins.WhitespacePlugin:
+                None,
+            plugins.SingleQuotePlugin: """
+                To specify a term which contains spaces, use single quotes like this:
+                <code>'term with spaces'</code>""",
+            plugins.FieldsPlugin: """
+                By using a search like <code>fieldname:term</code>,
+                you can search in the following fields:<br />%s""" % fields_doc,
+            plugins.GroupPlugin: """
+                Group query clauses with parentheses.""",
+            plugins.OperatorsPlugin: """
+                Use the <code>AND</code>, <code>OR</code>,
+                <code>ANDNOT</code>, <code>ANDMAYBE</code>, and <code>NOT</code><br />
+                operators to further refine your search.<br />
+                Write them in all capital letters, otherwise they will be interpreted as search terms.<br />
+                An example search would be: <code>devpi ANDNOT client</code>""",
+            plugins.BoostPlugin: """
+                Boost a term by adding a circumflex followed by the boost value like this:
+                <code>term^2</code>"""}
 
     def _query_parser_plugins(self):
-        from whoosh.qparser import plugins
         return [
             plugins.WhitespacePlugin(),
             plugins.SingleQuotePlugin(),
             plugins.FieldsPlugin(),
-            plugins.PrefixPlugin(),
             plugins.GroupPlugin(),
             plugins.OperatorsPlugin(),
-            plugins.BoostPlugin(),
-            plugins.EveryPlugin()]
+            plugins.BoostPlugin()]
 
     def _query_projects(self, querystring, page=1):
         parser = QueryParser(
@@ -342,3 +408,24 @@ class Index(object):
                 self._query_projects(querystring, page=page))
         except (OSError, WhooshIndexError) as e:
             raise SearchUnavailableException(e)
+
+    def get_query_parser_html_help(self):
+        result = []
+        query_parser_help = self._query_parser_help
+        for plugin in self._query_parser_plugins():
+            if plugin.__class__ not in query_parser_help:
+                result.append(
+                    "Undocumented query plugin '%s'.<br />%s" % (
+                        plugin.__class__.__name__, plugin.__doc__))
+                continue
+            docs = query_parser_help[plugin.__class__]
+            if docs is None:
+                continue
+            result.append(docs)
+        return result
+
+    def highlight(self, text, words):
+        fragmenter = ContextFragmenter()
+        formatter = HtmlFormatter()
+        analyzer = self.project_schema['text'].analyzer
+        return highlight(text, words, analyzer, fragmenter, formatter, top=1)

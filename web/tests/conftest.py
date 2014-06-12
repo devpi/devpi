@@ -1,12 +1,11 @@
-from test_devpi_server.conftest import gentmp, httpget
-from test_devpi_server.conftest import makemapp, maketestapp, makexom, mapp
+from test_devpi_server.conftest import gentmp, httpget, makemapp  # noqa
+from test_devpi_server.conftest import maketestapp, makexom, mapp  # noqa
 from test_devpi_server.conftest import pypiurls, testapp, pypistage  # noqa
+from test_devpi_server.conftest import dummyrequest, pypiurls, testapp  # noqa
 import pytest
 
 
-(gentmp, httpget,
- makemapp, maketestapp, makexom, mapp,
- pypiurls, testapp)  # shut up pyflakes
+(makexom,)  # shut up pyflakes
 
 
 def pytest_addoption(parser):

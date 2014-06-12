@@ -588,9 +588,8 @@ class ProjectChanged:
             assert ev.back_serial < ev.at_serial
             old = keyfs.get_value_at(ev.typedkey, ev.back_serial)
         with keyfs.transaction(write=False, at_serial=ev.at_serial):
+            # XXX slightly flaky logic for detecting metadata changes
             projconfig = ev.value
-            assert projconfig != old, (
-             "at_serial=%s back_serial=%s" %(ev.at_serial, ev.back_serial))
             for ver, metadata in projconfig.items():
                 if metadata != old.get(ver):
                     stage = self.xom.model.getstage(user, index)

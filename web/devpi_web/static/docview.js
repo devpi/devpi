@@ -25,6 +25,11 @@ function onIFrameLoad(iframe) {
     iframe.height = iframe.contentWindow.document.body.scrollHeight + "px";
     // scroll main window to anchor location inside the iframe
     scrollToAnchor(iframe, window.location.hash);
+    // copy title
+    var title = $(iframe.contentWindow.document).find('title').text();
+    if (title) {
+        $('title').text(title);
+    }
     // fixup links
     var base_url = $('iframe').data('base_url');
     var baseview_url = $('iframe').data('baseview_url');

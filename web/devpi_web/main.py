@@ -47,11 +47,17 @@ def navigation_info(request):
     return result
 
 
+def query_docs_html(request):
+    search_index = request.registry['search_index']
+    return search_index.get_query_parser_html_help()
+
+
 def includeme(config):
     config.include('pyramid_chameleon')
     config.add_static_view('static', 'static')
     config.add_route('root', '/', accept='text/html')
     config.add_route('search', '/+search', accept='text/html')
+    config.add_route('search_help', '/+searchhelp', accept='text/html')
     config.add_route(
         "docroot",
         "/{user}/{index}/{name}/{version}/+doc/{relpath:.*}")
@@ -60,6 +66,7 @@ def includeme(config):
         "/{user}/{index}/{name}/{version}/+d/{relpath:.*}")
     config.add_request_method(macros, reify=True)
     config.add_request_method(navigation_info, reify=True)
+    config.add_request_method(query_docs_html, reify=True)
     config.scan()
 
 
