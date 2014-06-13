@@ -582,7 +582,7 @@ class TestTweenKeyfsTransaction:
     def test_write(self, xom, blank_request):
         cur_serial = xom.keyfs.get_current_serial()
         def wrapped_handler(request):
-            with xom.keyfs.USER(user="hello").update() as userconfig:
+            with xom.keyfs.USER(user="hello").update():
                 pass
             return Response("")
         handler = tween_keyfs_transaction(wrapped_handler, {"xom": xom})
@@ -593,7 +593,7 @@ class TestTweenKeyfsTransaction:
         cur_serial = xom.keyfs.get_current_serial()
         def wrapped_handler(request):
             xom.keyfs.restart_as_write_transaction()
-            with xom.keyfs.USER(user="hello").update() as userconfig:
+            with xom.keyfs.USER(user="hello").update():
                 pass
             return Response("")
         handler = tween_keyfs_transaction(wrapped_handler, {"xom": xom})

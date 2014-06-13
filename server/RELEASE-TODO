@@ -1,6 +1,23 @@
 
+web search integration
+---------------------------
+
+- indexing (of root/pypi) should not hold up the startup process
+  (why does "committing index" take so long?)
+  probably perform it asynchronously and detect if a previous 
+  indexing operation was aborted.  We might introduce a new
+  hook like "devpiserver_initial_serials(config, name2serials, fresh)", 
+  where "fresh" indicates if the serials were retrieved from
+  a remote pypi or devpi-master server.  web can then also look
+  into config.args.index_projects to decide if the user requested
+  a re-indexing operation?!
+
 replication issues
 ------------------------
+
+- each master and replica should have IDs and they should be verified
+  before replication is performed.  If the master is recreated the replica
+  should be able to notice and not blindly replicate / get stuck.
 
 - consider what it takes to externally manage root/pypi files (and maybe
   also other stage files) wrt to replication and internal refactoring.
