@@ -246,7 +246,7 @@ class TestIndexParsing:
         assert link3.url == \
                 "http://pypi.python.org/pkg/py-1.4.10.zip#md5=2222"
 
-@pytest.mark.writetransaction
+
 class TestExtPYPIDB:
     def test_parse_project_nomd5(self, pypistage):
         x = pypistage.mock_simple("pytest", pkgver="pytest-1.0.zip")

@@ -3,7 +3,7 @@ import py
 import pytest
 from devpi_server.mythread import ThreadPool
 
-from devpi_server.keyfs import KeyFS, WriteTransaction, ReadTransaction, load
+from devpi_server.keyfs import KeyFS, Transaction, load
 
 notransaction = pytest.mark.notransaction
 
@@ -32,14 +32,14 @@ class TestKeyFS:
         assert not k.exists()
         k.set(val)
         assert k.exists()
-        keyfs.restart_as_write_transaction()
         newval = k.get()
         assert val == newval
         assert isinstance(newval, type(val))
         k.delete()
         assert not k.exists()
-        keyfs.restart_as_write_transaction()
-        assert not k.exists()
+        keyfs.commit_transaction_in_thread()
+        with keyfs.transaction():
+            assert not k.exists()
 
     def test_no_slashkey(self, keyfs):
         pkey = keyfs.add_key("NAME", "{hello}", dict)
@@ -183,21 +183,24 @@ def test_trans_get_not_modify(keyfs, type, val, monkeypatch):
 @notransaction
 class TestTransactionIsolation:
     def test_cannot_write_on_read_trans(self, keyfs):
-        tx_1 = ReadTransaction(keyfs)
-        assert not hasattr(tx_1, "set")
-        assert not hasattr(tx_1, "delete")
+        key = keyfs.add_key("hello", "hello", dict)
+        tx_1 = Transaction(keyfs)
+        with pytest.raises(AssertionError):
+            tx_1.set(key, {})
+        with pytest.raises(AssertionError):
+            tx_1.delete(key)
 
     def test_serialized_writing(self, keyfs, monkeypatch):
         D = keyfs.add_key("NAME", "hello", dict)
-        tx_1 = WriteTransaction(keyfs)
+        tx_1 = Transaction(keyfs, write=True)
         class lockity:
             def acquire(self):
                 raise ValueError()
         monkeypatch.setattr(keyfs, "_write_lock", lockity())
         with pytest.raises(ValueError):
-            WriteTransaction(keyfs)
+            Transaction(keyfs, write=True)
         monkeypatch.undo()
-        tx_2 = ReadTransaction(keyfs)
+        tx_2 = Transaction(keyfs)
         tx_1.set(D, {1:1})
         assert tx_2.get(D) == {}
         assert tx_1.get(D) == {1:1}
@@ -206,8 +209,8 @@ class TestTransactionIsolation:
 
     def test_concurrent_tx_sees_original_value_on_write(self, keyfs):
         D = keyfs.add_key("NAME", "hello", dict)
-        tx_1 = WriteTransaction(keyfs)
-        tx_2 = ReadTransaction(keyfs)
+        tx_1 = Transaction(keyfs, write=True)
+        tx_2 = Transaction(keyfs)
         ser = keyfs._fs.next_serial
         tx_1.set(D, {1:1})
         tx1_serial = tx_1.commit()
@@ -221,8 +224,8 @@ class TestTransactionIsolation:
         D = keyfs.add_key("NAME", "hello", dict)
         with keyfs.transaction():
             D.set({1:2})
-        tx_1 = WriteTransaction(keyfs)
-        tx_2 = ReadTransaction(keyfs)
+        tx_1 = Transaction(keyfs, write=True)
+        tx_2 = Transaction(keyfs)
         tx_1.delete(D)
         tx_1.commit()
         assert tx_2.get(D) == {1:2}
@@ -234,12 +237,12 @@ class TestTransactionIsolation:
             D.set({1:1})
         with keyfs.transaction():
             D.delete()
-        tx_1 = WriteTransaction(keyfs)
-        tx_2 = WriteTransaction(keyfs)
+        tx_1 = Transaction(keyfs, write=True)
+        tx_2 = Transaction(keyfs, write=True)
         tx_1.set(D, {2:2})
         tx_1.commit()
         assert not tx_2.exists(D)
-        tx_3 = WriteTransaction(keyfs)
+        tx_3 = Transaction(keyfs, write=True)
         assert tx_3.exists(D)
 
     def test_tx_delete(self, keyfs):
