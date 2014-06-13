@@ -26,6 +26,9 @@ replication issues
   replication protocol.  Should replica's get a key which needs to be generated
   by the master? 
 
+- DURABILITY: ensure that half-written transactions are correctly
+  cleaned up at the next restart.  
+
 - remove unbounded cache for transaction entries (repoze.lru?)
 
 - ProjectChanged should deal with deleted entries (it breaks currently)
