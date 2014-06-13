@@ -166,7 +166,7 @@ class TestKey:
          (str, "hello")])
 def test_trans_get_not_modify(keyfs, type, val, monkeypatch):
     attr = keyfs.add_key("NAME", "hello", type)
-    with keyfs.transaction():
+    with keyfs.transaction(write=True):
         attr.set(val)
     with keyfs.transaction():
         assert attr.get() == val
@@ -222,7 +222,7 @@ class TestTransactionIsolation:
 
     def test_concurrent_tx_sees_original_value_on_delete(self, keyfs):
         D = keyfs.add_key("NAME", "hello", dict)
-        with keyfs.transaction():
+        with keyfs.transaction(write=True):
             D.set({1:2})
         tx_1 = Transaction(keyfs, write=True)
         tx_2 = Transaction(keyfs)
@@ -247,9 +247,9 @@ class TestTransactionIsolation:
 
     def test_tx_delete(self, keyfs):
         D = keyfs.add_key("NAME", "hello", dict)
-        with keyfs.transaction():
+        with keyfs.transaction(write=True):
             D.set({1:1})
-        with keyfs.transaction():
+        with keyfs.transaction(write=True):
             D.delete()
             assert not D.exists()
 
@@ -325,7 +325,7 @@ class TestSubscriber:
         key1 = keyfs.add_key("NAME1", "hello", int)
         keyfs.notifier.on_key_change(key1, queue.put)
         pool.start()
-        with keyfs.transaction():
+        with keyfs.transaction(write=True):
             key1.set(1)
             assert queue.empty()
         event = queue.get()
@@ -342,7 +342,7 @@ class TestSubscriber:
         keyfs.notifier.on_key_change(key1, failing)
         keyfs.notifier.on_key_change(key1, queue.put)
         pool.start()
-        with keyfs.transaction():
+        with keyfs.transaction(write=True):
             key1.set(1)
             assert queue.empty()
         msg = queue.get()
@@ -369,7 +369,7 @@ class TestSubscriber:
                                 lambda x: 0/0)
             # we prevent the hooks from getting called
             with pytest.raises(ZeroDivisionError):
-                with key1.keyfs.transaction():
+                with key1.keyfs.transaction(write=True):
                     key1.set(1)
             assert key1.keyfs.get_next_serial() == 1
             assert key1.keyfs.notifier.read_event_serial() == 0
@@ -388,7 +388,7 @@ class TestSubscriber:
         keyfs.notifier.on_key_change(pkey, queue.put)
         key = pkey(name="hello")
         pool.start()
-        with keyfs.transaction():
+        with keyfs.transaction(write=True):
             key.set(1)
         ev = queue.get()
         assert ev.typedkey == key
@@ -410,8 +410,45 @@ class TestSubscriber:
             pool.register(T(i))
         pool.start()
         for i in range(10):
-            with keyfs.transaction():
+            with keyfs.transaction(write=True):
                 key.set(1)
 
         l = [queue.get() for i in range(10)]
         assert sorted(l) == list(range(10))
+
+    def test_commit_serial(self, keyfs):
+        with keyfs.transaction() as tx:
+            pass
+        assert tx.commit_serial is None
+
+        with keyfs.transaction(write=True) as tx:
+            assert tx.commit_serial is None
+        assert tx.commit_serial is None
+
+        key = keyfs.add_key("hello", "hello", dict)
+        with keyfs.transaction(write=True) as tx:
+            assert tx.at_serial == -1
+            tx.set(key, {})
+        assert tx.commit_serial == 0
+
+    def test_commit_serial_restart(self, keyfs):
+        key = keyfs.add_key("hello", "hello", dict)
+        with keyfs.transaction() as tx:
+            keyfs.restart_as_write_transaction()
+            tx.set(key, {})
+        assert tx.commit_serial == 0
+        assert tx.write
+
+    def test_at_serial_restart(self, keyfs):
+        key = keyfs.add_key("hello", "hello", dict)
+        with keyfs.transaction() as txr:
+            tx = Transaction(keyfs, write=True)
+            tx.set(key, {1:1})
+            tx.commit()
+            keyfs.restart_read_transaction()
+        assert txr.commit_serial is None
+        assert txr.at_serial == 0
+
+    def test_at_serial(self, keyfs):
+        with keyfs.transaction(at_serial=-1) as tx:
+            assert tx.at_serial == -1

@@ -352,7 +352,17 @@ class KeyFS(object):
         del self._threadlocal.tx
 
     def restart_as_write_transaction(self):
-        self._threadlocal.tx.restart_as_write_transaction()
+        tx = self.tx
+        thread_pop_log()
+        tx.restart(write=True)
+        thread_push_log("[Wtx%s]" %(tx.at_serial))
+
+    def restart_read_transaction(self):
+        tx = self.tx
+        assert not tx.write, "can only restart from read transaction"
+        thread_pop_log()
+        tx.restart(write=False)
+        thread_push_log("[Rtx%s]" %(tx.at_serial))
 
     def rollback_transaction_in_thread(self):
         self._threadlocal.tx.rollback()
@@ -363,7 +373,7 @@ class KeyFS(object):
         self.clear_transaction()
 
     @contextlib.contextmanager
-    def transaction(self, write=True, at_serial=None):
+    def transaction(self, write=False, at_serial=None):
         tx = self.begin_transaction_in_thread(write=write, at_serial=at_serial)
         try:
             yield tx
@@ -462,17 +472,20 @@ class TypedKey:
 
 
 class Transaction(object):
+    commit_serial = None
+    write = False
+
     def __init__(self, keyfs, at_serial=None, write=False):
         self.keyfs = keyfs
         if write:
-            assert not at_serial, "write trans cannot use at_serial"
+            assert at_serial is None, "write trans cannot use at_serial"
             keyfs._write_lock.acquire()
+            self.write = True
         if at_serial is None:
             at_serial = keyfs.get_next_serial() - 1
         self.at_serial = at_serial
         self.cache = {}
         self.dirty = set()
-        self.write = write
 
     def exists_typed_state(self, typedkey):
         try:
@@ -526,15 +539,13 @@ class Transaction(object):
         try:
             with self.keyfs._fs.write_transaction() as fswriter:
                 for typedkey in self.dirty:
-                    try:
-                        val = self.cache[typedkey]
-                    except KeyError:
-                        val = None
+                    val = self.cache.get(typedkey)
                     fswriter.record_set(typedkey, val)
-                at_serial = fswriter.fs.next_serial
+                commit_serial = fswriter.fs.next_serial
         finally:
             self._close()
-        return at_serial
+        self.commit_serial = commit_serial
+        return commit_serial
 
     def _close(self):
         del self.cache
@@ -547,10 +558,10 @@ class Transaction(object):
         threadlog.debug("transaction rollback at %s" % (self.at_serial))
         return self._close()
 
-    def restart_as_write_transaction(self):
+    def restart(self, write=False):
         self.commit()
         threadlog.debug("restarting afresh as write transaction")
-        newtx = self.__class__(self.keyfs, write=True)
+        newtx = self.__class__(self.keyfs, write=write)
         self.__dict__ = newtx.__dict__
 
 

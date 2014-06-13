@@ -7,9 +7,12 @@ import py
 import json
 import posixpath
 from bs4 import BeautifulSoup
+
+from pyramid.response import Response
 from devpi_common.metadata import splitbasename
 from devpi_common.url import URL
 import devpi_server.views
+from devpi_server.views import tween_keyfs_transaction
 from devpi_common.archive import Archive, zip_dict
 
 
@@ -90,7 +93,7 @@ def test_simple_list(pypistage, testapp):
     assert hrefs == ["hello1", "hello2"]
 
 def test_indexroot(testapp, model):
-    with model.keyfs.transaction():
+    with model.keyfs.transaction(write=True):
         user = model.create_user("user", "123")
         user.create_stage("index", bases=("root/pypi",))
     r = testapp.get("/user/index")
@@ -567,3 +570,32 @@ class Test_getjson:
         abort_call_args = abort_calls[0][0]
         assert abort_call_args[1] == 400
 
+
+class TestTweenKeyfsTransaction:
+    def test_nowrite(self, xom, blank_request):
+        cur_serial = xom.keyfs.get_current_serial()
+        wrapped_handler = lambda r: Response("")
+        handler = tween_keyfs_transaction(wrapped_handler, {"xom": xom})
+        response = handler(blank_request())
+        assert response.headers.get("X-DEVPI-SERIAL") == str(cur_serial)
+
+    def test_write(self, xom, blank_request):
+        cur_serial = xom.keyfs.get_current_serial()
+        def wrapped_handler(request):
+            with xom.keyfs.USER(user="hello").update() as userconfig:
+                pass
+            return Response("")
+        handler = tween_keyfs_transaction(wrapped_handler, {"xom": xom})
+        response = handler(blank_request(method="PUT"))
+        assert response.headers.get("X-DEVPI-SERIAL") == str(cur_serial + 1)
+
+    def test_restart(self, xom, blank_request):
+        cur_serial = xom.keyfs.get_current_serial()
+        def wrapped_handler(request):
+            xom.keyfs.restart_as_write_transaction()
+            with xom.keyfs.USER(user="hello").update() as userconfig:
+                pass
+            return Response("")
+        handler = tween_keyfs_transaction(wrapped_handler, {"xom": xom})
+        response = handler(blank_request())
+        assert response.headers.get("X-DEVPI-SERIAL") == str(cur_serial + 1)

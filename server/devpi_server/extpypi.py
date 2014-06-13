@@ -378,8 +378,8 @@ class PyPIMirror:
                 key.set(cache)
                 log.debug("set latest_serial of %s to %s",
                           normname, serial)
-            else:
-                log.debug("no cache found for %s" % name)
+            #else:
+            #    log.debug("no cache found for %s" % name)
         # XXX include name2serials writing into the ongoing transaction
         # as an external rename (not managed through keyfs)
         if self.name2serials:

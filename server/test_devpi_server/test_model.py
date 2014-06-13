@@ -473,6 +473,7 @@ def test_user_set_without_indexes(model):
 @pytest.mark.notransaction
 def test_setdefault_indexes(model):
     from devpi_server.main import set_default_indexes
-    set_default_indexes(model)
+    with model.keyfs.transaction(write=True):
+        set_default_indexes(model)
     with model.keyfs.transaction(write=False):
         assert model.getstage("root/pypi").ixconfig["type"] == "mirror"

@@ -106,3 +106,29 @@ class TestReplicaThread:
         with pytest.raises(ZeroDivisionError):
             rt.thread_run()
         assert caplog.getrecords("committed")
+
+class TestTweenReplica:
+    def test_nowrite(self, xom, blank_request):
+        cur_serial = xom.keyfs.get_current_serial()
+        l = []
+        def wrapped_handler(request):
+            l.append(xom.keyfs.get_current_serial())
+            return Response("")
+        handler = tween_replica_proxy(wrapped_handler, {"xom": xom})
+        response = handler(blank_request())
+        assert l == [xom.keyfs.get_current_serial()]
+
+    def test_write_proxies(self, makexom, blank_request, reqmock, monkeypatch):
+        xom = makexom(["--master", "http://localhost"])
+        cur_serial = xom.keyfs.get_current_serial()
+        reqmock.mock("http://localhost/blankpath",
+                     code=200, headers={"X-DEVPI-SERIAL": "10"})
+        l = []
+        monkeypatch.setattr(xom.keyfs.notifier, "wait_tx_serial",
+                            lambda x: l.append(x))
+        handler = tween_replica_proxy(None, {"xom": xom})
+        response = handler(blank_request(method="PUT"))
+        assert response.headers.get("X-DEVPI-SERIAL") == "10"
+        assert l == [10]
+
+

@@ -122,66 +122,54 @@ def route_url(self, *args, **kw):
     return url.geturl()
 
 
-@subscriber(NewRequest)
-def handle_request(event, req_count=itertools.count()):
-    thread_push_log("[req%s]" %(next(req_count)))
-    xom = event.request.registry["xom"]
-    if xom.is_replica():
-        if event.request.method in ("PUT", "POST", "PATCH", "DELETE", "PUSH"):
-            event.request._PROXIED = True
-            proxy_write_to_master(xom, event.request)
+def tween_request_logging(handler, registry):
+    keyfs = registry["xom"].keyfs
+    req_count = itertools.count()
+    from time import time
 
-    write = not xom.is_replica() and event.request.method in (
-                                 "PUT", "POST", "PATCH", "DELETE", "PUSH")
-    xom.keyfs.begin_transaction_in_thread(write=write)
-    event.request.log = log = thread_current_log()
-    log.info("%s %s" % (event.request.method, event.request.path,))
-
-
-@subscriber(NewResponse)
-def handle_response(event):
-    r = event.response
-    if not hasattr(event.request, "_PROXIED"):
-        registry = event.request.registry
-        keyfs = registry["xom"].keyfs
-        tx = getattr(keyfs._threadlocal, "tx", None)
-        if tx is not None:
-            if 200 <= r.status_code < 400:
-                serial = tx.commit()
-            else:
-                serial = tx.rollback()
-            keyfs.clear_transaction()
-            r.headers[str("X-DEVPI-SERIAL")] = str(serial)
-        r.headers.update(meta_headers)
-    else:
-        serial = event.request.registry["xom"].keyfs.get_current_serial()
-    threadlog.debug("%s serial=%s length=%s type=%s",
-              event.response.status_code, serial,
-              r.headers.get("content-length"),
-              r.headers.get("content-type"),
-    )
-    thread_pop_log()
+    def request_log_handler(request):
+        tag = "[req%s]" %(next(req_count))
+        log = thread_push_log(tag)
+        request.log = log
+        log.info("%s %s" % (request.method, request.path,))
+        now = time()
+        response = handler(request)
+        duration = time() - now
+        rheaders = response.headers
+        serial = rheaders.get("X-DEVPI-SERIAL")
+        rheaders.update(meta_headers)
+        log.debug("%s %.3fs serial=%s length=%s type=%s",
+                  response.status_code,
+                  duration,
+                  serial,
+                  rheaders.get("content-length"),
+                  rheaders.get("content-type"),
+        )
+        thread_pop_log(tag)
+        return response
+    return request_log_handler
 
 
-def proxy_write_to_master(xom, request):
-    """ method used to relay modifying requests to the master which originally
-    arrive at the replica site.
-    """
-    url = xom.config.master_url.joinpath(request.path).url
-    http = xom._httpsession
-    with threadlog.around("info", "relaying: %s %s", request.method, url):
-        r = http.request(request.method, url,
-                         data=request.body,
-                         headers=request.headers)
-    if r.status_code < 400:
-        commit_serial = int(r.headers["X-DEVPI-SERIAL"])
-        xom.keyfs.notifier.wait_tx_serial(commit_serial)
-    headers = r.headers.copy()
-    headers[str("X-DEVPI-PROXY")] = str("replica")
-    raise HTTPResponse(status=r.status_code,
-                       body=r.content,
-                       headers=r.headers)
+def tween_keyfs_transaction(handler, registry):
+    keyfs = registry["xom"].keyfs
+    is_replica = registry["xom"].is_replica()
+    def request_tx_handler(request):
+        write  = is_mutating_http_method(request.method) and not is_replica
+        with keyfs.transaction(write=write) as tx:
+            threadlog.debug("in-transaction %s", tx.at_serial)
+            response = handler(request)
+        serial = tx.commit_serial if tx.commit_serial is not None \
+                                  else tx.at_serial
+        set_header_devpi_serial(response.headers, serial)
+        return response
+    return request_tx_handler
 
+def set_header_devpi_serial(headers, serial):
+    headers[str("X-DEVPI-SERIAL")] = str(serial)
+
+
+def is_mutating_http_method(method):
+    return method in ("PUT", "POST", "PATCH", "DELETE", "PUSH")
 
 class PyPIView:
     def __init__(self, request):
@@ -526,6 +514,7 @@ class PyPIView:
             except KeyError:
                 abort(request, 400, "content file field not found")
             name = ensure_unicode(request.POST.get("name"))
+            # version may be empty on plain uploads
             version = ensure_unicode(request.POST.get("version"))
             info = stage.get_project_info(name)
             if not info:
@@ -692,18 +681,20 @@ class PyPIView:
                 keyfs.restart_as_write_transaction()
                 entry.cache_remote_file(self.xom.httpget)
             else:
+                threadlog.info("replica doesn't have file: %s", entry.relpath)
                 url = self.xom.config.master_url.joinpath(request.path).url
                 r = self.xom.httpget(url, allow_redirects=True)  # XXX HEAD
-                if not r.status_code == 200:
+                if r.status_code != 200:
+                    threadlog.error("got %s from upstream", r.status_code)
                     abort(request, 502, "%s: received %s from master" %(
                                          url, r.status_code))
                 serial = int(r.headers["X-DEVPI-SERIAL"])
                 keyfs.notifier.wait_tx_serial(serial)
-                keyfs.commit_transaction_in_thread()
-                keyfs.begin_transaction_in_thread()
+                keyfs.restart_read_transaction()
                 entry = filestore.get_file_entry(relpath)
                 if not entry.file_exists():
-                   abort(request, 502, "%s: did not get file from transaction")
+                    threadlog.error("did not get file after waiting")
+                    abort(request, 500, "%s: did not get file from transaction")
         headers = entry.gethttpheaders()
         content = entry.get_file_content()
         return Response(body=content, headers=headers)

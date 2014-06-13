@@ -34,7 +34,6 @@ KeyError: u'user1/dev/hello/.config'
 
   
   
-
 keyfs 
 ------------------
 
@@ -45,10 +44,8 @@ keyfs
 deployment / API
 -----------------
 
-- instead of the replica thread polling every five secs, do a long-poll
-
-- use a unified API for Thread/background task handling
-  based on threading.Thread
+- replica thread in master does not die if the client is gone.
+  We should finish the request after some MAXPERIOD.
 
 ext pypi mirror
 --------------------

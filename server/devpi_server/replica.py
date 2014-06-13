@@ -5,6 +5,7 @@ from pyramid.response import Response
 
 from .keyfs import load, dump
 from .log import thread_push_log, threadlog
+from .views import is_mutating_http_method
 
 
 class MasterChangelogRequest:
@@ -119,3 +120,35 @@ class PypiProjectChanged:
         cur_serial = name2serials.get(name, -1)
         if cache and cache["serial"] > cur_serial:
             name2serials[cache["projectname"]] = cache["serial"]
+
+
+def tween_replica_proxy(handler, registry):
+    xom = registry["xom"]
+    def handle_replica_proxy(request):
+        assert not hasattr(xom.keyfs, "tx"), "no tx should be ongoing"
+        if is_mutating_http_method(request.method):
+            return proxy_write_to_master(xom, request)
+        else:
+            return handler(request)
+    return handle_replica_proxy
+
+
+def proxy_write_to_master(xom, request):
+    """ relay modifying http requests to master and wait until
+    the change is replicated back.
+    """
+    url = xom.config.master_url.joinpath(request.path).url
+    http = xom._httpsession
+    with threadlog.around("info", "relaying: %s %s", request.method,
+    url):
+        r = http.request(request.method, url,
+                         data=request.body,
+                         headers=request.headers)
+    if r.status_code < 400:
+        commit_serial = int(r.headers["X-DEVPI-SERIAL"])
+        xom.keyfs.notifier.wait_tx_serial(commit_serial)
+    headers = r.headers.copy()
+    headers[str("X-DEVPI-PROXY")] = str("replica")
+    return Response(status=r.status_code,
+                    body=r.content,
+                    headers=headers)
