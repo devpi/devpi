@@ -33,7 +33,7 @@ def test_empty_export(tmpdir, xom):
         do_export(tmpdir, xom)
 
 def test_import_on_existing_server_data(tmpdir, xom):
-    with xom.keyfs.transaction():
+    with xom.keyfs.transaction(write=True):
         xom.model.create_user("someuser", password="qwe")
     assert not do_export(tmpdir, xom)
     with pytest.raises(Fatal):
@@ -99,7 +99,7 @@ class TestImportExport:
                                "hello", "1.0")
 
         md5 = py.std.hashlib.md5(b"content").hexdigest()
-        with mapp1.xom.keyfs.transaction():
+        with mapp1.xom.keyfs.transaction(write=True):
             num = mapp1.xom.filestore.add_attachment(
                         md5=md5, type="toxresult", data="123")
         impexp.export()
@@ -144,7 +144,7 @@ class TestImportExport:
         # without ever registering the project, leading to empty
         # versions.  We simulate it here because 1.1 http API
         # prevents this case.
-        with mapp1.xom.keyfs.transaction():
+        with mapp1.xom.keyfs.transaction(write=True):
             stage = mapp1.xom.model.getstage(api.stagename)
             stage._register_metadata({"name": "hello", "version": ""})
         impexp.export()
@@ -159,7 +159,7 @@ class TestImportExport:
         # in devpi-server 1.0 one could register X_Y and X-Y names
         # and they would get registeded under different names.
         # We simulate it here because 1.1 http API prevents this case.
-        with mapp1.xom.keyfs.transaction():
+        with mapp1.xom.keyfs.transaction(write=True):
             stage = mapp1.xom.model.getstage(api.stagename)
             stage._register_metadata({"name": "hello_x", "version": "1.0"})
             stage._register_metadata({"name": "hello-X", "version": "1.1"})
@@ -185,7 +185,7 @@ class TestImportExport:
         # in devpi-server 1.0 one could register X_Y and X-Y names
         # and they would get registeded under different names.
         # We simulate it here because 1.1 http API prevents this case.
-        with mapp1.xom.keyfs.transaction():
+        with mapp1.xom.keyfs.transaction(write=True):
             stage = mapp1.xom.model.getstage(api.stagename)
             stage._register_metadata({"name": "hello_x", "version": "1.0"})
             stage._register_metadata({"name": "hello_x", "version": ""})
@@ -203,12 +203,12 @@ class TestImportExport:
         # in devpi-server 1.0 one could register X_Y and X-Y names
         # and they would get registeded under different names.
         # We simulate it here because 1.1 http API prevents this case.
-        with mapp1.xom.keyfs.transaction():
+        with mapp1.xom.keyfs.transaction(write=True):
             stage = mapp1.xom.model.getstage(api.stagename)
             stage._register_metadata({"name": "hello_x", "version": "1.0"})
             stage._register_metadata({"name": "hello-X", "version": "1.1"})
         api2 = mapp1.create_index("new2", indexconfig={"bases": api.stagename})
-        with mapp1.xom.keyfs.transaction():
+        with mapp1.xom.keyfs.transaction(write=True):
             stage2 = mapp1.xom.model.getstage(api2.stagename)
             stage2._register_metadata({"name": "hello_X", "version": "0.9"})
         impexp.export()
@@ -228,7 +228,7 @@ class TestImportExport:
         # We simulate it here because 1.1 http API prevents this case.
         monkeypatch.setattr(PyPIStage, "getprojectnames_perstage",
                             lambda self: ["hello_X"])
-        with mapp1.xom.keyfs.transaction():
+        with mapp1.xom.keyfs.transaction(write=True):
             stage = mapp1.xom.model.getstage(api.stagename)
             stage._register_metadata({"name": "hello_x", "version": "1.1"})
             stage._register_metadata({"name": "hello-X", "version": "1.0"})

@@ -109,8 +109,6 @@ def auto_transact(request):
 @pytest.fixture
 def xom(request, makexom):
     xom = makexom([])
-    from devpi_server.main import set_default_indexes
-    set_default_indexes(xom.model)
     return xom
 
 @pytest.fixture
@@ -135,6 +133,10 @@ def makexom(request, gentmp, httpget, monkeypatch):
         elif request.node.get_marker("with_notifier"):
             xom.thread_pool.start_one(xom.keyfs.notifier)
         request.addfinalizer(xom.thread_pool.shutdown)
+        # initialize default indexes
+        from devpi_server.main import set_default_indexes
+        with xom.keyfs.transaction(write=True):
+            set_default_indexes(xom.model)
         return xom
     return makexom
 
@@ -144,7 +146,7 @@ def replica_xom(request, makexom):
     from devpi_server.replica import PyPIProxy
     master_url = "http://localhost:3111"
     xom = makexom(["--master", master_url])
-    xom.proxy = PyPIProxy(xom, master_url)
+    xom.proxy = PyPIProxy(xom._httpsession, xom.config.master_url)
     return xom
 
 
@@ -256,7 +258,7 @@ def add_pypistage_mocks(monkeypatch, httpget):
         call = lambda: \
                  self.pypimirror.process_changelog([(name, 0,0,0, pypiserial)])
         if not hasattr(self.keyfs, "tx"):
-            with self.keyfs.transaction():
+            with self.keyfs.transaction(write=True):
                 call()
         else:
             call()
@@ -639,6 +641,7 @@ class mocked_request:
             method = method.upper()
         self.url2reply[(url, method)] = r
         return r
+    mock = mockresponse
 
 class ReqReply(HTTPResponse):
     def __init__(self, code, data, headers, on_request):
@@ -686,3 +689,10 @@ def dummyrequest():
     setUp(request=request)
     yield request
     tearDown()
+
+@pytest.fixture
+def blank_request():
+    from pyramid.request import Request
+    def blank_request(*args, **kwargs):
+        return Request.blank("/blankpath", *args, **kwargs)
+    return blank_request

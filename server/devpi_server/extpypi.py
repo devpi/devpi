@@ -174,8 +174,8 @@ class PyPIStage:
         self.pypimirror = xom.pypimirror
         self.xom = xom
         if xom.is_replica():
-            self.PYPIURL_SIMPLE = xom.config.args.master_url + \
-                                  "/root/pypi/+simple/"
+            url = xom.config.master_url
+            self.PYPIURL_SIMPLE = url.joinpath("root/pypi/+simple/").url
         else:
             self.PYPIURL_SIMPLE = PYPIURL_SIMPLE
 
@@ -378,10 +378,10 @@ class PyPIMirror:
                 key.set(cache)
                 log.debug("set latest_serial of %s to %s",
                           normname, serial)
-            else:
-                log.debug("no cache found for %s" % name)
-        # XXX include name2serials into the ongoing transaction
-        # (requires WriteTransaction to integrate external renames)
+            #else:
+            #    log.debug("no cache found for %s" % name)
+        # XXX include name2serials writing into the ongoing transaction
+        # as an external rename (not managed through keyfs)
         if self.name2serials:
             dump_to_file(self.name2serials, self.path_name2serials)
 

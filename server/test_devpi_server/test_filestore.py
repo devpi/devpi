@@ -121,7 +121,6 @@ class TestFileStore:
         rheaders = entry.gethttpheaders()
         assert entry.get_file_content() == b"123"
 
-    @pytest.mark.writetransaction
     def test_iterfile_remote_no_headers(self, filestore, httpget, gen):
         link = gen.pypi_package_link("pytest-1.8.zip", md5=False)
         entry = filestore.maplink(link)
@@ -139,7 +138,6 @@ class TestFileStore:
         link = gen.pypi_package_link("pytest-3.0.zip", md5=False)
         entry = filestore.maplink(link)
         assert not entry.md5
-        filestore.keyfs.restart_as_write_transaction()
         headers={"content-length": "3",
                  "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
                  "content-type": "application/zip"}
@@ -152,7 +150,6 @@ class TestFileStore:
         link = gen.pypi_package_link("pytest-3.0.zip", md5=False)
         entry = filestore.maplink(link)
         assert not entry.md5
-        filestore.keyfs.restart_as_write_transaction()
         headers={"last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
                  "content-length": None,
                  "content-type": "application/zip"}
@@ -171,7 +168,6 @@ class TestFileStore:
         link = gen.pypi_package_link("pytest-3.0.zip")
         entry = filestore.maplink(link)
         assert entry.md5 == link.md5
-        filestore.keyfs.restart_as_write_transaction()
         headers={"content-length": "3",
                  "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
                  "content-type": "application/zip"}

@@ -11,6 +11,7 @@ from devpi import log
 
 from _pytest.pytester import RunResult, LineMatcher
 from devpi.main import Hub, initmain, parse_args
+from devpi_common.url import URL
 
 import subprocess
 
@@ -22,6 +23,9 @@ pytest_plugins = "pytester"
 def pytest_addoption(parser):
     parser.addoption("--fast", help="skip functional/slow tests", default=False,
                      action="store_true")
+    parser.addoption("--live-url", help="run tests against live devpi server",
+                     action="store", dest="live_url")
+
 
 import subprocess as gsub
 
@@ -99,9 +103,11 @@ def get_pypirc_patcher(devpi):
     return overwrite()
 
 @pytest.fixture(scope="session")
-def port_of_liveserver(request):
+def url_of_liveserver(request):
     if request.config.option.fast:
         pytest.skip("not running functional tests in --fast mode")
+    if request.config.option.live_url:
+        return URL(request.config.option.live_url)
     port = random.randint(2001, 64000)
     clientdir = request.config._tmpdirhandler.mktemp("liveserver")
     subprocess.check_call(["devpi-server", "--serverdir", str(clientdir),
@@ -111,12 +117,12 @@ def port_of_liveserver(request):
         subprocess.check_call(["devpi-server", "--serverdir", str(clientdir),
                                  "--stop"])
     request.addfinalizer(stop)
-    return port
+    return URL("http://localhost:%s" % port)
 
 @pytest.fixture
-def devpi(cmd_devpi, gen, port_of_liveserver):
+def devpi(cmd_devpi, gen, url_of_liveserver):
     user = gen.user()
-    cmd_devpi("use", "http://localhost:%s/root/pypi" % port_of_liveserver)
+    cmd_devpi("use", url_of_liveserver.joinpath("root/pypi").url, code=200)
     cmd_devpi("user", "-c", user, "password=123", "email=123")
     cmd_devpi("login", user, "--password", "123")
     cmd_devpi("index", "-c", "dev")
@@ -271,8 +277,11 @@ def cmd_devpi(tmpdir):
     """ execute devpi subcommand in-process (with fresh init) """
     clientdir = tmpdir.join("client")
     def run_devpi(*args, **kwargs):
-        callargs = ["devpi", "--clientdir", clientdir] + list(args)
-        callargs = [str(x) for x in callargs]
+        callargs = []
+        for arg in ["devpi", "--clientdir", clientdir] + list(args):
+            if isinstance(arg, URL):
+                arg = arg.url
+            callargs.append(str(arg))
         print_info("*** inline$ %s" % " ".join(callargs))
         hub, method = initmain(callargs)
         try:

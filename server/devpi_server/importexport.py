@@ -287,7 +287,7 @@ class Importer:
 
         # first create all users
         for username, userconfig in self.import_users.items():
-            with self.xom.keyfs.transaction():
+            with self.xom.keyfs.transaction(write=True):
                 if username == "root":
                     user = self.xom.model.get_user(username)
                 else:
@@ -304,7 +304,7 @@ class Importer:
         # create stages in inheritance/root-first order
         stages = []
         for stagename in tree.iternames():
-            with self.xom.keyfs.transaction():
+            with self.xom.keyfs.transaction(write=True):
                 if stagename == "root/pypi":
                     assert self.xom.model.getstage(stagename)
                     continue
@@ -324,7 +324,7 @@ class Importer:
             #normalized = self.normalize_index_projects(projects)
             for project, versions in projects.items():
                 for version, versiondata in versions.items():
-                    with self.xom.keyfs.transaction():
+                    with self.xom.keyfs.transaction(write=True):
                         assert "+files" not in versiondata
                         if not versiondata.get("version"):
                             name = versiondata["name"]
@@ -335,7 +335,7 @@ class Importer:
 
             # import release files
             for filedesc in import_index["files"]:
-                with self.xom.keyfs.transaction():
+                with self.xom.keyfs.transaction(write=True):
                     self.import_filedesc(stage, filedesc)
 
     def wait_for_events(self):

@@ -1,8 +1,8 @@
 """
 filesystem key/value storage with support for storing and retrieving
 basic python types based on parametrizable keys.  Multiple
-ReadTransactions can execute concurrently while at most one
-WriteTransaction is ongoing.  Each ReadTransaction will see a consistent
+read Transactions can execute concurrently while at most one
+write Transaction is ongoing.  Each Transaction will see a consistent
 view of key/values refering to the point in time it was started,
 independent from any future changes.
 """
@@ -342,8 +342,7 @@ class KeyFS(object):
 
     def begin_transaction_in_thread(self, write=False, at_serial=None):
         assert not hasattr(self._threadlocal, "tx")
-        tx = WriteTransaction(self) if write \
-                                    else ReadTransaction(self, at_serial)
+        tx = Transaction(self, write=write, at_serial=at_serial)
         self._threadlocal.tx = tx
         thread_push_log("[%stx%s]" %("W" if write else "R", tx.at_serial))
         return tx
@@ -353,8 +352,17 @@ class KeyFS(object):
         del self._threadlocal.tx
 
     def restart_as_write_transaction(self):
-        self.commit_transaction_in_thread()
-        self.begin_transaction_in_thread(write=True)
+        tx = self.tx
+        thread_pop_log()
+        tx.restart(write=True)
+        thread_push_log("[Wtx%s]" %(tx.at_serial))
+
+    def restart_read_transaction(self):
+        tx = self.tx
+        assert not tx.write, "can only restart from read transaction"
+        thread_pop_log()
+        tx.restart(write=False)
+        thread_push_log("[Rtx%s]" %(tx.at_serial))
 
     def rollback_transaction_in_thread(self):
         self._threadlocal.tx.rollback()
@@ -365,7 +373,7 @@ class KeyFS(object):
         self.clear_transaction()
 
     @contextlib.contextmanager
-    def transaction(self, write=True, at_serial=None):
+    def transaction(self, write=False, at_serial=None):
         tx = self.begin_transaction_in_thread(write=write, at_serial=at_serial)
         try:
             yield tx
@@ -463,9 +471,16 @@ class TypedKey:
         return self.keyfs.tx.delete(self)
 
 
-class ReadTransaction(object):
-    def __init__(self, keyfs, at_serial=None):
+class Transaction(object):
+    commit_serial = None
+    write = False
+
+    def __init__(self, keyfs, at_serial=None, write=False):
         self.keyfs = keyfs
+        if write:
+            assert at_serial is None, "write trans cannot use at_serial"
+            keyfs._write_lock.acquire()
+            self.write = True
         if at_serial is None:
             at_serial = keyfs.get_next_serial() - 1
         self.at_serial = at_serial
@@ -505,53 +520,49 @@ class ReadTransaction(object):
             return False
         return self.exists_typed_state(typedkey)
 
-    def _close(self):
-        del self.cache
-        del self.dirty
-        return self.at_serial
-
-    commit = rollback = _close
-
-
-class WriteTransaction(ReadTransaction):
-    def __init__(self, keyfs):
-        keyfs._write_lock.acquire()
-        super(WriteTransaction, self).__init__(keyfs)
-
     def delete(self, typedkey):
+        assert self.write, "not in write-transaction"
         self.cache.pop(typedkey, None)
         self.dirty.add(typedkey)
 
     def set(self, typedkey, val):
+        assert self.write, "not in write-transaction"
         self.cache[typedkey] = val
         self.dirty.add(typedkey)
 
     def commit(self):
+        if not self.write:
+            return self._close()
         if not self.dirty:
             threadlog.debug("nothing to commit, just closing tx")
             return self._close()
         try:
             with self.keyfs._fs.write_transaction() as fswriter:
                 for typedkey in self.dirty:
-                    try:
-                        val = self.cache[typedkey]
-                    except KeyError:
-                        val = None
+                    val = self.cache.get(typedkey)
                     fswriter.record_set(typedkey, val)
-                at_serial = fswriter.fs.next_serial
+                commit_serial = fswriter.fs.next_serial
         finally:
             self._close()
-        return at_serial
+        self.commit_serial = commit_serial
+        return commit_serial
 
     def _close(self):
-        serial = super(WriteTransaction, self)._close()
-        self.keyfs._write_lock.release()
-        return serial
+        del self.cache
+        del self.dirty
+        if self.write:
+            self.keyfs._write_lock.release()
+        return self.at_serial
 
     def rollback(self):
-        log = thread_current_log()
-        log.debug("transaction rollback at %s" % (self.at_serial))
+        threadlog.debug("transaction rollback at %s" % (self.at_serial))
         return self._close()
+
+    def restart(self, write=False):
+        self.commit()
+        threadlog.debug("restarting afresh as write transaction")
+        newtx = self.__class__(self.keyfs, write=write)
+        self.__dict__ = newtx.__dict__
 
 
 def copy_if_mutable(val):

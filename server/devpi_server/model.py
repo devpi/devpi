@@ -594,9 +594,9 @@ class ProjectChanged:
                 if metadata != old.get(ver):
                     stage = self.xom.model.getstage(user, index)
                     hook.devpiserver_register_metadata(stage, metadata)
-                else:
-                    threadlog.debug("no metadata change on %s, %s", metadata,
-                                    old.get(ver))
+                #else:
+                #    threadlog.debug("no metadata change on %s, %s", metadata,
+                #                    old.get(ver))
 
 
 class FileUploaded:

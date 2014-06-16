@@ -18,5 +18,6 @@ def xom(request, makexom):
     import devpi_web.main
     xom = makexom(plugins=[(devpi_web.main, None)])
     from devpi_server.main import set_default_indexes
-    set_default_indexes(xom.model)
+    with xom.keyfs.transaction(write=True):
+        set_default_indexes(xom.model)
     return xom

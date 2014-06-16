@@ -77,6 +77,8 @@ def _main(argv=None, hook=None):
         return gendeploy(config)
 
     xom = XOM(config)
+    with xom.keyfs.transaction(write=True):
+        set_default_indexes(xom.model)
     check_compatible_version(xom)
     configure_logging(config)
     extpypi.invalidate_on_version_change(xom.keyfs.basedir.join("root", "pypi"))
@@ -148,7 +150,6 @@ class XOM:
         sdir = config.serverdir
         if not (sdir.exists() and sdir.listdir()):
             self.set_state_version(server_version)
-        set_default_indexes(self.model)
         self.log = threadlog
 
     def get_state_version(self):
@@ -184,7 +185,7 @@ class XOM:
         # need to initialize the pypi mirror state before importing
         # because importing may need pypi mirroring state
         if xom.is_replica():
-            proxy = replica.PyPIProxy(xom, xom.config.args.master_url)
+            proxy = replica.PyPIProxy(xom._httpsession, xom.config.master_url)
         else:
             proxy = self.proxy
         xom.pypimirror.init_pypi_mirror(proxy)
@@ -278,6 +279,7 @@ class XOM:
         self.config.hook.devpiserver_pyramid_configure(
                 config=self.config,
                 pyramid_config=pyramid_config)
+
         pyramid_config.add_route("/+changelog/{serial}",
                                  "/+changelog/{serial}")
         pyramid_config.add_route("/root/pypi/+name2serials",
@@ -303,6 +305,19 @@ class XOM:
         pyramid_config.add_route("/{user}/{index}", "/{user}/{index}")
         pyramid_config.add_route("/{user}", "/{user}")
         pyramid_config.add_route("/", "/")
+
+        # register tweens for logging, transaction and replication
+        pyramid_config.add_tween("devpi_server.views.tween_request_logging")
+        if self.is_replica():
+            pyramid_config.add_tween(
+                "devpi_server.replica.tween_replica_proxy",
+                over="devpi_server.views.tween_keyfs_transaction",
+                under="devpi_server.views.tween_request_logging",
+            )
+        pyramid_config.add_tween("devpi_server.views.tween_keyfs_transaction",
+            under="devpi_server.views.tween_request_logging"
+        )
+
         # XXX hack for now until using proper Pyramid auth
         _get_credentials = BasicAuthAuthenticationPolicy._get_credentials
         # In Python 2 we need to get im_func, in Python 3 we already have
@@ -343,14 +358,13 @@ class FatalResponse:
         self.excinfo = excinfo
 
 def set_default_indexes(model):
-    with model.keyfs.transaction():
-        root_user = model.get_user("root")
-        if not root_user:
-            root_user = model.create_user("root", "")
-            threadlog.info("created root user")
-        userconfig = root_user.key.get()
-        indexes = userconfig["indexes"]
-        if "pypi" not in indexes:
-            indexes["pypi"] = dict(bases=(), type="mirror", volatile=False)
-            root_user.key.set(userconfig)
-            threadlog.info("created root/pypi index")
+    root_user = model.get_user("root")
+    if not root_user:
+        root_user = model.create_user("root", "")
+        threadlog.info("created root user")
+    userconfig = root_user.key.get()
+    indexes = userconfig["indexes"]
+    if "pypi" not in indexes:
+        indexes["pypi"] = dict(bases=(), type="mirror", volatile=False)
+        root_user.key.set(userconfig)
+        threadlog.info("created root/pypi index")

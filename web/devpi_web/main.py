@@ -15,7 +15,7 @@ def navigation_info(request):
         url=request.route_url("root"),
         title="devpi")]
     result = dict(path=path)
-    if 'user' in request.matchdict:
+    if request.matchdict and 'user' in request.matchdict:
         user = request.matchdict['user']
     else:
         return result

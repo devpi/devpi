@@ -2,8 +2,10 @@ import py
 from pyramid.httpexceptions import HTTPNotFound
 from pyramid.view import view_config
 from pyramid.response import Response
+
 from .keyfs import load, dump
 from .log import thread_push_log, threadlog
+from .views import is_mutating_http_method
 
 
 class MasterChangelogRequest:
@@ -53,10 +55,7 @@ class MasterChangelogRequest:
 class ReplicaThread:
     def __init__(self, xom):
         self.xom = xom
-        r = xom.config.args.master_url
-        assert r
-        r = r.rstrip("/") + "/+changelog"
-        self.master_changelog_url = r
+        self.master_url = xom.config.master_url
         if xom.is_replica():
             xom.keyfs.notifier.on_key_change("PYPILINKS",
                                              PypiProjectChanged(xom))
@@ -69,7 +68,7 @@ class ReplicaThread:
         while 1:
             self.thread.exit_if_shutdown()
             serial = keyfs.get_next_serial()
-            url = self.master_changelog_url + "/%s" % serial
+            url = self.master_url.joinpath("+changelog", str(serial)).url
             log.info("fetching %s", url)
             try:
                 r = session.get(url, stream=True)
@@ -92,17 +91,20 @@ class ReplicaThread:
 
 
 class PyPIProxy(object):
-    def __init__(self, xom, master_url):
-        self._url = master_url.rstrip("/") + "/root/pypi/+name2serials"
-        self.xom = xom
+    def __init__(self, http, master_url):
+        self._url = master_url.joinpath("root/pypi/+name2serials").url
+        self._http = http
 
     def list_packages_with_serial(self):
-        session = self.xom.new_http_session("devpi-rpc")
-        r = session.get(self._url, stream=True)
-        if r.status_code != 200:
-            from devpi_server.main import fatal
-            fatal("replica: could not get serials from remote")
-        return load(r.raw)
+        try:
+            r = self._http.get(self._url, stream=True)
+        except self._http.RequestException:
+            threadlog.exception("proxy request failed, no connection?")
+        else:
+            if r.status_code == 200:
+                return load(r.raw)
+        from devpi_server.main import fatal
+        fatal("replica: could not get serials from remote")
 
 
 class PypiProjectChanged:
@@ -118,3 +120,35 @@ class PypiProjectChanged:
         cur_serial = name2serials.get(name, -1)
         if cache and cache["serial"] > cur_serial:
             name2serials[cache["projectname"]] = cache["serial"]
+
+
+def tween_replica_proxy(handler, registry):
+    xom = registry["xom"]
+    def handle_replica_proxy(request):
+        assert not hasattr(xom.keyfs, "tx"), "no tx should be ongoing"
+        if is_mutating_http_method(request.method):
+            return proxy_write_to_master(xom, request)
+        else:
+            return handler(request)
+    return handle_replica_proxy
+
+
+def proxy_write_to_master(xom, request):
+    """ relay modifying http requests to master and wait until
+    the change is replicated back.
+    """
+    url = xom.config.master_url.joinpath(request.path).url
+    http = xom._httpsession
+    with threadlog.around("info", "relaying: %s %s", request.method,
+    url):
+        r = http.request(request.method, url,
+                         data=request.body,
+                         headers=request.headers)
+    if r.status_code < 400:
+        commit_serial = int(r.headers["X-DEVPI-SERIAL"])
+        xom.keyfs.notifier.wait_tx_serial(commit_serial)
+    headers = r.headers.copy()
+    headers[str("X-DEVPI-PROXY")] = str("replica")
+    return Response(status=r.status_code,
+                    body=r.content,
+                    headers=headers)

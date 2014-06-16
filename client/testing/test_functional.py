@@ -169,10 +169,9 @@ class TestUserManagement:
         return new_user_id
 
     @pytest.fixture
-    def user_list(self, mapp, port_of_liveserver):
+    def user_list(self, mapp, url_of_liveserver):
         """ This fixture gets the list of user via getjson"""
-        return mapp.getjson(
-            "http://localhost:%s" % port_of_liveserver)['result'].keys()
+        return mapp.getjson(url_of_liveserver)['result'].keys()
 
     def test_create_new_user(self, mapp, new_user_id):
         """ Verifies that a new user can be created"""
@@ -212,17 +211,17 @@ class TestUserManagement:
                    password="1234", code = 401)
         mapp.login(user=existing_user_id, password=id(self))
 
-    def test_mod_email(self, mapp, existing_user_id, port_of_liveserver):
+    def test_mod_email(self, mapp, existing_user_id, url_of_liveserver):
         """ Verify that email change is effective"""
         mapp.logoff()
         mapp.login(user=existing_user_id, password="1234")
         email_address = existing_user_id + '_' + str(id(self)) + "@devpi.net"
         mapp.modify_user(user=existing_user_id, email=email_address)
         # Verify that the email was indeed changed.
-        json = mapp.getjson("http://localhost:%s" % port_of_liveserver)
+        json = mapp.getjson(url_of_liveserver)
         assert json['result'][existing_user_id]['email'] == email_address
 
-    def test_mod_combined(self, mapp, existing_user_id, port_of_liveserver):
+    def test_mod_combined(self, mapp, existing_user_id, url_of_liveserver):
         """ Verify that password change is effective"""
         mapp.logoff()
         mapp.login(user=existing_user_id, password="1234")
@@ -231,7 +230,7 @@ class TestUserManagement:
                          email=email_address)
 
         # Verify that the email was changed.
-        json = mapp.getjson("http://localhost:%s" % port_of_liveserver)
+        json = mapp.getjson(url_of_liveserver)
         assert json['result'][existing_user_id]['email'] == email_address
 
         # Verify that the password was indeed changed.

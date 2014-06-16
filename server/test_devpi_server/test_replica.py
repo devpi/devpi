@@ -1,6 +1,7 @@
 import pytest
 import py
 from devpi_server.replica import *
+from devpi_common.url import URL
 
 def loads(bytestring):
     return load(py.io.BytesIO(bytestring))
@@ -49,8 +50,8 @@ class TestPyPIProxy:
     def test_pypi_proxy(self, xom, reqmock):
         from devpi_server.keyfs import dump
         url = "http://localhost:3141/root/pypi/+name2serials"
-        master_url = "http://localhost:3141"
-        proxy = PyPIProxy(xom, master_url)
+        master_url = URL("http://localhost:3141")
+        proxy = PyPIProxy(xom._httpsession, master_url)
         io = py.io.BytesIO()
         dump({"hello": 42}, io)
         data = io.getvalue()
@@ -105,3 +106,27 @@ class TestReplicaThread:
         with pytest.raises(ZeroDivisionError):
             rt.thread_run()
         assert caplog.getrecords("committed")
+
+class TestTweenReplica:
+    def test_nowrite(self, xom, blank_request):
+        l = []
+        def wrapped_handler(request):
+            l.append(xom.keyfs.get_current_serial())
+            return Response("")
+        handler = tween_replica_proxy(wrapped_handler, {"xom": xom})
+        handler(blank_request())
+        assert l == [xom.keyfs.get_current_serial()]
+
+    def test_write_proxies(self, makexom, blank_request, reqmock, monkeypatch):
+        xom = makexom(["--master", "http://localhost"])
+        reqmock.mock("http://localhost/blankpath",
+                     code=200, headers={"X-DEVPI-SERIAL": "10"})
+        l = []
+        monkeypatch.setattr(xom.keyfs.notifier, "wait_tx_serial",
+                            lambda x: l.append(x))
+        handler = tween_replica_proxy(None, {"xom": xom})
+        response = handler(blank_request(method="PUT"))
+        assert response.headers.get("X-DEVPI-SERIAL") == "10"
+        assert l == [10]
+
+
