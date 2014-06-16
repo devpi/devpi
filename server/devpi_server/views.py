@@ -180,13 +180,6 @@ class PyPIView:
         self.auth = Auth(self.model, xom.config.secret)
         self.log = request.log
 
-    def pmatch(self, *args, **kwargs):
-        matchdict = self.request.matchdict
-        if kwargs.get("loose"):
-            return map(matchdict.get, args)
-        else:
-            return map(matchdict.__getitem__, args)
-
     def getstage(self, user, index):
         stage = self.model.getstage(user, index)
         if not stage:
@@ -494,8 +487,8 @@ class PyPIView:
                 apireturn(502, result=results, type="actionlog")
 
     @view_config(route_name="/{user}/{index}/", request_method="POST")
-    def submit(self):
-        user, index = self.pmatch("user", "index")
+    @matchdict_parameters
+    def submit(self, user, index):
         request = self.request
         if user == "root" and index == "pypi":
             abort(request, 404, "cannot submit to pypi mirror")
