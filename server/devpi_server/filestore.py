@@ -210,6 +210,24 @@ class FileEntry(object):
         self.set_file_content(content, r.headers.get("last-modified", None))
         self.set(md5=digest)
 
+    def cache_remote_file_replica(self, xom):
+        threadlog.info("replica doesn't have file: %s", self.relpath)
+        url = xom.config.master_url.joinpath(self.relpath).url
+        r = xom.httpget(url, allow_redirects=True)  # XXX HEAD
+        if r.status_code != 200:
+            threadlog.error("got %s from upstream", r.status_code)
+            raise ValueError("%s: received %s from master"
+                             %(url, r.status_code))
+        serial = int(r.headers["X-DEVPI-SERIAL"])
+        keyfs = self.key.keyfs
+        keyfs.notifier.wait_tx_serial(serial)
+        keyfs.restart_read_transaction()
+        entry = xom.filestore.get_file_entry(self.relpath)
+        if not entry.file_exists():
+            threadlog.error("did not get file after waiting")
+            raise ValueError("%s: did not get file after waiting" % url)
+        return entry
+
 
 def http_date():
     now = datetime.now()

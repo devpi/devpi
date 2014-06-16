@@ -672,22 +672,11 @@ class PyPIView:
             keyfs = self.xom.keyfs
             if not self.xom.is_replica():
                 keyfs.restart_as_write_transaction()
+                entry = filestore.get_file_entry(relpath)
                 entry.cache_remote_file(self.xom.httpget)
             else:
-                threadlog.info("replica doesn't have file: %s", entry.relpath)
-                url = self.xom.config.master_url.joinpath(request.path).url
-                r = self.xom.httpget(url, allow_redirects=True)  # XXX HEAD
-                if r.status_code != 200:
-                    threadlog.error("got %s from upstream", r.status_code)
-                    abort(request, 502, "%s: received %s from master" %(
-                                         url, r.status_code))
-                serial = int(r.headers["X-DEVPI-SERIAL"])
-                keyfs.notifier.wait_tx_serial(serial)
-                keyfs.restart_read_transaction()
-                entry = filestore.get_file_entry(relpath)
-                if not entry.file_exists():
-                    threadlog.error("did not get file after waiting")
-                    abort(request, 500, "%s: did not get file from transaction")
+                entry = entry.cache_remote_file_replica(self.xom)
+
         headers = entry.gethttpheaders()
         content = entry.get_file_content()
         return Response(body=content, headers=headers)
