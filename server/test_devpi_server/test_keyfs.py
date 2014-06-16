@@ -275,6 +275,22 @@ class TestTransactionIsolation:
             assert new_keyfs.get_value_at(D2, 1)
         assert new_keyfs.get_value_at(D2, 2) == {2:2}
 
+    def test_import_changelog_entry_subscriber(self, keyfs, tmpdir):
+        pkey = keyfs.add_key("NAME", "hello/{name}", dict)
+        D = pkey(name="world")
+        with keyfs.transaction(write=True):
+            D.set({1:1})
+        assert keyfs.get_current_serial() == 0
+        # load entries into new keyfs instance
+        new_keyfs = KeyFS(tmpdir.join("newkeyfs"))
+        pkey = new_keyfs.add_key("NAME", "hello/{name}", dict)
+        l = []
+        new_keyfs.subscribe_on_import(pkey, lambda *args: l.append(args))
+        raw_entry = keyfs._fs.get_raw_changelog_entry(0)
+        entry = load(py.io.BytesIO(raw_entry))
+        new_keyfs.import_changelog_entry(0, entry)
+        assert l == [(new_keyfs.NAME(name="world"), {1:1})]
+
     def test_get_raw_changelog_entry_not_exist(self, keyfs):
         assert keyfs._fs.get_raw_changelog_entry(10000) is None
 

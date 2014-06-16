@@ -260,6 +260,7 @@ class KeyFS(object):
         # a non-recursive lock because we don't support nested transactions
         self._write_lock = mythread.threading.Lock()
         self._threadlocal = mythread.threading.local()
+        self._import_subscriber = {}
         self.notifier = t = TxNotificationThread(self)
         self._fs = Filesystem(self.basedir, notify_on_commit=t.notify_on_commit)
 
@@ -290,6 +291,13 @@ class KeyFS(object):
                     name, back_serial, val = tup
                     typedkey = self.derive_key(relpath, name)
                     fswriter.record_set(typedkey, val)
+                    meth = self._import_subscriber.get(typedkey.name)
+                    if meth is not None:
+                        meth(typedkey, val)
+
+    def subscribe_on_import(self, key, subscriber):
+        assert key.name not in self._import_subscriber
+        self._import_subscriber[key.name] = subscriber
 
     def get_next_serial(self):
         return self._fs.next_serial
