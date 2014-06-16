@@ -87,7 +87,7 @@ class TestFileStore:
         assert entry.md5 == u"1" * 16
 
         # reget
-        entry = FileEntry(entry.key)
+        entry = filestore.get_file_entry(entry.relpath)
         assert entry.file_exists()
         assert entry.url == link.url
         assert entry.md5 == u"1" * 16
@@ -104,7 +104,7 @@ class TestFileStore:
                  "content-type": "application/zip"}
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw = BytesIO(b"123"))
-        entry.cache_remote_file(httpget)
+        entry.cache_remote_file()
         rheaders = entry.gethttpheaders()
         assert rheaders["content-length"] == "3"
         assert rheaders["content-type"] == "application/zip"
@@ -128,7 +128,7 @@ class TestFileStore:
         headers={}
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw = BytesIO(b"123"))
-        entry.cache_remote_file(httpget)
+        entry.cache_remote_file()
         rheaders = entry.gethttpheaders()
         assert rheaders["content-length"] == "3"
         assert rheaders["content-type"] == "application/zip"
@@ -144,7 +144,7 @@ class TestFileStore:
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw = BytesIO(b"1"))
         with pytest.raises(ValueError):
-            entry.cache_remote_file(httpget)
+            entry.cache_remote_file()
 
     def test_iterfile_remote_nosize(self, filestore, httpget, gen):
         link = gen.pypi_package_link("pytest-3.0.zip", md5=False)
@@ -156,7 +156,7 @@ class TestFileStore:
         assert entry.size is None
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw=BytesIO(b"1"))
-        entry.cache_remote_file(httpget)
+        entry.cache_remote_file()
         assert entry.get_file_content() == b"1"
         entry2 = filestore.get_file_entry(entry.relpath)
         assert entry2.size == 1
@@ -174,7 +174,7 @@ class TestFileStore:
         httpget.url2response[link.url_nofrag] = dict(status_code=200,
                 headers=headers, raw=BytesIO(b"123"))
         with pytest.raises(ValueError) as excinfo:
-            entry.cache_remote_file(httpget)
+            entry.cache_remote_file()
         assert link.md5 in str(excinfo.value)
         assert not entry.file_exists()
 
@@ -189,10 +189,10 @@ class TestFileStore:
 
         httpget.mockresponse(link.url_nofrag, headers=headers,
                              raw=BytesIO(b"1234"))
-        entry.cache_remote_file(httpget)
+        entry.cache_remote_file()
         assert entry.get_file_content() == b"1234"
         httpget.mockresponse(entry.url, headers=headers, raw=BytesIO(b"3333"))
-        entry.cache_remote_file(httpget)
+        entry.cache_remote_file()
         assert entry.get_file_content() == b"3333"
 
     def test_store_and_iter(self, filestore):

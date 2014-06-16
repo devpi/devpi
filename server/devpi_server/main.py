@@ -221,7 +221,7 @@ class XOM:
     @cached_property
     def filestore(self):
         from devpi_server.filestore import FileStore
-        return FileStore(self.keyfs)
+        return FileStore(self)
 
     @cached_property
     def keyfs(self):

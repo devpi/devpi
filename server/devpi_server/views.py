@@ -673,9 +673,9 @@ class PyPIView:
             if not self.xom.is_replica():
                 keyfs.restart_as_write_transaction()
                 entry = filestore.get_file_entry(relpath)
-                entry.cache_remote_file(self.xom.httpget)
+                entry.cache_remote_file()
             else:
-                entry = entry.cache_remote_file_replica(self.xom)
+                entry = entry.cache_remote_file_replica()
 
         headers = entry.gethttpheaders()
         content = entry.get_file_content()

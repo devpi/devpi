@@ -148,4 +148,4 @@ def test_cache_remote_file_fails(makexom, gen, monkeypatch):
         xom.httpget.mockresponse(url, status_code=200,
                     headers=headers, raw = py.io.BytesIO(b"123"))
         with pytest.raises(ValueError):
-            newentry = entry.cache_remote_file_replica(xom)
+            newentry = entry.cache_remote_file_replica()

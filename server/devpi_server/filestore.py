@@ -19,8 +19,9 @@ log = threadlog
 class FileStore:
     attachment_encoding = "utf-8"
 
-    def __init__(self, keyfs):
-        self.keyfs = keyfs
+    def __init__(self, xom):
+        self.xom = xom
+        self.keyfs = xom.keyfs
 
     def maplink(self, link):
         if link.md5:
@@ -39,7 +40,7 @@ class FileStore:
             key = self.keyfs.PYPIFILE_NOMD5(user="root", index="pypi",
                    dirname=dirname,
                    basename=parts[-1])
-        entry = FileEntry(key)
+        entry = FileEntry(self.xom, key)
         mapping = {"url": link.geturl_nofragment().url}
         mapping["eggfragment"] = link.eggfragment
         mapping["md5"] = link.md5
@@ -59,20 +60,20 @@ class FileStore:
             key = self.keyfs.derive_key(relpath)
         except KeyError:
             return None
-        return FileEntry(key)
+        return FileEntry(self.xom, key)
 
     def get_proxy_file_entry(self, relpath, md5, keyname):
         try:
             key = self.keyfs.derive_key(relpath, keyname=keyname)
         except KeyError:
             raise # return None
-        return FileEntry(key, md5=md5)
+        return FileEntry(self.xom, key, md5=md5)
 
     def store(self, user, index, filename, content, last_modified=None):
         digest = hashlib.md5(content).hexdigest()
         key = self.keyfs.STAGEFILE(user=user, index=index,
                                    md5=digest, filename=filename)
-        entry = FileEntry(key)
+        entry = FileEntry(self.xom, key)
         entry.set_file_content(content)
         entry.set(md5=digest)
         return entry
@@ -107,7 +108,8 @@ class FileEntry(object):
     _attr = set("md5 eggfragment last_modified "
                 "url projectname version".split())
 
-    def __init__(self, key, md5=_nodefault):
+    def __init__(self, xom, key, md5=_nodefault):
+        self.xom = xom
         self.key = key
         self.relpath = key.relpath
         self.basename = self.relpath.split("/")[-1]
@@ -185,9 +187,9 @@ class FileEntry(object):
         self.key.delete()
         self.key_content = {}
 
-    def cache_remote_file(self, httpget):
+    def cache_remote_file(self):
         # we get and cache the file and some http headers from remote
-        r = httpget(self.url, allow_redirects=True)
+        r = self.xom.httpget(self.url, allow_redirects=True)
         assert r.status_code >= 0, r.status_code
         log.info("reading remote: %s, target %s", r.url, self.relpath)
         content = r.raw.read()
@@ -210,10 +212,10 @@ class FileEntry(object):
         self.set_file_content(content, r.headers.get("last-modified", None))
         self.set(md5=digest)
 
-    def cache_remote_file_replica(self, xom):
+    def cache_remote_file_replica(self):
         threadlog.info("replica doesn't have file: %s", self.relpath)
-        url = xom.config.master_url.joinpath(self.relpath).url
-        r = xom.httpget(url, allow_redirects=True)  # XXX HEAD
+        url = self.xom.config.master_url.joinpath(self.relpath).url
+        r = self.xom.httpget(url, allow_redirects=True)  # XXX HEAD
         if r.status_code != 200:
             threadlog.error("got %s from upstream", r.status_code)
             raise ValueError("%s: received %s from master"
@@ -222,7 +224,7 @@ class FileEntry(object):
         keyfs = self.key.keyfs
         keyfs.notifier.wait_tx_serial(serial)
         keyfs.restart_read_transaction()
-        entry = xom.filestore.get_file_entry(self.relpath)
+        entry = self.xom.filestore.get_file_entry(self.relpath)
         if not entry.file_exists():
             threadlog.error("did not get file after waiting")
             raise ValueError("%s: did not get file after waiting" % url)

@@ -612,7 +612,7 @@ class FileUploaded:
         index = params.get("index")
         keyfs = self.xom.keyfs
         with keyfs.transaction(write=False, at_serial=ev.at_serial):
-            entry = FileEntry(ev.typedkey)  # XXX pass value as well
+            entry = FileEntry(self.xom, ev.typedkey)  # XXX pass value as well
             stage = self.xom.model.getstage(user, index)
             if entry.basename.endswith(".doc.zip"):
                 self.xom.config.hook.devpiserver_docs_uploaded(
