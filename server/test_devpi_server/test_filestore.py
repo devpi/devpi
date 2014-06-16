@@ -178,8 +178,6 @@ class TestFileStore:
         assert link.md5 in str(excinfo.value)
         assert not entry.file_exists()
 
-    @pytest.mark.xfail(reason="disambiguation of downloads from urls"
-            " whose content changes over time")
     def test_iterfile_eggfragment(self, filestore, httpget, gen):
         link = gen.pypi_package_link("master#egg=pytest-dev", md5=False)
         entry = filestore.maplink(link)
@@ -189,19 +187,13 @@ class TestFileStore:
                  "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
                  "content-type": "application/zip"}
 
-        httpget.mockresponse(entry.url, headers=headers, raw=BytesIO(b"1234"))
-        rheaders, riter = filestore.iterfile(entry.relpath, httpget,
-                                             chunksize=10)
-        assert py.builtin.bytes().join(riter) == b"1234"
+        httpget.mockresponse(link.url_nofrag, headers=headers,
+                             raw=BytesIO(b"1234"))
+        entry.cache_remote_file(httpget)
+        assert entry.get_file_content() == b"1234"
         httpget.mockresponse(entry.url, headers=headers, raw=BytesIO(b"3333"))
-        rheaders, riter = filestore.iterfile(entry.relpath, httpget,
-                                             chunksize=10)
-        assert b"".join(riter) == b"3333"
-        # XXX we could allow getting an old version if it exists
-        # and a new request errors out
-        #httpget.url2response[entry.url] = dict(status_code=500)
-        #rheaders, riter = store.iterfile(entry.relpath, httpget, chunksize=10)
-        #assert py.builtin.bytes().join(riter) == py.builtin.bytes("1234")
+        entry.cache_remote_file(httpget)
+        assert entry.get_file_content() == b"3333"
 
     def test_store_and_iter(self, filestore):
         content = b"hello"
