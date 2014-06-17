@@ -181,10 +181,15 @@ class Index(object):
         self.tl = threading.local()
 
     def ix(self, name):
+        schema = getattr(self, '%s_schema' % name)
         if not exists_in(self.index_path, indexname=name):
-            schema = getattr(self, '%s_schema' % name)
             return create_in(self.index_path, schema, indexname=name)
-        return open_dir(self.index_path, indexname=name)
+        ix = open_dir(self.index_path, indexname=name)
+        if ix.schema != schema:
+            log.warn("\n".join([
+                "The index schema on disk differs from the current code schema.",
+                "You need to run devpi-server with the --index-projects option to recreate the index."]))
+        return ix
 
     def delete_index(self):
         shutil.rmtree(self.index_path)
