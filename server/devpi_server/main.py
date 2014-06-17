@@ -198,19 +198,18 @@ class XOM:
 
         # creation of app will register handlers of key change events
         # which cannot happen anymore after the tx notifier has started
+        with xom.keyfs.transaction():
+            results = xom.config.hook.devpiserver_run_commands(xom)
+            if [x for x in results if x is not None]:
+                errors = list(filter(None, results))
+                if errors:
+                    return errors[0]
+                return 0
+
         app = xom.create_app()
         with xom.thread_pool.live():
-            if 1:
-                with xom.keyfs.transaction():
-                    results = xom.config.hook.devpiserver_run_commands(xom)
-                if [x for x in results if x is not None]:
-                    errors = list(filter(None, results))
-                    if errors:
-                        return errors[0]
-                    return 0
-
-            # XXX ground restart_as_write_transaction better
             if xom.is_replica():
+                # XXX ground restart_as_write_transaction better
                 xom.keyfs.restart_as_write_transaction = None
             return wsgi_run(xom, app)
 

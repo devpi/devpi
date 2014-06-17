@@ -1,4 +1,3 @@
-import pytest
 
 
 def test_importable():
@@ -6,18 +5,14 @@ def test_importable():
     assert devpi_web
 
 
-def test_index_created_on_first_run(monkeypatch, tmpdir):
-    from mock import MagicMock
-    import devpi_server.main
+def test_devpi_pypi_initial(monkeypatch, pypistage):
+    import mock
     import devpi_web.main
-    iter_projects = MagicMock()
+    from devpi_web.main import devpiserver_pypi_initial
+    iter_projects = mock.MagicMock()
     iter_projects.return_value = iter([])
-    monkeypatch.setattr(devpi_server.extpypi.PyPIMirror, "init_pypi_mirror",
-                        lambda self, proxy: None)
     monkeypatch.setattr(devpi_web.main, "iter_projects", iter_projects)
-    monkeypatch.setattr(devpi_server.main, "wsgi_run", lambda *x: 0 / 0)
-    with pytest.raises(ZeroDivisionError):
-        devpi_server.main.main(["devpi-server", "--serverdir", str(tmpdir)])
+    devpiserver_pypi_initial(pypistage, pypistage.pypimirror.name2serials)
     assert iter_projects.called
 
 

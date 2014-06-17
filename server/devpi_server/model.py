@@ -553,6 +553,7 @@ def add_keys(xom, keyfs):
     keyfs.add_key("USERLIST", ".config", set)
 
     # type pypimirror related data
+    keyfs.add_key("PYPI_SERIALS_LOADED", "root/pypi/initiallinks", dict)
     keyfs.add_key("PYPILINKS", "root/pypi/+links/{name}", dict)
     keyfs.add_key("PYPIFILE_NOMD5",
                  "{user}/{index}/+e/{dirname}/{basename}", dict)
@@ -571,7 +572,21 @@ def add_keys(xom, keyfs):
 
     keyfs.notifier.on_key_change("PROJCONFIG", ProjectChanged(xom))
     keyfs.notifier.on_key_change("STAGEFILE", FileUploaded(xom))
+    keyfs.notifier.on_key_change("PYPI_SERIALS_LOADED", PyPISerialsLoaded(xom))
 
+
+class PyPISerialsLoaded:
+    def __init__(self, xom):
+        self.xom = xom
+
+    def __call__(self, ev):
+        threadlog.info("PyPISerialsLoaded %s", ev.typedkey)
+        xom = self.xom
+        hook = xom.config.hook
+        with xom.keyfs.transaction(write=False, at_serial=ev.at_serial):
+            stage = xom.model.getstage("root", "pypi")
+            name2serials = stage.pypimirror.name2serials
+            hook.devpiserver_pypi_initial(stage, name2serials)
 
 
 class ProjectChanged:

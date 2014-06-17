@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 from devpi_web.doczip import unpack_docs
 from devpi_web.indexing import iter_projects, preprocess_project
 from devpi_web.whoosh_index import Index
+from devpi_server.log import threadlog
 from pyramid.renderers import get_renderer
 
 
@@ -90,15 +91,24 @@ def devpiserver_add_parser_options(parser):
         help="index all existing projects")
 
 
+def devpiserver_pypi_initial(stage, name2serials):
+    xom = stage.xom
+    ix = get_indexer(xom.config)
+    ix.delete_index()
+    indexer = get_indexer(xom.config)
+    # directly use name2serials?
+    indexer.update_projects(iter_projects(xom), clear=True)
+    threadlog.info("finished initial indexing op")
+
+
 def devpiserver_run_commands(xom):
     ix = get_indexer(xom.config)
-    if ix.needs_reindex() or xom.config.args.index_projects:
+    if xom.config.args.index_projects:
         ix.delete_index()
         indexer = get_indexer(xom.config)
         indexer.update_projects(iter_projects(xom), clear=True)
-        if xom.config.args.index_projects:
-            # only exit when indexing explicitly
-            return 0
+        # only exit when indexing explicitly
+        return 0
     # allow devpi-server to run
     return None
 

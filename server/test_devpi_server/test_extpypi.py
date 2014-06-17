@@ -419,6 +419,20 @@ class TestRefreshManager:
         assert mirror.name2serials == d
 
     @pytest.mark.notransaction
+    def test_pypi_initial(self, makexom, queue):
+        proxy = mock.create_autospec(XMLProxy)
+        d = {"hello": 10, "abc": 42}
+        proxy.list_packages_with_serial.return_value = d
+        class Plugin:
+            def devpiserver_pypi_initial(self, stage, name2serials):
+                queue.put((stage, name2serials))
+        xom = makexom(plugins=[(Plugin(),None)])
+        xom.thread_pool.start()
+        xom.pypimirror.init_pypi_mirror(proxy)
+        stage, name2serials = queue.get()
+        assert name2serials == d
+
+    @pytest.mark.notransaction
     def test_pypichanges_loop(self, pypistage, monkeypatch, pool):
         pypistage.pypimirror.process_changelog = mock.Mock()
         proxy = mock.create_autospec(XMLProxy)
