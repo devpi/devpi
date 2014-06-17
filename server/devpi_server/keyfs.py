@@ -11,8 +11,7 @@ import re
 import contextlib
 import py
 from . import mythread
-from .log import (threadlog, thread_push_log,
-                  thread_pop_log, thread_current_log)
+from .log import threadlog, thread_push_log, thread_pop_log
 import os
 import sys
 
@@ -129,11 +128,11 @@ class FSWriter:
         self.pending_renames.append((tmp_path, target_path))
 
     def __enter__(self):
-        self.log = thread_push_log("fswriter:")
+        self.log = thread_push_log("fswriter%s:" % self.fs.next_serial)
         return self
 
     def __exit__(self, cls, val, tb):
-        thread_pop_log("fswriter:")
+        thread_pop_log("fswriter%s:" % self.fs.next_serial)
         if cls is None:
             assert self.changes, "commit cannot be empty"
             self.commit_to_filesystem()

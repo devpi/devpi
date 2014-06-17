@@ -222,7 +222,7 @@ class IndexDump:
             entry = self.exporter.filestore.get_file_entry(file)
             assert entry.file_exists(), entry.relpath
             file_meta = entry.key_content.copy()
-            content = entry.get_file_content()
+            content = entry.file_get_content()
             rel = self.exporter.write_file(
                 content,
                 self.basedir.join(projectname, entry.basename))

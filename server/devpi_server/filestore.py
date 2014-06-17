@@ -64,6 +64,9 @@ class FileStore:
             return None
         return FileEntry(self.xom, key)
 
+    def get_file_entry_raw(self, key, key_content):
+        return FileEntry(self.xom, key, key_content=key_content)
+
     def get_proxy_file_entry(self, relpath, md5, keyname):
         try:
             key = self.keyfs.derive_key(relpath, keyname=keyname)
@@ -76,8 +79,7 @@ class FileStore:
         key = self.keyfs.STAGEFILE(user=user, index=index,
                                    md5=digest, filename=filename)
         entry = FileEntry(self.xom, key)
-        entry.set_file_content(content)
-        entry.set(md5=digest)
+        entry.file_set_content(content, md5=digest)
         return entry
 
     def add_attachment(self, md5, type, data):
@@ -110,11 +112,13 @@ class FileEntry(object):
     _attr = set("md5 eggfragment last_modified "
                 "url projectname version".split())
 
-    def __init__(self, xom, key, md5=_nodefault):
+    def __init__(self, xom, key, key_content=None, md5=_nodefault):
         self.xom = xom
         self.key = key
         self.relpath = key.relpath
         self.basename = self.relpath.split("/")[-1]
+        if key_content is not None:
+            self.key_content = key_content
         if md5 is not _nodefault:
             self.md5 = md5
 
@@ -138,9 +142,7 @@ class FileEntry(object):
 
     @property
     def meta(self):
-        meta = self.key_content.copy()
-        meta.pop("content", None)
-        return meta
+        return self.key_content.copy()
 
     def file_exists(self):
         return os.path.exists(self._filepath)
@@ -152,8 +154,11 @@ class FileEntry(object):
             if raising:
                 raise
 
-    @property
-    def size(self):
+    def file_md5(self):
+        if self.file_exists():
+            return hashlib.md5(self.file_get_content()).hexdigest()
+
+    def file_size(self):
         try:
             return os.path.getsize(self._filepath)
         except OSError:
@@ -162,15 +167,24 @@ class FileEntry(object):
     def __repr__(self):
         return "<FileEntry %r>" %(self.key)
 
-    def get_file_content(self):
-        with open(self._filepath, "rb") as f:
+    def file_open_read(self):
+        return open(self._filepath, "rb")
+
+    def file_get_content(self):
+        with self.file_open_read() as f:
             return f.read()
 
-    def set_file_content(self, content, last_modified=None):
+    def file_set_content(self, content, last_modified=None, md5=None):
         assert isinstance(content, bytes)
-        if last_modified is None:
-            last_modified = http_date()
-        self.set(last_modified=last_modified)
+        if last_modified != -1:
+            if last_modified is None:
+                last_modified = http_date()
+            self.set(last_modified=last_modified)
+        #else we are called from replica thread and just write out
+        if md5 is not None:
+            self.set(md5=md5)
+        if self.md5 and hashlib.md5(content).hexdigest() != self.md5:
+            raise ValueError("md5 mismatch: %s" % self.relpath)
         with get_write_file_ensure_dir(self._filepath) as f:
             f.write(content)
 
@@ -180,7 +194,7 @@ class FileEntry(object):
         headers[str("last-modified")] = str(self.last_modified)
         m = mimetypes.guess_type(self.basename)[0]
         headers[str("content-type")] = str(m)
-        headers[str("content-length")] = str(self.size)
+        headers[str("content-length")] = str(self.file_size())
         return headers
 
     def __eq__(self, other):
@@ -226,13 +240,15 @@ class FileEntry(object):
             log.error(str(err))
             raise err
 
-        self.set_file_content(content, r.headers.get("last-modified", None))
-        self.set(md5=digest)
+        self.file_set_content(content, r.headers.get("last-modified", None),
+                              md5=digest)
 
     def cache_remote_file_replica(self):
+        # construct master URL with param
+        assert self.url, "should have private files already: %s" % self.relpath
         threadlog.info("replica doesn't have file: %s", self.relpath)
         url = self.xom.config.master_url.joinpath(self.relpath).url
-        r = self.xom.httpget(url, allow_redirects=True)  # XXX HEAD
+        r = self.xom._httpsession.head(url)
         if r.status_code != 200:
             threadlog.error("got %s from upstream", r.status_code)
             raise ValueError("%s: received %s from master"
@@ -244,8 +260,12 @@ class FileEntry(object):
         entry = self.xom.filestore.get_file_entry(self.relpath)
         if not entry.file_exists():
             threadlog.error("did not get file after waiting")
-            raise ValueError("%s: did not get file after waiting" % url)
+            raise ValueError("%s: did not get file after waiting" %
+            url)
         return entry
+
+
+
 
 
 def http_date():

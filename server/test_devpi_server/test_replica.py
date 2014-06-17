@@ -1,3 +1,4 @@
+import hashlib
 import pytest
 import py
 from devpi_server.replica import *
@@ -130,7 +131,44 @@ class TestTweenReplica:
         assert l == [10]
 
 
-def test_cache_remote_file_fails(makexom, gen, monkeypatch):
+class TestReplicaFileGetter:
+    def test_fetch(self, xom, gen, reqmock):
+        getter = ReplicaFileGetter(xom)
+        content1 = b'hello'
+        md5 = hashlib.md5(content1).hexdigest()
+        link = gen.pypi_package_link("pytest-1.8.zip#md5=%s" % md5, md5=False)
+        xom.config.master_url = url = URL("http://localhost")
+        with xom.keyfs.transaction(write=True):
+            entry = getter.xom.filestore.maplink(link)
+            assert not entry.file_exists()
+            getter(entry.key, entry.meta)
+            assert not entry.file_exists()
+            entry.file_set_content(content1)
+            assert entry.file_exists()
+            entry.file_delete()
+            # first we try to return something wrong
+            xom.httpget.mockresponse(url.joinpath(entry.relpath).url,
+                                     code=200, content=b'123')
+            with pytest.raises(ValueError):
+                getter(entry.key, entry.meta)
+            assert not entry.file_exists()
+
+            # then we try to correctly return
+            xom.httpget.mockresponse(url.joinpath(entry.relpath).url,
+                                     code=200, content=content1)
+            getter(entry.key, entry.meta)
+            assert entry.file_exists()
+            assert entry.file_size() == len(content1)
+
+            # now we modify the md5 and see if a reget takes place
+            content2 = b'world'
+            xom.httpget.mockresponse(url.joinpath(entry.relpath).url,
+                                     code=200, content=content2)
+            entry.set(md5=hashlib.md5(content2).hexdigest())
+            getter(entry.key, entry.meta)
+
+
+def test_cache_remote_file_fails(makexom, gen, monkeypatch, reqmock):
     xom = makexom(["--master", "http://localhost"])
     l = []
     monkeypatch.setattr(xom.keyfs.notifier, "wait_tx_serial",
@@ -145,7 +183,7 @@ def test_cache_remote_file_fails(makexom, gen, monkeypatch):
                  "content-type": "application/zip",
                  "X-DEVPI-SERIAL": "10"}
         url = xom.config.master_url.joinpath(entry.relpath).url
-        xom.httpget.mockresponse(url, status_code=200,
-                    headers=headers, raw = py.io.BytesIO(b"123"))
+        reqmock.mockresponse(url, code=200,
+                             headers=headers, data=b'123')
         with pytest.raises(ValueError):
-            newentry = entry.cache_remote_file_replica()
+            entry.cache_remote_file_replica()
