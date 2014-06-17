@@ -4,7 +4,6 @@ for all indexes.
 
 """
 from __future__ import unicode_literals
-import os
 import hashlib
 import mimetypes
 import json
@@ -12,7 +11,7 @@ from wsgiref.handlers import format_date_time
 from datetime import datetime
 from time import mktime
 from devpi_common.types import cached_property
-from .keyfs import _nodefault, get_write_file_ensure_dir, directio
+from .keyfs import _nodefault
 from .log import threadlog
 
 log = threadlog
@@ -137,10 +136,7 @@ class FileEntry(object):
 
     @property
     def tx(self):
-        try:
-            return self.key.keyfs.tx
-        except AttributeError:
-            return directio
+        return self.key.keyfs.tx
 
     @cached_property
     def meta(self):

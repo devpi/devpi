@@ -146,7 +146,7 @@ class FSWriter:
         else:
             while self.pending_renames:
                 source, dest = self.pending_renames.pop()
-                if source:
+                if source is not None:
                     os.remove(source)
             self.log.info("roll back at %s" %(self.fs.next_serial))
 
@@ -296,7 +296,7 @@ class KeyFS(object):
                     fswriter.record_set(typedkey, val)
                     meth = self._import_subscriber.get(typedkey.name)
                     if meth is not None:
-                        meth(typedkey, val, back_serial)
+                        meth(fswriter, typedkey, val, back_serial)
 
     def subscribe_on_import(self, key, subscriber):
         assert key.name not in self._import_subscriber
@@ -502,7 +502,7 @@ class Transaction(object):
         try:
             return self.dirty_files[path] is not None
         except KeyError:
-            return directio.io_file_exists(path)
+            return os.path.exists(path)
 
     def io_file_set(self, path, content):
         self.dirty_files[path] = content
@@ -511,7 +511,8 @@ class Transaction(object):
         try:
             content = self.dirty_files[path]
         except KeyError:
-            return directio.io_file_get(path)
+            with open(path, "rb") as f:
+                return f.read()
         if content is None:
             raise IOError()
         return content
@@ -520,7 +521,10 @@ class Transaction(object):
         try:
             content = self.dirty_files[path]
         except KeyError:
-            return directio.io_file_size(path)
+            try:
+                return os.path.getsize(path)
+            except OSError:
+                return None
         if content is not None:
             return len(content)
 
@@ -619,34 +623,4 @@ def copy_if_mutable(val):
     elif isinstance(val, list):
         return list(val)
     return val
-
-
-class DirectIO:
-    def io_file_exists(self, path):
-        return os.path.exists(path)
-
-    def io_file_delete(self, path):
-        try:
-            os.remove(path)
-        except (OSError, IOError):
-            threadlog.warn("could not direct-delete file: %s", path)
-        else:
-            threadlog.debug("direct-deleted file: %s", path)
-
-    def io_file_set(self, path, content):
-        with get_write_file_ensure_dir(path) as f:
-            f.write(content)
-
-    def io_file_get(self, path):
-        with open(path, "rb") as f:
-            return f.read()
-
-    def io_file_size(self, path):
-        try:
-            return os.path.getsize(path)
-        except OSError:
-            return None
-
-directio = DirectIO()
-
 

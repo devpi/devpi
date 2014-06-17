@@ -1,12 +1,16 @@
+import os
 import py
+import hashlib
 from pyramid.httpexceptions import HTTPNotFound
 from pyramid.view import view_config
 from pyramid.response import Response
 
-from .keyfs import load, dump
+from .keyfs import load, dump, get_write_file_ensure_dir
 from .log import thread_push_log, threadlog
 from .views import is_mutating_http_method
 
+class WrongRemoteFile(Exception):
+    """ a remote file did not match what was expected. """
 
 class MasterChangelogRequest:
     def __init__(self, request):
@@ -84,7 +88,10 @@ class ReplicaThread:
                         log.error("could not read answer %s", url)
                     else:
                         log.info("importing changelog entry %s", serial)
-                        keyfs.import_changelog_entry(serial, entry)
+                        try:
+                            keyfs.import_changelog_entry(serial, entry)
+                        except WrongRemoteFile:
+                            threadlog.exception("cannot import %s", serial)
                         serial += 1
                         continue
                 else:
@@ -160,24 +167,20 @@ class ReplicaFileGetter:
     def __init__(self, xom):
         self.xom = xom
 
-    def __call__(self, key, val, back_serial):
+    def __call__(self, fswriter, key, val, back_serial):
         relpath = key.relpath
         entry = self.xom.filestore.get_file_entry_raw(key, val)
+        file_exists = os.path.exists(entry._filepath)
         if val is None:
             if back_serial >= 0:
                 # file was deleted, but might never have been replicated
-                entry.file_delete()
+                if file_exists:
+                    threadlog.debug("mark for deletion: %s", entry._filepath)
+                    fswriter.record_rename_file(None, entry._filepath)
             return
 
-        if entry.file_exists():
-            if entry.md5 and entry.md5 != entry.file_md5():
-                threadlog.error("local file has different md5, removing: %s",
-                               entry._filepath)
-                entry.file_delete()
-            else:
-                return
-        elif entry.last_modified is None:
-            # there is no remote file
+        if file_exists or entry.last_modified is None:
+            # we have a file or there is no remote file
             return
 
         threadlog.info("retrieving file from master: %s", relpath)
@@ -186,4 +189,13 @@ class ReplicaFileGetter:
         if r.status_code != 200:
             threadlog.error("got %s from upstream", r.status_code)
             return
-        entry.file_set_content(r.content, last_modified=-1)
+        remote_md5 = hashlib.md5(r.content).hexdigest()
+        if entry.md5 and entry.md5 != remote_md5:
+            threadlog.error("WrongRemote: %s", url)
+            raise WrongRemoteFile("remote md5 %s, expected %s for %s",
+                                  remote_md5, entry.md5, url)
+        else:
+            tmppath = entry._filepath + "-tmp"
+            with get_write_file_ensure_dir(tmppath) as f:
+                f.write(r.content)
+            fswriter.record_rename_file(tmppath, entry._filepath)

@@ -251,13 +251,15 @@ class TestSubmitValidation:
         paths = mapp.get_release_paths("Pkg5")
         for path in paths:
             testapp.xget(200, path)
-            entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
-            assert entry.file_exists()
+            with testapp.xom.keyfs.transaction():
+                entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
+                assert entry.file_exists()
         mapp.delete_index(submit.stagename)
         for path in paths:
             testapp.xget(404, path)
-            entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
-            assert not entry.file_exists()
+            with testapp.xom.keyfs.transaction():
+                entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
+                assert not entry.file_exists()
 
     def test_upload_twice_to_volatile(self, submit, testapp, mapp):
         metadata = {"name": "Pkg5", "version": "2.6", ":action": "submit"}

@@ -136,8 +136,9 @@ def makexom(request, gentmp, httpget, monkeypatch):
         request.addfinalizer(xom.thread_pool.shutdown)
         # initialize default indexes
         from devpi_server.main import set_default_indexes
-        with xom.keyfs.transaction(write=True):
-            set_default_indexes(xom.model)
+        if not xom.config.args.master_url:
+            with xom.keyfs.transaction(write=True):
+                set_default_indexes(xom.model)
         return xom
     return makexom
 

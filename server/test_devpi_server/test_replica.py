@@ -87,14 +87,14 @@ class TestReplicaThread:
 
     def test_thread_run_fail(self, rt, reqmock, caplog):
         rt.thread.sleep = lambda x: 0/0
-        reqmock.mockresponse("http://localhost/+changelog/1", code=404)
+        reqmock.mockresponse("http://localhost/+changelog/0", code=404)
         with pytest.raises(ZeroDivisionError):
             rt.thread_run()
         assert caplog.getrecords("404.*failed fetching*")
 
     def test_thread_run_decode_error(self, rt, reqmock, caplog):
         rt.thread.sleep = lambda x: 0/0
-        reqmock.mockresponse("http://localhost/+changelog/1", code=200,
+        reqmock.mockresponse("http://localhost/+changelog/0", code=200,
                              data=b'qlwekj')
         with pytest.raises(ZeroDivisionError):
             rt.thread_run()
@@ -102,11 +102,11 @@ class TestReplicaThread:
 
     def test_thread_run_ok(self, rt, reqmock, caplog):
         rt.thread.sleep = rt.thread.exit_if_shutdown = lambda *x: 0/0
-        reqmock.mockresponse("http://localhost/+changelog/1", code=200,
+        reqmock.mockresponse("http://localhost/+changelog/0", code=200,
                              data=rt.xom.keyfs._fs.get_raw_changelog_entry(0))
         with pytest.raises(ZeroDivisionError):
             rt.thread_run()
-        assert caplog.getrecords("committed")
+        #assert caplog.getrecords("committed")
 
 class TestTweenReplica:
     def test_nowrite(self, xom, blank_request):
@@ -130,52 +130,93 @@ class TestTweenReplica:
         assert response.headers.get("X-DEVPI-SERIAL") == "10"
         assert l == [10]
 
+def replay(xom, replica_xom):
+    for serial in range(replica_xom.keyfs.get_next_serial(),
+                        xom.keyfs.get_next_serial()):
+        if serial == -1:
+            continue
+        change_entry = xom.keyfs._fs.get_changelog_entry(serial)
+        threadlog.info("importing to replica %s", serial)
+        replica_xom.keyfs.import_changelog_entry(serial, change_entry)
 
-class TestReplicaFileGetter:
-    def test_fetch(self, xom, gen, reqmock):
-        getter = ReplicaFileGetter(xom)
+class TestFileReplication:
+    @pytest.fixture
+    def replica_xom(self, makexom):
+        replica_xom = makexom(["--master", "http://localhost"])
+        keyfs = replica_xom.keyfs
+        for key in (keyfs.STAGEFILE, keyfs.PYPIFILE_NOMD5, keyfs.PYPISTAGEFILE):
+            keyfs.subscribe_on_import(key, ReplicaFileGetter(replica_xom))
+        return replica_xom
+
+    def test_fetch(self, gen, reqmock, xom, replica_xom):
+        replay(xom, replica_xom)
         content1 = b'hello'
         md5 = hashlib.md5(content1).hexdigest()
         link = gen.pypi_package_link("pytest-1.8.zip#md5=%s" % md5, md5=False)
-        xom.config.master_url = url = URL("http://localhost")
         with xom.keyfs.transaction(write=True):
-            entry = getter.xom.filestore.maplink(link)
+            entry = xom.filestore.maplink(link)
             assert not entry.file_exists()
-            getter(entry.key, entry.meta, -1)
-            assert not entry.file_exists()
+
+        replay(xom, replica_xom)
+        with replica_xom.keyfs.transaction():
+            r_entry = replica_xom.filestore.get_file_entry(entry.relpath)
+            assert not r_entry.file_exists()
+            assert r_entry.meta
+
+        with xom.keyfs.transaction(write=True):
             entry.file_set_content(content1)
-            assert entry.file_exists()
-            entry.file_delete()
-            # first we try to return something wrong
-            xom.httpget.mockresponse(url.joinpath(entry.relpath).url,
-                                     code=200, content=b'123')
-            with pytest.raises(ValueError):
-                getter(entry.key, entry.meta, -1)
+
+        # first we try to return something wrong
+        master_url = replica_xom.config.master_url
+        master_file_path = master_url.joinpath(entry.relpath).url
+        xom.httpget.mockresponse(master_file_path, code=200, content=b'13')
+        with pytest.raises(WrongRemoteFile):
+            replay(xom, replica_xom)
+        with replica_xom.keyfs.transaction():
+            assert not r_entry.file_exists()
+            assert not os.path.exists(r_entry._filepath)
+
+        # then we try to return the correct thing
+        xom.httpget.mockresponse(master_file_path, code=200, content=content1)
+        replay(xom, replica_xom)
+        with replica_xom.keyfs.transaction():
+            assert r_entry.file_exists()
+            assert r_entry.file_get_content() == content1
+
+        # now we produce a delete event
+        with xom.keyfs.transaction(write=True):
+            entry.delete()
+        replay(xom, replica_xom)
+        with replica_xom.keyfs.transaction():
+            assert not r_entry.file_exists()
+
+    def test_fetch_pypi_nomd5(self, gen, reqmock, xom, replica_xom):
+        replay(xom, replica_xom)
+        content1 = b'hello'
+        link = gen.pypi_package_link("some-1.8.zip", md5=False)
+        with xom.keyfs.transaction(write=True):
+            entry = xom.filestore.maplink(link)
             assert not entry.file_exists()
+            assert not entry.md5
 
-            # then we try to correctly return
-            xom.httpget.mockresponse(url.joinpath(entry.relpath).url,
-                                     code=200, content=content1)
-            getter(entry.key, entry.meta, -1)
-            assert entry.file_exists()
-            assert entry.file_size() == len(content1)
+        replay(xom, replica_xom)
+        with replica_xom.keyfs.transaction():
+            r_entry = replica_xom.filestore.get_file_entry(entry.relpath)
+            assert not r_entry.file_exists()
+            assert r_entry.meta
+            assert not r_entry.md5
 
-            # now we modify the md5 and see if a reget takes place
-            # and the old file is deleted (XXX can this happen, probably
-            # only with volatile pypi links)
-            content2 = b'world'
-            xom.httpget.mockresponse(url.joinpath(entry.relpath).url,
-                                     code=200, content=content2)
-            new_entry = getter.xom.filestore.get_file_entry_raw(
-                            entry.key, entry.meta)
-            new_entry.md5 = hashlib.md5(content2).hexdigest()
-            getter(entry.key, new_entry.meta, 0)
+        with xom.keyfs.transaction(write=True):
+            entry.file_set_content(content1)
 
-            # now we produce a delete event
-            d_entry = getter.xom.filestore.get_file_entry_raw(
-                            new_entry.key, meta=None)
-            getter(d_entry.key, None, 0)
-            assert not d_entry.file_exists()
+        master_url = replica_xom.config.master_url
+        master_file_path = master_url.joinpath(entry.relpath).url
+        replica_xom.httpget.mockresponse(master_file_path, code=200,
+                                         content=content1)
+        replay(xom, replica_xom)
+        with replica_xom.keyfs.transaction():
+            assert r_entry.file_exists()
+            assert r_entry.file_get_content() == content1
 
 
 def test_cache_remote_file_fails(makexom, gen, monkeypatch, reqmock):

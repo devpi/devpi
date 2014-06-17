@@ -289,7 +289,7 @@ class TestTransactionIsolation:
         raw_entry = keyfs._fs.get_raw_changelog_entry(0)
         entry = load(py.io.BytesIO(raw_entry))
         new_keyfs.import_changelog_entry(0, entry)
-        assert l == [(new_keyfs.NAME(name="world"), {1:1}, -1),]
+        assert l[0][1:] == (new_keyfs.NAME(name="world"), {1:1}, -1)
 
     def test_get_raw_changelog_entry_not_exist(self, keyfs):
         assert keyfs._fs.get_raw_changelog_entry(10000) is None

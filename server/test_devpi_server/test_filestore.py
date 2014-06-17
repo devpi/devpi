@@ -1,4 +1,5 @@
 
+import os
 import pytest
 import py
 from devpi_server.filestore import *
@@ -103,7 +104,7 @@ class TestFileStore:
         entry = filestore.get_proxy_file_entry(entry.relpath, md5=md,
                                                keyname=entry.key.name)
         assert entry.md5 == md
-        assert not entry.file_exists()
+        assert not os.path.exists(entry._filepath)
 
     def test_cache_remote_file(self, filestore, httpget, gen):
         link = gen.pypi_package_link("pytest-1.8.zip", md5=False)
