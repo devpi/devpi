@@ -230,21 +230,6 @@ class TestTransactionIsolation:
         tx_1.commit()
         assert tx_2.get(D) == {1:2}
 
-    @pytest.mark.xfail(run=False, reason="no support for concurrent writes")
-    def test_concurrent_tx_sees_deleted_while_newer_was_committed(self, keyfs):
-        D = keyfs.add_key("NAME", "hello", dict)
-        with keyfs.transaction():
-            D.set({1:1})
-        with keyfs.transaction():
-            D.delete()
-        tx_1 = Transaction(keyfs, write=True)
-        tx_2 = Transaction(keyfs, write=True)
-        tx_1.set(D, {2:2})
-        tx_1.commit()
-        assert not tx_2.exists(D)
-        tx_3 = Transaction(keyfs, write=True)
-        assert tx_3.exists(D)
-
     def test_tx_delete(self, keyfs):
         D = keyfs.add_key("NAME", "hello", dict)
         with keyfs.transaction(write=True):
