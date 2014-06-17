@@ -6,7 +6,6 @@ from bs4 import BeautifulSoup
 from devpi_common.archive import Archive
 from devpi_common.types import cached_property
 import json
-import py
 
 
 def get_unpack_path(stage, name, version):

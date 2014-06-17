@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 from devpi_common.metadata import get_pyversion_filetype, splitbasename
 from devpi_common.types import ensure_unicode
 from devpi_common.url import URL
+from devpi_server.log import threadlog as log
 from devpi_server.views import matchdict_parameters
 from devpi_web.doczip import Docs, get_unpack_path
 from operator import itemgetter
@@ -13,11 +14,7 @@ from pyramid.httpexceptions import HTTPFound, HTTPNotFound
 from pyramid.interfaces import IRoutesMapper
 from pyramid.response import FileResponse
 from pyramid.view import notfound_view_config, view_config
-import logging
 import py
-
-
-log = logging.getLogger(__name__)
 
 
 @view_config(route_name="docroot", request_method="GET")

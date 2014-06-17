@@ -1,8 +1,7 @@
 from devpi_common.metadata import Version
 from devpi_common.types import ensure_unicode
-from devpi_web.doczip import iter_doc_contents
 from devpi_server.log import threadlog as log
-import py
+from devpi_web.doczip import iter_doc_contents
 import time
 
 
@@ -51,7 +50,6 @@ def iter_projects(xom):
                 stage, '_load_project_cache', None)
             log.info("Indexing %s/%s:" % (username, index))
             names = stage.getprojectnames_perstage()
-            length = len(names)
             for count, name in enumerate(names, start=1):
                 name = ensure_unicode(name)
                 current_time = time.time()

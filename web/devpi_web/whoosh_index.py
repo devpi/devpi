@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 from collections import defaultdict
 from devpi_common.types import cached_property
-from logging import getLogger
+from devpi_server.log import threadlog as log
 from whoosh import fields
 from whoosh.analysis import Filter, LowercaseFilter, RegexTokenizer
 from whoosh.analysis import Token, Tokenizer
@@ -15,9 +15,6 @@ from whoosh.util.text import rcompile
 from whoosh.writing import CLEAR
 import shutil
 import threading
-
-
-log = getLogger(__name__)
 
 
 try:
