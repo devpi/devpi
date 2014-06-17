@@ -164,7 +164,7 @@ class TestReplicaFileGetter:
             content2 = b'world'
             xom.httpget.mockresponse(url.joinpath(entry.relpath).url,
                                      code=200, content=content2)
-            entry.set(md5=hashlib.md5(content2).hexdigest())
+            entry.md5 = hashlib.md5(content2).hexdigest()
             getter(entry.key, entry.meta)
 
 

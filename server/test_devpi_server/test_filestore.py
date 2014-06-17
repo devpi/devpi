@@ -70,6 +70,7 @@ class TestFileStore:
         entry1 = filestore.maplink(link)
         entry2 = filestore.maplink(link)
         assert entry1 == entry2
+        assert not entry1 != entry2
         assert entry1.relpath.endswith("/master")
         assert entry1.eggfragment == "pytest-dev"
         assert not entry1.md5
@@ -82,7 +83,7 @@ class TestFileStore:
         assert entry.url == link.url
         assert not entry.file_exists()
         md = hashlib.md5("").hexdigest()
-        entry.set(md5=md)
+        entry.md5 = md
         assert not entry.file_exists()
         entry.file_set_content(b"")
         assert entry.file_exists()

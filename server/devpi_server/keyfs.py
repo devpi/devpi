@@ -138,8 +138,7 @@ class FSWriter:
             self.commit_to_filesystem()
             commit_serial = self.fs.next_serial - 1
             if self.changes:
-                self.log.info("committed tx%s: %s", commit_serial,
-                         ",".join(self.changes))
+                self.log.info("committed: %s", ",".join(self.changes))
                 self.fs._notify_on_commit(commit_serial)
         else:
             while self.pending_renames:

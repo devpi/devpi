@@ -265,7 +265,7 @@ class PrivateStage:
 
     def delete(self):
         # delete all projects on this index
-        for name in self.getprojectnames_perstage():
+        for name in list(self.getprojectnames_perstage()):
             self.project_delete(name)
         with self.user.key.update() as userconfig:
             indexes = userconfig.get("indexes", {})
@@ -489,7 +489,8 @@ class PrivateStage:
                 return 409
             entry = self.xom.filestore.store(self.user.name, self.index,
                                 filename, content, last_modified=last_modified)
-            entry.set(projectname=name, version=version)
+            entry.projectname = name
+            entry.version = version
             files[filename] = entry.relpath
             threadlog.info("store_releasefile %s", entry.relpath)
             return entry
@@ -508,7 +509,8 @@ class PrivateStage:
             filename = "%s-%s.doc.zip" % (name, version)
             entry = self.xom.filestore.store(self.user.name, self.index,
                                 filename, content)
-            entry.set(projectname=name, version=version)
+            entry.projectname = name
+            entry.version = version
             verdata["+doczip"] = entry.relpath
 
     def get_doczip(self, name, version):

@@ -43,9 +43,8 @@ class FileStore:
                    dirname=dirname,
                    basename=parts[-1])
         entry = FileEntry(self.xom, key)
-        mapping = {"url": link.geturl_nofragment().url}
-        mapping["eggfragment"] = link.eggfragment
-        mapping["md5"] = link.md5
+        entry.url = link.geturl_nofragment().url
+        entry.eggfragment = link.eggfragment
         if link.md5 != entry.md5:
             if entry.file_exists():
                 log.info("replaced md5, deleting stale %s" % entry.relpath)
@@ -53,8 +52,7 @@ class FileStore:
             else:
                 if entry.md5:
                     log.info("replaced md5 info for %s" % entry.relpath)
-        entry.set(**mapping)
-        assert entry.url
+        entry.md5 = link.md5
         return entry
 
     def get_file_entry(self, relpath):
@@ -64,8 +62,8 @@ class FileStore:
             return None
         return FileEntry(self.xom, key)
 
-    def get_file_entry_raw(self, key, key_content):
-        return FileEntry(self.xom, key, key_content=key_content)
+    def get_file_entry_raw(self, key, meta):
+        return FileEntry(self.xom, key, meta=meta)
 
     def get_proxy_file_entry(self, relpath, md5, keyname):
         try:
@@ -108,41 +106,37 @@ class FileStore:
         return list(attachments.get(md5, {}))
 
 
-class FileEntry(object):
-    _attr = set("md5 eggfragment last_modified "
-                "url projectname version".split())
+def metaprop(name):
+    def fget(self):
+        return self.meta.get(name)
+    def fset(self, val):
+        self.meta[name] = val
+        self.key.set(self.meta)
+    return property(fget, fset)
 
-    def __init__(self, xom, key, key_content=None, md5=_nodefault):
+
+class FileEntry(object):
+    md5 = metaprop("md5")
+    eggfragment = metaprop("eggfragment")
+    last_modified = metaprop("last_modified")
+    url = metaprop("url")
+    projectname = metaprop("projectname")
+    version = metaprop("version")
+
+    def __init__(self, xom, key, meta=None, md5=_nodefault):
         self.xom = xom
         self.key = key
         self.relpath = key.relpath
         self.basename = self.relpath.split("/")[-1]
-        if key_content is not None:
-            self.key_content = key_content
+        self._filepath = str(self.xom.filestore.storedir.join(self.relpath))
+        if meta is not None:
+            self.meta = meta
         if md5 is not _nodefault:
             self.md5 = md5
 
     @cached_property
-    def _filepath(self):
-        return str(self.xom.filestore.storedir.join(self.relpath))
-
-    @cached_property
-    def key_content(self):
-        return self.key.get()
-
-    def __getattr__(self, name):
-        if name in self._attr:
-            return self.key_content.get(name)
-        raise AttributeError(name)
-
-    def __setattr__(self, name, val):
-        if name in self._attr and name != "md5":
-            raise AttributeError("cannot write %s" % name)
-        return super(FileEntry, self).__setattr__(name, val)
-
-    @property
     def meta(self):
-        return self.key_content.copy()
+        return self.key.get()
 
     def file_exists(self):
         return os.path.exists(self._filepath)
@@ -179,10 +173,10 @@ class FileEntry(object):
         if last_modified != -1:
             if last_modified is None:
                 last_modified = http_date()
-            self.set(last_modified=last_modified)
+            self.last_modified = last_modified
         #else we are called from replica thread and just write out
         if md5 is not None:
-            self.set(md5=md5)
+            self.md5 = md5
         if self.md5 and hashlib.md5(content).hexdigest() != self.md5:
             raise ValueError("md5 mismatch: %s" % self.relpath)
         with get_write_file_ensure_dir(self._filepath) as f:
@@ -198,24 +192,20 @@ class FileEntry(object):
         return headers
 
     def __eq__(self, other):
-        return (self.relpath == getattr(other, "relpath", None) and
-                self.key == other.key)
+        try:
+            return self.relpath == other.relpath and self.key == other.key
+        except AttributeError:
+            return False
+
+    def __ne__(self, other):
+        return not self == other
 
     def __hash__(self):
         return hash(self.relpath)
 
-    def set(self, **kw):
-        mapping = {}
-        for name, val in kw.items():
-            assert name in self._attr
-            if val is not None:
-                mapping[name] = "%s" % (val,)
-        self.key_content.update(mapping)
-        self.key.set(self.key_content)
-
     def delete(self, **kw):
         self.key.delete()
-        self.key_content = {}
+        self.meta = {}
         self.file_delete(raising=False)
 
     def cache_remote_file(self):
@@ -263,9 +253,6 @@ class FileEntry(object):
             raise ValueError("%s: did not get file after waiting" %
             url)
         return entry
-
-
-
 
 
 def http_date():
