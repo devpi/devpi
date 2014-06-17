@@ -1,3 +1,4 @@
+import hashlib
 import pytest
 import py
 from devpi_server.replica import *
@@ -130,3 +131,69 @@ class TestTweenReplica:
         assert l == [10]
 
 
+class TestReplicaFileGetter:
+    def test_fetch(self, xom, gen, reqmock):
+        getter = ReplicaFileGetter(xom)
+        content1 = b'hello'
+        md5 = hashlib.md5(content1).hexdigest()
+        link = gen.pypi_package_link("pytest-1.8.zip#md5=%s" % md5, md5=False)
+        xom.config.master_url = url = URL("http://localhost")
+        with xom.keyfs.transaction(write=True):
+            entry = getter.xom.filestore.maplink(link)
+            assert not entry.file_exists()
+            getter(entry.key, entry.meta, -1)
+            assert not entry.file_exists()
+            entry.file_set_content(content1)
+            assert entry.file_exists()
+            entry.file_delete()
+            # first we try to return something wrong
+            xom.httpget.mockresponse(url.joinpath(entry.relpath).url,
+                                     code=200, content=b'123')
+            with pytest.raises(ValueError):
+                getter(entry.key, entry.meta, -1)
+            assert not entry.file_exists()
+
+            # then we try to correctly return
+            xom.httpget.mockresponse(url.joinpath(entry.relpath).url,
+                                     code=200, content=content1)
+            getter(entry.key, entry.meta, -1)
+            assert entry.file_exists()
+            assert entry.file_size() == len(content1)
+
+            # now we modify the md5 and see if a reget takes place
+            # and the old file is deleted (XXX can this happen, probably
+            # only with volatile pypi links)
+            content2 = b'world'
+            xom.httpget.mockresponse(url.joinpath(entry.relpath).url,
+                                     code=200, content=content2)
+            new_entry = getter.xom.filestore.get_file_entry_raw(
+                            entry.key, entry.meta)
+            new_entry.md5 = hashlib.md5(content2).hexdigest()
+            getter(entry.key, new_entry.meta, 0)
+
+            # now we produce a delete event
+            d_entry = getter.xom.filestore.get_file_entry_raw(
+                            new_entry.key, meta=None)
+            getter(d_entry.key, None, 0)
+            assert not d_entry.file_exists()
+
+
+def test_cache_remote_file_fails(makexom, gen, monkeypatch, reqmock):
+    xom = makexom(["--master", "http://localhost"])
+    l = []
+    monkeypatch.setattr(xom.keyfs.notifier, "wait_tx_serial",
+                        lambda x: l.append(x))
+    with xom.keyfs.transaction(write=True):
+        link = gen.pypi_package_link("pytest-1.8.zip", md5=True)
+        entry = xom.filestore.maplink(link)
+        assert entry.md5 and not entry.file_exists()
+    with xom.keyfs.transaction():
+        headers={"content-length": "3",
+                 "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
+                 "content-type": "application/zip",
+                 "X-DEVPI-SERIAL": "10"}
+        url = xom.config.master_url.joinpath(entry.relpath).url
+        reqmock.mockresponse(url, code=200,
+                             headers=headers, data=b'123')
+        with pytest.raises(ValueError):
+            entry.cache_remote_file_replica()

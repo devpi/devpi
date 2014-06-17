@@ -221,7 +221,7 @@ class XOM:
     @cached_property
     def filestore(self):
         from devpi_server.filestore import FileStore
-        return FileStore(self.keyfs)
+        return FileStore(self)
 
     @cached_property
     def keyfs(self):
@@ -257,10 +257,11 @@ class XOM:
                 url = url.replace("https://pypi", "https://front")
                 headers["HOST"] = "pypi.python.org"
         try:
-            resp = self._httpsession.get(url, stream=True,
-                                         allow_redirects=allow_redirects,
-                                         headers=headers,
-                                         timeout=timeout)
+            resp = self._httpsession.get(
+                        url, stream=True,
+                        allow_redirects=allow_redirects,
+                        headers=headers,
+                        timeout=timeout)
             if USE_FRONT and resp.url.startswith("https://front.python.org"):
                 resp.url = resp.url.replace("https://front.python.org",
                                             "https://pypi.python.org")

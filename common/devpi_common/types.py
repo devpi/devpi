@@ -5,19 +5,6 @@ import operator
 
 FunctionType = py.std.types.FunctionType
 
-def propmapping(name, convert=None):
-    if convert is None:
-        def fget(self):
-            return self._mapping.get(name)
-    else:
-        def fget(self):
-            x = self._mapping.get(name)
-            if x is not None:
-                x = convert(x)
-            return x
-    fget.__name__ = name
-    return property(fget)
-
 
 def canraise(Error):
     def wrap(func):

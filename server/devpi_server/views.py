@@ -9,7 +9,6 @@ from pyramid.compat import urlparse
 from pyramid.httpexceptions import HTTPException, HTTPFound, HTTPSuccessful
 from pyramid.httpexceptions import exception_response
 from pyramid.response import Response
-from pyramid.events import NewResponse, subscriber, NewRequest
 from pyramid.view import view_config
 import functools
 import itertools
@@ -19,7 +18,7 @@ from devpi_common.request import new_requests_session
 from devpi_common.validation import normalize_name, is_valid_archive_name
 
 from .model import InvalidIndexconfig
-from .log import thread_push_log, thread_pop_log, thread_current_log, threadlog
+from .log import thread_push_log, thread_pop_log, threadlog
 
 from .auth import Auth
 from .config import render_string
@@ -123,7 +122,6 @@ def route_url(self, *args, **kw):
 
 
 def tween_request_logging(handler, registry):
-    keyfs = registry["xom"].keyfs
     req_count = itertools.count()
     from time import time
 
@@ -434,7 +432,7 @@ class PyPIView:
             for entry in matches:
                 res = target_stage.store_releasefile(
                     name, version,
-                    entry.basename, entry.get_file_content())
+                    entry.basename, entry.file_get_content())
                 if not isinstance(res, int):
                     res = 200
                 results.append((res, "store_releasefile", entry.basename,
@@ -463,7 +461,7 @@ class PyPIView:
                     pyver, filetype = get_pyversion_filetype(basename)
                     file_metadata["filetype"] = filetype
                     file_metadata["pyversion"] = pyver
-                    content = entry.get_file_content()
+                    content = entry.file_get_content()
                     self.log.info("sending %s to %s, metadata %s",
                              basename, posturl, file_metadata)
                     r = session.post(posturl, data=file_metadata,
@@ -668,29 +666,22 @@ class PyPIView:
             apireturn(200, type="releasefilemeta", result=entry.meta)
         if not entry or not entry.meta:
             abort(request, 404, "no such file")
+
         if not entry.file_exists() or entry.eggfragment:
             keyfs = self.xom.keyfs
             if not self.xom.is_replica():
                 keyfs.restart_as_write_transaction()
-                entry.cache_remote_file(self.xom.httpget)
-            else:
-                threadlog.info("replica doesn't have file: %s", entry.relpath)
-                url = self.xom.config.master_url.joinpath(request.path).url
-                r = self.xom.httpget(url, allow_redirects=True)  # XXX HEAD
-                if r.status_code != 200:
-                    threadlog.error("got %s from upstream", r.status_code)
-                    abort(request, 502, "%s: received %s from master" %(
-                                         url, r.status_code))
-                serial = int(r.headers["X-DEVPI-SERIAL"])
-                keyfs.notifier.wait_tx_serial(serial)
-                keyfs.restart_read_transaction()
                 entry = filestore.get_file_entry(relpath)
-                if not entry.file_exists():
-                    threadlog.error("did not get file after waiting")
-                    abort(request, 500, "%s: did not get file from transaction")
+                entry.cache_remote_file()
+            else:
+                entry = entry.cache_remote_file_replica()
+
         headers = entry.gethttpheaders()
-        content = entry.get_file_content()
-        return Response(body=content, headers=headers)
+        if self.request.method == "HEAD":
+            return Response(headers=headers)
+        else:
+            content = entry.file_get_content()
+            return Response(body=content, headers=headers)
 
     @view_config(route_name="/{user}/{index}", accept="application/json", request_method="GET")
     @matchdict_parameters

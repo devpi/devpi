@@ -128,7 +128,7 @@ def get_files_info(request, user, index, metadata):
             py_version = ''
         size = ''
         if entry.file_exists():
-            size = "%.0f %s" % sizeof_fmt(len(entry.get_file_content()))
+            size = "%.0f %s" % sizeof_fmt(entry.file_size())
         files.append(dict(
             title=basename,
             url=request.relative_url(relurl),

@@ -65,6 +65,8 @@ class ReplicaThread:
         log = thread_push_log("[REP]")
         session = self.xom.new_http_session("replica")
         keyfs = self.xom.keyfs
+        for key in (keyfs.STAGEFILE, keyfs.PYPIFILE_NOMD5, keyfs.PYPISTAGEFILE):
+            keyfs.subscribe_on_import(key, ReplicaFileGetter(self.xom))
         while 1:
             self.thread.exit_if_shutdown()
             serial = keyfs.get_next_serial()
@@ -81,6 +83,7 @@ class ReplicaThread:
                     except Exception:
                         log.error("could not read answer %s", url)
                     else:
+                        log.info("importing changelog entry %s", serial)
                         keyfs.import_changelog_entry(serial, entry)
                         serial += 1
                         continue
@@ -152,3 +155,35 @@ def proxy_write_to_master(xom, request):
     return Response(status=r.status_code,
                     body=r.content,
                     headers=headers)
+
+class ReplicaFileGetter:
+    def __init__(self, xom):
+        self.xom = xom
+
+    def __call__(self, key, val, back_serial):
+        relpath = key.relpath
+        entry = self.xom.filestore.get_file_entry_raw(key, val)
+        if val is None:
+            if back_serial >= 0:
+                # file was deleted, but might never have been replicated
+                entry.file_delete(raising=False)
+            return
+
+        if entry.file_exists():
+            if entry.md5 and entry.md5 != entry.file_md5():
+                threadlog.error("local file has different md5, removing: %s",
+                               entry._filepath)
+                entry.file_delete()
+            else:
+                return
+        elif entry.last_modified is None:
+            # there is no remote file
+            return
+
+        threadlog.info("retrieving file from master: %s", relpath)
+        url = self.xom.config.master_url.joinpath(relpath).url
+        r = self.xom.httpget(url, allow_redirects=True)
+        if r.status_code != 200:
+            threadlog.error("got %s from upstream", r.status_code)
+            return
+        entry.file_set_content(r.content, last_modified=-1)

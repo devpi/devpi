@@ -45,10 +45,12 @@ class TestFileStore:
         assert entry2.md5 == newlink.md5
 
     def test_maplink_replaced_release_already_cached(self, filestore, gen):
-        link = gen.pypi_package_link("pytest-1.2.zip")
+        content = b'somedata'
+        md5 = hashlib.md5(content).hexdigest()
+        link = gen.pypi_package_link("pytest-1.2.zip", md5=md5)
         entry1 = filestore.maplink(link)
         # pseudo-write a release file
-        entry1.set_file_content(b"content")
+        entry1.file_set_content(content)
         assert entry1.file_exists()
         newlink = gen.pypi_package_link("pytest-1.2.zip")
         entry2 = filestore.maplink(newlink)
@@ -58,7 +60,7 @@ class TestFileStore:
     def test_file_delete(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.2.zip", md5=False)
         entry1 = filestore.maplink(link)
-        entry1.set_file_content(b"")
+        entry1.file_set_content(b"")
         assert entry1.file_exists()
         entry1.file_delete()
         assert not entry1.file_exists()
@@ -68,6 +70,7 @@ class TestFileStore:
         entry1 = filestore.maplink(link)
         entry2 = filestore.maplink(link)
         assert entry1 == entry2
+        assert not entry1 != entry2
         assert entry1.relpath.endswith("/master")
         assert entry1.eggfragment == "pytest-dev"
         assert not entry1.md5
@@ -79,19 +82,27 @@ class TestFileStore:
         entry = filestore.maplink(link)
         assert entry.url == link.url
         assert not entry.file_exists()
-        entry.set(md5="1" * 16)
+        md = hashlib.md5("").hexdigest()
+        entry.md5 = md
         assert not entry.file_exists()
-        entry.set_file_content(b"")
+        entry.file_set_content(b"")
         assert entry.file_exists()
         assert entry.url == link.url
-        assert entry.md5 == u"1" * 16
+        assert entry.md5 == md
 
         # reget
-        entry = FileEntry(entry.key)
+        entry = filestore.get_file_entry(entry.relpath)
         assert entry.file_exists()
         assert entry.url == link.url
-        assert entry.md5 == u"1" * 16
+        assert entry.md5 == md
         entry.delete()
+        assert not entry.file_exists()
+
+        # reget proxy
+        filestore.keyfs.commit_transaction_in_thread()
+        entry = filestore.get_proxy_file_entry(entry.relpath, md5=md,
+                                               keyname=entry.key.name)
+        assert entry.md5 == md
         assert not entry.file_exists()
 
     def test_cache_remote_file(self, filestore, httpget, gen):
@@ -104,12 +115,12 @@ class TestFileStore:
                  "content-type": "application/zip"}
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw = BytesIO(b"123"))
-        entry.cache_remote_file(httpget)
+        entry.cache_remote_file()
         rheaders = entry.gethttpheaders()
         assert rheaders["content-length"] == "3"
         assert rheaders["content-type"] == "application/zip"
         assert rheaders["last-modified"] == headers["last-modified"]
-        bytes = entry.get_file_content()
+        bytes = entry.file_get_content()
         assert bytes == b"123"
 
         # reget entry and check about content
@@ -117,9 +128,9 @@ class TestFileStore:
         entry = filestore.get_file_entry(entry.relpath)
         assert entry.file_exists()
         assert entry.md5 == hashlib.md5(bytes).hexdigest()
-        assert entry.size == 3
+        assert entry.file_size() == 3
         rheaders = entry.gethttpheaders()
-        assert entry.get_file_content() == b"123"
+        assert entry.file_get_content() == b"123"
 
     def test_iterfile_remote_no_headers(self, filestore, httpget, gen):
         link = gen.pypi_package_link("pytest-1.8.zip", md5=False)
@@ -128,11 +139,11 @@ class TestFileStore:
         headers={}
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw = BytesIO(b"123"))
-        entry.cache_remote_file(httpget)
+        entry.cache_remote_file()
         rheaders = entry.gethttpheaders()
         assert rheaders["content-length"] == "3"
         assert rheaders["content-type"] == "application/zip"
-        assert entry.get_file_content() == b"123"
+        assert entry.file_get_content() == b"123"
 
     def test_iterfile_remote_error_size_mismatch(self, filestore, httpget, gen):
         link = gen.pypi_package_link("pytest-3.0.zip", md5=False)
@@ -144,7 +155,7 @@ class TestFileStore:
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw = BytesIO(b"1"))
         with pytest.raises(ValueError):
-            entry.cache_remote_file(httpget)
+            entry.cache_remote_file()
 
     def test_iterfile_remote_nosize(self, filestore, httpget, gen):
         link = gen.pypi_package_link("pytest-3.0.zip", md5=False)
@@ -153,13 +164,13 @@ class TestFileStore:
         headers={"last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
                  "content-length": None,
                  "content-type": "application/zip"}
-        assert entry.size is None
+        assert entry.file_size() is None
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw=BytesIO(b"1"))
-        entry.cache_remote_file(httpget)
-        assert entry.get_file_content() == b"1"
+        entry.cache_remote_file()
+        assert entry.file_get_content() == b"1"
         entry2 = filestore.get_file_entry(entry.relpath)
-        assert entry2.size == 1
+        assert entry2.file_size() == 1
         rheaders = entry.gethttpheaders()
         assert rheaders["last-modified"] == headers["last-modified"]
         assert rheaders["content-type"] == headers["content-type"]
@@ -174,12 +185,10 @@ class TestFileStore:
         httpget.url2response[link.url_nofrag] = dict(status_code=200,
                 headers=headers, raw=BytesIO(b"123"))
         with pytest.raises(ValueError) as excinfo:
-            entry.cache_remote_file(httpget)
+            entry.cache_remote_file()
         assert link.md5 in str(excinfo.value)
         assert not entry.file_exists()
 
-    @pytest.mark.xfail(reason="disambiguation of downloads from urls"
-            " whose content changes over time")
     def test_iterfile_eggfragment(self, filestore, httpget, gen):
         link = gen.pypi_package_link("master#egg=pytest-dev", md5=False)
         entry = filestore.maplink(link)
@@ -189,19 +198,13 @@ class TestFileStore:
                  "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
                  "content-type": "application/zip"}
 
-        httpget.mockresponse(entry.url, headers=headers, raw=BytesIO(b"1234"))
-        rheaders, riter = filestore.iterfile(entry.relpath, httpget,
-                                             chunksize=10)
-        assert py.builtin.bytes().join(riter) == b"1234"
+        httpget.mockresponse(link.url_nofrag, headers=headers,
+                             raw=BytesIO(b"1234"))
+        entry.cache_remote_file()
+        assert entry.file_get_content() == b"1234"
         httpget.mockresponse(entry.url, headers=headers, raw=BytesIO(b"3333"))
-        rheaders, riter = filestore.iterfile(entry.relpath, httpget,
-                                             chunksize=10)
-        assert b"".join(riter) == b"3333"
-        # XXX we could allow getting an old version if it exists
-        # and a new request errors out
-        #httpget.url2response[entry.url] = dict(status_code=500)
-        #rheaders, riter = store.iterfile(entry.relpath, httpget, chunksize=10)
-        #assert py.builtin.bytes().join(riter) == py.builtin.bytes("1234")
+        entry.cache_remote_file()
+        assert entry.file_get_content() == b"3333"
 
     def test_store_and_iter(self, filestore):
         content = b"hello"
@@ -214,7 +217,7 @@ class TestFileStore:
         assert entry2.file_exists()
         assert entry2.md5 == entry.md5
         assert entry2.last_modified
-        assert entry2.get_file_content() == content
+        assert entry2.file_get_content() == content
 
     def test_add_testresult(self, filestore):
         #

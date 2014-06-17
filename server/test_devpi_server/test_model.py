@@ -313,7 +313,7 @@ class TestStage:
         assert not isinstance(entry, int), entry
         entries = stage.getreleaselinks("some")
         assert len(entries) == 1
-        assert entries[0].get_file_content() == content2
+        assert entries[0].file_get_content() == content2
 
     def test_releasedata(self, stage):
         assert stage.metadata_keys

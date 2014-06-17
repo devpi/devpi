@@ -11,8 +11,7 @@ import re
 import contextlib
 import py
 from . import mythread
-from .log import (threadlog, thread_push_log,
-                  thread_pop_log, thread_current_log)
+from .log import threadlog, thread_push_log, thread_pop_log
 import os
 import sys
 
@@ -89,7 +88,6 @@ class Filesystem:
             with p.open("rb") as f:
                 return f.read()
         except py.error.Error:
-            threadlog.error("could not open %s" % p)
             return None
 
     def get_changelog_entry(self, serial):
@@ -129,18 +127,17 @@ class FSWriter:
         self.pending_renames.append((tmp_path, target_path))
 
     def __enter__(self):
-        self.log = thread_push_log("fswriter:")
+        self.log = thread_push_log("fswriter%s:" % self.fs.next_serial)
         return self
 
     def __exit__(self, cls, val, tb):
-        thread_pop_log("fswriter:")
+        thread_pop_log("fswriter%s:" % self.fs.next_serial)
         if cls is None:
             assert self.changes, "commit cannot be empty"
             self.commit_to_filesystem()
             commit_serial = self.fs.next_serial - 1
             if self.changes:
-                self.log.info("committed tx%s: %s", commit_serial,
-                         ",".join(self.changes))
+                self.log.info("committed: %s", ",".join(self.changes))
                 self.fs._notify_on_commit(commit_serial)
         else:
             while self.pending_renames:
@@ -260,6 +257,7 @@ class KeyFS(object):
         # a non-recursive lock because we don't support nested transactions
         self._write_lock = mythread.threading.Lock()
         self._threadlocal = mythread.threading.local()
+        self._import_subscriber = {}
         self.notifier = t = TxNotificationThread(self)
         self._fs = Filesystem(self.basedir, notify_on_commit=t.notify_on_commit)
 
@@ -290,6 +288,13 @@ class KeyFS(object):
                     name, back_serial, val = tup
                     typedkey = self.derive_key(relpath, name)
                     fswriter.record_set(typedkey, val)
+                    meth = self._import_subscriber.get(typedkey.name)
+                    if meth is not None:
+                        meth(typedkey, val, back_serial)
+
+    def subscribe_on_import(self, key, subscriber):
+        assert key.name not in self._import_subscriber
+        self._import_subscriber[key.name] = subscriber
 
     def get_next_serial(self):
         return self._fs.next_serial
@@ -381,7 +386,6 @@ class KeyFS(object):
             self.rollback_transaction_in_thread()
             raise
         self.commit_transaction_in_thread()
-
 
 
 class PTypedKey:
