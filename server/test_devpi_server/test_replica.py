@@ -145,7 +145,7 @@ class TestFileReplication:
         replica_xom = makexom(["--master", "http://localhost"])
         keyfs = replica_xom.keyfs
         for key in (keyfs.STAGEFILE, keyfs.PYPIFILE_NOMD5, keyfs.PYPISTAGEFILE):
-            keyfs.subscribe_on_import(key, ReplicaFileGetter(replica_xom))
+            keyfs.subscribe_on_import(key, ImportFileReplica(replica_xom))
         return replica_xom
 
     def test_fetch(self, gen, reqmock, xom, replica_xom):
@@ -170,13 +170,14 @@ class TestFileReplication:
         master_url = replica_xom.config.master_url
         master_file_path = master_url.joinpath(entry.relpath).url
         xom.httpget.mockresponse(master_file_path, code=200, content=b'13')
-        with pytest.raises(WrongRemoteFile):
-            replay(xom, replica_xom)
+        replay(xom, replica_xom)
         with replica_xom.keyfs.transaction():
             assert not r_entry.file_exists()
             assert not os.path.exists(r_entry._filepath)
 
         # then we try to return the correct thing
+        with xom.keyfs.transaction(write=True):
+            entry.file_set_content(content1, md5=md5)
         xom.httpget.mockresponse(master_file_path, code=200, content=content1)
         replay(xom, replica_xom)
         with replica_xom.keyfs.transaction():

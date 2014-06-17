@@ -9,8 +9,6 @@ from .keyfs import load, dump, get_write_file_ensure_dir
 from .log import thread_push_log, threadlog
 from .views import is_mutating_http_method
 
-class WrongRemoteFile(Exception):
-    """ a remote file did not match what was expected. """
 
 class MasterChangelogRequest:
     def __init__(self, request):
@@ -70,7 +68,7 @@ class ReplicaThread:
         session = self.xom.new_http_session("replica")
         keyfs = self.xom.keyfs
         for key in (keyfs.STAGEFILE, keyfs.PYPIFILE_NOMD5, keyfs.PYPISTAGEFILE):
-            keyfs.subscribe_on_import(key, ReplicaFileGetter(self.xom))
+            keyfs.subscribe_on_import(key, ImportFileReplica(self.xom))
         while 1:
             self.thread.exit_if_shutdown()
             serial = keyfs.get_next_serial()
@@ -88,10 +86,7 @@ class ReplicaThread:
                         log.error("could not read answer %s", url)
                     else:
                         log.info("importing changelog entry %s", serial)
-                        try:
-                            keyfs.import_changelog_entry(serial, entry)
-                        except WrongRemoteFile:
-                            threadlog.exception("cannot import %s", serial)
+                        keyfs.import_changelog_entry(serial, entry)
                         serial += 1
                         continue
                 else:
@@ -163,7 +158,7 @@ def proxy_write_to_master(xom, request):
                     body=r.content,
                     headers=headers)
 
-class ReplicaFileGetter:
+class ImportFileReplica:
     def __init__(self, xom):
         self.xom = xom
 
@@ -173,7 +168,7 @@ class ReplicaFileGetter:
         file_exists = os.path.exists(entry._filepath)
         if val is None:
             if back_serial >= 0:
-                # file was deleted, but might never have been replicated
+                # file was deleted, still might never have been replicated
                 if file_exists:
                     threadlog.debug("mark for deletion: %s", entry._filepath)
                     fswriter.record_rename_file(None, entry._filepath)
@@ -191,9 +186,8 @@ class ReplicaFileGetter:
             return
         remote_md5 = hashlib.md5(r.content).hexdigest()
         if entry.md5 and entry.md5 != remote_md5:
-            threadlog.error("WrongRemote: %s", url)
-            raise WrongRemoteFile("remote md5 %s, expected %s for %s",
-                                  remote_md5, entry.md5, url)
+            threadlog.error("%s: remote has md5 %s, expected %s",
+                            url, remote_md5, entry.md5)
         else:
             tmppath = entry._filepath + "-tmp"
             with get_write_file_ensure_dir(tmppath) as f:

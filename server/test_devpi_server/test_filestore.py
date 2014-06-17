@@ -83,7 +83,7 @@ class TestFileStore:
         entry = filestore.maplink(link)
         assert entry.url == link.url
         assert not entry.file_exists()
-        md = hashlib.md5("").hexdigest()
+        md = hashlib.md5(b"").hexdigest()
         entry.md5 = md
         assert not entry.file_exists()
         entry.file_set_content(b"")
