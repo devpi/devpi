@@ -141,7 +141,6 @@ class TestFileStore:
         assert not entry.file_exists()
         entry.file_set_content(b'123')
         assert entry.file_exists()
-        # the transaction does not have it anymore
         assert not os.path.exists(entry._filepath)
         assert entry.file_get_content() == b'123'
         if mode == "commit":
