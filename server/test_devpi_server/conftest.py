@@ -9,6 +9,7 @@ import mimetypes
 import mock
 import pytest
 import py
+from bs4 import BeautifulSoup
 from devpi_server.config import PluginManager
 from devpi_server.main import XOM, parseoptions
 from devpi_common.url import URL
@@ -472,7 +473,14 @@ class Mapp(MappMixin):
             {":action": "file_upload", "name": name, "version": version,
              "content": Upload(basename, content)}, expect_errors=True)
         assert r.status_code == code
+        return r
 
+    def get_release_paths(self, projectname):
+        r = self.get_simple(projectname)
+        pkg_url = URL(r.request.url)
+        paths = [pkg_url.joinpath(link["href"]).path
+                 for link in BeautifulSoup(r.body).findAll("a")]
+        return paths
 
     def upload_doc(self, basename, content, name, version, indexname=None,
                          code=200, waithooks=False):

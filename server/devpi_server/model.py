@@ -485,8 +485,11 @@ class PrivateStage:
         with key.update() as projectconfig:
             verdata = projectconfig.setdefault(version, {})
             files = verdata.setdefault("+files", {})
-            if not self.ixconfig.get("volatile") and filename in files:
-                return 409
+            if filename in files:
+                if not self.ixconfig.get("volatile"):
+                    return 409
+                entry = self.xom.filestore.get_file_entry(files[filename])
+                entry.delete()
             entry = self.xom.filestore.store(self.user.name, self.index,
                                 filename, content, last_modified=last_modified)
             entry.projectname = name
@@ -592,10 +595,11 @@ class ProjectChanged:
         with keyfs.transaction(write=False, at_serial=ev.at_serial):
             # XXX slightly flaky logic for detecting metadata changes
             projconfig = ev.value
-            for ver, metadata in projconfig.items():
-                if metadata != old.get(ver):
-                    stage = self.xom.model.getstage(user, index)
-                    hook.devpiserver_register_metadata(stage, metadata)
+            if projconfig:
+                for ver, metadata in projconfig.items():
+                    if metadata != old.get(ver):
+                        stage = self.xom.model.getstage(user, index)
+                        hook.devpiserver_register_metadata(stage, metadata)
                 #else:
                 #    threadlog.debug("no metadata change on %s, %s", metadata,
                 #                    old.get(ver))
@@ -613,8 +617,8 @@ class FileUploaded:
         user = params.get("user")
         index = params.get("index")
         keyfs = self.xom.keyfs
-        with keyfs.transaction(write=False, at_serial=ev.at_serial):
-            entry = FileEntry(self.xom, ev.typedkey)  # XXX pass value as well
+        with keyfs.transaction(at_serial=ev.at_serial):
+            entry = FileEntry(self.xom, ev.typedkey, meta=ev.value)
             stage = self.xom.model.getstage(user, index)
             if entry.basename.endswith(".doc.zip"):
                 self.xom.config.hook.devpiserver_docs_uploaded(

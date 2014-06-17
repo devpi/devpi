@@ -108,7 +108,8 @@ class FileStore:
 
 def metaprop(name):
     def fget(self):
-        return self.meta.get(name)
+        if self.meta is not None:
+            return self.meta.get(name)
     def fset(self, val):
         self.meta[name] = val
         self.key.set(self.meta)
@@ -123,16 +124,16 @@ class FileEntry(object):
     projectname = metaprop("projectname")
     version = metaprop("version")
 
-    def __init__(self, xom, key, meta=None, md5=_nodefault):
+    def __init__(self, xom, key, meta=_nodefault, md5=_nodefault):
         self.xom = xom
         self.key = key
         self.relpath = key.relpath
         self.basename = self.relpath.split("/")[-1]
         self._filepath = str(self.xom.filestore.storedir.join(self.relpath))
-        if meta is not None:
-            self.meta = meta
-        if md5 is not _nodefault:
-            self.md5 = md5
+        if meta is not _nodefault:
+            self.meta = meta or {}
+        elif md5 is not _nodefault:
+            self.meta = {"md5": md5}
 
     @cached_property
     def meta(self):
@@ -142,11 +143,15 @@ class FileEntry(object):
         return os.path.exists(self._filepath)
 
     def file_delete(self, raising=True):
+        # XXX if a transaction is ongoing, register the remove with it
+        # (requires more support/logic from Transaction)
         try:
-            return os.remove(self._filepath)
+            os.remove(self._filepath)
         except (OSError, IOError):
             if raising:
                 raise
+        else:
+            threadlog.debug("deleted file: %s", self._filepath)
 
     def file_md5(self):
         if self.file_exists():

@@ -98,6 +98,13 @@ class TestFileStore:
         entry.delete()
         assert not entry.file_exists()
 
+        # reget proxy
+        filestore.keyfs.commit_transaction_in_thread()
+        entry = filestore.get_proxy_file_entry(entry.relpath, md5=md,
+                                               keyname=entry.key.name)
+        assert entry.md5 == md
+        assert not entry.file_exists()
+
     def test_cache_remote_file(self, filestore, httpget, gen):
         link = gen.pypi_package_link("pytest-1.8.zip", md5=False)
         entry = filestore.maplink(link)

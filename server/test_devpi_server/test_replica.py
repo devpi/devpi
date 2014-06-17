@@ -141,7 +141,7 @@ class TestReplicaFileGetter:
         with xom.keyfs.transaction(write=True):
             entry = getter.xom.filestore.maplink(link)
             assert not entry.file_exists()
-            getter(entry.key, entry.meta)
+            getter(entry.key, entry.meta, -1)
             assert not entry.file_exists()
             entry.file_set_content(content1)
             assert entry.file_exists()
@@ -150,22 +150,32 @@ class TestReplicaFileGetter:
             xom.httpget.mockresponse(url.joinpath(entry.relpath).url,
                                      code=200, content=b'123')
             with pytest.raises(ValueError):
-                getter(entry.key, entry.meta)
+                getter(entry.key, entry.meta, -1)
             assert not entry.file_exists()
 
             # then we try to correctly return
             xom.httpget.mockresponse(url.joinpath(entry.relpath).url,
                                      code=200, content=content1)
-            getter(entry.key, entry.meta)
+            getter(entry.key, entry.meta, -1)
             assert entry.file_exists()
             assert entry.file_size() == len(content1)
 
             # now we modify the md5 and see if a reget takes place
+            # and the old file is deleted (XXX can this happen, probably
+            # only with volatile pypi links)
             content2 = b'world'
             xom.httpget.mockresponse(url.joinpath(entry.relpath).url,
                                      code=200, content=content2)
-            entry.md5 = hashlib.md5(content2).hexdigest()
-            getter(entry.key, entry.meta)
+            new_entry = getter.xom.filestore.get_file_entry_raw(
+                            entry.key, entry.meta)
+            new_entry.md5 = hashlib.md5(content2).hexdigest()
+            getter(entry.key, new_entry.meta, 0)
+
+            # now we produce a delete event
+            d_entry = getter.xom.filestore.get_file_entry_raw(
+                            new_entry.key, meta=None)
+            getter(d_entry.key, None, 0)
+            assert not d_entry.file_exists()
 
 
 def test_cache_remote_file_fails(makexom, gen, monkeypatch, reqmock):

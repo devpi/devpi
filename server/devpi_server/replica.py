@@ -160,17 +160,25 @@ class ReplicaFileGetter:
     def __init__(self, xom):
         self.xom = xom
 
-    def __call__(self, key, val):
+    def __call__(self, key, val, back_serial):
         relpath = key.relpath
         entry = self.xom.filestore.get_file_entry_raw(key, val)
+        if val is None:
+            if back_serial >= 0:
+                # file was deleted, but might never have been replicated
+                entry.file_delete(raising=False)
+            return
+
         if entry.file_exists():
             if entry.md5 and entry.md5 != entry.file_md5():
-                threadlog.info("local file has different md5, forgetting: %s",
-                            entry._filepath)
+                threadlog.error("local file has different md5, removing: %s",
+                               entry._filepath)
+                entry.file_delete()
             else:
                 return
         elif entry.last_modified is None:
-            return  # file does not exist remotely
+            # there is no remote file
+            return
 
         threadlog.info("retrieving file from master: %s", relpath)
         url = self.xom.config.master_url.joinpath(relpath).url

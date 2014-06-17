@@ -243,12 +243,40 @@ class TestSubmitValidation:
         r = testapp.get("/%s/+simple/pkg5" % submit.stagename)
         assert r.status_code == 302
 
+    def test_upload_and_delete_index(self, submit, testapp, mapp):
+        metadata = {"name": "Pkg5", "version": "2.6", ":action": "submit"}
+        submit.metadata(metadata, code=200)
+        submit.file("pkg5-2.6.tgz", b"123", {"name": "Pkg5"}, code=200)
+        submit.file("pkg5-2.7.tgz", b"123", {"name": "Pkg5"}, code=200)
+        paths = mapp.get_release_paths("Pkg5")
+        for path in paths:
+            testapp.xget(200, path)
+            entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
+            assert entry.file_exists()
+        mapp.delete_index(submit.stagename)
+        for path in paths:
+            testapp.xget(404, path)
+            entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
+            assert not entry.file_exists()
+
+    def test_upload_twice_to_volatile(self, submit, testapp, mapp):
+        metadata = {"name": "Pkg5", "version": "2.6", ":action": "submit"}
+        submit.metadata(metadata, code=200)
+        submit.file("pkg5-2.6.tgz", b"123", {"name": "Pkg5"}, code=200)
+        path1, = mapp.get_release_paths("Pkg5")
+        testapp.xget(200, path1)
+        submit.file("pkg5-2.6.tgz", b"1234", {"name": "Pkg5"}, code=200)
+        path2, = mapp.get_release_paths("Pkg5")
+        testapp.xget(404, path1)
+        testapp.xget(200, path2)
+
     def test_get_project_redirected(self, submit, mapp):
         metadata = {"name": "Pkg1", "version": "1.0", ":action": "submit",
                     "description": "hello world"}
         submit.metadata(metadata, code=200)
         location = mapp.getjson("/%s/pkg1" % submit.stagename, code=302)
         assert location.endswith("/Pkg1")
+
 
 def test_push_non_existent(mapp, testapp, monkeypatch):
     # check that push from non-existent index results in 404

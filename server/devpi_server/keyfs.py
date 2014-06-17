@@ -88,7 +88,6 @@ class Filesystem:
             with p.open("rb") as f:
                 return f.read()
         except py.error.Error:
-            threadlog.error("could not open %s" % p)
             return None
 
     def get_changelog_entry(self, serial):
@@ -291,7 +290,7 @@ class KeyFS(object):
                     fswriter.record_set(typedkey, val)
                     meth = self._import_subscriber.get(typedkey.name)
                     if meth is not None:
-                        meth(typedkey, val)
+                        meth(typedkey, val, back_serial)
 
     def subscribe_on_import(self, key, subscriber):
         assert key.name not in self._import_subscriber
@@ -387,7 +386,6 @@ class KeyFS(object):
             self.rollback_transaction_in_thread()
             raise
         self.commit_transaction_in_thread()
-
 
 
 class PTypedKey:
