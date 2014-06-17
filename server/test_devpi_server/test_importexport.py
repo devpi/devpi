@@ -5,7 +5,6 @@ import pytest
 import subprocess
 from devpi_server.importexport import *
 from devpi_server.main import Fatal
-from devpi_server.extpypi import PyPIStage
 from devpi_common.archive import zip_dict
 
 import devpi_server
@@ -136,111 +135,6 @@ class TestImportExport:
             assert 'index.html' in archive.namelist()
             assert py.builtin._totext(
                 archive.read("index.html"), 'utf-8') == "<html/>"
-
-    def test_10_upload_docs_no_version(self, impexp):
-        mapp1 = impexp.mapp1
-        api = mapp1.create_and_use()
-        # in devpi-server 1.0 one could upload a doc
-        # without ever registering the project, leading to empty
-        # versions.  We simulate it here because 1.1 http API
-        # prevents this case.
-        with mapp1.xom.keyfs.transaction(write=True):
-            stage = mapp1.xom.model.getstage(api.stagename)
-            stage._register_metadata({"name": "hello", "version": ""})
-        impexp.export()
-        mapp2 = impexp.new_import()
-        with mapp2.xom.keyfs.transaction(write=False):
-            stage = mapp2.xom.model.getstage(api.stagename)
-            assert not stage.get_project_info("hello")
-
-    def test_10_normalized_projectnames(self, impexp):
-        mapp1 = impexp.mapp1
-        api = mapp1.create_and_use()
-        # in devpi-server 1.0 one could register X_Y and X-Y names
-        # and they would get registeded under different names.
-        # We simulate it here because 1.1 http API prevents this case.
-        with mapp1.xom.keyfs.transaction(write=True):
-            stage = mapp1.xom.model.getstage(api.stagename)
-            stage._register_metadata({"name": "hello_x", "version": "1.0"})
-            stage._register_metadata({"name": "hello-X", "version": "1.1"})
-            stage._register_metadata({"name": "Hello-X", "version": "1.2"})
-        impexp.export()
-        mapp2 = impexp.new_import()
-        with mapp2.xom.keyfs.transaction(write=False):
-            stage = mapp2.xom.model.getstage(api.stagename)
-            def n(name):
-                return stage.get_project_info(name).name
-            assert n("hello-x") == "Hello-X"
-            assert n("Hello_x") == "Hello-X"
-            config = stage.get_projectconfig("Hello-X")
-            assert len(config) == 3
-            assert config["1.0"]["name"] == "Hello-X"
-            assert config["1.0"]["version"] == "1.0"
-            assert config["1.1"]["name"] == "Hello-X"
-            assert config["1.2"]["name"] == "Hello-X"
-
-    def test_10_no_empty_releases(self, impexp):
-        mapp1 = impexp.mapp1
-        api = mapp1.create_and_use()
-        # in devpi-server 1.0 one could register X_Y and X-Y names
-        # and they would get registeded under different names.
-        # We simulate it here because 1.1 http API prevents this case.
-        with mapp1.xom.keyfs.transaction(write=True):
-            stage = mapp1.xom.model.getstage(api.stagename)
-            stage._register_metadata({"name": "hello_x", "version": "1.0"})
-            stage._register_metadata({"name": "hello_x", "version": ""})
-        impexp.export()
-        mapp2 = impexp.new_import()
-        with mapp2.xom.keyfs.transaction(write=False):
-            stage = mapp2.xom.model.getstage(api.stagename)
-            projconfig = stage.get_projectconfig("hello_x")
-            assert list(projconfig) == ["1.0"]
-
-
-    def test_10_normalized_projectnames_with_inheritance(self, impexp):
-        mapp1 = impexp.mapp1
-        api = mapp1.create_and_use()
-        # in devpi-server 1.0 one could register X_Y and X-Y names
-        # and they would get registeded under different names.
-        # We simulate it here because 1.1 http API prevents this case.
-        with mapp1.xom.keyfs.transaction(write=True):
-            stage = mapp1.xom.model.getstage(api.stagename)
-            stage._register_metadata({"name": "hello_x", "version": "1.0"})
-            stage._register_metadata({"name": "hello-X", "version": "1.1"})
-        api2 = mapp1.create_index("new2", indexconfig={"bases": api.stagename})
-        with mapp1.xom.keyfs.transaction(write=True):
-            stage2 = mapp1.xom.model.getstage(api2.stagename)
-            stage2._register_metadata({"name": "hello_X", "version": "0.9"})
-        impexp.export()
-        mapp2 = impexp.new_import()
-        with mapp2.xom.keyfs.transaction(write=False):
-            stage2 = mapp2.xom.model.getstage(api2.stagename)
-            def n(name):
-                return stage2.get_project_info(name).name
-            assert n("hello-x") == "hello-X"
-            assert n("Hello_x") == "hello-X"
-
-    def test_10_pypi_names_precedence(self, impexp, monkeypatch):
-        mapp1 = impexp.mapp1
-        api = mapp1.create_and_use()
-        # in devpi-server 1.0 one could register X_Y and X-Y names
-        # and they would get registeded under different names.
-        # We simulate it here because 1.1 http API prevents this case.
-        monkeypatch.setattr(PyPIStage, "getprojectnames_perstage",
-                            lambda self: ["hello_X"])
-        with mapp1.xom.keyfs.transaction(write=True):
-            stage = mapp1.xom.model.getstage(api.stagename)
-            stage._register_metadata({"name": "hello_x", "version": "1.1"})
-            stage._register_metadata({"name": "hello-X", "version": "1.0"})
-        impexp.export()
-        mapp2 = impexp.new_import()
-        with mapp2.xom.keyfs.transaction(write=False):
-            stage2 = mapp2.xom.model.getstage(api.stagename)
-            def n(name):
-                return stage2.get_project_info(name).name
-            assert n("hello-x") == "hello_X"
-            assert n("Hello_x") == "hello_X"
-
 
 def test_upgrade(makexom, monkeypatch):
     def invoke_export(commands):
