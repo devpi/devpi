@@ -178,3 +178,12 @@ class TestIndexThings:
         mapp.delete_index("dev", code=403)
         mapp.delete_user("cuser4", code=403)
 
+    def test_custom_data(self, mapp):
+        mapp.create_and_login_user("cuser5")
+        mapp.create_index("dev")
+        mapp.use("cuser5/dev")
+        res = mapp.getjson("/cuser5/dev")
+        assert "custom_data" not in res["result"]
+        mapp.set_custom_data("foo")
+        res = mapp.getjson("/cuser5/dev")
+        assert res["result"]["custom_data"] == "foo"

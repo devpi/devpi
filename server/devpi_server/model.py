@@ -31,7 +31,7 @@ def run_passwd(root, username):
 
 
 _ixconfigattr = set(
-    "type volatile bases uploadtrigger_jenkins acl_upload".split())
+    "type volatile bases uploadtrigger_jenkins acl_upload custom_data".split())
 
 class RootModel:
     def __init__(self, xom):

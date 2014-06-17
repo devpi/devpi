@@ -115,6 +115,13 @@ class Mapp(MappMixin):
             acls = ",".join(acls)
         self.devpi("index", indexname, "acl_upload=%s" % acls, code=200)
 
+    def set_custom_data(self, data, indexname=None):
+        if indexname is None:
+            self.devpi("index", "custom_data=%s" % data, code=200)
+        else:
+            self.devpi("index", indexname,
+                       "custom_data=%s" % data, code=200)
+
     def set_uploadtrigger_jenkins(self, url, indexname=None):
         if indexname is None:
             self.devpi("index", "uploadtrigger_jenkins=%s" % url, code=200)

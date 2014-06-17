@@ -412,6 +412,15 @@ class Mapp(MappMixin):
                                      expect_errors=True)
         assert r.status_code == code
 
+    def set_custom_data(self, data, indexname=None):
+        indexname = self._getindexname(indexname)
+        indexurl = "/" + indexname
+        r = self.testapp.get_json(indexurl)
+        result = r.json["result"]
+        result["custom_data"] = data
+        r = self.testapp.patch_json(indexurl, result)
+        assert r.status_code == 200
+
     def set_uploadtrigger_jenkins(self, triggerurl, indexname=None):
         indexname = self._getindexname(indexname)
         indexurl = "/" + indexname

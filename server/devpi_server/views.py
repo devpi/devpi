@@ -17,7 +17,7 @@ import json
 from devpi_common.request import new_requests_session
 from devpi_common.validation import normalize_name, is_valid_archive_name
 
-from .model import InvalidIndexconfig
+from .model import InvalidIndexconfig, _ixconfigattr
 from .log import thread_push_log, thread_pop_log, threadlog
 
 from .auth import Auth
@@ -904,12 +904,10 @@ def getkvdict_index(req):
             kvdict["bases"] = bases.split(",")
         else:
             kvdict["bases"] = bases
-    if "type" in req:
-        kvdict["type"] = req["type"]
-    if "acl_upload" in req:
-        kvdict["acl_upload"] = req["acl_upload"]
-    if "uploadtrigger_jenkins" in req:
-        kvdict["uploadtrigger_jenkins"] = req["uploadtrigger_jenkins"]
+    additional_keys = _ixconfigattr - set(('volatile', 'bases'))
+    for key in additional_keys:
+        if key in req:
+            kvdict[key] = req[key]
     return kvdict
 
 def get_pure_metadata(somedict):

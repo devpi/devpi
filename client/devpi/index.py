@@ -36,6 +36,8 @@ def index_show(hub, url):
     hub.line("  uploadtrigger_jenkins=%s" %(
                 ixconfig["uploadtrigger_jenkins"],))
     hub.line("  acl_upload=%s" % ",".join(ixconfig["acl_upload"]))
+    if "custom_data" in ixconfig:
+        hub.line("  custom_data=%s" % ixconfig["custom_data"])
 
 def parse_posargs(hub, args):
     indexname = args.indexname
