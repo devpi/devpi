@@ -1,12 +1,9 @@
 from devpi_common.metadata import Version
 from devpi_common.types import ensure_unicode
 from devpi_web.doczip import iter_doc_contents
-from logging import getLogger
+from devpi_server.log import threadlog as log
 import py
 import time
-
-
-log = getLogger(__name__)
 
 
 def preprocess_project(stage, name, info):
@@ -41,7 +38,6 @@ def preprocess_project(stage, name, info):
 
 
 def iter_projects(xom):
-    tw = py.io.TerminalWriter()
     timestamp = time.time()
     for user in xom.model.get_userlist():
         username = ensure_unicode(user.name)
@@ -59,9 +55,9 @@ def iter_projects(xom):
             for count, name in enumerate(names, start=1):
                 name = ensure_unicode(name)
                 current_time = time.time()
-                if current_time - timestamp > 1:
+                if current_time - timestamp > 3:
+                    log.debug("currently indexed %s", count)
                     timestamp = current_time
-                    tw.write("%7d/%d\r" % (count, length))
                 if not stage.get_project_info(name):
                     continue
                 metadata = None
@@ -71,4 +67,3 @@ def iter_projects(xom):
                     yield preprocess_project(stage, name, metadata)
                 else:
                     yield dict(name=name, user=username, index=index)
-            tw.line()

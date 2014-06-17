@@ -197,7 +197,7 @@ class PluginManager:
                 name = "%s.%s" % (
                             getattr(plug, "__class__", plug).__name__,
                             meth.__name__)
-                with threadlog.around("debug", "call: %s %s", name, kwargs):
+                with threadlog.around("debug", "call: %s ", name):
                     results.append(meth(**kwargs))
             #else:
             #    threadlog.error("no plugin hook %s on %s", _name, plug)
@@ -224,6 +224,11 @@ class PluginManager:
         return self._call_plugins("devpiserver_register_metadata",
                                   stage=stage,
                                   metadata=metadata)
+
+    def devpiserver_pypi_initial(self, stage, name2serials):
+        return self._call_plugins("devpiserver_pypi_initial",
+                                  stage=stage,
+                                  name2serials=name2serials)
 
 
 class Config:

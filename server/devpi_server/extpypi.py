@@ -318,7 +318,8 @@ class PyPIMirror:
 
     def init_pypi_mirror(self, proxy):
         """ initialize pypi mirror if no mirror state exists. """
-        self.name2serials = self.load_name2serials(proxy)
+        with self.xom.keyfs.transaction(write=True):
+            self.name2serials = self.load_name2serials(proxy)
         # create a mapping of normalized name to real name
         self.normname2name = d = dict()
         for name in self.name2serials:
@@ -338,6 +339,11 @@ class PyPIMirror:
                 fatal("mirror initialization failed: "
                       "pypi.python.org not reachable")
             dump_to_file(name2serials, self.path_name2serials)
+            # trigger anything (e.g. web-search indexing) that wants to
+            # look at the initially loaded serials
+            if not self.xom.is_replica():
+                with self.xom.keyfs.PYPI_SERIALS_LOADED.update():
+                    pass
         return name2serials
 
     def set_project_serial(self, name, serial):
