@@ -1,4 +1,5 @@
 
+import os
 import pytest
 import py
 from devpi_server.filestore import *
@@ -82,7 +83,7 @@ class TestFileStore:
         entry = filestore.maplink(link)
         assert entry.url == link.url
         assert not entry.file_exists()
-        md = hashlib.md5("").hexdigest()
+        md = hashlib.md5(b"").hexdigest()
         entry.md5 = md
         assert not entry.file_exists()
         entry.file_set_content(b"")
@@ -103,7 +104,7 @@ class TestFileStore:
         entry = filestore.get_proxy_file_entry(entry.relpath, md5=md,
                                                keyname=entry.key.name)
         assert entry.md5 == md
-        assert not entry.file_exists()
+        assert not os.path.exists(entry._filepath)
 
     def test_cache_remote_file(self, filestore, httpget, gen):
         link = gen.pypi_package_link("pytest-1.8.zip", md5=False)
@@ -131,6 +132,28 @@ class TestFileStore:
         assert entry.file_size() == 3
         rheaders = entry.gethttpheaders()
         assert entry.file_get_content() == b"123"
+
+    @pytest.mark.parametrize("mode", ("commit", "rollback"))
+    def test_file_tx(self, filestore, gen, mode):
+        assert filestore.keyfs.tx
+        link = gen.pypi_package_link("pytest-1.8.zip", md5=False)
+        entry = filestore.maplink(link)
+        assert not entry.file_exists()
+        entry.file_set_content(b'123')
+        assert entry.file_exists()
+        assert not os.path.exists(entry._filepath)
+        assert entry.file_get_content() == b'123'
+        if mode == "commit":
+            filestore.keyfs.restart_as_write_transaction()
+            assert os.path.exists(entry._filepath)
+            entry.file_delete()
+            assert os.path.exists(entry._filepath)
+            assert not entry.file_exists()
+            filestore.keyfs.commit_transaction_in_thread()
+            assert not os.path.exists(entry._filepath)
+        elif mode == "rollback":
+            filestore.keyfs.rollback_transaction_in_thread()
+            assert not os.path.exists(entry._filepath)
 
     def test_iterfile_remote_no_headers(self, filestore, httpget, gen):
         link = gen.pypi_package_link("pytest-1.8.zip", md5=False)

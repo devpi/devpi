@@ -4,7 +4,6 @@ for all indexes.
 
 """
 from __future__ import unicode_literals
-import os
 import hashlib
 import mimetypes
 import json
@@ -12,7 +11,7 @@ from wsgiref.handlers import format_date_time
 from datetime import datetime
 from time import mktime
 from devpi_common.types import cached_property
-from .keyfs import _nodefault, get_write_file_ensure_dir
+from .keyfs import _nodefault
 from .log import threadlog
 
 log = threadlog
@@ -135,33 +134,26 @@ class FileEntry(object):
         elif md5 is not _nodefault:
             self.meta = {"md5": md5}
 
+    @property
+    def tx(self):
+        return self.key.keyfs.tx
+
     @cached_property
     def meta(self):
         return self.key.get()
 
     def file_exists(self):
-        return os.path.exists(self._filepath)
+        return self.tx.io_file_exists(self._filepath)
 
-    def file_delete(self, raising=True):
-        # XXX if a transaction is ongoing, register the remove with it
-        # (requires more support/logic from Transaction)
-        try:
-            os.remove(self._filepath)
-        except (OSError, IOError):
-            if raising:
-                raise
-        else:
-            threadlog.debug("deleted file: %s", self._filepath)
+    def file_delete(self):
+        return self.tx.io_file_delete(self._filepath)
 
     def file_md5(self):
         if self.file_exists():
             return hashlib.md5(self.file_get_content()).hexdigest()
 
     def file_size(self):
-        try:
-            return os.path.getsize(self._filepath)
-        except OSError:
-            return None
+        return self.tx.io_file_size(self._filepath)
 
     def __repr__(self):
         return "<FileEntry %r>" %(self.key)
@@ -170,8 +162,7 @@ class FileEntry(object):
         return open(self._filepath, "rb")
 
     def file_get_content(self):
-        with self.file_open_read() as f:
-            return f.read()
+        return self.tx.io_file_get(self._filepath)
 
     def file_set_content(self, content, last_modified=None, md5=None):
         assert isinstance(content, bytes)
@@ -184,8 +175,7 @@ class FileEntry(object):
             self.md5 = md5
         if self.md5 and hashlib.md5(content).hexdigest() != self.md5:
             raise ValueError("md5 mismatch: %s" % self.relpath)
-        with get_write_file_ensure_dir(self._filepath) as f:
-            f.write(content)
+        self.tx.io_file_set(self._filepath, content)
 
     def gethttpheaders(self):
         assert self.file_exists()
@@ -211,7 +201,7 @@ class FileEntry(object):
     def delete(self, **kw):
         self.key.delete()
         self.meta = {}
-        self.file_delete(raising=False)
+        self.file_delete()
 
     def cache_remote_file(self):
         # we get and cache the file and some http headers from remote
@@ -264,4 +254,5 @@ def http_date():
     now = datetime.now()
     stamp = mktime(now.timetuple())
     return format_date_time(stamp)
+
 
