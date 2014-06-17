@@ -104,7 +104,6 @@ class Filesystem:
 class FSWriter:
     def __init__(self, fs):
         self.fs = fs
-        self.pending_removes = []
         self.pending_renames = []
         self.changes = {}
 
@@ -153,14 +152,9 @@ class FSWriter:
                     self.fs.next_serial)
         self._direct_write(p, self.changes)
 
-        # do all renames and then removes
+        # do all renames and removes
         for source, dest in self.pending_renames:
             rename(source, dest)
-        for dest in self.pending_removes:
-            try:
-                os.remove(dest)
-            except py.error.ENOENT:
-                pass
 
         # finally increment the serial and write it out
         self.fs.next_serial += 1
