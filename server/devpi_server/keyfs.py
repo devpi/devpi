@@ -125,6 +125,10 @@ class FSWriter:
         self.changes[relpath] = (typedkey.name, back_serial, value)
         self.pending_renames.append((tmp_path, target_path))
 
+    def record_rename_file(self, source, dest):
+        assert dest
+        self.pending_renames.append((source, dest))
+
     def __enter__(self):
         self.log = thread_push_log("fswriter%s:" % self.fs.next_serial)
         return self
@@ -132,16 +136,18 @@ class FSWriter:
     def __exit__(self, cls, val, tb):
         thread_pop_log("fswriter%s:" % self.fs.next_serial)
         if cls is None:
-            assert self.changes, "commit cannot be empty"
+            assert self.pending_renames, "commit cannot be empty"
             self.commit_to_filesystem()
             commit_serial = self.fs.next_serial - 1
-            if self.changes:
-                self.log.info("committed: %s", ",".join(self.changes))
-                self.fs._notify_on_commit(commit_serial)
+            size_basedir = len(str(self.fs.basedir))
+            changed = [x[1][size_basedir:] for x in self.pending_renames]
+            self.log.info("committed: %s", ",".join(changed))
+            self.fs._notify_on_commit(commit_serial)
         else:
             while self.pending_renames:
                 source, dest = self.pending_renames.pop()
-                os.remove(source)
+                if source:
+                    os.remove(source)
             self.log.info("roll back at %s" %(self.fs.next_serial))
 
     def commit_to_filesystem(self):
@@ -154,7 +160,13 @@ class FSWriter:
 
         # do all renames and removes
         for source, dest in self.pending_renames:
-            rename(source, dest)
+            if source is None:
+                try:
+                    os.remove(dest)
+                except OSError:
+                    pass
+            else:
+                rename(source, dest)
 
         # finally increment the serial and write it out
         self.fs.next_serial += 1
@@ -484,6 +496,36 @@ class Transaction(object):
         self.at_serial = at_serial
         self.cache = {}
         self.dirty = set()
+        self.dirty_files = {}
+
+    def io_file_exists(self, path):
+        try:
+            return self.dirty_files[path] is not None
+        except KeyError:
+            return directio.io_file_exists(path)
+
+    def io_file_set(self, path, content):
+        self.dirty_files[path] = content
+
+    def io_file_get(self, path):
+        try:
+            content = self.dirty_files[path]
+        except KeyError:
+            return directio.io_file_get(path)
+        if content is None:
+            raise IOError()
+        return content
+
+    def io_file_size(self, path):
+        try:
+            content = self.dirty_files[path]
+        except KeyError:
+            return directio.io_file_size(path)
+        if content is not None:
+            return len(content)
+
+    def io_file_delete(self, path):
+        self.dirty_files[path] = None
 
     def exists_typed_state(self, typedkey):
         try:
@@ -531,7 +573,7 @@ class Transaction(object):
     def commit(self):
         if not self.write:
             return self._close()
-        if not self.dirty:
+        if not self.dirty and not self.dirty_files:
             threadlog.debug("nothing to commit, just closing tx")
             return self._close()
         try:
@@ -539,6 +581,14 @@ class Transaction(object):
                 for typedkey in self.dirty:
                     val = self.cache.get(typedkey)
                     fswriter.record_set(typedkey, val)
+                for path, content in self.dirty_files.items():
+                    if content is None:
+                        fswriter.record_rename_file(None, path)
+                    else:
+                        tmppath = path + "-tmp"
+                        with get_write_file_ensure_dir(tmppath) as f:
+                            f.write(content)
+                        fswriter.record_rename_file(tmppath, path)
                 commit_serial = fswriter.fs.next_serial
         finally:
             self._close()
@@ -569,3 +619,34 @@ def copy_if_mutable(val):
     elif isinstance(val, list):
         return list(val)
     return val
+
+
+class DirectIO:
+    def io_file_exists(self, path):
+        return os.path.exists(path)
+
+    def io_file_delete(self, path):
+        try:
+            os.remove(path)
+        except (OSError, IOError):
+            threadlog.warn("could not direct-delete file: %s", path)
+        else:
+            threadlog.debug("direct-deleted file: %s", path)
+
+    def io_file_set(self, path, content):
+        with get_write_file_ensure_dir(path) as f:
+            f.write(content)
+
+    def io_file_get(self, path):
+        with open(path, "rb") as f:
+            return f.read()
+
+    def io_file_size(self, path):
+        try:
+            return os.path.getsize(path)
+        except OSError:
+            return None
+
+directio = DirectIO()
+
+

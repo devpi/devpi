@@ -166,7 +166,7 @@ class ReplicaFileGetter:
         if val is None:
             if back_serial >= 0:
                 # file was deleted, but might never have been replicated
-                entry.file_delete(raising=False)
+                entry.file_delete()
             return
 
         if entry.file_exists():
