@@ -4,6 +4,7 @@ for all indexes.
 
 """
 from __future__ import unicode_literals
+import os
 import hashlib
 import mimetypes
 import json
@@ -11,7 +12,7 @@ from wsgiref.handlers import format_date_time
 from datetime import datetime
 from time import mktime
 from devpi_common.types import cached_property
-from .keyfs import _nodefault
+from .keyfs import _nodefault, get_write_file_ensure_dir
 from .log import threadlog
 
 log = threadlog
@@ -22,6 +23,7 @@ class FileStore:
     def __init__(self, xom):
         self.xom = xom
         self.keyfs = xom.keyfs
+        self.storedir = self.keyfs.basedir.ensure("+files", dir=1)
 
     def maplink(self, link):
         if link.md5:
@@ -117,6 +119,10 @@ class FileEntry(object):
             self.md5 = md5
 
     @cached_property
+    def _filepath(self):
+        return str(self.xom.filestore.storedir.join(self.relpath))
+
+    @cached_property
     def key_content(self):
         return self.key.get()
 
@@ -125,6 +131,11 @@ class FileEntry(object):
             return self.key_content.get(name)
         raise AttributeError(name)
 
+    def __setattr__(self, name, val):
+        if name in self._attr and name != "md5":
+            raise AttributeError("cannot write %s" % name)
+        return super(FileEntry, self).__setattr__(name, val)
+
     @property
     def meta(self):
         meta = self.key_content.copy()
@@ -132,31 +143,36 @@ class FileEntry(object):
         return meta
 
     def file_exists(self):
-        return "content" in self.key_content
+        return os.path.exists(self._filepath)
+
+    def file_delete(self, raising=True):
+        try:
+            return os.remove(self._filepath)
+        except (OSError, IOError):
+            if raising:
+                raise
 
     @property
     def size(self):
-        content = self.get_file_content()
-        if content is not None:
-            return len(content)
+        try:
+            return os.path.getsize(self._filepath)
+        except OSError:
+            return None
 
     def __repr__(self):
         return "<FileEntry %r>" %(self.key)
 
     def get_file_content(self):
-        return self.key_content.get("content")
+        with open(self._filepath, "rb") as f:
+            return f.read()
 
     def set_file_content(self, content, last_modified=None):
         assert isinstance(content, bytes)
-        self.key_content["content"] = content
         if last_modified is None:
             last_modified = http_date()
         self.set(last_modified=last_modified)
-        self.key.set(self.key_content)
-
-    def file_delete(self):
-        self.key_content.pop("content", None)
-        self.key.set(self.key_content)
+        with get_write_file_ensure_dir(self._filepath) as f:
+            f.write(content)
 
     def gethttpheaders(self):
         assert self.file_exists()
@@ -164,7 +180,7 @@ class FileEntry(object):
         headers[str("last-modified")] = str(self.last_modified)
         m = mimetypes.guess_type(self.basename)[0]
         headers[str("content-type")] = str(m)
-        headers[str("content-length")] = str(len(self.get_file_content()))
+        headers[str("content-length")] = str(self.size)
         return headers
 
     def __eq__(self, other):
@@ -186,6 +202,7 @@ class FileEntry(object):
     def delete(self, **kw):
         self.key.delete()
         self.key_content = {}
+        self.file_delete(raising=False)
 
     def cache_remote_file(self):
         # we get and cache the file and some http headers from remote
