@@ -26,6 +26,9 @@
 - fix issue100: support large file uploads.  As we switched away from 
   bottle to pyramid, the body-size limit is gone.
 
+- fix issue99: make "devpi-server --start" etc work when devpi-server
+  is not itself on PATH (by using sys.argv[0] for finding the binary)
+
 1.2.2
 ----------------
 

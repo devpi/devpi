@@ -2,8 +2,8 @@
 interact/control devpi-server background process.
 """
 from __future__ import unicode_literals
+import sys
 import time
-import py
 
 from devpi_common.url import urlparse
 
@@ -50,7 +50,7 @@ class BackgroundServer:
 
     def start(self, args):
         filtered_args = [x for x in args._raw if x != "--start"]
-        devpi_server = py.path.local.sysfind("devpi-server")
+        devpi_server = sys.argv[0]
         if devpi_server is None:
             self.fatal("cannot find devpi-server binary, no auto-start")
         def prepare_devpiserver(cwd):
