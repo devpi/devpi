@@ -1,16 +1,14 @@
+Web
+--------------
 
-web search integration
----------------------------
+- remove keyfs.mkdtempdir() / web needs to manage its own directories
 
-- indexing (of root/pypi) should not hold up the startup process
-  (why does "committing index" take so long?)
-  probably perform it asynchronously and detect if a previous 
-  indexing operation was aborted.  We might introduce a new
-  hook like "devpiserver_initial_serials(config, name2serials, fresh)", 
-  where "fresh" indicates if the serials were retrieved from
-  a remote pypi or devpi-master server.  web can then also look
-  into config.args.index_projects to decide if the user requested
-  a re-indexing operation?!
+- test result view, link to that view from index view and "info page"
+  Should test results be searchable?
+
+- info page: "classifiers": should default to "short view" which just
+  lists "dev status", "license", "Operating system", "Topic" definitions
+  in a single line and be clicked to get a long view
 
 replication issues
 ------------------------
@@ -18,18 +16,17 @@ replication issues
 - each master and replica should have IDs and they should be verified
   before replication is performed.  If the master is recreated the replica
   should be able to notice and not blindly replicate / get stuck.
-
-- consider what it takes to externally manage root/pypi files (and maybe
-  also other stage files) wrt to replication and internal refactoring.
+  Maybe another safety measure is to have each changelog contain
+  a hash of the last changelog.
 
 - replica/master authentication handling: currently salt-hashed passwords leak through
   replication protocol.  Should replica's get a key which needs to be generated
-  by the master? 
+  by the master?   Should the master require "root" authentication?
+  Or should we just allow the read access and make it an external deployment problem
+  how to protect ``/+changelog/*`` urls?
 
-- DURABILITY: ensure that half-written transactions are correctly
-  cleaned up at the next restart.  
-
-- remove unbounded cache for transaction entries (repoze.lru?)
+- replica thread in master does not die if the client is gone.
+  We should finish the request after some MAXPERIOD.
 
 - ProjectChanged should deal with deleted entries (it breaks currently)
   (maybe refactor projconfig into multiple version-data files
@@ -51,24 +48,17 @@ replication issues
   File "/home/hpk/p/devpi/server/devpi_server/keyfs.py", line 319, in get_value_at
     raise KeyError(relpath)  # was deleted
 KeyError: u'user1/dev/hello/.config'
-
   
   
 keyfs 
 ------------------
 
-- durability: fsync on commit
+- durability: fsync on commit, ensure that half-written transactions are correctly
+  cleaned up at the next restart.  
 
-- remove mkdtempdir() / web needs to manage its own directories
-
-deployment / API
------------------
-
-- replica thread in master does not die if the client is gone.
-  We should finish the request after some MAXPERIOD.
+- remove unbounded cache for transaction entries (repoze.lru?)
 
 ext pypi mirror
 --------------------
 
 - what happens when the master is upgraded / removes root/pypi state?
-
