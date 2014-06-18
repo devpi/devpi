@@ -20,7 +20,15 @@
                 <td><a href="${package.info.url}">${package.info.title}</a></td>
                 <td>
                     <tal:files condition="package.files">
-                        <tal:file repeat="file package.files"><a href="${file.url}">${file.title}</a><br tal:condition="not repeat.file.end" /></tal:file>
+                        <tal:file repeat="file package.files">
+                            <span tal:define="test_results file.get('test_results', []);
+                                              failed None if not test_results else any(x['failed'] for x in test_results)"
+                                  tal:omit-tag="failed is None"
+                                  tal:attributes="class 'failed' if failed else 'passed'">
+                                <a href="${file.url}">${file.title}</a>
+                            </span>
+                            <br tal:condition="not repeat.file.end" />
+                        </tal:file>
                     </tal:files>
                 </td>
                 <td><a tal:condition="package.docs" href="${package.docs.url}">${package.docs.title}</a></td>
