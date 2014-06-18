@@ -21,6 +21,8 @@
   attributes as normal indexes and results in a 409 MethodNotAllowed
   http code when trying to change the config.
 
+- fix issue91: make serverport available as well. Thanks David Bonner.
+
 
 1.2.2
 ----------------

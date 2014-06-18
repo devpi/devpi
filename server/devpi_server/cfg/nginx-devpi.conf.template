@@ -20,7 +20,7 @@ server {
     }   
     location @proxy_to_app {
         proxy_pass http://localhost:%(port)s;
-        proxy_set_header  X-outside-url $scheme://$host;
+        proxy_set_header  X-outside-url $scheme://$host:$server_port;
         proxy_set_header  X-Real-IP $remote_addr;
     }   
 } 
