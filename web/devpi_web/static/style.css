@@ -179,6 +179,75 @@ table.files thead {
     font-weight: bold;
 }
 
+span.passed:after,
+table.files .testresult.passed .testresult_title:before,
+table.files .testresult .command.passed div:first-child:before {
+    content: "✔";
+    color: green;
+    font-weight: bold;
+}
+
+span.failed:after,
+table.files .testresult.failed .testresult_title:before,
+table.files .testresult .command.failed div:first-child:before {
+    content: "𐄂";
+    color: red;
+    font-weight: bold;
+}
+
+table.files .testresult.opened .testresult_title,
+table.files .testresult.closed .testresult_title {
+    cursor: pointer;
+}
+
+table.files .testresult .command > * {
+    margin-left: 1em;
+}
+
+table.files .testresult.opened .testresult_title {
+    margin-left: 0;
+    margin-bottom: 0.5em;
+}
+
+table.files .testresult {
+    margin-bottom: 0.5em;
+}
+
+table.files .testresult.opened .testresult_title:after {
+    content: "-";
+}
+
+table.files .testresult.closed .testresult_title:after {
+    content: "+";
+}
+
+table.files .testresult.opened .testresult_title:after,
+table.files .testresult.closed .testresult_title:after {
+    display: inline-block;
+    text-align: center;
+    vertical-align: center;
+    line-height: 0.9em;
+    height: 0.9em;
+    width: 0.9em;
+    color: rgb(0, 0, 238);
+    border: 1px solid #ccc;
+}
+
+table.files .testresult .command div {
+    margin-bottom: 1em;
+}
+
+table.files .testresult.closed .command {
+    display: none;
+}
+
+table.files .testresult pre {
+    margin-left: 1.5em;
+    max-width: 70em;
+    white-space: pre-wrap;
+    overflow: scroll;
+}
+
 iframe {
     margin: 0.5em 0 0 0;
     position: absolute;

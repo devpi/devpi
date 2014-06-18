@@ -264,10 +264,10 @@ def test_version_view(mapp, testapp):
     assert py.builtin._totext(
         description.renderContents().strip(),
         'utf-8') == '<p>foo</p>'
-    filesinfo = [tuple(t.text for t in x.findAll('td')) for x in r.html.select('.files tr')]
+    filesinfo = [tuple(t.text.strip() for t in x.findAll('td')) for x in r.html.select('.files tr')]
     assert filesinfo == [
-        ('pkg1-2.6.tar.gz', 'Source', '', '7 bytes', '9a0364b9e99bb480dd25e1f0284c8555'),
-        ('pkg1-2.6.zip', 'Source', '', '10 bytes', '52360ae08d733016c5603d54b06b5300')]
+        ('pkg1-2.6.tar.gz', 'Source', '', '7 bytes', '', '9a0364b9e99bb480dd25e1f0284c8555'),
+        ('pkg1-2.6.zip', 'Source', '', '10 bytes', '', '52360ae08d733016c5603d54b06b5300')]
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
         ("Documentation", "http://localhost:80/%s/pkg1/2.6/+d/index.html" % api.stagename),
@@ -320,6 +320,26 @@ def test_version_view_root_pypi_external_files(mapp, testapp, pypistage):
     assert link1.attrs["href"].endswith("pkg1-2.7.zip")
     assert link2.text == "https://pypi.python.org/pypi/pkg1/2.7/"
     assert link2.attrs["href"] == "https://pypi.python.org/pypi/pkg1/2.7/"
+
+
+def test_testdata(mapp, testapp):
+    from test_devpi_server.example import tox_result_data
+    api = mapp.create_and_use()
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200)
+    r = testapp.post_json(api.resultlog, tox_result_data)
+    assert r.status_code == 200
+    r = testapp.xget(200, api.index, headers=dict(accept="text/html"))
+    passed, = r.html.select('.passed')
+    assert 'pkg1-2.6.tgz' in passed.text
+    r = testapp.xget(200, api.index + '/pkg1/2.6', headers=dict(accept="text/html"))
+    testresult, = r.html.select('.testresult')
+    assert 'passed' in testresult.attrs['class']
+    commands = testresult.select('.command')
+    assert len(commands) == 2
+    assert 'No setup performed' in commands[0].text
+    assert 'passed' in commands[1].attrs['class']
+    assert 'python' in commands[1].text
+    assert 'everything fine' in commands[1].text
 
 
 def test_search_nothing(testapp):

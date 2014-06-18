@@ -105,7 +105,7 @@ def sizeof_fmt(num):
     return (num, 'TB')
 
 
-def get_files_info(request, user, index, metadata):
+def get_files_info(request, user, index, metadata, show_test_results=False):
     xom = request.registry['xom']
     files = []
     filedata = metadata.get("+files", {})
@@ -126,14 +126,64 @@ def get_files_info(request, user, index, metadata):
         size = ''
         if entry.file_exists():
             size = "%.0f %s" % sizeof_fmt(entry.file_size())
-        files.append(dict(
+        fileinfo = dict(
             title=basename,
             url=request.relative_url(relurl),
             md5=entry.md5,
             dist_type=dist_file_types.get(file_type, ''),
             py_version=py_version,
-            size=size))
+            size=size)
+        if show_test_results and entry.md5:
+            test_results = get_test_result_info(request, entry.md5)
+            if test_results:
+                fileinfo['test_results'] = test_results
+        files.append(fileinfo)
     return files
+
+
+def _get_commands_info(commands):
+    result = dict(
+        failed=any(x["retcode"] != "0" for x in commands),
+        commands=[])
+    for command in commands:
+        result["commands"].append(dict(
+            failed=command["retcode"] != "0",
+            command=" ".join(command["command"]),
+            output=command["output"]))
+    return result
+
+
+def get_test_result_info(request, md5):
+    xom = request.registry['xom']
+    result = []
+    seen = set()
+    toxresults = list(
+        enumerate(xom.filestore.iter_attachments(md5, 'toxresult')))
+    for index, toxresult in reversed(toxresults):
+        try:
+            for envname in toxresult["testenvs"]:
+                seen_key = (toxresult["host"], toxresult["platform"], envname)
+                if seen_key in seen:
+                    continue
+                seen.add(seen_key)
+                env = toxresult["testenvs"][envname]
+                info = dict(
+                    host=toxresult["host"],
+                    platform=toxresult["platform"],
+                    envname=envname)
+                info["setup"] = _get_commands_info(env.get("setup", []))
+                try:
+                    info["pyversion"] = env["python"]["version"].split(None, 1)[0]
+                except KeyError:
+                    pass
+                info["test"] = _get_commands_info(env.get("test", []))
+                info['failed'] = info["setup"]["failed"] or info["test"]["failed"]
+                if info['failed']:
+                    raise ValueError
+                result.append(info)
+        except Exception:
+            log.exception("Couldn't parse test results %s for %s." % (index, md5))
+    return result
 
 
 def get_docs_info(request, stage, metadata):
@@ -212,6 +262,7 @@ def index_get(request, user, index):
             log.error("metadata for project %r empty: %s, skipping",
                       projectname, metadata)
             continue
+        show_test_results = not (stage.user.name == 'root' and stage.index == 'pypi')
         packages.append(dict(
             info=dict(
                 title="%s-%s info page" % (name, ver),
@@ -219,7 +270,8 @@ def index_get(request, user, index):
                     "/{user}/{index}/{name}/{version}",
                     user=stage.user.name, index=stage.index,
                     name=name, version=ver)),
-            files=get_files_info(request, stage.user.name, stage.index, metadata),
+            files=get_files_info(
+                request, stage.user.name, stage.index, metadata, show_test_results),
             docs=get_docs_info(request, stage, metadata)))
 
     return result
@@ -289,13 +341,16 @@ def version_get(request, user, index, name, version):
                 continue
             value = py.xml.escape(value)
         infos.append((py.xml.escape(key), value))
+    show_test_results = not (user == 'root' and index == 'pypi')
+    files = get_files_info(request, user, index, verdata, show_test_results)
     return dict(
         title="%s/: %s-%s metadata and description" % (stage.name, name, version),
         content=stage.get_description(name, version),
         home_page=verdata.get("home_page"),
         summary=verdata.get("summary"),
         infos=infos,
-        files=get_files_info(request, user, index, verdata),
+        files=files,
+        show_test_results=show_test_results,
         docs=get_docs_info(request, stage, verdata))
 
 
