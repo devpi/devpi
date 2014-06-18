@@ -23,6 +23,8 @@
 
 - fix issue91: make serverport available as well. Thanks David Bonner.
 
+- fix issue100: support large file uploads.  As we switched away from 
+  bottle to pyramid, the body-size limit is gone.
 
 1.2.2
 ----------------
