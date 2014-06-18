@@ -122,7 +122,7 @@ def url_of_liveserver(request):
 @pytest.fixture
 def devpi(cmd_devpi, gen, url_of_liveserver):
     user = gen.user()
-    cmd_devpi("use", url_of_liveserver.joinpath("root/pypi").url, code=200)
+    cmd_devpi("use", url_of_liveserver.url, code=200)
     cmd_devpi("user", "-c", user, "password=123", "email=123")
     cmd_devpi("login", user, "--password", "123")
     cmd_devpi("index", "-c", "dev")

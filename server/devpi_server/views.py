@@ -345,6 +345,8 @@ class PyPIView:
         self.require_user(user)
         user = self.model.get_user(user)
         stage = user.getstage(index)
+        if stage and stage.name == "root/pypi":
+            apireturn(403, "root/pypi index config can not be modified")
         if request.method == "PUT" and stage is not None:
             apireturn(409, "index %r exists" % stage.name)
         kvdict = getkvdict_index(getjson(request))
