@@ -7,6 +7,9 @@ unreleased
 
 - fix issue104: don't define an entrypoint. Thanks Maximilien Riehl.
 
+- fix issue88: don't do our own proxy handling because requests-2.2.1
+  does it itself.
+
 
 1.2
 -------------
