@@ -178,8 +178,6 @@ def get_test_result_info(request, md5):
                     pass
                 info["test"] = _get_commands_info(env.get("test", []))
                 info['failed'] = info["setup"]["failed"] or info["test"]["failed"]
-                if info['failed']:
-                    raise ValueError
                 result.append(info)
         except Exception:
             log.exception("Couldn't parse test results %s for %s." % (index, md5))
