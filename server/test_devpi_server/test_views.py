@@ -190,6 +190,11 @@ class TestSubmitValidation:
                         code=code)
         return Submit()
 
+    def test_404(self, testapp, mapp):
+        testapp.post("/nouser/nostage", {"hello": ""}, code=404)
+        mapp.upload_file_pypi("qlwkej", b"qwe", "name", "1.0",
+                              indexname="nouser/nostage", code=404)
+
     def test_metadata_normalize_conflict(self, submit, testapp):
         metadata = {"name": "pKg1", "version": "1.0", ":action": "submit",
                     "description": "hello world"}
