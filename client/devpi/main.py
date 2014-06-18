@@ -468,6 +468,19 @@ def getjson(parser):
         help="path to a resource to show information on. "
              "examples: '/', '/user', '/user/index'.")
 
+@subcommand("devpi.getjson:main_patchjson")
+def patchjson(parser):
+    """ send a PATCH request with the specified json content to
+    the specified path.
+
+    A low-level command to patch json requests at remote resources.
+    """
+    parser.add_argument("path", action="store",
+        help="path to a resource to patch information on. ")
+    parser.add_argument("jsonfile", action="store",
+        help="file to read json content from")
+
+
 @subcommand("devpi.list_remove:main_list", "list")
 def list_(parser):
     """ list project versions and files for the current index.

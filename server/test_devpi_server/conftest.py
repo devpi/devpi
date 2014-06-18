@@ -403,6 +403,21 @@ class Mapp(MappMixin):
         if code in (400,):
             return r.json["message"]
 
+    def modify_index(self, indexname, indexconfig, code=200):
+        if "/" in indexname:
+            user, index = indexname.split("/")
+        else:
+            user, password = self.testapp.auth
+            index = indexname
+        r = self.testapp.patch_json("/%s/%s" % (user, index), indexconfig,
+                                  expect_errors=True)
+        assert r.status_code == code
+        if code in (200,201):
+            assert r.json["result"]["type"] == "stage"
+            return r.json["result"]
+        if code in (400,):
+            return r.json["message"]
+
     def delete_index(self, indexname, code=201):
         if "/" in indexname:
             user, index = indexname.split("/")

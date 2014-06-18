@@ -1,4 +1,4 @@
-1.3
+2.0.*
 ----------------
 
 - moved all html views except for files and the simple index to new
@@ -16,6 +16,10 @@
 
 - don't refresh releaselinks from the mirroring thread but rather
   rely on the next access to do it.
+
+- fix issue82 and fix issue81: root/pypi now provides the same
+  attributes as normal indexes and results in a 409 MethodNotAllowed
+  http code when trying to change the config.
 
 
 1.2.2

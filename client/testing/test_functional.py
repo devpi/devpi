@@ -7,17 +7,18 @@ from test_devpi_server.functional import TestUserThings, TestIndexThings # noqa
 from test_devpi_server.functional import MappMixin
 
 @pytest.fixture
-def mapp(request, devpi, out_devpi):
-    return Mapp(request, devpi, out_devpi)
+def mapp(request, devpi, out_devpi, tmpdir):
+    return Mapp(request, devpi, out_devpi, tmpdir)
 
 class Mapp(MappMixin):
     _usercount = 10
-    def __init__(self, request, devpi, out_devpi):
+    def __init__(self, request, devpi, out_devpi, tmpdir):
         self.devpi = devpi
         self.out_devpi = out_devpi
         request.addfinalizer(self.cleanup)
         self.auth = (None, None)
         self.current_stage = ""
+        self.tmpdir = tmpdir
 
     def _getindexname(self, indexname):
         if indexname is None:
@@ -107,6 +108,12 @@ class Mapp(MappMixin):
 
     def delete_index(self, indexname, code=201):
         self.out_devpi("index", "--delete", indexname, code=code)
+
+    def modify_index(self, index, indexconfig, code=200):
+        import json
+        jsonfile = self.tmpdir.join("jsonfile" )
+        jsonfile.write(json.dumps(indexconfig))
+        self.devpi("patchjson", "/" + index, jsonfile, code=code)
 
     def set_acl(self, acls, code=200, indexname=None):
         #user, password = self.auth

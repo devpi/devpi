@@ -107,6 +107,19 @@ class TestIndexThings:
         if m:  # only server-side mapp returns messages
             assert "not/exists" in m
 
+    def test_pypi_index_attributes(self, mapp):
+        mapp.login_root()
+        data = mapp.getjson("/root/pypi")
+        res = data["result"]
+        assert res["volatile"] == False
+        assert not res["uploadtrigger_jenkins"]
+        assert res["acl_upload"] == ["root"]
+
+    def test_pypi_not_modifiable(self, mapp):
+        mapp.login_root()
+        res = mapp.getjson("/root/pypi")["result"]
+        mapp.modify_index("root/pypi", res, code=403)
+
     def test_create_index_base_empty(self, mapp):
         indexconfig = dict(bases=())
         mapp.login_root()

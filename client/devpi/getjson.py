@@ -1,3 +1,4 @@
+import json
 
 def main(hub, args=None):
     hub.set_quiet()
@@ -17,6 +18,25 @@ def main(hub, args=None):
         for name in sorted(r.headers):
             hub.line("%s: %s" %(name.upper(), r.headers[name]))
         hub.line()
+    hub.out_json(r._json)
+    return
+
+def main_patchjson(hub, args=None):
+    hub.set_quiet()
+    current = hub.current
+    args = hub.args
+
+    path = args.path
+    with open(args.jsonfile, "rb") as f:
+        data = json.load(f)
+
+    current = hub.current
+
+    if path[0] != "/" and not current.index:
+        hub.fatal("cannot use relative path without an active index")
+    url = current.index_url.addpath(path)
+    r = hub.http_api("patch", url, kvdict=data, quiet=True, check_version=False)
+    hub.line("PATCH REQUEST sent to %s" % url.url)
     hub.out_json(r._json)
     return
 

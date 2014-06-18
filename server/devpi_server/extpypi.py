@@ -165,7 +165,8 @@ def invalidate_on_version_change(basedir):
 class PyPIStage:
     VERSION = "4"
     name = "root/pypi"
-    ixconfig = dict(bases=(), volatile=False, type="mirror")
+    ixconfig = dict(bases=(), volatile=False, type="mirror",
+                    uploadtrigger_jenkins="", acl_upload=["root"])
 
     def __init__(self, xom):
         self.keyfs = xom.keyfs
