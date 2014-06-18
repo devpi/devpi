@@ -7,8 +7,8 @@ tox_result_data = {
     "host": "foo",
     "installpkg": {
         "basename": "pytest-1.7.zip",
-        "md5": hashlib.md5("123").hexdigest(),
-        "sha256": hashlib.sha256("123").hexdigest(),
+        "md5": hashlib.md5(b"123").hexdigest(),
+        "sha256": hashlib.sha256(b"123").hexdigest(),
     },
     "testenvs": {
         "py27": {
