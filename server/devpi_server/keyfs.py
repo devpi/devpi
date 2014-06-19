@@ -333,11 +333,6 @@ class KeyFS(object):
         # the key didn't exist at that point in time
         raise KeyError(relpath)
 
-    def mkdtemp(self, prefix):
-        # XXX only used from devpi-web, should be managed there
-        tmpdir = self.basedir.ensure(".tmp", dir=1)
-        return py.path.local.make_numbered_dir(prefix=prefix, rootdir=tmpdir)
-
     def add_key(self, name, path, type):
         assert isinstance(path, py.builtin._basestring)
         if "{" in path:
