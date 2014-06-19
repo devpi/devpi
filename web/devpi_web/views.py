@@ -66,9 +66,11 @@ def doc_show(request, user, index, name, version, relpath):
             name=name, version=version, relpath=relpath))
 
 
-@notfound_view_config(
-    request_method="GET", renderer="templates/notfound.pt")
+@notfound_view_config(renderer="templates/notfound.pt")
 def notfound(request):
+    if request.method == 'POST':
+        request.response.status = 404
+        return dict(msg=request.exception)
     path = decode_path_info(request.environ['PATH_INFO'] or '/')
     registry = request.registry
     mapper = registry.queryUtility(IRoutesMapper)

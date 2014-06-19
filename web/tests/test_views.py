@@ -96,6 +96,10 @@ def test_not_found_redirect(testapp):
     assert r.location == 'http://localhost/root/pypi?foo=bar'
 
 
+def test_not_found_on_post(testapp):
+    testapp.post('/foo/bar/', {"hello": ""}, code=404)
+
+
 def test_root_view(testapp):
     r = testapp.get('/', headers=dict(accept="text/html"))
     assert r.status_code == 200
