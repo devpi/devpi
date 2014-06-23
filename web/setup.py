@@ -26,8 +26,10 @@ setup(
     install_requires=[
         'Whoosh',
         'devpi-server>=1.3dev2',
+        'docutils>=0.11',
+        'pygments>=1.6',
         'pyramid',
         'pyramid-chameleon'],
     include_package_data=True,
     zip_safe=False,
-    packages=['devpi_web'])
+    packages=['devpi_web', 'devpi_web.vendor'])

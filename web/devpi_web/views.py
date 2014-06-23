@@ -5,6 +5,7 @@ from devpi_common.types import ensure_unicode
 from devpi_common.url import URL
 from devpi_server.log import threadlog as log
 from devpi_server.views import matchdict_parameters
+from devpi_web.description import get_description
 from devpi_web.doczip import Docs, get_unpack_path
 from operator import itemgetter
 from py.xml import html
@@ -345,7 +346,7 @@ def version_get(request, user, index, name, version):
     files = get_files_info(request, user, index, verdata, show_test_results)
     return dict(
         title="%s/: %s-%s metadata and description" % (stage.name, name, version),
-        content=stage.get_description(name, version),
+        content=get_description(stage, name, version),
         home_page=verdata.get("home_page"),
         summary=verdata.get("summary"),
         infos=infos,

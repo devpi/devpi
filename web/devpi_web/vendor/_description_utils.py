@@ -42,6 +42,7 @@ from docutils.parsers.rst import directives, Directive
 from pygments import highlight
 from pygments.lexers import get_lexer_by_name, TextLexer
 
+
 class Pygments(Directive):
     """ Source code syntax hightlighting.
     """
@@ -71,6 +72,7 @@ directives.register_directive('code', Pygments)
 directives.register_directive('code-block', Pygments)   # Sphinx
 directives.register_directive('sourcecode', Pygments)
 # END PYGMENTS SUPPORT BLOCK
+
 
 def trim_docstring(text):
     """
@@ -106,6 +108,7 @@ ALLOWED_SCHEMES = '''file ftp gopher hdl http https imap mailto mms news nntp
 prospero rsync rtsp rtspu sftp shttp sip sips snews svn svn+ssh telnet
 wais irc'''.split()
 
+
 def processDescription(source, output_encoding='unicode'):
     """Given an source string, returns an HTML fragment as a string.
 
@@ -120,12 +123,12 @@ def processDescription(source, output_encoding='unicode'):
     # Dedent all lines of `source`.
     source = trim_docstring(source)
 
-    settings_overrides={
+    settings_overrides = {
         'raw_enabled': 0,  # no raw HTML code
         'file_insertion_enabled': 0,  # no file/URL access
         'halt_level': 2,  # at warnings or errors, raise an exception
         'report_level': 5,  # never report problems with the reST code
-        }
+    }
 
     # capture publishing errors, they go to stderr
     old_stderr = sys.stderr
@@ -134,7 +137,8 @@ def processDescription(source, output_encoding='unicode'):
 
     try:
         # Convert reStructuredText to HTML using Docutils.
-        document = publish_doctree(source=source,
+        document = publish_doctree(
+            source=source,
             settings_overrides=settings_overrides)
 
         for node in document.traverse():
@@ -152,7 +156,8 @@ def processDescription(source, output_encoding='unicode'):
 
         # now turn the transformed document into HTML
         reader = readers.doctree.Reader(parser_name='null')
-        pub = Publisher(reader, source=io.DocTreeInput(document),
+        pub = Publisher(
+            reader, source=io.DocTreeInput(document),
             destination_class=io.StringOutput)
         pub.set_writer('html')
         pub.process_programmatic_settings(None, settings_overrides, None)
@@ -175,4 +180,3 @@ def processDescription(source, output_encoding='unicode'):
         output = output.encode(output_encoding)
 
     return output
-

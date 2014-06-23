@@ -250,12 +250,13 @@ def test_version_view(mapp, testapp):
     mapp.upload_file_pypi(
         "pkg1-2.6.zip", b"contentzip", "pkg1", "2.6")
     content = zip_dict({"index.html": "<html/>"})
-    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200, waithooks=1)
+    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200)
     mapp.register_metadata({
         "name": "pkg1",
         "version": "2.6",
         "author": "Foo Bear",
-        "description": "foo"})
+        "description": "foo"},
+        waithooks=True)
     r = testapp.get(api.index + '/pkg1/2.6', headers=dict(accept="text/html"))
     assert r.status_code == 200
     assert r.html.find('title').text == "user1/dev/: pkg1-2.6 metadata and description"
@@ -326,9 +327,13 @@ def test_version_view_root_pypi_external_files(mapp, testapp, pypistage):
     assert link2.attrs["href"] == "https://pypi.python.org/pypi/pkg1/2.7/"
 
 
+@pytest.mark.with_notifier
 def test_testdata(mapp, testapp):
     from test_devpi_server.example import tox_result_data
     api = mapp.create_and_use()
+    mapp.register_metadata(
+        {"name": "pkg1", "version": "2.6", "description": "foo"},
+        waithooks=True)
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200)
     r = testapp.post_json(api.resultlog, tox_result_data)
     assert r.status_code == 200

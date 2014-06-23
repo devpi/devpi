@@ -5,7 +5,6 @@ from devpi_common.metadata import (sorted_sameproject_links,
                                    get_latest_version)
 from devpi_common.validation import validate_metadata, normalize_name
 from devpi_common.types import ensure_unicode
-from .vendor._description_utils import processDescription
 from .auth import crypt_password, verify_password
 from .filestore import FileEntry
 from .log import threadlog, thread_current_log
@@ -345,14 +344,6 @@ class PrivateStage:
         if name not in projectnames:
             projectnames.add(name)
             self.key_projectnames.set(projectnames)
-        desc = metadata.get("description")
-        if desc:
-            html = processDescription(desc)
-            doc_key = self.keyfs.RELDESCRIPTION(user=self.user.name,
-                        index=self.index, name=name, version=version)
-            if py.builtin._istext(html):
-                html = html.encode("utf8")
-            doc_key.set(html)
 
     def project_delete(self, name):
         for version in self.get_projectconfig_perstage(name):
@@ -377,21 +368,6 @@ class PrivateStage:
 
     def project_exists(self, name):
         return self.key_projconfig(name).exists()
-
-    def get_description(self, name, version):
-        key = self.keyfs.RELDESCRIPTION(user=self.user.name,
-            index=self.index, name=name, version=version)
-        return py.builtin._totext(key.get(), "utf-8")
-
-    def get_description_versions(self, name):
-        versions = []
-        projectconfig = self.key_projconfig(name).get()
-        for ver in projectconfig:
-            key_reldesc = self.keyfs.RELDESCRIPTION(version=ver,
-                user=self.user.name, index=self.index, name=name)
-            if key_reldesc.exists():
-                versions.append(ver)
-        return versions
 
     def get_metadata(self, name, version):
         # on win32 we need to make sure that we only return
@@ -564,8 +540,6 @@ def add_keys(xom, keyfs):
     keyfs.add_key("PROJCONFIG", "{user}/{index}/{name}/.config", dict)
     keyfs.add_key("PROJNAMES", "{user}/{index}/.projectnames", set)
     keyfs.add_key("STAGEFILE", "{user}/{index}/+f/{md5}/{filename}", dict)
-    keyfs.add_key("RELDESCRIPTION",
-                  "{user}/{index}/{name}/{version}/description_html", bytes)
 
     keyfs.add_key("ATTACHMENT", "+attach/{md5}/{type}/{num}", bytes)
     keyfs.add_key("ATTACHMENTS", "+attach/.att", dict)

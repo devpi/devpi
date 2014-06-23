@@ -11,9 +11,6 @@ try:
 except ImportError:
     import xmlrpclib as xmlrpc
 
-import py
-html = py.xml.html
-
 from devpi_common.vendor._pip import HTMLPage
 
 from devpi_common.url import URL
@@ -303,11 +300,6 @@ class PyPIStage:
         return data
 
     get_projectconfig_perstage = get_projectconfig
-
-    def get_description(self, name, version):
-        link = "https://pypi.python.org/pypi/%s/%s/" % (name, version)
-        return html.div("please refer to description on remote server ",
-            html.a(link, href=link)).unicode(indent=2)
 
 
 class PyPIMirror:

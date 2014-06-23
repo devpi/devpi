@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+from devpi_web.description import render_description
 from devpi_web.doczip import unpack_docs
 from devpi_web.indexing import iter_projects, preprocess_project
 from devpi_web.whoosh_index import Index
@@ -125,4 +126,5 @@ def devpiserver_docs_uploaded(stage, name, version, entry):
 
 
 def devpiserver_register_metadata(stage, metadata):
+    render_description(stage, metadata)
     index_project(stage, metadata['name'])

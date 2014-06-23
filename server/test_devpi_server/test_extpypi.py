@@ -286,13 +286,6 @@ class TestExtPYPIDB:
         assert data["version"] == "1.0"
         assert pypistage.get_project_info("pytest").name == "Pytest"
 
-    def test_getdescription(self, pypistage):
-        pypistage.mock_simple("pytest", text='''
-            <a href="../../pkg/pytest-1.0.zip#md5=123" />''')
-        content = pypistage.get_description("pytest", "1.0")
-        assert "refer" in content
-        assert "https://pypi.python.org/pypi/pytest/1.0/" in content
-
     def test_getprojectconfig_with_egg(self, pypistage):
         pypistage.mock_simple("pytest", text='''
             <a href="../../pkg/tip.zip#egg=pytest-dev" />''')

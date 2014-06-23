@@ -399,26 +399,6 @@ class TestStage:
         project = stage.get_project_info("hello")
         assert project.name == "Hello"
 
-    def test_releasedata_description(self, stage):
-        source = py.builtin._totext(dedent("""\
-            test the *world*
-        """))
-        assert stage.metadata_keys
-        assert not stage.get_description("hello", "1.0")
-        stage.register_metadata(dict(name="hello", version="1.0",
-                description=source))
-        html = stage.get_description("hello", "1.0")
-        assert py.builtin._istext(html)
-        assert "test" in html and "world" in html
-
-    def test_releasedata_description_versions(self, stage):
-        stage.register_metadata(dict(name="hello", version="1.0",
-            description=py.builtin._totext("hello")))
-        stage.register_metadata(dict(name="hello", version="1.1",
-            description=py.builtin._totext("hello")))
-        ver = stage.get_description_versions("hello")
-        assert set(ver) == set(["1.0", "1.1"])
-
 
 class TestUsers:
 
