@@ -338,10 +338,10 @@ class Index(object):
                 The <a href="https://pypi.python.org/pypi?%3Aaction=list_classifiers" target="_blank">trove classifiers</a> of a package.
                 Use single quotes to specify a classifier, as they contain spaces:
                 <code>classifiers:'Programming Language :: Python :: 3'</code>""",
-            index="The name of the index.",
+            index="The name of the index. This is only the name part, without the user. For example: <code>index:pypi</code>",
             keywords="The keywords of a package.",
-            name="The package name.",
-            path="The path of the package in the form '/{user}/{index}/{name}'.",
+            name="The package name. For example: <code>name:devpi-client</code>",
+            path="The path of the package in the form '/{user}/{index}/{name}'.  For example: <code>path:/root/pypi/devpi-server</code>",
             text=None,
             type="""
                 The type of text.
@@ -351,7 +351,7 @@ class Index(object):
                 or one of the following project metadata fields:
                 <code>author</code>, <code>author_email</code>,
                 <code>description</code>, <code>keywords</code>,
-                <code>summary</code>.
+                <code>summary</code>. For example: <code>type:page</code>
                 """,
             user="The user name.")
         schema = self.project_schema
