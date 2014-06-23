@@ -5,8 +5,7 @@ import py
 def get_description_file(stage, name, version):
     config = stage.xom.config
     return config.serverdir.join(
-        '.web', stage.user.name, stage.index, name, version, 'description.html',
-        abs=True)
+        '.web', stage.user.name, stage.index, name, version, 'description.html')
 
 
 def get_description(stage, name, version):

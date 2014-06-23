@@ -73,7 +73,7 @@ def includeme(config):
 
 
 def get_indexer(config):
-    indices_dir = config.serverdir.join('.indices', abs=True)
+    indices_dir = config.serverdir.join('.indices')
     indices_dir.ensure_dir()
     return Index(indices_dir.strpath)
 

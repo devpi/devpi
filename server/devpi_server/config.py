@@ -242,7 +242,7 @@ class Config:
         self.serverdir = py.path.local(os.path.expanduser(serverdir))
 
         if args.secretfile == "{serverdir}/.secret":
-            self.secretfile = self.serverdir.join(".secret", abs=True)
+            self.secretfile = self.serverdir.join(".secret")
         else:
             self.secretfile = py.path.local(
                     os.path.expanduser(args.secretfile))
