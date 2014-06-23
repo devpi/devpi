@@ -222,7 +222,7 @@ class Index(object):
 
     def update_projects(self, projects, clear=False):
         counter = itertools.count()
-        count = 0
+        count = next(counter)
         writer = self.project_ix.writer()
         main_keys = self.project_ix.schema.names()
         text_keys = (
