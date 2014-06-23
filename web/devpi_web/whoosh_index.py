@@ -240,7 +240,7 @@ class Index(object):
             data['text'] = "%s %s" % (data['name'], project_name(data['name']))
             with writer.group():
                 writer.add_document(**data)
-                count = counter.next()
+                count = next(counter)
                 for key, boost in text_keys:
                     if key not in project:
                         continue
@@ -249,7 +249,7 @@ class Index(object):
                         "type": key,
                         "text": project[key],
                         "_text_boost": boost})
-                    count = counter.next()
+                    count = next(counter)
                 if '+doczip' not in project:
                     continue
                 for page in project['+doczip']:
@@ -259,14 +259,14 @@ class Index(object):
                         "text": page['title'],
                         "text_path": page['path'],
                         "text_title": page['title']})
-                    count = counter.next()
+                    count = next(counter)
                     writer.add_document(**{
                         "path": data['path'],
                         "type": "page",
                         "text": page['text'],
                         "text_path": page['path'],
                         "text_title": page['title']})
-                    count = counter.next()
+                    count = next(counter)
         log.info("Committing index with %s documents." % count)
         if clear:
             writer.commit(mergetype=CLEAR)
