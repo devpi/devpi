@@ -13,6 +13,7 @@ from whoosh.qparser import QueryParser
 from whoosh.qparser import plugins
 from whoosh.util.text import rcompile
 from whoosh.writing import CLEAR
+import itertools
 import shutil
 import threading
 
@@ -220,6 +221,8 @@ class Index(object):
             text=fields.TEXT(analyzer=NgramWordAnalyzer(), stored=False, phrase=False))
 
     def update_projects(self, projects, clear=False):
+        counter = itertools.count()
+        count = 0
         writer = self.project_ix.writer()
         main_keys = self.project_ix.schema.names()
         text_keys = (
@@ -237,6 +240,7 @@ class Index(object):
             data['text'] = "%s %s" % (data['name'], project_name(data['name']))
             with writer.group():
                 writer.add_document(**data)
+                count = counter.next()
                 for key, boost in text_keys:
                     if key not in project:
                         continue
@@ -245,6 +249,7 @@ class Index(object):
                         "type": key,
                         "text": project[key],
                         "_text_boost": boost})
+                    count = counter.next()
                 if '+doczip' not in project:
                     continue
                 for page in project['+doczip']:
@@ -254,17 +259,20 @@ class Index(object):
                         "text": page['title'],
                         "text_path": page['path'],
                         "text_title": page['title']})
+                    count = counter.next()
                     writer.add_document(**{
                         "path": data['path'],
                         "type": "page",
                         "text": page['text'],
                         "text_path": page['path'],
                         "text_title": page['title']})
-        log.info("Committing index.")
+                    count = counter.next()
+        log.info("Committing index with %s documents." % count)
         if clear:
             writer.commit(mergetype=CLEAR)
         else:
             writer.commit()
+        log.info("Committed %s documents to index." % count)
 
     @property
     def project_searcher(self):
