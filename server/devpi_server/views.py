@@ -216,11 +216,11 @@ class PyPIView:
         apireturn(200, type="apiconfig", result=api)
 
     #
-    # attachment to release files
-    # currently only test results, pending generalization
+    # attach test results to release files
     #
 
-    @view_config(route_name="/+tests", request_method="POST")
+    @view_config(route_name="/{user}/{index}/{relpath:.*}",
+                 request_method="POST")
     def add_attach(self):
         request = self.request
         filestore = self.xom.filestore
@@ -229,9 +229,7 @@ class PyPIView:
         data = request.text
         if not py.builtin._istext(data):
             data = data.decode("utf-8")
-        num = filestore.add_attachment(md5=md5, type="toxresult",
-                                       data=data)
-        relpath = "/+tests/%s/%s/%s" %(md5, "toxresult", num)
+        relpath = stage.add_testresult(request.matchdict["relpath"], data)
         apireturn(200, type="testresultpath", result=relpath)
 
     @view_config(route_name="/+tests/{md5}/{type}", request_method="GET")

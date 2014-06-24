@@ -72,11 +72,18 @@ class FileStore:
         return FileEntry(self.xom, key, md5=md5)
 
     def store(self, user, index, filename, content, last_modified=None):
-        digest = hashlib.md5(content).hexdigest()
+        md5 = hashlib.md5(content).hexdigest()
         key = self.keyfs.STAGEFILE(user=user, index=index,
-                                   md5=digest, filename=filename)
+                                   md5=md5, filename=filename)
         entry = FileEntry(self.xom, key)
-        entry.file_set_content(content, md5=digest)
+        entry.file_set_content(content, md5=md5)
+        return entry
+
+    def store_test(self, user, index, releasefile_md5, filename, content):
+        key = self.keyfs.STAGEFILE(user=user, index=index,
+                                   md5=releasefile_md5, filename=filename)
+        entry = FileEntry(self.xom, key)
+        entry.file_set_content(content)
         return entry
 
     def add_attachment(self, md5, type, data):

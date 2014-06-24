@@ -2,6 +2,8 @@ from __future__ import unicode_literals
 
 import py
 import pytest
+import hashlib
+import json
 from textwrap import dedent
 
 from devpi_common.metadata import splitbasename
@@ -293,6 +295,22 @@ class TestStage:
         assert 'index.html' not in namelist
         assert '_static' not in namelist
         assert '_templ' not in namelist
+
+    def test_storetestresult(self, stage, bases):
+        from devpi_common.archive import Archive
+        content = b'123'
+        md5 = hashlib.md5(content).hexdigest()
+        entry = register_and_store(stage, "pkg1-1.0.tar.gz", content=content)
+        assert entry.projectname == "pkg1"
+        assert entry.version == "1.0"
+        testresultdata = {'hello': 'world'}
+        stage.store_testresult(entry.relpath, testresultdata)
+        metadata = stage.get_metadata("pkg1", "1.0")
+        results = metadata["+testresults"]["pkg1-1.0.tar.gz"]
+        assert len(results) == 1
+        entry = stage.xom.filestore.get_file_entry(results[0]["link"])
+        assert entry.basename == "test0.json"
+        assert json.loads(entry.file_get_content()) == testresultdata
 
     def test_store_and_get_volatile(self, stage):
         stage.modify(volatile=False)

@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 import py
+import json
 from devpi_common.metadata import (sorted_sameproject_links,
                                    get_latest_version)
 from devpi_common.validation import validate_metadata, normalize_name
@@ -473,6 +474,24 @@ class PrivateStage:
             files[filename] = entry.relpath
             threadlog.info("store_releasefile %s", entry.relpath)
             return entry
+
+    def store_testresult(self, relpath, testresultdata):
+        entry = self.xom.filestore.get_file_entry(relpath)
+        assert entry and entry.md5
+        key = self.key_projconfig(name=entry.projectname)
+        with key.update() as projectconfig:
+            verdata = projectconfig.setdefault(entry.version, {})
+            files = verdata["+files"]
+            assert entry.relpath in verdata["+files"].values()
+            testresults = verdata.setdefault("+testresults", {})
+            filetestresults = testresults.setdefault(entry.basename, [])
+            test_entry = self.xom.filestore.store_test(
+                    self.user.name, self.index,
+                    releasefile_md5=entry.md5,
+                    filename="test%s.json" % len(filetestresults),
+                    content=json.dumps(testresultdata),
+            )
+            filetestresults.append({"link": test_entry.relpath})
 
     def store_doczip(self, name, version, content):
         """ store zip file and unzip doc content for the

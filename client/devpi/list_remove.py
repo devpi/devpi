@@ -30,6 +30,7 @@ def out_project(hub, data, req):
 
 def out_project_version_files(hub, verdata, version, index):
     files = verdata.get("+files")
+    tests = verdata.get("+tests")
     if files is not None:
         for fn in files:
             origin = files[fn]
@@ -41,6 +42,7 @@ def out_project_version_files(hub, verdata, version, index):
                 hub.info(origin)
             else:
                 hub.line(origin)
+            results = tests.get(fn)
             query_file_status(hub, origin)
     return bool(files)
 
