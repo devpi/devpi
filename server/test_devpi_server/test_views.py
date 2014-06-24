@@ -50,7 +50,17 @@ def test_project_redirect(pypistage, testapp):
     assert r.headers["location"].endswith("/root/pypi/+simple/%s" % name)
 
 def test_simple_project_unicode_rejected(pypistage, testapp, dummyrequest):
-    testapp.xget(400, u"/root/pypi/+simple/qpw\xf6".encode('utf-8'))
+    from devpi_server.view_auth import RootFactory
+    from devpi_server.views import PyPIView
+    from pyramid.httpexceptions import HTTPClientError
+    dummyrequest.registry['xom'] = testapp.xom
+    dummyrequest.log = pypistage.xom.log
+    dummyrequest.context = RootFactory(dummyrequest)
+    view = PyPIView(dummyrequest)
+    name = py.builtin._totext(b"qpw\xc3\xb6", "utf-8")
+    dummyrequest.matchdict.update(user="x", index="y", name=name)
+    with pytest.raises(HTTPClientError):
+        view.simple_list_project()
 
 def test_simple_url_longer_triggers_404(testapp):
     assert testapp.get("/root/pypi/+simple/pytest/1.0/").status_code == 404
