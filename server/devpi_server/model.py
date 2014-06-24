@@ -475,13 +475,10 @@ class PrivateStage:
             threadlog.info("store_releasefile %s", entry.relpath)
             return entry
 
-    def store_testresult(self, relpath, testresultdata):
-        entry = self.xom.filestore.get_file_entry(relpath)
-        assert entry and entry.md5
+    def store_testresult(self, entry, testresultdata):
         key = self.key_projconfig(name=entry.projectname)
         with key.update() as projectconfig:
             verdata = projectconfig.setdefault(entry.version, {})
-            files = verdata["+files"]
             assert entry.relpath in verdata["+files"].values()
             testresults = verdata.setdefault("+testresults", {})
             filetestresults = testresults.setdefault(entry.basename, [])
@@ -491,7 +488,19 @@ class PrivateStage:
                     filename="test%s.json" % len(filetestresults),
                     content=json.dumps(testresultdata),
             )
+            # using a dictionary so we can extend it with more extracted
+            # metadata from the test results in the future
             filetestresults.append({"link": test_entry.relpath})
+            return test_entry
+
+    def get_testresults(self, metadata, basename):
+        res = metadata.get("+testresults", {}).get(basename, [])
+        l = []
+        for testresultmeta in res:
+            path = testresultmeta["link"]
+            entry = self.xom.filestore.get_file_entry(path)
+            l.append(json.loads(entry.file_get_content()))
+        return l
 
     def store_doczip(self, name, version, content):
         """ store zip file and unzip doc content for the

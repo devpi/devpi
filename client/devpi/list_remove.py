@@ -1,4 +1,4 @@
-
+import json
 from devpi_common.url import URL
 from devpi_common.metadata import Version, parse_requirement
 
@@ -30,7 +30,7 @@ def out_project(hub, data, req):
 
 def out_project_version_files(hub, verdata, version, index):
     files = verdata.get("+files")
-    tests = verdata.get("+tests")
+    testresults = verdata.get("+testresults", {})
     if files is not None:
         for fn in files:
             origin = files[fn]
@@ -42,26 +42,20 @@ def out_project_version_files(hub, verdata, version, index):
                 hub.info(origin)
             else:
                 hub.line(origin)
-            results = tests.get(fn)
-            query_file_status(hub, origin)
+            if fn in testresults:
+                fn_results = testresults.get(fn)
+                show_test_status(hub, fn_results)
     return bool(files)
 
-def query_file_status(hub, origin):
+def show_test_status(hub, fn_results):
     # XXX this code is not auto-tested in all detail
     # so change with great care or write tests first
-    rooturl = hub.current.rooturl
-    res = hub.http_api("get", URL(rooturl, "/" + origin).url,
-                       quiet=True)
-    assert res.status_code == 200
-    md5 = res.result.get("md5")
-    if not md5:
-        return
-    res = hub.http_api("get",
-                       URL(rooturl, "/+tests/%s/toxresult" % md5).url,
-                       quiet=True, type="list:toxresult")
+    rooturl = URL(hub.current.rooturl)
     seen = set()
-    for toxresult in reversed(res.result):
-        toxresult["platform"]
+    for result in fn_results:
+        res = hub.http.get(rooturl.joinpath(result["link"]).url)
+        assert res.status_code == 200
+        toxresult = json.loads(res.content)
         for envname, env in toxresult["testenvs"].items():
             prefix = "  {host} {platform} {envname}".format(
                      envname=envname, **toxresult)

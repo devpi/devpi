@@ -178,7 +178,10 @@ class PyPIView:
         self.auth = Auth(self.model, xom.config.secret)
         self.log = request.log
 
-    def getstage(self, user, index):
+    def getstage(self, user=None, index=None):
+        if user is None:
+            user = self.request.matchdict["user"]
+            index = self.request.matchdict["index"]
         stage = self.model.getstage(user, index)
         if not stage:
             abort(self.request, 404, "no such stage")
@@ -195,7 +198,6 @@ class PyPIView:
     def apiconfig_index(self, path=None):
         request = self.request
         api = {
-            "resultlog": request.route_url("/+tests"),
             "login": request.route_url('/+login'),
             "authstatus": self.auth.get_auth_status(request.auth),
         }
@@ -219,32 +221,18 @@ class PyPIView:
     # attach test results to release files
     #
 
-    @view_config(route_name="/{user}/{index}/{relpath:.*}",
+    @view_config(route_name="/{user}/{index}/+f/{relpath:.*}",
                  request_method="POST")
-    def add_attach(self):
-        request = self.request
+    def post_testresult(self):
+        stage = self.getstage()
         filestore = self.xom.filestore
-        data = getjson(request)
-        md5 = data["installpkg"]["md5"]
-        data = request.text
-        if not py.builtin._istext(data):
-            data = data.decode("utf-8")
-        relpath = stage.add_testresult(request.matchdict["relpath"], data)
-        apireturn(200, type="testresultpath", result=relpath)
-
-    @view_config(route_name="/+tests/{md5}/{type}", request_method="GET")
-    @matchdict_parameters
-    def get_attachlist(self, md5, type):
-        filestore = self.xom.filestore
-        datalist = list(filestore.iter_attachments(md5=md5, type=type))
-        apireturn(200, type="list:toxresult", result=datalist)
-
-    @view_config(route_name="/+tests/{md5}/{type}/{num}", request_method="GET")
-    @matchdict_parameters
-    def get_attach(self, md5, type, num):
-        filestore = self.xom.filestore
-        data = filestore.get_attachment(md5=md5, type=type, num=num)
-        apireturn(200, type="testresult", result=data)
+        relpath = self.request.path.strip("/")
+        releasefile_entry = filestore.get_file_entry(relpath)
+        if not releasefile_entry:
+            apireturn(404, message="no release file found at %s" % relpath)
+        testresultdata = getjson(self.request)
+        test_entry = stage.store_testresult(releasefile_entry, testresultdata)
+        apireturn(200, type="testresultpath", result=test_entry.relpath)
 
     #
     # index serving and upload

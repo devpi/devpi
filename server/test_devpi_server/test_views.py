@@ -140,7 +140,6 @@ def test_apiconfig_with_outside_url(testapp):
     assert "pypisubmit" not in result
     assert result["index"] == u + "/root/pypi"
     assert result["login"] == u + "/+login"
-    assert result["resultlog"] == u + "/+tests"
     assert result["simpleindex"] == u + "/root/pypi/+simple/"
 
     #for name in "pushrelease simpleindex login pypisubmit resultlog".split():
@@ -438,11 +437,16 @@ def test_upload_and_testdata(mapp, testapp):
     from test_devpi_server.example import tox_result_data
     api = mapp.create_and_use()
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200)
-    r = testapp.post_json(api.resultlog, tox_result_data)
-    path = r.json["result"]
+    path, = mapp.get_release_paths("pkg1")
+    testapp.xget(200, path)
+    import json
+    r = testapp.post(path, json.dumps(tox_result_data))
     assert r.status_code == 200
-    r = testapp.get(path)
-    assert r.status_code == 200
+    res = mapp.getjson(api.index + "/pkg1")
+    href = res["result"]["2.6"]["+testresults"]["pkg1-2.6.tgz"][0]["link"]
+    pkgmeta = json.loads(testapp.get("/" + href).body)
+    assert pkgmeta == tox_result_data
+
 
 def test_upload_and_access_releasefile_meta(mapp):
     api = mapp.create_and_use()

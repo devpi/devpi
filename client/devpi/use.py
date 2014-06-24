@@ -13,7 +13,7 @@ if sys.platform == "win32":
 else:
     vbin = "bin"
 
-devpi_endpoints = "index simpleindex pypisubmit resultlog login".split()
+devpi_endpoints = "index simpleindex pypisubmit login".split()
 
 def currentproperty(name):
     def propget(self):
@@ -39,7 +39,6 @@ class Current(object):
     simpleindex = currentproperty("simpleindex")
     pypisubmit = currentproperty("pypisubmit")
     login = currentproperty("login")
-    resultlog = currentproperty("resultlog")
     venvdir = currentproperty("venvdir")
     _auth = currentproperty("auth")
     always_setcfg = currentproperty("always_setcfg")

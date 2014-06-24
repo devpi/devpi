@@ -84,8 +84,8 @@ class DevIndex:
                 ret = e.args[0]
         if ret != 2:
             jsondata = json.load(jsonreport.open("r"))
-            post_tox_json_report(self.hub,
-                                 self.hub.current.resultlog, jsondata)
+            url = URL(link.url)
+            post_tox_json_report(self.hub, url.url_nofrag, jsondata)
         if ret != 0:
             self.hub.error("tox command failed", ret)
             return 1

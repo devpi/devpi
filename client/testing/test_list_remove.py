@@ -29,7 +29,7 @@ def test_out_project(loghub, input, output, monkeypatch):
                 ))
     loghub.args.status = False
     loghub.args.all = True
-    monkeypatch.setattr(list_remove, "query_file_status", lambda *args: None)
+    monkeypatch.setattr(list_remove, "show_test_status", lambda *args: None)
     out_project(loghub, input, parse_requirement("p1"))
     matcher = loghub._getmatcher()
     matcher.fnmatch_lines(output)
