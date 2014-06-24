@@ -269,13 +269,17 @@ class XOM:
             return FatalResponse(sys.exc_info())
 
     def create_app(self):
+        from devpi_server.view_auth import DevpiAuthenticationPolicy
         from devpi_server.views import route_url
-        from pyramid.authentication import BasicAuthAuthenticationPolicy
+        from pyramid.authorization import ACLAuthorizationPolicy
         from pyramid.config import Configurator
         import functools
         log = self.log
         log.debug("creating application in process %s", os.getpid())
-        pyramid_config = Configurator()
+        pyramid_config = Configurator(root_factory='devpi_server.view_auth.RootFactory')
+        pyramid_config.set_authentication_policy(DevpiAuthenticationPolicy(self))
+        pyramid_config.set_authorization_policy(ACLAuthorizationPolicy())
+
         self.config.hook.devpiserver_pyramid_configure(
                 config=self.config,
                 pyramid_config=pyramid_config)
@@ -293,7 +297,7 @@ class XOM:
         pyramid_config.add_route("/{user}/{index}/+e/{relpath:.*}", "/{user}/{index}/+e/{relpath:.*}")
         pyramid_config.add_route("/{user}/{index}/+f/{relpath:.*}", "/{user}/{index}/+f/{relpath:.*}")
         pyramid_config.add_route("/{user}/{index}/+simple/", "/{user}/{index}/+simple/")
-        pyramid_config.add_route("/{user}/{index}/+simple/{projectname}", "/{user}/{index}/+simple/{projectname:[^/]+/?}")
+        pyramid_config.add_route("/{user}/{index}/+simple/{name}", "/{user}/{index}/+simple/{name:[^/]+/?}")
         pyramid_config.add_route("/{user}/{index}/{name}/{version}", "/{user}/{index}/{name}/{version:[^/]+/?}")
         pyramid_config.add_route(
             "simple_redirect", "/{user}/{index}/{name:[^/]+/?}",
@@ -318,15 +322,6 @@ class XOM:
             under="devpi_server.views.tween_request_logging"
         )
 
-        # XXX hack for now until using proper Pyramid auth
-        _get_credentials = BasicAuthAuthenticationPolicy._get_credentials
-        # In Python 2 we need to get im_func, in Python 3 we already have
-        # the correct value
-        _get_credentials = getattr(_get_credentials, 'im_func',
-                                   _get_credentials)
-        pyramid_config.add_request_method(
-            functools.partial(_get_credentials, None),
-            name=str('auth'), property=True)
         # overwrite route_url method with our own
         pyramid_config.add_request_method(route_url)
         # XXX end hack

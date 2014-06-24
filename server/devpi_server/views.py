@@ -10,9 +10,7 @@ from pyramid.httpexceptions import HTTPException, HTTPFound, HTTPSuccessful
 from pyramid.httpexceptions import exception_response
 from pyramid.response import Response
 from pyramid.view import view_config
-import functools
 import itertools
-import inspect
 import json
 from devpi_common.request import new_requests_session
 from devpi_common.validation import normalize_name, is_valid_archive_name
@@ -49,6 +47,16 @@ def abort_custom(code, msg):
     raise error()
 
 
+def abort_authenticate(request, msg="authentication required"):
+    err = type(
+        str('HTTPError'), (HTTPException,), dict(
+            code=401, title=msg))
+    err = err()
+    err.headers.add(str('WWW-Authenticate'), str('Basic realm="pypi"'))
+    err.headers.add(str('location'), str(request.route_url("/+login")))
+    raise err
+
+
 class HTTPResponse(HTTPSuccessful):
     body_template = None
     comment = None
@@ -77,35 +85,6 @@ def apireturn(code, message=None, result=None, type=None):
 def json_preferred(request):
     # XXX do proper "best" matching
     return "application/json" in request.headers.get("Accept", "")
-
-
-def matchdict_parameters(f):
-    """ Looks at the arguments specification of the wrapped method and applies
-        values from the request matchdict when calling the wrapped method.
-    """
-    from pyramid.request import Request
-    @functools.wraps(f)
-    def wrapper(self):
-        spec = inspect.getargspec(f)
-        if isinstance(self, Request):
-            request = self
-        else:
-            request = self.request
-        defaults = spec.defaults
-        args = [self]
-        kw = {}
-        matchdict = dict((k, v.rstrip('/')) for k, v in request.matchdict.items())
-        if defaults is not None:
-            for arg in spec.args[1:-len(defaults)]:
-                args.append(matchdict[arg])
-            for arg, default in zip(spec.args[-len(defaults):], defaults):
-                kw[arg] = matchdict.get(arg, default)
-        else:
-            for arg in spec.args[1:]:
-                args.append(matchdict[arg])
-        return f(*args, **kw)
-
-    return wrapper
 
 
 def route_url(self, *args, **kw):
@@ -169,21 +148,23 @@ def set_header_devpi_serial(headers, serial):
 def is_mutating_http_method(method):
     return method in ("PUT", "POST", "PATCH", "DELETE", "PUSH")
 
+
 class PyPIView:
     def __init__(self, request):
         self.request = request
+        self.context = request.context
         xom = request.registry['xom']
         self.xom = xom
         self.model = xom.model
         self.auth = Auth(self.model, xom.config.secret)
         self.log = request.log
 
-    def getstage(self, user, index):
-        stage = self.model.getstage(user, index)
-        if not stage:
-            abort(self.request, 404, "no such stage")
-        return stage
-
+    def get_auth_status(self):
+        # this is accessing some pyramid internals, but they are pretty likely
+        # to stay and the alternative was uglier
+        policy = self.request._get_authentication_policy()
+        credentials = policy._get_credentials(self.request)
+        return self.auth.get_auth_status(credentials)
 
     #
     # supplying basic API locations for all services
@@ -191,19 +172,19 @@ class PyPIView:
 
     @view_config(route_name="/+api")
     @view_config(route_name="{path:.*}/+api")
-    @matchdict_parameters
-    def apiconfig_index(self, path=None):
+    def apiconfig_index(self):
         request = self.request
+        path = request.matchdict.get('path')
         api = {
             "resultlog": request.route_url("/+tests"),
             "login": request.route_url('/+login'),
-            "authstatus": self.auth.get_auth_status(request.auth),
+            "authstatus": self.get_auth_status(),
         }
         if path:
             parts = path.split("/")
             if len(parts) >= 2:
                 user, index = parts[:2]
-                stage = self.getstage(user, index)
+                stage = self.context.getstage(user, index)
                 api.update({
                     "index": request.route_url(
                         "/{user}/{index}", user=user, index=index),
@@ -235,15 +216,18 @@ class PyPIView:
         apireturn(200, type="testresultpath", result=relpath)
 
     @view_config(route_name="/+tests/{md5}/{type}", request_method="GET")
-    @matchdict_parameters
-    def get_attachlist(self, md5, type):
+    def get_attachlist(self):
+        md5 = self.request.matchdict['md5']
+        type = self.request.matchdict['type']
         filestore = self.xom.filestore
         datalist = list(filestore.iter_attachments(md5=md5, type=type))
         apireturn(200, type="list:toxresult", result=datalist)
 
     @view_config(route_name="/+tests/{md5}/{type}/{num}", request_method="GET")
-    @matchdict_parameters
-    def get_attach(self, md5, type, num):
+    def get_attach(self):
+        md5 = self.request.matchdict['md5']
+        type = self.request.matchdict['type']
+        num = self.request.matchdict['num']
         filestore = self.xom.filestore
         data = filestore.get_attachment(md5=md5, type=type, num=num)
         apireturn(200, type="testresult", result=data)
@@ -252,19 +236,13 @@ class PyPIView:
     # index serving and upload
     #
 
-    #@route("/ext/pypi/simple<rest:re:.*>")  # deprecated
-    #def extpypi_redirect(self, rest):
-    #    redirect("/ext/pypi/+simple%s" % rest)
-
-    @view_config(route_name="/{user}/{index}/+simple/{projectname}")
-    @matchdict_parameters
-    def simple_list_project(self, user, index, projectname):
-        #user, index, projectname = self.reqmatch("user", "index", "projectname")
+    @view_config(route_name="/{user}/{index}/+simple/{name}")
+    def simple_list_project(self):
         request = self.request
+        projectname = self.context.name
         # we only serve absolute links so we don't care about the route's slash
         abort_if_invalid_projectname(request, projectname)
-        stage = self.getstage(user, index)
-        projectname = ensure_unicode(projectname)
+        stage = self.context.stage
         info = stage.get_project_info(projectname)
         if info and info.name != projectname:
             redirect("/%s/+simple/%s/" % (stage.name, info.name))
@@ -302,10 +280,9 @@ class PyPIView:
                 links)).unicode(indent=2))
 
     @view_config(route_name="/{user}/{index}/+simple/")
-    @matchdict_parameters
-    def simple_list_all(self, user, index):
+    def simple_list_all(self):
         self.log.info("starting +simple")
-        stage = self.getstage(user, index)
+        stage = self.context.stage
         stage_results = []
         for stage, names in stage.op_with_bases("getprojectnames"):
             if isinstance(names, int):
@@ -338,33 +315,44 @@ class PyPIView:
                     all_names.add(name)
         yield "</body>".encode(encoding)
 
-    @view_config(route_name="/{user}/{index}", request_method=["PUT", "PATCH"])
-    @matchdict_parameters
-    def index_create_or_modify(self, user, index):
-        request = self.request
-        self.require_user(user)
-        user = self.model.get_user(user)
-        stage = user.getstage(index)
+    @view_config(
+        route_name="/{user}/{index}", request_method="PUT")
+    def index_create(self):
+        stage = self.context.user.getstage(self.context.index)
         if stage and stage.name == "root/pypi":
             apireturn(403, "root/pypi index config can not be modified")
-        if request.method == "PUT" and stage is not None:
+        if stage is not None:
             apireturn(409, "index %r exists" % stage.name)
-        kvdict = getkvdict_index(getjson(request))
+        if not self.request.has_permission("index_create"):
+            apireturn(403, "no permission to create index %s/%s" % (
+                self.context.username, self.context.index))
+        kvdict = getkvdict_index(getjson(self.request))
         try:
-            if not stage:
-                stage = user.create_stage(index, **kvdict)
-                ixconfig = stage.ixconfig
-            else:
-                ixconfig = stage.modify(**kvdict)
+            stage = self.context.user.create_stage(self.context.index, **kvdict)
+            ixconfig = stage.ixconfig
         except InvalidIndexconfig as e:
             apireturn(400, message=", ".join(e.messages))
         apireturn(200, type="indexconfig", result=ixconfig)
 
-    @view_config(route_name="/{user}/{index}", request_method="DELETE")
-    @matchdict_parameters
-    def index_delete(self, user, index):
-        self.require_user(user)
-        stage = self.getstage(user, index)
+    @view_config(
+        route_name="/{user}/{index}", request_method="PATCH",
+        permission="index_modify")
+    def index_modify(self):
+        stage = self.context.stage
+        if stage.name == "root/pypi":
+            apireturn(403, "root/pypi index config can not be modified")
+        kvdict = getkvdict_index(getjson(self.request))
+        try:
+            ixconfig = stage.modify(**kvdict)
+        except InvalidIndexconfig as e:
+            apireturn(400, message=", ".join(e.messages))
+        apireturn(200, type="indexconfig", result=ixconfig)
+
+    @view_config(
+        route_name="/{user}/{index}", request_method="DELETE",
+        permission="index_delete")
+    def index_delete(self):
+        stage = self.context.stage
         if not stage.ixconfig["volatile"]:
             apireturn(403, "index %s non-volatile, cannot delete" %
                            stage.name)
@@ -372,10 +360,9 @@ class PyPIView:
         apireturn(201, "index %s deleted" % stage.name)
 
     @view_config(route_name="/{user}/{index}", request_method="PUSH")
-    @matchdict_parameters
-    def pushrelease(self, user, index):
+    def pushrelease(self):
         request = self.request
-        stage = self.getstage(user, index)
+        stage = self.context.stage
         pushdata = getjson(request)
         try:
             name = pushdata["name"]
@@ -417,8 +404,8 @@ class PyPIView:
             parts = targetindex.split("/")
             if len(parts) != 2:
                 apireturn(400, message="targetindex not in format user/index")
-            target_stage = self.getstage(*parts)
-            auth_user = self.auth.get_auth_user(request.auth, raising=False)
+            target_stage = self.context.getstage(*parts)
+            auth_user = request.authenticated_userid
             self.log.debug("targetindex %r, auth_user %r", targetindex,
                            auth_user)
             if not target_stage.can_upload(auth_user):
@@ -486,14 +473,16 @@ class PyPIView:
             else:
                 apireturn(502, result=results, type="actionlog")
 
-    @view_config(route_name="/{user}/{index}/", request_method="POST")
-    @matchdict_parameters
-    def submit(self, user, index):
+    @view_config(
+        route_name="/{user}/{index}/", request_method="POST")
+    def submit(self):
         request = self.request
-        if user == "root" and index == "pypi":
+        context = self.context
+        if context.username == "root" and context.index == "pypi":
             abort(request, 404, "cannot submit to pypi mirror")
-        stage = self.getstage(user, index)
-        self.require_user(user, stage=stage)
+        stage = self.context.stage
+        if not request.has_permission("pypi_submit"):
+            abort(request, 403, "no permission to submit")
         try:
             action = request.POST[":action"]
         except KeyError:
@@ -577,21 +566,17 @@ class PyPIView:
     #
 
     @view_config(route_name="simple_redirect")
-    @matchdict_parameters
-    def simple_redirect(self, user, index, name):
-        stage = self.getstage(user, index)
-        name = ensure_unicode(name)
+    def simple_redirect(self):
+        stage, name = self.context.stage, self.context.name
         info = stage.get_project_info(name)
         real_name = info.name if info else name
         redirect("/%s/+simple/%s" % (stage.name, real_name))
 
     @view_config(route_name="/{user}/{index}/{name}", accept="application/json", request_method="GET")
-    @matchdict_parameters
-    def project_get(self, user, index, name):
+    def project_get(self):
         request = self.request
         #self.log.debug("HEADERS: %s", request.headers.items())
-        stage = self.getstage(user, index)
-        name = ensure_unicode(name)
+        stage, name = self.context.stage, self.context.name
         info = stage.get_project_info(name)
         real_name = info.name if info else name
         if not json_preferred(request):
@@ -604,11 +589,11 @@ class PyPIView:
         metadata = stage.get_projectconfig(name)
         apireturn(200, type="projectconfig", result=metadata)
 
-    @view_config(route_name="/{user}/{index}/{name}", request_method="DELETE")
-    @matchdict_parameters
-    def project_delete(self, user, index, name):
-        self.require_user(user)
-        stage = self.getstage(user, index)
+    @view_config(
+        route_name="/{user}/{index}/{name}", request_method="DELETE",
+        permission="project_delete")
+    def project_delete(self):
+        stage, name = self.context.stage, self.context.name
         if stage.name == "root/pypi":
             abort(self.request, 405, "cannot delete root/pypi index")
         if not stage.project_exists(name):
@@ -620,11 +605,9 @@ class PyPIView:
         apireturn(200, "project %r deleted from stage %s" % (name, stage.name))
 
     @view_config(route_name="/{user}/{index}/{name}/{version}", accept="application/json", request_method="GET")
-    @matchdict_parameters
-    def version_get(self, user, index, name, version):
-        stage = self.getstage(user, index)
-        name = ensure_unicode(name)
-        version = ensure_unicode(version)
+    def version_get(self):
+        stage = self.context.stage
+        name, version = self.context.name, self.context.version
         metadata = stage.get_projectconfig(name)
         if not metadata:
             abort(self.request, 404, "project %r does not exist" % name)
@@ -634,11 +617,9 @@ class PyPIView:
         apireturn(200, type="versiondata", result=verdata)
 
     @view_config(route_name="/{user}/{index}/{name}/{version}", request_method="DELETE")
-    @matchdict_parameters
-    def project_version_delete(self, user, index, name, version):
-        stage = self.getstage(user, index)
-        name = ensure_unicode(name)
-        version = ensure_unicode(version)
+    def project_version_delete(self):
+        stage = self.context.stage
+        name, version = self.context.name, self.context.version
         if stage.name == "root/pypi":
             abort(self.request, 405, "cannot delete on root/pypi index")
         if not stage.ixconfig["volatile"]:
@@ -654,8 +635,7 @@ class PyPIView:
 
     @view_config(route_name="/{user}/{index}/+e/{relpath:.*}")
     @view_config(route_name="/{user}/{index}/+f/{relpath:.*}")
-    @matchdict_parameters
-    def pkgserv(self, user, index, relpath):
+    def pkgserv(self):
         request = self.request
         relpath = request.path.strip("/")
         if "#" in relpath:   # XXX unclear how this happens (did with bottle)
@@ -686,9 +666,8 @@ class PyPIView:
             return Response(body=content, headers=headers)
 
     @view_config(route_name="/{user}/{index}", accept="application/json", request_method="GET")
-    @matchdict_parameters
-    def index_get(self, user, index):
-        stage = self.getstage(user, index)
+    def index_get(self):
+        stage = self.context.stage
         result = dict(stage.ixconfig)
         result['projects'] = sorted(stage.getprojectnames_perstage())
         apireturn(200, type="indexconfig", result=result)
@@ -696,43 +675,6 @@ class PyPIView:
     #
     # login and user handling
     #
-    def abort_authenticate(self, msg="authentication required"):
-        err = type(
-            str('HTTPError'), (HTTPException,), dict(
-                code=401, title=msg))
-        err = err()
-        err.headers.add(str('WWW-Authenticate'), str('Basic realm="pypi"'))
-        err.headers.add(str('location'), str(self.request.route_url("/+login")))
-        raise err
-
-    def require_user(self, user, stage=None, acltype="upload"):
-        request = self.request
-        #log.debug("headers %r", request.headers.items())
-        status, auth_user = self.auth.get_auth_status(request.auth)
-        self.log.debug("got auth status %r for user %r" %(status, auth_user))
-        user = self.model.get_user(user)
-        if user is None:
-            abort(request, 404, "required user %r does not exist" % auth_user)
-        if status == "nouser":
-            abort(request, 404, "user %r does not exist" % auth_user)
-        elif status == "expired":
-            self.abort_authenticate(msg="auth expired for %r" % auth_user)
-        elif status == "noauth":
-            self.abort_authenticate()
-        if auth_user == "root" or auth_user == user.name:
-            return
-        if stage:
-            acl = stage.ixconfig.get("acl_" + acltype, [])
-            if auth_user in acl:
-                self.log.debug("user %r is acl_upload list", auth_user)
-                return
-            apireturn(403, message="user %r not authorized for %s to %s"
-                             % (auth_user, acltype, stage.name))
-        # XXX we should probably never reach here?
-        self.log.info("user %r not authorized", auth_user)
-        self.abort_authenticate()
-
-
     @view_config(route_name="/+login", request_method="POST")
     def login(self):
         request = self.request
@@ -748,15 +690,15 @@ class PyPIView:
                 result=proxyauth)
         apireturn(401, "user %r could not be authenticated" % user)
 
-    @view_config(route_name="/{user}", request_method="PATCH")
-    @matchdict_parameters
-    def user_patch(self, user):
+    @view_config(
+        route_name="/{user}", request_method="PATCH",
+        permission="user_modify")
+    def user_patch(self):
         request = self.request
-        self.require_user(user)
         dict = getjson(request, allowed_keys=["email", "password"])
         email = dict.get("email")
         password = dict.get("password")
-        user = self.model.get_user(user)
+        user = self.context.user
         user.modify(password=password, email=email)
         if password is not None:
             apireturn(200, "user updated, new proxy auth",
@@ -766,9 +708,8 @@ class PyPIView:
         apireturn(200, "user updated")
 
     @view_config(route_name="/{user}", request_method="PUT")
-    @matchdict_parameters
-    def user_create(self, user):
-        username = user
+    def user_create(self):
+        username = self.context.username
         request = self.request
         user = self.model.get_user(username)
         if user is not None:
@@ -779,30 +720,28 @@ class PyPIView:
             apireturn(201, type="userconfig", result=user.get())
         apireturn(400, "password needs to be set")
 
-    @view_config(route_name="/{user}", request_method="DELETE")
-    @matchdict_parameters
-    def user_delete(self, user):
-        if user == "root":
-            apireturn(403, "root user cannot be deleted")
-        self.require_user(user)
-        user = self.model.get_user(user)
-        userconfig = user.get()
+    @view_config(
+        route_name="/{user}", request_method="DELETE",
+        permission="user_delete")
+    def user_delete(self):
+        context = self.context
+        if not context.user:
+            abort(self.request, 404, "required user %r does not exist" % context.username)
+        userconfig = context.user.get()
         if not userconfig:
-            apireturn(404, "user %r does not exist" % user.name)
+            apireturn(404, "user %r does not exist" % context.username)
         for name, ixconfig in userconfig.get("indexes", {}).items():
             if not ixconfig["volatile"]:
                 apireturn(403, "user %r has non-volatile index: %s" %(
-                               user, name))
-        user.delete()
-        apireturn(200, "user %r deleted" % user.name)
+                               context.username, name))
+        context.user.delete()
+        apireturn(200, "user %r deleted" % context.username)
 
     @view_config(route_name="/{user}", accept="application/json", request_method="GET")
-    @matchdict_parameters
-    def user_get(self, user):
-        user = self.model.get_user(user)
-        if user is None:
-            apireturn(404, "user %r does not exist" % user)
-        userconfig = user.get()
+    def user_get(self):
+        if self.context.user is None:
+            apireturn(404, "user %r does not exist" % self.context.username)
+        userconfig = self.context.user.get()
         apireturn(200, type="userconfig", result=userconfig)
 
     @view_config(route_name="/", accept="application/json", request_method="GET")

@@ -1,10 +1,8 @@
 # coding: utf-8
 from __future__ import unicode_literals
 from devpi_common.metadata import get_pyversion_filetype, splitbasename
-from devpi_common.types import ensure_unicode
 from devpi_common.url import URL
 from devpi_server.log import threadlog as log
-from devpi_server.views import matchdict_parameters
 from devpi_web.description import get_description
 from devpi_web.doczip import Docs, get_unpack_path
 from operator import itemgetter
@@ -19,16 +17,16 @@ import py
 
 
 @view_config(route_name="docroot", request_method="GET")
-@matchdict_parameters
-def doc_serve(request, user, index, name, version, relpath):
+def doc_serve(context, request):
     """ Serves the raw documentation files. """
+    relpath = request.matchdict['relpath']
     if not relpath:
         raise HTTPFound(location="index.html")
-    xom = request.registry['xom']
-    stage = xom.model.getstage(user, index)
+    user, index = context.username, context.index
+    stage = context.model.getstage(user, index)
     if not stage:
         raise HTTPNotFound("The stage %s/%s could not be found." % (user, index))
-    doc_path = get_unpack_path(stage, name, version)
+    doc_path = get_unpack_path(stage, context.name, context.version)
     if not doc_path.check():
         raise HTTPNotFound("No documentation available.")
     if not doc_path.join(relpath).check():
@@ -40,15 +38,16 @@ def doc_serve(request, user, index, name, version, relpath):
     route_name="docviewroot",
     request_method="GET",
     renderer="templates/doc.pt")
-@matchdict_parameters
-def doc_show(request, user, index, name, version, relpath):
+def doc_show(context, request):
     """ Shows the documentation wrapped in an iframe """
+    relpath = request.matchdict['relpath']
     if not relpath:
         raise HTTPFound(location="index.html")
-    xom = request.registry['xom']
-    stage = xom.model.getstage(user, index)
+    user, index = context.username, context.index
+    stage = context.model.getstage(user, index)
     if not stage:
         raise HTTPNotFound("The stage %s/%s could not be found." % (user, index))
+    name, version = context.name, context.version
     doc_path = get_unpack_path(stage, name, version)
     if not doc_path.check():
         raise HTTPNotFound("No documentation available.")
@@ -226,10 +225,9 @@ def root(request):
 @view_config(
     route_name="/{user}/{index}", accept="text/html", request_method="GET",
     renderer="templates/index.pt")
-@matchdict_parameters
-def index_get(request, user, index):
-    xom = request.registry['xom']
-    stage = xom.model.getstage(user, index)
+def index_get(context, request):
+    user, index = context.username, context.index
+    stage = context.model.getstage(user, index)
     if not stage:
         raise HTTPNotFound("The stage %s/%s could not be found." % (user, index))
     bases = []
@@ -282,13 +280,12 @@ def index_get(request, user, index):
     route_name="/{user}/{index}/{name}",
     accept="text/html", request_method="GET",
     renderer="templates/project.pt")
-@matchdict_parameters
-def project_get(request, user, index, name):
-    xom = request.registry['xom']
-    stage = xom.model.getstage(user, index)
+def project_get(context, request):
+    user, index = context.username, context.index
+    stage = context.model.getstage(user, index)
     if not stage:
         raise HTTPNotFound("The stage %s/%s could not be found." % (user, index))
-    name = ensure_unicode(name)
+    name = context.name
     releases = stage.getreleaselinks(name)
     if not releases:
         raise HTTPNotFound("The project %s does not exist." % name)
@@ -313,14 +310,12 @@ def project_get(request, user, index, name):
     route_name="/{user}/{index}/{name}/{version}",
     accept="text/html", request_method="GET",
     renderer="templates/version.pt")
-@matchdict_parameters
-def version_get(request, user, index, name, version):
-    xom = request.registry['xom']
-    stage = xom.model.getstage(user, index)
+def version_get(context, request):
+    user, index = context.username, context.index
+    stage = context.model.getstage(user, index)
     if not stage:
         raise HTTPNotFound("The stage %s/%s could not be found." % (user, index))
-    name = ensure_unicode(name)
-    version = ensure_unicode(version)
+    name, version = context.name, context.version
     metadata = stage.get_projectconfig(name)
     if not metadata:
         raise HTTPNotFound("The project %s does not exist." % name)
