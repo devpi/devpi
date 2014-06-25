@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import hashlib
 import pytest
 import re
 import py
@@ -328,15 +329,14 @@ def test_upload_and_push_internal(mapp, testapp, monkeypatch):
     req = dict(name="pkg1", version="2.6", targetindex="user2/prod")
     r = testapp.push("/user1/dev", json.dumps(req))
     assert r.status_code == 200
-    r = testapp.get_json("/user2/prod/pkg1/2.6")
-    assert r.status_code == 200
-    relpath = r.json["result"]["+files"]["pkg1-2.6.tgz"]
-    assert relpath.endswith("/pkg1-2.6.tgz")
+    vv = get_view_version_links(testapp, "/user2/prod", "pkg1", "2.6")
+    link = vv.get_link(rel="releasefile")
+    assert link.href.endswith("/pkg1-2.6.tgz")
     # we check here that the upload of docs without version was
     # automatically tied to the newest release metadata
-    relpath = r.json["result"]["+doczip"]
-    assert relpath.endswith("/pkg1-2.6.doc.zip")
-    r = testapp.get("/" + relpath)
+    link = vv.get_link(rel="doczip")
+    assert link.href.endswith("/pkg1-2.6.doc.zip")
+    r = testapp.get(link.href)
     archive = Archive(py.io.BytesIO(r.body))
     assert 'index.html' in archive.namelist()
 
@@ -444,20 +444,21 @@ def test_upload_and_testdata(mapp, testapp):
     import json
     r = testapp.post(path, json.dumps(tox_result_data))
     assert r.status_code == 200
-    res = mapp.getjson(api.index + "/pkg1")
-    href = res["result"]["2.6"]["+toxresults"]["pkg1-2.6.tgz"][0]["link"]
-    pkgmeta = json.loads(testapp.get("/" + href).body.decode("utf8"))
+    vv = get_view_version_links(testapp, api.index, "pkg1", "2.6")
+    link = vv.get_link("toxresult")
+    pkgmeta = json.loads(testapp.get(link.href).body.decode("utf8"))
     assert pkgmeta == tox_result_data
 
 
-def test_upload_and_access_releasefile_meta(mapp):
+def test_upload_and_access_releasefile_meta(mapp, testapp):
     api = mapp.create_and_use()
     mapp.upload_file_pypi("pkg5-2.6.tgz", b"123", "pkg5", "2.6")
-    json = mapp.getjson(api.index + "/pkg5")
-    href = list(json["result"]["2.6"]["+files"].values())[0]
-    pkgmeta = mapp.getjson("/" + href)
+    vv = get_view_version_links(testapp, api.index, "pkg5", "2.6")
+    link = vv.get_link("releasefile")
+    pkgmeta = mapp.getjson(link.href)
     assert pkgmeta["type"] == "releasefilemeta"
-    assert pkgmeta["result"]["md5"]
+    assert pkgmeta["result"]["md5"] == hashlib.md5(b'123').hexdigest()
+
 
 def test_upload_and_delete_project_version(mapp):
     api = mapp.create_and_use()
@@ -501,11 +502,10 @@ def test_upload_docs_no_version(mapp, testapp):
     content = zip_dict({"index.html": "<html/>"})
     mapp.register_metadata(dict(name="Pkg1", version="1.0"))
     mapp.upload_doc("pkg1.zip", content, "Pkg1", "")
-    r = testapp.get_json(api.index + "/Pkg1/1.0")
-    assert r.status_code == 200
-    relpath = r.json["result"]["+doczip"]
-    assert relpath.endswith("/Pkg1-1.0.doc.zip")
-    r = testapp.get("/" + relpath)
+    vv = get_view_version_links(testapp, api.index, "Pkg1", "1.0")
+    link = vv.get_link("doczip")
+    assert link.href.endswith("/Pkg1-1.0.doc.zip")
+    r = testapp.get(link.href)
     archive = Archive(py.io.BytesIO(r.body))
     assert 'index.html' in archive.namelist()
 
@@ -527,13 +527,44 @@ def test_upload_docs(mapp, testapp):
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=400)
     mapp.register_metadata({"name": "pkg1", "version": "2.6"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200)
-    r = testapp.get_json(api.index + "/pkg1/2.6")
-    assert r.status_code == 200
-    relpath = r.json["result"]["+doczip"]
-    assert relpath.endswith("/pkg1-2.6.doc.zip")
-    r = testapp.get("/" + relpath)
+    vv = get_view_version_links(testapp, api.index, "pkg1", "2.6")
+    link = vv.get_link(rel="doczip")
+    assert link.href.endswith("/pkg1-2.6.doc.zip")
+    r = testapp.get(link.href)
     archive = Archive(py.io.BytesIO(r.body))
     assert 'index.html' in archive.namelist()
+
+
+def get_view_version_links(testapp, index, name, version):
+    url = "/".join([index, name, version])
+    r = testapp.get_json(url)
+    assert r.status_code == 200
+    return ViewVersionLinks(url, r.json["result"])
+
+class ViewVersionLinks:
+    def __init__(self, url, versiondata):
+        self.url = URL(url)
+        self.versiondata = versiondata
+
+    def get_links(self, rel):
+        l = []
+        for linkdict in self.versiondata["+links"]:
+            viewlink = ViewLink(self.url, linkdict)
+            if viewlink.rel == rel:
+                l.append(viewlink)
+        return l
+
+    def get_link(self, rel):
+        links = self.get_links(rel)
+        assert len(links) == 1
+        return links[0]
+
+class ViewLink:
+    def __init__(self, base_url, linkdict):
+        self.__dict__.update(linkdict)
+        self.href = base_url.joinpath(self.href).url
+        self.basename = posixpath.basename(self.href)
+
 
 def test_wrong_login_format(testapp, mapp):
     api = mapp.getapi()

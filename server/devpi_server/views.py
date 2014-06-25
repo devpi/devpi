@@ -350,22 +350,9 @@ class PyPIView:
         except KeyError:
             apireturn(400, message="no name/version specified in json")
 
-        self._pushrelease(request, stage, name, version, pushdata)
-
-    def _pushrelease(self, request, stage, name, version, pushdata):
-        projectconfig = stage.get_projectconfig(name)
-        matches = []
-        if projectconfig:
-            verdata = projectconfig.get(version)
-            if verdata:
-                files = verdata.get("+files")
-                for basename, relpath in files.items():
-                    entry = stage.xom.filestore.get_file_entry(relpath)
-                    if not entry.file_exists():
-                        abort(request, 400, "cannot push non-cached files")
-                    matches.append(entry)
-                metadata = get_pure_metadata(verdata)
-
+        vv = stage.get_project_version(name, version)
+        matches = [stage.xom.filestore.get_file_entry(link.entrypath)
+                        for link in vv.get_links(rel="releasefile")]
         if not matches:
             self.log.info("%s: no release files %s-%s" %(stage.name,
                                                          name, version))
@@ -373,6 +360,7 @@ class PyPIView:
                       message="no release/files found for %s-%s" %(
                       name, version))
 
+        metadata = get_pure_metadata(vv.projectconfig[version])
         doczip = stage.get_doczip(name, version)
 
         # prepare metadata for submission
@@ -594,6 +582,11 @@ class PyPIView:
         verdata = metadata.get(version, None)
         if not verdata:
             abort(self.request, 404, "version %r does not exist" % version)
+
+        # rewrite entrypaths to proper hrefs
+        for linkdict in verdata.get("+links", []):
+            entrypath = linkdict.pop("entrypath")
+            linkdict["href"] = "/" + entrypath
         apireturn(200, type="versiondata", result=verdata)
 
     @view_config(route_name="/{user}/{index}/{name}/{version}", request_method="DELETE")

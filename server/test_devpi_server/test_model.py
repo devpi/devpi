@@ -6,7 +6,7 @@ import json
 
 from devpi_common.metadata import splitbasename
 from devpi_common.archive import Archive, zip_dict
-from devpi_server.model import InvalidIndexconfig, run_passwd
+from devpi_server.model import *  # noqa
 from py.io import BytesIO
 
 pytestmark = [pytest.mark.writetransaction]
@@ -105,27 +105,6 @@ class TestStage:
         assert not stage.getreleaselinks("someproject")
         assert not stage.getprojectnames()
 
-    def test_10_metadata_name_mixup(self, stage, bases):
-        stage._register_metadata({"name": "x-encoder", "version": "1.0"})
-        key = stage.key_projconfig(name="x_encoder")
-        with key.update() as projectconfig:
-            versionconfig = projectconfig["1.0"] = {}
-            versionconfig.update({"+files":
-                {"x_encoder-1.0.zip": "%s/x_encoder/1.0/x_encoder-1.0.zip" %
-                 stage.name}})
-        with stage.key_projectnames.update() as projectnames:
-            projectnames.add("x_encoder")
-
-        names = stage.getprojectnames_perstage()
-        assert len(names) == 2
-        assert "x-encoder" in names
-        assert "x_encoder" in names
-        # also test import/export
-        from devpi_server.importexport import Exporter
-        tw = py.io.TerminalWriter()
-        exporter = Exporter(tw, stage.xom)
-        exporter.compute_global_projectname_normalization()
-
     def test_inheritance_simple(self, pypistage, stage):
         stage.modify(bases=("root/pypi",))
         pypistage.mock_simple("someproject", "<a href='someproject-1.0.zip' /a>")
@@ -205,7 +184,8 @@ class TestStage:
         pypistage.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         projectconfig = stage.get_projectconfig("someproject")
-        assert "someproject-1.0.zip" in projectconfig["1.0"]["+files"]
+        pv = ProjectVersion(stage, "someproject", "1.0", projectconfig)
+        assert len(pv.get_links(basename="someproject-1.0.zip")) == 1
 
     def test_store_and_get_releasefile(self, stage, bases):
         content = b"123"
@@ -215,7 +195,9 @@ class TestStage:
         assert entries[0].md5 == entry.md5
         assert stage.getprojectnames() == ["some"]
         pconfig = stage.get_projectconfig("some")
-        assert pconfig["1.0"]["+files"]["some-1.0.zip"].endswith("some-1.0.zip")
+        links = pconfig["1.0"]["+links"]
+        assert len(links) == 1
+        assert links[0]["entrypath"].endswith("some-1.0.zip")
 
     def test_store_releasefile_fails_if_not_registered(self, stage):
         with pytest.raises(stage.MissesRegistration):
@@ -230,9 +212,9 @@ class TestStage:
         stage.store_releasefile("someproject", "1.0",
                                 "someproject-1.0.zip", content)
         projectconfig = stage.get_projectconfig("someproject")
-        files = projectconfig["1.0"]["+files"]
-        link = list(files.values())[0]
-        assert link.endswith("someproject-1.0.zip")
+        links = projectconfig["1.0"]["+links"]
+        link, = map(Link, links)
+        assert link.entrypath.endswith("someproject-1.0.zip")
         assert projectconfig["1.0"]["+shadowing"]
 
     def test_store_and_delete_project(self, stage, bases):
@@ -301,15 +283,15 @@ class TestStage:
         assert entry.version == "1.0"
         testresultdata = {'hello': 'world'}
         stage.store_toxresult(entry, testresultdata)
-        metadata = stage.get_metadata("pkg1", "1.0")
-        results = metadata["+toxresults"]["pkg1-1.0.tar.gz"]
-        assert len(results) == 1
-        tentry = stage.xom.filestore.get_file_entry(results[0]["link"])
-        assert tentry.basename == "test0.json"
+        pv = stage.get_project_version("pkg1", "1.0")
+        links = list(pv.get_links(rel="toxresult"))
+        assert len(links) == 1
+        tentry = stage.xom.filestore.get_file_entry(links[0].entrypath)
+        assert tentry.basename == "tox0.json"
         back_data = json.loads(tentry.file_get_content().decode("utf8"))
         assert back_data == testresultdata
 
-        results = stage.get_toxresults(metadata, entry.basename)
+        results = stage.get_toxresults("pkg1", "1.0", md5=entry.md5)
         assert len(results) == 1
         assert results[0] == testresultdata
 

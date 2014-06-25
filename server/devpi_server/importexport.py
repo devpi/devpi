@@ -194,59 +194,58 @@ class IndexDump:
         self.exporter = exporter
         self.stage = stage
         self.basedir = basedir
-        indexmeta = exporter.export_indexes[stage.name] = {}
-        indexmeta["projects"] = {}
-        indexmeta["indexconfig"] = stage.ixconfig
-        indexmeta["files"] = []
-        self.indexmeta = indexmeta
+        self.indexmeta = exporter.export_indexes[stage.name] = {}
+        self.indexmeta["projects"] = {}
+        self.indexmeta["indexconfig"] = stage.ixconfig
+        self.indexmeta["files"] = []
 
     def dump(self):
+        import copy
         for name in self.stage.getprojectnames_perstage():
-            data = self.stage.get_projectconfig_perstage(name)
+            data = copy.deepcopy(self.stage.get_projectconfig_perstage(name))
+            for val in data.values():
+                val.pop("+links", None)
             realname = self.exporter.get_real_projectname(name)
-            projconfig = self.indexmeta["projects"].setdefault(realname, {})
-            projconfig.update(data)
-            assert "+files" not in data
-            for version, versiondata in data.items():
-                if not version:
-                    continue
-                versiondata["name"] = realname
-                self.dump_releasefiles(realname, versiondata)
-                self.dump_toxresults(realname, versiondata)
+            assert realname not in self.indexmeta["projects"]
+            self.indexmeta["projects"][realname] = data
+
+            for version in data:
+                assert data[version]["name"] == realname
+                pv = self.stage.get_project_version(realname, version)
+                assert pv.get_links()
+                self.dump_releasefiles(pv)
+                self.dump_toxresults(pv)
                 content = self.stage.get_doczip(name, version)
                 if content:
                     self.dump_docfile(realname, version, content)
         self.exporter.completed("index %r" % self.stage.name)
 
-    def dump_releasefiles(self, projectname, versiondata):
-        files = versiondata.pop("+files", {})
-        for basename, file in files.items():
-            entry = self.exporter.filestore.get_file_entry(file)
+    def dump_releasefiles(self, pv):
+        for link in pv.get_links(rel="releasefile"):
+            entry = self.exporter.filestore.get_file_entry(link.entrypath)
             assert entry.file_exists(), entry.relpath
             content = entry.file_get_content()
-            rel = self.exporter.write_file(
+            relpath = self.exporter.write_file(
                 content,
-                self.basedir.join(projectname, entry.basename))
-            self.add_filedesc("releasefile", projectname, rel,
-                               version=versiondata["version"],
+                self.basedir.join(pv.projectname, entry.basename))
+            self.add_filedesc("releasefile", pv.projectname, relpath,
+                               version=pv.version,
                                entrymapping=entry.meta.copy())
 
-    def dump_toxresults(self, projectname, versiondata):
-        toxresults = versiondata.pop("+toxresults", {})
-        for basename, resultentries in toxresults.items():
-            for resultentry in resultentries:
-                relpath = resultentry["link"]
-                entry = self.exporter.filestore.get_file_entry(relpath)
-                assert entry.file_exists(), entry.relpath
-                content = entry.file_get_content()
-                relpath = self.exporter.write_file(
-                    content,
-                    self.basedir.join(projectname, "+toxresult", basename,
-                                      entry.basename))
-                self.add_filedesc("toxresult", projectname, relpath,
-                                   version=versiondata["version"],
-                                   releasefile_basename=basename,
-                                   entrymapping=entry.meta.copy())
+    def dump_toxresults(self, pv):
+        for link in pv.get_links(rel="toxresult"):
+            entry = self.exporter.filestore.get_file_entry(link.entrypath)
+            assert entry.file_exists(), entry.relpath
+            content = entry.file_get_content()
+            relpath = self.exporter.write_file(
+                content,
+                self.basedir.join(pv.projectname,
+                                  link.releasefile_md5,
+                                  entry.basename))
+            self.add_filedesc("toxresult", pv.projectname, relpath,
+                               version=pv.version,
+                               releasefile_md5=link.releasefile_md5,
+                               entrymapping=entry.meta.copy())
 
     def add_filedesc(self, type, projectname, relpath, **kw):
         assert self.exporter.basepath.join(relpath).check()
@@ -330,7 +329,7 @@ class Importer:
             for project, versions in projects.items():
                 for version, versiondata in versions.items():
                     with self.xom.keyfs.transaction(write=True):
-                        assert "+files" not in versiondata
+                        assert "+links" not in versiondata
                         if not versiondata.get("version"):
                             name = versiondata["name"]
                             self.warn("%r: ignoring project metadata without "
@@ -373,12 +372,13 @@ class Importer:
             name, version, suffix = splitbasename(basename)
             stage.store_doczip(name, version, p.read("rb"))
         elif filedesc["type"] == "toxresult":
-            metadata = stage.get_metadata(filedesc["projectname"],
-                                          filedesc["version"])
-            relpath = metadata["+files"][filedesc["releasefile_basename"]]
-            entry = stage.xom.filestore.get_file_entry(relpath)
-            assert entry, relpath
-            stage.store_toxresult(entry, json.loads(p.read("rb").decode("utf8")))
+            pv = stage.get_project_version(filedesc["projectname"],
+                                           filedesc["version"])
+            link, = pv.get_links(md5=filedesc["releasefile_md5"])
+            entry = stage.xom.filestore.get_file_entry(link.entrypath)
+            assert entry, link
+            stage.store_toxresult(entry,
+                                  json.loads(p.read("rb").decode("utf8")))
         else:
             fatal("unknown file type: %s" % (type,))
 

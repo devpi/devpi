@@ -1,11 +1,11 @@
 from __future__ import unicode_literals
-
+import posixpath
 import py
 import json
 from devpi_common.metadata import (sorted_sameproject_links,
                                    get_latest_version)
 from devpi_common.validation import validate_metadata, normalize_name
-from devpi_common.types import ensure_unicode
+from devpi_common.types import ensure_unicode, cached_property
 from .auth import crypt_password, verify_password
 from .filestore import FileEntry
 from .log import threadlog, thread_current_log
@@ -351,19 +351,16 @@ class PrivateStage:
             self.project_version_delete(name, version, cleanup=False)
         with self.key_projectnames.update() as projectnames:
             projectnames.remove(name)
+        threadlog.info("deleting project %s", name)
         self.key_projconfig(name).delete()
 
     def project_version_delete(self, name, version, cleanup=True):
-        with self.key_projconfig(name).update() as projectconfig:
-            verdata = projectconfig.pop(version, None)
-            if verdata is None:
-                return False
-            threadlog.info("deleting version %r of project %r", version, name)
-            for relpath in verdata.get("+files", {}).values():
-                entry = self.xom.filestore.get_file_entry(relpath)
-                entry.delete()
-        if cleanup and not projectconfig:
-            threadlog.info("no version left, deleting project %r", name)
+        pv = self.get_project_version(name, version)
+        if version not in pv.projectconfig:
+            return False
+        pv.remove_links()
+        del pv.projectconfig[version]
+        if cleanup and not pv.projectconfig:
             self.project_delete(name)
         return True
 
@@ -431,10 +428,11 @@ class PrivateStage:
         if isinstance(projectconfig, int):
             return projectconfig
         files = []
-        for verdata in projectconfig.values():
-            files.extend(
-                map(self.xom.filestore.get_file_entry,
-                    verdata.get("+files", {}).values()))
+        for version in projectconfig:
+            pv = self.get_project_version(projectname, version)
+            for link in pv.get_links("releasefile"):
+                entry = self.xom.filestore.get_file_entry(link.entrypath)
+                files.append(entry)
         return files
 
     def getprojectnames(self):
@@ -452,86 +450,162 @@ class PrivateStage:
     class MissesRegistration(Exception):
         """ store_releasefile requires pre-existing release metadata. """
 
+    def store_toxresult(self, entry, testresultdata):
+        assert isinstance(testresultdata, dict), testresultdata
+        pv = self.get_project_version(name=entry.projectname,
+                                      version=entry.version)
+        existing_results = [link for link in pv.get_links(rel="toxresult")
+                            if link.releasefile_md5 == entry.md5]
+
+        basename = "tox%s.json" % (len(existing_results))
+        test_entry = pv.create_and_add_link_entry(
+                rel="toxresult",
+                basename=basename,
+                file_content=json.dumps(testresultdata).encode("utf-8"),
+                entry_extra={},
+                rel_extra={"releasefile_md5": entry.md5},
+        )
+        return test_entry
+
+    def get_toxresults(self, name, version, md5):
+        pv = self.get_project_version(name, version)
+        l = []
+        for link in pv.get_links(rel="toxresult"):
+            if link.releasefile_md5 == md5:
+                entry = self.xom.filestore.get_file_entry(link.entrypath)
+                l.append(json.loads(entry.file_get_content().decode("utf-8")))
+        return l
+
+    def get_project_version(self, name, version):
+        return ProjectVersion(self, name, version)
+
     def store_releasefile(self, name, version, filename, content,
                           last_modified=None):
         filename = ensure_unicode(filename)
         if not self.get_metadata(name, version):
             raise self.MissesRegistration(name, version)
         threadlog.debug("project name of %r is %r", filename, name)
-        key = self.key_projconfig(name=name)
-        with key.update() as projectconfig:
-            verdata = projectconfig.setdefault(version, {})
-            files = verdata.setdefault("+files", {})
-            if filename in files:
-                if not self.ixconfig.get("volatile"):
-                    return 409
-                entry = self.xom.filestore.get_file_entry(files[filename])
-                entry.delete()
-            entry = self.xom.filestore.store(self.user.name, self.index,
-                                filename, content, last_modified=last_modified)
-            entry.projectname = name
-            entry.version = version
-            files[filename] = entry.relpath
-            threadlog.info("store_releasefile %s", entry.relpath)
-            return entry
-
-    def store_toxresult(self, entry, testresultdata):
-        assert isinstance(testresultdata, dict), testresultdata
-        key = self.key_projconfig(name=entry.projectname)
-        with key.update() as projectconfig:
-            verdata = projectconfig.setdefault(entry.version, {})
-            assert entry.relpath in verdata["+files"].values()
-            testresults = verdata.setdefault("+toxresults", {})
-            filetestresults = testresults.setdefault(entry.basename, [])
-            test_entry = self.xom.filestore.store_test(
-                    self.user.name, self.index,
-                    releasefile_md5=entry.md5,
-                    filename="test%s.json" % len(filetestresults),
-                    content=json.dumps(testresultdata).encode("utf-8"),
-            )
-            # using a dictionary so we can extend it with more extracted
-            # metadata from the test results in the future
-            filetestresults.append({"link": test_entry.relpath})
-            threadlog.info("store_toxresult %s", test_entry.relpath)
-            return test_entry
-
-    def get_toxresults(self, metadata, basename):
-        res = metadata.get("+toxresults", {}).get(basename, [])
-        l = []
-        for testresultmeta in res:
-            path = testresultmeta["link"]
-            entry = self.xom.filestore.get_file_entry(path)
-            l.append(json.loads(entry.file_get_content().decode("utf-8")))
-        return l
+        pv = self.get_project_version(name, version)
+        entry = pv.create_and_add_link_entry(
+                rel="releasefile",
+                basename=filename,
+                file_content=content,
+                entry_extra=dict(last_modified=last_modified),
+                rel_extra={},
+        )
+        return entry
 
     def store_doczip(self, name, version, content):
         """ store zip file and unzip doc content for the
         specified "name" project. """
-        assert isinstance(content, bytes)
         if not version:
             version = self.get_metadata_latest_perstage(name)["version"]
             threadlog.info("store_doczip: derived version of %s is %s",
                            name, version)
-        key = self.key_projconfig(name=name)
-        with key.update() as projectconfig:
-            verdata = projectconfig[version]
-            filename = "%s-%s.doc.zip" % (name, version)
-            entry = self.xom.filestore.store(self.user.name, self.index,
-                                filename, content)
-            entry.projectname = name
-            entry.version = version
-            verdata["+doczip"] = entry.relpath
+        basename = "%s-%s.doc.zip" % (name, version)
+        pv = self.get_project_version(name, version)
+        entry = pv.create_and_add_link_entry(
+                rel="doczip",
+                basename=basename,
+                file_content=content,
+                entry_extra={},
+                rel_extra={},
+        )
+        return entry
 
     def get_doczip(self, name, version):
         """ get documentation zip as an open file
         (or None if no docs exists). """
-        metadata = self.get_metadata(name, version)
-        if metadata:
-            doczip = metadata.get("+doczip")
-            if doczip:
-                entry = self.xom.filestore.get_file_entry(doczip)
-                if entry:
-                    return entry.file_get_content()
+        pv = self.get_project_version(name, version)
+        links = pv.get_links(rel="doczip")
+        if links:
+            assert len(links) == 1, links
+            entry = self.xom.filestore.get_file_entry(links[0].entrypath)
+            return entry.file_get_content()
+
+
+class Link:
+    def __init__(self, entrydict):
+        self.__dict__.update(entrydict)
+        self.basename = posixpath.basename(self.entrypath)
+
+
+class ProjectVersion:
+    def __init__(self, stage, projectname, version, projectconfig=None):
+        self.stage = stage
+        self.filestore = stage.xom.filestore
+        self.projectname = projectname
+        self.version = version
+        if projectconfig is None:
+            self.key_projectconfig = self.stage.key_projconfig(name=projectname)
+            self.projectconfig = self.key_projectconfig.get()
+        else:
+            self.projectconfig = projectconfig
+        self.verdata = self.projectconfig.setdefault(version, {})
+        if not self.verdata:
+            self.verdata["name"] = projectname
+            self.verdata["version"] = version
+            self.mark_dirty()
+
+    def mark_dirty(self):
+        self.key_projectconfig.set(self.projectconfig)
+        threadlog.debug("marking dirty %s", self.key_projectconfig)
+
+    def create_and_add_link_entry(self, rel, basename,
+                                  file_content, entry_extra, rel_extra):
+        assert isinstance(file_content, bytes)
+        for link in self.get_links(rel=rel, basename=basename):
+            if not self.stage.ixconfig.get("volatile"):
+                return 409
+            self.remove_links(rel=rel, basename=basename)
+        file_entry = self.create_file_entry(basename, file_content)
+        file_entry.projectname = self.projectname
+        file_entry.version = self.version
+        for k,v in entry_extra.items():
+            setattr(file_entry, k, v)
+        link = self.add_link_to_file_entry(rel, file_entry, rel_extra)
+        return file_entry
+
+    def create_file_entry(self, filename, file_content):
+        username = self.stage.user.name
+        index = self.stage.index
+        entry = self.filestore.store(
+            self.stage.user.name, self.stage.index, filename, file_content)
+        return entry
+
+    def _get_inplace_linkdicts(self):
+        return self.verdata.setdefault("+links", [])
+
+    def add_link_to_file_entry(self, rel, file_entry, relextra):
+        linkdicts = self._get_inplace_linkdicts()
+        linkdicts.append(dict(
+            rel=rel, entrypath=file_entry.relpath,
+            md5=file_entry.md5, **relextra))
+        threadlog.info("added %r link %s", rel, file_entry.relpath)
+        self.mark_dirty()
+
+    def remove_links(self, rel=None, basename=None):
+        remaining = []
+        linkdicts = self._get_inplace_linkdicts()
+        for linkdict in linkdicts:
+            link = Link(linkdict)
+            if (not rel or link.rel == rel) and \
+               (not basename or link.basename == basename):
+                entry = self.filestore.get_file_entry(link.entrypath)
+                entry.delete()
+                threadlog.info("deleted %r link %s", link.rel, link.entrypath)
+                self.mark_dirty()
+            else:
+                remaining.append(linkdict)
+        linkdicts[:] = remaining
+
+    def get_links(self, rel=None, basename=None, md5=None):
+        def fil(link):
+            return (not rel or rel==link.rel) and (
+                    not basename or basename==link.basename) and (
+                    not md5 or md5 == link.md5)
+        return list(filter(fil, map(Link, self.verdata.get("+links", []))))
+
 
 
 def normalize_bases(model, bases):

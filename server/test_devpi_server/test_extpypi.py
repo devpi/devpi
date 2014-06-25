@@ -281,7 +281,7 @@ class TestExtPYPIDB:
         pypistage.mock_simple("Pytest", pkgver="pytest-1.0.zip")
         config = pypistage.get_projectconfig("Pytest")
         data = config["1.0"]
-        assert data["+files"]
+        assert data["+links"]
         assert data["name"] == "Pytest"
         assert data["version"] == "1.0"
         assert pypistage.get_project_info("pytest").name == "Pytest"
@@ -291,7 +291,7 @@ class TestExtPYPIDB:
             <a href="../../pkg/tip.zip#egg=pytest-dev" />''')
         config = pypistage.get_projectconfig("pytest")
         data = config["egg=pytest-dev"]
-        assert data["+files"]
+        assert data["+links"]
 
     def test_parse_and_scrape(self, pypistage):
         md5 = getmd5("123")

@@ -110,8 +110,7 @@ class TestImportExport:
             entries = stage.getreleaselinks("hello")
             assert len(entries) == 1
             assert entries[0].file_get_content() == b"content"
-            results = stage.get_toxresults(stage.get_metadata("hello", "1.0"),
-                                 entries[0].basename)
+            results = stage.get_toxresults("hello", "1.0", entries[0].md5)
             assert len(results) == 1
             assert results[0] == tox_result_data
 

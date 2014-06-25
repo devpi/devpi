@@ -295,8 +295,11 @@ class PyPIStage:
             verdata = data.setdefault(version, {})
             verdata["name"] = name
             verdata["version"] = version
-            files = verdata.setdefault("+files", {})
-            files[basename] = link.relpath
+            links = verdata.setdefault("+links", [])
+            links.append(dict(
+                rel="releasefile",
+                entrypath=link.relpath,
+            ))
         return data
 
     get_projectconfig_perstage = get_projectconfig
