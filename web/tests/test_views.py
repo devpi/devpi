@@ -153,7 +153,7 @@ def test_index_view_project_info(mapp, testapp):
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
         ("simple index", "http://localhost:80/%s/+simple/" % api.stagename),
-        ("pkg1-2.6 info page", "http://localhost:80/%s/pkg1/2.6" % api.stagename),
+        ("pkg1-2.6", "http://localhost:80/%s/pkg1/2.6" % api.stagename),
         ("root/pypi", "http://localhost:80/root/pypi"),
         ("simple", "http://localhost:80/root/pypi/+simple/")]
 
@@ -166,7 +166,7 @@ def test_index_view_project_files(mapp, testapp):
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
         ("simple index", "http://localhost:80/%s/+simple/" % api.stagename),
-        ("pkg1-2.6 info page", "http://localhost:80/%s/pkg1/2.6" % api.stagename),
+        ("pkg1-2.6", "http://localhost:80/%s/pkg1/2.6" % api.stagename),
         ("pkg1-2.6.tar.gz", "http://localhost/%s/+f/9a0364b9e99bb480dd25e1f0284c8555/pkg1-2.6.tar.gz#md5=9a0364b9e99bb480dd25e1f0284c8555" % api.stagename),
         ("root/pypi", "http://localhost:80/root/pypi"),
         ("simple", "http://localhost:80/root/pypi/+simple/")]
@@ -177,7 +177,7 @@ def test_index_view_project_files(mapp, testapp):
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
         ("simple index", "http://localhost:80/%s/+simple/" % api.stagename),
-        ("pkg1-2.6 info page", "http://localhost:80/%s/pkg1/2.6" % api.stagename),
+        ("pkg1-2.6", "http://localhost:80/%s/pkg1/2.6" % api.stagename),
         ("pkg1-2.6.tar.gz", "http://localhost/%s/+f/9a0364b9e99bb480dd25e1f0284c8555/pkg1-2.6.tar.gz#md5=9a0364b9e99bb480dd25e1f0284c8555" % api.stagename),
         ("pkg1-2.6.zip", "http://localhost/%s/+f/52360ae08d733016c5603d54b06b5300/pkg1-2.6.zip#md5=52360ae08d733016c5603d54b06b5300" % api.stagename),
         ("root/pypi", "http://localhost:80/root/pypi"),
@@ -196,8 +196,8 @@ def test_index_view_project_docs(mapp, testapp):
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
         ("simple index", "http://localhost:80/%s/+simple/" % api.stagename),
-        ("pkg1-2.6 info page", "http://localhost:80/%s/pkg1/2.6" % api.stagename),
-        ("pkg1-2.6 docs", "http://localhost:80/%s/pkg1/2.6/+d/index.html" % api.stagename),
+        ("pkg1-2.6", "http://localhost:80/%s/pkg1/2.6" % api.stagename),
+        ("pkg1-2.6", "http://localhost:80/%s/pkg1/2.6/+d/index.html" % api.stagename),
         ("root/pypi", "http://localhost:80/root/pypi"),
         ("simple", "http://localhost:80/root/pypi/+simple/")]
 
@@ -214,7 +214,9 @@ def test_project_view(mapp, testapp):
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
+        (api.stagename, "http://localhost:80/%s" % api.stagename),
         ("2.7", "http://localhost:80/%s/pkg1/2.7" % api.stagename),
+        (api.stagename, "http://localhost:80/%s" % api.stagename),
         ("2.6", "http://localhost:80/%s/pkg1/2.6" % api.stagename)]
 
 
@@ -239,7 +241,9 @@ def test_project_view_root_pypi(mapp, testapp, pypistage):
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
+        ("root/pypi", "http://localhost:80/root/pypi"),
         ("2.7", "http://localhost:80/root/pypi/pkg1/2.7"),
+        ("root/pypi", "http://localhost:80/root/pypi"),
         ("2.6", "http://localhost:80/root/pypi/pkg1/2.6")]
 
 
@@ -270,7 +274,7 @@ def test_version_view(mapp, testapp):
     assert py.builtin._totext(
         description.renderContents().strip(),
         'utf-8') == '<p>foo</p>'
-    filesinfo = [tuple(t.text.strip() for t in x.findAll('td')) for x in r.html.select('.files tr')]
+    filesinfo = [tuple(t.text.strip() for t in x.findAll('td')) for x in r.html.select('.files tbody tr')]
     assert filesinfo == [
         ('pkg1-2.6.tar.gz', 'Source', '', '7 bytes', '', '9a0364b9e99bb480dd25e1f0284c8555'),
         ('pkg1-2.6.zip', 'Source', '', '10 bytes', '', '52360ae08d733016c5603d54b06b5300')]
@@ -305,7 +309,7 @@ def test_version_view_root_pypi(mapp, testapp, pypistage):
         ''', pypiserial=10)
     r = testapp.xget(200, '/root/pypi/pkg1/2.6',
                      headers=dict(accept="text/html"))
-    filesinfo = [tuple(t.text for t in x.findAll('td')) for x in r.html.select('.files tr')]
+    filesinfo = [tuple(t.text for t in x.findAll('td')) for x in r.html.select('.files tbody tr')]
     assert filesinfo == [('pkg1-2.6.zip', 'Source', '', '', '')]
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
@@ -319,7 +323,7 @@ def test_version_view_root_pypi_external_files(mapp, testapp, pypistage):
     r = testapp.get('/root/pypi/pkg1/2.7', headers=dict(accept="text/html"))
     assert r.status_code == 200
     filesinfo = [tuple(t.text for t in x.findAll('td'))
-                 for x in r.html.select('.files tr')]
+                 for x in r.html.select('.files tbody tr')]
     assert filesinfo == [('pkg1-2.7.zip', 'Source', '', '', '')]
     link1, link2 = list(r.html.select("#content a"))
     assert link1.text == "pkg1-2.7.zip"
@@ -341,7 +345,8 @@ def test_testdata(mapp, testapp):
     assert r.status_code == 200
     r = testapp.xget(200, api.index, headers=dict(accept="text/html"))
     passed, = r.html.select('.passed')
-    assert 'pkg1-2.6.tgz' in passed.text
+    assert passed.text == 'tests'
+    assert passed.attrs['href'].endswith('/user1/dev/pkg1/2.6')
     r = testapp.xget(200, api.index + '/pkg1/2.6', headers=dict(accept="text/html"))
     testresult, = r.html.select('.testresult')
     assert 'passed' in testresult.attrs['class']
