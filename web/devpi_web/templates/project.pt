@@ -9,9 +9,20 @@
         <div id="content">
         <h1>${title}</h1>
 
-        <ul tal:condition="versions">
-            <li tal:repeat="version versions"><a href="${version.url}">${version.title}</a></li>
-        </ul>
+        <table class="versions" tal:condition="versions">
+            <thead>
+                <tr>
+                    <th>Index</th>
+                    <th>Version</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr tal:repeat="version versions">
+                    <td><a href="${version.index_url}">${version.index_title}</a></td>
+                    <td><a href="${version.url}">${version.title}</a></td>
+                </tr>
+            </tbody>
+        </table>
         </div>
     </body>
 </html>

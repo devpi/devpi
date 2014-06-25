@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 from devpi_web.vendor._description_utils import processDescription
 import py
 
@@ -16,6 +17,10 @@ def get_description(stage, name, version):
             "please refer to description on remote server ",
             html.a(link, href=link)).unicode(indent=2)
     desc_file = get_description_file(stage, name, version)
+    if not desc_file.exists():
+        metadata = stage.get_projectconfig(name)
+        verdata = metadata.get(version)
+        return "<p>The description hasn't been rendered yet.</p>\n<pre>%s</pre>" % verdata.get('description', '')
     return py.builtin._totext(desc_file.read(), "utf-8")
 
 
