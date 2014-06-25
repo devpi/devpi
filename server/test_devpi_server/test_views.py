@@ -443,8 +443,8 @@ def test_upload_and_testdata(mapp, testapp):
     r = testapp.post(path, json.dumps(tox_result_data))
     assert r.status_code == 200
     res = mapp.getjson(api.index + "/pkg1")
-    href = res["result"]["2.6"]["+testresults"]["pkg1-2.6.tgz"][0]["link"]
-    pkgmeta = json.loads(testapp.get("/" + href).body)
+    href = res["result"]["2.6"]["+toxresults"]["pkg1-2.6.tgz"][0]["link"]
+    pkgmeta = json.loads(testapp.get("/" + href).body.decode("utf8"))
     assert pkgmeta == tox_result_data
 
 

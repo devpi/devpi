@@ -231,7 +231,7 @@ class PyPIView:
         if not releasefile_entry:
             apireturn(404, message="no release file found at %s" % relpath)
         testresultdata = getjson(self.request)
-        test_entry = stage.store_testresult(releasefile_entry, testresultdata)
+        test_entry = stage.store_toxresult(releasefile_entry, testresultdata)
         apireturn(200, type="testresultpath", result=test_entry.relpath)
 
     #

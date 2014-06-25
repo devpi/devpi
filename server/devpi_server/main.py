@@ -178,10 +178,6 @@ class XOM:
             from devpi_server.importexport import do_upgrade
             return do_upgrade(xom)
 
-        if args.export:
-            from devpi_server.importexport import do_export
-            return do_export(args.export, xom)
-
         # need to initialize the pypi mirror state before importing
         # because importing may need pypi mirroring state
         if xom.is_replica():
@@ -189,6 +185,11 @@ class XOM:
         else:
             proxy = self.proxy
         xom.pypimirror.init_pypi_mirror(proxy)
+        if args.export:
+            from devpi_server.importexport import do_export
+            #xom.thread_pool.start_one(xom.keyfs.notifier)
+            return do_export(args.export, xom)
+
         if args.import_:
             from devpi_server.importexport import do_import
             # we need to start the keyfs notifier so that import

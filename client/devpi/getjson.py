@@ -27,7 +27,7 @@ def main_patchjson(hub, args=None):
     args = hub.args
 
     path = args.path
-    with open(args.jsonfile, "rb") as f:
+    with open(args.jsonfile, "r") as f:
         data = json.load(f)
 
     current = hub.current

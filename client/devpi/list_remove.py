@@ -30,7 +30,7 @@ def out_project(hub, data, req):
 
 def out_project_version_files(hub, verdata, version, index):
     files = verdata.get("+files")
-    testresults = verdata.get("+testresults", {})
+    testresults = verdata.get("+toxresults", {})
     if files is not None:
         for fn in files:
             origin = files[fn]
@@ -55,7 +55,7 @@ def show_test_status(hub, fn_results):
     for result in fn_results:
         res = hub.http.get(rooturl.joinpath(result["link"]).url)
         assert res.status_code == 200
-        toxresult = json.loads(res.content)
+        toxresult = json.loads(res.content.decode("utf8"))
         for envname, env in toxresult["testenvs"].items():
             prefix = "  {host} {platform} {envname}".format(
                      envname=envname, **toxresult)

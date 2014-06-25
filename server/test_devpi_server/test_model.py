@@ -300,15 +300,16 @@ class TestStage:
         assert entry.projectname == "pkg1"
         assert entry.version == "1.0"
         testresultdata = {'hello': 'world'}
-        stage.store_testresult(entry, testresultdata)
+        stage.store_toxresult(entry, testresultdata)
         metadata = stage.get_metadata("pkg1", "1.0")
-        results = metadata["+testresults"]["pkg1-1.0.tar.gz"]
+        results = metadata["+toxresults"]["pkg1-1.0.tar.gz"]
         assert len(results) == 1
         tentry = stage.xom.filestore.get_file_entry(results[0]["link"])
         assert tentry.basename == "test0.json"
-        assert json.loads(tentry.file_get_content()) == testresultdata
+        back_data = json.loads(tentry.file_get_content().decode("utf8"))
+        assert back_data == testresultdata
 
-        results = stage.get_testresults(metadata, entry.basename)
+        results = stage.get_toxresults(metadata, entry.basename)
         assert len(results) == 1
         assert results[0] == testresultdata
 

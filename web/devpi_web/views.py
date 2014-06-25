@@ -160,7 +160,7 @@ def _get_commands_info(commands):
 def get_test_result_info(stage, metadata, basename):
     result = []
     seen = set()
-    toxresults = list(enumerate(stage.get_testresults(metadata, basename)))
+    toxresults = list(enumerate(stage.get_toxresults(metadata, basename)))
     for index, toxresult in reversed(toxresults):
         try:
             for envname in toxresult["testenvs"]:

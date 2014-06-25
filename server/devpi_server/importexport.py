@@ -108,7 +108,8 @@ class Exporter:
 
     def write_file(self, content, dest):
         dest.dirpath().ensure(dir=1)
-        dest.write(content)
+        with dest.open("wb") as f:
+            f.write(content)
         self.tw.line("write file at %s" %(dest.relto(self.basepath),))
         return dest.relto(self.basepath)
 
@@ -211,6 +212,7 @@ class IndexDump:
                     continue
                 versiondata["name"] = realname
                 self.dump_releasefiles(realname, versiondata)
+                self.dump_toxresults(realname, versiondata)
                 content = self.stage.get_doczip(name, version)
                 if content:
                     self.dump_docfile(realname, version, content)
@@ -228,7 +230,23 @@ class IndexDump:
             self.add_filedesc("releasefile", projectname, rel,
                                version=versiondata["version"],
                                entrymapping=entry.meta.copy())
-            self.dump_attachments(entry)
+
+    def dump_toxresults(self, projectname, versiondata):
+        toxresults = versiondata.pop("+toxresults", {})
+        for basename, resultentries in toxresults.items():
+            for resultentry in resultentries:
+                relpath = resultentry["link"]
+                entry = self.exporter.filestore.get_file_entry(relpath)
+                assert entry.file_exists(), entry.relpath
+                content = entry.file_get_content()
+                relpath = self.exporter.write_file(
+                    content,
+                    self.basedir.join(projectname, "+toxresult", basename,
+                                      entry.basename))
+                self.add_filedesc("toxresult", projectname, relpath,
+                                   version=versiondata["version"],
+                                   releasefile_basename=basename,
+                                   entrymapping=entry.meta.copy())
 
     def add_filedesc(self, type, projectname, relpath, **kw):
         assert self.exporter.basepath.join(relpath).check()
@@ -239,25 +257,13 @@ class IndexDump:
         self.indexmeta["files"].append(d)
         self.exporter.completed("%s: %s " %(type, relpath))
 
-    def dump_attachments(self, entry):
-        basedir = self.exporter.basepath.join("attach", entry.md5)
-        filestore = self.exporter.filestore
-        for type in filestore.iter_attachment_types(md5=entry.md5):
-            for i, attachment in enumerate(filestore.iter_attachments(
-                    md5=entry.md5, type=type)):
-                data = json.dumps(attachment)
-                p = basedir.ensure(type, str(i))
-                p.write(data)
-                basedir.ensure(type, str(i)).write(data)
-                self.exporter.completed("wrote attachment %s [%s]" %
-                                 (p.relto(self.basedir), entry.basename))
-
     def dump_docfile(self, projectname, version, content):
         p = self.basedir.join("%s-%s.doc.zip" %(projectname, version))
         with p.open("wb") as f:
             f.write(content)
         relpath = p.relto(self.exporter.basepath)
         self.add_filedesc("doczip", projectname, relpath, version=version)
+
 
 class Importer:
     def __init__(self, tw, xom):
@@ -361,28 +367,34 @@ class Importer:
                         p.basename, p.read("rb"),
                         last_modified=mapping["last_modified"])
             assert entry.md5 == mapping["md5"]
-            self.import_attachments(entry.md5)
+            self.import_toxresults(stage, entry)
         elif filedesc["type"] == "doczip":
             basename = os.path.basename(rel)
             name, version, suffix = splitbasename(basename)
             stage.store_doczip(name, version, p.read("rb"))
+        elif filedesc["type"] == "toxresult":
+            metadata = stage.get_metadata(filedesc["projectname"],
+                                          filedesc["version"])
+            relpath = metadata["+files"][filedesc["releasefile_basename"]]
+            entry = stage.xom.filestore.get_file_entry(relpath)
+            assert entry, relpath
+            stage.store_toxresult(entry, json.loads(p.read("rb").decode("utf8")))
         else:
             fatal("unknown file type: %s" % (type,))
 
-    def import_attachments(self, md5):
-        md5dir = self.import_rootdir.join("attach", md5)
-        if not md5dir.check():
+    def import_toxresults(self, stage, releasefile_entry):
+        # pre 2.0 export structure (called "attachments")
+        md5 = releasefile_entry.md5
+        type_path = self.import_rootdir.join("attach", md5, "toxresult")
+        if not type_path.exists():
             return
-        for type_path in md5dir.listdir():
-            type = type_path.basename
-            for i in range(len(type_path.listdir())):
-                attachment_data = type_path.join(str(i)).read()
-                self.import_attachment(md5, type, attachment_data)
-
-    def import_attachment(self, md5, type, attachment_data):
-        self.tw.line("importing attachment %s/%s" %(md5, type))
-        self.filestore.add_attachment(md5=md5, type=type, data=attachment_data)
-
+        type = type_path.basename
+        for i in range(len(type_path.listdir())):
+            attachment_data = type_path.join(str(i)).read(mode="rb")
+            testresultdata = json.loads(attachment_data)
+            self.tw.line("importing pre-2.0 test  results %s/%s" %(md5, type))
+            entry = stage.store_toxresult(releasefile_entry, testresultdata)
+            self.tw.line("imported %s" % entry.relpath)
 
 
 class IndexTree:

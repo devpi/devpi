@@ -475,31 +475,33 @@ class PrivateStage:
             threadlog.info("store_releasefile %s", entry.relpath)
             return entry
 
-    def store_testresult(self, entry, testresultdata):
+    def store_toxresult(self, entry, testresultdata):
+        assert isinstance(testresultdata, dict), testresultdata
         key = self.key_projconfig(name=entry.projectname)
         with key.update() as projectconfig:
             verdata = projectconfig.setdefault(entry.version, {})
             assert entry.relpath in verdata["+files"].values()
-            testresults = verdata.setdefault("+testresults", {})
+            testresults = verdata.setdefault("+toxresults", {})
             filetestresults = testresults.setdefault(entry.basename, [])
             test_entry = self.xom.filestore.store_test(
                     self.user.name, self.index,
                     releasefile_md5=entry.md5,
                     filename="test%s.json" % len(filetestresults),
-                    content=json.dumps(testresultdata),
+                    content=json.dumps(testresultdata).encode("utf-8"),
             )
             # using a dictionary so we can extend it with more extracted
             # metadata from the test results in the future
             filetestresults.append({"link": test_entry.relpath})
+            threadlog.info("store_toxresult %s", test_entry.relpath)
             return test_entry
 
-    def get_testresults(self, metadata, basename):
-        res = metadata.get("+testresults", {}).get(basename, [])
+    def get_toxresults(self, metadata, basename):
+        res = metadata.get("+toxresults", {}).get(basename, [])
         l = []
         for testresultmeta in res:
             path = testresultmeta["link"]
             entry = self.xom.filestore.get_file_entry(path)
-            l.append(json.loads(entry.file_get_content()))
+            l.append(json.loads(entry.file_get_content().decode("utf-8")))
         return l
 
     def store_doczip(self, name, version, content):
