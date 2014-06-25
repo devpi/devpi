@@ -95,7 +95,7 @@ table.versions thead {
 }
 
 table.files tbody tr:nth-child(even),
-table.packages tbody tr:nth-child(odd),
+table.packages tbody tr:nth-child(even),
 table.versions tbody tr:nth-child(even) {
     background: #efefef;
 }
@@ -173,7 +173,7 @@ table.projectinfos ul {
     padding: 0;
 }
 
-span.passed:after,
+a.passed:after,
 table.files .testresult.passed .testresult_title:before,
 table.files .testresult .command.passed div:first-child:before {
     content: "✔";
@@ -181,12 +181,20 @@ table.files .testresult .command.passed div:first-child:before {
     font-weight: bold;
 }
 
-span.failed:after,
+a.failed:after,
 table.files .testresult.failed .testresult_title:before,
 table.files .testresult .command.failed div:first-child:before {
     content: "𐄂";
     color: red;
     font-weight: bold;
+}
+
+a.passed:after {
+    content: " ✔";
+}
+
+a.failed:after {
+    content: " 𐄂";
 }
 
 table.files .testresult.opened .testresult_title,

@@ -193,7 +193,7 @@ def get_docs_info(request, stage, metadata):
     doc_path = get_unpack_path(stage, name, ver)
     if doc_path.exists():
         return dict(
-            title="%s-%s docs" % (name, ver),
+            title="%s-%s" % (name, ver),
             url=request.route_url(
                 "docviewroot", user=stage.user.name, index=stage.index,
                 name=name, version=ver, relpath="index.html"))
@@ -264,7 +264,7 @@ def index_get(context, request):
         show_test_results = not (stage.user.name == 'root' and stage.index == 'pypi')
         packages.append(dict(
             info=dict(
-                title="%s-%s info page" % (name, ver),
+                title="%s-%s" % (name, ver),
                 url=request.route_url(
                     "/{user}/{index}/{name}/{version}",
                     user=stage.user.name, index=stage.index,
