@@ -52,28 +52,51 @@ form#search input[type=submit] {
     -webkit-appearance: button;
 }
 
-table.packages {
-    width: 100%;
+table.files,
+table.packages,
+table.versions {
     margin: 0.5em 0;
     border-collapse: collapse;
     border: 1px solid #ccc;
 }
 
-table.packages th {
+table.files,
+table.packages {
+    width: 100%;
+}
+
+table.files th,
+table.packages th,
+table.versions th {
     background: #ccc;
     border-left: 1px solid #ccc;
     border-right: 1px solid #ccc;
     padding: 0.15em 0.4em;
 }
 
-table.packages td {
+table.files td {
+    padding: 0.15em 0.4em;
+}
+
+table.files td,
+table.packages td,
+table.versions td {
     vertical-align: top;
     border-left: 1px solid #ccc;
     border-right: 1px solid #ccc;
     padding: 0.25em 0.4em;
 }
 
-table.packages tr:nth-child(odd) {
+table.files thead,
+table.packages thead,
+table.versions thead {
+    text-align: left;
+    font-weight: bold;
+}
+
+table.files tbody tr:nth-child(even),
+table.packages tbody tr:nth-child(odd),
+table.versions tbody tr:nth-child(even) {
     background: #efefef;
 }
 
@@ -148,35 +171,6 @@ table.projectinfos ul {
     list-style: none;
     margin: 0;
     padding: 0;
-}
-
-table.files {
-    width: 100%;
-    margin: 0.5em 0;
-    border-collapse: collapse;
-    border: 1px solid #ccc;
-}
-
-table.files th {
-    background: #ccc;
-    border-left: 1px solid #ccc;
-    border-right: 1px solid #ccc;
-    padding: 0.15em 0.4em;
-}
-
-table.files td {
-    border-left: 1px solid #ccc;
-    border-right: 1px solid #ccc;
-    padding: 0.15em 0.4em;
-}
-
-table.files tr:nth-child(even) {
-    background: #efefef;
-}
-
-table.files thead {
-    text-align: left;
-    font-weight: bold;
 }
 
 span.passed:after,

@@ -273,7 +273,7 @@ def test_version_view(mapp, testapp):
     assert py.builtin._totext(
         description.renderContents().strip(),
         'utf-8') == '<p>foo</p>'
-    filesinfo = [tuple(t.text.strip() for t in x.findAll('td')) for x in r.html.select('.files tr')]
+    filesinfo = [tuple(t.text.strip() for t in x.findAll('td')) for x in r.html.select('.files tbody tr')]
     assert filesinfo == [
         ('pkg1-2.6.tar.gz', 'Source', '', '7 bytes', '', '9a0364b9e99bb480dd25e1f0284c8555'),
         ('pkg1-2.6.zip', 'Source', '', '10 bytes', '', '52360ae08d733016c5603d54b06b5300')]
@@ -308,7 +308,7 @@ def test_version_view_root_pypi(mapp, testapp, pypistage):
         ''', pypiserial=10)
     r = testapp.xget(200, '/root/pypi/pkg1/2.6',
                      headers=dict(accept="text/html"))
-    filesinfo = [tuple(t.text for t in x.findAll('td')) for x in r.html.select('.files tr')]
+    filesinfo = [tuple(t.text for t in x.findAll('td')) for x in r.html.select('.files tbody tr')]
     assert filesinfo == [('pkg1-2.6.zip', 'Source', '', '', '')]
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
@@ -322,7 +322,7 @@ def test_version_view_root_pypi_external_files(mapp, testapp, pypistage):
     r = testapp.get('/root/pypi/pkg1/2.7', headers=dict(accept="text/html"))
     assert r.status_code == 200
     filesinfo = [tuple(t.text for t in x.findAll('td'))
-                 for x in r.html.select('.files tr')]
+                 for x in r.html.select('.files tbody tr')]
     assert filesinfo == [('pkg1-2.7.zip', 'Source', '', '', '')]
     link1, link2 = list(r.html.select("#content a"))
     assert link1.text == "pkg1-2.7.zip"

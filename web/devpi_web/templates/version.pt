@@ -23,12 +23,14 @@
 
         <table class="files" tal:condition="files">
             <thead>
-                <th>File</th>
-                <th>Type</th>
-                <th>Py Version</th>
-                <th>Size</th>
-                <th class="test_results" tal:condition="show_test_results">Test results</th>
-                <th class="md5">MD5</th>
+                <tr>
+                    <th>File</th>
+                    <th>Type</th>
+                    <th>Py Version</th>
+                    <th>Size</th>
+                    <th class="test_results" tal:condition="show_test_results">Test results</th>
+                    <th class="md5">MD5</th>
+                </tr>
             </thead>
             <tbody>
                 <tr tal:repeat="file files">
