@@ -281,26 +281,31 @@ def index_get(context, request):
     accept="text/html", request_method="GET",
     renderer="templates/project.pt")
 def project_get(context, request):
-    user, index = context.username, context.index
-    stage = context.model.getstage(user, index)
+    # directly using context.stage doesn't give us a nice enough error message
+    stage = context.model.getstage(context.username, context.index)
     if not stage:
-        raise HTTPNotFound("The stage %s/%s could not be found." % (user, index))
-    name = context.name
-    releases = stage.getreleaselinks(name)
+        raise HTTPNotFound("The stage %s/%s could not be found." % (
+            context.username, context.index))
+    releases = stage.getreleaselinks(context.name)
     if not releases:
-        raise HTTPNotFound("The project %s does not exist." % name)
+        raise HTTPNotFound("The project %s does not exist." % context.name)
     versions = []
     seen = set()
     for release in releases:
+        user, index = release.relpath.split("/", 2)[:2]
         name, version = splitbasename(release)[:2]
-        if version in seen:
+        seen_key = (user, index, name, version)
+        if seen_key in seen:
             continue
         versions.append(dict(
+            index_title="%s/%s" % (user, index),
+            index_url=request.route_url(
+                "/{user}/{index}", user=user, index=index),
             title=version,
             url=request.route_url(
                 "/{user}/{index}/{name}/{version}",
                 user=user, index=index, name=name, version=version)))
-        seen.add(version)
+        seen.add(seen_key)
     return dict(
         title="%s/: %s versions" % (stage.name, name),
         versions=versions)

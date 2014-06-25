@@ -213,7 +213,9 @@ def test_project_view(mapp, testapp):
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
+        (api.stagename, "http://localhost:80/%s" % api.stagename),
         ("2.7", "http://localhost:80/%s/pkg1/2.7" % api.stagename),
+        (api.stagename, "http://localhost:80/%s" % api.stagename),
         ("2.6", "http://localhost:80/%s/pkg1/2.6" % api.stagename)]
 
 
@@ -238,7 +240,9 @@ def test_project_view_root_pypi(mapp, testapp, pypistage):
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
+        ("root/pypi", "http://localhost:80/root/pypi"),
         ("2.7", "http://localhost:80/root/pypi/pkg1/2.7"),
+        ("root/pypi", "http://localhost:80/root/pypi"),
         ("2.6", "http://localhost:80/root/pypi/pkg1/2.6")]
 
 
