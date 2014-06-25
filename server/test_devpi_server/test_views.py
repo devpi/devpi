@@ -558,17 +558,39 @@ def test_kvdict(input, expected):
     result = getkvdict_index(input)
     assert result == expected
 
-def test_get_outside_url():
+
+@pytest.mark.parametrize("headers, environ, outsideurl, expected", [
+    (
+        {"X-outside-url": "http://outside.com"}, {},
+        None, "http://outside.com/"),
+    (
+        {"Host": "outside3.com"}, {},
+        None, "http://outside3.com/"),
+    (
+        {"Host": "outside3.com"}, {'wsgi.url_scheme': 'https'},
+        None, "https://outside3.com/"),
+    (
+        {"Host": "outside3.com:3141"}, {},
+        None, "http://outside3.com:3141/"),
+    (
+        {"Host": "outside3.com:3141"}, {'wsgi.url_scheme': 'https'},
+        None, "https://outside3.com:3141/"),
+    # outside url takes precedence over headers
+    (
+        {"X-outside-url": "http://outside.com"}, {},
+        "http://outside2.com", "http://outside2.com/"),
+    (
+        {"Host": "outside3.com"}, {},
+        "http://out.com", "http://out.com/"),
+    (
+        {"Host": "outside3.com"}, {'wsgi.url_scheme': 'https'},
+        "http://out.com", "http://out.com/")])
+def test_get_outside_url(headers, environ, outsideurl, expected):
     from devpi_server.views import get_outside_url
-    url = get_outside_url({"X-outside-url": "http://outside.com"}, None)
-    assert url == "http://outside.com/"
-    url = get_outside_url({"X-outside-url": "http://outside.com"},
-                          "http://outside2.com")
-    assert url == "http://outside2.com/"
-    url = get_outside_url({"Host": "outside3.com"}, None)
-    assert url == "http://outside3.com/"
-    url = get_outside_url({"Host": "outside3.com"}, "http://out.com")
-    assert url == "http://out.com/"
+    from pyramid.request import Request
+    request = Request.blank('/', environ=environ, headers=headers)
+    url = get_outside_url(request, outsideurl)
+    assert url == expected
 
 
 class Test_getjson:
