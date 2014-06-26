@@ -98,11 +98,11 @@ class TestImportExport:
         content = b'content'
         mapp1.upload_file_pypi("hello-1.0.tar.gz", content, "hello", "1.0")
         path, = mapp1.get_release_paths("hello")
-        entry = mapp1.xom.filestore.get_file_entry(path.strip("/"))
-        assert entry, path
+        path = path.strip("/")
         with mapp1.xom.keyfs.transaction(write=True):
             stage = mapp1.xom.model.getstage(api.stagename)
-            stage.store_toxresult(entry, tox_result_data)
+            link = stage.get_link_from_entrypath(path)
+            stage.store_toxresult(link, tox_result_data)
         impexp.export()
         mapp2 = impexp.new_import()
         with mapp2.xom.keyfs.transaction(write=False):
@@ -110,7 +110,8 @@ class TestImportExport:
             entries = stage.getreleaselinks("hello")
             assert len(entries) == 1
             assert entries[0].file_get_content() == b"content"
-            results = stage.get_toxresults("hello", "1.0", entries[0].md5)
+            link = stage.get_link_from_entrypath(entries[0].relpath)
+            results = stage.get_toxresults(link)
             assert len(results) == 1
             assert results[0] == tox_result_data
 

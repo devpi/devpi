@@ -295,7 +295,7 @@ class PyPIStage:
             verdata = data.setdefault(version, {})
             verdata["name"] = name
             verdata["version"] = version
-            links = verdata.setdefault("+links", [])
+            links = verdata.setdefault("+elinks", [])
             links.append(dict(
                 rel="releasefile",
                 entrypath=link.relpath,

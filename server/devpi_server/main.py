@@ -274,7 +274,6 @@ class XOM:
         from devpi_server.views import route_url
         from pyramid.authorization import ACLAuthorizationPolicy
         from pyramid.config import Configurator
-        import functools
         log = self.log
         log.debug("creating application in process %s", os.getpid())
         pyramid_config = Configurator(root_factory='devpi_server.view_auth.RootFactory')

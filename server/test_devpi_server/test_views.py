@@ -12,13 +12,15 @@ from bs4 import BeautifulSoup
 from pyramid.response import Response
 from devpi_common.metadata import splitbasename
 from devpi_common.url import URL
+from devpi_common.archive import Archive, zip_dict
+from devpi_common.viewhelp import ViewVersionLinks
+
 import devpi_server.views
 from devpi_server.views import tween_keyfs_transaction
-from devpi_common.archive import Archive, zip_dict
-
 
 from .functional import TestUserThings, TestIndexThings  # noqa
 
+proj = pytest.mark.parametrize("proj", [True, False])
 pytestmark = [pytest.mark.notransaction]
 
 def getfirstlink(text):
@@ -312,7 +314,9 @@ def test_push_non_existent(mapp, testapp, monkeypatch):
     r = testapp.push("/user1/dev", json.dumps(req), expect_errors=True)
     assert r.status_code == 401
 
-def test_upload_and_push_internal(mapp, testapp, monkeypatch):
+
+@proj
+def test_upload_and_push_internal(mapp, testapp, monkeypatch, proj):
     mapp.create_user("user1", "1")
     mapp.create_and_login_user("user2")
     mapp.create_index("prod", indexconfig=dict(acl_upload=["user1", "user2"]))
@@ -329,7 +333,8 @@ def test_upload_and_push_internal(mapp, testapp, monkeypatch):
     req = dict(name="pkg1", version="2.6", targetindex="user2/prod")
     r = testapp.push("/user1/dev", json.dumps(req))
     assert r.status_code == 200
-    vv = get_view_version_links(testapp, "/user2/prod", "pkg1", "2.6")
+    vv = get_view_version_links(testapp, "/user2/prod", "pkg1", "2.6",
+                                proj=proj)
     link = vv.get_link(rel="releasefile")
     assert link.href.endswith("/pkg1-2.6.tgz")
     # we check here that the upload of docs without version was
@@ -444,16 +449,18 @@ def test_upload_and_testdata(mapp, testapp):
     import json
     r = testapp.post(path, json.dumps(tox_result_data))
     assert r.status_code == 200
-    vv = get_view_version_links(testapp, api.index, "pkg1", "2.6")
+    vv = get_view_version_links(testapp, api.index, "pkg1", "2.6", proj=proj)
     link = vv.get_link("toxresult")
     pkgmeta = json.loads(testapp.get(link.href).body.decode("utf8"))
     assert pkgmeta == tox_result_data
+    assert link.for_href.endswith(path)
 
 
-def test_upload_and_access_releasefile_meta(mapp, testapp):
+@proj
+def test_upload_and_access_releasefile_meta(mapp, testapp, proj):
     api = mapp.create_and_use()
     mapp.upload_file_pypi("pkg5-2.6.tgz", b"123", "pkg5", "2.6")
-    vv = get_view_version_links(testapp, api.index, "pkg5", "2.6")
+    vv = get_view_version_links(testapp, api.index, "pkg5", "2.6", proj=proj)
     link = vv.get_link("releasefile")
     pkgmeta = mapp.getjson(link.href)
     assert pkgmeta["type"] == "releasefilemeta"
@@ -497,12 +504,13 @@ def test_delete_volatile_fails(mapp):
     mapp.upload_file_pypi("pkg5-2.6.tgz", b"123", "pkg5", "2.6")
     mapp.delete_project("pkg5", code=403)
 
-def test_upload_docs_no_version(mapp, testapp):
+@proj
+def test_upload_docs_no_version(mapp, testapp, proj):
     api = mapp.create_and_use()
     content = zip_dict({"index.html": "<html/>"})
     mapp.register_metadata(dict(name="Pkg1", version="1.0"))
     mapp.upload_doc("pkg1.zip", content, "Pkg1", "")
-    vv = get_view_version_links(testapp, api.index, "Pkg1", "1.0")
+    vv = get_view_version_links(testapp, api.index, "Pkg1", "1.0", proj=proj)
     link = vv.get_link("doczip")
     assert link.href.endswith("/Pkg1-1.0.doc.zip")
     r = testapp.get(link.href)
@@ -521,13 +529,14 @@ def test_upload_docs_too_large(mapp):
     mapp.register_metadata(dict(name="pkg1", version="0.0"))
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=413)
 
-def test_upload_docs(mapp, testapp):
+@proj
+def test_upload_docs(mapp, testapp, proj):
     api = mapp.create_and_use()
     content = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=400)
     mapp.register_metadata({"name": "pkg1", "version": "2.6"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200)
-    vv = get_view_version_links(testapp, api.index, "pkg1", "2.6")
+    vv = get_view_version_links(testapp, api.index, "pkg1", "2.6", proj=proj)
     link = vv.get_link(rel="doczip")
     assert link.href.endswith("/pkg1-2.6.doc.zip")
     r = testapp.get(link.href)
@@ -535,35 +544,15 @@ def test_upload_docs(mapp, testapp):
     assert 'index.html' in archive.namelist()
 
 
-def get_view_version_links(testapp, index, name, version):
-    url = "/".join([index, name, version])
-    r = testapp.get_json(url)
-    assert r.status_code == 200
-    return ViewVersionLinks(url, r.json["result"])
-
-class ViewVersionLinks:
-    def __init__(self, url, versiondata):
-        self.url = URL(url)
-        self.versiondata = versiondata
-
-    def get_links(self, rel):
-        l = []
-        for linkdict in self.versiondata["+links"]:
-            viewlink = ViewLink(self.url, linkdict)
-            if viewlink.rel == rel:
-                l.append(viewlink)
-        return l
-
-    def get_link(self, rel):
-        links = self.get_links(rel)
-        assert len(links) == 1
-        return links[0]
-
-class ViewLink:
-    def __init__(self, base_url, linkdict):
-        self.__dict__.update(linkdict)
-        self.href = base_url.joinpath(self.href).url
-        self.basename = posixpath.basename(self.href)
+def get_view_version_links(testapp, index, name, version, proj=False):
+    if proj:
+        url = "/".join([index, name])
+        r = testapp.get_json(url, expect_errors=False)
+        return ViewVersionLinks(url, r.json["result"][version])
+    else:
+        url = "/".join([index, name, version])
+        r = testapp.get_json(url, expect_errors=False)
+        return ViewVersionLinks(url, r.json["result"])
 
 
 def test_wrong_login_format(testapp, mapp):

@@ -150,11 +150,11 @@ class FileEntry(object):
             if last_modified is None:
                 last_modified = http_date()
             self.last_modified = last_modified
-        #else we are called from replica thread and just write out
-        if md5 is not None:
-            self.md5 = md5
-        if self.md5 and hashlib.md5(content).hexdigest() != self.md5:
+        #else we are called from replica thread and just write outside
+        file_md5 = hashlib.md5(content).hexdigest()
+        if md5 and md5 != file_md5:
             raise ValueError("md5 mismatch: %s" % self.relpath)
+        self.md5 = file_md5
         self.tx.io_file_set(self._filepath, content)
 
     def gethttpheaders(self):

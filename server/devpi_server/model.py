@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 import posixpath
+import hashlib
 import py
 import json
 from devpi_common.metadata import (sorted_sameproject_links,
@@ -450,30 +451,18 @@ class PrivateStage:
     class MissesRegistration(Exception):
         """ store_releasefile requires pre-existing release metadata. """
 
-    def store_toxresult(self, entry, testresultdata):
+    def store_toxresult(self, link, testresultdata):
         assert isinstance(testresultdata, dict), testresultdata
-        pv = self.get_project_version(name=entry.projectname,
-                                      version=entry.version)
-        existing_results = [link for link in pv.get_links(rel="toxresult")
-                            if link.releasefile_md5 == entry.md5]
-
-        basename = "tox%s.json" % (len(existing_results))
-        test_entry = pv.create_and_add_link_entry(
+        return link.pv.new_reflink(
                 rel="toxresult",
-                basename=basename,
                 file_content=json.dumps(testresultdata).encode("utf-8"),
-                entry_extra={},
-                rel_extra={"releasefile_md5": entry.md5},
-        )
-        return test_entry
+                for_entrypath=link)
 
-    def get_toxresults(self, name, version, md5):
-        pv = self.get_project_version(name, version)
+    def get_toxresults(self, link):
         l = []
-        for link in pv.get_links(rel="toxresult"):
-            if link.releasefile_md5 == md5:
-                entry = self.xom.filestore.get_file_entry(link.entrypath)
-                l.append(json.loads(entry.file_get_content().decode("utf-8")))
+        for reflink in link.pv.get_links(rel="toxresult", for_entrypath=link):
+            data = reflink.entry.file_get_content().decode("utf-8")
+            l.append(json.loads(data))
         return l
 
     def get_project_version(self, name, version):
@@ -486,30 +475,25 @@ class PrivateStage:
             raise self.MissesRegistration(name, version)
         threadlog.debug("project name of %r is %r", filename, name)
         pv = self.get_project_version(name, version)
-        entry = pv.create_and_add_link_entry(
+        entry = pv.create_linked_entry(
                 rel="releasefile",
                 basename=filename,
                 file_content=content,
                 entry_extra=dict(last_modified=last_modified),
-                rel_extra={},
         )
         return entry
 
     def store_doczip(self, name, version, content):
-        """ store zip file and unzip doc content for the
-        specified "name" project. """
         if not version:
             version = self.get_metadata_latest_perstage(name)["version"]
             threadlog.info("store_doczip: derived version of %s is %s",
                            name, version)
         basename = "%s-%s.doc.zip" % (name, version)
         pv = self.get_project_version(name, version)
-        entry = pv.create_and_add_link_entry(
+        entry = pv.create_linked_entry(
                 rel="doczip",
                 basename=basename,
                 file_content=content,
-                entry_extra={},
-                rel_extra={},
         )
         return entry
 
@@ -523,11 +507,35 @@ class PrivateStage:
             entry = self.xom.filestore.get_file_entry(links[0].entrypath)
             return entry.file_get_content()
 
+    def get_link_from_entrypath(self, entrypath):
+        entry = self.xom.filestore.get_file_entry(entrypath)
+        pv = self.get_project_version(entry.projectname, entry.version)
+        links = pv.get_links(entrypath=entrypath)
+        assert len(links) < 2
+        return links[0] if links else None
 
-class Link:
-    def __init__(self, entrydict):
-        self.__dict__.update(entrydict)
+
+class ELink:
+    """ model Link using entrypathes for referencing. """
+    def __init__(self, pv, linkdict):
+        self.linkdict = linkdict
+        self.pv = pv
         self.basename = posixpath.basename(self.entrypath)
+
+    def __getattr__(self, name):
+        try:
+            return self.linkdict[name]
+        except KeyError:
+            if name == "for_entrypath":
+                return None
+            raise AttributeError(name)
+
+    def __repr__(self):
+        return "<ELink rel=%r entrypath=%r>" %(self.rel, self.entrypath)
+
+    @cached_property
+    def entry(self):
+        return self.pv.filestore.get_file_entry(self.entrypath)
 
 
 class ProjectVersion:
@@ -545,67 +553,92 @@ class ProjectVersion:
         if not self.verdata:
             self.verdata["name"] = projectname
             self.verdata["version"] = version
-            self.mark_dirty()
+            self._mark_dirty()
 
-    def mark_dirty(self):
-        self.key_projectconfig.set(self.projectconfig)
-        threadlog.debug("marking dirty %s", self.key_projectconfig)
-
-    def create_and_add_link_entry(self, rel, basename,
-                                  file_content, entry_extra, rel_extra):
+    def create_linked_entry(self, rel, basename, file_content,
+            entry_extra=None):
         assert isinstance(file_content, bytes)
+        entry_extra = entry_extra or {}
         for link in self.get_links(rel=rel, basename=basename):
             if not self.stage.ixconfig.get("volatile"):
                 return 409
             self.remove_links(rel=rel, basename=basename)
-        file_entry = self.create_file_entry(basename, file_content)
-        file_entry.projectname = self.projectname
-        file_entry.version = self.version
+        file_entry = self._create_file_entry(basename, file_content)
         for k,v in entry_extra.items():
             setattr(file_entry, k, v)
-        link = self.add_link_to_file_entry(rel, file_entry, rel_extra)
+        self._add_link_to_file_entry(rel, file_entry)
         return file_entry
 
-    def create_file_entry(self, filename, file_content):
-        username = self.stage.user.name
-        index = self.stage.index
-        entry = self.filestore.store(
-            self.stage.user.name, self.stage.index, filename, file_content)
+    def new_reflink(self, rel, file_content, for_entrypath):
+        if isinstance(for_entrypath, ELink):
+            for_entrypath = for_entrypath.entrypath
+        links = self.get_links(entrypath=for_entrypath)
+        assert len(links) == 1, "need exactly one reference, got %s" %(links,)
+        base_entry = links[0].entry
+        other_reflinks = self.get_links(rel=rel, for_entrypath=for_entrypath)
+        filename = "%s%d.at" %(rel, len(other_reflinks))
+        entry = self._create_file_entry(filename, file_content,
+                                        md5dir=base_entry.md5)
+        return self._add_link_to_file_entry(rel, entry, for_entrypath=for_entrypath)
+
+    def remove_links(self, rel=None, basename=None, for_entrypath=None):
+        linkdicts = self._get_inplace_linkdicts()
+        del_links = self.get_links(rel=rel, basename=basename, for_entrypath=for_entrypath)
+        was_deleted = []
+        for link in del_links:
+            link.entry.delete()
+            linkdicts.remove(link.linkdict)
+            was_deleted.append(link.entrypath)
+            threadlog.info("deleted %r link %s", link.rel, link.entrypath)
+        if linkdicts:
+            for entrypath in was_deleted:
+                self.remove_links(for_entrypath=entrypath)
+        if was_deleted:
+            self._mark_dirty()
+
+    def get_links(self, rel=None, basename=None, entrypath=None, for_entrypath=None):
+        if isinstance(for_entrypath, ELink):
+            for_entrypath = for_entrypath.entrypath
+        def fil(link):
+            return (not rel or rel==link.rel) and \
+                   (not basename or basename==link.basename) and \
+                   (not entrypath or entrypath==link.entrypath) and \
+                   (not for_entrypath or for_entrypath==link.for_entrypath)
+        return list(filter(fil, [ELink(self, linkdict)
+                           for linkdict in self.verdata.get("+elinks", [])]))
+
+    def _mark_dirty(self):
+        self.key_projectconfig.set(self.projectconfig)
+        threadlog.debug("marking dirty %s", self.key_projectconfig)
+
+    def _create_file_entry(self, filename, file_content, md5dir=None):
+        if md5dir is None:
+            md5dir = hashlib.md5(file_content).hexdigest()
+        key = self.stage.keyfs.STAGEFILE(
+            user=self.stage.user.name, index=self.stage.index,
+            md5=md5dir, filename=filename)
+        entry = FileEntry(self.stage.xom, key)
+        entry.file_set_content(file_content)
+        entry.projectname = self.projectname
+        entry.version = self.version
         return entry
 
     def _get_inplace_linkdicts(self):
-        return self.verdata.setdefault("+links", [])
+        return self.verdata.setdefault("+elinks", [])
 
-    def add_link_to_file_entry(self, rel, file_entry, relextra):
+    def _add_link_to_file_entry(self, rel, file_entry, for_entrypath=None):
+        if isinstance(for_entrypath, ELink):
+            for_entrypath = for_entrypath.entrypath
+        relextra = {}
+        if for_entrypath:
+            relextra["for_entrypath"] = for_entrypath
         linkdicts = self._get_inplace_linkdicts()
-        linkdicts.append(dict(
-            rel=rel, entrypath=file_entry.relpath,
-            md5=file_entry.md5, **relextra))
+        new_linkdict = dict(rel=rel, entrypath=file_entry.relpath,
+                            md5=file_entry.md5, **relextra)
+        linkdicts.append(new_linkdict)
         threadlog.info("added %r link %s", rel, file_entry.relpath)
-        self.mark_dirty()
-
-    def remove_links(self, rel=None, basename=None):
-        remaining = []
-        linkdicts = self._get_inplace_linkdicts()
-        for linkdict in linkdicts:
-            link = Link(linkdict)
-            if (not rel or link.rel == rel) and \
-               (not basename or link.basename == basename):
-                entry = self.filestore.get_file_entry(link.entrypath)
-                entry.delete()
-                threadlog.info("deleted %r link %s", link.rel, link.entrypath)
-                self.mark_dirty()
-            else:
-                remaining.append(linkdict)
-        linkdicts[:] = remaining
-
-    def get_links(self, rel=None, basename=None, md5=None):
-        def fil(link):
-            return (not rel or rel==link.rel) and (
-                    not basename or basename==link.basename) and (
-                    not md5 or md5 == link.md5)
-        return list(filter(fil, map(Link, self.verdata.get("+links", []))))
-
+        self._mark_dirty()
+        return ELink(self, new_linkdict)
 
 
 def normalize_bases(model, bases):

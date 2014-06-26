@@ -1,4 +1,6 @@
 from __future__ import unicode_literals
+
+from copy import deepcopy
 import py
 from py.xml import html
 from devpi_common.types import ensure_unicode
@@ -203,14 +205,14 @@ class PyPIView:
                  request_method="POST")
     def post_testresult(self):
         stage = self.context.stage
-        filestore = self.xom.filestore
         relpath = self.request.path.strip("/")
-        releasefile_entry = filestore.get_file_entry(relpath)
-        if not releasefile_entry:
+        link = stage.get_link_from_entrypath(relpath)
+        if link is None or link.rel != "releasefile":
             apireturn(404, message="no release file found at %s" % relpath)
         testresultdata = getjson(self.request)
-        test_entry = stage.store_toxresult(releasefile_entry, testresultdata)
-        apireturn(200, type="testresultpath", result=test_entry.relpath)
+        tox_link = stage.store_toxresult(link, testresultdata)
+        apireturn(200, type="testresultpath",
+                  result=tox_link.entrypath)
 
     #
     # index serving and upload
@@ -554,8 +556,11 @@ class PyPIView:
             apireturn(404, "project %r does not exist" % name)
         if real_name != name:
             redirect("/%s/%s" % (stage.name, real_name))
-        metadata = stage.get_projectconfig(name)
-        apireturn(200, type="projectconfig", result=metadata)
+        view_metadata = {}
+        for version, verdata in stage.get_projectconfig(name).items():
+            view_verdata = self._make_view_verdata(verdata)
+            view_metadata[version] = view_verdata
+        apireturn(200, type="projectconfig", result=view_metadata)
 
     @view_config(
         route_name="/{user}/{index}/{name}", request_method="DELETE",
@@ -583,11 +588,33 @@ class PyPIView:
         if not verdata:
             abort(self.request, 404, "version %r does not exist" % version)
 
-        # rewrite entrypaths to proper hrefs
-        for linkdict in verdata.get("+links", []):
-            entrypath = linkdict.pop("entrypath")
-            linkdict["href"] = "/" + entrypath
-        apireturn(200, type="versiondata", result=verdata)
+        view_verdata = self._make_view_verdata(verdata)
+        apireturn(200, type="versiondata", result=view_verdata)
+
+    def _make_view_verdata(self, verdata):
+        view_verdata = deepcopy(verdata)
+        elinks = view_verdata.pop("+elinks", None)
+        if elinks is not None:
+            view_verdata["+links"] = links = []
+            for elinkdict in elinks:
+                linkdict = deepcopy(elinkdict)
+                entrypath = linkdict.pop("entrypath")
+                linkdict["href"] = self._url_for_entrypath(entrypath)
+                for_entrypath = linkdict.pop("for_entrypath", None)
+                if for_entrypath is not None:
+                    linkdict["for_href"] = \
+                        self._url_for_entrypath(for_entrypath)
+                links.append(linkdict)
+        return view_verdata
+
+    def _url_for_entrypath(self, entrypath):
+        parts = entrypath.split("/")
+        user, index = parts[:2]
+        assert parts[2] in ("+f", "+e")
+        route_name = "/{user}/{index}/%s/{relpath:.*}" % parts[2]
+        relpath = "/".join(parts[3:])
+        return self.request.route_url(
+               route_name, user=user, index=index, relpath=relpath)
 
     @view_config(route_name="/{user}/{index}/{name}/{version}", request_method="DELETE")
     def project_version_delete(self):

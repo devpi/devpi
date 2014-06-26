@@ -204,7 +204,7 @@ class IndexDump:
         for name in self.stage.getprojectnames_perstage():
             data = copy.deepcopy(self.stage.get_projectconfig_perstage(name))
             for val in data.values():
-                val.pop("+links", None)
+                val.pop("+elinks", None)
             realname = self.exporter.get_real_projectname(name)
             assert realname not in self.indexmeta["projects"]
             self.indexmeta["projects"][realname] = data
@@ -233,19 +233,18 @@ class IndexDump:
                                entrymapping=entry.meta.copy())
 
     def dump_toxresults(self, pv):
-        for link in pv.get_links(rel="toxresult"):
-            entry = self.exporter.filestore.get_file_entry(link.entrypath)
-            assert entry.file_exists(), entry.relpath
-            content = entry.file_get_content()
+        for tox_link in pv.get_links(rel="toxresult"):
+            reflink = pv.stage.get_link_from_entrypath(tox_link.for_entrypath)
             relpath = self.exporter.write_file(
-                content,
-                self.basedir.join(pv.projectname,
-                                  link.releasefile_md5,
-                                  entry.basename))
-            self.add_filedesc("toxresult", pv.projectname, relpath,
-                               version=pv.version,
-                               releasefile_md5=link.releasefile_md5,
-                               entrymapping=entry.meta.copy())
+                content=tox_link.entry.file_get_content(),
+                dest=self.basedir.join(pv.projectname, reflink.md5,
+                                       tox_link.basename)
+            )
+            self.add_filedesc(type="toxresult",
+                              projectname=pv.projectname,
+                              relpath=relpath,
+                              version=pv.version,
+                              for_entrypath=reflink.entrypath)
 
     def add_filedesc(self, type, projectname, relpath, **kw):
         assert self.exporter.basepath.join(relpath).check()
@@ -329,7 +328,7 @@ class Importer:
             for project, versions in projects.items():
                 for version, versiondata in versions.items():
                     with self.xom.keyfs.transaction(write=True):
-                        assert "+links" not in versiondata
+                        assert "+elinks" not in versiondata
                         if not versiondata.get("version"):
                             name = versiondata["name"]
                             self.warn("%r: ignoring project metadata without "
@@ -366,7 +365,7 @@ class Importer:
                         p.basename, p.read("rb"),
                         last_modified=mapping["last_modified"])
             assert entry.md5 == mapping["md5"]
-            self.import_toxresults(stage, entry)
+            self.import_pre2_toxresults(stage, entry)
         elif filedesc["type"] == "doczip":
             basename = os.path.basename(rel)
             name, version, suffix = splitbasename(basename)
@@ -374,27 +373,27 @@ class Importer:
         elif filedesc["type"] == "toxresult":
             pv = stage.get_project_version(filedesc["projectname"],
                                            filedesc["version"])
-            link, = pv.get_links(md5=filedesc["releasefile_md5"])
-            entry = stage.xom.filestore.get_file_entry(link.entrypath)
-            assert entry, link
-            stage.store_toxresult(entry,
+            link, = pv.get_links(entrypath=filedesc["for_entrypath"])
+            stage.store_toxresult(link,
                                   json.loads(p.read("rb").decode("utf8")))
         else:
             fatal("unknown file type: %s" % (type,))
 
-    def import_toxresults(self, stage, releasefile_entry):
+    def import_pre2_toxresults(self, stage, releasefile_entry):
         # pre 2.0 export structure (called "attachments")
         md5 = releasefile_entry.md5
         type_path = self.import_rootdir.join("attach", md5, "toxresult")
         if not type_path.exists():
             return
+        releasefile_link = stage.get_link_from_entrypath(
+                entrypath=releasefile_entry.relpath)
         type = type_path.basename
         for i in range(len(type_path.listdir())):
             attachment_data = type_path.join(str(i)).read(mode="rb")
             testresultdata = json.loads(attachment_data)
             self.tw.line("importing pre-2.0 test  results %s/%s" %(md5, type))
-            entry = stage.store_toxresult(releasefile_entry, testresultdata)
-            self.tw.line("imported %s" % entry.relpath)
+            link = stage.store_toxresult(releasefile_link, testresultdata)
+            self.tw.line("imported %s" % link.entrypath)
 
 
 class IndexTree:

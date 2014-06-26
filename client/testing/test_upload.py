@@ -5,7 +5,7 @@ import pytest
 from devpi.upload import *
 from textwrap import dedent
 from devpi_common.metadata import splitbasename
-
+from devpi_common.viewhelp import ViewVersionLinks
 from devpi.main import check_output
 
 @pytest.fixture
@@ -142,9 +142,11 @@ class TestUploadFunctional:
         assert len(dist.listdir()) == 2
         hub = devpi("upload", "--from-dir", dist)
         for ver in ("1.1", '1.2'):
-            out = out_devpi("getjson", hub.current.get_index_url().url + "hello/%s/" % ver)
+            url = hub.current.get_index_url().url + "hello/%s/" % ver
+            out = out_devpi("getjson", url)
             data = json.loads(out.stdout.str())
-            assert ("hello-%s.zip" % ver) in data["result"]["+files"]
+            vv = ViewVersionLinks(url, data["result"])
+            assert vv.get_link(basename="hello-%s.zip" % ver)
 
     def test_frompath(self, initproj, devpi, out_devpi, runproc):
         initproj("hello-1.3", {"doc": {
@@ -156,9 +158,11 @@ class TestUploadFunctional:
         assert len(dist.listdir()) == 1
         p = dist.listdir()[0]
         hub = devpi("upload", p)
-        out = out_devpi("getjson", hub.current.get_index_url().url + "hello/1.3/")
+        url = hub.current.get_index_url().url + "hello/1.3/"
+        out = out_devpi("getjson", url)
         data = json.loads(out.stdout.str())
-        assert "hello-1.3.zip" in data["result"]["+files"]
+        vv = ViewVersionLinks(url, data["result"])
+        assert vv.get_link(basename="hello-1.3.zip")
 
 
 

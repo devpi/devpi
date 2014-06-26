@@ -38,19 +38,19 @@ def test_is_empty(model, keyfs):
     user.delete()
     assert model.is_empty()
 
+@pytest.fixture
+def stage(request, user):
+    config = dict(index="world", bases=(),
+                  type="stage", volatile=True)
+    if "bases" in request.fixturenames:
+        config["bases"] = request.getfuncargvalue("bases")
+    return user.create_stage(**config)
+
+@pytest.fixture
+def user(model):
+    return model.create_user("hello", password="123")
+
 class TestStage:
-    @pytest.fixture
-    def stage(self, request, user):
-        config = dict(index="world", bases=(),
-                      type="stage", volatile=True)
-        if "bases" in request.fixturenames:
-            config["bases"] = request.getfuncargvalue("bases")
-        return user.create_stage(**config)
-
-    @pytest.fixture
-    def user(self, model):
-        return model.create_user("hello", password="123")
-
     def test_create_and_delete(self, model):
         user = model.create_user("hello", password="123")
         user.create_stage("world", bases=(), type="stage", volatile=False)
@@ -195,7 +195,7 @@ class TestStage:
         assert entries[0].md5 == entry.md5
         assert stage.getprojectnames() == ["some"]
         pconfig = stage.get_projectconfig("some")
-        links = pconfig["1.0"]["+links"]
+        links = pconfig["1.0"]["+elinks"]
         assert len(links) == 1
         assert links[0]["entrypath"].endswith("some-1.0.zip")
 
@@ -212,9 +212,8 @@ class TestStage:
         stage.store_releasefile("someproject", "1.0",
                                 "someproject-1.0.zip", content)
         projectconfig = stage.get_projectconfig("someproject")
-        links = projectconfig["1.0"]["+links"]
-        link, = map(Link, links)
-        assert link.entrypath.endswith("someproject-1.0.zip")
+        linkdict, = projectconfig["1.0"]["+elinks"]
+        assert linkdict["entrypath"].endswith("someproject-1.0.zip")
         assert projectconfig["1.0"]["+shadowing"]
 
     def test_store_and_delete_project(self, stage, bases):
@@ -282,16 +281,20 @@ class TestStage:
         assert entry.projectname == "pkg1"
         assert entry.version == "1.0"
         testresultdata = {'hello': 'world'}
-        stage.store_toxresult(entry, testresultdata)
+        link = stage.get_link_from_entrypath(entry.relpath)
+        stage.store_toxresult(link, testresultdata)
         pv = stage.get_project_version("pkg1", "1.0")
-        links = list(pv.get_links(rel="toxresult"))
-        assert len(links) == 1
-        tentry = stage.xom.filestore.get_file_entry(links[0].entrypath)
-        assert tentry.basename == "tox0.json"
+        tox_links = list(pv.get_links(rel="toxresult"))
+        assert len(tox_links) == 1
+        tentry = tox_links[0].entry
+        assert tentry.basename == "toxresult0.at"
         back_data = json.loads(tentry.file_get_content().decode("utf8"))
         assert back_data == testresultdata
 
-        results = stage.get_toxresults("pkg1", "1.0", md5=entry.md5)
+        assert tentry.projectname == entry.projectname
+        assert tentry.version == entry.version
+
+        results = stage.get_toxresults(link)
         assert len(results) == 1
         assert results[0] == testresultdata
 
@@ -399,6 +402,52 @@ class TestStage:
         stage.register_metadata(dict(name="this", version="1.0"))
         project = stage.get_project_info("hello")
         assert project.name == "Hello"
+
+class TestProjectVersion:
+    @pytest.fixture
+    def pv(self, stage):
+        stage.register_metadata(dict(name="proj1", version="1.0"))
+        return stage.get_project_version("proj1", "1.0")
+
+    def test_store_file(self, pv):
+        pv.create_linked_entry(
+            rel="releasefile", basename="proj1-1.0.zip", file_content=b'123'
+        )
+        pv.create_linked_entry(
+            rel="doczip", basename="proj1-1.0.doc.zip", file_content=b'123'
+        )
+        link, = pv.get_links(rel="releasefile")
+        assert link.entrypath.endswith("proj1-1.0.zip")
+
+    def test_attachment_create_remove(self, pv):
+        pv.create_linked_entry(
+            rel="releasefile", basename="proj1-1.0.zip", file_content=b'123'
+        )
+        pv.create_linked_entry(
+            rel="releasefile", basename="proj1-1.1.zip", file_content=b'456'
+        )
+        link1, link2= pv.get_links(rel="releasefile")
+        assert link1.entrypath.endswith("proj1-1.0.zip")
+
+        pv.new_reflink(rel="toxresult", file_content=b'123', for_entrypath=link1)
+        pv.new_reflink(rel="toxresult", file_content=b'456', for_entrypath=link2)
+        rlink, = pv.get_links(rel="toxresult", for_entrypath=link1)
+        assert rlink.for_entrypath == link1.entrypath
+        rlink, = pv.get_links(rel="toxresult", for_entrypath=link2)
+        assert rlink.for_entrypath == link2.entrypath
+
+        link1_entry = link1.entry  # queried below
+
+        # remove one release link, which should remove its attachment,
+        # and check that the other release and its attachment is still there
+        pv.remove_links(rel="releasefile", basename="proj1-1.0.zip")
+        links = pv.get_links()
+        assert len(links) == 2
+        assert links[0].rel == "releasefile"
+        assert links[1].rel == "toxresult"
+        assert links[1].for_entrypath == links[0].entrypath
+        assert links[0].entrypath.endswith("proj1-1.1.zip")
+        assert not link1_entry.key.exists()
 
 
 class TestUsers:
