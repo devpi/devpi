@@ -605,21 +605,19 @@ class ProjectVersion:
         return list(filter(fil, [ELink(self, linkdict)
                            for linkdict in self.verdata.get("+elinks", [])]))
 
-    def _mark_dirty(self):
-        self.key_projectconfig.set(self.projectconfig)
-        threadlog.debug("marking dirty %s", self.key_projectconfig)
-
-    def _create_file_entry(self, filename, file_content, md5dir=None):
-        if md5dir is None:
-            md5dir = hashlib.md5(file_content).hexdigest()
-        key = self.stage.keyfs.STAGEFILE(
-            user=self.stage.user.name, index=self.stage.index,
-            md5=md5dir, filename=filename)
-        entry = FileEntry(self.stage.xom, key)
-        entry.file_set_content(file_content)
+    def _create_file_entry(self, basename, file_content, md5dir=None):
+        entry = self.filestore.store(
+                    user=self.stage.user.name, index=self.stage.index,
+                    basename=basename,
+                    file_content=file_content,
+                    md5dir=md5dir)
         entry.projectname = self.projectname
         entry.version = self.version
         return entry
+
+    def _mark_dirty(self):
+        self.key_projectconfig.set(self.projectconfig)
+        threadlog.debug("marking dirty %s", self.key_projectconfig)
 
     def _get_inplace_linkdicts(self):
         return self.verdata.setdefault("+elinks", [])

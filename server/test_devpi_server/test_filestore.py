@@ -1,6 +1,5 @@
 
 import os
-import json
 import pytest
 import py
 from devpi_server.filestore import *
@@ -242,18 +241,3 @@ class TestFileStore:
         assert entry2.md5 == entry.md5
         assert entry2.last_modified
         assert entry2.file_get_content() == content
-
-    def test_testresults(self, filestore):
-        #
-        #link = URL("http://pypi.python.org/pkg/pytest-1.7.zip#md5=123")
-        #entry = filestore.maplink(link)
-
-        from test_devpi_server.example import tox_result_data
-        md5 = tox_result_data["installpkg"]["md5"]
-        data = json.dumps(tox_result_data).encode("utf8")
-        test_entry = filestore.store_test("user", "dev", releasefile_md5=md5,
-                                          filename="some-1.7.zip",
-                                          content=data)
-        assert test_entry.file_exists()
-        x = json.loads(test_entry.file_get_content().decode("utf8"))
-        assert x == tox_result_data

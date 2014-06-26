@@ -70,19 +70,13 @@ class FileStore:
             raise # return None
         return FileEntry(self.xom, key, md5=md5)
 
-    def store(self, user, index, filename, content, last_modified=None):
-        md5 = hashlib.md5(content).hexdigest()
-        key = self.keyfs.STAGEFILE(user=user, index=index,
-                                   md5=md5, filename=filename)
+    def store(self, user, index, basename, file_content, md5dir=None):
+        if md5dir is None:
+            md5dir = hashlib.md5(file_content).hexdigest()
+        key = self.keyfs.STAGEFILE(
+            user=user, index=index, md5=md5dir, filename=basename)
         entry = FileEntry(self.xom, key)
-        entry.file_set_content(content, md5=md5)
-        return entry
-
-    def store_test(self, user, index, releasefile_md5, filename, content):
-        key = self.keyfs.STAGEFILE(user=user, index=index,
-                                   md5=releasefile_md5, filename=filename)
-        entry = FileEntry(self.xom, key)
-        entry.file_set_content(content)
+        entry.file_set_content(file_content)
         return entry
 
 def metaprop(name):
