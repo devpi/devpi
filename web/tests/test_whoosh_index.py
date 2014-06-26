@@ -88,8 +88,8 @@ def test_search_after_register(mapp, testapp):
     r = testapp.get('/+search?query=foo', expect_errors=False)
     links = r.html.select('.searchresults a')
     assert [(l.text.strip(), l.attrs['href']) for l in links] == [
-        ("pkg1-2.6", "http://localhost:80/%s/pkg1/2.6" % api.stagename),
-        ("Description", "http://localhost:80/%s/pkg1/2.6#description" % api.stagename)]
+        ("pkg1-2.6", "http://localhost/%s/pkg1/2.6" % api.stagename),
+        ("Description", "http://localhost/%s/pkg1/2.6#description" % api.stagename)]
     mapp.register_metadata({
         "name": "pkg1",
         "version": "2.7",
@@ -97,10 +97,10 @@ def test_search_after_register(mapp, testapp):
     r = testapp.get('/+search?query=foo', expect_errors=False)
     links = r.html.select('.searchresults a')
     assert [(l.text.strip(), l.attrs['href']) for l in links] == [
-        ("pkg1-2.7", "http://localhost:80/%s/pkg1/2.7" % api.stagename),
-        ("Description", "http://localhost:80/%s/pkg1/2.7#description" % api.stagename)]
+        ("pkg1-2.7", "http://localhost/%s/pkg1/2.7" % api.stagename),
+        ("Description", "http://localhost/%s/pkg1/2.7#description" % api.stagename)]
     r = testapp.xget(200, '/+search?query=foo')
     links = r.html.select('.searchresults a')
     assert [(l.text.strip(), l.attrs['href']) for l in links] == [
-        ("pkg1-2.7", "http://localhost:80/%s/pkg1/2.7" % api.stagename),
-        ("Description", "http://localhost:80/%s/pkg1/2.7#description" % api.stagename)]
+        ("pkg1-2.7", "http://localhost/%s/pkg1/2.7" % api.stagename),
+        ("Description", "http://localhost/%s/pkg1/2.7#description" % api.stagename)]
