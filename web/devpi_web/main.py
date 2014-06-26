@@ -66,6 +66,12 @@ def includeme(config):
     config.add_route(
         "docviewroot",
         "/{user}/{index}/{name}/{version}/+d/{relpath:.*}")
+    config.add_route(
+        "toxresults",
+        "/{user}/{index}/{name}/{version}/+toxresults/{basename}")
+    config.add_route(
+        "toxresult",
+        "/{user}/{index}/{name}/{version}/+toxresults/{basename}/{toxresult}")
     config.add_request_method(macros, reify=True)
     config.add_request_method(navigation_info, reify=True)
     config.add_request_method(query_docs_html, reify=True)
@@ -115,6 +121,8 @@ def devpiserver_run_commands(xom):
 
 
 def index_project(stage, name):
+    if stage is None:
+        return
     ix = get_indexer(stage.xom.config)
     pconfig = stage.get_projectconfig(name)
     ix.update_projects([preprocess_project(stage, name, pconfig)])

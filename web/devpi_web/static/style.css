@@ -54,6 +54,7 @@ form#search input[type=submit] {
 
 table.files,
 table.packages,
+table.toxresults,
 table.versions {
     margin: 0.5em 0;
     border-collapse: collapse;
@@ -61,12 +62,14 @@ table.versions {
 }
 
 table.files,
+table.toxresults,
 table.packages {
     width: 100%;
 }
 
 table.files th,
 table.packages th,
+table.toxresults th,
 table.versions th {
     background: #ccc;
     border-left: 1px solid #ccc;
@@ -80,6 +83,7 @@ table.files td {
 
 table.files td,
 table.packages td,
+table.toxresults td,
 table.versions td {
     vertical-align: top;
     border-left: 1px solid #ccc;
@@ -89,6 +93,7 @@ table.versions td {
 
 table.files thead,
 table.packages thead,
+table.toxresults thead,
 table.versions thead {
     text-align: left;
     font-weight: bold;
@@ -96,6 +101,7 @@ table.versions thead {
 
 table.files tbody tr:nth-child(even),
 table.packages tbody tr:nth-child(even),
+table.toxresults tbody tr:nth-child(even),
 table.versions tbody tr:nth-child(even) {
     background: #efefef;
 }
@@ -174,16 +180,16 @@ table.projectinfos ul {
 }
 
 a.passed:after,
-table.files .testresult.passed .testresult_title:before,
-table.files .testresult .command.passed div:first-child:before {
+.toxresult.passed h2:before,
+.toxresult .command.passed div:first-child:before {
     content: "✔";
     color: green;
     font-weight: bold;
 }
 
 a.failed:after,
-table.files .testresult.failed .testresult_title:before,
-table.files .testresult .command.failed div:first-child:before {
+.toxresult.failed h2:before,
+.toxresult .command.failed div:first-child:before {
     content: "𐄂";
     color: red;
     font-weight: bold;
@@ -197,34 +203,21 @@ a.failed:after {
     content: " 𐄂";
 }
 
-table.files .testresult.opened .testresult_title,
-table.files .testresult.closed .testresult_title {
+.toxresult.opened h2,
+.toxresult.closed h2 {
     cursor: pointer;
 }
 
-table.files .testresult .command > * {
-    margin-left: 1em;
-}
-
-table.files .testresult.opened .testresult_title {
-    margin-left: 0;
-    margin-bottom: 0.5em;
-}
-
-table.files .testresult {
-    margin-bottom: 0.5em;
-}
-
-table.files .testresult.opened .testresult_title:after {
+.toxresult.opened h2:after {
     content: "-";
 }
 
-table.files .testresult.closed .testresult_title:after {
+.toxresult.closed h2:after {
     content: "+";
 }
 
-table.files .testresult.opened .testresult_title:after,
-table.files .testresult.closed .testresult_title:after {
+.toxresult.opened h2:after,
+.toxresult.closed h2:after {
     display: inline-block;
     text-align: center;
     vertical-align: center;
@@ -235,17 +228,12 @@ table.files .testresult.closed .testresult_title:after {
     border: 1px solid #ccc;
 }
 
-table.files .testresult .command div {
-    margin-bottom: 1em;
-}
-
-table.files .testresult.closed .command {
+.toxresult.closed .command {
     display: none;
 }
 
-table.files .testresult pre {
+.toxresult pre {
     margin-left: 1.5em;
-    max-width: 70em;
     white-space: pre-wrap;
     overflow: scroll;
 }
@@ -259,18 +247,18 @@ iframe {
     border: 0;
 }
 
-@media (max-width:991px) {
+@media (max-width:1199px) {
     form#search input {
         font-size: 18px;
     }
-    .files .md5 {
-        display: none;
-    }
 }
 
-@media (max-width:767px) {
+@media (max-width:991px) {
     form#search input[type=text] {
         width: 20em;
+    }
+    .files .md5 {
+        display: none;
     }
 }
 

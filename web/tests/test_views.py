@@ -167,7 +167,7 @@ def test_index_view_project_files(mapp, testapp):
     assert [(l.text, l.attrs['href']) for l in links] == [
         ("simple index", "http://localhost/%s/+simple/" % api.stagename),
         ("pkg1-2.6", "http://localhost/%s/pkg1/2.6" % api.stagename),
-        ("pkg1-2.6.tar.gz", "http://localhost/%s/+f/9a0364b9e99bb480dd25e1f0284c8555/pkg1-2.6.tar.gz#md5=9a0364b9e99bb480dd25e1f0284c8555" % api.stagename),
+        ("pkg1-2.6.tar.gz", "http://localhost/%s/+f/9a0/364b9e99bb480/pkg1-2.6.tar.gz#md5=9a0364b9e99bb480dd25e1f0284c8555" % api.stagename),
         ("root/pypi", "http://localhost/root/pypi"),
         ("simple", "http://localhost/root/pypi/+simple/")]
     mapp.upload_file_pypi(
@@ -178,8 +178,8 @@ def test_index_view_project_files(mapp, testapp):
     assert [(l.text, l.attrs['href']) for l in links] == [
         ("simple index", "http://localhost/%s/+simple/" % api.stagename),
         ("pkg1-2.6", "http://localhost/%s/pkg1/2.6" % api.stagename),
-        ("pkg1-2.6.tar.gz", "http://localhost/%s/+f/9a0364b9e99bb480dd25e1f0284c8555/pkg1-2.6.tar.gz#md5=9a0364b9e99bb480dd25e1f0284c8555" % api.stagename),
-        ("pkg1-2.6.zip", "http://localhost/%s/+f/52360ae08d733016c5603d54b06b5300/pkg1-2.6.zip#md5=52360ae08d733016c5603d54b06b5300" % api.stagename),
+        ("pkg1-2.6.tar.gz", "http://localhost/%s/+f/9a0/364b9e99bb480/pkg1-2.6.tar.gz#md5=9a0364b9e99bb480dd25e1f0284c8555" % api.stagename),
+        ("pkg1-2.6.zip", "http://localhost/%s/+f/523/60ae08d733016/pkg1-2.6.zip#md5=52360ae08d733016c5603d54b06b5300" % api.stagename),
         ("root/pypi", "http://localhost/root/pypi"),
         ("simple", "http://localhost/root/pypi/+simple/")]
 
@@ -281,8 +281,8 @@ def test_version_view(mapp, testapp):
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
         ("Documentation", "http://localhost/%s/pkg1/2.6/+d/index.html" % api.stagename),
-        ("pkg1-2.6.tar.gz", "http://localhost/%s/+f/9a0364b9e99bb480dd25e1f0284c8555/pkg1-2.6.tar.gz#md5=9a0364b9e99bb480dd25e1f0284c8555" % api.stagename),
-        ("pkg1-2.6.zip", "http://localhost/%s/+f/52360ae08d733016c5603d54b06b5300/pkg1-2.6.zip#md5=52360ae08d733016c5603d54b06b5300" % api.stagename)]
+        ("pkg1-2.6.tar.gz", "http://localhost/%s/+f/9a0/364b9e99bb480/pkg1-2.6.tar.gz#md5=9a0364b9e99bb480dd25e1f0284c8555" % api.stagename),
+        ("pkg1-2.6.zip", "http://localhost/%s/+f/523/60ae08d733016/pkg1-2.6.zip#md5=52360ae08d733016c5603d54b06b5300" % api.stagename)]
 
 
 def test_version_not_found(mapp, testapp):
@@ -337,25 +337,36 @@ def test_testdata(mapp, testapp):
     from test_devpi_server.example import tox_result_data
     api = mapp.create_and_use()
     mapp.register_metadata(
-        {"name": "pkg1", "version": "2.6", "description": "foo"},
-        waithooks=True)
-    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200)
+        {"name": "pkg1", "version": "2.6", "description": "foo"})
+    mapp.upload_file_pypi(
+        "pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200, waithooks=True)
     path, = mapp.get_release_paths("pkg1")
     r = testapp.post(path, json.dumps(tox_result_data))
     assert r.status_code == 200
     r = testapp.xget(200, api.index, headers=dict(accept="text/html"))
     passed, = r.html.select('.passed')
     assert passed.text == 'tests'
-    assert passed.attrs['href'].endswith('/user1/dev/pkg1/2.6')
+    assert passed.attrs['href'].endswith(
+        '/user1/dev/pkg1/2.6/+toxresults/pkg1-2.6.tgz')
     r = testapp.xget(200, api.index + '/pkg1/2.6', headers=dict(accept="text/html"))
-    testresult, = r.html.select('.testresult')
-    assert 'passed' in testresult.attrs['class']
-    commands = testresult.select('.command')
-    assert len(commands) == 2
-    assert 'No setup performed' in commands[0].text
-    assert 'passed' in commands[1].attrs['class']
-    assert 'python' in commands[1].text
-    assert 'everything fine' in commands[1].text
+    toxresult, = r.html.select('tbody .toxresults')
+    links = toxresult.select('a')
+    assert len(links) == 2
+    assert 'passed' in links[0].attrs['class']
+    assert 'foo linux2 py27' in links[0].text
+    assert 'All toxresults' in links[1].text
+    r = testapp.xget(200, links[0].attrs['href'])
+    content = "\n".join([x.text.strip() for x in r.html.select('.toxresult')])
+    assert "No setup performed" in content
+    assert "everything fine" in content
+    r = testapp.xget(200, links[1].attrs['href'])
+    rows = [
+        tuple(
+            t.text.strip() if len(t.text.split()) < 2 else " ".join(t.text.split())
+            for t in x.findAll('td'))
+        for x in r.html.select('tbody tr')]
+    assert rows == [
+        ("pkg1-2.6.tgz.toxresult0", "foo", "linux2", "py27", "", "No setup performed Tests passed")]
 
 
 def test_search_nothing(testapp):
@@ -397,6 +408,21 @@ def test_search_docs(mapp, testapp):
     assert [(l.text.strip(), l.attrs['href']) for l in links] == [
         ("pkg1-2.6", "http://localhost/%s/pkg1/2.6" % api.stagename),
         ("Foo", "http://localhost/%s/pkg1/2.6/+d/index.html" % api.stagename)]
+
+
+@pytest.mark.with_notifier
+def test_search_deleted_stage(mapp, testapp):
+    api = mapp.create_and_use()
+    mapp.register_metadata({
+        "name": "pkg1",
+        "version": "2.6",
+        "description": "foo"})
+    mapp.delete_index(api.stagename, waithooks=True)
+    r = testapp.get('/+search?query=pkg')
+    assert r.status_code == 200
+    links = r.html.select('.searchresults a')
+    assert [(l.text.strip(), l.attrs['href']) for l in links] == [
+        ("pkg1-2.6", "http://localhost/%s/pkg1/2.6" % api.stagename)]
 
 
 def test_search_root_pypi(mapp, testapp, pypistage):
@@ -485,17 +511,17 @@ def test_search_batch_links(dummyrequest, pagecount, pagenum, expected):
         "http://localhost:80/{stage}/pkg1/2.6",
         {},
         '.files a',
-        [('pkg1-2.6.tgz', 'http://localhost/{stage}/+f/202cb962ac59075b964b07152d234b70/pkg1-2.6.tgz#md5=202cb962ac59075b964b07152d234b70')]),
+        [('pkg1-2.6.tgz', 'http://localhost/{stage}/+f/202/cb962ac59075b/pkg1-2.6.tgz#md5=202cb962ac59075b964b07152d234b70')]),
     (
         "http://localhost:80/{stage}/pkg1/2.6",
         {'host': 'example.com'},
         '.files a',
-        [('pkg1-2.6.tgz', 'http://example.com/{stage}/+f/202cb962ac59075b964b07152d234b70/pkg1-2.6.tgz#md5=202cb962ac59075b964b07152d234b70')]),
+        [('pkg1-2.6.tgz', 'http://example.com/{stage}/+f/202/cb962ac59075b/pkg1-2.6.tgz#md5=202cb962ac59075b964b07152d234b70')]),
     (
         "http://localhost:80/{stage}/pkg1/2.6",
         {'host': 'example.com:3141'},
         '.files a',
-        [('pkg1-2.6.tgz', 'http://example.com:3141/{stage}/+f/202cb962ac59075b964b07152d234b70/pkg1-2.6.tgz#md5=202cb962ac59075b964b07152d234b70')])])
+        [('pkg1-2.6.tgz', 'http://example.com:3141/{stage}/+f/202/cb962ac59075b/pkg1-2.6.tgz#md5=202cb962ac59075b964b07152d234b70')])])
 def test_url_rewriting(url, headers, selector, expected, mapp, testapp):
     api = mapp.create_and_use()
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
