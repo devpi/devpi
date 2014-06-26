@@ -7,7 +7,7 @@ from devpi_common.metadata import (sorted_sameproject_links,
 from devpi_common.validation import validate_metadata, normalize_name
 from devpi_common.types import ensure_unicode, cached_property
 from .auth import crypt_password, verify_password
-from .filestore import FileEntry
+from .filestore import FileEntry, split_md5
 from .log import threadlog, thread_current_log
 
 
@@ -614,7 +614,7 @@ class ProjectVersion:
         if ref_md5 is None:
             md5dir = None
         else:
-            md5dir = ref_md5[:3] + "/" + ref_md5[3:]
+            md5dir = "/".join(split_md5(ref_md5))
         entry = self.filestore.store(
                     user=self.stage.user.name, index=self.stage.index,
                     basename=basename,
