@@ -548,8 +548,14 @@ class ProjectVersion:
         self.projectname = projectname
         self.version = version
         if projectconfig is None:
-            self.key_projectconfig = self.stage.key_projconfig(name=projectname)
-            self.projectconfig = self.key_projectconfig.get()
+            try:
+                self.key_projectconfig = stage.key_projconfig(name=projectname)
+            except AttributeError:
+                # pypistage has no key_projconfig so we only read it
+                self.projectconfig = stage.get_projectconfig_perstage(
+                                                        projectname)
+            else:
+                self.projectconfig = self.key_projectconfig.get()
         else:
             self.projectconfig = projectconfig
         self.verdata = self.projectconfig.setdefault(version, {})
