@@ -673,9 +673,6 @@ def add_keys(xom, keyfs):
     keyfs.add_key("PROJNAMES", "{user}/{index}/.projectnames", set)
     keyfs.add_key("STAGEFILE", "{user}/{index}/+f/{md5}/{filename}", dict)
 
-    keyfs.add_key("ATTACHMENT", "+attach/{md5}/{type}/{num}", bytes)
-    keyfs.add_key("ATTACHMENTS", "+attach/.att", dict)
-
     keyfs.notifier.on_key_change("PROJCONFIG", ProjectChanged(xom))
     keyfs.notifier.on_key_change("STAGEFILE", FileUploaded(xom))
     keyfs.notifier.on_key_change("PYPI_SERIALS_LOADED", PyPISerialsLoaded(xom))

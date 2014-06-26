@@ -419,7 +419,7 @@ class TestProjectVersion:
         link, = pv.get_links(rel="releasefile")
         assert link.entrypath.endswith("proj1-1.0.zip")
 
-    def test_attachment_create_remove(self, pv):
+    def test_toxresult_create_remove(self, pv):
         pv.create_linked_entry(
             rel="releasefile", basename="proj1-1.0.zip", file_content=b'123'
         )
@@ -438,8 +438,8 @@ class TestProjectVersion:
 
         link1_entry = link1.entry  # queried below
 
-        # remove one release link, which should remove its attachment,
-        # and check that the other release and its attachment is still there
+        # remove one release link, which should removes its toxresults
+        # and check that the other release and its toxresult is still there
         pv.remove_links(rel="releasefile", basename="proj1-1.0.zip")
         links = pv.get_links()
         assert len(links) == 2
