@@ -432,8 +432,7 @@ class PrivateStage:
         for version in projectconfig:
             pv = self.get_project_version(projectname, version)
             for link in pv.get_links("releasefile"):
-                entry = self.xom.filestore.get_file_entry(link.entrypath)
-                files.append(entry)
+                files.append(link.entry)
         return files
 
     def getprojectnames(self):
