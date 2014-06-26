@@ -105,7 +105,7 @@ def test_root_view(testapp):
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
-        ("root/pypi", "http://localhost:80/root/pypi")]
+        ("root/pypi", "http://localhost/root/pypi")]
 
 
 def test_root_view_with_index(mapp, testapp):
@@ -114,8 +114,8 @@ def test_root_view_with_index(mapp, testapp):
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
-        ("root/pypi", "http://localhost:80/root/pypi"),
-        (api.stagename, "http://localhost:80/%s" % api.stagename)]
+        ("root/pypi", "http://localhost/root/pypi"),
+        (api.stagename, "http://localhost/%s" % api.stagename)]
 
 
 def test_index_view_root_pypi(testapp):
@@ -123,7 +123,7 @@ def test_index_view_root_pypi(testapp):
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
-        ("simple index", "http://localhost:80/root/pypi/+simple/")]
+        ("simple index", "http://localhost/root/pypi/+simple/")]
 
 
 def test_index_view(mapp, testapp):
@@ -132,9 +132,9 @@ def test_index_view(mapp, testapp):
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
-        ("simple index", "http://localhost:80/%s/+simple/" % api.stagename),
-        ("root/pypi", "http://localhost:80/root/pypi"),
-        ("simple", "http://localhost:80/root/pypi/+simple/")]
+        ("simple index", "http://localhost/%s/+simple/" % api.stagename),
+        ("root/pypi", "http://localhost/root/pypi"),
+        ("simple", "http://localhost/root/pypi/+simple/")]
 
 
 def test_index_not_found(testapp):
@@ -151,10 +151,10 @@ def test_index_view_project_info(mapp, testapp):
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
-        ("simple index", "http://localhost:80/%s/+simple/" % api.stagename),
-        ("pkg1-2.6", "http://localhost:80/%s/pkg1/2.6" % api.stagename),
-        ("root/pypi", "http://localhost:80/root/pypi"),
-        ("simple", "http://localhost:80/root/pypi/+simple/")]
+        ("simple index", "http://localhost/%s/+simple/" % api.stagename),
+        ("pkg1-2.6", "http://localhost/%s/pkg1/2.6" % api.stagename),
+        ("root/pypi", "http://localhost/root/pypi"),
+        ("simple", "http://localhost/root/pypi/+simple/")]
 
 
 @pytest.mark.with_notifier
@@ -164,23 +164,23 @@ def test_index_view_project_files(mapp, testapp):
     r = testapp.xget(200, api.index, headers=dict(accept="text/html"))
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
-        ("simple index", "http://localhost:80/%s/+simple/" % api.stagename),
-        ("pkg1-2.6", "http://localhost:80/%s/pkg1/2.6" % api.stagename),
+        ("simple index", "http://localhost/%s/+simple/" % api.stagename),
+        ("pkg1-2.6", "http://localhost/%s/pkg1/2.6" % api.stagename),
         ("pkg1-2.6.tar.gz", "http://localhost/%s/+f/9a0364b9e99bb480dd25e1f0284c8555/pkg1-2.6.tar.gz#md5=9a0364b9e99bb480dd25e1f0284c8555" % api.stagename),
-        ("root/pypi", "http://localhost:80/root/pypi"),
-        ("simple", "http://localhost:80/root/pypi/+simple/")]
+        ("root/pypi", "http://localhost/root/pypi"),
+        ("simple", "http://localhost/root/pypi/+simple/")]
     mapp.upload_file_pypi(
         "pkg1-2.6.zip", b"contentzip", "pkg1", "2.6")
     r = testapp.get(api.index, headers=dict(accept="text/html"))
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
-        ("simple index", "http://localhost:80/%s/+simple/" % api.stagename),
-        ("pkg1-2.6", "http://localhost:80/%s/pkg1/2.6" % api.stagename),
+        ("simple index", "http://localhost/%s/+simple/" % api.stagename),
+        ("pkg1-2.6", "http://localhost/%s/pkg1/2.6" % api.stagename),
         ("pkg1-2.6.tar.gz", "http://localhost/%s/+f/9a0364b9e99bb480dd25e1f0284c8555/pkg1-2.6.tar.gz#md5=9a0364b9e99bb480dd25e1f0284c8555" % api.stagename),
         ("pkg1-2.6.zip", "http://localhost/%s/+f/52360ae08d733016c5603d54b06b5300/pkg1-2.6.zip#md5=52360ae08d733016c5603d54b06b5300" % api.stagename),
-        ("root/pypi", "http://localhost:80/root/pypi"),
-        ("simple", "http://localhost:80/root/pypi/+simple/")]
+        ("root/pypi", "http://localhost/root/pypi"),
+        ("simple", "http://localhost/root/pypi/+simple/")]
 
 
 @pytest.mark.with_notifier
@@ -194,11 +194,11 @@ def test_index_view_project_docs(mapp, testapp):
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
-        ("simple index", "http://localhost:80/%s/+simple/" % api.stagename),
-        ("pkg1-2.6", "http://localhost:80/%s/pkg1/2.6" % api.stagename),
-        ("pkg1-2.6", "http://localhost:80/%s/pkg1/2.6/+d/index.html" % api.stagename),
-        ("root/pypi", "http://localhost:80/root/pypi"),
-        ("simple", "http://localhost:80/root/pypi/+simple/")]
+        ("simple index", "http://localhost/%s/+simple/" % api.stagename),
+        ("pkg1-2.6", "http://localhost/%s/pkg1/2.6" % api.stagename),
+        ("pkg1-2.6", "http://localhost/%s/pkg1/2.6/+d/index.html" % api.stagename),
+        ("root/pypi", "http://localhost/root/pypi"),
+        ("simple", "http://localhost/root/pypi/+simple/")]
 
 
 def test_project_view(mapp, testapp):
@@ -213,10 +213,10 @@ def test_project_view(mapp, testapp):
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
-        (api.stagename, "http://localhost:80/%s" % api.stagename),
-        ("2.7", "http://localhost:80/%s/pkg1/2.7" % api.stagename),
-        (api.stagename, "http://localhost:80/%s" % api.stagename),
-        ("2.6", "http://localhost:80/%s/pkg1/2.6" % api.stagename)]
+        (api.stagename, "http://localhost/%s" % api.stagename),
+        ("2.7", "http://localhost/%s/pkg1/2.7" % api.stagename),
+        (api.stagename, "http://localhost/%s" % api.stagename),
+        ("2.6", "http://localhost/%s/pkg1/2.6" % api.stagename)]
 
 
 def test_project_not_found(mapp, testapp):
@@ -240,10 +240,10 @@ def test_project_view_root_pypi(mapp, testapp, pypistage):
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
-        ("root/pypi", "http://localhost:80/root/pypi"),
-        ("2.7", "http://localhost:80/root/pypi/pkg1/2.7"),
-        ("root/pypi", "http://localhost:80/root/pypi"),
-        ("2.6", "http://localhost:80/root/pypi/pkg1/2.6")]
+        ("root/pypi", "http://localhost/root/pypi"),
+        ("2.7", "http://localhost/root/pypi/pkg1/2.7"),
+        ("root/pypi", "http://localhost/root/pypi"),
+        ("2.6", "http://localhost/root/pypi/pkg1/2.6")]
 
 
 @pytest.mark.with_notifier
@@ -279,7 +279,7 @@ def test_version_view(mapp, testapp):
         ('pkg1-2.6.zip', 'Source', '', '10 bytes', '', '52360ae08d733016c5603d54b06b5300')]
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
-        ("Documentation", "http://localhost:80/%s/pkg1/2.6/+d/index.html" % api.stagename),
+        ("Documentation", "http://localhost/%s/pkg1/2.6/+d/index.html" % api.stagename),
         ("pkg1-2.6.tar.gz", "http://localhost/%s/+f/9a0364b9e99bb480dd25e1f0284c8555/pkg1-2.6.tar.gz#md5=9a0364b9e99bb480dd25e1f0284c8555" % api.stagename),
         ("pkg1-2.6.zip", "http://localhost/%s/+f/52360ae08d733016c5603d54b06b5300/pkg1-2.6.zip#md5=52360ae08d733016c5603d54b06b5300" % api.stagename)]
 
@@ -393,8 +393,8 @@ def test_search_docs(mapp, testapp):
     assert r.status_code == 200
     links = r.html.select('.searchresults a')
     assert [(l.text.strip(), l.attrs['href']) for l in links] == [
-        ("pkg1-2.6", "http://localhost:80/%s/pkg1/2.6" % api.stagename),
-        ("Foo", "http://localhost:80/%s/pkg1/2.6/+d/index.html" % api.stagename)]
+        ("pkg1-2.6", "http://localhost/%s/pkg1/2.6" % api.stagename),
+        ("Foo", "http://localhost/%s/pkg1/2.6/+d/index.html" % api.stagename)]
 
 
 def test_search_root_pypi(mapp, testapp, pypistage):
@@ -410,10 +410,10 @@ def test_search_root_pypi(mapp, testapp, pypistage):
     assert len(search_results) == 2
     links = search_results[0].findAll('a')
     assert sorted((l.text.strip(), l.attrs['href']) for l in links) == [
-        ("pkg1", "http://localhost:80/root/pypi/pkg1")]
+        ("pkg1", "http://localhost/root/pypi/pkg1")]
     links = search_results[1].findAll('a')
     assert sorted((l.text.strip(), l.attrs['href']) for l in links) == [
-        ("pkg2", "http://localhost:80/root/pypi/pkg2")]
+        ("pkg2", "http://localhost/root/pypi/pkg2")]
 
 
 @pytest.mark.parametrize("pagecount, pagenum, expected", [
@@ -461,3 +461,46 @@ def test_search_batch_links(dummyrequest, pagecount, pagenum, expected):
     dummyrequest.route_url = lambda r, **kw: "search?%s" % "&".join(
         "%s=%s" % x for x in sorted(kw['_query'].items()))
     assert view.batch_links == expected
+
+
+@pytest.mark.parametrize("url, headers, selector, expected", [
+    (
+        "http://localhost:80/{stage}",
+        {},
+        'form h1 a',
+        [('devpi', 'http://localhost/')]),
+    (
+        "http://localhost:80/{stage}",
+        {'host': 'example.com'},
+        'form h1 a',
+        [('devpi', 'http://example.com/')]),
+    (
+        "http://localhost:80/{stage}",
+        {'host': 'example.com:3141'},
+        'form h1 a',
+        [('devpi', 'http://example.com:3141/')]),
+    (
+        "http://localhost:80/{stage}/pkg1/2.6",
+        {},
+        '.files a',
+        [('pkg1-2.6.tgz', 'http://localhost/{stage}/+f/202cb962ac59075b964b07152d234b70/pkg1-2.6.tgz#md5=202cb962ac59075b964b07152d234b70')]),
+    (
+        "http://localhost:80/{stage}/pkg1/2.6",
+        {'host': 'example.com'},
+        '.files a',
+        [('pkg1-2.6.tgz', 'http://example.com/{stage}/+f/202cb962ac59075b964b07152d234b70/pkg1-2.6.tgz#md5=202cb962ac59075b964b07152d234b70')]),
+    (
+        "http://localhost:80/{stage}/pkg1/2.6",
+        {'host': 'example.com:3141'},
+        '.files a',
+        [('pkg1-2.6.tgz', 'http://example.com:3141/{stage}/+f/202cb962ac59075b964b07152d234b70/pkg1-2.6.tgz#md5=202cb962ac59075b964b07152d234b70')])])
+def test_url_rewriting(url, headers, selector, expected, mapp, testapp):
+    api = mapp.create_and_use()
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
+    url = url.format(stage=api.stagename)
+    r = testapp.xget(200, url, headers=dict(accept="text/html", **headers))
+    links = [
+        (x.text.strip(), x.attrs.get('href'))
+        for x in r.html.select(selector)]
+    expected = [(t, u.format(stage=api.stagename)) for t, u in expected]
+    assert links == expected

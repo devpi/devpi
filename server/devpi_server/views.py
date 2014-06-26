@@ -89,8 +89,7 @@ def json_preferred(request):
 
 def route_url(self, *args, **kw):
     xom = self.registry['xom']
-    outside_url = get_outside_url(
-        self.headers, xom.config.args.outside_url)
+    outside_url = get_outside_url(self, xom.config.args.outside_url)
     url = super(self.__class__, self).route_url(
         _app_url=outside_url.rstrip("/"), *args, **kw)
     # Unquote plus signs in path segment. The settings in pyramid for
@@ -766,21 +765,20 @@ def getjson(request, allowed_keys=None):
             abort(request, 400, "json keys not recognized: %s" % ",".join(diff))
     return dict
 
-def get_outside_url(headers, outsideurl):
+def get_outside_url(request, outsideurl):
     if outsideurl:
         url = outsideurl
     else:
-        url = headers.get("X-outside-url", None)
+        url = request.headers.get("X-outside-url", None)
         if url is None:
-            url = "http://" + headers.get("Host")
+            url = request.application_url
     url = url.rstrip("/") + "/"
     #self.log.debug("outside host header: %s", url)
     return url
 
 def trigger_jenkins(request, stage, jenkinurl, testspec):
     log = request.log
-    baseurl = get_outside_url(request.headers,
-                              stage.xom.config.args.outside_url)
+    baseurl = get_outside_url(request, stage.xom.config.args.outside_url)
 
     source = render_string("devpibootstrap.py",
         INDEXURL=baseurl + stage.name,
