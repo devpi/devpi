@@ -135,8 +135,9 @@ def get_files_info(request, user, index, metadata, show_test_results=False):
             dist_type=dist_file_types.get(file_type, ''),
             py_version=py_version,
             size=size)
-        if show_test_results and entry.md5:
-            test_results = get_test_result_info(request, entry.md5)
+        if show_test_results:
+            stage = xom.model.getstage(user, index)
+            test_results = get_test_result_info(stage, metadata, basename)
             if test_results:
                 fileinfo['test_results'] = test_results
         files.append(fileinfo)
@@ -155,12 +156,10 @@ def _get_commands_info(commands):
     return result
 
 
-def get_test_result_info(request, md5):
-    xom = request.registry['xom']
+def get_test_result_info(stage, metadata, basename):
     result = []
     seen = set()
-    toxresults = list(
-        enumerate(xom.filestore.iter_attachments(md5, 'toxresult')))
+    toxresults = list(enumerate(stage.get_toxresults(metadata, basename)))
     for index, toxresult in reversed(toxresults):
         try:
             for envname in toxresult["testenvs"]:
@@ -182,7 +181,8 @@ def get_test_result_info(request, md5):
                 info['failed'] = info["setup"]["failed"] or info["test"]["failed"]
                 result.append(info)
         except Exception:
-            log.exception("Couldn't parse test results %s for %s." % (index, md5))
+            log.exception("Couldn't parse test results %s for %s." %
+                          (index, basename))
     return result
 
 

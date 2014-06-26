@@ -2,11 +2,11 @@ from __future__ import unicode_literals
 
 import py
 import pytest
-from textwrap import dedent
+import json
 
 from devpi_common.metadata import splitbasename
 from devpi_common.archive import Archive, zip_dict
-from devpi_server.model import InvalidIndexconfig, run_passwd
+from devpi_server.model import *  # noqa
 from py.io import BytesIO
 
 pytestmark = [pytest.mark.writetransaction]
@@ -38,19 +38,19 @@ def test_is_empty(model, keyfs):
     user.delete()
     assert model.is_empty()
 
+@pytest.fixture
+def stage(request, user):
+    config = dict(index="world", bases=(),
+                  type="stage", volatile=True)
+    if "bases" in request.fixturenames:
+        config["bases"] = request.getfuncargvalue("bases")
+    return user.create_stage(**config)
+
+@pytest.fixture
+def user(model):
+    return model.create_user("hello", password="123")
+
 class TestStage:
-    @pytest.fixture
-    def stage(self, request, user):
-        config = dict(index="world", bases=(),
-                      type="stage", volatile=True)
-        if "bases" in request.fixturenames:
-            config["bases"] = request.getfuncargvalue("bases")
-        return user.create_stage(**config)
-
-    @pytest.fixture
-    def user(self, model):
-        return model.create_user("hello", password="123")
-
     def test_create_and_delete(self, model):
         user = model.create_user("hello", password="123")
         user.create_stage("world", bases=(), type="stage", volatile=False)
@@ -104,27 +104,6 @@ class TestStage:
     def test_empty(self, stage, bases):
         assert not stage.getreleaselinks("someproject")
         assert not stage.getprojectnames()
-
-    def test_10_metadata_name_mixup(self, stage, bases):
-        stage._register_metadata({"name": "x-encoder", "version": "1.0"})
-        key = stage.key_projconfig(name="x_encoder")
-        with key.update() as projectconfig:
-            versionconfig = projectconfig["1.0"] = {}
-            versionconfig.update({"+files":
-                {"x_encoder-1.0.zip": "%s/x_encoder/1.0/x_encoder-1.0.zip" %
-                 stage.name}})
-        with stage.key_projectnames.update() as projectnames:
-            projectnames.add("x_encoder")
-
-        names = stage.getprojectnames_perstage()
-        assert len(names) == 2
-        assert "x-encoder" in names
-        assert "x_encoder" in names
-        # also test import/export
-        from devpi_server.importexport import Exporter
-        tw = py.io.TerminalWriter()
-        exporter = Exporter(tw, stage.xom)
-        exporter.compute_global_projectname_normalization()
 
     def test_inheritance_simple(self, pypistage, stage):
         stage.modify(bases=("root/pypi",))
@@ -205,7 +184,8 @@ class TestStage:
         pypistage.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         projectconfig = stage.get_projectconfig("someproject")
-        assert "someproject-1.0.zip" in projectconfig["1.0"]["+files"]
+        pv = ProjectVersion(stage, "someproject", "1.0", projectconfig)
+        assert len(pv.get_links(basename="someproject-1.0.zip")) == 1
 
     def test_store_and_get_releasefile(self, stage, bases):
         content = b"123"
@@ -215,7 +195,9 @@ class TestStage:
         assert entries[0].md5 == entry.md5
         assert stage.getprojectnames() == ["some"]
         pconfig = stage.get_projectconfig("some")
-        assert pconfig["1.0"]["+files"]["some-1.0.zip"].endswith("some-1.0.zip")
+        links = pconfig["1.0"]["+elinks"]
+        assert len(links) == 1
+        assert links[0]["entrypath"].endswith("some-1.0.zip")
 
     def test_store_releasefile_fails_if_not_registered(self, stage):
         with pytest.raises(stage.MissesRegistration):
@@ -230,9 +212,8 @@ class TestStage:
         stage.store_releasefile("someproject", "1.0",
                                 "someproject-1.0.zip", content)
         projectconfig = stage.get_projectconfig("someproject")
-        files = projectconfig["1.0"]["+files"]
-        link = list(files.values())[0]
-        assert link.endswith("someproject-1.0.zip")
+        linkdict, = projectconfig["1.0"]["+elinks"]
+        assert linkdict["entrypath"].endswith("someproject-1.0.zip")
         assert projectconfig["1.0"]["+shadowing"]
 
     def test_store_and_delete_project(self, stage, bases):
@@ -293,6 +274,29 @@ class TestStage:
         assert 'index.html' not in namelist
         assert '_static' not in namelist
         assert '_templ' not in namelist
+
+    def test_storetoxresult(self, stage, bases):
+        content = b'123'
+        entry = register_and_store(stage, "pkg1-1.0.tar.gz", content=content)
+        assert entry.projectname == "pkg1"
+        assert entry.version == "1.0"
+        toxresultdata = {'hello': 'world'}
+        link = stage.get_link_from_entrypath(entry.relpath)
+        stage.store_toxresult(link, toxresultdata)
+        pv = stage.get_project_version("pkg1", "1.0")
+        tox_links = list(pv.get_links(rel="toxresult"))
+        assert len(tox_links) == 1
+        tentry = tox_links[0].entry
+        assert tentry.basename == "toxresult0.at"
+        back_data = json.loads(tentry.file_get_content().decode("utf8"))
+        assert back_data == toxresultdata
+
+        assert tentry.projectname == entry.projectname
+        assert tentry.version == entry.version
+
+        results = stage.get_toxresults(link)
+        assert len(results) == 1
+        assert results[0] == toxresultdata
 
     def test_store_and_get_volatile(self, stage):
         stage.modify(volatile=False)
@@ -398,6 +402,52 @@ class TestStage:
         stage.register_metadata(dict(name="this", version="1.0"))
         project = stage.get_project_info("hello")
         assert project.name == "Hello"
+
+class TestProjectVersion:
+    @pytest.fixture
+    def pv(self, stage):
+        stage.register_metadata(dict(name="proj1", version="1.0"))
+        return stage.get_project_version("proj1", "1.0")
+
+    def test_store_file(self, pv):
+        pv.create_linked_entry(
+            rel="releasefile", basename="proj1-1.0.zip", file_content=b'123'
+        )
+        pv.create_linked_entry(
+            rel="doczip", basename="proj1-1.0.doc.zip", file_content=b'123'
+        )
+        link, = pv.get_links(rel="releasefile")
+        assert link.entrypath.endswith("proj1-1.0.zip")
+
+    def test_toxresult_create_remove(self, pv):
+        pv.create_linked_entry(
+            rel="releasefile", basename="proj1-1.0.zip", file_content=b'123'
+        )
+        pv.create_linked_entry(
+            rel="releasefile", basename="proj1-1.1.zip", file_content=b'456'
+        )
+        link1, link2= pv.get_links(rel="releasefile")
+        assert link1.entrypath.endswith("proj1-1.0.zip")
+
+        pv.new_reflink(rel="toxresult", file_content=b'123', for_entrypath=link1)
+        pv.new_reflink(rel="toxresult", file_content=b'456', for_entrypath=link2)
+        rlink, = pv.get_links(rel="toxresult", for_entrypath=link1)
+        assert rlink.for_entrypath == link1.entrypath
+        rlink, = pv.get_links(rel="toxresult", for_entrypath=link2)
+        assert rlink.for_entrypath == link2.entrypath
+
+        link1_entry = link1.entry  # queried below
+
+        # remove one release link, which should removes its toxresults
+        # and check that the other release and its toxresult is still there
+        pv.remove_links(rel="releasefile", basename="proj1-1.0.zip")
+        links = pv.get_links()
+        assert len(links) == 2
+        assert links[0].rel == "releasefile"
+        assert links[1].rel == "toxresult"
+        assert links[1].for_entrypath == links[0].entrypath
+        assert links[0].entrypath.endswith("proj1-1.1.zip")
+        assert not link1_entry.key.exists()
 
 
 class TestUsers:

@@ -1,10 +1,11 @@
 from __future__ import unicode_literals
-
+import posixpath
 import py
+import json
 from devpi_common.metadata import (sorted_sameproject_links,
                                    get_latest_version)
 from devpi_common.validation import validate_metadata, normalize_name
-from devpi_common.types import ensure_unicode
+from devpi_common.types import ensure_unicode, cached_property
 from .auth import crypt_password, verify_password
 from .filestore import FileEntry
 from .log import threadlog, thread_current_log
@@ -350,19 +351,16 @@ class PrivateStage:
             self.project_version_delete(name, version, cleanup=False)
         with self.key_projectnames.update() as projectnames:
             projectnames.remove(name)
+        threadlog.info("deleting project %s", name)
         self.key_projconfig(name).delete()
 
     def project_version_delete(self, name, version, cleanup=True):
-        with self.key_projconfig(name).update() as projectconfig:
-            verdata = projectconfig.pop(version, None)
-            if verdata is None:
-                return False
-            threadlog.info("deleting version %r of project %r", version, name)
-            for relpath in verdata.get("+files", {}).values():
-                entry = self.xom.filestore.get_file_entry(relpath)
-                entry.delete()
-        if cleanup and not projectconfig:
-            threadlog.info("no version left, deleting project %r", name)
+        pv = self.get_project_version(name, version)
+        if version not in pv.projectconfig:
+            return False
+        pv.remove_links()
+        del pv.projectconfig[version]
+        if cleanup and not pv.projectconfig:
             self.project_delete(name)
         return True
 
@@ -430,10 +428,10 @@ class PrivateStage:
         if isinstance(projectconfig, int):
             return projectconfig
         files = []
-        for verdata in projectconfig.values():
-            files.extend(
-                map(self.xom.filestore.get_file_entry,
-                    verdata.get("+files", {}).values()))
+        for version in projectconfig:
+            pv = self.get_project_version(projectname, version)
+            for link in pv.get_links("releasefile"):
+                files.append(link.entry)
         return files
 
     def getprojectnames(self):
@@ -451,57 +449,191 @@ class PrivateStage:
     class MissesRegistration(Exception):
         """ store_releasefile requires pre-existing release metadata. """
 
+    def store_toxresult(self, link, toxresultdata):
+        assert isinstance(toxresultdata, dict), toxresultdata
+        return link.pv.new_reflink(
+                rel="toxresult",
+                file_content=json.dumps(toxresultdata).encode("utf-8"),
+                for_entrypath=link)
+
+    def get_toxresults(self, link):
+        l = []
+        for reflink in link.pv.get_links(rel="toxresult", for_entrypath=link):
+            data = reflink.entry.file_get_content().decode("utf-8")
+            l.append(json.loads(data))
+        return l
+
+    def get_project_version(self, name, version):
+        return ProjectVersion(self, name, version)
+
     def store_releasefile(self, name, version, filename, content,
                           last_modified=None):
         filename = ensure_unicode(filename)
         if not self.get_metadata(name, version):
             raise self.MissesRegistration(name, version)
         threadlog.debug("project name of %r is %r", filename, name)
-        key = self.key_projconfig(name=name)
-        with key.update() as projectconfig:
-            verdata = projectconfig.setdefault(version, {})
-            files = verdata.setdefault("+files", {})
-            if filename in files:
-                if not self.ixconfig.get("volatile"):
-                    return 409
-                entry = self.xom.filestore.get_file_entry(files[filename])
-                entry.delete()
-            entry = self.xom.filestore.store(self.user.name, self.index,
-                                filename, content, last_modified=last_modified)
-            entry.projectname = name
-            entry.version = version
-            files[filename] = entry.relpath
-            threadlog.info("store_releasefile %s", entry.relpath)
-            return entry
+        pv = self.get_project_version(name, version)
+        entry = pv.create_linked_entry(
+                rel="releasefile",
+                basename=filename,
+                file_content=content,
+                entry_extra=dict(last_modified=last_modified),
+        )
+        return entry
 
     def store_doczip(self, name, version, content):
-        """ store zip file and unzip doc content for the
-        specified "name" project. """
-        assert isinstance(content, bytes)
         if not version:
             version = self.get_metadata_latest_perstage(name)["version"]
             threadlog.info("store_doczip: derived version of %s is %s",
                            name, version)
-        key = self.key_projconfig(name=name)
-        with key.update() as projectconfig:
-            verdata = projectconfig[version]
-            filename = "%s-%s.doc.zip" % (name, version)
-            entry = self.xom.filestore.store(self.user.name, self.index,
-                                filename, content)
-            entry.projectname = name
-            entry.version = version
-            verdata["+doczip"] = entry.relpath
+        basename = "%s-%s.doc.zip" % (name, version)
+        pv = self.get_project_version(name, version)
+        entry = pv.create_linked_entry(
+                rel="doczip",
+                basename=basename,
+                file_content=content,
+        )
+        return entry
 
     def get_doczip(self, name, version):
         """ get documentation zip as an open file
         (or None if no docs exists). """
-        metadata = self.get_metadata(name, version)
-        if metadata:
-            doczip = metadata.get("+doczip")
-            if doczip:
-                entry = self.xom.filestore.get_file_entry(doczip)
-                if entry:
-                    return entry.file_get_content()
+        pv = self.get_project_version(name, version)
+        links = pv.get_links(rel="doczip")
+        if links:
+            assert len(links) == 1, links
+            return links[0].entry.file_get_content()
+
+    def get_link_from_entrypath(self, entrypath):
+        entry = self.xom.filestore.get_file_entry(entrypath)
+        pv = self.get_project_version(entry.projectname, entry.version)
+        links = pv.get_links(entrypath=entrypath)
+        assert len(links) < 2
+        return links[0] if links else None
+
+
+class ELink:
+    """ model Link using entrypathes for referencing. """
+    def __init__(self, pv, linkdict):
+        self.linkdict = linkdict
+        self.pv = pv
+        self.basename = posixpath.basename(self.entrypath)
+
+    def __getattr__(self, name):
+        try:
+            return self.linkdict[name]
+        except KeyError:
+            if name == "for_entrypath":
+                return None
+            raise AttributeError(name)
+
+    def __repr__(self):
+        return "<ELink rel=%r entrypath=%r>" %(self.rel, self.entrypath)
+
+    @cached_property
+    def entry(self):
+        return self.pv.filestore.get_file_entry(self.entrypath)
+
+
+class ProjectVersion:
+    def __init__(self, stage, projectname, version, projectconfig=None):
+        self.stage = stage
+        self.filestore = stage.xom.filestore
+        self.projectname = projectname
+        self.version = version
+        if projectconfig is None:
+            self.key_projectconfig = self.stage.key_projconfig(name=projectname)
+            self.projectconfig = self.key_projectconfig.get()
+        else:
+            self.projectconfig = projectconfig
+        self.verdata = self.projectconfig.setdefault(version, {})
+        if not self.verdata:
+            self.verdata["name"] = projectname
+            self.verdata["version"] = version
+            self._mark_dirty()
+
+    def create_linked_entry(self, rel, basename, file_content,
+            entry_extra=None):
+        assert isinstance(file_content, bytes)
+        entry_extra = entry_extra or {}
+        for link in self.get_links(rel=rel, basename=basename):
+            if not self.stage.ixconfig.get("volatile"):
+                return 409
+            self.remove_links(rel=rel, basename=basename)
+        file_entry = self._create_file_entry(basename, file_content)
+        for k,v in entry_extra.items():
+            setattr(file_entry, k, v)
+        self._add_link_to_file_entry(rel, file_entry)
+        return file_entry
+
+    def new_reflink(self, rel, file_content, for_entrypath):
+        if isinstance(for_entrypath, ELink):
+            for_entrypath = for_entrypath.entrypath
+        links = self.get_links(entrypath=for_entrypath)
+        assert len(links) == 1, "need exactly one reference, got %s" %(links,)
+        base_entry = links[0].entry
+        other_reflinks = self.get_links(rel=rel, for_entrypath=for_entrypath)
+        filename = "%s%d.at" %(rel, len(other_reflinks))
+        entry = self._create_file_entry(filename, file_content,
+                                        md5dir=base_entry.md5)
+        return self._add_link_to_file_entry(rel, entry, for_entrypath=for_entrypath)
+
+    def remove_links(self, rel=None, basename=None, for_entrypath=None):
+        linkdicts = self._get_inplace_linkdicts()
+        del_links = self.get_links(rel=rel, basename=basename, for_entrypath=for_entrypath)
+        was_deleted = []
+        for link in del_links:
+            link.entry.delete()
+            linkdicts.remove(link.linkdict)
+            was_deleted.append(link.entrypath)
+            threadlog.info("deleted %r link %s", link.rel, link.entrypath)
+        if linkdicts:
+            for entrypath in was_deleted:
+                self.remove_links(for_entrypath=entrypath)
+        if was_deleted:
+            self._mark_dirty()
+
+    def get_links(self, rel=None, basename=None, entrypath=None, for_entrypath=None):
+        if isinstance(for_entrypath, ELink):
+            for_entrypath = for_entrypath.entrypath
+        def fil(link):
+            return (not rel or rel==link.rel) and \
+                   (not basename or basename==link.basename) and \
+                   (not entrypath or entrypath==link.entrypath) and \
+                   (not for_entrypath or for_entrypath==link.for_entrypath)
+        return list(filter(fil, [ELink(self, linkdict)
+                           for linkdict in self.verdata.get("+elinks", [])]))
+
+    def _create_file_entry(self, basename, file_content, md5dir=None):
+        entry = self.filestore.store(
+                    user=self.stage.user.name, index=self.stage.index,
+                    basename=basename,
+                    file_content=file_content,
+                    md5dir=md5dir)
+        entry.projectname = self.projectname
+        entry.version = self.version
+        return entry
+
+    def _mark_dirty(self):
+        self.key_projectconfig.set(self.projectconfig)
+        threadlog.debug("marking dirty %s", self.key_projectconfig)
+
+    def _get_inplace_linkdicts(self):
+        return self.verdata.setdefault("+elinks", [])
+
+    def _add_link_to_file_entry(self, rel, file_entry, for_entrypath=None):
+        if isinstance(for_entrypath, ELink):
+            for_entrypath = for_entrypath.entrypath
+        relextra = {}
+        if for_entrypath:
+            relextra["for_entrypath"] = for_entrypath
+        linkdicts = self._get_inplace_linkdicts()
+        new_linkdict = dict(rel=rel, entrypath=file_entry.relpath,
+                            md5=file_entry.md5, **relextra)
+        linkdicts.append(new_linkdict)
+        threadlog.info("added %r link %s", rel, file_entry.relpath)
+        self._mark_dirty()
+        return ELink(self, new_linkdict)
 
 
 def normalize_bases(model, bases):
@@ -540,9 +672,6 @@ def add_keys(xom, keyfs):
     keyfs.add_key("PROJCONFIG", "{user}/{index}/{name}/.config", dict)
     keyfs.add_key("PROJNAMES", "{user}/{index}/.projectnames", set)
     keyfs.add_key("STAGEFILE", "{user}/{index}/+f/{md5}/{filename}", dict)
-
-    keyfs.add_key("ATTACHMENT", "+attach/{md5}/{type}/{num}", bytes)
-    keyfs.add_key("ATTACHMENTS", "+attach/.att", dict)
 
     keyfs.notifier.on_key_change("PROJCONFIG", ProjectChanged(xom))
     keyfs.notifier.on_key_change("STAGEFILE", FileUploaded(xom))

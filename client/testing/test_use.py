@@ -28,12 +28,11 @@ class TestUnit:
                 pypisubmit="/post",
                 simpleindex="/index",
                 login="/login",
-                resultlog="/"))
+        ))
         assert current.simpleindex
         newcurrent = Current(path)
         assert newcurrent.pypisubmit == current.pypisubmit
         assert newcurrent.simpleindex == current.simpleindex
-        assert newcurrent.resultlog == current.resultlog
         assert newcurrent.venvdir == current.venvdir
         assert newcurrent.login == current.login
 
@@ -45,7 +44,7 @@ class TestUnit:
                 pypisubmit="/post",
                 simpleindex="/index",
                 login="/login",
-                resultlog="/"))
+        ))
         assert current.simpleindex
         current.reconfigure(dict(always_setcfg=True))
         newcurrent = Current(path)
@@ -153,7 +152,6 @@ class TestUnit:
                     result=dict(
                         pypisubmit="/post",
                         simpleindex="/index/",
-                        resultlog="/resultlog/",
                         index="root/some",
                         bases="root/dev",
                         login="/+login",
@@ -164,7 +162,6 @@ class TestUnit:
         newapi = hub.current
         assert newapi.pypisubmit == "http://world/post"
         assert newapi.simpleindex == "http://world/index/"
-        assert newapi.resultlog == "http://world/resultlog/"
         assert not newapi.venvdir
 
         # some url helpers
@@ -182,7 +179,6 @@ class TestUnit:
                     result=dict(
                         pypisubmit="",
                         simpleindex="",
-                        resultlog="/resultlog/",
                         index="",
                         bases="",
                         login="/+login",
@@ -226,7 +222,6 @@ class TestUnit:
                     result=dict(
                         pypisubmit="",
                         simpleindex="/simple",
-                        resultlog="/resultlog/",
                         index="/",
                         bases="",
                         login="/+login",

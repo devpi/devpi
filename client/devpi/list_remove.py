@@ -1,12 +1,14 @@
-
+import json
 from devpi_common.url import URL
 from devpi_common.metadata import Version, parse_requirement
+from devpi_common.viewhelp import ViewVersionLinks
 
-def out_index(hub, data):
-    for name in sorted(data):
+def out_index(hub, projects):
+    for name in sorted(projects):
         hub.info(name)
 
-def out_project(hub, data, req):
+def out_project(hub, reply, req):
+    data = reply.result
     index = hub.current.index[len(hub.current.rooturl):]
     num = 0
     maxshow = 2
@@ -18,48 +20,44 @@ def out_project(hub, data, req):
             num += 1
             continue
         verdata = data[version]
-        if out_project_version_files(hub, verdata, version, index):
+        if out_project_version_files(hub, reply.url, verdata, version, index):
             num += 1
         shadowing = data[version].get("+shadowing", [])
         for verdata in shadowing:
-            if out_project_version_files(hub, verdata, version, None):
+            if out_project_version_files(hub, req.url, verdata, version, None):
                 num += 1
     if not hub.args.all and num > (maxshow+1):
         hub.info("%s older versions not shown, use --all to see" %
                  (num-maxshow-1))
 
-def out_project_version_files(hub, verdata, version, index):
-    files = verdata.get("+files")
-    if files is not None:
-        for fn in files:
-            origin = files[fn]
-            if version.startswith("egg="):
-                origin = "%s (%s) " % (origin, version)
-            if index is None:
-                hub.error(origin)
-            elif origin.startswith(index):
-                hub.info(origin)
-            else:
-                hub.line(origin)
-            query_file_status(hub, origin)
-    return bool(files)
 
-def query_file_status(hub, origin):
+def out_project_version_files(hub, url, verdata, version, index):
+    vv = ViewVersionLinks(url, verdata)
+    release_links = vv.get_links(rel="releasefile")
+    for link in release_links:
+        if version.startswith("egg="):
+            origin = "%s (%s) " % (link.href, version)
+        else:
+            origin = link.href
+        if index is None:
+            hub.error(origin)
+        elif origin.startswith(hub.current.index):
+            hub.info(origin)
+        else:
+            hub.line(origin)
+        toxlinks = vv.get_links(rel="toxresult", for_href=link.href)
+        if toxlinks:
+            show_test_status(hub, toxlinks)
+    return bool(release_links)
+
+def show_test_status(hub, toxlinks):
     # XXX this code is not auto-tested in all detail
     # so change with great care or write tests first
-    rooturl = hub.current.rooturl
-    res = hub.http_api("get", URL(rooturl, "/" + origin).url,
-                       quiet=True)
-    assert res.status_code == 200
-    md5 = res.result.get("md5")
-    if not md5:
-        return
-    res = hub.http_api("get",
-                       URL(rooturl, "/+tests/%s/toxresult" % md5).url,
-                       quiet=True, type="list:toxresult")
     seen = set()
-    for toxresult in reversed(res.result):
-        toxresult["platform"]
+    for toxlink in toxlinks:
+        res = hub.http.get(toxlink.href)
+        assert res.status_code == 200
+        toxresult = json.loads(res.content.decode("utf8"))
         for envname, env in toxresult["testenvs"].items():
             prefix = "  {host} {platform} {envname}".format(
                      envname=envname, **toxresult)
@@ -113,11 +111,10 @@ def main_list(hub, args):
         req = parse_requirement(hub.args.spec)
         url = hub.current.get_project_url(req.project_name)
         reply = hub.http_api("get", url, type="projectconfig")
-        out_project(hub, reply.result, req)
+        out_project(hub, reply, req)
     else:
-        reply = hub.http_api("get", hub.current.index,
-                             type="list:projectconfig")
-        out_index(hub, reply.result)
+        reply = hub.http_api("get", hub.current.index, type="indexconfig")
+        out_index(hub, reply.result["projects"])
 
 def main_remove(hub, args):
     hub.require_valid_current_with_index()
@@ -126,11 +123,11 @@ def main_remove(hub, args):
     url = hub.current.get_project_url(req.project_name)
     reply = hub.http_api("get", url, type="projectconfig")
     ver_to_delete = confirm_delete(hub, reply, req)
-    if ver_to_delete is None:
+    if not ver_to_delete:
         hub.error("not deleting anything")
         return 1
     else:
-        for ver, files in ver_to_delete:
+        for ver, links in ver_to_delete:
             hub.info("deleting release %s of %s" % (ver, req.project_name))
             hub.http_api("delete", url.addpath(ver))
 
@@ -139,23 +136,19 @@ def confirm_delete(hub, reply, req):
     ver_to_delete = []
     for version, verdata in reply.result.items():
         if version in req:
-            files_to_delete = list(match_release_files(basepath, verdata))
+            vv = ViewVersionLinks(basepath, verdata)
+            files_to_delete = [link for link in vv.get_links()
+                                if link.href.startswith(hub.current.index)]
             if files_to_delete:  # XXX need to delete metadata without files
                 ver_to_delete.append((version, files_to_delete))
     if ver_to_delete:
         hub.info("About to remove the following releases and distributions")
-        for ver, files in ver_to_delete:
-            hub.info("   version: " + ver)
-            for fil in files:
-                hub.info("   - " + fil)
+        for ver, links in ver_to_delete:
+            hub.info("version: " + ver)
+            for link in links:
+                hub.info("  - " + link.href)
         if hub.ask_confirm("Are you sure"):
             return ver_to_delete
-
-def match_release_files(basepath, verdata):
-    files = verdata.get("+files", {})
-    for fil in files.values():
-        if fil.startswith(basepath):
-            yield fil
 
 #def filter_versions(spec, lines):
     #    ver = pkg_resources.parse_version(line)

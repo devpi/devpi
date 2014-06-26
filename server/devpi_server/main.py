@@ -178,10 +178,6 @@ class XOM:
             from devpi_server.importexport import do_upgrade
             return do_upgrade(xom)
 
-        if args.export:
-            from devpi_server.importexport import do_export
-            return do_export(args.export, xom)
-
         # need to initialize the pypi mirror state before importing
         # because importing may need pypi mirroring state
         if xom.is_replica():
@@ -189,6 +185,11 @@ class XOM:
         else:
             proxy = self.proxy
         xom.pypimirror.init_pypi_mirror(proxy)
+        if args.export:
+            from devpi_server.importexport import do_export
+            #xom.thread_pool.start_one(xom.keyfs.notifier)
+            return do_export(args.export, xom)
+
         if args.import_:
             from devpi_server.importexport import do_import
             # we need to start the keyfs notifier so that import
@@ -273,7 +274,6 @@ class XOM:
         from devpi_server.views import route_url
         from pyramid.authorization import ACLAuthorizationPolicy
         from pyramid.config import Configurator
-        import functools
         log = self.log
         log.debug("creating application in process %s", os.getpid())
         pyramid_config = Configurator(root_factory='devpi_server.view_auth.RootFactory')
@@ -291,7 +291,9 @@ class XOM:
         pyramid_config.add_route("/+api", "/+api", accept="application/json")
         pyramid_config.add_route("{path:.*}/+api", "{path:.*}/+api", accept="application/json")
         pyramid_config.add_route("/+login", "/+login", accept="application/json")
-        pyramid_config.add_route("/+tests", "/+tests", accept="application/json")
+        pyramid_config.add_route("/{user}/{index}/+tests",
+                                 "/{user}/{index}/+tests",
+                                 accept="application/json")
         pyramid_config.add_route("/+tests/{md5}/{type}", "/+tests/{md5}/{type}")
         pyramid_config.add_route("/+tests/{md5}/{type}/{num}", "/+tests/{md5}/{type}/{num}")
         pyramid_config.add_route("/{user}/{index}/+e/{relpath:.*}", "/{user}/{index}/+e/{relpath:.*}")

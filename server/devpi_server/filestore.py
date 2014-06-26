@@ -6,7 +6,6 @@ for all indexes.
 from __future__ import unicode_literals
 import hashlib
 import mimetypes
-import json
 from wsgiref.handlers import format_date_time
 from datetime import datetime
 from time import mktime
@@ -71,39 +70,14 @@ class FileStore:
             raise # return None
         return FileEntry(self.xom, key, md5=md5)
 
-    def store(self, user, index, filename, content, last_modified=None):
-        digest = hashlib.md5(content).hexdigest()
-        key = self.keyfs.STAGEFILE(user=user, index=index,
-                                   md5=digest, filename=filename)
+    def store(self, user, index, basename, file_content, md5dir=None):
+        if md5dir is None:
+            md5dir = hashlib.md5(file_content).hexdigest()
+        key = self.keyfs.STAGEFILE(
+            user=user, index=index, md5=md5dir, filename=basename)
         entry = FileEntry(self.xom, key)
-        entry.file_set_content(content, md5=digest)
+        entry.file_set_content(file_content)
         return entry
-
-    def add_attachment(self, md5, type, data):
-        assert type in ("toxresult",)
-        with self.keyfs.ATTACHMENTS.update() as attachments:
-            l = attachments.setdefault(md5, {}).setdefault(type, [])
-            num = str(len(l))
-            key = self.keyfs.ATTACHMENT(type=type, md5=md5, num=num)
-            key.set(data.encode(self.attachment_encoding))
-            l.append(num)
-        return num
-
-    def get_attachment(self, md5, type, num):
-        data = self.keyfs.ATTACHMENT(type=type, md5=md5, num=num).get()
-        return data.decode(self.attachment_encoding)
-
-    def iter_attachments(self, md5, type):
-        attachments = self.keyfs.ATTACHMENTS.get()
-        l = attachments.get(md5, {}).get(type, [])
-        for num in l:
-            a = self.keyfs.ATTACHMENT(num=num, type=type, md5=md5).get()
-            yield json.loads(a.decode(self.attachment_encoding))
-
-    def iter_attachment_types(self, md5):
-        attachments = self.keyfs.ATTACHMENTS.get()
-        return list(attachments.get(md5, {}))
-
 
 def metaprop(name):
     def fget(self):
@@ -170,11 +144,11 @@ class FileEntry(object):
             if last_modified is None:
                 last_modified = http_date()
             self.last_modified = last_modified
-        #else we are called from replica thread and just write out
-        if md5 is not None:
-            self.md5 = md5
-        if self.md5 and hashlib.md5(content).hexdigest() != self.md5:
+        #else we are called from replica thread and just write outside
+        file_md5 = hashlib.md5(content).hexdigest()
+        if md5 and md5 != file_md5:
             raise ValueError("md5 mismatch: %s" % self.relpath)
+        self.md5 = file_md5
         self.tx.io_file_set(self._filepath, content)
 
     def gethttpheaders(self):

@@ -91,16 +91,18 @@ class TestImportExport:
         assert indexlist[stagename2]["bases"] == [api.stagename]
         assert mapp2.xom.config.secret == mapp1.xom.config.secret
 
-    def test_upload_releasefile_with_attachment(self, impexp):
+    def test_upload_releasefile_with_toxresult(self, impexp):
+        from test_devpi_server.example import tox_result_data
         mapp1 = impexp.mapp1
         api = mapp1.create_and_use()
-        mapp1.upload_file_pypi("hello-1.0.tar.gz", b"content",
-                               "hello", "1.0")
-
-        md5 = py.std.hashlib.md5(b"content").hexdigest()
+        content = b'content'
+        mapp1.upload_file_pypi("hello-1.0.tar.gz", content, "hello", "1.0")
+        path, = mapp1.get_release_paths("hello")
+        path = path.strip("/")
         with mapp1.xom.keyfs.transaction(write=True):
-            num = mapp1.xom.filestore.add_attachment(
-                        md5=md5, type="toxresult", data="123")
+            stage = mapp1.xom.model.getstage(api.stagename)
+            link = stage.get_link_from_entrypath(path)
+            stage.store_toxresult(link, tox_result_data)
         impexp.export()
         mapp2 = impexp.new_import()
         with mapp2.xom.keyfs.transaction(write=False):
@@ -108,9 +110,10 @@ class TestImportExport:
             entries = stage.getreleaselinks("hello")
             assert len(entries) == 1
             assert entries[0].file_get_content() == b"content"
-            x = mapp2.xom.filestore.get_attachment(
-                md5=md5, type="toxresult", num=num)
-            assert x == "123"
+            link = stage.get_link_from_entrypath(entries[0].relpath)
+            results = stage.get_toxresults(link)
+            assert len(results) == 1
+            assert results[0] == tox_result_data
 
     def test_user_no_index_login_works(self, impexp):
         mapp1 = impexp.mapp1

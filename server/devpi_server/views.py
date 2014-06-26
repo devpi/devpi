@@ -1,4 +1,6 @@
 from __future__ import unicode_literals
+
+from copy import deepcopy
 import py
 from py.xml import html
 from devpi_common.types import ensure_unicode
@@ -175,7 +177,6 @@ class PyPIView:
         request = self.request
         path = request.matchdict.get('path')
         api = {
-            "resultlog": request.route_url("/+tests"),
             "login": request.route_url('/+login'),
             "authstatus": self.get_auth_status(),
         }
@@ -196,40 +197,21 @@ class PyPIView:
         apireturn(200, type="apiconfig", result=api)
 
     #
-    # attachment to release files
-    # currently only test results, pending generalization
+    # attach test results to release files
     #
 
-    @view_config(route_name="/+tests", request_method="POST")
-    def add_attach(self):
-        request = self.request
-        filestore = self.xom.filestore
-        data = getjson(request)
-        md5 = data["installpkg"]["md5"]
-        data = request.text
-        if not py.builtin._istext(data):
-            data = data.decode("utf-8")
-        num = filestore.add_attachment(md5=md5, type="toxresult",
-                                       data=data)
-        relpath = "/+tests/%s/%s/%s" %(md5, "toxresult", num)
-        apireturn(200, type="testresultpath", result=relpath)
-
-    @view_config(route_name="/+tests/{md5}/{type}", request_method="GET")
-    def get_attachlist(self):
-        md5 = self.request.matchdict['md5']
-        type = self.request.matchdict['type']
-        filestore = self.xom.filestore
-        datalist = list(filestore.iter_attachments(md5=md5, type=type))
-        apireturn(200, type="list:toxresult", result=datalist)
-
-    @view_config(route_name="/+tests/{md5}/{type}/{num}", request_method="GET")
-    def get_attach(self):
-        md5 = self.request.matchdict['md5']
-        type = self.request.matchdict['type']
-        num = self.request.matchdict['num']
-        filestore = self.xom.filestore
-        data = filestore.get_attachment(md5=md5, type=type, num=num)
-        apireturn(200, type="testresult", result=data)
+    @view_config(route_name="/{user}/{index}/+f/{relpath:.*}",
+                 request_method="POST")
+    def post_toxresult(self):
+        stage = self.context.stage
+        relpath = self.request.path.strip("/")
+        link = stage.get_link_from_entrypath(relpath)
+        if link is None or link.rel != "releasefile":
+            apireturn(404, message="no release file found at %s" % relpath)
+        toxresultdata = getjson(self.request)
+        tox_link = stage.store_toxresult(link, toxresultdata)
+        apireturn(200, type="toxresultpath",
+                  result=tox_link.entrypath)
 
     #
     # index serving and upload
@@ -369,22 +351,9 @@ class PyPIView:
         except KeyError:
             apireturn(400, message="no name/version specified in json")
 
-        self._pushrelease(request, stage, name, version, pushdata)
-
-    def _pushrelease(self, request, stage, name, version, pushdata):
-        projectconfig = stage.get_projectconfig(name)
-        matches = []
-        if projectconfig:
-            verdata = projectconfig.get(version)
-            if verdata:
-                files = verdata.get("+files")
-                for basename, relpath in files.items():
-                    entry = stage.xom.filestore.get_file_entry(relpath)
-                    if not entry.file_exists():
-                        abort(request, 400, "cannot push non-cached files")
-                    matches.append(entry)
-                metadata = get_pure_metadata(verdata)
-
+        vv = stage.get_project_version(name, version)
+        matches = [stage.xom.filestore.get_file_entry(link.entrypath)
+                        for link in vv.get_links(rel="releasefile")]
         if not matches:
             self.log.info("%s: no release files %s-%s" %(stage.name,
                                                          name, version))
@@ -392,6 +361,7 @@ class PyPIView:
                       message="no release/files found for %s-%s" %(
                       name, version))
 
+        metadata = get_pure_metadata(vv.projectconfig[version])
         doczip = stage.get_doczip(name, version)
 
         # prepare metadata for submission
@@ -585,8 +555,11 @@ class PyPIView:
             apireturn(404, "project %r does not exist" % name)
         if real_name != name:
             redirect("/%s/%s" % (stage.name, real_name))
-        metadata = stage.get_projectconfig(name)
-        apireturn(200, type="projectconfig", result=metadata)
+        view_metadata = {}
+        for version, verdata in stage.get_projectconfig(name).items():
+            view_verdata = self._make_view_verdata(verdata)
+            view_metadata[version] = view_verdata
+        apireturn(200, type="projectconfig", result=view_metadata)
 
     @view_config(
         route_name="/{user}/{index}/{name}", request_method="DELETE",
@@ -613,7 +586,34 @@ class PyPIView:
         verdata = metadata.get(version, None)
         if not verdata:
             abort(self.request, 404, "version %r does not exist" % version)
-        apireturn(200, type="versiondata", result=verdata)
+
+        view_verdata = self._make_view_verdata(verdata)
+        apireturn(200, type="versiondata", result=view_verdata)
+
+    def _make_view_verdata(self, verdata):
+        view_verdata = deepcopy(verdata)
+        elinks = view_verdata.pop("+elinks", None)
+        if elinks is not None:
+            view_verdata["+links"] = links = []
+            for elinkdict in elinks:
+                linkdict = deepcopy(elinkdict)
+                entrypath = linkdict.pop("entrypath")
+                linkdict["href"] = self._url_for_entrypath(entrypath)
+                for_entrypath = linkdict.pop("for_entrypath", None)
+                if for_entrypath is not None:
+                    linkdict["for_href"] = \
+                        self._url_for_entrypath(for_entrypath)
+                links.append(linkdict)
+        return view_verdata
+
+    def _url_for_entrypath(self, entrypath):
+        parts = entrypath.split("/")
+        user, index = parts[:2]
+        assert parts[2] in ("+f", "+e")
+        route_name = "/{user}/{index}/%s/{relpath:.*}" % parts[2]
+        relpath = "/".join(parts[3:])
+        return self.request.route_url(
+               route_name, user=user, index=index, relpath=relpath)
 
     @view_config(route_name="/{user}/{index}/{name}/{version}", request_method="DELETE")
     def project_version_delete(self):

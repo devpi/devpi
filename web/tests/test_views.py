@@ -1,3 +1,4 @@
+import json
 from devpi_common.archive import zip_dict
 import py
 import pytest
@@ -339,7 +340,8 @@ def test_testdata(mapp, testapp):
         {"name": "pkg1", "version": "2.6", "description": "foo"},
         waithooks=True)
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200)
-    r = testapp.post_json(api.resultlog, tox_result_data)
+    path, = mapp.get_release_paths("pkg1")
+    r = testapp.post(path, json.dumps(tox_result_data))
     assert r.status_code == 200
     r = testapp.xget(200, api.index, headers=dict(accept="text/html"))
     passed, = r.html.select('.passed')
