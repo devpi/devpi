@@ -503,8 +503,7 @@ class PrivateStage:
         links = pv.get_links(rel="doczip")
         if links:
             assert len(links) == 1, links
-            entry = self.xom.filestore.get_file_entry(links[0].entrypath)
-            return entry.file_get_content()
+            return links[0].entry.file_get_content()
 
     def get_link_from_entrypath(self, entrypath):
         entry = self.xom.filestore.get_file_entry(entrypath)
