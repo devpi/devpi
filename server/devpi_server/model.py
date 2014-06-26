@@ -581,7 +581,7 @@ class ProjectVersion:
         other_reflinks = self.get_links(rel=rel, for_entrypath=for_entrypath)
         filename = "%s%d.at" %(rel, len(other_reflinks))
         entry = self._create_file_entry(filename, file_content,
-                                        md5dir=base_entry.md5)
+                                        ref_md5=base_entry.md5)
         return self._add_link_to_file_entry(rel, entry, for_entrypath=for_entrypath)
 
     def remove_links(self, rel=None, basename=None, for_entrypath=None):
@@ -610,7 +610,11 @@ class ProjectVersion:
         return list(filter(fil, [ELink(self, linkdict)
                            for linkdict in self.verdata.get("+elinks", [])]))
 
-    def _create_file_entry(self, basename, file_content, md5dir=None):
+    def _create_file_entry(self, basename, file_content, ref_md5=None):
+        if ref_md5 is None:
+            md5dir = None
+        else:
+            md5dir = ref_md5[:3] + "/" + ref_md5[3:]
         entry = self.filestore.store(
                     user=self.stage.user.name, index=self.stage.index,
                     basename=basename,
@@ -671,13 +675,12 @@ def add_keys(xom, keyfs):
     keyfs.add_key("PYPILINKS", "root/pypi/+links/{name}", dict)
     keyfs.add_key("PYPIFILE_NOMD5",
                  "{user}/{index}/+e/{dirname}/{basename}", dict)
-    keyfs.add_key("PYPISTAGEFILE",
-                  "{user}/{index}/+f/{md5a}/{md5b}/{filename}", dict)
 
     # type "stage" related
     keyfs.add_key("PROJCONFIG", "{user}/{index}/{name}/.config", dict)
     keyfs.add_key("PROJNAMES", "{user}/{index}/.projectnames", set)
-    keyfs.add_key("STAGEFILE", "{user}/{index}/+f/{md5}/{filename}", dict)
+    keyfs.add_key("STAGEFILE",
+                  "{user}/{index}/+f/{md5a}/{md5b}/{filename}", dict)
 
     keyfs.notifier.on_key_change("PROJCONFIG", ProjectChanged(xom))
     keyfs.notifier.on_key_change("STAGEFILE", FileUploaded(xom))
