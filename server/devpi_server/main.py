@@ -76,11 +76,11 @@ def _main(argv=None, hook=None):
         from devpi_server.gendeploy import gendeploy
         return gendeploy(config)
 
+    configure_logging(config)
     xom = XOM(config)
     with xom.keyfs.transaction(write=True):
         set_default_indexes(xom.model)
     check_compatible_version(xom)
-    configure_logging(config)
     extpypi.invalidate_on_version_change(xom.keyfs.basedir.join("root", "pypi"))
 
     if args.start or args.stop or args.log or args.status:

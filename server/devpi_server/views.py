@@ -301,8 +301,6 @@ class PyPIView:
         route_name="/{user}/{index}", request_method="PUT")
     def index_create(self):
         stage = self.context.user.getstage(self.context.index)
-        if stage and stage.name == "root/pypi":
-            apireturn(403, "root/pypi index config can not be modified")
         if stage is not None:
             apireturn(409, "index %r exists" % stage.name)
         if not self.request.has_permission("index_create"):

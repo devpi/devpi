@@ -126,19 +126,20 @@ def makexom(request, gentmp, httpget, monkeypatch):
                 proxy.list_packages_with_serial.return_value = {}
             xom = XOM(config, proxy=proxy, httpget=httpget)
             add_pypistage_mocks(monkeypatch, httpget)
-            xom.pypimirror.init_pypi_mirror(proxy)
         else:
             xom = XOM(config)
-        if request.node.get_marker("start_threads"):
-            xom.thread_pool.start()
-        elif request.node.get_marker("with_notifier"):
-            xom.thread_pool.start_one(xom.keyfs.notifier)
-        request.addfinalizer(xom.thread_pool.shutdown)
         # initialize default indexes
         from devpi_server.main import set_default_indexes
         if not xom.config.args.master_url:
             with xom.keyfs.transaction(write=True):
                 set_default_indexes(xom.model)
+        if mocking:
+            xom.pypimirror.init_pypi_mirror(proxy)
+        if request.node.get_marker("start_threads"):
+            xom.thread_pool.start()
+        elif request.node.get_marker("with_notifier"):
+            xom.thread_pool.start_one(xom.keyfs.notifier)
+        request.addfinalizer(xom.thread_pool.shutdown)
         return xom
     return makexom
 
