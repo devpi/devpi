@@ -19,10 +19,9 @@ from devpi_common.validation import normalize_name, ensure_unicode
 from devpi_common.request import new_requests_session
 
 from . import __version__ as server_version
-from .model import ProjectInfo
+from .model import ProjectInfo, BaseStage
 from .keyfs import load_from_file, dump_to_file
 from .log import threadlog, thread_current_log, thread_push_log
-
 
 
 class IndexParser:
@@ -159,7 +158,7 @@ def invalidate_on_version_change(basedir):
     verfile.dirpath().ensure(dir=1)
     verfile.write(PyPIStage.VERSION)
 
-class PyPIStage:
+class PyPIStage(BaseStage):
     VERSION = "4"
     name = "root/pypi"
     ixconfig = dict(bases=(), volatile=False, type="mirror",
@@ -177,11 +176,9 @@ class PyPIStage:
         else:
             self.PYPIURL_SIMPLE = PYPIURL_SIMPLE
 
-    def getprojectnames(self):
+    def getprojectnames_perstage(self):
         """ return list of all projects served through the mirror. """
         return sorted(self.pypimirror.name2serials)
-
-    getprojectnames_perstage = getprojectnames
 
     def _dump_project_cache(self, projectname, entries, serial):
         normname = normalize_name(projectname)
@@ -207,7 +204,7 @@ class PyPIStage:
             return [get_proxy(relpath, md5, keyname=keyname)
                         for relpath, md5, keyname in cache["entrylist"]]
 
-    def getreleaselinks(self, projectname):
+    def getreleaselinks_perstage(self, projectname):
         """ return all releaselinks from the index and referenced scrape
         pages, returning cached entries if we have a recent enough
         request stored locally.
@@ -268,20 +265,13 @@ class PyPIStage:
         self._dump_project_cache(real_projectname, entries, serial)
         return entries
 
-    getreleaselinks_perstage = getreleaselinks
-
-    def get_project_info(self, name):
+    def get_project_info_perstage(self, name):
         norm_name = normalize_name(name)
         name = self.pypimirror.normname2name.get(norm_name, norm_name)
         if name in self.pypimirror.name2serials:
             return ProjectInfo(self, name)
 
-    get_project_info_perstage = get_project_info
-
-    def op_with_bases(self, opname, **kw):
-        return [(self, getattr(self, opname)(**kw))]
-
-    def get_projectconfig(self, name):
+    def get_projectconfig_perstage(self, name):
         releaselinks = self.getreleaselinks(name)
         if isinstance(releaselinks, int):
             return releaselinks
@@ -302,7 +292,6 @@ class PyPIStage:
             ))
         return data
 
-    get_projectconfig_perstage = get_projectconfig
 
 
 class PyPIMirror:
