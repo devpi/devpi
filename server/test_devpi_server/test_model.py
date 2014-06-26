@@ -287,7 +287,7 @@ class TestStage:
         tox_links = list(pv.get_links(rel="toxresult"))
         assert len(tox_links) == 1
         tentry = tox_links[0].entry
-        assert tentry.basename == "toxresult0.at"
+        assert tentry.basename == "pkg1-1.0.tar.gz.toxresult0"
         back_data = json.loads(tentry.file_get_content().decode("utf8"))
         assert back_data == toxresultdata
 

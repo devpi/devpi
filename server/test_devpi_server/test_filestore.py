@@ -25,7 +25,7 @@ class TestFileStore:
         parent2 = parts[-2]
         parent1 = parts[-3]
         assert parent1 == link.md5[:3]
-        assert parent2 == link.md5[3:]
+        assert parent2 == link.md5[3:16]
 
     def test_maplink(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.2.zip")

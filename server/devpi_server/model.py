@@ -579,7 +579,7 @@ class ProjectVersion:
         assert len(links) == 1, "need exactly one reference, got %s" %(links,)
         base_entry = links[0].entry
         other_reflinks = self.get_links(rel=rel, for_entrypath=for_entrypath)
-        filename = "%s%d.at" %(rel, len(other_reflinks))
+        filename = "%s.%s%d" %(base_entry.basename, rel, len(other_reflinks))
         entry = self._create_file_entry(filename, file_content,
                                         ref_md5=base_entry.md5)
         return self._add_link_to_file_entry(rel, entry, for_entrypath=for_entrypath)
