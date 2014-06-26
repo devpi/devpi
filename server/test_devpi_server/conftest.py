@@ -297,6 +297,10 @@ class Mapp(MappMixin):
             return self.current_stage
         return indexname
 
+    def _wait_for_serial_in_result(self, r):
+        commit_serial = int(r.headers["X-DEVPI-SERIAL"])
+        self.xom.keyfs.notifier.wait_event_serial(commit_serial)
+
     def delete_user(self, user, code=200):
         r = self.testapp.delete_json("/%s" % user, expect_errors=True)
         assert r.status_code == code
@@ -418,7 +422,7 @@ class Mapp(MappMixin):
         if code in (400,):
             return r.json["message"]
 
-    def delete_index(self, indexname, code=201):
+    def delete_index(self, indexname, code=201, waithooks=False):
         if "/" in indexname:
             user, index = indexname.split("/")
         else:
@@ -426,6 +430,8 @@ class Mapp(MappMixin):
             index = indexname
         r = self.testapp.delete_json("/%s/%s" % (user, index),
                                      expect_errors=True)
+        if waithooks:
+            self._wait_for_serial_in_result(r)
         assert r.status_code == code
 
     def set_custom_data(self, data, indexname=None):
@@ -477,8 +483,7 @@ class Mapp(MappMixin):
                               expect_errors=True)
         assert r.status_code == code
         if waithooks:
-            commit_serial = int(r.headers["X-DEVPI-SERIAL"])
-            self.xom.keyfs.notifier.wait_event_serial(commit_serial)
+            self._wait_for_serial_in_result(r)
         return r
 
     def upload_file_pypi(self, basename, content,
@@ -515,8 +520,7 @@ class Mapp(MappMixin):
              "content": Upload(basename, content)}, expect_errors=True)
         assert r.status_code == code
         if waithooks:
-            commit_serial = int(r.headers["X-DEVPI-SERIAL"])
-            self.xom.keyfs.notifier.wait_event_serial(commit_serial)
+            self._wait_for_serial_in_result(r)
         return r
 
     def get_simple(self, projectname, code=200):
