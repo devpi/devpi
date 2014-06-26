@@ -7,7 +7,7 @@ from devpi_common.metadata import (sorted_sameproject_links,
 from devpi_common.validation import validate_metadata, normalize_name
 from devpi_common.types import ensure_unicode, cached_property
 from .auth import crypt_password, verify_password
-from .filestore import FileEntry
+from .filestore import FileEntry, split_md5
 from .log import threadlog, thread_current_log
 
 
@@ -203,8 +203,108 @@ class ProjectInfo:
     def __str__(self):
         return "<ProjectInfo %s stage %s>" %(self.name, self.stage.name)
 
+class BaseStage:
+    def get_project_version(self, name, version):
+        return ProjectVersion(self, name, version)
 
-class PrivateStage:
+    def get_link_from_entrypath(self, entrypath):
+        entry = self.xom.filestore.get_file_entry(entrypath)
+        pv = self.get_project_version(entry.projectname, entry.version)
+        links = pv.get_links(entrypath=entrypath)
+        assert len(links) < 2
+        return links[0] if links else None
+
+    def store_toxresult(self, link, toxresultdata):
+        assert isinstance(toxresultdata, dict), toxresultdata
+        return link.pv.new_reflink(
+                rel="toxresult",
+                file_content=json.dumps(toxresultdata).encode("utf-8"),
+                for_entrypath=link)
+
+    def get_toxresults(self, link):
+        l = []
+        for reflink in link.pv.get_links(rel="toxresult", for_entrypath=link):
+            data = reflink.entry.file_get_content().decode("utf-8")
+            l.append(json.loads(data))
+        return l
+
+    def get_projectconfig(self, name):
+        assert py.builtin._istext(name)
+        all_projectconfig = {}
+        for stage, res in self.op_sro("get_projectconfig_perstage", name=name):
+            if isinstance(res, int):
+                if res == 404:
+                    continue
+                assert 0, res
+            for ver in res:
+                if ver not in all_projectconfig:
+                    all_projectconfig[ver] = res[ver]
+                else:
+                    l = all_projectconfig[ver].setdefault("+shadowing", [])
+                    l.append(res[ver])
+        return all_projectconfig
+
+    def getreleaselinks(self, projectname):
+        all_links = []
+        basenames = set()
+        stagename2res = {}
+        for stage, res in self.op_sro("getreleaselinks_perstage",
+                                      projectname=projectname):
+            stagename2res[stage.name] = res
+            if isinstance(res, int):
+                if res == 404:
+                    continue
+                return res
+            for entry in res:
+                if entry.eggfragment:
+                    key = entry.eggfragment
+                else:
+                    key = entry.basename
+                if key not in basenames:
+                    basenames.add(key)
+                    all_links.append(entry)
+        for stagename, res in stagename2res.items():
+            if res != 404:
+                break
+        else:
+            return res  # no stage has the project
+        return sorted_sameproject_links(all_links)
+
+    def get_project_info(self, name):
+        kwdict = {"name": name}
+        for stage, res in self.op_sro("get_project_info_perstage", **kwdict):
+            if res is not None:
+                return res
+
+    def getprojectnames(self):
+        all_names = set()
+        for stage, names in self.op_sro("getprojectnames_perstage"):
+            if isinstance(names, int):
+                return names
+            all_names.update(names)
+        return sorted(all_names)
+
+    def op_sro(self, opname, **kw):
+        results = []
+        for stage in self._sro():
+            stage_result = getattr(stage, opname)(**kw)
+            results.append((stage, stage_result))
+        return results
+
+    def _sro(self):
+        """ return stage resolution order. """
+        todo = [self]
+        seen = set()
+        while todo:
+            stage = todo.pop(0)
+            yield stage
+            seen.add(stage.name)
+            for base in stage.ixconfig["bases"]:
+                if base not in seen:
+                    todo.append(self.model.getstage(base))
+
+
+class PrivateStage(BaseStage):
     metadata_keys = """
         name version summary home_page author author_email
         license description keywords platform classifiers download_url
@@ -251,18 +351,6 @@ class PrivateStage:
         userconfig = self.user.get()
         return userconfig.get("indexes", {}).get(self.index)
 
-    def _get_sro(self):
-        """ return stage resolution order. """
-        todo = [self]
-        seen = set()
-        while todo:
-            stage = todo.pop(0)
-            yield stage
-            seen.add(stage.name)
-            for base in stage.ixconfig["bases"]:
-                if base not in seen:
-                    todo.append(self.model.getstage(base))
-
     def delete(self):
         # delete all projects on this index
         for name in list(self.getprojectnames_perstage()):
@@ -274,13 +362,6 @@ class PrivateStage:
                 return False
             del indexes[self.index]
 
-    def op_with_bases(self, opname, **kw):
-        opname += "_perstage"
-        results = []
-        for stage in self._get_sro():
-            stage_result = getattr(stage, opname)(**kw)
-            results.append((stage, stage_result))
-        return results
 
     # registering project and version metadata
     #
@@ -289,14 +370,6 @@ class PrivateStage:
 
     class RegisterNameConflict(Exception):
         """ a conflict while trying to register metadata. """
-
-    def get_project_info(self, name):
-        """ return first matching project info object for the given name
-        or None if no project exists. """
-        kwdict = {"name": name}
-        for stage, res in self.op_with_bases("get_project_info", **kwdict):
-            if res is not None:
-                return res
 
     def get_project_info_perstage(self, name):
         """ return normalized name for the given name or None
@@ -384,44 +457,9 @@ class PrivateStage:
     def get_projectconfig_perstage(self, name):
         return self.key_projconfig(name).get()
 
-    def get_projectconfig(self, name):
-        assert py.builtin._istext(name)
-        all_projectconfig = {}
-        for stage, res in self.op_with_bases("get_projectconfig", name=name):
-            if isinstance(res, int):
-                if res == 404:
-                    continue
-                assert 0, res
-            for ver in res:
-                if ver not in all_projectconfig:
-                    all_projectconfig[ver] = res[ver]
-                else:
-                    l = all_projectconfig[ver].setdefault("+shadowing", [])
-                    l.append(res[ver])
-        return all_projectconfig
-
     #
     # getting release links
     #
-
-    def getreleaselinks(self, projectname):
-        all_links = []
-        basenames = set()
-        for stage, res in self.op_with_bases("getreleaselinks",
-                                          projectname=projectname):
-            if isinstance(res, int):
-                if res == 404:
-                    continue
-                return res
-            for entry in res:
-                if entry.eggfragment:
-                    key = entry.eggfragment
-                else:
-                    key = entry.basename
-                if key not in basenames:
-                    basenames.add(key)
-                    all_links.append(entry)
-        return sorted_sameproject_links(all_links)
 
     def getreleaselinks_perstage(self, projectname):
         projectconfig = self.get_projectconfig_perstage(projectname)
@@ -434,37 +472,11 @@ class PrivateStage:
                 files.append(link.entry)
         return files
 
-    def getprojectnames(self):
-        all_names = set()
-        for stage, names in self.op_with_bases("getprojectnames"):
-            if isinstance(names, int):
-                return names
-            all_names.update(names)
-        return sorted(all_names)
-
-
     def getprojectnames_perstage(self):
         return self.key_projectnames.get()
 
     class MissesRegistration(Exception):
         """ store_releasefile requires pre-existing release metadata. """
-
-    def store_toxresult(self, link, toxresultdata):
-        assert isinstance(toxresultdata, dict), toxresultdata
-        return link.pv.new_reflink(
-                rel="toxresult",
-                file_content=json.dumps(toxresultdata).encode("utf-8"),
-                for_entrypath=link)
-
-    def get_toxresults(self, link):
-        l = []
-        for reflink in link.pv.get_links(rel="toxresult", for_entrypath=link):
-            data = reflink.entry.file_get_content().decode("utf-8")
-            l.append(json.loads(data))
-        return l
-
-    def get_project_version(self, name, version):
-        return ProjectVersion(self, name, version)
 
     def store_releasefile(self, name, version, filename, content,
                           last_modified=None):
@@ -504,12 +516,6 @@ class PrivateStage:
             assert len(links) == 1, links
             return links[0].entry.file_get_content()
 
-    def get_link_from_entrypath(self, entrypath):
-        entry = self.xom.filestore.get_file_entry(entrypath)
-        pv = self.get_project_version(entry.projectname, entry.version)
-        links = pv.get_links(entrypath=entrypath)
-        assert len(links) < 2
-        return links[0] if links else None
 
 
 class ELink:
@@ -573,9 +579,9 @@ class ProjectVersion:
         assert len(links) == 1, "need exactly one reference, got %s" %(links,)
         base_entry = links[0].entry
         other_reflinks = self.get_links(rel=rel, for_entrypath=for_entrypath)
-        filename = "%s%d.at" %(rel, len(other_reflinks))
+        filename = "%s.%s%d" %(base_entry.basename, rel, len(other_reflinks))
         entry = self._create_file_entry(filename, file_content,
-                                        md5dir=base_entry.md5)
+                                        ref_md5=base_entry.md5)
         return self._add_link_to_file_entry(rel, entry, for_entrypath=for_entrypath)
 
     def remove_links(self, rel=None, basename=None, for_entrypath=None):
@@ -604,7 +610,11 @@ class ProjectVersion:
         return list(filter(fil, [ELink(self, linkdict)
                            for linkdict in self.verdata.get("+elinks", [])]))
 
-    def _create_file_entry(self, basename, file_content, md5dir=None):
+    def _create_file_entry(self, basename, file_content, ref_md5=None):
+        if ref_md5 is None:
+            md5dir = None
+        else:
+            md5dir = "/".join(split_md5(ref_md5))
         entry = self.filestore.store(
                     user=self.stage.user.name, index=self.stage.index,
                     basename=basename,
@@ -665,13 +675,12 @@ def add_keys(xom, keyfs):
     keyfs.add_key("PYPILINKS", "root/pypi/+links/{name}", dict)
     keyfs.add_key("PYPIFILE_NOMD5",
                  "{user}/{index}/+e/{dirname}/{basename}", dict)
-    keyfs.add_key("PYPISTAGEFILE",
-                  "{user}/{index}/+f/{md5a}/{md5b}/{filename}", dict)
 
     # type "stage" related
     keyfs.add_key("PROJCONFIG", "{user}/{index}/{name}/.config", dict)
     keyfs.add_key("PROJNAMES", "{user}/{index}/.projectnames", set)
-    keyfs.add_key("STAGEFILE", "{user}/{index}/+f/{md5}/{filename}", dict)
+    keyfs.add_key("STAGEFILE",
+                  "{user}/{index}/+f/{md5a}/{md5b}/{filename}", dict)
 
     keyfs.notifier.on_key_change("PROJCONFIG", ProjectChanged(xom))
     keyfs.notifier.on_key_change("STAGEFILE", FileUploaded(xom))

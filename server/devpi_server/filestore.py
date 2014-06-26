@@ -29,8 +29,8 @@ class FileStore:
             # we can only create 32K entries per directory
             # so let's take the first 3 bytes which gives
             # us a maximum of 16^3 = 4096 entries in the root dir
-            md5a, md5b = link.md5[:3], link.md5[3:]
-            key = self.keyfs.PYPISTAGEFILE(user="root", index="pypi",
+            md5a, md5b = split_md5(link.md5)
+            key = self.keyfs.STAGEFILE(user="root", index="pypi",
                                        md5a=md5a, md5b=md5b,
                                        filename=link.basename)
         else:
@@ -72,9 +72,12 @@ class FileStore:
 
     def store(self, user, index, basename, file_content, md5dir=None):
         if md5dir is None:
-            md5dir = hashlib.md5(file_content).hexdigest()
+            md5 = hashlib.md5(file_content).hexdigest()
+            md5a, md5b = split_md5(md5)
+        else:
+            md5a, md5b = md5dir.split("/")
         key = self.keyfs.STAGEFILE(
-            user=user, index=index, md5=md5dir, filename=basename)
+            user=user, index=index, md5a=md5a, md5b=md5b, filename=basename)
         entry = FileEntry(self.xom, key)
         entry.file_set_content(file_content)
         return entry
@@ -229,4 +232,5 @@ def http_date():
     stamp = mktime(now.timetuple())
     return format_date_time(stamp)
 
-
+def split_md5(hexdigest):
+    return hexdigest[:3], hexdigest[3:16]

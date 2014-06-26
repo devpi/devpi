@@ -67,7 +67,7 @@ class ReplicaThread:
         log = thread_push_log("[REP]")
         session = self.xom.new_http_session("replica")
         keyfs = self.xom.keyfs
-        for key in (keyfs.STAGEFILE, keyfs.PYPIFILE_NOMD5, keyfs.PYPISTAGEFILE):
+        for key in (keyfs.STAGEFILE, keyfs.PYPIFILE_NOMD5):
             keyfs.subscribe_on_import(key, ImportFileReplica(self.xom))
         while 1:
             self.thread.exit_if_shutdown()

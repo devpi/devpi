@@ -144,7 +144,7 @@ class TestFileReplication:
     def replica_xom(self, makexom):
         replica_xom = makexom(["--master", "http://localhost"])
         keyfs = replica_xom.keyfs
-        for key in (keyfs.STAGEFILE, keyfs.PYPIFILE_NOMD5, keyfs.PYPISTAGEFILE):
+        for key in (keyfs.STAGEFILE, keyfs.PYPIFILE_NOMD5):
             keyfs.subscribe_on_import(key, ImportFileReplica(replica_xom))
         return replica_xom
 

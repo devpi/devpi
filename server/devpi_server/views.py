@@ -265,9 +265,10 @@ class PyPIView:
         self.log.info("starting +simple")
         stage = self.context.stage
         stage_results = []
-        for stage, names in stage.op_with_bases("getprojectnames"):
+        for stage, names in stage.op_sro("getprojectnames_perstage"):
             if isinstance(names, int):
-                abort(self.request, 502, "could not get simple list of %s" % stage.name)
+                abort(self.request, 502,
+                      "could not get simple list of %s" % stage.name)
             stage_results.append((stage, names))
 
         # at this point we are sure we can produce the data without
