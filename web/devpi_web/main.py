@@ -115,6 +115,8 @@ def devpiserver_run_commands(xom):
 
 
 def index_project(stage, name):
+    if stage is None:
+        return
     ix = get_indexer(stage.xom.config)
     pconfig = stage.get_projectconfig(name)
     ix.update_projects([preprocess_project(stage, name, pconfig)])

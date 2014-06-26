@@ -447,11 +447,11 @@ class SearchView:
             xom = self.request.registry['xom']
             user, index, name = path[1:].split('/')
             stage = xom.model.getstage(user, index)
-            _load_project_cache = getattr(stage, '_load_project_cache', None)
-            if _load_project_cache is None or _load_project_cache(name):
-                projectconfig = stage.get_projectconfig(name)
-            else:
-                projectconfig = {}
+            projectconfig = {}
+            if stage:  # due to async updates, the stage could be gone
+                _load_project_cache = getattr(stage, '_load_project_cache', None)
+                if _load_project_cache is None or _load_project_cache(name):
+                    projectconfig = stage.get_projectconfig(name)
             self._projectinfo['path'] = (stage, projectconfig)
         return self._projectinfo['path']
 
@@ -468,10 +468,9 @@ class SearchView:
         for sub_hit in sub_hits:
             sub_data = sub_hit['data']
             text_type = sub_data['type']
+            metadata = {}
             if 'version' in data:
-                metadata = projectconfig[data['version']]
-            else:
-                metadata = {}
+                metadata = projectconfig.get(data['version'], {})
             title = text_type.title()
             highlight = None
             if text_type == 'project':

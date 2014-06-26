@@ -28,7 +28,7 @@ def render_description(stage, metadata):
     desc = metadata.get("description")
     name = metadata.get("name")
     version = metadata.get("version")
-    if desc is None or name is None or version is None:
+    if stage is None or desc is None or name is None or version is None:
         return
     html = processDescription(desc)
     if py.builtin._istext(html):

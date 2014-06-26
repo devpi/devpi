@@ -399,6 +399,21 @@ def test_search_docs(mapp, testapp):
         ("Foo", "http://localhost/%s/pkg1/2.6/+d/index.html" % api.stagename)]
 
 
+@pytest.mark.with_notifier
+def test_search_deleted_stage(mapp, testapp):
+    api = mapp.create_and_use()
+    mapp.register_metadata({
+        "name": "pkg1",
+        "version": "2.6",
+        "description": "foo"})
+    mapp.delete_index(api.stagename, waithooks=True)
+    r = testapp.get('/+search?query=pkg')
+    assert r.status_code == 200
+    links = r.html.select('.searchresults a')
+    assert [(l.text.strip(), l.attrs['href']) for l in links] == [
+        ("pkg1-2.6", "http://localhost:80/%s/pkg1/2.6" % api.stagename)]
+
+
 def test_search_root_pypi(mapp, testapp, pypistage):
     from devpi_web.main import get_indexer
     pypistage.mock_simple("pkg1", '<a href="/pkg1-2.6.zip" /a>')
