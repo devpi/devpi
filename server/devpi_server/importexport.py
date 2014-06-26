@@ -390,9 +390,9 @@ class Importer:
         type = type_path.basename
         for i in range(len(type_path.listdir())):
             attachment_data = type_path.join(str(i)).read(mode="rb")
-            testresultdata = json.loads(attachment_data)
+            toxresultdata = json.loads(attachment_data)
             self.tw.line("importing pre-2.0 test  results %s/%s" %(md5, type))
-            link = stage.store_toxresult(releasefile_link, testresultdata)
+            link = stage.store_toxresult(releasefile_link, toxresultdata)
             self.tw.line("imported %s" % link.entrypath)
 
 

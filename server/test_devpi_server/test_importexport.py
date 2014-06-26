@@ -91,7 +91,7 @@ class TestImportExport:
         assert indexlist[stagename2]["bases"] == [api.stagename]
         assert mapp2.xom.config.secret == mapp1.xom.config.secret
 
-    def test_upload_releasefile_with_testresult(self, impexp):
+    def test_upload_releasefile_with_toxresult(self, impexp):
         from test_devpi_server.example import tox_result_data
         mapp1 = impexp.mapp1
         api = mapp1.create_and_use()

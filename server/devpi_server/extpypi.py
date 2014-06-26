@@ -1,7 +1,7 @@
 """
 
 Implementation of the database layer for PyPI Package serving and
-testresult storage.
+toxresult storage.
 
 """
 

@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 import posixpath
-import hashlib
 import py
 import json
 from devpi_common.metadata import (sorted_sameproject_links,
@@ -450,11 +449,11 @@ class PrivateStage:
     class MissesRegistration(Exception):
         """ store_releasefile requires pre-existing release metadata. """
 
-    def store_toxresult(self, link, testresultdata):
-        assert isinstance(testresultdata, dict), testresultdata
+    def store_toxresult(self, link, toxresultdata):
+        assert isinstance(toxresultdata, dict), toxresultdata
         return link.pv.new_reflink(
                 rel="toxresult",
-                file_content=json.dumps(testresultdata).encode("utf-8"),
+                file_content=json.dumps(toxresultdata).encode("utf-8"),
                 for_entrypath=link)
 
     def get_toxresults(self, link):

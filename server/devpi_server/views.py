@@ -202,15 +202,15 @@ class PyPIView:
 
     @view_config(route_name="/{user}/{index}/+f/{relpath:.*}",
                  request_method="POST")
-    def post_testresult(self):
+    def post_toxresult(self):
         stage = self.context.stage
         relpath = self.request.path.strip("/")
         link = stage.get_link_from_entrypath(relpath)
         if link is None or link.rel != "releasefile":
             apireturn(404, message="no release file found at %s" % relpath)
-        testresultdata = getjson(self.request)
-        tox_link = stage.store_toxresult(link, testresultdata)
-        apireturn(200, type="testresultpath",
+        toxresultdata = getjson(self.request)
+        tox_link = stage.store_toxresult(link, toxresultdata)
+        apireturn(200, type="toxresultpath",
                   result=tox_link.entrypath)
 
     #

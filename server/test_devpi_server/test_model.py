@@ -275,28 +275,28 @@ class TestStage:
         assert '_static' not in namelist
         assert '_templ' not in namelist
 
-    def test_storetestresult(self, stage, bases):
+    def test_storetoxresult(self, stage, bases):
         content = b'123'
         entry = register_and_store(stage, "pkg1-1.0.tar.gz", content=content)
         assert entry.projectname == "pkg1"
         assert entry.version == "1.0"
-        testresultdata = {'hello': 'world'}
+        toxresultdata = {'hello': 'world'}
         link = stage.get_link_from_entrypath(entry.relpath)
-        stage.store_toxresult(link, testresultdata)
+        stage.store_toxresult(link, toxresultdata)
         pv = stage.get_project_version("pkg1", "1.0")
         tox_links = list(pv.get_links(rel="toxresult"))
         assert len(tox_links) == 1
         tentry = tox_links[0].entry
         assert tentry.basename == "toxresult0.at"
         back_data = json.loads(tentry.file_get_content().decode("utf8"))
-        assert back_data == testresultdata
+        assert back_data == toxresultdata
 
         assert tentry.projectname == entry.projectname
         assert tentry.version == entry.version
 
         results = stage.get_toxresults(link)
         assert len(results) == 1
-        assert results[0] == testresultdata
+        assert results[0] == toxresultdata
 
     def test_store_and_get_volatile(self, stage):
         stage.modify(volatile=False)
