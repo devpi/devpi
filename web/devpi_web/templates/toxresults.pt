@@ -1,0 +1,49 @@
+<html>
+    <head>
+        <title>${title}</title>
+        <metal:head use-macro="request.macros['head']" />
+    </head>
+    <body>
+        <metal:search use-macro="request.macros['navigation']" />
+        <div id="content">
+        <h1>${title}</h1>
+
+        <table class="toxresults">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Host</th>
+                    <th>Platform</th>
+                    <th>Environment</th>
+                    <th>Python Version</th>
+                    <th>Result</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr tal:repeat="toxresult toxresults">
+                    <td>${toxresult.basename}</td>
+                    <td>${toxresult.host}</td>
+                    <td>${toxresult.platform}</td>
+                    <td>${toxresult.envname}</td>
+                    <td>${toxresult.get('pyversion')}</td>
+                    <td>
+                        <div>
+                            <a href="${make_toxresult_url(toxresult=toxresult.basename)}#${toxresult._key}-setup" tal:attributes="class 'failed' if toxresult.setup.failed else 'passed'">
+                                <tal:nosetup condition="not toxresult.setup.commands">No setup performed</tal:nosetup>
+                                <tal:setup condition="toxresult.setup.commands and toxresult.setup.failed">Setup failed</tal:setup>
+                                <tal:setup condition="toxresult.setup.commands and not toxresult.setup.failed">Setup performed</tal:setup>
+                            </a>
+                        </div>
+                        <div>
+                            <a href="${make_toxresult_url(toxresult=toxresult.basename)}#${toxresult._key}-test" tal:attributes="class 'failed' if toxresult.setup.failed else 'passed'">
+                                <tal:notest condition="not toxresult.test.commands">No test run</tal:notest>
+                                <tal:test condition="toxresult.test.commands and toxresult.test.failed">Tests failed</tal:test>
+                                <tal:test condition="toxresult.test.commands and not toxresult.test.failed">Tests passed</tal:test>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </body>
+</html>

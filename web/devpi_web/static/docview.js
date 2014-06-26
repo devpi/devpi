@@ -1,22 +1,9 @@
 function scrollToAnchor(iframe, hash) {
-    console.log('scrollToAnchor', hash);
-    if (window.location.hash === "") {
+    var anchor = get_anchor(iframe.contentWindow, hash);
+    if (anchor === null)
         return;
-    }
-    var anchor = iframe.contentWindow.document.getElementById(hash.slice(1));
-    console.log("anchor", anchor);
-    if (anchor === null) {
-        var selector = 'a[name="' + hash.slice(1) + '"]';
-        console.log("selector", selector);
-        anchor = $(iframe.contentWindow.document).find(selector);
-        console.log("anchor2", anchor);
-        if (!anchor.length) {
-            return;
-        }
-    }
     var iframe_y = $(iframe).position().top;
     var anchor_y = $(anchor).position().top;
-    console.log("scrollTop", iframe_y, anchor_y, iframe_y + anchor_y);
     $(window).scrollTop(iframe_y + anchor_y);
 }
 

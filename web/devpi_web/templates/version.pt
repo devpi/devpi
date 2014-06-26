@@ -28,7 +28,7 @@
                     <th>Type</th>
                     <th>Py Version</th>
                     <th>Size</th>
-                    <th class="test_results" tal:condition="show_test_results">Test results</th>
+                    <th class="toxresults" tal:condition="show_toxresults">Test results</th>
                     <th class="md5">MD5</th>
                 </tr>
             </thead>
@@ -38,42 +38,17 @@
                     <td>${file.dist_type}</td>
                     <td>${file.py_version}</td>
                     <td>${file.size}</td>
-                    <td class="test_results" tal:condition="show_test_results">
-                        <tal:test_results condition="file.get('test_results')">
-                            <div tal:attributes="class 'testresult ' + ('failed' if test_result.failed else 'passed')" tal:repeat="test_result file.get('test_results')">
-                                <div class="testresult_title">
-                                    ${test_result.host} ${test_result.platform} ${test_result.envname} ${test_result.get('pyversion')}
-                                </div>
-                                <div class="command" tal:condition="not test_result.setup.commands">No setup performed</div>
-                                <div
-                                    tal:condition="test_result.setup.commands"
-                                    tal:repeat="command test_result.setup.commands"
-                                    tal:attributes="class 'command ' + ('failed' if command.failed else 'passed')">
-                                    <div>
-                                        Setup command:
-                                        <pre>${command.command}</pre>
-                                    </div>
-                                    <div>
-                                        Setup output:
-                                        <pre>${command.output}</pre>
-                                    </div>
-                                </div>
-                                <div class="command" tal:condition="not test_result.test.commands">No test run</div>
-                                <div
-                                    tal:condition="test_result.test.commands"
-                                    tal:repeat="command test_result.test.commands"
-                                    tal:attributes="class 'command ' + ('failed' if command.failed else 'passed')">
-                                    <div>
-                                        Test command:
-                                        <pre>${command.command}</pre>
-                                    </div>
-                                    <div>
-                                        Test output:
-                                        <pre>${command.output}</pre>
-                                    </div>
-                                </div>
+                    <td class="toxresults" tal:condition="show_toxresults">
+                        <tal:toxresults condition="file.get('toxresults')">
+                            <div tal:repeat="toxresult file.get('toxresults')">
+                                <a href="${make_toxresult_url(basename=file.basename, toxresult=toxresult.basename)}#${toxresult._key}" tal:attributes="class 'failed' if toxresult.failed else 'passed'">
+                                    ${toxresult.host} ${toxresult.platform} ${toxresult.envname} ${toxresult.get('pyversion')}
+                                </a>
                             </div>
-                        </tal:test_results>
+                            <a href="${make_toxresults_url(basename=file.basename)}">
+                                All toxresults …
+                            </a>
+                        </tal:toxresults>
                     </td>
                     <td class="md5"><code>${file.md5}</code></td>
                 </tr>

@@ -1,0 +1,41 @@
+<html>
+    <head>
+        <title>${title}</title>
+        <metal:head use-macro="request.macros['head']" />
+    </head>
+    <body>
+        <metal:search use-macro="request.macros['navigation']" />
+        <div id="content">
+        <h1>${title}</h1>
+
+        <div tal:repeat="toxresult toxresults"
+             tal:attributes="class 'toxresult ' + ('failed' if toxresult.failed else 'passed')">
+            <h2 class="toxresult_title" id="${toxresult._key}">
+                ${toxresult.host} ${toxresult.platform} ${toxresult.envname} ${toxresult.get('pyversion')}
+            </h2>
+            <a name="${toxresult._key}-setup"></a>
+            <div class="command" tal:condition="not toxresult.setup.commands">No setup performed</div>
+            <div
+                tal:condition="toxresult.setup.commands"
+                tal:repeat="command toxresult.setup.commands"
+                tal:attributes="class 'command ' + ('failed' if command.failed else 'passed')"
+                id="${toxresult._key}-setup">
+                <h3>Setup command:</h3>
+                <pre>${command.command}</pre>
+                <h3>Setup output:</h3>
+                <pre>${command.output}</pre>
+            </div>
+            <a name="${toxresult._key}-test"></a>
+            <div class="command" tal:condition="not toxresult.test.commands">No test run</div>
+            <div
+                tal:condition="toxresult.test.commands"
+                tal:repeat="command toxresult.test.commands"
+                tal:attributes="class 'command ' + ('failed' if command.failed else 'passed')">
+                <h3>Test command:</h3>
+                <pre>${command.command}</pre>
+                <h3>Test output:</h3>
+                <pre>${command.output}</pre>
+            </div>
+        </div>
+    </body>
+</html>

@@ -28,11 +28,11 @@
                 <td><a href="${package.info.url}">${package.info.title}</a></td>
                 <td>
                     <tal:files condition="package.files" repeat="file package.files">
-                        <tal:file define="test_results file.get('test_results', []);
-                                          failed None if not test_results else any(x['failed'] for x in test_results)">
+                        <tal:file define="toxresults file.get('toxresults', []);
+                                          failed None if not toxresults else any(x['failed'] for x in toxresults)">
                             <a href="${file.url}">${file.title}</a>
                             <tal:tests condition="failed is not None">
-                                (<a href="${package.info.url}" tal:attributes="class 'failed' if failed else 'passed'">tests</a>)
+                                (<a href="${package.make_toxresults_url(basename=file.basename)}" tal:attributes="class 'failed' if failed else 'passed'">tests</a>)
                             </tal:tests>
                             <br tal:condition="not repeat.file.end" />
                         </tal:file>

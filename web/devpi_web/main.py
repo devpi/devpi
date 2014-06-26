@@ -66,6 +66,12 @@ def includeme(config):
     config.add_route(
         "docviewroot",
         "/{user}/{index}/{name}/{version}/+d/{relpath:.*}")
+    config.add_route(
+        "toxresults",
+        "/{user}/{index}/{name}/{version}/+toxresults/{basename}")
+    config.add_route(
+        "toxresult",
+        "/{user}/{index}/{name}/{version}/+toxresults/{basename}/{toxresult}")
     config.add_request_method(macros, reify=True)
     config.add_request_method(navigation_info, reify=True)
     config.add_request_method(query_docs_html, reify=True)

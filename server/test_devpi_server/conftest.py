@@ -488,8 +488,7 @@ class Mapp(MappMixin):
 
     def upload_file_pypi(self, basename, content,
                          name=None, version=None, indexname=None,
-                         register=True,
-                         code=200):
+                         register=True, code=200, waithooks=False):
         assert py.builtin._isbytes(content)
         indexname = self._getindexname(indexname)
         #name_version = splitbasename(basename, checkarch=False)
@@ -503,6 +502,8 @@ class Mapp(MappMixin):
             {":action": "file_upload", "name": name, "version": version,
              "content": Upload(basename, content)}, expect_errors=True)
         assert r.status_code == code
+        if waithooks:
+            self._wait_for_serial_in_result(r)
         return r
 
     def get_release_paths(self, projectname):

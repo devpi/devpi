@@ -5,7 +5,7 @@ from devpi_common.url import URL
 from devpi_server.log import threadlog as log
 from devpi_web.description import get_description
 from devpi_web.doczip import Docs, get_unpack_path
-from operator import itemgetter
+from operator import attrgetter, itemgetter
 from py.xml import html
 from pyramid.compat import decode_path_info
 from pyramid.decorator import reify
@@ -13,25 +13,66 @@ from pyramid.httpexceptions import HTTPFound, HTTPNotFound
 from pyramid.interfaces import IRoutesMapper
 from pyramid.response import FileResponse
 from pyramid.view import notfound_view_config, view_config
+import functools
+import json
 import py
+
+
+class ContextWrapper(object):
+    def __init__(self, context):
+        self.context = context
+
+    def __getattr__(self, name):
+        return getattr(self.context, name)
+
+    @reify
+    def stage(self):
+        stage = self.model.getstage(self.username, self.index)
+        if not stage:
+            raise HTTPNotFound(
+                "The stage %s/%s could not be found." % (self.username, self.index))
+        return stage
+
+    @reify
+    def metadata(self):
+        metadata = self.stage.get_projectconfig(self.name)
+        if not metadata:
+            raise HTTPNotFound("The project %s does not exist." % self.name)
+        return metadata
+
+    @reify
+    def verdata(self):
+        verdata = self.metadata.get(self.version, None)
+        if not verdata:
+            raise HTTPNotFound(
+                "The version %s of project %s does not exist." % (
+                    self.version, self.name))
+        return verdata
+
+    @reify
+    def project_version(self):
+        return self.stage.get_project_version(self.name, self.version)
+
+
+def get_doc_path_info(context, request):
+    relpath = request.matchdict['relpath']
+    if not relpath:
+        raise HTTPFound(location="index.html")
+    doc_path = get_unpack_path(context.stage, context.name, context.version)
+    if not doc_path.check():
+        raise HTTPNotFound("No documentation available.")
+    doc_path = doc_path.join(relpath)
+    if not doc_path.check():
+        raise HTTPNotFound("File %s not found in documentation." % relpath)
+    return doc_path, relpath
 
 
 @view_config(route_name="docroot", request_method="GET")
 def doc_serve(context, request):
     """ Serves the raw documentation files. """
-    relpath = request.matchdict['relpath']
-    if not relpath:
-        raise HTTPFound(location="index.html")
-    user, index = context.username, context.index
-    stage = context.model.getstage(user, index)
-    if not stage:
-        raise HTTPNotFound("The stage %s/%s could not be found." % (user, index))
-    doc_path = get_unpack_path(stage, context.name, context.version)
-    if not doc_path.check():
-        raise HTTPNotFound("No documentation available.")
-    if not doc_path.join(relpath).check():
-        raise HTTPNotFound("File %s not found in documentation." % relpath)
-    return FileResponse(str(doc_path.join(relpath)))
+    context = ContextWrapper(context)
+    doc_path, relpath = get_doc_path_info(context, request)
+    return FileResponse(str(doc_path))
 
 
 @view_config(
@@ -40,19 +81,10 @@ def doc_serve(context, request):
     renderer="templates/doc.pt")
 def doc_show(context, request):
     """ Shows the documentation wrapped in an iframe """
-    relpath = request.matchdict['relpath']
-    if not relpath:
-        raise HTTPFound(location="index.html")
-    user, index = context.username, context.index
-    stage = context.model.getstage(user, index)
-    if not stage:
-        raise HTTPNotFound("The stage %s/%s could not be found." % (user, index))
+    context = ContextWrapper(context)
+    stage = context.stage
     name, version = context.name, context.version
-    doc_path = get_unpack_path(stage, name, version)
-    if not doc_path.check():
-        raise HTTPNotFound("No documentation available.")
-    if not doc_path.join(relpath).check():
-        raise HTTPNotFound("File %s not found in documentation." % relpath)
+    doc_path, relpath = get_doc_path_info(context, request)
     return dict(
         title="%s-%s Documentation" % (name, version),
         base_url=request.route_url(
@@ -107,16 +139,15 @@ def sizeof_fmt(num):
     return (num, 'TB')
 
 
-def get_files_info(request, user, index, metadata, show_test_results=False):
+def get_files_info(request, pv, show_toxresults=False):
     xom = request.registry['xom']
     files = []
-    filedata = metadata.get("+files", {})
+    filedata = pv.get_links(rel='releasefile')
     if not filedata:
         log.warn(
-            "project %r version %r has no files",
-            metadata["name"], metadata.get("version"))
-    for basename in sorted(filedata):
-        entry = xom.filestore.get_file_entry(filedata[basename])
+            "project %r version %r has no files", pv.projectname, pv.version)
+    for link in sorted(filedata, key=attrgetter('basename')):
+        entry = xom.filestore.get_file_entry(link.entrypath)
         relurl = URL(request.path).relpath("/" + entry.relpath)
         if entry.eggfragment:
             relurl += "#egg=%s" % entry.eggfragment
@@ -129,17 +160,17 @@ def get_files_info(request, user, index, metadata, show_test_results=False):
         if entry.file_exists():
             size = "%.0f %s" % sizeof_fmt(entry.file_size())
         fileinfo = dict(
-            title=basename,
+            title=link.basename,
             url=request.relative_url(relurl),
+            basename=entry.basename,
             md5=entry.md5,
             dist_type=dist_file_types.get(file_type, ''),
             py_version=py_version,
             size=size)
-        if show_test_results:
-            stage = xom.model.getstage(user, index)
-            test_results = get_test_result_info(stage, metadata, basename)
-            if test_results:
-                fileinfo['test_results'] = test_results
+        if show_toxresults:
+            toxresults = get_toxresults_info(link)
+            if toxresults:
+                fileinfo['toxresults'] = toxresults
         files.append(fileinfo)
     return files
 
@@ -156,19 +187,27 @@ def _get_commands_info(commands):
     return result
 
 
-def get_test_result_info(stage, metadata, basename):
+def load_toxresult(link):
+    data = link.entry.file_get_content().decode("utf-8")
+    return json.loads(data)
+
+
+def get_toxresults_info(link, newest=False):
     result = []
     seen = set()
-    toxresults = list(enumerate(stage.get_toxresults(metadata, basename)))
-    for index, toxresult in reversed(toxresults):
+    for reflink in reversed(link.pv.get_links(rel="toxresult", for_entrypath=link)):
         try:
+            toxresult = load_toxresult(reflink)
             for envname in toxresult["testenvs"]:
                 seen_key = (toxresult["host"], toxresult["platform"], envname)
                 if seen_key in seen:
                     continue
-                seen.add(seen_key)
+                if newest:
+                    seen.add(seen_key)
                 env = toxresult["testenvs"][envname]
                 info = dict(
+                    basename=reflink.basename,
+                    _key="-".join(seen_key),
                     host=toxresult["host"],
                     platform=toxresult["platform"],
                     envname=envname)
@@ -181,8 +220,7 @@ def get_test_result_info(stage, metadata, basename):
                 info['failed'] = info["setup"]["failed"] or info["test"]["failed"]
                 result.append(info)
         except Exception:
-            log.exception("Couldn't parse test results %s for %s." %
-                          (index, basename))
+            log.exception("Couldn't parse test results %s." % reflink.basename)
     return result
 
 
@@ -202,10 +240,9 @@ def get_docs_info(request, stage, metadata):
 @view_config(
     route_name='root',
     renderer='templates/root.pt')
-def root(request):
-    xom = request.registry['xom']
+def root(context, request):
     rawusers = sorted(
-        (x.get() for x in xom.model.get_userlist()),
+        (x.get() for x in context.model.get_userlist()),
         key=itemgetter('username'))
     users = []
     for user in rawusers:
@@ -226,10 +263,9 @@ def root(request):
     route_name="/{user}/{index}", accept="text/html", request_method="GET",
     renderer="templates/index.pt")
 def index_get(context, request):
+    context = ContextWrapper(context)
     user, index = context.username, context.index
-    stage = context.model.getstage(user, index)
-    if not stage:
-        raise HTTPNotFound("The stage %s/%s could not be found." % (user, index))
+    stage = context.stage
     bases = []
     packages = []
     result = dict(
@@ -261,7 +297,8 @@ def index_get(context, request):
             log.error("metadata for project %r empty: %s, skipping",
                       projectname, metadata)
             continue
-        show_test_results = not (stage.user.name == 'root' and stage.index == 'pypi')
+        show_toxresults = not (stage.user.name == 'root' and stage.index == 'pypi')
+        pv = stage.get_project_version(name, ver)
         packages.append(dict(
             info=dict(
                 title="%s-%s" % (name, ver),
@@ -269,8 +306,11 @@ def index_get(context, request):
                     "/{user}/{index}/{name}/{version}",
                     user=stage.user.name, index=stage.index,
                     name=name, version=ver)),
-            files=get_files_info(
-                request, stage.user.name, stage.index, metadata, show_test_results),
+            make_toxresults_url=functools.partial(
+                request.route_url, "toxresults",
+                user=stage.user.name, index=stage.index,
+                name=name, version=ver),
+            files=get_files_info(request, pv, show_toxresults),
             docs=get_docs_info(request, stage, metadata)))
 
     return result
@@ -281,12 +321,8 @@ def index_get(context, request):
     accept="text/html", request_method="GET",
     renderer="templates/project.pt")
 def project_get(context, request):
-    # directly using context.stage doesn't give us a nice enough error message
-    stage = context.model.getstage(context.username, context.index)
-    if not stage:
-        raise HTTPNotFound("The stage %s/%s could not be found." % (
-            context.username, context.index))
-    releases = stage.getreleaselinks(context.name)
+    context = ContextWrapper(context)
+    releases = context.stage.getreleaselinks(context.name)
     if not releases:
         raise HTTPNotFound("The project %s does not exist." % context.name)
     versions = []
@@ -307,7 +343,7 @@ def project_get(context, request):
                 user=user, index=index, name=name, version=version)))
         seen.add(seen_key)
     return dict(
-        title="%s/: %s versions" % (stage.name, name),
+        title="%s/: %s versions" % (context.stage.name, name),
         versions=versions)
 
 
@@ -316,17 +352,10 @@ def project_get(context, request):
     accept="text/html", request_method="GET",
     renderer="templates/version.pt")
 def version_get(context, request):
+    context = ContextWrapper(context)
     user, index = context.username, context.index
-    stage = context.model.getstage(user, index)
-    if not stage:
-        raise HTTPNotFound("The stage %s/%s could not be found." % (user, index))
     name, version = context.name, context.version
-    metadata = stage.get_projectconfig(name)
-    if not metadata:
-        raise HTTPNotFound("The project %s does not exist." % name)
-    verdata = metadata.get(version, None)
-    if not verdata:
-        raise HTTPNotFound("The version %s of project %s does not exist." % (version, name))
+    stage, verdata = context.stage, context.verdata
     infos = []
     skipped_keys = frozenset(
         ("description", "home_page", "name", "summary", "version"))
@@ -342,8 +371,9 @@ def version_get(context, request):
                 continue
             value = py.xml.escape(value)
         infos.append((py.xml.escape(key), value))
-    show_test_results = not (user == 'root' and index == 'pypi')
-    files = get_files_info(request, user, index, verdata, show_test_results)
+    show_toxresults = not (user == 'root' and index == 'pypi')
+    pv = stage.get_project_version(name, version)
+    files = get_files_info(request, pv, show_toxresults)
     return dict(
         title="%s/: %s-%s metadata and description" % (stage.name, name, version),
         content=get_description(stage, name, version),
@@ -351,8 +381,55 @@ def version_get(context, request):
         summary=verdata.get("summary"),
         infos=infos,
         files=files,
-        show_test_results=show_test_results,
+        show_toxresults=show_toxresults,
+        make_toxresults_url=functools.partial(
+            request.route_url, "toxresults",
+            user=context.username, index=context.index,
+            name=context.name, version=context.version),
+        make_toxresult_url=functools.partial(
+            request.route_url, "toxresult",
+            user=context.username, index=context.index,
+            name=context.name, version=context.version),
         docs=get_docs_info(request, stage, verdata))
+
+
+@view_config(
+    route_name="toxresults",
+    accept="text/html", request_method="GET",
+    renderer="templates/toxresults.pt")
+def toxresults(context, request):
+    context = ContextWrapper(context)
+    pv = context.project_version
+    basename = request.matchdict['basename']
+    toxresults = get_toxresults_info(
+        pv.get_links(basename=basename)[0], newest=False)
+    return dict(
+        title="%s/: %s-%s toxresults" % (
+            context.stage.name, context.name, context.version),
+        toxresults=toxresults,
+        make_toxresult_url=functools.partial(
+            request.route_url, "toxresult",
+            user=context.username, index=context.index,
+            name=context.name, version=context.version, basename=basename))
+
+
+@view_config(
+    route_name="toxresult",
+    accept="text/html", request_method="GET",
+    renderer="templates/toxresult.pt")
+def toxresult(context, request):
+    context = ContextWrapper(context)
+    pv = context.project_version
+    basename = request.matchdict['basename']
+    toxresult = request.matchdict['toxresult']
+    toxresults = [
+        x for x in get_toxresults_info(
+            pv.get_links(basename=basename)[0], newest=False)
+        if x['basename'] == toxresult]
+    return dict(
+        title="%s/: %s-%s toxresult %s" % (
+            context.stage.name, context.name, context.version, toxresult),
+        toxresults=toxresults)
 
 
 def batch_list(num, current, left=3, right=3):
