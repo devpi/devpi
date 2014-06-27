@@ -612,6 +612,8 @@ class SearchView:
                     _query=new_params)
                 item['more_count'] = more_results
             items.append(item)
+        if not items:
+            return
         result['items'] = items
         return result
 
