@@ -427,8 +427,8 @@ class TestRefreshManager:
             def devpiserver_pypi_initial(self, stage, name2serials):
                 queue.put((stage, name2serials))
         xom = makexom(plugins=[(Plugin(),None)])
-        xom.thread_pool.start()
         xom.pypimirror.init_pypi_mirror(proxy)
+        xom.thread_pool.start()
         stage, name2serials = queue.get()
         assert name2serials == d
 
