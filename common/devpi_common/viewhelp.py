@@ -8,7 +8,7 @@ class ViewVersionLinks:
 
     def get_links(self, rel=None, for_href=None, basename=None):
         l = []
-        for linkdict in self.versiondata["+links"]:
+        for linkdict in self.versiondata.get("+links", []):
             viewlink = ViewLink(self.url, linkdict)
             if (not rel or viewlink.rel == rel) and \
                (not for_href or viewlink.for_href==for_href) and \
