@@ -74,7 +74,7 @@ class Filesystem:
         self.path_next_serial = str(basedir.join(".nextserial"))
         self.path_changelogdir = basedir.ensure(".changelog", dir=1)
         self.next_serial = read_int_from_file(self.path_next_serial)
-        self._changelog_cache = {}
+        self._last_commit_cache = None
 
     def write_transaction(self):
         return FSWriter(self)
@@ -91,15 +91,15 @@ class Filesystem:
             return None
 
     def get_changelog_entry(self, serial):
-        try:
-            return self._changelog_cache[serial]
-        except KeyError:
-            p = self.path_changelogdir.join(str(serial))
-            val = load_from_file(str(p))
-            # XXX fix unboundedness of cache
-            self._changelog_cache[serial] = val
-            return val
+        cache = self._last_commit_cache
+        if cache is not None and cache[0] == serial:
+            return cache[1]
+        p = self.path_changelogdir.join(str(serial))
+        return load_from_file(str(p))
 
+    def cache_commit_entry(self, serial, changes):
+        # setattr is atomic
+        self._last_commit_cache = serial, changes
 
 class FSWriter:
     def __init__(self, fs):
@@ -122,6 +122,10 @@ class FSWriter:
         name, back_serial = load_from_file(target_path, (typedkey.name, -1))
         with get_write_file_ensure_dir(tmp_path) as f:
             dump((typedkey.name, next_serial), f)
+        # we later write out changes to the last_commit_cache, need to be careful
+        # that the caller of the transaction doesn't alter the value
+        # after we return.
+        value = copy_if_mutable(value)
         self.changes[relpath] = (typedkey.name, back_serial, value)
         self.pending_renames.append((tmp_path, target_path))
 
@@ -142,6 +146,7 @@ class FSWriter:
             size_basedir = len(str(self.fs.basedir))
             changed = [x[1][size_basedir:] for x in self.pending_renames]
             self.log.info("committed: %s", ",".join(changed))
+            self.fs.cache_commit_entry(commit_serial, self.changes)
             self.fs._notify_on_commit(commit_serial)
         else:
             while self.pending_renames:
@@ -247,11 +252,14 @@ class TxNotificationThread:
             ev = KeyChangeEvent(key, val, event_serial, back_serial)
             subscribers = self._on_key_change.get(keyname, [])
             for sub in subscribers:
-                log.debug("calling %s", sub)
+                log.debug("calling %s with key=%s, at_serial=%s, back_serial=%s",
+                          sub, key, event_serial, back_serial)
                 try:
                     sub(ev)
                 except Exception:
                     log.exception("calling %s failed", sub)
+                log.debug("finished %s", sub)
+        log.debug("finished calling all hooks for tx%s", event_serial)
 
 
 class KeyFS(object):
@@ -612,10 +620,14 @@ class Transaction(object):
         self.__dict__ = newtx.__dict__
 
 
-def copy_if_mutable(val):
+def copy_if_mutable(val, _immutable=(py.builtin.text, type(None), int, tuple,
+                                     py.builtin.bytes, float)):
+    if isinstance(val, _immutable):
+        return val
     if isinstance(val, dict):
-        return val.copy()
+        return {k:copy_if_mutable(v) for k, v in val.items()}
     elif isinstance(val, list):
-        return list(val)
-    return val
-
+        return [copy_if_mutable(item) for item in val]
+    elif isinstance(val, set):
+        return set(copy_if_mutable(item) for item in val)
+    raise ValueError("don't know how to handle type %r" % type(val))

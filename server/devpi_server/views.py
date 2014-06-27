@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 
-from copy import deepcopy
 import py
 from py.xml import html
 from devpi_common.types import ensure_unicode
@@ -18,6 +17,7 @@ from devpi_common.request import new_requests_session
 from devpi_common.validation import normalize_name, is_valid_archive_name
 
 from .model import InvalidIndexconfig, _ixconfigattr
+from .keyfs import copy_if_mutable
 from .log import thread_push_log, thread_pop_log, threadlog
 
 from .auth import Auth
@@ -590,12 +590,12 @@ class PyPIView:
         apireturn(200, type="versiondata", result=view_verdata)
 
     def _make_view_verdata(self, verdata):
-        view_verdata = deepcopy(verdata)
+        view_verdata = copy_if_mutable(verdata)
         elinks = view_verdata.pop("+elinks", None)
         if elinks is not None:
             view_verdata["+links"] = links = []
             for elinkdict in elinks:
-                linkdict = deepcopy(elinkdict)
+                linkdict = copy_if_mutable(elinkdict)
                 entrypath = linkdict.pop("entrypath")
                 linkdict["href"] = self._url_for_entrypath(entrypath)
                 for_entrypath = linkdict.pop("for_entrypath", None)

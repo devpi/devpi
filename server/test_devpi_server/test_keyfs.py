@@ -260,6 +260,39 @@ class TestTransactionIsolation:
             assert new_keyfs.get_value_at(D2, 1)
         assert new_keyfs.get_value_at(D2, 2) == {2:2}
 
+    def test_get_value_at_modify_inplace_is_safe(self, keyfs):
+        from copy import deepcopy
+        D = keyfs.add_key("NAME", "hello", dict)
+        d = {1: set(), 2: dict(), 3: []}
+        d_orig = deepcopy(d)
+        with keyfs.transaction(write=True):
+            D.set(d)
+        assert keyfs.get_value_at(D, 0) == d_orig
+        d2 = keyfs.get_value_at(D, 0)
+        d2[1].add(4)
+        d2[2][3] = 5
+        d2[3].append(6)
+        assert keyfs.get_value_at(D, 0) == d_orig
+
+    def future_maybe_test_bounded_cache(self, keyfs):  # if we ever introduce it
+        import random
+        D = keyfs.add_key("NAME", "hello", dict)
+        size = keyfs._fs.CHANGELOG_CACHE_SIZE
+        for i in range(size * 3):
+            with keyfs.transaction(write=True):
+                D.set({i:i})
+            with keyfs.transaction():
+                D.get()
+            assert len(keyfs._fs._changelog_cache) <= \
+                   keyfs._fs.CHANGELOG_CACHE_SIZE + 1
+
+        for i in range(size * 2):
+            j = random.randrange(0, size * 3)
+            keyfs.get_value_at(D, j)
+            assert len(keyfs._fs._changelog_cache) <= \
+                   keyfs._fs.CHANGELOG_CACHE_SIZE + 1
+
+
     def test_import_changelog_entry_subscriber(self, keyfs, tmpdir):
         pkey = keyfs.add_key("NAME", "hello/{name}", dict)
         D = pkey(name="world")
