@@ -626,7 +626,7 @@ def copy_if_mutable(val, _immutable=(py.builtin.text, type(None), int, tuple,
     if isinstance(val, _immutable):
         return val
     if isinstance(val, dict):
-        return {k:copy_if_mutable(v) for k, v in val.items()}
+        return dict((k, copy_if_mutable(v)) for k, v in val.items())
     elif isinstance(val, list):
         return [copy_if_mutable(item) for item in val]
     elif isinstance(val, set):
