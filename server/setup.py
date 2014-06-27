@@ -13,6 +13,7 @@ if __name__ == "__main__":
                         "execnet>=1.1",
                         "pyramid>=1.5",
                         "waitress",
+                        "repoze.lru>=0.6",
                         ]
     if sys.version_info < (2,7):
         install_requires.append("argparse>=1.2.1")

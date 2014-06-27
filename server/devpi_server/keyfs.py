@@ -14,6 +14,7 @@ from . import mythread
 from .log import threadlog, thread_push_log, thread_pop_log
 import os
 import sys
+from repoze.lru import LRUCache
 
 from execnet.gateway_base import Unserializer, _Serializer
 from devpi_common.types import cached_property
@@ -74,7 +75,7 @@ class Filesystem:
         self.path_next_serial = str(basedir.join(".nextserial"))
         self.path_changelogdir = basedir.ensure(".changelog", dir=1)
         self.next_serial = read_int_from_file(self.path_next_serial)
-        self._last_commit_cache = None
+        self._changelog_cache = LRUCache(100)  # is thread safe
 
     def write_transaction(self):
         return FSWriter(self)
@@ -91,15 +92,16 @@ class Filesystem:
             return None
 
     def get_changelog_entry(self, serial):
-        cache = self._last_commit_cache
-        if cache is not None and cache[0] == serial:
-            return cache[1]
-        p = self.path_changelogdir.join(str(serial))
-        return load_from_file(str(p))
+        changes = self._changelog_cache.get(serial)
+        if changes is None:
+            p = self.path_changelogdir.join(str(serial))
+            changes = load_from_file(str(p))
+            self._changelog_cache.put(serial, changes)
+        return changes
 
-    def cache_commit_entry(self, serial, changes):
-        # setattr is atomic
-        self._last_commit_cache = serial, changes
+    def cache_commit_changes(self, serial, changes):
+        self._changelog_cache.put(serial, changes)
+
 
 class FSWriter:
     def __init__(self, fs):
@@ -122,9 +124,8 @@ class FSWriter:
         name, back_serial = load_from_file(target_path, (typedkey.name, -1))
         with get_write_file_ensure_dir(tmp_path) as f:
             dump((typedkey.name, next_serial), f)
-        # we later write out changes to the last_commit_cache, need to be careful
-        # that the caller of the transaction doesn't alter the value
-        # after we return.
+        # at __exit__ time we write out changes to the _changelog_cache
+        # so we protect here against the caller modifying the value later
         value = copy_if_mutable(value)
         self.changes[relpath] = (typedkey.name, back_serial, value)
         self.pending_renames.append((tmp_path, target_path))
@@ -146,7 +147,7 @@ class FSWriter:
             size_basedir = len(str(self.fs.basedir))
             changed = [x[1][size_basedir:] for x in self.pending_renames]
             self.log.info("committed: %s", ",".join(changed))
-            self.fs.cache_commit_entry(commit_serial, self.changes)
+            self.fs.cache_commit_changes(commit_serial, self.changes)
             self.fs._notify_on_commit(commit_serial)
         else:
             while self.pending_renames:
