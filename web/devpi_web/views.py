@@ -538,9 +538,8 @@ class SearchView:
             self._docs[path] = Docs(stage, data['name'], data['doc_version'])
         return self._docs[path]
 
-    def process_sub_hits(self, sub_hits, data):
+    def process_sub_hits(self, stage, projectconfig, sub_hits, data):
         search_index = self.request.registry['search_index']
-        stage, projectconfig = self.get_projectinfo(data['path'])
         result = []
         for sub_hit in sub_hits:
             sub_data = sub_hit['data']
@@ -586,8 +585,12 @@ class SearchView:
         result = self.search_result
         if not result or not result['items']:
             return
+        items = []
         for item in result['items']:
             data = item['data']
+            stage, projectconfig = self.get_projectinfo(data['path'])
+            if stage is None:
+                continue
             if 'version' in data:
                 item['url'] = self.request.route_url(
                     "/{user}/{index}/{name}/{version}",
@@ -599,7 +602,8 @@ class SearchView:
                     "/{user}/{index}/{name}",
                     user=data['user'], index=data['index'], name=data['name'])
                 item['title'] = data['name']
-            item['sub_hits'] = self.process_sub_hits(item['sub_hits'], data)
+            item['sub_hits'] = self.process_sub_hits(
+                stage, projectconfig, item['sub_hits'], data)
             more_results = result['info']['collapsed_counts'][data['path']]
             if more_results:
                 new_params = dict(self.params)
@@ -608,6 +612,8 @@ class SearchView:
                     'search',
                     _query=new_params)
                 item['more_count'] = more_results
+            items.append(item)
+        result['items'] = items
         return result
 
     @view_config(
