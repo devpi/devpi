@@ -38,6 +38,18 @@ def preprocess_project(stage, name, pconfig):
     return result
 
 
+def get_projectconfig_without_fetch(stage, name):
+    # we want to get the projectconfig we got without triggering a remote
+    # fetch for root/pypi
+    projectconfig = {}
+    if stage.ixconfig['type'] == 'mirror':
+        if stage._load_project_cache(name):
+            projectconfig = stage.get_projectconfig(name)
+    else:
+        projectconfig = stage.get_projectconfig(name)
+    return projectconfig
+
+
 def iter_projects(xom):
     timestamp = time.time()
     for user in xom.model.get_userlist():
@@ -46,10 +58,8 @@ def iter_projects(xom):
         for index, index_info in user_info.get('indexes', {}).items():
             index = ensure_unicode(index)
             stage = xom.model.getstage('%s/%s' % (username, index))
-            # if stage is None:
-            #     continue
-            _load_project_cache = getattr(
-                stage, '_load_project_cache', None)
+            if stage is None:  # this is async, so the stage may be gone
+                continue
             log.info("Indexing %s/%s:" % (username, index))
             names = stage.getprojectnames_perstage()
             for count, name in enumerate(names, start=1):
@@ -60,9 +70,7 @@ def iter_projects(xom):
                     timestamp = current_time
                 if not stage.get_project_info(name):
                     continue
-                metadata = None
-                if _load_project_cache is None or _load_project_cache(name):
-                    metadata = stage.get_projectconfig(name)
+                metadata = get_projectconfig_without_fetch(stage, name)
                 if metadata:
                     yield preprocess_project(stage, name, metadata)
                 else:

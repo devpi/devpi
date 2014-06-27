@@ -5,6 +5,7 @@ from devpi_common.url import URL
 from devpi_server.log import threadlog as log
 from devpi_web.description import get_description
 from devpi_web.doczip import Docs, get_unpack_path
+from devpi_web.indexing import get_projectconfig_without_fetch
 from operator import attrgetter, itemgetter
 from py.xml import html
 from pyramid.compat import decode_path_info
@@ -526,9 +527,7 @@ class SearchView:
             stage = xom.model.getstage(user, index)
             projectconfig = {}
             if stage:  # due to async updates, the stage could be gone
-                _load_project_cache = getattr(stage, '_load_project_cache', None)
-                if _load_project_cache is None or _load_project_cache(name):
-                    projectconfig = stage.get_projectconfig(name)
+                projectconfig = get_projectconfig_without_fetch(stage, name)
             self._projectinfo['path'] = (stage, projectconfig)
         return self._projectinfo['path']
 
