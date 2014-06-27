@@ -204,8 +204,8 @@ class ProjectInfo:
         return "<ProjectInfo %s stage %s>" %(self.name, self.stage.name)
 
 class BaseStage:
-    def get_project_version(self, name, version):
-        return ProjectVersion(self, name, version)
+    def get_project_version(self, name, version, projectconfig=None):
+        return ProjectVersion(self, name, version, projectconfig=projectconfig)
 
     def get_link_from_entrypath(self, entrypath):
         entry = self.xom.filestore.get_file_entry(entrypath)

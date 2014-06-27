@@ -5,7 +5,7 @@ from devpi_web.doczip import iter_doc_contents
 import time
 
 
-def preprocess_project(stage, name, info):
+def preprocess_project(stage, name, pconfig):
     try:
         user = stage.user.name
         index = stage.index
@@ -14,16 +14,20 @@ def preprocess_project(stage, name, info):
     setuptools_metadata = frozenset((
         'author', 'author_email', 'classifiers', 'description', 'download_url',
         'home_page', 'keywords', 'license', 'platform', 'summary'))
-    versions = [x.string for x in sorted(map(Version, info), reverse=True)]
+    versions = [x.string for x in sorted(map(Version, pconfig), reverse=True)]
     result = dict(name=name)
     for i, version in enumerate(versions):
-        data = info[version]
+        data = pconfig[version]
         if not i:
             result.update(data)
-        if "+doczip" in data:
-            result['+doczip'] = data['+doczip']
+        pv = stage.get_project_version(name, version, projectconfig=pconfig)
+        links = pv.get_links(rel="doczip")
+        if links:
+            # we assume it has been unpacked
             result['doc_version'] = version
+            result['+doczip'] = iter_doc_contents(stage, name, version)
             break
+
     result[u'user'] = user
     result[u'index'] = index
     for key in setuptools_metadata:
@@ -31,8 +35,6 @@ def preprocess_project(stage, name, info):
             value = result[key]
             if value == 'UNKNOWN' or not value:
                 del result[key]
-    if '+doczip' in result:
-        result['+doczip'] = iter_doc_contents(stage, name, result['doc_version'])
     return result
 
 

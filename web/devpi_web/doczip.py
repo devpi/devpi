@@ -5,6 +5,7 @@ except ImportError:
 from bs4 import BeautifulSoup
 from devpi_common.archive import Archive
 from devpi_common.types import cached_property
+from devpi_server.log import threadlog
 import json
 
 
@@ -21,6 +22,8 @@ def unpack_docs(stage, name, version, entry):
     with entry.file_open_read() as f:
         with Archive(f) as archive:
             archive.extract(unpack_path)
+    threadlog.debug("%s: unpacked %s-%s docs to %s",
+                    stage.name, name, version, unpack_path)
     return unpack_path
 
 
