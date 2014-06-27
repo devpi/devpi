@@ -420,9 +420,8 @@ def test_search_deleted_stage(mapp, testapp):
     mapp.delete_index(api.stagename, waithooks=True)
     r = testapp.get('/+search?query=pkg')
     assert r.status_code == 200
-    links = r.html.select('.searchresults a')
-    assert [(l.text.strip(), l.attrs['href']) for l in links] == [
-        ("pkg1-2.6", "http://localhost/%s/pkg1/2.6" % api.stagename)]
+    content = r.html.select('#content')[0].text.strip()
+    assert content == 'Your search pkg did not match anything.'
 
 
 def test_search_root_pypi(mapp, testapp, pypistage):
