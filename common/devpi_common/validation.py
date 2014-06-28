@@ -6,13 +6,14 @@ from .types import ensure_unicode
 
 legal_package_name = re.compile(r"^[a-z0-9\._-]+$", re.IGNORECASE)
 safe_filenames = re.compile(r'.+?\.(exe|tar\.gz|bz2|rpm|deb|zip|tgz|egg|dmg|msi|whl)$', re.I)
+safe_name_rex = re.compile('[^A-Za-z0-9.]+')
 
 def safe_name(name):
     """Convert an arbitrary string to a standard distribution name
 
     Any runs of non-alphanumeric/. characters are replaced with a single '-'.
     """
-    return re.sub('[^A-Za-z0-9.]+', '-', name)
+    return safe_name_rex.sub('-', name)
 
 def normalize_name(name):
     name = ensure_unicode(name)
@@ -25,7 +26,7 @@ def safe_version(version):
     dashes, with runs of multiple dashes condensed to a single dash.
     """
     version = version.replace(' ','.')
-    return re.sub('[^A-Za-z0-9.]+', '-', version)
+    return safe_name_rex.sub('-', version)
 
 def is_valid_archive_name(filename):
     return safe_filenames.match(filename)
