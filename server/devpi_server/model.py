@@ -235,7 +235,7 @@ class BaseStage:
             if isinstance(res, int):
                 if res == 404:
                     continue
-                assert 0, res
+                return res
             for ver in res:
                 if ver not in all_projectconfig:
                     all_projectconfig[ver] = res[ver]

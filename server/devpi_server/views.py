@@ -40,6 +40,7 @@ meta_headers = {str("X-DEVPI-API-VERSION"): str(API_VERSION),
 def abort(request, code, body):
     if "application/json" in request.headers.get("Accept", ""):
         apireturn(code, body)
+    threadlog.error(body)
     raise exception_response(code, body=body, headers=meta_headers)
 
 def abort_custom(code, msg):
