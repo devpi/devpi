@@ -237,5 +237,24 @@ def test_cache_remote_file_fails(makexom, gen, monkeypatch, reqmock):
         url = xom.config.master_url.joinpath(entry.relpath).url
         reqmock.mockresponse(url, code=200,
                              headers=headers, data=b'123')
-        with pytest.raises(ValueError):
+        with pytest.raises(entry.BadGateway):
+            entry.cache_remote_file_replica()
+
+def test_master_fails(makexom, gen, monkeypatch, reqmock):
+    xom = makexom(["--master", "http://localhost"])
+    l = []
+    monkeypatch.setattr(xom.keyfs.notifier, "wait_tx_serial",
+                        lambda x: l.append(x))
+    with xom.keyfs.transaction(write=True):
+        link = gen.pypi_package_link("pytest-1.8.zip", md5=True)
+        entry = xom.filestore.maplink(link)
+        assert entry.md5 and not entry.file_exists()
+    with xom.keyfs.transaction():
+        headers={"content-length": "3",
+                 "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
+                 "content-type": "application/zip",
+                 "X-DEVPI-SERIAL": "10"}
+        url = xom.config.master_url.joinpath(entry.relpath).url
+        reqmock.mockresponse(url, code=500, headers=headers)
+        with pytest.raises(entry.BadGateway):
             entry.cache_remote_file_replica()

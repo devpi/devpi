@@ -127,6 +127,16 @@ def test_pkgserv(httpget, pypistage, testapp):
     r = testapp.get(url)
     assert r.body == b"123"
 
+def test_pkgserv_remote_failure(httpget, pypistage, testapp):
+    pypistage.mock_simple("package", '<a href="/package-1.0.zip" />')
+    r = testapp.get("/root/pypi/+simple/package")
+    assert r.status_code == 200
+    href = getfirstlink(r.text).get("href")
+    url = resolve_link(r.request.url, href)
+    httpget.setextfile("/package-1.0.zip", b"123", status_code=500)
+    r = testapp.get(url)
+    assert r.status_code == 502
+
 def resolve_link(url, href):
     return URL(url).joinpath(href).url
 

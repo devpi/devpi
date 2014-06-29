@@ -649,12 +649,15 @@ class PyPIView:
 
         if not entry.file_exists() or entry.eggfragment:
             keyfs = self.xom.keyfs
-            if not self.xom.is_replica():
-                keyfs.restart_as_write_transaction()
-                entry = filestore.get_file_entry(relpath)
-                entry.cache_remote_file()
-            else:
-                entry = entry.cache_remote_file_replica()
+            try:
+                if not self.xom.is_replica():
+                    keyfs.restart_as_write_transaction()
+                    entry = filestore.get_file_entry(relpath)
+                    entry.cache_remote_file()
+                else:
+                    entry = entry.cache_remote_file_replica()
+            except entry.BadGateway as e:
+                return apireturn(502, e.args[0])
 
         headers = entry.gethttpheaders()
         if self.request.method == "HEAD":

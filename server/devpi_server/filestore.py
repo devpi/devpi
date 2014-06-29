@@ -93,6 +93,9 @@ def metaprop(name):
 
 
 class FileEntry(object):
+    class BadGateway(Exception):
+        pass
+
     md5 = metaprop("md5")
     eggfragment = metaprop("eggfragment")
     last_modified = metaprop("last_modified")
@@ -183,7 +186,10 @@ class FileEntry(object):
     def cache_remote_file(self):
         # we get and cache the file and some http headers from remote
         r = self.xom.httpget(self.url, allow_redirects=True)
-        assert r.status_code >= 0, r.status_code
+        if r.status_code != 200:
+            msg = "error %s getting %s" % (r.status_code, self.url)
+            threadlog.error(msg)
+            raise self.BadGateway(msg)
         log.info("reading remote: %s, target %s", r.url, self.relpath)
         content = r.raw.read()
         digest = hashlib.md5(content).hexdigest()
@@ -210,20 +216,23 @@ class FileEntry(object):
         assert self.url, "should have private files already: %s" % self.relpath
         threadlog.info("replica doesn't have file: %s", self.relpath)
         url = self.xom.config.master_url.joinpath(self.relpath).url
+
+        # we do a head request to master and then wait for the file
+        # to arrive through the replication machinery
         r = self.xom._httpsession.head(url)
         if r.status_code != 200:
-            threadlog.error("got %s from upstream", r.status_code)
-            raise ValueError("%s: received %s from master"
-                             %(url, r.status_code))
+            msg = "%s: received %s from master" %(url, r.status_code)
+            threadlog.error(msg)
+            raise self.BadGateway(msg)
         serial = int(r.headers["X-DEVPI-SERIAL"])
         keyfs = self.key.keyfs
         keyfs.notifier.wait_tx_serial(serial)
-        keyfs.restart_read_transaction()
+        keyfs.restart_read_transaction()  # use latest serial
         entry = self.xom.filestore.get_file_entry(self.relpath)
         if not entry.file_exists():
-            threadlog.error("did not get file after waiting")
-            raise ValueError("%s: did not get file after waiting" %
-            url)
+            msg = "%s: did not get file after waiting" % url
+            threadlog.error(msg)
+            raise self.BadGateway(msg)
         return entry
 
 
