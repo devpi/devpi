@@ -29,6 +29,12 @@
 - fix issue99: make "devpi-server --start" etc work when devpi-server
   is not itself on PATH (by using sys.argv[0] for finding the binary)
 
+- fix issue84: uploading of wheels where the registered package name 
+  has an underscore works despite a wheel's metadata carrying
+  hyphens instead.  At submit-file time we now lookup the registered
+  time and use that instead of assuming the one coming with the wheel
+  is the correct one.
+
 1.2.2
 ----------------
 

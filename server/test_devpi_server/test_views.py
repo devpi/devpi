@@ -123,7 +123,7 @@ def test_pkgserv(httpget, pypistage, testapp):
     assert r.status_code == 200
     href = getfirstlink(r.text).get("href")
     assert not posixpath.isabs(href)
-    url = resolve_link(r.request.url, href)
+    url = URL(r.request.url).joinpath(href).url
     r = testapp.get(url)
     assert r.body == b"123"
 
@@ -132,13 +132,10 @@ def test_pkgserv_remote_failure(httpget, pypistage, testapp):
     r = testapp.get("/root/pypi/+simple/package")
     assert r.status_code == 200
     href = getfirstlink(r.text).get("href")
-    url = resolve_link(r.request.url, href)
+    url = URL(r.request.url).joinpath(href).url
     httpget.setextfile("/package-1.0.zip", b"123", status_code=500)
     r = testapp.get(url)
     assert r.status_code == 502
-
-def resolve_link(url, href):
-    return URL(url).joinpath(href).url
 
 def test_apiconfig(testapp):
     r = testapp.get_json("/user/name/+api", status=404)
@@ -200,7 +197,7 @@ class TestSubmitValidation:
                 return mapp.upload_file_pypi(
                         filename, content,
                         metadata.get("name"), metadata.get("version"),
-                        indexname=self.stagename,
+                        indexname=self.stagename, register=False,
                         code=code)
         return Submit()
 
@@ -254,6 +251,14 @@ class TestSubmitValidation:
         submit.file("pkg5-2.6.tgz", b"123", {"name": "Pkg5"}, code=200)
         submit.file("pkg5-2.6.qwe", b"123", {"name": "Pkg5"}, code=400)
         submit.file("pkg5-2.7.tgz", b"123", {"name": "pkg5"}, code=403)
+
+    def test_upload_use_registered_name_issue84(self, submit, mapp):
+        metadata = {"name": "pkg_hello", "version":"1.0", ":action": "submit"}
+        submit.metadata(metadata, code=200)
+        submit.file("pkg-hello-1.0.whl", b"123", {"name": "pkg-hello",
+                                              "version": "1.0"}, code=200)
+        paths = mapp.get_release_paths("pkg_hello")
+        assert paths[0].endswith("pkg-hello-1.0.whl")
 
     def test_upload_and_simple_index(self, submit, testapp):
         metadata = {"name": "Pkg5", "version": "2.6", ":action": "submit"}
