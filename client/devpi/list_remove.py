@@ -5,7 +5,13 @@ from devpi_common.viewhelp import ViewVersionLinks
 
 def out_index(hub, projects):
     for name in sorted(projects):
-        hub.info(name)
+        out = name
+        if hub.args.verbose:
+            url = hub.current.get_project_url(name)
+            reply = hub.http_api("get", url, type="projectconfig")
+            maxversion = max(map(Version, reply.result))
+            out += "-" + str(maxversion)
+        hub.info(out)
 
 def out_project(hub, reply, req):
     data = reply.result

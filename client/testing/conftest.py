@@ -362,6 +362,7 @@ def loghub(tmpdir, mock_http_api):
         debug = True
         clientdir = tmpdir.join("clientdir")
         yes = False
+        verbose = False
     out = py.io.TextIO()
     hub = Hub(args, file=out)
     def _getmatcher():

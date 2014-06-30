@@ -6,6 +6,8 @@
 - introduce "patchjson PATH JSONFILE" command which allows to send
   a request containing a json data structure to a specified path 
 
+- fix issue85: "devpi list -v" now shows package names with latest
+  versions.
 
 1.2.2
 -------------------------------

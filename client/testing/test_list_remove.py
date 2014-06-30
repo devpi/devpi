@@ -105,3 +105,5 @@ class TestList:
         devpi("remove", "-y", "hello==1.0", code=200)
         devpi("list", "hello")
         devpi("remove", "-y", "hello==1.1", code=200)
+        devpi("list")
+        devpi("list", "-v")
