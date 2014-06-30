@@ -474,13 +474,13 @@ class PyPIView:
                 self.log.debug("metadata in form: %s",
                                list(request.POST.items()))
                 abort_if_invalid_filename(name, content.filename)
-                metadata = stage.get_metadata(name, version)
+                metadata = stage.get_metadata(info.name, version)
                 if not metadata:
                     self._register_metadata_form(stage, request.POST)
                     metadata = stage.get_metadata(name, version)
                     if not metadata:
                         abort_custom(400, "could not process form metadata")
-                res = stage.store_releasefile(name, version,
+                res = stage.store_releasefile(info.name, version,
                                               content.filename, content.file.read())
                 if res == 409:
                     abort(request, 409, "%s already exists in non-volatile index" % (
