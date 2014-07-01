@@ -271,8 +271,8 @@ class PyPIStage(BaseStage):
         if name in self.pypimirror.name2serials:
             return ProjectInfo(self, name)
 
-    def get_projectconfig_perstage(self, name):
-        releaselinks = self.getreleaselinks(name)
+    def get_projectconfig_perstage(self, projectname):
+        releaselinks = self.getreleaselinks(projectname)
         if isinstance(releaselinks, int):
             return releaselinks
         data = {}
@@ -283,7 +283,7 @@ class PyPIStage(BaseStage):
             else:
                 version = BasenameMeta(basename).version
             verdata = data.setdefault(version, {})
-            verdata["name"] = name
+            verdata["name"] = projectname
             verdata["version"] = version
             links = verdata.setdefault("+elinks", [])
             links.append(dict(
