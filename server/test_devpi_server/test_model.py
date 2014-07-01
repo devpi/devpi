@@ -106,7 +106,7 @@ class TestStage:
         assert not stage.getprojectnames()
 
     def test_inheritance_simple(self, pypistage, stage):
-        stage.modify(bases=("root/pypi",))
+        stage.modify(bases=("root/pypi",), pypi_whitelist=['someproject'])
         pypistage.mock_simple("someproject", "<a href='someproject-1.0.zip' /a>")
         assert stage.getprojectnames() == ["someproject",]
         entries = stage.getreleaselinks("someproject")
@@ -117,7 +117,7 @@ class TestStage:
     def test_inheritance_twice(self, pypistage, stage, user):
         user.create_stage(index="dev2", bases=("root/pypi",))
         stage_dev2 = user.getstage("dev2")
-        stage.modify(bases=(stage_dev2.name,))
+        stage.modify(bases=(stage_dev2.name,), pypi_whitelist=['someproject'])
         pypistage.mock_simple("someproject",
                               "<a href='someproject-1.0.zip' /a>")
         register_and_store(stage_dev2, "someproject-1.1.tar.gz")
@@ -130,7 +130,7 @@ class TestStage:
         assert stage.getprojectnames() == ["someproject",]
 
     def test_inheritance_normalize_multipackage(self, pypistage, stage):
-        stage.modify(bases=("root/pypi",))
+        stage.modify(bases=("root/pypi",), pypi_whitelist=['some-project'])
         pypistage.mock_simple("some-project", """
             <a href='some_project-1.0.zip' /a>
             <a href='some_project-1.0.tar.gz' /a>
@@ -147,7 +147,7 @@ class TestStage:
         assert stage.getprojectnames() == ["some-project",]
 
     def test_getreleaselinks_inheritance_shadow(self, pypistage, stage):
-        stage.modify(bases=("root/pypi",))
+        stage.modify(bases=("root/pypi",), pypi_whitelist=['someproject'])
         pypistage.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         register_and_store(stage, "someproject-1.0.zip", b"123")
@@ -158,7 +158,7 @@ class TestStage:
         assert entries[0].relpath.endswith("someproject-1.0.zip")
 
     def test_getreleaselinks_inheritance_shadow_egg(self, pypistage, stage):
-        stage.modify(bases=("root/pypi",))
+        stage.modify(bases=("root/pypi",), pypi_whitelist=['py'])
         pypistage.mock_simple("py",
         """<a href="http://bb.org/download/py.zip#egg=py-dev" />
            <a href="http://bb.org/download/master#egg=py-dev2" />
@@ -172,7 +172,7 @@ class TestStage:
         assert e2.basename == "master"
 
     def test_inheritance_error(self, pypistage, stage):
-        stage.modify(bases=("root/pypi",))
+        stage.modify(bases=("root/pypi",), pypi_whitelist=['someproject'])
         pypistage.mock_simple("someproject", status_code = -1)
         entries = stage.getreleaselinks("someproject")
         assert entries == -1
@@ -180,7 +180,7 @@ class TestStage:
         #assert entries == -1
 
     def test_get_projectconfig_inherited(self, pypistage, stage):
-        stage.modify(bases=("root/pypi",))
+        stage.modify(bases=("root/pypi",), pypi_whitelist=['someproject'])
         pypistage.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         projectconfig = stage.get_projectconfig("someproject")
@@ -205,7 +205,7 @@ class TestStage:
                                     "someproject-1.0.zip", b"123")
 
     def test_project_config_shadowed(self, pypistage, stage):
-        stage.modify(bases=("root/pypi",))
+        stage.modify(bases=("root/pypi",), pypi_whitelist=['someproject'])
         pypistage.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         content = b"123"
@@ -215,6 +215,48 @@ class TestStage:
         linkdict, = projectconfig["1.0"]["+elinks"]
         assert linkdict["entrypath"].endswith("someproject-1.0.zip")
         assert projectconfig["1.0"]["+shadowing"]
+
+    def test_project_whitelist(self, pypistage, stage):
+        stage.modify(bases=("root/pypi",))
+        pypistage.mock_simple("someproject",
+            "<a href='someproject-1.1.zip' /a>")
+        register_and_store(stage, "someproject-1.0.zip", b"123")
+        stage.store_releasefile("someproject", "1.0",
+                                "someproject-1.0.zip", b"123")
+        entries = stage.getreleaselinks("someproject")
+        # because the whitelist doesn't include "someproject" we only get
+        # our upload
+        assert len(entries) == 1
+        assert entries[0].relpath.endswith("someproject-1.0.zip")
+        # if we add the project to the whitelist, we also get the release
+        # from pypi
+        stage.modify(pypi_whitelist=['someproject'])
+        entries = stage.getreleaselinks("someproject")
+        assert len(entries) == 2
+        assert entries[0].relpath.endswith("someproject-1.1.zip")
+        assert entries[1].relpath.endswith("someproject-1.0.zip")
+
+    def test_project_whitelist_inheritance(self, pypistage, stage, user):
+        user.create_stage(index="dev2", bases=("root/pypi",))
+        stage_dev2 = user.getstage("dev2")
+        stage.modify(bases=(stage_dev2.name,))
+        pypistage.mock_simple("someproject",
+            "<a href='someproject-1.1.zip' /a>")
+        register_and_store(stage, "someproject-1.0.zip", b"123")
+        stage.store_releasefile("someproject", "1.0",
+                                "someproject-1.0.zip", b"123")
+        entries = stage.getreleaselinks("someproject")
+        # because the whitelist doesn't include "someproject" we only get
+        # our upload
+        assert len(entries) == 1
+        assert entries[0].relpath.endswith("someproject-1.0.zip")
+        # if we add the project to the whitelist of the inherited index, we
+        # also get the release from pypi
+        stage_dev2.modify(pypi_whitelist=['someproject'])
+        entries = stage.getreleaselinks("someproject")
+        assert len(entries) == 2
+        assert entries[0].relpath.endswith("someproject-1.1.zip")
+        assert entries[1].relpath.endswith("someproject-1.0.zip")
 
     def test_store_and_delete_project(self, stage, bases):
         content = b"123"

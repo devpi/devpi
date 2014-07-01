@@ -36,6 +36,7 @@ def index_show(hub, url):
     hub.line("  uploadtrigger_jenkins=%s" %(
                 ixconfig["uploadtrigger_jenkins"],))
     hub.line("  acl_upload=%s" % ",".join(ixconfig["acl_upload"]))
+    hub.line("  pypi_whitelist=%s" % ",".join(ixconfig["pypi_whitelist"]))
     if "custom_data" in ixconfig:
         hub.line("  custom_data=%s" % ixconfig["custom_data"])
 

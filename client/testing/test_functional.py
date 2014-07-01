@@ -136,6 +136,13 @@ class Mapp(MappMixin):
             self.devpi("index", indexname,
                        "uploadtrigger_jenkins=%s" % url, code=200)
 
+    def set_pypi_whitelist(self, whitelist, indexname=None):
+        if indexname is None:
+            self.devpi("index", "pypi_whitelist=%s" % whitelist, code=200)
+        else:
+            self.devpi("index", indexname,
+                       "pypi_whitelist=%s" % whitelist, code=200)
+
     def get_acl(self, code=200, indexname=None):
         indexname = self._getindexname(indexname)
         result = self.out_devpi("index", indexname)
@@ -145,6 +152,14 @@ class Mapp(MappMixin):
             if len(parts) == 2:
                 return parts[1].split(",")
         return  []
+
+    def get_pypi_whitelist(self, code=200, indexname=None):
+        indexname = self._getindexname(indexname)
+        result = self.out_devpi("index", indexname)
+        for line in result.outlines:
+            line = line.strip()
+            parts = line.split("pypi_whitelist=", 1)
+            return parts[1].split(",")
 
     def create_project(self, projectname, code=201, indexname=None):
         pytest.xfail(reason="no way to create project via command line yet")

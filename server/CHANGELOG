@@ -35,6 +35,11 @@
   time and use that instead of assuming the one coming with the wheel
   is the correct one.
 
+- implement issue103: By default if you register a package in an index,
+  no lookup on pypi is made for that package anymore. You have to add the
+  package to the pypi_whitelist of the index to let pypi releases be mixed in.
+  This is to prevent malicious uploads on pypi to overwrite private packages.
+
 1.2.2
 ----------------
 
