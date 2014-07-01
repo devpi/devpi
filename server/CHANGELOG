@@ -40,6 +40,9 @@
   package to the pypi_whitelist of the index to let pypi releases be mixed in.
   This is to prevent malicious uploads on pypi to overwrite private packages.
 
+- add refresh button on root/pypi project simple index pages which clears the
+  internal cache to force a refetch from PyPI.
+
 1.2.2
 ----------------
 
