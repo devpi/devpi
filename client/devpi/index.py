@@ -75,10 +75,7 @@ def parse_keyvalue_spec_index(hub, keyvalues):
         kvdict = parse_keyvalue_spec(keyvalues)
     except ValueError:
         hub.fatal("arguments must be format NAME=VALUE: %r" %( keyvalues,))
-    if "acl_upload" in kvdict:
-        kvdict["acl_upload"] = kvdict["acl_upload"].split(",")
-    if "bases" in kvdict:
-        kvdict["bases"] = [x for x in kvdict["bases"].split(",") if x]
-    if "pypi_whitelist" in kvdict:
-        kvdict["pypi_whitelist"] = kvdict["pypi_whitelist"].split(",")
+    for key in ("acl_upload", "bases", "pypi_whitelist"):
+        if key in kvdict:
+            kvdict[key] = [x for x in kvdict[key].split(",") if x]
     return kvdict

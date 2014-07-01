@@ -7,9 +7,10 @@ def test_index_show_empty(loghub):
         index_show(loghub, None)
     loghub._getmatcher().fnmatch_lines("*no index specified*")
 
-def test_parse_keyvalue_spec_index(loghub):
-    kvdict = parse_keyvalue_spec_index(loghub, ["bases=x,y"])
-    assert kvdict["bases"] == ["x", "y"]
-    kvdict = parse_keyvalue_spec_index(loghub, ["bases="])
-    assert kvdict["bases"] == []
 
+@pytest.mark.parametrize("key", ("acl_upload", "bases", "pypi_whitelist"))
+@pytest.mark.parametrize("value, result", (
+    ("", []), ("x,y", ["x", "y"]), ("x,,y", ["x", "y"])))
+def test_parse_keyvalue_spec_index(loghub, key, value, result):
+    kvdict = parse_keyvalue_spec_index(loghub, ["%s=%s" % (key, value)])
+    assert kvdict[key] == result
