@@ -13,7 +13,7 @@ if __name__ == "__main__":
       name="devpi-common",
       description="utilities jointly used by devpi-server and devpi-client",
       long_description=open("README.rst").read(),
-      version='1.2',
+      version='2.0.0.dev1',
       packages=find_packages(),
       install_requires=["requests>=2.2.1", "py>=1.4.20"],
       url="https://bitbucket.org/hpk42/devpi",

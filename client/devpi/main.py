@@ -719,7 +719,7 @@ def install(parser):
     )
 
 def verify_reply_version(hub, reply):
-    acceptable_api_version = ("1",)
+    acceptable_api_version = ("2",)
     version = reply.headers.get("X-DEVPI-API-VERSION", None)
     if version is None:
         if not hasattr(hub, "_WARNAPI_DELIVERED"):

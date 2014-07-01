@@ -29,7 +29,7 @@ server_version = devpi_server.__version__
 MAXDOCZIPSIZE = 30 * 1024 * 1024    # 30MB
 
 
-API_VERSION = "1"
+API_VERSION = "2"
 
 # we use str() here so that python2.6 gets bytes, python3.3 gets string
 # so that wsgiref's parsing does not choke
