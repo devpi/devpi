@@ -295,6 +295,7 @@ class XOM:
         pyramid_config.add_route("/{user}/{index}/+f/{relpath:.*}", "/{user}/{index}/+f/{relpath:.*}")
         pyramid_config.add_route("/{user}/{index}/+simple/", "/{user}/{index}/+simple/")
         pyramid_config.add_route("/{user}/{index}/+simple/{name}", "/{user}/{index}/+simple/{name:[^/]+/?}")
+        pyramid_config.add_route("/{user}/{index}/+simple/{name}/refresh", "/{user}/{index}/+simple/{name}/refresh")
         pyramid_config.add_route("/{user}/{index}/{name}/{version}", "/{user}/{index}/{name}/{version:[^/]+/?}")
         pyramid_config.add_route(
             "simple_redirect", "/{user}/{index}/{name:[^/]+/?}",

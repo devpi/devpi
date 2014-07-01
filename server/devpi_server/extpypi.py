@@ -204,6 +204,11 @@ class PyPIStage(BaseStage):
             return [get_proxy(relpath, md5, keyname=keyname)
                         for relpath, md5, keyname in cache["entrylist"]]
 
+    def clear_cache(self, projectname):
+        normname = normalize_name(projectname)
+        self.keyfs.PYPILINKS(name=normname).delete()
+        threadlog.debug("cleared cache for %s", projectname)
+
     def getreleaselinks_perstage(self, projectname):
         """ return all releaselinks from the index and referenced scrape
         pages, returning cached entries if we have a recent enough

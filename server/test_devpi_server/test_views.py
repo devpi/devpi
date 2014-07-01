@@ -97,6 +97,28 @@ def test_simple_list(pypistage, testapp):
     hrefs = [a.get("href") for a in links]
     assert hrefs == ["hello1", "hello2"]
 
+def test_simple_refresh(mapp, model, pypistage, testapp):
+    pypistage.mock_simple("hello", "<html/>")
+    r = testapp.xget(200, "/root/pypi/+simple/hello")
+    input, = r.html.select('form input')
+    assert input.attrs['name'] == 'refresh'
+    with model.keyfs.transaction(write=False):
+        info = pypistage._load_project_cache("hello")
+    assert info != {}
+    assert info['projectname'] == 'hello'
+    r = testapp.post("/root/pypi/+simple/hello/refresh")
+    assert r.status_code == 302
+    assert r.location.endswith("/root/pypi/+simple/hello")
+    with model.keyfs.transaction(write=False):
+        info = pypistage._load_project_cache("hello")
+    assert info == {}
+
+def test_no_refresh_on_non_mirror_stage(mapp, testapp):
+    api = mapp.create_and_use()
+    mapp.register_metadata(dict(name="pkg", version="1.0"))
+    r = testapp.xget(200, "/%s/+simple/hello" % api.stagename)
+    assert len(r.html.select('form')) == 0
+
 def test_indexroot(testapp, model):
     with model.keyfs.transaction(write=True):
         user = model.create_user("user", "123")
