@@ -453,6 +453,17 @@ class Mapp(MappMixin):
         r = self.testapp.patch_json(indexurl, result)
         assert r.status_code == 200
 
+    def set_pypi_whitelist(self, whitelist, indexname=None):
+        indexname = self._getindexname(indexname)
+        r = self.testapp.get_json("/%s" % indexname)
+        result = r.json["result"]
+        if not isinstance(whitelist, list):
+            whitelist = whitelist.split(",")
+        assert isinstance(whitelist, list)
+        result["pypi_whitelist"] = whitelist
+        r = self.testapp.patch_json("/%s" % (indexname,), result)
+        assert r.status_code == 200
+
     def set_acl(self, users, acltype="upload", indexname=None):
         indexname = self._getindexname(indexname)
         r = self.testapp.get_json("/%s" % indexname)
@@ -469,6 +480,11 @@ class Mapp(MappMixin):
         r = self.testapp.get_json("/%s" % indexname)
         return r.json["result"].get("acl_" + acltype, None)
 
+    def get_pypi_whitelist(self, indexname=None):
+        indexname = self._getindexname(indexname)
+        r = self.testapp.get_json("/%s" % indexname)
+        return r.json["result"]["pypi_whitelist"]
+
     def delete_project(self, projectname, code=200, indexname=None):
         indexname = self._getindexname(indexname)
         r = self.testapp.delete_json("/%s/%s" % (indexname,
@@ -476,20 +492,26 @@ class Mapp(MappMixin):
         assert r.status_code == code
 
     def register_metadata(self, metadata, indexname=None, code=200,
-                          waithooks=False):
+                          waithooks=False,
+                          set_whitelist=True):
         indexname = self._getindexname(indexname)
         metadata = metadata.copy()
         metadata[":action"] = "submit"
         r = self.testapp.post("/%s/" % indexname, metadata,
                               expect_errors=True)
         assert r.status_code == code
+        if r.status_code == 200 and set_whitelist:
+            whitelist = set(self.get_pypi_whitelist(indexname=indexname))
+            whitelist.add(metadata["name"])
+            self.set_pypi_whitelist(sorted(whitelist), indexname=indexname)
         if waithooks:
             self._wait_for_serial_in_result(r)
         return r
 
     def upload_file_pypi(self, basename, content,
                          name=None, version=None, indexname=None,
-                         register=True, code=200, waithooks=False):
+                         register=True, code=200, waithooks=False,
+                         set_whitelist=True):
         assert py.builtin._isbytes(content)
         indexname = self._getindexname(indexname)
         #name_version = splitbasename(basename, checkarch=False)
@@ -498,7 +520,8 @@ class Mapp(MappMixin):
         #if not version:
         #    version = name_version[1]
         if register and code == 200:
-            self.register_metadata(dict(name=name, version=version))
+            self.register_metadata(
+                dict(name=name, version=version), set_whitelist=set_whitelist)
         r = self.testapp.post("/%s/" % indexname,
             {":action": "file_upload", "name": name, "version": version,
              "content": Upload(basename, content)}, expect_errors=True)

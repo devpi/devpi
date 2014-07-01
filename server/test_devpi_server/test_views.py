@@ -443,7 +443,10 @@ def test_upload_with_acl(mapp):
     mapp.login(api.user, api.password)
     mapp.set_acl(["user"])
     mapp.login("user", "123")
-    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
+    # we need to skip setting the whitelist here, because the user may only
+    # register and upload a package, but not modify the index
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6",
+                          set_whitelist=False)
 
 def test_upload_with_jenkins(mapp, reqmock):
     mapp.create_and_use()

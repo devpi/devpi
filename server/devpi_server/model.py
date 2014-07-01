@@ -30,8 +30,10 @@ def run_passwd(root, username):
     user.modify(password=pwd)
 
 
-_ixconfigattr = set(
-    "type volatile bases uploadtrigger_jenkins acl_upload custom_data".split())
+_ixconfigattr = set((
+    "type", "volatile", "bases", "uploadtrigger_jenkins", "acl_upload",
+    "pypi_whitelist", "custom_data"))
+
 
 class RootModel:
     def __init__(self, xom):
@@ -157,7 +159,7 @@ class User:
     def create_stage(self, index, type="stage",
                      volatile=True, bases=("root/pypi",),
                      uploadtrigger_jenkins=None,
-                     acl_upload=None):
+                     acl_upload=None, pypi_whitelist=()):
         if acl_upload is None:
             acl_upload = [self.name]
         bases = tuple(normalize_bases(self.xom.model, bases))
@@ -169,7 +171,7 @@ class User:
             indexes[index] = {
                 "type": type, "volatile": volatile, "bases": bases,
                 "uploadtrigger_jenkins": uploadtrigger_jenkins,
-                "acl_upload": acl_upload
+                "acl_upload": acl_upload, "pypi_whitelist": pypi_whitelist
             }
         stage = self.getstage(index)
         threadlog.info("created index %s: %s", stage.name, stage.ixconfig)
@@ -203,6 +205,31 @@ class ProjectInfo:
     def __str__(self):
         return "<ProjectInfo %s stage %s>" %(self.name, self.stage.name)
 
+
+class Whitelist:
+    def __init__(self):
+        self.started_with_root_pypi = None
+        self._set = set()
+
+    def update(self, stage):
+        if self.started_with_root_pypi is None:
+            self.started_with_root_pypi = stage.name == 'root/pypi'
+        if stage.name == 'root/pypi':
+            return
+        self._set.update(stage.ixconfig['pypi_whitelist'])
+
+    def check(self, stage, name):
+        if self.started_with_root_pypi is None:
+            raise RuntimeError("Whitelist check needs to be called after update")
+        if self.started_with_root_pypi:
+            return True
+        if stage.name != 'root/pypi':
+            return True
+        if name in self._set:
+            return True
+        return False
+
+
 class BaseStage:
     def get_project_version(self, name, version, projectconfig=None):
         return ProjectVersion(self, name, version, projectconfig=projectconfig)
@@ -231,7 +258,11 @@ class BaseStage:
     def get_projectconfig(self, name):
         assert py.builtin._istext(name)
         all_projectconfig = {}
+        whitelist = Whitelist()
         for stage, res in self.op_sro("get_projectconfig_perstage", name=name):
+            whitelist.update(stage)
+            if not whitelist.check(stage, name):
+                continue
             if isinstance(res, int):
                 if res == 404:
                     continue
@@ -248,8 +279,12 @@ class BaseStage:
         all_links = []
         basenames = set()
         stagename2res = {}
+        whitelist = Whitelist()
         for stage, res in self.op_sro("getreleaselinks_perstage",
                                       projectname=projectname):
+            whitelist.update(stage)
+            if not whitelist.check(stage, projectname):
+                continue
             stagename2res[stage.name] = res
             if isinstance(res, int):
                 if res == 404:
