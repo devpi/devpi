@@ -206,29 +206,6 @@ class ProjectInfo:
         return "<ProjectInfo %s stage %s>" %(self.name, self.stage.name)
 
 
-class Whitelist:
-    def __init__(self):
-        self.started_with_root_pypi = None
-        self._set = set()
-
-    def update(self, stage):
-        if self.started_with_root_pypi is None:
-            self.started_with_root_pypi = stage.name == 'root/pypi'
-        if stage.name == 'root/pypi':
-            return
-        self._set.update(stage.ixconfig['pypi_whitelist'])
-
-    def check(self, stage, name):
-        if self.started_with_root_pypi is None:
-            raise RuntimeError("Whitelist check needs to be called after update")
-        if self.started_with_root_pypi:
-            return True
-        if stage.name != 'root/pypi':
-            return True
-        if name in self._set:
-            return True
-        return False
-
 
 class BaseStage:
     def get_project_version(self, name, version, verdata=None):
@@ -255,14 +232,11 @@ class BaseStage:
             l.append(json.loads(data))
         return l
 
-    def get_projectconfig(self, name):
-        assert py.builtin._istext(name)
+    def get_projectconfig(self, projectname):
+        assert py.builtin._istext(projectname)
         all_projectconfig = {}
-        whitelist = Whitelist()
-        for stage, res in self.op_sro("get_projectconfig_perstage", name=name):
-            whitelist.update(stage)
-            if not whitelist.check(stage, name):
-                continue
+        for stage, res in self.op_sro_check_pypi_whitelist(
+                "get_projectconfig_perstage", projectname=projectname):
             if isinstance(res, int):
                 if res == 404:
                     continue
@@ -279,12 +253,8 @@ class BaseStage:
         all_links = []
         basenames = set()
         stagename2res = {}
-        whitelist = Whitelist()
-        for stage, res in self.op_sro("getreleaselinks_perstage",
-                                      projectname=projectname):
-            whitelist.update(stage)
-            if not whitelist.check(stage, projectname):
-                continue
+        for stage, res in self.op_sro_check_pypi_whitelist(
+            "getreleaselinks_perstage", projectname=projectname):
             stagename2res[stage.name] = res
             if isinstance(res, int):
                 if res == 404:
@@ -306,8 +276,7 @@ class BaseStage:
         return sorted_sameproject_links(all_links)
 
     def get_project_info(self, name):
-        kwdict = {"name": name}
-        for stage, res in self.op_sro("get_project_info_perstage", **kwdict):
+        for stage, res in self.op_sro("get_project_info_perstage", name=name):
             if res is not None:
                 return res
 
@@ -320,11 +289,27 @@ class BaseStage:
         return sorted(all_names)
 
     def op_sro(self, opname, **kw):
-        results = []
         for stage in self._sro():
-            stage_result = getattr(stage, opname)(**kw)
-            results.append((stage, stage_result))
-        return results
+            yield stage, getattr(stage, opname)(**kw)
+
+    def op_sro_check_pypi_whitelist(self, opname, **kw):
+        projectname = kw["projectname"]
+        whitelisted = private_hit = False
+        for stage in self._sro():
+            if stage.ixconfig["type"] == "mirror":
+                if private_hit:
+                    if not whitelisted:
+                        threadlog.debug("%s: private package %r not whitelisted, "
+                                        "ignoring root/pypi", opname, projectname)
+                        break
+                    threadlog.debug("private package %r whitelisted at stage %s",
+                                    projectname, whitelisted.name)
+            else:
+                if projectname in stage.ixconfig["pypi_whitelist"]:
+                    whitelisted = stage
+            res = getattr(stage, opname)(**kw)
+            private_hit = private_hit or res
+            yield stage, res
 
     def _sro(self):
         """ return stage resolution order. """
@@ -499,10 +484,10 @@ class PrivateStage(BaseStage):
         maxver = get_latest_version(versions)
         return self.get_metadata(name, maxver.string)
 
-    def get_projectconfig_perstage(self, name):
+    def get_projectconfig_perstage(self, projectname):
         projectconfig = {}
-        for version in self.key_projversions(name).get():
-            projectconfig[version] = self.key_projversion(name, version).get()
+        for version in self.key_projversions(projectname).get():
+            projectconfig[version] = self.key_projversion(projectname, version).get()
         return projectconfig
 
     #
