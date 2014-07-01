@@ -208,8 +208,8 @@ class ProjectInfo:
 
 
 class BaseStage:
-    def get_project_version(self, name, version, projectconfig=None):
-        return ProjectVersion(self, name, version, projectconfig=projectconfig)
+    def get_project_version(self, name, version, verdata=None):
+        return ProjectVersion(self, name, version, verdata=verdata)
 
     def get_link_from_entrypath(self, entrypath):
         entry = self.xom.filestore.get_file_entry(entrypath)
@@ -419,46 +419,56 @@ class PrivateStage(BaseStage):
             raise self.RegisterNameConflict(info)
         self._register_metadata(metadata)
 
-    def key_projconfig(self, name):
-        return self.keyfs.PROJCONFIG(user=self.user.name,
-                                     index=self.index, name=name)
+    def key_projversions(self, name):
+        return self.keyfs.PROJVERSIONS(
+            user=self.user.name, index=self.index, name=name)
+
+    def key_projversion(self, name, version):
+        return self.keyfs.PROJVERSION(
+            user=self.user.name, index=self.index, name=name, version=version)
 
     def _register_metadata(self, metadata):
         name = metadata["name"]
         version = metadata["version"]
-        with self.key_projconfig(name).update() as projectconfig:
+        with self.key_projversion(name, version).update() as versionconfig:
             #if not self.ixconfig["volatile"] and projectconfig:
             #    raise self.MetadataExists(
             #        "%s-%s exists on non-volatile %s" %(
             #        name, version, self.name))
-            versionconfig = projectconfig.setdefault(version, {})
             versionconfig.update(metadata)
             threadlog.info("store_metadata %s-%s", name, version)
+        versions = self.key_projversions(name).get()
+        if version not in versions:
+            versions.add(version)
+            self.key_projversions(name).set(versions)
         projectnames = self.key_projectnames.get()
         if name not in projectnames:
             projectnames.add(name)
             self.key_projectnames.set(projectnames)
 
     def project_delete(self, name):
-        for version in self.get_projectconfig_perstage(name):
+        for version in self.key_projversions(name).get():
             self.project_version_delete(name, version, cleanup=False)
         with self.key_projectnames.update() as projectnames:
             projectnames.remove(name)
         threadlog.info("deleting project %s", name)
-        self.key_projconfig(name).delete()
+        self.key_projversions(name).delete()
 
     def project_version_delete(self, name, version, cleanup=True):
-        pv = self.get_project_version(name, version)
-        if version not in pv.projectconfig:
+        versions = self.key_projversions(name).get()
+        if version not in versions:
             return False
+        pv = self.get_project_version(name, version)
         pv.remove_links()
-        del pv.projectconfig[version]
-        if cleanup and not pv.projectconfig:
+        versions.remove(version)
+        self.key_projversion(name, version).delete()
+        self.key_projversions(name).set(versions)
+        if cleanup and not versions:
             self.project_delete(name)
         return True
 
     def project_exists(self, name):
-        return self.key_projconfig(name).exists()
+        return self.key_projversions(name).exists()
 
     def get_metadata(self, name, version):
         # on win32 we need to make sure that we only return
@@ -475,7 +485,10 @@ class PrivateStage(BaseStage):
         return self.get_metadata(name, maxver.string)
 
     def get_projectconfig_perstage(self, projectname):
-        return self.key_projconfig(projectname).get()
+        projectconfig = {}
+        for version in self.key_projversions(projectname).get():
+            projectconfig[version] = self.key_projversion(projectname, version).get()
+        return projectconfig
 
     #
     # getting release links
@@ -562,22 +575,27 @@ class ELink:
 
 
 class ProjectVersion:
-    def __init__(self, stage, projectname, version, projectconfig=None):
+    def __init__(self, stage, projectname, version, verdata=None):
         self.stage = stage
         self.filestore = stage.xom.filestore
         self.projectname = projectname
         self.version = version
-        if projectconfig is None:
+        if verdata is None:
             try:
-                self.key_projectconfig = stage.key_projconfig(name=projectname)
+                self.key_projversions = stage.key_projversions(
+                    name=projectname)
+                self.key_projversion = stage.key_projversion(
+                    name=projectname, version=version)
             except AttributeError:
-                # pypistage has no key_projconfig so we only read it
-                self.projectconfig = stage.get_projectconfig_perstage(projectname)
+                # pypistage has no key_projversion so we only read it
+                self.verdata = stage.get_projectconfig_perstage(
+                    projectname).get(version)
             else:
-                self.projectconfig = self.key_projectconfig.get()
+                self.verdata = self.key_projversion.get()
         else:
-            self.projectconfig = projectconfig
-        self.verdata = self.projectconfig.setdefault(version, {})
+            self.verdata = verdata
+        if self.verdata is None:
+            self.verdata = {}
         if not self.verdata:
             self.verdata["name"] = projectname
             self.verdata["version"] = version
@@ -650,8 +668,12 @@ class ProjectVersion:
         return entry
 
     def _mark_dirty(self):
-        self.key_projectconfig.set(self.projectconfig)
-        threadlog.debug("marking dirty %s", self.key_projectconfig)
+        versions = self.key_projversions.get()
+        if self.version not in versions:
+            versions.add(self.version)
+            self.key_projversions.set(versions)
+        self.key_projversion.set(self.verdata)
+        threadlog.debug("marking dirty %s", self.key_projversion)
 
     def _get_inplace_linkdicts(self):
         return self.verdata.setdefault("+elinks", [])
@@ -702,12 +724,13 @@ def add_keys(xom, keyfs):
                  "{user}/{index}/+e/{dirname}/{basename}", dict)
 
     # type "stage" related
-    keyfs.add_key("PROJCONFIG", "{user}/{index}/{name}/.config", dict)
+    keyfs.add_key("PROJVERSIONS", "{user}/{index}/{name}/.versions", set)
+    keyfs.add_key("PROJVERSION", "{user}/{index}/{name}/{version}/.config", dict)
     keyfs.add_key("PROJNAMES", "{user}/{index}/.projectnames", set)
     keyfs.add_key("STAGEFILE",
                   "{user}/{index}/+f/{md5a}/{md5b}/{filename}", dict)
 
-    keyfs.notifier.on_key_change("PROJCONFIG", ProjectChanged(xom))
+    keyfs.notifier.on_key_change("PROJVERSION", VersionChanged(xom))
     keyfs.notifier.on_key_change("STAGEFILE", FileUploaded(xom))
     keyfs.notifier.on_key_change("PYPI_SERIALS_LOADED", PyPISerialsLoaded(xom))
 
@@ -726,19 +749,19 @@ class PyPISerialsLoaded:
             hook.devpiserver_pypi_initial(stage, name2serials)
 
 
-class ProjectChanged:
+class VersionChanged:
     """ Event executed in notification thread based on a metadata change. """
     def __init__(self, xom):
         self.xom = xom
 
     def __call__(self, ev):
-        threadlog.info("project_config_changed %s", ev.typedkey)
+        threadlog.info("version_info_changed %s", ev.typedkey)
         params = ev.typedkey.params
         user = params["user"]
         index = params["index"]
         keyfs = self.xom.keyfs
         hook = self.xom.config.hook
-        # find out which version changed
+        # find out if metadata changed
         if ev.back_serial == -1:
             old = {}
         else:
@@ -746,15 +769,11 @@ class ProjectChanged:
             old = keyfs.get_value_at(ev.typedkey, ev.back_serial)
         with keyfs.transaction(write=False, at_serial=ev.at_serial):
             # XXX slightly flaky logic for detecting metadata changes
-            projconfig = ev.value
-            if projconfig:
-                for ver, metadata in projconfig.items():
-                    if metadata != old.get(ver):
-                        stage = self.xom.model.getstage(user, index)
-                        hook.devpiserver_register_metadata(stage, metadata)
-                #else:
-                #    threadlog.debug("no metadata change on %s, %s", metadata,
-                #                    old.get(ver))
+            metadata = ev.value
+            if metadata:
+                if metadata != old:
+                    stage = self.xom.model.getstage(user, index)
+                    hook.devpiserver_register_metadata(stage, metadata)
 
 
 class FileUploaded:
