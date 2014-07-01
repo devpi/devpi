@@ -184,7 +184,7 @@ class TestStage:
         pypistage.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         projectconfig = stage.get_projectconfig("someproject")
-        pv = ProjectVersion(stage, "someproject", "1.0", projectconfig)
+        pv = ProjectVersion(stage, "someproject", "1.0", projectconfig["1.0"])
         assert len(pv.get_links(basename="someproject-1.0.zip")) == 1
 
     def test_store_and_get_releasefile(self, stage, bases):

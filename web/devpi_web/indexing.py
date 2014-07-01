@@ -17,10 +17,10 @@ def preprocess_project(stage, name, pconfig):
     versions = [x.string for x in sorted(map(Version, pconfig), reverse=True)]
     result = dict(name=name)
     for i, version in enumerate(versions):
-        data = pconfig[version]
+        verdata = pconfig[version]
         if not i:
-            result.update(data)
-        pv = stage.get_project_version(name, version, projectconfig=pconfig)
+            result.update(verdata)
+        pv = stage.get_project_version(name, version, verdata=verdata)
         links = pv.get_links(rel="doczip")
         if links:
             # we assume it has been unpacked

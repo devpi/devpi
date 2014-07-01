@@ -361,7 +361,7 @@ class PyPIView:
                       message="no release/files found for %s-%s" %(
                       name, version))
 
-        metadata = get_pure_metadata(vv.projectconfig[version])
+        metadata = get_pure_metadata(vv.verdata)
         doczip = stage.get_doczip(name, version)
 
         # prepare metadata for submission
