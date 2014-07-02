@@ -96,9 +96,6 @@ class Filesystem:
     def write_transaction(self, sqlconn):
         return FSWriter(self, sqlconn)
 
-    def get_from_transaction_entry(self, serial, relpath):
-        return self.get_changes(serial).get(relpath)
-
     def get_raw_changelog_entry(self, serial):
         q = "SELECT data FROM changelog WHERE serial = ?"
         with self.get_sqlconn() as conn:
@@ -406,7 +403,7 @@ class KeyFS(object):
         relpath = typedkey.relpath
         keyname, last_serial = self._fs.db_read_typedkey(relpath, conn)
         while last_serial >= 0:
-            tup = self._fs.get_from_transaction_entry(last_serial, relpath)
+            tup = self._fs.get_changes(last_serial).get(relpath)
             assert tup, "no transaction entry at %s" %(last_serial)
             keyname, back_serial, val = tup
             if last_serial > at_serial:
