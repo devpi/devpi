@@ -15,6 +15,7 @@ from .log import threadlog, thread_push_log, thread_pop_log
 import os
 import sys
 from repoze.lru import LRUCache
+import sqlite3
 
 from execnet.gateway_base import Unserializer, _Serializer
 from devpi_common.types import cached_property
@@ -28,6 +29,13 @@ def load(io):
 def dump(obj, io):
     return _Serializer(io.write).save(obj)
 
+def loads(data):
+    return load(py.io.BytesIO(data))
+
+def dumps(obj):
+    io = py.io.BytesIO()
+    dump(obj, io)
+    return io.getvalue()
 
 def read_int_from_file(path, default=0):
     try:
@@ -72,63 +80,110 @@ class Filesystem:
     def __init__(self, basedir, notify_on_commit):
         self.basedir = basedir
         self._notify_on_commit = notify_on_commit
-        self.path_next_serial = str(basedir.join(".nextserial"))
-        self.path_changelogdir = basedir.ensure(".changelog", dir=1)
-        self.next_serial = read_int_from_file(self.path_next_serial)
         self._changelog_cache = LRUCache(100)  # is thread safe
+        with self.get_sqlconn() as conn:
+            row = conn.execute("select max(serial) from changelog").fetchone()
+            serial = row[0]
+            if serial is None:
+                self.next_serial = 0
+            else:
+                self.next_serial = serial + 1
+                # perform some crash recovery
+                data = self.get_raw_changelog_entry(serial)
+                changes, rel_renames = loads(data)
+                check_pending_renames(str(self.basedir), rel_renames)
 
-    def write_transaction(self):
-        return FSWriter(self)
-
-    def get_from_transaction_entry(self, serial, relpath):
-        return self.get_changelog_entry(serial).get(relpath)
+    def write_transaction(self, sqlconn):
+        return FSWriter(self, sqlconn)
 
     def get_raw_changelog_entry(self, serial):
-        p = self.path_changelogdir.join(str(serial))
-        try:
-            with p.open("rb") as f:
-                return f.read()
-        except py.error.Error:
+        q = "SELECT data FROM changelog WHERE serial = ?"
+        with self.get_sqlconn() as conn:
+            conn.text_factory = bytes
+            row = conn.execute(q, (serial,)).fetchone()
+            if row is not None:
+                return bytes(row[0])
             return None
 
-    def get_changelog_entry(self, serial):
+    def get_changes(self, serial):
         changes = self._changelog_cache.get(serial)
         if changes is None:
-            p = self.path_changelogdir.join(str(serial))
-            changes = load_from_file(str(p))
+            data = self.get_raw_changelog_entry(serial)
+            changes, rel_renames = loads(data)
             self._changelog_cache.put(serial, changes)
         return changes
 
     def cache_commit_changes(self, serial, changes):
         self._changelog_cache.put(serial, changes)
 
+    def get_sqlconn(self):
+        path = self.basedir.join(".sqlite")
+        if not path.exists():
+            with sqlite3.connect(str(path)) as conn:
+                threadlog.info("DB: Creating schema")
+                c = conn.cursor()
+                c.execute("""
+                    CREATE TABLE kv (
+                        key TEXT NOT NULL PRIMARY KEY,
+                        keyname TEXT,
+                        serial INTEGER
+                    )
+                """)
+                c.execute("""
+                    CREATE TABLE changelog (
+                        serial INTEGER PRIMARY KEY,
+                        data BLOB NOT NULL
+                    )
+                """)
+        conn = sqlite3.connect(str(path), isolation_level="DEFERRED")
+        return conn
+
+    def db_read_typedkey(self, relpath, conn=None):
+        new_conn = conn is None
+        if new_conn:
+            conn = self.get_sqlconn()
+        q = "SELECT keyname, serial FROM kv WHERE key = ?"
+        try:
+            row = conn.execute(q, (relpath,)).fetchone()
+            if row is None:
+                raise KeyError(relpath)
+            return tuple(row[:2])
+        finally:
+            if new_conn:
+                conn.close()
+
+
+def write_changelog_entry(sqlconn, serial, entry):
+    threadlog.debug("writing changelog for serial %s", serial)
+    data = dumps(entry)
+    sqlconn.execute("INSERT INTO changelog (serial, data) VALUES (?, ?)",
+                    (serial, sqlite3.Binary(data)))
 
 class FSWriter:
-    def __init__(self, fs):
+    def __init__(self, fs, sqlconn):
+        self.sqlconn = sqlconn
         self.fs = fs
         self.pending_renames = []
         self.changes = {}
 
-    def _direct_write(self, path, val):
-        tmpfile = path + "-tmp"
-        with tmpfile.open("wb") as f:
-            dump(val, f)
-        tmpfile.rename(path)
+    def db_get_typedkey_value(self, typedkey):
+        try:
+            return self.fs.db_read_typedkey(typedkey.relpath, self.sqlconn)
+        except KeyError:
+            return (typedkey.name, -1)
+
+    def db_set_typedkey_value(self, typedkey, next_serial):
+        q = "INSERT OR REPLACE INTO kv (key, keyname, serial) VALUES (?, ?, ?)"
+        self.sqlconn.execute(q, (typedkey.relpath, typedkey.name, next_serial))
 
     def record_set(self, typedkey, value=None):
         """ record setting typedkey to value (None means it's deleted) """
-        relpath = typedkey.relpath
-        target_path = typedkey.filepath
-        tmp_path = target_path + ".tmp"
-        next_serial = self.fs.next_serial
-        name, back_serial = load_from_file(target_path, (typedkey.name, -1))
-        with get_write_file_ensure_dir(tmp_path) as f:
-            dump((typedkey.name, next_serial), f)
+        name, back_serial = self.db_get_typedkey_value(typedkey)
+        self.db_set_typedkey_value(typedkey, self.fs.next_serial)
         # at __exit__ time we write out changes to the _changelog_cache
         # so we protect here against the caller modifying the value later
         value = copy_if_mutable(value)
-        self.changes[relpath] = (typedkey.name, back_serial, value)
-        self.pending_renames.append((tmp_path, target_path))
+        self.changes[typedkey.relpath] = (typedkey.name, back_serial, value)
 
     def record_rename_file(self, source, dest):
         assert dest
@@ -141,12 +196,9 @@ class FSWriter:
     def __exit__(self, cls, val, tb):
         thread_pop_log("fswriter%s:" % self.fs.next_serial)
         if cls is None:
-            assert self.pending_renames, "commit cannot be empty"
-            self.commit_to_filesystem()
+            changed = self.commit_to_filesystem()
             commit_serial = self.fs.next_serial - 1
-            size_basedir = len(str(self.fs.basedir))
-            changed = [x[1][size_basedir:] for x in self.pending_renames]
-            self.log.info("committed: %s", ",".join(changed))
+            self.log.info("committed: %s", ",".join(map(repr,changed)))
             self.fs.cache_commit_changes(commit_serial, self.changes)
             self.fs._notify_on_commit(commit_serial)
         else:
@@ -157,26 +209,55 @@ class FSWriter:
             self.log.info("roll back at %s" %(self.fs.next_serial))
 
     def commit_to_filesystem(self):
-        # XXX assumption: we don't crash in the middle of this function
-        p = self.fs.path_changelogdir.join(str(self.fs.next_serial))
-        assert not p.exists(), (  # XXX recover
-                    "change entry %s already exists, unclean shutdown?" %
-                    self.fs.next_serial)
-        self._direct_write(p, self.changes)
+        rel_renames = list(
+            make_rel_renames(str(self.fs.basedir), self.pending_renames)
+        )
+        entry = self.changes, rel_renames
+        write_changelog_entry(self.sqlconn, self.fs.next_serial, entry)
+        self.sqlconn.commit()
 
-        # do all renames and removes
-        for source, dest in self.pending_renames:
-            if source is None:
-                try:
-                    os.remove(dest)
-                except OSError:
-                    pass
-            else:
-                rename(source, dest)
-
-        # finally increment the serial and write it out
+        # If we crash in the remainder, the next restart will
+        # - call check_pending_renames which will replay any remaining
+        #   renames from the changelog entry, and
+        # - initialize next_serial from the max committed serial + 1
+        perform_renames(self.pending_renames)
         self.fs.next_serial += 1
-        write_int_to_file(self.fs.next_serial, self.fs.path_next_serial)
+        return rel_renames + list(self.changes)
+
+
+def check_pending_renames(basedir, pending_relnames):
+    for relpath in pending_relnames:
+        if relpath.endswith("-tmp"):
+            path = os.path.join(basedir, relpath)
+            if os.path.exists(path):
+                rename(path, path[:-4])
+            else:
+                assert os.path.exists(path[:-4])
+        else:
+            path = os.path.join(basedir, relpath)
+            try:
+                os.remove(path)  # was already removed
+            except OSError:
+                pass
+
+def make_rel_renames(basedir, pending_renames):
+    for source, dest in pending_renames:
+        if source is not None:
+            assert source == dest + "-tmp"
+            yield source[len(basedir)+1:]
+        else:
+            assert dest.startswith(basedir)
+            yield dest[len(basedir)+1:]
+
+def perform_renames(pending_renames):
+    for source, dest in pending_renames:
+        if source is None:
+            try:
+                os.remove(dest)
+            except OSError:
+                pass
+        else:
+            rename(source, dest)
 
 
 def rename(source, dest):
@@ -247,7 +328,7 @@ class TxNotificationThread:
 
     def _execute_hooks(self, event_serial, log):
         log.debug("calling hooks for tx%s", event_serial)
-        changes = self.keyfs._fs.get_changelog_entry(event_serial)
+        changes = self.keyfs._fs.get_changes(event_serial)
         for relpath, (keyname, back_serial, val) in changes.items():
             key = self.keyfs.derive_key(relpath, keyname)
             ev = KeyChangeEvent(key, val, event_serial, back_serial)
@@ -276,7 +357,7 @@ class KeyFS(object):
         self.notifier = t = TxNotificationThread(self)
         self._fs = Filesystem(self.basedir, notify_on_commit=t.notify_on_commit)
 
-    def derive_key(self, relpath, keyname=None):
+    def derive_key(self, relpath, keyname=None, conn=None):
         """ return direct key for a given path and keyname.
         If keyname is not specified, the relpath key must exist
         to extract its name. """
@@ -284,24 +365,21 @@ class KeyFS(object):
             try:
                 return self.tx.get_key_in_transaction(relpath)
             except (AttributeError, KeyError):
-                filepath = os.path.join(str(self.basedir), relpath)
-                try:
-                    keyname, last_serial = load_from_file(filepath)
-                except IOError:
-                    raise KeyError(relpath)
+                keyname, serial = self._fs.db_read_typedkey(relpath, conn)
         key = self.get_key(keyname)
         if isinstance(key, PTypedKey):
             key = key(**key.extract_params(relpath))
         return key
 
-    def import_changelog_entry(self, serial, entry):
+    def import_changes(self, serial, changes):
         with self._write_lock:
-            with self._fs.write_transaction() as fswriter:
+            sqlconn = self._fs.get_sqlconn()
+            with self._fs.write_transaction(sqlconn) as fswriter:
                 next_serial = self.get_next_serial()
                 assert next_serial == serial, (next_serial, serial)
-                for relpath, tup in entry.items():
+                for relpath, tup in changes.items():
                     name, back_serial, val = tup
-                    typedkey = self.derive_key(relpath, name)
+                    typedkey = self.derive_key(relpath, name, conn=sqlconn)
                     fswriter.record_set(typedkey, val)
                     meth = self._import_subscriber.get(typedkey.name)
                     if meth is not None:
@@ -315,20 +393,17 @@ class KeyFS(object):
         return self._fs.next_serial
 
     def get_current_serial(self):
-        return self.get_next_serial() - 1
+        return self._fs.next_serial - 1
 
     @property
     def tx(self):
         return getattr(self._threadlocal, "tx")
 
-    def get_value_at(self, typedkey, at_serial):
+    def get_value_at(self, typedkey, at_serial, conn=None):
         relpath = typedkey.relpath
-        try:
-            keyname, last_serial = load_from_file(typedkey.filepath)
-        except IOError:
-            raise KeyError(relpath)
+        keyname, last_serial = self._fs.db_read_typedkey(relpath, conn)
         while last_serial >= 0:
-            tup = self._fs.get_from_transaction_entry(last_serial, relpath)
+            tup = self._fs.get_changes(last_serial).get(relpath)
             assert tup, "no transaction entry at %s" %(last_serial)
             keyname, back_serial, val = tup
             if last_serial > at_serial:
@@ -496,11 +571,12 @@ class Transaction(object):
             keyfs._write_lock.acquire()
             self.write = True
         if at_serial is None:
-            at_serial = keyfs.get_next_serial() - 1
+            at_serial = keyfs.get_current_serial()
         self.at_serial = at_serial
         self.cache = {}
         self.dirty = set()
         self.dirty_files = {}
+        self.sqlconn = keyfs._fs.get_sqlconn()
 
     def io_file_exists(self, path):
         try:
@@ -555,7 +631,8 @@ class Transaction(object):
             if typedkey in self.dirty:
                 return typedkey.type()
             try:
-                val = self.keyfs.get_value_at(typedkey, self.at_serial)
+                val = self.keyfs.get_value_at(typedkey, self.at_serial,
+                                              conn=self.sqlconn)
             except KeyError:
                 return typedkey.type()
             self.cache[typedkey] = val
@@ -585,7 +662,7 @@ class Transaction(object):
             threadlog.debug("nothing to commit, just closing tx")
             return self._close()
         try:
-            with self.keyfs._fs.write_transaction() as fswriter:
+            with self.keyfs._fs.write_transaction(self.sqlconn) as fswriter:
                 for typedkey in self.dirty:
                     val = self.cache.get(typedkey)
                     fswriter.record_set(typedkey, val)
@@ -608,6 +685,7 @@ class Transaction(object):
         del self.dirty
         if self.write:
             self.keyfs._write_lock.release()
+        self.sqlconn.close()
         return self.at_serial
 
     def rollback(self):

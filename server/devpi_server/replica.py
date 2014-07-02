@@ -16,7 +16,7 @@ class MasterChangelogRequest:
         self.xom = request.registry["xom"]
 
     @view_config(route_name="/+changelog/{serial}")
-    def get_changelog_entry(self):
+    def get_changes(self):
         serial = self.request.matchdict["serial"]
         keyfs = self.xom.keyfs
         if serial.lower() == "nop":
@@ -85,8 +85,8 @@ class ReplicaThread:
                     except Exception:
                         log.error("could not read answer %s", url)
                     else:
-                        log.info("importing changelog entry %s", serial)
-                        keyfs.import_changelog_entry(serial, entry)
+                        changes, rel_renames = entry
+                        keyfs.import_changes(serial, changes)
                         serial += 1
                         continue
                 else:
@@ -163,6 +163,7 @@ class ImportFileReplica:
         self.xom = xom
 
     def __call__(self, fswriter, key, val, back_serial):
+        threadlog.debug("ImportFileReplica for %s, %s", key, val)
         relpath = key.relpath
         entry = self.xom.filestore.get_file_entry_raw(key, val)
         file_exists = os.path.exists(entry._filepath)
@@ -173,7 +174,6 @@ class ImportFileReplica:
                     threadlog.debug("mark for deletion: %s", entry._filepath)
                     fswriter.record_rename_file(None, entry._filepath)
             return
-
         if file_exists or entry.last_modified is None:
             # we have a file or there is no remote file
             return

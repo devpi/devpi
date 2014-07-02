@@ -3,7 +3,7 @@ import py
 import pytest
 from devpi_server.mythread import ThreadPool
 
-from devpi_server.keyfs import KeyFS, Transaction, load
+from devpi_server.keyfs import *  # noqa
 
 notransaction = pytest.mark.notransaction
 
@@ -238,7 +238,7 @@ class TestTransactionIsolation:
             D.delete()
             assert not D.exists()
 
-    def test_import_changelog_entry(self, keyfs, tmpdir):
+    def test_import_changes(self, keyfs, tmpdir):
         D = keyfs.add_key("NAME", "hello", dict)
         with keyfs.transaction(write=True):
             D.set({1:1})
@@ -252,9 +252,8 @@ class TestTransactionIsolation:
         new_keyfs = KeyFS(tmpdir.join("newkeyfs"))
         D2 = new_keyfs.add_key("NAME", "hello", dict)
         for serial in range(3):
-            raw_entry = keyfs._fs.get_raw_changelog_entry(serial)
-            entry = load(py.io.BytesIO(raw_entry))
-            new_keyfs.import_changelog_entry(serial, entry)
+            changes = keyfs._fs.get_changes(serial)
+            new_keyfs.import_changes(serial, changes)
         assert new_keyfs.get_value_at(D2, 0) == {1:1}
         with pytest.raises(KeyError):
             assert new_keyfs.get_value_at(D2, 1)
@@ -293,7 +292,7 @@ class TestTransactionIsolation:
                    keyfs._fs.CHANGELOG_CACHE_SIZE + 1
 
 
-    def test_import_changelog_entry_subscriber(self, keyfs, tmpdir):
+    def test_import_changes_subscriber(self, keyfs, tmpdir):
         pkey = keyfs.add_key("NAME", "hello/{name}", dict)
         D = pkey(name="world")
         with keyfs.transaction(write=True):
@@ -304,9 +303,8 @@ class TestTransactionIsolation:
         pkey = new_keyfs.add_key("NAME", "hello/{name}", dict)
         l = []
         new_keyfs.subscribe_on_import(pkey, lambda *args: l.append(args))
-        raw_entry = keyfs._fs.get_raw_changelog_entry(0)
-        entry = load(py.io.BytesIO(raw_entry))
-        new_keyfs.import_changelog_entry(0, entry)
+        changes = keyfs._fs.get_changes(0)
+        new_keyfs.import_changes(0, changes)
         assert l[0][1:] == (new_keyfs.NAME(name="world"), {1:1}, -1)
 
     def test_get_raw_changelog_entry_not_exist(self, keyfs):
@@ -486,3 +484,55 @@ class TestSubscriber:
     def test_at_serial(self, keyfs):
         with keyfs.transaction(at_serial=-1) as tx:
             assert tx.at_serial == -1
+
+class TestRenameFileLogic:
+    def test_new_content_nocrash(self, tmpdir):
+        file1 = tmpdir.join("file1")
+        file1_tmp = file1 + "-tmp"
+        file1.write("hello")
+        file1_tmp.write("this")
+        pending_renames = [(str(file1_tmp), str(file1))]
+        rel_renames = make_rel_renames(str(tmpdir), pending_renames)
+        perform_renames(pending_renames)
+        assert file1.check()
+        assert file1.read() == "this"
+        assert not file1_tmp.exists()
+        check_pending_renames(str(tmpdir), rel_renames)
+        assert file1.check()
+        assert file1.read() == "this"
+        assert not file1_tmp.exists()
+
+    def test_new_content_crash(self, tmpdir):
+        file1 = tmpdir.join("file1")
+        file1_tmp = file1 + "-tmp"
+        file1.write("hello")
+        file1_tmp.write("this")
+        pending_renames = [(str(file1_tmp), str(file1))]
+        rel_renames = make_rel_renames(str(tmpdir), pending_renames)
+        # we don't call perform_pending_renames, simulating a crash
+        assert file1.read() == "hello"
+        assert file1_tmp.exists()
+        check_pending_renames(str(tmpdir), rel_renames)
+        assert file1.check()
+        assert file1.read() == "this"
+        assert not file1_tmp.exists()
+
+    def test_remove_nocrash(self, tmpdir):
+        file1 = tmpdir.join("file1")
+        file1.write("hello")
+        pending_renames = [(None, str(file1))]
+        rel_renames = make_rel_renames(str(tmpdir), pending_renames)
+        perform_renames(pending_renames)
+        assert not file1.exists()
+        check_pending_renames(str(tmpdir), rel_renames)
+        assert not file1.exists()
+
+    def test_remove_crash(self, tmpdir):
+        file1 = tmpdir.join("file1")
+        file1.write("hello")
+        pending_renames = [(None, str(file1))]
+        rel_renames = make_rel_renames(str(tmpdir), pending_renames)
+        # we don't call perform_pending_renames, simulating a crash
+        assert file1.exists()
+        check_pending_renames(str(tmpdir), rel_renames)
+        assert not file1.exists()

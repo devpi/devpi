@@ -522,8 +522,7 @@ class PrivateStage(BaseStage):
                 rel="releasefile",
                 basename=filename,
                 file_content=content,
-                entry_extra=dict(last_modified=last_modified),
-        )
+                last_modified=last_modified)
         return entry
 
     def store_doczip(self, name, version, content):
@@ -601,17 +600,15 @@ class ProjectVersion:
             self.verdata["version"] = version
             self._mark_dirty()
 
-    def create_linked_entry(self, rel, basename, file_content,
-            entry_extra=None):
+    def create_linked_entry(self, rel, basename, file_content, last_modified=None):
         assert isinstance(file_content, bytes)
-        entry_extra = entry_extra or {}
         for link in self.get_links(rel=rel, basename=basename):
             if not self.stage.ixconfig.get("volatile"):
                 return 409
             self.remove_links(rel=rel, basename=basename)
         file_entry = self._create_file_entry(basename, file_content)
-        for k,v in entry_extra.items():
-            setattr(file_entry, k, v)
+        if last_modified is not None:
+            file_entry.last_modified = last_modified
         self._add_link_to_file_entry(rel, file_entry)
         return file_entry
 

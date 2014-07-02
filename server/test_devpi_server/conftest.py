@@ -98,6 +98,7 @@ def auto_transact(request):
         yield
         return
     keyfs = request.getfuncargvalue("keyfs")
+
     write = True if request.node.get_marker("writetransaction") else False
     keyfs.begin_transaction_in_thread(write=write)
     yield
@@ -111,6 +112,19 @@ def auto_transact(request):
 def xom(request, makexom):
     xom = makexom([])
     return xom
+
+@pytest.yield_fixture(autouse=True, scope="session")
+def speed_up_sql():
+    from devpi_server.keyfs import Filesystem
+    old = Filesystem.get_sqlconn
+    def make_unsynchronous(self, old=old):
+        conn = old(self)
+        conn.execute("PRAGMA synchronous=OFF")
+        return conn
+    Filesystem.get_sqlconn = make_unsynchronous
+    yield
+    Filesystem.get_sqlconn = old
+
 
 @pytest.fixture
 def makexom(request, gentmp, httpget, monkeypatch):
