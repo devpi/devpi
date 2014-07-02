@@ -8,5 +8,5 @@ if __name__ == "__main__":
     serial = int(sys.argv[2])
     assert basedir.check(), basedir
     keyfs = KeyFS(basedir)
-    pprint.pprint (keyfs._fs.get_changelog_entry(serial))
+    pprint.pprint (keyfs._fs.get_changes(serial))
 

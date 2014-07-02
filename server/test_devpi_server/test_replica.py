@@ -135,9 +135,9 @@ def replay(xom, replica_xom):
                         xom.keyfs.get_next_serial()):
         if serial == -1:
             continue
-        change_entry = xom.keyfs._fs.get_changelog_entry(serial)
+        change_entry = xom.keyfs._fs.get_changes(serial)
         threadlog.info("importing to replica %s", serial)
-        replica_xom.keyfs.import_changelog_entry(serial, change_entry)
+        replica_xom.keyfs.import_changes(serial, change_entry)
 
 class TestFileReplication:
     @pytest.fixture

@@ -190,6 +190,7 @@ class TestStage:
     def test_store_and_get_releasefile(self, stage, bases):
         content = b"123"
         entry = register_and_store(stage, "some-1.0.zip", content)
+        assert entry.last_modified != None
         entries = stage.getreleaselinks("some")
         assert len(entries) == 1
         assert entries[0].md5 == entry.md5
