@@ -121,7 +121,11 @@ class XMLProxy(object):
                      reply.status_code, self._url)
             return None
         res = xmlrpc.loads(reply.content)[0][0]
-        threadlog.debug("<- %s%s: %s" %(method, args, res))
+        if isinstance(res, (list, dict)) and len(res) > 3:
+            repr_res = "%r with %s entries" %(type(res).__name__, len(res))
+        else:
+            repr_res = repr(res)
+        threadlog.debug("<- %s%s: %s" %(method, args, repr_res))
         return res
 
 
