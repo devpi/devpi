@@ -329,6 +329,9 @@ class Importer:
                 for version, versiondata in versions.items():
                     with self.xom.keyfs.transaction(write=True):
                         assert "+elinks" not in versiondata
+                        if '+doczip' in versiondata:
+                            del versiondata['+doczip']
+                        assert not any(True for x in versiondata if x.startswith('+'))
                         if not versiondata.get("version"):
                             name = versiondata["name"]
                             self.warn("%r: ignoring project metadata without "
