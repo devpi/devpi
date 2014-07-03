@@ -204,7 +204,7 @@ class IndexDump:
         import copy
         for name in self.stage.getprojectnames_perstage():
             data = {}
-            versions = self.stage.get_project_versions_perstage(name, sort=False)
+            versions = self.stage.get_project_versions_perstage(name)
             for version in versions:
                 data[version] = copy.deepcopy(
                     self.stage.get_project_versiondata_perstage(name, version))

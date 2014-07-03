@@ -1,6 +1,7 @@
 # coding: utf-8
 from __future__ import unicode_literals
 from devpi_common.metadata import get_pyversion_filetype, splitbasename
+from devpi_common.metadata import get_sorted_versions
 from devpi_common.url import URL
 from devpi_server.log import threadlog as log
 from devpi_web.description import get_description
@@ -39,7 +40,7 @@ class ContextWrapper(object):
         versions = self.stage.get_project_versions(self.name)
         if not versions:
             raise HTTPNotFound("The project %s does not exist." % self.name)
-        return versions
+        return get_sorted_versions(versions)
 
     @reify
     def verdata(self):

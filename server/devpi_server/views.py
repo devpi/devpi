@@ -584,7 +584,7 @@ class PyPIView:
         if projectname != name:
             redirect("/%s/%s" % (stage.name, projectname))
         view_metadata = {}
-        for version in stage.get_project_versions(projectname, sort=False):
+        for version in stage.get_project_versions(projectname):
             view_metadata[version] = self._make_view_verdata(
                 stage.get_project_versiondata(projectname, version))
         apireturn(200, type="projectconfig", result=view_metadata)
@@ -609,7 +609,7 @@ class PyPIView:
     def version_get(self):
         stage = self.context.stage
         name, version = self.context.name, self.context.version
-        versions = stage.get_project_versions(name, sort=False)
+        versions = stage.get_project_versions(name)
         if not versions:
             abort(self.request, 404, "project %r does not exist" % name)
         verdata = stage.get_project_versiondata(name, version)

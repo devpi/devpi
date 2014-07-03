@@ -281,7 +281,7 @@ class PyPIStage(BaseStage):
         if name in self.pypimirror.name2serials:
             return name
 
-    def get_project_versions_perstage(self, projectname, sort=True):
+    def get_project_versions_perstage(self, projectname):
         releaselinks = self.getreleaselinks(projectname)
         if isinstance(releaselinks, int):
             return releaselinks
@@ -293,8 +293,6 @@ class PyPIStage(BaseStage):
             else:
                 version = BasenameMeta(basename).version
             versions.add(version)
-        if sort:
-            versions = get_sorted_versions(versions)
         return versions
 
     def get_project_versiondata_perstage(self, projectname, version):

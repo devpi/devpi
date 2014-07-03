@@ -42,11 +42,7 @@ def navigation_info(request):
         version = context.version
         if version == 'latest':
             stage = context.model.getstage(user, index)
-            versions = None
-            if stage:
-                versions = stage.get_project_versions(name)
-            if versions:
-                version = versions[0]
+            version = stage.get_latest_version(name)
         path.append(dict(
             url=request.route_url(
                 "/{user}/{index}/{name}/{version}",

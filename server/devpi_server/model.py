@@ -232,20 +232,20 @@ class BaseStage:
             l.append(json.loads(data))
         return l
 
-    def get_project_versions(self, projectname, sort=True):
+    def get_project_versions(self, projectname):
         assert py.builtin._istext(projectname)
         versions = set()
         for stage, res in self.op_sro_check_pypi_whitelist(
-                "get_project_versions_perstage",
-                projectname=projectname, sort=False):
+                "get_project_versions_perstage", projectname=projectname):
             if isinstance(res, int):
                 if res == 404:
                     continue
                 return res
             versions.update(res)
-        if sort:
-            versions = get_sorted_versions(versions)
         return versions
+
+    def get_latest_version(self, name):
+        return get_latest_version(self.get_project_versions(name))
 
     def get_project_versiondata(self, projectname, version):
         assert py.builtin._istext(projectname)
@@ -495,15 +495,12 @@ class PrivateStage(BaseStage):
             return self.get_project_versiondata(name, version)
 
     def get_metadata_latest_perstage(self, name):
-        versions = self.get_project_versions_perstage(name, sort=False)
+        versions = self.get_project_versions_perstage(name)
         maxver = get_latest_version(versions)
         return self.get_metadata(name, maxver)
 
-    def get_project_versions_perstage(self, projectname, sort=True):
-        versions = self.key_projversions(projectname).get()
-        if sort:
-            versions = get_sorted_versions(versions)
-        return versions
+    def get_project_versions_perstage(self, projectname):
+        return self.key_projversions(projectname).get()
 
     def get_project_versiondata_perstage(self, projectname, version):
         return self.key_projversion(projectname, version).get()

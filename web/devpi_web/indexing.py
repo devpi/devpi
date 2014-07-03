@@ -1,4 +1,5 @@
 from devpi_common.types import ensure_unicode
+from devpi_common.metadata import get_sorted_versions
 from devpi_server.log import threadlog as log
 from devpi_web.doczip import iter_doc_contents
 import time
@@ -22,7 +23,7 @@ def preprocess_project(stage, name):
     setuptools_metadata = frozenset((
         'author', 'author_email', 'classifiers', 'description', 'download_url',
         'home_page', 'keywords', 'license', 'platform', 'summary'))
-    versions = stage.get_project_versions(name)
+    versions = get_sorted_versions(stage.get_project_versions(name))
     result = dict(name=name)
     for i, version in enumerate(versions):
         verdata = stage.get_project_versiondata(name, version)
