@@ -22,6 +22,9 @@
 - don't refresh releaselinks from the mirroring thread but rather
   rely on the next access to do it.
 
+- fix issue98: deleting a project config or a project version now accepts
+  names which map to the canonical name of a project.
+
 - fix issue82 and fix issue81: root/pypi now provides the same
   attributes as normal indexes and results in a 409 MethodNotAllowed
   http code when trying to change the config.

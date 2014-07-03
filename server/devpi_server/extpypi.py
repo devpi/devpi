@@ -222,14 +222,14 @@ class PyPIStage(BaseStage):
         If pypi does not return a fresh enough page although we know it
         must exist, return -2.
         """
+        projectname = self.get_project_name_perstage(projectname)
+        if projectname is None:
+            return 404
         entries = self._load_cache_entries(projectname)
         if entries is not None:
             return entries
-        info = self.get_project_info(projectname)
-        if not info:
-            return 404
         # get the simple page for the project
-        url = self.PYPIURL_SIMPLE + info.name + "/"
+        url = self.PYPIURL_SIMPLE + projectname + "/"
         threadlog.debug("visiting index %s", url)
         response = self.httpget(url, allow_redirects=True)
         if response.status_code != 200:
@@ -249,11 +249,11 @@ class PyPIStage(BaseStage):
 
         # determine and check real project name
         real_projectname = response.url.strip("/").split("/")[-1]
-        assert real_projectname == info.name
+        assert real_projectname == projectname
 
         # check that we got a fresh enough page
         serial = int(response.headers["X-PYPI-LAST-SERIAL"])
-        newest_serial = self.pypimirror.name2serials.get(info.name, -1)
+        newest_serial = self.pypimirror.name2serials.get(projectname, -1)
         if serial < newest_serial:
             threadlog.warn("%s: pypi returned serial %s, expected %s",
                      real_projectname, serial, newest_serial)
@@ -274,11 +274,11 @@ class PyPIStage(BaseStage):
         self._dump_project_cache(real_projectname, entries, serial)
         return entries
 
-    def get_project_info_perstage(self, name):
+    def get_project_name_perstage(self, name):
         norm_name = normalize_name(name)
         name = self.pypimirror.normname2name.get(norm_name, norm_name)
         if name in self.pypimirror.name2serials:
-            return ProjectInfo(self, name)
+            return name
 
     def get_projectconfig_perstage(self, projectname):
         releaselinks = self.getreleaselinks(projectname)

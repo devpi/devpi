@@ -282,6 +282,22 @@ class TestSubmitValidation:
         paths = mapp.get_release_paths("pkg_hello")
         assert paths[0].endswith("pkg-hello-1.0.whl")
 
+    def test_upload_and_delete_name_normalization_issue98(self, mapp,
+            submit, testapp):
+        metadata = {"name": "pkg_hello", "version":"1.0", ":action": "submit"}
+        submit.metadata(metadata, code=200)
+        submit.file("pkg-hello-1.0.whl", b"123", {"name": "pkg-hello",
+                                              "version": "1.0"}, code=200)
+        metadata = {"name": "pkg_hello", "version":"1.1", ":action": "submit"}
+        submit.metadata(metadata, code=200)
+        submit.file("pkg-hello-1.1.whl", b"123", {"name": "pkg-hello",
+                                              "version": "1.1"}, code=200)
+        r = testapp.delete(submit.api.index + "/pkg-hello/1.1")
+        assert r.status_code == 200
+        assert len(mapp.get_release_paths("pkg_hello")) == 1
+        r = testapp.delete(submit.api.index + "/pkg-hello")
+        assert r.status_code == 200
+
     def test_upload_and_simple_index(self, submit, testapp):
         metadata = {"name": "Pkg5", "version": "2.6", ":action": "submit"}
         submit.metadata(metadata, code=200)

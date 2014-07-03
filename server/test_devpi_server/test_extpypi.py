@@ -285,7 +285,7 @@ class TestExtPYPIDB:
         assert data["+elinks"]
         assert data["name"] == "Pytest"
         assert data["version"] == "1.0"
-        assert pypistage.get_project_info("pytest").name == "Pytest"
+        assert pypistage.get_project_name("pytest") == "Pytest"
 
     def test_getprojectconfig_with_egg(self, pypistage):
         pypistage.mock_simple("pytest", text='''
@@ -398,11 +398,13 @@ class TestExtPYPIDB:
         pypistage.mock_simple("Hello_this")
         pypistage.mock_simple("hello-World")
         pypistage.mock_simple("s-p")
-        assert pypistage.get_project_info("hello-this").name == "Hello_this"
-        assert pypistage.get_project_info("hello_world").name == "hello-World"
-        assert pypistage.get_project_info("hello-world").name == "hello-World"
-        assert pypistage.get_project_info("s-p").name == "s-p"
-        assert pypistage.get_project_info("s_p").name == "s-p"
+        assert pypistage.get_project_name("hello-this") == "Hello_this"
+        assert pypistage.get_project_name("hello_world") == "hello-World"
+        assert pypistage.get_project_name("hello-world") == "hello-World"
+        assert pypistage.get_project_name("s-p") == "s-p"
+        assert pypistage.get_project_name("s_p") == "s-p"
+        assert pypistage.get_project_name("sqwe_p") is None
+
 
 def raise_ValueError():
     raise ValueError(42)

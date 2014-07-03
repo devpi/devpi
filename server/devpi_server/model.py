@@ -190,7 +190,6 @@ class User:
             raise ValueError("unknown index type %r" % ixconfig["type"])
 
 
-
 class InvalidIndexconfig(Exception):
     def __init__(self, messages):
         self.messages = messages
@@ -275,8 +274,8 @@ class BaseStage:
             return res  # no stage has the project
         return sorted_sameproject_links(all_links)
 
-    def get_project_info(self, name):
-        for stage, res in self.op_sro("get_project_info_perstage", name=name):
+    def get_project_name(self, name):
+        for stage, res in self.op_sro("get_project_name_perstage", name=name):
             if res is not None:
                 return res
 
@@ -325,6 +324,12 @@ class BaseStage:
 
 
 class PrivateStage(BaseStage):
+    class NotFound(Exception):
+        """ If a project or version cannot be found. """
+        def __init__(self, msg):
+            self.msg = msg
+            Exception.__init__(self, msg)
+
     metadata_keys = """
         name version summary home_page author author_email
         license description keywords platform classifiers download_url
@@ -391,15 +396,13 @@ class PrivateStage(BaseStage):
     class RegisterNameConflict(Exception):
         """ a conflict while trying to register metadata. """
 
-    def get_project_info_perstage(self, name):
+    def get_project_name_perstage(self, name):
         """ return normalized name for the given name or None
         if no project exists. """
         assert py.builtin._istext(name)
         names = self.getprojectnames_perstage()
         norm2name = dict([(normalize_name(x), x) for x in names])
-        realname = norm2name.get(normalize_name(name), None)
-        if realname:
-            return ProjectInfo(self, realname)
+        return norm2name.get(normalize_name(name), None)
 
     def register_metadata(self, metadata):
         """ register metadata.  Raises ValueError in case of metadata
@@ -407,16 +410,12 @@ class PrivateStage(BaseStage):
         validate_metadata(metadata)
         name = metadata["name"]
         # check if the project exists already under its normalized
-        info = self.get_project_info(name)
+        projectname = self.get_project_name(name)
         log = thread_current_log()
-        if info:
-            log.info("got project info with name %r" % info.name)
-        else:
-            log.debug("project %r does not exist, good", name)
-        if info is not None and info.name != name:
+        if projectname is not None and projectname != name:
             log.error("project %r has other name %r in stage %s" %(
-                      name, info.name, self.name))
-            raise self.RegisterNameConflict(info)
+                      name, projectname, self.name))
+            raise self.RegisterNameConflict(projectname)
         self._register_metadata(metadata)
 
     def key_projversions(self, name):
@@ -455,27 +454,28 @@ class PrivateStage(BaseStage):
         self.key_projversions(name).delete()
 
     def project_version_delete(self, name, version, cleanup=True):
-        versions = self.key_projversions(name).get()
+        projectname = self.get_project_name_perstage(name)
+        if projectname is None:
+            raise self.NotFound("project %r not found on stage %r" %
+                                (name, self.name))
+        versions = self.key_projversions(projectname).get()
         if version not in versions:
-            return False
-        pv = self.get_project_version(name, version)
+            raise self.NotFound("version %r of project %r not found on stage %r" %
+                                (version, projectname, self.name))
+        pv = self.get_project_version(projectname, version)
         pv.remove_links()
         versions.remove(version)
-        self.key_projversion(name, version).delete()
-        self.key_projversions(name).set(versions)
+        self.key_projversion(projectname, version).delete()
+        self.key_projversions(projectname).set(versions)
         if cleanup and not versions:
-            self.project_delete(name)
-        return True
-
-    def project_exists(self, name):
-        return self.key_projversions(name).exists()
+            self.project_delete(projectname)
 
     def get_metadata(self, name, version):
         # on win32 we need to make sure that we only return
         # something if we know about the exact name, not a
         # case-different one
-        info = self.get_project_info(name)
-        if info and info.name == name:
+        projectname = self.get_project_name(name)
+        if projectname and projectname == name:
             projectconfig = self.get_projectconfig(name)
             return projectconfig.get(version)
 
