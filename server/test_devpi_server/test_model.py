@@ -277,7 +277,17 @@ class TestStage:
         pconfig = stage.get_projectconfig_perstage("some")
         assert pconfig["1.1"] and "1.0" not in pconfig
         stage.project_version_delete("some", "1.1")
-        assert not stage.project_exists("some")
+        assert stage.get_project_name("some") is None
+
+    def test_delete_not_existing(self, stage, bases):
+        with pytest.raises(stage.NotFound) as excinfo:
+            stage.project_version_delete("hello", "1.0")
+        assert excinfo.value.msg.startswith("project u'hello' not found")
+        register_and_store(stage, "hello-1.0.zip")
+        stage.project_version_delete("hello", "1.0", cleanup=False)
+        with pytest.raises(stage.NotFound) as excinfo:
+            stage.project_version_delete("hello", "1.0")
+        assert excinfo.value.msg.startswith("version")
 
     def test_releasefile_sorting(self, stage, bases):
         register_and_store(stage, "some-1.1.zip")
@@ -446,8 +456,8 @@ class TestStage:
     def test_get_existing_project(self, stage):
         stage.register_metadata(dict(name="Hello", version="1.0"))
         stage.register_metadata(dict(name="this", version="1.0"))
-        project = stage.get_project_info("hello")
-        assert project.name == "Hello"
+        name = stage.get_project_name("hello")
+        assert name == "Hello"
 
 class TestProjectVersion:
     @pytest.fixture

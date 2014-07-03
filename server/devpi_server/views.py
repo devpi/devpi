@@ -221,13 +221,16 @@ class PyPIView:
     @view_config(route_name="/{user}/{index}/+simple/{name}")
     def simple_list_project(self):
         request = self.request
-        projectname = self.context.name
+        name = self.context.name
         # we only serve absolute links so we don't care about the route's slash
-        abort_if_invalid_projectname(request, projectname)
+        abort_if_invalid_projectname(request, name)
         stage = self.context.stage
-        info = stage.get_project_info(projectname)
-        if info and info.name != projectname:
-            redirect("/%s/+simple/%s/" % (stage.name, info.name))
+        projectname = stage.get_project_name(name)
+        if projectname is None:
+            abort(request, 200, "no such project %r" % projectname)
+
+        if name != projectname:
+            redirect("/%s/+simple/%s/" % (stage.name, projectname))
         result = stage.getreleaselinks(projectname)
         if isinstance(result, int):
             if result == 404:
@@ -493,20 +496,20 @@ class PyPIView:
             name = ensure_unicode(request.POST.get("name"))
             # version may be empty on plain uploads
             version = ensure_unicode(request.POST.get("version"))
-            info = stage.get_project_info(name)
-            if not info:
+            projectname = stage.get_project_name(name)
+            if projectname is None:
                 abort(request, 400, "no project named %r was ever registered" % (name))
             if action == "file_upload":
                 self.log.debug("metadata in form: %s",
                                list(request.POST.items()))
                 abort_if_invalid_filename(name, content.filename)
-                metadata = stage.get_metadata(info.name, version)
+                metadata = stage.get_metadata(projectname, version)
                 if not metadata:
                     self._register_metadata_form(stage, request.POST)
-                    metadata = stage.get_metadata(name, version)
+                    metadata = stage.get_metadata(projectname, version)
                     if not metadata:
                         abort_custom(400, "could not process form metadata")
-                res = stage.store_releasefile(info.name, version,
+                res = stage.store_releasefile(projectname, version,
                                               content.filename, content.file.read())
                 if res == 409:
                     abort(request, 409, "%s already exists in non-volatile index" % (
@@ -547,10 +550,10 @@ class PyPIView:
         try:
             stage.register_metadata(metadata)
         except stage.RegisterNameConflict as e:
-            info = e.args[0]
+            othername = e.args[0]
             abort_custom(403, "cannot register %r because %r is already "
                   "registered at %s" % (
-                  metadata["name"], info.name, info.stage.name))
+                  metadata["name"], othername, stage.name))
         except ValueError as e:
             abort_custom(400, "invalid metadata: %s" % (e,))
         self.log.info("%s: got submit release info %r",
@@ -563,8 +566,8 @@ class PyPIView:
     @view_config(route_name="simple_redirect")
     def simple_redirect(self):
         stage, name = self.context.stage, self.context.name
-        info = stage.get_project_info(name)
-        real_name = info.name if info else name
+        projectname = stage.get_project_name(name)
+        real_name = projectname if projectname else name
         redirect("/%s/+simple/%s" % (stage.name, real_name))
 
     @view_config(route_name="/{user}/{index}/{name}", accept="application/json", request_method="GET")
@@ -572,17 +575,16 @@ class PyPIView:
         request = self.request
         #self.log.debug("HEADERS: %s", request.headers.items())
         stage, name = self.context.stage, self.context.name
-        info = stage.get_project_info(name)
-        real_name = info.name if info else name
+        projectname = stage.get_project_name(name)
         if not json_preferred(request):
             apireturn(415, "unsupported media type %s" %
                       request.headers.items())
-        if not info:
+        if not projectname:
             apireturn(404, "project %r does not exist" % name)
-        if real_name != name:
-            redirect("/%s/%s" % (stage.name, real_name))
+        if projectname != name:
+            redirect("/%s/%s" % (stage.name, projectname))
         view_metadata = {}
-        for version, verdata in stage.get_projectconfig(name).items():
+        for version, verdata in stage.get_projectconfig(projectname).items():
             view_verdata = self._make_view_verdata(verdata)
             view_metadata[version] = view_verdata
         apireturn(200, type="projectconfig", result=view_metadata)
@@ -594,14 +596,13 @@ class PyPIView:
         stage, name = self.context.stage, self.context.name
         if stage.name == "root/pypi":
             abort(self.request, 405, "cannot delete root/pypi index")
-        info = stage.get_project_info(name)
-        name = info.name if info else name
-        if not stage.project_exists(name):
+        projectname = stage.get_project_name(name)
+        if projectname is None:
             apireturn(404, "project %r does not exist" % name)
         if not stage.ixconfig["volatile"]:
             apireturn(403, "project %r is on non-volatile index %s" %(
-                      name, stage.name))
-        stage.project_delete(name)
+                      projectname, stage.name))
+        stage.project_delete(projectname)
         apireturn(200, "project %r deleted from stage %s" % (name, stage.name))
 
     @view_config(route_name="/{user}/{index}/{name}/{version}", accept="application/json", request_method="GET")
@@ -643,7 +644,8 @@ class PyPIView:
         return self.request.route_url(
                route_name, user=user, index=index, relpath=relpath)
 
-    @view_config(route_name="/{user}/{index}/{name}/{version}", request_method="DELETE")
+    @view_config(route_name="/{user}/{index}/{name}/{version}",
+                 request_method="DELETE")
     def project_version_delete(self):
         stage = self.context.stage
         name, version = self.context.name, self.context.version
@@ -651,15 +653,10 @@ class PyPIView:
             abort(self.request, 405, "cannot delete on root/pypi index")
         if not stage.ixconfig["volatile"]:
             abort(self.request, 403, "cannot delete version on non-volatile index")
-        info = stage.get_project_info(name)
-        name = info.name if info else name
-        metadata = stage.get_projectconfig(name)
-        if not metadata:
-            abort(self.request, 404, "project %r does not exist" % name)
-        verdata = metadata.get(version, None)
-        if not verdata:
-            abort(self.request, 404, "version %r does not exist" % version)
-        stage.project_version_delete(name, version)
+        try:
+            stage.project_version_delete(name, version)
+        except stage.NotFound as e:
+            abort(self.request, 404, e.msg)
         apireturn(200, "project %r version %r deleted" % (name, version))
 
     @view_config(route_name="/{user}/{index}/+e/{relpath:.*}")

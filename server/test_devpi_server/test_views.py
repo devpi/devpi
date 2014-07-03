@@ -288,11 +288,11 @@ class TestSubmitValidation:
         submit.metadata(metadata, code=200)
         submit.file("pkg-hello-1.0.whl", b"123", {"name": "pkg-hello",
                                               "version": "1.0"}, code=200)
-        metadata["version"] = "1.1"
+        metadata = {"name": "pkg_hello", "version":"1.1", ":action": "submit"}
         submit.metadata(metadata, code=200)
         submit.file("pkg-hello-1.1.whl", b"123", {"name": "pkg-hello",
                                               "version": "1.1"}, code=200)
-        r = testapp.delete(submit.api.index + "/pkg-hello/1.0")
+        r = testapp.delete(submit.api.index + "/pkg-hello/1.1")
         assert r.status_code == 200
         assert len(mapp.get_release_paths("pkg_hello")) == 1
         r = testapp.delete(submit.api.index + "/pkg-hello")

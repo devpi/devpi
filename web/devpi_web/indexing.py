@@ -70,7 +70,7 @@ def iter_projects(xom):
                 if current_time - timestamp > 3:
                     log.debug("currently indexed %s", count)
                     timestamp = current_time
-                if not stage.get_project_info(name):
+                if stage.get_project_name(name) is None:
                     continue
                 metadata = get_projectconfig_without_fetch(stage, name)
                 if metadata:
