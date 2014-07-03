@@ -247,6 +247,9 @@ class BaseStage:
     def get_latest_version(self, name):
         return get_latest_version(self.list_versions(name))
 
+    def get_latest_version_perstage(self, name):
+        return get_latest_version(self.list_versions_perstage(name))
+
     def get_versiondata(self, projectname, version):
         assert py.builtin._istext(projectname)
         result = {}
@@ -529,7 +532,7 @@ class PrivateStage(BaseStage):
     def store_releasefile(self, name, version, filename, content,
                           last_modified=None):
         filename = ensure_unicode(filename)
-        if not self.get_metadata(name, version):
+        if not self.get_versiondata(name, version):
             raise self.MissesRegistration(name, version)
         threadlog.debug("project name of %r is %r", filename, name)
         pv = self.get_project_version(name, version)
@@ -542,7 +545,7 @@ class PrivateStage(BaseStage):
 
     def store_doczip(self, name, version, content):
         if not version:
-            version = self.get_metadata_latest_perstage(name)["version"]
+            version = self.get_latest_version_perstage(name)
             threadlog.info("store_doczip: derived version of %s is %s",
                            name, version)
         basename = "%s-%s.doc.zip" % (name, version)

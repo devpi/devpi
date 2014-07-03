@@ -412,7 +412,7 @@ class PyPIView:
             #results = stage.copy_release(metadata, target_stage)
             #results.append((r.status_code, "upload", entry.relpath))
             #apireturn(200, results=results, type="actionlog")
-            if not target_stage.get_metadata(name, version):
+            if not target_stage.get_versiondata(name, version):
                 self._register_metadata_dict(target_stage, metadata)
             results.append((200, "register", name, version,
                             "->", target_stage.name))
@@ -503,10 +503,10 @@ class PyPIView:
                 self.log.debug("metadata in form: %s",
                                list(request.POST.items()))
                 abort_if_invalid_filename(name, content.filename)
-                metadata = stage.get_metadata(projectname, version)
+                metadata = stage.get_versiondata(projectname, version)
                 if not metadata:
                     self._register_metadata_form(stage, request.POST)
-                    metadata = stage.get_metadata(projectname, version)
+                    metadata = stage.get_versiondata(projectname, version)
                     if not metadata:
                         abort_custom(400, "could not process form metadata")
                 res = stage.store_releasefile(projectname, version,

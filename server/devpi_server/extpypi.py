@@ -282,7 +282,7 @@ class PyPIStage(BaseStage):
             return name
 
     def list_versions_perstage(self, projectname):
-        releaselinks = self.get_releaselinks(projectname)
+        releaselinks = self.get_releaselinks_perstage(projectname)
         if isinstance(releaselinks, int):
             return releaselinks
         versions = set()

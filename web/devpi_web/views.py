@@ -301,15 +301,16 @@ def index_get(context, request):
                     user=base_user, index=base_index)))
 
     for projectname in stage.list_projectnames_perstage():
-        metadata = stage.get_metadata_latest_perstage(projectname)
+        version = stage.get_latest_version_perstage(projectname)
+        verdata = stage.get_versiondata_perstage(projectname, version)
         try:
-            name, ver = metadata["name"], metadata["version"]
+            name, ver = verdata["name"], verdata["version"]
         except KeyError:
             log.error("metadata for project %r empty: %s, skipping",
-                      projectname, metadata)
+                      projectname, verdata)
             continue
         show_toxresults = not (stage.user.name == 'root' and stage.index == 'pypi')
-        pv = stage.get_project_version(name, ver)
+        pv = stage.get_project_version(name, ver, verdata)
         packages.append(dict(
             info=dict(
                 title="%s-%s" % (name, ver),
@@ -322,7 +323,7 @@ def index_get(context, request):
                 user=stage.user.name, index=stage.index,
                 name=name, version=ver),
             files=get_files_info(request, pv, show_toxresults),
-            docs=get_docs_info(request, stage, metadata)))
+            docs=get_docs_info(request, stage, verdata)))
 
     return result
 
@@ -539,7 +540,7 @@ class SearchView:
             self._stage['path'] = stage
         return self._stage['path']
 
-    def get_metadata(self, stage, data):
+    def get_versiondata(self, stage, data):
         path = data['path']
         version = data.get('version')
         key = (path, version)
@@ -565,7 +566,7 @@ class SearchView:
         for sub_hit in sub_hits:
             sub_data = sub_hit['data']
             text_type = sub_data['type']
-            metadata = self.get_metadata(stage, data)
+            metadata = self.get_versiondata(stage, data)
             title = text_type.title()
             highlight = None
             if text_type == 'project':

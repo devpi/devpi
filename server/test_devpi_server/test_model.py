@@ -381,9 +381,9 @@ class TestStage:
 
     def test_releasedata(self, stage):
         assert stage.metadata_keys
-        assert not stage.get_metadata("hello", "1.0")
+        assert not stage.get_versiondata("hello", "1.0")
         stage.register_metadata(dict(name="hello", version="1.0", author="xy"))
-        d = stage.get_metadata("hello", "1.0")
+        d = stage.get_versiondata("hello", "1.0")
         assert d["author"] == "xy"
         #stage.ixconfig["volatile"] = False
         #with pytest.raises(stage.MetadataExists):
@@ -391,35 +391,32 @@ class TestStage:
         #
 
     def test_filename_version_mangling_issue68(self, stage):
-        assert not stage.get_metadata("hello", "1.0")
+        assert not stage.get_versiondata("hello", "1.0")
         metadata = dict(name="hello", version="1.0-test")
         stage.register_metadata(metadata)
         stage.store_releasefile("hello", "1.0-test",
                             "hello-1.0_test.whl", b"")
-        ver = stage.get_metadata_latest_perstage("hello")
-        assert ver["version"] == "1.0-test"
+        ver = stage.get_latest_version_perstage("hello")
+        assert ver == "1.0-test"
         #stage.ixconfig["volatile"] = False
         #with pytest.raises(stage.MetadataExists):
         #    stage.register_metadata(dict(name="hello", version="1.0"))
         #
 
-    def test_get_metadata_latest(self, stage):
+    def test_get_versiondata_latest(self, stage):
         stage.register_metadata(dict(name="hello", version="1.0"))
         stage.register_metadata(dict(name="hello", version="1.1"))
         stage.register_metadata(dict(name="hello", version="0.9"))
-        metadata = stage.get_metadata_latest_perstage("hello")
-        assert metadata["version"] == "1.1"
+        assert stage.get_latest_version_perstage("hello") == "1.1"
 
-    def test_get_metadata_latest_inheritance(self, user, model, stage):
+    def test_get_versiondata_latest_inheritance(self, user, model, stage):
         stage_base_name = stage.index + "base"
         user.create_stage(index=stage_base_name, bases=(stage.name,))
         stage_sub = model.getstage(stage.user.name, stage_base_name)
         stage_sub.register_metadata(dict(name="hello", version="1.0"))
         stage.register_metadata(dict(name="hello", version="1.1"))
-        metadata = stage_sub.get_metadata_latest_perstage("hello")
-        assert metadata["version"] == "1.0"
-        metadata = stage.get_metadata_latest_perstage("hello")
-        assert metadata["version"] == "1.1"
+        assert stage_sub.get_latest_version_perstage("hello") == "1.0"
+        assert stage.get_latest_version_perstage("hello") == "1.1"
 
     def test_releasedata_validation(self, stage):
         with pytest.raises(ValueError):
