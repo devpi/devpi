@@ -232,11 +232,11 @@ class BaseStage:
             l.append(json.loads(data))
         return l
 
-    def get_project_versions(self, projectname):
+    def list_versions(self, projectname):
         assert py.builtin._istext(projectname)
         versions = set()
         for stage, res in self.op_sro_check_pypi_whitelist(
-                "get_project_versions_perstage", projectname=projectname):
+                "list_versions_perstage", projectname=projectname):
             if isinstance(res, int):
                 if res == 404:
                     continue
@@ -245,13 +245,13 @@ class BaseStage:
         return versions
 
     def get_latest_version(self, name):
-        return get_latest_version(self.get_project_versions(name))
+        return get_latest_version(self.list_versions(name))
 
-    def get_project_versiondata(self, projectname, version):
+    def get_versiondata(self, projectname, version):
         assert py.builtin._istext(projectname)
         result = {}
         for stage, res in self.op_sro_check_pypi_whitelist(
-                "get_project_versiondata_perstage",
+                "get_versiondata_perstage",
                 projectname=projectname, version=version):
             if isinstance(res, int):
                 if res == 404:
@@ -264,12 +264,12 @@ class BaseStage:
                 l.append(res)
         return result
 
-    def getreleaselinks(self, projectname):
+    def get_releaselinks(self, projectname):
         all_links = []
         basenames = set()
         stagename2res = {}
         for stage, res in self.op_sro_check_pypi_whitelist(
-            "getreleaselinks_perstage", projectname=projectname):
+            "get_releaselinks_perstage", projectname=projectname):
             stagename2res[stage.name] = res
             if isinstance(res, int):
                 if res == 404:
@@ -290,14 +290,14 @@ class BaseStage:
             return res  # no stage has the project
         return sorted_sameproject_links(all_links)
 
-    def get_project_name(self, name):
-        for stage, res in self.op_sro("get_project_name_perstage", name=name):
+    def get_projectname(self, name):
+        for stage, res in self.op_sro("get_projectname_perstage", name=name):
             if res is not None:
                 return res
 
-    def getprojectnames(self):
+    def list_projectnames(self):
         all_names = set()
-        for stage, names in self.op_sro("getprojectnames_perstage"):
+        for stage, names in self.op_sro("list_projectnames_perstage"):
             if isinstance(names, int):
                 return names
             all_names.update(names)
@@ -394,7 +394,7 @@ class PrivateStage(BaseStage):
 
     def delete(self):
         # delete all projects on this index
-        for name in list(self.getprojectnames_perstage()):
+        for name in list(self.list_projectnames_perstage()):
             self.project_delete(name)
         with self.user.key.update() as userconfig:
             indexes = userconfig.get("indexes", {})
@@ -412,11 +412,11 @@ class PrivateStage(BaseStage):
     class RegisterNameConflict(Exception):
         """ a conflict while trying to register metadata. """
 
-    def get_project_name_perstage(self, name):
+    def get_projectname_perstage(self, name):
         """ return normalized name for the given name or None
         if no project exists. """
         assert py.builtin._istext(name)
-        names = self.getprojectnames_perstage()
+        names = self.list_projectnames_perstage()
         norm2name = dict([(normalize_name(x), x) for x in names])
         return norm2name.get(normalize_name(name), None)
 
@@ -426,7 +426,7 @@ class PrivateStage(BaseStage):
         validate_metadata(metadata)
         name = metadata["name"]
         # check if the project exists already under its normalized
-        projectname = self.get_project_name(name)
+        projectname = self.get_projectname(name)
         log = thread_current_log()
         if projectname is not None and projectname != name:
             log.error("project %r has other name %r in stage %s" %(
@@ -470,7 +470,7 @@ class PrivateStage(BaseStage):
         self.key_projversions(name).delete()
 
     def project_version_delete(self, name, version, cleanup=True):
-        projectname = self.get_project_name_perstage(name)
+        projectname = self.get_projectname_perstage(name)
         if projectname is None:
             raise self.NotFound("project %r not found on stage %r" %
                                 (name, self.name))
@@ -490,27 +490,27 @@ class PrivateStage(BaseStage):
         # on win32 we need to make sure that we only return
         # something if we know about the exact name, not a
         # case-different one
-        projectname = self.get_project_name(name)
+        projectname = self.get_projectname(name)
         if projectname and projectname == name:
-            return self.get_project_versiondata(name, version)
+            return self.get_versiondata(name, version)
 
     def get_metadata_latest_perstage(self, name):
-        versions = self.get_project_versions_perstage(name)
+        versions = self.list_versions_perstage(name)
         maxver = get_latest_version(versions)
         return self.get_metadata(name, maxver)
 
-    def get_project_versions_perstage(self, projectname):
+    def list_versions_perstage(self, projectname):
         return self.key_projversions(projectname).get()
 
-    def get_project_versiondata_perstage(self, projectname, version):
+    def get_versiondata_perstage(self, projectname, version):
         return self.key_projversion(projectname, version).get()
 
     #
     # getting release links
     #
 
-    def getreleaselinks_perstage(self, projectname):
-        versions = self.get_project_versions_perstage(projectname)
+    def get_releaselinks_perstage(self, projectname):
+        versions = self.list_versions_perstage(projectname)
         if isinstance(versions, int):
             return versions
         files = []
@@ -520,7 +520,7 @@ class PrivateStage(BaseStage):
                 files.append(link.entry)
         return files
 
-    def getprojectnames_perstage(self):
+    def list_projectnames_perstage(self):
         return self.key_projectnames.get()
 
     class MissesRegistration(Exception):
@@ -602,7 +602,7 @@ class ProjectVersion:
                     name=projectname, version=version)
             except AttributeError:
                 # pypistage has no key_projversion so we only read it
-                self.verdata = stage.get_project_versiondata_perstage(
+                self.verdata = stage.get_versiondata_perstage(
                     projectname, version)
             else:
                 self.verdata = self.key_projversion.get()

@@ -23,10 +23,10 @@ def preprocess_project(stage, name):
     setuptools_metadata = frozenset((
         'author', 'author_email', 'classifiers', 'description', 'download_url',
         'home_page', 'keywords', 'license', 'platform', 'summary'))
-    versions = get_sorted_versions(stage.get_project_versions(name))
+    versions = get_sorted_versions(stage.list_versions(name))
     result = dict(name=name)
     for i, version in enumerate(versions):
-        verdata = stage.get_project_versiondata(name, version)
+        verdata = stage.get_versiondata(name, version)
         if not i:
             result.update(verdata)
         pv = stage.get_project_version(name, version, verdata=verdata)
@@ -60,13 +60,13 @@ def iter_projects(xom):
             if stage is None:  # this is async, so the stage may be gone
                 continue
             log.info("Indexing %s/%s:" % (username, index))
-            names = stage.getprojectnames_perstage()
+            names = stage.list_projectnames_perstage()
             for count, name in enumerate(names, start=1):
                 name = ensure_unicode(name)
                 current_time = time.time()
                 if current_time - timestamp > 3:
                     log.debug("currently indexed %s", count)
                     timestamp = current_time
-                if stage.get_project_name(name) is None:
+                if stage.get_projectname(name) is None:
                     continue
                 yield preprocess_project(stage, name)

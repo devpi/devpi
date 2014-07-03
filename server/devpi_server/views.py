@@ -225,13 +225,13 @@ class PyPIView:
         # we only serve absolute links so we don't care about the route's slash
         abort_if_invalid_projectname(request, name)
         stage = self.context.stage
-        projectname = stage.get_project_name(name)
+        projectname = stage.get_projectname(name)
         if projectname is None:
             abort(request, 200, "no such project %r" % projectname)
 
         if name != projectname:
             redirect("/%s/+simple/%s/" % (stage.name, projectname))
-        result = stage.getreleaselinks(projectname)
+        result = stage.get_releaselinks(projectname)
         if isinstance(result, int):
             if result == 404:
                 # we don't want pip/easy_install to try the whole simple
@@ -284,7 +284,7 @@ class PyPIView:
         self.log.info("starting +simple")
         stage = self.context.stage
         stage_results = []
-        for stage, names in stage.op_sro("getprojectnames_perstage"):
+        for stage, names in stage.op_sro("list_projectnames_perstage"):
             if isinstance(names, int):
                 abort(self.request, 502,
                       "could not get simple list of %s" % stage.name)
@@ -496,7 +496,7 @@ class PyPIView:
             name = ensure_unicode(request.POST.get("name"))
             # version may be empty on plain uploads
             version = ensure_unicode(request.POST.get("version"))
-            projectname = stage.get_project_name(name)
+            projectname = stage.get_projectname(name)
             if projectname is None:
                 abort(request, 400, "no project named %r was ever registered" % (name))
             if action == "file_upload":
@@ -566,7 +566,7 @@ class PyPIView:
     @view_config(route_name="simple_redirect")
     def simple_redirect(self):
         stage, name = self.context.stage, self.context.name
-        projectname = stage.get_project_name(name)
+        projectname = stage.get_projectname(name)
         real_name = projectname if projectname else name
         redirect("/%s/+simple/%s" % (stage.name, real_name))
 
@@ -575,7 +575,7 @@ class PyPIView:
         request = self.request
         #self.log.debug("HEADERS: %s", request.headers.items())
         stage, name = self.context.stage, self.context.name
-        projectname = stage.get_project_name(name)
+        projectname = stage.get_projectname(name)
         if not json_preferred(request):
             apireturn(415, "unsupported media type %s" %
                       request.headers.items())
@@ -584,9 +584,9 @@ class PyPIView:
         if projectname != name:
             redirect("/%s/%s" % (stage.name, projectname))
         view_metadata = {}
-        for version in stage.get_project_versions(projectname):
+        for version in stage.list_versions(projectname):
             view_metadata[version] = self._make_view_verdata(
-                stage.get_project_versiondata(projectname, version))
+                stage.get_versiondata(projectname, version))
         apireturn(200, type="projectconfig", result=view_metadata)
 
     @view_config(
@@ -596,7 +596,7 @@ class PyPIView:
         stage, name = self.context.stage, self.context.name
         if stage.name == "root/pypi":
             abort(self.request, 405, "cannot delete root/pypi index")
-        projectname = stage.get_project_name(name)
+        projectname = stage.get_projectname(name)
         if projectname is None:
             apireturn(404, "project %r does not exist" % name)
         if not stage.ixconfig["volatile"]:
@@ -609,10 +609,10 @@ class PyPIView:
     def version_get(self):
         stage = self.context.stage
         name, version = self.context.name, self.context.version
-        versions = stage.get_project_versions(name)
+        versions = stage.list_versions(name)
         if not versions:
             abort(self.request, 404, "project %r does not exist" % name)
-        verdata = stage.get_project_versiondata(name, version)
+        verdata = stage.get_versiondata(name, version)
         if not verdata:
             abort(self.request, 404, "version %r does not exist" % version)
 
@@ -698,7 +698,7 @@ class PyPIView:
     def index_get(self):
         stage = self.context.stage
         result = dict(stage.ixconfig)
-        result['projects'] = sorted(stage.getprojectnames_perstage())
+        result['projects'] = sorted(stage.list_projectnames_perstage())
         apireturn(200, type="indexconfig", result=result)
 
     #

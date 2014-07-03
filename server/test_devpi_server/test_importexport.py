@@ -107,7 +107,7 @@ class TestImportExport:
         mapp2 = impexp.new_import()
         with mapp2.xom.keyfs.transaction(write=False):
             stage = mapp2.xom.model.getstage(api.stagename)
-            entries = stage.getreleaselinks("hello")
+            entries = stage.get_releaselinks("hello")
             assert len(entries) == 1
             assert entries[0].file_get_content() == b"content"
             link = stage.get_link_from_entrypath(entries[0].relpath)

@@ -181,7 +181,7 @@ class PyPIStage(BaseStage):
         else:
             self.PYPIURL_SIMPLE = PYPIURL_SIMPLE
 
-    def getprojectnames_perstage(self):
+    def list_projectnames_perstage(self):
         """ return list of all projects served through the mirror. """
         return sorted(self.pypimirror.name2serials)
 
@@ -214,7 +214,7 @@ class PyPIStage(BaseStage):
         self.keyfs.PYPILINKS(name=normname).delete()
         threadlog.debug("cleared cache for %s", projectname)
 
-    def getreleaselinks_perstage(self, projectname):
+    def get_releaselinks_perstage(self, projectname):
         """ return all releaselinks from the index and referenced scrape
         pages, returning cached entries if we have a recent enough
         request stored locally.
@@ -223,7 +223,7 @@ class PyPIStage(BaseStage):
         If pypi does not return a fresh enough page although we know it
         must exist, return -2.
         """
-        projectname = self.get_project_name_perstage(projectname)
+        projectname = self.get_projectname_perstage(projectname)
         if projectname is None:
             return 404
         entries = self._load_cache_entries(projectname)
@@ -275,14 +275,14 @@ class PyPIStage(BaseStage):
         self._dump_project_cache(real_projectname, entries, serial)
         return entries
 
-    def get_project_name_perstage(self, name):
+    def get_projectname_perstage(self, name):
         norm_name = normalize_name(name)
         name = self.pypimirror.normname2name.get(norm_name, norm_name)
         if name in self.pypimirror.name2serials:
             return name
 
-    def get_project_versions_perstage(self, projectname):
-        releaselinks = self.getreleaselinks(projectname)
+    def list_versions_perstage(self, projectname):
+        releaselinks = self.get_releaselinks(projectname)
         if isinstance(releaselinks, int):
             return releaselinks
         versions = set()
@@ -295,8 +295,8 @@ class PyPIStage(BaseStage):
             versions.add(version)
         return versions
 
-    def get_project_versiondata_perstage(self, projectname, version):
-        releaselinks = self.getreleaselinks(projectname)
+    def get_versiondata_perstage(self, projectname, version):
+        releaselinks = self.get_releaselinks(projectname)
         if isinstance(releaselinks, int):
             return releaselinks
         verdata = {}

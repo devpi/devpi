@@ -37,14 +37,14 @@ class ContextWrapper(object):
 
     @reify
     def versions(self):
-        versions = self.stage.get_project_versions(self.name)
+        versions = self.stage.list_versions(self.name)
         if not versions:
             raise HTTPNotFound("The project %s does not exist." % self.name)
         return get_sorted_versions(versions)
 
     @reify
     def verdata(self):
-        verdata = self.stage.get_project_versiondata(self.name, self.version)
+        verdata = self.stage.get_versiondata(self.name, self.version)
         if not verdata and self.versions:
             raise HTTPNotFound(
                 "The version %s of project %s does not exist." % (
@@ -300,7 +300,7 @@ def index_get(context, request):
                     "/{user}/{index}/+simple/",
                     user=base_user, index=base_index)))
 
-    for projectname in stage.getprojectnames_perstage():
+    for projectname in stage.list_projectnames_perstage():
         metadata = stage.get_metadata_latest_perstage(projectname)
         try:
             name, ver = metadata["name"], metadata["version"]
@@ -333,7 +333,7 @@ def index_get(context, request):
     renderer="templates/project.pt")
 def project_get(context, request):
     context = ContextWrapper(context)
-    releases = context.stage.getreleaselinks(context.name)
+    releases = context.stage.get_releaselinks(context.name)
     if not releases:
         raise HTTPNotFound("The project %s does not exist." % context.name)
     versions = []
@@ -547,7 +547,7 @@ class SearchView:
             name = data['name']
             metadata = {}
             if version and is_project_cached(stage, name):
-                metadata = stage.get_project_versiondata(name, version)
+                metadata = stage.get_versiondata(name, version)
                 if metadata is None:
                     metadata = {}
             self._metadata[key] = metadata
