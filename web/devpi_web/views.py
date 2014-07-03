@@ -5,7 +5,7 @@ from devpi_common.url import URL
 from devpi_server.log import threadlog as log
 from devpi_web.description import get_description
 from devpi_web.doczip import Docs, get_unpack_path
-from devpi_web.indexing import get_projectconfig_without_fetch
+from devpi_web.indexing import is_project_cached
 from operator import attrgetter, itemgetter
 from py.xml import html
 from pyramid.compat import decode_path_info
@@ -35,16 +35,16 @@ class ContextWrapper(object):
         return stage
 
     @reify
-    def metadata(self):
-        metadata = self.stage.get_projectconfig(self.name)
-        if not metadata:
+    def versions(self):
+        versions = self.stage.get_project_versions(self.name, sort=False)
+        if not versions:
             raise HTTPNotFound("The project %s does not exist." % self.name)
-        return metadata
+        return versions
 
     @reify
     def verdata(self):
-        verdata = self.metadata.get(self.version, None)
-        if not verdata:
+        verdata = self.stage.get_project_versiondata(self.name, self.version)
+        if not verdata and self.versions:
             raise HTTPNotFound(
                 "The version %s of project %s does not exist." % (
                     self.version, self.name))
@@ -459,7 +459,8 @@ def batch_list(num, current, left=3, right=3):
 class SearchView:
     def __init__(self, request):
         self.request = request
-        self._projectinfo = {}
+        self._metadata = {}
+        self._stage = {}
         self._docs = {}
 
     @reify
@@ -520,16 +521,27 @@ class SearchView:
             batch_links.insert(0, {'class': 'prev'})
         return batch_links
 
-    def get_projectinfo(self, path):
-        if path not in self._projectinfo:
+    def get_stage(self, path):
+        if path not in self._stage:
             xom = self.request.registry['xom']
             user, index, name = path[1:].split('/')
             stage = xom.model.getstage(user, index)
-            projectconfig = {}
-            if stage:  # due to async updates, the stage could be gone
-                projectconfig = get_projectconfig_without_fetch(stage, name)
-            self._projectinfo['path'] = (stage, projectconfig)
-        return self._projectinfo['path']
+            self._stage['path'] = stage
+        return self._stage['path']
+
+    def get_metadata(self, stage, data):
+        path = data['path']
+        version = data.get('version')
+        key = (path, version)
+        if key not in self._metadata:
+            name = data['name']
+            metadata = {}
+            if version and is_project_cached(stage, name):
+                metadata = stage.get_project_versiondata(name, version)
+                if metadata is None:
+                    metadata = {}
+            self._metadata[key] = metadata
+        return self._metadata[key]
 
     def get_docs(self, stage, data):
         path = data['path']
@@ -537,15 +549,13 @@ class SearchView:
             self._docs[path] = Docs(stage, data['name'], data['doc_version'])
         return self._docs[path]
 
-    def process_sub_hits(self, stage, projectconfig, sub_hits, data):
+    def process_sub_hits(self, stage, sub_hits, data):
         search_index = self.request.registry['search_index']
         result = []
         for sub_hit in sub_hits:
             sub_data = sub_hit['data']
             text_type = sub_data['type']
-            metadata = {}
-            if 'version' in data:
-                metadata = projectconfig.get(data['version'], {})
+            metadata = self.get_metadata(stage, data)
             title = text_type.title()
             highlight = None
             if text_type == 'project':
@@ -587,7 +597,7 @@ class SearchView:
         items = []
         for item in result['items']:
             data = item['data']
-            stage, projectconfig = self.get_projectinfo(data['path'])
+            stage = self.get_stage(data['path'])
             if stage is None:
                 continue
             if 'version' in data:
@@ -602,7 +612,7 @@ class SearchView:
                     user=data['user'], index=data['index'], name=data['name'])
                 item['title'] = data['name']
             item['sub_hits'] = self.process_sub_hits(
-                stage, projectconfig, item['sub_hits'], data)
+                stage, item['sub_hits'], data)
             more_results = result['info']['collapsed_counts'][data['path']]
             if more_results:
                 new_params = dict(self.params)

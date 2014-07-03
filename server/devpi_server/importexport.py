@@ -157,11 +157,12 @@ class Exporter:
                         version.realname = name
                         norm2maxversion[normalize_name(name)] = version
                         continue
-                    config = stage.get_projectconfig_perstage(name)
-                    if config:
+                    versions = stage.get_project_versions_perstage(name)
+                    if versions:
                         maxver = None
-                        for ver, verdata in config.items():
+                        for ver in versions:
                             version = Version(ver)
+                            verdata = stage.get_project_versiondata(name, ver)
                             version.realname = verdata.get("name", name)
                             if maxver is None or version > maxver:
                                 maxver = version
@@ -202,7 +203,11 @@ class IndexDump:
     def dump(self):
         import copy
         for name in self.stage.getprojectnames_perstage():
-            data = copy.deepcopy(self.stage.get_projectconfig_perstage(name))
+            data = {}
+            versions = self.stage.get_project_versions_perstage(name, sort=False)
+            for version in versions:
+                data[version] = copy.deepcopy(
+                    self.stage.get_project_versiondata_perstage(name, version))
             for val in data.values():
                 val.pop("+elinks", None)
             realname = self.exporter.get_real_projectname(name)

@@ -124,8 +124,7 @@ def index_project(stage, name):
     if stage is None:
         return
     ix = get_indexer(stage.xom.config)
-    pconfig = stage.get_projectconfig(name)
-    ix.update_projects([preprocess_project(stage, name, pconfig)])
+    ix.update_projects([preprocess_project(stage, name)])
 
 
 def devpiserver_docs_uploaded(stage, name, version, entry):

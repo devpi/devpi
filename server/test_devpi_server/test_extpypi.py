@@ -278,20 +278,18 @@ class TestExtPYPIDB:
         assert links[0].md5 == y.md5
         assert x.md5 != y.md5
 
-    def test_getprojectconfig(self, pypistage):
+    def test_get_project_versiondata(self, pypistage):
         pypistage.mock_simple("Pytest", pkgver="pytest-1.0.zip")
-        config = pypistage.get_projectconfig("Pytest")
-        data = config["1.0"]
+        data = pypistage.get_project_versiondata("Pytest", "1.0")
         assert data["+elinks"]
         assert data["name"] == "Pytest"
         assert data["version"] == "1.0"
         assert pypistage.get_project_name("pytest") == "Pytest"
 
-    def test_getprojectconfig_with_egg(self, pypistage):
+    def test_get_project_versiondata_with_egg(self, pypistage):
         pypistage.mock_simple("pytest", text='''
             <a href="../../pkg/tip.zip#egg=pytest-dev" />''')
-        config = pypistage.get_projectconfig("pytest")
-        data = config["egg=pytest-dev"]
+        data = pypistage.get_project_versiondata("Pytest", "egg=pytest-dev")
         assert data["+elinks"]
 
     def test_parse_and_scrape(self, pypistage):

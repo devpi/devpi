@@ -1,6 +1,6 @@
 import json
 from devpi_common.url import URL
-from devpi_common.metadata import Version, parse_requirement
+from devpi_common.metadata import get_sorted_versions, parse_requirement
 from devpi_common.viewhelp import ViewVersionLinks
 
 def out_index(hub, projects):
@@ -18,8 +18,7 @@ def out_project(hub, reply, req):
     index = hub.current.index[len(hub.current.rooturl):]
     num = 0
     maxshow = 2
-    for ver in sorted(map(Version, data), reverse=True):
-        version = ver.string
+    for version in get_sorted_versions(data):
         if version not in req:
             continue
         if num > maxshow and not hub.args.all:
