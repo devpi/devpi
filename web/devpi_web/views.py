@@ -36,7 +36,7 @@ class ContextWrapper(object):
 
     @reify
     def versions(self):
-        versions = self.stage.get_project_versions(self.name, sort=False)
+        versions = self.stage.get_project_versions(self.name)
         if not versions:
             raise HTTPNotFound("The project %s does not exist." % self.name)
         return versions
@@ -59,7 +59,16 @@ def get_doc_path_info(context, request):
     relpath = request.matchdict['relpath']
     if not relpath:
         raise HTTPFound(location="index.html")
-    doc_path = get_unpack_path(context.stage, context.name, context.version)
+    name = context.name
+    version = context.version
+    if version != 'latest':
+        versions = [version]
+    else:
+        versions = context.versions
+    for version in versions:
+        doc_path = get_unpack_path(context.stage, name, version)
+        if doc_path.check():
+            break
     if not doc_path.check():
         raise HTTPNotFound("No documentation available.")
     doc_path = doc_path.join(relpath)

@@ -91,6 +91,48 @@ def test_docs_view(mapp, testapp):
     assert content.text.strip() == 'File foo.html not found in documentation.'
 
 
+@pytest.mark.with_notifier
+def test_docs_latest(mapp, testapp):
+    api = mapp.create_and_use()
+    content = zip_dict({"index.html": "<html><body>2.6</body></html>"})
+    mapp.register_metadata({"name": "pkg1", "version": "2.6"})
+    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
+                    waithooks=True)
+    r = testapp.xget(200, api.index + "/pkg1/latest/+d/index.html")
+    iframe, = r.html.findAll('iframe')
+    assert iframe.attrs['src'] == api.index + "/pkg1/latest/+doc/index.html"
+    # navigation shows latest registered version
+    navigation_links = r.html.select("#navigation a")
+    assert navigation_links[3].text == '2.6'
+    # the content is from latest docs though
+    r = testapp.xget(200, iframe.attrs['src'])
+    assert r.text == "<html><body>2.6</body></html>"
+    # now we register a newer version, but docs should still be 2.6
+    mapp.register_metadata({"name": "pkg1", "version": "2.7"}, waithooks=True)
+    r = testapp.xget(200, api.index + "/pkg1/latest/+d/index.html")
+    iframe, = r.html.findAll('iframe')
+    assert iframe.attrs['src'] == api.index + "/pkg1/latest/+doc/index.html"
+    # navigation shows latest registered version
+    navigation_links = r.html.select("#navigation a")
+    assert navigation_links[3].text == '2.7'
+    # the content is from latest docs though
+    r = testapp.xget(200, iframe.attrs['src'])
+    assert r.text == "<html><body>2.6</body></html>"
+    # now we upload newer docs
+    content = zip_dict({"index.html": "<html><body>2.7</body></html>"})
+    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.7", code=200,
+                    waithooks=True)
+    r = testapp.xget(200, api.index + "/pkg1/latest/+d/index.html")
+    iframe, = r.html.findAll('iframe')
+    assert iframe.attrs['src'] == api.index + "/pkg1/latest/+doc/index.html"
+    # navigation shows latest registered version
+    navigation_links = r.html.select("#navigation a")
+    assert navigation_links[3].text == '2.7'
+    # the content is from latest docs though
+    r = testapp.xget(200, iframe.attrs['src'])
+    assert r.text == "<html><body>2.7</body></html>"
+
+
 def test_not_found_redirect(testapp):
     r = testapp.get('/root/pypi/?foo=bar', headers=dict(accept="text/html"))
     assert r.status_code == 302
