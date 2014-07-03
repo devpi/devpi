@@ -1,23 +1,31 @@
-from devpi_common.metadata import Version
 from devpi_common.types import ensure_unicode
 from devpi_server.log import threadlog as log
 from devpi_web.doczip import iter_doc_contents
 import time
 
 
-def preprocess_project(stage, name, pconfig):
+def is_project_cached(stage, name):
+    if stage.ixconfig['type'] == 'mirror':
+        if not stage._load_project_cache(name):
+            return False
+    return True
+
+
+def preprocess_project(stage, name):
     try:
         user = stage.user.name
         index = stage.index
     except AttributeError:
         user, index = stage.name.split('/')
+    if not is_project_cached(stage, name):
+        return dict(name=name, user=user, index=index)
     setuptools_metadata = frozenset((
         'author', 'author_email', 'classifiers', 'description', 'download_url',
         'home_page', 'keywords', 'license', 'platform', 'summary'))
-    versions = [x.string for x in sorted(map(Version, pconfig), reverse=True)]
+    versions = stage.get_project_versions(name)
     result = dict(name=name)
     for i, version in enumerate(versions):
-        verdata = pconfig[version]
+        verdata = stage.get_project_versiondata(name, version)
         if not i:
             result.update(verdata)
         pv = stage.get_project_version(name, version, verdata=verdata)
@@ -40,18 +48,6 @@ def preprocess_project(stage, name, pconfig):
     return result
 
 
-def get_projectconfig_without_fetch(stage, name):
-    # we want to get the projectconfig we got without triggering a remote
-    # fetch for root/pypi
-    projectconfig = {}
-    if stage.ixconfig['type'] == 'mirror':
-        if stage._load_project_cache(name):
-            projectconfig = stage.get_projectconfig(name)
-    else:
-        projectconfig = stage.get_projectconfig(name)
-    return projectconfig
-
-
 def iter_projects(xom):
     timestamp = time.time()
     for user in xom.model.get_userlist():
@@ -72,8 +68,4 @@ def iter_projects(xom):
                     timestamp = current_time
                 if stage.get_project_name(name) is None:
                     continue
-                metadata = get_projectconfig_without_fetch(stage, name)
-                if metadata:
-                    yield preprocess_project(stage, name, metadata)
-                else:
-                    yield dict(name=name, user=username, index=index)
+                yield preprocess_project(stage, name)

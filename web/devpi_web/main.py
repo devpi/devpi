@@ -13,32 +13,40 @@ def macros(request):
 
 
 def navigation_info(request):
+    context = request.context
     path = [dict(
         url=request.route_url("root"),
         title="devpi")]
     result = dict(path=path)
-    if request.matchdict and 'user' in request.matchdict:
-        user = request.matchdict['user']
+    if context.matchdict and 'user' in context.matchdict:
+        user = context.username
     else:
         return result
-    if 'index' in request.matchdict:
-        index = request.matchdict['index']
+    if 'index' in context.matchdict:
+        index = context.index
         path.append(dict(
             url=request.route_url(
                 "/{user}/{index}", user=user, index=index),
             title="%s/%s" % (user, index)))
     else:
         return result
-    if 'name' in request.matchdict:
-        name = request.matchdict['name']
+    if 'name' in context.matchdict:
+        name = context.name
         path.append(dict(
             url=request.route_url(
                 "/{user}/{index}/{name}", user=user, index=index, name=name),
             title=name))
     else:
         return result
-    if 'version' in request.matchdict:
-        version = request.matchdict['version']
+    if 'version' in context.matchdict:
+        version = context.version
+        if version == 'latest':
+            stage = context.model.getstage(user, index)
+            versions = None
+            if stage:
+                versions = stage.get_project_versions(name)
+            if versions:
+                version = versions[0]
         path.append(dict(
             url=request.route_url(
                 "/{user}/{index}/{name}/{version}",
@@ -124,8 +132,7 @@ def index_project(stage, name):
     if stage is None:
         return
     ix = get_indexer(stage.xom.config)
-    pconfig = stage.get_projectconfig(name)
-    ix.update_projects([preprocess_project(stage, name, pconfig)])
+    ix.update_projects([preprocess_project(stage, name)])
 
 
 def devpiserver_docs_uploaded(stage, name, version, entry):

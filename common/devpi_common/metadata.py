@@ -115,7 +115,12 @@ def sorted_sameproject_links(links):
     return [x.obj for x in s]
 
 def get_latest_version(seq):
-    return max(map(Version, seq))
+    return max(map(Version, seq)).string
+
+
+def get_sorted_versions(versions, reverse=True):
+    return [x.string for x in sorted(map(Version, versions), reverse=reverse)]
+
 
 def is_archive_of_project(basename, targetname):
     nameversion, ext = splitext_archive(basename)

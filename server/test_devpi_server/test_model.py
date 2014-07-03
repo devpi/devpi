@@ -179,13 +179,19 @@ class TestStage:
         #entries = stage.getprojectnames()
         #assert entries == -1
 
-    def test_get_projectconfig_inherited(self, pypistage, stage):
+    def test_get_project_versiondata_inherited(self, pypistage, stage):
         stage.modify(bases=("root/pypi",), pypi_whitelist=['someproject'])
         pypistage.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
-        projectconfig = stage.get_projectconfig("someproject")
-        pv = ProjectVersion(stage, "someproject", "1.0", projectconfig["1.0"])
+        verdata = stage.get_project_versiondata("someproject", "1.0")
+        pv = ProjectVersion(stage, "someproject", "1.0", verdata)
         assert len(pv.get_links(basename="someproject-1.0.zip")) == 1
+
+    def test_get_project_versiondata_inherited_with_nonexisting_version(self, pypistage, stage):
+        stage.modify(bases=("root/pypi",), pypi_whitelist=['someproject'])
+        pypistage.mock_simple("someproject",
+            "<a href='someproject-1.0.zip' /a>")
+        assert not stage.get_project_versiondata("someproject", "2.0")
 
     def test_store_and_get_releasefile(self, stage, bases):
         content = b"123"
@@ -195,8 +201,8 @@ class TestStage:
         assert len(entries) == 1
         assert entries[0].md5 == entry.md5
         assert stage.getprojectnames() == ["some"]
-        pconfig = stage.get_projectconfig("some")
-        links = pconfig["1.0"]["+elinks"]
+        verdata = stage.get_project_versiondata("some", "1.0")
+        links = verdata["+elinks"]
         assert len(links) == 1
         assert links[0]["entrypath"].endswith("some-1.0.zip")
 
@@ -205,17 +211,17 @@ class TestStage:
             stage.store_releasefile("someproject", "1.0",
                                     "someproject-1.0.zip", b"123")
 
-    def test_project_config_shadowed(self, pypistage, stage):
+    def test_project_versiondata_shadowed(self, pypistage, stage):
         stage.modify(bases=("root/pypi",), pypi_whitelist=['someproject'])
         pypistage.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         content = b"123"
         stage.store_releasefile("someproject", "1.0",
                                 "someproject-1.0.zip", content)
-        projectconfig = stage.get_projectconfig("someproject")
-        linkdict, = projectconfig["1.0"]["+elinks"]
+        verdata = stage.get_project_versiondata("someproject", "1.0")
+        linkdict, = verdata["+elinks"]
         assert linkdict["entrypath"].endswith("someproject-1.0.zip")
-        assert projectconfig["1.0"]["+shadowing"]
+        assert verdata["+shadowing"]
 
     def test_project_whitelist(self, pypistage, stage):
         stage.modify(bases=("root/pypi",))
@@ -262,20 +268,18 @@ class TestStage:
     def test_store_and_delete_project(self, stage, bases):
         content = b"123"
         register_and_store(stage, "some-1.0.zip", content)
-        pconfig = stage.get_projectconfig_perstage("some")
-        assert pconfig["1.0"]
+        assert stage.get_project_versiondata_perstage("some", "1.0")
         stage.project_delete("some")
-        pconfig = stage.get_projectconfig_perstage("some")
-        assert not pconfig
+        assert not stage.get_project_versions_perstage("some")
 
     def test_store_and_delete_release(self, stage, bases):
         register_and_store(stage, "some-1.0.zip")
         register_and_store(stage, "some-1.1.zip")
-        pconfig = stage.get_projectconfig_perstage("some")
-        assert pconfig["1.0"] and pconfig["1.1"]
+        assert stage.get_project_versiondata_perstage("some", "1.0")
+        assert stage.get_project_versiondata_perstage("some", "1.1")
         stage.project_version_delete("some", "1.0")
-        pconfig = stage.get_projectconfig_perstage("some")
-        assert pconfig["1.1"] and "1.0" not in pconfig
+        assert not stage.get_project_versiondata_perstage("some", "1.0")
+        assert stage.get_project_versiondata_perstage("some", "1.1")
         stage.project_version_delete("some", "1.1")
         assert stage.get_project_name("some") is None
 

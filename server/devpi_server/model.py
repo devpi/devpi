@@ -3,7 +3,8 @@ import posixpath
 import py
 import json
 from devpi_common.metadata import (sorted_sameproject_links,
-                                   get_latest_version)
+                                   get_latest_version,
+                                   get_sorted_versions)
 from devpi_common.validation import validate_metadata, normalize_name
 from devpi_common.types import ensure_unicode, cached_property
 from .auth import crypt_password, verify_password
@@ -231,22 +232,37 @@ class BaseStage:
             l.append(json.loads(data))
         return l
 
-    def get_projectconfig(self, projectname):
+    def get_project_versions(self, projectname, sort=True):
         assert py.builtin._istext(projectname)
-        all_projectconfig = {}
+        versions = set()
         for stage, res in self.op_sro_check_pypi_whitelist(
-                "get_projectconfig_perstage", projectname=projectname):
+                "get_project_versions_perstage",
+                projectname=projectname, sort=False):
             if isinstance(res, int):
                 if res == 404:
                     continue
                 return res
-            for ver in res:
-                if ver not in all_projectconfig:
-                    all_projectconfig[ver] = res[ver]
-                else:
-                    l = all_projectconfig[ver].setdefault("+shadowing", [])
-                    l.append(res[ver])
-        return all_projectconfig
+            versions.update(res)
+        if sort:
+            versions = get_sorted_versions(versions)
+        return versions
+
+    def get_project_versiondata(self, projectname, version):
+        assert py.builtin._istext(projectname)
+        result = {}
+        for stage, res in self.op_sro_check_pypi_whitelist(
+                "get_project_versiondata_perstage",
+                projectname=projectname, version=version):
+            if isinstance(res, int):
+                if res == 404:
+                    continue
+                return res
+            if not result:
+                result.update(res)
+            else:
+                l = result.setdefault("+shadowing", [])
+                l.append(res)
+        return result
 
     def getreleaselinks(self, projectname):
         all_links = []
@@ -476,30 +492,32 @@ class PrivateStage(BaseStage):
         # case-different one
         projectname = self.get_project_name(name)
         if projectname and projectname == name:
-            projectconfig = self.get_projectconfig(name)
-            return projectconfig.get(version)
+            return self.get_project_versiondata(name, version)
 
     def get_metadata_latest_perstage(self, name):
-        versions = self.get_projectconfig_perstage(name)
+        versions = self.get_project_versions_perstage(name, sort=False)
         maxver = get_latest_version(versions)
-        return self.get_metadata(name, maxver.string)
+        return self.get_metadata(name, maxver)
 
-    def get_projectconfig_perstage(self, projectname):
-        projectconfig = {}
-        for version in self.key_projversions(projectname).get():
-            projectconfig[version] = self.key_projversion(projectname, version).get()
-        return projectconfig
+    def get_project_versions_perstage(self, projectname, sort=True):
+        versions = self.key_projversions(projectname).get()
+        if sort:
+            versions = get_sorted_versions(versions)
+        return versions
+
+    def get_project_versiondata_perstage(self, projectname, version):
+        return self.key_projversion(projectname, version).get()
 
     #
     # getting release links
     #
 
     def getreleaselinks_perstage(self, projectname):
-        projectconfig = self.get_projectconfig_perstage(projectname)
-        if isinstance(projectconfig, int):
-            return projectconfig
+        versions = self.get_project_versions_perstage(projectname)
+        if isinstance(versions, int):
+            return versions
         files = []
-        for version in projectconfig:
+        for version in versions:
             pv = self.get_project_version(projectname, version)
             for link in pv.get_links("releasefile"):
                 files.append(link.entry)
@@ -587,8 +605,8 @@ class ProjectVersion:
                     name=projectname, version=version)
             except AttributeError:
                 # pypistage has no key_projversion so we only read it
-                self.verdata = stage.get_projectconfig_perstage(
-                    projectname).get(version)
+                self.verdata = stage.get_project_versiondata_perstage(
+                    projectname, version)
             else:
                 self.verdata = self.key_projversion.get()
         else:

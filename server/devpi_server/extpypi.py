@@ -14,7 +14,8 @@ except ImportError:
 from devpi_common.vendor._pip import HTMLPage
 
 from devpi_common.url import URL
-from devpi_common.metadata import is_archive_of_project, BasenameMeta
+from devpi_common.metadata import BasenameMeta
+from devpi_common.metadata import get_sorted_versions, is_archive_of_project
 from devpi_common.validation import normalize_name, ensure_unicode
 from devpi_common.request import new_requests_session
 
@@ -280,27 +281,43 @@ class PyPIStage(BaseStage):
         if name in self.pypimirror.name2serials:
             return name
 
-    def get_projectconfig_perstage(self, projectname):
+    def get_project_versions_perstage(self, projectname, sort=True):
         releaselinks = self.getreleaselinks(projectname)
         if isinstance(releaselinks, int):
             return releaselinks
-        data = {}
+        versions = set()
         for link in releaselinks:
             basename = link.basename
             if link.eggfragment:
                 version = "egg=" + link.eggfragment
             else:
                 version = BasenameMeta(basename).version
-            verdata = data.setdefault(version, {})
-            verdata["name"] = projectname
-            verdata["version"] = version
+            versions.add(version)
+        if sort:
+            versions = get_sorted_versions(versions)
+        return versions
+
+    def get_project_versiondata_perstage(self, projectname, version):
+        releaselinks = self.getreleaselinks(projectname)
+        if isinstance(releaselinks, int):
+            return releaselinks
+        verdata = {}
+        for link in releaselinks:
+            basename = link.basename
+            if link.eggfragment:
+                link_version = "egg=" + link.eggfragment
+            else:
+                link_version = BasenameMeta(basename).version
+            if version != link_version:
+                continue
+            if not verdata:
+                verdata['name'] = projectname
+                verdata['version'] = version
             links = verdata.setdefault("+elinks", [])
             links.append(dict(
                 rel="releasefile",
-                entrypath=link.relpath,
-            ))
-        return data
-
+                entrypath=link.relpath))
+        return verdata
 
 
 class PyPIMirror:
