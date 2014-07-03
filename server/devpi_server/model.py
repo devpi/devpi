@@ -727,17 +727,18 @@ def add_keys(xom, keyfs):
     keyfs.add_key("STAGEFILE",
                   "{user}/{index}/+f/{md5a}/{md5b}/{filename}", dict)
 
-    keyfs.notifier.on_key_change("PROJVERSION", VersionChanged(xom))
-    keyfs.notifier.on_key_change("STAGEFILE", FileUploaded(xom))
-    keyfs.notifier.on_key_change("PYPI_SERIALS_LOADED", PyPISerialsLoaded(xom))
+    sub = EventSubscribers(xom)
+    keyfs.notifier.on_key_change("PROJVERSION", sub.on_changed_version_config)
+    keyfs.notifier.on_key_change("STAGEFILE", sub.on_changed_file_entry)
+    keyfs.notifier.on_key_change("PYPI_SERIALS_LOADED", sub.on_init_pypiserials)
 
 
-class PyPISerialsLoaded:
+class EventSubscribers:
+    """ the 'on_' functions are called within in the notifier thread. """
     def __init__(self, xom):
         self.xom = xom
 
-    def __call__(self, ev):
-        threadlog.info("PyPISerialsLoaded %s", ev.typedkey)
+    def on_init_pypiserials(self, ev):
         xom = self.xom
         hook = xom.config.hook
         with xom.keyfs.transaction(write=False, at_serial=ev.at_serial):
@@ -745,14 +746,8 @@ class PyPISerialsLoaded:
             name2serials = stage.pypimirror.name2serials
             hook.devpiserver_pypi_initial(stage, name2serials)
 
-
-class VersionChanged:
-    """ Event executed in notification thread based on a metadata change. """
-    def __init__(self, xom):
-        self.xom = xom
-
-    def __call__(self, ev):
-        threadlog.info("version_info_changed %s", ev.typedkey)
+    def on_changed_version_config(self, ev):
+        """ when version config is changed for a project in a stage"""
         params = ev.typedkey.params
         user = params["user"]
         index = params["index"]
@@ -772,15 +767,8 @@ class VersionChanged:
                     stage = self.xom.model.getstage(user, index)
                     hook.devpiserver_register_metadata(stage, metadata)
 
-
-class FileUploaded:
-    """ Event executed in notification thread when a file is uploaded
-    to a stage. """
-    def __init__(self, xom):
-        self.xom = xom
-
-    def __call__(self, ev):
-        threadlog.info("FileUploaded %s", ev.typedkey)
+    def on_changed_file_entry(self, ev):
+        """ when a file entry is modified. """
         params = ev.typedkey.params
         user = params.get("user")
         index = params.get("index")

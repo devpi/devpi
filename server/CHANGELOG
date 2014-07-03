@@ -1,5 +1,10 @@
-2.0.*
+2.0.0.dev
 ----------------
+
+- major revamp of the internal core of devpi to support
+  replication (both master and server code), a plugin architecture
+  with the new devpi-web plugin providing a new web interface.
+  Mostly done by Florian Schulze and Holger Krekel.
 
 - moved all html views except for files and the simple index to new
   devpi-web package. Thanks to Florian Schulze for the PR.

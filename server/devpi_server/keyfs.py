@@ -334,13 +334,14 @@ class TxNotificationThread:
             ev = KeyChangeEvent(key, val, event_serial, back_serial)
             subscribers = self._on_key_change.get(keyname, [])
             for sub in subscribers:
-                log.debug("calling %s with key=%s, at_serial=%s, back_serial=%s",
-                          sub, key, event_serial, back_serial)
+                subname = getattr(sub, "__name__", sub)
+                log.debug("%s(key=%r, at_serial=%r, back_serial=%r",
+                          subname, key, event_serial, back_serial)
                 try:
                     sub(ev)
                 except Exception:
                     log.exception("calling %s failed", sub)
-                log.debug("finished %s", sub)
+
         log.debug("finished calling all hooks for tx%s", event_serial)
 
 
