@@ -309,7 +309,7 @@ class PyPIView:
             if bases:
                 h2 += " (bases: %s)" % ",".join(bases)
             yield ("<h2>" + h2 + "</h2>").encode(encoding)
-            for name in names:
+            for name in sorted(names):
                 if name not in all_names:
                     anchor = '<a href="%s">%s</a><br/>\n' % (name, name)
                     yield anchor.encode(encoding)

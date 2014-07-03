@@ -103,16 +103,16 @@ class TestStage:
 
     def test_empty(self, stage, bases):
         assert not stage.get_releaselinks("someproject")
-        assert not stage.list_projectnames()
+        assert not stage.list_projectnames_perstage()
 
     def test_inheritance_simple(self, pypistage, stage):
         stage.modify(bases=("root/pypi",), pypi_whitelist=['someproject'])
         pypistage.mock_simple("someproject", "<a href='someproject-1.0.zip' /a>")
-        assert stage.list_projectnames() == ["someproject",]
+        assert stage.list_projectnames_perstage() == set()
         entries = stage.get_releaselinks("someproject")
         assert len(entries) == 1
         stage.register_metadata(dict(name="someproject", version="1.1"))
-        assert stage.list_projectnames() == ["someproject",]
+        assert stage.list_projectnames_perstage() == set(["someproject"])
 
     def test_inheritance_twice(self, pypistage, stage, user):
         user.create_stage(index="dev2", bases=("root/pypi",))
@@ -127,7 +127,8 @@ class TestStage:
         assert entries[0].basename == "someproject-1.2.tar.gz"
         assert entries[1].basename == "someproject-1.1.tar.gz"
         assert entries[2].basename == "someproject-1.0.zip"
-        assert stage.list_projectnames() == ["someproject",]
+        assert stage.list_projectnames_perstage() == set()
+        assert stage_dev2.list_projectnames_perstage() == set(["someproject"])
 
     def test_inheritance_normalize_multipackage(self, pypistage, stage):
         stage.modify(bases=("root/pypi",), pypi_whitelist=['some-project'])
@@ -144,7 +145,7 @@ class TestStage:
         assert entries[0].basename == "some_project-1.2.tar.gz"
         assert entries[1].basename == "some_project-1.0.zip"
         assert entries[2].basename == "some_project-1.0.tar.gz"
-        assert stage.list_projectnames() == ["some-project",]
+        assert stage.list_projectnames_perstage() == set(["some-project"])
 
     def test_get_releaselinks_inheritance_shadow(self, pypistage, stage):
         stage.modify(bases=("root/pypi",), pypi_whitelist=['someproject'])
@@ -200,7 +201,7 @@ class TestStage:
         entries = stage.get_releaselinks("some")
         assert len(entries) == 1
         assert entries[0].md5 == entry.md5
-        assert stage.list_projectnames() == ["some"]
+        assert stage.list_projectnames_perstage() == set(["some"])
         verdata = stage.get_versiondata("some", "1.0")
         links = verdata["+elinks"]
         assert len(links) == 1

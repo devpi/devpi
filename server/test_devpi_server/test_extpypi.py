@@ -381,7 +381,7 @@ class TestExtPYPIDB:
         links = pypistage.get_releaselinks("pytest")
         assert len(links) == 1
 
-    def test_list_projectnames(self, pypistage):
+    def test_list_projectnames_perstage(self, pypistage):
         pypistage.mock_simple("proj1", pkgver="proj1-1.0.zip")
         pypistage.mock_simple("proj2", pkgver="proj2-1.0.zip")
         pypistage.url2response["https://pypi.python.org/simple/proj3/"] = dict(
@@ -389,8 +389,7 @@ class TestExtPYPIDB:
         assert len(pypistage.get_releaselinks("proj1")) == 1
         assert len(pypistage.get_releaselinks("proj2")) == 1
         assert pypistage.get_releaselinks("proj3") == 404
-        names = pypistage.list_projectnames()
-        assert names == ["proj1", "proj2"]
+        assert pypistage.list_projectnames_perstage() == set(["proj1", "proj2"])
 
     def test_get_existing_with_302(self, pypistage):
         pypistage.mock_simple("Hello_this")

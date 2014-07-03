@@ -298,14 +298,6 @@ class BaseStage:
             if res is not None:
                 return res
 
-    def list_projectnames(self):
-        all_names = set()
-        for stage, names in self.op_sro("list_projectnames_perstage"):
-            if isinstance(names, int):
-                return names
-            all_names.update(names)
-        return sorted(all_names)
-
     def op_sro(self, opname, **kw):
         for stage in self._sro():
             yield stage, getattr(stage, opname)(**kw)
@@ -397,7 +389,7 @@ class PrivateStage(BaseStage):
 
     def delete(self):
         # delete all projects on this index
-        for name in list(self.list_projectnames_perstage()):
+        for name in self.list_projectnames_perstage().copy():
             self.project_delete(name)
         with self.user.key.update() as userconfig:
             indexes = userconfig.get("indexes", {})
@@ -416,12 +408,16 @@ class PrivateStage(BaseStage):
         """ a conflict while trying to register metadata. """
 
     def get_projectname_perstage(self, name):
-        """ return normalized name for the given name or None
-        if no project exists. """
+        """ return existing projectname for the given name which may
+        be in a non-canonical form. """
         assert py.builtin._istext(name)
         names = self.list_projectnames_perstage()
-        norm2name = dict([(normalize_name(x), x) for x in names])
-        return norm2name.get(normalize_name(name), None)
+        if name in names:
+            return name
+        normname = normalize_name(name)
+        for projectname in names:
+            if normalize_name(projectname) == normname:
+                return projectname
 
     def register_metadata(self, metadata):
         """ register metadata.  Raises ValueError in case of metadata
@@ -489,28 +485,11 @@ class PrivateStage(BaseStage):
         if cleanup and not versions:
             self.project_delete(projectname)
 
-    def get_metadata(self, name, version):
-        # on win32 we need to make sure that we only return
-        # something if we know about the exact name, not a
-        # case-different one
-        projectname = self.get_projectname(name)
-        if projectname and projectname == name:
-            return self.get_versiondata(name, version)
-
-    def get_metadata_latest_perstage(self, name):
-        versions = self.list_versions_perstage(name)
-        maxver = get_latest_version(versions)
-        return self.get_metadata(name, maxver)
-
     def list_versions_perstage(self, projectname):
         return self.key_projversions(projectname).get()
 
     def get_versiondata_perstage(self, projectname, version):
         return self.key_projversion(projectname, version).get()
-
-    #
-    # getting release links
-    #
 
     def get_releaselinks_perstage(self, projectname):
         versions = self.list_versions_perstage(projectname)

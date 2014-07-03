@@ -183,7 +183,7 @@ class PyPIStage(BaseStage):
 
     def list_projectnames_perstage(self):
         """ return list of all projects served through the mirror. """
-        return sorted(self.pypimirror.name2serials)
+        return set(self.pypimirror.name2serials)
 
     def _dump_project_cache(self, projectname, entries, serial):
         normname = normalize_name(projectname)
