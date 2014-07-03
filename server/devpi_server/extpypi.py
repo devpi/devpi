@@ -15,12 +15,12 @@ from devpi_common.vendor._pip import HTMLPage
 
 from devpi_common.url import URL
 from devpi_common.metadata import BasenameMeta
-from devpi_common.metadata import get_sorted_versions, is_archive_of_project
+from devpi_common.metadata import is_archive_of_project
 from devpi_common.validation import normalize_name, ensure_unicode
 from devpi_common.request import new_requests_session
 
 from . import __version__ as server_version
-from .model import ProjectInfo, BaseStage
+from .model import BaseStage
 from .keyfs import load_from_file, dump_to_file
 from .log import threadlog, thread_current_log, thread_push_log
 

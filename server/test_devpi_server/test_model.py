@@ -287,12 +287,14 @@ class TestStage:
     def test_delete_not_existing(self, stage, bases):
         with pytest.raises(stage.NotFound) as excinfo:
             stage.project_version_delete("hello", "1.0")
-        assert excinfo.value.msg.startswith("project u'hello' not found")
+        assert excinfo.value.msg.startswith("project")
+        assert "not found" in excinfo.value.msg
         register_and_store(stage, "hello-1.0.zip")
         stage.project_version_delete("hello", "1.0", cleanup=False)
         with pytest.raises(stage.NotFound) as excinfo:
             stage.project_version_delete("hello", "1.0")
         assert excinfo.value.msg.startswith("version")
+        assert "not found" in excinfo.value.msg
 
     def test_releasefile_sorting(self, stage, bases):
         register_and_store(stage, "some-1.1.zip")
