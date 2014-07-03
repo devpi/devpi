@@ -1,3 +1,9 @@
+
+2.0.0.dev
+--------------
+
+XXX
+
 1.2.2
 ----------------------------
 
@@ -26,7 +32,7 @@ devpi-client:
   Thanks Christian Ullrich for the PR.
 
 
-1.2.2
+1.2.1
 ----------------------------
 
 devpi-server:

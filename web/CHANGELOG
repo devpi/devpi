@@ -1,0 +1,9 @@
+
+2.0.0.dev1
+---------------
+
+- initial release
+
+- fix issue112 (reported on devpi-server): introduce a URL for showing
+  docs using ``latest`` instead of a version.  This will dynamically
+  resolve to the latest version.
