@@ -594,6 +594,8 @@ class PyPIView:
         stage, name = self.context.stage, self.context.name
         if stage.name == "root/pypi":
             abort(self.request, 405, "cannot delete root/pypi index")
+        info = stage.get_project_info(name)
+        name = info.name if info else name
         if not stage.project_exists(name):
             apireturn(404, "project %r does not exist" % name)
         if not stage.ixconfig["volatile"]:
@@ -649,6 +651,8 @@ class PyPIView:
             abort(self.request, 405, "cannot delete on root/pypi index")
         if not stage.ixconfig["volatile"]:
             abort(self.request, 403, "cannot delete version on non-volatile index")
+        info = stage.get_project_info(name)
+        name = info.name if info else name
         metadata = stage.get_projectconfig(name)
         if not metadata:
             abort(self.request, 404, "project %r does not exist" % name)

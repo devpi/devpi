@@ -190,7 +190,6 @@ class User:
             raise ValueError("unknown index type %r" % ixconfig["type"])
 
 
-
 class InvalidIndexconfig(Exception):
     def __init__(self, messages):
         self.messages = messages
