@@ -294,11 +294,8 @@ class PyPIStage(BaseStage):
         return versions
 
     def get_versiondata_perstage(self, projectname, version):
-        releaselinks = self.get_releaselinks(projectname)
-        if isinstance(releaselinks, int):
-            return releaselinks
         verdata = {}
-        for link in releaselinks:
+        for link in self.get_releaselinks_perstage(projectname):
             basename = link.basename
             if link.eggfragment:
                 link_version = "egg=" + link.eggfragment

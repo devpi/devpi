@@ -277,13 +277,11 @@ class PyPIView:
     def simple_list_all(self):
         self.log.info("starting +simple")
         stage = self.context.stage
-        stage_results = []
-        for stage, names in stage.op_sro("list_projectnames_perstage"):
-            if isinstance(names, int):
-                abort(self.request, 502,
-                      "could not get simple list of %s" % stage.name)
-            stage_results.append((stage, names))
-
+        try:
+            stage_results = list(stage.op_sro("list_projectnames_perstage"))
+        except stage.UpstreamError as e:
+            threadlog.error(e.msg)
+            abort(self.request, 502, e.msg)
         # at this point we are sure we can produce the data without
         # depending on remote networks
         return Response(app_iter=self._simple_list_all(stage, stage_results))
