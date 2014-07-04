@@ -2,9 +2,7 @@ from __future__ import unicode_literals
 import posixpath
 import py
 import json
-from devpi_common.metadata import (sorted_sameproject_links,
-                                   get_latest_version,
-                                   get_sorted_versions)
+from devpi_common.metadata import sorted_sameproject_links, get_latest_version
 from devpi_common.validation import validate_metadata, normalize_name
 from devpi_common.types import ensure_unicode, cached_property
 from .auth import crypt_password, verify_password
@@ -196,14 +194,6 @@ class InvalidIndexconfig(Exception):
         self.messages = messages
         Exception.__init__(self, messages)
 
-
-class ProjectInfo:
-    def __init__(self, stage, name):
-        self.name = name
-        self.stage = stage
-
-    def __str__(self):
-        return "<ProjectInfo %s stage %s>" %(self.name, self.stage.name)
 
 class ModelException(Exception):
     """ Base Exception. """
