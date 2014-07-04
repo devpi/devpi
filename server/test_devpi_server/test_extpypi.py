@@ -251,7 +251,7 @@ class TestIndexParsing:
 class TestExtPYPIDB:
     def test_parse_project_nomd5(self, pypistage):
         x = pypistage.mock_simple("pytest", pkgver="pytest-1.0.zip")
-        links = pypistage.getreleaselinks("pytest")
+        links = pypistage.get_releaselinks("pytest")
         link, = links
         assert link.url == "https://pypi.python.org/pkg/pytest-1.0.zip"
         assert link.md5 == x.md5
@@ -260,36 +260,36 @@ class TestExtPYPIDB:
     def test_parse_project_replaced_eggfragment(self, pypistage):
         pypistage.mock_simple("pytest", pypiserial=10,
             pkgver="pytest-1.0.zip#egg=pytest-dev1")
-        links = pypistage.getreleaselinks("pytest")
+        links = pypistage.get_releaselinks("pytest")
         assert links[0].eggfragment == "pytest-dev1"
         pypistage.mock_simple("pytest", pypiserial=11,
             pkgver="pytest-1.0.zip#egg=pytest-dev2")
-        links = pypistage.getreleaselinks("pytest")
+        links = pypistage.get_releaselinks("pytest")
         assert links[0].eggfragment == "pytest-dev2"
 
     def test_parse_project_replaced_md5(self, pypistage):
         x = pypistage.mock_simple("pytest", pypiserial=10,
                                    pkgver="pytest-1.0.zip")
-        links = pypistage.getreleaselinks("pytest")
+        links = pypistage.get_releaselinks("pytest")
         assert links[0].md5 == x.md5
         y = pypistage.mock_simple("pytest", pypiserial=11,
                                    pkgver="pytest-1.0.zip")
-        links = pypistage.getreleaselinks("pytest")
+        links = pypistage.get_releaselinks("pytest")
         assert links[0].md5 == y.md5
         assert x.md5 != y.md5
 
-    def test_get_project_versiondata(self, pypistage):
+    def test_get_versiondata(self, pypistage):
         pypistage.mock_simple("Pytest", pkgver="pytest-1.0.zip")
-        data = pypistage.get_project_versiondata("Pytest", "1.0")
+        data = pypistage.get_versiondata("Pytest", "1.0")
         assert data["+elinks"]
         assert data["name"] == "Pytest"
         assert data["version"] == "1.0"
-        assert pypistage.get_project_name("pytest") == "Pytest"
+        assert pypistage.get_projectname("pytest") == "Pytest"
 
-    def test_get_project_versiondata_with_egg(self, pypistage):
+    def test_get_versiondata_with_egg(self, pypistage):
         pypistage.mock_simple("pytest", text='''
             <a href="../../pkg/tip.zip#egg=pytest-dev" />''')
-        data = pypistage.get_project_versiondata("Pytest", "egg=pytest-dev")
+        data = pypistage.get_versiondata("Pytest", "egg=pytest-dev")
         assert data["+elinks"]
 
     def test_parse_and_scrape(self, pypistage):
@@ -302,7 +302,7 @@ class TestExtPYPIDB:
             status_code=200, text = '''
                 <a href="pytest-1.1.tar.gz" /> ''',
             headers = {"content-type": "text/html"})
-        links = pypistage.getreleaselinks("pytest")
+        links = pypistage.get_releaselinks("pytest")
         assert len(links) == 2
         assert links[0].url == "https://download.com/pytest-1.1.tar.gz"
         assert links[0].relpath.endswith("/pytest-1.1.tar.gz")
@@ -320,7 +320,7 @@ class TestExtPYPIDB:
                 <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
                 <a rel="download" href="https://download.com/index.html" />
             '''.format(md5=md5, md5b=md5b), pypiserial=25)
-        links = pypistage.getreleaselinks("pytest")
+        links = pypistage.get_releaselinks("pytest")
         assert len(links) == 3
         assert links[1].url == "https://pypi.python.org/pkg/pytest-1.0.1.zip"
         assert links[1].relpath.endswith("/pytest-1.0.1.zip")
@@ -334,21 +334,22 @@ class TestExtPYPIDB:
             status_code=200, text = '''
                 <a href="pytest-1.1.tar.gz" /> ''',
             headers = {"content-type": "text/plain"})
-        links = pypistage.getreleaselinks("pytest")
+        links = pypistage.get_releaselinks("pytest")
         assert len(links) == 1
 
-    def test_getreleaselinks_cache_refresh_semantics(self, pypistage):
+    def test_get_releaselinks_cache_refresh_semantics(self, pypistage):
         pypistage.mock_simple("pytest", text='''
                 <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
                 <a rel="download" href="https://download.com/index.html" />
             ''', pypiserial=10)
 
-        # check getreleaselinks properly returns -2 on stale cache returns
-        ret = pypistage.getreleaselinks("pytest")
+        # check get_releaselinks properly returns -2 on stale cache returns
+        ret = pypistage.get_releaselinks("pytest")
         assert len(ret) == 1
         pypistage.pypimirror.process_changelog([("pytest", 0,0,0, 11)])
-        ret = pypistage.getreleaselinks("pytest")
-        assert ret == -2
+        with pytest.raises(pypistage.UpstreamError) as excinfo:
+            pypistage.get_releaselinks("pytest")
+        assert "expected 11" in excinfo.value.msg
 
     @pytest.mark.parametrize("errorcode", [404, -1, -2])
     def test_parse_and_scrape_error(self, pypistage, errorcode):
@@ -358,7 +359,7 @@ class TestExtPYPIDB:
             ''')
         pypistage.url2response["https://download.com/index.html"] = dict(
             status_code=errorcode, text = 'not found')
-        links = pypistage.getreleaselinks("pytest")
+        links = pypistage.get_releaselinks("pytest")
         assert len(links) == 1
         assert links[0].url == \
                 "https://pypi.python.org/pkg/pytest-1.0.zip"
@@ -378,30 +379,29 @@ class TestExtPYPIDB:
         pypistage.url2response["https://whatever.com"] = dict(
             status_code=200, text = '<a href="pytest-1.1.zip#md5={md5}" />'
                              .format(md5=md5))
-        links = pypistage.getreleaselinks("pytest")
+        links = pypistage.get_releaselinks("pytest")
         assert len(links) == 1
 
-    def test_getprojectnames(self, pypistage):
+    def test_list_projectnames_perstage(self, pypistage):
         pypistage.mock_simple("proj1", pkgver="proj1-1.0.zip")
         pypistage.mock_simple("proj2", pkgver="proj2-1.0.zip")
         pypistage.url2response["https://pypi.python.org/simple/proj3/"] = dict(
             status_code=404)
-        assert len(pypistage.getreleaselinks("proj1")) == 1
-        assert len(pypistage.getreleaselinks("proj2")) == 1
-        assert pypistage.getreleaselinks("proj3") == 404
-        names = pypistage.getprojectnames()
-        assert names == ["proj1", "proj2"]
+        assert len(pypistage.get_releaselinks("proj1")) == 1
+        assert len(pypistage.get_releaselinks("proj2")) == 1
+        assert pypistage.get_releaselinks("proj3") == []
+        assert pypistage.list_projectnames_perstage() == set(["proj1", "proj2"])
 
     def test_get_existing_with_302(self, pypistage):
         pypistage.mock_simple("Hello_this")
         pypistage.mock_simple("hello-World")
         pypistage.mock_simple("s-p")
-        assert pypistage.get_project_name("hello-this") == "Hello_this"
-        assert pypistage.get_project_name("hello_world") == "hello-World"
-        assert pypistage.get_project_name("hello-world") == "hello-World"
-        assert pypistage.get_project_name("s-p") == "s-p"
-        assert pypistage.get_project_name("s_p") == "s-p"
-        assert pypistage.get_project_name("sqwe_p") is None
+        assert pypistage.get_projectname("hello-this") == "Hello_this"
+        assert pypistage.get_projectname("hello_world") == "hello-World"
+        assert pypistage.get_projectname("hello-world") == "hello-World"
+        assert pypistage.get_projectname("s-p") == "s-p"
+        assert pypistage.get_projectname("s_p") == "s-p"
+        assert pypistage.get_projectname("sqwe_p") is None
 
 
 def raise_ValueError():
@@ -459,8 +459,8 @@ class TestRefreshManager:
         pypistage.mock_simple("Django", '<a href="Django-1.6.tgz"/a>',
                           pypiserial=11)
         assert len(pypistage.pypimirror.name2serials) == 2
-        assert len(pypistage.getreleaselinks("pytest")) == 1
-        assert len(pypistage.getreleaselinks("Django")) == 1
+        assert len(pypistage.get_releaselinks("pytest")) == 1
+        assert len(pypistage.get_releaselinks("Django")) == 1
         pypistage.mock_simple("pytest", '<a href="pytest-2.4.tgz"/a>',
                           pypiserial=27)
         pypistage.mock_simple("Django", '<a href="Django-1.7.tgz"/a>',
@@ -469,9 +469,9 @@ class TestRefreshManager:
         name2serials = pypistage.pypimirror.load_name2serials(None)
         assert name2serials["pytest"] == 27
         assert name2serials["Django"] == 25
-        b = pypistage.getreleaselinks("pytest")[0].basename
+        b = pypistage.get_releaselinks("pytest")[0].basename
         assert b == "pytest-2.4.tgz"
-        b = pypistage.getreleaselinks("Django")[0].basename
+        b = pypistage.get_releaselinks("Django")[0].basename
         assert b == "Django-1.7.tgz"
 
     def test_changelog_since_serial_nonetwork(self, pypistage, caplog,

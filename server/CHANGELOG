@@ -245,7 +245,7 @@
   through tox.
 
 - inheritance cleanup: inherited versions for a project are now shadowed
-  and not shown anymore with getreleaselinks() or in +simple pages
+  and not shown anymore with get_releaselinks() or in +simple pages
   if the "basename" is exactly shadowed.
 
 - fix issue16: enrich projectconfig json with a "+shadow" file which

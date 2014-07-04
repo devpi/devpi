@@ -149,7 +149,7 @@ class Exporter:
             userconfig = user.get()
             for indexname in userconfig.get("indexes", []):
                 stage = self.xom.model.getstage(user.name, indexname)
-                names = stage.getprojectnames_perstage()
+                names = stage.list_projectnames_perstage()
                 for name in names:
                     # pypi names take precedence for defining the realname
                     if stage.name == "root/pypi":
@@ -157,12 +157,12 @@ class Exporter:
                         version.realname = name
                         norm2maxversion[normalize_name(name)] = version
                         continue
-                    versions = stage.get_project_versions_perstage(name)
+                    versions = stage.list_versions_perstage(name)
                     if versions:
                         maxver = None
                         for ver in versions:
                             version = Version(ver)
-                            verdata = stage.get_project_versiondata(name, ver)
+                            verdata = stage.get_versiondata(name, ver)
                             version.realname = verdata.get("name", name)
                             if maxver is None or version > maxver:
                                 maxver = version
@@ -202,12 +202,12 @@ class IndexDump:
 
     def dump(self):
         import copy
-        for name in self.stage.getprojectnames_perstage():
+        for name in self.stage.list_projectnames_perstage():
             data = {}
-            versions = self.stage.get_project_versions_perstage(name, sort=False)
+            versions = self.stage.list_versions_perstage(name)
             for version in versions:
                 data[version] = copy.deepcopy(
-                    self.stage.get_project_versiondata_perstage(name, version))
+                    self.stage.get_versiondata_perstage(name, version))
             for val in data.values():
                 val.pop("+elinks", None)
             realname = self.exporter.get_real_projectname(name)

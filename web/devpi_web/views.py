@@ -1,6 +1,7 @@
 # coding: utf-8
 from __future__ import unicode_literals
 from devpi_common.metadata import get_pyversion_filetype, splitbasename
+from devpi_common.metadata import get_sorted_versions
 from devpi_common.url import URL
 from devpi_server.log import threadlog as log
 from devpi_web.description import get_description
@@ -36,14 +37,14 @@ class ContextWrapper(object):
 
     @reify
     def versions(self):
-        versions = self.stage.get_project_versions(self.name)
+        versions = self.stage.list_versions(self.name)
         if not versions:
             raise HTTPNotFound("The project %s does not exist." % self.name)
-        return versions
+        return get_sorted_versions(versions)
 
     @reify
     def verdata(self):
-        verdata = self.stage.get_project_versiondata(self.name, self.version)
+        verdata = self.stage.get_versiondata(self.name, self.version)
         if not verdata and self.versions:
             raise HTTPNotFound(
                 "The version %s of project %s does not exist." % (
@@ -299,16 +300,17 @@ def index_get(context, request):
                     "/{user}/{index}/+simple/",
                     user=base_user, index=base_index)))
 
-    for projectname in stage.getprojectnames_perstage():
-        metadata = stage.get_metadata_latest_perstage(projectname)
+    for projectname in stage.list_projectnames_perstage():
+        version = stage.get_latest_version_perstage(projectname)
+        verdata = stage.get_versiondata_perstage(projectname, version)
         try:
-            name, ver = metadata["name"], metadata["version"]
+            name, ver = verdata["name"], verdata["version"]
         except KeyError:
             log.error("metadata for project %r empty: %s, skipping",
-                      projectname, metadata)
+                      projectname, verdata)
             continue
         show_toxresults = not (stage.user.name == 'root' and stage.index == 'pypi')
-        pv = stage.get_project_version(name, ver)
+        pv = stage.get_project_version(name, ver, verdata)
         packages.append(dict(
             info=dict(
                 title="%s-%s" % (name, ver),
@@ -321,7 +323,7 @@ def index_get(context, request):
                 user=stage.user.name, index=stage.index,
                 name=name, version=ver),
             files=get_files_info(request, pv, show_toxresults),
-            docs=get_docs_info(request, stage, metadata)))
+            docs=get_docs_info(request, stage, verdata)))
 
     return result
 
@@ -332,7 +334,7 @@ def index_get(context, request):
     renderer="templates/project.pt")
 def project_get(context, request):
     context = ContextWrapper(context)
-    releases = context.stage.getreleaselinks(context.name)
+    releases = context.stage.get_releaselinks(context.name)
     if not releases:
         raise HTTPNotFound("The project %s does not exist." % context.name)
     versions = []
@@ -538,7 +540,7 @@ class SearchView:
             self._stage['path'] = stage
         return self._stage['path']
 
-    def get_metadata(self, stage, data):
+    def get_versiondata(self, stage, data):
         path = data['path']
         version = data.get('version')
         key = (path, version)
@@ -546,7 +548,7 @@ class SearchView:
             name = data['name']
             metadata = {}
             if version and is_project_cached(stage, name):
-                metadata = stage.get_project_versiondata(name, version)
+                metadata = stage.get_versiondata(name, version)
                 if metadata is None:
                     metadata = {}
             self._metadata[key] = metadata
@@ -564,7 +566,7 @@ class SearchView:
         for sub_hit in sub_hits:
             sub_data = sub_hit['data']
             text_type = sub_data['type']
-            metadata = self.get_metadata(stage, data)
+            metadata = self.get_versiondata(stage, data)
             title = text_type.title()
             highlight = None
             if text_type == 'project':

@@ -15,12 +15,12 @@ from devpi_common.vendor._pip import HTMLPage
 
 from devpi_common.url import URL
 from devpi_common.metadata import BasenameMeta
-from devpi_common.metadata import get_sorted_versions, is_archive_of_project
+from devpi_common.metadata import is_archive_of_project
 from devpi_common.validation import normalize_name, ensure_unicode
 from devpi_common.request import new_requests_session
 
 from . import __version__ as server_version
-from .model import ProjectInfo, BaseStage
+from .model import BaseStage
 from .keyfs import load_from_file, dump_to_file
 from .log import threadlog, thread_current_log, thread_push_log
 
@@ -181,9 +181,9 @@ class PyPIStage(BaseStage):
         else:
             self.PYPIURL_SIMPLE = PYPIURL_SIMPLE
 
-    def getprojectnames_perstage(self):
+    def list_projectnames_perstage(self):
         """ return list of all projects served through the mirror. """
-        return sorted(self.pypimirror.name2serials)
+        return set(self.pypimirror.name2serials)
 
     def _dump_project_cache(self, projectname, entries, serial):
         normname = normalize_name(projectname)
@@ -214,18 +214,18 @@ class PyPIStage(BaseStage):
         self.keyfs.PYPILINKS(name=normname).delete()
         threadlog.debug("cleared cache for %s", projectname)
 
-    def getreleaselinks_perstage(self, projectname):
+    def get_releaselinks_perstage(self, projectname):
         """ return all releaselinks from the index and referenced scrape
         pages, returning cached entries if we have a recent enough
         request stored locally.
 
-        If the pypi server cannot be reached return -1
-        If pypi does not return a fresh enough page although we know it
-        must exist, return -2.
+        Raise UpstreamError if the pypi server cannot be reached or
+        does not return a fresh enough page although we know it must
+        exist.
         """
-        projectname = self.get_project_name_perstage(projectname)
+        projectname = self.get_projectname_perstage(projectname)
         if projectname is None:
-            return 404
+            return []
         entries = self._load_cache_entries(projectname)
         if entries is not None:
             return entries
@@ -234,7 +234,8 @@ class PyPIStage(BaseStage):
         threadlog.debug("visiting index %s", url)
         response = self.httpget(url, allow_redirects=True)
         if response.status_code != 200:
-            return response.status_code
+            raise self.UpstreamError("%s status on GET %s" %
+                                     (response.status_code, url))
 
         if self.xom.is_replica():
             devpi_serial = int(response.headers["X-DEVPI-SERIAL"])
@@ -245,8 +246,8 @@ class PyPIStage(BaseStage):
             entries = self._load_cache_entries(projectname)
             if entries is not None:
                 return entries
-            threadlog.error("did not get cached entries for %s", projectname)
-            return 502
+            raise self.UpstreamError("no cache entries from master for %s" %
+                                     projectname)
 
         # determine and check real project name
         real_projectname = response.url.strip("/").split("/")[-1]
@@ -256,9 +257,9 @@ class PyPIStage(BaseStage):
         serial = int(response.headers["X-PYPI-LAST-SERIAL"])
         newest_serial = self.pypimirror.name2serials.get(projectname, -1)
         if serial < newest_serial:
-            threadlog.warn("%s: pypi returned serial %s, expected %s",
-                     real_projectname, serial, newest_serial)
-            return -2  # the page we got is not fresh enough
+            raise self.UpstreamError("%s: pypi returned serial %s, expected %s",
+                        real_projectname, serial, newest_serial)
+
         threadlog.debug("%s: got response with serial %s" %
                   (real_projectname, serial))
 
@@ -275,30 +276,25 @@ class PyPIStage(BaseStage):
         self._dump_project_cache(real_projectname, entries, serial)
         return entries
 
-    def get_project_name_perstage(self, name):
+    def get_projectname_perstage(self, name):
         norm_name = normalize_name(name)
         name = self.pypimirror.normname2name.get(norm_name, norm_name)
         if name in self.pypimirror.name2serials:
             return name
 
-    def get_project_versions_perstage(self, projectname, sort=True):
-        releaselinks = self.getreleaselinks(projectname)
-        if isinstance(releaselinks, int):
-            return releaselinks
+    def list_versions_perstage(self, projectname):
         versions = set()
-        for link in releaselinks:
+        for link in self.get_releaselinks_perstage(projectname):
             basename = link.basename
             if link.eggfragment:
                 version = "egg=" + link.eggfragment
             else:
                 version = BasenameMeta(basename).version
             versions.add(version)
-        if sort:
-            versions = get_sorted_versions(versions)
         return versions
 
-    def get_project_versiondata_perstage(self, projectname, version):
-        releaselinks = self.getreleaselinks(projectname)
+    def get_versiondata_perstage(self, projectname, version):
+        releaselinks = self.get_releaselinks(projectname)
         if isinstance(releaselinks, int):
             return releaselinks
         verdata = {}
