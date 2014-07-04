@@ -347,8 +347,9 @@ class TestExtPYPIDB:
         ret = pypistage.get_releaselinks("pytest")
         assert len(ret) == 1
         pypistage.pypimirror.process_changelog([("pytest", 0,0,0, 11)])
-        ret = pypistage.get_releaselinks("pytest")
-        assert ret == -2
+        with pytest.raises(pypistage.UpstreamError) as excinfo:
+            pypistage.get_releaselinks("pytest")
+        assert "expected 11" in excinfo.value.msg
 
     @pytest.mark.parametrize("errorcode", [404, -1, -2])
     def test_parse_and_scrape_error(self, pypistage, errorcode):
@@ -388,7 +389,7 @@ class TestExtPYPIDB:
             status_code=404)
         assert len(pypistage.get_releaselinks("proj1")) == 1
         assert len(pypistage.get_releaselinks("proj2")) == 1
-        assert pypistage.get_releaselinks("proj3") == 404
+        assert pypistage.get_releaselinks("proj3") == []
         assert pypistage.list_projectnames_perstage() == set(["proj1", "proj2"])
 
     def test_get_existing_with_302(self, pypistage):

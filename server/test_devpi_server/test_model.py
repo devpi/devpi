@@ -175,10 +175,10 @@ class TestStage:
     def test_inheritance_error(self, pypistage, stage):
         stage.modify(bases=("root/pypi",), pypi_whitelist=['someproject'])
         pypistage.mock_simple("someproject", status_code = -1)
-        entries = stage.get_releaselinks("someproject")
-        assert entries == -1
-        #entries = stage.list_projectnames()
-        #assert entries == -1
+        with pytest.raises(stage.UpstreamError):
+            stage.get_releaselinks("someproject")
+        with pytest.raises(stage.UpstreamError):
+            stage.list_versions("someproject")
 
     def test_get_versiondata_inherited(self, pypistage, stage):
         stage.modify(bases=("root/pypi",), pypi_whitelist=['someproject'])

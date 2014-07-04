@@ -231,17 +231,11 @@ class PyPIView:
 
         if name != projectname:
             redirect("/%s/+simple/%s/" % (stage.name, projectname))
-        result = stage.get_releaselinks(projectname)
-        if isinstance(result, int):
-            if result == 404:
-                # we don't want pip/easy_install to try the whole simple
-                # page -- we know for sure there is no fitting project
-                # because all devpi indexes perform package name normalization
-                abort(request, 200, "no such project %r" % projectname)
-            if result >= 500:
-                abort(request, 502, "upstream server has internal error")
-            if result < 0:
-                abort(request, 502, "upstream server not reachable")
+        try:
+            result = stage.get_releaselinks(projectname)
+        except stage.UpstreamError as e:
+            threadlog.error(e.msg)
+            abort(request, 502, e.msg)
         links = []
         for entry in result:
             relpath = entry.relpath

@@ -205,9 +205,25 @@ class ProjectInfo:
     def __str__(self):
         return "<ProjectInfo %s stage %s>" %(self.name, self.stage.name)
 
+class ModelException(Exception):
+    """ Base Exception. """
+    def __init__(self, msg, *args):
+        if args:
+            msg = msg % args
+        self.msg = msg
+        Exception.__init__(self, msg)
+
+class NotFound(ModelException):
+    """ If a project or version cannot be found. """
+
+class UpstreamError(ModelException):
+    """ If an upstream could not be reached or didn't respond correctly. """
 
 
 class BaseStage:
+    NotFound = NotFound
+    UpstreamError = UpstreamError
+
     def get_project_version(self, name, version, verdata=None):
         return ProjectVersion(self, name, version, verdata=verdata)
 
@@ -237,10 +253,6 @@ class BaseStage:
         versions = set()
         for stage, res in self.op_sro_check_pypi_whitelist(
                 "list_versions_perstage", projectname=projectname):
-            if isinstance(res, int):
-                if res == 404:
-                    continue
-                return res
             versions.update(res)
         return versions
 
@@ -256,10 +268,6 @@ class BaseStage:
         for stage, res in self.op_sro_check_pypi_whitelist(
                 "get_versiondata_perstage",
                 projectname=projectname, version=version):
-            if isinstance(res, int):
-                if res == 404:
-                    continue
-                return res
             if not result:
                 result.update(res)
             else:
@@ -274,10 +282,6 @@ class BaseStage:
         for stage, res in self.op_sro_check_pypi_whitelist(
             "get_releaselinks_perstage", projectname=projectname):
             stagename2res[stage.name] = res
-            if isinstance(res, int):
-                if res == 404:
-                    continue
-                return res
             for entry in res:
                 if entry.eggfragment:
                     key = entry.eggfragment
@@ -335,11 +339,6 @@ class BaseStage:
 
 
 class PrivateStage(BaseStage):
-    class NotFound(Exception):
-        """ If a project or version cannot be found. """
-        def __init__(self, msg):
-            self.msg = msg
-            Exception.__init__(self, msg)
 
     metadata_keys = """
         name version summary home_page author author_email
@@ -492,11 +491,8 @@ class PrivateStage(BaseStage):
         return self.key_projversion(projectname, version).get()
 
     def get_releaselinks_perstage(self, projectname):
-        versions = self.list_versions_perstage(projectname)
-        if isinstance(versions, int):
-            return versions
         files = []
-        for version in versions:
+        for version in self.list_versions_perstage(projectname):
             pv = self.get_project_version(projectname, version)
             for link in pv.get_links("releasefile"):
                 files.append(link.entry)

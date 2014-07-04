@@ -219,13 +219,13 @@ class PyPIStage(BaseStage):
         pages, returning cached entries if we have a recent enough
         request stored locally.
 
-        If the pypi server cannot be reached return -1
-        If pypi does not return a fresh enough page although we know it
-        must exist, return -2.
+        Raise UpstreamError if the pypi server cannot be reached or
+        does not return a fresh enough page although we know it must
+        exist.
         """
         projectname = self.get_projectname_perstage(projectname)
         if projectname is None:
-            return 404
+            return []
         entries = self._load_cache_entries(projectname)
         if entries is not None:
             return entries
@@ -234,7 +234,8 @@ class PyPIStage(BaseStage):
         threadlog.debug("visiting index %s", url)
         response = self.httpget(url, allow_redirects=True)
         if response.status_code != 200:
-            return response.status_code
+            raise self.UpstreamError("%s status on GET %s" %
+                                     (response.status_code, url))
 
         if self.xom.is_replica():
             devpi_serial = int(response.headers["X-DEVPI-SERIAL"])
@@ -245,8 +246,8 @@ class PyPIStage(BaseStage):
             entries = self._load_cache_entries(projectname)
             if entries is not None:
                 return entries
-            threadlog.error("did not get cached entries for %s", projectname)
-            return 502
+            raise self.UpstreamError("no cache entries from master for %s" %
+                                     projectname)
 
         # determine and check real project name
         real_projectname = response.url.strip("/").split("/")[-1]
@@ -256,9 +257,9 @@ class PyPIStage(BaseStage):
         serial = int(response.headers["X-PYPI-LAST-SERIAL"])
         newest_serial = self.pypimirror.name2serials.get(projectname, -1)
         if serial < newest_serial:
-            threadlog.warn("%s: pypi returned serial %s, expected %s",
-                     real_projectname, serial, newest_serial)
-            return -2  # the page we got is not fresh enough
+            raise self.UpstreamError("%s: pypi returned serial %s, expected %s",
+                        real_projectname, serial, newest_serial)
+
         threadlog.debug("%s: got response with serial %s" %
                   (real_projectname, serial))
 
@@ -282,11 +283,8 @@ class PyPIStage(BaseStage):
             return name
 
     def list_versions_perstage(self, projectname):
-        releaselinks = self.get_releaselinks_perstage(projectname)
-        if isinstance(releaselinks, int):
-            return releaselinks
         versions = set()
-        for link in releaselinks:
+        for link in self.get_releaselinks_perstage(projectname):
             basename = link.basename
             if link.eggfragment:
                 version = "egg=" + link.eggfragment
