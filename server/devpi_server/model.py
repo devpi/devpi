@@ -290,11 +290,6 @@ class BaseStage:
                 if key not in basenames:
                     basenames.add(key)
                     all_links.append(entry)
-        for stagename, res in stagename2res.items():
-            if res != 404:
-                break
-        else:
-            return res  # no stage has the project
         return sorted_sameproject_links(all_links)
 
     def get_projectname(self, name):
