@@ -372,7 +372,7 @@ class PyPIView:
         except KeyError:
             apireturn(400, message="no name/version specified in json")
 
-        vv = stage.get_project_version(name, version)
+        vv = stage.get_versionlinks(name, version)
         matches = [stage.xom.filestore.get_file_entry(link.entrypath)
                         for link in vv.get_links(rel="releasefile")]
         if not matches:

@@ -53,7 +53,7 @@ class ContextWrapper(object):
 
     @reify
     def project_version(self):
-        return self.stage.get_project_version(self.name, self.version)
+        return self.stage.get_versionlinks(self.name, self.version)
 
 
 def get_doc_path_info(context, request):
@@ -310,7 +310,7 @@ def index_get(context, request):
                       projectname, verdata)
             continue
         show_toxresults = not (stage.user.name == 'root' and stage.index == 'pypi')
-        pv = stage.get_project_version(name, ver, verdata)
+        pv = stage.get_versionlinks(name, ver)
         packages.append(dict(
             info=dict(
                 title="%s-%s" % (name, ver),
@@ -384,7 +384,7 @@ def version_get(context, request):
             value = py.xml.escape(value)
         infos.append((py.xml.escape(key), value))
     show_toxresults = not (user == 'root' and index == 'pypi')
-    pv = stage.get_project_version(name, version)
+    pv = stage.get_versionlinks(name, version)
     files = get_files_info(request, pv, show_toxresults)
     return dict(
         title="%s/: %s-%s metadata and description" % (stage.name, name, version),

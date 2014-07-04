@@ -216,7 +216,7 @@ class IndexDump:
 
             for version in data:
                 assert data[version]["name"] == realname
-                pv = self.stage.get_project_version(realname, version)
+                pv = self.stage.get_versionlinks(realname, version)
                 assert pv.get_links()
                 self.dump_releasefiles(pv)
                 self.dump_toxresults(pv)
@@ -379,7 +379,7 @@ class Importer:
             name, version, suffix = splitbasename(basename)
             stage.store_doczip(name, version, p.read("rb"))
         elif filedesc["type"] == "toxresult":
-            pv = stage.get_project_version(filedesc["projectname"],
+            pv = stage.get_versionlinks(filedesc["projectname"],
                                            filedesc["version"])
             link, = pv.get_links(entrypath=filedesc["for_entrypath"])
             stage.store_toxresult(link,

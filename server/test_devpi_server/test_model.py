@@ -185,7 +185,7 @@ class TestStage:
         pypistage.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         verdata = stage.get_versiondata("someproject", "1.0")
-        pv = ProjectVersion(stage, "someproject", "1.0", verdata)
+        pv = VersionLinks(stage, "someproject", "1.0", verdata)
         assert len(pv.get_links(basename="someproject-1.0.zip")) == 1
 
     def test_get_versiondata_inherited_with_nonexisting_version(self, pypistage, stage):
@@ -343,7 +343,7 @@ class TestStage:
         toxresultdata = {'hello': 'world'}
         link = stage.get_link_from_entrypath(entry.relpath)
         stage.store_toxresult(link, toxresultdata)
-        pv = stage.get_project_version("pkg1", "1.0")
+        pv = stage.get_versionlinks("pkg1", "1.0")
         tox_links = list(pv.get_links(rel="toxresult"))
         assert len(tox_links) == 1
         tentry = tox_links[0].entry
@@ -463,11 +463,11 @@ class TestStage:
         name = stage.get_projectname("hello")
         assert name == "Hello"
 
-class TestProjectVersion:
+class TestVersionLinks:
     @pytest.fixture
     def pv(self, stage):
         stage.register_metadata(dict(name="proj1", version="1.0"))
-        return stage.get_project_version("proj1", "1.0")
+        return stage.get_versionlinks("proj1", "1.0")
 
     def test_store_file(self, pv):
         pv.create_linked_entry(

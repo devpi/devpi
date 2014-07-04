@@ -214,26 +214,28 @@ class BaseStage:
     NotFound = NotFound
     UpstreamError = UpstreamError
 
-    def get_project_version(self, name, version, verdata=None):
-        return ProjectVersion(self, name, version, verdata=verdata)
+    def get_versionlinks(self, name, version, verdata=None):
+        return VersionLinks(self, name, version, verdata=verdata)
 
     def get_link_from_entrypath(self, entrypath):
         entry = self.xom.filestore.get_file_entry(entrypath)
-        pv = self.get_project_version(entry.projectname, entry.version)
+        pv = self.get_versionlinks(entry.projectname, entry.version)
         links = pv.get_links(entrypath=entrypath)
         assert len(links) < 2
         return links[0] if links else None
 
     def store_toxresult(self, link, toxresultdata):
         assert isinstance(toxresultdata, dict), toxresultdata
-        return link.pv.new_reflink(
+        vl = self.get_versionlinks(link.projectname, link.version)
+        return vl.new_reflink(
                 rel="toxresult",
                 file_content=json.dumps(toxresultdata).encode("utf-8"),
                 for_entrypath=link)
 
     def get_toxresults(self, link):
         l = []
-        for reflink in link.pv.get_links(rel="toxresult", for_entrypath=link):
+        vl = self.get_versionlinks(link.projectname, link.version)
+        for reflink in vl.get_links(rel="toxresult", for_entrypath=link):
             data = reflink.entry.file_get_content().decode("utf-8")
             l.append(json.loads(data))
         return l
@@ -461,7 +463,7 @@ class PrivateStage(BaseStage):
         if version not in versions:
             raise self.NotFound("version %r of project %r not found on stage %r" %
                                 (version, projectname, self.name))
-        pv = self.get_project_version(projectname, version)
+        pv = self.get_versionlinks(projectname, version)
         pv.remove_links()
         versions.remove(version)
         self.key_projversion(projectname, version).delete()
@@ -478,7 +480,7 @@ class PrivateStage(BaseStage):
     def get_releaselinks_perstage(self, projectname):
         files = []
         for version in self.list_versions_perstage(projectname):
-            pv = self.get_project_version(projectname, version)
+            pv = self.get_versionlinks(projectname, version)
             for link in pv.get_links("releasefile"):
                 files.append(link.entry)
         return files
@@ -495,7 +497,7 @@ class PrivateStage(BaseStage):
         if not self.get_versiondata(name, version):
             raise self.MissesRegistration(name, version)
         threadlog.debug("project name of %r is %r", filename, name)
-        pv = self.get_project_version(name, version)
+        pv = self.get_versionlinks(name, version)
         entry = pv.create_linked_entry(
                 rel="releasefile",
                 basename=filename,
@@ -509,7 +511,7 @@ class PrivateStage(BaseStage):
             threadlog.info("store_doczip: derived version of %s is %s",
                            name, version)
         basename = "%s-%s.doc.zip" % (name, version)
-        pv = self.get_project_version(name, version)
+        pv = self.get_versionlinks(name, version)
         entry = pv.create_linked_entry(
                 rel="doczip",
                 basename=basename,
@@ -520,7 +522,7 @@ class PrivateStage(BaseStage):
     def get_doczip(self, name, version):
         """ get documentation zip as an open file
         (or None if no docs exists). """
-        pv = self.get_project_version(name, version)
+        pv = self.get_versionlinks(name, version)
         links = pv.get_links(rel="doczip")
         if links:
             assert len(links) == 1, links
@@ -530,10 +532,12 @@ class PrivateStage(BaseStage):
 
 class ELink:
     """ model Link using entrypathes for referencing. """
-    def __init__(self, pv, linkdict):
+    def __init__(self, filestore, linkdict, projectname, version):
+        self.filestore = filestore
         self.linkdict = linkdict
-        self.pv = pv
         self.basename = posixpath.basename(self.entrypath)
+        self.projectname = projectname
+        self.version = version
 
     def __getattr__(self, name):
         try:
@@ -548,10 +552,10 @@ class ELink:
 
     @cached_property
     def entry(self):
-        return self.pv.filestore.get_file_entry(self.entrypath)
+        return self.filestore.get_file_entry(self.entrypath)
 
 
-class ProjectVersion:
+class VersionLinks:
     def __init__(self, stage, projectname, version, verdata=None):
         self.stage = stage
         self.filestore = stage.xom.filestore
@@ -617,7 +621,8 @@ class ProjectVersion:
         if was_deleted:
             self._mark_dirty()
 
-    def get_links(self, rel=None, basename=None, entrypath=None, for_entrypath=None):
+    def get_links(self, rel=None, basename=None, entrypath=None,
+                  for_entrypath=None):
         if isinstance(for_entrypath, ELink):
             for_entrypath = for_entrypath.entrypath
         def fil(link):
@@ -625,7 +630,7 @@ class ProjectVersion:
                    (not basename or basename==link.basename) and \
                    (not entrypath or entrypath==link.entrypath) and \
                    (not for_entrypath or for_entrypath==link.for_entrypath)
-        return list(filter(fil, [ELink(self, linkdict)
+        return list(filter(fil, [ELink(self.filestore, linkdict, self.projectname, self.version)
                            for linkdict in self.verdata.get("+elinks", [])]))
 
     def _create_file_entry(self, basename, file_content, ref_md5=None):
@@ -665,7 +670,7 @@ class ProjectVersion:
         linkdicts.append(new_linkdict)
         threadlog.info("added %r link %s", rel, file_entry.relpath)
         self._mark_dirty()
-        return ELink(self, new_linkdict)
+        return ELink(self, new_linkdict, self.projectname, self.version)
 
 
 def normalize_bases(model, bases):
