@@ -209,10 +209,14 @@ class NotFound(ModelException):
 class UpstreamError(ModelException):
     """ If an upstream could not be reached or didn't respond correctly. """
 
+class MissesRegistration(ModelException):
+    """ A prior registration or release metadata is required. """
+
 
 class BaseStage:
     NotFound = NotFound
     UpstreamError = UpstreamError
+    MissesRegistration = MissesRegistration
 
     def get_linkstore_perstage(self, name, version):
         return LinkStore(self, name, version)
@@ -487,14 +491,11 @@ class PrivateStage(BaseStage):
     def list_projectnames_perstage(self):
         return self.key_projectnames.get()
 
-    class MissesRegistration(Exception):
-        """ store_releasefile requires pre-existing release metadata. """
-
     def store_releasefile(self, name, version, filename, content,
                           last_modified=None):
         filename = ensure_unicode(filename)
         if not self.get_versiondata(name, version):
-            raise self.MissesRegistration(name, version)
+            raise MissesRegistration("%s-%s", name, version)
         threadlog.debug("project name of %r is %r", filename, name)
         linkstore = self.get_linkstore_perstage(name, version)
         entry = linkstore.create_linked_entry(
@@ -560,23 +561,9 @@ class LinkStore:
         self.filestore = stage.xom.filestore
         self.projectname = projectname
         self.version = version
-        try:
-            self.key_projversions = stage.key_projversions(
-                name=projectname)
-            self.key_projversion = stage.key_projversion(
-                name=projectname, version=version)
-        except AttributeError:
-            # pypistage has no key_projversion so we only read it
-            self.verdata = stage.get_versiondata_perstage(
-                projectname, version)
-        else:
-            self.verdata = self.key_projversion.get()
-        if self.verdata is None:
-            self.verdata = {}
+        self.verdata = stage.get_versiondata_perstage(projectname, version)
         if not self.verdata:
-            self.verdata["name"] = projectname
-            self.verdata["version"] = version
-            self._mark_dirty()
+            raise MissesRegistration("%s-%s", projectname, version)
 
     def create_linked_entry(self, rel, basename, file_content, last_modified=None):
         assert isinstance(file_content, bytes)
@@ -644,12 +631,7 @@ class LinkStore:
         return entry
 
     def _mark_dirty(self):
-        versions = self.key_projversions.get()
-        if self.version not in versions:
-            versions.add(self.version)
-            self.key_projversions.set(versions)
-        self.key_projversion.set(self.verdata)
-        threadlog.debug("marking dirty %s", self.key_projversion)
+        self.stage._register_metadata(self.verdata)
 
     def _get_inplace_linkdicts(self):
         return self.verdata.setdefault("+elinks", [])

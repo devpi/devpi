@@ -217,8 +217,7 @@ class TestStage:
         pypistage.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         content = b"123"
-        stage.store_releasefile("someproject", "1.0",
-                                "someproject-1.0.zip", content)
+        register_and_store(stage, "someproject-1.0.zip", content)
         verdata = stage.get_versiondata("someproject", "1.0")
         linkdict, = verdata["+elinks"]
         assert linkdict["entrypath"].endswith("someproject-1.0.zip")
@@ -304,8 +303,8 @@ class TestStage:
         assert entries[0].basename == "some-1.1.zip"
 
     def test_getdoczip(self, stage, bases, tmpdir):
-        assert not stage.get_doczip("pkg1", "version")
         stage.register_metadata(dict(name="pkg1", version="1.0"))
+        assert not stage.get_doczip("pkg1", "1.0")
         content = zip_dict({"index.html": "<html/>",
             "_static": {}, "_templ": {"x.css": ""}})
         stage.store_doczip("pkg1", "1.0", content)
