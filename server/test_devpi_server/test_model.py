@@ -302,6 +302,14 @@ class TestStage:
         assert len(entries) == 2
         assert entries[0].basename == "some-1.1.zip"
 
+    def test_set_versiondata_twice(self, stage, bases, caplog):
+        stage.set_versiondata(dict(name="pkg1", version="1.0"))
+        assert not caplog.getrecords("ignored")
+        stage.xom.keyfs.commit_transaction_in_thread()
+        with stage.xom.keyfs.transaction(write=True):
+            stage.set_versiondata(dict(name="pkg1", version="1.0"))
+            assert caplog.getrecords("same metadata")
+
     def test_getdoczip(self, stage, bases, tmpdir):
         stage.set_versiondata(dict(name="pkg1", version="1.0"))
         assert not stage.get_doczip("pkg1", "1.0")

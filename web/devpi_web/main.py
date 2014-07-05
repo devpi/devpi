@@ -135,13 +135,14 @@ def devpiserver_on_upload(stage, projectname, version, link):
     if not link.entry.file_exists():
         # on replication or import we might be at a lower than
         # current revision and the file might have been deleted already
-        log.debug("igoring lost upload: %s", link)
+        threadlog.debug("igoring lost upload: %s", link)
     elif link.rel == "doczip":
         unpack_docs(stage, projectname, version, link.entry)
         index_project(stage, projectname)
+
 
 def devpiserver_on_changed_versiondata(stage, projectname, version, metadata):
     if metadata:
         render_description(stage, metadata)
         index_project(stage, metadata['name'])
-    #else XXX handle deletion
+    # else XXX handle deletion

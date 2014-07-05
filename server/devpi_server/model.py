@@ -434,13 +434,21 @@ class PrivateStage(BaseStage):
     def _set_versiondata(self, metadata):
         name = metadata["name"]
         version = metadata["version"]
-        with self.key_projversion(name, version).update() as versionconfig:
-            #if not self.ixconfig["volatile"] and projectconfig:
-            #    raise self.MetadataExists(
-            #        "%s-%s exists on non-volatile %s" %(
-            #        name, version, self.name))
-            versionconfig.update(metadata)
-            threadlog.info("store_metadata %s-%s", name, version)
+        key_projversion = self.key_projversion(name, version)
+        versiondata = key_projversion.get()
+        if not key_projversion.is_dirty():
+            # check if something really changed to prevent
+            # unneccessary changes on db/replica level
+            for key, val in metadata.items():
+                if val != versiondata.get(key):
+                    break
+            else:
+                threadlog.info("not re-registering same metadata for %s-%s",
+                               name, version)
+                return
+        versiondata.update(metadata)
+        key_projversion.set(versiondata)
+        threadlog.info("set_metadata %s-%s", name, version)
         versions = self.key_projversions(name).get()
         if version not in versions:
             versions.add(version)
