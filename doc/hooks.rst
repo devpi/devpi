@@ -1,10 +1,20 @@
 
+
+devpi-server plugin hooks (experimental)
+============================================
+
+``devpi-server-2.0`` introduced an experimental Plugin system in order
+to decouple ``devpi-web`` from core operations.  As the 2.0 series becomes more
+battle tested we expect the plugin API to stabilize and be useable from
+other prospective extensions.
+
+
 hook semantics for metadata and doc file changes
 ------------------------------------------------
 
-There are currently two hooks notifying plugins of changes:
+There are currently two hooks notifying plugins of changes::
 
-    devpiserver_set_versiondata(stage, metadata)
+    devpiserver_on_changed_versiondata(stage, projectname, versiondata, metadata)
 
     devpiserver_docs_uploaded(stage, name, version, entry)
 

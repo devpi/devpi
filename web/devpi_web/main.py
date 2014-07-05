@@ -136,6 +136,8 @@ def devpiserver_docs_uploaded(stage, name, version, entry):
     index_project(stage, name)
 
 
-def devpiserver_set_versiondata(stage, metadata):
-    render_description(stage, metadata)
-    index_project(stage, metadata['name'])
+def devpiserver_on_changed_versiondata(stage, projectname, version, metadata):
+    if metadata:
+        render_description(stage, metadata)
+        index_project(stage, metadata['name'])
+    #else XXX handle deletion

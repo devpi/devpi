@@ -220,10 +220,11 @@ class PluginManager:
                                   stage=stage, name=name,
                                   version=version, entry=entry)
 
-    def devpiserver_set_versiondata(self, stage, metadata):
-        return self._call_plugins("devpiserver_set_versiondata",
-                                  stage=stage,
-                                  metadata=metadata)
+    def devpiserver_on_changed_versiondata(self, stage, projectname, version,
+                                           metadata):
+        return self._call_plugins("devpiserver_on_changed_versiondata",
+                                  stage=stage, projectname=projectname,
+                                  version=version, metadata=metadata)
 
     def devpiserver_pypi_initial(self, stage, name2serials):
         return self._call_plugins("devpiserver_pypi_initial",

@@ -433,13 +433,21 @@ class TestStage:
     @pytest.mark.start_threads
     def test_set_versiondata_hook(self, stage, queue):
         class Plugin:
-            def devpiserver_set_versiondata(self, stage, metadata):
+            def devpiserver_on_changed_versiondata(self,
+                    stage, projectname, version, metadata):
                 queue.put((stage, metadata))
         stage.xom.config.hook._plugins = [(Plugin(), None)]
-        stage.set_versiondata(dict(name="hello", version="1.0"))
+        orig_metadata = dict(name="hello", version="1.0")
+        stage.set_versiondata(orig_metadata)
         stage.xom.keyfs.commit_transaction_in_thread()
         stage2, metadata = queue.get()
         assert stage2.name == stage.name
+        assert metadata == orig_metadata
+        with stage.xom.keyfs.transaction(write=True):
+            stage.project_version_delete("hello", "1.0")
+        stage2, metadata = queue.get()
+        assert stage2.name == stage.name
+        assert not metadata
 
     @pytest.mark.start_threads
     def test_doczip_uploaded_hook(self, stage, queue):

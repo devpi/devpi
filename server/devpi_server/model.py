@@ -723,10 +723,12 @@ class EventSubscribers:
         with keyfs.transaction(write=False, at_serial=ev.at_serial):
             # XXX slightly flaky logic for detecting metadata changes
             metadata = ev.value
-            if metadata:
-                if metadata != old:
-                    stage = self.xom.model.getstage(user, index)
-                    hook.devpiserver_set_versiondata(stage, metadata)
+            source = metadata or old
+            projectname, version = source["name"], source["version"]
+            if metadata != old:
+                stage = self.xom.model.getstage(user, index)
+                hook.devpiserver_on_changed_versiondata(
+                    stage, projectname, version, metadata)
 
     def on_changed_file_entry(self, ev):
         """ when a file entry is modified. """
