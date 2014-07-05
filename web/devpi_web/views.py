@@ -52,7 +52,7 @@ class ContextWrapper(object):
         return verdata
 
     @reify
-    def project_version(self):
+    def versionlinks(self):
         return self.stage.get_versionlinks(self.name, self.version)
 
 
@@ -150,13 +150,13 @@ def sizeof_fmt(num):
     return (num, 'TB')
 
 
-def get_files_info(request, pv, show_toxresults=False):
+def get_files_info(request, versionlinks, show_toxresults=False):
     xom = request.registry['xom']
     files = []
-    filedata = pv.get_links(rel='releasefile')
+    filedata = versionlinks.get_links(rel='releasefile')
     if not filedata:
-        log.warn(
-            "project %r version %r has no files", pv.projectname, pv.version)
+        log.warn("project %r version %r has no files",
+                 versionlinks.projectname, versionlinks.version)
     for link in sorted(filedata, key=attrgetter('basename')):
         entry = xom.filestore.get_file_entry(link.entrypath)
         relurl = URL(request.path).relpath("/" + entry.relpath)
@@ -179,7 +179,7 @@ def get_files_info(request, pv, show_toxresults=False):
             py_version=py_version,
             size=size)
         if show_toxresults:
-            toxresults = get_toxresults_info(link)
+            toxresults = get_toxresults_info(versionlinks, link)
             if toxresults:
                 fileinfo['toxresults'] = toxresults
         files.append(fileinfo)
@@ -203,10 +203,11 @@ def load_toxresult(link):
     return json.loads(data)
 
 
-def get_toxresults_info(link, newest=False):
+def get_toxresults_info(versionlinks, for_link, newest=False):
     result = []
     seen = set()
-    for reflink in reversed(link.pv.get_links(rel="toxresult", for_entrypath=link)):
+    toxlinks = versionlinks.get_links(rel="toxresult", for_entrypath=for_link)
+    for reflink in reversed(toxlinks):
         try:
             toxresult = load_toxresult(reflink)
             for envname in toxresult["testenvs"]:
@@ -310,7 +311,7 @@ def index_get(context, request):
                       projectname, verdata)
             continue
         show_toxresults = not (stage.user.name == 'root' and stage.index == 'pypi')
-        pv = stage.get_versionlinks(name, ver)
+        versionlinks = stage.get_versionlinks(name, ver)
         packages.append(dict(
             info=dict(
                 title="%s-%s" % (name, ver),
@@ -322,7 +323,7 @@ def index_get(context, request):
                 request.route_url, "toxresults",
                 user=stage.user.name, index=stage.index,
                 name=name, version=ver),
-            files=get_files_info(request, pv, show_toxresults),
+            files=get_files_info(request, versionlinks, show_toxresults),
             docs=get_docs_info(request, stage, verdata)))
 
     return result
@@ -334,13 +335,13 @@ def index_get(context, request):
     renderer="templates/project.pt")
 def project_get(context, request):
     context = ContextWrapper(context)
-    releases = context.stage.get_releaselinks(context.name)
-    if not releases:
+    releaselinks = context.stage.get_releaselinks(context.name)
+    if not releaselinks:
         raise HTTPNotFound("The project %s does not exist." % context.name)
     versions = []
     seen = set()
-    for release in releases:
-        user, index = release.relpath.split("/", 2)[:2]
+    for release in releaselinks:
+        user, index = release.entrypath.split("/", 2)[:2]
         name, version = splitbasename(release)[:2]
         seen_key = (user, index, name, version)
         if seen_key in seen:
@@ -384,8 +385,8 @@ def version_get(context, request):
             value = py.xml.escape(value)
         infos.append((py.xml.escape(key), value))
     show_toxresults = not (user == 'root' and index == 'pypi')
-    pv = stage.get_versionlinks(name, version)
-    files = get_files_info(request, pv, show_toxresults)
+    versionlinks = stage.get_versionlinks(name, version)
+    files = get_files_info(request, versionlinks, show_toxresults)
     return dict(
         title="%s/: %s-%s metadata and description" % (stage.name, name, version),
         content=get_description(stage, name, version),
@@ -411,10 +412,10 @@ def version_get(context, request):
     renderer="templates/toxresults.pt")
 def toxresults(context, request):
     context = ContextWrapper(context)
-    pv = context.project_version
+    versionlinks = context.versionlinks
     basename = request.matchdict['basename']
     toxresults = get_toxresults_info(
-        pv.get_links(basename=basename)[0], newest=False)
+        versionlinks, versionlinks.get_links(basename=basename)[0], newest=False)
     return dict(
         title="%s/: %s-%s toxresults" % (
             context.stage.name, context.name, context.version),
@@ -431,12 +432,13 @@ def toxresults(context, request):
     renderer="templates/toxresult.pt")
 def toxresult(context, request):
     context = ContextWrapper(context)
-    pv = context.project_version
+    versionlinks = context.versionlinks
     basename = request.matchdict['basename']
     toxresult = request.matchdict['toxresult']
     toxresults = [
         x for x in get_toxresults_info(
-            pv.get_links(basename=basename)[0], newest=False)
+            versionlinks,
+            versionlinks.get_links(basename=basename)[0], newest=False)
         if x['basename'] == toxresult]
     return dict(
         title="%s/: %s-%s toxresult %s" % (

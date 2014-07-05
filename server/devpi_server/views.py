@@ -237,17 +237,17 @@ class PyPIView:
             threadlog.error(e.msg)
             abort(request, 502, e.msg)
         links = []
-        for entry in result:
-            relpath = entry.relpath
+        for link in result:
+            relpath = link.entrypath
             href = "/" + relpath
             href = URL(request.path).relpath(href)
-            if entry.eggfragment:
-                href += "#egg=%s" % entry.eggfragment
-            elif entry.md5:
-                href += "#md5=%s" % entry.md5
+            if link.eggfragment:
+                href += "#egg=%s" % link.eggfragment
+            elif link.md5:
+                href += "#md5=%s" % link.md5
             links.extend([
                  "/".join(relpath.split("/", 2)[:2]) + " ",
-                 html.a(entry.basename, href=href),
+                 html.a(link.basename, href=href),
                  html.br(), "\n",
             ])
         title = "%s: links for %s" % (stage.name, projectname)

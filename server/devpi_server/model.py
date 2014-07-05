@@ -214,13 +214,13 @@ class BaseStage:
     NotFound = NotFound
     UpstreamError = UpstreamError
 
-    def get_versionlinks(self, name, version, verdata=None):
-        return VersionLinks(self, name, version, verdata=verdata)
+    def get_versionlinks(self, name, version):
+        return VersionLinks(self, name, version)
 
     def get_link_from_entrypath(self, entrypath):
         entry = self.xom.filestore.get_file_entry(entrypath)
-        pv = self.get_versionlinks(entry.projectname, entry.version)
-        links = pv.get_links(entrypath=entrypath)
+        vl = self.get_versionlinks(entry.projectname, entry.version)
+        links = vl.get_links(entrypath=entrypath)
         assert len(links) < 2
         return links[0] if links else None
 
@@ -274,14 +274,14 @@ class BaseStage:
         for stage, res in self.op_sro_check_pypi_whitelist(
             "get_releaselinks_perstage", projectname=projectname):
             stagename2res[stage.name] = res
-            for entry in res:
-                if entry.eggfragment:
-                    key = entry.eggfragment
+            for link in res:
+                if link.eggfragment:
+                    key = link.eggfragment
                 else:
-                    key = entry.basename
+                    key = link.basename
                 if key not in basenames:
                     basenames.add(key)
-                    all_links.append(entry)
+                    all_links.append(link)
         return sorted_sameproject_links(all_links)
 
     def get_projectname(self, name):
@@ -463,8 +463,8 @@ class PrivateStage(BaseStage):
         if version not in versions:
             raise self.NotFound("version %r of project %r not found on stage %r" %
                                 (version, projectname, self.name))
-        pv = self.get_versionlinks(projectname, version)
-        pv.remove_links()
+        vl = self.get_versionlinks(projectname, version)
+        vl.remove_links()
         versions.remove(version)
         self.key_projversion(projectname, version).delete()
         self.key_projversions(projectname).set(versions)
@@ -478,12 +478,11 @@ class PrivateStage(BaseStage):
         return self.key_projversion(projectname, version).get()
 
     def get_releaselinks_perstage(self, projectname):
-        files = []
+        links = []
         for version in self.list_versions_perstage(projectname):
-            pv = self.get_versionlinks(projectname, version)
-            for link in pv.get_links("releasefile"):
-                files.append(link.entry)
-        return files
+            vl = self.get_versionlinks(projectname, version)
+            links.extend(vl.get_links("releasefile"))
+        return links
 
     def list_projectnames_perstage(self):
         return self.key_projectnames.get()
@@ -497,8 +496,8 @@ class PrivateStage(BaseStage):
         if not self.get_versiondata(name, version):
             raise self.MissesRegistration(name, version)
         threadlog.debug("project name of %r is %r", filename, name)
-        pv = self.get_versionlinks(name, version)
-        entry = pv.create_linked_entry(
+        vl = self.get_versionlinks(name, version)
+        entry = vl.create_linked_entry(
                 rel="releasefile",
                 basename=filename,
                 file_content=content,
@@ -511,8 +510,8 @@ class PrivateStage(BaseStage):
             threadlog.info("store_doczip: derived version of %s is %s",
                            name, version)
         basename = "%s-%s.doc.zip" % (name, version)
-        pv = self.get_versionlinks(name, version)
-        entry = pv.create_linked_entry(
+        vl = self.get_versionlinks(name, version)
+        entry = vl.create_linked_entry(
                 rel="doczip",
                 basename=basename,
                 file_content=content,
@@ -522,8 +521,8 @@ class PrivateStage(BaseStage):
     def get_doczip(self, name, version):
         """ get documentation zip as an open file
         (or None if no docs exists). """
-        pv = self.get_versionlinks(name, version)
-        links = pv.get_links(rel="doczip")
+        vl = self.get_versionlinks(name, version)
+        links = vl.get_links(rel="doczip")
         if links:
             assert len(links) == 1, links
             return links[0].entry.file_get_content()
@@ -543,7 +542,7 @@ class ELink:
         try:
             return self.linkdict[name]
         except KeyError:
-            if name == "for_entrypath":
+            if name in ("for_entrypath", "eggfragment"):
                 return None
             raise AttributeError(name)
 
@@ -556,25 +555,22 @@ class ELink:
 
 
 class VersionLinks:
-    def __init__(self, stage, projectname, version, verdata=None):
+    def __init__(self, stage, projectname, version):
         self.stage = stage
         self.filestore = stage.xom.filestore
         self.projectname = projectname
         self.version = version
-        if verdata is None:
-            try:
-                self.key_projversions = stage.key_projversions(
-                    name=projectname)
-                self.key_projversion = stage.key_projversion(
-                    name=projectname, version=version)
-            except AttributeError:
-                # pypistage has no key_projversion so we only read it
-                self.verdata = stage.get_versiondata_perstage(
-                    projectname, version)
-            else:
-                self.verdata = self.key_projversion.get()
+        try:
+            self.key_projversions = stage.key_projversions(
+                name=projectname)
+            self.key_projversion = stage.key_projversion(
+                name=projectname, version=version)
+        except AttributeError:
+            # pypistage has no key_projversion so we only read it
+            self.verdata = stage.get_versiondata_perstage(
+                projectname, version)
         else:
-            self.verdata = verdata
+            self.verdata = self.key_projversion.get()
         if self.verdata is None:
             self.verdata = {}
         if not self.verdata:

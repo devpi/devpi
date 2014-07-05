@@ -253,9 +253,10 @@ class TestExtPYPIDB:
         x = pypistage.mock_simple("pytest", pkgver="pytest-1.0.zip")
         links = pypistage.get_releaselinks("pytest")
         link, = links
-        assert link.url == "https://pypi.python.org/pkg/pytest-1.0.zip"
+        assert link.entry.url == "https://pypi.python.org/pkg/pytest-1.0.zip"
         assert link.md5 == x.md5
-        assert link.relpath.endswith("/pytest-1.0.zip")
+        assert link.entrypath.endswith("/pytest-1.0.zip")
+        assert link.entrypath == link.entry.relpath
 
     def test_parse_project_replaced_eggfragment(self, pypistage):
         pypistage.mock_simple("pytest", pypiserial=10,
@@ -304,8 +305,8 @@ class TestExtPYPIDB:
             headers = {"content-type": "text/html"})
         links = pypistage.get_releaselinks("pytest")
         assert len(links) == 2
-        assert links[0].url == "https://download.com/pytest-1.1.tar.gz"
-        assert links[0].relpath.endswith("/pytest-1.1.tar.gz")
+        assert links[0].entry.url == "https://download.com/pytest-1.1.tar.gz"
+        assert links[0].entrypath.endswith("/pytest-1.1.tar.gz")
 
         pv = pypistage.get_versionlinks("pytest", "1.0")
         links = pv.get_links()
@@ -322,8 +323,8 @@ class TestExtPYPIDB:
             '''.format(md5=md5, md5b=md5b), pypiserial=25)
         links = pypistage.get_releaselinks("pytest")
         assert len(links) == 3
-        assert links[1].url == "https://pypi.python.org/pkg/pytest-1.0.1.zip"
-        assert links[1].relpath.endswith("/pytest-1.0.1.zip")
+        assert links[1].entry.url == "https://pypi.python.org/pkg/pytest-1.0.1.zip"
+        assert links[1].entrypath.endswith("/pytest-1.0.1.zip")
 
     def test_parse_and_scrape_non_html_ignored(self, pypistage):
         pypistage.mock_simple("pytest", text='''
@@ -361,7 +362,7 @@ class TestExtPYPIDB:
             status_code=errorcode, text = 'not found')
         links = pypistage.get_releaselinks("pytest")
         assert len(links) == 1
-        assert links[0].url == \
+        assert links[0].entry.url == \
                 "https://pypi.python.org/pkg/pytest-1.0.zip"
 
     def test_scrape_not_recursive(self, pypistage):

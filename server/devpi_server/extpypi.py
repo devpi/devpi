@@ -187,7 +187,7 @@ class PyPIStage(BaseStage):
 
     def _dump_project_cache(self, projectname, entries, serial):
         normname = normalize_name(projectname)
-        dumplist = [(entry.relpath, entry.md5, entry.key.name)
+        dumplist = [(entry.relpath, entry.md5, entry.eggfragment)
                             for entry in entries]
         data = {"serial": serial,
                 "latest_serial": serial,
@@ -195,6 +195,7 @@ class PyPIStage(BaseStage):
                 "projectname": projectname}
         threadlog.debug("saving data for %s: %s", projectname, data)
         self.keyfs.PYPILINKS(name=normname).set(data)
+        return list(self._make_elinks(projectname, data["entrylist"]))
 
     def _load_project_cache(self, projectname):
         normname = normalize_name(projectname)
@@ -202,12 +203,16 @@ class PyPIStage(BaseStage):
         #log.debug("load data for %s: %s", projectname, data)
         return data
 
-    def _load_cache_entries(self, projectname):
+    def _load_cache_links(self, projectname):
         cache = self._load_project_cache(projectname)
         if cache and cache["serial"] >= cache["latest_serial"]:
-            get_proxy = self.filestore.get_proxy_file_entry
-            return [get_proxy(relpath, md5, keyname=keyname)
-                        for relpath, md5, keyname in cache["entrylist"]]
+            return list(self._make_elinks(projectname, cache["entrylist"]))
+
+    def _make_elinks(self, projectname, data):
+        from .model import ELink
+        for relpath, md5, eggfragment in data:
+            linkdict = dict(entrypath=relpath, md5=md5, eggfragment=eggfragment)
+            yield ELink(self.filestore, linkdict, projectname, "XXX")
 
     def clear_cache(self, projectname):
         normname = normalize_name(projectname)
@@ -226,9 +231,9 @@ class PyPIStage(BaseStage):
         projectname = self.get_projectname_perstage(projectname)
         if projectname is None:
             return []
-        entries = self._load_cache_entries(projectname)
-        if entries is not None:
-            return entries
+        links = self._load_cache_links(projectname)
+        if links is not None:
+            return links
         # get the simple page for the project
         url = self.PYPIURL_SIMPLE + projectname + "/"
         threadlog.debug("visiting index %s", url)
@@ -243,10 +248,10 @@ class PyPIStage(BaseStage):
             # XXX raise TransactionRestart to get a consistent clean view
             self.keyfs.commit_transaction_in_thread()
             self.keyfs.begin_transaction_in_thread()
-            entries = self._load_cache_entries(projectname)
-            if entries is not None:
-                return entries
-            raise self.UpstreamError("no cache entries from master for %s" %
+            links = self._load_cache_links(projectname)
+            if links is not None:
+                return links
+            raise self.UpstreamError("no cache links from master for %s" %
                                      projectname)
 
         # determine and check real project name
@@ -273,8 +278,7 @@ class PyPIStage(BaseStage):
 
         # compute release link entries and cache according to serial
         entries = [self.filestore.maplink(link) for link in releaselinks]
-        self._dump_project_cache(real_projectname, entries, serial)
-        return entries
+        return self._dump_project_cache(real_projectname, entries, serial)
 
     def get_projectname_perstage(self, name):
         norm_name = normalize_name(name)
@@ -309,7 +313,7 @@ class PyPIStage(BaseStage):
             links = verdata.setdefault("+elinks", [])
             links.append(dict(
                 rel="releasefile",
-                entrypath=link.relpath))
+                entrypath=link.entrypath))
         return verdata
 
 

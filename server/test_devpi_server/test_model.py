@@ -109,8 +109,8 @@ class TestStage:
         stage.modify(bases=("root/pypi",), pypi_whitelist=['someproject'])
         pypistage.mock_simple("someproject", "<a href='someproject-1.0.zip' /a>")
         assert stage.list_projectnames_perstage() == set()
-        entries = stage.get_releaselinks("someproject")
-        assert len(entries) == 1
+        links = stage.get_releaselinks("someproject")
+        assert len(links) == 1
         stage.register_metadata(dict(name="someproject", version="1.1"))
         assert stage.list_projectnames_perstage() == set(["someproject"])
 
@@ -122,11 +122,11 @@ class TestStage:
                               "<a href='someproject-1.0.zip' /a>")
         register_and_store(stage_dev2, "someproject-1.1.tar.gz")
         register_and_store(stage_dev2, "someproject-1.2.tar.gz")
-        entries = stage.get_releaselinks("someproject")
-        assert len(entries) == 3
-        assert entries[0].basename == "someproject-1.2.tar.gz"
-        assert entries[1].basename == "someproject-1.1.tar.gz"
-        assert entries[2].basename == "someproject-1.0.zip"
+        links = stage.get_releaselinks("someproject")
+        assert len(links) == 3
+        assert links[0].basename == "someproject-1.2.tar.gz"
+        assert links[1].basename == "someproject-1.1.tar.gz"
+        assert links[2].basename == "someproject-1.0.zip"
         assert stage.list_projectnames_perstage() == set()
         assert stage_dev2.list_projectnames_perstage() == set(["someproject"])
 
@@ -140,11 +140,11 @@ class TestStage:
                            name="some-project")
         register_and_store(stage, "some_project-1.2.tar.gz",
                            name="some-project")
-        entries = stage.get_releaselinks("some-project")
-        assert len(entries) == 3
-        assert entries[0].basename == "some_project-1.2.tar.gz"
-        assert entries[1].basename == "some_project-1.0.zip"
-        assert entries[2].basename == "some_project-1.0.tar.gz"
+        links = stage.get_releaselinks("some-project")
+        assert len(links) == 3
+        assert links[0].basename == "some_project-1.2.tar.gz"
+        assert links[1].basename == "some_project-1.0.zip"
+        assert links[2].basename == "some_project-1.0.tar.gz"
         assert stage.list_projectnames_perstage() == set(["some-project"])
 
     def test_get_releaselinks_inheritance_shadow(self, pypistage, stage):
@@ -154,9 +154,9 @@ class TestStage:
         register_and_store(stage, "someproject-1.0.zip", b"123")
         stage.store_releasefile("someproject", "1.0",
                                 "someproject-1.0.zip", b"123")
-        entries = stage.get_releaselinks("someproject")
-        assert len(entries) == 1
-        assert entries[0].relpath.endswith("someproject-1.0.zip")
+        links = stage.get_releaselinks("someproject")
+        assert len(links) == 1
+        assert links[0].entrypath.endswith("someproject-1.0.zip")
 
     def test_get_releaselinks_inheritance_shadow_egg(self, pypistage, stage):
         stage.modify(bases=("root/pypi",), pypi_whitelist=['py'])
@@ -165,9 +165,9 @@ class TestStage:
            <a href="http://bb.org/download/master#egg=py-dev2" />
         """)
         register_and_store(stage, "py-1.0.tar.gz", b"123")
-        entries = stage.get_releaselinks("py")
-        assert len(entries) == 3
-        e0, e1, e2 = entries
+        links = stage.get_releaselinks("py")
+        assert len(links) == 3
+        e0, e1, e2 = links
         assert e0.basename == "py-1.0.tar.gz"
         assert e1.basename == "py.zip"
         assert e2.basename == "master"
@@ -185,10 +185,10 @@ class TestStage:
         pypistage.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         verdata = stage.get_versiondata("someproject", "1.0")
-        pv = VersionLinks(stage, "someproject", "1.0", verdata)
-        assert len(pv.get_links(basename="someproject-1.0.zip")) == 1
+        assert verdata["+elinks"], verdata
+        assert "someproject-1.0.zip" in str(verdata)
 
-    def test_get_versiondata_inherited_with_nonexisting_version(self, pypistage, stage):
+    def test_get_versiondata_inherit_not_exist_version(self, pypistage, stage):
         stage.modify(bases=("root/pypi",), pypi_whitelist=['someproject'])
         pypistage.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
@@ -231,18 +231,18 @@ class TestStage:
         register_and_store(stage, "someproject-1.0.zip", b"123")
         stage.store_releasefile("someproject", "1.0",
                                 "someproject-1.0.zip", b"123")
-        entries = stage.get_releaselinks("someproject")
+        links = stage.get_releaselinks("someproject")
         # because the whitelist doesn't include "someproject" we only get
         # our upload
-        assert len(entries) == 1
-        assert entries[0].relpath.endswith("someproject-1.0.zip")
+        assert len(links) == 1
+        assert links[0].entrypath.endswith("someproject-1.0.zip")
         # if we add the project to the whitelist, we also get the release
         # from pypi
         stage.modify(pypi_whitelist=['someproject'])
-        entries = stage.get_releaselinks("someproject")
-        assert len(entries) == 2
-        assert entries[0].relpath.endswith("someproject-1.1.zip")
-        assert entries[1].relpath.endswith("someproject-1.0.zip")
+        links = stage.get_releaselinks("someproject")
+        assert len(links) == 2
+        assert links[0].entrypath.endswith("someproject-1.1.zip")
+        assert links[1].entrypath.endswith("someproject-1.0.zip")
 
     def test_project_whitelist_inheritance(self, pypistage, stage, user):
         user.create_stage(index="dev2", bases=("root/pypi",))
@@ -253,18 +253,18 @@ class TestStage:
         register_and_store(stage, "someproject-1.0.zip", b"123")
         stage.store_releasefile("someproject", "1.0",
                                 "someproject-1.0.zip", b"123")
-        entries = stage.get_releaselinks("someproject")
+        links = stage.get_releaselinks("someproject")
         # because the whitelist doesn't include "someproject" we only get
         # our upload
-        assert len(entries) == 1
-        assert entries[0].relpath.endswith("someproject-1.0.zip")
+        assert len(links) == 1
+        assert links[0].entrypath.endswith("someproject-1.0.zip")
         # if we add the project to the whitelist of the inherited index, we
         # also get the release from pypi
         stage_dev2.modify(pypi_whitelist=['someproject'])
-        entries = stage.get_releaselinks("someproject")
-        assert len(entries) == 2
-        assert entries[0].relpath.endswith("someproject-1.1.zip")
-        assert entries[1].relpath.endswith("someproject-1.0.zip")
+        links = stage.get_releaselinks("someproject")
+        assert len(links) == 2
+        assert links[0].entrypath.endswith("someproject-1.1.zip")
+        assert links[1].entrypath.endswith("someproject-1.0.zip")
 
     def test_store_and_delete_project(self, stage, bases):
         content = b"123"
@@ -378,9 +378,9 @@ class TestStage:
         entry = stage.store_releasefile("some", "1.0",
                                         "some-1.0.zip", content2)
         assert not isinstance(entry, int), entry
-        entries = stage.get_releaselinks("some")
-        assert len(entries) == 1
-        assert entries[0].file_get_content() == content2
+        links = stage.get_releaselinks("some")
+        assert len(links) == 1
+        assert links[0].entry.file_get_content() == content2
 
     def test_releasedata(self, stage):
         assert stage.metadata_keys
