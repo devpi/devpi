@@ -29,7 +29,7 @@ def preprocess_project(stage, name):
         verdata = stage.get_versiondata(name, version)
         if not i:
             result.update(verdata)
-        links = stage.get_linkstore(name, version).get_links(rel="doczip")
+        links = stage.get_linkstore_perstage(name, version).get_links(rel="doczip")
         if links:
             # we assume it has been unpacked
             result['doc_version'] = version

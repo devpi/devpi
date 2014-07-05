@@ -53,7 +53,7 @@ class ContextWrapper(object):
 
     @reify
     def linkstore(self):
-        return self.stage.get_linkstore(self.name, self.version)
+        return self.stage.get_linkstore_perstage(self.name, self.version)
 
 
 def get_doc_path_info(context, request):
@@ -311,7 +311,7 @@ def index_get(context, request):
                       projectname, verdata)
             continue
         show_toxresults = not (stage.user.name == 'root' and stage.index == 'pypi')
-        linkstore = stage.get_linkstore(name, ver)
+        linkstore = stage.get_linkstore_perstage(name, ver)
         packages.append(dict(
             info=dict(
                 title="%s-%s" % (name, ver),
@@ -385,7 +385,7 @@ def version_get(context, request):
             value = py.xml.escape(value)
         infos.append((py.xml.escape(key), value))
     show_toxresults = not (user == 'root' and index == 'pypi')
-    linkstore = stage.get_linkstore(name, version)
+    linkstore = stage.get_linkstore_perstage(name, version)
     files = get_files_info(request, linkstore, show_toxresults)
     return dict(
         title="%s/: %s-%s metadata and description" % (stage.name, name, version),

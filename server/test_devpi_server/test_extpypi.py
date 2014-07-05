@@ -308,7 +308,7 @@ class TestExtPYPIDB:
         assert links[0].entry.url == "https://download.com/pytest-1.1.tar.gz"
         assert links[0].entrypath.endswith("/pytest-1.1.tar.gz")
 
-        links = pypistage.get_linkstore("pytest", "1.0").get_links()
+        links = pypistage.get_linkstore_perstage("pytest", "1.0").get_links()
         assert len(links) == 1
         assert links[0].basename == "pytest-1.0.zip"
         assert links[0].entry.md5 == md5

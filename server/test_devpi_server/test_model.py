@@ -343,7 +343,7 @@ class TestStage:
         toxresultdata = {'hello': 'world'}
         link = stage.get_link_from_entrypath(entry.relpath)
         stage.store_toxresult(link, toxresultdata)
-        linkstore = stage.get_linkstore("pkg1", "1.0")
+        linkstore = stage.get_linkstore_perstage("pkg1", "1.0")
         tox_links = list(linkstore.get_links(rel="toxresult"))
         assert len(tox_links) == 1
         tentry = tox_links[0].entry
@@ -467,7 +467,7 @@ class TestLinkStore:
     @pytest.fixture
     def linkstore(self, stage):
         stage.register_metadata(dict(name="proj1", version="1.0"))
-        return stage.get_linkstore("proj1", "1.0")
+        return stage.get_linkstore_perstage("proj1", "1.0")
 
     def test_store_file(self, linkstore):
         linkstore.create_linked_entry(

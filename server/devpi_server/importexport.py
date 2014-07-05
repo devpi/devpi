@@ -216,7 +216,7 @@ class IndexDump:
 
             for version in data:
                 assert data[version]["name"] == realname
-                linkstore = self.stage.get_linkstore(realname, version)
+                linkstore = self.stage.get_linkstore_perstage(realname, version)
                 self.dump_releasefiles(linkstore)
                 self.dump_toxresults(linkstore)
                 content = self.stage.get_doczip(name, version)
@@ -378,7 +378,7 @@ class Importer:
             name, version, suffix = splitbasename(basename)
             stage.store_doczip(name, version, p.read("rb"))
         elif filedesc["type"] == "toxresult":
-            linkstore = stage.get_linkstore(filedesc["projectname"],
+            linkstore = stage.get_linkstore_perstage(filedesc["projectname"],
                                            filedesc["version"])
             link, = linkstore.get_links(entrypath=filedesc["for_entrypath"])
             stage.store_toxresult(link, json.loads(p.read("rb").decode("utf8")))

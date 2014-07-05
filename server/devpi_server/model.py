@@ -214,19 +214,19 @@ class BaseStage:
     NotFound = NotFound
     UpstreamError = UpstreamError
 
-    def get_linkstore(self, name, version):
+    def get_linkstore_perstage(self, name, version):
         return LinkStore(self, name, version)
 
     def get_link_from_entrypath(self, entrypath):
         entry = self.xom.filestore.get_file_entry(entrypath)
-        linkstore = self.get_linkstore(entry.projectname, entry.version)
+        linkstore = self.get_linkstore_perstage(entry.projectname, entry.version)
         links = linkstore.get_links(entrypath=entrypath)
         assert len(links) < 2
         return links[0] if links else None
 
     def store_toxresult(self, link, toxresultdata):
         assert isinstance(toxresultdata, dict), toxresultdata
-        linkstore = self.get_linkstore(link.projectname, link.version)
+        linkstore = self.get_linkstore_perstage(link.projectname, link.version)
         return linkstore.new_reflink(
                 rel="toxresult",
                 file_content=json.dumps(toxresultdata).encode("utf-8"),
@@ -234,7 +234,7 @@ class BaseStage:
 
     def get_toxresults(self, link):
         l = []
-        linkstore = self.get_linkstore(link.projectname, link.version)
+        linkstore = self.get_linkstore_perstage(link.projectname, link.version)
         for reflink in linkstore.get_links(rel="toxresult", for_entrypath=link):
             data = reflink.entry.file_get_content().decode("utf-8")
             l.append(json.loads(data))
@@ -463,7 +463,7 @@ class PrivateStage(BaseStage):
         if version not in versions:
             raise self.NotFound("version %r of project %r not found on stage %r" %
                                 (version, projectname, self.name))
-        linkstore = self.get_linkstore(projectname, version)
+        linkstore = self.get_linkstore_perstage(projectname, version)
         linkstore.remove_links()
         versions.remove(version)
         self.key_projversion(projectname, version).delete()
@@ -480,7 +480,7 @@ class PrivateStage(BaseStage):
     def get_releaselinks_perstage(self, projectname):
         links = []
         for version in self.list_versions_perstage(projectname):
-            linkstore = self.get_linkstore(projectname, version)
+            linkstore = self.get_linkstore_perstage(projectname, version)
             links.extend(linkstore.get_links("releasefile"))
         return links
 
@@ -496,7 +496,7 @@ class PrivateStage(BaseStage):
         if not self.get_versiondata(name, version):
             raise self.MissesRegistration(name, version)
         threadlog.debug("project name of %r is %r", filename, name)
-        linkstore = self.get_linkstore(name, version)
+        linkstore = self.get_linkstore_perstage(name, version)
         entry = linkstore.create_linked_entry(
                 rel="releasefile",
                 basename=filename,
@@ -510,7 +510,7 @@ class PrivateStage(BaseStage):
             threadlog.info("store_doczip: derived version of %s is %s",
                            name, version)
         basename = "%s-%s.doc.zip" % (name, version)
-        linkstore = self.get_linkstore(name, version)
+        linkstore = self.get_linkstore_perstage(name, version)
         entry = linkstore.create_linked_entry(
                 rel="doczip",
                 basename=basename,
@@ -521,7 +521,7 @@ class PrivateStage(BaseStage):
     def get_doczip(self, name, version):
         """ get documentation zip as an open file
         (or None if no docs exists). """
-        linkstore = self.get_linkstore(name, version)
+        linkstore = self.get_linkstore_perstage(name, version)
         links = linkstore.get_links(rel="doczip")
         if links:
             assert len(links) == 1, links
