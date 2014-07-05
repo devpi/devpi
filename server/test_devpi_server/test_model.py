@@ -21,7 +21,7 @@ def register_and_store(stage, basename, content=b"123", name=None):
     n, version = splitbasename(basename)[:2]
     if name is None:
         name = n
-    stage.register_metadata(dict(name=name, version=version))
+    stage.set_versiondata(dict(name=name, version=version))
     res = stage.store_releasefile(name, version, basename, content)
     return res
 
@@ -111,7 +111,7 @@ class TestStage:
         assert stage.list_projectnames_perstage() == set()
         links = stage.get_releaselinks("someproject")
         assert len(links) == 1
-        stage.register_metadata(dict(name="someproject", version="1.1"))
+        stage.set_versiondata(dict(name="someproject", version="1.1"))
         assert stage.list_projectnames_perstage() == set(["someproject"])
 
     def test_inheritance_twice(self, pypistage, stage, user):
@@ -303,7 +303,7 @@ class TestStage:
         assert entries[0].basename == "some-1.1.zip"
 
     def test_getdoczip(self, stage, bases, tmpdir):
-        stage.register_metadata(dict(name="pkg1", version="1.0"))
+        stage.set_versiondata(dict(name="pkg1", version="1.0"))
         assert not stage.get_doczip("pkg1", "1.0")
         content = zip_dict({"index.html": "<html/>",
             "_static": {}, "_templ": {"x.css": ""}})
@@ -318,7 +318,7 @@ class TestStage:
 
     def test_storedoczipfile(self, stage, bases):
         from devpi_common.archive import Archive
-        stage.register_metadata(dict(name="pkg1", version="1.0"))
+        stage.set_versiondata(dict(name="pkg1", version="1.0"))
         content = zip_dict({"index.html": "<html/>",
             "_static": {}, "_templ": {"x.css": ""}})
         stage.store_doczip("pkg1", "1.0", content)
@@ -384,59 +384,59 @@ class TestStage:
     def test_releasedata(self, stage):
         assert stage.metadata_keys
         assert not stage.get_versiondata("hello", "1.0")
-        stage.register_metadata(dict(name="hello", version="1.0", author="xy"))
+        stage.set_versiondata(dict(name="hello", version="1.0", author="xy"))
         d = stage.get_versiondata("hello", "1.0")
         assert d["author"] == "xy"
         #stage.ixconfig["volatile"] = False
         #with pytest.raises(stage.MetadataExists):
-        #    stage.register_metadata(dict(name="hello", version="1.0"))
+        #    stage.set_versiondata(dict(name="hello", version="1.0"))
         #
 
     def test_filename_version_mangling_issue68(self, stage):
         assert not stage.get_versiondata("hello", "1.0")
         metadata = dict(name="hello", version="1.0-test")
-        stage.register_metadata(metadata)
+        stage.set_versiondata(metadata)
         stage.store_releasefile("hello", "1.0-test",
                             "hello-1.0_test.whl", b"")
         ver = stage.get_latest_version_perstage("hello")
         assert ver == "1.0-test"
         #stage.ixconfig["volatile"] = False
         #with pytest.raises(stage.MetadataExists):
-        #    stage.register_metadata(dict(name="hello", version="1.0"))
+        #    stage.set_versiondata(dict(name="hello", version="1.0"))
         #
 
     def test_get_versiondata_latest(self, stage):
-        stage.register_metadata(dict(name="hello", version="1.0"))
-        stage.register_metadata(dict(name="hello", version="1.1"))
-        stage.register_metadata(dict(name="hello", version="0.9"))
+        stage.set_versiondata(dict(name="hello", version="1.0"))
+        stage.set_versiondata(dict(name="hello", version="1.1"))
+        stage.set_versiondata(dict(name="hello", version="0.9"))
         assert stage.get_latest_version_perstage("hello") == "1.1"
 
     def test_get_versiondata_latest_inheritance(self, user, model, stage):
         stage_base_name = stage.index + "base"
         user.create_stage(index=stage_base_name, bases=(stage.name,))
         stage_sub = model.getstage(stage.user.name, stage_base_name)
-        stage_sub.register_metadata(dict(name="hello", version="1.0"))
-        stage.register_metadata(dict(name="hello", version="1.1"))
+        stage_sub.set_versiondata(dict(name="hello", version="1.0"))
+        stage.set_versiondata(dict(name="hello", version="1.1"))
         assert stage_sub.get_latest_version_perstage("hello") == "1.0"
         assert stage.get_latest_version_perstage("hello") == "1.1"
 
     def test_releasedata_validation(self, stage):
         with pytest.raises(ValueError):
-             stage.register_metadata(dict(name="hello_", version="1.0"))
+             stage.set_versiondata(dict(name="hello_", version="1.0"))
 
-    def test_register_metadata_normalized_name_clash(self, stage):
-        stage.register_metadata(dict(name="hello-World", version="1.0"))
+    def test_set_versiondata_normalized_name_clash(self, stage):
+        stage.set_versiondata(dict(name="hello-World", version="1.0"))
         with pytest.raises(stage.RegisterNameConflict):
-            stage.register_metadata(dict(name="Hello-world", version="1.0"))
-            stage.register_metadata(dict(name="Hello_world", version="1.0"))
+            stage.set_versiondata(dict(name="Hello-world", version="1.0"))
+            stage.set_versiondata(dict(name="Hello_world", version="1.0"))
 
     @pytest.mark.start_threads
-    def test_register_metadata_hook(self, stage, queue):
+    def test_set_versiondata_hook(self, stage, queue):
         class Plugin:
-            def devpiserver_register_metadata(self, stage, metadata):
+            def devpiserver_set_versiondata(self, stage, metadata):
                 queue.put((stage, metadata))
         stage.xom.config.hook._plugins = [(Plugin(), None)]
-        stage.register_metadata(dict(name="hello", version="1.0"))
+        stage.set_versiondata(dict(name="hello", version="1.0"))
         stage.xom.keyfs.commit_transaction_in_thread()
         stage2, metadata = queue.get()
         assert stage2.name == stage.name
@@ -447,7 +447,7 @@ class TestStage:
             def devpiserver_docs_uploaded(self, stage, name, version, entry):
                 queue.put((stage, name, version, entry))
         stage.xom.config.hook._plugins = [(Plugin(), None)]
-        stage.register_metadata(dict(name="pkg1", version="1.0"))
+        stage.set_versiondata(dict(name="pkg1", version="1.0"))
         content = zip_dict({"index.html": "<html/>",
             "_static": {}, "_templ": {"x.css": ""}})
         stage.store_doczip("pkg1", "1.0", content)
@@ -457,15 +457,15 @@ class TestStage:
         assert version == "1.0"
 
     def test_get_existing_project(self, stage):
-        stage.register_metadata(dict(name="Hello", version="1.0"))
-        stage.register_metadata(dict(name="this", version="1.0"))
+        stage.set_versiondata(dict(name="Hello", version="1.0"))
+        stage.set_versiondata(dict(name="this", version="1.0"))
         name = stage.get_projectname("hello")
         assert name == "Hello"
 
 class TestLinkStore:
     @pytest.fixture
     def linkstore(self, stage):
-        stage.register_metadata(dict(name="proj1", version="1.0"))
+        stage.set_versiondata(dict(name="proj1", version="1.0"))
         return stage.get_linkstore_perstage("proj1", "1.0")
 
     def test_store_file(self, linkstore):

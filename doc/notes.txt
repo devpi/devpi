@@ -4,7 +4,7 @@ hook semantics for metadata and doc file changes
 
 There are currently two hooks notifying plugins of changes:
 
-    devpiserver_register_metadata(stage, metadata)
+    devpiserver_set_versiondata(stage, metadata)
 
     devpiserver_docs_uploaded(stage, name, version, entry)
 

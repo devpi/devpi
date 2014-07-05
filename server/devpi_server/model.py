@@ -409,7 +409,7 @@ class PrivateStage(BaseStage):
             if normalize_name(projectname) == normname:
                 return projectname
 
-    def register_metadata(self, metadata):
+    def set_versiondata(self, metadata):
         """ register metadata.  Raises ValueError in case of metadata
         errors. """
         validate_metadata(metadata)
@@ -421,7 +421,7 @@ class PrivateStage(BaseStage):
             log.error("project %r has other name %r in stage %s" %(
                       name, projectname, self.name))
             raise self.RegisterNameConflict(projectname)
-        self._register_metadata(metadata)
+        self._set_versiondata(metadata)
 
     def key_projversions(self, name):
         return self.keyfs.PROJVERSIONS(
@@ -431,7 +431,7 @@ class PrivateStage(BaseStage):
         return self.keyfs.PROJVERSION(
             user=self.user.name, index=self.index, name=name, version=version)
 
-    def _register_metadata(self, metadata):
+    def _set_versiondata(self, metadata):
         name = metadata["name"]
         version = metadata["version"]
         with self.key_projversion(name, version).update() as versionconfig:
@@ -631,7 +631,7 @@ class LinkStore:
         return entry
 
     def _mark_dirty(self):
-        self.stage._register_metadata(self.verdata)
+        self.stage._set_versiondata(self.verdata)
 
     def _get_inplace_linkdicts(self):
         return self.verdata.setdefault("+elinks", [])
@@ -726,7 +726,7 @@ class EventSubscribers:
             if metadata:
                 if metadata != old:
                     stage = self.xom.model.getstage(user, index)
-                    hook.devpiserver_register_metadata(stage, metadata)
+                    hook.devpiserver_set_versiondata(stage, metadata)
 
     def on_changed_file_entry(self, ev):
         """ when a file entry is modified. """

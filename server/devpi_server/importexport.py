@@ -341,7 +341,7 @@ class Importer:
                             self.warn("%r: ignoring project metadata without "
                                       "version information. " % name)
                             continue
-                        stage.register_metadata(versiondata)
+                        stage.set_versiondata(versiondata)
 
             # import release files
             for filedesc in import_index["files"]:

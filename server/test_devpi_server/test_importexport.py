@@ -126,7 +126,7 @@ class TestImportExport:
         from devpi_common.archive import Archive
         mapp1 = impexp.mapp1
         api = mapp1.create_and_use()
-        mapp1.register_metadata({"name": "hello", "version": "1.0"})
+        mapp1.set_versiondata({"name": "hello", "version": "1.0"})
         content = zip_dict({"index.html": "<html/>"})
         mapp1.upload_doc("hello.zip", content, "hello", "")
         impexp.export()

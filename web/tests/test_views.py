@@ -52,7 +52,7 @@ def test_docs_raw_view(mapp, testapp):
     api = mapp.create_and_use()
     content = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=400)
-    mapp.register_metadata({"name": "pkg1", "version": "2.6"})
+    mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
                     waithooks=True)
     r = testapp.xget(302, api.index + "/pkg1/2.6/+doc/")
@@ -73,7 +73,7 @@ def test_docs_view(mapp, testapp):
     api = mapp.create_and_use()
     content = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=400)
-    mapp.register_metadata({"name": "pkg1", "version": "2.6"})
+    mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
                     waithooks=True)
     r = testapp.xget(302, api.index + "/pkg1/2.6/+d/")
@@ -95,7 +95,7 @@ def test_docs_view(mapp, testapp):
 def test_docs_latest(mapp, testapp):
     api = mapp.create_and_use()
     content = zip_dict({"index.html": "<html><body>2.6</body></html>"})
-    mapp.register_metadata({"name": "pkg1", "version": "2.6"})
+    mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
                     waithooks=True)
     r = testapp.xget(200, api.index + "/pkg1/latest/+d/index.html")
@@ -108,7 +108,7 @@ def test_docs_latest(mapp, testapp):
     r = testapp.xget(200, iframe.attrs['src'])
     assert r.text == "<html><body>2.6</body></html>"
     # now we register a newer version, but docs should still be 2.6
-    mapp.register_metadata({"name": "pkg1", "version": "2.7"}, waithooks=True)
+    mapp.set_versiondata({"name": "pkg1", "version": "2.7"}, waithooks=True)
     r = testapp.xget(200, api.index + "/pkg1/latest/+d/index.html")
     iframe, = r.html.findAll('iframe')
     assert iframe.attrs['src'] == api.index + "/pkg1/latest/+doc/index.html"
@@ -189,7 +189,7 @@ def test_index_not_found(testapp):
 
 def test_index_view_project_info(mapp, testapp):
     api = mapp.create_and_use()
-    mapp.register_metadata({"name": "pkg1", "version": "2.6"})
+    mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
     r = testapp.get(api.index, headers=dict(accept="text/html"))
     assert r.status_code == 200
     links = r.html.select('#content a')
@@ -229,7 +229,7 @@ def test_index_view_project_files(mapp, testapp):
 @pytest.mark.with_notifier
 def test_index_view_project_docs(mapp, testapp):
     api = mapp.create_and_use()
-    mapp.register_metadata({"name": "pkg1", "version": "2.6"})
+    mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
     content = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
                     waithooks=True)
@@ -298,7 +298,7 @@ def test_version_view(mapp, testapp):
         "pkg1-2.6.zip", b"contentzip", "pkg1", "2.6")
     content = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200)
-    mapp.register_metadata({
+    mapp.set_versiondata({
         "name": "pkg1",
         "version": "2.6",
         "author": "Foo Bear",
@@ -378,7 +378,7 @@ def test_version_view_root_pypi_external_files(mapp, testapp, pypistage):
 def test_testdata(mapp, testapp):
     from test_devpi_server.example import tox_result_data
     api = mapp.create_and_use()
-    mapp.register_metadata(
+    mapp.set_versiondata(
         {"name": "pkg1", "version": "2.6", "description": "foo"})
     mapp.upload_file_pypi(
         "pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200, waithooks=True)
@@ -430,7 +430,7 @@ def test_search_no_results(testapp):
 @pytest.mark.with_notifier
 def test_search_docs(mapp, testapp):
     api = mapp.create_and_use()
-    mapp.register_metadata({
+    mapp.set_versiondata({
         "name": "pkg1",
         "version": "2.6",
         "description": "foo"}, waithooks=True)
@@ -455,7 +455,7 @@ def test_search_docs(mapp, testapp):
 @pytest.mark.with_notifier
 def test_search_deleted_stage(mapp, testapp):
     api = mapp.create_and_use()
-    mapp.register_metadata({
+    mapp.set_versiondata({
         "name": "pkg1",
         "version": "2.6",
         "description": "foo"})

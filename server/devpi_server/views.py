@@ -405,7 +405,7 @@ class PyPIView:
             #results.append((r.status_code, "upload", entry.relpath))
             #apireturn(200, results=results, type="actionlog")
             if not target_stage.get_versiondata(name, version):
-                self._register_metadata_dict(target_stage, metadata)
+                self._set_versiondata_dict(target_stage, metadata)
             results.append((200, "register", name, version,
                             "->", target_stage.name))
             for entry in matches:
@@ -478,7 +478,7 @@ class PyPIView:
         except KeyError:
             abort(request, 400, ":action field not found")
         if action == "submit":
-            self._register_metadata_form(stage, request.POST)
+            self._set_versiondata_form(stage, request.POST)
             return Response("")
         elif action in ("doc_upload", "file_upload"):
             try:
@@ -497,7 +497,7 @@ class PyPIView:
                 abort_if_invalid_filename(name, content.filename)
                 metadata = stage.get_versiondata(projectname, version)
                 if not metadata:
-                    self._register_metadata_form(stage, request.POST)
+                    self._set_versiondata_form(stage, request.POST)
                     metadata = stage.get_versiondata(projectname, version)
                     if not metadata:
                         abort_custom(400, "could not process form metadata")
@@ -523,7 +523,7 @@ class PyPIView:
             abort(request, 400, "action %r not supported" % action)
         return Response("")
 
-    def _register_metadata_form(self, stage, form):
+    def _set_versiondata_form(self, stage, form):
         metadata = {}
         for key in stage.metadata_keys:
             if key.lower() in stage.metadata_list_fields:
@@ -536,11 +536,11 @@ class PyPIView:
                 assert py.builtin._istext(val), val
             metadata[key] = val
 
-        self._register_metadata_dict(stage, metadata)
+        self._set_versiondata_dict(stage, metadata)
 
-    def _register_metadata_dict(self, stage, metadata):
+    def _set_versiondata_dict(self, stage, metadata):
         try:
-            stage.register_metadata(metadata)
+            stage.set_versiondata(metadata)
         except stage.RegisterNameConflict as e:
             othername = e.args[0]
             abort_custom(403, "cannot register %r because %r is already "

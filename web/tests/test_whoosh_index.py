@@ -81,7 +81,7 @@ def test_ngramfilter(input, expected):
 @pytest.mark.with_notifier
 def test_search_after_register(mapp, testapp):
     api = mapp.create_and_use()
-    mapp.register_metadata({
+    mapp.set_versiondata({
         "name": "pkg1",
         "version": "2.6",
         "description": "foo"}, waithooks=True)
@@ -90,7 +90,7 @@ def test_search_after_register(mapp, testapp):
     assert [(l.text.strip(), l.attrs['href']) for l in links] == [
         ("pkg1-2.6", "http://localhost/%s/pkg1/2.6" % api.stagename),
         ("Description", "http://localhost/%s/pkg1/2.6#description" % api.stagename)]
-    mapp.register_metadata({
+    mapp.set_versiondata({
         "name": "pkg1",
         "version": "2.7",
         "description": "foo"}, waithooks=True)

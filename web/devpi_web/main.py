@@ -136,6 +136,6 @@ def devpiserver_docs_uploaded(stage, name, version, entry):
     index_project(stage, name)
 
 
-def devpiserver_register_metadata(stage, metadata):
+def devpiserver_set_versiondata(stage, metadata):
     render_description(stage, metadata)
     index_project(stage, metadata['name'])
