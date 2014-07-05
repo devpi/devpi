@@ -1,6 +1,6 @@
 import json
 from devpi_common.url import URL
-from devpi_common.metadata import get_sorted_versions, parse_requirement
+from devpi_common.metadata import get_sorted_versions, parse_requirement, Version
 from devpi_common.viewhelp import ViewLinkStore
 
 def out_index(hub, projects):
