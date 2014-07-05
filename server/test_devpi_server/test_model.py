@@ -269,7 +269,7 @@ class TestStage:
         content = b"123"
         register_and_store(stage, "some-1.0.zip", content)
         assert stage.get_versiondata_perstage("some", "1.0")
-        stage.project_delete("some")
+        stage.del_project("some")
         assert not stage.list_versions_perstage("some")
 
     def test_store_and_delete_release(self, stage, bases):
@@ -277,21 +277,21 @@ class TestStage:
         register_and_store(stage, "some-1.1.zip")
         assert stage.get_versiondata_perstage("some", "1.0")
         assert stage.get_versiondata_perstage("some", "1.1")
-        stage.project_version_delete("some", "1.0")
+        stage.del_versiondata("some", "1.0")
         assert not stage.get_versiondata_perstage("some", "1.0")
         assert stage.get_versiondata_perstage("some", "1.1")
-        stage.project_version_delete("some", "1.1")
+        stage.del_versiondata("some", "1.1")
         assert stage.get_projectname("some") is None
 
     def test_delete_not_existing(self, stage, bases):
         with pytest.raises(stage.NotFound) as excinfo:
-            stage.project_version_delete("hello", "1.0")
+            stage.del_versiondata("hello", "1.0")
         assert excinfo.value.msg.startswith("project")
         assert "not found" in excinfo.value.msg
         register_and_store(stage, "hello-1.0.zip")
-        stage.project_version_delete("hello", "1.0", cleanup=False)
+        stage.del_versiondata("hello", "1.0", cleanup=False)
         with pytest.raises(stage.NotFound) as excinfo:
-            stage.project_version_delete("hello", "1.0")
+            stage.del_versiondata("hello", "1.0")
         assert excinfo.value.msg.startswith("version")
         assert "not found" in excinfo.value.msg
 
@@ -444,7 +444,7 @@ class TestStage:
         assert stage2.name == stage.name
         assert metadata == orig_metadata
         with stage.xom.keyfs.transaction(write=True):
-            stage.project_version_delete("hello", "1.0")
+            stage.del_versiondata("hello", "1.0")
         stage2, metadata = queue.get()
         assert stage2.name == stage.name
         assert not metadata

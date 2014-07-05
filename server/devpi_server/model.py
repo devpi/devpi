@@ -380,7 +380,7 @@ class PrivateStage(BaseStage):
     def delete(self):
         # delete all projects on this index
         for name in self.list_projectnames_perstage().copy():
-            self.project_delete(name)
+            self.del_project(name)
         with self.user.key.update() as userconfig:
             indexes = userconfig.get("indexes", {})
             if self.index not in indexes:
@@ -450,15 +450,15 @@ class PrivateStage(BaseStage):
             projectnames.add(name)
             self.key_projectnames.set(projectnames)
 
-    def project_delete(self, name):
+    def del_project(self, name):
         for version in self.key_projversions(name).get():
-            self.project_version_delete(name, version, cleanup=False)
+            self.del_versiondata(name, version, cleanup=False)
         with self.key_projectnames.update() as projectnames:
             projectnames.remove(name)
         threadlog.info("deleting project %s", name)
         self.key_projversions(name).delete()
 
-    def project_version_delete(self, name, version, cleanup=True):
+    def del_versiondata(self, name, version, cleanup=True):
         projectname = self.get_projectname_perstage(name)
         if projectname is None:
             raise self.NotFound("project %r not found on stage %r" %
@@ -473,7 +473,7 @@ class PrivateStage(BaseStage):
         self.key_projversion(projectname, version).delete()
         self.key_projversions(projectname).set(versions)
         if cleanup and not versions:
-            self.project_delete(projectname)
+            self.del_project(projectname)
 
     def list_versions_perstage(self, projectname):
         return self.key_projversions(projectname).get()

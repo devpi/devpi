@@ -583,8 +583,8 @@ class PyPIView:
 
     @view_config(
         route_name="/{user}/{index}/{name}", request_method="DELETE",
-        permission="project_delete")
-    def project_delete(self):
+        permission="del_project")
+    def del_project(self):
         stage, name = self.context.stage, self.context.name
         if stage.name == "root/pypi":
             abort(self.request, 405, "cannot delete root/pypi index")
@@ -594,7 +594,7 @@ class PyPIView:
         if not stage.ixconfig["volatile"]:
             apireturn(403, "project %r is on non-volatile index %s" %(
                       projectname, stage.name))
-        stage.project_delete(projectname)
+        stage.del_project(projectname)
         apireturn(200, "project %r deleted from stage %s" % (name, stage.name))
 
     @view_config(route_name="/{user}/{index}/{name}/{version}", accept="application/json", request_method="GET")
@@ -638,7 +638,7 @@ class PyPIView:
 
     @view_config(route_name="/{user}/{index}/{name}/{version}",
                  request_method="DELETE")
-    def project_version_delete(self):
+    def del_versiondata(self):
         stage = self.context.stage
         name, version = self.context.name, self.context.version
         if stage.name == "root/pypi":
@@ -646,7 +646,7 @@ class PyPIView:
         if not stage.ixconfig["volatile"]:
             abort(self.request, 403, "cannot delete version on non-volatile index")
         try:
-            stage.project_version_delete(name, version)
+            stage.del_versiondata(name, version)
         except stage.NotFound as e:
             abort(self.request, 404, e.msg)
         apireturn(200, "project %r version %r deleted" % (name, version))
