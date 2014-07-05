@@ -452,17 +452,32 @@ class TestStage:
     @pytest.mark.start_threads
     def test_doczip_uploaded_hook(self, stage, queue):
         class Plugin:
-            def devpiserver_docs_uploaded(self, stage, name, version, entry):
-                queue.put((stage, name, version, entry))
+            def devpiserver_on_upload(self, stage, projectname, version, link):
+                queue.put((stage, projectname, version, link))
         stage.xom.config.hook._plugins = [(Plugin(), None)]
         stage.set_versiondata(dict(name="pkg1", version="1.0"))
         content = zip_dict({"index.html": "<html/>",
             "_static": {}, "_templ": {"x.css": ""}})
         stage.store_doczip("pkg1", "1.0", content)
         stage.xom.keyfs.commit_transaction_in_thread()
-        nstage, name, version, entry = queue.get()
+        nstage, name, version, link = queue.get()
         assert name == "pkg1"
         assert version == "1.0"
+        with stage.xom.keyfs.transaction():
+            assert link.entry.file_get_content() == content
+        # delete, which shouldnt trigger devpiserver_on_upload
+        with stage.xom.keyfs.transaction(write=True):
+            linkstore = stage.get_linkstore_perstage("pkg1", "1.0")
+            linkstore.remove_links()
+
+        # now write again and check that we get something from the queue
+        with stage.xom.keyfs.transaction(write=True):
+            stage.store_doczip("pkg1", "1.0", content)
+        nstage, name, version, link = queue.get()
+        assert name == "pkg1" and version == "1.0"
+        with stage.xom.keyfs.transaction():
+            assert link.entry.file_exists()
+
 
     def test_get_existing_project(self, stage):
         stage.set_versiondata(dict(name="Hello", version="1.0"))

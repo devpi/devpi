@@ -719,7 +719,10 @@ class EventSubscribers:
             old = {}
         else:
             assert ev.back_serial < ev.at_serial
-            old = keyfs.get_value_at(ev.typedkey, ev.back_serial)
+            try:
+                old = keyfs.get_value_at(ev.typedkey, ev.back_serial)
+            except KeyError:
+                old = {}
         with keyfs.transaction(write=False, at_serial=ev.at_serial):
             # XXX slightly flaky logic for detecting metadata changes
             metadata = ev.value
@@ -737,12 +740,20 @@ class EventSubscribers:
         index = params.get("index")
         keyfs = self.xom.keyfs
         with keyfs.transaction(at_serial=ev.at_serial):
-            entry = FileEntry(self.xom, ev.typedkey, meta=ev.value)
             stage = self.xom.model.getstage(user, index)
-            if entry.basename.endswith(".doc.zip"):
-                self.xom.config.hook.devpiserver_docs_uploaded(
-                    stage=stage, name=entry.projectname,
+            if stage.ixconfig["type"] == "mirror":
+                return  # we don't trigger on file changes of pypi mirror
+            entry = FileEntry(self.xom, ev.typedkey, meta=ev.value)
+            if not entry.projectname or not entry.version:
+                # the entry was deleted
+                return
+            stage = self.xom.model.getstage(user, index)
+            linkstore = stage.get_linkstore_perstage(
+                                                entry.projectname, entry.version)
+            links = linkstore.get_links(basename=entry.basename)
+            if len(links) == 1:
+                self.xom.config.hook.devpiserver_on_upload(
+                    stage=stage, projectname=entry.projectname,
                     version=entry.version,
-                    entry=entry)
-            # XXX we could add register_releasefile event here
+                    link=links[0])
 
