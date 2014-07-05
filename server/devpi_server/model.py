@@ -571,7 +571,8 @@ class LinkStore:
         self.version = version
         self.verdata = stage.get_versiondata_perstage(projectname, version)
         if not self.verdata:
-            raise MissesRegistration("%s-%s", projectname, version)
+            raise MissesRegistration("%s-%s on stage %s",
+                                     projectname, version, stage.name)
 
     def create_linked_entry(self, rel, basename, file_content, last_modified=None):
         assert isinstance(file_content, bytes)
