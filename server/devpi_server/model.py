@@ -214,28 +214,28 @@ class BaseStage:
     NotFound = NotFound
     UpstreamError = UpstreamError
 
-    def get_versionlinks(self, name, version):
-        return VersionLinks(self, name, version)
+    def get_linkstore(self, name, version):
+        return LinkStore(self, name, version)
 
     def get_link_from_entrypath(self, entrypath):
         entry = self.xom.filestore.get_file_entry(entrypath)
-        vl = self.get_versionlinks(entry.projectname, entry.version)
-        links = vl.get_links(entrypath=entrypath)
+        linkstore = self.get_linkstore(entry.projectname, entry.version)
+        links = linkstore.get_links(entrypath=entrypath)
         assert len(links) < 2
         return links[0] if links else None
 
     def store_toxresult(self, link, toxresultdata):
         assert isinstance(toxresultdata, dict), toxresultdata
-        vl = self.get_versionlinks(link.projectname, link.version)
-        return vl.new_reflink(
+        linkstore = self.get_linkstore(link.projectname, link.version)
+        return linkstore.new_reflink(
                 rel="toxresult",
                 file_content=json.dumps(toxresultdata).encode("utf-8"),
                 for_entrypath=link)
 
     def get_toxresults(self, link):
         l = []
-        vl = self.get_versionlinks(link.projectname, link.version)
-        for reflink in vl.get_links(rel="toxresult", for_entrypath=link):
+        linkstore = self.get_linkstore(link.projectname, link.version)
+        for reflink in linkstore.get_links(rel="toxresult", for_entrypath=link):
             data = reflink.entry.file_get_content().decode("utf-8")
             l.append(json.loads(data))
         return l
@@ -463,8 +463,8 @@ class PrivateStage(BaseStage):
         if version not in versions:
             raise self.NotFound("version %r of project %r not found on stage %r" %
                                 (version, projectname, self.name))
-        vl = self.get_versionlinks(projectname, version)
-        vl.remove_links()
+        linkstore = self.get_linkstore(projectname, version)
+        linkstore.remove_links()
         versions.remove(version)
         self.key_projversion(projectname, version).delete()
         self.key_projversions(projectname).set(versions)
@@ -480,8 +480,8 @@ class PrivateStage(BaseStage):
     def get_releaselinks_perstage(self, projectname):
         links = []
         for version in self.list_versions_perstage(projectname):
-            vl = self.get_versionlinks(projectname, version)
-            links.extend(vl.get_links("releasefile"))
+            linkstore = self.get_linkstore(projectname, version)
+            links.extend(linkstore.get_links("releasefile"))
         return links
 
     def list_projectnames_perstage(self):
@@ -496,8 +496,8 @@ class PrivateStage(BaseStage):
         if not self.get_versiondata(name, version):
             raise self.MissesRegistration(name, version)
         threadlog.debug("project name of %r is %r", filename, name)
-        vl = self.get_versionlinks(name, version)
-        entry = vl.create_linked_entry(
+        linkstore = self.get_linkstore(name, version)
+        entry = linkstore.create_linked_entry(
                 rel="releasefile",
                 basename=filename,
                 file_content=content,
@@ -510,8 +510,8 @@ class PrivateStage(BaseStage):
             threadlog.info("store_doczip: derived version of %s is %s",
                            name, version)
         basename = "%s-%s.doc.zip" % (name, version)
-        vl = self.get_versionlinks(name, version)
-        entry = vl.create_linked_entry(
+        linkstore = self.get_linkstore(name, version)
+        entry = linkstore.create_linked_entry(
                 rel="doczip",
                 basename=basename,
                 file_content=content,
@@ -521,8 +521,8 @@ class PrivateStage(BaseStage):
     def get_doczip(self, name, version):
         """ get documentation zip as an open file
         (or None if no docs exists). """
-        vl = self.get_versionlinks(name, version)
-        links = vl.get_links(rel="doczip")
+        linkstore = self.get_linkstore(name, version)
+        links = linkstore.get_links(rel="doczip")
         if links:
             assert len(links) == 1, links
             return links[0].entry.file_get_content()
@@ -554,7 +554,7 @@ class ELink:
         return self.filestore.get_file_entry(self.entrypath)
 
 
-class VersionLinks:
+class LinkStore:
     def __init__(self, stage, projectname, version):
         self.stage = stage
         self.filestore = stage.xom.filestore

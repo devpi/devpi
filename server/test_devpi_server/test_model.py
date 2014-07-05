@@ -343,8 +343,8 @@ class TestStage:
         toxresultdata = {'hello': 'world'}
         link = stage.get_link_from_entrypath(entry.relpath)
         stage.store_toxresult(link, toxresultdata)
-        pv = stage.get_versionlinks("pkg1", "1.0")
-        tox_links = list(pv.get_links(rel="toxresult"))
+        linkstore = stage.get_linkstore("pkg1", "1.0")
+        tox_links = list(linkstore.get_links(rel="toxresult"))
         assert len(tox_links) == 1
         tentry = tox_links[0].entry
         assert tentry.basename == "pkg1-1.0.tar.gz.toxresult0"
@@ -463,45 +463,45 @@ class TestStage:
         name = stage.get_projectname("hello")
         assert name == "Hello"
 
-class TestVersionLinks:
+class TestLinkStore:
     @pytest.fixture
-    def pv(self, stage):
+    def linkstore(self, stage):
         stage.register_metadata(dict(name="proj1", version="1.0"))
-        return stage.get_versionlinks("proj1", "1.0")
+        return stage.get_linkstore("proj1", "1.0")
 
-    def test_store_file(self, pv):
-        pv.create_linked_entry(
+    def test_store_file(self, linkstore):
+        linkstore.create_linked_entry(
             rel="releasefile", basename="proj1-1.0.zip", file_content=b'123'
         )
-        pv.create_linked_entry(
+        linkstore.create_linked_entry(
             rel="doczip", basename="proj1-1.0.doc.zip", file_content=b'123'
         )
-        link, = pv.get_links(rel="releasefile")
+        link, = linkstore.get_links(rel="releasefile")
         assert link.entrypath.endswith("proj1-1.0.zip")
 
-    def test_toxresult_create_remove(self, pv):
-        pv.create_linked_entry(
+    def test_toxresult_create_remove(self, linkstore):
+        linkstore.create_linked_entry(
             rel="releasefile", basename="proj1-1.0.zip", file_content=b'123'
         )
-        pv.create_linked_entry(
+        linkstore.create_linked_entry(
             rel="releasefile", basename="proj1-1.1.zip", file_content=b'456'
         )
-        link1, link2= pv.get_links(rel="releasefile")
+        link1, link2= linkstore.get_links(rel="releasefile")
         assert link1.entrypath.endswith("proj1-1.0.zip")
 
-        pv.new_reflink(rel="toxresult", file_content=b'123', for_entrypath=link1)
-        pv.new_reflink(rel="toxresult", file_content=b'456', for_entrypath=link2)
-        rlink, = pv.get_links(rel="toxresult", for_entrypath=link1)
+        linkstore.new_reflink(rel="toxresult", file_content=b'123', for_entrypath=link1)
+        linkstore.new_reflink(rel="toxresult", file_content=b'456', for_entrypath=link2)
+        rlink, = linkstore.get_links(rel="toxresult", for_entrypath=link1)
         assert rlink.for_entrypath == link1.entrypath
-        rlink, = pv.get_links(rel="toxresult", for_entrypath=link2)
+        rlink, = linkstore.get_links(rel="toxresult", for_entrypath=link2)
         assert rlink.for_entrypath == link2.entrypath
 
         link1_entry = link1.entry  # queried below
 
         # remove one release link, which should removes its toxresults
         # and check that the other release and its toxresult is still there
-        pv.remove_links(rel="releasefile", basename="proj1-1.0.zip")
-        links = pv.get_links()
+        linkstore.remove_links(rel="releasefile", basename="proj1-1.0.zip")
+        links = linkstore.get_links()
         assert len(links) == 2
         assert links[0].rel == "releasefile"
         assert links[1].rel == "toxresult"

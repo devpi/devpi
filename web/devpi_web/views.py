@@ -52,8 +52,8 @@ class ContextWrapper(object):
         return verdata
 
     @reify
-    def versionlinks(self):
-        return self.stage.get_versionlinks(self.name, self.version)
+    def linkstore(self):
+        return self.stage.get_linkstore(self.name, self.version)
 
 
 def get_doc_path_info(context, request):
@@ -150,13 +150,13 @@ def sizeof_fmt(num):
     return (num, 'TB')
 
 
-def get_files_info(request, versionlinks, show_toxresults=False):
+def get_files_info(request, linkstore, show_toxresults=False):
     xom = request.registry['xom']
     files = []
-    filedata = versionlinks.get_links(rel='releasefile')
+    filedata = linkstore.get_links(rel='releasefile')
     if not filedata:
         log.warn("project %r version %r has no files",
-                 versionlinks.projectname, versionlinks.version)
+                 linkstore.projectname, linkstore.version)
     for link in sorted(filedata, key=attrgetter('basename')):
         entry = xom.filestore.get_file_entry(link.entrypath)
         relurl = URL(request.path).relpath("/" + entry.relpath)
@@ -179,7 +179,7 @@ def get_files_info(request, versionlinks, show_toxresults=False):
             py_version=py_version,
             size=size)
         if show_toxresults:
-            toxresults = get_toxresults_info(versionlinks, link)
+            toxresults = get_toxresults_info(linkstore, link)
             if toxresults:
                 fileinfo['toxresults'] = toxresults
         files.append(fileinfo)
@@ -203,10 +203,10 @@ def load_toxresult(link):
     return json.loads(data)
 
 
-def get_toxresults_info(versionlinks, for_link, newest=False):
+def get_toxresults_info(linkstore, for_link, newest=False):
     result = []
     seen = set()
-    toxlinks = versionlinks.get_links(rel="toxresult", for_entrypath=for_link)
+    toxlinks = linkstore.get_links(rel="toxresult", for_entrypath=for_link)
     for reflink in reversed(toxlinks):
         try:
             toxresult = load_toxresult(reflink)
@@ -311,7 +311,7 @@ def index_get(context, request):
                       projectname, verdata)
             continue
         show_toxresults = not (stage.user.name == 'root' and stage.index == 'pypi')
-        versionlinks = stage.get_versionlinks(name, ver)
+        linkstore = stage.get_linkstore(name, ver)
         packages.append(dict(
             info=dict(
                 title="%s-%s" % (name, ver),
@@ -323,7 +323,7 @@ def index_get(context, request):
                 request.route_url, "toxresults",
                 user=stage.user.name, index=stage.index,
                 name=name, version=ver),
-            files=get_files_info(request, versionlinks, show_toxresults),
+            files=get_files_info(request, linkstore, show_toxresults),
             docs=get_docs_info(request, stage, verdata)))
 
     return result
@@ -385,8 +385,8 @@ def version_get(context, request):
             value = py.xml.escape(value)
         infos.append((py.xml.escape(key), value))
     show_toxresults = not (user == 'root' and index == 'pypi')
-    versionlinks = stage.get_versionlinks(name, version)
-    files = get_files_info(request, versionlinks, show_toxresults)
+    linkstore = stage.get_linkstore(name, version)
+    files = get_files_info(request, linkstore, show_toxresults)
     return dict(
         title="%s/: %s-%s metadata and description" % (stage.name, name, version),
         content=get_description(stage, name, version),
@@ -412,10 +412,10 @@ def version_get(context, request):
     renderer="templates/toxresults.pt")
 def toxresults(context, request):
     context = ContextWrapper(context)
-    versionlinks = context.versionlinks
+    linkstore = context.linkstore
     basename = request.matchdict['basename']
     toxresults = get_toxresults_info(
-        versionlinks, versionlinks.get_links(basename=basename)[0], newest=False)
+        linkstore, linkstore.get_links(basename=basename)[0], newest=False)
     return dict(
         title="%s/: %s-%s toxresults" % (
             context.stage.name, context.name, context.version),
@@ -432,13 +432,13 @@ def toxresults(context, request):
     renderer="templates/toxresult.pt")
 def toxresult(context, request):
     context = ContextWrapper(context)
-    versionlinks = context.versionlinks
+    linkstore = context.linkstore
     basename = request.matchdict['basename']
     toxresult = request.matchdict['toxresult']
     toxresults = [
         x for x in get_toxresults_info(
-            versionlinks,
-            versionlinks.get_links(basename=basename)[0], newest=False)
+            linkstore,
+            linkstore.get_links(basename=basename)[0], newest=False)
         if x['basename'] == toxresult]
     return dict(
         title="%s/: %s-%s toxresult %s" % (

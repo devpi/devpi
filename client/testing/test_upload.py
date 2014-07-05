@@ -5,7 +5,7 @@ import pytest
 from devpi.upload import *
 from textwrap import dedent
 from devpi_common.metadata import splitbasename
-from devpi_common.viewhelp import ViewVersionLinks
+from devpi_common.viewhelp import ViewLinkStore
 from devpi.main import check_output
 
 @pytest.fixture
@@ -145,7 +145,7 @@ class TestUploadFunctional:
             url = hub.current.get_index_url().url + "hello/%s/" % ver
             out = out_devpi("getjson", url)
             data = json.loads(out.stdout.str())
-            vv = ViewVersionLinks(url, data["result"])
+            vv = ViewLinkStore(url, data["result"])
             assert vv.get_link(basename="hello-%s.zip" % ver)
 
     def test_frompath(self, initproj, devpi, out_devpi, runproc):
@@ -161,7 +161,7 @@ class TestUploadFunctional:
         url = hub.current.get_index_url().url + "hello/1.3/"
         out = out_devpi("getjson", url)
         data = json.loads(out.stdout.str())
-        vv = ViewVersionLinks(url, data["result"])
+        vv = ViewLinkStore(url, data["result"])
         assert vv.get_link(basename="hello-1.3.zip")
 
 

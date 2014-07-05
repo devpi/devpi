@@ -13,7 +13,7 @@ from pyramid.response import Response
 from devpi_common.metadata import splitbasename
 from devpi_common.url import URL
 from devpi_common.archive import Archive, zip_dict
-from devpi_common.viewhelp import ViewVersionLinks
+from devpi_common.viewhelp import ViewLinkStore
 
 import devpi_server.views
 from devpi_server.views import tween_keyfs_transaction
@@ -604,11 +604,11 @@ def get_view_version_links(testapp, index, name, version, proj=False):
     if proj:
         url = "/".join([index, name])
         r = testapp.get_json(url, expect_errors=False)
-        return ViewVersionLinks(url, r.json["result"][version])
+        return ViewLinkStore(url, r.json["result"][version])
     else:
         url = "/".join([index, name, version])
         r = testapp.get_json(url, expect_errors=False)
-        return ViewVersionLinks(url, r.json["result"])
+        return ViewLinkStore(url, r.json["result"])
 
 
 def test_wrong_login_format(testapp, mapp):

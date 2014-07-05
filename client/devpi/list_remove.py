@@ -1,7 +1,7 @@
 import json
 from devpi_common.url import URL
 from devpi_common.metadata import get_sorted_versions, parse_requirement
-from devpi_common.viewhelp import ViewVersionLinks
+from devpi_common.viewhelp import ViewLinkStore
 
 def out_index(hub, projects):
     for name in sorted(projects):
@@ -37,7 +37,7 @@ def out_project(hub, reply, req):
 
 
 def out_project_version_files(hub, url, verdata, version, index):
-    vv = ViewVersionLinks(url, verdata)
+    vv = ViewLinkStore(url, verdata)
     release_links = vv.get_links(rel="releasefile")
     for link in release_links:
         if version.startswith("egg="):
@@ -141,7 +141,7 @@ def confirm_delete(hub, reply, req):
     ver_to_delete = []
     for version, verdata in reply.result.items():
         if version in req:
-            vv = ViewVersionLinks(basepath, verdata)
+            vv = ViewLinkStore(basepath, verdata)
             files_to_delete = [link for link in vv.get_links()
                                 if link.href.startswith(hub.current.index)]
             if files_to_delete:  # XXX need to delete metadata without files
