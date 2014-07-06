@@ -226,8 +226,7 @@ devpi-client:
 - fix issue17: better reporting when "devpi use" does not operate on valid URL
 
 - test result upload and access: 
-  - "devpi test" invokes "tox --result-json ..." and uploads 
-    the test result log to devpi-server.  
+  - "devpi test" invokes "tox --result-json ..." and uploads the test result log to devpi-server.  
   - "devpi list [-f] PKG" shows test result information.
 
 - add "uploadtrigger_jenkins" configuration option through "devpi

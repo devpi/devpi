@@ -1,0 +1,140 @@
+devpi-server replication
+====================================
+
+.. versionadded: 2.0
+
+The devpi-server replication protocol aims to:
+
+- support high-availability: when the master goes down, a replica
+  node can easily be configured to be the new master.
+
+- support faster installs: a geographically closer replica will
+  answer queries much faster than the more remote master node.
+
+Usage
+---------------------------------------------
+
+A regular ``devpi-server`` instance can serve as a master.
+In order to start a replica you need to provide the root master URL::
+
+    devpi-server --master http://url-of-master
+
+If you are testing replication and run the master and replica on the
+same host make sure you specify different server directories and ports
+like this::
+
+    # start master in one window
+    devpi-server --serverdir masterdir
+
+    # start replica in another window
+    devpi-server --master http://localhost:3141 --port 4000 --serverdir replica
+
+You can now connect to ``http://localhost:3141`` or ``http://localhost:4000``
+interchangeably.  Specify ``--debug`` to see more output related to the
+replica operations.
+
+Implemented user stories
+-------------------------------------------
+
+The devpi-server replication protocol is designed with
+the following user stories in mind:
+
+- A user wants to connect to a geographically close devpi-server 
+  instance (real-time "replica") and use it instead of the geographically 
+  remote master devpi-server instance. The real-time replica serves the 
+  same indices, releases and documentation that the master provides. 
+
+- A user uploads to the replica server a package, documentation, test result 
+  or modifies an index and expects the change to be visible at the master
+  and other replicas.  The replica will proxy such operations to the master 
+  and notify the user of a successful change only after the operation 
+  propagated back to the replica.
+
+- A user can repeat installations against a replica without requiring
+  the master or ``https://pypi.python.org`` to be online.  The replica 
+  carries all neccessary information with itself but it will not allow 
+  any modifying operations without connecting to the master.
+
+- A server administrator can start a devpi-server in replicating mode 
+  by providing a master URL. The node will immediately start with replicating 
+  the master information.  After the initial sync the replica keep
+  a connection to the master in order to get notified immediately of any
+  changes.
+
+
+.. _`http relaying`:
+
+HTTP relaying of replica server to master
+-----------------------------------------------------------
+
+devpi-server in replica mode serves the same API and endpoints 
+as the master server but it will internally relay change-operations
+(see change entry types above).  In general such state-changing
+requests will be relayed to the master which should in its success
+code tell what serial this change refers to.  The replica server
+can then return a success code to its client after
+that serial has been synchronized successfully.  Other replicas
+may or may not have synchronized the same change.
+
+
+.. _`laptop replication`:
+
+Laptop replication (frequent disconnects)
+------------------------------------------------
+
+The primary user story for replication as of version 2.0 is maintaining
+a per-organisation multi-server install of devpi-server.  In principle,
+a local per-laptop replica can use the same replication mechanisms.
+As laptops are often disconnected or sleeping, the replication
+pattern will look different: it will be more common to have relatively
+large lists of change entries to process.
+
+In the future, we can think about ways to minimize replication traffic by:
+
+a) subscribing to changes based on a filter (only changes related to a user,
+   certain indices, etc.)
+
+b) only retrieving archive or documentation files into the replica
+   if they are actually accessed on the laptop replica side.
+
+
+Handling concurrency within the replica server
+-------------------------------------------------
+
+Both master and replica servers can handle multiple concurrent requests.
+HTTP requests are run in threads (or greenlets) and we thus need to insure
+that the backend layer is thread safe and provides means for
+manipulating state in an atomic way.
+
+One particular complication is `http relaying`_ of state changes posted
+to the replica.  The replication thread needs to be able to signal
+the request-thread which triggered the change on the master so that
+a proper http response can be constructed.  Given a state-changing
+request to the replica, we do the following:
+
+- trigger state changing on the master, wait for success response
+  which includes the related ``SERIAL``.
+
+- wait for the replica state serial to reach at least ``SERIAL``.
+
+- if the wait times out we return an error result.
+
+Note that this sequence could be interrupted at any point in time
+because of a partial network disconnect or a failure between the three 
+parties (replica, master, client).  This may make it hard for the
+client to know the exact result of the original state-changing operation.  
+
+To remedy this, we may consider implementing a per-server (and maybe also
+per-index) view on "recent changes", and also detailing the "local" serials
+and "remote serials" as well as the replica/master connection status,
+see `issue113 <https://bitbucket.org/hpk42/devpi/issue/113/provide-devpi-url-status-to-retrieve>`_.
+
+
+Transactional master state changes / SQL
+-------------------------------------------------------
+
+Every change on the devpi-server master side happens
+atomically and is associated with a unique serial number.  
+All changes to meta information happens in a transaction
+carried out via ``sqlite3``.  All files are stored in the
+filesystem outside of the SQL database.

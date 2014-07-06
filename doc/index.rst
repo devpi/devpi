@@ -13,7 +13,6 @@ devpi: PyPI server and packaging/testing/release tool
 
    #devpi on freenode
 
-
 The MIT-licensed devpi system features a powerful PyPI-compatible server
 and a complimentary command line tool to drive packaging, testing and
 release activities with Python.  Main features and usage scenarios:
@@ -23,30 +22,36 @@ release activities with Python.  Main features and usage scenarios:
   After an initial cache-fill it can work off-line and will 
   re-synchronize when you get online again.
 
-- **uploading and staging**: upload ``setup.py``-style packages 
-  to a private index.  Test your uploaded release files and, when 
-  ready, push them verbatim from one internal index to another (staging).
-  You can configure on a per-index basis who can upload.  Special 
-  "push" syntax is available for pushing a release and its files 
-  from an internal to an external index (such as https://pypi.python.org ), 
-  dramatically reducing the risk of release accidents. 
+- **uploading, testing and staging**: upload Python archives and documentation
+  to private indexes.  Trigger testing of your uploaded release files 
+  with tox_ and record them with each release file.  When ready push your
+  successfully tested release files and documentation
+  to another index (staging).  You can also push a release 
+  to an external index such as https://pypi.python.org .
 
-- **index inheritance**: configure an index to transparently
-  include all releases/packages from one or more internal base indices.  
-  For example, you can install internal or development packages from
-  your own internal index; if that index inherits from the internal
-  read-only ``root/pypi`` pypi.python.org-caching index, all your 
-  pypi-dependencies will resolve correctly.
+- **index inheritance**: Each index can inherit packages from another
+  index, including the pypi cache ``root/pypi``.  This allows to 
+  have development indexes that also contain all releases from a production
+  index.  All privately uploaded packages will by default inhibit lookups 
+  from pypi, allowing to stay safe from an attacker who could otherwise
+  upload malicious release files to the public PyPI index.
 
-- **test recording**: devpi can run tests via tox_ and attach test results 
-  to a specific release file.  Inspect test results on a per-release
-  file basis before you decide to push it to an external index.
+- **web interface and search**: (New with 2.0) By installing the :doc:`web`
+  plugin package you can navigate indexes and search through release metadata
+  and documentation.
 
-- **Jenkins integration**: You can :ref:`easily set a per-index Jenkins
+- **replication**: Keep one or more real-time :doc:`replica` to speed up
+  access and to distribute the devpi system across your organsiation.
+
+- **importing/exporting**: To upgrade to a newer version, devpi-server
+  supports exporting server state from an old version and importing that
+  from a new devpi-server version.
+
+- **Jenkins integration**: You can :ref:`set a per-index Jenkins
   trigger <jenkins integration>` for automatically tox-testing any 
   uploaded release file and query releases for their test results.
 
-To learn more checkout our quickstart and other docs.
+To learn more, checkout our quickstart and other docs.
 
 .. _label_quickstart_section:
 
@@ -60,6 +65,8 @@ Tutorials and Documentation
    quickstart-releaseprocess
    quickstart-server
 
+   web
+   replica
    status
 
    userman/index

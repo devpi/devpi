@@ -1,0 +1,40 @@
+devpi-2.0.0: web, search, replication for PyPI indexes
+==========================================================
+
+The devpi system in version 2.0 brings tons of fixes
+and new features, most notably:
+
+- a new web interface featuring search of metadata and documentation
+  as well as easier navigation.
+
+- a new transactional storage system supporting real-time 
+  replication over http.
+
+- a new (experimental) hook system for extending server-side
+  functionality.
+
+Note that devpi-2.0 requires to ``--export`` your 1.2 
+server state before you can serve it through devpi-2.0.
+
+Here is a Quickstart tutorial for efficient pypi-mirroring 
+on your laptop::    
+                                                                                
+    http://doc.devpi.net/1.1/quickstart-pypimirror.html                         
+                                                                                
+And if you want to manage your releases or implement staging                    
+as an individual or within an organisation::                                    
+                                                                                
+    http://doc.devpi.net/1.1/quickstart-releaseprocess.html                     
+                                                                                
+If you want to permanently install devpi-server and potentially                 
+access it from many clients::                                                   
+                                                                                
+    http://doc.devpi.net/1.1/quickstart-server.html                             
+                                                                                
+More documentation here::
+                                                                                
+    http://doc.devpi.net/latest/                                                
+
+have fun,
+
+Holger Krekel and Florian Schulze

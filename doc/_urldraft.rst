@@ -34,7 +34,7 @@ The idea for this "REST-ish" API design was to view
 users, indices, projects and versions as resources in the REST sense.
 API calls will also send two headers::
 
-    X-DEVPI-API-VERSION: 1
+    X-DEVPI-API-VERSION: 2
     X-DEVPI-SERVER-VERSION: {server version}
 
 These headers allow clients to verify if they are going to be able
