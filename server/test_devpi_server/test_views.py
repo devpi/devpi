@@ -13,7 +13,7 @@ from pyramid.response import Response
 from devpi_common.metadata import splitbasename
 from devpi_common.url import URL
 from devpi_common.archive import Archive, zip_dict
-from devpi_common.viewhelp import ViewVersionLinks
+from devpi_common.viewhelp import ViewLinkStore
 
 import devpi_server.views
 from devpi_server.views import tween_keyfs_transaction
@@ -115,7 +115,7 @@ def test_simple_refresh(mapp, model, pypistage, testapp):
 
 def test_no_refresh_on_non_mirror_stage(mapp, testapp):
     api = mapp.create_and_use()
-    mapp.register_metadata(dict(name="pkg", version="1.0"))
+    mapp.set_versiondata(dict(name="pkg", version="1.0"))
     r = testapp.xget(200, "/%s/+simple/hello" % api.stagename)
     assert len(r.html.select('form')) == 0
 
@@ -184,7 +184,7 @@ def test_root_pypi(testapp):
     r = testapp.get("/root/pypi")
     assert r.status_code == 200
 
-def test_register_metadata_and_get_description(mapp, testapp):
+def test_set_versiondata_and_get_description(mapp, testapp):
     api = mapp.create_and_use("user/name")
     metadata = {"name": "pkg1", "version": "1.0", ":action": "submit",
                 "description": "hello world"}
@@ -564,7 +564,7 @@ def test_delete_volatile_fails(mapp):
 def test_upload_docs_no_version(mapp, testapp, proj):
     api = mapp.create_and_use()
     content = zip_dict({"index.html": "<html/>"})
-    mapp.register_metadata(dict(name="Pkg1", version="1.0"))
+    mapp.set_versiondata(dict(name="Pkg1", version="1.0"))
     mapp.upload_doc("pkg1.zip", content, "Pkg1", "")
     vv = get_view_version_links(testapp, api.index, "Pkg1", "1.0", proj=proj)
     link = vv.get_link("doczip")
@@ -582,7 +582,7 @@ def test_upload_docs_too_large(mapp):
     from devpi_server.views import MAXDOCZIPSIZE
     mapp.create_and_use()
     content = b"*" * (MAXDOCZIPSIZE + 1)
-    mapp.register_metadata(dict(name="pkg1", version="0.0"))
+    mapp.set_versiondata(dict(name="pkg1", version="0.0"))
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=413)
 
 @proj
@@ -590,7 +590,7 @@ def test_upload_docs(mapp, testapp, proj):
     api = mapp.create_and_use()
     content = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=400)
-    mapp.register_metadata({"name": "pkg1", "version": "2.6"})
+    mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200)
     vv = get_view_version_links(testapp, api.index, "pkg1", "2.6", proj=proj)
     link = vv.get_link(rel="doczip")
@@ -604,11 +604,11 @@ def get_view_version_links(testapp, index, name, version, proj=False):
     if proj:
         url = "/".join([index, name])
         r = testapp.get_json(url, expect_errors=False)
-        return ViewVersionLinks(url, r.json["result"][version])
+        return ViewLinkStore(url, r.json["result"][version])
     else:
         url = "/".join([index, name, version])
         r = testapp.get_json(url, expect_errors=False)
-        return ViewVersionLinks(url, r.json["result"])
+        return ViewLinkStore(url, r.json["result"])
 
 
 def test_wrong_login_format(testapp, mapp):

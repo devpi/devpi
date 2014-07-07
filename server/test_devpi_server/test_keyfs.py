@@ -273,6 +273,17 @@ class TestTransactionIsolation:
         d2[3].append(6)
         assert keyfs.get_value_at(D, 0) == d_orig
 
+    def test_is_dirty(self, keyfs):
+        D = keyfs.add_key("NAME", "hello", dict)
+        with keyfs.transaction():
+            assert not D.is_dirty()
+        with keyfs.transaction(write=True):
+            assert not D.is_dirty()
+            D.set({1:1})
+            assert D.is_dirty()
+        with keyfs.transaction(write=True):
+            assert not D.is_dirty()
+
     def future_maybe_test_bounded_cache(self, keyfs):  # if we ever introduce it
         import random
         D = keyfs.add_key("NAME", "hello", dict)
@@ -290,7 +301,6 @@ class TestTransactionIsolation:
             keyfs.get_value_at(D, j)
             assert len(keyfs._fs._changelog_cache) <= \
                    keyfs._fs.CHANGELOG_CACHE_SIZE + 1
-
 
     def test_import_changes_subscriber(self, keyfs, tmpdir):
         pkey = keyfs.add_key("NAME", "hello/{name}", dict)

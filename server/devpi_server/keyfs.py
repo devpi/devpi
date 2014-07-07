@@ -540,6 +540,9 @@ class TypedKey:
     def get(self):
         return copy_if_mutable(self.keyfs.tx.get(self))
 
+    def is_dirty(self):
+        return self.keyfs.tx.is_dirty(self)
+
     @contextlib.contextmanager
     def update(self):
         val = self.keyfs.tx.get(self)
@@ -624,6 +627,9 @@ class Transaction(object):
             if key.relpath == relpath:
                 return key
         raise KeyError(relpath)
+
+    def is_dirty(self, typedkey):
+        return typedkey in self.dirty
 
     def get(self, typedkey):
         try:

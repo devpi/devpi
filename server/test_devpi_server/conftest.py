@@ -505,7 +505,7 @@ class Mapp(MappMixin):
                 projectname), {}, expect_errors=True)
         assert r.status_code == code
 
-    def register_metadata(self, metadata, indexname=None, code=200,
+    def set_versiondata(self, metadata, indexname=None, code=200,
                           waithooks=False,
                           set_whitelist=True):
         indexname = self._getindexname(indexname)
@@ -534,7 +534,7 @@ class Mapp(MappMixin):
         #if not version:
         #    version = name_version[1]
         if register and code == 200:
-            self.register_metadata(
+            self.set_versiondata(
                 dict(name=name, version=version), set_whitelist=set_whitelist)
         r = self.testapp.post("/%s/" % indexname,
             {":action": "file_upload", "name": name, "version": version,

@@ -29,7 +29,7 @@ class RootFactory(object):
             (Allow, 'root', 'index_create'),
             (Allow, 'root', 'index_modify'),
             (Allow, 'root', 'index_delete'),
-            (Allow, 'root', 'project_delete')])
+            (Allow, 'root', 'del_project')])
         if self.username == 'root':
             acl.append((Deny, Everyone, 'user_delete'))
         if self.username:
@@ -46,7 +46,7 @@ class RootFactory(object):
             acl.extend([
                 (Allow, self.username, 'index_modify'),
                 (Allow, self.username, 'index_delete'),
-                (Allow, self.username, 'project_delete')])
+                (Allow, self.username, 'del_project')])
         return acl
 
     def getstage(self, user, index):

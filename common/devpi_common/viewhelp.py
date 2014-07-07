@@ -1,7 +1,7 @@
 import posixpath
 from .url import URL
 
-class ViewVersionLinks:
+class ViewLinkStore:
     def __init__(self, url, versiondata):
         self.url = URL(url)
         self.versiondata = versiondata

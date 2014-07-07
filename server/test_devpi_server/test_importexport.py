@@ -107,10 +107,10 @@ class TestImportExport:
         mapp2 = impexp.new_import()
         with mapp2.xom.keyfs.transaction(write=False):
             stage = mapp2.xom.model.getstage(api.stagename)
-            entries = stage.get_releaselinks("hello")
-            assert len(entries) == 1
-            assert entries[0].file_get_content() == b"content"
-            link = stage.get_link_from_entrypath(entries[0].relpath)
+            links = stage.get_releaselinks("hello")
+            assert len(links) == 1
+            assert links[0].entry.file_get_content() == b"content"
+            link = stage.get_link_from_entrypath(links[0].entrypath)
             results = stage.get_toxresults(link)
             assert len(results) == 1
             assert results[0] == tox_result_data
@@ -126,7 +126,7 @@ class TestImportExport:
         from devpi_common.archive import Archive
         mapp1 = impexp.mapp1
         api = mapp1.create_and_use()
-        mapp1.register_metadata({"name": "hello", "version": "1.0"})
+        mapp1.set_versiondata({"name": "hello", "version": "1.0"})
         content = zip_dict({"index.html": "<html/>"})
         mapp1.upload_doc("hello.zip", content, "hello", "")
         impexp.export()

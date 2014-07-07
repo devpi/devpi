@@ -216,39 +216,38 @@ class IndexDump:
 
             for version in data:
                 assert data[version]["name"] == realname
-                pv = self.stage.get_project_version(realname, version)
-                assert pv.get_links()
-                self.dump_releasefiles(pv)
-                self.dump_toxresults(pv)
+                linkstore = self.stage.get_linkstore_perstage(realname, version)
+                self.dump_releasefiles(linkstore)
+                self.dump_toxresults(linkstore)
                 content = self.stage.get_doczip(name, version)
                 if content:
                     self.dump_docfile(realname, version, content)
         self.exporter.completed("index %r" % self.stage.name)
 
-    def dump_releasefiles(self, pv):
-        for link in pv.get_links(rel="releasefile"):
+    def dump_releasefiles(self, linkstore):
+        for link in linkstore.get_links(rel="releasefile"):
             entry = self.exporter.filestore.get_file_entry(link.entrypath)
             assert entry.file_exists(), entry.relpath
             content = entry.file_get_content()
             relpath = self.exporter.write_file(
                 content,
-                self.basedir.join(pv.projectname, entry.basename))
-            self.add_filedesc("releasefile", pv.projectname, relpath,
-                               version=pv.version,
+                self.basedir.join(linkstore.projectname, entry.basename))
+            self.add_filedesc("releasefile", linkstore.projectname, relpath,
+                               version=linkstore.version,
                                entrymapping=entry.meta.copy())
 
-    def dump_toxresults(self, pv):
-        for tox_link in pv.get_links(rel="toxresult"):
-            reflink = pv.stage.get_link_from_entrypath(tox_link.for_entrypath)
+    def dump_toxresults(self, linkstore):
+        for tox_link in linkstore.get_links(rel="toxresult"):
+            reflink = linkstore.stage.get_link_from_entrypath(tox_link.for_entrypath)
             relpath = self.exporter.write_file(
                 content=tox_link.entry.file_get_content(),
-                dest=self.basedir.join(pv.projectname, reflink.md5,
+                dest=self.basedir.join(linkstore.projectname, reflink.md5,
                                        tox_link.basename)
             )
             self.add_filedesc(type="toxresult",
-                              projectname=pv.projectname,
+                              projectname=linkstore.projectname,
                               relpath=relpath,
-                              version=pv.version,
+                              version=linkstore.version,
                               for_entrypath=reflink.entrypath)
 
     def add_filedesc(self, type, projectname, relpath, **kw):
@@ -342,7 +341,7 @@ class Importer:
                             self.warn("%r: ignoring project metadata without "
                                       "version information. " % name)
                             continue
-                        stage.register_metadata(versiondata)
+                        stage.set_versiondata(versiondata)
 
             # import release files
             for filedesc in import_index["files"]:
@@ -379,11 +378,10 @@ class Importer:
             name, version, suffix = splitbasename(basename)
             stage.store_doczip(name, version, p.read("rb"))
         elif filedesc["type"] == "toxresult":
-            pv = stage.get_project_version(filedesc["projectname"],
+            linkstore = stage.get_linkstore_perstage(filedesc["projectname"],
                                            filedesc["version"])
-            link, = pv.get_links(entrypath=filedesc["for_entrypath"])
-            stage.store_toxresult(link,
-                                  json.loads(p.read("rb").decode("utf8")))
+            link, = linkstore.get_links(entrypath=filedesc["for_entrypath"])
+            stage.store_toxresult(link, json.loads(p.read("rb").decode("utf8")))
         else:
             fatal("unknown file type: %s" % (type,))
 

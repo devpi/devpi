@@ -63,13 +63,6 @@ class FileStore:
     def get_file_entry_raw(self, key, meta):
         return FileEntry(self.xom, key, meta=meta)
 
-    def get_proxy_file_entry(self, relpath, md5, keyname):
-        try:
-            key = self.keyfs.derive_key(relpath, keyname=keyname)
-        except KeyError:
-            raise # return None
-        return FileEntry(self.xom, key, md5=md5)
-
     def store(self, user, index, basename, file_content, md5dir=None):
         if md5dir is None:
             md5 = hashlib.md5(file_content).hexdigest()

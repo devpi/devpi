@@ -237,17 +237,17 @@ class PyPIView:
             threadlog.error(e.msg)
             abort(request, 502, e.msg)
         links = []
-        for entry in result:
-            relpath = entry.relpath
+        for link in result:
+            relpath = link.entrypath
             href = "/" + relpath
             href = URL(request.path).relpath(href)
-            if entry.eggfragment:
-                href += "#egg=%s" % entry.eggfragment
-            elif entry.md5:
-                href += "#md5=%s" % entry.md5
+            if link.eggfragment:
+                href += "#egg=%s" % link.eggfragment
+            elif link.md5:
+                href += "#md5=%s" % link.md5
             links.extend([
                  "/".join(relpath.split("/", 2)[:2]) + " ",
-                 html.a(entry.basename, href=href),
+                 html.a(link.basename, href=href),
                  html.br(), "\n",
             ])
         title = "%s: links for %s" % (stage.name, projectname)
@@ -372,7 +372,7 @@ class PyPIView:
         except KeyError:
             apireturn(400, message="no name/version specified in json")
 
-        vv = stage.get_project_version(name, version)
+        vv = stage.get_linkstore_perstage(name, version)
         matches = [stage.xom.filestore.get_file_entry(link.entrypath)
                         for link in vv.get_links(rel="releasefile")]
         if not matches:
@@ -405,7 +405,7 @@ class PyPIView:
             #results.append((r.status_code, "upload", entry.relpath))
             #apireturn(200, results=results, type="actionlog")
             if not target_stage.get_versiondata(name, version):
-                self._register_metadata_dict(target_stage, metadata)
+                self._set_versiondata_dict(target_stage, metadata)
             results.append((200, "register", name, version,
                             "->", target_stage.name))
             for entry in matches:
@@ -478,7 +478,7 @@ class PyPIView:
         except KeyError:
             abort(request, 400, ":action field not found")
         if action == "submit":
-            self._register_metadata_form(stage, request.POST)
+            self._set_versiondata_form(stage, request.POST)
             return Response("")
         elif action in ("doc_upload", "file_upload"):
             try:
@@ -497,7 +497,7 @@ class PyPIView:
                 abort_if_invalid_filename(name, content.filename)
                 metadata = stage.get_versiondata(projectname, version)
                 if not metadata:
-                    self._register_metadata_form(stage, request.POST)
+                    self._set_versiondata_form(stage, request.POST)
                     metadata = stage.get_versiondata(projectname, version)
                     if not metadata:
                         abort_custom(400, "could not process form metadata")
@@ -523,7 +523,7 @@ class PyPIView:
             abort(request, 400, "action %r not supported" % action)
         return Response("")
 
-    def _register_metadata_form(self, stage, form):
+    def _set_versiondata_form(self, stage, form):
         metadata = {}
         for key in stage.metadata_keys:
             if key.lower() in stage.metadata_list_fields:
@@ -536,11 +536,11 @@ class PyPIView:
                 assert py.builtin._istext(val), val
             metadata[key] = val
 
-        self._register_metadata_dict(stage, metadata)
+        self._set_versiondata_dict(stage, metadata)
 
-    def _register_metadata_dict(self, stage, metadata):
+    def _set_versiondata_dict(self, stage, metadata):
         try:
-            stage.register_metadata(metadata)
+            stage.set_versiondata(metadata)
         except stage.RegisterNameConflict as e:
             othername = e.args[0]
             abort_custom(403, "cannot register %r because %r is already "
@@ -583,8 +583,8 @@ class PyPIView:
 
     @view_config(
         route_name="/{user}/{index}/{name}", request_method="DELETE",
-        permission="project_delete")
-    def project_delete(self):
+        permission="del_project")
+    def del_project(self):
         stage, name = self.context.stage, self.context.name
         if stage.name == "root/pypi":
             abort(self.request, 405, "cannot delete root/pypi index")
@@ -594,7 +594,7 @@ class PyPIView:
         if not stage.ixconfig["volatile"]:
             apireturn(403, "project %r is on non-volatile index %s" %(
                       projectname, stage.name))
-        stage.project_delete(projectname)
+        stage.del_project(projectname)
         apireturn(200, "project %r deleted from stage %s" % (name, stage.name))
 
     @view_config(route_name="/{user}/{index}/{name}/{version}", accept="application/json", request_method="GET")
@@ -638,7 +638,7 @@ class PyPIView:
 
     @view_config(route_name="/{user}/{index}/{name}/{version}",
                  request_method="DELETE")
-    def project_version_delete(self):
+    def del_versiondata(self):
         stage = self.context.stage
         name, version = self.context.name, self.context.version
         if stage.name == "root/pypi":
@@ -646,7 +646,7 @@ class PyPIView:
         if not stage.ixconfig["volatile"]:
             abort(self.request, 403, "cannot delete version on non-volatile index")
         try:
-            stage.project_version_delete(name, version)
+            stage.del_versiondata(name, version)
         except stage.NotFound as e:
             abort(self.request, 404, e.msg)
         apireturn(200, "project %r version %r deleted" % (name, version))

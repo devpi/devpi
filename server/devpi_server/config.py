@@ -215,15 +215,16 @@ class PluginManager:
         return self._call_plugins("devpiserver_run_commands",
                                   xom=xom)
 
-    def devpiserver_docs_uploaded(self, stage, name, version, entry):
-        return self._call_plugins("devpiserver_docs_uploaded",
-                                  stage=stage, name=name,
-                                  version=version, entry=entry)
+    def devpiserver_on_upload(self, stage, projectname, version, link):
+        return self._call_plugins("devpiserver_on_upload",
+                                  stage=stage, projectname=projectname,
+                                  version=version, link=link)
 
-    def devpiserver_register_metadata(self, stage, metadata):
-        return self._call_plugins("devpiserver_register_metadata",
-                                  stage=stage,
-                                  metadata=metadata)
+    def devpiserver_on_changed_versiondata(self, stage, projectname, version,
+                                           metadata):
+        return self._call_plugins("devpiserver_on_changed_versiondata",
+                                  stage=stage, projectname=projectname,
+                                  version=version, metadata=metadata)
 
     def devpiserver_pypi_initial(self, stage, name2serials):
         return self._call_plugins("devpiserver_pypi_initial",
