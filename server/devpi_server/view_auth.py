@@ -1,11 +1,12 @@
 from devpi_common.types import ensure_unicode
 from devpi_server.auth import Auth
 from devpi_server.views import abort, abort_authenticate
-from pyramid.authentication import BasicAuthAuthenticationPolicy
+from pyramid.authentication import CallbackAuthenticationPolicy, b64decode
 from pyramid.decorator import reify
 from pyramid.httpexceptions import HTTPUnauthorized
 from pyramid.security import Allow, Deny, Everyone, forget
 from pyramid.view import forbidden_view_config
+import binascii
 
 
 class RootFactory(object):
@@ -83,7 +84,7 @@ class RootFactory(object):
         return self.matchdict.get('user')
 
 
-class DevpiAuthenticationPolicy(BasicAuthAuthenticationPolicy):
+class DevpiAuthenticationPolicy(CallbackAuthenticationPolicy):
     def __init__(self, xom):
         self.realm = "pypi"
         self.auth = Auth(xom.model, xom.config.secret)
@@ -93,6 +94,17 @@ class DevpiAuthenticationPolicy(BasicAuthAuthenticationPolicy):
         credentials = self._get_credentials(request)
         if credentials:
             return credentials[0]
+
+    def remember(self, request, principal, **kw):
+        """ A no-op. Devpi authentication does not provide a protocol for
+        remembering the user. Credentials are sent on every request.
+        """
+        return []
+
+    def forget(self, request):
+        """ Returns challenge headers. This should be attached to a response
+        to indicate that credentials are required."""
+        return [('WWW-Authenticate', 'Basic realm="%s"' % self.realm)]
 
     def callback(self, username, request):
         # Username arg is ignored.  Unfortunately _get_credentials winds up
@@ -109,6 +121,29 @@ class DevpiAuthenticationPolicy(BasicAuthAuthenticationPolicy):
             elif status == "expired":
                 abort_authenticate(request, msg="auth expired for %r" % auth_user)
             raise ValueError("Unknown authentication status: %s" % status)
+
+    def _get_credentials(self, request):
+        authorization = request.headers.get('X-Devpi-Auth')
+        if not authorization:
+            return None
+
+        try:
+            authbytes = b64decode(authorization.strip())
+        except (TypeError, binascii.Error):  # can't decode
+            return None
+
+        # try utf-8 first, then latin-1; see discussion in
+        # https://github.com/Pylons/pyramid/issues/898
+        try:
+            auth = authbytes.decode('utf-8')
+        except UnicodeDecodeError:
+            auth = authbytes.decode('latin-1')
+
+        try:
+            username, password = auth.split(':', 1)
+        except ValueError:  # not enough values to unpack
+            return None
+        return username, password
 
 
 @forbidden_view_config()

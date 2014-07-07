@@ -5,6 +5,7 @@ import py
 import argparse
 import subprocess
 import devpi
+from base64 import b64encode
 from devpi_common.types import lazydecorator, cached_property
 from devpi_common.url import URL
 from devpi_common.proc import check_output
@@ -92,8 +93,8 @@ class Hub:
             data = json.dumps(kvdict) if kvdict is not None else None
             if auth is notset:
                 auth = self.current.get_auth()
-            r = self.http.request(method, url, data=data, headers=headers,
-                                  auth=auth)
+            set_devpi_auth_header(headers, auth)
+            r = self.http.request(method, url, data=data, headers=headers)
         except self.http.ConnectionError:
             self._last_http_status = -1
             self.fatal("could not connect to %r" % (url,))
@@ -316,6 +317,12 @@ class HTTPReply(object):
     def __getitem__(self, name):
         return self._json[name]
 
+
+def set_devpi_auth_header(headers, auth):
+    if auth:
+        auth = "%s:%s" % auth
+        auth = b64encode(auth.encode("ascii")).decode("ascii")
+        headers["X-Devpi-Auth"] = auth
 
 class MyArgumentParser(argparse.ArgumentParser):
     class ArgumentError(Exception):

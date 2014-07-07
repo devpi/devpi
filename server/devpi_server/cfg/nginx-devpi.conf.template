@@ -10,8 +10,12 @@ server {
 
     root %(serverdir)s;  
 
-    # try serving docs and (md5/immutable) directly
-    location ~ \+(f|doc)/ {
+    # try serving static files directly
+    location ~ /\+f/ {
+        try_files /+files$uri @proxy_to_app;
+    }
+    # try serving docs directly
+    location ~ /\+doc/ {
         try_files $uri @proxy_to_app;
     }
     location / {

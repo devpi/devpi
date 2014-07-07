@@ -626,26 +626,17 @@ class PyPIView:
             for elinkdict in elinks:
                 linkdict = copy_if_mutable(elinkdict)
                 entrypath = linkdict.pop("entrypath")
-                linkdict["href"] = self._url_for_entrypath(entrypath)
+                linkdict["href"] = url_for_entrypath(self.request, entrypath)
                 for_entrypath = linkdict.pop("for_entrypath", None)
                 if for_entrypath is not None:
                     linkdict["for_href"] = \
-                        self._url_for_entrypath(for_entrypath)
+                        url_for_entrypath(self.request, for_entrypath)
                 links.append(linkdict)
         shadowing = view_verdata.pop("+shadowing", None)
         if shadowing:
             view_verdata["+shadowing"] = \
                     [self._make_view_verdata(x) for x in shadowing]
         return view_verdata
-
-    def _url_for_entrypath(self, entrypath):
-        parts = entrypath.split("/")
-        user, index = parts[:2]
-        assert parts[2] in ("+f", "+e")
-        route_name = "/{user}/{index}/%s/{relpath:.*}" % parts[2]
-        relpath = "/".join(parts[3:])
-        return self.request.route_url(
-               route_name, user=user, index=index, relpath=relpath)
 
     @view_config(route_name="/{user}/{index}/{name}/{version}",
                  request_method="DELETE")
@@ -785,6 +776,16 @@ class PyPIView:
         for user in self.model.get_userlist():
             d[user.name] = user.get()
         apireturn(200, type="list:userconfig", result=d)
+
+
+def url_for_entrypath(request, entrypath):
+    parts = entrypath.split("/")
+    user, index = parts[:2]
+    assert parts[2] in ("+f", "+e")
+    route_name = "/{user}/{index}/%s/{relpath:.*}" % parts[2]
+    relpath = "/".join(parts[3:])
+    return request.route_url(
+        route_name, user=user, index=index, relpath=relpath)
 
 
 def getjson(request, allowed_keys=None):
