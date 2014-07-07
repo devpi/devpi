@@ -2,8 +2,8 @@
 from __future__ import unicode_literals
 from devpi_common.metadata import get_pyversion_filetype, splitbasename
 from devpi_common.metadata import get_sorted_versions
-from devpi_common.url import URL
 from devpi_server.log import threadlog as log
+from devpi_server.views import url_for_entrypath
 from devpi_web.description import get_description
 from devpi_web.doczip import Docs, get_unpack_path
 from devpi_web.indexing import is_project_cached
@@ -151,20 +151,19 @@ def sizeof_fmt(num):
 
 
 def get_files_info(request, linkstore, show_toxresults=False):
-    xom = request.registry['xom']
     files = []
     filedata = linkstore.get_links(rel='releasefile')
     if not filedata:
         log.warn("project %r version %r has no files",
                  linkstore.projectname, linkstore.version)
     for link in sorted(filedata, key=attrgetter('basename')):
-        entry = xom.filestore.get_file_entry(link.entrypath)
-        relurl = URL(request.path).relpath("/" + entry.relpath)
+        url = url_for_entrypath(request, link.entrypath)
+        entry = link.entry
         if entry.eggfragment:
-            relurl += "#egg=%s" % entry.eggfragment
+            url += "#egg=%s" % entry.eggfragment
         elif entry.md5:
-            relurl += "#md5=%s" % entry.md5
-        py_version, file_type = get_pyversion_filetype(entry.basename)
+            url += "#md5=%s" % entry.md5
+        py_version, file_type = get_pyversion_filetype(link.basename)
         if py_version == 'source':
             py_version = ''
         size = ''
@@ -172,8 +171,8 @@ def get_files_info(request, linkstore, show_toxresults=False):
             size = "%.0f %s" % sizeof_fmt(entry.file_size())
         fileinfo = dict(
             title=link.basename,
-            url=request.relative_url(relurl),
-            basename=entry.basename,
+            url=url,
+            basename=link.basename,
             md5=entry.md5,
             dist_type=dist_file_types.get(file_type, ''),
             py_version=py_version,
