@@ -22,14 +22,14 @@ hook semantics for metadata changes and uploads
 
 There are currently two hooks notifying plugins of changes::
 
-    devpiserver_on_changed_versiondata(stage, projectname, versiondata, metadata)
+    devpiserver_on_changed_versiondata(stage, projectname, version, metadata)
     # metadata may be empty in which case the version was deleted
 
-    devpiserver_on_upload(stage, name, version, link)
+    devpiserver_on_upload(stage, projectname, version, link)
     # link.entry.file_exists() may be false because a more recent
     # revision deleted the file (and files are not revisioned)
-    # This hook is currently NOT called for the implicit uploads
-    # to the pypi mirror.
+    # This hook is currently NOT called for the implicit "caching" 
+    # uploads to the pypi mirror.
 
 - Both hooks are called within a read-transaction pointing at the serial
   where the change occured. This means that hooks may read values but
