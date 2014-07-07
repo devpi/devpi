@@ -398,6 +398,18 @@ def test_upload_and_push_internal(mapp, testapp, monkeypatch, proj):
     archive = Archive(py.io.BytesIO(r.body))
     assert 'index.html' in archive.namelist()
 
+    # reconfigure inheritance and see if get shadowing information
+    mapp.modify_index("user1/dev", indexconfig=dict(bases=("/user2/prod",)))
+    vv = get_view_version_links(testapp, "/user1/dev", "pkg1", "2.6", proj=proj)
+    link = vv.get_link(rel="releasefile")
+    assert link.href.endswith("/pkg1-2.6.tgz")
+    shadows = vv.shadowed()
+    assert len(shadows) == 1, vv.versiondata
+    vv = shadows[0]
+    link = vv.get_link(rel="releasefile")
+    assert link.href.endswith("/pkg1-2.6.tgz")
+
+
 def test_upload_and_push_with_toxresults(mapp, testapp):
     from test_devpi_server.example import tox_result_data
     mapp.create_and_login_user("user1", "1")

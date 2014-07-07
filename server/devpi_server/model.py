@@ -264,11 +264,12 @@ class BaseStage:
         for stage, res in self.op_sro_check_pypi_whitelist(
                 "get_versiondata_perstage",
                 projectname=projectname, version=version):
-            if not result:
-                result.update(res)
-            else:
-                l = result.setdefault("+shadowing", [])
-                l.append(res)
+            if res:
+                if not result:
+                    result.update(res)
+                else:
+                    l = result.setdefault("+shadowing", [])
+                    l.append(res)
         return result
 
     def get_releaselinks(self, projectname):

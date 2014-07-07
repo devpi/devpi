@@ -21,6 +21,12 @@ class ViewLinkStore:
         assert len(links) == 1
         return links[0]
 
+    def shadowed(self):
+        l = []
+        for verdata in self.versiondata.get("+shadowing", []):
+            l.append(ViewLinkStore(self.url.url, verdata))
+        return l
+
 
 class ViewLink:
     def __init__(self, base_url, linkdict):
