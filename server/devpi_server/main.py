@@ -270,13 +270,13 @@ class XOM:
             return FatalResponse(sys.exc_info())
 
     def create_app(self):
-        from devpi_server.auth_view import DevpiAuthenticationPolicy
+        from devpi_server.view_auth import DevpiAuthenticationPolicy
         from devpi_server.views import route_url
         from pyramid.authorization import ACLAuthorizationPolicy
         from pyramid.config import Configurator
         log = self.log
         log.debug("creating application in process %s", os.getpid())
-        pyramid_config = Configurator(root_factory='devpi_server.auth_view.RootFactory')
+        pyramid_config = Configurator(root_factory='devpi_server.view_auth.RootFactory')
         pyramid_config.set_authentication_policy(DevpiAuthenticationPolicy(self))
         pyramid_config.set_authorization_policy(ACLAuthorizationPolicy())
 
