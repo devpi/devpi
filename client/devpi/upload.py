@@ -1,10 +1,9 @@
 import os
 import py
-from base64 import b64encode
 from devpi import log
 from devpi_common.metadata import Version, BasenameMeta, get_pyversion_filetype
 from devpi_common.archive import zip_dir
-from .main import HTTPReply
+from .main import HTTPReply, set_devpi_auth_header
 
 def main(hub, args):
     # for now we use distutils/setup.py for register/upload commands.
@@ -107,10 +106,7 @@ class Uploader:
         auth = hub.current.get_auth()
         if not auth:
             hub.fatal("need to be authenticated (use 'devpi login')")
-        if auth:
-            auth = "%s:%s" % auth
-            auth = b64encode(auth.encode("ascii")).decode("ascii")
-            headers["X-Devpi-Auth"] = auth
+        set_devpi_auth_header(headers, auth)
         if path:
             files = {"content": (path.basename, path.open("rb"))}
         else:

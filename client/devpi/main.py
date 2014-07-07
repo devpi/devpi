@@ -93,10 +93,7 @@ class Hub:
             data = json.dumps(kvdict) if kvdict is not None else None
             if auth is notset:
                 auth = self.current.get_auth()
-            if auth:
-                auth = "%s:%s" % auth
-                auth = b64encode(auth.encode("ascii")).decode("ascii")
-                headers["X-Devpi-Auth"] = auth
+            set_devpi_auth_header(headers, auth)
             r = self.http.request(method, url, data=data, headers=headers)
         except self.http.ConnectionError:
             self._last_http_status = -1
@@ -320,6 +317,12 @@ class HTTPReply(object):
     def __getitem__(self, name):
         return self._json[name]
 
+
+def set_devpi_auth_header(headers, auth):
+    if auth:
+        auth = "%s:%s" % auth
+        auth = b64encode(auth.encode("ascii")).decode("ascii")
+        headers["X-Devpi-Auth"] = auth
 
 class MyArgumentParser(argparse.ArgumentParser):
     class ArgumentError(Exception):
