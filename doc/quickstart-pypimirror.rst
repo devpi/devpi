@@ -33,12 +33,6 @@ To start ``devpi-server`` in the background issue::
 
 You now have a server listning on ``http://localhost:3141``.
 
-.. note::
-
-    If you have ``eventlet`` installed, ``devpi-server``
-    will automatically pick the eventlet-wsgi server,
-    see the ``--bottleserver`` option.
-
 .. _`install_first`:
 
 install your first package with pip/easy_install
@@ -47,7 +41,7 @@ install your first package with pip/easy_install
 Both pip_ and easy_install_ support the ``-i`` option to specify
 an index server url.  We use it to point installers to a special
 ``root/pypi`` index, served by ``devpi-server`` by default. 
-Let's install the ``simplejson`` package as a test::
+Let's install the ``simplejson`` package as a test from our cache::
 
     $ pip install -i http://localhost:3141/root/pypi/ simplejson
     Downloading/unpacking simplejson
