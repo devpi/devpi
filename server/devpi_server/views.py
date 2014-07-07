@@ -372,25 +372,24 @@ class PyPIView:
         except KeyError:
             apireturn(400, message="no name/version specified in json")
 
-        vv = stage.get_linkstore_perstage(name, version)
-        matches = [stage.xom.filestore.get_file_entry(link.entrypath)
-                        for link in vv.get_links(rel="releasefile")]
-        if not matches:
-            self.log.info("%s: no release files %s-%s" %(stage.name,
-                                                         name, version))
-            apireturn(404,
-                      message="no release/files found for %s-%s" %(
+        # first, get all the links related to the source "to push" release
+        linkstore = stage.get_linkstore_perstage(name, version)
+        links = dict([(rel, linkstore.get_links(rel=rel))
+                        for rel in ('releasefile', 'doczip', 'toxresult')])
+        if not links["releasefile"]:
+            self.log.info("%s: no release files for version %s-%s" %
+                          (stage.name, name, version))
+            apireturn(404, message="no release/files found for %s-%s" %(
                       name, version))
 
-        metadata = get_pure_metadata(vv.verdata)
-        doczip = stage.get_doczip(name, version)
+        metadata = get_pure_metadata(linkstore.verdata)
 
         # prepare metadata for submission
         metadata[":action"] = "submit"
 
         results = []
         targetindex = pushdata.get("targetindex", None)
-        if targetindex is not None:
+        if targetindex is not None:  # in-server push
             parts = targetindex.split("/")
             if len(parts) != 2:
                 apireturn(400, message="targetindex not in format user/index")
@@ -401,25 +400,10 @@ class PyPIView:
             if not target_stage.can_upload(auth_user):
                apireturn(401, message="user %r cannot upload to %r"
                                       %(auth_user, targetindex))
-            #results = stage.copy_release(metadata, target_stage)
-            #results.append((r.status_code, "upload", entry.relpath))
-            #apireturn(200, results=results, type="actionlog")
-            if not target_stage.get_versiondata(name, version):
-                self._set_versiondata_dict(target_stage, metadata)
+            self._set_versiondata_dict(target_stage, metadata)
             results.append((200, "register", name, version,
                             "->", target_stage.name))
-            for entry in matches:
-                res = target_stage.store_releasefile(
-                    name, version,
-                    entry.basename, entry.file_get_content())
-                if not isinstance(res, int):
-                    res = 200
-                results.append((res, "store_releasefile", entry.basename,
-                                "->", target_stage.name))
-            if doczip:
-                target_stage.store_doczip(name, version, doczip)
-                results.append((200, "uploaded documentation", name,
-                                "->", target_stage.name))
+            results.extend(self._push_links(links, target_stage, name, version))
             apireturn(200, result=results, type="actionlog")
         else:
             posturl = pushdata["posturl"]
@@ -433,10 +417,11 @@ class PyPIView:
             ok_codes = (200, 201)
             results.append((r.status_code, "register", name, version))
             if r.status_code in ok_codes:
-                for entry in matches:
+                for link in links["releasefile"]:
+                    entry = link.entry
                     file_metadata = metadata.copy()
                     file_metadata[":action"] = "file_upload"
-                    basename = entry.basename
+                    basename = link.basename
                     pyver, filetype = get_pyversion_filetype(basename)
                     file_metadata["filetype"] = filetype
                     file_metadata["pyversion"] = pyver
@@ -449,9 +434,10 @@ class PyPIView:
                     self.log.debug("send finished, status: %s", r.status_code)
                     results.append((r.status_code, "upload", entry.relpath,
                                     r.text))
-                if doczip:
+                if links["doczip"]:
                     doc_metadata = metadata.copy()
                     doc_metadata[":action"] = "doc_upload"
+                    doczip = links["doczip"][0].entry.file_get_content()
                     r = session.post(posturl, data=doc_metadata,
                           auth=pypiauth,
                           files={"content": (name + ".zip", doczip)})
@@ -462,6 +448,27 @@ class PyPIView:
                 apireturn(200, result=results, type="actionlog")
             else:
                 apireturn(502, result=results, type="actionlog")
+
+    def _push_links(self, links, target_stage, name, version):
+        for link in links["releasefile"]:
+            entry = target_stage.store_releasefile(
+                name, version, link.basename, link.entry.file_get_content())
+            yield (200, "store_releasefile", entry.relpath)
+            # also store all dependent tox results
+            tstore = target_stage.get_linkstore_perstage(name, version)
+            for toxlink in links["toxresult"]:
+                if toxlink.for_entrypath == link.entry.relpath:
+                    ref_link = tstore.get_links(entrypath=entry.relpath)[0]
+                    raw_data = toxlink.entry.file_get_content()
+                    data = json.loads(raw_data.decode("utf-8"))
+                    target_stage.store_toxresult(ref_link, data)
+                    yield (200, "store_toxresult", toxlink.entrypath)
+        for link in links["doczip"]:
+            doczip = link.entry.file_get_content()
+            target_stage.store_doczip(name, version, doczip)
+            yield (200, "store_doczip", name, version,
+                   "->", target_stage.name)
+            break # we only can have one doczip for now
 
     @view_config(
         route_name="/{user}/{index}/", request_method="POST")

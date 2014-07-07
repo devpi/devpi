@@ -212,6 +212,14 @@ class TestStage:
             stage.store_releasefile("someproject", "1.0",
                                     "someproject-1.0.zip", b"123")
 
+    @pytest.mark.xfail(reason="fix tx in-place key get semantics")
+    def test_store_releasefile_and_linkstore_same_tx(self, stage):
+        register_and_store(stage, "someproject-1.0.zip", b"123")
+        ls = stage.get_linkstore_perstage("someproject", "1.0")
+        assert len(ls.get_links()) == 1
+        register_and_store(stage, "someproject-1.0.tar.gz", b"123")
+        assert len(ls.get_links()) == 2
+
     def test_project_versiondata_shadowed(self, pypistage, stage):
         stage.modify(bases=("root/pypi",), pypi_whitelist=['someproject'])
         pypistage.mock_simple("someproject",

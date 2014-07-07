@@ -398,6 +398,24 @@ def test_upload_and_push_internal(mapp, testapp, monkeypatch, proj):
     archive = Archive(py.io.BytesIO(r.body))
     assert 'index.html' in archive.namelist()
 
+def test_upload_and_push_with_toxresults(mapp, testapp):
+    from test_devpi_server.example import tox_result_data
+    mapp.create_and_login_user("user1", "1")
+    mapp.create_index("prod")
+    mapp.create_index("dev")
+    mapp.use("user1/dev")
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200)
+    path, = mapp.get_release_paths("pkg1")
+    r = testapp.post(path, json.dumps(tox_result_data))
+    assert r.status_code == 200
+    testapp.xget(200, path)
+    req = dict(name="pkg1", version="2.6", targetindex="user1/prod")
+    r = testapp.push("/user1/dev", json.dumps(req))
+
+    vv = get_view_version_links(testapp, "/user1/prod", "pkg1", "2.6")
+    link = vv.get_link("toxresult")
+    pkgmeta = json.loads(testapp.get(link.href).body.decode("utf8"))
+    assert pkgmeta == tox_result_data
 
 def test_upload_and_push_external(mapp, testapp, reqmock):
     api = mapp.create_and_use()
