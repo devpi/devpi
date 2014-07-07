@@ -423,9 +423,12 @@ def test_upload_and_push_with_toxresults(mapp, testapp):
     testapp.xget(200, path)
     req = dict(name="pkg1", version="2.6", targetindex="user1/prod")
     r = testapp.push("/user1/dev", json.dumps(req))
+    for actionlog in r.json["result"]:
+        assert "user1/dev" not in actionlog[-1]
 
     vv = get_view_version_links(testapp, "/user1/prod", "pkg1", "2.6")
     link = vv.get_link("toxresult")
+    assert "user1/prod" in link.href
     pkgmeta = json.loads(testapp.get(link.href).body.decode("utf8"))
     assert pkgmeta == tox_result_data
 
