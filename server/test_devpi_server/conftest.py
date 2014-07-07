@@ -3,7 +3,7 @@ import logging
 from webtest.forms import Upload
 import webtest
 import mimetypes
-import mock
+
 import pytest
 import py
 from bs4 import BeautifulSoup
@@ -123,9 +123,16 @@ def speed_up_sql():
     yield
     Filesystem.get_sqlconn = old
 
+@pytest.fixture(scope="session")
+def mock():
+    try:
+        from unittest import mock
+    except ImportError:
+        import mock
+    return mock
 
 @pytest.fixture
-def makexom(request, gentmp, httpget, monkeypatch):
+def makexom(request, gentmp, httpget, monkeypatch, mock):
     def makexom(opts=(), httpget=httpget, proxy=None, mocking=True, plugins=()):
         hook = PluginManager(plugins)
         serverdir = gentmp()

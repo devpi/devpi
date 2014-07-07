@@ -5,8 +5,7 @@ def test_importable():
     assert devpi_web
 
 
-def test_devpi_pypi_initial(monkeypatch, pypistage):
-    import mock
+def test_devpi_pypi_initial(monkeypatch, pypistage, mock):
     import devpi_web.main
     from devpi_web.main import devpiserver_pypi_initial
     iter_projects = mock.MagicMock()

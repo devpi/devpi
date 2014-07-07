@@ -1,5 +1,4 @@
 from __future__ import unicode_literals
-import mock
 import pytest
 
 from devpi_server.extpypi import *
@@ -410,7 +409,7 @@ def raise_ValueError():
 class TestRefreshManager:
 
     @pytest.mark.notransaction
-    def test_init_pypi_mirror(self, xom, keyfs):
+    def test_init_pypi_mirror(self, xom, keyfs, mock):
         proxy = mock.create_autospec(XMLProxy)
         d = {"hello": 10, "abc": 42}
         proxy.list_packages_with_serial.return_value = d
@@ -419,7 +418,7 @@ class TestRefreshManager:
         assert mirror.name2serials == d
 
     @pytest.mark.notransaction
-    def test_pypi_initial(self, makexom, queue):
+    def test_pypi_initial(self, makexom, queue, mock):
         proxy = mock.create_autospec(XMLProxy)
         d = {"hello": 10, "abc": 42}
         proxy.list_packages_with_serial.return_value = d
@@ -433,7 +432,7 @@ class TestRefreshManager:
         assert name2serials == d
 
     @pytest.mark.notransaction
-    def test_pypichanges_loop(self, pypistage, monkeypatch, pool):
+    def test_pypichanges_loop(self, pypistage, monkeypatch, pool, mock):
         pypistage.pypimirror.process_changelog = mock.Mock()
         proxy = mock.create_autospec(XMLProxy)
         changelog = [
@@ -491,7 +490,7 @@ class TestRefreshManager:
         assert xmlrpc.loads(calls[0].body) == ((10,), "changelog_since_serial")
         assert caplog.getrecords(".*changelog_since_serial.*")
 
-    def test_changelog_list_packages_no_network(self, makexom):
+    def test_changelog_list_packages_no_network(self, makexom, mock):
         xmlproxy = mock.create_autospec(XMLProxy)
         xmlproxy.list_packages_with_serial.return_value = None
         with pytest.raises(Fatal):

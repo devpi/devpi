@@ -1,7 +1,6 @@
 import os
 import subprocess
 
-from mock import Mock
 import py
 import pytest
 
@@ -69,8 +68,8 @@ def test_create_crontab_empty(tmpdir, monkeypatch):
         pytest.skip('crontab not installed')
 
 
-def test_ensure_supervisor_started(tmpdir, monkeypatch):
-    m = Mock()
+def test_ensure_supervisor_started(tmpdir, monkeypatch, mock):
+    m = mock.Mock()
     monkeypatch.setattr(subprocess, "check_call", m)
     tmpdir.join("supervisord.pid").write("123123")
     supconfig = tmpdir.join("etc", "supervisord.conf")
@@ -78,16 +77,16 @@ def test_ensure_supervisor_started(tmpdir, monkeypatch):
     m.assert_called_once()
 
 
-def test_ensure_supervisor_started_exists(tmpdir, monkeypatch):
-    m = Mock()
+def test_ensure_supervisor_started_exists(tmpdir, monkeypatch, mock):
+    m = mock.Mock()
     monkeypatch.setattr(subprocess, "check_call", m)
     tmpdir.join("supervisord.pid").write(os.getpid())
     ensure_supervisor_started(tmpdir, None)
     assert not m.called
 
 
-def test_devpictl(tmpdir, monkeypatch):
-    m = Mock()
+def test_devpictl(tmpdir, monkeypatch, mock):
+    m = mock.Mock()
     monkeypatch.setattr(subprocess, "call", m)
     tmpdir.join("supervisord.pid").write(os.getpid())
     tmpdir.ensure("etc", "supervisord.conf")

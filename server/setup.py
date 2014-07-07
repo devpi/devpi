@@ -7,12 +7,12 @@ if __name__ == "__main__":
     here = os.path.abspath(".")
     README = open(os.path.join(here, 'README.rst')).read()
 
-    install_requires = ["py>=1.4.18",
-                        "devpi_common>=2.0.0.dev2",
-                        "itsdangerous>=0.23",
-                        "execnet>=1.1",
-                        "pyramid>=1.5",
-                        "waitress",
+    install_requires = ["py>=1.4.20",
+                        "devpi_common>=2.0.0.dev4",
+                        "itsdangerous>=0.24",
+                        "execnet>=1.2",
+                        "pyramid>=1.5.1",
+                        "waitress>=0.8.9",
                         "repoze.lru>=0.6",
                         ]
     if sys.version_info < (2,7):
@@ -24,7 +24,7 @@ if __name__ == "__main__":
       keywords="pypi cache server wsgi",
       long_description=README,
       url="http://doc.devpi.net",
-      version='2.0.0.dev3',
+      version='2.0.0.dev4',
       maintainer="Holger Krekel",
       maintainer_email="holger@merlinux.eu",
       packages=find_packages(),

@@ -11,8 +11,8 @@ Latest release
 
 As of July 2014, ``devpi-{server,client,web,common}`` are released as 2.0
 packages under the MIT license.  Around 750 automated tests are passing 
-on python2.7 and python3.3 on Ubuntu 12.04 and Windows 7 against the
-packages.
+on python2.6, python2.7 and python3.4 on Ubuntu 12.04 and Windows 7 
+against the packages.
 
 Development background and road map
 +++++++++++++++++++++++++++++++++++++
