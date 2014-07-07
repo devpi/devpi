@@ -1,5 +1,6 @@
 import os
 import py
+from base64 import b64encode
 from devpi import log
 from devpi_common.metadata import Version, BasenameMeta, get_pyversion_filetype
 from devpi_common.archive import zip_dir
@@ -102,9 +103,14 @@ class Uploader:
             pypi_action = "submit"
         dic[":action"] = pypi_action
         dic["protocol_version"] = "1",
+        headers = {}
         auth = hub.current.get_auth()
         if not auth:
             hub.fatal("need to be authenticated (use 'devpi login')")
+        if auth:
+            auth = "%s:%s" % auth
+            auth = b64encode(auth.encode("ascii")).decode("ascii")
+            headers["X-Devpi-Auth"] = auth
         if path:
             files = {"content": (path.basename, path.open("rb"))}
         else:
@@ -117,7 +123,7 @@ class Uploader:
         if self.args.dryrun:
             hub.line("skipped: %s" % msg)
         else:
-            r = hub.http.post(hub.current.pypisubmit, dic, files=files, auth=auth)
+            r = hub.http.post(hub.current.pypisubmit, dic, files=files, headers=headers)
             r = HTTPReply(r)
             if r.status_code == 200:
                 hub.info(msg)

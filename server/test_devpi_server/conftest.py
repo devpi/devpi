@@ -1,6 +1,3 @@
-
-import base64
-import sys
 import re
 import logging
 from webtest.forms import Upload
@@ -16,6 +13,7 @@ from devpi_common.url import URL
 from devpi_server.extpypi import XMLProxy
 from devpi_server.extpypi import PyPIStage
 from devpi_server.log import threadlog, thread_clear_log
+from pyramid.authentication import b64encode
 
 import hashlib
 try:
@@ -601,13 +599,7 @@ class MyTestApp(TApp):
             headers = kw.get("headers")
             if not headers:
                 headers = kw["headers"] = {}
-            auth = "%s:%s" % self.auth
-            if sys.version_info[0] >= 3:
-                res = "Basic " + base64.b64encode(auth.encode("ascii")).decode("ascii")
-            else:
-                res = "Basic %s" % base64.b64encode(auth)
-            #base64.b64encode(("%s:%s" % self.auth).encode("ascii"))
-            headers["Authorization"] = res
+            headers["X-Devpi-Auth"] = b64encode("%s:%s" % self.auth)
             #print ("setting auth header %r %s %s" % (auth, method, url))
         return super(MyTestApp, self)._gen_request(method, url, **kw)
 

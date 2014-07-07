@@ -51,6 +51,9 @@
 - add refresh button on root/pypi project simple index pages which clears the
   internal cache to force a refetch from PyPI.
 
+- implement issue75: We use the custom X-Devpi-Auth header for authentication
+  now, instead of overwriting the Authentication header.
+
 1.2.2
 ----------------
 
