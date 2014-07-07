@@ -632,6 +632,10 @@ class PyPIView:
                     linkdict["for_href"] = \
                         url_for_entrypath(self.request, for_entrypath)
                 links.append(linkdict)
+        shadowing = view_verdata.pop("+shadowing", None)
+        if shadowing:
+            view_verdata["+shadowing"] = \
+                    [self._make_view_verdata(x) for x in shadowing]
         return view_verdata
 
     @view_config(route_name="/{user}/{index}/{name}/{version}",
