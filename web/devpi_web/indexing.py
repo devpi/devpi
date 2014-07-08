@@ -23,7 +23,7 @@ def preprocess_project(stage, name):
     setuptools_metadata = frozenset((
         'author', 'author_email', 'classifiers', 'description', 'download_url',
         'home_page', 'keywords', 'license', 'platform', 'summary'))
-    versions = get_sorted_versions(stage.list_versions(name))
+    versions = get_sorted_versions(stage.list_versions_perstage(name))
     result = dict(name=name)
     for i, version in enumerate(versions):
         verdata = stage.get_versiondata(name, version)
