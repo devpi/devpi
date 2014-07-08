@@ -151,8 +151,8 @@ def gendeploy(config):
     tw.line("installing devpi-server,supervisor,eventlet into virtualenv",
             bold=True)
     version = devpi_server.__version__
-    subproc(tw, [pip, "install", "-q",
-                 "supervisor", "eventlet", "devpi-server==%s" % version])
+    subproc(tw, [pip, "install", "-q", "--pre",
+                 "supervisor", "devpi-server==%s" % version])
     gendeploycfg(config, target, tw=tw)
 
 def subproc(tw, args):
