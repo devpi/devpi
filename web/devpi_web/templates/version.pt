@@ -28,7 +28,7 @@
                     <th>Type</th>
                     <th>Py Version</th>
                     <th>Size</th>
-                    <th class="toxresults" tal:condition="show_toxresults">Test results</th>
+                    <th class="toxresults" tal:condition="show_toxresults">Tox results</th>
                     <th class="md5">MD5</th>
                 </tr>
             </thead>
