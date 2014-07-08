@@ -135,7 +135,7 @@ class Filesystem:
                         data BLOB NOT NULL
                     )
                 """)
-        conn = sqlite3.connect(str(path), isolation_level="DEFERRED")
+        conn = sqlite3.connect(str(path), timeout=60)
         return conn
 
     def db_read_typedkey(self, relpath, conn=None):
@@ -144,7 +144,8 @@ class Filesystem:
             conn = self.get_sqlconn()
         q = "SELECT keyname, serial FROM kv WHERE key = ?"
         try:
-            row = conn.execute(q, (relpath,)).fetchone()
+            c = conn.cursor()
+            row = c.execute(q, (relpath,)).fetchone()
             if row is None:
                 raise KeyError(relpath)
             return tuple(row[:2])
