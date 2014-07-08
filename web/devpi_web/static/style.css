@@ -230,7 +230,7 @@ a.passed:after,
 a.failed:after,
 .toxresult.failed h2:before,
 .toxresult .command.failed div:first-child:before {
-    content: "𐄂";
+    content: "!";
     color: red;
     font-weight: bold;
 }
@@ -240,7 +240,7 @@ a.passed:after {
 }
 
 a.failed:after {
-    content: " 𐄂";
+    content: " !";
 }
 
 .toxresult.opened h2,
