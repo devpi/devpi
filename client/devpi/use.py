@@ -41,6 +41,7 @@ class Current(object):
     login = currentproperty("login")
     venvdir = currentproperty("venvdir")
     _auth = currentproperty("auth")
+    _basic_auth = currentproperty("basic_auth")
     always_setcfg = currentproperty("always_setcfg")
 
     @property
@@ -90,6 +91,40 @@ class Current(object):
         auth = self._get_auth_dict().get(url)
         return tuple(auth) if auth else None
 
+    def _get_basic_auth_dict(self):
+        basic_auth = self._basic_auth
+        if not isinstance(basic_auth, dict):
+            basic_auth = {}
+        return basic_auth
+
+    def _get_basic_auth_url(self, url):
+        if url is None:
+            url = self.rooturl
+        else:
+            url = URL(url).joinpath("/").url
+        return url
+
+    def set_basic_auth(self, user, password, url=None):
+        url = self._get_basic_auth_url(url)
+        basic_auth = self._get_basic_auth_dict()
+        basic_auth[url] = (user, password)
+        self.reconfigure(data=dict(_basic_auth=basic_auth))
+
+    def del_basic_auth(self, url=None):
+        url = self._get_basic_auth_url(url)
+        basic_auth = self._get_basic_auth_dict()
+        try:
+            del basic_auth[url]
+        except KeyError:
+            return False
+        self.reconfigure(data=dict(_basic_auth=basic_auth))
+        return True
+
+    def get_basic_auth(self, url=None):
+        url = self._get_basic_auth_url(url)
+        basic_auth = self._get_basic_auth_dict().get(url)
+        return tuple(basic_auth) if basic_auth else None
+
     def reconfigure(self, data):
         for name in data:
             oldval = getattr(self, name)
@@ -117,7 +152,20 @@ class Current(object):
         url = self.get_index_url(url)
         if not url.is_valid_http_url():
             hub.fatal("invalid URL: %s" % url.url)
-        r = hub.http_api("get", url.addpath("+api"), quiet=True)
+        if '@' in url.netloc:
+            basic_auth, netloc = url.netloc.rsplit('@', 1)
+            if ':' not in basic_auth:
+                hub.fatal("When using basic auth, you have to provide username and password.")
+            basic_auth = basic_auth.split(':', 1)
+            url = url.replace(netloc=netloc)
+            hub.warn("Using basic authentication for '%s'." % url.url)
+            hub.warn("The password is stored unencrypted!")
+            self.set_basic_auth(
+                basic_auth[0], basic_auth[1], url=url)
+        else:
+            self.del_basic_auth(url=url.joinpath("/").url)
+        r = hub.http_api(
+            "get", url.addpath("+api"), quiet=True)
         self._configure_from_server_api(r.result, url)
 
     def _configure_from_server_api(self, result, url):
