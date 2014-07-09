@@ -179,6 +179,46 @@ table.projectinfos ul {
     padding: 0;
 }
 
+table.projectinfos .opened .value,
+table.projectinfos .closed .value {
+    position: relative;
+    cursor: pointer;
+}
+
+table.projectinfos .closed .value ul {
+    position: relative;
+    height: 3.25em;
+    overflow: hidden;
+}
+
+table.projectinfos .closed .value ul:after {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 2em;
+    background: -moz-linear-gradient(top, rgba(255,255,255,0), rgba(255,255,255,1));
+    background: -webkit-linear-gradient(top, rgba(255,255,255,0), rgba(255,255,255,1));
+    background: linear-gradient(top, rgba(255,255,255,0), rgba(255,255,255,1));
+}
+
+table.projectinfos .opened .value:after,
+table.projectinfos .closed .value:after {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: white;
+}
+
+table.projectinfos .closed .value:after {
+    content: "+";
+}
+
+table.projectinfos .opened .value:after {
+    content: "-";
+}
+
 a.passed:after,
 .toxresult.passed h2:before,
 .toxresult .command.passed div:first-child:before {
@@ -190,7 +230,7 @@ a.passed:after,
 a.failed:after,
 .toxresult.failed h2:before,
 .toxresult .command.failed div:first-child:before {
-    content: "𐄂";
+    content: "!";
     color: red;
     font-weight: bold;
 }
@@ -200,7 +240,7 @@ a.passed:after {
 }
 
 a.failed:after {
-    content: " 𐄂";
+    content: " !";
 }
 
 .toxresult.opened h2,
@@ -216,6 +256,8 @@ a.failed:after {
     content: "+";
 }
 
+table.projectinfos .opened .value:after,
+table.projectinfos .closed .value:after,
 .toxresult.opened h2:after,
 .toxresult.closed h2:after {
     display: inline-block;

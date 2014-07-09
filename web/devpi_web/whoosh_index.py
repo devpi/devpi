@@ -377,6 +377,8 @@ class Index(object):
             plugins.FieldsPlugin: """
                 By using a search like <code>fieldname:term</code>,
                 you can search in the following fields:<br />%s""" % fields_doc,
+            plugins.PrefixPlugin: """
+                End a term with an asterisk to search by prefix like this: <code>path:/fschulze/*</code>""",
             plugins.GroupPlugin: """
                 Group query clauses with parentheses.""",
             plugins.OperatorsPlugin: """
@@ -394,6 +396,7 @@ class Index(object):
             plugins.WhitespacePlugin(),
             plugins.SingleQuotePlugin(),
             plugins.FieldsPlugin(),
+            plugins.PrefixPlugin(),
             plugins.GroupPlugin(),
             plugins.OperatorsPlugin(),
             plugins.BoostPlugin()]

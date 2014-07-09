@@ -33,7 +33,8 @@ $(function() {
         }
     });
     $('.toxresult.failed').addClass('opened');
-    $('.toxresult h2').click(function () {
+    $('table.projectinfos .classifiers').addClass('closed');
+    $('.toxresult h2, table.projectinfos .classifiers .value').click(function () {
         $(this).parent().toggleClass('closed opened');
     });
 });
