@@ -9,6 +9,12 @@
 - fix issue85: "devpi list -v" now shows package names with latest
   versions.
 
+- implement issue75: We use the custom X-Devpi-Auth header for authentication
+  now, instead of overwriting the Authentication header.
+
+- added experimental support for basic authentication by parsing user and
+  password from the url given to the "devpi use" command.
+
 1.2.2
 -------------------------------
 
