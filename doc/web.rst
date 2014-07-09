@@ -1,10 +1,40 @@
 Web interface and search
 ============================
 
-The web interface is distributed as a `separate devpi-web package <https://pypi.python.org/pypi/devpi-web>`_.
+The web interface is distributed as a `separate devpi-web package <https://pypi.python.org/pypi/devpi-web>`_ which needs to be installed alongside the
+``devpi-server`` package ahead of the first server start.  ``devpi-web`` 
+provides navigation and search facilities as well as access to uploaded
+documentation and tox based testing results for release files.  Without 
+``devpi-web``, the core ``devpi-server`` is fully functional for tool usage
+but the web interface will otherwise just display json-type information 
+on most urls.
 
-It registers :doc:`hooks` via the setuptools entry point mechanism to add a web ui to devpi-server.
-It provides navigation and search facilities as well as access to uploaded documentation and tox results.
+.. note::
+
+    If you have a :doc:`replica` setup you are free to run only a replica
+    site with the web interface and run a core ``devpi-server`` without it.
+
+    Note, however, that as of the 2.0 version, you cannot add the web interface
+    plugin after the first devpi-server start.  It's recommended to
+    install the web interface for devpi-server installations unless you are
+    aiming for a more refined deployment aiming at minimizing risks.
+    It's fine to uninstall devpi-web later in the lifetime of a devpi-server.
+
+
+Usage and installation
+-------------------------------------------
+
+``devpi-web`` needs to be installed alongside ``devpi-server`` before
+the server is started the first time because it needs to follow all 
+server state changes from the beginning.
+
+You can install the web interface with::
+
+    pip install devpi-web
+
+There is no configuration needed as ``devpi-server`` will automatically
+discover the web plugin through calling doc:`hooks` using the setuptools
+entry points mechanism.
 
 
 Navigation

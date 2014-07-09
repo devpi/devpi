@@ -33,6 +33,13 @@ You can now connect to ``http://localhost:3141`` or ``http://localhost:4000``
 interchangeably.  Specify ``--debug`` to see more output related to the
 replica operations.
 
+.. note::
+
+    You probably want to make sure that before starting the replica and/or
+    master that you also have the :doc:`web` plugin installed.  You cannot
+    install it later.
+
+
 Implemented user stories
 -------------------------------------------
 
