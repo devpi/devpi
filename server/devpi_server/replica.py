@@ -138,6 +138,18 @@ def tween_replica_proxy(handler, registry):
     return handle_replica_proxy
 
 
+hop_by_hop = frozenset((
+    'connection',
+    'keep-alive',
+    'proxy-authenticate',
+    'proxy-authorization',
+    'te',
+    'trailers',
+    'transfer-encoding',
+    'upgrade'
+))
+
+
 def proxy_write_to_master(xom, request):
     """ relay modifying http requests to master and wait until
     the change is replicated back.
@@ -152,7 +164,17 @@ def proxy_write_to_master(xom, request):
     if r.status_code < 400:
         commit_serial = int(r.headers["X-DEVPI-SERIAL"])
         xom.keyfs.notifier.wait_tx_serial(commit_serial)
-    headers = r.headers.copy()
+    headers = dict()
+    # remove hop by hop headers, see:
+    # https://www.mnot.net/blog/2011/07/11/what_proxies_must_do
+    hop_keys = set(hop_by_hop)
+    connection = r.headers.get('connection')
+    if connection and connection.lower() != 'close':
+        hop_keys.update(x.strip().lower() for x in connection.split(','))
+    for k, v in r.headers.items():
+        if k.lower() in hop_keys:
+            continue
+        headers[k] = v
     headers[str("X-DEVPI-PROXY")] = str("replica")
     return Response(status=r.status_code,
                     body=r.content,

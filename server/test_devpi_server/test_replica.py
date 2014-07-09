@@ -130,6 +130,22 @@ class TestTweenReplica:
         assert response.headers.get("X-DEVPI-SERIAL") == "10"
         assert l == [10]
 
+    def test_hop_headers(self, makexom, blank_request, reqmock, monkeypatch):
+        xom = makexom(["--master", "http://localhost"])
+        reqmock.mock("http://localhost/blankpath",
+                     code=200, headers={
+                        "Connection": "Keep-Alive, Foo",
+                        "Foo": "abc",
+                        "Keep-Alive": "timeout=30",
+                        "X-DEVPI-SERIAL": "0"})
+        monkeypatch.setattr(xom.keyfs.notifier, "wait_tx_serial",
+                            lambda x: x)
+        handler = tween_replica_proxy(None, {"xom": xom})
+        response = handler(blank_request(method="PUT"))
+        assert 'connection' not in response.headers
+        assert 'foo' not in response.headers
+        assert 'keep-alive' not in response.headers
+
 def replay(xom, replica_xom):
     for serial in range(replica_xom.keyfs.get_next_serial(),
                         xom.keyfs.get_next_serial()):
