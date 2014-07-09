@@ -5,7 +5,7 @@ from pyramid.httpexceptions import HTTPNotFound
 from pyramid.view import view_config
 from pyramid.response import Response
 
-from .keyfs import load, dump, get_write_file_ensure_dir
+from .keyfs import load, loads, dump, get_write_file_ensure_dir
 from .log import thread_push_log, threadlog
 from .views import is_mutating_http_method
 
@@ -81,7 +81,7 @@ class ReplicaThread:
             else:
                 if r.status_code == 200:
                     try:
-                        entry = load(r.raw)
+                        entry = loads(r.raw.read())
                     except Exception:
                         log.exception("could not read answer %s", url)
                     else:
