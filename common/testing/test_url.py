@@ -121,6 +121,32 @@ class TestURL:
         with pytest.raises(ValueError):
             URL("http://qwe/path").relpath("lkjqwe")
 
+    def test_netloc(self):
+        assert URL("http://qwe/").netloc == 'qwe'
+        assert URL("http://foo:pass@qwe/").netloc == 'foo:pass@qwe'
+
+    def test_replace(self):
+        url = URL("http://qwe/foo?bar=ham#hash")
+        assert url.replace(scheme='https').url == "https://qwe/foo?bar=ham#hash"
+        assert url.replace(scheme='').url == "//qwe/foo?bar=ham#hash"
+        assert url.replace(netloc='world').url == "http://world/foo?bar=ham#hash"
+        assert url.replace(netloc='').url == "http:///foo?bar=ham#hash"
+        assert url.replace(path='/').url == "http://qwe/?bar=ham#hash"
+        assert url.replace(path='').url == "http://qwe?bar=ham#hash"
+        assert url.replace(query='').url == "http://qwe/foo#hash"
+        assert url.replace(fragment='').url == "http://qwe/foo?bar=ham"
+        assert url.replace(fragment='foo').url == "http://qwe/foo?bar=ham#foo"
+        # original shouldn't have changed
+        assert url.url == "http://qwe/foo?bar=ham#hash"
+        # trying to change something not existing does nothing
+        assert url.replace(foo='https').url == "http://qwe/foo?bar=ham#hash"
+
+    def test_replace_nothing(self):
+        url = URL("http://qwe/foo?bar=ham#hash")
+        new_url = url.replace()
+        assert new_url is not url
+        assert new_url.url == url.url
+
 #
 # test torelpath/fromrelpath
 #

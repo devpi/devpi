@@ -126,6 +126,22 @@ class TestUnit:
         out, err = capfd.readouterr()
         assert "could not connect" in out
 
+    def test_use_with_basic_auth(self, cmd_devpi, mock_http_api):
+        mock_http_api.set(
+            "http://devpi/foo/bar/+api", 200, result=dict(
+                pypisubmit="/post",
+                simpleindex="/index/",
+                index="foo/bar",
+                bases="root/pypi",
+                login="/+login",
+                authstatus=["noauth", ""]))
+        # use with basic authentication
+        hub = cmd_devpi("use", "http://user:password@devpi/foo/bar")
+        assert hub.current.get_basic_auth() == ('user', 'password')
+        # now without basic authentication
+        hub = cmd_devpi("use", "http://devpi/foo/bar")
+        assert hub.current.get_basic_auth() is None
+
     def test_change_index(self, cmd_devpi, mock_http_api):
         mock_http_api.set("http://world.com/+api", 200,
                     result=dict(

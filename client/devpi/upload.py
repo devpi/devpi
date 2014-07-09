@@ -119,7 +119,8 @@ class Uploader:
         if self.args.dryrun:
             hub.line("skipped: %s" % msg)
         else:
-            r = hub.http.post(hub.current.pypisubmit, dic, files=files, headers=headers)
+            r = hub.http.post(hub.current.pypisubmit, dic, files=files,
+                              headers=headers, auth=hub.current.get_basic_auth())
             r = HTTPReply(r)
             if r.status_code == 200:
                 hub.info(msg)

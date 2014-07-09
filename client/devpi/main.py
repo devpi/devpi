@@ -94,7 +94,9 @@ class Hub:
             if auth is notset:
                 auth = self.current.get_auth()
             set_devpi_auth_header(headers, auth)
-            r = self.http.request(method, url, data=data, headers=headers)
+            basic_auth = self.current.get_basic_auth(url=url)
+            r = self.http.request(method, url, data=data, headers=headers,
+                                  auth=basic_auth)
         except self.http.ConnectionError:
             self._last_http_status = -1
             self.fatal("could not connect to %r" % (url,))
@@ -278,6 +280,10 @@ class Hub:
     def info(self, *msg):
         if not self.quiet:
             self.line(*msg, bold=True)
+
+    def warn(self, *msg):
+        if not self.quiet:
+            self.line(*msg, yellow=True, bold=True)
 
     def out_json(self, data):
         self._tw.line(json.dumps(data, sort_keys=True, indent=4))

@@ -47,6 +47,17 @@ class URL:
         scheme, netloc, url, params, query, ofragment = self._parsed
         return URL(urlunsplit((scheme, netloc, url, query, "")))
 
+    def replace(self, **kwargs):
+        _parsed = self._parsed
+        url = []
+        for field in ('scheme', 'netloc', 'path', 'query', 'fragment'):
+            url.append(kwargs.get(field, getattr(_parsed, field)))
+        return URL(urlunsplit(url))
+
+    @property
+    def netloc(self):
+        return self._parsed.netloc
+
     @property
     def scheme(self):
         return self._parsed.scheme
