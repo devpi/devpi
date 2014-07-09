@@ -16,198 +16,56 @@ Note that the :doc:`the pypi-mirroring quickstart
 --start|--log|--stop`` background-server control options which you can
 use to integrate with existing ``init.d`` or similar infrastructure.
 
-.. note::
-
-    If you intend to package devpi-server yourself
-    this quickstart may still be helpful because it
-    generates configuration files and discusses options 
-    for deployment integration.  Btw, if you create 
-    a deb/rpm package, :ref:`please share it <contribute>`.
-
 Installing devpi-server
 -----------------------
 
 Install or upgrade ``devpi-server``::
 
     pip install -U devpi-server
+    # if you want the web interface
+    pip install -U devpi-web
+
 
 And let's check the version::
 
     $ devpi-server --version
-    1.2.1
+    2.0.0.dev4
 
-.. _gendeploy:
+.. _genconfig:
 
-generating a deployment (deprecated in 1.2)
--------------------------------------------------------
+generating example config files for supervisor/nginx/cron
+-----------------------------------------------------------
 
-devpi-server provides the ``--gendeploy`` option to create
-virtualenv-based supervisor_-controled deployments of ``devpi-server``.
+Use ``devpi-server --gen-config`` to write out several example config files 
+into the ``gen-config`` directory (relative to where you invoke it
+from).  The files come with some defaults to integrate with your own
+permanent hosting infrastructure.  When ``--gen-config``
+is present no server is started and no network request is performed
+because the sole purpose is to help you get started with properly
+running and deploying a devpi-server in your company or on your laptop.
 
-.. note::
+If you have improvements or additions to the example configs please
+share them with a 
+`Merge/Pull Request on the devpi repo <https://bitbucket.org/hpk42/devpi`_.
 
-   This option is unix-only and is likely to go away in future versions.
+Here is an example run::
 
-creating a virtualenv
-+++++++++++++++++++++++++++++++
+    $ devpi-server --port 4040 --serverdir ~/mydevpiserver --gen-config
+    wrote gen-config/supervisor-devpi.conf
+    wrote gen-config/nginx-devpi.conf
+    wrote gen-config/crontab
 
-Let's make sure we have a recent ``virtualenv`` installed:
+Below we look at the config files in a bit of detail.
 
-    $ pip install -q -U virtualenv
-
-Now, let's create a self-contained virtualenv directory where
-devpi-server is configured to run under supervisor_ control.
-It is a good idea to create the virtualenv directory yourself,
-using the python of your choice::
-
-    $ virtualenv -q TARGETDIR
-
-If you don't create it, the next step would automatically
-create it.
-
-``--gendeploy``: installing packages and configuration files
-------------------------------------------------------------
-
-We can now use the ``--gendeploy TARGETDIR`` option to
-install packages and configuration files.  Any 
-:ref:`devpi-server option <cmdref_devpi_server>` that we pass along
-with a ``--gendeploy`` call will be used for creating
-adapted config files. 
-
-Here, we just pass it a port to distinguish it from the :ref:`single
-laptop deployment (Quickstart) <quickstart-releaseprocess>`::
-
-    $ devpi-server --gendeploy=TARGETDIR --port 4040
-    using existing virtualenv: /home/hpk/p/devpi/doc/TARGETDIR
-    installing devpi-server,supervisor,eventlet into virtualenv
-    wrote /home/hpk/p/devpi/doc/TARGETDIR/etc/supervisord.conf
-    wrote /home/hpk/p/devpi/doc/TARGETDIR/etc/nginx-devpi.conf
-    wrote /home/hpk/p/devpi/doc/TARGETDIR/bin/devpi-ctl
-    wrote /home/hpk/p/devpi/doc/TARGETDIR/etc/crontab
-    created and configured /home/hpk/p/devpi/doc/TARGETDIR
-    To control supervisor's deployment of devpi-server set:
-    
-        alias devpi-ctl='/home/hpk/p/devpi/doc/TARGETDIR/bin/devpi-ctl'
-    
-    and then start the server process:
-    
-        devpi-ctl start all
-    It seems you are using "cron", so we created a crontab file
-     which starts devpi-server at boot. With:
-    
-        crontab /home/hpk/p/devpi/doc/TARGETDIR/etc/crontab
-    
-    you should be able to install the new crontab but please check it
-    first.
-    
-    We prepared an nginx configuration at:
-    
-        /home/hpk/p/devpi/doc/TARGETDIR/etc/nginx-devpi.conf
-    
-    which you might modify and copy to your /etc/nginx/sites-enabled
-    directory.
-    
-    may quick reliable pypi installations be with you :)
-
-.. note::
-    
-    devops note: at this point, no server has been started and you
-    can look at the generated configuration files and integrate
-    them into your own deployment structure.
-
-Let's discuss what we have now step by step.
-
-devpi-ctl: supervisor wrapper for devpi control
-+++++++++++++++++++++++++++++++++++++++++++++++
-
-You can use the ``devpi-ctl`` helper which is a transparent
-wrapper of the ``supervisorctl`` tool to make sure that the 
-supervisord contained in our ``TARGETDIR`` virtualenv is running.
-
-Let's check the status of our new server::
-
-    $ TARGETDIR/bin/devpi-ctl status 
-    devpi-server                     STOPPED    Not started
-    restarted /home/hpk/p/devpi/doc/TARGETDIR/bin/supervisord
-    using supervisor config: /home/hpk/p/devpi/doc/TARGETDIR/etc/supervisord.conf
-
-And then start it::
-
-    $ TARGETDIR/bin/devpi-ctl start devpi-server
-    devpi-server: started
-    using supervisor config: /home/hpk/p/devpi/doc/TARGETDIR/etc/supervisord.conf
-
-Here are some further (wrapped supervisor) commands::
-
-    devpi-ctl status    # look at status of devpi-server
-
-    devpi-ctl stop all  # stop all processes
-
-    devpi-ctl start all # start devpi-server 
-
-    devpi-ctl tail [-f] devpi-server  # look at current logs
-    
-    devpi-ctl shutdown  # shutdown all processes including supervisor
-
-    devpi-ctl status    # look at status of devpi processes
-
-Now that we have our "gendeploy" instance running, we can
-uninstall devpi-server from the original environment::
-
-    $ pip uninstall -y devpi-server
-    Cannot uninstall requirement devpi-server, not installed
-    Storing complete log in /tmp/home/.pip/pip.log
-
-the supervisor configuration file
-+++++++++++++++++++++++++++++++++++
-
-If you have your own server supervisor configuration 
-you can take the relevant bit out from the gendeploy-generated 
-one::
-
-    $ cat TARGETDIR/etc/supervisord.conf
-    [unix_http_server]
-    file = %(here)s/../supervisor.socket
-     
-    [supervisord]
-    logfile=/home/hpk/p/devpi/doc/TARGETDIR/log/supervisord.log
-    pidfile=/home/hpk/p/devpi/doc/TARGETDIR/supervisord.pid
-    logfile_maxbytes=50MB           
-    logfile_backups=5 
-    loglevel=info           ; info, debug, warn, trace
-    redirect_stderr = True
-    nodaemon=false          ; run supervisord as a daemon
-    minfds=1024             ; number of startup file descriptors
-    minprocs=200            ; number of process descriptors
-    childlogdir=/home/hpk/p/devpi/doc/TARGETDIR/log   ; where child log files will live
-     
-    [rpcinterface:supervisor]
-    supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
-     
-    [supervisorctl]
-    serverurl=unix://%(here)s/../supervisor.socket
-    
-    # if you have a system-wide supervisord installation 
-    # you might move the below actual program definitions 
-    # to a global /etc/supervisord/conf.d/devpi-server.conf
-    
-    [program:devpi-server]
-    command=/home/hpk/p/devpi/doc/TARGETDIR/bin/devpi-server --port 4040 --serverdir /home/hpk/p/devpi/doc/TARGETDIR/data
-    priority=999
-    startsecs = 5
-    redirect_stderr = True
-    autostart=False
-    
 
 .. _`configured nginx`:
 
-nginx as frontend
-+++++++++++++++++
+``nginx-devpi.conf``: nginx site config
+++++++++++++++++++++++++++++++++++++++++++++++++++
 
-If you are using nginx_ you can take a look at the created
-nginx site config file::
+The nginx site configuration as generated by the above example run::
 
-    $ cat TARGETDIR/etc/nginx-devpi.conf
+    $ cat gen-config/nginx-devpi.conf
     server {
         server_name localhost;   
         listen 80;
@@ -218,10 +76,14 @@ nginx site config file::
     
         client_max_body_size 30M;
     
-        root /home/hpk/p/devpi/doc/TARGETDIR/data;  
+        root /tmp/home/mydevpiserver;  
     
-        # try serving docs and (md5/immutable) directly
-        location ~ \+(f|doc)/ {
+        # try serving static files directly
+        location ~ /\+f/ {
+            try_files /+files$uri @proxy_to_app;
+        }
+        # try serving docs directly
+        location ~ /\+doc/ {
             try_files $uri @proxy_to_app;
         }
         location / {
@@ -230,17 +92,44 @@ nginx site config file::
         }   
         location @proxy_to_app {
             proxy_pass http://localhost:4040;
-            proxy_set_header  X-outside-url $scheme://$host;
+            #dynamic: proxy_set_header X-outside-url $scheme://$host:$server_port;
+            proxy_set_header  X-outside-url http://localhost:80;
             proxy_set_header  X-Real-IP $remote_addr;
         }   
     } 
 
-Apart from the ``server_name`` setting which you probably
-want to adjust, this is a ready-use nginx configuration file.
-The "X-outside-url" header dynamically tells the devpi-server
-instance under which outside url it is reachable.  This is particuarly
-needed when using the :ref:`jenkins integration` but might also
-be needed in other occassions in the future.
+The devpi specific settings re found in the location directives
+where we first try to serve static files through nginx before
+deferring to the devpi-server server instance.  The X-outside URL
+settings drive the devpi-server to generate correct URLs 
+because it might otherwise assume it is exposed at ``http://localhost:4040``
+and generate URLs accordingly.
+
+
+supervisor site configuration
++++++++++++++++++++++++++++++++++++++++++++++++
+
+Let's look at the supervisor configuration files.  The 
+``supervisor-devpi.conf`` one presumes you have a master 
+supervisor configuration on your system and
+and just drop the include config file into a directory like
+``/etc/supervisor/conf.d/`` on Ubuntu 12.04.  Here are the contents::
+
+    $ cat gen-config/supervisor-devpi.conf
+    
+    [program:devpi-server]
+    command=/home/hpk/venv/0/bin/devpi-server --port 4040 --serverdir /tmp/home/mydevpiserver
+    user = hpk
+    priority = 999
+    startsecs = 5
+    redirect_stderr = True
+    autostart = True
+
+If supervisord is running on your system you may, after copying
+the config file to the supervisor ``conf.d`` directory, reload supervisord:
+
+configuration directory 
+
 
 crontab / start at bootup 
 +++++++++++++++++++++++++
@@ -249,47 +138,81 @@ Lastly, if you want to have things running at system startup and you are
 using a standard cron, a modified copy of your user crontab has been
 amended which you may inspect::
 
-    $ cat TARGETDIR/etc/crontab
-    @reboot /home/hpk/p/devpi/doc/TARGETDIR/bin/devpi-ctl start all
+    $ cat gen-config/crontab
+    @reboot /home/hpk/venv/0/bin/devpi-server --start --port 4040 --serverdir /tmp/home/mydevpiserver
 
 and install with::
 
     crontab TARGETDIR/etc/crontab
 
-If you look into the ``TARGETDIR/etc/supervisord.conf`` and read up on
-supervisor, you can modify the configuration to your liking.
 
+Installing devpi server and client
+---------------------------------------------
+
+.. 
+
+    $ devpi-server --serverdir tutorial --stop
+    no server found
+
+..
+
+    $ rm -rf tutorial
+
+When started afresh, ``devpi-server`` will not contain any users
+or indexes except for the root user and the ``root/pypi`` index
+(see :ref:`using root/pypi index <install_first>`) which represents
+and caches https://pypi.python.org packages.  Let's start a server
+fur the purposes of this tutorial in the background::
+
+    $ devpi-server --serverdir tutorial --port 4040 --start
+    2014-07-09 15:26:24,602 INFO  NOCTX DB: Creating schema
+    2014-07-09 15:26:24,656 INFO  [Wtx-1] setting password for user u'root'
+    2014-07-09 15:26:24,656 INFO  [Wtx-1] created user u'root' with email None
+    2014-07-09 15:26:24,657 INFO  [Wtx-1] created root user
+    2014-07-09 15:26:24,657 INFO  [Wtx-1] created root/pypi index
+    2014-07-09 15:26:24,676 INFO  [Wtx-1] fswriter0: committed: u'.config',u'root/.config'
+    starting background devpi-server at http://localhost:4040
+    /home/hpk/p/devpi/doc/tutorial/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server --serverdir tutorial --port 4040
+    process u'devpi-server' started pid=17957
+    devpi-server process startup detected
+    logfile is at /home/hpk/p/devpi/doc/tutorial/.xproc/devpi-server/xprocess.log
+
+The ``--start`` option will run a server in the background which
+you can further control with the "background server options", see 
+output of ``devpi-server -h`` at the end.
+
+The server will listen on ``http://localhost:4040`` and also serve
+the devpi web interface if you have ``devpi-web`` installed.
+
+
+In order to manage users and indices on our fresh server let's also
+install the ``devpi-client`` package::
+
+    $ pip install -U --pre -q devpi-client
+
+You can install this client software on different hosts if you
+`configured nginx`_.
 
 .. _auth:
-
-Initial user setup (on separate machine)
-------------------------------------------
-
-In order to manage users and indices let's install the
-``devpi-client`` package::
-
-    $ pip install --pre -U -q devpi-client
-
-You can install this client software on different hosts.
 
 Connecting to the server
 ++++++++++++++++++++++++++++++++++
 
 If you `configured nginx`_, you can use the ``server_name``
 of your nginx configuration for connecting to the server.
-For purposes of this tutorial, we use the direct
-``http://localhost:4040`` as configured above::
+For purposes of this tutorial, we use the URL
+``http://localhost:4040`` of the background tutorial server we started above::
 
     $ devpi use http://localhost:4040
     using server: http://localhost:4040/ (not logged in)
     no current index: type 'devpi use -l' to discover indices
-    ~/.pydistutils.cfg : no config file exists
-    ~/.pip/pip.conf    : no config file exists
+    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
     always-set-cfg: no
 
-At this point we have only a root user and a ``root/pypi``
-index (see :ref:`using root/pypi index <install_first>`).
-
+At this point we are not connected to any index, just to the
+root server.   And we are not logged in.
 
 setting the root password
 ++++++++++++++++++++++++++++++++++
@@ -305,11 +228,12 @@ and can then change it::
     $ devpi user -m root password=123
     user modified: root
 
-At this point we don't have any other users::
+Let's verify we don't have any other users::
 
     $ devpi user -l
     root
 
+The root user can modify any index and any user configuration.
 As we don't plan to work further with the root user, we can log off::
 
     $ devpi logoff
@@ -318,7 +242,7 @@ As we don't plan to work further with the root user, we can log off::
 Registering a new user
 ++++++++++++++++++++++++++++++++
 
-Let's register ourselves a new user::
+Let's register ourselves a new regular non-root user::
 
     $ devpi user -c alice password=456  email=alice@example.com
     user created: alice
@@ -328,7 +252,7 @@ and then login::
     $ devpi login alice --password=456
     logged in 'alice', credentials valid for 10.00 hours
 
-Alice can now create a new ``dev`` index::
+Alice can now create her new ``dev`` index::
 
     $ devpi index -c dev
     http://localhost:4040/alice/dev:
@@ -337,13 +261,15 @@ Alice can now create a new ``dev`` index::
       volatile=True
       uploadtrigger_jenkins=None
       acl_upload=alice
+      pypi_whitelist=
 
-and use it::
+and use it ::
 
     $ devpi use alice/dev
-    current devpi index: http://localhost:4040/alice/dev/ (logged in as alice)
-    ~/.pydistutils.cfg : no config file exists
-    ~/.pip/pip.conf    : no config file exists
+    current devpi index: http://localhost:4040/alice/dev (logged in as alice)
+    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
     always-set-cfg: no
 
 Our ``alice/dev`` index derives from ``root/pypi`` by default
@@ -356,9 +282,10 @@ You can cause devpi to set ``$HOME`` configuration files which will
 cause ``pip`` and ``easy_install`` to use our in-use index server::
 
     $ devpi use --set-cfg alice/dev
-    current devpi index: http://localhost:4040/alice/dev/ (logged in as alice)
-    ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
-    ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
+    current devpi index: http://localhost:4040/alice/dev (logged in as alice)
+    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
     always-set-cfg: no
 
 This will modify or create common configuration files in your home directory
@@ -367,9 +294,10 @@ the ``user/indexname`` index.   You can configure ``devpi`` to perform
 this configuration modification::
 
     $ devpi use --always-set-cfg=yes
-    current devpi index: http://localhost:4040/alice/dev/ (logged in as alice)
-    ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
-    ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
+    current devpi index: http://localhost:4040/alice/dev (logged in as alice)
+    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
     always-set-cfg: yes
 
 This will imply ``--set-cfg`` on all subsequent ``devpi use ...`` operations.
@@ -383,16 +311,13 @@ as described in the :ref:`release process quickstart <quickstart_release_steps>`
 Stopping the server
 ++++++++++++++++++++++++++++++++++++++++++
 
-Using devpi-ctl again we can stop the server eventually::
+Let's not forget to stop our background tutorial server::
 
-    $ TARGETDIR/bin/devpi-ctl shutdown
-    Shut down
-    using supervisor config: /home/hpk/p/devpi/doc/TARGETDIR/etc/supervisord.conf
+    $ devpi-server --serverdir tutorial --stop
+    killed server pid=17957
 
 versioning, exporting and importing server state
 ----------------------------------------------------
-
-.. versionadded:: 1.1
 
 .. note::
 
@@ -409,15 +334,15 @@ a different location via the ``--serverdir`` option.
 You can use the ``--export`` option to dump user and index state
 into a directory::
 
-    devpi-server --serverdir ~/.devpi/server --export dumpdir
+    devpi-server --serverdir tutorial --export dumpdir
 
 ``dumpdir`` will then contain a ``dataindex.json`` and the
-files that comprise the server state.  
+files that comprise the server state.
 
 Using the same version of ``devpi-server`` or a future release you can
 then import this dumped server state::
 
-    devpi-server --serverdir newserver --import dumpdir
+    $ devpi-server --serverdir newserver --import dumpdir
 
 This will import the previously exported server dump and
 create a new server state structure in the ``newserver`` directory.
@@ -426,11 +351,9 @@ You can then run a server from this new state::
     devpi-server --serverdir newserver --port 5000
 
 and check through a browser that all your data got migrated correctly.
-Once you are happy you can remove the old serverdir (Default
-at ``$HOME/.devpi/server``) 
+Once you are happy you can remove the old serverdir.
 
 .. note::
 
-    With version 1.1 and above users, indices, release files,
-    test results and documentation files will be dumped.  
-    The ``root/pypi`` pypi-caching index is **not dumped**.
+    The ``root/pypi`` pypi-caching index along with its files
+    is neither exported nor imported.

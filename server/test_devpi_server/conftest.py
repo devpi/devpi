@@ -669,6 +669,7 @@ from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.response import HTTPResponse
 import fnmatch
 
+
 @pytest.fixture
 def reqmock(monkeypatch):
     mr = mocked_request()

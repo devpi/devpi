@@ -56,13 +56,11 @@ def addoptions(parser):
             help="run as a replica of the specified master server",
             default=None)
 
-    deploy.addoption("--gendeploy", action="store", metavar="DIR",
-            help="(unix only, deprecated) install and generate a pre-configured "
-                 "virtualenv directory which puts devpi-server "
-                 "under supervisor control and provides some example "
-                 "files for nginx/crontab.  If the specified DIR exists "
-                 "virtualenv creation will be skipped and only the "
-                 "installation steps will be performed. ")
+    deploy.addoption("--gen-config", dest="genconfig", action="store_true",
+            help="(unix only ) generate example config files for "
+                 "nginx/supervisor/crontab, taking other passed options "
+                 "into account (e.g. port, host, etc.)"
+    )
 
     deploy.addoption("--secretfile", type=str, metavar="path",
             default="{serverdir}/.secret",
@@ -263,13 +261,9 @@ class Config:
 def getpath(path):
     return py.path.local(os.path.expanduser(str(path)))
 
-def render(tw, basedir, confname, format=None, **kw):
+def render(tw, confname, format=None, **kw):
     result = render_string(confname, format=format, **kw)
-    conf = basedir.join(confname)
-    conf.write(result)
-    if tw is not None:
-        tw.line("wrote %s" % conf, bold=True)
-    return conf
+    return result
 
 def render_string(confname, format=None, **kw):
     template = confname + ".template"

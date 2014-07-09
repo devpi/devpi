@@ -72,9 +72,9 @@ def _main(argv=None, hook=None):
         return
 
     # meta commmands (that will not instantiate server object in-process)
-    if args.gendeploy:
-        from devpi_server.gendeploy import gendeploy
-        return gendeploy(config)
+    if args.genconfig:
+        from devpi_server.genconfig import genconfig
+        return genconfig(config)
 
     configure_logging(config)
     xom = XOM(config)
