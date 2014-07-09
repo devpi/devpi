@@ -5,7 +5,7 @@ from pyramid.httpexceptions import HTTPNotFound
 from pyramid.view import view_config
 from pyramid.response import Response
 
-from .keyfs import load, dump, get_write_file_ensure_dir
+from .keyfs import load, loads, dump, get_write_file_ensure_dir
 from .log import thread_push_log, threadlog
 from .views import is_mutating_http_method
 
@@ -81,9 +81,9 @@ class ReplicaThread:
             else:
                 if r.status_code == 200:
                     try:
-                        entry = load(r.raw)
+                        entry = loads(r.raw.read())
                     except Exception:
-                        log.error("could not read answer %s", url)
+                        log.exception("could not read answer %s", url)
                     else:
                         changes, rel_renames = entry
                         keyfs.import_changes(serial, changes)
@@ -138,6 +138,18 @@ def tween_replica_proxy(handler, registry):
     return handle_replica_proxy
 
 
+hop_by_hop = frozenset((
+    'connection',
+    'keep-alive',
+    'proxy-authenticate',
+    'proxy-authorization',
+    'te',
+    'trailers',
+    'transfer-encoding',
+    'upgrade'
+))
+
+
 def proxy_write_to_master(xom, request):
     """ relay modifying http requests to master and wait until
     the change is replicated back.
@@ -152,7 +164,17 @@ def proxy_write_to_master(xom, request):
     if r.status_code < 400:
         commit_serial = int(r.headers["X-DEVPI-SERIAL"])
         xom.keyfs.notifier.wait_tx_serial(commit_serial)
-    headers = r.headers.copy()
+    headers = dict()
+    # remove hop by hop headers, see:
+    # https://www.mnot.net/blog/2011/07/11/what_proxies_must_do
+    hop_keys = set(hop_by_hop)
+    connection = r.headers.get('connection')
+    if connection and connection.lower() != 'close':
+        hop_keys.update(x.strip().lower() for x in connection.split(','))
+    for k, v in r.headers.items():
+        if k.lower() in hop_keys:
+            continue
+        headers[k] = v
     headers[str("X-DEVPI-PROXY")] = str("replica")
     return Response(status=r.status_code,
                     body=r.content,
