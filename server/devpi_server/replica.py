@@ -83,7 +83,7 @@ class ReplicaThread:
                     try:
                         entry = load(r.raw)
                     except Exception:
-                        log.error("could not read answer %s", url)
+                        log.exception("could not read answer %s", url)
                     else:
                         changes, rel_renames = entry
                         keyfs.import_changes(serial, changes)
