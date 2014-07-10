@@ -4,6 +4,7 @@ interact/control devpi-server background process.
 from __future__ import unicode_literals
 import sys
 import time
+import py
 
 from devpi_common.url import urlparse
 
@@ -53,10 +54,13 @@ class BackgroundServer:
         devpi_server = sys.argv[0]
         if devpi_server is None:
             self.fatal("cannot find devpi-server binary, no auto-start")
+        if not py.path.local(devpi_server).exists():
+            self.fatal("not existing devpi-server: %r" % devpi_server)
+
         def prepare_devpiserver(cwd):
             url = "http://%s:%s" % (args.host, args.port)
             self.line("starting background devpi-server at %s" % url)
-            argv = [devpi_server, ] + filtered_args
+            argv = [sys.executable, devpi_server, ] + filtered_args
             #self.line("command: %s" % (argv,))
             #self.line("command: %s" % argv)
             return (lambda: self._waitup(url), argv)

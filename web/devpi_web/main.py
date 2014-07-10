@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+import sys
 from devpi_web.description import render_description
 from devpi_web.doczip import unpack_docs
 from devpi_web.indexing import iter_projects, preprocess_project
@@ -93,6 +94,17 @@ def devpiserver_pyramid_configure(config, pyramid_config):
     # for registrations of static views etc
     pyramid_config.include('devpi_web.main')
     pyramid_config.registry['search_index'] = get_indexer(config)
+
+    # monkeypatch mimetypes.guess_type on because pyramid-1.5.1/webob
+    # choke on mimtypes.guess_type on windows with python2.7
+    if sys.platform == "win32" and sys.version_info[:2] == (2,7):
+        import mimetypes
+        old = mimetypes.guess_type
+        def guess_type_str(url, strict=True):
+            res = old(url, strict)
+            return str(res[0]), res[1]
+        mimetypes.guess_type = guess_type_str
+        threadlog.debug("monkeypatched mimetypes.guess_type to return bytes")
 
 
 def devpiserver_add_parser_options(parser):

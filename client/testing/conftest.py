@@ -110,7 +110,9 @@ def url_of_liveserver(request):
         return URL(request.config.option.live_url)
     port = random.randint(2001, 64000)
     clientdir = request.config._tmpdirhandler.mktemp("liveserver")
-    subprocess.check_call(["devpi-server", "--serverdir", str(clientdir),
+    path = py.path.local.sysfind("devpi-server")
+    assert path
+    subprocess.check_call([str(path), "--serverdir", str(clientdir),
                            "--debug",
                              "--port", str(port), "--start"])
     def stop():
