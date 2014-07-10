@@ -167,6 +167,7 @@ class PyPIStage(BaseStage):
     VERSION = "4"
     name = "root/pypi"
     ixconfig = dict(bases=(), volatile=False, type="mirror",
+                    pypi_whitelist=(), custom_data="",
                     uploadtrigger_jenkins="", acl_upload=["root"])
 
     def __init__(self, xom):
