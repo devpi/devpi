@@ -2,7 +2,6 @@ import hashlib
 import pytest
 import py
 from devpi_server.replica import *  # noqa
-from devpi_server.main import set_default_indexes
 from devpi_common.url import URL
 
 def loads(bytestring):
