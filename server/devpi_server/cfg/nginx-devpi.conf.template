@@ -12,6 +12,10 @@ server {
 
     # try serving static files directly
     location ~ /\+f/ {
+        error_page 418 = @proxy_to_app;
+        if ($request_method = POST) {  # test results
+            return 418; 
+        }
         try_files /+files$uri @proxy_to_app;
     }
     # try serving docs directly
