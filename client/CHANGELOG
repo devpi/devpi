@@ -15,6 +15,9 @@
 - added experimental support for basic authentication by parsing user and
   password from the url given to the "devpi use" command.
 
+- issue74: added experimental support for client side certificates via
+  "devpi use --client-cert"
+
 1.2.2
 -------------------------------
 

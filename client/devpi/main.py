@@ -95,8 +95,9 @@ class Hub:
                 auth = self.current.get_auth()
             set_devpi_auth_header(headers, auth)
             basic_auth = self.current.get_basic_auth(url=url)
+            cert = self.current.get_client_cert(url=url)
             r = self.http.request(method, url, data=data, headers=headers,
-                                  auth=basic_auth)
+                                  auth=basic_auth, cert=cert)
         except self.http.ConnectionError as e:
             self._last_http_status = -1
             self.fatal("could not connect to %r:\n%s" % (url, e))
@@ -463,6 +464,10 @@ def use(parser):
         help="show all available indexes at the remote server")
     parser.add_argument("--delete", action="store_true",
         help="delete current association with server")
+    parser.add_argument("--client-cert", action="store", default=None,
+        metavar="pem_file",
+        help="use the given .pem file as the SSL client certificate to "
+             "authenticate to the server (EXPERIMENTAL)")
     parser.add_argument("url", nargs="?",
         help="set current API endpoints to the ones obtained from the "
              "given url.  If already connected to a server, you can "
