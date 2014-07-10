@@ -264,7 +264,6 @@ class Config:
             self.secretfile.chmod(s.S_IRUSR|s.S_IWUSR)
         return self.secretfile.read()
 
-
 def getpath(path):
     return py.path.local(os.path.expanduser(str(path)))
 

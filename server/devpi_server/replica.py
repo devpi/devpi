@@ -7,7 +7,8 @@ from pyramid.response import Response
 
 from .keyfs import load, loads, dump, get_write_file_ensure_dir
 from .log import thread_push_log, threadlog
-from .views import is_mutating_http_method
+from .views import is_mutating_http_method, get_outside_url
+from .model import UpstreamError
 
 
 class MasterChangelogRequest:
@@ -155,13 +156,21 @@ def proxy_write_to_master(xom, request):
     """ relay modifying http requests to master and wait until
     the change is replicated back.
     """
-    url = xom.config.master_url.joinpath(request.path).url
+    master_url = xom.config.master_url
+    url = master_url.joinpath(request.path).url
     http = xom._httpsession
     with threadlog.around("info", "relaying: %s %s", request.method,
     url):
-        r = http.request(request.method, url,
-                         data=request.body,
-                         headers=request.headers)
+        try:
+            r = http.request(request.method, url,
+                             data=request.body,
+                             headers=request.headers,
+                             allow_redirects=False)
+        except http.RequestException as e:
+            raise UpstreamError("proxy-write-to-master %s: %s" % (url, e))
+    #threadlog.debug("relay status_code: %s", r.status_code)
+    #threadlog.debug("relay headers: %s", r.headers)
+
     if r.status_code < 400:
         commit_serial = int(r.headers["X-DEVPI-SERIAL"])
         xom.keyfs.notifier.wait_tx_serial(commit_serial)
@@ -177,6 +186,12 @@ def proxy_write_to_master(xom, request):
             continue
         headers[k] = v
     headers[str("X-DEVPI-PROXY")] = str("replica")
+    if r.status_code == 302:  # REDIRECT
+        # rewrite master-related location to our replica site
+        master_location = r.headers["location"]
+        outside_url = get_outside_url(request, xom.config.args.outside_url)
+        headers[str("location")] = str(
+            master_location.replace(master_url.url, outside_url))
     return Response(status=r.status_code,
                     body=r.content,
                     headers=headers)
