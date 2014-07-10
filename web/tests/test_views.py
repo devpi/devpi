@@ -59,13 +59,13 @@ def test_docs_raw_view(mapp, testapp):
     testapp.xget(200, r.location)
     r = testapp.xget(404, "/blubber/blubb/pkg1/2.6/+doc/index.html")
     content, = r.html.select('#content')
-    assert content.text.strip() == 'The stage blubber/blubb could not be found.'
+    assert 'The stage blubber/blubb could not be found.' in content.text.strip()
     r = testapp.xget(404, api.index + "/pkg1/2.7/+doc/index.html")
     content, = r.html.select('#content')
-    assert content.text.strip() == 'No documentation available.'
+    assert 'No documentation available.' in content.text.strip()
     r = testapp.xget(404, api.index + "/pkg1/2.6/+doc/foo.html")
     content, = r.html.select('#content')
-    assert content.text.strip() == 'File foo.html not found in documentation.'
+    assert 'File foo.html not found in documentation.' in content.text.strip()
 
 
 @pytest.mark.with_notifier
@@ -82,13 +82,13 @@ def test_docs_view(mapp, testapp):
     assert iframe.attrs['src'] == api.index + "/pkg1/2.6/+doc/index.html"
     r = testapp.xget(404, "/blubber/blubb/pkg1/2.6/+d/index.html")
     content, = r.html.select('#content')
-    assert content.text.strip() == 'The stage blubber/blubb could not be found.'
+    assert 'The stage blubber/blubb could not be found.' in content.text.strip()
     r = testapp.xget(404, api.index + "/pkg1/2.7/+d/index.html")
     content, = r.html.select('#content')
-    assert content.text.strip() == 'No documentation available.'
+    assert 'No documentation available.' in content.text.strip()
     r = testapp.xget(404, api.index + "/pkg1/2.6/+d/foo.html")
     content, = r.html.select('#content')
-    assert content.text.strip() == 'File foo.html not found in documentation.'
+    assert 'File foo.html not found in documentation.' in content.text.strip()
 
 
 @pytest.mark.with_notifier
@@ -184,7 +184,7 @@ def test_index_not_found(testapp):
     r = testapp.get("/blubber/blubb", headers=dict(accept="text/html"))
     assert r.status_code == 404
     content, = r.html.select('#content')
-    assert content.text.strip() == 'The stage blubber/blubb could not be found.'
+    assert 'The stage blubber/blubb could not be found.' in content.text.strip()
 
 
 def test_index_view_project_info(mapp, testapp):
@@ -267,11 +267,11 @@ def test_project_not_found(mapp, testapp):
     r = testapp.get("/blubber/blubb/pkg1", headers=dict(accept="text/html"))
     assert r.status_code == 404
     content, = r.html.select('#content')
-    assert content.text.strip() == 'The stage blubber/blubb could not be found.'
+    assert 'The stage blubber/blubb could not be found.' in content.text.strip()
     r = testapp.get(api.index + "/pkg1", headers=dict(accept="text/html"))
     assert r.status_code == 404
     content, = r.html.select('#content')
-    assert content.text.strip() == 'The project pkg1 does not exist.'
+    assert 'The project pkg1 does not exist.' in content.text.strip()
 
 
 def test_project_view_root_pypi(mapp, testapp, pypistage):
@@ -323,6 +323,7 @@ def test_version_view(mapp, testapp):
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
         ("Documentation", "http://localhost/%s/pkg1/2.6/+d/index.html" % api.stagename),
+        ("Simple index", "http://localhost/%s/+simple/pkg1" % api.stagename),
         ("pkg1-2.6.tar.gz", "http://localhost/%s/+f/9a0/364b9e99bb480/pkg1-2.6.tar.gz#md5=9a0364b9e99bb480dd25e1f0284c8555" % api.stagename),
         ("pkg1-2.6.zip", "http://localhost/%s/+f/523/60ae08d733016/pkg1-2.6.zip#md5=52360ae08d733016c5603d54b06b5300" % api.stagename)]
 
@@ -334,15 +335,15 @@ def test_version_not_found(mapp, testapp):
     r = testapp.get("/blubber/blubb/pkg1/2.6", headers=dict(accept="text/html"))
     assert r.status_code == 404
     content, = r.html.select('#content')
-    assert content.text.strip() == 'The stage blubber/blubb could not be found.'
+    assert 'The stage blubber/blubb could not be found.' in content.text.strip()
     r = testapp.get(api.index + "/pkg2/2.6", headers=dict(accept="text/html"))
     assert r.status_code == 404
     content, = r.html.select('#content')
-    assert content.text.strip() == 'The project pkg2 does not exist.'
+    assert 'The project pkg2 does not exist.' in content.text.strip()
     r = testapp.get(api.index + "/pkg1/2.7", headers=dict(accept="text/html"))
     assert r.status_code == 404
     content, = r.html.select('#content')
-    assert content.text.strip() == 'The version 2.7 of project pkg1 does not exist.'
+    assert 'The version 2.7 of project pkg1 does not exist.' in content.text.strip()
 
 
 def test_version_view_root_pypi(mapp, testapp, pypistage):
@@ -355,6 +356,7 @@ def test_version_view_root_pypi(mapp, testapp, pypistage):
     assert filesinfo == [('pkg1-2.6.zip', 'Source', '', '', '')]
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
+        ("Simple index", "http://localhost/root/pypi/+simple/pkg1"),
         ("pkg1-2.6.zip", "http://localhost/root/pypi/+e/https_pypi.python.org_pkg/pkg1-2.6.zip"),
         ("https://pypi.python.org/pypi/pkg1/2.6/", "https://pypi.python.org/pypi/pkg1/2.6/")]
 
@@ -367,7 +369,9 @@ def test_version_view_root_pypi_external_files(mapp, testapp, pypistage):
     filesinfo = [tuple(t.text for t in x.findAll('td'))
                  for x in r.html.select('.files tbody tr')]
     assert filesinfo == [('pkg1-2.7.zip', 'Source', '', '', '')]
-    link1, link2 = list(r.html.select("#content a"))
+    silink, link1, link2 = list(r.html.select("#content a"))
+    assert silink.text == "Simple index"
+    assert silink.attrs["href"] == "http://localhost/root/pypi/+simple/pkg1"
     assert link1.text == "pkg1-2.7.zip"
     assert link1.attrs["href"].endswith("pkg1-2.7.zip")
     assert link2.text == "https://pypi.python.org/pypi/pkg1/2.7/"

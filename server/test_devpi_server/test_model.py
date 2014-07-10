@@ -243,6 +243,8 @@ class TestStage:
         # our upload
         assert len(links) == 1
         assert links[0].entrypath.endswith("someproject-1.0.zip")
+        assert not stage.has_pypi_base("someproject")
+        assert not pypistage.has_pypi_base("someproject")
         # if we add the project to the whitelist, we also get the release
         # from pypi
         stage.modify(pypi_whitelist=['someproject'])
@@ -250,6 +252,8 @@ class TestStage:
         assert len(links) == 2
         assert links[0].entrypath.endswith("someproject-1.1.zip")
         assert links[1].entrypath.endswith("someproject-1.0.zip")
+        assert stage.has_pypi_base("someproject")
+        assert not pypistage.has_pypi_base("someproject")
 
     def test_project_whitelist_inheritance(self, pypistage, stage, user):
         user.create_stage(index="dev2", bases=("root/pypi",))
@@ -265,6 +269,8 @@ class TestStage:
         # our upload
         assert len(links) == 1
         assert links[0].entrypath.endswith("someproject-1.0.zip")
+        assert not stage.has_pypi_base("someproject")
+        assert not pypistage.has_pypi_base("someproject")
         # if we add the project to the whitelist of the inherited index, we
         # also get the release from pypi
         stage_dev2.modify(pypi_whitelist=['someproject'])
@@ -272,6 +278,8 @@ class TestStage:
         assert len(links) == 2
         assert links[0].entrypath.endswith("someproject-1.1.zip")
         assert links[1].entrypath.endswith("someproject-1.0.zip")
+        assert stage.has_pypi_base("someproject")
+        assert not pypistage.has_pypi_base("someproject")
 
     def test_store_and_delete_project(self, stage, bases):
         content = b"123"

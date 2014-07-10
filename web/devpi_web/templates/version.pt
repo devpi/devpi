@@ -8,9 +8,8 @@
         <div id="content">
         <h1>${title}</h1>
 
-        <p class="projectnavigation">
-            <tal:docs tal:condition="docs"><a href="${docs.url}">Documentation</a></tal:docs>
-            <tal:home_page tal:condition="home_page"><a href="${home_page}">Homepage</a></tal:home_page>
+        <p class="projectnavigation" tal:condition="nav_links">
+            <tal:link repeat="link nav_links"><a href="${link.url}">${link.title}</a><tal:sep condition="not repeat.link.end"> | </tal:sep></tal:link>
         </p>
         <p id="summary" tal:condition="summary" tal:content="summary" />
 

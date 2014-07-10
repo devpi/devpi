@@ -102,6 +102,7 @@ def test_simple_refresh(mapp, model, pypistage, testapp):
     r = testapp.xget(200, "/root/pypi/+simple/hello")
     input, = r.html.select('form input')
     assert input.attrs['name'] == 'refresh'
+    assert input.attrs['value'] == 'Refresh'
     with model.keyfs.transaction(write=False):
         info = pypistage._load_project_cache("hello")
     assert info != {}
@@ -113,10 +114,29 @@ def test_simple_refresh(mapp, model, pypistage, testapp):
         info = pypistage._load_project_cache("hello")
     assert info == {}
 
-def test_no_refresh_on_non_mirror_stage(mapp, testapp):
+def test_simple_refresh_inherited(mapp, model, pypistage, testapp):
+    pypistage.mock_simple("pkg", "<html/>")
     api = mapp.create_and_use()
     mapp.set_versiondata(dict(name="pkg", version="1.0"))
-    r = testapp.xget(200, "/%s/+simple/hello" % api.stagename)
+    r = testapp.xget(200, "/%s/+simple/pkg" % api.stagename)
+    input, = r.html.select('form input')
+    assert input.attrs['name'] == 'refresh'
+    assert input.attrs['value'] == 'Refresh PyPI links'
+    with model.keyfs.transaction(write=False):
+        info = pypistage._load_project_cache("pkg")
+    assert info != {}
+    assert info['projectname'] == 'pkg'
+    r = testapp.post("/%s/+simple/pkg/refresh" % api.stagename)
+    assert r.status_code == 302
+    assert r.location.endswith("/%s/+simple/pkg" % api.stagename)
+    with model.keyfs.transaction(write=False):
+        info = pypistage._load_project_cache("pkg")
+    assert info == {}
+
+def test_simple_refresh_inherited_not_whitelisted(mapp, testapp):
+    api = mapp.create_and_use()
+    mapp.set_versiondata(dict(name="pkg", version="1.0"), set_whitelist=False)
+    r = testapp.xget(200, "/%s/+simple/pkg" % api.stagename)
     assert len(r.html.select('form')) == 0
 
 def test_indexroot(testapp, model):

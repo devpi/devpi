@@ -7,6 +7,8 @@
     <body>
         <metal:search use-macro="request.macros['navigation']" />
         <div id="content">
+            <h1>Not Found</h1>
+            <p>The following resource could not be found:</p>
             <p>${msg}</p>
         </div>
     </body>
