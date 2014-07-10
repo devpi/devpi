@@ -25,6 +25,21 @@ class TestKeyFS:
         key = keyfs.add_key("NAME", "somekey", dict)
         pytest.raises(KeyError, lambda: keyfs.get_value_at(key, 0))
 
+    @notransaction
+    def test_keyfs_readonly(self, tmpdir):
+        keyfs = KeyFS(tmpdir, readonly=True)
+        with pytest.raises(keyfs.ReadOnly):
+            with keyfs.transaction(write=True):
+                pass
+        assert not hasattr(keyfs, "tx")
+        with pytest.raises(keyfs.ReadOnly):
+            with keyfs.transaction():
+                keyfs.restart_as_write_transaction()
+        with pytest.raises(keyfs.ReadOnly):
+            keyfs.begin_transaction_in_thread(write=True)
+        with keyfs.transaction():
+            pass
+
     @pytest.mark.writetransaction
     @pytest.mark.parametrize("val", [b"", b"val"])
     def test_get_set_del_exists(self, keyfs, key, val):

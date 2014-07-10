@@ -78,8 +78,9 @@ def _main(argv=None, hook=None):
 
     configure_logging(config)
     xom = XOM(config)
-    with xom.keyfs.transaction(write=True):
-        set_default_indexes(xom.model)
+    if not xom.is_replica():
+        with xom.keyfs.transaction(write=True):
+            set_default_indexes(xom.model)
     check_compatible_version(xom)
 
     if args.start or args.stop or args.log or args.status:
@@ -226,7 +227,7 @@ class XOM:
     def keyfs(self):
         from devpi_server.keyfs import KeyFS
         from devpi_server.model import add_keys
-        keyfs = KeyFS(self.config.serverdir)
+        keyfs = KeyFS(self.config.serverdir, readonly=self.is_replica())
         add_keys(self, keyfs)
         self.thread_pool.register(keyfs.notifier)
         return keyfs
