@@ -97,9 +97,9 @@ class Hub:
             basic_auth = self.current.get_basic_auth(url=url)
             r = self.http.request(method, url, data=data, headers=headers,
                                   auth=basic_auth)
-        except self.http.ConnectionError:
+        except self.http.ConnectionError as e:
             self._last_http_status = -1
-            self.fatal("could not connect to %r" % (url,))
+            self.fatal("could not connect to %r:\n%s" % (url, e))
         self._last_http_status = r.status_code
 
         if r.url != url:
@@ -137,7 +137,7 @@ class Hub:
             info = "%s %s\n" % (r.request.method, r.url)
         else:
             info = ""
-        message = reply.json_get("message", "")
+        message = reply.json_get("message", getattr(r, 'text', ''))
         if message:
             message = ": " + message
         out("%s%s %s%s" %(info, r.status_code, r.reason, message))

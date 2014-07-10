@@ -90,7 +90,8 @@ class ReplicaThread:
                         serial += 1
                         continue
                 else:
-                    log.debug("%s: failed fetching %s", r.status_code, url)
+                    log.debug("%s: failed fetching %s\n%s",
+                              r.status_code, url, getattr(r, 'text', ''))
             # we got an error, let's wait a bit
             self.thread.sleep(60.0)
 

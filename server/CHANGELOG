@@ -54,6 +54,9 @@
 - implement issue75: We use the custom X-Devpi-Auth header for authentication
   now, instead of overwriting the Authentication header.
 
+- added experimental support for using client certificates when running as a
+  replica of a server running behind a proxy
+
 1.2.2
 ----------------
 
