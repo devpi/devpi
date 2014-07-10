@@ -1,7 +1,8 @@
 import hashlib
 import pytest
 import py
-from devpi_server.replica import *
+from devpi_server.replica import *  # noqa
+from devpi_server.main import set_default_indexes
 from devpi_common.url import URL
 
 def loads(bytestring):
@@ -164,6 +165,32 @@ class TestFileReplication:
             keyfs.subscribe_on_import(key, ImportFileReplica(replica_xom))
         return replica_xom
 
+    def test_no_set_default_indexes(self, replica_xom):
+        assert replica_xom.keyfs.get_current_serial() == -1
+
+    def test_nowrite(self, replica_xom):
+        with pytest.raises(RuntimeError):
+            with replica_xom.keyfs.transaction(write=True):
+                pass
+        with pytest.raises(RuntimeError):
+            with replica_xom.keyfs.transaction():
+                replica_xom.keyfs.restart_as_write_transaction()
+
+
+    def test_transaction_api(self, replica_xom, xom):
+        with xom.keyfs.transaction(write=True):
+            xom.model.create_user("hello", "pass")
+        with xom.keyfs.transaction(write=True):
+            xom.model.create_user("world", "pass")
+
+        replay(xom, replica_xom)
+
+        serial = xom.keyfs.get_current_serial() - 1
+        with replica_xom.keyfs.transaction(at_serial=serial):
+            assert not replica_xom.model.get_user("world")
+            assert replica_xom.model.get_user("hello")
+
+
     def test_fetch(self, gen, reqmock, xom, replica_xom):
         replay(xom, replica_xom)
         content1 = b'hello'
@@ -236,41 +263,34 @@ class TestFileReplication:
             assert r_entry.file_get_content() == content1
 
 
-def test_cache_remote_file_fails(makexom, gen, monkeypatch, reqmock):
-    xom = makexom(["--master", "http://localhost"])
-    l = []
-    monkeypatch.setattr(xom.keyfs.notifier, "wait_tx_serial",
-                        lambda x: l.append(x))
-    with xom.keyfs.transaction(write=True):
-        link = gen.pypi_package_link("pytest-1.8.zip", md5=True)
-        entry = xom.filestore.maplink(link)
-        assert entry.md5 and not entry.file_exists()
-    with xom.keyfs.transaction():
-        headers={"content-length": "3",
-                 "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
-                 "content-type": "application/zip",
-                 "X-DEVPI-SERIAL": "10"}
-        url = xom.config.master_url.joinpath(entry.relpath).url
-        reqmock.mockresponse(url, code=200,
-                             headers=headers, data=b'123')
-        with pytest.raises(entry.BadGateway):
-            entry.cache_remote_file_replica()
+    @pytest.mark.parametrize("code", [200, 500])
+    def test_cache_remote_file_fails(self, xom, replica_xom, gen,
+                                     monkeypatch, reqmock, code):
+        l = []
+        monkeypatch.setattr(xom.keyfs.notifier, "wait_tx_serial",
+                            lambda x: l.append(x))
+        with xom.keyfs.transaction(write=True):
+            link = gen.pypi_package_link("pytest-1.8.zip", md5=True)
+            entry = xom.filestore.maplink(link)
+            assert entry.md5 and not entry.file_exists()
+        replay(xom, replica_xom)
+        with replica_xom.keyfs.transaction():
+            headers={"content-length": "3",
+                     "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
+                     "content-type": "application/zip",
+                     "X-DEVPI-SERIAL": "10"}
+            entry = replica_xom.filestore.get_file_entry(entry.relpath)
+            url = replica_xom.config.master_url.joinpath(entry.relpath).url
+            reqmock.mockresponse(url, code=code,
+                                 headers=headers, data=b'123')
+            if code == 200:
+                l = []
+                monkeypatch.setattr(replica_xom.keyfs.notifier, "wait_tx_serial",
+                    lambda serial: l.append(serial))
+            with pytest.raises(entry.BadGateway):
+                entry.cache_remote_file_replica()
+            if code == 200:
+                assert len(l) == 1
+                assert l[0] == 10
 
-def test_master_fails(makexom, gen, monkeypatch, reqmock):
-    xom = makexom(["--master", "http://localhost"])
-    l = []
-    monkeypatch.setattr(xom.keyfs.notifier, "wait_tx_serial",
-                        lambda x: l.append(x))
-    with xom.keyfs.transaction(write=True):
-        link = gen.pypi_package_link("pytest-1.8.zip", md5=True)
-        entry = xom.filestore.maplink(link)
-        assert entry.md5 and not entry.file_exists()
-    with xom.keyfs.transaction():
-        headers={"content-length": "3",
-                 "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
-                 "content-type": "application/zip",
-                 "X-DEVPI-SERIAL": "10"}
-        url = xom.config.master_url.joinpath(entry.relpath).url
-        reqmock.mockresponse(url, code=500, headers=headers)
-        with pytest.raises(entry.BadGateway):
-            entry.cache_remote_file_replica()
+

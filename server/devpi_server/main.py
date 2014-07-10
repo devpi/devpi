@@ -78,8 +78,9 @@ def _main(argv=None, hook=None):
 
     configure_logging(config)
     xom = XOM(config)
-    with xom.keyfs.transaction(write=True):
-        set_default_indexes(xom.model)
+    if not xom.is_replica():
+        with xom.keyfs.transaction(write=True):
+            set_default_indexes(xom.model)
     check_compatible_version(xom)
 
     if args.start or args.stop or args.log or args.status:
@@ -229,6 +230,18 @@ class XOM:
         keyfs = KeyFS(self.config.serverdir)
         add_keys(self, keyfs)
         self.thread_pool.register(keyfs.notifier)
+        if self.is_replica():
+            # as a safety measure we patch out ability to write-transact
+            # on replicas
+            old_transaction = keyfs.transaction
+            def transaction_replica(write=False, at_serial=None):
+                if write:
+                    raise RuntimeError("cannot use write transaction in replica")
+                return old_transaction(write=write, at_serial=at_serial)
+            keyfs.transaction = transaction_replica
+            def restart_as_write_transaction():
+                raise RuntimeError("cannot use write transaction in replica")
+            keyfs.restart_as_write_transaction = restart_as_write_transaction
         return keyfs
 
     @cached_property
