@@ -115,6 +115,32 @@ class TestImportExport:
             assert len(results) == 1
             assert results[0] == tox_result_data
 
+    def test_version_not_set_in_imported_versiondata(self, impexp):
+        mapp1 = impexp.mapp1
+        api = mapp1.create_and_use()
+        content = b'content'
+        mapp1.upload_file_pypi("hello-1.0.tar.gz", content, "hello", "1.0")
+
+        # simulate a data structure where "version" is missing
+        with mapp1.xom.keyfs.transaction(write=True):
+            stage = mapp1.xom.model.getstage(api.stagename)
+            key_projversion = stage.key_projversion("hello", "1.0")
+            verdata = key_projversion.get()
+            del verdata["version"]
+            key_projversion.set(verdata)
+        impexp.export()
+
+        # and check that it was derived while importing
+        mapp2 = impexp.new_import()
+
+        with mapp2.xom.keyfs.transaction():
+            stage = mapp2.xom.model.getstage(api.stagename)
+            verdata = stage.get_versiondata_perstage("hello", "1.0")
+            assert verdata["version"] == "1.0"
+            links = stage.get_releaselinks("hello")
+            assert len(links) == 1
+            assert links[0].entry.file_get_content() == b"content"
+
     def test_user_no_index_login_works(self, impexp):
         mapp1 = impexp.mapp1
         mapp1.create_and_login_user("exp", "pass")

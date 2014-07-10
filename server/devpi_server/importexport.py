@@ -338,9 +338,10 @@ class Importer:
                         assert not any(True for x in versiondata if x.startswith('+'))
                         if not versiondata.get("version"):
                             name = versiondata["name"]
-                            self.warn("%r: ignoring project metadata without "
-                                      "version information. " % name)
-                            continue
+                            self.warn("%r: version metadata has no explicit "
+                                      "version, setting derived %r" %
+                                      (name, version))
+                            versiondata["version"] = version
                         stage.set_versiondata(versiondata)
 
             # import release files
