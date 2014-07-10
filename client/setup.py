@@ -9,7 +9,7 @@ if __name__ == "__main__":
     README = open(os.path.join(here, 'README.rst')).read()
 
     install_requires=["tox>=1.7.1",
-                      "devpi_common>=2.0.0.dev4",
+                      "devpi_common>=2.0.0.dev5",
                       "pkginfo>=1.2b1",
                       "py>=1.4.20"]
 
@@ -21,7 +21,7 @@ if __name__ == "__main__":
       description="devpi upload/install/... workflow commands for Python "
                   "developers",
       long_description=open("README.rst").read(),
-      version='2.0.0.dev4',
+      version='2.0.0.dev5',
       packages=find_packages(),
       install_requires=install_requires,
       url="https://bitbucket.org/hpk42/devpi",

@@ -503,7 +503,7 @@ class TestRenameFileLogic:
         file1_tmp.write("this")
         pending_renames = [(str(file1_tmp), str(file1))]
         rel_renames = make_rel_renames(str(tmpdir), pending_renames)
-        perform_renames(pending_renames)
+        commit_renames(str(tmpdir), rel_renames)
         assert file1.check()
         assert file1.read() == "this"
         assert not file1_tmp.exists()
@@ -533,7 +533,7 @@ class TestRenameFileLogic:
         file1.write("hello")
         pending_renames = [(None, str(file1))]
         rel_renames = make_rel_renames(str(tmpdir), pending_renames)
-        perform_renames(pending_renames)
+        commit_renames(str(tmpdir), rel_renames)
         assert not file1.exists()
         check_pending_renames(str(tmpdir), rel_renames)
         assert not file1.exists()

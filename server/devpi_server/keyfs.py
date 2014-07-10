@@ -199,11 +199,17 @@ class FSWriter:
         if cls is None:
             changed_keys, files_commit, files_del = self.commit_to_filesystem()
             commit_serial = self.fs.next_serial - 1
-            self.log.info("committed: keys %s, files_commit %s, files_del %s",
-                          ",".join(map(repr,changed_keys)),
-                          ",".join(files_commit),
-                          ",".join(files_del),
-            )
+
+            # write out a nice commit entry to logging
+            message = "committed: keys: %s"
+            args = [",".join(map(repr, changed_keys))]
+            if files_commit:
+                message += ", files_commit: %s"
+                args.append(",".join(files_commit))
+            if files_del:
+                message += ", files_del: %s"
+                args.append(",".join(files_del))
+            self.log.info(message, *args)
 
             self.fs.cache_commit_changes(commit_serial, self.changes)
             self.fs._notify_on_commit(commit_serial)
@@ -215,8 +221,9 @@ class FSWriter:
             self.log.info("roll back at %s" %(self.fs.next_serial))
 
     def commit_to_filesystem(self):
+        basedir = str(self.fs.basedir)
         rel_renames = list(
-            make_rel_renames(str(self.fs.basedir), self.pending_renames)
+            make_rel_renames(basedir, self.pending_renames)
         )
         entry = self.changes, rel_renames
         write_changelog_entry(self.sqlconn, self.fs.next_serial, entry)
@@ -226,15 +233,15 @@ class FSWriter:
         # - call check_pending_renames which will replay any remaining
         #   renames from the changelog entry, and
         # - initialize next_serial from the max committed serial + 1
-        files_commit, files_del = perform_renames(self.pending_renames)
+        files_commit, files_del = commit_renames(basedir, rel_renames)
         self.fs.next_serial += 1
         return list(self.changes), files_commit, files_del
 
 
 def check_pending_renames(basedir, pending_relnames):
     for relpath in pending_relnames:
+        path = os.path.join(basedir, relpath)
         if relpath.endswith("-tmp"):
-            path = os.path.join(basedir, relpath)
             if os.path.exists(path):
                 rename(path, path[:-4])
                 threadlog.warn("completed file-commit from crashed tx: %s",
@@ -242,12 +249,27 @@ def check_pending_renames(basedir, pending_relnames):
             else:
                 assert os.path.exists(path[:-4])
         else:
-            path = os.path.join(basedir, relpath)
             try:
                 os.remove(path)  # was already removed
                 threadlog.warn("completed file-del from crashed tx: %s", path)
             except OSError:
                 pass
+
+def commit_renames(basedir, pending_renames):
+    files_del = []
+    files_commit = []
+    for relpath in pending_renames:
+        path = os.path.join(basedir, relpath)
+        if relpath.endswith("-tmp"):
+            rename(path, path[:-4])
+            files_commit.append(relpath[:-4])
+        else:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+            files_del.append(relpath)
+    return files_commit, files_del
 
 def make_rel_renames(basedir, pending_renames):
     # produce a list of strings which are
@@ -262,22 +284,6 @@ def make_rel_renames(basedir, pending_renames):
         else:
             assert dest.startswith(basedir)
             yield dest[len(basedir)+1:]
-
-def perform_renames(pending_renames):
-    files_del = []
-    files_commit = []
-    for source, dest in pending_renames:
-        if source is None:
-            files_del.append(dest)
-            try:
-                os.remove(dest)
-            except OSError:
-                pass
-        else:
-            rename(source, dest)
-            files_commit.append(dest)
-    return files_commit, files_del
-
 
 def rename(source, dest):
     try:
