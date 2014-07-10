@@ -227,21 +227,9 @@ class XOM:
     def keyfs(self):
         from devpi_server.keyfs import KeyFS
         from devpi_server.model import add_keys
-        keyfs = KeyFS(self.config.serverdir)
+        keyfs = KeyFS(self.config.serverdir, readonly=self.is_replica())
         add_keys(self, keyfs)
         self.thread_pool.register(keyfs.notifier)
-        if self.is_replica():
-            # as a safety measure we patch out ability to write-transact
-            # on replicas
-            old_transaction = keyfs.transaction
-            def transaction_replica(write=False, at_serial=None):
-                if write:
-                    raise RuntimeError("cannot use write transaction in replica")
-                return old_transaction(write=write, at_serial=at_serial)
-            keyfs.transaction = transaction_replica
-            def restart_as_write_transaction():
-                raise RuntimeError("cannot use write transaction in replica")
-            keyfs.restart_as_write_transaction = restart_as_write_transaction
         return keyfs
 
     @cached_property

@@ -372,7 +372,10 @@ class TxNotificationThread:
 
 class KeyFS(object):
     """ singleton storage object. """
-    def __init__(self, basedir):
+    class ReadOnly(Exception):
+        """ attempt to open write transaction while in readonly mode. """
+
+    def __init__(self, basedir, readonly=False):
         self.basedir = py.path.local(basedir).ensure(dir=1)
         self._keys = {}
         self._mode = None
@@ -382,6 +385,7 @@ class KeyFS(object):
         self._import_subscriber = {}
         self.notifier = t = TxNotificationThread(self)
         self._fs = Filesystem(self.basedir, notify_on_commit=t.notify_on_commit)
+        self._readonly = readonly
 
     def derive_key(self, relpath, keyname=None, conn=None):
         """ return direct key for a given path and keyname.
@@ -457,6 +461,8 @@ class KeyFS(object):
         return self._keys.get(name)
 
     def begin_transaction_in_thread(self, write=False, at_serial=None):
+        if write and self._readonly:
+            raise self.ReadOnly()
         assert not hasattr(self._threadlocal, "tx")
         tx = Transaction(self, write=write, at_serial=at_serial)
         self._threadlocal.tx = tx
@@ -468,6 +474,8 @@ class KeyFS(object):
         del self._threadlocal.tx
 
     def restart_as_write_transaction(self):
+        if self._readonly:
+            raise self.ReadOnly()
         tx = self.tx
         thread_pop_log()
         tx.restart(write=True)

@@ -169,10 +169,10 @@ class TestFileReplication:
         assert replica_xom.keyfs.get_current_serial() == -1
 
     def test_nowrite(self, replica_xom):
-        with pytest.raises(RuntimeError):
+        with pytest.raises(replica_xom.keyfs.ReadOnly):
             with replica_xom.keyfs.transaction(write=True):
                 pass
-        with pytest.raises(RuntimeError):
+        with pytest.raises(replica_xom.keyfs.ReadOnly):
             with replica_xom.keyfs.transaction():
                 replica_xom.keyfs.restart_as_write_transaction()
 
