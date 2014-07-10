@@ -145,3 +145,16 @@ atomically and is associated with a unique serial number.
 All changes to meta information happens in a transaction
 carried out via ``sqlite3``.  All files are stored in the
 filesystem outside of the SQL database.
+
+
+SSL support (experimental)
+--------------------------
+
+A replica can send a client certificate with the ``--replica-cert`` option.
+You need to provide a pem file which contains the certificate and the key.
+The key must not have a passphrase, currently new request sessions may be
+created at any time which would require entering the passphrase.
+
+If you use a self signed server certificate or if your certificate authority
+isn't supported, you can use the ``REQUESTS_CA_BUNDLE`` environment variable
+to specify the server certificate file to use.

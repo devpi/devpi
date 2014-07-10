@@ -242,7 +242,9 @@ class XOM:
         return extpypi.XMLProxy(PYPIURL_XMLRPC)
 
     def new_http_session(self, component_name):
-        return new_requests_session(agent=("component_name", server_version))
+        session = new_requests_session(agent=(component_name, server_version))
+        session.cert = self.config.args.replica_cert
+        return session
 
     @cached_property
     def _httpsession(self):

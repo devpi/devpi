@@ -56,6 +56,13 @@ def addoptions(parser):
             help="run as a replica of the specified master server",
             default=None)
 
+    deploy.addoption("--replica-cert", action="store", dest="replica_cert",
+            metavar="pem_file",
+            help="when running as a replica, use the given .pem file as the "
+                 "SSL client certificate to authenticate to the server "
+                 "(EXPERIMENTAL)",
+            default=None)
+
     deploy.addoption("--gen-config", dest="genconfig", action="store_true",
             help="(unix only ) generate example config files for "
                  "nginx/supervisor/crontab, taking other passed options "
