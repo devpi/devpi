@@ -251,7 +251,10 @@ class PyPIView:
                  html.br(), "\n",
             ])
         title = "%s: links for %s" % (stage.name, projectname)
-        if stage.ixconfig["type"] == "mirror":
+        if stage.ixconfig["type"] == "mirror" or stage.has_pypi_base(projectname):
+            refresh_title = "Refresh"
+            if stage.has_pypi_base(projectname):
+                refresh_title = "Refresh PyPI links"
             refresh_url = request.route_url(
                 "/{user}/{index}/+simple/{name}/refresh",
                 user=self.context.username, index=self.context.index,
@@ -259,7 +262,7 @@ class PyPIView:
             refresh_form = [
                 html.form(
                     html.input(
-                        type="submit", value="Refresh", name="refresh"),
+                        type="submit", value=refresh_title, name="refresh"),
                     action=refresh_url,
                     method="post"),
                 "\n"]
@@ -312,7 +315,7 @@ class PyPIView:
         route_name="/{user}/{index}/+simple/{name}/refresh", request_method="POST")
     def simple_refresh(self):
         context = self.context
-        stage = context.stage
+        stage = context.model.getstage('root', 'pypi')
         if stage.ixconfig["type"] == "mirror":
             stage.clear_cache(context.name)
         redirect(self.request.route_url(

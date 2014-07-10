@@ -294,6 +294,19 @@ class BaseStage:
             if res is not None:
                 return res
 
+    def has_pypi_base(self, name):
+        whitelisted = private_hit = False
+        for stage in self._sro():
+            if stage.ixconfig["type"] == "mirror":
+                if private_hit:
+                    if whitelisted:
+                        return True
+            else:
+                private_hit = True
+                if name in stage.ixconfig["pypi_whitelist"]:
+                    whitelisted = stage
+        return False
+
     def op_sro(self, opname, **kw):
         for stage in self._sro():
             yield stage, getattr(stage, opname)(**kw)
