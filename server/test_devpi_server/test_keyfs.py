@@ -512,7 +512,7 @@ class TestRenameFileLogic:
         assert file1.read() == "this"
         assert not file1_tmp.exists()
 
-    def test_new_content_crash(self, tmpdir):
+    def test_new_content_crash(self, tmpdir, caplog):
         file1 = tmpdir.join("file1")
         file1_tmp = file1 + "-tmp"
         file1.write("hello")
@@ -526,6 +526,7 @@ class TestRenameFileLogic:
         assert file1.check()
         assert file1.read() == "this"
         assert not file1_tmp.exists()
+        assert len(caplog.getrecords(".*completed.*file-commit.*")) == 1
 
     def test_remove_nocrash(self, tmpdir):
         file1 = tmpdir.join("file1")
@@ -537,7 +538,7 @@ class TestRenameFileLogic:
         check_pending_renames(str(tmpdir), rel_renames)
         assert not file1.exists()
 
-    def test_remove_crash(self, tmpdir):
+    def test_remove_crash(self, tmpdir, caplog):
         file1 = tmpdir.join("file1")
         file1.write("hello")
         pending_renames = [(None, str(file1))]
@@ -546,3 +547,4 @@ class TestRenameFileLogic:
         assert file1.exists()
         check_pending_renames(str(tmpdir), rel_renames)
         assert not file1.exists()
+        assert len(caplog.getrecords(".*completed.*file-del.*")) == 1

@@ -197,9 +197,14 @@ class FSWriter:
     def __exit__(self, cls, val, tb):
         thread_pop_log("fswriter%s:" % self.fs.next_serial)
         if cls is None:
-            changed = self.commit_to_filesystem()
+            changed_keys, files_commit, files_del = self.commit_to_filesystem()
             commit_serial = self.fs.next_serial - 1
-            self.log.info("committed: %s", ",".join(map(repr,changed)))
+            self.log.info("committed: keys %s, files_commit %s, files_del %s",
+                          ",".join(map(repr,changed_keys)),
+                          ",".join(files_commit),
+                          ",".join(files_del),
+            )
+
             self.fs.cache_commit_changes(commit_serial, self.changes)
             self.fs._notify_on_commit(commit_serial)
         else:
@@ -221,9 +226,9 @@ class FSWriter:
         # - call check_pending_renames which will replay any remaining
         #   renames from the changelog entry, and
         # - initialize next_serial from the max committed serial + 1
-        perform_renames(self.pending_renames)
+        files_commit, files_del = perform_renames(self.pending_renames)
         self.fs.next_serial += 1
-        return rel_renames + list(self.changes)
+        return list(self.changes), files_commit, files_del
 
 
 def check_pending_renames(basedir, pending_relnames):
@@ -232,16 +237,24 @@ def check_pending_renames(basedir, pending_relnames):
             path = os.path.join(basedir, relpath)
             if os.path.exists(path):
                 rename(path, path[:-4])
+                threadlog.warn("completed file-commit from crashed tx: %s",
+                               path[:-4])
             else:
                 assert os.path.exists(path[:-4])
         else:
             path = os.path.join(basedir, relpath)
             try:
                 os.remove(path)  # was already removed
+                threadlog.warn("completed file-del from crashed tx: %s", path)
             except OSError:
                 pass
 
 def make_rel_renames(basedir, pending_renames):
+    # produce a list of strings which are
+    # - paths relative to basedir
+    # - if they have "-tmp" at the end it means they should be renamed
+    #   to the path without the "-tmp" suffix
+    # - if they don't have "-tmp" they should be removed
     for source, dest in pending_renames:
         if source is not None:
             assert source == dest + "-tmp"
@@ -251,14 +264,19 @@ def make_rel_renames(basedir, pending_renames):
             yield dest[len(basedir)+1:]
 
 def perform_renames(pending_renames):
+    files_del = []
+    files_commit = []
     for source, dest in pending_renames:
         if source is None:
+            files_del.append(dest)
             try:
                 os.remove(dest)
             except OSError:
                 pass
         else:
             rename(source, dest)
+            files_commit.append(dest)
+    return files_commit, files_del
 
 
 def rename(source, dest):
@@ -590,6 +608,7 @@ class Transaction(object):
             return os.path.exists(path)
 
     def io_file_set(self, path, content):
+        assert not path.endswith("-tmp")
         self.dirty_files[path] = content
 
     def io_file_get(self, path):
