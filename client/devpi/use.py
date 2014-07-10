@@ -42,6 +42,7 @@ class Current(object):
     venvdir = currentproperty("venvdir")
     _auth = currentproperty("auth")
     _basic_auth = currentproperty("basic_auth")
+    _client_cert = currentproperty("client_cert")
     always_setcfg = currentproperty("always_setcfg")
 
     @property
@@ -125,6 +126,40 @@ class Current(object):
         basic_auth = self._get_basic_auth_dict().get(url)
         return tuple(basic_auth) if basic_auth else None
 
+    def _get_client_cert_dict(self):
+        client_cert = self._client_cert
+        if not isinstance(client_cert, dict):
+            client_cert = {}
+        return client_cert
+
+    def _get_client_cert_url(self, url):
+        if url is None:
+            url = self.rooturl
+        else:
+            url = URL(url).joinpath("/").url
+        return url
+
+    def set_client_cert(self, cert, url=None):
+        url = self._get_client_cert_url(url)
+        client_cert = self._get_client_cert_dict()
+        client_cert[url] = cert
+        self.reconfigure(data=dict(_client_cert=client_cert))
+
+    def del_client_cert(self, url=None):
+        url = self._get_client_cert_url(url)
+        client_cert = self._get_client_cert_dict()
+        try:
+            del client_cert[url]
+        except KeyError:
+            return False
+        self.reconfigure(data=dict(_client_cert=client_cert))
+        return True
+
+    def get_client_cert(self, url=None):
+        url = self._get_client_cert_url(url)
+        client_cert = self._get_client_cert_dict().get(url)
+        return client_cert if client_cert else None
+
     def reconfigure(self, data):
         for name in data:
             oldval = getattr(self, name)
@@ -148,7 +183,7 @@ class Current(object):
             url = URL(self.simpleindex, url.url).url
         return url
 
-    def configure_fromurl(self, hub, url):
+    def configure_fromurl(self, hub, url, client_cert=None):
         url = self.get_index_url(url)
         if not url.is_valid_http_url():
             hub.fatal("invalid URL: %s" % url.url)
@@ -164,6 +199,13 @@ class Current(object):
                 basic_auth[0], basic_auth[1], url=url)
         else:
             self.del_basic_auth(url=url.joinpath("/").url)
+        if client_cert:
+            client_cert = os.path.abspath(os.path.expanduser(client_cert))
+            if not os.path.exists(client_cert):
+                hub.fatal("The client certificate at '%s' doesn't exist.")
+            self.set_client_cert(client_cert, url=url)
+        else:
+            self.del_client_cert(url=url)
         r = hub.http_api(
             "get", url.addpath("+api"), quiet=True)
         self._configure_from_server_api(r.result, url)
@@ -249,10 +291,13 @@ def main(hub, args=None):
     else:
         hub.debug("no current file, using defaults")
 
+    url = None
     if args.url:
-        current.configure_fromurl(hub, args.url)
+        url = args.url
     elif current.index:  # re-get status/api
-        current.configure_fromurl(hub, current.index)
+        url = current.index
+    if url:
+        current.configure_fromurl(hub, url, client_cert=args.client_cert)
 
     if args.venv:
         if args.venv != "-":
