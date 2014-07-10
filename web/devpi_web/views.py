@@ -386,11 +386,27 @@ def version_get(context, request):
     show_toxresults = not (user == 'root' and index == 'pypi')
     linkstore = stage.get_linkstore_perstage(name, version)
     files = get_files_info(request, linkstore, show_toxresults)
+    docs = get_docs_info(request, stage, verdata)
+    home_page = verdata.get("home_page")
+    nav_links = []
+    if docs:
+        nav_links.append(dict(
+            title="Documentation",
+            url=docs['url']))
+    if home_page:
+        nav_links.append(dict(
+            title="Homepage",
+            url=home_page))
+    nav_links.append(dict(
+        title="Simple index",
+        url=request.route_url(
+            "/{user}/{index}/+simple/{name}",
+            user=context.username, index=context.index, name=context.name)))
     return dict(
         title="%s/: %s-%s metadata and description" % (stage.name, name, version),
         content=get_description(stage, name, version),
-        home_page=verdata.get("home_page"),
         summary=verdata.get("summary"),
+        nav_links=nav_links,
         infos=infos,
         files=files,
         show_toxresults=show_toxresults,
@@ -401,8 +417,7 @@ def version_get(context, request):
         make_toxresult_url=functools.partial(
             request.route_url, "toxresult",
             user=context.username, index=context.index,
-            name=context.name, version=context.version),
-        docs=get_docs_info(request, stage, verdata))
+            name=context.name, version=context.version))
 
 
 @view_config(
