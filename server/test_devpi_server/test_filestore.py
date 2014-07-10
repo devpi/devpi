@@ -6,6 +6,8 @@ from devpi_server.filestore import *
 
 pytestmark = [pytest.mark.writetransaction]
 
+zip_types = ("application/zip", "application/x-zip-compressed")
+
 BytesIO = py.io.BytesIO
 
 class TestFileStore:
@@ -106,13 +108,13 @@ class TestFileStore:
         filestore.keyfs.restart_as_write_transaction()
         headers={"content-length": "3",
                  "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
-                 "content-type": "application/zip"}
+        }
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw = BytesIO(b"123"))
         entry.cache_remote_file()
         rheaders = entry.gethttpheaders()
         assert rheaders["content-length"] == "3"
-        assert rheaders["content-type"] == "application/zip"
+        assert rheaders["content-type"] in zip_types
         assert rheaders["last-modified"] == headers["last-modified"]
         bytes = entry.file_get_content()
         assert bytes == b"123"
@@ -158,7 +160,7 @@ class TestFileStore:
         entry.cache_remote_file()
         rheaders = entry.gethttpheaders()
         assert rheaders["content-length"] == "3"
-        assert rheaders["content-type"] == "application/zip"
+        assert rheaders["content-type"] in zip_types
         assert entry.file_get_content() == b"123"
 
     def test_iterfile_remote_error_size_mismatch(self, filestore, httpget, gen):
@@ -178,8 +180,7 @@ class TestFileStore:
         entry = filestore.maplink(link)
         assert not entry.md5
         headers={"last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
-                 "content-length": None,
-                 "content-type": "application/zip"}
+                 "content-length": None,}
         assert entry.file_size() is None
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw=BytesIO(b"1"))
@@ -189,7 +190,7 @@ class TestFileStore:
         assert entry2.file_size() == 1
         rheaders = entry.gethttpheaders()
         assert rheaders["last-modified"] == headers["last-modified"]
-        assert rheaders["content-type"] == headers["content-type"]
+        assert rheaders["content-type"] in zip_types
 
     def test_iterfile_remote_error_md5(self, filestore, httpget, gen):
         link = gen.pypi_package_link("pytest-3.0.zip")
