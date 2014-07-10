@@ -16,16 +16,6 @@ def test_check_incompatible_version_raises(xom):
     with pytest.raises(Fatal):
         check_compatible_version(xom)
 
-def test_invalidate_is_called(monkeypatch, tmpdir):
-    monkeypatch.setattr(devpi_server.main, "wsgi_run", lambda *args: None)
-    def record(basedir):
-        assert tmpdir.join("root", "pypi") == basedir
-        0/0
-    monkeypatch.setattr(devpi_server.extpypi, "invalidate_on_version_change",
-                        lambda xom: 0/0)
-    with pytest.raises(ZeroDivisionError):
-        main(["devpi-server", "--serverdir", str(tmpdir)])
-
 def test_startup_fails_on_initial_setup_nonetwork(tmpdir, monkeypatch):
     monkeypatch.setattr(devpi_server.main, "wsgi_run", lambda **kw: 0/0)
     monkeypatch.setattr(devpi_server.main, "PYPIURL_XMLRPC",

@@ -67,11 +67,11 @@ def _main(argv=None, hook=None):
     config = parseoptions(argv, hook=hook)
     args = config.args
 
+    # meta commmands
     if args.version:
         print(server_version)
         return
 
-    # meta commmands (that will not instantiate server object in-process)
     if args.genconfig:
         from devpi_server.genconfig import genconfig
         return genconfig(config)
@@ -81,7 +81,6 @@ def _main(argv=None, hook=None):
     with xom.keyfs.transaction(write=True):
         set_default_indexes(xom.model)
     check_compatible_version(xom)
-    extpypi.invalidate_on_version_change(xom.keyfs.basedir.join("root", "pypi"))
 
     if args.start or args.stop or args.log or args.status:
         xprocdir = config.serverdir.join(".xproc")

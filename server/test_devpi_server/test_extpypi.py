@@ -523,12 +523,3 @@ def test_requests_httpget_timeout(xom_notmocked, monkeypatch):
                               timeout=1.2)
     assert r.status_code == -1
 
-@pytest.mark.notransaction
-def test_invalidate_on_version_change(tmpdir, caplog):
-    from devpi_server.extpypi import invalidate_on_version_change, PyPIStage
-    p = tmpdir.ensure("something")
-    invalidate_on_version_change(tmpdir)
-    assert not p.check()
-    assert tmpdir.join(".mirrorversion").read() == PyPIStage.VERSION
-    rec = caplog.getrecords()[-1]
-    assert "format change" in rec.msg

@@ -150,21 +150,7 @@ def perform_crawling(pypistage, result, numthreads=10):
         threadlog.warn("crawlurl %s status %s", crawlurl, response)
 
 
-def invalidate_on_version_change(basedir):
-    verfile = basedir.join(".mirrorversion")
-    if not verfile.check():
-        ver = "0"
-    else:
-        ver = verfile.read()
-    if ver != PyPIStage.VERSION:
-        if basedir.check():
-            threadlog.info("version format change: removing root/pypi state")
-            basedir.remove()
-    verfile.dirpath().ensure(dir=1)
-    verfile.write(PyPIStage.VERSION)
-
 class PyPIStage(BaseStage):
-    VERSION = "4"
     name = "root/pypi"
     ixconfig = dict(bases=(), volatile=False, type="mirror",
                     pypi_whitelist=(), custom_data="",
