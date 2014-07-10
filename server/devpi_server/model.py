@@ -295,17 +295,13 @@ class BaseStage:
                 return res
 
     def has_pypi_base(self, name):
-        whitelisted = private_hit = False
+        private_hit = whitelisted = False
         for stage in self._sro():
             if stage.ixconfig["type"] == "mirror":
-                if private_hit:
-                    if whitelisted:
-                        return True
-            else:
-                private_hit = True
-                if name in stage.ixconfig["pypi_whitelist"]:
-                    whitelisted = stage
-        return False
+                return stage.get_projectname_perstage(name) and \
+                       (not private_hit or whitelisted)
+            private_hit = private_hit or bool(self.get_projectname_perstage(name))
+            whitelisted = whitelisted or name in stage.ixconfig["pypi_whitelist"]
 
     def op_sro(self, opname, **kw):
         for stage in self._sro():

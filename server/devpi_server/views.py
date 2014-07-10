@@ -251,10 +251,9 @@ class PyPIView:
                  html.br(), "\n",
             ])
         title = "%s: links for %s" % (stage.name, projectname)
-        if stage.ixconfig["type"] == "mirror" or stage.has_pypi_base(projectname):
-            refresh_title = "Refresh"
-            if stage.has_pypi_base(projectname):
-                refresh_title = "Refresh PyPI links"
+        if stage.has_pypi_base(projectname):
+            refresh_title = "Refresh" if stage.ixconfig["type"] == "mirror" else \
+                            "Refresh PyPI links"
             refresh_url = request.route_url(
                 "/{user}/{index}/+simple/{name}/refresh",
                 user=self.context.username, index=self.context.index,

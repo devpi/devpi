@@ -50,6 +50,23 @@ def stage(request, user):
 def user(model):
     return model.create_user("hello", password="123")
 
+def test_has_pypi_stage(model, pypistage):
+    pypistage.mock_simple("pytest", "<a href='pytest-1.0.zip' /a>")
+    assert pypistage.has_pypi_base("pytest")
+    assert pypistage.get_projectname_perstage("pytest")
+    user = model.create_user("user1", "pass")
+    stage1 = user.create_stage("stage1", bases=())
+    assert not stage1.has_pypi_base("pytest")
+
+    stage2 = user.create_stage("stage2", bases=("root/pypi",))
+    assert stage2.has_pypi_base("pytest")
+    register_and_store(stage2, "pytest-1.1.tar.gz")
+    assert not stage2.has_pypi_base("pytest")
+    ixconfig = stage2.ixconfig.copy()
+    ixconfig["pypi_whitelist"] = ["pytest"]
+    stage2.modify(**ixconfig)
+    assert stage2.has_pypi_base("pytest")
+
 class TestStage:
     def test_create_and_delete(self, model):
         user = model.create_user("hello", password="123")
@@ -243,8 +260,6 @@ class TestStage:
         # our upload
         assert len(links) == 1
         assert links[0].entrypath.endswith("someproject-1.0.zip")
-        assert not stage.has_pypi_base("someproject")
-        assert not pypistage.has_pypi_base("someproject")
         # if we add the project to the whitelist, we also get the release
         # from pypi
         stage.modify(pypi_whitelist=['someproject'])
@@ -252,8 +267,6 @@ class TestStage:
         assert len(links) == 2
         assert links[0].entrypath.endswith("someproject-1.1.zip")
         assert links[1].entrypath.endswith("someproject-1.0.zip")
-        assert stage.has_pypi_base("someproject")
-        assert not pypistage.has_pypi_base("someproject")
 
     def test_project_whitelist_inheritance(self, pypistage, stage, user):
         user.create_stage(index="dev2", bases=("root/pypi",))
@@ -269,8 +282,6 @@ class TestStage:
         # our upload
         assert len(links) == 1
         assert links[0].entrypath.endswith("someproject-1.0.zip")
-        assert not stage.has_pypi_base("someproject")
-        assert not pypistage.has_pypi_base("someproject")
         # if we add the project to the whitelist of the inherited index, we
         # also get the release from pypi
         stage_dev2.modify(pypi_whitelist=['someproject'])
@@ -278,8 +289,6 @@ class TestStage:
         assert len(links) == 2
         assert links[0].entrypath.endswith("someproject-1.1.zip")
         assert links[1].entrypath.endswith("someproject-1.0.zip")
-        assert stage.has_pypi_base("someproject")
-        assert not pypistage.has_pypi_base("someproject")
 
     def test_store_and_delete_project(self, stage, bases):
         content = b"123"
