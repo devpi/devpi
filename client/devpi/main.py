@@ -137,7 +137,7 @@ class Hub:
             info = "%s %s\n" % (r.request.method, r.url)
         else:
             info = ""
-        message = reply.json_get("message", "")
+        message = reply.json_get("message", getattr(r, 'text', ''))
         if message:
             message = ": " + message
         out("%s%s %s%s" %(info, r.status_code, r.reason, message))
