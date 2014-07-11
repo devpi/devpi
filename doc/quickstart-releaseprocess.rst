@@ -38,16 +38,23 @@ a series of other devpi commands::
 
     $ devpi quickstart
     --> $ devpi-server --start 
+    2014-07-11 09:59:20,560 INFO  NOCTX DB: Creating schema
+    2014-07-11 09:59:20,617 INFO  [Wtx-1] setting password for user u'root'
+    2014-07-11 09:59:20,618 INFO  [Wtx-1] created user u'root' with email None
+    2014-07-11 09:59:20,618 INFO  [Wtx-1] created root user
+    2014-07-11 09:59:20,618 INFO  [Wtx-1] created root/pypi index
+    2014-07-11 09:59:20,642 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
     starting background devpi-server at http://localhost:3141
-    /tmp/home/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server
-    process u'devpi-server' started pid=12023
+    /tmp/home/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/python /home/hpk/venv/0/bin/devpi-server
+    process u'devpi-server' started pid=7220
     devpi-server process startup detected
     logfile is at /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
     --> $ devpi use http://localhost:3141 
     using server: http://localhost:3141/ (not logged in)
     no current index: type 'devpi use -l' to discover indices
-    ~/.pydistutils.cfg : no config file exists
-    ~/.pip/pip.conf    : no config file exists
+    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
     always-set-cfg: no
     
     --> $ devpi user -c testuser password= 
@@ -63,11 +70,13 @@ a series of other devpi commands::
       volatile=True
       uploadtrigger_jenkins=None
       acl_upload=testuser
+      pypi_whitelist=
     
     --> $ devpi use dev 
-    current devpi index: http://localhost:3141/testuser/dev/ (logged in as testuser)
-    ~/.pydistutils.cfg : no config file exists
-    ~/.pip/pip.conf    : no config file exists
+    current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
+    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
     always-set-cfg: no
     COMPLETED!  you can now work with your 'dev' index
       devpi install PKG   # install a pkg from pypi
@@ -84,7 +93,7 @@ a series of other devpi commands::
 Show the version::
 
     $ devpi --version
-    1.2.1
+    2.0.0
 
 .. _`quickstart_release_steps`:
 
@@ -97,14 +106,16 @@ install`` of a pypi package using the index from our already running server::
     $ devpi install pytest
     --> $ /tmp/docenv/bin/pip install -U -i http://localhost:3141/testuser/dev/+simple/ pytest  [PIP_USE_WHEEL=1,PIP_PRE=1]
     Downloading/unpacking pytest
-      Running setup.py egg_info for package pytest
+      http://localhost:3141/testuser/dev/+simple/pytest/ uses an insecure transport scheme (http). Consider using https if localhost:3141 has it available
+      Running setup.py (path:/tmp/docenv/build/pytest/setup.py) egg_info for package pytest
         
-    Requirement already up-to-date: py>=1.4.17 in /tmp/docenv/lib/python2.7/site-packages (from pytest)
+    http://localhost:3141/testuser/dev/+simple/py/ uses an insecure transport scheme (http). Consider using https if localhost:3141 has it available
+    Requirement already up-to-date: py>=1.4.20 in /tmp/docenv/lib/python2.7/site-packages (from pytest)
     Installing collected packages: pytest
       Running setup.py install for pytest
         
-        Installing py.test script to /tmp/docenv/bin
         Installing py.test-2.7 script to /tmp/docenv/bin
+        Installing py.test script to /tmp/docenv/bin
     Successfully installed pytest
     Cleaning up...
 
@@ -116,7 +127,7 @@ in the ``PATH`` and found in ``docenv/bin/pip``.
 Let's check that ``pytest`` was installed correctly::
 
     $ py.test --version
-    This is py.test version 2.4.2, imported from /tmp/docenv/local/lib/python2.7/site-packages/pytest.pyc
+    This is pytest version 2.5.2, imported from /tmp/docenv/local/lib/python2.7/site-packages/pytest.pyc
 
 You may invoke the ``devpi install`` command a second time which will
 even work when you have no network.
@@ -133,9 +144,10 @@ performing uploads (you can also
 Let's verify we are logged in to the correct index::
 
     $ devpi use
-    current devpi index: http://localhost:3141/testuser/dev/ (logged in as testuser)
-    ~/.pydistutils.cfg : no config file exists
-    ~/.pip/pip.conf    : no config file exists
+    current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
+    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
     always-set-cfg: no
 
 Now go to the directory of a ``setup.py`` file of one of your projects  
@@ -143,9 +155,9 @@ Now go to the directory of a ``setup.py`` file of one of your projects
 to our ``testuser/dev`` index::
 
     example $ devpi upload
-    using workdir /tmp/devpi0
+    using workdir /tmp/devpi3
     --> $ hg st -nmac . 
-    hg-exported project to /tmp/devpi0/upload/example -> new CWD
+    hg-exported project to /tmp/devpi3/upload/example -> new CWD
     pre-build: cleaning /home/hpk/p/devpi/doc/example/dist
     --> $ /tmp/docenv/bin/python setup.py sdist --formats gztar 
     built: /home/hpk/p/devpi/doc/example/dist/example-1.0.tar.gz [SDIST.TGZ] 0kb
@@ -171,8 +183,9 @@ We can now install the freshly uploaded package::
     $ devpi install example
     --> $ /tmp/docenv/bin/pip install -U -i http://localhost:3141/testuser/dev/+simple/ example  [PIP_USE_WHEEL=1,PIP_PRE=1]
     Downloading/unpacking example
+      http://localhost:3141/testuser/dev/+simple/example/ uses an insecure transport scheme (http). Consider using https if localhost:3141 has it available
       Downloading example-1.0.tar.gz
-      Running setup.py egg_info for package example
+      Running setup.py (path:/tmp/docenv/build/example/setup.py) egg_info for package example
         
     Installing collected packages: example
       Running setup.py install for example
@@ -197,19 +210,19 @@ devpi test: testing an uploaded package
 If you have a package which uses tox_ for testing you may now invoke::
 
     $ devpi test example  # package needs to contain tox.ini
-    received http://localhost:3141/testuser/dev/+f/43fefbdcf726734cacb3d44222477e4f/example-1.0.tar.gz#md5=43fefbdcf726734cacb3d44222477e4f
-    unpacking /tmp/devpi-test0/downloads/example-1.0.tar.gz to /tmp/devpi-test0
-    /tmp/devpi-test0/example-1.0$ tox --installpkg /tmp/devpi-test0/downloads/example-1.0.tar.gz -i ALL=http://localhost:3141/testuser/dev/+simple/ --result-json /tmp/devpi-test0/toxreport.json -c /tmp/devpi-test0/example-1.0/tox.ini
-    python create: /tmp/devpi-test0/example-1.0/.tox/python
+    received http://localhost:3141/testuser/dev/+f/ebf/7acc8be196594/example-1.0.tar.gz#md5=ebf7acc8be196594c6c61d46d3dc837c
+    unpacking /tmp/devpi-test3/downloads/example-1.0.tar.gz to /tmp/devpi-test3
+    /tmp/devpi-test3/example-1.0$ tox --installpkg /tmp/devpi-test3/downloads/example-1.0.tar.gz -i ALL=http://localhost:3141/testuser/dev/+simple/ --result-json /tmp/devpi-test3/toxreport.json -c /tmp/devpi-test3/example-1.0/tox.ini
+    python create: /tmp/devpi-test3/example-1.0/.tox/python
     python installdeps: pytest
-    python inst: /tmp/devpi-test0/downloads/example-1.0.tar.gz
-    python runtests: PYTHONHASHSEED='1520080208'
+    python inst: /tmp/devpi-test3/downloads/example-1.0.tar.gz
+    python runtests: PYTHONHASHSEED='338660117'
     python runtests: commands[0] | py.test
     ___________________________________ summary ____________________________________
       python: commands succeeded
       congratulations :)
-    wrote json report at: /tmp/devpi-test0/toxreport.json
-    posting tox result data to http://localhost:3141/+tests
+    wrote json report at: /tmp/devpi-test3/toxreport.json
+    posting tox result data to http://localhost:3141/testuser/dev/+f/ebf/7acc8be196594/example-1.0.tar.gz
     successfully posted tox result data
 
 Here is what happened:
@@ -228,8 +241,8 @@ Here is what happened:
 We can verify that the test status was recorded via::
 
     $ devpi list example
-    testuser/dev/+f/43fefbdcf726734cacb3d44222477e4f/example-1.0.tar.gz
-      teta linux2 python 2.7.3 tests passed
+    http://localhost:3141/testuser/dev/+f/ebf/7acc8be196594/example-1.0.tar.gz
+      devpi.local linux2 python 2.7.3 tests passed
 
 devpi push: staging a release to another index
 ++++++++++++++++++++++++++++++++++++++++++++++
@@ -246,6 +259,7 @@ Let's create another ``staging`` index::
       volatile=False
       uploadtrigger_jenkins=None
       acl_upload=testuser
+      pypi_whitelist=
 
 We created a non-volatile index which means that one can not 
 overwrite or delete release files. See :ref:`non_volatile_indexes` for more info
@@ -256,7 +270,8 @@ our ``staging`` index::
 
     $ devpi push example-1.0 testuser/staging
        200 register example 1.0 -> testuser/staging
-       200 store_releasefile example-1.0.tar.gz -> testuser/staging
+       200 store_releasefile testuser/staging/+f/ebf/7acc8be196594/example-1.0.tar.gz
+       200 store_toxresult testuser/staging/+f/ebf/7acc8be196594/example-1.0.tar.gz.toxresult0
 
 This will determine all files on our ``testuser/dev`` index belonging to
 the specified ``example-1.0`` release and copy them to the
@@ -268,24 +283,26 @@ devpi push: releasing to an external index
 Let's check again our our current index::
 
     $ devpi use
-    current devpi index: http://localhost:3141/testuser/dev/ (logged in as testuser)
-    ~/.pydistutils.cfg : no config file exists
-    ~/.pip/pip.conf    : no config file exists
+    current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
+    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
     always-set-cfg: no
 
 Let's now use our ``testuser/staging`` index::
 
     $ devpi use testuser/staging
-    current devpi index: http://localhost:3141/testuser/staging/ (logged in as testuser)
-    ~/.pydistutils.cfg : no config file exists
-    ~/.pip/pip.conf    : no config file exists
+    current devpi index: http://localhost:3141/testuser/staging (logged in as testuser)
+    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
     always-set-cfg: no
 
 and check the test result status again::
 
     $ devpi list example
-    testuser/staging/+f/43fefbdcf726734cacb3d44222477e4f/example-1.0.tar.gz
-      teta linux2 python 2.7.3 tests passed
+    http://localhost:3141/testuser/staging/+f/ebf/7acc8be196594/example-1.0.tar.gz
+      devpi.local linux2 python 2.7.3 tests passed
 
 Good, the test result status is still available after the push
 from the last step.
@@ -318,30 +335,33 @@ index, we can reconfigure the inheritance
       volatile=True
       uploadtrigger_jenkins=None
       acl_upload=testuser
+      pypi_whitelist=
 
 If we now switch back to using ``testuser/dev``::
 
     $ devpi use testuser/dev
-    current devpi index: http://localhost:3141/testuser/dev/ (logged in as testuser)
-    ~/.pydistutils.cfg : no config file exists
-    ~/.pip/pip.conf    : no config file exists
+    current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
+    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
     always-set-cfg: no
 
 and look at our example release files::
 
     $ devpi list example
-    testuser/dev/+f/43fefbdcf726734cacb3d44222477e4f/example-1.0.tar.gz
-      teta linux2 python 2.7.3 tests passed
-    testuser/staging/+f/43fefbdcf726734cacb3d44222477e4f/example-1.0.tar.gz
-      teta linux2 python 2.7.3 tests passed
+    http://localhost:3141/testuser/dev/+f/ebf/7acc8be196594/example-1.0.tar.gz
+      devpi.local linux2 python 2.7.3 tests passed
+    http://localhost:3141/testuser/staging/+f/ebf/7acc8be196594/example-1.0.tar.gz
+      devpi.local linux2 python 2.7.3 tests passed
 
 we'll see that ``example-1.0.tar.gz`` is contained in both
 indices.  Let's remove the ``testuser/dev`` ``example`` release::
 
     $ devpi remove -y example
     About to remove the following releases and distributions
-       version: 1.0
-       - testuser/dev/+f/43fefbdcf726734cacb3d44222477e4f/example-1.0.tar.gz
+    version: 1.0
+      - http://localhost:3141/testuser/dev/+f/ebf/7acc8be196594/example-1.0.tar.gz
+      - http://localhost:3141/testuser/dev/+f/ebf/7acc8be196594/example-1.0.tar.gz.toxresult0
     Are you sure (yes/no)? yes (autoset from -y option)
     deleting release 1.0 of example
 
@@ -352,13 +372,18 @@ The ``example-1.0`` release remains accessible through ``testuser/dev``
 because it inherits all releases from its ``testuser/staging`` base::
 
     $ devpi list example
-    testuser/staging/+f/43fefbdcf726734cacb3d44222477e4f/example-1.0.tar.gz
-      teta linux2 python 2.7.3 tests passed
+    http://localhost:3141/testuser/staging/+f/ebf/7acc8be196594/example-1.0.tar.gz
+      devpi.local linux2 python 2.7.3 tests passed
+
+..
+
+    $ devpi-server --stop
+    killed server pid=7220
 
 running devpi-server permanently
 +++++++++++++++++++++++++++++++++
 
 If you want to configure a permanent devpi-server install,
-you can go to :ref:`quickstart-server` to learn more.
+you can go to :ref:`quickstart-server` to get some help.
 
 

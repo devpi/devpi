@@ -35,8 +35,9 @@ client provides the :ref:`cmdref_use` sub-command to achieve this purpose::
    $ devpi use http://localhost:3141/
    using server: http://localhost:3141/ (logged in as root)
    no current index: type 'devpi use -l' to discover indices
-   ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
-   ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
+   ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+   ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+   ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
    always-set-cfg: no
    
 where ``http://devpi.mydomain:3141`` is the **base url** to a given `devpi`_ 
@@ -55,21 +56,22 @@ To see the :ref:`um_concept_server_end_points`, login::
 set the index::
 
    $ devpi use /root/pypi
-   current devpi index: http://localhost:3141/root/pypi/ (logged in as emilie)
-   ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
-   ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
+   current devpi index: http://localhost:3141/root/pypi (logged in as emilie)
+   ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+   ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+   ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
    always-set-cfg: no
 
 and then issue::
 
    $ devpi use --urls
-              index: http://localhost:3141/root/pypi/
+              index: http://localhost:3141/root/pypi
         simpleindex: http://localhost:3141/root/pypi/+simple/
          pypisubmit: None
-          resultlog: http://localhost:3141/+tests
               login: http://localhost:3141/+login
-   ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
-   ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
+   ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+   ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+   ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
    always-set-cfg: no
 
 .. addind a REsT comment here works around a regendoc bug.              
@@ -83,9 +85,10 @@ As explained in the previous chapter, once a new user is logged in,
 he or she doesn't have any index associated to his or her username::
 
    $ devpi use
-   current devpi index: http://localhost:3141/root/pypi/ (logged in as emilie)
-   ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
-   ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
+   current devpi index: http://localhost:3141/root/pypi (logged in as emilie)
+   ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+   ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+   ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
    always-set-cfg: no
 
 In order to create an index, use the :ref:`cmdref_index` sub-command. In the 
@@ -98,6 +101,7 @@ example below, we create the **emilie/prod** production index::
      volatile=False
      uploadtrigger_jenkins=None
      acl_upload=emilie
+     pypi_whitelist=
    
 which leads to the following::
 
@@ -113,6 +117,7 @@ which leads to the following::
                    "bases": [
                        "root/pypi"
                    ], 
+                   "pypi_whitelist": [], 
                    "type": "stage", 
                    "uploadtrigger_jenkins": null, 
                    "volatile": false
@@ -140,6 +145,7 @@ specifying her ``prod`` index as follow::
      volatile=True
      uploadtrigger_jenkins=None
      acl_upload=emilie
+     pypi_whitelist=
    
 which has the following definition on the server side::
 
@@ -152,6 +158,8 @@ which has the following definition on the server side::
            "bases": [
                "emilie/prod"
            ], 
+           "projects": [], 
+           "pypi_whitelist": [], 
            "type": "stage", 
            "uploadtrigger_jenkins": null, 
            "volatile": true
@@ -173,35 +181,37 @@ which has the following definition on the server side::
 Once her indexes are created::
 
    $ devpi index -l 
-   emilie/dev
    emilie/prod
+   emilie/dev
 
 She can start using them (short endpoint)::
 
    $ devpi use dev
-   current devpi index: http://localhost:3141/emilie/dev/ (logged in as emilie)
-   ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
-   ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
+   current devpi index: http://localhost:3141/emilie/dev (logged in as emilie)
+   ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+   ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+   ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
    always-set-cfg: no
    
 or (long endpoint)::
 
    $ devpi use prod
-   current devpi index: http://localhost:3141/emilie/prod/ (logged in as emilie)
-   ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
-   ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
+   current devpi index: http://localhost:3141/emilie/prod (logged in as emilie)
+   ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+   ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+   ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
    always-set-cfg: no
    
 And from there, the urls should be set to:: 
 
    $ devpi use --urls
-              index: http://localhost:3141/emilie/prod/
+              index: http://localhost:3141/emilie/prod
         simpleindex: http://localhost:3141/emilie/prod/+simple/
          pypisubmit: http://localhost:3141/emilie/prod/
-          resultlog: http://localhost:3141/+tests
               login: http://localhost:3141/+login
-   ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
-   ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
+   ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+   ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+   ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
    always-set-cfg: no
    
 .. note:: By default, a user index has its ``acl_upload`` property set to 
@@ -233,6 +243,7 @@ Assuming that Sophie has both index types as well::
      volatile=False
      uploadtrigger_jenkins=None
      acl_upload=sophie
+     pypi_whitelist=
    
 ::
 
@@ -243,6 +254,7 @@ Assuming that Sophie has both index types as well::
      volatile=True
      uploadtrigger_jenkins=None
      acl_upload=sophie
+     pypi_whitelist=
 
 Lets now assume that Sophie uploads her ``pysober`` package in her **dev** 
 index and Emilie wants to test the integration of this package with the 
@@ -267,6 +279,7 @@ bases::
      volatile=True
      uploadtrigger_jenkins=None
      acl_upload=emilie
+     pypi_whitelist=
    
 .. note:: It is important to specify all bases for that index, that is repeating
           **/emilie/prod** which can be obtained by doing::
@@ -284,6 +297,7 @@ When the work is done, this relationship can be revoked by doing::
      volatile=True
      uploadtrigger_jenkins=None
      acl_upload=emilie
+     pypi_whitelist=
 
 .. Adding a comment to work around a bug in regendoc where all lines are removed.     
      
@@ -296,6 +310,7 @@ which now has the ``/emilie/dev`` as a base only::
      volatile=True
      uploadtrigger_jenkins=None
      acl_upload=emilie
+     pypi_whitelist=
    
 Modifying the ACL
 ^^^^^^^^^^^^^^^^^
@@ -306,33 +321,37 @@ Switching Between Indices
 Now that we have two indices, we can switch between them by doing::
 
    $ devpi use /emilie/prod
-   current devpi index: http://localhost:3141/emilie/prod/ (logged in as emilie)
-   ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
-   ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
+   current devpi index: http://localhost:3141/emilie/prod (logged in as emilie)
+   ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+   ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+   ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
    always-set-cfg: no
 
 checking::
 
    $ devpi use 
-   current devpi index: http://localhost:3141/emilie/prod/ (logged in as emilie)
-   ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
-   ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
+   current devpi index: http://localhost:3141/emilie/prod (logged in as emilie)
+   ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+   ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+   ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
    always-set-cfg: no
 
 switching::
 
    $ devpi use /emilie/dev
-   current devpi index: http://localhost:3141/emilie/dev/ (logged in as emilie)
-   ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
-   ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
+   current devpi index: http://localhost:3141/emilie/dev (logged in as emilie)
+   ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+   ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+   ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
    always-set-cfg: no
 
 and checking again::
 
    $ devpi use
-   current devpi index: http://localhost:3141/emilie/dev/ (logged in as emilie)
-   ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
-   ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
+   current devpi index: http://localhost:3141/emilie/dev (logged in as emilie)
+   ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+   ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+   ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
    always-set-cfg: no
 
 Deleting an Index
@@ -349,6 +368,7 @@ In the example below, we create a "bad" index and delete it::
      volatile=True
      uploadtrigger_jenkins=None
      acl_upload=emilie
+     pypi_whitelist=
 
 here is the bad index::
 
@@ -361,6 +381,8 @@ here is the bad index::
            "bases": [
                "emilie/prod"
            ], 
+           "projects": [], 
+           "pypi_whitelist": [], 
            "type": "stage", 
            "uploadtrigger_jenkins": null, 
            "volatile": true
@@ -377,7 +399,7 @@ And to prove it::
 
    $ devpi getjson /emilie/oups
    GET http://localhost:3141/emilie/oups
-   404 Not Found: no such stage
+   404 Not Found: no stage emilie/oups
    
 .. _devpi_um_indices_list:   
    
@@ -388,8 +410,8 @@ The **devpi** :ref:`cmdref_index` command show the existing indexes for a
 given user::
 
    $ devpi index -l
-   emilie/dev
    emilie/prod
+   emilie/dev
    
 However, it is sometimes useful to see all indexes present on the server. This 
 can done with the **devpi** :ref:`cmdref_use` ``-l`` command [#f1]_ which 

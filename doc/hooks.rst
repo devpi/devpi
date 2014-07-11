@@ -10,7 +10,7 @@ other prospective extensions.
 
 .. note::
 
-    The hook and plugin explanations are not yet sufficient to write
+    The hook and plugin explanations here are not yet sufficient to write
     your own plugin just from looking at the documentation.  The docs
     are meant for recording design decisions and notes about the plugin
     hooks. You will probably have to read up on the source code and

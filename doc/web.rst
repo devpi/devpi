@@ -33,11 +33,11 @@ You can install the web interface with::
     pip install devpi-web
 
 There is no configuration needed as ``devpi-server`` will automatically
-discover the web plugin through calling doc:`hooks` using the setuptools
+discover the web plugin through calling :doc:`hooks` using the setuptools
 entry points mechanism.
 
 
-Navigation
+Navigation (commented screenshots)
 ----------------------------------------------------
 
 At the root of your devpi server web interface you get an overview of the existing users and their indices:

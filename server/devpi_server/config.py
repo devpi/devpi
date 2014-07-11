@@ -77,7 +77,7 @@ def addoptions(parser):
 
     deploy.addoption("--upgrade-state", action="store_true",
             dest="upgrade_state",
-            help="upgrade server state if possible. ")
+            help="(deprecated, use --export/--import) automatically upgrade server state if possible, creating virtualenvs as needed. ")
 
     deploy.addoption("--export", type=str, metavar="PATH",
             help="export devpi-server database state into PATH. "
@@ -263,7 +263,6 @@ class Config:
             s = py.std.stat
             self.secretfile.chmod(s.S_IRUSR|s.S_IWUSR)
         return self.secretfile.read()
-
 
 def getpath(path):
     return py.path.local(os.path.expanduser(str(path)))

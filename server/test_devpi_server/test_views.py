@@ -695,29 +695,29 @@ def test_kvdict(input, expected):
 @pytest.mark.parametrize("headers, environ, outsideurl, expected", [
     (
         {"X-outside-url": "http://outside.com"}, {},
-        None, "http://outside.com/"),
+        None, "http://outside.com"),
     (
         {"Host": "outside3.com"}, {},
-        None, "http://outside3.com/"),
+        None, "http://outside3.com"),
     (
         {"Host": "outside3.com"}, {'wsgi.url_scheme': 'https'},
-        None, "https://outside3.com/"),
+        None, "https://outside3.com"),
     (
         {"Host": "outside3.com:3141"}, {},
-        None, "http://outside3.com:3141/"),
+        None, "http://outside3.com:3141"),
     (
         {"Host": "outside3.com:3141"}, {'wsgi.url_scheme': 'https'},
-        None, "https://outside3.com:3141/"),
+        None, "https://outside3.com:3141"),
     # outside url takes precedence over headers
     (
         {"X-outside-url": "http://outside.com"}, {},
-        "http://outside2.com", "http://outside2.com/"),
+        "http://outside2.com", "http://outside2.com"),
     (
         {"Host": "outside3.com"}, {},
-        "http://out.com", "http://out.com/"),
+        "http://out.com", "http://out.com"),
     (
         {"Host": "outside3.com"}, {'wsgi.url_scheme': 'https'},
-        "http://out.com", "http://out.com/")])
+        "http://out.com", "http://out.com")])
 def test_get_outside_url(headers, environ, outsideurl, expected):
     from devpi_server.views import get_outside_url
     from pyramid.request import Request

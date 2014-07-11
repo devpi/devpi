@@ -28,7 +28,7 @@ and ``devpi-client``.
 Overview
 --------
 
-`devpi`_ consists of two parts:
+The `devpi`_ consists of two parts:
 
    - A ``devpi server`` responsible for providing a Pypi index cache and to manager sub-indices.
      The ``devpi server`` is compatible with most python installer tools. 

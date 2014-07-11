@@ -90,11 +90,21 @@ def json_preferred(request):
     return "application/json" in request.headers.get("Accept", "")
 
 
+def get_outside_url(request, outsideurl):
+    if outsideurl:
+        url = outsideurl
+    else:
+        url = request.headers.get("X-outside-url", None)
+        if url is None:
+            url = request.application_url
+    return url.rstrip("/")
+
+
 def route_url(self, *args, **kw):
     xom = self.registry['xom']
     outside_url = get_outside_url(self, xom.config.args.outside_url)
     url = super(self.__class__, self).route_url(
-        _app_url=outside_url.rstrip("/"), *args, **kw)
+        _app_url=outside_url, *args, **kw)
     # Unquote plus signs in path segment. The settings in pyramid for
     # the urllib quoting function are a bit too much on the safe side
     url = urlparse.urlparse(url)
@@ -251,10 +261,9 @@ class PyPIView:
                  html.br(), "\n",
             ])
         title = "%s: links for %s" % (stage.name, projectname)
-        if stage.ixconfig["type"] == "mirror" or stage.has_pypi_base(projectname):
-            refresh_title = "Refresh"
-            if stage.has_pypi_base(projectname):
-                refresh_title = "Refresh PyPI links"
+        if stage.has_pypi_base(projectname):
+            refresh_title = "Refresh" if stage.ixconfig["type"] == "mirror" else \
+                            "Refresh PyPI links"
             refresh_url = request.route_url(
                 "/{user}/{index}/+simple/{name}/refresh",
                 user=self.context.username, index=self.context.index,
@@ -802,23 +811,13 @@ def getjson(request, allowed_keys=None):
             abort(request, 400, "json keys not recognized: %s" % ",".join(diff))
     return dict
 
-def get_outside_url(request, outsideurl):
-    if outsideurl:
-        url = outsideurl
-    else:
-        url = request.headers.get("X-outside-url", None)
-        if url is None:
-            url = request.application_url
-    url = url.rstrip("/") + "/"
-    #self.log.debug("outside host header: %s", url)
-    return url
-
 def trigger_jenkins(request, stage, jenkinurl, testspec):
     log = request.log
-    baseurl = get_outside_url(request, stage.xom.config.args.outside_url)
+    baseurl = get_outside_url(request,
+                  stage.xom.config.args.outside_url) + "/"
 
     source = render_string("devpibootstrap.py",
-        INDEXURL=baseurl + stage.name,
+        INDEXURL=baseurl + "/" + stage.name,
         VIRTUALENVTARURL= (baseurl +
             "root/pypi/+f/d3d/915836c1ada1be731ccaa12412b98/"
             "virtualenv-1.11.2.tar.gz",

@@ -21,8 +21,9 @@ But before that, users must indicate to the devpi client which server to use::
    $ devpi use  http://localhost:3141
    using server: http://localhost:3141/ (not logged in)
    no current index: type 'devpi use -l' to discover indices
-   ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
-   ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
+   ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+   ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+   ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
    always-set-cfg: no
 
 In this case, we do not make use of a particular index. We could however
@@ -34,9 +35,10 @@ Once ``devpi`` uses a server, the server base url is cached on the client side.
 For instance, to use the ``pypi`` index, once could issue::
 
    $ devpi use /root/pypi
-   current devpi index: http://localhost:3141/root/pypi/ (not logged in)
-   ~/.pydistutils.cfg : http://localhost:4040/alice/dev/+simple/
-   ~/.pip/pip.conf    : http://localhost:4040/alice/dev/+simple/
+   current devpi index: http://localhost:3141/root/pypi (not logged in)
+   ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+   ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+   ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
    always-set-cfg: no
    
 More on the use command can be found :ref:`here <devpi_um_indices_use_section>`
@@ -69,6 +71,7 @@ Or inspect the server configuration::
    {
        "result": {
            "email": "edoe@mydomain.net", 
+           "indexes": {}, 
            "username": "emilie"
        }, 
        "type": "userconfig"
