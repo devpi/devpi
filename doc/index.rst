@@ -40,8 +40,9 @@ release activities with Python.  Main features and usage scenarios:
   plugin package you can navigate indexes and search through release metadata
   and documentation.
 
-- **replication**: Keep one or more real-time :doc:`replica` to speed up
-  access and to distribute the devpi system across your organsiation.
+- **replication**: (new with 2.0) Keep one or more real-time
+  :doc:`replica` to speed up access and to distribute the devpi system
+  across your organsiation.
 
 - **importing/exporting**: To upgrade to a newer version, devpi-server
   supports exporting server state from an old version and importing that

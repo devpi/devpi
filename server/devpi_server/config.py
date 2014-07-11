@@ -77,7 +77,7 @@ def addoptions(parser):
 
     deploy.addoption("--upgrade-state", action="store_true",
             dest="upgrade_state",
-            help="upgrade server state if possible. ")
+            help="(deprecated, use --export/--import) automatically upgrade server state if possible, creating virtualenvs as needed. ")
 
     deploy.addoption("--export", type=str, metavar="PATH",
             help="export devpi-server database state into PATH. "

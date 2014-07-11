@@ -295,6 +295,7 @@ class BaseStage:
                 return res
 
     def has_pypi_base(self, name):
+        name = ensure_unicode(name)
         private_hit = whitelisted = False
         for stage in self._sro():
             if stage.ixconfig["type"] == "mirror":

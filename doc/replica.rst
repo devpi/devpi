@@ -3,18 +3,22 @@ devpi-server replication
 
 .. versionadded: 2.0
 
-The devpi-server replication protocol aims to:
+The devpi-server replication protocol aims to support:
 
-- support high-availability: when the master goes down, a replica
-  node can easily be configured to be the new master.
+- **ongoing incremental backup**: all state changes on the master
+  are reflected in the replica with only a short delay
 
-- support faster installs: a geographically closer replica will
+- **high-availability/failover**: when the master goes down, a replica
+  node can be manually configured to be the new master.
+
+- **faster installs**: a geographically closer replica will
   answer queries much faster than the more remote master node.
+
 
 Usage
 ---------------------------------------------
 
-A regular ``devpi-server`` instance can serve as a master.
+Any regular ``devpi-server`` instance can serve as a master.
 In order to start a replica you need to provide the root master URL::
 
     devpi-server --master http://url-of-master
@@ -65,7 +69,7 @@ the following user stories in mind:
 - A server administrator can start a devpi-server in replicating mode 
   by providing a master URL. The node will immediately start with replicating 
   the master information.  After the initial sync the replica keep
-  a connection to the master in order to get notified immediately of any
+  a http connection to the master in order to get notified immediately of any
   changes.
 
 
@@ -75,8 +79,7 @@ HTTP relaying of replica server to master
 -----------------------------------------------------------
 
 devpi-server in replica mode serves the same API and endpoints 
-as the master server but it will internally relay change-operations
-(see change entry types above).  In general such state-changing
+as the master server.  In general any state-changing
 requests will be relayed to the master which should in its success
 code tell what serial this change refers to.  The replica server
 can then return a success code to its client after
@@ -109,9 +112,9 @@ Handling concurrency within the replica server
 -------------------------------------------------
 
 Both master and replica servers can handle multiple concurrent requests.
-HTTP requests are run in threads (or greenlets) and we thus need to insure
-that the backend layer is thread safe and provides means for
-manipulating state in an atomic way.
+HTTP requests are run in threads and we thus need to insure that the
+backend layer is thread safe and provides means for manipulating state
+in an atomic way.
 
 One particular complication is `http relaying`_ of state changes posted
 to the replica.  The replication thread needs to be able to signal
@@ -131,19 +134,21 @@ because of a partial network disconnect or a failure between the three
 parties (replica, master, client).  This may make it hard for the
 client to know the exact result of the original state-changing operation.  
 
-To remedy this, we may consider implementing a per-server (and maybe also
-per-index) view on "recent changes", and also detailing the "local" serials
-and "remote serials" as well as the replica/master connection status,
-see `issue113 <https://bitbucket.org/hpk42/devpi/issue/113/provide-devpi-url-status-to-retrieve>`_.
+To remedy this, we may in the future consider implementing a per-server
+(and maybe also per-index) view on "recent changes", and also detailing
+the "local" serials and "remote serials" as well as the replica/master
+connection status, see `issue113
+<https://bitbucket.org/hpk42/devpi/issue/113/provide-devpi-url-status-to-retrieve>`_.
 
 
 Transactional master state changes / SQL
 -------------------------------------------------------
 
 Every change on the devpi-server master side happens
-atomically and is associated with a unique serial number.  
-All changes to meta information happens in a transaction
-carried out via ``sqlite3``.  All files are stored in the
+with `ACID guruantees <http://en.wikipedia.org/wiki/ACID>`_
+and is associated with an incrementing serial number.  
+All changes to meta information happen in a transaction
+carried out via ``sqlite3``.  Files are stored in the
 filesystem outside of the SQL database.
 
 

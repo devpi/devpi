@@ -324,6 +324,7 @@ def index_get(context, request):
                 name=name, version=ver),
             files=get_files_info(request, linkstore, show_toxresults),
             docs=get_docs_info(request, stage, verdata)))
+    packages.sort(key=lambda x: x["info"]["title"])
 
     return result
 
