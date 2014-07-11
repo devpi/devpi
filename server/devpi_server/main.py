@@ -363,3 +363,6 @@ def set_default_indexes(model):
         indexes["pypi"] = dict(bases=(), type="mirror", volatile=False)
         root_user.key.set(userconfig)
         threadlog.info("created root/pypi index")
+
+if __name__ == "__main__":
+    main()
