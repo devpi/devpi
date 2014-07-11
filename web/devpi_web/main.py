@@ -97,12 +97,14 @@ def devpiserver_pyramid_configure(config, pyramid_config):
 
     # monkeypatch mimetypes.guess_type on because pyramid-1.5.1/webob
     # choke on mimtypes.guess_type on windows with python2.7
-    if sys.platform == "win32" and sys.version_info[:2] == (2,7):
+    if sys.platform == "win32" and sys.version_info[:2] == (2, 7):
         import mimetypes
         old = mimetypes.guess_type
+
         def guess_type_str(url, strict=True):
             res = old(url, strict)
             return str(res[0]), res[1]
+
         mimetypes.guess_type = guess_type_str
         threadlog.debug("monkeypatched mimetypes.guess_type to return bytes")
 
