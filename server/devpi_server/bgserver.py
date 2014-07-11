@@ -60,7 +60,7 @@ class BackgroundServer:
         def prepare_devpiserver(cwd):
             url = "http://%s:%s" % (args.host, args.port)
             self.line("starting background devpi-server at %s" % url)
-            argv = [sys.executable, devpi_server, ] + filtered_args
+            argv = [devpi_server, ] + filtered_args
             #self.line("command: %s" % (argv,))
             #self.line("command: %s" % argv)
             return (lambda: self._waitup(url), argv)

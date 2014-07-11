@@ -2,39 +2,50 @@ devpi-2.0.0: web, search, replication for PyPI indexes
 ==========================================================
 
 The devpi system in version 2.0 brings tons of fixes
-and new features, most notably:
+and new features for the private github-style pypi caching server, 
+most notably:
 
 - a new web interface featuring search of metadata and documentation
-  as well as easier navigation.
+  as well as easier navigation and showing of test results per release
+  file.
 
-- a new transactional storage system supporting real-time 
-  replication over http.
+- a new transactional storage system (based on sqlite) supporting 
+  real-time replication over http.
 
 - a new (experimental) hook system for extending server-side
   functionality.
 
-Note that devpi-2.0 requires to ``--export`` your 1.2 
-server state before you can serve it through devpi-2.0.
+- ported to a solid web framework and wsgi-server: pyramid 
+  and waitress.
+
+Upgrade note: devpi-server-2.0 requires to ``--export`` your 1.2 
+server state and then using ``--import`` with the new version
+before you can serve your private packages through devpi-server-2.0.0.  
+Also, please checkout the web plugin if you want to have a web interface::
+
+    http://doc.devpi.net/2.0/web.html
 
 Here is a Quickstart tutorial for efficient pypi-mirroring 
 on your laptop::    
                                                                                 
-    http://doc.devpi.net/1.1/quickstart-pypimirror.html                         
-                                                                                
+    http://doc.devpi.net/2.0/quickstart-pypimirror.html                         
 And if you want to manage your releases or implement staging                    
 as an individual or within an organisation::                                    
                                                                                 
-    http://doc.devpi.net/1.1/quickstart-releaseprocess.html                     
+    http://doc.devpi.net/2.0/quickstart-releaseprocess.html                     
                                                                                 
-If you want to permanently install devpi-server and potentially                 
-access it from many clients::                                                   
+If you want to host a devpi-server installation with nginx/supervisor
+and access it from clients from different hosts::
                                                                                 
-    http://doc.devpi.net/1.1/quickstart-server.html                             
-                                                                                
+    http://doc.devpi.net/2.0/quickstart-server.html                             
+
 More documentation here::
                                                                                 
-    http://doc.devpi.net/latest/                                                
+    http://doc.devpi.net/2.0/                                                
+
+many thanks to Florian Schulze who implemented the new ``devpi-web``
+package and helped with many other improvements.
 
 have fun,
 
-Holger Krekel and Florian Schulze
+Holger Krekel, merlinux GmbH

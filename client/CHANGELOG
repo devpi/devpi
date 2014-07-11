@@ -1,7 +1,7 @@
-2.0XXX
+2.0
 ----------------
 
-- Compatibility with devpi-server >= 1.3dev2.
+- Compatibility with devpi-server >= 2.0.0
 
 - introduce "patchjson PATH JSONFILE" command which allows to send
   a request containing a json data structure to a specified path 

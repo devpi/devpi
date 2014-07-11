@@ -1,4 +1,4 @@
-2.0.0.dev
+2.0.0
 ----------------
 
 - major revamp of the internal core of devpi to support
@@ -9,6 +9,11 @@
 - moved all html views except for files and the simple index to new
   devpi-web package. Thanks to Florian Schulze for the PR.
 
+- implement issue103: By default if you register a package in an index,
+  no lookup on pypi is made for that package anymore. You have to add the
+  package to the pypi_whitelist of the index to let pypi releases be mixed in.
+  This is to prevent malicious uploads on pypi to overwrite private packages.
+
 - change json api to get rid of the different meaning of URLs with and
   without a trailing slash. "/{user}/" is now "/{user}?list_indices" and
   "/{user}/{index}/" is now "/{user}/{index}?list_projects".
@@ -16,8 +21,7 @@
 - added option to list inherited projects via json using
   "/{user}/{index}?list_projects&inherited".
 
-- switch the wsgi app to use Pyramid. the wsgi server is still using Bottle,
-  so --bottleserver still works. Thanks to Florian Schulze for the PR.
+- switch the wsgi app to use Pyramid and waitress for WSGI serving.
 
 - don't refresh releaselinks from the mirroring thread but rather
   rely on the next access to do it.
@@ -40,13 +44,8 @@
 - fix issue84: uploading of wheels where the registered package name 
   has an underscore works despite a wheel's metadata carrying
   hyphens instead.  At submit-file time we now lookup the registered
-  time and use that instead of assuming the one coming with the wheel
+  name and use that instead of assuming the one coming with the wheel
   is the correct one.
-
-- implement issue103: By default if you register a package in an index,
-  no lookup on pypi is made for that package anymore. You have to add the
-  package to the pypi_whitelist of the index to let pypi releases be mixed in.
-  This is to prevent malicious uploads on pypi to overwrite private packages.
 
 - add refresh button on root/pypi project simple index pages which clears the
   internal cache to force a refetch from PyPI.
