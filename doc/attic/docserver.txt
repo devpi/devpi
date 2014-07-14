@@ -1,15 +1,3 @@
-
-Uploading and viewing python package docs
-==================================================
-
-Given you have :ref:`distutils configured to use an index <distutilsconfig>_
-you can upload documentation to an index simply by::
-
-    python setup.py upload_docs
-
-The documentation will be linked to from the ``pypi/PROJNAME`` page
-of that index.
-
 Server data directory layout (implementation internal)
 ------------------------------------------------------
 
@@ -26,4 +14,3 @@ defaults to ``~/.devpi/server`` and can be changed from the command line::
     <user>/<index>/links/<project>  dictionary of basenames->relative links
 
     <user>/<index>/files/<MD5>/<releasefilebasename>
-    

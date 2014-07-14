@@ -96,20 +96,45 @@ script roughly follows these steps:
 
 - ``devpi test PKG`` where PKG is the package name that we uploaded.
 
-
 Uploading Sphinx docs
 ---------------------
 
-If you have sphinx-based docs you can upload them as well::
+If you have `Sphinx-based documentation <http://sphinx-doc.org/>`_ you can
+upload the rendered HTML documentation to your devpi server with the following
+command::
 
     devpi upload --with-docs
 
-This will build and upload sphinx-documentation by configuring and running
+This will build and upload Sphinx documentation by configuring and running
 this command::
 
     setup.py build_sphinx -E --build-dir $BUILD_DIR \
              upload_docs --upload-dir $BUILD_DIR/html
 
+If you have distutils configured to use a devpi index you can upload
+documentation to that index simply by executing::
+
+    python setup.py upload_docs
+
+Once uploaded the documentation will be linked to from the index overview page.
+Documentation URLs have the following form::
+
+    http://$DEVPI_URL/$USER/$INDEX/$PACKAGE/$VERSION/+doc/index.html
+
+The ``devpi upload --with-docs`` command may fail with the following error::
+
+    error: invalid command 'build_sphinx'
+
+This probably means you're using an old version of setuptools that doesn't
+support the `build_sphinx` command used by devpi, so you need to update
+setuptools::
+
+    pip install -U setuptools
+
+If the ``devpi upload --with-docs`` command still fails with the same error
+message, maybe you forgot to install Sphinx? In that case::
+
+    pip install sphinx
 
 Bulk uploading release files
 ----------------------------
