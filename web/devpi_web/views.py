@@ -583,7 +583,6 @@ class SearchView:
         for sub_hit in sub_hits:
             sub_data = sub_hit['data']
             text_type = sub_data['type']
-            metadata = self.get_versiondata(stage, data)
             title = text_type.title()
             highlight = None
             if text_type == 'project':
@@ -601,7 +600,12 @@ class SearchView:
                         name=data['name'], version=data['doc_version'],
                         relpath="%s.html" % text_path)
             elif text_type in ('keywords', 'description', 'summary'):
+                metadata = self.get_versiondata(stage, data)
+                if metadata is None:
+                    continue
                 text = metadata.get(text_type)
+                if text is None:
+                    continue
                 highlight = search_index.highlight(text, sub_hit.get('words'))
                 if 'version' in data:
                     sub_hit['url'] = self.request.route_url(

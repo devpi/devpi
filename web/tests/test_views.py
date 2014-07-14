@@ -464,8 +464,62 @@ def test_search_deleted_stage(mapp, testapp):
         "version": "2.6",
         "description": "foo"})
     mapp.delete_index(api.stagename, waithooks=True)
-    r = testapp.get('/+search?query=pkg')
-    assert r.status_code == 200
+    r = testapp.xget(200, '/+search?query=pkg')
+    content = r.html.select('#content')[0].text.strip()
+    assert content == 'Your search pkg did not match anything.'
+
+
+@pytest.mark.with_notifier
+def test_search_deleted_package(mapp, testapp):
+    mapp.create_and_use()
+    mapp.set_versiondata({
+        "name": "pkg1",
+        "version": "2.6",
+        "description": "foo"})
+    mapp.delete_project('pkg1', waithooks=True)
+    r = testapp.xget(200, '/+search?query=pkg')
+    content = r.html.select('#content')[0].text.strip()
+    assert content == 'Your search pkg did not match anything.'
+
+
+@pytest.mark.with_notifier
+def test_search_deleted_version(mapp, testapp):
+    mapp.create_and_use()
+    mapp.set_versiondata({
+        "name": "pkg1",
+        "version": "2.6",
+        "summary": "foo"})
+    mapp.set_versiondata({
+        "name": "pkg1",
+        "version": "2.7",
+        "description": "bar"})
+    mapp.delete_project("pkg1/2.7", waithooks=True)
+    r = testapp.xget(200, '/+search?query=bar%20OR%20foo')
+    search_results = r.html.select('.searchresults > dl')
+    assert len(search_results) == 1
+    links = search_results[0].findAll('a')
+    assert [(l.text.strip(), l.attrs['href']) for l in links] == [
+        ("pkg1-2.6", "http://localhost/user1/dev/pkg1/2.6"),
+        ("Summary", "http://localhost/user1/dev/pkg1/2.6#summary")]
+
+
+@pytest.mark.with_notifier
+def test_search_deleted_all_versions(mapp, testapp):
+    mapp.create_and_use()
+    mapp.set_versiondata({
+        "name": "pkg1",
+        "version": "2.6",
+        "summary": "foo"})
+    mapp.set_versiondata({
+        "name": "pkg1",
+        "version": "2.7",
+        "description": "bar"})
+    mapp.delete_project("pkg1/2.6")
+    mapp.delete_project("pkg1/2.7", waithooks=True)
+    r = testapp.xget(200, '/+search?query=bar%20OR%20foo')
+    content = r.html.select('#content')[0].text.strip()
+    assert content == 'Your search bar OR foo did not match anything.'
+    r = testapp.xget(200, '/+search?query=pkg')
     content = r.html.select('#content')[0].text.strip()
     assert content == 'Your search pkg did not match anything.'
 

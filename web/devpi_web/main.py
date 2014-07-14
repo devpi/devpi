@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 import sys
+from devpi_common.metadata import get_latest_version
 from devpi_web.description import render_description
 from devpi_web.doczip import unpack_docs
 from devpi_web.indexing import iter_projects, preprocess_project
@@ -138,6 +139,13 @@ def devpiserver_run_commands(xom):
     return None
 
 
+def delete_project(stage, name):
+    if stage is None:
+        return
+    ix = get_indexer(stage.xom.config)
+    ix.delete_projects([preprocess_project(stage, name)])
+
+
 def index_project(stage, name):
     if stage is None:
         return
@@ -156,7 +164,20 @@ def devpiserver_on_upload(stage, projectname, version, link):
 
 
 def devpiserver_on_changed_versiondata(stage, projectname, version, metadata):
+    if stage is None:
+        # TODO we don't have enough info to delete the project
+        return
+    if not metadata:
+        if stage.get_projectname(projectname) is None:
+            delete_project(stage, projectname)
+            return
+        versions = stage.list_versions(projectname)
+        if versions:
+            version = get_latest_version(versions)
+            if version:
+                threadlog.debug("A version of %s was deleted, using latest version %s for indexing" % (
+                    projectname, version))
+                metadata = stage.get_versiondata(projectname, version)
     if metadata:
         render_description(stage, metadata)
         index_project(stage, metadata['name'])
-    # else XXX handle deletion
