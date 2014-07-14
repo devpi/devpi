@@ -46,6 +46,18 @@ class TestChangelog:
             testapp.get("/+changelog/%s" % (latest_serial+1,),
                         expect_errors=False)
 
+    def test_get_wait_blocking_ends(self, testapp, mapp, noiter, monkeypatch):
+        mapp.create_user("this", password="p")
+        latest_serial = self.get_latest_serial(testapp)
+        monkeypatch.setattr(MasterChangelogRequest, "MAX_REPLICA_BLOCK_TIME",
+                            0.01)
+        monkeypatch.setattr(MasterChangelogRequest, "WAKEUP_INTERVAL",
+                            0.001)
+        r = testapp.get("/+changelog/%s" % (latest_serial+1,),
+                    expect_errors=False)
+        assert r.status_code == 202
+        assert int(r.headers["X-DEVPI-SERIAL"]) == latest_serial
+
 
 class TestPyPIProxy:
     def test_pypi_proxy(self, xom, reqmock):
@@ -107,6 +119,16 @@ class TestReplicaThread:
         with pytest.raises(ZeroDivisionError):
             rt.thread_run()
         #assert caplog.getrecords("committed")
+
+    def test_thread_run_try_again(self, rt, reqmock, caplog):
+        l = [1]
+        def exit_if_shutdown():
+            l.pop()
+        rt.thread.exit_if_shutdown = exit_if_shutdown
+        reqmock.mockresponse("http://localhost/+changelog/0", code=202)
+        with pytest.raises(IndexError):
+            rt.thread_run()
+        assert caplog.getrecords("trying again")
 
 class TestTweenReplica:
     def test_nowrite(self, xom, blank_request):
