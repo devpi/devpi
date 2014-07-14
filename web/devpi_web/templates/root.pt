@@ -15,9 +15,6 @@
                     <li tal:repeat="index user.indexes">
                         <a href="${index.url}">${index.title}</a>
                     </li>
-                    <li tal:repeat="index range(30)">
-                        <a href="">${user.title}/foo${index}</a>
-                    </li>
                 </ul>
             </dd>
             </tal:users>
