@@ -1,7 +1,7 @@
 import os
 import py
 import hashlib
-from pyramid.httpexceptions import HTTPNotFound
+from pyramid.httpexceptions import HTTPNotFound, HTTPAccepted
 from pyramid.view import view_config
 from pyramid.response import Response
 
@@ -12,12 +12,26 @@ from .model import UpstreamError
 
 
 class MasterChangelogRequest:
+    MAX_REPLICA_BLOCK_TIME = 30.0
+    WAKEUP_INTERVAL = 2.0
+
     def __init__(self, request):
         self.request = request
         self.xom = request.registry["xom"]
 
     @view_config(route_name="/+changelog/{serial}")
     def get_changes(self):
+        # this method is called from all replica servers
+        # and either returns changelog entry content for {serial} or,
+        # if it points to the "next" serial, will block and wait
+        # until that serial is committed.  However, after
+        # MAX_REPLICA_BLOCK_TIME, we return 202 Accepted to indicate
+        # the replica should try again.  The latter has two benefits:
+        # - nginx' timeout would otherwise return 504 (Gateway Timeout)
+        # - if the replica is not waiting anymore we would otherwise
+        #   never time out here, leading to more and more threads
+        # if no commits happen.
+
         serial = self.request.matchdict["serial"]
         keyfs = self.xom.keyfs
         if serial.lower() == "nop":
@@ -29,16 +43,7 @@ class MasterChangelogRequest:
                 raise HTTPNotFound("serial needs to be int")
             raw_entry = keyfs._fs.get_raw_changelog_entry(serial)
             if not raw_entry:
-                with keyfs.notifier.cv_new_transaction:
-                    next_serial = keyfs.get_next_serial()
-                    if serial > next_serial:
-                        raise HTTPNotFound("can only wait for next serial")
-                    with threadlog.around("debug",
-                                          "waiting for tx%s", serial):
-                        while serial >= keyfs.get_next_serial():
-                            # we loop because we want control-c to get through
-                            keyfs.notifier.cv_new_transaction.wait(2)
-                raw_entry = keyfs._fs.get_raw_changelog_entry(serial)
+                raw_entry = self._wait_for_entry(serial)
 
         devpi_serial = keyfs.get_current_serial()
         r = Response(body=raw_entry, status=200, headers={
@@ -46,6 +51,28 @@ class MasterChangelogRequest:
             str("X-DEVPI-SERIAL"): str(devpi_serial),
         })
         return r
+
+    def _wait_for_entry(self, serial):
+        max_wakeups = self.MAX_REPLICA_BLOCK_TIME / self.WAKEUP_INTERVAL
+        keyfs = self.xom.keyfs
+        with keyfs.notifier.cv_new_transaction:
+            next_serial = keyfs.get_next_serial()
+            if serial > next_serial:
+                raise HTTPNotFound("can only wait for next serial")
+            with threadlog.around("debug",
+                                  "waiting for tx%s", serial):
+                num_wakeups = 0
+                while serial >= keyfs.get_next_serial():
+                    if num_wakeups >= max_wakeups:
+                        raise HTTPAccepted("no new transaction yet",
+                            headers={str("X-DEVPI-SERIAL"):
+                                     str(keyfs.get_current_serial())})
+                    # we loop because we want control-c to get through
+                    keyfs.notifier.cv_new_transaction.wait(
+                        self.WAKEUP_INTERVAL)
+                    num_wakeups += 1
+        return keyfs._fs.get_raw_changelog_entry(serial)
+
 
     @view_config(route_name="/root/pypi/+name2serials")
     def get_name2serials(self):
@@ -90,6 +117,9 @@ class ReplicaThread:
                         keyfs.import_changes(serial, changes)
                         serial += 1
                         continue
+                elif r.status_code == 202:
+                    log.debug("%s: trying again %s\n", r.status_code, url)
+                    continue
                 else:
                     log.debug("%s: failed fetching %s\n%s",
                               r.status_code, url, getattr(r, 'text', ''))
