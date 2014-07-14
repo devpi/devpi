@@ -7,12 +7,11 @@ Miscellaneous
 
 .. sidebar:: Summary
 
-    Placeholder for miscenallenous information such a debugging techniques, tricks, and perhaps FAQ. 
-    
+    Placeholder for miscellaneous information such a debugging techniques, tricks, and perhaps FAQ.
 
 .. _`jenkins integration`:
 
-configuring jenkins integration
+Configuring Jenkins integration
 -------------------------------
 
 devpi-server can trigger Jenkins to test uploaded packages using tox_.
@@ -25,7 +24,7 @@ This needs configuration on two sides:
 Configuring a devpi index to trigger Jenkins
 ++++++++++++++++++++++++++++++++++++++++++++
 
-Here is a example command, using a ``/testuser/dev`` index 
+Here is a example command, using a ``/testuser/dev`` index
 and a Jenkins server at http://localhost:8080::
 
     # needs one Jenkins job for each name of uploaded packages
@@ -41,7 +40,7 @@ job which executes all tests for all your uploads::
 
 This requires a single ``multijob`` on the Jenkins side whereas the prior
 configuration would require a job for each package name that you possibly
-upload. 
+upload.
 
 Note that uploading a package will succeed independently if a build job could
 be submitted successfully to Jenkins.
@@ -67,7 +66,7 @@ be triggered by devpi-server.  Each job is configured in the same way:
    :align: center
 
 - add a buildstep "Execute Python script" (you need to have the Python
-  plugin installed and enabled in Jenkins) and enter 
+  plugin installed and enabled in Jenkins) and enter
   ``execfile("jobscript.py")``.
 
 .. image:: ../images/jenkins3.png
@@ -76,14 +75,13 @@ be triggered by devpi-server.  Each job is configured in the same way:
 - hit "Save" for the new build job.
 
 You can now ``devpi upload`` a package to an index and see Jenkins starting
-after the upload successfully returns.  
-
+after the upload successfully returns.
 
 Behind the scenes
 +++++++++++++++++
 
 Once you triggered a job from devpi, you can checkout the ``jobscript.py``
-in the Jenkins workspace to see what was injected.  The injected 
+in the Jenkins workspace to see what was injected.  The injected
 script roughly follows these steps:
 
 - retrieves a stable virtualenv release through the devpi root/pypi
@@ -99,7 +97,7 @@ script roughly follows these steps:
 - ``devpi test PKG`` where PKG is the package name that we uploaded.
 
 
-uploading sphinx docs
+Uploading Sphinx docs
 ---------------------
 
 If you have sphinx-based docs you can upload them as well::
@@ -113,7 +111,7 @@ this command::
              upload_docs --upload-dir $BUILD_DIR/html
 
 
-bulk uploading release files
+Bulk uploading release files
 ----------------------------
 
 If you have a directory with existing package files::
@@ -128,7 +126,7 @@ and upload them to our local ``testuser/dev`` pypi index.
 Using plain ``setup.py`` for uploading
 --------------------------------------
 
-In order for ``setup.py`` to register releases and upload 
+In order for ``setup.py`` to register releases and upload
 release files we need to configure our index server in
 the ``$HOME/.pypirc`` file::
 
@@ -144,7 +142,7 @@ the ``$HOME/.pypirc`` file::
 
 Now let's go to one of your ``setup.py`` based projects and issue::
 
-    python setup.py sdist upload -r dev 
+    python setup.py sdist upload -r dev
 
 This will upload your ``sdist`` package to the ``testuser/dev`` index,
 configured in the ``.pypirc`` file.
@@ -153,11 +151,11 @@ If you now use ``testuser/dev`` for installation like this::
 
     pip install -i http://localhost:3141/testuser/dev/+simple/ PKGNAME
 
-You will install your package including any pypi-dependencies 
+You will install your package including any pypi-dependencies
 it might need, because the ``testuser/dev`` index inherits all
 packages from the pypi-mirroring ``root/pypi`` index.
 
 .. note::
-    
+
     If working with multiple indices, it is usually more
     convenient to use :ref:`devpi upload`.
