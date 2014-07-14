@@ -202,6 +202,10 @@ class Hub:
         args = [str(x) for x in args]
         if cwd == None:
             cwd = self.cwd
+        cmd = py.path.local.sysfind(args[0])
+        if not cmd:
+            self.fatal("command not found: %s" % args[0])
+        args[0] = str(cmd)
         if report:
             self.report_popen(args, cwd)
         return check_output(args, cwd=str(cwd))
