@@ -1,7 +1,7 @@
 devpi-server replication
 ====================================
 
-.. versionadded: 2.0
+.. versionadded:: 2.0
 
 The devpi-server replication protocol aims to support:
 

@@ -1,6 +1,8 @@
 Web interface and search
 ============================
 
+.. versionadded:: 2.0
+
 The web interface is distributed as a `separate devpi-web package <https://pypi.python.org/pypi/devpi-web>`_ which needs to be installed alongside the
 ``devpi-server`` package ahead of the first server start.  ``devpi-web`` 
 provides navigation and search facilities as well as access to uploaded
