@@ -52,6 +52,34 @@ form#search input[type=submit] {
     -webkit-appearance: button;
 }
 
+.user_index_list dt {
+    font-size: 110%;
+    font-weight: bold;
+}
+
+.user_index_list dt {
+    margin: 0;
+    padding: 0;
+}
+
+.user_index_list dd {
+    margin: 0 0 1em 1em;
+    padding: 0;
+}
+
+.user_index_list ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.user_index_list li {
+    margin: 0.25em 0;
+    padding: 0;
+    display: inline-block;
+    min-width: 10em;
+}
+
 table.files,
 table.packages,
 table.toxresults,

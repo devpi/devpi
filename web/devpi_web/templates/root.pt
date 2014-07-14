@@ -7,14 +7,18 @@
     <body>
         <metal:search use-macro="request.macros['navigation']" />
         <div id="content">
-        <tal:users repeat="user users">
-        <h1>${user.title}</h1>
-        <ul tal:condition="user.indexes">
-            <li tal:repeat="index user.indexes">
-                <a href="${index.url}">${index.title}</a>
-            </li>
-        </ul>
-        </tal:users>
+        <dl class="user_index_list">
+            <tal:users repeat="user users">
+            <dt>${user.title}</dt>
+            <dd tal:condition="user.indexes">
+                <ul>
+                    <li tal:repeat="index user.indexes">
+                        <a href="${index.url}">${index.title}</a>
+                    </li>
+                </ul>
+            </dd>
+            </tal:users>
+        </dl>
         </div>
     </body>
 </html>
