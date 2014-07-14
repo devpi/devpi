@@ -18,11 +18,10 @@ devpi-server:
   This is to prevent malicious uploads on pypi to overwrite private packages.
 
 - change json api to get rid of the different meaning of URLs with and
-  without a trailing slash. "/{user}/" is now "/{user}?list_indices" and
-  "/{user}/{index}/" is now "/{user}/{index}?list_projects".
-
-- added option to list inherited projects via json using
-  "/{user}/{index}?list_projects&inherited".
+  without a trailing slash. "/{user}/" is now the same as "/user" and always
+  lists indices.  "/{user}/{index}" and "/{user}/{index}/ now always
+  lists the index config and the contained per-stage projects
+  (not inherited ones).
 
 - switch the wsgi app to use Pyramid and waitress for WSGI serving.
 

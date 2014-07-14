@@ -9,26 +9,26 @@ accept and content-type: application/json::
     
     GET  /       -> collection of users 
 
-    GET /user    -> user config
+    GET /user[/] -> user config and indices
     POST /NAME   -> create new user
     PATCH /NAME  -> modify user config
     DEL /NAME    -> del USER (must be logged in or root)
 
     GET /user/   -> collection of indices
 
-    GET /user/NAME   -> modify index configuration
+    GET /user/NAME[/] -> get index configuration and per-stage projects
     POST /user/NAME  -> create new index
     DEL  /user/NAME  -> delete new index
     PATCH /user/NAME -> modify index configuration
 
-    GET /user/name/project -> get project config
-    DEL /user/name/project -> delete project config
+    GET /user/name/project[/] -> get project info including all versions
+    DEL /user/name/project -> delete project along with all versions and files
 
     GET /user/name/project/version -> get version config
     DEL /user/name/project/version -> delete version config
 
-    GET /user/name/**/+api
-                    -> get api links for the index
+    GET /user/name/+api -> get api links for the index
+    GET /               -> get api links for this server
 
 The idea for this "REST-ish" API design was to view
 users, indices, projects and versions as resources in the REST sense.
@@ -78,25 +78,7 @@ devpi-server-1.2 provides a "summary" page of its projects
 and release files and docs.
 
 
-Next version API
+Search API
 --------------------------------------------
 
-For mirroring and search we will need to enrich the API.
-There is also the question if we want to redo or enhance the
-existing API scheme.  But let's first try to incrementally 
-add mirroring and search API:
-
-    GET /+search [json]
-        # json body describes a search query and will return json
-        # with the matches
-        
-    GET/POST /+search [html]
-        # shows/accepts search form
-        
-    GET/POST /user/name/+search [html]
-        # shows/accepts index-specific search form
-
-    GET /+mirror [x-devpi-mirror]        
-        # json body describes a mirroring request
-        # (init/subscribe) for mirroring
-        # returns long-polling updates
+ToBeDocumented.
