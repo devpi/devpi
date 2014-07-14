@@ -220,6 +220,20 @@ class Index(object):
             text_title=fields.STORED(),
             text=fields.TEXT(analyzer=NgramWordAnalyzer(), stored=False, phrase=False))
 
+    def delete_projects(self, projects):
+        counter = itertools.count()
+        count = next(counter)
+        writer = self.project_ix.writer()
+        main_keys = self.project_ix.schema.names()
+        for project in projects:
+            data = dict((u(x), project[x]) for x in main_keys if x in project)
+            data['path'] = u"/{user}/{index}/{name}".format(**data)
+            count = next(counter)
+            writer.delete_by_term('path', data['path'])
+        log.info("Committing %s deletions." % count)
+        writer.commit()
+        log.info("Committed %s deletions to index." % count)
+
     def update_projects(self, projects, clear=False):
         counter = itertools.count()
         count = next(counter)
