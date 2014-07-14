@@ -220,16 +220,14 @@ table.projectinfos .opened .value:after {
 }
 
 a.passed:after,
-.toxresult.passed h2:before,
-.toxresult .command.passed div:first-child:before {
+.toxresult.passed h2:before {
     content: "✔";
     color: green;
     font-weight: bold;
 }
 
 a.failed:after,
-.toxresult.failed h2:before,
-.toxresult .command.failed div:first-child:before {
+.toxresult.failed h2:before {
     content: "!";
     color: red;
     font-weight: bold;
@@ -241,6 +239,18 @@ a.passed:after {
 
 a.failed:after {
     content: " !";
+}
+
+.toxresult .command.passed h3:first-child:before {
+    content: "✔ ";
+    color: green;
+    font-weight: bold;
+}
+
+.toxresult .command.failed h3:first-child:before {
+    content: "! ";
+    color: red;
+    font-weight: bold;
 }
 
 .toxresult.opened h2,

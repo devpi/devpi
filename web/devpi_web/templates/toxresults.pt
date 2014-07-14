@@ -35,7 +35,7 @@
                             </a>
                         </div>
                         <div>
-                            <a href="${make_toxresult_url(toxresult=toxresult.basename)}#${toxresult._key}-test" tal:attributes="class 'failed' if toxresult.setup.failed else 'passed'">
+                            <a href="${make_toxresult_url(toxresult=toxresult.basename)}#${toxresult._key}-test" tal:attributes="class 'failed' if toxresult.test.failed else 'passed'">
                                 <tal:notest condition="not toxresult.test.commands">No test run</tal:notest>
                                 <tal:test condition="toxresult.test.commands and toxresult.test.failed">Tests failed</tal:test>
                                 <tal:test condition="toxresult.test.commands and not toxresult.test.failed">Tests passed</tal:test>
