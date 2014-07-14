@@ -202,7 +202,7 @@ def load_toxresult(link):
     return json.loads(data)
 
 
-def get_toxresults_info(linkstore, for_link, newest=False):
+def get_toxresults_info(linkstore, for_link, newest=True):
     result = []
     seen = set()
     toxlinks = linkstore.get_links(rel="toxresult", for_entrypath=for_link)
