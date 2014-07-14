@@ -470,6 +470,27 @@ def test_search_deleted_stage(mapp, testapp):
     assert content == 'Your search pkg did not match anything.'
 
 
+@pytest.mark.with_notifier
+def test_search_deleted_version(mapp, testapp):
+    mapp.create_and_use()
+    mapp.set_versiondata({
+        "name": "pkg1",
+        "version": "2.6",
+        "summary": "foo"})
+    mapp.set_versiondata({
+        "name": "pkg1",
+        "version": "2.7",
+        "description": "bar"})
+    mapp.delete_project("pkg1/2.7", waithooks=True)
+    r = testapp.xget(200, '/+search?query=bar%20OR%20foo')
+    search_results = r.html.select('.searchresults > dl')
+    assert len(search_results) == 1
+    links = search_results[0].findAll('a')
+    # it should actually find 2.6, since 2.7 is deleted
+    assert [(l.text.strip(), l.attrs['href']) for l in links] == [
+        ("pkg1-2.7", "http://localhost/user1/dev/pkg1/2.7")]
+
+
 def test_search_root_pypi(mapp, testapp, pypistage):
     from devpi_web.main import get_indexer
     pypistage.mock_simple("pkg1", '<a href="/pkg1-2.6.zip" /a>')
