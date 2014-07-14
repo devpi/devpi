@@ -12,15 +12,15 @@ Concepts
 Goals
 -----
 
-`devpi`_ goals is to provide a fast and reliable package cache to `pypi`_ 
-as well as mechanism to share packages, in various states of development, 
+`devpi`_ goals are to provide a fast and reliable package cache to `pypi`_ 
+as well as a mechanism to share packages, in various states of development, 
 amongst users and developers, prior to pushing to the *outside world*.
 
 This implies that users can:
   
-   * Work unaffected if Pypi fails
+   * Work unaffected if PyPI fails
    * store "closed source" packages internally, that can be accessed like 
-     any other packages as if they were residing on PyPi.
+     any other packages as if they were residing on PyPI.
      
 With this understanding, let's go over a short overview of the ``devpi-server``
 and ``devpi-client``.
@@ -30,7 +30,7 @@ Overview
 
 The `devpi`_ consists of two parts:
 
-   - A ``devpi server`` responsible for providing a Pypi index cache and to manager sub-indices.
+   - A ``devpi server`` responsible for providing a PyPI index cache and to manager sub-indices.
      The ``devpi server`` is compatible with most python installer tools. 
      
    - The ``devpi client`` provides the user interface (command line) to interface with the ``devpi server``.
@@ -116,15 +116,15 @@ Indexes
           "type": "userconfig"
       }
       
-  :note: **Important not about inheritance**:
+  :note: **Important note about inheritance**:
          
-         When inheriting from an index, the package of that index **are not copied** 
+         When inheriting from an index, the packages of that index **are not copied** 
          into the child index, making it susceptible to changes in the parent index. 
          When looking for package ``foo``, the **devpi-server** will traverse the 
          inheritance tree if this package is not found in the current index.  
 
-- A index is **volatile** if packages can be overriden with the same version 
-  (which would make sense for a developement  index). Otherwise, attempting to 
+- A index is **volatile** if packages can be overridden with the same version 
+  (which would make sense for a development index). Otherwise, attempting to 
   *upload* [#f2]_ a package with the same version would result in an error. 
   See the :ref:`non_volatile_indexes` for rules specific to this index type. 
    
@@ -133,8 +133,8 @@ Indexes
 - A user can use the index from another user as the base for one of her/his index:
 
    Suppose that Sophie has the same index hierarchy as Emilie (*/sophie/prod* -> */sophie/dev*) 
-   but wants to experiment with a package emilie is currently working on and stored in */emilie/dev*, 
-   Sophie could create a sub index */sophie/fiddle*, using both his and emilie's dev index [#f3]_,
+   but wants to experiment with a package Emilie is currently working on and stored in */emilie/dev*, 
+   Sophie could create a sub index */sophie/fiddle*, using both her and Emilie's dev index [#f3]_,
    which would look like::
    
       $ devpi getjson http://localhost:3141/sophie
@@ -179,7 +179,7 @@ Non Volatile Indexes
 As introduced earlier, a volatile index is an index that can be modified/deleted
 at will by its owner. 
 
-A :term:`non volatile index` is an index that can not be modified in a desctructive 
+A :term:`non volatile index` is an index that can not be modified in a destructive 
 manner. This implies that:
 
    * A **non volatile index** can not be deleted. 
@@ -190,7 +190,7 @@ Furthermore, a non volatile index **should not** use a volatile index as
 one of its bases.
 
 **Non volatile indexes** should be used as common package repositories between 
-user, either for staging or production.
+users, either for staging or production.
 
 .. _um_concept_server_end_points:
 
@@ -204,11 +204,11 @@ Server End Points
 
 .. [#f1] this is true, when you run devpi and the ``devpi server`` on you local machine. 
 
-.. [#f2] **Uploading** refers to storing a package in an index wheresas **pushing** refers to *transfering* 
-         a package from one index to another other. In the example above, Emilie would **upload** package 
+.. [#f2] **Uploading** refers to storing a package in an index whereas **pushing** refers to *transferring* 
+         a package from one index to another. In the example above, Emilie would **upload** package 
          *foo* to */emilie/dev* and later on **push** the package from */emilie/dev* to */emilie/prod*.
          
-.. [#f3] A prefered option in this case would be to temporarily modify the base of sophie's dev index:
+.. [#f3] A preferred option in this case would be to temporarily modify the base of sophie's dev index:
 
             ``devpi index -m dev bases=/sophie/prod,/emilie/dev volatile=True``       
 

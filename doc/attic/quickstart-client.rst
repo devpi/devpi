@@ -64,7 +64,7 @@ Go to a ``setup.py`` based project and issue::
 
 This will build an ``sdist`` archive and upload it 
 to the ``root/dev`` index.  You can now install your 
-reshly uploaded release file::
+freshly uploaded release file::
 
 	$ devpi install --venv=v1 YOUR_PROJECT_NAME
 
