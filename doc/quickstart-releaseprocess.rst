@@ -38,15 +38,15 @@ a series of other devpi commands::
 
     $ devpi quickstart
     --> $ devpi-server --start 
-    2014-07-11 09:59:20,560 INFO  NOCTX DB: Creating schema
-    2014-07-11 09:59:20,617 INFO  [Wtx-1] setting password for user u'root'
-    2014-07-11 09:59:20,618 INFO  [Wtx-1] created user u'root' with email None
-    2014-07-11 09:59:20,618 INFO  [Wtx-1] created root user
-    2014-07-11 09:59:20,618 INFO  [Wtx-1] created root/pypi index
-    2014-07-11 09:59:20,642 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
+    2014-07-14 21:33:12,210 INFO  NOCTX DB: Creating schema
+    2014-07-14 21:33:12,262 INFO  [Wtx-1] setting password for user u'root'
+    2014-07-14 21:33:12,262 INFO  [Wtx-1] created user u'root' with email None
+    2014-07-14 21:33:12,262 INFO  [Wtx-1] created root user
+    2014-07-14 21:33:12,262 INFO  [Wtx-1] created root/pypi index
+    2014-07-14 21:33:12,281 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
     starting background devpi-server at http://localhost:3141
-    /tmp/home/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/python /home/hpk/venv/0/bin/devpi-server
-    process u'devpi-server' started pid=7220
+    /tmp/home/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server
+    process u'devpi-server' started pid=6640
     devpi-server process startup detected
     logfile is at /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
     --> $ devpi use http://localhost:3141 
@@ -155,9 +155,9 @@ Now go to the directory of a ``setup.py`` file of one of your projects
 to our ``testuser/dev`` index::
 
     example $ devpi upload
-    using workdir /tmp/devpi3
-    --> $ hg st -nmac . 
-    hg-exported project to /tmp/devpi3/upload/example -> new CWD
+    using workdir /tmp/devpi192
+    --> $ /home/hpk/venv/0/bin/hg st -nmac . 
+    hg-exported project to /tmp/devpi192/upload/example -> new CWD
     pre-build: cleaning /home/hpk/p/devpi/doc/example/dist
     --> $ /tmp/docenv/bin/python setup.py sdist --formats gztar 
     built: /home/hpk/p/devpi/doc/example/dist/example-1.0.tar.gz [SDIST.TGZ] 0kb
@@ -210,19 +210,19 @@ devpi test: testing an uploaded package
 If you have a package which uses tox_ for testing you may now invoke::
 
     $ devpi test example  # package needs to contain tox.ini
-    received http://localhost:3141/testuser/dev/+f/ebf/7acc8be196594/example-1.0.tar.gz#md5=ebf7acc8be196594c6c61d46d3dc837c
-    unpacking /tmp/devpi-test3/downloads/example-1.0.tar.gz to /tmp/devpi-test3
-    /tmp/devpi-test3/example-1.0$ tox --installpkg /tmp/devpi-test3/downloads/example-1.0.tar.gz -i ALL=http://localhost:3141/testuser/dev/+simple/ --result-json /tmp/devpi-test3/toxreport.json -c /tmp/devpi-test3/example-1.0/tox.ini
-    python create: /tmp/devpi-test3/example-1.0/.tox/python
+    received http://localhost:3141/testuser/dev/+f/c0c/89ce3f07530b7/example-1.0.tar.gz#md5=c0c89ce3f07530b7e5b62b2401d78901
+    unpacking /tmp/devpi-test53/downloads/example-1.0.tar.gz to /tmp/devpi-test53
+    /tmp/devpi-test53/example-1.0$ tox --installpkg /tmp/devpi-test53/downloads/example-1.0.tar.gz -i ALL=http://localhost:3141/testuser/dev/+simple/ --result-json /tmp/devpi-test53/toxreport.json -c /tmp/devpi-test53/example-1.0/tox.ini
+    python create: /tmp/devpi-test53/example-1.0/.tox/python
     python installdeps: pytest
-    python inst: /tmp/devpi-test3/downloads/example-1.0.tar.gz
-    python runtests: PYTHONHASHSEED='338660117'
+    python inst: /tmp/devpi-test53/downloads/example-1.0.tar.gz
+    python runtests: PYTHONHASHSEED='2128331208'
     python runtests: commands[0] | py.test
     ___________________________________ summary ____________________________________
       python: commands succeeded
       congratulations :)
-    wrote json report at: /tmp/devpi-test3/toxreport.json
-    posting tox result data to http://localhost:3141/testuser/dev/+f/ebf/7acc8be196594/example-1.0.tar.gz
+    wrote json report at: /tmp/devpi-test53/toxreport.json
+    posting tox result data to http://localhost:3141/testuser/dev/+f/c0c/89ce3f07530b7/example-1.0.tar.gz
     successfully posted tox result data
 
 Here is what happened:
@@ -241,8 +241,8 @@ Here is what happened:
 We can verify that the test status was recorded via::
 
     $ devpi list example
-    http://localhost:3141/testuser/dev/+f/ebf/7acc8be196594/example-1.0.tar.gz
-      devpi.local linux2 python 2.7.3 tests passed
+    http://localhost:3141/testuser/dev/+f/c0c/89ce3f07530b7/example-1.0.tar.gz
+      fire.local linux2 python 2.7.3 tests passed
 
 devpi push: staging a release to another index
 ++++++++++++++++++++++++++++++++++++++++++++++
@@ -270,8 +270,8 @@ our ``staging`` index::
 
     $ devpi push example-1.0 testuser/staging
        200 register example 1.0 -> testuser/staging
-       200 store_releasefile testuser/staging/+f/ebf/7acc8be196594/example-1.0.tar.gz
-       200 store_toxresult testuser/staging/+f/ebf/7acc8be196594/example-1.0.tar.gz.toxresult0
+       200 store_releasefile testuser/staging/+f/c0c/89ce3f07530b7/example-1.0.tar.gz
+       200 store_toxresult testuser/staging/+f/c0c/89ce3f07530b7/example-1.0.tar.gz.toxresult0
 
 This will determine all files on our ``testuser/dev`` index belonging to
 the specified ``example-1.0`` release and copy them to the
@@ -301,8 +301,8 @@ Let's now use our ``testuser/staging`` index::
 and check the test result status again::
 
     $ devpi list example
-    http://localhost:3141/testuser/staging/+f/ebf/7acc8be196594/example-1.0.tar.gz
-      devpi.local linux2 python 2.7.3 tests passed
+    http://localhost:3141/testuser/staging/+f/c0c/89ce3f07530b7/example-1.0.tar.gz
+      fire.local linux2 python 2.7.3 tests passed
 
 Good, the test result status is still available after the push
 from the last step.
@@ -349,10 +349,10 @@ If we now switch back to using ``testuser/dev``::
 and look at our example release files::
 
     $ devpi list example
-    http://localhost:3141/testuser/dev/+f/ebf/7acc8be196594/example-1.0.tar.gz
-      devpi.local linux2 python 2.7.3 tests passed
-    http://localhost:3141/testuser/staging/+f/ebf/7acc8be196594/example-1.0.tar.gz
-      devpi.local linux2 python 2.7.3 tests passed
+    http://localhost:3141/testuser/dev/+f/c0c/89ce3f07530b7/example-1.0.tar.gz
+      fire.local linux2 python 2.7.3 tests passed
+    http://localhost:3141/testuser/staging/+f/c0c/89ce3f07530b7/example-1.0.tar.gz
+      fire.local linux2 python 2.7.3 tests passed
 
 we'll see that ``example-1.0.tar.gz`` is contained in both
 indices.  Let's remove the ``testuser/dev`` ``example`` release::
@@ -360,8 +360,8 @@ indices.  Let's remove the ``testuser/dev`` ``example`` release::
     $ devpi remove -y example
     About to remove the following releases and distributions
     version: 1.0
-      - http://localhost:3141/testuser/dev/+f/ebf/7acc8be196594/example-1.0.tar.gz
-      - http://localhost:3141/testuser/dev/+f/ebf/7acc8be196594/example-1.0.tar.gz.toxresult0
+      - http://localhost:3141/testuser/dev/+f/c0c/89ce3f07530b7/example-1.0.tar.gz
+      - http://localhost:3141/testuser/dev/+f/c0c/89ce3f07530b7/example-1.0.tar.gz.toxresult0
     Are you sure (yes/no)? yes (autoset from -y option)
     deleting release 1.0 of example
 
@@ -372,13 +372,13 @@ The ``example-1.0`` release remains accessible through ``testuser/dev``
 because it inherits all releases from its ``testuser/staging`` base::
 
     $ devpi list example
-    http://localhost:3141/testuser/staging/+f/ebf/7acc8be196594/example-1.0.tar.gz
-      devpi.local linux2 python 2.7.3 tests passed
+    http://localhost:3141/testuser/staging/+f/c0c/89ce3f07530b7/example-1.0.tar.gz
+      fire.local linux2 python 2.7.3 tests passed
 
 ..
 
     $ devpi-server --stop
-    killed server pid=7220
+    killed server pid=6640
 
 running devpi-server permanently
 +++++++++++++++++++++++++++++++++

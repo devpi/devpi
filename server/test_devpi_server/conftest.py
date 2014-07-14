@@ -562,9 +562,11 @@ class Mapp(MappMixin):
     def upload_doc(self, basename, content, name, version, indexname=None,
                          code=200, waithooks=False):
         indexname = self._getindexname(indexname)
-        r = self.testapp.post("/%s/" % indexname,
-            {":action": "doc_upload", "name": name, "version": version,
-             "content": Upload(basename, content)}, expect_errors=True)
+        form = {":action": "doc_upload", "name": name,
+                "content": Upload(basename, content)}
+        if version:
+            form["version"] = version
+        r = self.testapp.post("/%s/" % indexname, form, expect_errors=True)
         assert r.status_code == code
         if waithooks:
             self._wait_for_serial_in_result(r)

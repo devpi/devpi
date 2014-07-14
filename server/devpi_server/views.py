@@ -506,7 +506,7 @@ class PyPIView:
                 abort(request, 400, "content file field not found")
             name = ensure_unicode(request.POST.get("name"))
             # version may be empty on plain uploads
-            version = ensure_unicode(request.POST.get("version"))
+            version = ensure_unicode(request.POST.get("version") or "")
             projectname = stage.get_projectname(name)
             if projectname is None:
                 abort(request, 400, "no project named %r was ever registered" % (name))
