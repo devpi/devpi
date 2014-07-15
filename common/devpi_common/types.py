@@ -140,3 +140,9 @@ def ensure_unicode(x):
     if py.builtin._istext(x):
         return x
     return py.builtin._totext(x, "utf8")
+
+def ensure_unicode_keys(somedict, ensure_unicode=ensure_unicode):
+    for key in list(somedict):
+        if not py.builtin._istext(key):
+            val = somedict.pop(key)
+            somedict[py.builtin.text(key, "utf-8")] = val

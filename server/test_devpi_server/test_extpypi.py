@@ -435,6 +435,8 @@ class TestRefreshManager:
         xom.thread_pool.start()
         stage, name2serials = queue.get()
         assert name2serials == d
+        for name in name2serials:
+            assert py.builtin._istext(name)
 
     @pytest.mark.notransaction
     def test_pypichanges_loop(self, pypistage, monkeypatch, pool, mock):
@@ -471,6 +473,8 @@ class TestRefreshManager:
                           pypiserial=25)
         assert len(pypistage.pypimirror.name2serials) == 2
         name2serials = pypistage.pypimirror.load_name2serials(None)
+        for name in name2serials:
+            assert py.builtin._istext(name)
         assert name2serials["pytest"] == 27
         assert name2serials["Django"] == 25
         b = pypistage.get_releaselinks("pytest")[0].basename
