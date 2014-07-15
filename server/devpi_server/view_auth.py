@@ -125,10 +125,21 @@ class DevpiAuthenticationPolicy(CallbackAuthenticationPolicy):
     def _get_credentials(self, request):
         authorization = request.headers.get('X-Devpi-Auth')
         if not authorization:
-            return None
+            # support basic authentication for setup.py upload/register
+            authorization = request.headers.get('Authorization')
+            if not authorization:
+                return None
+            try:
+                authmeth, auth = authorization.split(' ', 1)
+            except ValueError: # not enough values to unpack
+                return None
+            if authmeth.lower() != 'basic':
+                return None
+        else:
+            auth = authorization
 
         try:
-            authbytes = b64decode(authorization.strip())
+            authbytes = b64decode(auth.strip())
         except (TypeError, binascii.Error):  # can't decode
             return None
 

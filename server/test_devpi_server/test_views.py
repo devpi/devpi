@@ -362,6 +362,23 @@ class TestSubmitValidation:
         assert location.endswith("/Pkg1")
 
 
+def test_submit_authorization(mapp, testapp):
+    from base64 import b64encode
+    import sys
+    api = mapp.create_and_use()
+    testapp.auth = None
+    data = {':action': 'submit', "name": "Pkg1", "version": "1.0"}
+    r = testapp.post(api.index + '/', data, expect_errors=True)
+    assert r.status_code == 401
+    basic_auth = '%s:%s' % (api.user, api.password)
+    basic_auth = b"Basic " + b64encode(basic_auth.encode("ascii"))
+    if sys.version_info[0] >= 3:
+        basic_auth = basic_auth.decode("ascii")
+    headers = {'Authorization': basic_auth}
+    r = testapp.post(api.index + '/', data, headers=headers)
+    assert r.status_code == 200
+
+
 def test_push_non_existent(mapp, testapp, monkeypatch):
     # check that push from non-existent index results in 404
     req = dict(name="pkg5", version="2.6", targetindex="user2/dev")
