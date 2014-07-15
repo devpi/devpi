@@ -292,6 +292,7 @@ class BaseStage:
     def get_projectname(self, name):
         for stage, res in self.op_sro("get_projectname_perstage", name=name):
             if res is not None:
+                assert py.builtin._istext(res), (repr(res), stage.name)
                 return res
 
     def has_pypi_base(self, name):

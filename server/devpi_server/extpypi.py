@@ -11,11 +11,14 @@ try:
 except ImportError:
     import xmlrpclib as xmlrpc
 
+import py
+
 from devpi_common.vendor._pip import HTMLPage
 
 from devpi_common.url import URL
 from devpi_common.metadata import BasenameMeta
 from devpi_common.metadata import is_archive_of_project
+from devpi_common.types import ensure_unicode_keys
 from devpi_common.validation import normalize_name, ensure_unicode
 from devpi_common.request import new_requests_session
 
@@ -318,6 +321,8 @@ class PyPIMirror:
         self.normname2name = d = dict()
         for name in self.name2serials:
             norm = normalize_name(name)
+            assert py.builtin._istext(norm)
+            assert py.builtin._istext(name)
             if norm != name:
                 d[norm] = name
 
@@ -325,6 +330,7 @@ class PyPIMirror:
         name2serials = load_from_file(self.path_name2serials, {})
         if name2serials:
             threadlog.info("reusing already cached name/serial list")
+            ensure_unicode_keys(name2serials)
         else:
             threadlog.info("retrieving initial name/serial list")
             name2serials = proxy.list_packages_with_serial()
@@ -332,6 +338,7 @@ class PyPIMirror:
                 from devpi_server.main import fatal
                 fatal("mirror initialization failed: "
                       "pypi.python.org not reachable")
+            ensure_unicode_keys(name2serials)
             dump_to_file(name2serials, self.path_name2serials)
             # trigger anything (e.g. web-search indexing) that wants to
             # look at the initially loaded serials
