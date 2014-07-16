@@ -388,7 +388,11 @@ class PyPIView:
             apireturn(400, message="no name/version specified in json")
 
         # first, get all the links related to the source "to push" release
-        linkstore = stage.get_linkstore_perstage(name, version)
+        try:
+            linkstore = stage.get_linkstore_perstage(name, version)
+        except stage.MissesRegistration:
+            apireturn(400, "there are no files for %s-%s on stage %s" %(
+                           name, version, stage.name))
         links = dict([(rel, linkstore.get_links(rel=rel))
                         for rel in ('releasefile', 'doczip', 'toxresult')])
         if not links["releasefile"]:

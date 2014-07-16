@@ -1,7 +1,10 @@
 2.0.2.dev1
 ----------------
 
-- preserve http reason string through replica proxying
+- preserve http reason string for setup.py submit through replica proxying
+
+- proper error message when "devpi push X" uses an X that comes from 
+  a base index or is not existent
 
 2.0.1
 ----------------

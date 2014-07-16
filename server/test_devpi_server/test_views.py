@@ -415,6 +415,15 @@ def test_push_non_existent(mapp, testapp, monkeypatch):
     r = testapp.push("/user1/dev", json.dumps(req), expect_errors=True)
     assert r.status_code == 401
 
+def test_push_from_base_error(mapp, testapp, monkeypatch, pypistage):
+    pypistage.mock_simple("hello", text='<a href="hello-1.0.tar.gz"/>')
+    mapp.create_and_login_user("user1", "1")
+    mapp.create_index("prod", indexconfig=dict(bases=["root/pypi"]))
+    mapp.create_index("dev", indexconfig=dict(bases=["user1/prod"]))
+    req = dict(name="hello", version="1.0", targetindex="user1/prod")
+    r = testapp.push("/user1/dev", json.dumps(req), expect_errors=True)
+    assert r.status_code == 400
+    assert "no files for" in r.json["message"]
 
 @proj
 def test_upload_and_push_internal(mapp, testapp, monkeypatch, proj):
