@@ -7,7 +7,7 @@ class TestVerifyAPIVersion:
             headers = {}
         verify_reply_version(loghub, reply)
         matcher = loghub._getmatcher()
-        matcher.fnmatch_lines("*assuming API-VERSION 1*")
+        matcher.fnmatch_lines("*assuming API-VERSION 2*")
         verify_reply_version(loghub, reply)
         matcher = loghub._getmatcher()
         assert matcher.str().count("assuming") == 1
