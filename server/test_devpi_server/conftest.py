@@ -713,11 +713,11 @@ class mocked_request:
         return r
 
     def mockresponse(self, url, code, method=None, data=None, headers=None,
-                     on_request=None):
+                     on_request=None, reason=None):
         if not url:
             url = "*"
         r = ReqReply(code=code, data=data, headers=headers,
-                     on_request=on_request)
+                     on_request=on_request, reason=reason)
         if method is not None:
             method = method.upper()
         self.url2reply[(url, method)] = r
@@ -725,12 +725,13 @@ class mocked_request:
     mock = mockresponse
 
 class ReqReply(HTTPResponse):
-    def __init__(self, code, data, headers, on_request):
+    def __init__(self, code, data, headers, on_request, reason=None):
         if py.builtin._istext(data):
             data = data.encode("utf-8")
         super(ReqReply, self).__init__(body=py.io.BytesIO(data),
                                        status=code,
                                        headers=headers,
+                                       reason=reason,
                                        preload_content=False)
         self.requests = []
         self.on_request = on_request

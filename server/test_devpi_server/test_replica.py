@@ -152,6 +152,17 @@ class TestTweenReplica:
         assert response.headers.get("X-DEVPI-SERIAL") == "10"
         assert l == [10]
 
+    def test_preserve_reason(self, makexom, blank_request, reqmock, monkeypatch):
+        xom = makexom(["--master", "http://localhost"])
+        reqmock.mock("http://localhost/blankpath",
+                     code=200, reason="GOOD", headers={"X-DEVPI-SERIAL": "10"})
+        l = []
+        monkeypatch.setattr(xom.keyfs.notifier, "wait_tx_serial",
+                            lambda x: l.append(x))
+        handler = tween_replica_proxy(None, {"xom": xom})
+        response = handler(blank_request(method="PUT"))
+        assert response.status == "200 GOOD"
+
     def test_write_proxies_redirect(self, makexom, blank_request, reqmock, monkeypatch):
         xom = makexom(["--master", "http://localhost",
                        "--outside-url=http://my.domain"])

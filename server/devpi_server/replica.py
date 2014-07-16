@@ -222,7 +222,7 @@ def proxy_write_to_master(xom, request):
         outside_url = get_outside_url(request, xom.config.args.outside_url)
         headers[str("location")] = str(
             master_location.replace(master_url.url, outside_url))
-    return Response(status=r.status_code,
+    return Response(status="%s %s" %(r.status_code, r.reason),
                     body=r.content,
                     headers=headers)
 
