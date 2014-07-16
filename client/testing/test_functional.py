@@ -227,7 +227,7 @@ class TestUserManagement:
         """ Verify that if current user is logged off,
         modifications can not be done"""
         mapp.logoff()
-        mapp.modify_user(user=existing_user_id, password=id(self), code=401)
+        mapp.modify_user(user=existing_user_id, password=id(self), code=403)
 
     def test_mod_password(self, mapp, existing_user_id):
         """ Verify that password change is effective"""

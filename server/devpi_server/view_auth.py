@@ -3,9 +3,7 @@ from devpi_server.auth import Auth
 from devpi_server.views import abort, abort_authenticate
 from pyramid.authentication import CallbackAuthenticationPolicy, b64decode
 from pyramid.decorator import reify
-from pyramid.httpexceptions import HTTPUnauthorized
-from pyramid.security import Allow, Deny, Everyone, forget
-from pyramid.view import forbidden_view_config
+from pyramid.security import Allow, Deny, Everyone
 import binascii
 
 
@@ -157,12 +155,3 @@ class DevpiAuthenticationPolicy(CallbackAuthenticationPolicy):
         return username, password
 
 
-@forbidden_view_config()
-def basic_challenge(request):
-    # if there is no authenticated user, then issue a basic auth challenge,
-    # otherwise just return the original exception
-    if request.authenticated_userid:
-        return request.exception
-    response = HTTPUnauthorized()
-    response.headers.update(forget(request))
-    return response

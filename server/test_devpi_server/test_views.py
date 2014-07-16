@@ -289,10 +289,13 @@ class TestSubmitValidation:
     def test_upload_file(self, submit):
         metadata = {"name": "Pkg5", "version": "1.0", ":action": "submit"}
         submit.metadata(metadata, code=200)
-        submit.file("pkg5-2.6.tgz", b"123", {"name": "pkg5some"}, code=400)
+        r = submit.file("pkg5-2.6.tgz", b"123", {"name": "pkg5some"}, code=400)
+        assert "no project" in r.status
         submit.file("pkg5-2.6.tgz", b"123", {"name": "Pkg5"}, code=200)
-        submit.file("pkg5-2.6.qwe", b"123", {"name": "Pkg5"}, code=400)
-        submit.file("pkg5-2.7.tgz", b"123", {"name": "pkg5"}, code=403)
+        r = submit.file("pkg5-2.6.qwe", b"123", {"name": "Pkg5"}, code=400)
+        assert "not a valid" in r.status
+        r = submit.file("pkg5-2.7.tgz", b"123", {"name": "pkg5"}, code=403)
+        assert "cannot register" in r.status
 
     def test_upload_use_registered_name_issue84(self, submit, mapp):
         metadata = {"name": "pkg_hello", "version":"1.0", ":action": "submit"}
@@ -377,7 +380,7 @@ def test_submit_authorization(mapp, testapp):
     testapp.auth = None
     data = {':action': 'submit', "name": "Pkg1", "version": "1.0"}
     r = testapp.post(api.index + '/', data, expect_errors=True)
-    assert r.status_code == 401
+    assert r.status_code == 403
     basic_auth = '%s:%s' % (api.user, api.password)
     basic_auth = b"Basic " + b64encode(basic_auth.encode("ascii"))
     if sys.version_info[0] >= 3:

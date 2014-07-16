@@ -4,8 +4,8 @@
 - fix regression which prevented the basic authentication for the setuptools
   upload/register commands to fail. Thanks Florian Schulze.
 
-- allow auto-registration when uploading release files if the same 
-  release already exists  in pypi or other base indexes
+- fix issue106: better error messages on upload failures.
+  And better allow auto-registration when uploading release files.
 
 2.0.0
 ----------------

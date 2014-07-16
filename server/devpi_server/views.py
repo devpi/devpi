@@ -43,11 +43,14 @@ def abort(request, code, body):
     threadlog.error(body)
     raise exception_response(code, body=body, headers=meta_headers)
 
-def abort_custom(code, msg):
+def abort_submit(code, msg):
+    # we construct our own type because we need to set the title
+    # so that setup.py upload/register use it to explain the failure
     error = type(
         str('HTTPError'), (HTTPException,), dict(
             code=code, title=msg))
-    raise error()
+    threadlog.error(msg)
+    raise error(headers=meta_headers)
 
 
 def abort_authenticate(request, msg="authentication required"):
@@ -488,14 +491,14 @@ class PyPIView:
         request = self.request
         context = self.context
         if context.username == "root" and context.index == "pypi":
-            abort(request, 404, "cannot submit to pypi mirror")
+            abort_submit(404, "cannot submit to pypi mirror")
         stage = self.context.stage
         if not request.has_permission("pypi_submit"):
-            abort(request, 403, "no permission to submit")
+            abort_submit(403, "no permission to submit")
         try:
             action = request.POST[":action"]
         except KeyError:
-            abort(request, 400, ":action field not found")
+            abort_submit(400, ":action field not found")
         if action == "submit":
             self._set_versiondata_form(stage, request.POST)
             return Response("")
@@ -503,13 +506,13 @@ class PyPIView:
             try:
                 content = request.POST["content"]
             except KeyError:
-                abort(request, 400, "content file field not found")
+                abort_submit(400, "content file field not found")
             name = ensure_unicode(request.POST.get("name"))
             # version may be empty on plain uploads
             version = ensure_unicode(request.POST.get("version") or "")
             projectname = stage.get_projectname(name)
             if projectname is None:
-                abort(request, 400, "no project named %r was ever registered" % (name))
+                abort_submit(400, "no project named %r was ever registered" % (name))
             if action == "file_upload":
                 self.log.debug("metadata in form: %s",
                                list(request.POST.items()))
@@ -519,27 +522,27 @@ class PyPIView:
                     self._set_versiondata_form(stage, request.POST)
                     metadata = stage.get_versiondata(projectname, version)
                     if not metadata:
-                        abort_custom(400, "could not process form metadata")
+                        abort_submit(400, "could not process form metadata")
                 res = stage.store_releasefile(projectname, version,
                                               content.filename, content.file.read())
                 if res == 409:
-                    abort(request, 409, "%s already exists in non-volatile index" % (
+                    abort_submit(409, "%s already exists in non-volatile index" % (
                          content.filename,))
                 jenkinurl = stage.ixconfig["uploadtrigger_jenkins"]
                 if jenkinurl:
                     jenkinurl = jenkinurl.format(pkgname=name)
                     if trigger_jenkins(request, stage, jenkinurl, name) == -1:
-                        abort_custom(200,
+                        abort_submit(200,
                             "OK, but couldn't trigger jenkins at %s" %
                             (jenkinurl,))
             else:
                 doczip = content.file.read()
                 if len(doczip) > MAXDOCZIPSIZE:
-                    abort_custom(413, "zipfile size %d too large, max=%s"
+                    abort_submit(413, "zipfile size %d too large, max=%s"
                                    % (len(doczip), MAXDOCZIPSIZE))
                 stage.store_doczip(name, version, doczip)
         else:
-            abort(request, 400, "action %r not supported" % action)
+            abort_submit(400, "action %r not supported" % action)
         return Response("")
 
     def _set_versiondata_form(self, stage, form):
@@ -562,11 +565,11 @@ class PyPIView:
             stage.set_versiondata(metadata)
         except stage.RegisterNameConflict as e:
             othername = e.args[0]
-            abort_custom(403, "cannot register %r because %r is already "
+            abort_submit(403, "cannot register %r because %r is already "
                   "registered at %s" % (
                   metadata["name"], othername, stage.name))
         except ValueError as e:
-            abort_custom(400, "invalid metadata: %s" % (e,))
+            abort_submit(400, "invalid metadata: %s" % (e,))
         self.log.info("%s: got submit release info %r",
                  stage.name, metadata["name"])
 
@@ -850,10 +853,10 @@ def trigger_jenkins(request, stage, jenkinurl, testspec):
 
 def abort_if_invalid_filename(name, filename):
     if not is_valid_archive_name(filename):
-        abort_custom(400, "%r is not a valid archive name" %(filename))
+        abort_submit(400, "%r is not a valid archive name" %(filename))
     if normalize_name(filename).startswith(normalize_name(name)):
         return
-    abort_custom(400, "filename %r does not match project name %r"
+    abort_submit(400, "filename %r does not match project name %r"
                       %(filename, name))
 
 def abort_if_invalid_projectname(request, projectname):
