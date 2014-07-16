@@ -514,7 +514,7 @@ class PyPIView:
                 self.log.debug("metadata in form: %s",
                                list(request.POST.items()))
                 abort_if_invalid_filename(name, content.filename)
-                metadata = stage.get_versiondata(projectname, version)
+                metadata = stage.get_versiondata_perstage(projectname, version)
                 if not metadata:
                     self._set_versiondata_form(stage, request.POST)
                     metadata = stage.get_versiondata(projectname, version)

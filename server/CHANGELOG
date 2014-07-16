@@ -1,8 +1,11 @@
-2.0.0.dev.1
+2.0.1
 ----------------
 
 - fix regression which prevented the basic authentication for the setuptools
-  upload/register commands to fail.
+  upload/register commands to fail. Thanks Florian Schulze.
+
+- allow auto-registration when uploading release files if the same 
+  release already exists  in pypi or other base indexes
 
 2.0.0
 ----------------

@@ -50,7 +50,7 @@ def stage(request, user):
 def user(model):
     return model.create_user("hello", password="123")
 
-def test_has_pypi_stage(model, pypistage):
+def test_has_pypi_base(model, pypistage):
     pypistage.mock_simple("pytest", "<a href='pytest-1.0.zip' /a>")
     assert pypistage.has_pypi_base("pytest")
     assert pypistage.get_projectname_perstage("pytest")
@@ -66,6 +66,7 @@ def test_has_pypi_stage(model, pypistage):
     ixconfig["pypi_whitelist"] = ["pytest"]
     stage2.modify(**ixconfig)
     assert stage2.has_pypi_base("pytest")
+
 
 class TestStage:
     def test_create_and_delete(self, model):

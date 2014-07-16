@@ -354,6 +354,14 @@ class TestSubmitValidation:
         testapp.xget(404, path1)
         testapp.xget(200, path2)
 
+    def test_upload_with_metadata(self, submit, testapp, mapp, pypistage):
+        pypistage.mock_simple("package", '<a href="/package-1.0.zip" />')
+        mapp.upload_file_pypi(
+                        "package-1.0.tar.gz", b'123',
+                        "package", "1.0",
+                        indexname=submit.stagename, register=False,
+                        code=200)
+
     def test_get_project_redirected(self, submit, mapp):
         metadata = {"name": "Pkg1", "version": "1.0", ":action": "submit",
                     "description": "hello world"}
