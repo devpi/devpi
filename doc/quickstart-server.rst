@@ -325,6 +325,8 @@ Let's not forget to stop our background tutorial server::
     $ devpi-server --stop
     killed server pid=7058
 
+.. _upgrade:
+
 versioning, exporting and importing server state
 ----------------------------------------------------
 

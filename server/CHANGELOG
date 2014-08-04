@@ -1,6 +1,8 @@
 2.0.2.dev1
 ----------------
 
+- fix issue120: link to "upgrade" section from main index page.
+
 - preserve http reason string for setup.py submit through replica proxying
 
 - proper error message when "devpi push X" uses an X that comes from 
