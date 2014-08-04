@@ -1,6 +1,6 @@
 function scrollToAnchor(iframe, hash) {
-    var anchor = get_anchor(iframe.contentWindow, hash);
-    if (anchor === null)
+    var anchor = get_anchor(iframe.contentWindow.document, hash);
+    if (!anchor)
         return;
     var iframe_y = $(iframe).position().top;
     var anchor_y = $(anchor).position().top;
@@ -20,7 +20,7 @@ function onIFrameLoad(iframe) {
     // fixup links
     var base_url = $('iframe').data('base_url');
     var baseview_url = $('iframe').data('baseview_url');
-    var links = $(iframe.contentWindow.document).find('a')
+    var links = $(iframe.contentWindow.document).find('a');
     links.each(function (){
         var link = this;
         link.target = '_top';

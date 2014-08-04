@@ -1,10 +1,10 @@
 function get_anchor(document, hash) {
     hash = hash.replace('#', '')
-    if (hash === "") {
+    if (!hash) {
         return;
     }
     var anchor = document.getElementById(hash);
-    if (anchor === null) {
+    if (!anchor) {
         var selector = 'a[name="' + hash + '"]';
         anchor = $(document).find(selector);
         if (!anchor.length) {
