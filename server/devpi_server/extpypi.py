@@ -271,10 +271,7 @@ class PyPIStage(BaseStage):
         return self._dump_project_cache(real_projectname, entries, serial)
 
     def get_projectname_perstage(self, name):
-        norm_name = normalize_name(name)
-        name = self.pypimirror.normname2name.get(norm_name, norm_name)
-        if name in self.pypimirror.name2serials:
-            return name
+        return self.pypimirror.get_registered_name(name)
 
     def list_versions_perstage(self, projectname):
         versions = set()
@@ -313,6 +310,12 @@ class PyPIMirror:
         self.keyfs = keyfs = xom.keyfs
         self.path_name2serials = str(
             keyfs.basedir.join(PyPIStage.name, ".name2serials"))
+
+    def get_registered_name(self, name):
+        norm_name = normalize_name(name)
+        name = self.normname2name.get(norm_name, norm_name)
+        if name in self.name2serials:
+            return name
 
     def init_pypi_mirror(self, proxy):
         """ initialize pypi mirror if no mirror state exists. """

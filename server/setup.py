@@ -7,7 +7,7 @@ if __name__ == "__main__":
     here = os.path.abspath(".")
     README = open(os.path.join(here, 'README.rst')).read()
 
-    install_requires = ["py>=1.4.20",
+    install_requires = ["py>=1.4.23",
                         "devpi_common>=2.0.0",
                         "itsdangerous>=0.24",
                         "execnet>=1.2",

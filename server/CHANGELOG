@@ -1,10 +1,19 @@
 2.0.2.dev1
 ----------------
 
+- fix issue120: link to "upgrade" section from main index page.
+
 - preserve http reason string for setup.py submit through replica proxying
 
 - proper error message when "devpi push X" uses an X that comes from 
   a base index or is not existent
+
+- fix issue121: depend on py-1.4.23 to fix python3.4 compatibility
+  for a venusian/py34/py interaction import oddity.
+
+- fix issue126: handle deletion of pypi project cache entries correctly 
+  (i.e. ones that are triggered by "refresh" on simple page).
+
 
 2.0.1
 ----------------
