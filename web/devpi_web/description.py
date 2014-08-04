@@ -34,4 +34,4 @@ def render_description(stage, metadata):
         html = html.encode("utf8")
     desc_file = get_description_file(stage, name, version)
     desc_file.dirpath().ensure_dir()
-    desc_file.write(html)
+    desc_file.write(html, mode='wb')
