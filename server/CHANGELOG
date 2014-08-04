@@ -6,6 +6,10 @@
 - proper error message when "devpi push X" uses an X that comes from 
   a base index or is not existent
 
+- fix issue121: depend on py-1.4.23 to fix python3.4 compatibility
+  for a venusian/py34/py interaction import oddity.
+
+
 2.0.1
 ----------------
 
