@@ -4,6 +4,8 @@
 
 - fix javascript for embedded doc view.
 
+- fix rendering of description with unicode.
+
 
 2.0.0
 ---------------
