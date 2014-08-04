@@ -9,6 +9,9 @@
 - fix issue121: depend on py-1.4.23 to fix python3.4 compatibility
   for a venusian/py34/py interaction import oddity.
 
+- fix issue126: handle deletion of pypi project cache entries correctly 
+  (i.e. ones that are triggered by "refresh" on simple page).
+
 
 2.0.1
 ----------------

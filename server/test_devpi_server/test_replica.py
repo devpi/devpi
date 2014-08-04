@@ -80,14 +80,21 @@ def test_pypi_project_changed(replica_xom):
     handler = PypiProjectChanged(replica_xom)
     class Ev:
         value = dict(projectname="newproject", serial=12)
-        typedkey = replica_xom.keyfs.get_key("PYPILINKS")
+        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(name="newproject")
     handler(Ev())
     assert replica_xom.pypimirror.name2serials["newproject"] == 12
     class Ev2:
         value = dict(projectname="newproject", serial=15)
-        typedkey = replica_xom.keyfs.get_key("PYPILINKS")
+        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(name="newproject")
     handler(Ev2())
     assert replica_xom.pypimirror.name2serials["newproject"] == 15
+
+    class Ev3:
+        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(name="newproject")
+        value = None
+    handler(Ev3())
+    assert "newproject" not in replica_xom.pypimirror.name2serials
+
 
 class TestReplicaThread:
     @pytest.fixture

@@ -151,12 +151,22 @@ class PypiProjectChanged:
 
     def __call__(self, ev):
         threadlog.info("PypiProjectChanged %s", ev.typedkey)
+        pypimirror = self.xom.pypimirror
+        name2serials = pypimirror.name2serials
         cache = ev.value
-        name = cache["projectname"]
-        name2serials = self.xom.pypimirror.name2serials
-        cur_serial = name2serials.get(name, -1)
-        if cache and cache["serial"] > cur_serial:
-            name2serials[cache["projectname"]] = cache["serial"]
+        if cache is None:  # deleted
+            # derive projectname to delete from key
+            name = ev.typedkey.params["name"]
+            projectname = pypimirror.get_registered_name(name)
+            if projectname:
+                del name2serials[projectname]
+            else:
+                threadlog.error("project %r missing", name)
+        else:
+            name = cache["projectname"]
+            cur_serial = name2serials.get(name, -1)
+            if cache and cache["serial"] > cur_serial:
+                name2serials[cache["projectname"]] = cache["serial"]
 
 
 def tween_replica_proxy(handler, registry):
