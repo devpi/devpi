@@ -16,7 +16,7 @@ class LinkSet:
             basename = URL(link.url).basename
             name, version = splitbasename(basename)[:2]
             ver = Version(version)
-            if name == req.project_name and version in req:
+            if name in (req.project_name, pkgname) and version in req:
                 if best is None or ver > best[0]:
                     best = ver, link
         return best and best[1] or None
