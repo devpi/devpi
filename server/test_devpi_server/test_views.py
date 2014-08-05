@@ -29,7 +29,8 @@ def getfirstlink(text):
 @pytest.mark.parametrize("user,status", [
     ("foo_bar", 'ok'),
     ("foo-bar", 'ok'),
-    ("foo.bar", 'warn'),
+    ("foo.bar", 'ok'),
+    ("foo.bar42", 'ok'),
     (":foobar", 'warn'),
     (":foobar:", 'fatal')])
 def test_invalid_username(caplog, testapp, user, status):
@@ -41,11 +42,11 @@ def test_invalid_username(caplog, testapp, user, status):
         code = 400
     assert r.status_code == code
     if status == 'warn':
-        msg = "username '%s' will be invalid with next release, use characters, numbers, underscore and dash only" % user
+        msg = "username '%s' will be invalid with next release, use characters, numbers, underscore, dash and dots only" % user
         logmsg, = caplog.getrecords('invalid')
         assert logmsg.message.endswith(msg)
     if status == 'fatal':
-        msg = "username '%s' is invalid, use characters, numbers, underscore and dash only" % user
+        msg = "username '%s' is invalid, use characters, numbers, underscore, dash and dots only" % user
         assert r.json['message'] == msg
 
 

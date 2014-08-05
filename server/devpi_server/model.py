@@ -108,7 +108,7 @@ class RootModel:
 
 class User:
     group_regexp = re.compile('^:.*:$')
-    name_regexp = re.compile('^[a-zA-Z0-9_-]+$')
+    name_regexp = re.compile('^[a-zA-Z0-9._-]+$')
 
     def __init__(self, parent, name):
         self.__parent__ = parent
@@ -126,9 +126,9 @@ class User:
         if username in userlist:
             raise InvalidUser("username already exists")
         if not cls.name_regexp.match(username):
-            threadlog.error("username '%s' will be invalid with next release, use characters, numbers, underscore and dash only" % username)
+            threadlog.error("username '%s' will be invalid with next release, use characters, numbers, underscore, dash and dots only" % username)
         if cls.group_regexp.match(username):
-            raise InvalidUser("username '%s' is invalid, use characters, numbers, underscore and dash only" % username)
+            raise InvalidUser("username '%s' is invalid, use characters, numbers, underscore, dash and dots only" % username)
         user = cls(model, username)
         with user.key.update() as userconfig:
             user._setpassword(userconfig, password)
