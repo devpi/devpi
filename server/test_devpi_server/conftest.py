@@ -339,6 +339,9 @@ class Mapp(MappMixin):
     def login_root(self):
         self.login("root", "")
 
+    def logout(self):
+        self.auth = self.testapp.auth = None
+
     def getuserlist(self):
         r = self.testapp.get("/", {"indexes": False}, {"Accept": "application/json"})
         assert r.status_code == 200

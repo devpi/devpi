@@ -367,7 +367,8 @@ class PrivateStage(BaseStage):
                     user=self.user.name, index=self.index)
 
     def can_upload(self, username):
-        return username in self.ixconfig.get("acl_upload", [])
+        acl_upload = self.ixconfig.get("acl_upload", [])
+        return username in acl_upload or ':ANONYMOUS:' in acl_upload
 
     def modify(self, index=None, **kw):
         diff = list(set(kw).difference(_ixconfigattr))
@@ -376,7 +377,10 @@ class PrivateStage(BaseStage):
                 ["invalid keys for index configuration: %s" %(diff,)])
         if "bases" in kw:
             kw["bases"] = tuple(normalize_bases(self.xom.model, kw["bases"]))
-
+        if 'acl_upload' in kw:
+            for index, name in enumerate(kw['acl_upload']):
+                if name.upper() == ':ANONYMOUS:':
+                    kw['acl_upload'][index] = name.upper()
         # modify user/indexconfig
         with self.user.key.update() as userconfig:
             ixconfig = userconfig["indexes"][self.index]

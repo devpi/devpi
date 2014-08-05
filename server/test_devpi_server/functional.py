@@ -156,9 +156,11 @@ class TestIndexThings:
         mapp.create_index("test2")
         mapp.use("root/test2")
         mapp.set_acl([username])
-        assert username in mapp.get_acl()
-        mapp.set_acl("root/test2", [])
-        assert username not in mapp.get_acl()
+        assert mapp.get_acl() == [username]
+        mapp.set_acl([])
+        assert mapp.get_acl() == []
+        mapp.set_acl([':anonymous:'])
+        assert mapp.get_acl() == [':ANONYMOUS:']
 
     def test_create_index_with_jenkinsurl(self, mapp):
         url = "http://localhost:8080/"

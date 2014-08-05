@@ -150,7 +150,7 @@ class Mapp(MappMixin):
             line = line.strip()
             parts = line.split("acl_upload=", 1)
             if len(parts) == 2:
-                return parts[1].split(",")
+                return [x for x in parts[1].split(",") if x]
         return  []
 
     def get_pypi_whitelist(self, code=200, indexname=None):

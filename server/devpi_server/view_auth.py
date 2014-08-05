@@ -41,6 +41,8 @@ class RootFactory(object):
             stage = self.model.getstage(self.username, self.index)
         if stage:
             for principal in stage.ixconfig.get("acl_upload", []):
+                if principal == ':ANONYMOUS:':
+                    principal = Everyone
                 acl.append((Allow, principal, 'pypi_submit'))
             acl.extend([
                 (Allow, self.username, 'index_modify'),

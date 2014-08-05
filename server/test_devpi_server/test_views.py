@@ -576,6 +576,24 @@ def test_upload_with_acl(mapp):
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6",
                           set_whitelist=False)
 
+
+def test_upload_anonymously(mapp):
+    mapp.login("root")
+    mapp.create_and_use()  # new context and login
+    mapp.set_versiondata(dict(name="pkg1", version="1.0"))
+    mapp.logout()
+    # anonymous cannot write to index now
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=403)
+    # now we change the acl
+    mapp.login("root")
+    mapp.set_acl([":anonymous:"])
+    mapp.logout()
+    # we need to skip setting the whitelist here, because the user may only
+    # register and upload a package, but not modify the index
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6",
+                          set_whitelist=False)
+
+
 def test_upload_with_jenkins(mapp, reqmock):
     mapp.create_and_use()
     mapp.set_uploadtrigger_jenkins("http://x.com/{pkgname}")
