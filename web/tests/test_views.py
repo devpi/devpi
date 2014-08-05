@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import json
 from devpi_common.archive import zip_dict
 import py
@@ -302,7 +303,7 @@ def test_version_view(mapp, testapp):
         "name": "pkg1",
         "version": "2.6",
         "author": "Foo Bear",
-        "description": "foo"},
+        "description": u"föö".encode('utf-8')},
         waithooks=True)
     r = testapp.get(api.index + '/pkg1/2.6', headers=dict(accept="text/html"))
     assert r.status_code == 200
@@ -315,7 +316,7 @@ def test_version_view(mapp, testapp):
     description = description[0]
     assert py.builtin._totext(
         description.renderContents().strip(),
-        'utf-8') == '<p>foo</p>'
+        'utf-8') == u'<p>föö</p>'
     filesinfo = [tuple(t.text.strip() for t in x.findAll('td')) for x in r.html.select('.files tbody tr')]
     assert filesinfo == [
         ('pkg1-2.6.tar.gz', 'Source', '', '7 bytes', '', '9a0364b9e99bb480dd25e1f0284c8555'),
