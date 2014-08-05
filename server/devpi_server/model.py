@@ -35,6 +35,31 @@ _ixconfigattr = set((
     "pypi_whitelist", "custom_data"))
 
 
+class ModelException(Exception):
+    """ Base Exception. """
+    def __init__(self, msg, *args):
+        if args:
+            msg = msg % args
+        self.msg = msg
+        Exception.__init__(self, msg)
+
+
+class InvalidUser(ModelException):
+    """ If a username is invalid or already in use. """
+
+
+class NotFound(ModelException):
+    """ If a project or version cannot be found. """
+
+
+class UpstreamError(ModelException):
+    """ If an upstream could not be reached or didn't respond correctly. """
+
+
+class MissesRegistration(ModelException):
+    """ A prior registration or release metadata is required. """
+
+
 class RootModel:
     def __init__(self, xom):
         self.xom = xom
@@ -99,11 +124,11 @@ class User:
     def create(cls, model, username, password, email):
         userlist = model.keyfs.USERLIST.get()
         if username in userlist:
-            raise ValueError("username already exists")
+            raise InvalidUser("username already exists")
         if not cls.name_regexp.match(username):
             threadlog.error("username '%s' will be invalid with next release, use characters, numbers, underscore and dash only" % username)
         if cls.group_regexp.match(username):
-            raise ValueError("username '%s' is invalid, use characters, numbers, underscore and dash only" % username)
+            raise InvalidUser("username '%s' is invalid, use characters, numbers, underscore and dash only" % username)
         user = cls(model, username)
         with user.key.update() as userconfig:
             user._setpassword(userconfig, password)
@@ -203,25 +228,8 @@ class InvalidIndexconfig(Exception):
         Exception.__init__(self, messages)
 
 
-class ModelException(Exception):
-    """ Base Exception. """
-    def __init__(self, msg, *args):
-        if args:
-            msg = msg % args
-        self.msg = msg
-        Exception.__init__(self, msg)
-
-class NotFound(ModelException):
-    """ If a project or version cannot be found. """
-
-class UpstreamError(ModelException):
-    """ If an upstream could not be reached or didn't respond correctly. """
-
-class MissesRegistration(ModelException):
-    """ A prior registration or release metadata is required. """
-
-
 class BaseStage:
+    InvalidUser = InvalidUser
     NotFound = NotFound
     UpstreamError = UpstreamError
     MissesRegistration = MissesRegistration
