@@ -3,6 +3,7 @@ from devpi.remoteindex import RemoteIndex, LinkSet, parselinks
 from devpi_common.url import URL
 from devpi.use import Current
 
+
 def test_linkset():
     links = parselinks("""
         <a href="http://something/pkg-1.2.tar.gz"/>
@@ -12,6 +13,18 @@ def test_linkset():
     ls = LinkSet(links)
     link = ls.getnewestversion("pkg")
     assert URL(link.url).basename == "pkg-1.2.tar.gz"
+
+
+def test_linkset_underscore():
+    links = parselinks("""
+        <a href="http://something/pkg_foo-1.2.tar.gz"/>
+        <a href="http://something/pkg_foo-1.2dev1.zip"/>
+        <a href="http://something/pkg_foo-1.2dev2.zip"/>
+    """, "http://something")
+    ls = LinkSet(links)
+    link = ls.getnewestversion("pkg_foo")
+    assert URL(link.url).basename == "pkg_foo-1.2.tar.gz"
+
 
 class TestRemoteIndex:
     def test_basic(self, monkeypatch, gen, tmpdir):
