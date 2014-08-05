@@ -6,7 +6,7 @@
 
 - fix error message on API version client/server mismatch
 
-- fix package name url matching for the "devpi test" command
+- fix issue124: package name url matching for the "devpi test" command
 
 
 2.0
