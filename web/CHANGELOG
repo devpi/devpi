@@ -4,7 +4,7 @@
 
 - fix issue125: javascript for embedded doc view didn't work correctly.
 
-- fix rendering of description with unicode.
+- fix issue118: rendering of description with unicode.
 
 
 2.0.0
