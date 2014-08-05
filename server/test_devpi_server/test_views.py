@@ -26,6 +26,29 @@ pytestmark = [pytest.mark.notransaction]
 def getfirstlink(text):
     return BeautifulSoup(text).findAll("a")[0]
 
+@pytest.mark.parametrize("user,status", [
+    ("foo_bar", 'ok'),
+    ("foo-bar", 'ok'),
+    ("foo.bar", 'warn'),
+    (":foobar", 'warn'),
+    (":foobar:", 'fatal')])
+def test_invalid_username(caplog, testapp, user, status):
+    reqdict = dict(password="123")
+    r = testapp.put_json("/%s" % user, reqdict, expect_errors=True)
+    if status in ('ok', 'warn'):
+        code = 201
+    else:
+        code = 400
+    assert r.status_code == code
+    if status == 'warn':
+        msg = "username '%s' will be invalid with next release, use characters, numbers, underscore and dash only" % user
+        logmsg, = caplog.getrecords('invalid')
+        assert logmsg.message.endswith(msg)
+    if status == 'fatal':
+        msg = "username '%s' is invalid, use characters, numbers, underscore and dash only" % user
+        assert r.json['message'] == msg
+
+
 def test_simple_project(pypistage, testapp):
     name = "qpwoei"
     r = testapp.get("/root/pypi/+simple/" + name)

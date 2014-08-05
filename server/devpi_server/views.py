@@ -758,7 +758,10 @@ class PyPIView:
             apireturn(409, "user already exists")
         kvdict = getjson(request)
         if "password" in kvdict:  # and "email" in kvdict:
-            user = self.model.create_user(username, **kvdict)
+            try:
+                user = self.model.create_user(username, **kvdict)
+            except ValueError as e:
+                apireturn(400, e.message)
             apireturn(201, type="userconfig", result=user.get())
         apireturn(400, "password needs to be set")
 

@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 import posixpath
 import py
+import re
 import json
 from devpi_common.metadata import sorted_sameproject_links, get_latest_version
 from devpi_common.validation import validate_metadata, normalize_name
@@ -81,6 +82,9 @@ class RootModel:
 
 
 class User:
+    group_regexp = re.compile('^:.*:$')
+    name_regexp = re.compile('^[a-zA-Z0-9_-]+$')
+
     def __init__(self, parent, name):
         self.__parent__ = parent
         self.keyfs = parent.keyfs
@@ -96,6 +100,10 @@ class User:
         userlist = model.keyfs.USERLIST.get()
         if username in userlist:
             raise ValueError("username already exists")
+        if not cls.name_regexp.match(username):
+            threadlog.error("username '%s' will be invalid with next release, use characters, numbers, underscore and dash only" % username)
+        if cls.group_regexp.match(username):
+            raise ValueError("username '%s' is invalid, use characters, numbers, underscore and dash only" % username)
         user = cls(model, username)
         with user.key.update() as userconfig:
             user._setpassword(userconfig, password)
