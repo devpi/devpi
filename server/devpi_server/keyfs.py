@@ -80,7 +80,7 @@ class Filesystem:
     def __init__(self, basedir, notify_on_commit):
         self.basedir = basedir
         self._notify_on_commit = notify_on_commit
-        self._changelog_cache = LRUCache(100)  # is thread safe
+        self._changelog_cache = LRUCache(1000)  # is thread safe
         with self.get_sqlconn() as conn:
             row = conn.execute("select max(serial) from changelog").fetchone()
             serial = row[0]

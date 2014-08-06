@@ -1,4 +1,4 @@
-2.0.2.dev1
+2.0.2
 ----------------
 
 - fix issue120: link to "upgrade" section from main index page.
@@ -17,6 +17,11 @@
 - Add special handling of ":ANONYMOUS:" user in acl_upload to allow anonymous
   submit.
 
+- fix nginx template so that when used in a replica setting the master
+  always answers HEAD requests without nginx short-cirtcuiting it.
+
+- increase internal cache size to improve performance when many indexes
+  and projects are served.
 
 2.0.1
 ----------------
