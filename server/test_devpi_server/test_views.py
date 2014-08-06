@@ -26,6 +26,30 @@ pytestmark = [pytest.mark.notransaction]
 def getfirstlink(text):
     return BeautifulSoup(text).findAll("a")[0]
 
+@pytest.mark.parametrize("user,status", [
+    ("foo_bar", 'ok'),
+    ("foo-bar", 'ok'),
+    ("foo.bar", 'ok'),
+    ("foo.bar42", 'ok'),
+    (":foobar", 'warn'),
+    (":foobar:", 'fatal')])
+def test_invalid_username(caplog, testapp, user, status):
+    reqdict = dict(password="123")
+    r = testapp.put_json("/%s" % user, reqdict, expect_errors=True)
+    if status in ('ok', 'warn'):
+        code = 201
+    else:
+        code = 400
+    assert r.status_code == code
+    if status == 'warn':
+        msg = "username '%s' will be invalid with next release, use characters, numbers, underscore, dash and dots only" % user
+        logmsg, = caplog.getrecords('invalid')
+        assert logmsg.message.endswith(msg)
+    if status == 'fatal':
+        msg = "username '%s' is invalid, use characters, numbers, underscore, dash and dots only" % user
+        assert r.json['message'] == msg
+
+
 def test_simple_project(pypistage, testapp):
     name = "qpwoei"
     r = testapp.get("/root/pypi/+simple/" + name)
@@ -575,6 +599,24 @@ def test_upload_with_acl(mapp):
     # register and upload a package, but not modify the index
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6",
                           set_whitelist=False)
+
+
+def test_upload_anonymously(mapp):
+    mapp.login("root")
+    mapp.create_and_use()  # new context and login
+    mapp.set_versiondata(dict(name="pkg1", version="1.0"))
+    mapp.logout()
+    # anonymous cannot write to index now
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=403)
+    # now we change the acl
+    mapp.login("root")
+    mapp.set_acl([":anonymous:"])
+    mapp.logout()
+    # we need to skip setting the whitelist here, because the user may only
+    # register and upload a package, but not modify the index
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6",
+                          set_whitelist=False)
+
 
 def test_upload_with_jenkins(mapp, reqmock):
     mapp.create_and_use()

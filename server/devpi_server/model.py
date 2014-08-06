@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 import posixpath
 import py
+import re
 import json
 from devpi_common.metadata import sorted_sameproject_links, get_latest_version
 from devpi_common.validation import validate_metadata, normalize_name
@@ -32,6 +33,31 @@ def run_passwd(root, username):
 _ixconfigattr = set((
     "type", "volatile", "bases", "uploadtrigger_jenkins", "acl_upload",
     "pypi_whitelist", "custom_data"))
+
+
+class ModelException(Exception):
+    """ Base Exception. """
+    def __init__(self, msg, *args):
+        if args:
+            msg = msg % args
+        self.msg = msg
+        Exception.__init__(self, msg)
+
+
+class InvalidUser(ModelException):
+    """ If a username is invalid or already in use. """
+
+
+class NotFound(ModelException):
+    """ If a project or version cannot be found. """
+
+
+class UpstreamError(ModelException):
+    """ If an upstream could not be reached or didn't respond correctly. """
+
+
+class MissesRegistration(ModelException):
+    """ A prior registration or release metadata is required. """
 
 
 class RootModel:
@@ -81,6 +107,9 @@ class RootModel:
 
 
 class User:
+    group_regexp = re.compile('^:.*:$')
+    name_regexp = re.compile('^[a-zA-Z0-9._-]+$')
+
     def __init__(self, parent, name):
         self.__parent__ = parent
         self.keyfs = parent.keyfs
@@ -95,7 +124,11 @@ class User:
     def create(cls, model, username, password, email):
         userlist = model.keyfs.USERLIST.get()
         if username in userlist:
-            raise ValueError("username already exists")
+            raise InvalidUser("username already exists")
+        if not cls.name_regexp.match(username):
+            threadlog.error("username '%s' will be invalid with next release, use characters, numbers, underscore, dash and dots only" % username)
+        if cls.group_regexp.match(username):
+            raise InvalidUser("username '%s' is invalid, use characters, numbers, underscore, dash and dots only" % username)
         user = cls(model, username)
         with user.key.update() as userconfig:
             user._setpassword(userconfig, password)
@@ -195,25 +228,8 @@ class InvalidIndexconfig(Exception):
         Exception.__init__(self, messages)
 
 
-class ModelException(Exception):
-    """ Base Exception. """
-    def __init__(self, msg, *args):
-        if args:
-            msg = msg % args
-        self.msg = msg
-        Exception.__init__(self, msg)
-
-class NotFound(ModelException):
-    """ If a project or version cannot be found. """
-
-class UpstreamError(ModelException):
-    """ If an upstream could not be reached or didn't respond correctly. """
-
-class MissesRegistration(ModelException):
-    """ A prior registration or release metadata is required. """
-
-
 class BaseStage:
+    InvalidUser = InvalidUser
     NotFound = NotFound
     UpstreamError = UpstreamError
     MissesRegistration = MissesRegistration
@@ -367,7 +383,8 @@ class PrivateStage(BaseStage):
                     user=self.user.name, index=self.index)
 
     def can_upload(self, username):
-        return username in self.ixconfig.get("acl_upload", [])
+        acl_upload = self.ixconfig.get("acl_upload", [])
+        return username in acl_upload or ':ANONYMOUS:' in acl_upload
 
     def modify(self, index=None, **kw):
         diff = list(set(kw).difference(_ixconfigattr))
@@ -376,7 +393,10 @@ class PrivateStage(BaseStage):
                 ["invalid keys for index configuration: %s" %(diff,)])
         if "bases" in kw:
             kw["bases"] = tuple(normalize_bases(self.xom.model, kw["bases"]))
-
+        if 'acl_upload' in kw:
+            for index, name in enumerate(kw['acl_upload']):
+                if name.upper() == ':ANONYMOUS:':
+                    kw['acl_upload'][index] = name.upper()
         # modify user/indexconfig
         with self.user.key.update() as userconfig:
             ixconfig = userconfig["indexes"][self.index]

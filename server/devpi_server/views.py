@@ -16,7 +16,7 @@ import json
 from devpi_common.request import new_requests_session
 from devpi_common.validation import normalize_name, is_valid_archive_name
 
-from .model import InvalidIndexconfig, _ixconfigattr
+from .model import InvalidIndexconfig, InvalidUser, _ixconfigattr
 from .keyfs import copy_if_mutable
 from .log import thread_push_log, thread_pop_log, threadlog
 
@@ -758,7 +758,10 @@ class PyPIView:
             apireturn(409, "user already exists")
         kvdict = getjson(request)
         if "password" in kvdict:  # and "email" in kvdict:
-            user = self.model.create_user(username, **kvdict)
+            try:
+                user = self.model.create_user(username, **kvdict)
+            except InvalidUser as e:
+                apireturn(400, e.message)
             apireturn(201, type="userconfig", result=user.get())
         apireturn(400, "password needs to be set")
 
