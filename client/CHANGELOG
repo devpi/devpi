@@ -1,4 +1,4 @@
-2.0.1.dev1
+2.0.1
 ----------------
 
 - fix a test to expect a 403 instead of a 401 from devpi server from

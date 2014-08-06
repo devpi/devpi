@@ -1,5 +1,5 @@
 
-2.0.1.dev1
+2.0.1
 ---------------
 
 - fix issue125: javascript for embedded doc view didn't work correctly.
