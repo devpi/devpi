@@ -319,8 +319,7 @@ To modify the ACLs, you have to set the whole list of allowed users.
 Emilie may allow sophie to upload to her dev index:
 
    $ devpi index /emilie/dev acl_upload=emilie,sophie
-
-   $ devpi index /emilie/dev
+   /emilie/dev changing acl_upload: ['emilie', 'sophie']
    http://localhost:3141/emilie/dev:
      type=stage
      bases=emilie/prod
@@ -332,8 +331,7 @@ Emilie may allow sophie to upload to her dev index:
 It is also possible to allow anonymous uploads if you have a controlled environment.
 
    $ devpi index /emilie/dev acl_upload=:ANONYMOUS:
-
-   $ devpi index /emilie/dev
+   /emilie/dev changing acl_upload: [':ANONYMOUS:']
    http://localhost:3141/emilie/dev:
      type=stage
      bases=emilie/prod
@@ -341,7 +339,6 @@ It is also possible to allow anonymous uploads if you have a controlled environm
      uploadtrigger_jenkins=None
      acl_upload=:ANONYMOUS:
      pypi_whitelist=
-
 
 Switching Between Indices
 -------------------------
