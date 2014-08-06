@@ -761,7 +761,7 @@ class PyPIView:
             try:
                 user = self.model.create_user(username, **kvdict)
             except InvalidUser as e:
-                apireturn(400, e.message)
+                apireturn(400, "%s" % e)
             apireturn(201, type="userconfig", result=user.get())
         apireturn(400, "password needs to be set")
 

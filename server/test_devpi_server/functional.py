@@ -1,5 +1,3 @@
-import pytest
-
 
 class API:
     def __init__(self, d):
