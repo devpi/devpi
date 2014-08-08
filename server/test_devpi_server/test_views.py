@@ -404,7 +404,8 @@ def test_submit_authorization(mapp, testapp):
     testapp.auth = None
     data = {':action': 'submit', "name": "Pkg1", "version": "1.0"}
     r = testapp.post(api.index + '/', data, expect_errors=True)
-    assert r.status_code == 403
+    assert r.status_code == 401
+    assert 'WWW-Authenticate' in r.headers
     basic_auth = '%s:%s' % (api.user, api.password)
     basic_auth = b"Basic " + b64encode(basic_auth.encode("ascii"))
     if sys.version_info[0] >= 3:
@@ -607,7 +608,7 @@ def test_upload_anonymously(mapp):
     mapp.set_versiondata(dict(name="pkg1", version="1.0"))
     mapp.logout()
     # anonymous cannot write to index now
-    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=403)
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=401)
     # now we change the acl
     mapp.login("root")
     mapp.set_acl([":anonymous:"])

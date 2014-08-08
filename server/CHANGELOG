@@ -1,3 +1,9 @@
+2.0.3
+----------------
+
+- fix issue128: a basic auth challenge needs to be sent back on submit when no
+  authorization headers are sent with the post request.
+
 2.0.2
 ----------------
 
