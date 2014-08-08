@@ -8,8 +8,10 @@ from devpi_common.metadata import get_pyversion_filetype
 import devpi_server
 from pyramid.compat import urlparse
 from pyramid.httpexceptions import HTTPException, HTTPFound, HTTPSuccessful
+from pyramid.httpexceptions import HTTPUnauthorized
 from pyramid.httpexceptions import exception_response
 from pyramid.response import Response
+from pyramid.security import forget
 from pyramid.view import view_config
 import itertools
 import json
@@ -498,6 +500,11 @@ class PyPIView:
             abort_submit(404, "cannot submit to pypi mirror")
         stage = self.context.stage
         if not request.has_permission("pypi_submit"):
+            # if there is no authenticated user, then issue a basic auth challenge
+            if not request.authenticated_userid:
+                response = HTTPUnauthorized()
+                response.headers.update(forget(request))
+                return response
             abort_submit(403, "no permission to submit")
         try:
             action = request.POST[":action"]
