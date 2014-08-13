@@ -104,7 +104,8 @@ def _main(argv=None, hook=None):
 
     if args.passwd:
         from devpi_server.model import run_passwd
-        return run_passwd(xom.db, config.args.passwd)
+        with xom.keyfs.transaction(write=True):
+            return run_passwd(xom.model, config.args.passwd)
 
     return xom.main()
 
