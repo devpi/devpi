@@ -316,7 +316,7 @@ Modifying the ACL
 ^^^^^^^^^^^^^^^^^
 
 To modify the ACLs, you have to set the whole list of allowed users.
-Emilie may allow sophie to upload to her dev index:
+Emilie may allow sophie to upload to her dev index::
 
    $ devpi index /emilie/dev acl_upload=emilie,sophie
    /emilie/dev changing acl_upload: ['emilie', 'sophie']
@@ -329,6 +329,8 @@ Emilie may allow sophie to upload to her dev index:
      pypi_whitelist=
 
 It is also possible to allow anonymous uploads if you have a controlled environment.
+
+::
 
    $ devpi index /emilie/dev acl_upload=:ANONYMOUS:
    /emilie/dev changing acl_upload: [':ANONYMOUS:']

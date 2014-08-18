@@ -22,7 +22,7 @@ Show version::
 .. note::
 
     This tutorial does not require you to install or use the ``devpi-client``
-    package.  Consult :doc:`quickstart-releaseprocess`` to learn more 
+    package.  Consult :doc:`quickstart-releaseprocess` to learn more 
     about how you can use the ``devpi`` command line tool to
     manage working with uploads, tests and multiple indexes.
 
@@ -45,7 +45,7 @@ To start ``devpi-server`` in the background issue::
     devpi-server process startup detected
     logfile is at /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
 
-You now have a server listning on ``http://localhost:3141``.
+You now have a server listening on ``http://localhost:3141``.
 
 .. _`install_first`:
 

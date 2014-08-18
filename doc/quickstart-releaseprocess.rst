@@ -280,7 +280,7 @@ the specified ``example-1.0`` release and copy them to the
 devpi push: releasing to an external index
 ++++++++++++++++++++++++++++++++++++++++++
 
-Let's check again our our current index::
+Let's check again our current index::
 
     $ devpi use
     current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
@@ -375,7 +375,7 @@ because it inherits all releases from its ``testuser/staging`` base::
     http://localhost:3141/testuser/staging/+f/174/e562b6abce26e/example-1.0.tar.gz
       cobra linux2 python 2.7.6 tests passed
 
-..
+::
 
     $ devpi-server --stop
     killed server pid=14600
