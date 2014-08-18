@@ -19,7 +19,7 @@ _releasefile_suffix_rx = re.compile(r"(\.zip|\.tar\.gz|\.tgz|\.tar\.bz2|"
     "\.win-amd68-py[23]\.\d\..*|"
     "\.win32-py[23]\.\d\..*|"
     "\.win.*\..*|"
-    "-(?:py|cp|ip|pp|jy)[23][\d\.]+.*\..*|"
+    "-(?:py|cp|ip|pp|jy)[23][\d\.]*.*\..*|"
     ")$", re.IGNORECASE)
 
 # see also PEP425 for supported "python tags"
