@@ -9,6 +9,7 @@ from devpi_common.validation import normalize_name
 from devpi_common.metadata import Version, splitbasename, BasenameMeta
 from devpi_server.main import fatal, server_version
 from devpi_server.venv import create_server_venv
+from devpi_server.model import MissesRegistration
 import devpi_server
 
 
@@ -369,9 +370,22 @@ class Importer:
                 version = BasenameMeta(p.basename).version
             else:
                 version = filedesc["version"]
-            entry = stage.store_releasefile(projectname, version,
+
+            try:
+                entry = stage.store_releasefile(projectname, version,
+                    p.basename, p.read("rb"),
+                    last_modified=mapping["last_modified"])
+            except MissesRegistration as e:
+                # There's a chance the version was guessed from the
+                # filename, which might have swapped dashes to underscores
+                if '_' in version:
+                    version = version.replace('_', '-')
+                    entry = stage.store_releasefile(projectname, version,
                         p.basename, p.read("rb"),
                         last_modified=mapping["last_modified"])
+                else:
+                    raise e
+
             assert entry.md5 == mapping["md5"]
             self.import_pre2_toxresults(stage, entry)
         elif filedesc["type"] == "doczip":
