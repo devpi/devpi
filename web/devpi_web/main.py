@@ -1,17 +1,34 @@
 from __future__ import unicode_literals
-import sys
 from devpi_common.metadata import get_latest_version
 from devpi_web.description import render_description
 from devpi_web.doczip import unpack_docs
 from devpi_web.indexing import iter_projects, preprocess_project
 from devpi_web.whoosh_index import Index
 from devpi_server.log import threadlog
+from pkg_resources import resource_filename
 from pyramid.renderers import get_renderer
+from pyramid_chameleon.renderer import ChameleonRendererLookup
+import os
+import sys
+
+
+def theme_static_url(request, path):
+    return request.static_url(
+        os.path.join(request.registry['theme_path'], 'static', path))
 
 
 def macros(request):
-    renderer = get_renderer("templates/macros.pt")
-    return renderer.implementation().macros
+    # returns macros which may partially be overwritten in a theme
+    result = {}
+    paths = [
+        resource_filename('devpi_web', 'templates/macros.pt'),
+        "templates/macros.pt"]
+    for path in paths:
+        renderer = get_renderer(path)
+        macros = renderer.implementation().macros
+        for name in macros.names:
+            result[name] = macros[name]
+    return result
 
 
 def navigation_info(request):
@@ -60,9 +77,36 @@ def query_docs_html(request):
     return search_index.get_query_parser_html_help()
 
 
+class ThemeChameleonRendererLookup(ChameleonRendererLookup):
+    def __call__(self, info):
+        # if the template exists in the theme, we will use it instead of the
+        # original template
+        theme_path = getattr(self, 'theme_path', None)
+        if theme_path:
+            theme_file = os.path.join(theme_path, info.name)
+            if os.path.exists(theme_file):
+                info.name = theme_file
+        return ChameleonRendererLookup.__call__(self, info)
+
+
 def includeme(config):
+    from pyramid_chameleon.interfaces import IChameleonLookup
+    from pyramid_chameleon.zpt import ZPTTemplateRenderer
     config.include('pyramid_chameleon')
+    # we overwrite the template lookup to allow theming
+    lookup = ThemeChameleonRendererLookup(ZPTTemplateRenderer, config.registry)
+    config.registry.registerUtility(lookup, IChameleonLookup, name='.pt')
     config.add_static_view('static', 'static')
+    theme_path = config.registry['theme_path']
+    if theme_path:
+        # if a theme is used, we set the path on the lookup instance
+        lookup.theme_path = theme_path
+        # if a 'static' directory exists in the theme, we add it and a helper
+        # method 'theme_static_url' on the request
+        static_path = os.path.join(theme_path, 'static')
+        if os.path.exists(static_path):
+            config.add_static_view('theme-static', static_path)
+            config.add_request_method(theme_static_url)
     config.add_route('root', '/', accept='text/html')
     config.add_route('search', '/+search', accept='text/html')
     config.add_route('search_help', '/+searchhelp', accept='text/html')
@@ -91,6 +135,20 @@ def get_indexer(config):
 
 
 def devpiserver_pyramid_configure(config, pyramid_config):
+    # make the theme path absolute if it exists and make it available via the
+    # pyramid registry
+    theme_path = config.args.theme
+    if theme_path:
+        theme_path = os.path.abspath(theme_path)
+        if not os.path.exists(theme_path):
+            threadlog.error(
+                "The theme path '%s' does not exist." % theme_path)
+            sys.exit(1)
+        if not os.path.isdir(theme_path):
+            threadlog.error(
+                "The theme path '%s' is not a directory." % theme_path)
+            sys.exit(1)
+    pyramid_config.registry['theme_path'] = theme_path
     # by using include, the package name doesn't need to be set explicitly
     # for registrations of static views etc
     pyramid_config.include('devpi_web.main')
@@ -111,6 +169,13 @@ def devpiserver_pyramid_configure(config, pyramid_config):
 
 
 def devpiserver_add_parser_options(parser):
+    web = None
+    for action in parser._actions:
+        if '--host' in action.option_strings:
+            web = action.container
+    web.addoption(
+        "--theme", action="store",
+        help="folder with template and resource overwrites for the web interface")
     indexing = parser.addgroup("indexing")
     indexing.addoption(
         "--index-projects", action="store_true",
