@@ -407,6 +407,25 @@ class TestExtPYPIDB:
         assert pypistage.get_projectname("s_p") == "s-p"
         assert pypistage.get_projectname("sqwe_p") is None
 
+@pytest.mark.notransaction
+def test_pypi_mirror_redirect_to_canonical_issue139(xom, keyfs, mock):
+    proxy = mock.create_autospec(XMLProxy)
+    d = {"Hello_World": 10}
+    proxy.list_packages_with_serial.return_value = d
+    mirror = PyPIMirror(xom)
+    mirror.init_pypi_mirror(proxy)
+    assert mirror.name2serials == d
+    xom.pypimirror = mirror
+    pypistage = PyPIStage(xom)
+    with keyfs.transaction(write=False):
+        pypistage.httpget.mock_simple("Hello_World",
+                '<a href="Hello_World-1.0.tar.gz" /a>',
+                code=200,
+                url="http://hello/whatever/hello-world",)
+        rootpypi = xom.model.getstage("root", "pypi")
+        l = rootpypi.get_releaselinks("Hello_World")
+        assert len(l) == 1
+
 
 def raise_ValueError():
     raise ValueError(42)
