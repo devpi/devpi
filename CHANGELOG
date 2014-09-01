@@ -1,4 +1,47 @@
 
+devpi-2.0.1 (metapackage)
+---------------------------------
+
+devpi-server-2.0.2:
+   
+- fix issue120: link to "upgrade" section from main index page.
+
+- preserve http reason string for setup.py submit through replica proxying
+
+- proper error message when "devpi push X" uses an X that comes from 
+  a base index or is not existent
+
+- fix issue121: depend on py-1.4.23 to fix python3.4 compatibility
+  for a venusian/py34/py interaction import oddity.
+
+- fix issue126: handle deletion of pypi project cache entries correctly 
+  (i.e. ones that are triggered by "refresh" on simple page).
+
+- Add special handling of ":ANONYMOUS:" user in acl_upload to allow anonymous
+  submit.
+
+- fix nginx template so that when used in a replica setting the master
+  always answers HEAD requests without nginx short-cirtcuiting it.
+
+- increase internal cache size to improve performance when many indexes
+  and projects are served.
+
+devpi-web-2.0.1:
+
+- fix issue125: javascript for embedded doc view didn't work correctly.
+
+- fix issue118: rendering of description with unicode.
+
+devpi-client-2.0.1:
+ 
+- fix a test to expect a 403 instead of a 401 from devpi server from
+  unauthorized access 
+
+- fix error message on API version client/server mismatch
+
+- fix issue124: package name url matching for the "devpi test" command
+
+
 2.0.0
 --------------
 
