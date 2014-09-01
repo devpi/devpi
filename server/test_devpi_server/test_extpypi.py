@@ -418,10 +418,14 @@ def test_pypi_mirror_redirect_to_canonical_issue139(xom, keyfs, mock):
     xom.pypimirror = mirror
     pypistage = PyPIStage(xom)
     with keyfs.transaction(write=False):
+        # GET http://pypi.python.org/simple/Hello_World
+        # will result in the request response to have a "real" URL of
+        # http://pypi.python.org/simple/hello-world because of the
+        # new pypi normalization code
         pypistage.httpget.mock_simple("Hello_World",
                 '<a href="Hello_World-1.0.tar.gz" /a>',
                 code=200,
-                url="http://hello/whatever/hello-world",)
+                url="http://pypi.python.org/simple/hello-world",)
         rootpypi = xom.model.getstage("root", "pypi")
         l = rootpypi.get_releaselinks("Hello_World")
         assert len(l) == 1
