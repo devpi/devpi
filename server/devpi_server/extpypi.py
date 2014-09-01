@@ -246,7 +246,7 @@ class PyPIStage(BaseStage):
 
         # determine and check real project name
         real_projectname = response.url.strip("/").split("/")[-1]
-        assert real_projectname == projectname
+        assert real_projectname == projectname, (real_projectname, projectname)
 
         # check that we got a fresh enough page
         serial = int(response.headers["X-PYPI-LAST-SERIAL"])
