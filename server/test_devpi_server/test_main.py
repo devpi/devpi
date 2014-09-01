@@ -2,6 +2,12 @@ import pytest
 from devpi_server.main import *
 import devpi_server
 
+
+def test_pkgresources_version_matches_init():
+    import pkg_resources
+    ver = devpi_server.__version__
+    assert pkg_resources.get_distribution("devpi_server").version == ver
+
 def test_check_compatible_version_earlier(xom, monkeypatch):
     monkeypatch.setattr(xom, "get_state_version", lambda: "1.0")
     with pytest.raises(Fatal):

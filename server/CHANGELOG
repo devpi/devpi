@@ -1,3 +1,9 @@
+2.0.4
+----------------
+
+- fix issue129: fix __init__ provided version and add a test that it always matches
+  the one which pkg_resources sees (which gets it effectively from setup.py)
+
 2.0.3
 ----------------
 
