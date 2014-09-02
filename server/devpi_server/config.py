@@ -236,6 +236,11 @@ class PluginManager:
                                   stage=stage,
                                   name2serials=name2serials)
 
+    def devpiserver_auth_user(self, model, username, password):
+        return self._call_plugins("devpiserver_auth_user",
+                                  model=model,
+                                  username=username, password=password)
+
 
 class Config:
     def __init__(self, args, hook):

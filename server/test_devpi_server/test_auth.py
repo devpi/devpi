@@ -10,12 +10,9 @@ class TestAuth:
         from devpi_server.views import Auth
         return Auth(model, "qweqwe")
 
-    def test_no_auth(self, auth):
-        assert auth.get_auth_user(None) is None
-
     def test_auth_direct(self, model, auth):
         model.create_user("user", password="world")
-        assert auth.get_auth_user(("user", "world")) == "user"
+        assert auth._get_auth_groups("user", "world") == []
 
     def test_proxy_auth(self, model, auth):
         model.create_user("user", password="world")
@@ -23,7 +20,7 @@ class TestAuth:
         assert auth.new_proxy_auth("uer", "wrongpass") is None
         res = auth.new_proxy_auth("user", "world")
         assert "password" in res and "expiration" in res
-        assert auth.get_auth_user(("user", res["password"]))
+        assert auth._get_auth_groups("user", res["password"]) == []
 
     def test_proxy_auth_expired(self, model, auth, monkeypatch):
         username, password = "user", "world"
@@ -31,15 +28,14 @@ class TestAuth:
         model.create_user(username, password=password)
         proxy = auth.new_proxy_auth(username, password)
 
-        def r(*args): raise py.std.itsdangerous.SignatureExpired("123")
-        monkeypatch.setattr(auth.signer, "unsign", r)
+        def r(*args, **kw): raise py.std.itsdangerous.SignatureExpired("123")
+        monkeypatch.setattr(auth.serializer, "loads", r)
 
-        newauth = (username, proxy["password"])
-        res = auth.get_auth_user(newauth, raising=False)
+        res = auth._get_auth_groups(username, proxy["password"], raising=False)
         assert res is None
         with pytest.raises(auth.Expired):
-            auth.get_auth_user(newauth)
-        assert auth.get_auth_status(newauth) == ["expired", username]
+            auth._get_auth_groups(username, proxy["password"])
+        assert auth.get_auth_status((username, proxy["password"])) == ["expired", username]
 
     def test_auth_status_no_auth(self, auth):
         assert auth.get_auth_status(None) == ["noauth", ""]
