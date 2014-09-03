@@ -46,6 +46,15 @@ class Current(object):
     always_setcfg = currentproperty("always_setcfg")
 
     @property
+    def simpleindex_auth(self):
+        indexserver = URL(self.simpleindex)
+        basic_auth = self.get_basic_auth(indexserver)
+        if basic_auth:
+            indexserver = indexserver.replace(netloc="%s@%s" % (
+                ':'.join(basic_auth), indexserver.netloc))
+        return indexserver.url
+
+    @property
     def index_url(self):
         if self.index:
             return URL(self.index)
@@ -98,21 +107,26 @@ class Current(object):
             basic_auth = {}
         return basic_auth
 
-    def _get_basic_auth_url(self, url):
+    def _get_normalized_root_url(self, url):
         if url is None:
-            url = self.rooturl
+            url = URL(self.rooturl)
         else:
-            url = URL(url).joinpath("/").url
-        return url
+            url = URL(url).joinpath("/")
+        if ':' not in url.netloc:
+            if url.scheme == 'http':
+                url = url.replace(netloc="%s:80" % url.netloc)
+            elif url.scheme == 'https':
+                url = url.replace(netloc="%s:443" % url.netloc)
+        return url.url
 
     def set_basic_auth(self, user, password, url=None):
-        url = self._get_basic_auth_url(url)
+        url = self._get_normalized_root_url(url)
         basic_auth = self._get_basic_auth_dict()
         basic_auth[url] = (user, password)
         self.reconfigure(data=dict(_basic_auth=basic_auth))
 
     def del_basic_auth(self, url=None):
-        url = self._get_basic_auth_url(url)
+        url = self._get_normalized_root_url(url)
         basic_auth = self._get_basic_auth_dict()
         try:
             del basic_auth[url]
@@ -122,7 +136,7 @@ class Current(object):
         return True
 
     def get_basic_auth(self, url=None):
-        url = self._get_basic_auth_url(url)
+        url = self._get_normalized_root_url(url)
         basic_auth = self._get_basic_auth_dict().get(url)
         return tuple(basic_auth) if basic_auth else None
 
@@ -132,21 +146,14 @@ class Current(object):
             client_cert = {}
         return client_cert
 
-    def _get_client_cert_url(self, url):
-        if url is None:
-            url = self.rooturl
-        else:
-            url = URL(url).joinpath("/").url
-        return url
-
     def set_client_cert(self, cert, url=None):
-        url = self._get_client_cert_url(url)
+        url = self._get_normalized_root_url(url)
         client_cert = self._get_client_cert_dict()
         client_cert[url] = cert
         self.reconfigure(data=dict(_client_cert=client_cert))
 
     def del_client_cert(self, url=None):
-        url = self._get_client_cert_url(url)
+        url = self._get_normalized_root_url(url)
         client_cert = self._get_client_cert_dict()
         try:
             del client_cert[url]
@@ -156,7 +163,7 @@ class Current(object):
         return True
 
     def get_client_cert(self, url=None):
-        url = self._get_client_cert_url(url)
+        url = self._get_normalized_root_url(url)
         client_cert = self._get_client_cert_dict().get(url)
         return client_cert if client_cert else None
 
@@ -349,7 +356,7 @@ def main(hub, args=None):
         if not hub.current.index:
             hub.error("no index configured: cannot set pip/easy_install index")
         else:
-            indexserver = hub.current.simpleindex
+            indexserver = hub.current.simpleindex_auth
             DistutilsCfg().write_indexserver(indexserver)
             PipCfg().write_indexserver(indexserver)
             BuildoutCfg().write_indexserver(indexserver)

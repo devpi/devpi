@@ -142,10 +142,30 @@ class TestUnit:
                 authstatus=["noauth", ""]))
         # use with basic authentication
         hub = cmd_devpi("use", "http://user:password@devpi/foo/bar")
-        assert hub.current.get_basic_auth() == ('user', 'password')
+        # should work with and without explicit port if it's the default port
+        assert hub.current.get_basic_auth(url="http://devpi/foo/bar") == ('user', 'password')
+        assert hub.current.get_basic_auth(url="http://devpi:80/foo/bar") == ('user', 'password')
         # now without basic authentication
         hub = cmd_devpi("use", "http://devpi/foo/bar")
-        assert hub.current.get_basic_auth() is None
+        assert hub.current.get_basic_auth(url="http://devpi/foo/bar") is None
+
+    def test_use_with_basic_auth_https(self, cmd_devpi, mock_http_api):
+        mock_http_api.set(
+            "https://devpi/foo/bar/+api", 200, result=dict(
+                pypisubmit="/post",
+                simpleindex="/index/",
+                index="foo/bar",
+                bases="root/pypi",
+                login="/+login",
+                authstatus=["noauth", ""]))
+        # use with basic authentication
+        hub = cmd_devpi("use", "https://user:password@devpi/foo/bar")
+        # should work with and without explicit port if it's the default port
+        assert hub.current.get_basic_auth(url="https://devpi/foo/bar") == ('user', 'password')
+        assert hub.current.get_basic_auth(url="https://devpi:443/foo/bar") == ('user', 'password')
+        # now without basic authentication
+        hub = cmd_devpi("use", "https://devpi/foo/bar")
+        assert hub.current.get_basic_auth(url="https://devpi/foo/bar") is None
 
     def test_change_index(self, cmd_devpi, mock_http_api):
         mock_http_api.set("http://world.com/+api", 200,
@@ -233,13 +253,18 @@ class TestUnit:
         hub = cmd_devpi("use", "--venv=%s" % venvdir.basename)
         assert hub.current.venvdir == venvdir
 
-    def test_main_setcfg(self, mock_http_api, cmd_devpi, tmpdir, monkeypatch):
+    @pytest.mark.parametrize(['scheme', 'basic_auth'], [
+        ('http', ''),
+        ('https', ''),
+        ('http', 'foo:bar@'),
+        ('https', 'foo:bar@')])
+    def test_main_setcfg(self, scheme, basic_auth, mock_http_api, cmd_devpi, tmpdir, monkeypatch):
         monkeypatch.setattr(PipCfg, "default_location", tmpdir.join("pip.cfg"))
         monkeypatch.setattr(DistutilsCfg, "default_location",
                             tmpdir.join("dist.cfg"))
         monkeypatch.setattr(BuildoutCfg, "default_location",
                             tmpdir.join("buildout.cfg"))
-        mock_http_api.set("http://world/+api", 200,
+        mock_http_api.set("%s://world/+api" % scheme, 200,
                     result=dict(
                         pypisubmit="",
                         simpleindex="/simple",
@@ -249,16 +274,16 @@ class TestUnit:
                         authstatus=["noauth", ""],
                    ))
 
-        hub = cmd_devpi("use", "--set-cfg", "http://world")
+        hub = cmd_devpi("use", "--set-cfg", "%s://%sworld" % (scheme, basic_auth))
         assert PipCfg.default_location.exists()
         content = PipCfg.default_location.read()
-        assert "index_url = http://world/" in content
+        assert "index_url = %s://%sworld/" % (scheme, basic_auth) in content
         assert DistutilsCfg.default_location.exists()
         content = DistutilsCfg.default_location.read()
-        assert "index_url = http://world/" in content
+        assert "index_url = %s://%sworld/" % (scheme, basic_auth) in content
         assert BuildoutCfg.default_location.exists()
         content = BuildoutCfg.default_location.read()
-        assert "index = http://world/" in content
+        assert "index = %s://%sworld/" % (scheme, basic_auth) in content
         hub = cmd_devpi("use", "--always-set-cfg=yes")
         assert hub.current.always_setcfg
         hub = cmd_devpi("use", "--always-set-cfg=no")
