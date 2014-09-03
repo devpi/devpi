@@ -4,6 +4,10 @@
 - fix issue145: restrict devpi_common dependency so that a future
   "pip install 'devpi-server<2.0'" has a higher chance of working.
 
+- fix issue144: fix interaction with requests-2.4.0 -- 
+  use new devpi-common-offered "Errors" enumeration to check for exceptions.
+  
+
 2.0.4
 ----------------
 

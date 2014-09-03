@@ -38,11 +38,11 @@ class BackgroundServer:
     def _waitup(self, url, count=500):
         # try for 20 seconds to start devpi-server (which remotely
         # receives a serials list which may take a while)
-        req = new_requests_session(proxies=False)
+        session = new_requests_session(proxies=False)
         while count > 0:
             try:
-                req.get(url)
-            except req.ConnectionError:
+                session.get(url)
+            except session.Errors:
                 time.sleep(0.1)
                 count -= 1
             else:

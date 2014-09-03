@@ -1,6 +1,7 @@
 #from __future__ import unicode_literals
 
 import pytest
+import requests.exceptions
 from devpi.use import *
 
 def test_ask_confirm(makehub, monkeypatch):
@@ -116,12 +117,16 @@ class TestUnit:
         out, err = capfd.readouterr()
         assert "invalid" in out
 
-    def test_use_with_nonexistent_domain(self, capfd, cmd_devpi, monkeypatch):
+    @pytest.mark.parametrize("Exc", [
+        requests.exceptions.ConnectionError,
+        requests.exceptions.BaseHTTPError,
+    ])
+    def test_use_with_nonexistent_domain(self, capfd, cmd_devpi, Exc,
+                                         monkeypatch):
         from requests.sessions import Session
-        from requests.exceptions import ConnectionError
-        def raise_connectionerror(*args, **kwargs):
-            raise ConnectionError("qwe")
-        monkeypatch.setattr(Session, "request", raise_connectionerror)
+        def raise_(*args, **kwargs):
+            raise Exc("qwe")
+        monkeypatch.setattr(Session, "request", raise_)
         cmd_devpi("use", "http://qlwkejqlwke", code=-1)
         out, err = capfd.readouterr()
         assert "could not connect" in out
