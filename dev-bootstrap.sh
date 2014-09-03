@@ -5,4 +5,4 @@ for i in common/ client/ server/ web/ ; do
 done
 
 # install some deps for testing
-pip install -U pytest mock webtest pytest-capturelog pytest-timeout beautifulsoup4
+pip install -U pytest mock webtest pytest-capturelog pytest-timeout beautifulsoup4 tox
