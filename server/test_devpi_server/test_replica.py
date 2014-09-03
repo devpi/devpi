@@ -181,7 +181,10 @@ class TestTweenReplica:
         monkeypatch.setattr(xom.keyfs.notifier, "wait_tx_serial",
                             lambda x: l.append(x))
         handler = tween_replica_proxy(None, {"xom": xom})
-        response = handler(blank_request(method="PUT"))
+        # normally the app is wrapped by OutsideURLMiddleware, since this is
+        # not the case here, we have to set the host explicitly
+        response = handler(
+            blank_request(method="PUT", headers=dict(host='my.domain')))
         assert response.headers.get("X-DEVPI-SERIAL") == "10"
         assert response.headers.get("location") == "http://my.domain/hello"
         assert l == [10]

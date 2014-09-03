@@ -6,7 +6,9 @@
 
 - fix issue144: fix interaction with requests-2.4.0 -- 
   use new devpi-common-offered "Errors" enumeration to check for exceptions.
-  
+
+- outside url now works with paths, so you can host a devpi server on something
+  like http://example.com/foo/
 
 2.0.4
 ----------------

@@ -7,7 +7,7 @@ from pyramid.response import Response
 
 from .keyfs import load, loads, dump, get_write_file_ensure_dir
 from .log import thread_push_log, threadlog
-from .views import is_mutating_http_method, get_outside_url
+from .views import is_mutating_http_method
 from .model import UpstreamError
 
 
@@ -229,7 +229,7 @@ def proxy_write_to_master(xom, request):
     if r.status_code == 302:  # REDIRECT
         # rewrite master-related location to our replica site
         master_location = r.headers["location"]
-        outside_url = get_outside_url(request, xom.config.args.outside_url)
+        outside_url = request.application_url
         headers[str("location")] = str(
             master_location.replace(master_url.url, outside_url))
     return Response(status="%s %s" %(r.status_code, r.reason),
