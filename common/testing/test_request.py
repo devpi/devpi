@@ -7,7 +7,7 @@ def test_env(monkeypatch):
     monkeypatch.setenv("HTTP_PROXY", "http://this")
     monkeypatch.setenv("HTTPS_PROXY", "http://that")
     session = new_requests_session()
-    with pytest.raises(requests.exceptions.ProxyError):
+    with pytest.raises(requests.exceptions.RequestException):
         session.get("http://example.com")
 
 def test_useragent():
