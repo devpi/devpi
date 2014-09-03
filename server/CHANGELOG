@@ -1,3 +1,9 @@
+2.0.5.dev
+----------------
+
+- fix issue145: restrict devpi_common dependency so that a future
+  "pip install 'devpi-server<2.0'" has a higher chance of working.
+
 2.0.4
 ----------------
 

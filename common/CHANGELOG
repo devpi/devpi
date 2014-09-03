@@ -1,4 +1,10 @@
 
+2.0.1
+-------------
+
+- fix issue145: re-introduce propmapping so that devpi-common
+  has higher chances to work for devpi-server<2.0
+
 2.0
 -------------
 
