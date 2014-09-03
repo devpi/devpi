@@ -303,6 +303,70 @@ class TestStage:
         assert links[0].entrypath.endswith("someproject-1.1.zip")
         assert links[1].entrypath.endswith("someproject-1.0.zip")
 
+    def test_project_whitelist_all(self, pypistage, stage):
+        stage.modify(bases=("root/pypi",))
+        pypistage.mock_simple("someproject",
+            "<a href='someproject-1.1.zip' /a>")
+        register_and_store(stage, "someproject-1.0.zip", b"123")
+        stage.store_releasefile("someproject", "1.0",
+                                "someproject-1.0.zip", b"123")
+        links = stage.get_releaselinks("someproject")
+        # because the whitelist doesn't include "someproject" we only get
+        # our upload
+        assert len(links) == 1
+        assert links[0].entrypath.endswith("someproject-1.0.zip")
+        # if we allow all projects in the whitelist, we also get the release
+        # from pypi
+        stage.modify(pypi_whitelist=['*'])
+        links = stage.get_releaselinks("someproject")
+        assert len(links) == 2
+        assert links[0].entrypath.endswith("someproject-1.1.zip")
+        assert links[1].entrypath.endswith("someproject-1.0.zip")
+
+    def test_project_whitelist_all_inheritance(self, pypistage, stage, user):
+        user.create_stage(index="dev2", bases=("root/pypi",))
+        stage_dev2 = user.getstage("dev2")
+        stage.modify(bases=(stage_dev2.name,))
+        pypistage.mock_simple("someproject",
+            "<a href='someproject-1.1.zip' /a>")
+        register_and_store(stage, "someproject-1.0.zip", b"123")
+        stage.store_releasefile("someproject", "1.0",
+                                "someproject-1.0.zip", b"123")
+        links = stage.get_releaselinks("someproject")
+        # because the whitelist doesn't include "someproject" we only get
+        # our upload
+        assert len(links) == 1
+        assert links[0].entrypath.endswith("someproject-1.0.zip")
+        # if we add all projects to the whitelist of the inherited index, we
+        # also get the release from pypi
+        stage_dev2.modify(pypi_whitelist=['*'])
+        links = stage.get_releaselinks("someproject")
+        assert len(links) == 2
+        assert links[0].entrypath.endswith("someproject-1.1.zip")
+        assert links[1].entrypath.endswith("someproject-1.0.zip")
+
+    def test_project_whitelist_inheritance_all(self, pypistage, stage, user):
+        user.create_stage(index="dev2", bases=("root/pypi",))
+        stage_dev2 = user.getstage("dev2")
+        stage.modify(bases=(stage_dev2.name,))
+        pypistage.mock_simple("someproject",
+            "<a href='someproject-1.1.zip' /a>")
+        register_and_store(stage, "someproject-1.0.zip", b"123")
+        stage.store_releasefile("someproject", "1.0",
+                                "someproject-1.0.zip", b"123")
+        links = stage.get_releaselinks("someproject")
+        # because the whitelist doesn't include "someproject" we only get
+        # our upload
+        assert len(links) == 1
+        assert links[0].entrypath.endswith("someproject-1.0.zip")
+        # if we add all projects to the whitelist of the inheriting index, we
+        # also get the release from pypi
+        stage.modify(pypi_whitelist=['*'])
+        links = stage.get_releaselinks("someproject")
+        assert len(links) == 2
+        assert links[0].entrypath.endswith("someproject-1.1.zip")
+        assert links[1].entrypath.endswith("someproject-1.0.zip")
+
     def test_store_and_delete_project(self, stage, bases):
         content = b"123"
         register_and_store(stage, "some-1.0.zip", content)
