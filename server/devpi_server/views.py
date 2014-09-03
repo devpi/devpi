@@ -843,16 +843,16 @@ def trigger_jenkins(request, stage, jenkinurl, testspec):
         DEVPI_INSTALL_INDEX = baseurl + stage.name + "/+simple/"
     )
     inputfile = py.io.BytesIO(source.encode("ascii"))
-    req = new_requests_session(agent=("server", server_version))
+    session = new_requests_session(agent=("server", server_version))
     try:
-        r = req.post(jenkinurl, data={
+        r = session.post(jenkinurl, data={
                         "Submit": "Build",
                         "name": "jobscript.py",
                         "json": json.dumps(
                     {"parameter": {"name": "jobscript.py", "file": "file0"}}),
             },
                 files={"file0": ("file0", inputfile)})
-    except req.RequestException:
+    except session.Errors:
         log.error("%s: failed to connect to jenkins at %s",
                   testspec, jenkinurl)
         return -1
