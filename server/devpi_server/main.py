@@ -269,7 +269,7 @@ class XOM:
                 resp.url = resp.url.replace("https://front.python.org",
                                             "https://pypi.python.org")
             return resp
-        except self._httpsession.RequestException:
+        except self._httpsession.Errors:
             return FatalResponse(sys.exc_info())
 
     def create_app(self):

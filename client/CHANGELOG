@@ -1,3 +1,9 @@
+2.0.2
+----------------
+
+- fix issue144: fix interaction with requests-2.4 by depending
+  on devpi-common's new support for enumerating possible Errors
+
 2.0.1
 ----------------
 

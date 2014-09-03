@@ -104,7 +104,7 @@ class ReplicaThread:
             log.info("fetching %s", url)
             try:
                 r = session.get(url, stream=True)
-            except Exception:
+            except session.Errors:
                 log.exception("error fetching %s", url)
             else:
                 if r.status_code == 200:
@@ -135,7 +135,7 @@ class PyPIProxy(object):
     def list_packages_with_serial(self):
         try:
             r = self._http.get(self._url, stream=True)
-        except self._http.RequestException:
+        except self._http.Errors:
             threadlog.exception("proxy request failed, no connection?")
         else:
             if r.status_code == 200:
@@ -206,7 +206,7 @@ def proxy_write_to_master(xom, request):
                              data=request.body,
                              headers=request.headers,
                              allow_redirects=False)
-        except http.RequestException as e:
+        except http.Errors as e:
             raise UpstreamError("proxy-write-to-master %s: %s" % (url, e))
     #threadlog.debug("relay status_code: %s", r.status_code)
     #threadlog.debug("relay headers: %s", r.headers)

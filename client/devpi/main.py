@@ -98,7 +98,7 @@ class Hub:
             cert = self.current.get_client_cert(url=url)
             r = self.http.request(method, url, data=data, headers=headers,
                                   auth=basic_auth, cert=cert)
-        except self.http.ConnectionError as e:
+        except self.http.Errors as e:
             self._last_http_status = -1
             self.fatal("could not connect to %r:\n%s" % (url, e))
         self._last_http_status = r.status_code

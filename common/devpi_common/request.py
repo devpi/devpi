@@ -1,6 +1,6 @@
 import sys
 from requests import *  # noqa
-from requests.exceptions import ConnectionError, RequestException
+from requests.exceptions import ConnectionError, RequestException, BaseHTTPError
 
 def new_requests_session(proxies=True, agent=None):
     if agent is None:
@@ -12,4 +12,5 @@ def new_requests_session(proxies=True, agent=None):
     session.headers["user-agent"] = agent
     session.ConnectionError = ConnectionError
     session.RequestException = RequestException
+    session.Errors = (RequestException, BaseHTTPError)
     return session

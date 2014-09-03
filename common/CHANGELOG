@@ -1,4 +1,12 @@
 
+2.0.2
+-------------
+
+- fix issue144: offer session.Errors for catching the possible
+  exceptions that requests can throw (RequestException and urllib3..HTTPError
+  currently)
+
+
 2.0.1
 -------------
 
