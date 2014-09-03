@@ -342,6 +342,37 @@ It is also possible to allow anonymous uploads if you have a controlled environm
      acl_upload=:ANONYMOUS:
      pypi_whitelist=
 
+Modifying the PyPI whitelist
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The PyPI whitelist prevents malicious uploads from PyPI to be mixed in with your private packages.
+
+To allow uploads on PyPI to be visible on your index, you have to add the project to the whitelist.
+
+.. code-block:: console
+
+   $ devpi index -c prod pypi_whitelist=mypkg
+   http://localhost:3141/sophie/prod:
+     type=stage
+     bases=root/pypi
+     volatile=True
+     uploadtrigger_jenkins=None
+     acl_upload=sophie
+     pypi_whitelist=mypkg
+
+You can also whitelist all packages on an index by setting pypi_whitelist to an asterisk.
+
+.. code-block:: console
+
+   $ devpi index -c prod pypi_whitelist="*"
+   http://localhost:3141/sophie/prod:
+     type=stage
+     bases=root/pypi
+     volatile=True
+     uploadtrigger_jenkins=None
+     acl_upload=sophie
+     pypi_whitelist=*
+
 Switching Between Indices
 -------------------------
 
