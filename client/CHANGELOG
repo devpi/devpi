@@ -4,6 +4,8 @@
 - fix issue135: fix port mismatch for basic auth if port isn't explicitly given
   on https urls.
 
+- refs issue75: pass on basic auth info into pip.cfg and co.
+
 - fix issue144: fix interaction with requests-2.4 by depending
   on devpi-common's new support for enumerating possible Errors
 

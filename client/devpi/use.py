@@ -46,6 +46,15 @@ class Current(object):
     always_setcfg = currentproperty("always_setcfg")
 
     @property
+    def simpleindex_auth(self):
+        indexserver = URL(self.simpleindex)
+        basic_auth = self.get_basic_auth(indexserver)
+        if basic_auth:
+            indexserver = indexserver.replace(netloc="%s@%s" % (
+                ':'.join(basic_auth), indexserver.netloc))
+        return indexserver.url
+
+    @property
     def index_url(self):
         if self.index:
             return URL(self.index)
@@ -347,7 +356,7 @@ def main(hub, args=None):
         if not hub.current.index:
             hub.error("no index configured: cannot set pip/easy_install index")
         else:
-            indexserver = hub.current.simpleindex
+            indexserver = hub.current.simpleindex_auth
             DistutilsCfg().write_indexserver(indexserver)
             PipCfg().write_indexserver(indexserver)
             BuildoutCfg().write_indexserver(indexserver)

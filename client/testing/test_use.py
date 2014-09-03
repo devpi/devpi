@@ -253,13 +253,18 @@ class TestUnit:
         hub = cmd_devpi("use", "--venv=%s" % venvdir.basename)
         assert hub.current.venvdir == venvdir
 
-    def test_main_setcfg(self, mock_http_api, cmd_devpi, tmpdir, monkeypatch):
+    @pytest.mark.parametrize(['scheme', 'basic_auth'], [
+        ('http', ''),
+        ('https', ''),
+        ('http', 'foo:bar@'),
+        ('https', 'foo:bar@')])
+    def test_main_setcfg(self, scheme, basic_auth, mock_http_api, cmd_devpi, tmpdir, monkeypatch):
         monkeypatch.setattr(PipCfg, "default_location", tmpdir.join("pip.cfg"))
         monkeypatch.setattr(DistutilsCfg, "default_location",
                             tmpdir.join("dist.cfg"))
         monkeypatch.setattr(BuildoutCfg, "default_location",
                             tmpdir.join("buildout.cfg"))
-        mock_http_api.set("http://world/+api", 200,
+        mock_http_api.set("%s://world/+api" % scheme, 200,
                     result=dict(
                         pypisubmit="",
                         simpleindex="/simple",
@@ -269,16 +274,16 @@ class TestUnit:
                         authstatus=["noauth", ""],
                    ))
 
-        hub = cmd_devpi("use", "--set-cfg", "http://world")
+        hub = cmd_devpi("use", "--set-cfg", "%s://%sworld" % (scheme, basic_auth))
         assert PipCfg.default_location.exists()
         content = PipCfg.default_location.read()
-        assert "index_url = http://world/" in content
+        assert "index_url = %s://%sworld/" % (scheme, basic_auth) in content
         assert DistutilsCfg.default_location.exists()
         content = DistutilsCfg.default_location.read()
-        assert "index_url = http://world/" in content
+        assert "index_url = %s://%sworld/" % (scheme, basic_auth) in content
         assert BuildoutCfg.default_location.exists()
         content = BuildoutCfg.default_location.read()
-        assert "index = http://world/" in content
+        assert "index = %s://%sworld/" % (scheme, basic_auth) in content
         hub = cmd_devpi("use", "--always-set-cfg=yes")
         assert hub.current.always_setcfg
         hub = cmd_devpi("use", "--always-set-cfg=no")
