@@ -211,7 +211,7 @@ def test_apiconfig(testapp):
     assert not "pypisubmit" in r.json["result"]
 
 def test_apiconfig_with_outside_url(testapp):
-    testapp.xom.config.args.outside_url = u = "http://outside.com/root"
+    testapp.xom.config.args.outside_url = u = "http://outside.com"
     r = testapp.get_json("/root/pypi/+api")
     assert r.status_code == 200
     result = r.json["result"]
@@ -777,6 +777,9 @@ def test_kvdict(input, expected):
         {"X-outside-url": "http://outside.com"}, {},
         None, "http://outside.com"),
     (
+        {"X-outside-url": "http://outside.com/foo"}, {},
+        None, "http://outside.com/foo"),
+    (
         {"Host": "outside3.com"}, {},
         None, "http://outside3.com"),
     (
@@ -793,17 +796,20 @@ def test_kvdict(input, expected):
         {"X-outside-url": "http://outside.com"}, {},
         "http://outside2.com", "http://outside2.com"),
     (
+        {"X-outside-url": "http://outside.com"}, {},
+        "http://outside2.com/foo", "http://outside2.com/foo"),
+    (
         {"Host": "outside3.com"}, {},
         "http://out.com", "http://out.com"),
     (
         {"Host": "outside3.com"}, {'wsgi.url_scheme': 'https'},
         "http://out.com", "http://out.com")])
-def test_get_outside_url(headers, environ, outsideurl, expected):
-    from devpi_server.views import get_outside_url
-    from pyramid.request import Request
-    request = Request.blank('/', environ=environ, headers=headers)
-    url = get_outside_url(request, outsideurl)
-    assert url == expected
+def test_outside_url_middleware(headers, environ, outsideurl, expected, testapp):
+    headers = dict((str(k), str(v)) for k, v in headers.items())
+    environ = dict((str(k), str(v)) for k, v in environ.items())
+    testapp.xom.config.args.outside_url = outsideurl
+    r = testapp.get('/+api', headers=headers, extra_environ=environ)
+    assert r.json['result']['login'] == "%s/+login" % expected
 
 
 class Test_getjson:

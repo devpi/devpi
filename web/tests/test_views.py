@@ -599,6 +599,11 @@ def test_search_batch_links(dummyrequest, pagecount, pagenum, expected):
         [('devpi', 'http://localhost/')]),
     (
         "http://localhost:80/{stage}",
+        {'x-outside-url': 'http://example.com/foo'},
+        'form h1 a',
+        [('devpi', 'http://example.com/foo/')]),
+    (
+        "http://localhost:80/{stage}",
         {'host': 'example.com'},
         'form h1 a',
         [('devpi', 'http://example.com/')]),
@@ -612,6 +617,11 @@ def test_search_batch_links(dummyrequest, pagecount, pagenum, expected):
         {},
         '.files a',
         [('pkg1-2.6.tgz', 'http://localhost/{stage}/+f/202/cb962ac59075b/pkg1-2.6.tgz#md5=202cb962ac59075b964b07152d234b70')]),
+    (
+        "http://localhost:80/{stage}/pkg1/2.6",
+        {'x-outside-url': 'http://example.com/foo'},
+        '.files a',
+        [('pkg1-2.6.tgz', 'http://example.com/foo/{stage}/+f/202/cb962ac59075b/pkg1-2.6.tgz#md5=202cb962ac59075b964b07152d234b70')]),
     (
         "http://localhost:80/{stage}/pkg1/2.6",
         {'host': 'example.com'},

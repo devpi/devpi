@@ -10,6 +10,9 @@
 - add '*' as possible option for pypi_whitelist to whitelist all packages of
   an index at once. Refs issue110
 
+- outside url now works with paths, so you can host a devpi server on something
+  like http://example.com/foo/
+
 2.0.4
 ----------------
 
