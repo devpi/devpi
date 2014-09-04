@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+from chameleon.config import AUTO_RELOAD
 from devpi_common.metadata import get_latest_version
 from devpi_web.description import render_description
 from devpi_web.doczip import unpack_docs
@@ -27,6 +28,8 @@ def macros(request):
         renderer = get_renderer(path)
         macros = renderer.implementation().macros
         for name in macros.names:
+            if name in result:
+                result['original-%s' % name] = result[name]
             result[name] = macros[name]
     return result
 
@@ -78,6 +81,8 @@ def query_docs_html(request):
 
 
 class ThemeChameleonRendererLookup(ChameleonRendererLookup):
+    auto_reload = AUTO_RELOAD
+
     def __call__(self, info):
         # if the template exists in the theme, we will use it instead of the
         # original template

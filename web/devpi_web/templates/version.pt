@@ -56,5 +56,6 @@
 
         <div id="description" tal:content="structure content" />
         </div>
+        <metal:footer use-macro="request.macros['footer']" />
     </body>
 </html>

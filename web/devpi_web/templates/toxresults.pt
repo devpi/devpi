@@ -45,5 +45,6 @@
                 </tr>
             </tbody>
         </table>
+        <metal:footer use-macro="request.macros['footer']" />
     </body>
 </html>
