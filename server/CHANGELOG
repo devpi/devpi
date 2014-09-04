@@ -17,6 +17,10 @@
   submitted one take the previously registered one.  This can happen when uploading
   wheels and in other situations.
 
+- fix issue132: during exporting use whatever name comes with the
+  versiondata instead of trying too hard to assert consistency of different
+  versions.
+
 2.0.4
 ----------------
 

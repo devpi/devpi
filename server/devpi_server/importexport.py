@@ -215,11 +215,11 @@ class IndexDump:
             self.indexmeta["projects"][realname] = data
 
             for version in data:
-                assert data[version]["name"] == realname
-                linkstore = self.stage.get_linkstore_perstage(realname, version)
+                vername = data[version]["name"]
+                linkstore = self.stage.get_linkstore_perstage(vername, version)
                 self.dump_releasefiles(linkstore)
                 self.dump_toxresults(linkstore)
-                content = self.stage.get_doczip(name, version)
+                content = self.stage.get_doczip(vername, version)
                 if content:
                     self.dump_docfile(realname, version, content)
         self.exporter.completed("index %r" % self.stage.name)

@@ -260,6 +260,30 @@ class TestImportExport:
             assert py.builtin._totext(
                 archive.read("index.html"), 'utf-8') == "<html/>"
 
+    def test_name_mangling_relates_to_issue132(self, impexp):
+        mapp1 = impexp.mapp1
+        api = mapp1.create_and_use()
+        content = b'content'
+        mapp1.upload_file_pypi("he-llo-1.0.tar.gz", content, "he_llo", "1.0")
+        mapp1.upload_file_pypi("he_llo-1.1.whl", content, "he-llo", "1.1")
+
+        impexp.export()
+
+        mapp2 = impexp.new_import()
+
+        with mapp2.xom.keyfs.transaction():
+            stage = mapp2.xom.model.getstage(api.stagename)
+            verdata = stage.get_versiondata_perstage("he_llo", "1.0")
+            assert verdata["version"] == "1.0"
+            verdata = stage.get_versiondata_perstage("he_llo", "1.1")
+            assert verdata["version"] == "1.1"
+
+            links = stage.get_releaselinks("he_llo")
+            assert len(links) == 2
+            projectname = stage.get_projectname("he-llo")
+            links = stage.get_releaselinks(projectname)
+            assert len(links) == 2
+
 def test_upgrade(makexom, monkeypatch):
     def invoke_export(commands):
         assert "--serverdir" in commands
