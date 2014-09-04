@@ -164,6 +164,10 @@ class User:
         threadlog.info("setting password for user %r", self.name)
 
     def delete(self):
+        # delete all projects on the index
+        for name in self.get().get("indexes", {}):
+            self.getstage(name).delete()
+        # delete the user information itself
         self.key.delete()
         with self.keyfs.USERLIST.update() as userlist:
             userlist.remove(self.name)

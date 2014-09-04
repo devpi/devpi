@@ -21,6 +21,9 @@
   versiondata instead of trying too hard to assert consistency of different
   versions.
 
+- fix issue130: fix deletion of users so that is properly deletes all
+  indexes and projects and files on each index.
+
 2.0.4
 ----------------
 

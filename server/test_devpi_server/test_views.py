@@ -251,6 +251,7 @@ class TestSubmitValidation:
         class Submit:
             def __init__(self, stagename="user/dev"):
                 self.stagename = stagename
+                self.username = stagename.split("/")[0]
                 self.api = mapp.create_and_use(stagename)
 
             def metadata(self, metadata, code):
@@ -366,6 +367,17 @@ class TestSubmitValidation:
             with testapp.xom.keyfs.transaction():
                 entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
                 assert not entry.file_exists()
+
+    def test_upload_and_delete_user_issue130(self, submit, testapp, mapp):
+        metadata = {"name": "pkg5", "version": "2.6", ":action": "submit"}
+        submit.metadata(metadata, code=200)
+        submit.file("pkg5-2.6.tgz", b"123", {"name": "pkg5"}, code=200)
+        assert mapp.get_release_paths("pkg5")
+        mapp.delete_user(submit.username)
+        # recreate user and index
+        submit = submit.__class__(submit.stagename)
+        assert not mapp.get_release_paths("pkg5")
+
 
     def test_upload_twice_to_volatile(self, submit, testapp, mapp):
         metadata = {"name": "Pkg5", "version": "2.6", ":action": "submit"}
