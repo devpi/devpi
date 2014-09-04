@@ -85,3 +85,13 @@ Some examples for searches:
  - `ValueError name:pytest` searches for 'ValueError' in all data and documentation we have on projects named 'pytest'.
  - `name:devpi* path:/fschulze/*` search for packages starting with devpi in anything uploaded by 'fschulze'.
  - `classifiers:'Programming Language :: Python :: 3'` searches for packages with the specified classifier, note the single quotes around the classifier, they are necessary because of the whitespace.
+
+
+Notes
+----------------------------------------------------
+
+The text of the long description of uploaded packages is processed in the same
+way as on PyPI. In some cases the first title and subtitle are stripped from
+the text. That is also happening on PyPI. For compatibility and to let you
+properly test packages before putting them on PyPI we do the same, even though
+in our page layout it would make more sense not to strip.
