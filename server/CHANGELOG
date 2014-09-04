@@ -13,6 +13,10 @@
 - outside url now works with paths, so you can host a devpi server on something
   like http://example.com/foo/
 
+- fix issue84: during upload: if a previously registered name diverges from a freshly
+  submitted one take the previously registered one.  This can happen when uploading
+  wheels and in other situations.
+
 2.0.4
 ----------------
 

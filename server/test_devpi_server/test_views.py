@@ -272,17 +272,13 @@ class TestSubmitValidation:
         mapp.upload_file_pypi("qlwkej", b"qwe", "name", "1.0",
                               indexname="nouser/nostage", code=404)
 
-    def test_metadata_normalize_conflict(self, submit, testapp):
+    def test_metadata_normalize_to_previous_issue84(self, submit, testapp):
         metadata = {"name": "pKg1", "version": "1.0", ":action": "submit",
                     "description": "hello world"}
-        r = submit.metadata(metadata, code=200)
-        metadata = {"name": "Pkg1", "version": "1.0", ":action": "submit",
+        submit.metadata(metadata, code=200)
+        metadata = {"name": "Pkg1", "version": "2.0", ":action": "submit",
                     "description": "hello world"}
-        r = submit.metadata(metadata, code=403)
-        body = r.body
-        if not py.builtin._istext(body):
-            body = body.decode("utf-8")
-        assert re.search("pKg1.*already.*registered", body)
+        submit.metadata(metadata, code=200)
 
     def test_metadata_multifield(self, submit, mapp):
         classifiers = ["Intended Audience :: Developers",
@@ -310,7 +306,7 @@ class TestSubmitValidation:
         assert not data["download_url"]
         assert not data["platform"]
 
-    def test_upload_file(self, submit):
+    def test_upload_file(self, submit, mapp):
         metadata = {"name": "Pkg5", "version": "1.0", ":action": "submit"}
         submit.metadata(metadata, code=200)
         r = submit.file("pkg5-2.6.tgz", b"123", {"name": "pkg5some"}, code=400)
@@ -318,8 +314,9 @@ class TestSubmitValidation:
         submit.file("pkg5-2.6.tgz", b"123", {"name": "Pkg5"}, code=200)
         r = submit.file("pkg5-2.6.qwe", b"123", {"name": "Pkg5"}, code=400)
         assert "not a valid" in r.status
-        r = submit.file("pkg5-2.7.tgz", b"123", {"name": "pkg5"}, code=403)
-        assert "cannot register" in r.status
+        r = submit.file("pkg5-2.7.tgz", b"123", {"name": "pkg5"}, code=200)
+        paths = mapp.get_release_paths("Pkg5")
+        assert paths[0].endswith("pkg5-2.7.tgz")
 
     def test_upload_use_registered_name_issue84(self, submit, mapp):
         metadata = {"name": "pkg_hello", "version":"1.0", ":action": "submit"}
