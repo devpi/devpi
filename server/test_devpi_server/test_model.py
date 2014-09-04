@@ -534,11 +534,16 @@ class TestStage:
         with pytest.raises(ValueError):
              stage.set_versiondata(dict(name="hello_", version="1.0"))
 
-    def test_set_versiondata_normalized_name_clash(self, stage):
+    def test_set_versiondata_take_existing_name_issue84(self, stage, caplog):
+        import logging
         stage.set_versiondata(dict(name="hello-World", version="1.0"))
-        with pytest.raises(stage.RegisterNameConflict):
-            stage.set_versiondata(dict(name="Hello-world", version="1.0"))
-            stage.set_versiondata(dict(name="Hello_world", version="1.0"))
+        for name in ("Hello-World", "hello_world"):
+            caplog.handler.records = []
+            caplog.setLevel(logging.WARNING)
+            stage.set_versiondata(dict(name=name, version="1.0"))
+            rec = caplog.getrecords()
+            assert len(rec) == 1, [str(x) for x in rec]
+            assert "using" in rec[0].msg and name in rec[0].msg
 
     @pytest.mark.start_threads
     def test_set_versiondata_hook(self, stage, queue):

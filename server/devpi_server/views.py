@@ -579,11 +579,6 @@ class PyPIView:
     def _set_versiondata_dict(self, stage, metadata):
         try:
             stage.set_versiondata(metadata)
-        except stage.RegisterNameConflict as e:
-            othername = e.args[0]
-            abort_submit(403, "cannot register %r because %r is already "
-                  "registered at %s" % (
-                  metadata["name"], othername, stage.name))
         except ValueError as e:
             abort_submit(400, "invalid metadata: %s" % (e,))
         self.log.info("%s: got submit release info %r",

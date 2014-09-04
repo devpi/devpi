@@ -428,9 +428,6 @@ class PrivateStage(BaseStage):
     #class MetadataExists(Exception):
     #    """ metadata exists on a given non-volatile index. """
 
-    class RegisterNameConflict(Exception):
-        """ a conflict while trying to register metadata. """
-
     def get_projectname_perstage(self, name):
         """ return existing projectname for the given name which may
         be in a non-canonical form. """
@@ -452,9 +449,10 @@ class PrivateStage(BaseStage):
         projectname = self.get_projectname(name)
         log = thread_current_log()
         if projectname is not None and projectname != name:
-            log.error("project %r has other name %r in stage %s" %(
-                      name, projectname, self.name))
-            raise self.RegisterNameConflict(projectname)
+            log.warn("using already registered name %r for submitted %r "
+                     "in stage %r" %(
+                      projectname, name, self.name))
+            metadata["name"] = projectname
         self._set_versiondata(metadata)
 
     def key_projversions(self, name):
