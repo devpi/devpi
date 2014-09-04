@@ -269,11 +269,12 @@ class XOM:
                 resp.url = resp.url.replace("https://front.python.org",
                                             "https://pypi.python.org")
             return resp
-        except self._httpsession.RequestException:
+        except self._httpsession.Errors:
             return FatalResponse(sys.exc_info())
 
     def create_app(self):
         from devpi_server.view_auth import DevpiAuthenticationPolicy
+        from devpi_server.views import OutsideURLMiddleware
         from devpi_server.views import route_url
         from pyramid.authorization import ACLAuthorizationPolicy
         from pyramid.config import Configurator
@@ -341,7 +342,7 @@ class XOM:
             # pypi changelog protocol
             self.thread_pool.register(self.pypimirror,
                                       dict(proxy=self.proxy))
-        return app
+        return OutsideURLMiddleware(app, self)
 
     def is_replica(self):
         return bool(self.config.args.master_url)

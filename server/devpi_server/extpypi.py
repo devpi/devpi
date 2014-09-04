@@ -224,6 +224,7 @@ class PyPIStage(BaseStage):
         links = self._load_cache_links(projectname)
         if links is not None:
             return links
+
         # get the simple page for the project
         url = self.PYPIURL_SIMPLE + projectname + "/"
         threadlog.debug("visiting index %s", url)
@@ -244,19 +245,19 @@ class PyPIStage(BaseStage):
             raise self.UpstreamError("no cache links from master for %s" %
                                      projectname)
 
-        # determine and check real project name
-        real_projectname = response.url.strip("/").split("/")[-1]
-        assert real_projectname == projectname
+        # check returned url has the same normalized name
+        ret_projectname = response.url.strip("/").split("/")[-1]
+        assert normalize_name(projectname) == normalize_name(ret_projectname)
 
         # check that we got a fresh enough page
         serial = int(response.headers["X-PYPI-LAST-SERIAL"])
         newest_serial = self.pypimirror.name2serials.get(projectname, -1)
         if serial < newest_serial:
             raise self.UpstreamError("%s: pypi returned serial %s, expected %s",
-                        real_projectname, serial, newest_serial)
+                        projectname, serial, newest_serial)
 
         threadlog.debug("%s: got response with serial %s" %
-                  (real_projectname, serial))
+                  (projectname, serial))
 
         # parse simple index's link and perform crawling
         assert response.text is not None, response.text
@@ -268,7 +269,7 @@ class PyPIStage(BaseStage):
 
         # compute release link entries and cache according to serial
         entries = [self.filestore.maplink(link) for link in releaselinks]
-        return self._dump_project_cache(real_projectname, entries, serial)
+        return self._dump_project_cache(projectname, entries, serial)
 
     def get_projectname_perstage(self, name):
         return self.pypimirror.get_registered_name(name)

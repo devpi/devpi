@@ -95,21 +95,26 @@ def json_preferred(request):
     return "application/json" in request.headers.get("Accept", "")
 
 
-def get_outside_url(request, outsideurl):
-    if outsideurl:
-        url = outsideurl
-    else:
-        url = request.headers.get("X-outside-url", None)
-        if url is None:
-            url = request.application_url
-    return url.rstrip("/")
+class OutsideURLMiddleware(object):
+    def __init__(self, app, xom):
+        self.app = app
+        self.xom = xom
+
+    def __call__(self, environ, start_response):
+        outside_url = self.xom.config.args.outside_url
+        if not outside_url:
+            outside_url = environ.get('HTTP_X_OUTSIDE_URL')
+        if outside_url:
+            outside_url = urlparse.urlparse(outside_url)
+            environ['wsgi.url_scheme'] = outside_url.scheme
+            environ['HTTP_HOST'] = outside_url.netloc
+            if outside_url.path:
+                environ['SCRIPT_NAME'] = outside_url.path
+        return self.app(environ, start_response)
 
 
 def route_url(self, *args, **kw):
-    xom = self.registry['xom']
-    outside_url = get_outside_url(self, xom.config.args.outside_url)
-    url = super(self.__class__, self).route_url(
-        _app_url=outside_url, *args, **kw)
+    url = super(self.__class__, self).route_url(*args, **kw)
     # Unquote plus signs in path segment. The settings in pyramid for
     # the urllib quoting function are a bit too much on the safe side
     url = urlparse.urlparse(url)
@@ -830,8 +835,7 @@ def getjson(request, allowed_keys=None):
 
 def trigger_jenkins(request, stage, jenkinurl, testspec):
     log = request.log
-    baseurl = get_outside_url(request,
-                  stage.xom.config.args.outside_url) + "/"
+    baseurl = request.application_url
 
     source = render_string("devpibootstrap.py",
         INDEXURL=baseurl + "/" + stage.name,
@@ -843,16 +847,16 @@ def trigger_jenkins(request, stage, jenkinurl, testspec):
         DEVPI_INSTALL_INDEX = baseurl + stage.name + "/+simple/"
     )
     inputfile = py.io.BytesIO(source.encode("ascii"))
-    req = new_requests_session(agent=("server", server_version))
+    session = new_requests_session(agent=("server", server_version))
     try:
-        r = req.post(jenkinurl, data={
+        r = session.post(jenkinurl, data={
                         "Submit": "Build",
                         "name": "jobscript.py",
                         "json": json.dumps(
                     {"parameter": {"name": "jobscript.py", "file": "file0"}}),
             },
                 files={"file0": ("file0", inputfile)})
-    except req.RequestException:
+    except session.Errors:
         log.error("%s: failed to connect to jenkins at %s",
                   testspec, jenkinurl)
         return -1

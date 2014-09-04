@@ -319,7 +319,8 @@ class BaseStage:
                 return stage.get_projectname_perstage(name) and \
                        (not private_hit or whitelisted)
             private_hit = private_hit or bool(self.get_projectname_perstage(name))
-            whitelisted = whitelisted or name in stage.ixconfig["pypi_whitelist"]
+            whitelist = set(stage.ixconfig["pypi_whitelist"])
+            whitelisted = whitelisted or '*' in whitelist or name in whitelist
 
     def op_sro(self, opname, **kw):
         for stage in self._sro():
@@ -338,7 +339,8 @@ class BaseStage:
                     threadlog.debug("private package %r whitelisted at stage %s",
                                     projectname, whitelisted.name)
             else:
-                if projectname in stage.ixconfig["pypi_whitelist"]:
+                whitelist = set(stage.ixconfig["pypi_whitelist"])
+                if '*' in whitelist or projectname in whitelist:
                     whitelisted = stage
             res = getattr(stage, opname)(**kw)
             private_hit = private_hit or res
@@ -535,7 +537,14 @@ class PrivateStage(BaseStage):
                           last_modified=None):
         filename = ensure_unicode(filename)
         if not self.get_versiondata(name, version):
-            raise MissesRegistration("%s-%s", name, version)
+            # There's a chance the version was guessed from the
+            # filename, which might have swapped dashes to underscores
+            if '_' in version:
+                version = version.replace('_', '-')
+                if not self.get_versiondata(name, version):
+                    raise MissesRegistration("%s-%s", name, version)
+            else:
+                raise MissesRegistration("%s-%s", name, version)
         threadlog.debug("project name of %r is %r", filename, name)
         linkstore = self.get_linkstore_perstage(name, version)
         entry = linkstore.create_linked_entry(

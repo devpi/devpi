@@ -369,9 +369,10 @@ class Importer:
                 version = BasenameMeta(p.basename).version
             else:
                 version = filedesc["version"]
+
             entry = stage.store_releasefile(projectname, version,
-                        p.basename, p.read("rb"),
-                        last_modified=mapping["last_modified"])
+                                            p.basename, p.read("rb"),
+                                            last_modified=mapping["last_modified"])
             assert entry.md5 == mapping["md5"]
             self.import_pre2_toxresults(stage, entry)
         elif filedesc["type"] == "doczip":
@@ -397,6 +398,7 @@ class Importer:
         type = type_path.basename
         for i in range(len(type_path.listdir())):
             attachment_data = type_path.join(str(i)).read(mode="rb")
+            attachment_data = attachment_data.decode('utf-8')
             toxresultdata = json.loads(attachment_data)
             self.tw.line("importing pre-2.0 test  results %s/%s" %(md5, type))
             link = stage.store_toxresult(releasefile_link, toxresultdata)

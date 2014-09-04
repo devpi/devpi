@@ -1,3 +1,28 @@
+2.0.5.dev
+----------------
+
+- fix issue145: restrict devpi_common dependency so that a future
+  "pip install 'devpi-server<2.0'" has a higher chance of working.
+
+- fix issue144: fix interaction with requests-2.4.0 -- 
+  use new devpi-common-offered "Errors" enumeration to check for exceptions.
+
+- add '*' as possible option for pypi_whitelist to whitelist all packages of
+  an index at once. Refs issue110
+
+- outside url now works with paths, so you can host a devpi server on something
+  like http://example.com/foo/
+
+2.0.4
+----------------
+
+- fix issue139: adapt to a recent change in pypi which now serves
+  under URLs using normalized project names instead of the "real" registered name
+  Thanks Timothy Allen and others for sorting this out.
+  
+- fix issue129: fix __init__ provided version and add a test that it always matches
+  the one which pkg_resources sees (which gets it effectively from setup.py)
+
 2.0.3
 ----------------
 

@@ -7,7 +7,7 @@ from pyramid.response import Response
 
 from .keyfs import load, loads, dump, get_write_file_ensure_dir
 from .log import thread_push_log, threadlog
-from .views import is_mutating_http_method, get_outside_url
+from .views import is_mutating_http_method
 from .model import UpstreamError
 
 
@@ -104,7 +104,7 @@ class ReplicaThread:
             log.info("fetching %s", url)
             try:
                 r = session.get(url, stream=True)
-            except Exception:
+            except session.Errors:
                 log.exception("error fetching %s", url)
             else:
                 if r.status_code == 200:
@@ -135,7 +135,7 @@ class PyPIProxy(object):
     def list_packages_with_serial(self):
         try:
             r = self._http.get(self._url, stream=True)
-        except self._http.RequestException:
+        except self._http.Errors:
             threadlog.exception("proxy request failed, no connection?")
         else:
             if r.status_code == 200:
@@ -206,7 +206,7 @@ def proxy_write_to_master(xom, request):
                              data=request.body,
                              headers=request.headers,
                              allow_redirects=False)
-        except http.RequestException as e:
+        except http.Errors as e:
             raise UpstreamError("proxy-write-to-master %s: %s" % (url, e))
     #threadlog.debug("relay status_code: %s", r.status_code)
     #threadlog.debug("relay headers: %s", r.headers)
@@ -229,7 +229,7 @@ def proxy_write_to_master(xom, request):
     if r.status_code == 302:  # REDIRECT
         # rewrite master-related location to our replica site
         master_location = r.headers["location"]
-        outside_url = get_outside_url(request, xom.config.args.outside_url)
+        outside_url = request.application_url
         headers[str("location")] = str(
             master_location.replace(master_url.url, outside_url))
     return Response(status="%s %s" %(r.status_code, r.reason),
