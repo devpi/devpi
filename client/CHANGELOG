@@ -9,6 +9,10 @@
 - fix issue144: fix interaction with requests-2.4 by depending
   on devpi-common's new support for enumerating possible Errors
 
+- keep basic authentication info when listing indices or switching index by
+  using path only instead of full URL.
+  Thanks Trevor Joynson
+
 2.0.1
 ----------------
 
