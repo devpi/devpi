@@ -1,4 +1,4 @@
-2.0.5.dev
+2.0.5
 ----------------
 
 - fix issue145: restrict devpi_common dependency so that a future

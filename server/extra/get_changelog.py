@@ -1,4 +1,3 @@
-import sys
 import py
 from devpi_server.keyfs import KeyFS
 import argparse

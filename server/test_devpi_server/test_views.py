@@ -3,7 +3,6 @@ from __future__ import unicode_literals
 
 import hashlib
 import pytest
-import re
 import py
 import json
 import posixpath
