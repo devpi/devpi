@@ -19,7 +19,7 @@ _releasefile_suffix_rx = re.compile(r"(\.zip|\.tar\.gz|\.tgz|\.tar\.bz2|"
     "\.win-amd68-py[23]\.\d\..*|"
     "\.win32-py[23]\.\d\..*|"
     "\.win.*\..*|"
-    "-(?:py|cp|ip|pp|jy)[23][\d\.]+.*\..*|"
+    "-(?:py|cp|ip|pp|jy)[23][\d\.]*.*\..*|"
     ")$", re.IGNORECASE)
 
 # see also PEP425 for supported "python tags"
@@ -46,7 +46,7 @@ def get_pyversion_filetype(basename):
         pyversion = "2.7"  # arbitrary but pypi/devpi makes no special use
                            # of "pyversion" anyway?!
     elif "." not in pyversion:
-        assert len(pyversion) == 2
+        assert len(pyversion) in (1, 2)  # TODO: do we really care?
         pyversion = ".".join(pyversion)
     return (pyversion, _ext2type[ext])
 

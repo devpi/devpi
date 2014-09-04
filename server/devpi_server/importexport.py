@@ -369,9 +369,10 @@ class Importer:
                 version = BasenameMeta(p.basename).version
             else:
                 version = filedesc["version"]
+
             entry = stage.store_releasefile(projectname, version,
-                        p.basename, p.read("rb"),
-                        last_modified=mapping["last_modified"])
+                                            p.basename, p.read("rb"),
+                                            last_modified=mapping["last_modified"])
             assert entry.md5 == mapping["md5"]
             self.import_pre2_toxresults(stage, entry)
         elif filedesc["type"] == "doczip":

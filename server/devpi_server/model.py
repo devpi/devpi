@@ -537,7 +537,14 @@ class PrivateStage(BaseStage):
                           last_modified=None):
         filename = ensure_unicode(filename)
         if not self.get_versiondata(name, version):
-            raise MissesRegistration("%s-%s", name, version)
+            # There's a chance the version was guessed from the
+            # filename, which might have swapped dashes to underscores
+            if '_' in version:
+                version = version.replace('_', '-')
+                if not self.get_versiondata(name, version):
+                    raise MissesRegistration("%s-%s", name, version)
+            else:
+                raise MissesRegistration("%s-%s", name, version)
         threadlog.debug("project name of %r is %r", filename, name)
         linkstore = self.get_linkstore_perstage(name, version)
         entry = linkstore.create_linked_entry(

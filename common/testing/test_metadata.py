@@ -24,6 +24,7 @@ from devpi_common.metadata import *
     ("hello-1.0.doc.zip", ("hello", "1.0", ".doc.zip")),
     ("Twisted-12.0.0.win32-py2.7.msi",
         ("Twisted", "12.0.0", ".win32-py2.7.msi")),
+    ("django_ipware-0.0.8-py3-none-any.whl", ("django_ipware", "0.0.8", "-py3-none-any.whl")),
 ])
 def test_splitbasename(releasename, expected):
     result = splitbasename(releasename)

@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import sys
 import pytest
 import subprocess
+import json
 from devpi_server.importexport import *
 from devpi_server.main import Fatal
 from devpi_common.archive import zip_dict
@@ -140,6 +141,100 @@ class TestImportExport:
             links = stage.get_releaselinks("hello")
             assert len(links) == 1
             assert links[0].entry.file_get_content() == b"content"
+
+    def test_dashes_to_undescores_when_imported_from_v1(self, impexp):
+        """ Much like the above case, but exported from a version 1.2 server,
+            and the the version had a dash in the name which was stored
+            on disk as an underscore. Eg:
+
+              hello-1.2-3.tar.gz  ->  hello-1.2_3.tar.gz
+
+            In this case the Registration entry won't match the inferred version
+            data for the file.
+        """
+        mapp1 = impexp.mapp1
+        api = mapp1.create_and_use()
+
+        # This is the raw json of the data that shows up this issue.
+        DUMP_FILE = {
+          "dumpversion": "1",
+          "secret": "qREGpVy0mj2auDp/z/7JpQe/as9XJQl3GZGW75SSH9U=",
+          "pythonversion": list(sys.version_info),
+          "devpi_server": "1.2",
+          "indexes": {
+              "user1/dev": {
+                  "projects": {
+                      "hello": {
+                          "1.2-3": {
+                              "author": "",
+                              "home_page": "",
+                              "version": "1.2-3",
+                              "keywords": "",
+                              "name": "hello",
+                              "classifiers": [],
+                              "download_url": "",
+                              "author_email": "",
+                              "license": "",
+                              "platform": [],
+                              "summary": "",
+                              "description": "",
+                           },
+                      },
+                  },
+                  "files": [
+                      {
+                          "entrymapping": {
+                            "last_modified": "Fri, 04 Jul 2014 14:40:13 GMT",
+                            "md5": "9a0364b9e99bb480dd25e1f0284c8555",
+                            "size": "7"
+                          },
+                          "projectname": "hello",
+                          "type": "releasefile",
+                          "relpath": "user1/dev/hello/hello-1.2_3.tar.gz"
+                      },
+                  ],
+                  "indexconfig": {
+                      "uploadtrigger_jenkins": None,
+                      "volatile": True,
+                      "bases": [
+                          "root/pypi"
+                      ],
+                      "acl_upload": [
+                          "user1"
+                      ],
+                      "type": "stage"
+                  },
+              },
+          },
+          "users": {
+              "root": {
+                "pwhash": "265ed9fb83bef361764838b7099e9627570016629db4e8e1b930817b1a4793af",
+                "username": "root",
+                "pwsalt": "A/4FsRp5oTkovbtTfhlx1g=="
+              },
+              "user1": {
+                  "username": "user1",
+                  "pwsalt": "RMAM7ycp8aqw4vytBOBEKA==",
+                  "pwhash": "d9f98f41f8cbdeb6a30a7b6c376d0ccdd76e862ad1fa508b79d4c2098cc9d69a"
+             }
+          }
+        }
+        with open(impexp.exportdir.join('dataindex.json').strpath, 'w') as fp:
+            fp.write(json.dumps(DUMP_FILE))
+
+        filedir = impexp.exportdir
+        for dir in ['user1', 'dev', 'hello']:
+            filedir = filedir.join(dir)
+            filedir.mkdir()
+        with open(filedir.join('hello-1.2_3.tar.gz').strpath, 'w') as fp:
+            fp.write('content')
+
+        # Run the import and check the version data
+        mapp2 = impexp.new_import()
+        with mapp2.xom.keyfs.transaction():
+            stage = mapp2.xom.model.getstage(api.stagename)
+            verdata = stage.get_versiondata_perstage("hello", "1.2-3")
+            assert verdata["version"] == "1.2-3"
 
     def test_user_no_index_login_works(self, impexp):
         mapp1 = impexp.mapp1
