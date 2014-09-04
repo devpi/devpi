@@ -174,12 +174,18 @@ class Current(object):
             if oldval != newval:
                 setattr(self, name, newval)
                 log.info("changing %r to %r", name, newval)
-        log.debug("writing current %s", self.path)
-        oldumask = os.umask(7*8+7)
         try:
-            self.path.write(json.dumps(self._currentdict))
-        finally:
-            os.umask(oldumask)
+            olddata = json.loads(self.path.read())
+        except Exception:
+            olddata = {}
+        if self._currentdict != olddata:
+            log.debug("writing current %s", self.path)
+            oldumask = os.umask(7 * 8 + 7)
+            try:
+                self.path.write(
+                    json.dumps(self._currentdict, indent=2, sort_keys=True))
+            finally:
+                os.umask(oldumask)
 
     def exists(self):
         return self.path and self.path.check()
@@ -191,6 +197,7 @@ class Current(object):
         return url
 
     def configure_fromurl(self, hub, url, client_cert=None):
+        is_absolute_url = url is not None and '://' in url
         url = self.get_index_url(url)
         if not url.is_valid_http_url():
             hub.fatal("invalid URL: %s" % url.url)
@@ -204,7 +211,7 @@ class Current(object):
             hub.warn("The password is stored unencrypted!")
             self.set_basic_auth(
                 basic_auth[0], basic_auth[1], url=url)
-        else:
+        elif is_absolute_url:
             self.del_basic_auth(url=url.joinpath("/").url)
         if client_cert:
             client_cert = os.path.abspath(os.path.expanduser(client_cert))
@@ -301,9 +308,7 @@ def main(hub, args=None):
     url = None
     if args.url:
         url = args.url
-    elif current.index:  # re-get status/api
-        url = current.index
-    if url:
+    if url or current.index:
         current.configure_fromurl(hub, url, client_cert=args.client_cert)
 
     if args.venv:

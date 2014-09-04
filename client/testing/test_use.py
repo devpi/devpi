@@ -55,6 +55,27 @@ class TestUnit:
         assert current.always_setcfg
         assert current.simpleindex == "/index2"
 
+    def test_use_list_doesnt_write(self, tmpdir, cmd_devpi, mock_http_api):
+        import time
+        mock_http_api.set(
+            "http://devpi/foo/bar/+api", 200, result=dict(
+                pypisubmit="/post",
+                simpleindex="/index/",
+                index="foo/bar",
+                bases="root/pypi",
+                login="/+login",
+                authstatus=["noauth", ""]))
+        mock_http_api.set(
+            "http://devpi/", 200, result=dict(
+                foo=dict(username="foo", indexes=dict(
+                    bar=dict(bases=("root/pypi",), volatile=False)))))
+        cmd_devpi("use", "http://devpi/foo/bar")
+        path = tmpdir.join("client", "current.json")
+        mtime = path.mtime()
+        time.sleep(1.5)
+        cmd_devpi("use", "-l")
+        assert mtime == path.mtime()
+
     def test_normalize_url(self, tmpdir):
         current = Current(tmpdir.join("current"))
         current.reconfigure(dict(simpleindex="http://my.serv/index1"))
@@ -140,9 +161,30 @@ class TestUnit:
                 bases="root/pypi",
                 login="/+login",
                 authstatus=["noauth", ""]))
+        mock_http_api.set(
+            "http://devpi/foo/ham/+api", 200, result=dict(
+                pypisubmit="/post",
+                simpleindex="/index/",
+                index="foo/ham",
+                bases="root/pypi",
+                login="/+login",
+                authstatus=["noauth", ""]))
+        mock_http_api.set(
+            "http://devpi/", 200, result=dict(
+                foo=dict(username="foo", indexes=dict(
+                    bar=dict(bases=("root/pypi",), volatile=False),
+                    ham=dict(bases=("root/pypi",), volatile=False)))))
         # use with basic authentication
         hub = cmd_devpi("use", "http://user:password@devpi/foo/bar")
         # should work with and without explicit port if it's the default port
+        assert hub.current.get_basic_auth(url="http://devpi/foo/bar") == ('user', 'password')
+        assert hub.current.get_basic_auth(url="http://devpi:80/foo/bar") == ('user', 'password')
+        # now we switch only the index, basic auth info should be kept
+        hub = cmd_devpi("use", "/foo/ham")
+        assert hub.current.get_basic_auth(url="http://devpi/foo/bar") == ('user', 'password')
+        assert hub.current.get_basic_auth(url="http://devpi:80/foo/bar") == ('user', 'password')
+        # just listing the index shouldn't change anything
+        hub = cmd_devpi("use", "-l")
         assert hub.current.get_basic_auth(url="http://devpi/foo/bar") == ('user', 'password')
         assert hub.current.get_basic_auth(url="http://devpi:80/foo/bar") == ('user', 'password')
         # now without basic authentication
