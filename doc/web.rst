@@ -22,13 +22,19 @@ on most urls.
     aiming for a more refined deployment aiming at minimizing risks.
     It's fine to uninstall devpi-web later in the lifetime of a devpi-server.
 
+    It is possible to use devpi-web if you run an import though. So if you
+    already used devpi-server and want to start using devpi-web, you can do so
+    by exporting your data and importing it in an installation that has
+    devpi-web included.
+
 
 Usage and installation
 -------------------------------------------
 
 ``devpi-web`` needs to be installed alongside ``devpi-server`` before
 the server is started the first time because it needs to follow all 
-server state changes from the beginning.
+server state changes from the beginning. You can export without devpi-web
+and import in a new installation with devpi-web though.
 
 You can install the web interface with::
 
