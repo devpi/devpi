@@ -22,13 +22,19 @@ on most urls.
     aiming for a more refined deployment aiming at minimizing risks.
     It's fine to uninstall devpi-web later in the lifetime of a devpi-server.
 
+    It is possible to use devpi-web if you run an import though. So if you
+    already used devpi-server and want to start using devpi-web, you can do so
+    by exporting your data and importing it in an installation that has
+    devpi-web included.
+
 
 Usage and installation
 -------------------------------------------
 
 ``devpi-web`` needs to be installed alongside ``devpi-server`` before
 the server is started the first time because it needs to follow all 
-server state changes from the beginning.
+server state changes from the beginning. You can export without devpi-web
+and import in a new installation with devpi-web though.
 
 You can install the web interface with::
 
@@ -79,3 +85,13 @@ Some examples for searches:
  - `ValueError name:pytest` searches for 'ValueError' in all data and documentation we have on projects named 'pytest'.
  - `name:devpi* path:/fschulze/*` search for packages starting with devpi in anything uploaded by 'fschulze'.
  - `classifiers:'Programming Language :: Python :: 3'` searches for packages with the specified classifier, note the single quotes around the classifier, they are necessary because of the whitespace.
+
+
+Notes
+----------------------------------------------------
+
+The text of the long description of uploaded packages is processed in the same
+way as on PyPI. In some cases the first title and subtitle are stripped from
+the text. That is also happening on PyPI. For compatibility and to let you
+properly test packages before putting them on PyPI we do the same, even though
+in our page layout it would make more sense not to strip.
