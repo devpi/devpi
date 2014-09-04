@@ -174,12 +174,18 @@ class Current(object):
             if oldval != newval:
                 setattr(self, name, newval)
                 log.info("changing %r to %r", name, newval)
-        log.debug("writing current %s", self.path)
-        oldumask = os.umask(7*8+7)
         try:
-            self.path.write(json.dumps(self._currentdict))
-        finally:
-            os.umask(oldumask)
+            olddata = json.loads(self.path.read())
+        except Exception:
+            olddata = {}
+        if self._currentdict != olddata:
+            log.debug("writing current %s", self.path)
+            oldumask = os.umask(7 * 8 + 7)
+            try:
+                self.path.write(
+                    json.dumps(self._currentdict, indent=2, sort_keys=True))
+            finally:
+                os.umask(oldumask)
 
     def exists(self):
         return self.path and self.path.check()

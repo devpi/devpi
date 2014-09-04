@@ -55,6 +55,27 @@ class TestUnit:
         assert current.always_setcfg
         assert current.simpleindex == "/index2"
 
+    def test_use_list_doesnt_write(self, tmpdir, cmd_devpi, mock_http_api):
+        import time
+        mock_http_api.set(
+            "http://devpi/foo/bar/+api", 200, result=dict(
+                pypisubmit="/post",
+                simpleindex="/index/",
+                index="foo/bar",
+                bases="root/pypi",
+                login="/+login",
+                authstatus=["noauth", ""]))
+        mock_http_api.set(
+            "http://devpi/", 200, result=dict(
+                foo=dict(username="foo", indexes=dict(
+                    bar=dict(bases=("root/pypi",), volatile=False)))))
+        cmd_devpi("use", "http://devpi/foo/bar")
+        path = tmpdir.join("client", "current.json")
+        mtime = path.mtime()
+        time.sleep(1.5)
+        cmd_devpi("use", "-l")
+        assert mtime == path.mtime()
+
     def test_normalize_url(self, tmpdir):
         current = Current(tmpdir.join("current"))
         current.reconfigure(dict(simpleindex="http://my.serv/index1"))

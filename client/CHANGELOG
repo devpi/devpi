@@ -13,6 +13,9 @@
   using path only instead of full URL.
   Thanks Trevor Joynson
 
+- only write new client config if it actually changed and pretty print it.
+  Thanks Jürgen Hermann for initial PR and ideas.
+
 2.0.1
 ----------------
 
