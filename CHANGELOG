@@ -1,4 +1,60 @@
 
+devpi-2.0.2 (metapackage)
+---------------------------------
+
+devpi-server-2.0.5 (compared to 2.0.2):
+   
+- fix issue145: restrict devpi_common dependency so that a future
+  "pip install 'devpi-server<2.0'" has a higher chance of working.
+
+- fix issue144: fix interaction with requests-2.4.0 -- 
+  use new devpi-common-offered "Errors" enumeration to check for exceptions.
+
+- add '*' as possible option for pypi_whitelist to whitelist all packages of
+  an index at once. Refs issue110
+
+- outside url now works with paths, so you can host a devpi server on something
+  like http://example.com/foo/
+
+- fix issue84: during upload: if a previously registered name diverges from a freshly
+  submitted one take the previously registered one.  This can happen when uploading
+  wheels and in other situations.
+
+- fix issue132: during exporting use whatever name comes with the
+  versiondata instead of trying too hard to assert consistency of different
+  versions.
+
+- fix issue130: fix deletion of users so that is properly deletes all
+  indexes and projects and files on each index.
+
+- fix issue139: adapt to a recent change in pypi which now serves
+  under URLs using normalized project names instead of the "real" registered name
+  Thanks Timothy Allen and others for sorting this out.
+  
+- fix issue129: fix __init__ provided version and add a test that it always matches
+  the one which pkg_resources sees (which gets it effectively from setup.py)
+
+- fix issue128: a basic auth challenge needs to be sent back on submit when no
+  authorization headers are sent with the post request.
+
+devpi-client-2.0.2 (compared to 2.0.1):
+
+- fix issue135: fix port mismatch for basic auth if port isn't explicitly given
+  on https urls.
+
+- refs issue75: pass on basic auth info into pip.cfg and co.
+
+- fix issue144: fix interaction with requests-2.4 by depending
+  on devpi-common's new support for enumerating possible Errors
+
+- keep basic authentication info when listing indices or switching index by
+  using path only instead of full URL.
+  Thanks Trevor Joynson
+
+- only write new client config if it actually changed and pretty print it.
+  Thanks Jürgen Hermann for initial PR and ideas.
+
+
 devpi-2.0.1 (metapackage)
 ---------------------------------
 
