@@ -1,11 +1,22 @@
-<metal:head define-macro="head">
+<metal:headcss define-macro="headcss">
     <link rel="stylesheet" type="text/css" href="${request.static_url('devpi_web:static/style.css')}" />
+    <metal:headcss define-slot="headcss" />
+</metal:headcss>
+<metal:headscript define-macro="headscript">
     <script src="${request.static_url('devpi_web:static/jquery-1.11.1.min.js')}"></script>
     <script src="${request.static_url('devpi_web:static/common.js')}"></script>
+    <metal:headscript define-slot="headscript" />
+</metal:headscript>
+<metal:head define-macro="head">
+    <metal:headcss use-macro="request.macros['headcss']" />
+    <metal:headscript use-macro="request.macros['headscript']" />
 </metal:head>
+<metal:search define-macro="logo">
+    <h1><a href="${request.route_url('root')}">devpi</a></h1>
+</metal:search>
 <metal:search define-macro="search">
     <form method="get" id="search" action="${request.route_url('search')}">
-        <h1><a href="${request.route_url('root')}">devpi</a></h1>
+        <metal:search use-macro="request.macros['logo']" />
         <input type="text" size="60" name="query" tal:attributes="value query|None" />
         <input type="submit" value="Search" />
         <div class="query_doc inline" style="display: none">
@@ -39,3 +50,9 @@
 <metal:query_doc define-macro="query_doc">
     <p tal:repeat="html request.query_docs_html" tal:content="structure html"></p>
 </metal:query_doc>
+<metal:footer define-macro="footer">
+</metal:footer>
+<metal:rootaboveuserindexlist define-macro="rootaboveuserindexlist">
+</metal:rootaboveuserindexlist>
+<metal:rootbelowuserindexlist define-macro="rootbelowuserindexlist">
+</metal:rootbelowuserindexlist>

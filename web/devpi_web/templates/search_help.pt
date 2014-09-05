@@ -11,5 +11,6 @@
                 <metal:search use-macro="request.macros['query_doc']" />
             </div>
         </div>
+        <metal:footer use-macro="request.macros['footer']" />
     </body>
 </html>

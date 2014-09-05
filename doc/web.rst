@@ -95,3 +95,69 @@ way as on PyPI. In some cases the first title and subtitle are stripped from
 the text. That is also happening on PyPI. For compatibility and to let you
 properly test packages before putting them on PyPI we do the same, even though
 in our page layout it would make more sense not to strip.
+
+
+Themes
+----------------------------------------------------
+
+It is possible to overwrite templates and macros to customize the look of your
+devpi instance.
+
+You have to create a folder containing two subfolders ``static`` and
+``templates``. You then have to start devpi-server with the ``--theme`` option
+and point it to your theme folder. While working on your theme, it is useful
+to set the ``CHAMELEON_RELOAD`` environment variable to ``true``, so templates
+are reloaded when they change. This unfortunately only works for modifications,
+if you add or remove template files, you have to restart devpi-server.
+
+In devpi-web the templates use chameleon. For a full reference of chameleon
+templates, see the `chameleon documentation <http://chameleon.readthedocs.org>`_.
+
+For everything common in templates, macros are used. The only exception are the
+``rootaboveuserindexlist`` and ``rootbelowuserindexlist`` macros which are only
+used on the devpi-server root page and are empty by default. They are provided
+as convenience, so you don't have to overwrite the whole root template to add
+some infos.
+
+To change the logo, you
+would put your ``logo.gif`` into the ``static`` folder and create a
+``macros.pt`` template with the following content:
+
+.. code-block:: xml
+
+  <metal:logo define-macro="logo">
+      <h1><a href="${request.route_url('root')}"><img src="${request.theme_static_url('logo.gif')}" /></a></h1>
+  </metal:logo>
+
+To add your own CSS you would create a ``style.css`` in your ``static`` folder
+and add the following macro in ``macros.pt``:
+
+.. code-block:: xml
+
+  <metal:head define-macro="headcss" use-macro="request.macros['original-headcss']">
+      <metal:mycss fill-slot="headcss">
+          <link rel="stylesheet" type="text/css" href="${request.theme_static_url('style.css')}" />
+      </metal:mycss>
+  </metal:head>
+
+In this example we reuse the original ``headcss`` macro, which is available as
+``original-headcss`` and only fill it's predefined ``headcss`` slot.
+
+To add some information on the devpi frontpage, you can overwrite the
+``rootaboveuserindexlist`` and ``rootbelowuserindexlist`` macros.
+
+.. code-block:: xml
+
+  <metal:info define-macro="rootaboveuserindexlist">
+      <h1>Internal information</h1>
+      <p>This devpi instance is used for packages of Foo Inc.</p>
+      <p>The production index is <a href="${request.route_url('/{user}/{index}', user='foo', index='production')}">/foo/production</a>.</p>
+  </metal:info>
+
+Any other template has to be copied verbatim and then modified. If they change
+in a future devpi-web release, you have to adjust your modified copy accordingly.
+
+For reference you can see the whole ``macro.pt`` file here:
+
+.. literalinclude:: ../web/devpi_web/templates/macros.pt
+  :language: xml
