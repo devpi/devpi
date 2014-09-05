@@ -5,6 +5,13 @@ def test_importable():
     assert devpi_web
 
 
+def test_pkgresources_version_matches_init():
+    import devpi_web
+    import pkg_resources
+    ver = devpi_web.__version__
+    assert pkg_resources.get_distribution("devpi_server").version == ver
+
+
 def test_devpi_pypi_initial(monkeypatch, pypistage, mock):
     import devpi_web.main
     from devpi_web.main import devpiserver_pypi_initial
