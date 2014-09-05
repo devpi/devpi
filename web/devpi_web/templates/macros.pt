@@ -50,7 +50,16 @@
 <metal:query_doc define-macro="query_doc">
     <p tal:repeat="html request.query_docs_html" tal:content="structure html"></p>
 </metal:query_doc>
+<metal:versions define-macro="versions">
+    <ul class="footer-versions"
+        tal:define="version_infos request.registry.get('devpi_version_info')"
+        tal:condition="version_infos">
+        <li tal:repeat="vi version_infos">${vi[0]}-${vi[1]}</li>
+    </ul>
+</metal:versions>
 <metal:footer define-macro="footer">
+    <metal:headcss define-slot="footer" />
+    <metal:versions use-macro="request.macros['versions']" />
 </metal:footer>
 <metal:rootaboveuserindexlist define-macro="rootaboveuserindexlist">
 </metal:rootaboveuserindexlist>

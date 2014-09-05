@@ -276,6 +276,7 @@ class XOM:
         from devpi_server.view_auth import DevpiAuthenticationPolicy
         from devpi_server.views import OutsideURLMiddleware
         from devpi_server.views import route_url
+        from pkg_resources import get_distribution
         from pyramid.authorization import ACLAuthorizationPolicy
         from pyramid.config import Configurator
         log = self.log
@@ -284,6 +285,16 @@ class XOM:
         pyramid_config.set_authentication_policy(DevpiAuthenticationPolicy(self))
         pyramid_config.set_authorization_policy(ACLAuthorizationPolicy())
 
+        version_info = [
+            ("devpi-server", get_distribution("devpi_server").version)]
+        for plug, distinfo in self.config.hook._plugins:
+            if distinfo is None:
+                continue
+            threadlog.info("Found plugin %s-%s (%s)." % (
+                distinfo.project_name, distinfo.version, distinfo.location))
+            version_info.append((distinfo.project_name, distinfo.version))
+        version_info.sort()
+        pyramid_config.registry['devpi_version_info'] = version_info
         self.config.hook.devpiserver_pyramid_configure(
                 config=self.config,
                 pyramid_config=pyramid_config)

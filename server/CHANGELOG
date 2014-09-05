@@ -1,3 +1,8 @@
+2.0.6.dev
+----------------
+
+- log version information of all found plugins on startup.
+
 2.0.5
 ----------------
 
