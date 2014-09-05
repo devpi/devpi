@@ -125,9 +125,9 @@ would put your ``logo.gif`` into the ``static`` folder and create a
 
 .. code-block:: xml
 
-  <metal:search define-macro="logo">
+  <metal:logo define-macro="logo">
       <h1><a href="${request.route_url('root')}"><img src="${request.theme_static_url('logo.gif')}" /></a></h1>
-  </metal:search>
+  </metal:logo>
 
 To add your own CSS you would create a ``style.css`` in your ``static`` folder
 and add the following macro in ``macros.pt``:
@@ -142,6 +142,17 @@ and add the following macro in ``macros.pt``:
 
 In this example we reuse the original ``headcss`` macro, which is available as
 ``original-headcss`` and only fill it's predefined ``headcss`` slot.
+
+To add some information on the devpi frontpage, you can overwrite the
+``rootaboveuserindexlist`` and ``rootbelowuserindexlist`` macros.
+
+.. code-block:: xml
+
+  <metal:info define-macro="rootaboveuserindexlist">
+      <h1>Internal information</h1>
+      <p>This devpi instance is used for packages of Foo Inc.</p>
+      <p>The production index is <a href="${request.route_url('/{user}/{index}', user='foo', index='production')}">/foo/production</a>.</p>
+  </metal:info>
 
 Any other template has to be copied verbatim and then modified. If they change
 in a future devpi-web release, you have to adjust your modified copy accordingly.
