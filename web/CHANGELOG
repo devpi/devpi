@@ -3,8 +3,9 @@
 
 - Allow overwriting of templates for theming.
 
-- Show version info for currently active packages/plugins. The version info
-  is only available with devpi-server > 2.0.5.
+- Show version info for currently active packages/plugins.
+
+- Requires devpi-server 2.0.6.
 
 
 2.0.1
