@@ -1,13 +1,13 @@
 2.1.0
 ---------------
 
-- Allow overwriting of templates for theming.
+- allow overwriting of templates for theming.
 
-- Show version info for currently active packages/plugins.
+- show version info for currently active packages/plugins.
 
-- Fix encoding issue when loading long description with Python 3.4 on Windows.
+- fix encoding issue when loading long description with Python 3.4 on Windows.
 
-- Requires devpi-server 2.0.6.
+- requires devpi-server 2.0.6.
 
 
 2.0.1
