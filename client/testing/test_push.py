@@ -51,7 +51,7 @@ def test_parse_target_pypi_default_repository(tmpdir, loghub):
     assert isinstance(res, PyPIPush)
     assert res.user == "test"
     assert res.password == "testp"
-    assert res.posturl == "http://www.python.org/pypi"
+    assert res.posturl == "https://www.python.org/pypi"
 
 
 def test_push_devpi(loghub, monkeypatch, mock_http_api):

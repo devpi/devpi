@@ -1,7 +1,7 @@
 2.0.3.dev
 ----------------
 
-- use default "http://www.python.org/pypi" when no repository is set in .pypirc
+- use default "https://www.python.org/pypi" when no repository is set in .pypirc
   see https://docs.python.org/2/distutils/packageindex.html#the-pypirc-file
 
 2.0.2
