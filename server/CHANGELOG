@@ -1,6 +1,10 @@
 2.0.7.dev
 ----------------
 
+- replaced hack from nginx template which abused "try_files" in "location /"
+  with the recommended "error_page"/"return" combo.
+  Thanks Jürgen Hermann
+
 2.0.6
 ----------------
 
