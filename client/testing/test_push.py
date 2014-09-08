@@ -33,6 +33,27 @@ def test_parse_target_pypi(tmpdir, loghub):
     assert res.password == "testp"
     assert res.posturl == "http://anotherserver"
 
+
+def test_parse_target_pypi_default_repository(tmpdir, loghub):
+    p = tmpdir.join("pypirc")
+    p.write(py.std.textwrap.dedent("""
+        [distutils]
+        index-servers = whatever
+
+        [whatever]
+        username: test
+        password: testp
+    """))
+    class args:
+        target = "pypi:whatever"
+        pypirc = str(p)
+    res = parse_target(loghub, args)
+    assert isinstance(res, PyPIPush)
+    assert res.user == "test"
+    assert res.password == "testp"
+    assert res.posturl == "http://www.python.org/pypi"
+
+
 def test_push_devpi(loghub, monkeypatch, mock_http_api):
     class args:
         target = "user/name"
