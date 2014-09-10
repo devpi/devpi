@@ -18,7 +18,8 @@ def addoptions(parser):
     web = parser.addgroup("web serving options")
     web.addoption("--host",  type=str,
             default="localhost",
-            help="domain/ip address to listen on")
+            help="domain/ip address to listen on.  Use --host=0.0.0.0 if "
+                 "you want to accept connections from anywhere.")
 
     web.addoption("--port",  type=int,
             default=3141,

@@ -181,10 +181,10 @@ def devpiserver_add_parser_options(parser):
     web.addoption(
         "--theme", action="store",
         help="folder with template and resource overwrites for the web interface")
-    indexing = parser.addgroup("indexing")
+    indexing = parser.addgroup("search indexing")
     indexing.addoption(
         "--index-projects", action="store_true",
-        help="index all existing projects")
+        help="construct search index for all projects in root/pypi")
 
 
 def devpiserver_pypi_initial(stage, name2serials):

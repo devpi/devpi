@@ -230,9 +230,9 @@ class Index(object):
             data['path'] = u"/{user}/{index}/{name}".format(**data)
             count = next(counter)
             writer.delete_by_term('path', data['path'])
-        log.info("Committing %s deletions." % count)
+        log.debug("Committing %s deletions to search-index." % count)
         writer.commit()
-        log.info("Committed %s deletions to index." % count)
+        log.info("Committed %s deletions to search-index." % count)
 
     def update_projects(self, projects, clear=False):
         counter = itertools.count()
@@ -281,7 +281,7 @@ class Index(object):
                         "text_path": page['path'],
                         "text_title": page['title']})
                     count = next(counter)
-        log.info("Committing index with %s documents." % count)
+        log.info("Committing search-index with %s documents." % count)
         if clear:
             writer.commit(mergetype=CLEAR)
         else:
