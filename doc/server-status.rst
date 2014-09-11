@@ -22,9 +22,10 @@ Master nodes also provide a list of replicas::
  
     replicas: list of replica dicts each of which looks like this:
         uuid: uuid of replica server
-        client-addr: address from which replication polling happens/happened
-        last-polled: 0 (seconds ago)
-        last-serial: NUM
+        remote-ip: address from which replication polling happens/happened
+        last-request: utc time float of last request
+        in-request: True|False (currently polling or not)
+        outside-url: nill|url with which the replica can be reached
 
 Replica nodes also provide extra information related to their master:
 

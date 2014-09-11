@@ -271,10 +271,28 @@ class Config:
             self.nodeinfo["uuid"] = uuid_hex
             threadlog.info("generated uuid: %s", uuid_hex)
 
+    @property
+    def role(self):
+        return self.nodeinfo["role"]
+
     def set_uuid(self, uuid):
         # called when importing state
         self.nodeinfo["uuid"] = uuid
         self.write_nodeinfo()
+
+    def set_master_uuid(self, uuid):
+        assert self.role != "master", "cannot set master uuid for master"
+        existing = self.nodeinfo.get("master-uuid")
+        if existing and existing != uuid:
+            raise ValueError("already have master id %r, got %r" % (
+                             existing, uuid))
+        self.nodeinfo["master-uuid"] = uuid
+        self.write_nodeinfo()
+
+    def get_master_uuid(self):
+        if self.role == "master":
+            return self.nodeinfo["uuid"]
+        return self.nodeinfo.get("master-uuid")
 
     @cached_property
     def nodeinfo(self):
@@ -297,17 +315,17 @@ class Config:
                 fatal("cannot run as replica, was previously run as master")
             if args.role == "master":
                 fatal("option conflict: --role=master and --master-url")
-            self.role = "replica"
+            role = "replica"
             self.nodeinfo["masterurl"] = self.master_url.url
         else:
             if args.role == "replica":
                 fatal("need to specify --master-url to run as replica")
-            self.role = "master"
-        if self.role == "master" and old_role == "replica" and \
+            role = "master"
+        if role == "master" and old_role == "replica" and \
            args.role != "master":
             fatal("need to specify --role=master to run previous replica "
                   "as a master")
-        self.nodeinfo["role"] = self.role
+        self.nodeinfo["role"] = role
         return
 
     @cached_property

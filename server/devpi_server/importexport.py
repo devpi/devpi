@@ -125,7 +125,7 @@ class Exporter:
         self.export["pythonversion"] = list(sys.version_info)
         self.export["devpi_server"] = devpi_server.__version__
         self.export["secret"] = self.config.secret
-        self.export["uuid"] = self.xom.config.nodeinfo["uuid"]
+        self.export["uuid"] = self.xom.config.get_master_uuid()
         self.compute_global_projectname_normalization()
         for user in self.xom.model.get_userlist():
             userdir = path.join(user.name)

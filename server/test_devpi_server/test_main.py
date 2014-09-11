@@ -1,6 +1,5 @@
 import pytest
 from devpi_server.main import *
-from devpi_server.mythread import ThreadPool
 import devpi_server
 
 @pytest.fixture

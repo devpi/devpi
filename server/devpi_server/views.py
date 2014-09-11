@@ -31,6 +31,8 @@ server_version = devpi_server.__version__
 
 MAXDOCZIPSIZE = 30 * 1024 * 1024    # 30MB
 
+H_MASTER_UUID = str("X-DEVPI-MASTER-UUID")
+
 
 API_VERSION = "2"
 
@@ -106,6 +108,8 @@ class OutsideURLMiddleware(object):
         if not outside_url:
             outside_url = environ.get('HTTP_X_OUTSIDE_URL')
         if outside_url:
+            # XXX memoize it for later access from replica thread
+            # self.xom.current_outside_url = outside_url
             outside_url = urlparse.urlparse(outside_url)
             environ['wsgi.url_scheme'] = outside_url.scheme
             environ['HTTP_HOST'] = outside_url.netloc
@@ -127,6 +131,8 @@ def tween_request_logging(handler, registry):
     req_count = itertools.count()
     from time import time
 
+    nodeinfo = registry["xom"].config.nodeinfo
+
     def request_log_handler(request):
         tag = "[req%s]" %(next(req_count))
         log = thread_push_log(tag)
@@ -138,9 +144,10 @@ def tween_request_logging(handler, registry):
         rheaders = response.headers
         serial = rheaders.get("X-DEVPI-SERIAL")
         rheaders.update(meta_headers)
-        uuid = registry["xom"].config.nodeinfo.get("uuid")
-        if uuid is not None:
-            rheaders[str("X-DEVPI-UUID")] = str(uuid)
+        uuid, master_uuid = make_uuid_headers(nodeinfo)
+        rheaders[str("X-DEVPI-UUID")] = str(uuid)
+        rheaders[H_MASTER_UUID] = str(master_uuid)
+
         log.debug("%s %.3fs serial=%s length=%s type=%s",
                   response.status_code,
                   duration,
@@ -151,6 +158,13 @@ def tween_request_logging(handler, registry):
         thread_pop_log(tag)
         return response
     return request_log_handler
+
+
+def make_uuid_headers(nodeinfo):
+    uuid = master_uuid = nodeinfo.get("uuid")
+    if uuid is not None and nodeinfo["role"] == "replica":
+        master_uuid = nodeinfo.get("master-uuid", "")
+    return uuid, master_uuid
 
 
 def tween_keyfs_transaction(handler, registry):
@@ -202,9 +216,8 @@ class StatusView:
             status["master-uuid"] = config.nodeinfo.get("master-uuid")
         else:
             status["role"] = "MASTER"
-            status["polling_replicas"] = self.xom.polling_replicas
+        status["polling_replicas"] = self.xom.polling_replicas
         apireturn(200, type="status", result=status)
-
 
 
 class PyPIView:

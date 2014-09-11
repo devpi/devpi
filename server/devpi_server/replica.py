@@ -1,15 +1,19 @@
 import os
 import py
 import hashlib
+import contextlib
+import time
 from pyramid.httpexceptions import HTTPNotFound, HTTPAccepted
 from pyramid.view import view_config
 from pyramid.response import Response
 
 from .keyfs import load, loads, dump, get_write_file_ensure_dir
 from .log import thread_push_log, threadlog
-from .views import is_mutating_http_method
+from .views import is_mutating_http_method, H_MASTER_UUID
 from .model import UpstreamError
 
+H_REPLICA_UUID = str("X-DEVPI-REPLICA-UUID")
+H_REPLICA_OUTSIDE_URL = str("X-DEVPI-REPLICA-OUTSIDE-URL")
 
 class MasterChangelogRequest:
     MAX_REPLICA_BLOCK_TIME = 30.0
@@ -18,6 +22,27 @@ class MasterChangelogRequest:
     def __init__(self, request):
         self.request = request
         self.xom = request.registry["xom"]
+
+    @contextlib.contextmanager
+    def update_replica_status(self, serial):
+        headers = self.request.headers
+        uuid = headers.get(H_REPLICA_UUID)
+        if uuid:
+            polling_replicas = self.xom.polling_replicas
+            polling_replicas[uuid] = {
+                "remote-ip": self.request.get_remote_ip(),
+                "serial": serial,
+                "in-request": True,
+                "last-request": time.time(),
+                "outside-url": headers.get(H_REPLICA_OUTSIDE_URL),
+            }
+            try:
+                yield
+            finally:
+                polling_replicas[uuid]["last-request"] = time.time()
+                polling_replicas[uuid]["in-request"] = False
+        else:  # just a regular request
+            yield
 
     @view_config(route_name="/+changelog/{serial}")
     def get_changes(self):
@@ -33,7 +58,8 @@ class MasterChangelogRequest:
         # if no commits happen.
 
         serial = self.request.matchdict["serial"]
-        with self.xom.replica_request(self.request, serial):
+
+        with self.update_replica_status(serial):
             keyfs = self.xom.keyfs
             if serial.lower() == "nop":
                 raw_entry = b""
@@ -50,9 +76,8 @@ class MasterChangelogRequest:
             r = Response(body=raw_entry, status=200, headers={
                 str("Content-Type"): str("application/octet-stream"),
                 str("X-DEVPI-SERIAL"): str(devpi_serial),
-                str("X-DEVPI-UUID"): str(self.xom.config.nodeinfo["uuid"]),
             })
-        return r
+            return r
 
     def _wait_for_entry(self, serial):
         max_wakeups = self.MAX_REPLICA_BLOCK_TIME / self.WAKEUP_INTERVAL
@@ -85,6 +110,8 @@ class MasterChangelogRequest:
 
 
 class ReplicaThread:
+    ERROR_SLEEP = 50
+
     def __init__(self, xom):
         self.xom = xom
         self.master_url = xom.config.master_url
@@ -99,31 +126,36 @@ class ReplicaThread:
         keyfs = self.xom.keyfs
         for key in (keyfs.STAGEFILE, keyfs.PYPIFILE_NOMD5):
             keyfs.subscribe_on_import(key, ImportFileReplica(self.xom))
-        nodeinfo = self.xom.config.nodeinfo
+        config = self.xom.config
+        nodeinfo = config.nodeinfo
         while 1:
             self.thread.exit_if_shutdown()
             serial = keyfs.get_next_serial()
             url = self.master_url.joinpath("+changelog", str(serial)).url
             log.info("fetching %s", url)
             try:
-                r = session.get(url, stream=False)
+                r = session.get(url, headers={
+                    H_REPLICA_UUID: nodeinfo["uuid"],
+                    H_REPLICA_OUTSIDE_URL: config.args.outside_url,
+                })
             except session.Errors as e:
                 log.error("error fetching %s: %s", url, str(e))
             else:
                 # we check that the remote instance
                 # has the same UUID we saw last time
-                master_uuid = nodeinfo.get("master-uuid")
-                remote_master_uuid = r.headers.get("X-DEVPI-UUID")
-                if remote_master_uuid is None:
-                    log.error("remote provides no UUID, wrong master url or "
-                              "running devpi-server-2.0.X or earlier?")
-                    self.thread.sleep(50.0)
+                master_uuid = config.get_master_uuid()
+                remote_master_uuid = r.headers.get(H_MASTER_UUID)
+                if not remote_master_uuid:
+                    log.error("remote provides no %r header, running "
+                              "<devpi-server-2.1?"
+                              " headers were: %s", H_MASTER_UUID, r.headers)
+                    self.thread.sleep(self.ERROR_SLEEP)
                     continue
                 if master_uuid and remote_master_uuid != master_uuid:
                     log.error("master UUID %r does not match "
                               "locally recorded master UUID %r",
                               remote_master_uuid, master_uuid)
-                    self.thread.sleep(50.0)
+                    self.thread.sleep(self.ERROR_SLEEP)
                     continue
                 if r.status_code == 200:
                     try:
@@ -135,9 +167,10 @@ class ReplicaThread:
                         changes, rel_renames = entry
                         keyfs.import_changes(serial, changes)
                         serial += 1
-                        if "master_uuid" not in nodeinfo:
-                            nodeinfo["master-uuid"] = remote_master_uuid
-                            self.xom.config.write_nodeinfo()
+                        # we successfully received data so let's
+                        # record the master_uuid for future consistency checks
+                        if not master_uuid:
+                            self.xom.config.set_master_uuid(remote_master_uuid)
                         continue
                 elif r.status_code == 202:
                     log.debug("%s: trying again %s\n", r.status_code, url)

@@ -82,6 +82,7 @@ class TestConfig:
         config = parseoptions(["devpi-server", "--master-url", "http://qwe",
                                "--serverdir", str(tmpdir)])
         assert config.role == "replica"
+        assert not config.get_master_uuid()
         with pytest.raises(Fatal) as excinfo:
             parseoptions(["devpi-server", "--serverdir", str(tmpdir)])
         assert "specify --role=master" in str(excinfo.value)
@@ -105,11 +106,13 @@ class TestConfig:
         config = parseoptions(["devpi-server", "--serverdir", str(tmpdir)])
         uuid = config.nodeinfo["uuid"]
         assert uuid
+        assert config.get_master_uuid() == uuid
         config = parseoptions(["devpi-server", "--serverdir", str(tmpdir)])
         assert uuid == config.nodeinfo["uuid"]
         tmpdir.remove()
         config = parseoptions(["devpi-server", "--serverdir", str(tmpdir)])
         assert config.nodeinfo["uuid"] != uuid
+        assert config.get_master_uuid() != uuid
 
     def test_add_parser_options_called(self):
         from devpi_server.config import PluginManager

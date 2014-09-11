@@ -5,7 +5,6 @@ recursive cache of pypi.python.org packages.
 """
 from __future__ import unicode_literals
 
-import contextlib
 import os, sys
 import py
 
@@ -138,9 +137,6 @@ def wsgi_run(xom, app):
         pass
     return 0
 
-def get_remote_ip(request):
-    return request.headers.get("X-REAL-IP", request.remote_addr)
-
 class XOM:
     class Exiting(SystemExit):
         pass
@@ -157,20 +153,6 @@ class XOM:
             self.set_state_version(server_version)
         self.log = threadlog
         self.polling_replicas = {}
-
-    @contextlib.contextmanager
-    def replica_request(self, request, serial):
-        ip = get_remote_ip(request)
-        if ip not in self.polling_replicas:
-            self.polling_replicas[ip] = serial
-            delete = True
-        else:
-            delete = False
-        try:
-            yield
-        finally:
-            if delete:
-                del self.polling_replicas[ip]
 
     def get_state_version(self):
         versionfile = self.config.serverdir.join(".serverversion")
@@ -354,6 +336,7 @@ class XOM:
         pyramid_config.add_tween("devpi_server.views.tween_keyfs_transaction",
             under="devpi_server.views.tween_request_logging"
         )
+        pyramid_config.add_request_method(get_remote_ip)
 
         # overwrite route_url method with our own
         pyramid_config.add_request_method(route_url)
@@ -378,12 +361,14 @@ class XOM:
     def is_replica(self):
         return bool(self.config.args.master_url)
 
-
 class FatalResponse:
     status_code = -1
 
     def __init__(self, excinfo=None):
         self.excinfo = excinfo
+
+def get_remote_ip(request):
+    return request.headers.get("X-REAL-IP", request.client_addr)
 
 def set_default_indexes(model):
     root_user = model.get_user("root")

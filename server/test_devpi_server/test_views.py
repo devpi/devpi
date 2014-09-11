@@ -15,7 +15,7 @@ from devpi_common.archive import Archive, zip_dict
 from devpi_common.viewhelp import ViewLinkStore
 
 import devpi_server.views
-from devpi_server.views import tween_keyfs_transaction
+from devpi_server.views import tween_keyfs_transaction, make_uuid_headers
 
 from .functional import TestUserThings, TestIndexThings  # noqa
 
@@ -48,6 +48,16 @@ def test_invalid_username(caplog, testapp, user, status):
         msg = "username '%s' is invalid, use characters, numbers, underscore, dash and dots only" % user
         assert r.json['message'] == msg
 
+
+@pytest.mark.parametrize("nodeinfo,expected", [
+    ({}, (None, None)),
+    ({"uuid": "123", "role":"master"}, ("123", "123")),
+    ({"uuid": "123", "role":"replica"}, ("123", "")),
+    ({"uuid": "123", "master-uuid": "456", "role":"replica"}, ("123", "456")),
+])
+def test_make_uuid_headers(nodeinfo, expected):
+    output = make_uuid_headers(nodeinfo)
+    assert output == expected
 
 def test_simple_project(pypistage, testapp):
     name = "qpwoei"

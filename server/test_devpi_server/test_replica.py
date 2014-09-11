@@ -19,6 +19,18 @@ def test_view_name2serials(pypistage, testapp):
 
 
 class TestChangelog:
+    replica_uuid = "111"
+    replica_url = "http://qwe"
+
+    @pytest.fixture
+    def reqchangelog(self, testapp):
+        def reqchangelog(serial):
+            req_headers = {H_REPLICA_UUID: self.replica_uuid,
+                           H_REPLICA_OUTSIDE_URL: self.replica_url}
+            return testapp.get("/+changelog/%s" % serial, expect_errors=False,
+                                headers=req_headers)
+        return reqchangelog
+
     def get_latest_serial(self, testapp):
         r = testapp.get("/+changelog/nop", expect_errors=False)
         return int(r.headers["X-DEVPI-SERIAL"])
@@ -29,32 +41,31 @@ class TestChangelog:
         mapp.create_user("hello", "pass")
         assert self.get_latest_serial(testapp) == latest_serial + 1
 
-    def test_get_since(self, testapp, mapp, noiter):
+    def test_get_since(self, testapp, mapp, noiter, reqchangelog):
         mapp.create_user("this", password="p")
         latest_serial = self.get_latest_serial(testapp)
-        r = testapp.get("/+changelog/%s" % latest_serial, expect_errors=False)
+        r = reqchangelog(latest_serial)
         body = b''.join(r.app_iter)
         data = loads(body)
         assert "this" in str(data)
 
-    def test_get_wait(self, testapp, mapp, noiter, monkeypatch):
+    def test_get_wait(self, reqchangelog, testapp, mapp, noiter, monkeypatch):
         mapp.create_user("this", password="p")
         latest_serial = self.get_latest_serial(testapp)
         monkeypatch.setattr(testapp.xom.keyfs.notifier.cv_new_transaction,
                             "wait", lambda *x: 0/0)
         with pytest.raises(ZeroDivisionError):
-            testapp.get("/+changelog/%s" % (latest_serial+1,),
-                        expect_errors=False)
+            reqchangelog(latest_serial+1)
 
-    def test_get_wait_blocking_ends(self, testapp, mapp, noiter, monkeypatch):
+    def test_get_wait_blocking_ends(self, testapp, mapp, noiter, monkeypatch,
+                                    reqchangelog):
         mapp.create_user("this", password="p")
         latest_serial = self.get_latest_serial(testapp)
         monkeypatch.setattr(MasterChangelogRequest, "MAX_REPLICA_BLOCK_TIME",
                             0.01)
         monkeypatch.setattr(MasterChangelogRequest, "WAKEUP_INTERVAL",
                             0.001)
-        r = testapp.get("/+changelog/%s" % (latest_serial+1,),
-                    expect_errors=False)
+        r = reqchangelog(latest_serial+1)
         assert r.status_code == 202
         assert int(r.headers["X-DEVPI-SERIAL"]) == latest_serial
 
@@ -107,7 +118,7 @@ class TestReplicaThread:
     @pytest.fixture
     def mockchangelog(self, reqmock):
         def mockchangelog(num, code, data=b'',
-                          headers={"x-devpi-uuid": "123"}):
+                          headers={H_MASTER_UUID: "123"}):
             reqmock.mockresponse("http://localhost/+changelog/%s" % num,
                                  code=code, data=data, headers=headers)
         return mockchangelog
@@ -148,7 +159,8 @@ class TestReplicaThread:
         data = xom.keyfs._fs.get_raw_changelog_entry(0)
         assert data
         mockchangelog(0, code=200, data=data)
-        mockchangelog(1, code=200, data=data, headers={"x-devpi-uuid": "001"})
+        mockchangelog(1, code=200, data=data,
+                      headers={"x-devpi-master-uuid": "001"})
         with pytest.raises(ZeroDivisionError):
             rt.thread_run()
         assert caplog.getrecords("master UUID.*001.*does not match")
