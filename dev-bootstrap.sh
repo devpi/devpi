@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-for i in common/ client/ server/ web/ ; do
+for i in common client server web ; do
+    pip uninstall -y devpi-$i
+    pip uninstall -y devpi-$i
     (cd $i ; pip install -e .)
 done
 
