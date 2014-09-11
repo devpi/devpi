@@ -478,9 +478,8 @@ class TestStage:
         assert len(stage.get_releaselinks("some")) == 1
 
         # rewrite  fails because index is non-volatile
-        entry = stage.store_releasefile("some", "1.0",
-                                        "some-1.0.zip", content2)
-        assert entry == 409
+        with pytest.raises(stage.NonVolatile):
+            stage.store_releasefile("some", "1.0", "some-1.0.zip", content2)
 
         # rewrite succeeds with volatile
         stage.modify(volatile=True)

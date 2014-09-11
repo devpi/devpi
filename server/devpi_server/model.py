@@ -60,6 +60,10 @@ class MissesRegistration(ModelException):
     """ A prior registration or release metadata is required. """
 
 
+class NonVolatile(ModelException):
+    """ A release is overwritten on a non volatile index. """
+
+
 class RootModel:
     def __init__(self, xom):
         self.xom = xom
@@ -237,6 +241,7 @@ class BaseStage:
     NotFound = NotFound
     UpstreamError = UpstreamError
     MissesRegistration = MissesRegistration
+    NonVolatile = NonVolatile
 
     def get_linkstore_perstage(self, name, version):
         return LinkStore(self, name, version)
@@ -621,7 +626,8 @@ class LinkStore:
         assert isinstance(file_content, bytes)
         for link in self.get_links(rel=rel, basename=basename):
             if not self.stage.ixconfig.get("volatile"):
-                return 409
+                raise NonVolatile("rel=%s basename=%s on stage %s" % (
+                    rel, basename, self.stage.name))
             self.remove_links(rel=rel, basename=basename)
         file_entry = self._create_file_entry(basename, file_content)
         if last_modified is not None:

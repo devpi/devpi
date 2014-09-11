@@ -588,9 +588,11 @@ class PyPIView:
                     metadata = stage.get_versiondata(projectname, version)
                     if not metadata:
                         abort_submit(400, "could not process form metadata")
-                res = stage.store_releasefile(projectname, version,
-                                              content.filename, content.file.read())
-                if res == 409:
+                try:
+                    link = stage.store_releasefile(
+                        projectname, version,
+                        content.filename, content.file.read())
+                except stage.NonVolatile:
                     abort_submit(409, "%s already exists in non-volatile index" % (
                          content.filename,))
                 jenkinurl = stage.ixconfig["uploadtrigger_jenkins"]
