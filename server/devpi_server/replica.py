@@ -50,6 +50,7 @@ class MasterChangelogRequest:
             r = Response(body=raw_entry, status=200, headers={
                 str("Content-Type"): str("application/octet-stream"),
                 str("X-DEVPI-SERIAL"): str(devpi_serial),
+                str("X-DEVPI-UUID"): str(self.xom.config.nodeinfo["uuid"]),
             })
         return r
 
@@ -98,32 +99,51 @@ class ReplicaThread:
         keyfs = self.xom.keyfs
         for key in (keyfs.STAGEFILE, keyfs.PYPIFILE_NOMD5):
             keyfs.subscribe_on_import(key, ImportFileReplica(self.xom))
+        nodeinfo = self.xom.config.nodeinfo
         while 1:
             self.thread.exit_if_shutdown()
             serial = keyfs.get_next_serial()
             url = self.master_url.joinpath("+changelog", str(serial)).url
             log.info("fetching %s", url)
             try:
-                r = session.get(url, stream=True)
+                r = session.get(url, stream=False)
             except session.Errors as e:
                 log.error("error fetching %s: %s", url, str(e))
             else:
+                # we check that the remote instance
+                # has the same UUID we saw last time
+                master_uuid = nodeinfo.get("master-uuid")
+                remote_master_uuid = r.headers.get("X-DEVPI-UUID")
+                if remote_master_uuid is None:
+                    log.error("remote provides no UUID, wrong master url or "
+                              "running devpi-server-2.0.X or earlier?")
+                    self.thread.sleep(50.0)
+                    continue
+                if master_uuid and remote_master_uuid != master_uuid:
+                    log.error("master UUID %r does not match "
+                              "locally recorded master UUID %r",
+                              remote_master_uuid, master_uuid)
+                    self.thread.sleep(50.0)
+                    continue
                 if r.status_code == 200:
                     try:
-                        entry = loads(r.raw.read())
+                        entry = loads(r.content)
                     except Exception:
-                        log.exception("could not read answer %s", url)
+                        log.exception("could not read answer %s, %r", url,
+                                      r.content)
                     else:
                         changes, rel_renames = entry
                         keyfs.import_changes(serial, changes)
                         serial += 1
+                        if "master_uuid" not in nodeinfo:
+                            nodeinfo["master-uuid"] = remote_master_uuid
+                            self.xom.config.write_nodeinfo()
                         continue
                 elif r.status_code == 202:
                     log.debug("%s: trying again %s\n", r.status_code, url)
                     continue
                 else:
-                    log.debug("%s: failed fetching %s\n%s",
-                              r.status_code, url, getattr(r, 'text', ''))
+                    log.debug("%s: failed fetching %s", r.status_code, url)
             # we got an error, let's wait a bit
             self.thread.sleep(5.0)
 

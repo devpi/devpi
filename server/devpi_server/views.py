@@ -138,6 +138,9 @@ def tween_request_logging(handler, registry):
         rheaders = response.headers
         serial = rheaders.get("X-DEVPI-SERIAL")
         rheaders.update(meta_headers)
+        uuid = registry["xom"].config.nodeinfo.get("uuid")
+        if uuid is not None:
+            rheaders[str("X-DEVPI-UUID")] = str(uuid)
         log.debug("%s %.3fs serial=%s length=%s type=%s",
                   response.status_code,
                   duration,
@@ -196,6 +199,7 @@ class StatusView:
         if master_url:
             status["role"] = "REPLICA"
             status["master-url"] = master_url
+            status["master-uuid"] = config.nodeinfo.get("master-uuid")
         else:
             status["role"] = "MASTER"
             status["polling_replicas"] = self.xom.polling_replicas

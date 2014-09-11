@@ -104,35 +104,61 @@ class TestReplicaThread:
         xom.thread_pool.register(rt)
         return rt
 
-    def test_thread_run_fail(self, rt, reqmock, caplog):
+    @pytest.fixture
+    def mockchangelog(self, reqmock):
+        def mockchangelog(num, code, data=b'',
+                          headers={"x-devpi-uuid": "123"}):
+            reqmock.mockresponse("http://localhost/+changelog/%s" % num,
+                                 code=code, data=data, headers=headers)
+        return mockchangelog
+
+    def test_thread_run_fail(self, rt, mockchangelog, caplog):
         rt.thread.sleep = lambda x: 0/0
-        reqmock.mockresponse("http://localhost/+changelog/0", code=404)
+        mockchangelog(0, code=404)
         with pytest.raises(ZeroDivisionError):
             rt.thread_run()
         assert caplog.getrecords("404.*failed fetching*")
 
-    def test_thread_run_decode_error(self, rt, reqmock, caplog):
+    def test_thread_run_decode_error(self, rt, mockchangelog, caplog):
         rt.thread.sleep = lambda x: 0/0
-        reqmock.mockresponse("http://localhost/+changelog/0", code=200,
-                             data=b'qlwekj')
+        mockchangelog(0, code=200, data=b'qwelk')
         with pytest.raises(ZeroDivisionError):
             rt.thread_run()
         assert caplog.getrecords("could not read answer")
 
-    def test_thread_run_ok(self, rt, reqmock, caplog):
-        rt.thread.sleep = rt.thread.exit_if_shutdown = lambda *x: 0/0
-        reqmock.mockresponse("http://localhost/+changelog/0", code=200,
-                             data=rt.xom.keyfs._fs.get_raw_changelog_entry(0))
+    def test_thread_run_ok(self, rt, mockchangelog, caplog, xom):
+        rt.thread.sleep = lambda *x: 0/0
+        data = xom.keyfs._fs.get_raw_changelog_entry(0)
+        assert data
+        mockchangelog(0, code=200, data=data)
+        mockchangelog(1, code=404, data=data)
         with pytest.raises(ZeroDivisionError):
             rt.thread_run()
-        #assert caplog.getrecords("committed")
+        assert caplog.getrecords("committed")
 
-    def test_thread_run_try_again(self, rt, reqmock, caplog):
+    def test_thread_run_no_uuid(self, rt, mockchangelog, caplog, xom):
+        rt.thread.sleep = lambda x: 0/0
+        mockchangelog(0, code=200, data=b'123', headers={})
+        with pytest.raises(ZeroDivisionError):
+            rt.thread_run()
+        assert caplog.getrecords("remote.*no.*UUID")
+
+    def test_thread_run_ok_uuid_change(self, rt, mockchangelog, caplog, xom):
+        rt.thread.sleep = lambda *x: 0/0
+        data = xom.keyfs._fs.get_raw_changelog_entry(0)
+        assert data
+        mockchangelog(0, code=200, data=data)
+        mockchangelog(1, code=200, data=data, headers={"x-devpi-uuid": "001"})
+        with pytest.raises(ZeroDivisionError):
+            rt.thread_run()
+        assert caplog.getrecords("master UUID.*001.*does not match")
+
+    def test_thread_run_try_again(self, rt, mockchangelog, caplog):
         l = [1]
         def exit_if_shutdown():
             l.pop()
         rt.thread.exit_if_shutdown = exit_if_shutdown
-        reqmock.mockresponse("http://localhost/+changelog/0", code=202)
+        mockchangelog(0, code=202)
         with pytest.raises(IndexError):
             rt.thread_run()
         assert caplog.getrecords("trying again")
