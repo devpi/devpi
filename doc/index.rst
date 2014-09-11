@@ -43,6 +43,8 @@ release activities with Python.  Main features and usage scenarios:
 - **replication**: (new with 2.0) Keep one or more real-time
   :doc:`replica <replica>` to speed up access, keep a failover server
   and to distribute the devpi system across your organisation.
+  (new with 2.1) :doc:`json status information <server-status>` 
+  about master/replica sites.
 
 - **importing/exporting**: To :ref:`upgrade <upgrade>` to a newer version, 
   devpi-server
