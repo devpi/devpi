@@ -183,7 +183,7 @@ def devpiserver_add_parser_options(parser):
         help="folder with template and resource overwrites for the web interface")
     indexing = parser.addgroup("search indexing")
     indexing.addoption(
-        "--index-projects", action="store_true",
+        "--recreate-search-index", action="store_true",
         help="Recreate search index for all projects and their documentation. "
              "This is only needed if there where indexing related errors in a "
              "devpi-web release and you want to upgrade only devpi-web "
@@ -202,7 +202,7 @@ def devpiserver_pypi_initial(stage, name2serials):
 
 def devpiserver_run_commands(xom):
     ix = get_indexer(xom.config)
-    if xom.config.args.index_projects:
+    if xom.config.args.recreate_search_index:
         ix.delete_index()
         indexer = get_indexer(xom.config)
         indexer.update_projects(iter_projects(xom), clear=True)

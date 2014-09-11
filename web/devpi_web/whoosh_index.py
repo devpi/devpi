@@ -190,7 +190,7 @@ class Index(object):
         if ix.schema != schema:
             log.warn("\n".join([
                 "The search index schema on disk differs from the current code schema.",
-                "You need to run devpi-server with the --index-projects option to recreate the index."]))
+                "You need to run devpi-server with the --recreate-search-index option to recreate the index."]))
         return ix
 
     def delete_index(self):

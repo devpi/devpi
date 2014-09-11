@@ -45,7 +45,7 @@ def test_index_projects_arg(monkeypatch, tmpdir):
     # if the webserver is started, we fail
     monkeypatch.setattr(devpi_server.main, "wsgi_run", lambda *x: 0 / 0)
     devpi_server.main.main(
-        ["devpi-server", "--serverdir", str(tmpdir), "--index-projects"])
+        ["devpi-server", "--serverdir", str(tmpdir), "--recreate-search-index"])
     assert tmpdir.join('.indices').check()
     (xom,) = xom_container
     ix = get_indexer(xom.config)
