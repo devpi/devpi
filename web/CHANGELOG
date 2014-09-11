@@ -1,3 +1,11 @@
+2.1.1.dev
+---------------
+
+- better exception handling/reporting while indexing.
+
+- renamed ``--index-projects`` to ``--recreate-search-index``.
+
+
 2.1.0
 ---------------
 

@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 from collections import defaultdict
 from devpi_common.types import cached_property
 from devpi_server.log import threadlog as log
+from functools import partial
 from whoosh import fields
 from whoosh.analysis import Filter, LowercaseFilter, RegexTokenizer
 from whoosh.analysis import Token, Tokenizer
@@ -188,8 +189,8 @@ class Index(object):
         ix = open_dir(self.index_path, indexname=name)
         if ix.schema != schema:
             log.warn("\n".join([
-                "The index schema on disk differs from the current code schema.",
-                "You need to run devpi-server with the --index-projects option to recreate the index."]))
+                "The search index schema on disk differs from the current code schema.",
+                "You need to run devpi-server with the --recreate-search-index option to recreate the index."]))
         return ix
 
     def delete_index(self):
@@ -230,14 +231,21 @@ class Index(object):
             data['path'] = u"/{user}/{index}/{name}".format(**data)
             count = next(counter)
             writer.delete_by_term('path', data['path'])
-        log.debug("Committing %s deletions to search-index." % count)
+        log.debug("Committing %s deletions to search index." % count)
         writer.commit()
-        log.info("Committed %s deletions to search-index." % count)
+        log.info("Finished committing %s deletions to search index." % count)
 
-    def update_projects(self, projects, clear=False):
+    def _add_document(self, writer, **kw):
+        try:
+            writer.add_document(**kw)
+        except:
+            log.exception("Exception while trying to add the following data to the search index:\n%r" % kw)
+            raise
+
+    def _update_projects(self, writer, projects, clear=False):
+        add_document = partial(self._add_document, writer)
         counter = itertools.count()
         count = next(counter)
-        writer = self.project_ix.writer()
         main_keys = self.project_ix.schema.names()
         text_keys = (
             ('author', 0.5),
@@ -253,12 +261,12 @@ class Index(object):
             data['type'] = "project"
             data['text'] = "%s %s" % (data['name'], project_name(data['name']))
             with writer.group():
-                writer.add_document(**data)
+                add_document(**data)
                 count = next(counter)
                 for key, boost in text_keys:
                     if key not in project:
                         continue
-                    writer.add_document(**{
+                    add_document(**{
                         "path": data['path'],
                         "type": key,
                         "text": project[key],
@@ -267,26 +275,36 @@ class Index(object):
                 if '+doczip' not in project:
                     continue
                 for page in project['+doczip']:
-                    writer.add_document(**{
+                    add_document(**{
                         "path": data['path'],
                         "type": "title",
                         "text": page['title'],
                         "text_path": page['path'],
                         "text_title": page['title']})
                     count = next(counter)
-                    writer.add_document(**{
+                    add_document(**{
                         "path": data['path'],
                         "type": "page",
                         "text": page['text'],
                         "text_path": page['path'],
                         "text_title": page['title']})
                     count = next(counter)
-        log.info("Committing search-index with %s documents." % count)
-        if clear:
-            writer.commit(mergetype=CLEAR)
+        return count
+
+    def update_projects(self, projects, clear=False):
+        writer = self.project_ix.writer()
+        try:
+            count = self._update_projects(writer, projects, clear=clear)
+        except:
+            log.info("Aborted write to search index after exception.")
+            writer.cancel()
         else:
-            writer.commit()
-        log.info("Committed %s documents to index." % count)
+            log.info("Committing %s new documents to search index." % count)
+            if clear:
+                writer.commit(mergetype=CLEAR)
+            else:
+                writer.commit()
+            log.info("Finished committing %s documents to search index." % count)
 
     @property
     def project_searcher(self):

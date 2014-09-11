@@ -544,6 +544,21 @@ def test_search_root_pypi(mapp, testapp, pypistage):
         ("pkg2", "http://localhost/root/pypi/pkg2")]
 
 
+@pytest.mark.with_notifier
+def test_indexing_doc_with_missing_title(mapp, testapp):
+    mapp.create_and_use()
+    content = zip_dict({"index.html": "<html><body>Foo</body></html>"})
+    mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
+    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
+                    waithooks=True)
+    r = testapp.xget(200, '/+search?query=Foo')
+    search_results = r.html.select('.searchresults > dl > dt')
+    assert len(search_results) == 1
+    links = search_results[0].findAll('a')
+    assert sorted((l.text.strip(), l.attrs['href']) for l in links) == [
+        ("pkg1-2.6", "http://localhost/user1/dev/pkg1/2.6")]
+
+
 @pytest.mark.parametrize("pagecount, pagenum, expected", [
     (1, 1, [
         {'class': 'prev'}, {'class': 'current', 'title': 1}, {'class': 'next'}]),

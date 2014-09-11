@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 from devpi_common.types import ensure_unicode
 from devpi_common.metadata import get_sorted_versions
 from devpi_server.log import threadlog as log
