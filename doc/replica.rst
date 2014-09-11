@@ -14,6 +14,7 @@ The devpi-server replication protocol aims to support:
 - **faster installs**: a geographically closer replica will
   answer queries much faster than the more remote master node.
 
+See also :ref:`serverstatus`.
 
 Usage
 ---------------------------------------------

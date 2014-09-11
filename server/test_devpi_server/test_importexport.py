@@ -79,6 +79,12 @@ class TestImportExport:
                 return mapp2
         return ImpExp()
 
+    def test_uuid(self, impexp):
+        impexp.export()
+        mapp2 = impexp.new_import()
+        assert mapp2.xom.config.nodeinfo["uuid"] == \
+              impexp.mapp1.xom.config.nodeinfo["uuid"]
+
     def test_two_indexes_inheriting(self, impexp):
         mapp1 = impexp.mapp1
         api = mapp1.create_and_use()
@@ -242,6 +248,19 @@ class TestImportExport:
         impexp.export()
         mapp2 = impexp.new_import()
         mapp2.login("exp", "pass")
+
+    def test_import_replica_preserves_master_uuid(self, impexp):
+        mapp1 = impexp.mapp1
+        mapp1.create_and_login_user("exp", "pass")
+        # fake it's a replica
+        mapp1.xom.config.nodeinfo["role"] = "replica"
+        mapp1.xom.config.set_master_uuid("mm")
+        mapp1.xom.config.set_uuid("1111")
+        impexp.export()
+        mapp2 = impexp.new_import()
+        assert mapp2.xom.config.nodeinfo["role"] == "master"
+        assert mapp2.xom.config.get_master_uuid() == "mm"
+        assert mapp2.xom.config.nodeinfo["uuid"] == "mm"
 
     def test_docs_are_preserved(self, impexp):
         from devpi_common.archive import Archive

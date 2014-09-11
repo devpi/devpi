@@ -15,7 +15,7 @@ from devpi_common.archive import Archive, zip_dict
 from devpi_common.viewhelp import ViewLinkStore
 
 import devpi_server.views
-from devpi_server.views import tween_keyfs_transaction
+from devpi_server.views import tween_keyfs_transaction, make_uuid_headers
 
 from .functional import TestUserThings, TestIndexThings  # noqa
 
@@ -42,12 +42,22 @@ def test_invalid_username(caplog, testapp, user, status):
     assert r.status_code == code
     if status == 'warn':
         msg = "username '%s' will be invalid with next release, use characters, numbers, underscore, dash and dots only" % user
-        logmsg, = caplog.getrecords('invalid')
+        logmsg = caplog.getrecords('invalid')[-1]
         assert logmsg.message.endswith(msg)
     if status == 'fatal':
         msg = "username '%s' is invalid, use characters, numbers, underscore, dash and dots only" % user
         assert r.json['message'] == msg
 
+
+@pytest.mark.parametrize("nodeinfo,expected", [
+    ({}, (None, None)),
+    ({"uuid": "123", "role":"master"}, ("123", "123")),
+    ({"uuid": "123", "role":"replica"}, ("123", "")),
+    ({"uuid": "123", "master-uuid": "456", "role":"replica"}, ("123", "456")),
+])
+def test_make_uuid_headers(nodeinfo, expected):
+    output = make_uuid_headers(nodeinfo)
+    assert output == expected
 
 def test_simple_project(pypistage, testapp):
     name = "qpwoei"
@@ -208,6 +218,22 @@ def test_apiconfig(testapp):
     r = testapp.get_json("/root/pypi/+api")
     assert r.status_code == 200
     assert not "pypisubmit" in r.json["result"]
+
+class TestStatus:
+    def test_status_master(self, testapp):
+        r = testapp.get_json("/+status", status=200)
+        assert r.status_code == 200
+        data = r.json["result"]
+        assert data["role"] == "MASTER"
+
+    def test_status_replica(self, maketestapp, replica_xom):
+        testapp = maketestapp(replica_xom)
+        r = testapp.get_json("/+status", status=200)
+        assert r.status_code == 200
+        data = r.json["result"]
+        assert data["role"] == "REPLICA"
+        assert data["serial"] == replica_xom.keyfs.get_current_serial()
+
 
 def test_apiconfig_with_outside_url(testapp):
     testapp.xom.config.args.outside_url = u = "http://outside.com"

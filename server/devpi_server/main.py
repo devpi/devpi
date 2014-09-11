@@ -122,6 +122,7 @@ def wsgi_run(xom, app):
     log = xom.log
     log.info("devpi-server version: %s", server_version)
     log.info("serverdir: %s" % xom.config.serverdir)
+    log.info("uuid: %s" % xom.config.nodeinfo["uuid"])
     hostaddr = "http://%s:%s" % (host, port)
     log.info("serving at url: %s", hostaddr)
     log.info("bug tracker: https://bitbucket.org/hpk42/devpi/issues")
@@ -136,7 +137,6 @@ def wsgi_run(xom, app):
         pass
     return 0
 
-
 class XOM:
     class Exiting(SystemExit):
         pass
@@ -149,9 +149,10 @@ class XOM:
         if httpget is not None:
             self.httpget = httpget
         sdir = config.serverdir
-        if not (sdir.exists() and sdir.listdir()):
+        if not (sdir.exists() and len(sdir.listdir()) >= 2):
             self.set_state_version(server_version)
         self.log = threadlog
+        self.polling_replicas = {}
 
     def get_state_version(self):
         versionfile = self.config.serverdir.join(".serverversion")
@@ -301,6 +302,7 @@ class XOM:
 
         pyramid_config.add_route("/+changelog/{serial}",
                                  "/+changelog/{serial}")
+        pyramid_config.add_route("/+status", "/+status")
         pyramid_config.add_route("/root/pypi/+name2serials",
                                  "/root/pypi/+name2serials")
         pyramid_config.add_route("/+api", "/+api", accept="application/json")
@@ -334,6 +336,7 @@ class XOM:
         pyramid_config.add_tween("devpi_server.views.tween_keyfs_transaction",
             under="devpi_server.views.tween_request_logging"
         )
+        pyramid_config.add_request_method(get_remote_ip)
 
         # overwrite route_url method with our own
         pyramid_config.add_request_method(route_url)
@@ -358,12 +361,14 @@ class XOM:
     def is_replica(self):
         return bool(self.config.args.master_url)
 
-
 class FatalResponse:
     status_code = -1
 
     def __init__(self, excinfo=None):
         self.excinfo = excinfo
+
+def get_remote_ip(request):
+    return request.headers.get("X-REAL-IP", request.client_addr)
 
 def set_default_indexes(model):
     root_user = model.get_user("root")
