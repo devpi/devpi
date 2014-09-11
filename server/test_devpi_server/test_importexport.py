@@ -79,6 +79,12 @@ class TestImportExport:
                 return mapp2
         return ImpExp()
 
+    def test_uuid(self, impexp):
+        impexp.export()
+        mapp2 = impexp.new_import()
+        assert mapp2.xom.config.nodeinfo["uuid"] == \
+              impexp.mapp1.xom.config.nodeinfo["uuid"]
+
     def test_two_indexes_inheriting(self, impexp):
         mapp1 = impexp.mapp1
         api = mapp1.create_and_use()

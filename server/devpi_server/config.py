@@ -2,10 +2,12 @@ from __future__ import unicode_literals
 import base64
 import os.path
 import argparse
+import uuid
 
 import py
 from devpi_common.types import cached_property
 from .log import threadlog
+import json
 import devpi_server
 from devpi_common.url import URL
 
@@ -53,7 +55,12 @@ def addoptions(parser):
     deploy.addoption("--version", action="store_true",
             help="show devpi_version (%s)" % devpi_server.__version__)
 
-    deploy.addoption("--master", action="store", dest="master_url",
+    deploy.addoption("--role", action="store", dest="role", default="auto",
+            choices=["master", "replica", "auto"],
+            help="set role of this instance."
+    )
+
+    deploy.addoption("--master-url", action="store", dest="master_url",
             help="run as a replica of the specified master server",
             default=None)
 
@@ -241,8 +248,6 @@ class PluginManager:
 class Config:
     def __init__(self, args, hook):
         self.args = args
-        if self.args.master_url:
-            self.master_url = URL(self.args.master_url)
         serverdir = args.serverdir
         if serverdir is None:
             serverdir = get_default_serverdir()
@@ -254,7 +259,56 @@ class Config:
             self.secretfile = py.path.local(
                     os.path.expanduser(args.secretfile))
 
+        self.path_nodeinfo = self.serverdir.join(".nodeinfo")
+        self._determine_roles()
+        self._determine_uuid()
+        self.write_nodeinfo()
         self.hook = hook
+
+    def _determine_uuid(self):
+        if "uuid" not in self.nodeinfo:
+            uuid_hex = uuid.uuid4().hex
+            self.nodeinfo["uuid"] = uuid_hex
+            threadlog.info("generated uuid: %s", uuid_hex)
+
+    def set_uuid(self, uuid):
+        # called when importing state
+        self.nodeinfo["uuid"] = uuid
+        self.write_nodeinfo()
+
+    @cached_property
+    def nodeinfo(self):
+        if self.path_nodeinfo.exists():
+            return json.loads(self.path_nodeinfo.read("r"))
+        return {}
+
+    def write_nodeinfo(self):
+        self.path_nodeinfo.dirpath().ensure(dir=1)
+        self.path_nodeinfo.write(json.dumps(self.nodeinfo, indent=2))
+        threadlog.info("wrote nodeinfo to: %s", self.path_nodeinfo)
+
+    def _determine_roles(self):
+        from .main import fatal
+        args = self.args
+        old_role = self.nodeinfo.get("role")
+        if args.master_url:
+            self.master_url = URL(args.master_url)
+            if old_role == "master":
+                fatal("cannot run as replica, was previously run as master")
+            if args.role == "master":
+                fatal("option conflict: --role=master and --master-url")
+            self.role = "replica"
+            self.nodeinfo["masterurl"] = self.master_url.url
+        else:
+            if args.role == "replica":
+                fatal("need to specify --master-url to run as replica")
+            self.role = "master"
+        if self.role == "master" and old_role == "replica" and \
+           args.role != "master":
+            fatal("need to specify --role=master to run previous replica "
+                  "as a master")
+        self.nodeinfo["role"] = self.role
+        return
 
     @cached_property
     def secret(self):

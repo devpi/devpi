@@ -5,6 +5,7 @@ recursive cache of pypi.python.org packages.
 """
 from __future__ import unicode_literals
 
+import contextlib
 import os, sys
 import py
 
@@ -122,6 +123,7 @@ def wsgi_run(xom, app):
     log = xom.log
     log.info("devpi-server version: %s", server_version)
     log.info("serverdir: %s" % xom.config.serverdir)
+    log.info("uuid: %s" % xom.config.nodeinfo["uuid"])
     hostaddr = "http://%s:%s" % (host, port)
     log.info("serving at url: %s", hostaddr)
     log.info("bug tracker: https://bitbucket.org/hpk42/devpi/issues")
@@ -136,6 +138,8 @@ def wsgi_run(xom, app):
         pass
     return 0
 
+def get_remote_ip(request):
+    return request.headers.get("X-REAL-IP", request.remote_addr)
 
 class XOM:
     class Exiting(SystemExit):
@@ -149,9 +153,24 @@ class XOM:
         if httpget is not None:
             self.httpget = httpget
         sdir = config.serverdir
-        if not (sdir.exists() and sdir.listdir()):
+        if not (sdir.exists() and len(sdir.listdir()) >= 2):
             self.set_state_version(server_version)
         self.log = threadlog
+        self.polling_replicas = {}
+
+    @contextlib.contextmanager
+    def replica_request(self, request, serial):
+        ip = get_remote_ip(request)
+        if ip not in self.polling_replicas:
+            self.polling_replicas[ip] = serial
+            delete = True
+        else:
+            delete = False
+        try:
+            yield
+        finally:
+            if delete:
+                del self.polling_replicas[ip]
 
     def get_state_version(self):
         versionfile = self.config.serverdir.join(".serverversion")
@@ -301,6 +320,7 @@ class XOM:
 
         pyramid_config.add_route("/+changelog/{serial}",
                                  "/+changelog/{serial}")
+        pyramid_config.add_route("/+status", "/+status")
         pyramid_config.add_route("/root/pypi/+name2serials",
                                  "/root/pypi/+name2serials")
         pyramid_config.add_route("/+api", "/+api", accept="application/json")

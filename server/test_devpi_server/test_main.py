@@ -1,6 +1,13 @@
 import pytest
 from devpi_server.main import *
+from devpi_server.mythread import ThreadPool
 import devpi_server
+
+@pytest.fixture
+def ground_wsgi_run(monkeypatch):
+    monkeypatch.setattr(mythread.ThreadPool, "live", lambda *args: 0 / 0)
+
+wsgi_run_throws = pytest.mark.usefixtures("ground_wsgi_run")
 
 
 def test_pkgresources_version_matches_init():
@@ -22,8 +29,8 @@ def test_check_incompatible_version_raises(xom):
     with pytest.raises(Fatal):
         check_compatible_version(xom)
 
+@wsgi_run_throws
 def test_startup_fails_on_initial_setup_nonetwork(tmpdir, monkeypatch):
-    monkeypatch.setattr(devpi_server.main, "wsgi_run", lambda **kw: 0/0)
     monkeypatch.setattr(devpi_server.main, "PYPIURL_XMLRPC",
                         "http://localhost:1")
     ret = main(["devpi-server", "--serverdir", str(tmpdir)])
@@ -42,6 +49,7 @@ def test_pyramid_configure_called(makexom):
     assert config == xom.config
 
 
+@wsgi_run_throws
 def test_run_commands_called(monkeypatch, tmpdir):
     from devpi_server.main import _main
     l = []
@@ -51,8 +59,6 @@ def test_run_commands_called(monkeypatch, tmpdir):
             return 1
     monkeypatch.setattr(devpi_server.extpypi.PyPIMirror, "init_pypi_mirror",
                         lambda self, proxy: None)
-    # catch if _main doesn't return after run_commands
-    monkeypatch.setattr(devpi_server.main, "wsgi_run", lambda *args: 0 / 0)
     result = _main(
         argv=["devpi-server", "--serverdir", str(tmpdir)],
         hook=PluginManager([(Plugin(), None)]))
@@ -61,6 +67,7 @@ def test_run_commands_called(monkeypatch, tmpdir):
     assert isinstance(l[0], XOM)
 
 
+@wsgi_run_throws
 def test_main_starts_server_if_run_commands_returns_none(monkeypatch, tmpdir):
     from devpi_server.main import _main
     l = []
@@ -69,8 +76,6 @@ def test_main_starts_server_if_run_commands_returns_none(monkeypatch, tmpdir):
             l.append(xom)
     monkeypatch.setattr(devpi_server.extpypi.PyPIMirror, "init_pypi_mirror",
                         lambda self, proxy: None)
-    # catch if _main doesn't return after run_commands
-    monkeypatch.setattr(devpi_server.main, "wsgi_run", lambda *args: 0 / 0)
     with pytest.raises(ZeroDivisionError):
         _main(
             argv=["devpi-server", "--serverdir", str(tmpdir)],

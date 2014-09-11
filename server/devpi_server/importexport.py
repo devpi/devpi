@@ -125,6 +125,7 @@ class Exporter:
         self.export["pythonversion"] = list(sys.version_info)
         self.export["devpi_server"] = devpi_server.__version__
         self.export["secret"] = self.config.secret
+        self.export["uuid"] = self.xom.config.nodeinfo["uuid"]
         self.compute_global_projectname_normalization()
         for user in self.xom.model.get_userlist():
             userdir = path.join(user.name)
@@ -287,6 +288,9 @@ class Importer:
         self.dumpversion = self.import_data["dumpversion"]
         if self.dumpversion not in ("1", "2"):
             fatal("incompatible dumpversion: %r" %(self.dumpversion,))
+        uuid = self.import_data.get("uuid")
+        if uuid is not None:
+            self.xom.config.set_uuid(uuid)
         self.import_users = self.import_data["users"]
         self.import_indexes = self.import_data["indexes"]
         self.xom.config.secret = secret = self.import_data["secret"]

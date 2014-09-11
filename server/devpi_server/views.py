@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import os
 import py
 from py.xml import html
 from devpi_common.types import ensure_unicode
@@ -169,6 +170,37 @@ def set_header_devpi_serial(headers, serial):
 
 def is_mutating_http_method(method):
     return method in ("PUT", "POST", "PATCH", "DELETE", "PUSH")
+
+class StatusView:
+    def __init__(self, request):
+        self.request = request
+        self.xom = request.registry["xom"]
+
+    @view_config(route_name="/+status")
+    def status(self):
+        config = self.xom.config
+
+        status = {
+            "serverdir": str(config.serverdir),
+            "uuid": self.xom.config.nodeinfo["uuid"],
+            "versioninfo":
+                    dict(self.request.registry["devpi_version_info"]),
+            "server-code": os.path.dirname(devpi_server.__file__),
+            "host": config.args.host,
+            "port": config.args.port,
+            "outside-url": config.args.outside_url,
+            "serial": self.xom.keyfs.get_current_serial(),
+            "event-serial": self.xom.keyfs.notifier.read_event_serial(),
+        }
+        master_url = config.args.master_url
+        if master_url:
+            status["role"] = "REPLICA"
+            status["master-url"] = master_url
+        else:
+            status["role"] = "MASTER"
+            status["polling_replicas"] = self.xom.polling_replicas
+        apireturn(200, type="status", result=status)
+
 
 
 class PyPIView:

@@ -1,9 +1,19 @@
-2.0.7.dev
+2.1.dev
 ----------------
 
 - replaced hack from nginx template which abused "try_files" in "location /"
   with the recommended "error_page"/"return" combo.
   Thanks Jürgen Hermann
+
+- change command line option "--master" to "--master-url"
+
+- make master/replica configuration more permanent and a bit safer
+  against accidental errors: introduce "--role=auto" option, defaulting
+  to determine the role from a previous invocation or the presence of the
+  "--master-url" option if there was no previous invocation.
+
+- provide new /+status json page with master/replica specific information.
+
 
 2.0.6
 ----------------

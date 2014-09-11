@@ -33,23 +33,24 @@ class MasterChangelogRequest:
         # if no commits happen.
 
         serial = self.request.matchdict["serial"]
-        keyfs = self.xom.keyfs
-        if serial.lower() == "nop":
-            raw_entry = b""
-        else:
-            try:
-                serial = int(serial)
-            except ValueError:
-                raise HTTPNotFound("serial needs to be int")
-            raw_entry = keyfs._fs.get_raw_changelog_entry(serial)
-            if not raw_entry:
-                raw_entry = self._wait_for_entry(serial)
+        with self.xom.replica_request(self.request, serial):
+            keyfs = self.xom.keyfs
+            if serial.lower() == "nop":
+                raw_entry = b""
+            else:
+                try:
+                    serial = int(serial)
+                except ValueError:
+                    raise HTTPNotFound("serial needs to be int")
+                raw_entry = keyfs._fs.get_raw_changelog_entry(serial)
+                if not raw_entry:
+                    raw_entry = self._wait_for_entry(serial)
 
-        devpi_serial = keyfs.get_current_serial()
-        r = Response(body=raw_entry, status=200, headers={
-            str("Content-Type"): str("application/octet-stream"),
-            str("X-DEVPI-SERIAL"): str(devpi_serial),
-        })
+            devpi_serial = keyfs.get_current_serial()
+            r = Response(body=raw_entry, status=200, headers={
+                str("Content-Type"): str("application/octet-stream"),
+                str("X-DEVPI-SERIAL"): str(devpi_serial),
+            })
         return r
 
     def _wait_for_entry(self, serial):
@@ -104,8 +105,8 @@ class ReplicaThread:
             log.info("fetching %s", url)
             try:
                 r = session.get(url, stream=True)
-            except session.Errors:
-                log.exception("error fetching %s", url)
+            except session.Errors as e:
+                log.error("error fetching %s: %s", url, str(e))
             else:
                 if r.status_code == 200:
                     try:

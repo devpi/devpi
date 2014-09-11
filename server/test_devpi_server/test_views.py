@@ -42,7 +42,7 @@ def test_invalid_username(caplog, testapp, user, status):
     assert r.status_code == code
     if status == 'warn':
         msg = "username '%s' will be invalid with next release, use characters, numbers, underscore, dash and dots only" % user
-        logmsg, = caplog.getrecords('invalid')
+        logmsg = caplog.getrecords('invalid')[-1]
         assert logmsg.message.endswith(msg)
     if status == 'fatal':
         msg = "username '%s' is invalid, use characters, numbers, underscore, dash and dots only" % user
@@ -208,6 +208,22 @@ def test_apiconfig(testapp):
     r = testapp.get_json("/root/pypi/+api")
     assert r.status_code == 200
     assert not "pypisubmit" in r.json["result"]
+
+class TestStatus:
+    def test_status_master(self, testapp):
+        r = testapp.get_json("/+status", status=200)
+        assert r.status_code == 200
+        data = r.json["result"]
+        assert data["role"] == "MASTER"
+
+    def test_status_replica(self, maketestapp, replica_xom):
+        testapp = maketestapp(replica_xom)
+        r = testapp.get_json("/+status", status=200)
+        assert r.status_code == 200
+        data = r.json["result"]
+        assert data["role"] == "REPLICA"
+        assert data["serial"] == replica_xom.keyfs.get_current_serial()
+
 
 def test_apiconfig_with_outside_url(testapp):
     testapp.xom.config.args.outside_url = u = "http://outside.com"
