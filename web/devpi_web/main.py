@@ -184,7 +184,10 @@ def devpiserver_add_parser_options(parser):
     indexing = parser.addgroup("search indexing")
     indexing.addoption(
         "--index-projects", action="store_true",
-        help="construct search index for all projects in root/pypi")
+        help="Recreate search index for all projects and their documentation. "
+             "This is only needed if there where indexing related errors in a "
+             "devpi-web release and you want to upgrade only devpi-web "
+             "without a full devpi-server import/export.")
 
 
 def devpiserver_pypi_initial(stage, name2serials):
