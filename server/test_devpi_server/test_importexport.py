@@ -118,6 +118,9 @@ class TestImportExport:
             assert len(links) == 1
             assert links[0].entry.file_get_content() == b"content"
             link = stage.get_link_from_entrypath(links[0].entrypath)
+            assert len(link.log) == 1
+            assert link.log[0]['what'] == 'upload'
+            assert link.log[0]['who'] == 'user1'
             results = stage.get_toxresults(link)
             assert len(results) == 1
             assert results[0] == tox_result_data

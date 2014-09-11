@@ -414,6 +414,16 @@ class TestSubmitValidation:
         path2, = mapp.get_release_paths("Pkg5")
         testapp.xget(404, path1)
         testapp.xget(200, path2)
+        r = testapp.xget(200, "%s/Pkg5/2.6" % mapp.api.index)
+        link, = r.json['result']['+links']
+        log1, log2 = link['log']
+        assert log1.keys() == ['what', 'who', 'when', 'md5']
+        assert log1['what'] == 'overwrite'
+        assert log1['who'] is None
+        assert log1['md5'] == '202cb962ac59075b964b07152d234b70'
+        assert log2.keys() == ['what', 'who', 'when']
+        assert log2['what'] == 'upload'
+        assert log2['who'] == 'user'
 
     def test_upload_with_metadata(self, submit, testapp, mapp, pypistage):
         pypistage.mock_simple("package", '<a href="/package-1.0.zip" />')
@@ -543,10 +553,23 @@ def test_upload_and_push_with_toxresults(mapp, testapp):
         assert "user1/dev" not in actionlog[-1]
 
     vv = get_view_version_links(testapp, "/user1/prod", "pkg1", "2.6")
+    history_log = vv.get_link('releasefile').log
+    assert len(history_log) == 2
+    assert history_log[0]['what'] == 'upload'
+    assert history_log[1]['what'] == 'push'
+    assert history_log[1]['src'] == 'user1/dev'
+    assert history_log[1]['dst'] == 'user1/prod'
     link = vv.get_link("toxresult")
     assert "user1/prod" in link.href
     pkgmeta = json.loads(testapp.get(link.href).body.decode("utf8"))
     assert pkgmeta == tox_result_data
+    history_log = link.log
+    assert len(history_log) == 2
+    assert history_log[0]['what'] == 'upload'
+    assert history_log[1]['what'] == 'push'
+    assert history_log[1]['src'] == 'user1/dev'
+    assert history_log[1]['dst'] == 'user1/prod'
+
 
 def test_upload_and_push_external(mapp, testapp, reqmock):
     api = mapp.create_and_use()

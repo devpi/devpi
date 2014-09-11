@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import os
 import py
 from py.xml import html
+from time import gmtime
 from devpi_common.types import ensure_unicode
 from devpi_common.url import URL
 from devpi_common.metadata import get_pyversion_filetype
@@ -280,6 +281,7 @@ class PyPIView:
             apireturn(404, message="no release file found at %s" % relpath)
         toxresultdata = getjson(self.request)
         tox_link = stage.store_toxresult(link, toxresultdata)
+        tox_link.log.add('upload', self.request.authenticated_userid)
         apireturn(200, type="toxresultpath",
                   result=tox_link.entrypath)
 
@@ -526,8 +528,15 @@ class PyPIView:
 
     def _push_links(self, links, target_stage, name, version):
         for link in links["releasefile"]:
-            entry = target_stage.store_releasefile(
+            new_link = target_stage.store_releasefile(
                 name, version, link.basename, link.entry.file_get_content())
+            new_link.log.extend(link.log)
+            new_link.log.add(
+                'push',
+                self.request.authenticated_userid,
+                src=self.context.stage.name,
+                dst=target_stage.name)
+            entry = new_link.entry
             yield (200, "store_releasefile", entry.relpath)
             # also store all dependent tox results
             tstore = target_stage.get_linkstore_perstage(name, version)
@@ -537,10 +546,22 @@ class PyPIView:
                     raw_data = toxlink.entry.file_get_content()
                     data = json.loads(raw_data.decode("utf-8"))
                     link = target_stage.store_toxresult(ref_link, data)
+                    link.log.extend(toxlink.log)
+                    link.log.add(
+                        'push',
+                        self.request.authenticated_userid,
+                        src=self.context.stage.name,
+                        dst=target_stage.name)
                     yield (200, "store_toxresult", link.entrypath)
         for link in links["doczip"]:
             doczip = link.entry.file_get_content()
-            target_stage.store_doczip(name, version, doczip)
+            new_link = target_stage.store_doczip(name, version, doczip)
+            new_link.log.extend(link.log)
+            new_link.log.add(
+                'push',
+                self.request.authenticated_userid,
+                src=self.context.stage.name,
+                dst=target_stage.name)
             yield (200, "store_doczip", name, version,
                    "->", target_stage.name)
             break # we only can have one doczip for now
@@ -595,6 +616,7 @@ class PyPIView:
                 except stage.NonVolatile:
                     abort_submit(409, "%s already exists in non-volatile index" % (
                          content.filename,))
+                link.log.add('upload', request.authenticated_userid)
                 jenkinurl = stage.ixconfig["uploadtrigger_jenkins"]
                 if jenkinurl:
                     jenkinurl = jenkinurl.format(pkgname=name)
@@ -607,7 +629,8 @@ class PyPIView:
                 if len(doczip) > MAXDOCZIPSIZE:
                     abort_submit(413, "zipfile size %d too large, max=%s"
                                    % (len(doczip), MAXDOCZIPSIZE))
-                stage.store_doczip(name, version, doczip)
+                link = stage.store_doczip(name, version, doczip)
+                link.log.add('upload', request.authenticated_userid)
         else:
             abort_submit(400, "action %r not supported" % action)
         return Response("")
@@ -708,6 +731,9 @@ class PyPIView:
                 if for_entrypath is not None:
                     linkdict["for_href"] = \
                         url_for_entrypath(self.request, for_entrypath)
+                link = self.context.stage.get_link_from_entrypath(entrypath)
+                if link is not None and link.log:
+                    linkdict['log'] = copy_if_mutable(link.log)
                 links.append(linkdict)
         shadowing = view_verdata.pop("+shadowing", None)
         if shadowing:

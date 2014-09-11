@@ -6,6 +6,7 @@ import json
 from devpi_common.metadata import sorted_sameproject_links, get_latest_version
 from devpi_common.validation import validate_metadata, normalize_name
 from devpi_common.types import ensure_unicode, cached_property
+from time import gmtime
 from .auth import crypt_password, verify_password
 from .filestore import FileEntry, split_md5
 from .log import threadlog, thread_current_log
@@ -248,6 +249,8 @@ class BaseStage:
 
     def get_link_from_entrypath(self, entrypath):
         entry = self.xom.filestore.get_file_entry(entrypath)
+        if entry.projectname is None:
+            return None
         linkstore = self.get_linkstore_perstage(entry.projectname, entry.version)
         links = linkstore.get_links(entrypath=entrypath)
         assert len(links) < 2
@@ -554,12 +557,12 @@ class PrivateStage(BaseStage):
                 raise MissesRegistration("%s-%s", name, version)
         threadlog.debug("project name of %r is %r", filename, name)
         linkstore = self.get_linkstore_perstage(name, version)
-        entry = linkstore.create_linked_entry(
+        link = linkstore.create_linked_entry(
                 rel="releasefile",
                 basename=filename,
                 file_content=content,
                 last_modified=last_modified)
-        return entry
+        return link
 
     def store_doczip(self, name, version, content):
         if not version:
@@ -568,12 +571,12 @@ class PrivateStage(BaseStage):
                            name, version)
         basename = "%s-%s.doc.zip" % (name, version)
         linkstore = self.get_linkstore_perstage(name, version)
-        entry = linkstore.create_linked_entry(
+        link = linkstore.create_linked_entry(
                 rel="doczip",
                 basename=basename,
                 file_content=content,
         )
-        return entry
+        return link
 
     def get_doczip(self, name, version):
         """ get documentation zip as an open file
@@ -584,6 +587,14 @@ class PrivateStage(BaseStage):
             assert len(links) == 1, links
             return links[0].entry.file_get_content()
 
+
+class HistoryLog(list):
+    def add(self, what, who, **kw):
+        self.append(dict(
+            what=what,
+            who=who,
+            when=gmtime()[:6],
+            **kw))
 
 
 class ELink:
@@ -597,11 +608,14 @@ class ELink:
 
     def __getattr__(self, name):
         try:
-            return self.linkdict[name]
+            result = self.linkdict[name]
         except KeyError:
             if name in ("for_entrypath", "eggfragment"):
                 return None
             raise AttributeError(name)
+        if name == 'log' and not isinstance(result, HistoryLog):
+            result = self.linkdict[name] = HistoryLog(result)
+        return result
 
     def __repr__(self):
         return "<ELink rel=%r entrypath=%r>" %(self.rel, self.entrypath)
@@ -622,18 +636,26 @@ class LinkStore:
             raise MissesRegistration("%s-%s on stage %s",
                                      projectname, version, stage.name)
 
+    def get_file_entry(self, relpath):
+        return self.filestore.get_file_entry(relpath)
+
     def create_linked_entry(self, rel, basename, file_content, last_modified=None):
         assert isinstance(file_content, bytes)
+        overwrite = None
         for link in self.get_links(rel=rel, basename=basename):
             if not self.stage.ixconfig.get("volatile"):
                 raise NonVolatile("rel=%s basename=%s on stage %s" % (
                     rel, basename, self.stage.name))
+            assert overwrite is None
+            overwrite = link.md5
             self.remove_links(rel=rel, basename=basename)
         file_entry = self._create_file_entry(basename, file_content)
         if last_modified is not None:
             file_entry.last_modified = last_modified
-        self._add_link_to_file_entry(rel, file_entry)
-        return file_entry
+        link = self._add_link_to_file_entry(rel, file_entry)
+        if overwrite is not None:
+            link.log.add('overwrite', None, md5=overwrite)
+        return link
 
     def new_reflink(self, rel, file_content, for_entrypath):
         if isinstance(for_entrypath, ELink):
@@ -702,7 +724,7 @@ class LinkStore:
             relextra["for_entrypath"] = for_entrypath
         linkdicts = self._get_inplace_linkdicts()
         new_linkdict = dict(rel=rel, entrypath=file_entry.relpath,
-                            md5=file_entry.md5, **relextra)
+                            md5=file_entry.md5, log=HistoryLog(), **relextra)
         linkdicts.append(new_linkdict)
         threadlog.info("added %r link %s", rel, file_entry.relpath)
         self._mark_dirty()

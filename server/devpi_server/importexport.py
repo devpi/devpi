@@ -9,6 +9,7 @@ from devpi_common.validation import normalize_name
 from devpi_common.metadata import Version, splitbasename, BasenameMeta
 from devpi_server.main import fatal, server_version
 from devpi_server.venv import create_server_venv
+from time import gmtime
 import devpi_server
 
 
@@ -235,7 +236,8 @@ class IndexDump:
                 self.basedir.join(linkstore.projectname, entry.basename))
             self.add_filedesc("releasefile", linkstore.projectname, relpath,
                                version=linkstore.version,
-                               entrymapping=entry.meta.copy())
+                               entrymapping=entry.meta.copy(),
+                               log=link.log)
 
     def dump_toxresults(self, linkstore):
         for tox_link in linkstore.get_links(rel="toxresult"):
@@ -249,7 +251,8 @@ class IndexDump:
                               projectname=linkstore.projectname,
                               relpath=relpath,
                               version=linkstore.version,
-                              for_entrypath=reflink.entrypath)
+                              for_entrypath=reflink.entrypath,
+                              log=tox_link.log)
 
     def add_filedesc(self, type, projectname, relpath, **kw):
         assert self.exporter.basepath.join(relpath).check()
@@ -374,20 +377,35 @@ class Importer:
             else:
                 version = filedesc["version"]
 
-            entry = stage.store_releasefile(projectname, version,
-                                            p.basename, p.read("rb"),
-                                            last_modified=mapping["last_modified"])
-            assert entry.md5 == mapping["md5"]
-            self.import_pre2_toxresults(stage, entry)
+            link = stage.store_releasefile(projectname, version,
+                                           p.basename, p.read("rb"),
+                                           last_modified=mapping["last_modified"])
+            history_log = filedesc.get('log')
+            if history_log is None:
+                link.log.add('upload', '<import>')
+            else:
+                link.log.extend(history_log)
+            assert link.entry.md5 == mapping["md5"]
+            self.import_pre2_toxresults(stage, link.entry)
         elif filedesc["type"] == "doczip":
             basename = os.path.basename(rel)
             name, version, suffix = splitbasename(basename)
-            stage.store_doczip(name, version, p.read("rb"))
+            link = stage.store_doczip(name, version, p.read("rb"))
+            history_log = filedesc.get('log')
+            if history_log is None:
+                link.log.add('upload', '<import>')
+            else:
+                link.log.extend(history_log)
         elif filedesc["type"] == "toxresult":
             linkstore = stage.get_linkstore_perstage(filedesc["projectname"],
                                            filedesc["version"])
             link, = linkstore.get_links(entrypath=filedesc["for_entrypath"])
-            stage.store_toxresult(link, json.loads(p.read("rb").decode("utf8")))
+            tox_link = stage.store_toxresult(link, json.loads(p.read("rb").decode("utf8")))
+            history_log = filedesc.get('log')
+            if history_log is None:
+                tox_link.log.add('upload', '<import>')
+            else:
+                tox_link.log.extend(history_log)
         else:
             fatal("unknown file type: %s" % (type,))
 
@@ -405,8 +423,9 @@ class Importer:
             attachment_data = attachment_data.decode('utf-8')
             toxresultdata = json.loads(attachment_data)
             self.tw.line("importing pre-2.0 test  results %s/%s" %(md5, type))
-            link = stage.store_toxresult(releasefile_link, toxresultdata)
-            self.tw.line("imported %s" % link.entrypath)
+            tox_link = stage.store_toxresult(releasefile_link, toxresultdata)
+            tox_link.log.add('upload', '<import>')
+            self.tw.line("imported %s" % tox_link.entrypath)
 
 
 class IndexTree:
