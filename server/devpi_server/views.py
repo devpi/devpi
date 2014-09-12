@@ -3,7 +3,6 @@ from __future__ import unicode_literals
 import os
 import py
 from py.xml import html
-from time import gmtime
 from devpi_common.types import ensure_unicode
 from devpi_common.url import URL
 from devpi_common.metadata import get_pyversion_filetype

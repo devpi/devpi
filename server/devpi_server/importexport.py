@@ -9,7 +9,6 @@ from devpi_common.validation import normalize_name
 from devpi_common.metadata import Version, splitbasename, BasenameMeta
 from devpi_server.main import fatal, server_version
 from devpi_server.venv import create_server_venv
-from time import gmtime
 import devpi_server
 
 
