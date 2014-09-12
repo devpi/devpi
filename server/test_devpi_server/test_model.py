@@ -226,7 +226,8 @@ class TestStage:
 
     def test_store_and_get_releasefile(self, stage, bases):
         content = b"123"
-        entry = register_and_store(stage, "some-1.0.zip", content)
+        link = register_and_store(stage, "some-1.0.zip", content)
+        entry = link.entry
         assert entry.last_modified != None
         entries = stage.get_releaselinks("some")
         assert len(entries) == 1
@@ -446,11 +447,11 @@ class TestStage:
 
     def test_storetoxresult(self, stage, bases):
         content = b'123'
-        entry = register_and_store(stage, "pkg1-1.0.tar.gz", content=content)
+        link = register_and_store(stage, "pkg1-1.0.tar.gz", content=content)
+        entry = link.entry
         assert entry.projectname == "pkg1"
         assert entry.version == "1.0"
         toxresultdata = {'hello': 'world'}
-        link = stage.get_link_from_entrypath(entry.relpath)
         stage.store_toxresult(link, toxresultdata)
         linkstore = stage.get_linkstore_perstage("pkg1", "1.0")
         tox_links = list(linkstore.get_links(rel="toxresult"))
@@ -478,9 +479,8 @@ class TestStage:
         assert len(stage.get_releaselinks("some")) == 1
 
         # rewrite  fails because index is non-volatile
-        entry = stage.store_releasefile("some", "1.0",
-                                        "some-1.0.zip", content2)
-        assert entry == 409
+        with pytest.raises(stage.NonVolatile):
+            stage.store_releasefile("some", "1.0", "some-1.0.zip", content2)
 
         # rewrite succeeds with volatile
         stage.modify(volatile=True)

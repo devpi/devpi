@@ -106,10 +106,7 @@ class TestImportExport:
         mapp1.upload_file_pypi("hello-1.0.tar.gz", content, "hello", "1.0")
         path, = mapp1.get_release_paths("hello")
         path = path.strip("/")
-        with mapp1.xom.keyfs.transaction(write=True):
-            stage = mapp1.xom.model.getstage(api.stagename)
-            link = stage.get_link_from_entrypath(path)
-            stage.store_toxresult(link, tox_result_data)
+        mapp1.upload_toxresult("/%s" % path, json.dumps(tox_result_data))
         impexp.export()
         mapp2 = impexp.new_import()
         with mapp2.xom.keyfs.transaction(write=False):
@@ -118,9 +115,107 @@ class TestImportExport:
             assert len(links) == 1
             assert links[0].entry.file_get_content() == b"content"
             link = stage.get_link_from_entrypath(links[0].entrypath)
+            history_log = link.get_logs()
+            assert len(history_log) == 1
+            assert history_log[0]['what'] == 'upload'
+            assert history_log[0]['who'] == 'user1'
+            assert history_log[0]['dst'] == 'user1/dev'
             results = stage.get_toxresults(link)
             assert len(results) == 1
             assert results[0] == tox_result_data
+            linkstore = stage.get_linkstore_perstage(
+                link.projectname, link.version)
+            tox_link, = linkstore.get_links(rel="toxresult", for_entrypath=link)
+            history_log = tox_link.get_logs()
+            assert len(history_log) == 1
+            assert history_log[0]['what'] == 'upload'
+            assert history_log[0]['who'] == 'user1'
+            assert history_log[0]['dst'] == 'user1/dev'
+
+    def test_import_without_history_log(self, impexp):
+        from test_devpi_server.example import tox_result_data
+        DUMP_FILE = {
+          "users": {
+            "root": {
+              "username": "root",
+              "pwsalt": "ACs/Jhs5Tt7jKCV4xAjFzQ==",
+              "pwhash": "55d0627f48422ba020337d40fbabaa684be46c47a4e53f306121fd216d9bbbaf"
+            },
+            "user1": {
+              "username": "user1", "email": "hello@example.com",
+              "pwsalt": "NYDXeETIJmAxQhMBgg3oWw==",
+              "pwhash": "fce28cd56a2c6028a54133007fea8afe6ed8f3657722b213fcb19ef339b8efc6"
+            }
+          },
+          "devpi_server": "2.0.6", "pythonversion": [2, 7, 6, "final", 0],
+          "secret": "xtOAH1d8ZPhWNTMmWUdZrp9pa0urEq4Qvc7itn5SCWE=",
+          "dumpversion": "2",
+          "indexes": {
+            "user1/dev": {
+              "files": [
+                {
+                  "projectname": "hello", "version": "1.0",
+                  "entrymapping": {
+                    "projectname": "hello", "version": "1.0",
+                    "last_modified": "Fri, 12 Sep 2014 13:18:55 GMT",
+                    "md5": "9a0364b9e99bb480dd25e1f0284c8555"},
+                  "type": "releasefile", "relpath": "user1/dev/hello/hello-1.0.tar.gz"},
+                {
+                  "projectname": "hello", "version": "1.0", "type": "toxresult",
+                  "for_entrypath": "user1/dev/+f/9a0/364b9e99bb480/hello-1.0.tar.gz",
+                  "relpath": "user1/dev/hello/9a0364b9e99bb480dd25e1f0284c8555/hello-1.0.tar.gz.toxresult0"}
+              ],
+              "indexconfig": {
+                "bases": ["root/pypi"], "pypi_whitelist": ["hello"],
+                "acl_upload": ["user1"], "uploadtrigger_jenkins": None,
+                "volatile": True, "type": "stage"},
+              "projects": {
+                "hello": {
+                  "1.0": {
+                    "description": "", "license": "", "author": "", "download_url": "",
+                    "summary": "", "author_email": "", "version": "1.0", "platform": [],
+                    "home_page": "", "keywords": "", "classifiers": [], "name": "hello"}}}
+            }
+          },
+          "uuid": "72f86a504b14446e98ba840d0f4609ec"
+        }
+        with open(impexp.exportdir.join('dataindex.json').strpath, 'w') as fp:
+            fp.write(json.dumps(DUMP_FILE))
+
+        filedir = impexp.exportdir
+        for dir in ['user1', 'dev', 'hello']:
+            filedir = filedir.join(dir)
+            filedir.mkdir()
+        with open(filedir.join('hello-1.0.tar.gz').strpath, 'w') as fp:
+            fp.write('content')
+        filedir = filedir.join('9a0364b9e99bb480dd25e1f0284c8555')
+        filedir.mkdir()
+        with open(filedir.join('hello-1.0.tar.gz.toxresult0').strpath, 'w') as fp:
+            fp.write(json.dumps(tox_result_data))
+
+        mapp2 = impexp.new_import()
+        with mapp2.xom.keyfs.transaction(write=False):
+            stage = mapp2.xom.model.getstage('user1/dev')
+            links = stage.get_releaselinks("hello")
+            assert len(links) == 1
+            assert links[0].entry.file_get_content() == b"content"
+            link = stage.get_link_from_entrypath(links[0].entrypath)
+            history_log = link.get_logs()
+            assert len(history_log) == 1
+            assert history_log[0]['what'] == 'upload'
+            assert history_log[0]['who'] == '<import>'
+            assert history_log[0]['dst'] == 'user1/dev'
+            results = stage.get_toxresults(link)
+            assert len(results) == 1
+            assert results[0] == tox_result_data
+            linkstore = stage.get_linkstore_perstage(
+                link.projectname, link.version)
+            tox_link, = linkstore.get_links(rel="toxresult", for_entrypath=link)
+            history_log = tox_link.get_logs()
+            assert len(history_log) == 1
+            assert history_log[0]['what'] == 'upload'
+            assert history_log[0]['who'] == '<import>'
+            assert history_log[0]['dst'] == 'user1/dev'
 
     def test_version_not_set_in_imported_versiondata(self, impexp):
         mapp1 = impexp.mapp1
