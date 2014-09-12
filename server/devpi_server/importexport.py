@@ -380,34 +380,24 @@ class Importer:
             link = stage.store_releasefile(projectname, version,
                                            p.basename, p.read("rb"),
                                            last_modified=mapping["last_modified"])
-            history_log = filedesc.get('log')
-            if history_log is None:
-                link.log.add('upload', '<import>')
-            else:
-                link.log.extend(history_log)
             assert link.entry.md5 == mapping["md5"]
             self.import_pre2_toxresults(stage, link.entry)
         elif filedesc["type"] == "doczip":
             basename = os.path.basename(rel)
             name, version, suffix = splitbasename(basename)
             link = stage.store_doczip(name, version, p.read("rb"))
-            history_log = filedesc.get('log')
-            if history_log is None:
-                link.log.add('upload', '<import>')
-            else:
-                link.log.extend(history_log)
         elif filedesc["type"] == "toxresult":
             linkstore = stage.get_linkstore_perstage(filedesc["projectname"],
                                            filedesc["version"])
             link, = linkstore.get_links(entrypath=filedesc["for_entrypath"])
-            tox_link = stage.store_toxresult(link, json.loads(p.read("rb").decode("utf8")))
-            history_log = filedesc.get('log')
-            if history_log is None:
-                tox_link.log.add('upload', '<import>')
-            else:
-                tox_link.log.extend(history_log)
+            link = stage.store_toxresult(link, json.loads(p.read("rb").decode("utf8")))
         else:
             fatal("unknown file type: %s" % (type,))
+        history_log = filedesc.get('log')
+        if history_log is None:
+            link.log.add('upload', '<import>', dst=stage.name)
+        else:
+            link.log.extend(history_log)
 
     def import_pre2_toxresults(self, stage, releasefile_entry):
         # pre 2.0 export structure (called "attachments")
