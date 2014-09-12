@@ -397,7 +397,7 @@ class Importer:
         if history_log is None:
             link.add_log('upload', '<import>', dst=stage.name)
         else:
-            link.log.extend(history_log)
+            link.add_logs(history_log)
 
     def import_pre2_toxresults(self, stage, releasefile_entry):
         # pre 2.0 export structure (called "attachments")

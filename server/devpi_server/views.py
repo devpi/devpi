@@ -531,7 +531,7 @@ class PyPIView:
         for link in links["releasefile"]:
             new_link = target_stage.store_releasefile(
                 name, version, link.basename, link.entry.file_get_content())
-            new_link.log.extend(link.log)
+            new_link.add_logs(link.log)
             new_link.add_log(
                 'push',
                 self.request.authenticated_userid,
@@ -547,7 +547,7 @@ class PyPIView:
                     raw_data = toxlink.entry.file_get_content()
                     data = json.loads(raw_data.decode("utf-8"))
                     link = target_stage.store_toxresult(ref_link, data)
-                    link.log.extend(toxlink.log)
+                    link.add_logs(toxlink.log)
                     link.add_log(
                         'push',
                         self.request.authenticated_userid,
@@ -557,7 +557,7 @@ class PyPIView:
         for link in links["doczip"]:
             doczip = link.entry.file_get_content()
             new_link = target_stage.store_doczip(name, version, doczip)
-            new_link.log.extend(link.log)
+            new_link.add_logs(link.log)
             new_link.add_log(
                 'push',
                 self.request.authenticated_userid,

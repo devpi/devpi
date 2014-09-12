@@ -615,6 +615,9 @@ class ELink:
     def add_log(self, what, who, **kw):
         self.log.append(dict(what=what, who=who, when=gmtime()[:6], **kw))
 
+    def add_logs(self, logs):
+        self.log.extend(logs)
+
 
 class LinkStore:
     def __init__(self, stage, projectname, version):
