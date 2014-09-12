@@ -281,7 +281,7 @@ class PyPIView:
             apireturn(404, message="no release file found at %s" % relpath)
         toxresultdata = getjson(self.request)
         tox_link = stage.store_toxresult(link, toxresultdata)
-        tox_link.log.add(
+        tox_link.add_log(
             'upload', self.request.authenticated_userid, dst=stage.name)
         apireturn(200, type="toxresultpath",
                   result=tox_link.entrypath)
@@ -532,7 +532,7 @@ class PyPIView:
             new_link = target_stage.store_releasefile(
                 name, version, link.basename, link.entry.file_get_content())
             new_link.log.extend(link.log)
-            new_link.log.add(
+            new_link.add_log(
                 'push',
                 self.request.authenticated_userid,
                 src=self.context.stage.name,
@@ -548,7 +548,7 @@ class PyPIView:
                     data = json.loads(raw_data.decode("utf-8"))
                     link = target_stage.store_toxresult(ref_link, data)
                     link.log.extend(toxlink.log)
-                    link.log.add(
+                    link.add_log(
                         'push',
                         self.request.authenticated_userid,
                         src=self.context.stage.name,
@@ -558,7 +558,7 @@ class PyPIView:
             doczip = link.entry.file_get_content()
             new_link = target_stage.store_doczip(name, version, doczip)
             new_link.log.extend(link.log)
-            new_link.log.add(
+            new_link.add_log(
                 'push',
                 self.request.authenticated_userid,
                 src=self.context.stage.name,
@@ -617,7 +617,7 @@ class PyPIView:
                 except stage.NonVolatile:
                     abort_submit(409, "%s already exists in non-volatile index" % (
                          content.filename,))
-                link.log.add(
+                link.add_log(
                     'upload', request.authenticated_userid, dst=stage.name)
                 jenkinurl = stage.ixconfig["uploadtrigger_jenkins"]
                 if jenkinurl:
@@ -632,7 +632,7 @@ class PyPIView:
                     abort_submit(413, "zipfile size %d too large, max=%s"
                                    % (len(doczip), MAXDOCZIPSIZE))
                 link = stage.store_doczip(name, version, doczip)
-                link.log.add(
+                link.add_log(
                     'upload', request.authenticated_userid, dst=stage.name)
         else:
             abort_submit(400, "action %r not supported" % action)

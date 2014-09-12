@@ -588,15 +588,6 @@ class PrivateStage(BaseStage):
             return links[0].entry.file_get_content()
 
 
-class HistoryLog(list):
-    def add(self, what, who, **kw):
-        self.append(dict(
-            what=what,
-            who=who,
-            when=gmtime()[:6],
-            **kw))
-
-
 class ELink:
     """ model Link using entrypathes for referencing. """
     def __init__(self, filestore, linkdict, projectname, version):
@@ -608,14 +599,11 @@ class ELink:
 
     def __getattr__(self, name):
         try:
-            result = self.linkdict[name]
+            return self.linkdict[name]
         except KeyError:
             if name in ("for_entrypath", "eggfragment"):
                 return None
             raise AttributeError(name)
-        if name == 'log' and not isinstance(result, HistoryLog):
-            result = self.linkdict[name] = HistoryLog(result)
-        return result
 
     def __repr__(self):
         return "<ELink rel=%r entrypath=%r>" %(self.rel, self.entrypath)
@@ -623,6 +611,9 @@ class ELink:
     @cached_property
     def entry(self):
         return self.filestore.get_file_entry(self.entrypath)
+
+    def add_log(self, what, who, **kw):
+        self.log.append(dict(what=what, who=who, when=gmtime()[:6], **kw))
 
 
 class LinkStore:
@@ -654,7 +645,7 @@ class LinkStore:
             file_entry.last_modified = last_modified
         link = self._add_link_to_file_entry(rel, file_entry)
         if overwrite is not None:
-            link.log.add('overwrite', None, md5=overwrite)
+            link.add_log('overwrite', None, md5=overwrite)
         return link
 
     def new_reflink(self, rel, file_content, for_entrypath):
@@ -724,7 +715,7 @@ class LinkStore:
             relextra["for_entrypath"] = for_entrypath
         linkdicts = self._get_inplace_linkdicts()
         new_linkdict = dict(rel=rel, entrypath=file_entry.relpath,
-                            md5=file_entry.md5, log=HistoryLog(), **relextra)
+                            md5=file_entry.md5, log=[], **relextra)
         linkdicts.append(new_linkdict)
         threadlog.info("added %r link %s", rel, file_entry.relpath)
         self._mark_dirty()

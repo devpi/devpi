@@ -395,7 +395,7 @@ class Importer:
             fatal("unknown file type: %s" % (type,))
         history_log = filedesc.get('log')
         if history_log is None:
-            link.log.add('upload', '<import>', dst=stage.name)
+            link.add_log('upload', '<import>', dst=stage.name)
         else:
             link.log.extend(history_log)
 
@@ -414,7 +414,7 @@ class Importer:
             toxresultdata = json.loads(attachment_data)
             self.tw.line("importing pre-2.0 test  results %s/%s" %(md5, type))
             tox_link = stage.store_toxresult(releasefile_link, toxresultdata)
-            tox_link.log.add('upload', '<import>')
+            tox_link.add_log('upload', '<import>')
             self.tw.line("imported %s" % tox_link.entrypath)
 
 
