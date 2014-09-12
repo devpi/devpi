@@ -417,13 +417,14 @@ class TestSubmitValidation:
         r = testapp.xget(200, "%s/Pkg5/2.6" % mapp.api.index)
         link, = r.json['result']['+links']
         log1, log2 = link['log']
-        assert log1.keys() == ['what', 'who', 'when', 'md5']
+        assert sorted(log1.keys()) == ['md5', 'what', 'when', 'who']
         assert log1['what'] == 'overwrite'
         assert log1['who'] is None
         assert log1['md5'] == '202cb962ac59075b964b07152d234b70'
-        assert log2.keys() == ['what', 'who', 'when']
+        assert sorted(log2.keys()) == ['dst', 'what', 'when', 'who']
         assert log2['what'] == 'upload'
         assert log2['who'] == 'user'
+        assert log2['dst'] == 'user/dev'
 
     def test_upload_with_metadata(self, submit, testapp, mapp, pypistage):
         pypistage.mock_simple("package", '<a href="/package-1.0.zip" />')
@@ -515,10 +516,28 @@ def test_upload_and_push_internal(mapp, testapp, monkeypatch, proj):
     vv = get_view_version_links(testapp, "/user2/prod", "pkg1", "2.6",
                                 proj=proj)
     link = vv.get_link(rel="releasefile")
+    history_log = link.log
+    assert len(history_log) == 2
+    assert history_log[0]['what'] == 'upload'
+    assert history_log[0]['who'] == 'user1'
+    assert history_log[0]['dst'] == 'user1/dev'
+    assert history_log[1]['what'] == 'push'
+    assert history_log[1]['who'] == 'user1'
+    assert history_log[1]['src'] == 'user1/dev'
+    assert history_log[1]['dst'] == 'user2/prod'
     assert link.href.endswith("/pkg1-2.6.tgz")
     # we check here that the upload of docs without version was
     # automatically tied to the newest release metadata
     link = vv.get_link(rel="doczip")
+    history_log = link.log
+    assert len(history_log) == 2
+    assert history_log[0]['what'] == 'upload'
+    assert history_log[0]['who'] == 'user1'
+    assert history_log[0]['dst'] == 'user1/dev'
+    assert history_log[1]['what'] == 'push'
+    assert history_log[1]['who'] == 'user1'
+    assert history_log[1]['src'] == 'user1/dev'
+    assert history_log[1]['dst'] == 'user2/prod'
     assert link.href.endswith("/pkg1-2.6.doc.zip")
     r = testapp.get(link.href)
     archive = Archive(py.io.BytesIO(r.body))
@@ -556,7 +575,9 @@ def test_upload_and_push_with_toxresults(mapp, testapp):
     history_log = vv.get_link('releasefile').log
     assert len(history_log) == 2
     assert history_log[0]['what'] == 'upload'
+    assert history_log[0]['dst'] == 'user1/dev'
     assert history_log[1]['what'] == 'push'
+    assert history_log[1]['who'] == 'user1'
     assert history_log[1]['src'] == 'user1/dev'
     assert history_log[1]['dst'] == 'user1/prod'
     link = vv.get_link("toxresult")
@@ -566,7 +587,9 @@ def test_upload_and_push_with_toxresults(mapp, testapp):
     history_log = link.log
     assert len(history_log) == 2
     assert history_log[0]['what'] == 'upload'
+    assert history_log[0]['dst'] == 'user1/dev'
     assert history_log[1]['what'] == 'push'
+    assert history_log[1]['who'] == 'user1'
     assert history_log[1]['src'] == 'user1/dev'
     assert history_log[1]['dst'] == 'user1/prod'
 
@@ -785,6 +808,10 @@ def test_upload_docs(mapp, testapp, proj):
     vv = get_view_version_links(testapp, api.index, "pkg1", "2.6", proj=proj)
     link = vv.get_link(rel="doczip")
     assert link.href.endswith("/pkg1-2.6.doc.zip")
+    assert len(link.log) == 1
+    assert link.log[0]['what'] == 'upload'
+    assert link.log[0]['who'] == 'user1'
+    assert link.log[0]['dst'] == 'user1/dev'
     r = testapp.get(link.href)
     archive = Archive(py.io.BytesIO(r.body))
     assert 'index.html' in archive.namelist()
