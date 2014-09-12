@@ -115,20 +115,22 @@ class TestImportExport:
             assert len(links) == 1
             assert links[0].entry.file_get_content() == b"content"
             link = stage.get_link_from_entrypath(links[0].entrypath)
-            assert len(link.log) == 1
-            assert link.log[0]['what'] == 'upload'
-            assert link.log[0]['who'] == 'user1'
-            assert link.log[0]['dst'] == 'user1/dev'
+            history_log = link.get_logs()
+            assert len(history_log) == 1
+            assert history_log[0]['what'] == 'upload'
+            assert history_log[0]['who'] == 'user1'
+            assert history_log[0]['dst'] == 'user1/dev'
             results = stage.get_toxresults(link)
             assert len(results) == 1
             assert results[0] == tox_result_data
             linkstore = stage.get_linkstore_perstage(
                 link.projectname, link.version)
             tox_link, = linkstore.get_links(rel="toxresult", for_entrypath=link)
-            assert len(tox_link.log) == 1
-            assert tox_link.log[0]['what'] == 'upload'
-            assert tox_link.log[0]['who'] == 'user1'
-            assert tox_link.log[0]['dst'] == 'user1/dev'
+            history_log = tox_link.get_logs()
+            assert len(history_log) == 1
+            assert history_log[0]['what'] == 'upload'
+            assert history_log[0]['who'] == 'user1'
+            assert history_log[0]['dst'] == 'user1/dev'
 
     def test_import_without_history_log(self, impexp):
         from test_devpi_server.example import tox_result_data
@@ -198,20 +200,22 @@ class TestImportExport:
             assert len(links) == 1
             assert links[0].entry.file_get_content() == b"content"
             link = stage.get_link_from_entrypath(links[0].entrypath)
-            assert len(link.log) == 1
-            assert link.log[0]['what'] == 'upload'
-            assert link.log[0]['who'] == '<import>'
-            assert link.log[0]['dst'] == 'user1/dev'
+            history_log = link.get_logs()
+            assert len(history_log) == 1
+            assert history_log[0]['what'] == 'upload'
+            assert history_log[0]['who'] == '<import>'
+            assert history_log[0]['dst'] == 'user1/dev'
             results = stage.get_toxresults(link)
             assert len(results) == 1
             assert results[0] == tox_result_data
             linkstore = stage.get_linkstore_perstage(
                 link.projectname, link.version)
             tox_link, = linkstore.get_links(rel="toxresult", for_entrypath=link)
-            assert len(tox_link.log) == 1
-            assert tox_link.log[0]['what'] == 'upload'
-            assert tox_link.log[0]['who'] == '<import>'
-            assert tox_link.log[0]['dst'] == 'user1/dev'
+            history_log = tox_link.get_logs()
+            assert len(history_log) == 1
+            assert history_log[0]['what'] == 'upload'
+            assert history_log[0]['who'] == '<import>'
+            assert history_log[0]['dst'] == 'user1/dev'
 
     def test_version_not_set_in_imported_versiondata(self, impexp):
         mapp1 = impexp.mapp1

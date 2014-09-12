@@ -237,7 +237,7 @@ class IndexDump:
             self.add_filedesc("releasefile", linkstore.projectname, relpath,
                                version=linkstore.version,
                                entrymapping=entry.meta.copy(),
-                               log=link.log)
+                               log=link.get_logs())
 
     def dump_toxresults(self, linkstore):
         for tox_link in linkstore.get_links(rel="toxresult"):
@@ -252,7 +252,7 @@ class IndexDump:
                               relpath=relpath,
                               version=linkstore.version,
                               for_entrypath=reflink.entrypath,
-                              log=tox_link.log)
+                              log=tox_link.get_logs())
 
     def add_filedesc(self, type, projectname, relpath, **kw):
         assert self.exporter.basepath.join(relpath).check()

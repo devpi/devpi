@@ -613,10 +613,13 @@ class ELink:
         return self.filestore.get_file_entry(self.entrypath)
 
     def add_log(self, what, who, **kw):
-        self.log.append(dict(what=what, who=who, when=gmtime()[:6], **kw))
+        self._log.append(dict(what=what, who=who, when=gmtime()[:6], **kw))
 
     def add_logs(self, logs):
-        self.log.extend(logs)
+        self._log.extend(logs)
+
+    def get_logs(self):
+        return list(self._log)
 
 
 class LinkStore:
@@ -718,7 +721,7 @@ class LinkStore:
             relextra["for_entrypath"] = for_entrypath
         linkdicts = self._get_inplace_linkdicts()
         new_linkdict = dict(rel=rel, entrypath=file_entry.relpath,
-                            md5=file_entry.md5, log=[], **relextra)
+                            md5=file_entry.md5, _log=[], **relextra)
         linkdicts.append(new_linkdict)
         threadlog.info("added %r link %s", rel, file_entry.relpath)
         self._mark_dirty()
