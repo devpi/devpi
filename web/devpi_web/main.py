@@ -47,8 +47,7 @@ def navigation_info(request):
     if 'index' in context.matchdict:
         index = context.index
         path.append(dict(
-            url=request.route_url(
-                "/{user}/{index}", user=user, index=index),
+            url=request.stage_url(user, index),
             title="%s/%s" % (user, index)))
     else:
         return result

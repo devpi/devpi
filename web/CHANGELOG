@@ -1,5 +1,7 @@
-2.1.2.dev
+2.2.0.dev
 ---------------
+
+- require devpi-server >= 2.1.0
 
 - adjusted font-sizes and cut-off width of content.
 
@@ -10,8 +12,8 @@
 - version.pt: moved md5 sum from it's own column to the file column below the
   download link
 
-- version.pt: added "history" column showing last modified time and starting
-  with devpi-server 2.1.0 infos about uploads and pushes.
+- version.pt: added "history" column showing last modified time and infos
+  about uploads and pushes.
 
 
 2.1.1

@@ -256,10 +256,8 @@ class PyPIView:
                 user, index = parts[:2]
                 stage = self.context.getstage(user, index)
                 api.update({
-                    "index": request.route_url(
-                        "/{user}/{index}", user=user, index=index),
-                    "simpleindex": request.route_url(
-                        "/{user}/{index}/+simple/", user=user, index=index)
+                    "index": request.stage_url(stage),
+                    "simpleindex": request.simpleindex_url(stage)
                 })
                 if stage.ixconfig["type"] == "stage":
                     api["pypisubmit"] = request.route_url(

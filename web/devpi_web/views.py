@@ -156,30 +156,13 @@ def format_timetuple(tt):
         return "{0}-{1:02d}-{2:02d} {3:02d}:{4:02d}:{5:02d}".format(*tt)
 
 
-def get_stage_url(request, stagename, cache=None):
-    if cache is not None and stagename in cache:
-        return cache[stagename]
-    url = None
-    try:
-        stage = request.context.model.getstage(stagename)
-    except ValueError:
-        stage = None
-    if stage is not None:
-        username, index = stage.name.split('/')
-        url = request.route_url(
-            "/{user}/{index}", user=username, index=index)
-    if cache is not None:
-        cache[stagename] = url
-    return url
-
-
 _what_map = dict(
     overwrite="Replaced",
     push="Pushed",
     upload="Uploaded")
 
 
-def make_history_view_item(request, log_item, cache=None):
+def make_history_view_item(request, log_item):
     result = {}
     result['what'] = _what_map.get(log_item['what'], log_item['what'])
     result['who'] = log_item['who']
@@ -188,7 +171,7 @@ def make_history_view_item(request, log_item, cache=None):
         if key in log_item:
             result[key] = dict(
                 title=log_item[key],
-                href=get_stage_url(request, log_item[key], cache=cache))
+                href=request.stage_url(log_item[key]))
     if 'md5' in log_item:
         result['md5'] = result
     return result
@@ -200,7 +183,6 @@ def get_files_info(request, linkstore, show_toxresults=False):
     if not filedata:
         log.warn("project %r version %r has no files",
                  linkstore.projectname, linkstore.version)
-    cache = {}
     for link in sorted(filedata, key=attrgetter('basename')):
         url = url_for_entrypath(request, link.entrypath)
         entry = link.entry
@@ -216,7 +198,7 @@ def get_files_info(request, linkstore, show_toxresults=False):
             size = "%.0f %s" % sizeof_fmt(entry.file_size())
         try:
             history = [
-                make_history_view_item(request, x, cache=cache)
+                make_history_view_item(request, x)
                 for x in link.get_logs()]
         except AttributeError:
             history = []
@@ -317,7 +299,7 @@ def root(context, request):
             stagename = "%s/%s" % (username, index)
             indexes.append(dict(
                 title=stagename,
-                url=get_stage_url(request, stagename)))
+                url=request.stage_url(stagename)))
         users.append(dict(
             title=username,
             indexes=indexes))
@@ -329,14 +311,12 @@ def root(context, request):
     renderer="templates/index.pt")
 def index_get(context, request):
     context = ContextWrapper(context)
-    user, index = context.username, context.index
     stage = context.stage
     bases = []
     packages = []
     result = dict(
         title="%s index" % stage.name,
-        simple_index_url=request.route_url(
-            "/{user}/{index}/+simple/", user=user, index=index),
+        simple_index_url=request.simpleindex_url(stage),
         bases=bases,
         packages=packages)
     if stage.name == "root/pypi":
@@ -344,13 +324,10 @@ def index_get(context, request):
 
     if hasattr(stage, "ixconfig"):
         for base in stage.ixconfig["bases"]:
-            base_user, base_index = base.split('/')
             bases.append(dict(
                 title=base,
-                url=get_stage_url(request, base),
-                simple_url=request.route_url(
-                    "/{user}/{index}/+simple/",
-                    user=base_user, index=base_index)))
+                url=request.stage_url(base),
+                simple_url=request.simpleindex_url(base)))
 
     for projectname in stage.list_projectnames_perstage():
         version = stage.get_latest_version_perstage(projectname)
@@ -400,8 +377,7 @@ def project_get(context, request):
             continue
         versions.append(dict(
             index_title="%s/%s" % (user, index),
-            index_url=request.route_url(
-                "/{user}/{index}", user=user, index=index),
+            index_url=request.stage_url(user, index),
             title=version,
             url=request.route_url(
                 "/{user}/{index}/{name}/{version}",
