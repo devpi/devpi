@@ -742,6 +742,7 @@ class PyPIView:
                     log = link.get_logs()
                     if log:
                         linkdict['log'] = log
+                linkdict.pop('_log', None)
                 links.append(linkdict)
         shadowing = view_verdata.pop("+shadowing", None)
         if shadowing:
