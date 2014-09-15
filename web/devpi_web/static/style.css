@@ -13,6 +13,14 @@ table td {
     line-height: 1.25em;
 }
 
+a {
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
 form, #content, #navigation, .searchresults {
     position: relative;
     margin: 0 1em;
