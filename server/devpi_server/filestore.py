@@ -7,8 +7,6 @@ from __future__ import unicode_literals
 import hashlib
 import mimetypes
 from wsgiref.handlers import format_date_time
-from datetime import datetime
-from time import mktime
 from devpi_common.types import cached_property
 from .keyfs import _nodefault
 from .log import threadlog
@@ -141,7 +139,7 @@ class FileEntry(object):
         assert isinstance(content, bytes)
         if last_modified != -1:
             if last_modified is None:
-                last_modified = http_date()
+                last_modified = format_date_time(None)
             self.last_modified = last_modified
         #else we are called from replica thread and just write outside
         file_md5 = hashlib.md5(content).hexdigest()
@@ -228,11 +226,6 @@ class FileEntry(object):
             raise self.BadGateway(msg)
         return entry
 
-
-def http_date():
-    now = datetime.now()
-    stamp = mktime(now.timetuple())
-    return format_date_time(stamp)
 
 def split_md5(hexdigest):
     return hexdigest[:3], hexdigest[3:16]
