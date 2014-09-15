@@ -22,6 +22,7 @@
 
 - fix exception when a static resource can't be found.
 
+- preserve last_modified when pushing a release.
 
 2.0.6
 ----------------
