@@ -462,6 +462,25 @@ class TestSubmitValidation:
         assert log2['dst'] == 'user/prod'
         assert log2['src'] == 'user/dev'
 
+    def test_last_modified_preserved_on_push(self, submit, testapp, mapp):
+        import time
+        metadata = {"name": "Pkg5", "version": "2.6", ":action": "submit"}
+        submit.metadata(metadata, code=200)
+        submit.file("pkg5-2.6.tgz", b"1234", {"name": "Pkg5"}, code=200)
+        old_stagename = mapp.api.stagename
+        mapp.create_index('prod')
+        new_stagename = mapp.api.stagename
+        mapp.use(old_stagename)
+        req = dict(name="Pkg5", version="2.6", targetindex=new_stagename)
+        time.sleep(1.5)  # needed to test last_modified below
+        testapp.push("/%s" % old_stagename, json.dumps(req))
+        with mapp.xom.model.keyfs.transaction(write=False):
+            old_stage = mapp.xom.model.getstage(old_stagename)
+            new_stage = mapp.xom.model.getstage(new_stagename)
+            old_entry = old_stage.get_releaselinks('Pkg5')[0].entry
+            new_entry = new_stage.get_releaselinks('Pkg5')[0].entry
+            assert old_entry.last_modified == new_entry.last_modified
+
     def test_upload_with_metadata(self, submit, testapp, mapp, pypistage):
         pypistage.mock_simple("package", '<a href="/package-1.0.zip" />')
         mapp.upload_file_pypi(
