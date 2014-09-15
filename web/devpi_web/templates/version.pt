@@ -28,12 +28,14 @@
                     <th>Py Version</th>
                     <th>Size</th>
                     <th class="toxresults" tal:condition="show_toxresults">Tox results</th>
-                    <th class="md5">MD5</th>
                 </tr>
             </thead>
             <tbody>
                 <tr tal:repeat="file files">
-                    <td><a href="${file.url}">${file.title}</a></td>
+                    <td>
+                        <a href="${file.url}">${file.title}</a><br />
+                        <code>${file.md5}</code>
+                    </td>
                     <td>${file.dist_type}</td>
                     <td>${file.py_version}</td>
                     <td>${file.size}</td>
@@ -49,7 +51,6 @@
                             </a>
                         </tal:toxresults>
                     </td>
-                    <td class="md5"><code>${file.md5}</code></td>
                 </tr>
             </tbody>
         </table>

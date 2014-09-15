@@ -3,6 +3,8 @@
 
 - adjusted font-sizes and cut-off width of content.
 
+- version.pt: moved md5 sum from it's own column to the file column below the
+  download link
 
 2.1.1
 ---------------

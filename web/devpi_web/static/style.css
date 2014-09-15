@@ -364,9 +364,6 @@ iframe {
     form#search input[type=text] {
         width: 20em;
     }
-    .files .md5 {
-        display: none;
-    }
 }
 
 @media (max-width:615px) {

@@ -319,8 +319,8 @@ def test_version_view(mapp, testapp):
         'utf-8') == u'<p>föö</p>'
     filesinfo = [tuple(t.text.strip() for t in x.findAll('td')) for x in r.html.select('.files tbody tr')]
     assert filesinfo == [
-        ('pkg1-2.6.tar.gz', 'Source', '', '7 bytes', '', '9a0364b9e99bb480dd25e1f0284c8555'),
-        ('pkg1-2.6.zip', 'Source', '', '10 bytes', '', '52360ae08d733016c5603d54b06b5300')]
+        ('pkg1-2.6.tar.gz\n9a0364b9e99bb480dd25e1f0284c8555', 'Source', '', '7 bytes', ''),
+        ('pkg1-2.6.zip\n52360ae08d733016c5603d54b06b5300', 'Source', '', '10 bytes', '')]
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
         ("Documentation", "http://localhost/%s/pkg1/2.6/+d/index.html" % api.stagename),
@@ -353,8 +353,8 @@ def test_version_view_root_pypi(mapp, testapp, pypistage):
         ''', pypiserial=10)
     r = testapp.xget(200, '/root/pypi/pkg1/2.6',
                      headers=dict(accept="text/html"))
-    filesinfo = [tuple(t.text for t in x.findAll('td')) for x in r.html.select('.files tbody tr')]
-    assert filesinfo == [('pkg1-2.6.zip', 'Source', '', '', '')]
+    filesinfo = [tuple(t.text.strip() for t in x.findAll('td')) for x in r.html.select('.files tbody tr')]
+    assert filesinfo == [('pkg1-2.6.zip', 'Source', '', '')]
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
         ("Simple index", "http://localhost/root/pypi/+simple/pkg1"),
@@ -367,9 +367,9 @@ def test_version_view_root_pypi_external_files(mapp, testapp, pypistage):
         "pkg1", '<a href="http://example.com/releases/pkg1-2.7.zip" /a>)')
     r = testapp.get('/root/pypi/pkg1/2.7', headers=dict(accept="text/html"))
     assert r.status_code == 200
-    filesinfo = [tuple(t.text for t in x.findAll('td'))
+    filesinfo = [tuple(t.text.strip() for t in x.findAll('td'))
                  for x in r.html.select('.files tbody tr')]
-    assert filesinfo == [('pkg1-2.7.zip', 'Source', '', '', '')]
+    assert filesinfo == [('pkg1-2.7.zip', 'Source', '', '')]
     silink, link1, link2 = list(r.html.select("#content a"))
     assert silink.text == "Simple index"
     assert silink.attrs["href"] == "http://localhost/root/pypi/+simple/pkg1"
