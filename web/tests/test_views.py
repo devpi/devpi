@@ -693,3 +693,11 @@ def test_url_rewriting(url, headers, selector, expected, mapp, testapp):
         for x in r.html.select(selector)]
     expected = [(t, u.format(stage=api.stagename)) for t, u in expected]
     assert links == expected
+
+
+@pytest.mark.xfail(not server21_or_newer, reason="devpi-server < 2.1dev")
+def test_static_404(testapp):
+    r = testapp.xget(404, '/static/foo.png')
+    assert [x.text for x in r.html.select('#content p')] == [
+        u'The following resource could not be found:',
+        u'http://localhost/static/foo.png']

@@ -14,11 +14,14 @@ class RootFactory(object):
 
     @reify
     def matchdict(self):
+        result = {}
         if not self.request.matchdict:
-            return {}
-        return dict(
-            (k, v.rstrip('/'))
-            for k, v in self.request.matchdict.items())
+            return result
+        for k, v in self.request.matchdict.items():
+            if hasattr(v, 'rstrip'):
+                v = v.rstrip('/')
+            result[k] = v
+        return result
 
     def __acl__(self):
         acl = []

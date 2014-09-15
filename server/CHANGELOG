@@ -20,6 +20,8 @@
 - actually store UTC in last_modified attribute of release files instead of
   the local time disguising as UTC.
 
+- fix exception when a static resource can't be found.
+
 
 2.0.6
 ----------------
