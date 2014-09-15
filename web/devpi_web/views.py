@@ -401,7 +401,7 @@ def version_get(context, request):
     skipped_keys = frozenset(
         ("description", "home_page", "name", "summary", "version"))
     for key, value in sorted(verdata.items()):
-        if key in skipped_keys or key.startswith('+') or key.startswith(':'):
+        if key in skipped_keys or key.startswith('+'):
             continue
         if isinstance(value, list):
             if not len(value):

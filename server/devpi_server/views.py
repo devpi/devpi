@@ -459,9 +459,6 @@ class PyPIView:
 
         metadata = get_pure_metadata(linkstore.verdata)
 
-        # prepare metadata for submission
-        metadata[":action"] = "submit"
-
         results = []
         targetindex = pushdata.get("targetindex", None)
         if targetindex is not None:  # in-server push
@@ -485,6 +482,8 @@ class PyPIView:
             username = pushdata["username"]
             password = pushdata["password"]
             pypiauth = (username, password)
+            # prepare metadata for submission
+            metadata[":action"] = "submit"
             self.log.info("registering %s-%s to %s", name, version, posturl)
             session = new_requests_session(agent=("server", server_version))
             r = session.post(posturl, data=metadata, auth=pypiauth)

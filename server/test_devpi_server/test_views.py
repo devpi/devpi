@@ -481,6 +481,21 @@ class TestSubmitValidation:
             new_entry = new_stage.get_releaselinks('Pkg5')[0].entry
             assert old_entry.last_modified == new_entry.last_modified
 
+    def test_pypiaction_not_in_verdata_after_push(self, submit, testapp, mapp):
+        metadata = {"name": "Pkg5", "version": "2.6", ":action": "submit"}
+        submit.metadata(metadata, code=200)
+        submit.file("pkg5-2.6.tgz", b"1234", {"name": "Pkg5"}, code=200)
+        old_stagename = mapp.api.stagename
+        mapp.create_index('prod')
+        new_stagename = mapp.api.stagename
+        mapp.use(old_stagename)
+        req = dict(name="Pkg5", version="2.6", targetindex=new_stagename)
+        testapp.push("/%s" % old_stagename, json.dumps(req))
+        with mapp.xom.model.keyfs.transaction(write=False):
+            new_stage = mapp.xom.model.getstage(new_stagename)
+            verdata = new_stage.get_versiondata('Pkg5', '2.6')
+            assert ':action' not in list(verdata.keys())
+
     def test_upload_with_metadata(self, submit, testapp, mapp, pypistage):
         pypistage.mock_simple("package", '<a href="/package-1.0.zip" />')
         mapp.upload_file_pypi(
