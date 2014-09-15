@@ -358,6 +358,21 @@ iframe {
     border: 0;
 }
 
+table .file_history {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+table .file_history li {
+    margin: 0 0 0.25em 0;
+    padding: 0;
+}
+
+table .file_history li:last-child {
+    margin: 0;
+}
+
 .infonote {
     border: 1px solid #ffa500;
     background: #fde2b2;

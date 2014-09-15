@@ -26,6 +26,7 @@
                     <th>File</th>
                     <th>Type</th>
                     <th>Py Version</th>
+                    <th>History</th>
                     <th>Size</th>
                     <th class="toxresults" tal:condition="show_toxresults">Tox results</th>
                 </tr>
@@ -38,6 +39,36 @@
                     </td>
                     <td>${file.dist_type}</td>
                     <td>${file.py_version}</td>
+                    <td>
+                        <ul class="file_history">
+                            <li tal:condition="file.last_modified">
+                                Last modified
+                                <span class="timestamp">${file.last_modified}</span>
+                            </li>
+                            <li tal:repeat="log file.history">
+                                ${log.what}
+                                <tal:src condition="log.get('src')">
+                                    from
+                                    <a tal:omit-tag="not log.src.href" href="${log.src.href}">
+                                        ${log.src.title}
+                                    </a>
+                                </tal:src>
+                                <tal:dst condition="log.get('dst')">
+                                    to
+                                    <a tal:omit-tag="not log.dst.href" href="${log.dst.href}">
+                                        ${log.dst.title}
+                                    </a>
+                                </tal:dst>
+                                <tal:by condition="log.get('who')">
+                                    by ${log.who}
+                                </tal:by>
+                                <tal:md5 condition="log.get('md5')">
+                                    <code>${log.md5}</code>
+                                </tal:md5>
+                                <span class="timestamp">${log.when}</span>
+                            </li>
+                        </ul>
+                    </td>
                     <td>${file.size}</td>
                     <td class="toxresults" tal:condition="show_toxresults">
                         <tal:toxresults condition="file.get('toxresults')">

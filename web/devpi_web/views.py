@@ -7,6 +7,7 @@ from devpi_server.views import url_for_entrypath
 from devpi_web.description import get_description
 from devpi_web.doczip import Docs, get_unpack_path
 from devpi_web.indexing import is_project_cached
+from email.utils import parsedate
 from operator import attrgetter, itemgetter
 from py.xml import html
 from pyramid.compat import decode_path_info
@@ -150,12 +151,35 @@ def sizeof_fmt(num):
     return (num, 'TB')
 
 
+def format_timetuple(tt):
+    if tt is not None:
+        return "{0}-{1:02d}-{2:02d} {3:02d}:{4:02d}:{5:02d}".format(*tt)
+
+
+def get_stage_url(request, stagename, cache=None):
+    if cache is not None and stagename in cache:
+        return cache[stagename]
+    url = None
+    try:
+        stage = request.context.model.getstage(stagename)
+    except ValueError:
+        stage = None
+    if stage is not None:
+        username, index = stage.name.split('/')
+        url = request.route_url(
+            "/{user}/{index}", user=username, index=index)
+    if cache is not None:
+        cache[stagename] = url
+    return url
+
+
 def get_files_info(request, linkstore, show_toxresults=False):
     files = []
     filedata = linkstore.get_links(rel='releasefile')
     if not filedata:
         log.warn("project %r version %r has no files",
                  linkstore.projectname, linkstore.version)
+    cache = {}
     for link in sorted(filedata, key=attrgetter('basename')):
         url = url_for_entrypath(request, link.entrypath)
         entry = link.entry
@@ -169,6 +193,26 @@ def get_files_info(request, linkstore, show_toxresults=False):
         size = ''
         if entry.file_exists():
             size = "%.0f %s" % sizeof_fmt(entry.file_size())
+        try:
+            history = link.get_logs()
+        except AttributeError:
+            history = []
+        what_map = dict(
+            overwrite="Replaced",
+            push="Pushed",
+            upload="Uploaded")
+        for log_item in history:
+            log_item['what'] = what_map.get(log_item['what'], log_item['what'])
+            log_item['when'] = format_timetuple(log_item['when'])
+            if 'src' in log_item:
+                log_item['src'] = dict(
+                    title=log_item['src'],
+                    href=get_stage_url(request, log_item['src'], cache=cache))
+            if 'dst' in log_item:
+                log_item['dst'] = dict(
+                    title=log_item['dst'],
+                    href=get_stage_url(request, log_item['dst'], cache=cache))
+        last_modified = format_timetuple(parsedate(entry.last_modified))
         fileinfo = dict(
             title=link.basename,
             url=url,
@@ -176,6 +220,8 @@ def get_files_info(request, linkstore, show_toxresults=False):
             md5=entry.md5,
             dist_type=dist_file_types.get(file_type, ''),
             py_version=py_version,
+            last_modified=last_modified,
+            history=history,
             size=size)
         if show_toxresults:
             toxresults = get_toxresults_info(linkstore, link)
@@ -260,10 +306,10 @@ def root(context, request):
         username = user['username']
         indexes = []
         for index in sorted(user.get('indexes', [])):
+            stagename = "%s/%s" % (username, index)
             indexes.append(dict(
-                title="%s/%s" % (username, index),
-                url=request.route_url(
-                    "/{user}/{index}", user=username, index=index)))
+                title=stagename,
+                url=get_stage_url(request, stagename)))
         users.append(dict(
             title=username,
             indexes=indexes))
@@ -293,9 +339,7 @@ def index_get(context, request):
             base_user, base_index = base.split('/')
             bases.append(dict(
                 title=base,
-                url=request.route_url(
-                    "/{user}/{index}",
-                    user=base_user, index=base_index),
+                url=get_stage_url(request, base),
                 simple_url=request.route_url(
                     "/{user}/{index}/+simple/",
                     user=base_user, index=base_index)))
