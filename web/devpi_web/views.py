@@ -173,6 +173,27 @@ def get_stage_url(request, stagename, cache=None):
     return url
 
 
+_what_map = dict(
+    overwrite="Replaced",
+    push="Pushed",
+    upload="Uploaded")
+
+
+def make_history_view_item(request, log_item, cache=None):
+    result = {}
+    result['what'] = _what_map.get(log_item['what'], log_item['what'])
+    result['who'] = log_item['who']
+    result['when'] = format_timetuple(log_item['when'])
+    for key in ('dst', 'src'):
+        if key in log_item:
+            result[key] = dict(
+                title=log_item[key],
+                href=get_stage_url(request, log_item[key], cache=cache))
+    if 'md5' in log_item:
+        result['md5'] = result
+    return result
+
+
 def get_files_info(request, linkstore, show_toxresults=False):
     files = []
     filedata = linkstore.get_links(rel='releasefile')
@@ -194,24 +215,11 @@ def get_files_info(request, linkstore, show_toxresults=False):
         if entry.file_exists():
             size = "%.0f %s" % sizeof_fmt(entry.file_size())
         try:
-            history = link.get_logs()
+            history = [
+                make_history_view_item(request, x, cache=cache)
+                for x in link.get_logs()]
         except AttributeError:
             history = []
-        what_map = dict(
-            overwrite="Replaced",
-            push="Pushed",
-            upload="Uploaded")
-        for log_item in history:
-            log_item['what'] = what_map.get(log_item['what'], log_item['what'])
-            log_item['when'] = format_timetuple(log_item['when'])
-            if 'src' in log_item:
-                log_item['src'] = dict(
-                    title=log_item['src'],
-                    href=get_stage_url(request, log_item['src'], cache=cache))
-            if 'dst' in log_item:
-                log_item['dst'] = dict(
-                    title=log_item['dst'],
-                    href=get_stage_url(request, log_item['dst'], cache=cache))
         last_modified = format_timetuple(parsedate(entry.last_modified))
         fileinfo = dict(
             title=link.basename,
