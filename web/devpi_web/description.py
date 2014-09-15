@@ -19,7 +19,7 @@ def get_description(stage, name, version):
     desc_file = get_description_file(stage, name, version)
     if not desc_file.exists():
         verdata = stage.get_versiondata(name, version)
-        return "<p>The description hasn't been rendered yet.</p>\n<pre>%s</pre>" % verdata.get('description', '')
+        return '<p class="infonote">The description hasn\'t been rendered yet.</p>\n<pre>%s</pre>' % verdata.get('description', '')
     return py.builtin._totext(desc_file.read(mode='rb'), "utf-8")
 
 

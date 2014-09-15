@@ -358,6 +358,12 @@ iframe {
     border: 0;
 }
 
+.infonote {
+    border: 1px solid #ffa500;
+    background: #fde2b2;
+    padding: 0.4em;
+}
+
 @media (max-width:1199px) {
     form#search input {
         font-size: 18px;
