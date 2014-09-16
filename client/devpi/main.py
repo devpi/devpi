@@ -53,8 +53,12 @@ class Hub:
         self.args = args
         self.cwd = py.path.local()
         self.quiet = False
-        self._last_http_status = None
+        self._last_http_stati = []
         self.http = new_requests_session(agent=("client", client_version))
+
+    @property
+    def _last_http_status(self):
+        return self._last_http_stati[-1]
 
     def set_quiet(self):
         self.quiet = True
@@ -99,9 +103,10 @@ class Hub:
             r = self.http.request(method, url, data=data, headers=headers,
                                   auth=basic_auth, cert=cert)
         except self.http.Errors as e:
-            self._last_http_status = -1
+            self._last_http_stati.append(-1)
             self.fatal("could not connect to %r:\n%s" % (url, e))
-        self._last_http_status = r.status_code
+        else:
+            self._last_http_stati.append(r.status_code)
 
         if r.url != url:
             self.info("*redirected: %s" %(r.url,))
