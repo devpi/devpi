@@ -4,6 +4,10 @@
 - use default "https://www.python.org/pypi" when no repository is set in .pypirc
   see https://docs.python.org/2/distutils/packageindex.html#the-pypirc-file
 
+- fix issue152: when --upload-docs is given, make sure to first register
+  and upload the release file before attempting to upload docs (the latter
+  requires prior registration)
+
 - fix issue75: add info about basic auth to "url" option help of "devpi use".
 
 2.0.2
