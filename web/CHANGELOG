@@ -3,6 +3,9 @@
 
 - require devpi-server >= 2.1.0
 
+- static resources now have a plus in front to avoid clashes with usernames and
+  be consistent with how other urls work: "+static/..." and "+theme-static/..."
+
 - adjusted font-sizes and cut-off width of content.
 
 - only show underline on links when hovering.

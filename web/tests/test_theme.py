@@ -26,8 +26,8 @@ def test_macro_overwrite(testapp, themedir):
     """)
     r = testapp.get('/')
     styles = [x.attrs.get('href') for x in r.html.findAll('link')]
-    assert 'http://localhost/static/style.css' in styles
-    assert 'http://localhost/theme-static/style.css' in styles
+    assert 'http://localhost/+static/style.css' in styles
+    assert 'http://localhost/+theme-static/style.css' in styles
 
 
 def test_template_overwrite(testapp, themedir):
@@ -38,5 +38,5 @@ def test_template_overwrite(testapp, themedir):
 
 def test_theme_style(testapp, themedir):
     themedir.join('static', 'style.css').write("Foo Style!")
-    r = testapp.get('/theme-static/style.css')
+    r = testapp.get('/+theme-static/style.css')
     assert r.text == 'Foo Style!'
