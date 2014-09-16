@@ -1,3 +1,64 @@
+2.1.dev
+----------------
+
+- replaced hack from nginx template which abused "try_files" in "location /"
+  with the recommended "error_page"/"return" combo.
+  Thanks Jürgen Hermann
+
+- change command line option "--master" to "--master-url"
+
+- fix issue113: provide json status information at /+status including roles 
+  and replica polling status, UUIDs of the repository. See new
+  server status docs for more info.
+
+- make master/replica configuration more permanent and a bit safer
+  against accidental errors: introduce "--role=auto" option, defaulting
+  to determine the role from a previous invocation or the presence of the
+  "--master-url" option if there was no previous invocation.  Also verify
+  that a replica talks to the same master UUID as with previous requests.
+
+- actually store UTC in last_modified attribute of release files instead of
+  the local time disguising as UTC.
+
+- fix exception when a static resource can't be found.
+
+- preserve last_modified when pushing a release.
+
+- address issue152: return a proper 400 "not registered" message instead
+  of 500 when a doczip is uploaded without prior registration.
+
+
+2.0.6
+----------------
+
+- log version information of all found plugins on startup.
+
+2.0.5
+----------------
+
+- fix issue145: restrict devpi_common dependency so that a future
+  "pip install 'devpi-server<2.0'" has a higher chance of working.
+
+- fix issue144: fix interaction with requests-2.4.0 -- 
+  use new devpi-common-offered "Errors" enumeration to check for exceptions.
+
+- add '*' as possible option for pypi_whitelist to whitelist all packages of
+  an index at once. Refs issue110
+
+- outside url now works with paths, so you can host a devpi server on something
+  like http://example.com/foo/
+
+- fix issue84: during upload: if a previously registered name diverges from a freshly
+  submitted one take the previously registered one.  This can happen when uploading
+  wheels and in other situations.
+
+- fix issue132: during exporting use whatever name comes with the
+  versiondata instead of trying too hard to assert consistency of different
+  versions.
+
+- fix issue130: fix deletion of users so that is properly deletes all
+  indexes and projects and files on each index.
+
 2.0.4
 ----------------
 

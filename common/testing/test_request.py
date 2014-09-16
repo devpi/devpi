@@ -7,7 +7,7 @@ def test_env(monkeypatch):
     monkeypatch.setenv("HTTP_PROXY", "http://this")
     monkeypatch.setenv("HTTPS_PROXY", "http://that")
     session = new_requests_session()
-    with pytest.raises(requests.exceptions.ProxyError):
+    with pytest.raises(requests.exceptions.RequestException):
         session.get("http://example.com")
 
 def test_useragent():
@@ -16,3 +16,7 @@ def test_useragent():
     assert "devpi-hello/1.2" in ua
     assert sys.version.split()[0] in ua
     assert "*" not in ua
+
+def test_exception_attributes():
+    session = new_requests_session()
+    assert isinstance(session.Errors, tuple)

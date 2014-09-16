@@ -575,6 +575,13 @@ class Mapp(MappMixin):
             self._wait_for_serial_in_result(r)
         return r
 
+    def upload_toxresult(self, path, content, code=200, waithooks=False):
+        r = self.testapp.post(path, content, expect_errors=True)
+        assert r.status_code == code
+        if waithooks:
+            self._wait_for_serial_in_result(r)
+        return r
+
     def get_simple(self, projectname, code=200):
         r = self.testapp.get(self.api.simpleindex + projectname,
                              expect_errors=True)

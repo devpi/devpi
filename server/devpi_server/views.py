@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import os
 import py
 from py.xml import html
 from devpi_common.types import ensure_unicode
@@ -29,6 +30,8 @@ server_version = devpi_server.__version__
 
 
 MAXDOCZIPSIZE = 30 * 1024 * 1024    # 30MB
+
+H_MASTER_UUID = str("X-DEVPI-MASTER-UUID")
 
 
 API_VERSION = "2"
@@ -95,21 +98,28 @@ def json_preferred(request):
     return "application/json" in request.headers.get("Accept", "")
 
 
-def get_outside_url(request, outsideurl):
-    if outsideurl:
-        url = outsideurl
-    else:
-        url = request.headers.get("X-outside-url", None)
-        if url is None:
-            url = request.application_url
-    return url.rstrip("/")
+class OutsideURLMiddleware(object):
+    def __init__(self, app, xom):
+        self.app = app
+        self.xom = xom
+
+    def __call__(self, environ, start_response):
+        outside_url = self.xom.config.args.outside_url
+        if not outside_url:
+            outside_url = environ.get('HTTP_X_OUTSIDE_URL')
+        if outside_url:
+            # XXX memoize it for later access from replica thread
+            # self.xom.current_outside_url = outside_url
+            outside_url = urlparse.urlparse(outside_url)
+            environ['wsgi.url_scheme'] = outside_url.scheme
+            environ['HTTP_HOST'] = outside_url.netloc
+            if outside_url.path:
+                environ['SCRIPT_NAME'] = outside_url.path
+        return self.app(environ, start_response)
 
 
 def route_url(self, *args, **kw):
-    xom = self.registry['xom']
-    outside_url = get_outside_url(self, xom.config.args.outside_url)
-    url = super(self.__class__, self).route_url(
-        _app_url=outside_url, *args, **kw)
+    url = super(self.__class__, self).route_url(*args, **kw)
     # Unquote plus signs in path segment. The settings in pyramid for
     # the urllib quoting function are a bit too much on the safe side
     url = urlparse.urlparse(url)
@@ -120,6 +130,8 @@ def route_url(self, *args, **kw):
 def tween_request_logging(handler, registry):
     req_count = itertools.count()
     from time import time
+
+    nodeinfo = registry["xom"].config.nodeinfo
 
     def request_log_handler(request):
         tag = "[req%s]" %(next(req_count))
@@ -132,6 +144,10 @@ def tween_request_logging(handler, registry):
         rheaders = response.headers
         serial = rheaders.get("X-DEVPI-SERIAL")
         rheaders.update(meta_headers)
+        uuid, master_uuid = make_uuid_headers(nodeinfo)
+        rheaders[str("X-DEVPI-UUID")] = str(uuid)
+        rheaders[H_MASTER_UUID] = str(master_uuid)
+
         log.debug("%s %.3fs serial=%s length=%s type=%s",
                   response.status_code,
                   duration,
@@ -142,6 +158,13 @@ def tween_request_logging(handler, registry):
         thread_pop_log(tag)
         return response
     return request_log_handler
+
+
+def make_uuid_headers(nodeinfo):
+    uuid = master_uuid = nodeinfo.get("uuid")
+    if uuid is not None and nodeinfo["role"] == "replica":
+        master_uuid = nodeinfo.get("master-uuid", "")
+    return uuid, master_uuid
 
 
 def tween_keyfs_transaction(handler, registry):
@@ -164,6 +187,37 @@ def set_header_devpi_serial(headers, serial):
 
 def is_mutating_http_method(method):
     return method in ("PUT", "POST", "PATCH", "DELETE", "PUSH")
+
+class StatusView:
+    def __init__(self, request):
+        self.request = request
+        self.xom = request.registry["xom"]
+
+    @view_config(route_name="/+status")
+    def status(self):
+        config = self.xom.config
+
+        status = {
+            "serverdir": str(config.serverdir),
+            "uuid": self.xom.config.nodeinfo["uuid"],
+            "versioninfo":
+                    dict(self.request.registry["devpi_version_info"]),
+            "server-code": os.path.dirname(devpi_server.__file__),
+            "host": config.args.host,
+            "port": config.args.port,
+            "outside-url": config.args.outside_url,
+            "serial": self.xom.keyfs.get_current_serial(),
+            "event-serial": self.xom.keyfs.notifier.read_event_serial(),
+        }
+        master_url = config.args.master_url
+        if master_url:
+            status["role"] = "REPLICA"
+            status["master-url"] = master_url
+            status["master-uuid"] = config.nodeinfo.get("master-uuid")
+        else:
+            status["role"] = "MASTER"
+        status["polling_replicas"] = self.xom.polling_replicas
+        apireturn(200, type="status", result=status)
 
 
 class PyPIView:
@@ -202,10 +256,8 @@ class PyPIView:
                 user, index = parts[:2]
                 stage = self.context.getstage(user, index)
                 api.update({
-                    "index": request.route_url(
-                        "/{user}/{index}", user=user, index=index),
-                    "simpleindex": request.route_url(
-                        "/{user}/{index}/+simple/", user=user, index=index)
+                    "index": request.stage_url(stage),
+                    "simpleindex": request.simpleindex_url(stage)
                 })
                 if stage.ixconfig["type"] == "stage":
                     api["pypisubmit"] = request.route_url(
@@ -226,6 +278,8 @@ class PyPIView:
             apireturn(404, message="no release file found at %s" % relpath)
         toxresultdata = getjson(self.request)
         tox_link = stage.store_toxresult(link, toxresultdata)
+        tox_link.add_log(
+            'upload', self.request.authenticated_userid, dst=stage.name)
         apireturn(200, type="toxresultpath",
                   result=tox_link.entrypath)
 
@@ -405,9 +459,6 @@ class PyPIView:
 
         metadata = get_pure_metadata(linkstore.verdata)
 
-        # prepare metadata for submission
-        metadata[":action"] = "submit"
-
         results = []
         targetindex = pushdata.get("targetindex", None)
         if targetindex is not None:  # in-server push
@@ -431,6 +482,8 @@ class PyPIView:
             username = pushdata["username"]
             password = pushdata["password"]
             pypiauth = (username, password)
+            # prepare metadata for submission
+            metadata[":action"] = "submit"
             self.log.info("registering %s-%s to %s", name, version, posturl)
             session = new_requests_session(agent=("server", server_version))
             r = session.post(posturl, data=metadata, auth=pypiauth)
@@ -472,8 +525,18 @@ class PyPIView:
 
     def _push_links(self, links, target_stage, name, version):
         for link in links["releasefile"]:
-            entry = target_stage.store_releasefile(
-                name, version, link.basename, link.entry.file_get_content())
+            new_link = target_stage.store_releasefile(
+                name, version, link.basename, link.entry.file_get_content(),
+                last_modified=link.entry.last_modified)
+            new_link.add_logs(
+                x for x in link.get_logs()
+                if x.get('what') != 'overwrite')
+            new_link.add_log(
+                'push',
+                self.request.authenticated_userid,
+                src=self.context.stage.name,
+                dst=target_stage.name)
+            entry = new_link.entry
             yield (200, "store_releasefile", entry.relpath)
             # also store all dependent tox results
             tstore = target_stage.get_linkstore_perstage(name, version)
@@ -483,10 +546,24 @@ class PyPIView:
                     raw_data = toxlink.entry.file_get_content()
                     data = json.loads(raw_data.decode("utf-8"))
                     link = target_stage.store_toxresult(ref_link, data)
+                    link.add_logs(
+                        x for x in toxlink.get_logs()
+                        if x.get('what') != 'overwrite')
+                    link.add_log(
+                        'push',
+                        self.request.authenticated_userid,
+                        src=self.context.stage.name,
+                        dst=target_stage.name)
                     yield (200, "store_toxresult", link.entrypath)
         for link in links["doczip"]:
             doczip = link.entry.file_get_content()
-            target_stage.store_doczip(name, version, doczip)
+            new_link = target_stage.store_doczip(name, version, doczip)
+            new_link.add_logs(link.get_logs())
+            new_link.add_log(
+                'push',
+                self.request.authenticated_userid,
+                src=self.context.stage.name,
+                dst=target_stage.name)
             yield (200, "store_doczip", name, version,
                    "->", target_stage.name)
             break # we only can have one doczip for now
@@ -534,11 +611,15 @@ class PyPIView:
                     metadata = stage.get_versiondata(projectname, version)
                     if not metadata:
                         abort_submit(400, "could not process form metadata")
-                res = stage.store_releasefile(projectname, version,
-                                              content.filename, content.file.read())
-                if res == 409:
+                try:
+                    link = stage.store_releasefile(
+                        projectname, version,
+                        content.filename, content.file.read())
+                except stage.NonVolatile:
                     abort_submit(409, "%s already exists in non-volatile index" % (
                          content.filename,))
+                link.add_log(
+                    'upload', request.authenticated_userid, dst=stage.name)
                 jenkinurl = stage.ixconfig["uploadtrigger_jenkins"]
                 if jenkinurl:
                     jenkinurl = jenkinurl.format(pkgname=name)
@@ -551,7 +632,12 @@ class PyPIView:
                 if len(doczip) > MAXDOCZIPSIZE:
                     abort_submit(413, "zipfile size %d too large, max=%s"
                                    % (len(doczip), MAXDOCZIPSIZE))
-                stage.store_doczip(name, version, doczip)
+                try:
+                    link = stage.store_doczip(name, version, doczip)
+                except stage.MissesRegistration:
+                    apireturn(400, "%s-%s is not registered" %(name, version))
+                link.add_log(
+                    'upload', request.authenticated_userid, dst=stage.name)
         else:
             abort_submit(400, "action %r not supported" % action)
         return Response("")
@@ -574,11 +660,6 @@ class PyPIView:
     def _set_versiondata_dict(self, stage, metadata):
         try:
             stage.set_versiondata(metadata)
-        except stage.RegisterNameConflict as e:
-            othername = e.args[0]
-            abort_submit(403, "cannot register %r because %r is already "
-                  "registered at %s" % (
-                  metadata["name"], othername, stage.name))
         except ValueError as e:
             abort_submit(400, "invalid metadata: %s" % (e,))
         self.log.info("%s: got submit release info %r",
@@ -657,6 +738,12 @@ class PyPIView:
                 if for_entrypath is not None:
                     linkdict["for_href"] = \
                         url_for_entrypath(self.request, for_entrypath)
+                link = self.context.stage.get_link_from_entrypath(entrypath)
+                if link is not None:
+                    log = link.get_logs()
+                    if log:
+                        linkdict['log'] = log
+                linkdict.pop('_log', None)
                 links.append(linkdict)
         shadowing = view_verdata.pop("+shadowing", None)
         if shadowing:
@@ -830,8 +917,7 @@ def getjson(request, allowed_keys=None):
 
 def trigger_jenkins(request, stage, jenkinurl, testspec):
     log = request.log
-    baseurl = get_outside_url(request,
-                  stage.xom.config.args.outside_url) + "/"
+    baseurl = request.application_url
 
     source = render_string("devpibootstrap.py",
         INDEXURL=baseurl + "/" + stage.name,
@@ -843,16 +929,16 @@ def trigger_jenkins(request, stage, jenkinurl, testspec):
         DEVPI_INSTALL_INDEX = baseurl + stage.name + "/+simple/"
     )
     inputfile = py.io.BytesIO(source.encode("ascii"))
-    req = new_requests_session(agent=("server", server_version))
+    session = new_requests_session(agent=("server", server_version))
     try:
-        r = req.post(jenkinurl, data={
+        r = session.post(jenkinurl, data={
                         "Submit": "Build",
                         "name": "jobscript.py",
                         "json": json.dumps(
                     {"parameter": {"name": "jobscript.py", "file": "file0"}}),
             },
                 files={"file0": ("file0", inputfile)})
-    except req.RequestException:
+    except session.Errors:
         log.error("%s: failed to connect to jenkins at %s",
                   testspec, jenkinurl)
         return -1

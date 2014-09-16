@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 try:
     from UserDict import DictMixin
 except ImportError:

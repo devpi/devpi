@@ -19,6 +19,18 @@ def test_view_name2serials(pypistage, testapp):
 
 
 class TestChangelog:
+    replica_uuid = "111"
+    replica_url = "http://qwe"
+
+    @pytest.fixture
+    def reqchangelog(self, testapp):
+        def reqchangelog(serial):
+            req_headers = {H_REPLICA_UUID: self.replica_uuid,
+                           H_REPLICA_OUTSIDE_URL: self.replica_url}
+            return testapp.get("/+changelog/%s" % serial, expect_errors=False,
+                                headers=req_headers)
+        return reqchangelog
+
     def get_latest_serial(self, testapp):
         r = testapp.get("/+changelog/nop", expect_errors=False)
         return int(r.headers["X-DEVPI-SERIAL"])
@@ -29,32 +41,31 @@ class TestChangelog:
         mapp.create_user("hello", "pass")
         assert self.get_latest_serial(testapp) == latest_serial + 1
 
-    def test_get_since(self, testapp, mapp, noiter):
+    def test_get_since(self, testapp, mapp, noiter, reqchangelog):
         mapp.create_user("this", password="p")
         latest_serial = self.get_latest_serial(testapp)
-        r = testapp.get("/+changelog/%s" % latest_serial, expect_errors=False)
+        r = reqchangelog(latest_serial)
         body = b''.join(r.app_iter)
         data = loads(body)
         assert "this" in str(data)
 
-    def test_get_wait(self, testapp, mapp, noiter, monkeypatch):
+    def test_get_wait(self, reqchangelog, testapp, mapp, noiter, monkeypatch):
         mapp.create_user("this", password="p")
         latest_serial = self.get_latest_serial(testapp)
         monkeypatch.setattr(testapp.xom.keyfs.notifier.cv_new_transaction,
                             "wait", lambda *x: 0/0)
         with pytest.raises(ZeroDivisionError):
-            testapp.get("/+changelog/%s" % (latest_serial+1,),
-                        expect_errors=False)
+            reqchangelog(latest_serial+1)
 
-    def test_get_wait_blocking_ends(self, testapp, mapp, noiter, monkeypatch):
+    def test_get_wait_blocking_ends(self, testapp, mapp, noiter, monkeypatch,
+                                    reqchangelog):
         mapp.create_user("this", password="p")
         latest_serial = self.get_latest_serial(testapp)
         monkeypatch.setattr(MasterChangelogRequest, "MAX_REPLICA_BLOCK_TIME",
                             0.01)
         monkeypatch.setattr(MasterChangelogRequest, "WAKEUP_INTERVAL",
                             0.001)
-        r = testapp.get("/+changelog/%s" % (latest_serial+1,),
-                    expect_errors=False)
+        r = reqchangelog(latest_serial+1)
         assert r.status_code == 202
         assert int(r.headers["X-DEVPI-SERIAL"]) == latest_serial
 
@@ -104,35 +115,62 @@ class TestReplicaThread:
         xom.thread_pool.register(rt)
         return rt
 
-    def test_thread_run_fail(self, rt, reqmock, caplog):
+    @pytest.fixture
+    def mockchangelog(self, reqmock):
+        def mockchangelog(num, code, data=b'',
+                          headers={H_MASTER_UUID: "123"}):
+            reqmock.mockresponse("http://localhost/+changelog/%s" % num,
+                                 code=code, data=data, headers=headers)
+        return mockchangelog
+
+    def test_thread_run_fail(self, rt, mockchangelog, caplog):
         rt.thread.sleep = lambda x: 0/0
-        reqmock.mockresponse("http://localhost/+changelog/0", code=404)
+        mockchangelog(0, code=404)
         with pytest.raises(ZeroDivisionError):
             rt.thread_run()
         assert caplog.getrecords("404.*failed fetching*")
 
-    def test_thread_run_decode_error(self, rt, reqmock, caplog):
+    def test_thread_run_decode_error(self, rt, mockchangelog, caplog):
         rt.thread.sleep = lambda x: 0/0
-        reqmock.mockresponse("http://localhost/+changelog/0", code=200,
-                             data=b'qlwekj')
+        mockchangelog(0, code=200, data=b'qwelk')
         with pytest.raises(ZeroDivisionError):
             rt.thread_run()
         assert caplog.getrecords("could not read answer")
 
-    def test_thread_run_ok(self, rt, reqmock, caplog):
-        rt.thread.sleep = rt.thread.exit_if_shutdown = lambda *x: 0/0
-        reqmock.mockresponse("http://localhost/+changelog/0", code=200,
-                             data=rt.xom.keyfs._fs.get_raw_changelog_entry(0))
+    def test_thread_run_ok(self, rt, mockchangelog, caplog, xom):
+        rt.thread.sleep = lambda *x: 0/0
+        data = xom.keyfs._fs.get_raw_changelog_entry(0)
+        assert data
+        mockchangelog(0, code=200, data=data)
+        mockchangelog(1, code=404, data=data)
         with pytest.raises(ZeroDivisionError):
             rt.thread_run()
-        #assert caplog.getrecords("committed")
+        assert caplog.getrecords("committed")
 
-    def test_thread_run_try_again(self, rt, reqmock, caplog):
+    def test_thread_run_no_uuid(self, rt, mockchangelog, caplog, xom):
+        rt.thread.sleep = lambda x: 0/0
+        mockchangelog(0, code=200, data=b'123', headers={})
+        with pytest.raises(ZeroDivisionError):
+            rt.thread_run()
+        assert caplog.getrecords("remote.*no.*UUID")
+
+    def test_thread_run_ok_uuid_change(self, rt, mockchangelog, caplog, xom):
+        rt.thread.sleep = lambda *x: 0/0
+        data = xom.keyfs._fs.get_raw_changelog_entry(0)
+        assert data
+        mockchangelog(0, code=200, data=data)
+        mockchangelog(1, code=200, data=data,
+                      headers={"x-devpi-master-uuid": "001"})
+        with pytest.raises(ZeroDivisionError):
+            rt.thread_run()
+        assert caplog.getrecords("master UUID.*001.*does not match")
+
+    def test_thread_run_try_again(self, rt, mockchangelog, caplog):
         l = [1]
         def exit_if_shutdown():
             l.pop()
         rt.thread.exit_if_shutdown = exit_if_shutdown
-        reqmock.mockresponse("http://localhost/+changelog/0", code=202)
+        mockchangelog(0, code=202)
         with pytest.raises(IndexError):
             rt.thread_run()
         assert caplog.getrecords("trying again")
@@ -181,7 +219,10 @@ class TestTweenReplica:
         monkeypatch.setattr(xom.keyfs.notifier, "wait_tx_serial",
                             lambda x: l.append(x))
         handler = tween_replica_proxy(None, {"xom": xom})
-        response = handler(blank_request(method="PUT"))
+        # normally the app is wrapped by OutsideURLMiddleware, since this is
+        # not the case here, we have to set the host explicitly
+        response = handler(
+            blank_request(method="PUT", headers=dict(host='my.domain')))
         assert response.headers.get("X-DEVPI-SERIAL") == "10"
         assert response.headers.get("location") == "http://my.domain/hello"
         assert l == [10]

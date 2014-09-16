@@ -7,10 +7,12 @@ from devpi_server.views import url_for_entrypath
 from devpi_web.description import get_description
 from devpi_web.doczip import Docs, get_unpack_path
 from devpi_web.indexing import is_project_cached
+from email.utils import parsedate
 from operator import attrgetter, itemgetter
 from py.xml import html
 from pyramid.compat import decode_path_info
 from pyramid.decorator import reify
+from pyramid.httpexceptions import HTTPBadGateway, HTTPError
 from pyramid.httpexceptions import HTTPFound, HTTPNotFound
 from pyramid.interfaces import IRoutesMapper
 from pyramid.response import FileResponse
@@ -131,6 +133,15 @@ def notfound(request):
     return dict(msg=request.exception)
 
 
+@view_config(context=HTTPError, renderer="templates/error.pt")
+def error_view(request):
+    request.response.status = request.exception.status
+    return dict(
+        title=request.exception.title,
+        status=request.exception.status,
+        msg=request.exception)
+
+
 dist_file_types = {
     'sdist': 'Source',
     'bdist_dumb': '"dumb" binary',
@@ -148,6 +159,32 @@ def sizeof_fmt(num):
             return (num, x)
         num /= 1024.0
     return (num, 'TB')
+
+
+def format_timetuple(tt):
+    if tt is not None:
+        return "{0}-{1:02d}-{2:02d} {3:02d}:{4:02d}:{5:02d}".format(*tt)
+
+
+_what_map = dict(
+    overwrite="Replaced",
+    push="Pushed",
+    upload="Uploaded")
+
+
+def make_history_view_item(request, log_item):
+    result = {}
+    result['what'] = _what_map.get(log_item['what'], log_item['what'])
+    result['who'] = log_item['who']
+    result['when'] = format_timetuple(log_item['when'])
+    for key in ('dst', 'src'):
+        if key in log_item:
+            result[key] = dict(
+                title=log_item[key],
+                href=request.stage_url(log_item[key]))
+    if 'md5' in log_item:
+        result['md5'] = result
+    return result
 
 
 def get_files_info(request, linkstore, show_toxresults=False):
@@ -169,6 +206,13 @@ def get_files_info(request, linkstore, show_toxresults=False):
         size = ''
         if entry.file_exists():
             size = "%.0f %s" % sizeof_fmt(entry.file_size())
+        try:
+            history = [
+                make_history_view_item(request, x)
+                for x in link.get_logs()]
+        except AttributeError:
+            history = []
+        last_modified = format_timetuple(parsedate(entry.last_modified))
         fileinfo = dict(
             title=link.basename,
             url=url,
@@ -176,6 +220,8 @@ def get_files_info(request, linkstore, show_toxresults=False):
             md5=entry.md5,
             dist_type=dist_file_types.get(file_type, ''),
             py_version=py_version,
+            last_modified=last_modified,
+            history=history,
             size=size)
         if show_toxresults:
             toxresults = get_toxresults_info(linkstore, link)
@@ -260,10 +306,10 @@ def root(context, request):
         username = user['username']
         indexes = []
         for index in sorted(user.get('indexes', [])):
+            stagename = "%s/%s" % (username, index)
             indexes.append(dict(
-                title="%s/%s" % (username, index),
-                url=request.route_url(
-                    "/{user}/{index}", user=username, index=index)))
+                title=stagename,
+                url=request.stage_url(stagename)))
         users.append(dict(
             title=username,
             indexes=indexes))
@@ -275,14 +321,12 @@ def root(context, request):
     renderer="templates/index.pt")
 def index_get(context, request):
     context = ContextWrapper(context)
-    user, index = context.username, context.index
     stage = context.stage
     bases = []
     packages = []
     result = dict(
         title="%s index" % stage.name,
-        simple_index_url=request.route_url(
-            "/{user}/{index}/+simple/", user=user, index=index),
+        simple_index_url=request.simpleindex_url(stage),
         bases=bases,
         packages=packages)
     if stage.name == "root/pypi":
@@ -290,15 +334,10 @@ def index_get(context, request):
 
     if hasattr(stage, "ixconfig"):
         for base in stage.ixconfig["bases"]:
-            base_user, base_index = base.split('/')
             bases.append(dict(
                 title=base,
-                url=request.route_url(
-                    "/{user}/{index}",
-                    user=base_user, index=base_index),
-                simple_url=request.route_url(
-                    "/{user}/{index}/+simple/",
-                    user=base_user, index=base_index)))
+                url=request.stage_url(base),
+                simple_url=request.simpleindex_url(base)))
 
     for projectname in stage.list_projectnames_perstage():
         version = stage.get_latest_version_perstage(projectname)
@@ -335,7 +374,11 @@ def index_get(context, request):
     renderer="templates/project.pt")
 def project_get(context, request):
     context = ContextWrapper(context)
-    releaselinks = context.stage.get_releaselinks(context.name)
+    try:
+        releaselinks = context.stage.get_releaselinks(context.name)
+    except context.stage.UpstreamError as e:
+        log.error(e.msg)
+        raise HTTPBadGateway(e.msg)
     if not releaselinks:
         raise HTTPNotFound("The project %s does not exist." % context.name)
     versions = []
@@ -348,8 +391,7 @@ def project_get(context, request):
             continue
         versions.append(dict(
             index_title="%s/%s" % (user, index),
-            index_url=request.route_url(
-                "/{user}/{index}", user=user, index=index),
+            index_url=request.stage_url(user, index),
             title=version,
             url=request.route_url(
                 "/{user}/{index}/{name}/{version}",
@@ -368,7 +410,12 @@ def version_get(context, request):
     context = ContextWrapper(context)
     user, index = context.username, context.index
     name, version = context.name, context.version
-    stage, verdata = context.stage, context.verdata
+    stage = context.stage
+    try:
+        verdata = context.verdata
+    except stage.UpstreamError as e:
+        log.error(e.msg)
+        raise HTTPBadGateway(e.msg)
     infos = []
     skipped_keys = frozenset(
         ("description", "home_page", "name", "summary", "version"))

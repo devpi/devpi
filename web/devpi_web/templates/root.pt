@@ -7,6 +7,7 @@
     <body>
         <metal:search use-macro="request.macros['navigation']" />
         <div id="content">
+        <metal:rootaboveuserindexlist use-macro="request.macros['rootaboveuserindexlist']" />
         <dl class="user_index_list">
             <tal:users repeat="user users">
             <dt>${user.title}</dt>
@@ -19,6 +20,8 @@
             </dd>
             </tal:users>
         </dl>
+        <metal:rootbelowuserindexlist use-macro="request.macros['rootbelowuserindexlist']" />
         </div>
+        <metal:footer use-macro="request.macros['footer']" />
     </body>
 </html>

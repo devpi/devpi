@@ -13,6 +13,7 @@ from devpi_common.request import new_requests_session
 from .config import PluginManager
 from .config import parseoptions, load_setuptools_entrypoints
 from .log import configure_logging, threadlog
+from .model import BaseStage
 from . import extpypi, replica, mythread
 from . import __version__ as server_version
 
@@ -122,6 +123,7 @@ def wsgi_run(xom, app):
     log = xom.log
     log.info("devpi-server version: %s", server_version)
     log.info("serverdir: %s" % xom.config.serverdir)
+    log.info("uuid: %s" % xom.config.nodeinfo["uuid"])
     hostaddr = "http://%s:%s" % (host, port)
     log.info("serving at url: %s", hostaddr)
     log.info("bug tracker: https://bitbucket.org/hpk42/devpi/issues")
@@ -136,7 +138,6 @@ def wsgi_run(xom, app):
         pass
     return 0
 
-
 class XOM:
     class Exiting(SystemExit):
         pass
@@ -149,9 +150,10 @@ class XOM:
         if httpget is not None:
             self.httpget = httpget
         sdir = config.serverdir
-        if not (sdir.exists() and sdir.listdir()):
+        if not (sdir.exists() and len(sdir.listdir()) >= 2):
             self.set_state_version(server_version)
         self.log = threadlog
+        self.polling_replicas = {}
 
     def get_state_version(self):
         versionfile = self.config.serverdir.join(".serverversion")
@@ -269,12 +271,14 @@ class XOM:
                 resp.url = resp.url.replace("https://front.python.org",
                                             "https://pypi.python.org")
             return resp
-        except self._httpsession.RequestException:
+        except self._httpsession.Errors:
             return FatalResponse(sys.exc_info())
 
     def create_app(self):
         from devpi_server.view_auth import DevpiAuthenticationPolicy
+        from devpi_server.views import OutsideURLMiddleware
         from devpi_server.views import route_url
+        from pkg_resources import get_distribution
         from pyramid.authorization import ACLAuthorizationPolicy
         from pyramid.config import Configurator
         log = self.log
@@ -283,12 +287,23 @@ class XOM:
         pyramid_config.set_authentication_policy(DevpiAuthenticationPolicy(self))
         pyramid_config.set_authorization_policy(ACLAuthorizationPolicy())
 
+        version_info = [
+            ("devpi-server", get_distribution("devpi_server").version)]
+        for plug, distinfo in self.config.hook._plugins:
+            if distinfo is None:
+                continue
+            threadlog.info("Found plugin %s-%s (%s)." % (
+                distinfo.project_name, distinfo.version, distinfo.location))
+            version_info.append((distinfo.project_name, distinfo.version))
+        version_info.sort()
+        pyramid_config.registry['devpi_version_info'] = version_info
         self.config.hook.devpiserver_pyramid_configure(
                 config=self.config,
                 pyramid_config=pyramid_config)
 
         pyramid_config.add_route("/+changelog/{serial}",
                                  "/+changelog/{serial}")
+        pyramid_config.add_route("/+status", "/+status")
         pyramid_config.add_route("/root/pypi/+name2serials",
                                  "/root/pypi/+name2serials")
         pyramid_config.add_route("/+api", "/+api", accept="application/json")
@@ -322,6 +337,9 @@ class XOM:
         pyramid_config.add_tween("devpi_server.views.tween_keyfs_transaction",
             under="devpi_server.views.tween_request_logging"
         )
+        pyramid_config.add_request_method(get_remote_ip)
+        pyramid_config.add_request_method(stage_url)
+        pyramid_config.add_request_method(simpleindex_url)
 
         # overwrite route_url method with our own
         pyramid_config.add_request_method(route_url)
@@ -341,17 +359,45 @@ class XOM:
             # pypi changelog protocol
             self.thread_pool.register(self.pypimirror,
                                       dict(proxy=self.proxy))
-        return app
+        return OutsideURLMiddleware(app, self)
 
     def is_replica(self):
         return bool(self.config.args.master_url)
-
 
 class FatalResponse:
     status_code = -1
 
     def __init__(self, excinfo=None):
         self.excinfo = excinfo
+
+def get_remote_ip(request):
+    return request.headers.get("X-REAL-IP", request.client_addr)
+
+
+def stage_from_args(model, *args):
+    if len(args) not in (1, 2):
+        raise TypeError("stage_url() takes 1 or 2 arguments (%s given)" % len(args))
+    if len(args) == 1:
+        if isinstance(args[0], BaseStage):
+            return args[0]
+    return model.getstage(*args)
+
+
+def stage_url(request, *args):
+    model = request.registry['xom'].model
+    stage = stage_from_args(model, *args)
+    if stage is not None:
+        return request.route_url(
+            "/{user}/{index}", user=stage.username, index=stage.index)
+
+
+def simpleindex_url(request, *args):
+    model = request.registry['xom'].model
+    stage = stage_from_args(model, *args)
+    if stage is not None:
+        return request.route_url(
+            "/{user}/{index}/+simple/", user=stage.username, index=stage.index)
+
 
 def set_default_indexes(model):
     root_user = model.get_user("root")

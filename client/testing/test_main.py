@@ -33,3 +33,8 @@ def test_main_devpi_invocation():
                            "-m", "devpi", "--version"])
 
 
+def test_pkgresources_version_matches_init():
+    import devpi
+    import pkg_resources
+    ver = devpi.__version__
+    assert pkg_resources.get_distribution("devpi_client").version == ver

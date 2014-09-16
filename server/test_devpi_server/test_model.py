@@ -226,7 +226,8 @@ class TestStage:
 
     def test_store_and_get_releasefile(self, stage, bases):
         content = b"123"
-        entry = register_and_store(stage, "some-1.0.zip", content)
+        link = register_and_store(stage, "some-1.0.zip", content)
+        entry = link.entry
         assert entry.last_modified != None
         entries = stage.get_releaselinks("some")
         assert len(entries) == 1
@@ -298,6 +299,70 @@ class TestStage:
         # if we add the project to the whitelist of the inherited index, we
         # also get the release from pypi
         stage_dev2.modify(pypi_whitelist=['someproject'])
+        links = stage.get_releaselinks("someproject")
+        assert len(links) == 2
+        assert links[0].entrypath.endswith("someproject-1.1.zip")
+        assert links[1].entrypath.endswith("someproject-1.0.zip")
+
+    def test_project_whitelist_all(self, pypistage, stage):
+        stage.modify(bases=("root/pypi",))
+        pypistage.mock_simple("someproject",
+            "<a href='someproject-1.1.zip' /a>")
+        register_and_store(stage, "someproject-1.0.zip", b"123")
+        stage.store_releasefile("someproject", "1.0",
+                                "someproject-1.0.zip", b"123")
+        links = stage.get_releaselinks("someproject")
+        # because the whitelist doesn't include "someproject" we only get
+        # our upload
+        assert len(links) == 1
+        assert links[0].entrypath.endswith("someproject-1.0.zip")
+        # if we allow all projects in the whitelist, we also get the release
+        # from pypi
+        stage.modify(pypi_whitelist=['*'])
+        links = stage.get_releaselinks("someproject")
+        assert len(links) == 2
+        assert links[0].entrypath.endswith("someproject-1.1.zip")
+        assert links[1].entrypath.endswith("someproject-1.0.zip")
+
+    def test_project_whitelist_all_inheritance(self, pypistage, stage, user):
+        user.create_stage(index="dev2", bases=("root/pypi",))
+        stage_dev2 = user.getstage("dev2")
+        stage.modify(bases=(stage_dev2.name,))
+        pypistage.mock_simple("someproject",
+            "<a href='someproject-1.1.zip' /a>")
+        register_and_store(stage, "someproject-1.0.zip", b"123")
+        stage.store_releasefile("someproject", "1.0",
+                                "someproject-1.0.zip", b"123")
+        links = stage.get_releaselinks("someproject")
+        # because the whitelist doesn't include "someproject" we only get
+        # our upload
+        assert len(links) == 1
+        assert links[0].entrypath.endswith("someproject-1.0.zip")
+        # if we add all projects to the whitelist of the inherited index, we
+        # also get the release from pypi
+        stage_dev2.modify(pypi_whitelist=['*'])
+        links = stage.get_releaselinks("someproject")
+        assert len(links) == 2
+        assert links[0].entrypath.endswith("someproject-1.1.zip")
+        assert links[1].entrypath.endswith("someproject-1.0.zip")
+
+    def test_project_whitelist_inheritance_all(self, pypistage, stage, user):
+        user.create_stage(index="dev2", bases=("root/pypi",))
+        stage_dev2 = user.getstage("dev2")
+        stage.modify(bases=(stage_dev2.name,))
+        pypistage.mock_simple("someproject",
+            "<a href='someproject-1.1.zip' /a>")
+        register_and_store(stage, "someproject-1.0.zip", b"123")
+        stage.store_releasefile("someproject", "1.0",
+                                "someproject-1.0.zip", b"123")
+        links = stage.get_releaselinks("someproject")
+        # because the whitelist doesn't include "someproject" we only get
+        # our upload
+        assert len(links) == 1
+        assert links[0].entrypath.endswith("someproject-1.0.zip")
+        # if we add all projects to the whitelist of the inheriting index, we
+        # also get the release from pypi
+        stage.modify(pypi_whitelist=['*'])
         links = stage.get_releaselinks("someproject")
         assert len(links) == 2
         assert links[0].entrypath.endswith("someproject-1.1.zip")
@@ -382,11 +447,11 @@ class TestStage:
 
     def test_storetoxresult(self, stage, bases):
         content = b'123'
-        entry = register_and_store(stage, "pkg1-1.0.tar.gz", content=content)
+        link = register_and_store(stage, "pkg1-1.0.tar.gz", content=content)
+        entry = link.entry
         assert entry.projectname == "pkg1"
         assert entry.version == "1.0"
         toxresultdata = {'hello': 'world'}
-        link = stage.get_link_from_entrypath(entry.relpath)
         stage.store_toxresult(link, toxresultdata)
         linkstore = stage.get_linkstore_perstage("pkg1", "1.0")
         tox_links = list(linkstore.get_links(rel="toxresult"))
@@ -414,9 +479,8 @@ class TestStage:
         assert len(stage.get_releaselinks("some")) == 1
 
         # rewrite  fails because index is non-volatile
-        entry = stage.store_releasefile("some", "1.0",
-                                        "some-1.0.zip", content2)
-        assert entry == 409
+        with pytest.raises(stage.NonVolatile):
+            stage.store_releasefile("some", "1.0", "some-1.0.zip", content2)
 
         # rewrite succeeds with volatile
         stage.modify(volatile=True)
@@ -470,11 +534,16 @@ class TestStage:
         with pytest.raises(ValueError):
              stage.set_versiondata(dict(name="hello_", version="1.0"))
 
-    def test_set_versiondata_normalized_name_clash(self, stage):
+    def test_set_versiondata_take_existing_name_issue84(self, stage, caplog):
+        import logging
         stage.set_versiondata(dict(name="hello-World", version="1.0"))
-        with pytest.raises(stage.RegisterNameConflict):
-            stage.set_versiondata(dict(name="Hello-world", version="1.0"))
-            stage.set_versiondata(dict(name="Hello_world", version="1.0"))
+        for name in ("Hello-World", "hello_world"):
+            caplog.handler.records = []
+            caplog.setLevel(logging.WARNING)
+            stage.set_versiondata(dict(name=name, version="1.0"))
+            rec = caplog.getrecords()
+            assert len(rec) == 1, [str(x) for x in rec]
+            assert "using" in rec[0].msg and name in rec[0].msg
 
     @pytest.mark.start_threads
     def test_set_versiondata_hook(self, stage, queue):

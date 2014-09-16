@@ -11,5 +11,6 @@
             <p>The following resource could not be found:</p>
             <p>${msg}</p>
         </div>
+        <metal:footer use-macro="request.macros['footer']" />
     </body>
 </html>

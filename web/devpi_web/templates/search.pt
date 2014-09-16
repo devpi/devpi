@@ -42,5 +42,6 @@
         <div id="content" tal:condition="not result|None">
             <p>Your search <strong>${query}</strong> did not match anything.</p>
         </div>
+        <metal:footer use-macro="request.macros['footer']" />
     </body>
 </html>

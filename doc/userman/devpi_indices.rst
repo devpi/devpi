@@ -35,9 +35,9 @@ client provides the :ref:`cmdref_use` sub-command to achieve this purpose::
    $ devpi use http://localhost:3141/
    using server: http://localhost:3141/ (logged in as root)
    no current index: type 'devpi use -l' to discover indices
-   ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-   ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-   ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
+   ~/.pydistutils.cfg     : no config file exists
+   ~/.pip/pip.conf        : no config file exists
+   ~/.buildout/default.cfg: no config file exists
    always-set-cfg: no
    
 where ``http://devpi.mydomain:3141`` is the **base url** to a given `devpi`_ 
@@ -57,9 +57,9 @@ set the index::
 
    $ devpi use /root/pypi
    current devpi index: http://localhost:3141/root/pypi (logged in as emilie)
-   ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-   ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-   ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
+   ~/.pydistutils.cfg     : no config file exists
+   ~/.pip/pip.conf        : no config file exists
+   ~/.buildout/default.cfg: no config file exists
    always-set-cfg: no
 
 and then issue::
@@ -69,9 +69,9 @@ and then issue::
         simpleindex: http://localhost:3141/root/pypi/+simple/
          pypisubmit: None
               login: http://localhost:3141/+login
-   ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-   ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-   ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
+   ~/.pydistutils.cfg     : no config file exists
+   ~/.pip/pip.conf        : no config file exists
+   ~/.buildout/default.cfg: no config file exists
    always-set-cfg: no
 
 .. addind a REsT comment here works around a regendoc bug.              
@@ -86,9 +86,9 @@ he or she doesn't have any index associated to his or her username::
 
    $ devpi use
    current devpi index: http://localhost:3141/root/pypi (logged in as emilie)
-   ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-   ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-   ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
+   ~/.pydistutils.cfg     : no config file exists
+   ~/.pip/pip.conf        : no config file exists
+   ~/.buildout/default.cfg: no config file exists
    always-set-cfg: no
 
 In order to create an index, use the :ref:`cmdref_index` sub-command. In the 
@@ -188,18 +188,18 @@ She can start using them (short endpoint)::
 
    $ devpi use dev
    current devpi index: http://localhost:3141/emilie/dev (logged in as emilie)
-   ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-   ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-   ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
+   ~/.pydistutils.cfg     : no config file exists
+   ~/.pip/pip.conf        : no config file exists
+   ~/.buildout/default.cfg: no config file exists
    always-set-cfg: no
    
 or (long endpoint)::
 
    $ devpi use prod
    current devpi index: http://localhost:3141/emilie/prod (logged in as emilie)
-   ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-   ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-   ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
+   ~/.pydistutils.cfg     : no config file exists
+   ~/.pip/pip.conf        : no config file exists
+   ~/.buildout/default.cfg: no config file exists
    always-set-cfg: no
    
 And from there, the urls should be set to:: 
@@ -209,9 +209,9 @@ And from there, the urls should be set to::
         simpleindex: http://localhost:3141/emilie/prod/+simple/
          pypisubmit: http://localhost:3141/emilie/prod/
               login: http://localhost:3141/+login
-   ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-   ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-   ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
+   ~/.pydistutils.cfg     : no config file exists
+   ~/.pip/pip.conf        : no config file exists
+   ~/.buildout/default.cfg: no config file exists
    always-set-cfg: no
    
 .. note:: By default, a user index has its ``acl_upload`` property set to 
@@ -342,6 +342,37 @@ It is also possible to allow anonymous uploads if you have a controlled environm
      acl_upload=:ANONYMOUS:
      pypi_whitelist=
 
+Modifying the PyPI whitelist
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The PyPI whitelist prevents malicious uploads from PyPI to be mixed in with your private packages.
+
+To allow uploads on PyPI to be visible on your index, you have to add the project to the whitelist.
+
+.. code-block:: console
+
+   $ devpi index -c someindex pypi_whitelist=mypkg
+   http://localhost:3141/emilie/someindex:
+     type=stage
+     bases=root/pypi
+     volatile=True
+     uploadtrigger_jenkins=None
+     acl_upload=emilie
+     pypi_whitelist=mypkg
+
+You can also whitelist all packages on an index by setting pypi_whitelist to an asterisk.
+
+.. code-block:: console
+
+   $ devpi index -c wheelindex pypi_whitelist="*"
+   http://localhost:3141/emilie/wheelindex:
+     type=stage
+     bases=root/pypi
+     volatile=True
+     uploadtrigger_jenkins=None
+     acl_upload=emilie
+     pypi_whitelist=*
+
 Switching Between Indices
 -------------------------
 
@@ -349,36 +380,36 @@ Now that we have two indices, we can switch between them by doing::
 
    $ devpi use /emilie/prod
    current devpi index: http://localhost:3141/emilie/prod (logged in as emilie)
-   ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-   ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-   ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
+   ~/.pydistutils.cfg     : no config file exists
+   ~/.pip/pip.conf        : no config file exists
+   ~/.buildout/default.cfg: no config file exists
    always-set-cfg: no
 
 checking::
 
    $ devpi use 
    current devpi index: http://localhost:3141/emilie/prod (logged in as emilie)
-   ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-   ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-   ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
+   ~/.pydistutils.cfg     : no config file exists
+   ~/.pip/pip.conf        : no config file exists
+   ~/.buildout/default.cfg: no config file exists
    always-set-cfg: no
 
 switching::
 
    $ devpi use /emilie/dev
    current devpi index: http://localhost:3141/emilie/dev (logged in as emilie)
-   ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-   ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-   ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
+   ~/.pydistutils.cfg     : no config file exists
+   ~/.pip/pip.conf        : no config file exists
+   ~/.buildout/default.cfg: no config file exists
    always-set-cfg: no
 
 and checking again::
 
    $ devpi use
    current devpi index: http://localhost:3141/emilie/dev (logged in as emilie)
-   ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-   ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-   ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
+   ~/.pydistutils.cfg     : no config file exists
+   ~/.pip/pip.conf        : no config file exists
+   ~/.buildout/default.cfg: no config file exists
    always-set-cfg: no
 
 Deleting an Index
@@ -438,7 +469,9 @@ given user::
 
    $ devpi index -l
    emilie/prod
+   emilie/someindex
    emilie/dev
+   emilie/wheelindex
    
 However, it is sometimes useful to see all indexes present on the server. This 
 can done with the **devpi** :ref:`cmdref_use` ``-l`` command [#f1]_ which 
@@ -450,7 +483,9 @@ information::
    sophie/dev      bases=sophie/prod     volatile=True
    root/pypi       bases=                volatile=False
    emilie/prod     bases=root/pypi       volatile=False
+   emilie/someindex bases=root/pypi       volatile=True
    emilie/dev      bases=emilie/prod     volatile=True
+   emilie/wheelindex bases=root/pypi       volatile=True
 
 .. rubric:: Footnotes
 

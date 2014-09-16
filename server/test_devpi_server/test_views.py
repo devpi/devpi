@@ -3,7 +3,6 @@ from __future__ import unicode_literals
 
 import hashlib
 import pytest
-import re
 import py
 import json
 import posixpath
@@ -16,7 +15,7 @@ from devpi_common.archive import Archive, zip_dict
 from devpi_common.viewhelp import ViewLinkStore
 
 import devpi_server.views
-from devpi_server.views import tween_keyfs_transaction
+from devpi_server.views import tween_keyfs_transaction, make_uuid_headers
 
 from .functional import TestUserThings, TestIndexThings  # noqa
 
@@ -43,12 +42,22 @@ def test_invalid_username(caplog, testapp, user, status):
     assert r.status_code == code
     if status == 'warn':
         msg = "username '%s' will be invalid with next release, use characters, numbers, underscore, dash and dots only" % user
-        logmsg, = caplog.getrecords('invalid')
+        logmsg = caplog.getrecords('invalid')[-1]
         assert logmsg.message.endswith(msg)
     if status == 'fatal':
         msg = "username '%s' is invalid, use characters, numbers, underscore, dash and dots only" % user
         assert r.json['message'] == msg
 
+
+@pytest.mark.parametrize("nodeinfo,expected", [
+    ({}, (None, None)),
+    ({"uuid": "123", "role":"master"}, ("123", "123")),
+    ({"uuid": "123", "role":"replica"}, ("123", "")),
+    ({"uuid": "123", "master-uuid": "456", "role":"replica"}, ("123", "456")),
+])
+def test_make_uuid_headers(nodeinfo, expected):
+    output = make_uuid_headers(nodeinfo)
+    assert output == expected
 
 def test_simple_project(pypistage, testapp):
     name = "qpwoei"
@@ -210,8 +219,24 @@ def test_apiconfig(testapp):
     assert r.status_code == 200
     assert not "pypisubmit" in r.json["result"]
 
+class TestStatus:
+    def test_status_master(self, testapp):
+        r = testapp.get_json("/+status", status=200)
+        assert r.status_code == 200
+        data = r.json["result"]
+        assert data["role"] == "MASTER"
+
+    def test_status_replica(self, maketestapp, replica_xom):
+        testapp = maketestapp(replica_xom)
+        r = testapp.get_json("/+status", status=200)
+        assert r.status_code == 200
+        data = r.json["result"]
+        assert data["role"] == "REPLICA"
+        assert data["serial"] == replica_xom.keyfs.get_current_serial()
+
+
 def test_apiconfig_with_outside_url(testapp):
-    testapp.xom.config.args.outside_url = u = "http://outside.com/root"
+    testapp.xom.config.args.outside_url = u = "http://outside.com"
     r = testapp.get_json("/root/pypi/+api")
     assert r.status_code == 200
     result = r.json["result"]
@@ -251,6 +276,7 @@ class TestSubmitValidation:
         class Submit:
             def __init__(self, stagename="user/dev"):
                 self.stagename = stagename
+                self.username = stagename.split("/")[0]
                 self.api = mapp.create_and_use(stagename)
 
             def metadata(self, metadata, code):
@@ -272,17 +298,13 @@ class TestSubmitValidation:
         mapp.upload_file_pypi("qlwkej", b"qwe", "name", "1.0",
                               indexname="nouser/nostage", code=404)
 
-    def test_metadata_normalize_conflict(self, submit, testapp):
+    def test_metadata_normalize_to_previous_issue84(self, submit, testapp):
         metadata = {"name": "pKg1", "version": "1.0", ":action": "submit",
                     "description": "hello world"}
-        r = submit.metadata(metadata, code=200)
-        metadata = {"name": "Pkg1", "version": "1.0", ":action": "submit",
+        submit.metadata(metadata, code=200)
+        metadata = {"name": "Pkg1", "version": "2.0", ":action": "submit",
                     "description": "hello world"}
-        r = submit.metadata(metadata, code=403)
-        body = r.body
-        if not py.builtin._istext(body):
-            body = body.decode("utf-8")
-        assert re.search("pKg1.*already.*registered", body)
+        submit.metadata(metadata, code=200)
 
     def test_metadata_multifield(self, submit, mapp):
         classifiers = ["Intended Audience :: Developers",
@@ -310,7 +332,7 @@ class TestSubmitValidation:
         assert not data["download_url"]
         assert not data["platform"]
 
-    def test_upload_file(self, submit):
+    def test_upload_file(self, submit, mapp):
         metadata = {"name": "Pkg5", "version": "1.0", ":action": "submit"}
         submit.metadata(metadata, code=200)
         r = submit.file("pkg5-2.6.tgz", b"123", {"name": "pkg5some"}, code=400)
@@ -318,8 +340,9 @@ class TestSubmitValidation:
         submit.file("pkg5-2.6.tgz", b"123", {"name": "Pkg5"}, code=200)
         r = submit.file("pkg5-2.6.qwe", b"123", {"name": "Pkg5"}, code=400)
         assert "not a valid" in r.status
-        r = submit.file("pkg5-2.7.tgz", b"123", {"name": "pkg5"}, code=403)
-        assert "cannot register" in r.status
+        r = submit.file("pkg5-2.7.tgz", b"123", {"name": "pkg5"}, code=200)
+        paths = mapp.get_release_paths("Pkg5")
+        assert paths[0].endswith("pkg5-2.7.tgz")
 
     def test_upload_use_registered_name_issue84(self, submit, mapp):
         metadata = {"name": "pkg_hello", "version":"1.0", ":action": "submit"}
@@ -370,6 +393,17 @@ class TestSubmitValidation:
                 entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
                 assert not entry.file_exists()
 
+    def test_upload_and_delete_user_issue130(self, submit, testapp, mapp):
+        metadata = {"name": "pkg5", "version": "2.6", ":action": "submit"}
+        submit.metadata(metadata, code=200)
+        submit.file("pkg5-2.6.tgz", b"123", {"name": "pkg5"}, code=200)
+        assert mapp.get_release_paths("pkg5")
+        mapp.delete_user(submit.username)
+        # recreate user and index
+        submit = submit.__class__(submit.stagename)
+        assert not mapp.get_release_paths("pkg5")
+
+
     def test_upload_twice_to_volatile(self, submit, testapp, mapp):
         metadata = {"name": "Pkg5", "version": "2.6", ":action": "submit"}
         submit.metadata(metadata, code=200)
@@ -380,6 +414,87 @@ class TestSubmitValidation:
         path2, = mapp.get_release_paths("Pkg5")
         testapp.xget(404, path1)
         testapp.xget(200, path2)
+        r = testapp.xget(200, "%s/Pkg5/2.6" % mapp.api.index)
+        link, = r.json['result']['+links']
+        log1, log2 = link['log']
+        assert sorted(log1.keys()) == ['md5', 'what', 'when', 'who']
+        assert log1['what'] == 'overwrite'
+        assert log1['who'] is None
+        assert log1['md5'] == '202cb962ac59075b964b07152d234b70'
+        assert sorted(log2.keys()) == ['dst', 'what', 'when', 'who']
+        assert log2['what'] == 'upload'
+        assert log2['who'] == 'user'
+        assert log2['dst'] == 'user/dev'
+
+    def test_upload_twice_and_push(self, submit, testapp, mapp):
+        metadata = {"name": "Pkg5", "version": "2.6", ":action": "submit"}
+        submit.metadata(metadata, code=200)
+        submit.file("pkg5-2.6.tgz", b"123", {"name": "Pkg5"}, code=200)
+        submit.file("pkg5-2.6.tgz", b"1234", {"name": "Pkg5"}, code=200)
+        r = testapp.xget(200, "%s/Pkg5/2.6" % mapp.api.index)
+        link, = r.json['result']['+links']
+        log1, log2 = link['log']
+        assert sorted(log1.keys()) == ['md5', 'what', 'when', 'who']
+        assert log1['what'] == 'overwrite'
+        assert log1['who'] is None
+        assert log1['md5'] == '202cb962ac59075b964b07152d234b70'
+        assert sorted(log2.keys()) == ['dst', 'what', 'when', 'who']
+        assert log2['what'] == 'upload'
+        assert log2['who'] == 'user'
+        assert log2['dst'] == 'user/dev'
+        old_stage = mapp.api.stagename
+        mapp.create_index('prod')
+        new_stage = mapp.api.stagename
+        mapp.use(old_stage)
+        req = dict(name="Pkg5", version="2.6", targetindex=new_stage)
+        r = testapp.push("/%s" % old_stage, json.dumps(req))
+        r = testapp.xget(200, "/%s/Pkg5/2.6" % new_stage)
+        link, = r.json['result']['+links']
+        # the overwrite info should be gone
+        log1, log2 = link['log']
+        assert sorted(log1.keys()) == ['dst', 'what', 'when', 'who']
+        assert log1['what'] == 'upload'
+        assert log1['who'] == 'user'
+        assert log1['dst'] == 'user/dev'
+        assert sorted(log2.keys()) == ['dst', 'src', 'what', 'when', 'who']
+        assert log2['what'] == 'push'
+        assert log2['who'] == 'user'
+        assert log2['dst'] == 'user/prod'
+        assert log2['src'] == 'user/dev'
+
+    def test_last_modified_preserved_on_push(self, submit, testapp, mapp):
+        import time
+        metadata = {"name": "Pkg5", "version": "2.6", ":action": "submit"}
+        submit.metadata(metadata, code=200)
+        submit.file("pkg5-2.6.tgz", b"1234", {"name": "Pkg5"}, code=200)
+        old_stagename = mapp.api.stagename
+        mapp.create_index('prod')
+        new_stagename = mapp.api.stagename
+        mapp.use(old_stagename)
+        req = dict(name="Pkg5", version="2.6", targetindex=new_stagename)
+        time.sleep(1.5)  # needed to test last_modified below
+        testapp.push("/%s" % old_stagename, json.dumps(req))
+        with mapp.xom.model.keyfs.transaction(write=False):
+            old_stage = mapp.xom.model.getstage(old_stagename)
+            new_stage = mapp.xom.model.getstage(new_stagename)
+            old_entry = old_stage.get_releaselinks('Pkg5')[0].entry
+            new_entry = new_stage.get_releaselinks('Pkg5')[0].entry
+            assert old_entry.last_modified == new_entry.last_modified
+
+    def test_pypiaction_not_in_verdata_after_push(self, submit, testapp, mapp):
+        metadata = {"name": "Pkg5", "version": "2.6", ":action": "submit"}
+        submit.metadata(metadata, code=200)
+        submit.file("pkg5-2.6.tgz", b"1234", {"name": "Pkg5"}, code=200)
+        old_stagename = mapp.api.stagename
+        mapp.create_index('prod')
+        new_stagename = mapp.api.stagename
+        mapp.use(old_stagename)
+        req = dict(name="Pkg5", version="2.6", targetindex=new_stagename)
+        testapp.push("/%s" % old_stagename, json.dumps(req))
+        with mapp.xom.model.keyfs.transaction(write=False):
+            new_stage = mapp.xom.model.getstage(new_stagename)
+            verdata = new_stage.get_versiondata('Pkg5', '2.6')
+            assert ':action' not in list(verdata.keys())
 
     def test_upload_with_metadata(self, submit, testapp, mapp, pypistage):
         pypistage.mock_simple("package", '<a href="/package-1.0.zip" />')
@@ -450,6 +565,11 @@ def test_push_from_base_error(mapp, testapp, monkeypatch, pypistage):
     assert r.status_code == 400
     assert "no files for" in r.json["message"]
 
+def test_upload_docs_without_registration(mapp, testapp, monkeypatch):
+    mapp.create_and_use()
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
+    mapp.upload_doc("pkg1-2.7.doc.zip", b'', "pkg1", "2.7", code=400)
+
 @proj
 def test_upload_and_push_internal(mapp, testapp, monkeypatch, proj):
     mapp.create_user("user1", "1")
@@ -471,10 +591,28 @@ def test_upload_and_push_internal(mapp, testapp, monkeypatch, proj):
     vv = get_view_version_links(testapp, "/user2/prod", "pkg1", "2.6",
                                 proj=proj)
     link = vv.get_link(rel="releasefile")
+    history_log = link.log
+    assert len(history_log) == 2
+    assert history_log[0]['what'] == 'upload'
+    assert history_log[0]['who'] == 'user1'
+    assert history_log[0]['dst'] == 'user1/dev'
+    assert history_log[1]['what'] == 'push'
+    assert history_log[1]['who'] == 'user1'
+    assert history_log[1]['src'] == 'user1/dev'
+    assert history_log[1]['dst'] == 'user2/prod'
     assert link.href.endswith("/pkg1-2.6.tgz")
     # we check here that the upload of docs without version was
     # automatically tied to the newest release metadata
     link = vv.get_link(rel="doczip")
+    history_log = link.log
+    assert len(history_log) == 2
+    assert history_log[0]['what'] == 'upload'
+    assert history_log[0]['who'] == 'user1'
+    assert history_log[0]['dst'] == 'user1/dev'
+    assert history_log[1]['what'] == 'push'
+    assert history_log[1]['who'] == 'user1'
+    assert history_log[1]['src'] == 'user1/dev'
+    assert history_log[1]['dst'] == 'user2/prod'
     assert link.href.endswith("/pkg1-2.6.doc.zip")
     r = testapp.get(link.href)
     archive = Archive(py.io.BytesIO(r.body))
@@ -509,10 +647,27 @@ def test_upload_and_push_with_toxresults(mapp, testapp):
         assert "user1/dev" not in actionlog[-1]
 
     vv = get_view_version_links(testapp, "/user1/prod", "pkg1", "2.6")
+    history_log = vv.get_link('releasefile').log
+    assert len(history_log) == 2
+    assert history_log[0]['what'] == 'upload'
+    assert history_log[0]['dst'] == 'user1/dev'
+    assert history_log[1]['what'] == 'push'
+    assert history_log[1]['who'] == 'user1'
+    assert history_log[1]['src'] == 'user1/dev'
+    assert history_log[1]['dst'] == 'user1/prod'
     link = vv.get_link("toxresult")
     assert "user1/prod" in link.href
     pkgmeta = json.loads(testapp.get(link.href).body.decode("utf8"))
     assert pkgmeta == tox_result_data
+    history_log = link.log
+    assert len(history_log) == 2
+    assert history_log[0]['what'] == 'upload'
+    assert history_log[0]['dst'] == 'user1/dev'
+    assert history_log[1]['what'] == 'push'
+    assert history_log[1]['who'] == 'user1'
+    assert history_log[1]['src'] == 'user1/dev'
+    assert history_log[1]['dst'] == 'user1/prod'
+
 
 def test_upload_and_push_external(mapp, testapp, reqmock):
     api = mapp.create_and_use()
@@ -728,6 +883,10 @@ def test_upload_docs(mapp, testapp, proj):
     vv = get_view_version_links(testapp, api.index, "pkg1", "2.6", proj=proj)
     link = vv.get_link(rel="doczip")
     assert link.href.endswith("/pkg1-2.6.doc.zip")
+    assert len(link.log) == 1
+    assert link.log[0]['what'] == 'upload'
+    assert link.log[0]['who'] == 'user1'
+    assert link.log[0]['dst'] == 'user1/dev'
     r = testapp.get(link.href)
     archive = Archive(py.io.BytesIO(r.body))
     assert 'index.html' in archive.namelist()
@@ -777,6 +936,9 @@ def test_kvdict(input, expected):
         {"X-outside-url": "http://outside.com"}, {},
         None, "http://outside.com"),
     (
+        {"X-outside-url": "http://outside.com/foo"}, {},
+        None, "http://outside.com/foo"),
+    (
         {"Host": "outside3.com"}, {},
         None, "http://outside3.com"),
     (
@@ -793,17 +955,20 @@ def test_kvdict(input, expected):
         {"X-outside-url": "http://outside.com"}, {},
         "http://outside2.com", "http://outside2.com"),
     (
+        {"X-outside-url": "http://outside.com"}, {},
+        "http://outside2.com/foo", "http://outside2.com/foo"),
+    (
         {"Host": "outside3.com"}, {},
         "http://out.com", "http://out.com"),
     (
         {"Host": "outside3.com"}, {'wsgi.url_scheme': 'https'},
         "http://out.com", "http://out.com")])
-def test_get_outside_url(headers, environ, outsideurl, expected):
-    from devpi_server.views import get_outside_url
-    from pyramid.request import Request
-    request = Request.blank('/', environ=environ, headers=headers)
-    url = get_outside_url(request, outsideurl)
-    assert url == expected
+def test_outside_url_middleware(headers, environ, outsideurl, expected, testapp):
+    headers = dict((str(k), str(v)) for k, v in headers.items())
+    environ = dict((str(k), str(v)) for k, v in environ.items())
+    testapp.xom.config.args.outside_url = outsideurl
+    r = testapp.get('/+api', headers=headers, extra_environ=environ)
+    assert r.json['result']['login'] == "%s/+login" % expected
 
 
 class Test_getjson:

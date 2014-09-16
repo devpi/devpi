@@ -70,7 +70,8 @@ class Uploader:
 
     def do_upload_paths(self, paths):
         hub = self.hub
-        path2pkginfo = {}
+        releasefile2pkginfo = {}
+        doczip2pkginfo = {}
         for path in paths:
             for archivepath in get_archive_files(path):
                 pkginfo = get_pkginfo(archivepath)
@@ -78,16 +79,21 @@ class Uploader:
                     hub.error("%s: does not contain PKGINFO, skipping" %
                               archivepath.basename)
                     continue
-                path2pkginfo[archivepath] = pkginfo
+                if archivepath.basename.endswith(".doc.zip"):
+                    doczip2pkginfo[archivepath] = pkginfo
+                else:
+                    releasefile2pkginfo[archivepath] = pkginfo
                 #hub.debug("got pkginfo for %s-%s  %s" %
                 #          (pkginfo.name, pkginfo.version, pkginfo.author))
         if self.args.only_latest:
-            path2pkginfo = filter_latest(path2pkginfo)
-        for archivepath, pkginfo in path2pkginfo.items():
-            if str(archivepath).endswith(".doc.zip"):
-                self.upload_doc(archivepath, pkginfo)
-            else:
-                self.upload_release_file(archivepath, pkginfo)
+            releasefile2pkginfo = filter_latest(releasefile2pkginfo)
+            doczip2pkginfo = filter_latest(doczip2pkginfo)
+
+        for archivepath, pkginfo in releasefile2pkginfo.items():
+            self.upload_release_file(archivepath, pkginfo)
+        for archivepath, pkginfo in doczip2pkginfo.items():
+            self.upload_doc(archivepath, pkginfo)
+
 
     def upload_doc(self, path, pkginfo):
         self.post("doc_upload", path,
@@ -122,6 +128,7 @@ class Uploader:
             r = hub.http.post(hub.current.pypisubmit, dic, files=files,
                               headers=headers, auth=hub.current.get_basic_auth(),
                               cert=hub.current.get_client_cert())
+            hub._last_http_stati.append(r.status_code)
             r = HTTPReply(r)
             if r.status_code == 200:
                 hub.info(msg)

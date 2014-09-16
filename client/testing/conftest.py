@@ -292,11 +292,14 @@ def cmd_devpi(tmpdir):
             hub.sysex = sysex
         expected = kwargs.get("code", None)
         if expected is not None:
-            if not isinstance(expected, tuple):
-                expected = (expected, )
-            if hub._last_http_status not in expected:
-                pytest.fail("got http code %r, expected %r"
-                            % (hub._last_http_status, expected))
+            if isinstance(expected, list):
+                assert hub._last_http_stati == expected
+            else:
+                if not isinstance(expected, tuple):
+                    expected = (expected, )
+                if hub._last_http_status not in expected:
+                    pytest.fail("got http code %r, expected %r"
+                                % (hub._last_http_status, expected))
         return hub
     run_devpi.clientdir = clientdir
     return run_devpi

@@ -6,6 +6,7 @@ import json
 from devpi_common.metadata import sorted_sameproject_links, get_latest_version
 from devpi_common.validation import validate_metadata, normalize_name
 from devpi_common.types import ensure_unicode, cached_property
+from time import gmtime
 from .auth import crypt_password, verify_password
 from .filestore import FileEntry, split_md5
 from .log import threadlog, thread_current_log
@@ -58,6 +59,10 @@ class UpstreamError(ModelException):
 
 class MissesRegistration(ModelException):
     """ A prior registration or release metadata is required. """
+
+
+class NonVolatile(ModelException):
+    """ A release is overwritten on a non volatile index. """
 
 
 class RootModel:
@@ -164,6 +169,10 @@ class User:
         threadlog.info("setting password for user %r", self.name)
 
     def delete(self):
+        # delete all projects on the index
+        for name in self.get().get("indexes", {}):
+            self.getstage(name).delete()
+        # delete the user information itself
         self.key.delete()
         with self.keyfs.USERLIST.update() as userlist:
             userlist.remove(self.name)
@@ -233,12 +242,15 @@ class BaseStage:
     NotFound = NotFound
     UpstreamError = UpstreamError
     MissesRegistration = MissesRegistration
+    NonVolatile = NonVolatile
 
     def get_linkstore_perstage(self, name, version):
         return LinkStore(self, name, version)
 
     def get_link_from_entrypath(self, entrypath):
         entry = self.xom.filestore.get_file_entry(entrypath)
+        if entry.projectname is None:
+            return None
         linkstore = self.get_linkstore_perstage(entry.projectname, entry.version)
         links = linkstore.get_links(entrypath=entrypath)
         assert len(links) < 2
@@ -319,7 +331,8 @@ class BaseStage:
                 return stage.get_projectname_perstage(name) and \
                        (not private_hit or whitelisted)
             private_hit = private_hit or bool(self.get_projectname_perstage(name))
-            whitelisted = whitelisted or name in stage.ixconfig["pypi_whitelist"]
+            whitelist = set(stage.ixconfig["pypi_whitelist"])
+            whitelisted = whitelisted or '*' in whitelist or name in whitelist
 
     def op_sro(self, opname, **kw):
         for stage in self._sro():
@@ -338,7 +351,8 @@ class BaseStage:
                     threadlog.debug("private package %r whitelisted at stage %s",
                                     projectname, whitelisted.name)
             else:
-                if projectname in stage.ixconfig["pypi_whitelist"]:
+                whitelist = set(stage.ixconfig["pypi_whitelist"])
+                if '*' in whitelist or projectname in whitelist:
                     whitelisted = stage
             res = getattr(stage, opname)(**kw)
             private_hit = private_hit or res
@@ -376,6 +390,7 @@ class PrivateStage(BaseStage):
         self.model = xom.model
         self.keyfs = xom.keyfs
         self.user = self.model.get_user(user)
+        self.username = self.user.name
         self.index = index
         self.name = user + "/" + index
         self.ixconfig = ixconfig
@@ -426,9 +441,6 @@ class PrivateStage(BaseStage):
     #class MetadataExists(Exception):
     #    """ metadata exists on a given non-volatile index. """
 
-    class RegisterNameConflict(Exception):
-        """ a conflict while trying to register metadata. """
-
     def get_projectname_perstage(self, name):
         """ return existing projectname for the given name which may
         be in a non-canonical form. """
@@ -450,9 +462,10 @@ class PrivateStage(BaseStage):
         projectname = self.get_projectname(name)
         log = thread_current_log()
         if projectname is not None and projectname != name:
-            log.error("project %r has other name %r in stage %s" %(
-                      name, projectname, self.name))
-            raise self.RegisterNameConflict(projectname)
+            log.warn("using already registered name %r for submitted %r "
+                     "in stage %r" %(
+                      projectname, name, self.name))
+            metadata["name"] = projectname
         self._set_versiondata(metadata)
 
     def key_projversions(self, name):
@@ -535,15 +548,22 @@ class PrivateStage(BaseStage):
                           last_modified=None):
         filename = ensure_unicode(filename)
         if not self.get_versiondata(name, version):
-            raise MissesRegistration("%s-%s", name, version)
+            # There's a chance the version was guessed from the
+            # filename, which might have swapped dashes to underscores
+            if '_' in version:
+                version = version.replace('_', '-')
+                if not self.get_versiondata(name, version):
+                    raise MissesRegistration("%s-%s", name, version)
+            else:
+                raise MissesRegistration("%s-%s", name, version)
         threadlog.debug("project name of %r is %r", filename, name)
         linkstore = self.get_linkstore_perstage(name, version)
-        entry = linkstore.create_linked_entry(
+        link = linkstore.create_linked_entry(
                 rel="releasefile",
                 basename=filename,
                 file_content=content,
                 last_modified=last_modified)
-        return entry
+        return link
 
     def store_doczip(self, name, version, content):
         if not version:
@@ -552,12 +572,12 @@ class PrivateStage(BaseStage):
                            name, version)
         basename = "%s-%s.doc.zip" % (name, version)
         linkstore = self.get_linkstore_perstage(name, version)
-        entry = linkstore.create_linked_entry(
+        link = linkstore.create_linked_entry(
                 rel="doczip",
                 basename=basename,
                 file_content=content,
         )
-        return entry
+        return link
 
     def get_doczip(self, name, version):
         """ get documentation zip as an open file
@@ -567,7 +587,6 @@ class PrivateStage(BaseStage):
         if links:
             assert len(links) == 1, links
             return links[0].entry.file_get_content()
-
 
 
 class ELink:
@@ -594,6 +613,15 @@ class ELink:
     def entry(self):
         return self.filestore.get_file_entry(self.entrypath)
 
+    def add_log(self, what, who, **kw):
+        self._log.append(dict(what=what, who=who, when=gmtime()[:6], **kw))
+
+    def add_logs(self, logs):
+        self._log.extend(logs)
+
+    def get_logs(self):
+        return list(self._log)
+
 
 class LinkStore:
     def __init__(self, stage, projectname, version):
@@ -606,17 +634,26 @@ class LinkStore:
             raise MissesRegistration("%s-%s on stage %s",
                                      projectname, version, stage.name)
 
+    def get_file_entry(self, relpath):
+        return self.filestore.get_file_entry(relpath)
+
     def create_linked_entry(self, rel, basename, file_content, last_modified=None):
         assert isinstance(file_content, bytes)
+        overwrite = None
         for link in self.get_links(rel=rel, basename=basename):
             if not self.stage.ixconfig.get("volatile"):
-                return 409
+                raise NonVolatile("rel=%s basename=%s on stage %s" % (
+                    rel, basename, self.stage.name))
+            assert overwrite is None
+            overwrite = link.md5
             self.remove_links(rel=rel, basename=basename)
         file_entry = self._create_file_entry(basename, file_content)
         if last_modified is not None:
             file_entry.last_modified = last_modified
-        self._add_link_to_file_entry(rel, file_entry)
-        return file_entry
+        link = self._add_link_to_file_entry(rel, file_entry)
+        if overwrite is not None:
+            link.add_log('overwrite', None, md5=overwrite)
+        return link
 
     def new_reflink(self, rel, file_content, for_entrypath):
         if isinstance(for_entrypath, ELink):
@@ -685,7 +722,7 @@ class LinkStore:
             relextra["for_entrypath"] = for_entrypath
         linkdicts = self._get_inplace_linkdicts()
         new_linkdict = dict(rel=rel, entrypath=file_entry.relpath,
-                            md5=file_entry.md5, **relextra)
+                            md5=file_entry.md5, _log=[], **relextra)
         linkdicts.append(new_linkdict)
         threadlog.info("added %r link %s", rel, file_entry.relpath)
         self._mark_dirty()

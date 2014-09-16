@@ -125,6 +125,7 @@ class Exporter:
         self.export["pythonversion"] = list(sys.version_info)
         self.export["devpi_server"] = devpi_server.__version__
         self.export["secret"] = self.config.secret
+        self.export["uuid"] = self.xom.config.get_master_uuid()
         self.compute_global_projectname_normalization()
         for user in self.xom.model.get_userlist():
             userdir = path.join(user.name)
@@ -215,11 +216,11 @@ class IndexDump:
             self.indexmeta["projects"][realname] = data
 
             for version in data:
-                assert data[version]["name"] == realname
-                linkstore = self.stage.get_linkstore_perstage(realname, version)
+                vername = data[version]["name"]
+                linkstore = self.stage.get_linkstore_perstage(vername, version)
                 self.dump_releasefiles(linkstore)
                 self.dump_toxresults(linkstore)
-                content = self.stage.get_doczip(name, version)
+                content = self.stage.get_doczip(vername, version)
                 if content:
                     self.dump_docfile(realname, version, content)
         self.exporter.completed("index %r" % self.stage.name)
@@ -234,7 +235,8 @@ class IndexDump:
                 self.basedir.join(linkstore.projectname, entry.basename))
             self.add_filedesc("releasefile", linkstore.projectname, relpath,
                                version=linkstore.version,
-                               entrymapping=entry.meta.copy())
+                               entrymapping=entry.meta.copy(),
+                               log=link.get_logs())
 
     def dump_toxresults(self, linkstore):
         for tox_link in linkstore.get_links(rel="toxresult"):
@@ -248,7 +250,8 @@ class IndexDump:
                               projectname=linkstore.projectname,
                               relpath=relpath,
                               version=linkstore.version,
-                              for_entrypath=reflink.entrypath)
+                              for_entrypath=reflink.entrypath,
+                              log=tox_link.get_logs())
 
     def add_filedesc(self, type, projectname, relpath, **kw):
         assert self.exporter.basepath.join(relpath).check()
@@ -287,6 +290,9 @@ class Importer:
         self.dumpversion = self.import_data["dumpversion"]
         if self.dumpversion not in ("1", "2"):
             fatal("incompatible dumpversion: %r" %(self.dumpversion,))
+        uuid = self.import_data.get("uuid")
+        if uuid is not None:
+            self.xom.config.set_uuid(uuid)
         self.import_users = self.import_data["users"]
         self.import_indexes = self.import_data["indexes"]
         self.xom.config.secret = secret = self.import_data["secret"]
@@ -333,8 +339,8 @@ class Importer:
                 for version, versiondata in versions.items():
                     with self.xom.keyfs.transaction(write=True):
                         assert "+elinks" not in versiondata
-                        if '+doczip' in versiondata:
-                            del versiondata['+doczip']
+                        versiondata.pop('+doczip', None)
+                        versiondata.pop(':action', None)
                         assert not any(True for x in versiondata if x.startswith('+'))
                         if not versiondata.get("version"):
                             name = versiondata["name"]
@@ -369,22 +375,28 @@ class Importer:
                 version = BasenameMeta(p.basename).version
             else:
                 version = filedesc["version"]
-            entry = stage.store_releasefile(projectname, version,
-                        p.basename, p.read("rb"),
-                        last_modified=mapping["last_modified"])
-            assert entry.md5 == mapping["md5"]
-            self.import_pre2_toxresults(stage, entry)
+
+            link = stage.store_releasefile(projectname, version,
+                                           p.basename, p.read("rb"),
+                                           last_modified=mapping["last_modified"])
+            assert link.entry.md5 == mapping["md5"]
+            self.import_pre2_toxresults(stage, link.entry)
         elif filedesc["type"] == "doczip":
             basename = os.path.basename(rel)
             name, version, suffix = splitbasename(basename)
-            stage.store_doczip(name, version, p.read("rb"))
+            link = stage.store_doczip(name, version, p.read("rb"))
         elif filedesc["type"] == "toxresult":
             linkstore = stage.get_linkstore_perstage(filedesc["projectname"],
                                            filedesc["version"])
             link, = linkstore.get_links(entrypath=filedesc["for_entrypath"])
-            stage.store_toxresult(link, json.loads(p.read("rb").decode("utf8")))
+            link = stage.store_toxresult(link, json.loads(p.read("rb").decode("utf8")))
         else:
             fatal("unknown file type: %s" % (type,))
+        history_log = filedesc.get('log')
+        if history_log is None:
+            link.add_log('upload', '<import>', dst=stage.name)
+        else:
+            link.add_logs(history_log)
 
     def import_pre2_toxresults(self, stage, releasefile_entry):
         # pre 2.0 export structure (called "attachments")
@@ -397,10 +409,12 @@ class Importer:
         type = type_path.basename
         for i in range(len(type_path.listdir())):
             attachment_data = type_path.join(str(i)).read(mode="rb")
+            attachment_data = attachment_data.decode('utf-8')
             toxresultdata = json.loads(attachment_data)
             self.tw.line("importing pre-2.0 test  results %s/%s" %(md5, type))
-            link = stage.store_toxresult(releasefile_link, toxresultdata)
-            self.tw.line("imported %s" % link.entrypath)
+            tox_link = stage.store_toxresult(releasefile_link, toxresultdata)
+            tox_link.add_log('upload', '<import>')
+            self.tw.line("imported %s" % tox_link.entrypath)
 
 
 class IndexTree:

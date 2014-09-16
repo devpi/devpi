@@ -493,6 +493,7 @@ devpi command reference (server)
                         [--gen-config] [--secretfile path] [--upgrade-state]
                         [--export PATH] [--import PATH] [--passwd USER]
                         [--serverdir DIR] [--start] [--stop] [--status] [--log]
+                        [--index-projects]
     
     Start a server which serves multiples users and indices. The special root/pypi
     index is a real-time mirror of pypi.python.org and is created by default. All
@@ -520,7 +521,7 @@ devpi command reference (server)
                             are not using a http proxy.
     
     deployment and data options:
-      --version             show devpi_version (2.0.2)
+      --version             show devpi_version (2.0.5)
       --master MASTER_URL   run as a replica of the specified master server
       --replica-cert pem_file
                             when running as a replica, use the given .pem file as
@@ -555,3 +556,6 @@ devpi command reference (server)
       --stop                stop the background devpi-server
       --status              show status of background devpi-server
       --log                 show logfile content of background server
+    
+    indexing:
+      --index-projects      index all existing projects

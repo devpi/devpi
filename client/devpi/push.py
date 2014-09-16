@@ -38,6 +38,9 @@ def parse_target(hub, args):
         hub.info("using pypirc", pypirc_path)
         auth = pypirc.Auth(pypirc_path)
         posturl, (user, password) = auth.get_url_auth(posturl)
+        if posturl is None:
+            posturl = "https://www.python.org/pypi"
+            hub.info("using default pypi url %s" % posturl)
         return PyPIPush(posturl, user, password)
     if args.target.count("/") != 1:
         hub.fatal("target %r not of form USER/NAME or pypi:REPONAME" % (

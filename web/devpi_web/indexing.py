@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 from devpi_common.types import ensure_unicode
 from devpi_common.metadata import get_sorted_versions
 from devpi_server.log import threadlog as log
@@ -58,13 +59,13 @@ def iter_projects(xom):
             stage = xom.model.getstage('%s/%s' % (username, index))
             if stage is None:  # this is async, so the stage may be gone
                 continue
-            log.info("Indexing %s/%s:" % (username, index))
+            log.info("Search-Indexing %s/%s:" % (username, index))
             names = stage.list_projectnames_perstage()
             for count, name in enumerate(names, start=1):
                 name = ensure_unicode(name)
                 current_time = time.time()
                 if current_time - timestamp > 3:
-                    log.debug("currently indexed %s", count)
+                    log.debug("currently search-indexed %s", count)
                     timestamp = current_time
                 if stage.get_projectname(name) is None:
                     continue
