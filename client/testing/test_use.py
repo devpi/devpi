@@ -64,7 +64,7 @@ class TestUnit:
                 index="foo/bar",
                 bases="root/pypi",
                 login="/+login",
-                authstatus=["noauth", ""]))
+                authstatus=["noauth", "", []]))
         mock_http_api.set(
             "http://devpi/", 200, result=dict(
                 foo=dict(username="foo", indexes=dict(

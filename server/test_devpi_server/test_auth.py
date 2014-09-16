@@ -35,20 +35,20 @@ class TestAuth:
         assert res is None
         with pytest.raises(auth.Expired):
             auth._get_auth_groups(username, proxy["password"])
-        assert auth.get_auth_status((username, proxy["password"])) == ["expired", username]
+        assert auth.get_auth_status((username, proxy["password"])) == ["expired", username, []]
 
     def test_auth_status_no_auth(self, auth):
-        assert auth.get_auth_status(None) == ["noauth", ""]
+        assert auth.get_auth_status(None) == ["noauth", "", []]
 
     def test_auth_status_no_user(self, auth):
-        assert auth.get_auth_status(("user1", "123")) == ["nouser", "user1"]
+        assert auth.get_auth_status(("user1", "123")) == ["nouser", "user1", []]
 
     def test_auth_status_proxy_user(self, model, auth):
         username, password = "user", "world"
         model.create_user(username, password)
         proxy = auth.new_proxy_auth(username, password)
         assert auth.get_auth_status((username, proxy["password"])) == \
-               ["ok", username]
+               ["ok", username, []]
 
 def test_newsalt():
     assert newsalt() != newsalt()

@@ -91,16 +91,16 @@ class Auth:
 
     def get_auth_status(self, userpassword):
         if userpassword is None:
-            return ["noauth", ""]
+            return ["noauth", "", []]
         username, password = userpassword
         try:
             groups = self._get_auth_groups(username, password)
         except self.Expired:
-            return ["expired", username]
+            return ["expired", username, []]
         if isinstance(groups, list):
-            return ["ok", username]
+            return ["ok", username, groups]
         else:
-            return ["nouser", username]
+            return ["nouser", username, []]
 
 
 

@@ -29,6 +29,9 @@
 
 - support for external authentication plugins.
 
+- support groups for acl_upload. This requires an external authentication
+  plugin that provides group information.
+
 2.0.6
 ----------------
 
