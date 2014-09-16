@@ -10,6 +10,12 @@
 
 - fix issue75: add info about basic auth to "url" option help of "devpi use".
 
+- fix issue154: fix handling of vcs-exporting when unicode filenames are
+  present.  This is done by striking our own code in favor of Marius Gedminas' 
+  vcs exporting functions from his check-manifest project which devpi-client
+  now depends on.  This also adds in support for svn and bazaar in addition
+  to the already supported git/hg.
+
 2.0.2
 ----------------
 

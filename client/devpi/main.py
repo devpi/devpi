@@ -642,7 +642,9 @@ def upload(parser):
 
     build.add_argument("--no-vcs", action="store_true", dest="novcs",
         help="don't VCS-export to a fresh dir, just execute setup.py scripts "
-             "directly using their dirname as current dir. ")
+             "directly using their dirname as current dir. By default "
+             "git/hg/svn/bazaar are auto-detected and packaging is run from "
+             "a fresh directory with all versioned files exported.")
 
     build.add_argument("--formats", default=default_format, action="store",
         help="comma separated list of build formats (passed to setup.py). "

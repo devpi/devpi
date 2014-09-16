@@ -1,5 +1,8 @@
 import os
 import py
+
+import check_manifest
+
 from devpi import log
 from devpi_common.metadata import Version, BasenameMeta, get_pyversion_filetype
 from devpi_common.archive import zip_dir
@@ -186,32 +189,26 @@ class Checkout:
         assert setupdir.join("setup.py").check(), setupdir
         hasvcs = not hub.args.novcs
         if hasvcs:
-            hasvcs = False
-            if find_parent_subpath(self.rootpath, ".hg", raising=False):
-                if py.path.local.sysfind("hg"):
-                    hasvcs = "hg"
-            elif find_parent_subpath(self.rootpath, ".git", raising=False):
-                if py.path.local.sysfind("git"):
-                    hasvcs = "git"
+            with self.rootpath.as_cwd():
+                try:
+                    hasvcs = check_manifest.detect_vcs().__name__
+                except check_manifest.Failure:
+                    hasvcs = False
         self.hasvcs = hasvcs
 
     def export(self, basetemp):
         if not self.hasvcs:
             return Exported(self.hub, self.rootpath, self.rootpath)
+        with self.rootpath.as_cwd():
+            files = check_manifest.get_vcs_files()
         newrepo = basetemp.join(self.rootpath.basename)
-        if self.hasvcs == "hg":
-            out = self.hub.popen_output("hg st -nmac .", cwd=self.rootpath)
-        elif self.hasvcs == "git":
-            out = self.hub.popen_output("git ls-files .", cwd=self.rootpath)
-        num = 0
-        for fn in out.split("\n"):
-            if fn.strip():
-                source = self.rootpath.join(fn)
+        for fn in files:
+            source = self.rootpath.join(fn)
+            if source.isfile():
                 dest = newrepo.join(fn)
                 dest.dirpath().ensure(dir=1)
                 source.copy(dest)
-                num += 1
-        log.debug("copied %s files to %s", num, newrepo)
+        log.debug("copied %s files to %s", len(files), newrepo)
         self.hub.info("%s-exported project to %s -> new CWD" %(
                       self.hasvcs, newrepo))
         return Exported(self.hub, newrepo, self.rootpath)

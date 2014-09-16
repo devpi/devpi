@@ -1,3 +1,4 @@
+
 import os, sys
 import json
 import py
@@ -47,12 +48,18 @@ class TestCheckout:
         file = repo.join("file")
         file.write("hello")
         repo.ensure("setup.py")
+        # this is a test for issue154 although we actually don't really
+        # need to test the vcs-exporting code much since we started
+        # relying on the external check-manifest project to do things.
+        unicode_fn = "something-\342\200\223.txt"
+        repo.ensure(unicode_fn)
         if request.param == "hg":
             if not py.path.local.sysfind("hg"):
                 pytest.skip("'hg' command not found")
             with repo.as_cwd():
                 runproc("hg init")
                 runproc("hg add file setup.py")
+                runproc("hg add file %s" % unicode_fn)
                 runproc("hg commit --config ui.username=whatever -m message")
             return repo
         if not py.path.local.sysfind("git"):
@@ -62,6 +69,7 @@ class TestCheckout:
             runproc("git config user.email 'you@example.com'")
             runproc("git config user.name 'you'")
             runproc("git add file setup.py")
+            runproc("git add file %s" % unicode_fn)
             runproc("git commit -m message")
         return repo
 
