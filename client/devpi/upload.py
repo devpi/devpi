@@ -247,8 +247,8 @@ class Exported:
     def check_setup(self):
         p = self.rootpath.join("setup.py")
         if not p.check():
-            self.hub.fatal("did not find %s after "
-                           "export of versioned files" % p)
+            self.hub.fatal("did not find %s after export of versioned files "
+                           "(you may try --no-vcs to prevent the export)" % p)
 
     def prepare(self):
         self.check_setup()
