@@ -632,7 +632,10 @@ class PyPIView:
                 if len(doczip) > MAXDOCZIPSIZE:
                     abort_submit(413, "zipfile size %d too large, max=%s"
                                    % (len(doczip), MAXDOCZIPSIZE))
-                link = stage.store_doczip(name, version, doczip)
+                try:
+                    link = stage.store_doczip(name, version, doczip)
+                except stage.MissesRegistration:
+                    apireturn(400, "%s-%s is not registered" %(name, version))
                 link.add_log(
                     'upload', request.authenticated_userid, dst=stage.name)
         else:

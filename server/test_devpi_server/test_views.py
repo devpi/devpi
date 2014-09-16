@@ -565,6 +565,11 @@ def test_push_from_base_error(mapp, testapp, monkeypatch, pypistage):
     assert r.status_code == 400
     assert "no files for" in r.json["message"]
 
+def test_upload_docs_without_registration(mapp, testapp, monkeypatch):
+    mapp.create_and_use()
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
+    mapp.upload_doc("pkg1-2.7.doc.zip", b'', "pkg1", "2.7", code=400)
+
 @proj
 def test_upload_and_push_internal(mapp, testapp, monkeypatch, proj):
     mapp.create_user("user1", "1")
