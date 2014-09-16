@@ -426,6 +426,76 @@ class TestSubmitValidation:
         assert log2['who'] == 'user'
         assert log2['dst'] == 'user/dev'
 
+    def test_upload_twice_and_push(self, submit, testapp, mapp):
+        metadata = {"name": "Pkg5", "version": "2.6", ":action": "submit"}
+        submit.metadata(metadata, code=200)
+        submit.file("pkg5-2.6.tgz", b"123", {"name": "Pkg5"}, code=200)
+        submit.file("pkg5-2.6.tgz", b"1234", {"name": "Pkg5"}, code=200)
+        r = testapp.xget(200, "%s/Pkg5/2.6" % mapp.api.index)
+        link, = r.json['result']['+links']
+        log1, log2 = link['log']
+        assert sorted(log1.keys()) == ['md5', 'what', 'when', 'who']
+        assert log1['what'] == 'overwrite'
+        assert log1['who'] is None
+        assert log1['md5'] == '202cb962ac59075b964b07152d234b70'
+        assert sorted(log2.keys()) == ['dst', 'what', 'when', 'who']
+        assert log2['what'] == 'upload'
+        assert log2['who'] == 'user'
+        assert log2['dst'] == 'user/dev'
+        old_stage = mapp.api.stagename
+        mapp.create_index('prod')
+        new_stage = mapp.api.stagename
+        mapp.use(old_stage)
+        req = dict(name="Pkg5", version="2.6", targetindex=new_stage)
+        r = testapp.push("/%s" % old_stage, json.dumps(req))
+        r = testapp.xget(200, "/%s/Pkg5/2.6" % new_stage)
+        link, = r.json['result']['+links']
+        # the overwrite info should be gone
+        log1, log2 = link['log']
+        assert sorted(log1.keys()) == ['dst', 'what', 'when', 'who']
+        assert log1['what'] == 'upload'
+        assert log1['who'] == 'user'
+        assert log1['dst'] == 'user/dev'
+        assert sorted(log2.keys()) == ['dst', 'src', 'what', 'when', 'who']
+        assert log2['what'] == 'push'
+        assert log2['who'] == 'user'
+        assert log2['dst'] == 'user/prod'
+        assert log2['src'] == 'user/dev'
+
+    def test_last_modified_preserved_on_push(self, submit, testapp, mapp):
+        import time
+        metadata = {"name": "Pkg5", "version": "2.6", ":action": "submit"}
+        submit.metadata(metadata, code=200)
+        submit.file("pkg5-2.6.tgz", b"1234", {"name": "Pkg5"}, code=200)
+        old_stagename = mapp.api.stagename
+        mapp.create_index('prod')
+        new_stagename = mapp.api.stagename
+        mapp.use(old_stagename)
+        req = dict(name="Pkg5", version="2.6", targetindex=new_stagename)
+        time.sleep(1.5)  # needed to test last_modified below
+        testapp.push("/%s" % old_stagename, json.dumps(req))
+        with mapp.xom.model.keyfs.transaction(write=False):
+            old_stage = mapp.xom.model.getstage(old_stagename)
+            new_stage = mapp.xom.model.getstage(new_stagename)
+            old_entry = old_stage.get_releaselinks('Pkg5')[0].entry
+            new_entry = new_stage.get_releaselinks('Pkg5')[0].entry
+            assert old_entry.last_modified == new_entry.last_modified
+
+    def test_pypiaction_not_in_verdata_after_push(self, submit, testapp, mapp):
+        metadata = {"name": "Pkg5", "version": "2.6", ":action": "submit"}
+        submit.metadata(metadata, code=200)
+        submit.file("pkg5-2.6.tgz", b"1234", {"name": "Pkg5"}, code=200)
+        old_stagename = mapp.api.stagename
+        mapp.create_index('prod')
+        new_stagename = mapp.api.stagename
+        mapp.use(old_stagename)
+        req = dict(name="Pkg5", version="2.6", targetindex=new_stagename)
+        testapp.push("/%s" % old_stagename, json.dumps(req))
+        with mapp.xom.model.keyfs.transaction(write=False):
+            new_stage = mapp.xom.model.getstage(new_stagename)
+            verdata = new_stage.get_versiondata('Pkg5', '2.6')
+            assert ':action' not in list(verdata.keys())
+
     def test_upload_with_metadata(self, submit, testapp, mapp, pypistage):
         pypistage.mock_simple("package", '<a href="/package-1.0.zip" />')
         mapp.upload_file_pypi(

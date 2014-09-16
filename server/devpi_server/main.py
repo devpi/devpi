@@ -13,6 +13,7 @@ from devpi_common.request import new_requests_session
 from .config import PluginManager
 from .config import parseoptions, load_setuptools_entrypoints
 from .log import configure_logging, threadlog
+from .model import BaseStage
 from . import extpypi, replica, mythread
 from . import __version__ as server_version
 
@@ -337,6 +338,8 @@ class XOM:
             under="devpi_server.views.tween_request_logging"
         )
         pyramid_config.add_request_method(get_remote_ip)
+        pyramid_config.add_request_method(stage_url)
+        pyramid_config.add_request_method(simpleindex_url)
 
         # overwrite route_url method with our own
         pyramid_config.add_request_method(route_url)
@@ -369,6 +372,32 @@ class FatalResponse:
 
 def get_remote_ip(request):
     return request.headers.get("X-REAL-IP", request.client_addr)
+
+
+def stage_from_args(model, *args):
+    if len(args) not in (1, 2):
+        raise TypeError("stage_url() takes 1 or 2 arguments (%s given)" % len(args))
+    if len(args) == 1:
+        if isinstance(args[0], BaseStage):
+            return args[0]
+    return model.getstage(*args)
+
+
+def stage_url(request, *args):
+    model = request.registry['xom'].model
+    stage = stage_from_args(model, *args)
+    if stage is not None:
+        return request.route_url(
+            "/{user}/{index}", user=stage.username, index=stage.index)
+
+
+def simpleindex_url(request, *args):
+    model = request.registry['xom'].model
+    stage = stage_from_args(model, *args)
+    if stage is not None:
+        return request.route_url(
+            "/{user}/{index}/+simple/", user=stage.username, index=stage.index)
+
 
 def set_default_indexes(model):
     root_user = model.get_user("root")

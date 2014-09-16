@@ -339,8 +339,8 @@ class Importer:
                 for version, versiondata in versions.items():
                     with self.xom.keyfs.transaction(write=True):
                         assert "+elinks" not in versiondata
-                        if '+doczip' in versiondata:
-                            del versiondata['+doczip']
+                        versiondata.pop('+doczip', None)
+                        versiondata.pop(':action', None)
                         assert not any(True for x in versiondata if x.startswith('+'))
                         if not versiondata.get("version"):
                             name = versiondata["name"]

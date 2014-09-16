@@ -154,6 +154,8 @@ def perform_crawling(pypistage, result, numthreads=10):
 
 
 class PyPIStage(BaseStage):
+    username = "root"
+    index = "pypi"
     name = "root/pypi"
     ixconfig = dict(bases=(), volatile=False, type="mirror",
                     pypi_whitelist=(), custom_data="",

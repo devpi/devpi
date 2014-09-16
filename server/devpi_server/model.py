@@ -390,6 +390,7 @@ class PrivateStage(BaseStage):
         self.model = xom.model
         self.keyfs = xom.keyfs
         self.user = self.model.get_user(user)
+        self.username = self.user.name
         self.index = index
         self.name = user + "/" + index
         self.ixconfig = ixconfig

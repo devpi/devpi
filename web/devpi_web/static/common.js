@@ -37,4 +37,17 @@ $(function() {
     $('.toxresult h2, table.projectinfos .classifiers .value').click(function () {
         $(this).parent().toggleClass('closed opened');
     });
+    moment.locale("en")
+    moment.locale("en", {
+        longDateFormat: {
+            LT: "HH:mm",
+            L: "YYYY-MM-DD"
+        }
+    });
+    $('.timestamp').each(function() {
+        var element = $(this);
+        var time = moment.utc(element.text(), "YYYY-MM-DD HH:mm:ss");
+        element.text(time.local().calendar());
+        element.attr("title", time.local().toISOString());
+    });
 });

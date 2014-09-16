@@ -1,8 +1,16 @@
 # -*- coding: utf-8 -*-
 import json
 from devpi_common.archive import zip_dict
+from devpi_server import __version__ as devpi_server_version
+from pkg_resources import parse_version
+from time import struct_time
 import py
 import pytest
+import re
+
+
+devpi_server_version = parse_version(devpi_server_version)
+server21_or_newer = devpi_server_version >= parse_version('2.1dev')
 
 
 @pytest.mark.parametrize("input, expected", [
@@ -291,7 +299,12 @@ def test_project_view_root_pypi(mapp, testapp, pypistage):
 
 
 @pytest.mark.with_notifier
-def test_version_view(mapp, testapp):
+def test_version_view(mapp, testapp, monkeypatch):
+    import devpi_server.model
+    # use fixed time
+    gmtime = lambda *x: struct_time((2014, 9, 15, 11, 11, 11, 0, 258, 0))
+    monkeypatch.setattr('time.gmtime', gmtime)
+    monkeypatch.setattr(devpi_server.model, 'gmtime', gmtime, raising=server21_or_newer)
     api = mapp.create_and_use()
     mapp.upload_file_pypi(
         "pkg1-2.6.tar.gz", b"content", "pkg1", "2.6")
@@ -317,16 +330,39 @@ def test_version_view(mapp, testapp):
     assert py.builtin._totext(
         description.renderContents().strip(),
         'utf-8') == u'<p>föö</p>'
-    filesinfo = [tuple(t.text.strip() for t in x.findAll('td')) for x in r.html.select('.files tbody tr')]
-    assert filesinfo == [
-        ('pkg1-2.6.tar.gz', 'Source', '', '7 bytes', '', '9a0364b9e99bb480dd25e1f0284c8555'),
-        ('pkg1-2.6.zip', 'Source', '', '10 bytes', '', '52360ae08d733016c5603d54b06b5300')]
+    filesinfo = [
+        tuple(
+            re.sub('\s+', ' ', t.text.strip()).split()
+            for t in x.findAll('td'))
+        for x in r.html.select('.files tbody tr')]
+    assert [x[:3] + x[-2:] for x in filesinfo] == [
+        (['pkg1-2.6.tar.gz', '9a0364b9e99bb480dd25e1f0284c8555'], ['Source'], [], [u'7', u'bytes'], []),
+        (['pkg1-2.6.zip', '52360ae08d733016c5603d54b06b5300'], ['Source'], [], [u'10', u'bytes'], [])]
+    if server21_or_newer:
+        assert [x[3] for x in filesinfo] == [
+            [u'Last', u'modified', u'2014-09-15', u'11:11:11',
+             u'Uploaded', u'to', u'user1/dev', u'by', u'user1', u'2014-09-15', u'11:11:11'],
+            [u'Last', u'modified', u'2014-09-15', u'11:11:11',
+             u'Uploaded', u'to', u'user1/dev', u'by', u'user1', u'2014-09-15', u'11:11:11']]
+    else:
+        assert [x[3] for x in filesinfo] == [
+            [u'Last', u'modified', u'2014-09-15', u'11:11:11'],
+            [u'Last', u'modified', u'2014-09-15', u'11:11:11']]
     links = r.html.select('#content a')
-    assert [(l.text, l.attrs['href']) for l in links] == [
-        ("Documentation", "http://localhost/%s/pkg1/2.6/+d/index.html" % api.stagename),
-        ("Simple index", "http://localhost/%s/+simple/pkg1" % api.stagename),
-        ("pkg1-2.6.tar.gz", "http://localhost/%s/+f/9a0/364b9e99bb480/pkg1-2.6.tar.gz#md5=9a0364b9e99bb480dd25e1f0284c8555" % api.stagename),
-        ("pkg1-2.6.zip", "http://localhost/%s/+f/523/60ae08d733016/pkg1-2.6.zip#md5=52360ae08d733016c5603d54b06b5300" % api.stagename)]
+    if server21_or_newer:
+        assert [(l.text.strip(), l.attrs['href']) for l in links] == [
+            ("Documentation", "http://localhost/%s/pkg1/2.6/+d/index.html" % api.stagename),
+            ("Simple index", "http://localhost/%s/+simple/pkg1" % api.stagename),
+            ("pkg1-2.6.tar.gz", "http://localhost/%s/+f/9a0/364b9e99bb480/pkg1-2.6.tar.gz#md5=9a0364b9e99bb480dd25e1f0284c8555" % api.stagename),
+            ('user1/dev', 'http://localhost/user1/dev'),
+            ("pkg1-2.6.zip", "http://localhost/%s/+f/523/60ae08d733016/pkg1-2.6.zip#md5=52360ae08d733016c5603d54b06b5300" % api.stagename),
+            ('user1/dev', 'http://localhost/user1/dev')]
+    else:
+        assert [(l.text.strip(), l.attrs['href']) for l in links] == [
+            ("Documentation", "http://localhost/%s/pkg1/2.6/+d/index.html" % api.stagename),
+            ("Simple index", "http://localhost/%s/+simple/pkg1" % api.stagename),
+            ("pkg1-2.6.tar.gz", "http://localhost/%s/+f/9a0/364b9e99bb480/pkg1-2.6.tar.gz#md5=9a0364b9e99bb480dd25e1f0284c8555" % api.stagename),
+            ("pkg1-2.6.zip", "http://localhost/%s/+f/523/60ae08d733016/pkg1-2.6.zip#md5=52360ae08d733016c5603d54b06b5300" % api.stagename)]
 
 
 def test_version_not_found(mapp, testapp):
@@ -353,8 +389,8 @@ def test_version_view_root_pypi(mapp, testapp, pypistage):
         ''', pypiserial=10)
     r = testapp.xget(200, '/root/pypi/pkg1/2.6',
                      headers=dict(accept="text/html"))
-    filesinfo = [tuple(t.text for t in x.findAll('td')) for x in r.html.select('.files tbody tr')]
-    assert filesinfo == [('pkg1-2.6.zip', 'Source', '', '', '')]
+    filesinfo = [tuple(t.text.strip() for t in x.findAll('td')[:3]) for x in r.html.select('.files tbody tr')]
+    assert filesinfo == [('pkg1-2.6.zip', 'Source', '')]
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
         ("Simple index", "http://localhost/root/pypi/+simple/pkg1"),
@@ -367,9 +403,9 @@ def test_version_view_root_pypi_external_files(mapp, testapp, pypistage):
         "pkg1", '<a href="http://example.com/releases/pkg1-2.7.zip" /a>)')
     r = testapp.get('/root/pypi/pkg1/2.7', headers=dict(accept="text/html"))
     assert r.status_code == 200
-    filesinfo = [tuple(t.text for t in x.findAll('td'))
+    filesinfo = [tuple(t.text.strip() for t in x.findAll('td')[:3])
                  for x in r.html.select('.files tbody tr')]
-    assert filesinfo == [('pkg1-2.7.zip', 'Source', '', '', '')]
+    assert filesinfo == [('pkg1-2.7.zip', 'Source', '')]
     silink, link1, link2 = list(r.html.select("#content a"))
     assert silink.text == "Simple index"
     assert silink.attrs["href"] == "http://localhost/root/pypi/+simple/pkg1"
@@ -630,22 +666,22 @@ def test_search_batch_links(dummyrequest, pagecount, pagenum, expected):
     (
         "http://localhost:80/{stage}/pkg1/2.6",
         {},
-        '.files a',
+        '.files td:nth-of-type(1) a',
         [('pkg1-2.6.tgz', 'http://localhost/{stage}/+f/202/cb962ac59075b/pkg1-2.6.tgz#md5=202cb962ac59075b964b07152d234b70')]),
     (
         "http://localhost:80/{stage}/pkg1/2.6",
         {'x-outside-url': 'http://example.com/foo'},
-        '.files a',
+        '.files td:nth-of-type(1) a',
         [('pkg1-2.6.tgz', 'http://example.com/foo/{stage}/+f/202/cb962ac59075b/pkg1-2.6.tgz#md5=202cb962ac59075b964b07152d234b70')]),
     (
         "http://localhost:80/{stage}/pkg1/2.6",
         {'host': 'example.com'},
-        '.files a',
+        '.files td:nth-of-type(1) a',
         [('pkg1-2.6.tgz', 'http://example.com/{stage}/+f/202/cb962ac59075b/pkg1-2.6.tgz#md5=202cb962ac59075b964b07152d234b70')]),
     (
         "http://localhost:80/{stage}/pkg1/2.6",
         {'host': 'example.com:3141'},
-        '.files a',
+        '.files td:nth-of-type(1) a',
         [('pkg1-2.6.tgz', 'http://example.com:3141/{stage}/+f/202/cb962ac59075b/pkg1-2.6.tgz#md5=202cb962ac59075b964b07152d234b70')])])
 def test_url_rewriting(url, headers, selector, expected, mapp, testapp):
     api = mapp.create_and_use()
@@ -657,3 +693,11 @@ def test_url_rewriting(url, headers, selector, expected, mapp, testapp):
         for x in r.html.select(selector)]
     expected = [(t, u.format(stage=api.stagename)) for t, u in expected]
     assert links == expected
+
+
+@pytest.mark.xfail(not server21_or_newer, reason="devpi-server < 2.1dev")
+def test_static_404(testapp):
+    r = testapp.xget(404, '/static/foo.png')
+    assert [x.text for x in r.html.select('#content p')] == [
+        u'The following resource could not be found:',
+        u'http://localhost/static/foo.png']

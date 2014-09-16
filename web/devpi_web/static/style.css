@@ -2,6 +2,23 @@ body, html {
     background: white;
     color: black;
     font-family: sans-serif;
+    font-size: 16px;
+}
+
+pre, table {
+    font-size: inherit;
+}
+
+table td {
+    line-height: 1.25em;
+}
+
+a {
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
 }
 
 form, #content, #navigation, .searchresults {
@@ -25,7 +42,7 @@ ul.footer-versions {
 ul.footer-versions li {
     margin: 0;
     padding: 0;
-    font-size: 75%;
+    font-size: 12px;
     color: #888;
 }
 
@@ -67,7 +84,7 @@ form#search input[type=submit] {
 }
 
 .user_index_list dt {
-    font-size: 110%;
+    font-size: 18px;
     font-weight: bold;
 }
 
@@ -341,18 +358,40 @@ iframe {
     border: 0;
 }
 
+table .file_history {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+table .file_history li {
+    margin: 0 0 0.25em 0;
+    padding: 0;
+}
+
+table .file_history li:last-child {
+    margin: 0;
+}
+
+.infonote {
+    border: 1px solid #ffa500;
+    background: #fde2b2;
+    padding: 0.4em;
+}
+
 @media (max-width:1199px) {
     form#search input {
         font-size: 18px;
+    }
+    #content,
+    .searchresults {
+        font-size: 14px;
     }
 }
 
 @media (max-width:991px) {
     form#search input[type=text] {
         width: 20em;
-    }
-    .files .md5 {
-        display: none;
     }
 }
 
@@ -368,20 +407,20 @@ iframe {
     }
 }
 
-@media (min-width:768px) {
+@media (min-width:780px) {
     form, #content, #navigation, .searchresults {
-        width: 750px;
+        width: 740px;
     }
 }
 
-@media (min-width:992px) {
+@media (min-width:1000px) {
     form, #content, #navigation, .searchresults {
-        width: 970px;
+        width: 960px;
     }
 }
 
 @media (min-width:1200px) {
     form, #content, #navigation, .searchresults {
-        width: 1170px;
+        width: 1160px;
     }
 }
