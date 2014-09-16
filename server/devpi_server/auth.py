@@ -85,8 +85,7 @@ class Auth:
         result = self._validate(username, password)
         if isinstance(result, list):
             pseudopass = self.serializer.dumps((username, result))
-            pseudopass = pseudopass.decode("ascii")
-            assert py.builtin._istext(pseudopass)
+            assert py.builtin._totext(pseudopass, 'ascii')
             return {"password":  pseudopass,
                     "expiration": self.LOGIN_EXPIRATION}
 
