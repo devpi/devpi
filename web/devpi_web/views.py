@@ -322,11 +322,13 @@ def root(context, request):
 def index_get(context, request):
     context = ContextWrapper(context)
     stage = context.stage
+    permissions = []
     bases = []
     packages = []
     result = dict(
         title="%s index" % stage.name,
         simple_index_url=request.simpleindex_url(stage),
+        permissions=permissions,
         bases=bases,
         packages=packages)
     if stage.name == "root/pypi":
@@ -338,6 +340,27 @@ def index_get(context, request):
                 title=base,
                 url=request.stage_url(base),
                 simple_url=request.simpleindex_url(base)))
+        acls = [
+            (key[4:], stage.ixconfig[key])
+            for key in stage.ixconfig
+            if key.startswith('acl_')]
+        for permission, principals in sorted(acls):
+            groups = []
+            special = []
+            users = []
+            for principal in principals:
+                if principal.startswith(':'):
+                    if principal.endswith(':'):
+                        special.append(dict(title=principal[1:-1]))
+                    else:
+                        groups.append(dict(title=principal[1:]))
+                else:
+                    users.append(dict(title=principal))
+            permissions.append(dict(
+                title=permission,
+                groups=groups,
+                special=special,
+                users=users))
 
     for projectname in stage.list_projectnames_perstage():
         version = stage.get_latest_version_perstage(projectname)

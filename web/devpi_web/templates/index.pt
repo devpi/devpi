@@ -44,6 +44,31 @@
         </table>
         </tal:packages>
 
+        <tal:permissions condition="permissions">
+            <h2>permissions</h2>
+            <dl class="permissions" tal:repeat="permission permissions">
+                <dt>${permission.title}</dt>
+                <dd tal:condition="permission.users">
+                    Users:
+                    <span tal:repeat="user permission.users">
+                        ${user.title}
+                    </span>
+                </dd>
+                <dd tal:condition="permission.groups">
+                    Groups:
+                    <span tal:repeat="group permission.groups">
+                        ${group.title}
+                    </span>
+                </dd>
+                <dd tal:condition="permission.special">
+                    Special:
+                    <span tal:repeat="special permission.special">
+                        ${special.title}
+                    </span>
+                </dd>
+            </dl>
+        </tal:permissions>
+
         <tal:bases condition="bases">
         <h2>inherited bases</h2>
         <ul>
