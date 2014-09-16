@@ -12,6 +12,7 @@ from operator import attrgetter, itemgetter
 from py.xml import html
 from pyramid.compat import decode_path_info
 from pyramid.decorator import reify
+from pyramid.httpexceptions import HTTPBadGateway, HTTPError
 from pyramid.httpexceptions import HTTPFound, HTTPNotFound
 from pyramid.interfaces import IRoutesMapper
 from pyramid.response import FileResponse
@@ -130,6 +131,15 @@ def notfound(request):
                 return HTTPFound(location=nonslashpath + qs)
     request.response.status = 404
     return dict(msg=request.exception)
+
+
+@view_config(context=HTTPError, renderer="templates/error.pt")
+def error_view(request):
+    request.response.status = request.exception.status
+    return dict(
+        title=request.exception.title,
+        status=request.exception.status,
+        msg=request.exception)
 
 
 dist_file_types = {
@@ -364,7 +374,11 @@ def index_get(context, request):
     renderer="templates/project.pt")
 def project_get(context, request):
     context = ContextWrapper(context)
-    releaselinks = context.stage.get_releaselinks(context.name)
+    try:
+        releaselinks = context.stage.get_releaselinks(context.name)
+    except context.stage.UpstreamError as e:
+        log.error(e.msg)
+        raise HTTPBadGateway(e.msg)
     if not releaselinks:
         raise HTTPNotFound("The project %s does not exist." % context.name)
     versions = []
@@ -396,7 +410,12 @@ def version_get(context, request):
     context = ContextWrapper(context)
     user, index = context.username, context.index
     name, version = context.name, context.version
-    stage, verdata = context.stage, context.verdata
+    stage = context.stage
+    try:
+        verdata = context.verdata
+    except stage.UpstreamError as e:
+        log.error(e.msg)
+        raise HTTPBadGateway(e.msg)
     infos = []
     skipped_keys = frozenset(
         ("description", "home_page", "name", "summary", "version"))
