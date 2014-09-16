@@ -18,6 +18,8 @@
 - version.pt: added "history" column showing last modified time and infos
   about uploads and pushes.
 
+- fix issue153: friendly error messages on upstream errors.
+
 
 2.1.1
 ---------------

@@ -1,0 +1,16 @@
+<!doctype html>
+<html>
+    <head>
+        <title>devpi - ${title}</title>
+        <metal:head use-macro="request.macros['head']" />
+    </head>
+    <body>
+        <metal:search use-macro="request.macros['navigation']" />
+        <div id="content">
+            <h1>Error</h1>
+            <p>An error has occurred: <strong>${status}</strong></p>
+            <p>${msg}</p>
+        </div>
+        <metal:footer use-macro="request.macros['footer']" />
+    </body>
+</html>

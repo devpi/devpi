@@ -415,6 +415,18 @@ def test_version_view_root_pypi_external_files(mapp, testapp, pypistage):
     assert link2.attrs["href"] == "https://pypi.python.org/pypi/pkg1/2.7/"
 
 
+@pytest.mark.parametrize("url", [
+    '/root/pypi/someproject',
+    '/root/pypi/someproject/2.6'])
+def test_root_pypi_upstream_error(url, mapp, testapp, pypistage):
+    pypistage.mock_simple("someproject", status_code=404)
+    r = testapp.get(url, headers=dict(accept="text/html"))
+    assert r.status_code == 502
+    content, = r.html.select('#content')
+    text = re.sub('\s+', ' ', content.text.strip())
+    assert text == 'Error An error has occurred: 502 Bad Gateway 404 status on GET https://pypi.python.org/simple/someproject/'
+
+
 @pytest.mark.with_notifier
 def test_testdata(mapp, testapp):
     from test_devpi_server.example import tox_result_data
