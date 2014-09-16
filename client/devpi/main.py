@@ -477,7 +477,9 @@ def use(parser):
              "given url.  If already connected to a server, you can "
              "specify '/USER/INDEXNAME' which will use the same server "
              "context. If you specify the root url you will not be connected "
-             "to a particular index. ")
+             "to a particular index. If you have a web server with basic auth "
+             "in front of devpi-server, then use a url like this: "
+             "https://username:password@example.com/USER/INDEXNAME")
 
 @subcommand("devpi.getjson")
 def getjson(parser):
