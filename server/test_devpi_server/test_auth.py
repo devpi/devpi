@@ -58,3 +58,117 @@ def test_hash_verification():
     assert verify_password("hello", hash, salt)
     assert not verify_password("xy", hash, salt)
     assert not verify_password("hello", hash, newsalt())
+
+
+class TestAuthPlugin:
+    @pytest.fixture
+    def plugin(self):
+        class Plugin:
+            def devpiserver_auth_user(self, model, username, password):
+                return self.results.pop()
+        return Plugin()
+
+    @pytest.fixture
+    def xom(self, makexom, plugin):
+        xom = makexom(plugins=[(plugin, None)])
+        return xom
+
+    @pytest.fixture
+    def auth(self, model):
+        from devpi_server.views import Auth
+        return Auth(model, "qweqwe")
+
+    def test_auth_plugin_no_user(self, auth, plugin):
+        plugin.results = [None]
+        username, password = "user", "world"
+        assert auth.get_auth_status((username, password)) == ['nouser', 'user', []]
+        assert plugin.results == []  # all results used
+
+    def test_auth_plugin_no_user_pass_through(self, auth, model, plugin):
+        plugin.results = [None]
+        username, password = "user", "world"
+        model.create_user(username, password)
+        assert auth.get_auth_status((username, password)) == ['ok', username, []]
+        assert plugin.results == []  # all results used
+
+    def test_auth_plugin_invalid_credentials(self, auth, model, plugin):
+        plugin.results = [False]
+        username, password = "user", "world"
+        model.create_user(username, password)
+        assert auth.get_auth_status((username, password)) == ['nouser', username, []]
+        assert plugin.results == []  # all results used
+
+    def test_auth_plugin_root_internal(self, auth, plugin):
+        plugin.results = [False]
+        assert auth.get_auth_status(("root", "")) == ['ok', 'root', []]
+        # the plugin should not have been called
+        assert plugin.results == [False]
+
+    def test_auth_plugin_groups(self, auth, plugin):
+        plugin.results = [['group']]
+        username, password = "user", "world"
+        assert auth.get_auth_status((username, password)) == ['ok', username, ['group']]
+        assert plugin.results == []  # all results used
+
+
+class TestAuthPlugins:
+    @pytest.fixture
+    def plugin1(self):
+        class Plugin:
+            def devpiserver_auth_user(self, model, username, password):
+                return self.results.pop()
+        return Plugin()
+
+    @pytest.fixture
+    def plugin2(self):
+        class Plugin:
+            def devpiserver_auth_user(self, model, username, password):
+                return self.results.pop()
+        return Plugin()
+
+    @pytest.fixture
+    def xom(self, makexom, plugin1, plugin2):
+        xom = makexom(plugins=[(plugin1, None), (plugin2, None)])
+        return xom
+
+    @pytest.fixture
+    def auth(self, model):
+        from devpi_server.views import Auth
+        return Auth(model, "qweqwe")
+
+    def test_auth_plugins_groups_combined(self, auth, plugin1, plugin2):
+        plugin1.results = [['group1', 'common']]
+        plugin2.results = [['group2', 'common']]
+        username, password = "user", "world"
+        status = auth.get_auth_status((username, password))
+        assert status[0] == 'ok'
+        assert status[1] == username
+        assert sorted(status[2]) == ['common', 'group1', 'group2']
+        assert plugin1.results == []  # all results used
+        assert plugin2.results == []  # all results used
+
+    def test_auth_plugins_invalid_credentials(self, auth, plugin1, plugin2):
+        plugin1.results = [['group1', 'common']]
+        plugin2.results = [False]
+        username, password = "user", "world"
+        # one failed authentication in any plugin is enough to stop
+        assert auth.get_auth_status((username, password)) == ['nouser', username, []]
+        assert plugin1.results == []  # all results used
+        assert plugin2.results == []  # all results used
+        plugin1.results = [False]
+        plugin2.results = [['group1', 'common']]
+        # one failed authentication in any plugin is enough to stop
+        assert auth.get_auth_status((username, password)) == ['nouser', username, []]
+        assert plugin1.results == []  # all results used
+        assert plugin2.results == []  # all results used
+
+    def test_auth_plugins_passthrough(self, auth, plugin1, plugin2):
+        plugin1.results = [None]
+        plugin2.results = [['group2', 'common']]
+        username, password = "user", "world"
+        status = auth.get_auth_status((username, password))
+        assert status[0] == 'ok'
+        assert status[1] == username
+        assert sorted(status[2]) == ['common', 'group2']
+        assert plugin1.results == []  # all results used
+        assert plugin2.results == []  # all results used

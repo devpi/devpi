@@ -71,6 +71,7 @@ Tutorials and Documentation
 
    web
    replica
+   hooks
    status
 
    userman/index

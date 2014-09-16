@@ -43,7 +43,7 @@ class Auth:
                 results = [
                     x for x in self.hook(self.model, authuser, authpassword)
                     if x is not None]
-            except AuthException as e:
+            except AuthException:
                 threadlog.exception("Error in authentication plugin.")
                 return None
         if [x for x in results if x is False]:

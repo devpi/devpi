@@ -17,6 +17,27 @@ other prospective extensions.
     communicate with the mailing list or IRC channel.
 
 
+hook semantics for authentication
+---------------------------------
+
+There is one hook to enable authentication from external sources::
+
+    devpiserver_auth_user(model, username, password):
+        """Needs to validate the username and password.
+
+        In case of valid credentials a list must be returned which optionally
+        contains the group names the user is member of.
+        If returning False, the authentication for the user fails. No other
+        plugin or devpi-server internals can change that.
+        If the hook returns None, then the next plugin or the devpi-server
+        internal authentication is used.
+        """
+
+The model argument should only be used to check whether a user exists in
+``devpi-server`` with ``model.get_user(username)``. You are on your own if
+you use it for anything else.
+
+
 hook semantics for metadata changes and uploads
 ------------------------------------------------
 
