@@ -28,7 +28,7 @@ def fatal(msg):
 
 def check_compatible_version(xom):
     args = xom.config.args
-    if args.upgrade_state or args.export:
+    if args.export:
         return
     state_version = xom.get_state_version()
     if server_version != state_version:
@@ -158,9 +158,9 @@ class XOM:
     def get_state_version(self):
         versionfile = self.config.serverdir.join(".serverversion")
         if not versionfile.exists():
-            fatal("serverdir %s is unversioned, please use depvi-server-1.1 "
-              "with the --upgrade-state option to upgrade from versions "
-              "prior to 1.1\n" % self.config.serverdir)
+            fatal("serverdir %s is unversioned, you may try use "
+              "depvi-server-1.1 with the --upgrade-state option to "
+              "upgrade from versions prior to 1.1\n" % self.config.serverdir)
         return versionfile.read()
 
     def set_state_version(self, version):
@@ -177,10 +177,6 @@ class XOM:
     def main(self):
         xom = self
         args = xom.config.args
-        if args.upgrade_state:
-            from devpi_server.importexport import do_upgrade
-            return do_upgrade(xom)
-
         # need to initialize the pypi mirror state before importing
         # because importing may need pypi mirroring state
         if xom.is_replica():

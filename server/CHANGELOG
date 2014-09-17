@@ -7,6 +7,9 @@
 
 - change command line option "--master" to "--master-url"
 
+- fix issue97: finally remove already deprecated --upgrade 
+  option in favor of just using --export/--import
+
 - fix issue113: provide json status information at /+status including roles 
   and replica polling status, UUIDs of the repository. See new
   server status docs for more info.
