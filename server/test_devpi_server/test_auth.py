@@ -64,7 +64,7 @@ class TestAuthPlugin:
     @pytest.fixture
     def plugin(self):
         class Plugin:
-            def devpiserver_auth_user(self, model, username, password):
+            def devpiserver_auth_user(self, userdict, username, password):
                 return self.results.pop()
         return Plugin()
 
@@ -105,9 +105,15 @@ class TestAuthPlugin:
         assert plugin.results == [False]
 
     def test_auth_plugin_groups(self, auth, plugin):
-        plugin.results = [['group']]
+        plugin.results = [dict(groups=['group'])]
         username, password = "user", "world"
         assert auth.get_auth_status((username, password)) == ['ok', username, ['group']]
+        assert plugin.results == []  # all results used
+
+    def test_auth_plugin_no_groups(self, auth, plugin):
+        plugin.results = [dict()]
+        username, password = "user", "world"
+        assert auth.get_auth_status((username, password)) == ['ok', username, []]
         assert plugin.results == []  # all results used
 
 
@@ -115,14 +121,14 @@ class TestAuthPlugins:
     @pytest.fixture
     def plugin1(self):
         class Plugin:
-            def devpiserver_auth_user(self, model, username, password):
+            def devpiserver_auth_user(self, userdict, username, password):
                 return self.results.pop()
         return Plugin()
 
     @pytest.fixture
     def plugin2(self):
         class Plugin:
-            def devpiserver_auth_user(self, model, username, password):
+            def devpiserver_auth_user(self, userdict, username, password):
                 return self.results.pop()
         return Plugin()
 
@@ -137,18 +143,16 @@ class TestAuthPlugins:
         return Auth(model, "qweqwe")
 
     def test_auth_plugins_groups_combined(self, auth, plugin1, plugin2):
-        plugin1.results = [['group1', 'common']]
-        plugin2.results = [['group2', 'common']]
+        plugin1.results = [dict(groups=['group1', 'common'])]
+        plugin2.results = [dict(groups=['group2', 'common'])]
         username, password = "user", "world"
-        status = auth.get_auth_status((username, password))
-        assert status[0] == 'ok'
-        assert status[1] == username
-        assert sorted(status[2]) == ['common', 'group1', 'group2']
+        assert auth.get_auth_status((username, password)) == [
+            'ok', username, ['common', 'group1', 'group2']]
         assert plugin1.results == []  # all results used
         assert plugin2.results == []  # all results used
 
     def test_auth_plugins_invalid_credentials(self, auth, plugin1, plugin2):
-        plugin1.results = [['group1', 'common']]
+        plugin1.results = [dict(groups=['group1', 'common'])]
         plugin2.results = [False]
         username, password = "user", "world"
         # one failed authentication in any plugin is enough to stop
@@ -156,7 +160,7 @@ class TestAuthPlugins:
         assert plugin1.results == []  # all results used
         assert plugin2.results == []  # all results used
         plugin1.results = [False]
-        plugin2.results = [['group1', 'common']]
+        plugin2.results = [dict(groups=['group1', 'common'])]
         # one failed authentication in any plugin is enough to stop
         assert auth.get_auth_status((username, password)) == ['nouser', username, []]
         assert plugin1.results == []  # all results used
@@ -164,11 +168,9 @@ class TestAuthPlugins:
 
     def test_auth_plugins_passthrough(self, auth, plugin1, plugin2):
         plugin1.results = [None]
-        plugin2.results = [['group2', 'common']]
+        plugin2.results = [dict(groups=['group2', 'common'])]
         username, password = "user", "world"
-        status = auth.get_auth_status((username, password))
-        assert status[0] == 'ok'
-        assert status[1] == username
-        assert sorted(status[2]) == ['common', 'group2']
+        assert auth.get_auth_status((username, password)) == [
+            'ok', username, ['common', 'group2']]
         assert plugin1.results == []  # all results used
         assert plugin2.results == []  # all results used

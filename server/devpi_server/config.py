@@ -244,17 +244,22 @@ class PluginManager:
                                   stage=stage,
                                   name2serials=name2serials)
 
-    def devpiserver_auth_user(self, model, username, password):
+    def devpiserver_auth_user(self, userdict, username, password):
         """Needs to validate the username and password.
 
-        In case of valid credentials a list must be returned which optionally
-        contains the group names the user is member of.
+        In case of valid credentials a dict must be returned which optionally
+        contains a list of the group names the user is member of stored on the
+        "groups" key.
         If the hook returns False, then authentication fails.
         If the hook returns None, then the next plugin or the devpi-server
         internal authentication is used.
+
+        The userdict argument is None if no user with the name username exists
+        in devpi-server. If a user exists, it's a dictionary with infos about
+        the user.
         """
         return self._call_plugins("devpiserver_auth_user",
-                                  model=model,
+                                  userdict=userdict,
                                   username=username, password=password)
 
 

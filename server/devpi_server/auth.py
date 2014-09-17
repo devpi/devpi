@@ -30,8 +30,8 @@ class Auth:
             If no user can be found, returns None.
             If the credentials are wrong, returns False.
             On success a list of group names the user is member of will be
-            returned, if no group search is set up, then the list will always
-            be empty.
+            returned. If the plugins don't return any groups, then the list
+            will be empty.
             The 'root' user is always authenticated with the devpi-server
             credentials, never by plugins.
         """
@@ -39,9 +39,10 @@ class Auth:
         results = []
         is_root = authuser == 'root'
         if not is_root:
+            userinfo = user.get() if user is not None else None
             try:
                 results = [
-                    x for x in self.hook(self.model, authuser, authpassword)
+                    x for x in self.hook(userinfo, authuser, authpassword)
                     if x is not None]
             except AuthException:
                 threadlog.exception("Error in authentication plugin.")
@@ -49,11 +50,12 @@ class Auth:
         if [x for x in results if x is False]:
             # a plugin discovered invalid credentials, so we abort
             return False
-        groups_list = [x for x in results if x is not False]
-        if groups_list and not is_root:
-            # one of the plugins returned valid groups
-            # return union of all returned groups
-            return list(set(sum(groups_list, [])))
+        userinfo_list = [x for x in results if x is not False]
+        if userinfo_list and not is_root:
+            # one of the plugins returned valid userinfo
+            # return union of all groups which may be contained in that info
+            groups = (ui.get('groups', []) for ui in userinfo_list)
+            return sorted(set(sum(groups, [])))
         if user is None:
             # we got no user model
             return None
