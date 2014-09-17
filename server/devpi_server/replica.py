@@ -6,6 +6,7 @@ import time
 from pyramid.httpexceptions import HTTPNotFound, HTTPAccepted
 from pyramid.view import view_config
 from pyramid.response import Response
+from webob.headers import EnvironHeaders
 
 from .keyfs import load, loads, dump, get_write_file_ensure_dir
 from .log import thread_push_log, threadlog
@@ -246,6 +247,28 @@ hop_by_hop = frozenset((
 ))
 
 
+def clean_request_headers(request):
+    result = EnvironHeaders({})
+    result.update(request.headers)
+    result.pop('host', None)
+    return result
+
+
+def clean_response_headers(response):
+    headers = dict()
+    # remove hop by hop headers, see:
+    # https://www.mnot.net/blog/2011/07/11/what_proxies_must_do
+    hop_keys = set(hop_by_hop)
+    connection = response.headers.get('connection')
+    if connection and connection.lower() != 'close':
+        hop_keys.update(x.strip().lower() for x in connection.split(','))
+    for k, v in response.headers.items():
+        if k.lower() in hop_keys:
+            continue
+        headers[k] = v
+    return headers
+
+
 def proxy_write_to_master(xom, request):
     """ relay modifying http requests to master and wait until
     the change is replicated back.
@@ -253,12 +276,11 @@ def proxy_write_to_master(xom, request):
     master_url = xom.config.master_url
     url = master_url.joinpath(request.path).url
     http = xom._httpsession
-    with threadlog.around("info", "relaying: %s %s", request.method,
-    url):
+    with threadlog.around("info", "relaying: %s %s", request.method, url):
         try:
             r = http.request(request.method, url,
                              data=request.body,
-                             headers=request.headers,
+                             headers=clean_request_headers(request),
                              allow_redirects=False)
         except http.Errors as e:
             raise UpstreamError("proxy-write-to-master %s: %s" % (url, e))
@@ -268,17 +290,7 @@ def proxy_write_to_master(xom, request):
     if r.status_code < 400:
         commit_serial = int(r.headers["X-DEVPI-SERIAL"])
         xom.keyfs.notifier.wait_tx_serial(commit_serial)
-    headers = dict()
-    # remove hop by hop headers, see:
-    # https://www.mnot.net/blog/2011/07/11/what_proxies_must_do
-    hop_keys = set(hop_by_hop)
-    connection = r.headers.get('connection')
-    if connection and connection.lower() != 'close':
-        hop_keys.update(x.strip().lower() for x in connection.split(','))
-    for k, v in r.headers.items():
-        if k.lower() in hop_keys:
-            continue
-        headers[k] = v
+    headers = clean_response_headers(r)
     headers[str("X-DEVPI-PROXY")] = str("replica")
     if r.status_code == 302:  # REDIRECT
         # rewrite master-related location to our replica site

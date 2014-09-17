@@ -35,6 +35,8 @@
 - support groups for acl_upload. This requires an external authentication
   plugin that provides group information.
 
+- fix wrong host header in proxy requests.
+
 2.0.6
 ----------------
 
