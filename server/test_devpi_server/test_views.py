@@ -774,6 +774,44 @@ def test_upload_anonymously(mapp):
                           set_whitelist=False)
 
 
+class TestPluginUpload:
+    @pytest.fixture
+    def plugin(self):
+        class Plugin:
+            groups = ['plugingroup']
+            def devpiserver_auth_user(self, userdict, username, password):
+                if username == 'pluginuser':
+                    return dict(status="ok", groups=self.groups)
+                return dict(status="unknown")
+        return Plugin()
+
+    @pytest.fixture
+    def xom(self, makexom, plugin):
+        xom = makexom(plugins=[(plugin, None)])
+        return xom
+
+    def test_plugin_upload_group(self, mapp, plugin):
+        mapp.login("root")
+        mapp.create_and_use()  # new context and login
+        mapp.set_versiondata(dict(name="pkg1", version="1.0"))
+        mapp.login("pluginuser")
+        # pluginuser cannot write to index now
+        mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=403)
+        # now we change the acl
+        mapp.login("root")
+        mapp.set_acl([":plugingroup"])
+        mapp.login("pluginuser")
+        # we need to skip setting the whitelist here, because the user may only
+        # register and upload a package, but not modify the index
+        mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6",
+                              set_whitelist=False)
+        # if we remove the user from the group (and login again, as the groups
+        # are stored in the token) she can't upload anymore
+        plugin.groups = []
+        mapp.login("pluginuser")
+        mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=403)
+
+
 def test_upload_with_jenkins(mapp, reqmock):
     mapp.create_and_use()
     mapp.set_uploadtrigger_jenkins("http://x.com/{pkgname}")

@@ -20,6 +20,8 @@
 
 - fix issue153: friendly error messages on upstream errors.
 
+- index.pt: show permissions on index page
+
 
 2.1.1
 ---------------

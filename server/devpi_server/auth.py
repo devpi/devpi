@@ -6,6 +6,11 @@ import itsdangerous
 import py
 from .log import threadlog
 
+
+class AuthException(Exception):
+    """ Raised by external plugins in case of an error. """
+
+
 class Auth:
     LOGIN_EXPIRATION = 60*60*10  # 10 hours
 
@@ -14,56 +19,81 @@ class Auth:
 
     def __init__(self, model, secret):
         self.model = model
-        self.signer = itsdangerous.TimestampSigner(secret)
+        self.serializer = itsdangerous.TimedSerializer(secret)
+        self.hook = self.model.xom.config.hook.devpiserver_auth_user
 
-    def get_auth_user(self, auth, raising=True):
+    def _validate(self, authuser, authpassword):
+        """ Validates user credentials.
+
+            If authentication plugins are installed, they will be queried.
+
+            If no user can be found, returns None.
+            If the credentials are wrong, returns False.
+            On success a list of group names the user is member of will be
+            returned. If the plugins don't return any groups, then the list
+            will be empty.
+            The 'root' user is always authenticated with the devpi-server
+            credentials, never by plugins.
+        """
+        user = self.model.get_user(authuser)
+        results = []
+        is_root = authuser == 'root'
+        if not is_root:
+            userinfo = user.get() if user is not None else None
+            try:
+                results = [
+                    x for x in self.hook(userinfo, authuser, authpassword)
+                    if x["status"] != "unknown"]
+            except AuthException:
+                threadlog.exception("Error in authentication plugin.")
+                return dict(status="nouser")
+        if [x for x in results if x["status"] != "ok"]:
+            # a plugin discovered invalid credentials or returned an invalid
+            # status, so we abort
+            return dict(status="nouser")
+        userinfo_list = [x for x in results if x is not False]
+        if userinfo_list and not is_root:
+            # one of the plugins returned valid userinfo
+            # return union of all groups which may be contained in that info
+            groups = (ui.get('groups', []) for ui in userinfo_list)
+            return dict(status="ok", groups=sorted(set(sum(groups, []))))
+        if user is None:
+            # we got no user model
+            return dict(status="nouser")
+        # none of the plugins returned valid groups, check our own data
+        if user.validate(authpassword):
+            return dict(status="ok")
+        return dict(status="nouser")
+
+    def _get_auth_status(self, authuser, authpassword):
         try:
-            authuser, authpassword = auth
-        except TypeError:
-            return None
-        try:
-            val = self.signer.unsign(authpassword, self.LOGIN_EXPIRATION)
+            val = self.serializer.loads(authpassword, max_age=self.LOGIN_EXPIRATION)
         except itsdangerous.SignatureExpired:
-            if raising:
-                raise self.Expired()
-            return None
+            return dict(status="expired")
         except itsdangerous.BadData:
             # check if we got user/password direct authentication
-            user = self.model.get_user(authuser)
-            if user.validate(authpassword):
-                return authuser
-            return None
+            return self._validate(authuser, authpassword)
         else:
-            if not val.startswith(authuser.encode() + b"-"):
+            if not isinstance(val, list) or len(val) != 2 or val[0] != authuser:
                 threadlog.debug("mismatch credential for user %r", authuser)
-                return None
-            return authuser
+                return dict(status="nouser")
+            return dict(status="ok", groups=val[1])
 
-    def new_proxy_auth(self, user, password):
-        user = self.model.get_user(user)
-        if user:
-            hash = user.validate(password)
-            if hash:
-                pseudopass = self.signer.sign(user.name + "-" + hash)
-                pseudopass = pseudopass.decode("ascii")
-                assert py.builtin._istext(pseudopass)
-                return {"password":  pseudopass,
-                        "expiration": self.LOGIN_EXPIRATION}
+    def new_proxy_auth(self, username, password):
+        result = self._validate(username, password)
+        if result["status"] == "ok":
+            pseudopass = self.serializer.dumps(
+                (username, result.get("groups", [])))
+            assert py.builtin._totext(pseudopass, 'ascii')
+            return {"password":  pseudopass,
+                    "expiration": self.LOGIN_EXPIRATION}
 
     def get_auth_status(self, userpassword):
         if userpassword is None:
-            return ["noauth", ""]
+            return ["noauth", "", []]
         username, password = userpassword
-        user = self.model.get_user(username)
-        if user is None:
-            return ["nouser", username]
-        try:
-            self.get_auth_user(userpassword)
-        except self.Expired:
-            return ["expired", user.name]
-        else:
-            return ["ok", user.name]
-
+        status = self._get_auth_status(username, password)
+        return [status["status"], username, status.get("groups", [])]
 
 
 def getpwhash(password, salt):

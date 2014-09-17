@@ -115,10 +115,10 @@ class DevpiAuthenticationPolicy(CallbackAuthenticationPolicy):
         # that, however, winds up duplicating logic from the superclass.
         credentials = self._get_credentials(request)
         if credentials:
-            status, auth_user = self.auth.get_auth_status(credentials)
+            status, auth_user, groups = self.auth.get_auth_status(credentials)
             request.log.debug("got auth status %r for user %r" % (status, auth_user))
             if status == "ok":
-                return []
+                return [":%s" % g for g in groups]
             elif status == "nouser":
                 abort(request, 404, "user %r does not exist" % auth_user)
             elif status == "expired":

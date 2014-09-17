@@ -30,6 +30,10 @@
 - address issue152: return a proper 400 "not registered" message instead
   of 500 when a doczip is uploaded without prior registration.
 
+- support for external authentication plugins.
+
+- support groups for acl_upload. This requires an external authentication
+  plugin that provides group information.
 
 2.0.6
 ----------------

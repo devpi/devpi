@@ -17,6 +17,25 @@ other prospective extensions.
     communicate with the mailing list or IRC channel.
 
 
+hook semantics for authentication
+---------------------------------
+
+There is one hook to enable authentication from external sources::
+
+    devpiserver_auth_user(userdict, username, password):
+        """Needs to validate the username and password.
+
+        A dict must be returned with a key "status" with one of the following
+        values:
+            "ok" - authentication succeeded
+            "unknown" - no matching user, other plugins are tried
+            "reject" - invalid password, authentication stops
+
+        Optionally the plugin can return a list of group names the user is
+        member of using the "groups" key of the result dict.
+        """
+
+
 hook semantics for metadata changes and uploads
 ------------------------------------------------
 

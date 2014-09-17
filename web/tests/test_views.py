@@ -253,6 +253,16 @@ def test_index_view_project_docs(mapp, testapp):
         ("simple", "http://localhost/root/pypi/+simple/")]
 
 
+def test_index_view_permissions(mapp, testapp):
+    api = mapp.create_and_use()
+    mapp.set_acl([api.user, ':developers', ':ANONYMOUS:'])
+    r = testapp.xget(200, api.index, headers=dict(accept="text/html"))
+    elements = r.html.select('#content dl.permissions > *')
+    text = [re.sub('\s+', ' ', x.text.strip()) for x in elements]
+    assert text == [
+        'upload', 'Users: user1', 'Groups: developers', 'Special: ANONYMOUS']
+
+
 def test_project_view(mapp, testapp):
     api = mapp.create_and_use()
     mapp.upload_file_pypi(

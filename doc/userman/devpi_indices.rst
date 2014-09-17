@@ -316,7 +316,9 @@ Modifying the ACL
 ^^^^^^^^^^^^^^^^^
 
 To modify the ACLs, you have to set the whole list of allowed users.
-Emilie may allow sophie to upload to her dev index::
+Emilie may allow sophie to upload to her dev index:
+
+.. code-block:: console
 
    $ devpi index /emilie/dev acl_upload=emilie,sophie
    /emilie/dev changing acl_upload: ['emilie', 'sophie']
@@ -328,9 +330,25 @@ Emilie may allow sophie to upload to her dev index::
      acl_upload=emilie,sophie
      pypi_whitelist=
 
+If you have a plugin implementing an authentication method with group support,
+then you can use them in acls by prefixing the group name with a colon.
+Suppose you want to allow all users in the "developers" group to upload packages:
+
+.. code-block:: console
+
+   $ devpi index /emilie/dev acl_upload=emilie,:developers
+   /emilie/dev changing acl_upload: ['emilie', ':developers']
+   http://localhost:3141/emilie/dev:
+     type=stage
+     bases=emilie/prod
+     volatile=True
+     uploadtrigger_jenkins=None
+     acl_upload=emilie,:developers
+     pypi_whitelist=
+
 It is also possible to allow anonymous uploads if you have a controlled environment.
 
-::
+.. code-block:: console
 
    $ devpi index /emilie/dev acl_upload=:ANONYMOUS:
    /emilie/dev changing acl_upload: [':ANONYMOUS:']

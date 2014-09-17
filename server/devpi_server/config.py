@@ -240,6 +240,22 @@ class PluginManager:
                                   stage=stage,
                                   name2serials=name2serials)
 
+    def devpiserver_auth_user(self, userdict, username, password):
+        """Needs to validate the username and password.
+
+        A dict must be returned with a key "status" with one of the following
+        values:
+            "ok" - authentication succeeded
+            "unknown" - no matching user, other plugins are tried
+            "reject" - invalid password, authentication stops
+
+        Optionally the plugin can return a list of group names the user is
+        member of using the "groups" key of the result dict.
+        """
+        return self._call_plugins("devpiserver_auth_user",
+                                  userdict=userdict,
+                                  username=username, password=password)
+
 
 class Config:
     def __init__(self, args, hook):
