@@ -137,6 +137,18 @@ class TestReplicaThread:
             rt.thread_run()
         assert caplog.getrecords("trying again")
 
+
+def test_clean_request_headers(blank_request):
+    from devpi_server.replica import clean_request_headers
+    request = blank_request()
+    request.headers['Foo'] = 'bar'
+    assert 'host' in request.headers
+    assert 'foo' in request.headers
+    headers = clean_request_headers(request)
+    assert 'host' not in headers
+    assert 'foo' in headers
+
+
 class TestTweenReplica:
     def test_nowrite(self, xom, blank_request):
         l = []
