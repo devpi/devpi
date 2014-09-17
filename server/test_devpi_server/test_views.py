@@ -781,7 +781,8 @@ class TestPluginUpload:
             groups = ['plugingroup']
             def devpiserver_auth_user(self, userdict, username, password):
                 if username == 'pluginuser':
-                    return dict(groups=self.groups)
+                    return dict(status="ok", groups=self.groups)
+                return dict(status="unknown")
         return Plugin()
 
     @pytest.fixture

@@ -12,7 +12,7 @@ class TestAuth:
 
     def test_auth_direct(self, model, auth):
         model.create_user("user", password="world")
-        assert auth._get_auth_groups("user", "world") == []
+        assert auth._get_auth_status("user", "world") == dict(status="ok")
 
     def test_proxy_auth(self, model, auth):
         model.create_user("user", password="world")
@@ -20,7 +20,7 @@ class TestAuth:
         assert auth.new_proxy_auth("uer", "wrongpass") is None
         res = auth.new_proxy_auth("user", "world")
         assert "password" in res and "expiration" in res
-        assert auth._get_auth_groups("user", res["password"]) == []
+        assert auth._get_auth_status("user", res["password"]) == dict(status="ok", groups=[])
 
     def test_proxy_auth_expired(self, model, auth, monkeypatch):
         username, password = "user", "world"
@@ -31,10 +31,7 @@ class TestAuth:
         def r(*args, **kw): raise py.std.itsdangerous.SignatureExpired("123")
         monkeypatch.setattr(auth.serializer, "loads", r)
 
-        res = auth._get_auth_groups(username, proxy["password"], raising=False)
-        assert res is None
-        with pytest.raises(auth.Expired):
-            auth._get_auth_groups(username, proxy["password"])
+        assert auth._get_auth_status(username, proxy["password"]) == dict(status="expired")
         assert auth.get_auth_status((username, proxy["password"])) == ["expired", username, []]
 
     def test_auth_status_no_auth(self, auth):
@@ -79,41 +76,47 @@ class TestAuthPlugin:
         return Auth(model, "qweqwe")
 
     def test_auth_plugin_no_user(self, auth, plugin):
-        plugin.results = [None]
+        plugin.results = [dict(status="unknown")]
         username, password = "user", "world"
         assert auth.get_auth_status((username, password)) == ['nouser', 'user', []]
         assert plugin.results == []  # all results used
 
     def test_auth_plugin_no_user_pass_through(self, auth, model, plugin):
-        plugin.results = [None]
+        plugin.results = [dict(status="unknown")]
         username, password = "user", "world"
         model.create_user(username, password)
         assert auth.get_auth_status((username, password)) == ['ok', username, []]
         assert plugin.results == []  # all results used
 
     def test_auth_plugin_invalid_credentials(self, auth, model, plugin):
-        plugin.results = [False]
+        plugin.results = [dict(status="reject")]
         username, password = "user", "world"
         model.create_user(username, password)
         assert auth.get_auth_status((username, password)) == ['nouser', username, []]
         assert plugin.results == []  # all results used
 
     def test_auth_plugin_root_internal(self, auth, plugin):
-        plugin.results = [False]
+        plugin.results = [dict(status="reject")]
         assert auth.get_auth_status(("root", "")) == ['ok', 'root', []]
         # the plugin should not have been called
-        assert plugin.results == [False]
+        assert plugin.results == [dict(status="reject")]
 
     def test_auth_plugin_groups(self, auth, plugin):
-        plugin.results = [dict(groups=['group'])]
+        plugin.results = [dict(status="ok", groups=['group'])]
         username, password = "user", "world"
         assert auth.get_auth_status((username, password)) == ['ok', username, ['group']]
         assert plugin.results == []  # all results used
 
     def test_auth_plugin_no_groups(self, auth, plugin):
-        plugin.results = [dict()]
+        plugin.results = [dict(status="ok")]
         username, password = "user", "world"
         assert auth.get_auth_status((username, password)) == ['ok', username, []]
+        assert plugin.results == []  # all results used
+
+    def test_auth_plugin_invalid_status(self, auth, plugin):
+        plugin.results = [dict(status="siotheiasoehn")]
+        username, password = "user", "world"
+        assert auth.get_auth_status((username, password)) == ['nouser', username, []]
         assert plugin.results == []  # all results used
 
 
@@ -143,8 +146,8 @@ class TestAuthPlugins:
         return Auth(model, "qweqwe")
 
     def test_auth_plugins_groups_combined(self, auth, plugin1, plugin2):
-        plugin1.results = [dict(groups=['group1', 'common'])]
-        plugin2.results = [dict(groups=['group2', 'common'])]
+        plugin1.results = [dict(status="ok", groups=['group1', 'common'])]
+        plugin2.results = [dict(status="ok", groups=['group2', 'common'])]
         username, password = "user", "world"
         assert auth.get_auth_status((username, password)) == [
             'ok', username, ['common', 'group1', 'group2']]
@@ -152,23 +155,23 @@ class TestAuthPlugins:
         assert plugin2.results == []  # all results used
 
     def test_auth_plugins_invalid_credentials(self, auth, plugin1, plugin2):
-        plugin1.results = [dict(groups=['group1', 'common'])]
-        plugin2.results = [False]
+        plugin1.results = [dict(status="ok", groups=['group1', 'common'])]
+        plugin2.results = [dict(status="reject")]
         username, password = "user", "world"
         # one failed authentication in any plugin is enough to stop
         assert auth.get_auth_status((username, password)) == ['nouser', username, []]
         assert plugin1.results == []  # all results used
         assert plugin2.results == []  # all results used
-        plugin1.results = [False]
-        plugin2.results = [dict(groups=['group1', 'common'])]
+        plugin1.results = [dict(status="reject")]
+        plugin2.results = [dict(status="ok", groups=['group1', 'common'])]
         # one failed authentication in any plugin is enough to stop
         assert auth.get_auth_status((username, password)) == ['nouser', username, []]
         assert plugin1.results == []  # all results used
         assert plugin2.results == []  # all results used
 
     def test_auth_plugins_passthrough(self, auth, plugin1, plugin2):
-        plugin1.results = [None]
-        plugin2.results = [dict(groups=['group2', 'common'])]
+        plugin1.results = [dict(status="unknown")]
+        plugin2.results = [dict(status="ok", groups=['group2', 'common'])]
         username, password = "user", "world"
         assert auth.get_auth_status((username, password)) == [
             'ok', username, ['common', 'group2']]

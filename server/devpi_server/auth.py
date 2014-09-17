@@ -43,50 +43,47 @@ class Auth:
             try:
                 results = [
                     x for x in self.hook(userinfo, authuser, authpassword)
-                    if x is not None]
+                    if x["status"] != "unknown"]
             except AuthException:
                 threadlog.exception("Error in authentication plugin.")
-                return None
-        if [x for x in results if x is False]:
-            # a plugin discovered invalid credentials, so we abort
-            return False
+                return dict(status="nouser")
+        if [x for x in results if x["status"] != "ok"]:
+            # a plugin discovered invalid credentials or returned an invalid
+            # status, so we abort
+            return dict(status="nouser")
         userinfo_list = [x for x in results if x is not False]
         if userinfo_list and not is_root:
             # one of the plugins returned valid userinfo
             # return union of all groups which may be contained in that info
             groups = (ui.get('groups', []) for ui in userinfo_list)
-            return sorted(set(sum(groups, [])))
+            return dict(status="ok", groups=sorted(set(sum(groups, []))))
         if user is None:
             # we got no user model
-            return None
+            return dict(status="nouser")
         # none of the plugins returned valid groups, check our own data
         if user.validate(authpassword):
-            return []
-        return False
+            return dict(status="ok")
+        return dict(status="nouser")
 
-    def _get_auth_groups(self, authuser, authpassword, raising=True):
+    def _get_auth_status(self, authuser, authpassword):
         try:
             val = self.serializer.loads(authpassword, max_age=self.LOGIN_EXPIRATION)
         except itsdangerous.SignatureExpired:
-            if raising:
-                raise self.Expired()
-            return None
+            return dict(status="expired")
         except itsdangerous.BadData:
             # check if we got user/password direct authentication
-            result = self._validate(authuser, authpassword)
-            if isinstance(result, list):
-                return result
-            return None
+            return self._validate(authuser, authpassword)
         else:
             if not isinstance(val, list) or len(val) != 2 or val[0] != authuser:
                 threadlog.debug("mismatch credential for user %r", authuser)
-                return None
-            return val[1]
+                return dict(status="nouser")
+            return dict(status="ok", groups=val[1])
 
     def new_proxy_auth(self, username, password):
         result = self._validate(username, password)
-        if isinstance(result, list):
-            pseudopass = self.serializer.dumps((username, result))
+        if result["status"] == "ok":
+            pseudopass = self.serializer.dumps(
+                (username, result.get("groups", [])))
             assert py.builtin._totext(pseudopass, 'ascii')
             return {"password":  pseudopass,
                     "expiration": self.LOGIN_EXPIRATION}
@@ -95,15 +92,8 @@ class Auth:
         if userpassword is None:
             return ["noauth", "", []]
         username, password = userpassword
-        try:
-            groups = self._get_auth_groups(username, password)
-        except self.Expired:
-            return ["expired", username, []]
-        if isinstance(groups, list):
-            return ["ok", username, groups]
-        else:
-            return ["nouser", username, []]
-
+        status = self._get_auth_status(username, password)
+        return [status["status"], username, status.get("groups", [])]
 
 
 def getpwhash(password, salt):

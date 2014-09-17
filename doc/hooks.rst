@@ -25,17 +25,14 @@ There is one hook to enable authentication from external sources::
     devpiserver_auth_user(userdict, username, password):
         """Needs to validate the username and password.
 
-        In case of valid credentials a dict must be returned which optionally
-        contains a list of the group names the user is member of stored on the
-        "groups" key.
-        If returning False, the authentication for the user fails. No other
-        plugin or devpi-server internals can change that.
-        If the hook returns None, then the next plugin or the devpi-server
-        internal authentication is used.
+        A dict must be returned with a key "status" with one of the following
+        values:
+            "ok" - authentication succeeded
+            "unknown" - no matching user, other plugins are tried
+            "reject" - invalid password, authentication stops
 
-        The userdict argument is None if no user with the name username exists
-        in devpi-server. If a user exists, it's a dictionary with infos about
-        the user.
+        Optionally the plugin can return a list of group names the user is
+        member of using the "groups" key of the result dict.
         """
 
 
