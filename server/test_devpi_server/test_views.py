@@ -780,7 +780,7 @@ def test_upload_anonymously(mapp):
                           set_whitelist=False)
 
 
-class TestPluginUpload:
+class TestPluginPermissions:
     @pytest.fixture
     def plugin(self):
         class Plugin:
@@ -816,6 +816,12 @@ class TestPluginUpload:
         plugin.groups = []
         mapp.login("pluginuser")
         mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=403)
+
+    def test_plugin_user_create_index(self, mapp):
+        mapp.login("pluginuser")
+        assert "pluginuser" not in mapp.getuserlist()
+        # user must already exist to succeed, since it doesn't, it should fail
+        mapp.create_index("pluginuser/dev", code=404)
 
 
 def test_upload_with_jenkins(mapp, reqmock):
