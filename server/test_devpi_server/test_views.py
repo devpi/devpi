@@ -639,6 +639,8 @@ def test_upload_and_push_with_toxresults(mapp, testapp):
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200)
     path, = mapp.get_release_paths("pkg1")
     r = testapp.post(path, json.dumps(tox_result_data))
+    # store a second toxresult
+    r = testapp.post(path, json.dumps(tox_result_data))
     assert r.status_code == 200
     testapp.xget(200, path)
     req = dict(name="pkg1", version="2.6", targetindex="user1/prod")
@@ -655,11 +657,15 @@ def test_upload_and_push_with_toxresults(mapp, testapp):
     assert history_log[1]['who'] == 'user1'
     assert history_log[1]['src'] == 'user1/dev'
     assert history_log[1]['dst'] == 'user1/prod'
-    link = vv.get_link("toxresult")
-    assert "user1/prod" in link.href
-    pkgmeta = json.loads(testapp.get(link.href).body.decode("utf8"))
+
+    links = vv.get_links("toxresult")
+    assert len(links) == 2
+    link1, link2 = links
+    assert "user1/prod" in link1.href
+    pkgmeta = json.loads(testapp.get(link1.href).body.decode("utf8"))
+
     assert pkgmeta == tox_result_data
-    history_log = link.log
+    history_log = link1.log
     assert len(history_log) == 2
     assert history_log[0]['what'] == 'upload'
     assert history_log[0]['dst'] == 'user1/dev'

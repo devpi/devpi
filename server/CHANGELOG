@@ -47,6 +47,8 @@
 
 - fix export error when a private project doesnt exist on pypi
 
+- fix pushing of a release when it contains multiple tox results.
+
 2.0.6
 ----------------
 

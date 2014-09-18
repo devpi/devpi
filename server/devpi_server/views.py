@@ -545,16 +545,16 @@ class PyPIView:
                     ref_link = tstore.get_links(entrypath=entry.relpath)[0]
                     raw_data = toxlink.entry.file_get_content()
                     data = json.loads(raw_data.decode("utf-8"))
-                    link = target_stage.store_toxresult(ref_link, data)
-                    link.add_logs(
+                    tlink = target_stage.store_toxresult(ref_link, data)
+                    tlink.add_logs(
                         x for x in toxlink.get_logs()
                         if x.get('what') != 'overwrite')
-                    link.add_log(
+                    tlink.add_log(
                         'push',
                         self.request.authenticated_userid,
                         src=self.context.stage.name,
                         dst=target_stage.name)
-                    yield (200, "store_toxresult", link.entrypath)
+                    yield (200, "store_toxresult", tlink.entrypath)
         for link in links["doczip"]:
             doczip = link.entry.file_get_content()
             new_link = target_stage.store_doczip(name, version, doczip)
