@@ -63,9 +63,13 @@ def show_test_status(hub, toxlinks):
         res = hub.http.get(toxlink.href)
         assert res.status_code == 200
         toxresult = json.loads(res.content.decode("utf8"))
+        try:
+            base_prefix = "  {host} {platform} ".format(**toxresult)
+        except KeyError:
+            hub.error("corrupt toxresult, skipping: %s" % (toxlink,))
+            continue
         for envname, env in toxresult["testenvs"].items():
-            prefix = "  {host} {platform} {envname}".format(
-                     envname=envname, **toxresult)
+            prefix = base_prefix + envname
             if prefix in seen:
                 continue
             seen.add(prefix)

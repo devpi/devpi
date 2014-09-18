@@ -16,6 +16,9 @@
   now depends on.  This also adds in support for svn and bazaar in addition
   to the already supported git/hg.
 
+- devpi list: if a tox result does not contain basic information (probably a bug in
+  tox) show a red error instead of crashing out with a traceback.
+
 2.0.2
 ----------------
 
