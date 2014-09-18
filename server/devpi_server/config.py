@@ -106,6 +106,18 @@ def addoptions(parser):
                  "$DEVPI_SERVERDIR is used if it exists, "
                  "otherwise the default is '~/.devpi/server'")
 
+    deploy.addoption("--restrict-modify", type=str, metavar="SPEC",
+            action="store", default=None,
+            help="specify which users/groups may create other users and their "
+                 "indices. Multiple users and groups are separated by commas. "
+                 "Groups need to be prefixed with a colon like this: ':group'. "
+                 "By default anonymous users can create users and "
+                 "then create indices themself, but not modify other users "
+                 "and their indices. The root user can do anything. When this "
+                 "option is set, only the specified users/groups can create "
+                 "and modify users and indices. You have to add root "
+                 "explicitely if wanted.")
+
     bg = parser.addgroup("background server")
     bg.addoption("--start", action="store_true",
             help="start the background devpi-server")

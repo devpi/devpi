@@ -843,7 +843,9 @@ class PyPIView:
                                                       password=password))
         apireturn(200, "user updated")
 
-    @view_config(route_name="/{user}", request_method="PUT")
+    @view_config(
+        route_name="/{user}", request_method="PUT",
+        permission="user_create")
     def user_create(self):
         username = self.context.username
         request = self.request

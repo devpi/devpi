@@ -133,4 +133,8 @@ credentials::
 
 .. [#f1] This is a workaround.
     
+Restricting who can create users
+--------------------------------
 
+You can use the ``--restrict-modify`` option of ``devpi-server`` to restrict
+who can create, modify and delete users and indices.
