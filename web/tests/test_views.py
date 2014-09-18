@@ -437,6 +437,17 @@ def test_root_pypi_upstream_error(url, mapp, testapp, pypistage):
     assert text == 'Error An error has occurred: 502 Bad Gateway 404 status on GET https://pypi.python.org/simple/someproject/'
 
 
+def test_error_html_only(mapp, testapp, monkeypatch):
+    from pyramid.httpexceptions import HTTPBadGateway
+    def error(self):
+        raise HTTPBadGateway()
+    monkeypatch.setattr("devpi_server.views.PyPIView.user_list", error)
+    r = testapp.get("/", headers=dict(accept="application/json"))
+    assert r.status_code == 502
+    assert r.content_type != "text/html"
+    assert "502 Bad Gateway" in r.text.splitlines()
+
+
 @pytest.mark.with_notifier
 def test_testdata(mapp, testapp):
     from test_devpi_server.example import tox_result_data
