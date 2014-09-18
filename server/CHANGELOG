@@ -7,6 +7,9 @@
 
 - fix pushing of a release when it contains multiple tox results.
 
+- be more tolerant when different indexes have different project names
+  wrt to "normalization"
+
 2.0.6
 ----------------
 

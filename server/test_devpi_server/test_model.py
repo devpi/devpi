@@ -188,6 +188,20 @@ class TestStage:
         assert len(links) == 1
         assert links[0].entrypath.endswith("someproject-1.0.zip")
 
+    def test_inheritance_tolerance_on_different_names(self, stage, user):
+        register_and_store(stage, "some_project-1.2.tar.gz",
+                           name="some-project")
+        stage2 = user.create_stage(index="dev2")
+        register_and_store(stage2, "some_project-1.3.tar.gz",
+                           name="Some_Project")
+        stage.modify(bases=(stage2.name,))
+        links = stage.get_releaselinks("some-project")
+        assert len(links) == 2
+        links = stage.get_releaselinks("Some_Project")
+        assert len(links) == 2
+        links = stage2.get_releaselinks("some_project")
+        assert len(links) == 1
+
     def test_get_releaselinks_inheritance_shadow_egg(self, pypistage, stage):
         stage.modify(bases=("root/pypi",), pypi_whitelist=['py'])
         pypistage.mock_simple("py",
