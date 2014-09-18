@@ -284,6 +284,13 @@ and use it ::
 Our ``alice/dev`` index derives from ``root/pypi`` by default
 which makes all pypi.python.org releases available.
 
+restricting modification rights
++++++++++++++++++++++++++++++++
+
+You can use the ``--restrict-modify`` option of ``devpi-server`` to restrict
+who can create, modify and delete users and indices.
+
+
 automatically setting pip/easy_install config files
 ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
