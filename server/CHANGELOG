@@ -45,6 +45,7 @@
 - fix replica proxying: don't pass original host header when relaying a
   modifying request from replica to master.
 
+- fix export error when a private project doesnt exist on pypi
 
 2.0.6
 ----------------
