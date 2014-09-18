@@ -14,6 +14,7 @@ from pyramid.compat import decode_path_info
 from pyramid.decorator import reify
 from pyramid.httpexceptions import HTTPBadGateway, HTTPError
 from pyramid.httpexceptions import HTTPFound, HTTPNotFound
+from pyramid.httpexceptions import default_exceptionresponse_view
 from pyramid.interfaces import IRoutesMapper
 from pyramid.response import FileResponse
 from pyramid.view import notfound_view_config, view_config
@@ -135,11 +136,14 @@ def notfound(request):
 
 @view_config(context=HTTPError, renderer="templates/error.pt")
 def error_view(request):
-    request.response.status = request.exception.status
-    return dict(
-        title=request.exception.title,
-        status=request.exception.status,
-        msg=request.exception)
+    if 'text/html' in request.accept:
+        request.response.status = request.exception.status
+        return dict(
+            title=request.exception.title,
+            status=request.exception.status,
+            msg=request.exception)
+    else:
+        return default_exceptionresponse_view(request.context, request)
 
 
 dist_file_types = {

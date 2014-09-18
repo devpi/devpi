@@ -32,14 +32,13 @@ def check_compatible_version(xom):
         return
     state_version = xom.get_state_version()
     if server_version != state_version:
-        state_ver = map(int, state_version.split(".")[:2])
-        server_ver = map(int, server_version.split(".")[:2])
+        state_ver = list(map(int, state_version.split(".")[:2]))
+        server_ver = list(map(int, server_version.split(".")[:2]))
         if state_ver != server_ver:
             fatal("Incompatible state: server %s cannot run serverdir "
-                  "%s created by %s. "
+                  "%s created by %s.\n"
                   "Use --export from older version, then --import with newer "
-                  "version.  Or try --upgrade-state for in-place upgrades."
-                  " But do a backup first :)"
+                  "version."
                   %(server_version, xom.config.serverdir, state_version))
 
         xom.set_state_version(server_version)

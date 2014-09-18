@@ -10,7 +10,12 @@ import binascii
 class RootFactory(object):
     def __init__(self, request):
         self.request = request
-        self.model = request.registry['xom'].model
+        xom = request.registry['xom']
+        self.model = xom.model
+        rm = xom.config.args.restrict_modify
+        if rm is not None:
+            rm = [x.strip() for x in rm.split(',')]
+        self.restrict_modify = rm
 
     @reify
     def matchdict(self):
@@ -25,20 +30,32 @@ class RootFactory(object):
 
     def __acl__(self):
         acl = []
-        acl.extend([
-            (Allow, 'root', 'user_delete'),
-            (Allow, 'root', 'user_modify'),
-            (Allow, 'root', 'index_create'),
-            (Allow, 'root', 'index_modify'),
-            (Allow, 'root', 'index_delete'),
-            (Allow, 'root', 'del_project')])
-        if self.username == 'root':
-            acl.append((Deny, Everyone, 'user_delete'))
-        if self.username:
+        if self.restrict_modify is None:
             acl.extend([
-                (Allow, self.username, 'user_delete'),
-                (Allow, self.username, 'user_modify'),
-                (Allow, self.username, 'index_create')])
+                (Allow, Everyone, 'user_create'),
+                (Allow, 'root', 'user_delete'),
+                (Allow, 'root', 'user_modify'),
+                (Allow, 'root', 'index_create'),
+                (Allow, 'root', 'index_modify'),
+                (Allow, 'root', 'index_delete'),
+                (Allow, 'root', 'del_project')])
+            if self.username == 'root':
+                acl.append((Deny, Everyone, 'user_delete'))
+            if self.username:
+                acl.extend([
+                    (Allow, self.username, 'user_delete'),
+                    (Allow, self.username, 'user_modify'),
+                    (Allow, self.username, 'index_create')])
+        else:
+            for principal in self.restrict_modify:
+                acl.extend([
+                    (Allow, principal, 'user_create'),
+                    (Allow, principal, 'user_delete'),
+                    (Allow, principal, 'user_modify'),
+                    (Allow, principal, 'index_create'),
+                    (Allow, principal, 'index_modify'),
+                    (Allow, principal, 'index_delete'),
+                    (Allow, principal, 'del_project')])
         stage = None
         if self.username and self.index:
             stage = self.model.getstage(self.username, self.index)
@@ -47,10 +64,11 @@ class RootFactory(object):
                 if principal == ':ANONYMOUS:':
                     principal = Everyone
                 acl.append((Allow, principal, 'pypi_submit'))
-            acl.extend([
-                (Allow, self.username, 'index_modify'),
-                (Allow, self.username, 'index_delete'),
-                (Allow, self.username, 'del_project')])
+            if self.restrict_modify is None:
+                acl.extend([
+                    (Allow, self.username, 'index_modify'),
+                    (Allow, self.username, 'index_delete'),
+                    (Allow, self.username, 'del_project')])
         return acl
 
     def getstage(self, user, index):

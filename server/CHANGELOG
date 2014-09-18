@@ -18,6 +18,9 @@
   requires an external authentication plugin that provides group
   information.
 
+- add "--restrict-modify" option to specify users/groups which can create,
+  delete and modify users and indices.
+
 - make master/replica configuration more permanent and a bit safer
   against accidental errors: introduce "--role=auto" option, defaulting
   to determine the role from a previous invocation or the presence of the

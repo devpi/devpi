@@ -1080,3 +1080,99 @@ class TestTweenKeyfsTransaction:
         handler = tween_keyfs_transaction(wrapped_handler, {"xom": xom})
         response = handler(blank_request())
         assert response.headers.get("X-DEVPI-SERIAL") == str(cur_serial + 1)
+
+
+@pytest.mark.parametrize("restrict_modify", ["admin", ":admins"])
+class TestRestrictModify:
+    logins = [("root",), ("regular", "regular"), ("hello", "password")]
+
+    @pytest.fixture
+    def plugin(self):
+        class Plugin:
+            def devpiserver_auth_user(self, userdict, username, password):
+                if username == "regular" and password == "regular":
+                    return dict(status="ok", groups=["regulars"])
+                if username == "admin" and password == "admin":
+                    return dict(status="ok", groups=["admins"])
+                return dict(status="unknown")
+        return Plugin()
+
+    @pytest.fixture
+    def xom(self, makexom, plugin, restrict_modify):
+        xom = makexom(plugins=[(plugin, None)])
+        xom.config.args.restrict_modify = restrict_modify
+        return xom
+
+    def test_create_new_user(self, mapp):
+        mapp.create_user("hello", "password", code=403)
+        mapp.login("root")
+        mapp.create_user("hello", "password", code=403)
+        mapp.login("regular", "regular")
+        mapp.create_user("hello", "password", code=403)
+        mapp.login("admin", "admin")
+        assert "hello" not in mapp.getuserlist()
+        mapp.create_user("hello", "password")
+        assert "hello" in mapp.getuserlist()
+
+    def test_modify_user(self, mapp):
+        mapp.login("admin", "admin")
+        mapp.create_user("hello", "password")
+        assert "hello" in mapp.getuserlist()
+        for login in self.logins:
+            mapp.login(*login)
+            mapp.modify_user("hello", email="whatever", code=403)
+        mapp.login("admin", "admin")
+        res = mapp.getjson("/hello")["result"]
+        assert res["email"] == "hello@example.com"
+        mapp.modify_user("hello", email="whatever")
+        res = mapp.getjson("/hello")["result"]
+        assert res["email"] == "whatever"
+
+    def test_delete_user(self, mapp):
+        mapp.login("admin", "admin")
+        mapp.create_user("hello", "password")
+        for login in self.logins:
+            mapp.login(*login)
+            mapp.delete_user("hello", code=403)
+        mapp.login("admin", "admin")
+        assert "hello" in mapp.getuserlist()
+        mapp.delete_user("hello")
+        assert "hello" not in mapp.getuserlist()
+
+    def test_create_new_index(self, mapp):
+        mapp.login("admin", "admin")
+        mapp.create_user("hello", "password")
+        for login in self.logins:
+            mapp.login(*login)
+            mapp.create_index("hello/dev", code=403)
+        mapp.login("admin", "admin")
+        assert "hello/dev" not in mapp.getindexlist("hello")
+        mapp.create_index("hello/dev")
+        assert "hello/dev" in mapp.getindexlist("hello")
+
+    def test_modify_index(self, mapp):
+        mapp.login("admin", "admin")
+        mapp.create_user("hello", "password")
+        mapp.create_index("hello/dev")
+        for login in self.logins:
+            mapp.login(*login)
+            res = mapp.getjson("/hello/dev")["result"]
+            mapp.modify_index("hello/dev", res, code=403)
+        mapp.login("admin", "admin")
+        assert res["volatile"] is True
+        res["volatile"] = False
+        mapp.modify_index("hello/dev", res)
+        res = mapp.getjson("/hello/dev")["result"]
+        assert res["volatile"] is False
+
+    def test_delete_index(self, mapp):
+        mapp.login("admin", "admin")
+        mapp.create_user("hello", "password")
+        mapp.create_index("hello/dev")
+        for login in self.logins:
+            mapp.login(*login)
+            mapp.delete_index("hello/dev", code=403)
+        mapp.login("admin", "admin")
+        assert "hello/dev" in mapp.getindexlist("hello")
+        mapp.delete_index("hello/dev")
+        assert "hello/dev" not in mapp.getindexlist("hello")

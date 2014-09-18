@@ -384,10 +384,7 @@ class Mapp(MappMixin):
         r = self.testapp.patch_json("/%s" % user, reqdict, expect_errors=True)
         assert r.status_code == code
         if code == 200:
-            res = r.json["result"]
-            assert res["username"] == user
-            for name, val in reqdict.items():
-                assert res[name] == val
+            assert r.json == dict(message="user updated")
 
     def create_user_fails(self, user, password, email="hello@example.com"):
         with pytest.raises(webtest.AppError) as excinfo:
