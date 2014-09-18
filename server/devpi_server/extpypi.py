@@ -286,8 +286,12 @@ class PyPIStage(BaseStage):
         return versions
 
     def get_versiondata_perstage(self, projectname, version):
+        try:
+            links = self.get_releaselinks_perstage(projectname)
+        except self.UpstreamError:
+            return {}
         verdata = {}
-        for link in self.get_releaselinks_perstage(projectname):
+        for link in links:
             basename = link.basename
             if link.eggfragment:
                 link_version = "egg=" + link.eggfragment

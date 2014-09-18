@@ -283,6 +283,11 @@ class TestExtPYPIDB:
         assert links[0].md5 == y.md5
         assert x.md5 != y.md5
 
+    def test_get_versiondata_inexistent(self, pypistage):
+        pypistage.mock_simple("pytest", status_code=404)
+        data = pypistage.get_versiondata("Pytest", "1.0")
+        assert not data
+
     def test_get_versiondata(self, pypistage):
         pypistage.mock_simple("Pytest", pkgver="pytest-1.0.zip")
         data = pypistage.get_versiondata("Pytest", "1.0")

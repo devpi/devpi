@@ -3,6 +3,8 @@
 
 - fix wrong host header in proxy requests.
 
+- fix export error when a private project doesnt exist on pypi
+
 2.0.6
 ----------------
 
