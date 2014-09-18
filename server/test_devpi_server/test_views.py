@@ -509,6 +509,8 @@ def test_upload_and_push_with_toxresults(mapp, testapp):
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200)
     path, = mapp.get_release_paths("pkg1")
     r = testapp.post(path, json.dumps(tox_result_data))
+    # store a second toxresult
+    r = testapp.post(path, json.dumps(tox_result_data))
     assert r.status_code == 200
     testapp.xget(200, path)
     req = dict(name="pkg1", version="2.6", targetindex="user1/prod")
@@ -517,9 +519,11 @@ def test_upload_and_push_with_toxresults(mapp, testapp):
         assert "user1/dev" not in actionlog[-1]
 
     vv = get_view_version_links(testapp, "/user1/prod", "pkg1", "2.6")
-    link = vv.get_link("toxresult")
-    assert "user1/prod" in link.href
-    pkgmeta = json.loads(testapp.get(link.href).body.decode("utf8"))
+    links = vv.get_links("toxresult")
+    assert len(links) == 2
+    link1, link2 = links
+    assert "user1/prod" in link1.href
+    pkgmeta = json.loads(testapp.get(link1.href).body.decode("utf8"))
     assert pkgmeta == tox_result_data
 
 def test_upload_and_push_external(mapp, testapp, reqmock):

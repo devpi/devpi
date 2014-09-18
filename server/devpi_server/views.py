@@ -487,8 +487,8 @@ class PyPIView:
                     ref_link = tstore.get_links(entrypath=entry.relpath)[0]
                     raw_data = toxlink.entry.file_get_content()
                     data = json.loads(raw_data.decode("utf-8"))
-                    link = target_stage.store_toxresult(ref_link, data)
-                    yield (200, "store_toxresult", link.entrypath)
+                    tlink = target_stage.store_toxresult(ref_link, data)
+                    yield (200, "store_toxresult", tlink.entrypath)
         for link in links["doczip"]:
             doczip = link.entry.file_get_content()
             target_stage.store_doczip(name, version, doczip)
