@@ -22,6 +22,11 @@ def test_check_compatible_version_earlier(xom, monkeypatch):
 def test_check_compatible_version_self(xom):
     check_compatible_version(xom)
 
+def test_check_compatible_dev_version(xom, monkeypatch):
+    monkeypatch.setattr(xom, "get_state_version", lambda: "2.1.0.dev1")
+    monkeypatch.setattr("devpi_server.main.server_version", "2.1.0.dev2")
+    check_compatible_version(xom)
+
 def test_check_incompatible_version_raises(xom):
     versionfile = xom.config.serverdir.join(".serverversion")
     versionfile.write("5.0.4")
