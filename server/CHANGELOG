@@ -23,6 +23,9 @@
   requires an external authentication plugin that provides group
   information.
 
+- on replicas return auth status for "+api" requests 
+  by relaying to the master instead of using own key.
+
 - add "--restrict-modify" option to specify users/groups which can create,
   delete and modify users and indices.
 

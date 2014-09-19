@@ -267,24 +267,27 @@ def clean_response_headers(response):
     return headers
 
 
-def proxy_write_to_master(xom, request):
-    """ relay modifying http requests to master and wait until
-    the change is replicated back.
-    """
+def proxy_request_to_master(xom, request):
     master_url = xom.config.master_url
     url = master_url.joinpath(request.path).url
     http = xom._httpsession
     with threadlog.around("info", "relaying: %s %s", request.method, url):
         try:
-            r = http.request(request.method, url,
-                             data=request.body,
-                             headers=clean_request_headers(request),
-                             allow_redirects=False)
+            return http.request(request.method, url,
+                                data=request.body,
+                                headers=clean_request_headers(request),
+                                allow_redirects=False)
         except http.Errors as e:
             raise UpstreamError("proxy-write-to-master %s: %s" % (url, e))
+
+
+def proxy_write_to_master(xom, request):
+    """ relay modifying http requests to master and wait until
+    the change is replicated back.
+    """
+    r = proxy_request_to_master(xom, request)
     #threadlog.debug("relay status_code: %s", r.status_code)
     #threadlog.debug("relay headers: %s", r.headers)
-
     if r.status_code < 400:
         commit_serial = int(r.headers["X-DEVPI-SERIAL"])
         xom.keyfs.notifier.wait_tx_serial(commit_serial)
@@ -295,7 +298,7 @@ def proxy_write_to_master(xom, request):
         master_location = r.headers["location"]
         outside_url = request.application_url
         headers[str("location")] = str(
-            master_location.replace(master_url.url, outside_url))
+            master_location.replace(xom.config.master_url.url, outside_url))
     return Response(status="%s %s" %(r.status_code, r.reason),
                     body=r.content,
                     headers=headers)

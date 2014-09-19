@@ -231,6 +231,13 @@ class PyPIView:
         self.log = request.log
 
     def get_auth_status(self):
+        if self.xom.is_replica():
+            from .replica import proxy_request_to_master
+            r = proxy_request_to_master(self.xom, self.request)
+            if r.status_code == 200:
+                return r.json()["result"]["authstatus"]
+            threadlog.error("could not obtain master authentication status")
+            return ["fail", "", []]
         # this is accessing some pyramid internals, but they are pretty likely
         # to stay and the alternative was uglier
         policy = self.request._get_authentication_policy()
