@@ -1,4 +1,4 @@
-2.0.3.dev
+2.0.3
 ----------------
 
 - use default "https://www.python.org/pypi" when no repository is set in .pypirc
