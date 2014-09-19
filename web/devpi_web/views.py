@@ -2,6 +2,7 @@
 from __future__ import unicode_literals
 from devpi_common.metadata import get_pyversion_filetype, splitbasename
 from devpi_common.metadata import get_sorted_versions
+from devpi_common.viewhelp import iter_toxresults
 from devpi_server.log import threadlog as log
 from devpi_server.views import url_for_entrypath
 from devpi_web.description import get_description
@@ -235,18 +236,6 @@ def get_files_info(request, linkstore, show_toxresults=False):
     return files
 
 
-def _get_commands_info(commands):
-    result = dict(
-        failed=any(x["retcode"] != "0" for x in commands),
-        commands=[])
-    for command in commands:
-        result["commands"].append(dict(
-            failed=command["retcode"] != "0",
-            command=" ".join(command["command"]),
-            output=command["output"]))
-    return result
-
-
 def load_toxresult(link):
     data = link.entry.file_get_content().decode("utf-8")
     return json.loads(data)
@@ -254,34 +243,23 @@ def load_toxresult(link):
 
 def get_toxresults_info(linkstore, for_link, newest=True):
     result = []
-    seen = set()
     toxlinks = linkstore.get_links(rel="toxresult", for_entrypath=for_link)
-    for reflink in reversed(toxlinks):
-        try:
-            toxresult = load_toxresult(reflink)
-            for envname in toxresult["testenvs"]:
-                seen_key = (toxresult["host"], toxresult["platform"], envname)
-                if seen_key in seen:
-                    continue
-                if newest:
-                    seen.add(seen_key)
-                env = toxresult["testenvs"][envname]
-                info = dict(
-                    basename=reflink.basename,
-                    _key="-".join(seen_key),
-                    host=toxresult["host"],
-                    platform=toxresult["platform"],
-                    envname=envname)
-                info["setup"] = _get_commands_info(env.get("setup", []))
-                try:
-                    info["pyversion"] = env["python"]["version"].split(None, 1)[0]
-                except KeyError:
-                    pass
-                info["test"] = _get_commands_info(env.get("test", []))
-                info['failed'] = info["setup"]["failed"] or info["test"]["failed"]
-                result.append(info)
-        except Exception:
-            log.exception("Couldn't parse test results %s." % reflink.basename)
+    for toxlink, toxenvs in iter_toxresults(toxlinks, load_toxresult, newest=newest):
+        if toxenvs is None:
+            log.error("Couldn't parse test results %s." % toxlink)
+        for toxenv in toxenvs:
+            info = dict(
+                basename=toxlink.basename,
+                _key="-".join(toxenv.key),
+                host=toxenv.host,
+                platform=toxenv.platform,
+                envname=toxenv.envname,
+                setup=toxenv.setup,
+                test=toxenv.test,
+                failed=toxenv.failed)
+            if toxenv.pyversion:
+                info["pyversion"] = toxenv.pyversion
+            result.append(info)
     return result
 
 

@@ -1,3 +1,8 @@
+2.0.3.dev1
+-------------
+
+- added code to iterate over toxresults handling all the details.
+
 
 2.0.2
 -------------
@@ -12,6 +17,7 @@
 
 - fix issue145: re-introduce propmapping so that devpi-common
   has higher chances to work for devpi-server<2.0
+
 
 2.0
 -------------

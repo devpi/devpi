@@ -26,6 +26,7 @@ setup(
     install_requires=[
         'Whoosh',
         'beautifulsoup4>=4.3.2',
+        'devpi-common>2.0.2',
         'devpi-server>=2.1dev',
         'docutils>=0.11',
         'pygments>=1.6',

@@ -19,6 +19,9 @@
 - devpi list: if a tox result does not contain basic information (probably a bug in
   tox) show a red error instead of crashing out with a traceback.
 
+- fix issue157: filtering of tox results started with the oldest ones and
+  didn't show newer results if the host, platform and environment were the same.
+
 2.0.2
 ----------------
 

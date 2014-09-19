@@ -1,6 +1,7 @@
 import posixpath
 from .url import URL
 
+
 class ViewLinkStore:
     def __init__(self, url, versiondata):
         self.url = URL(url)
@@ -35,5 +36,55 @@ class ViewLink:
         self.basename = posixpath.basename(self.href)
 
     def __repr__(self):
-        return "<ViewLink rel=%r href=%r>" %(self.rel, self.href)
+        return "<%s rel=%r href=%r>" % (
+            self.__class__.__name__, self.rel, self.href)
 
+
+class ToxResultEnv:
+    def __init__(self, result, envname):
+        self.host = result["host"]
+        self.platform = result["platform"]
+        self.envname = envname
+        self.key = (self.host, self.platform, self.envname)
+        env = result["testenvs"][envname]
+        try:
+            self.pyversion = env["python"]["version"].split(None, 1)[0]
+        except KeyError:
+            self.pyversion = None
+        self.get = env.get
+        self.setup = self._get_commands_info(self.get("setup", []))
+        self.test = self._get_commands_info(self.get("test", []))
+        self.failed = self.setup["failed"] or self.test["failed"]
+
+    def _get_commands_info(self, commands):
+        result = dict(
+            failed=any(x["retcode"] != "0" for x in commands),
+            commands=[])
+        for command in commands:
+            result["commands"].append(dict(
+                failed=command["retcode"] != "0",
+                command=" ".join(command.get("command", [])),
+                output=command.get("output", [])))
+        return result
+
+
+def get_toxenvs(toxresult, seen, newest=True):
+    envs = []
+    for envname in sorted(toxresult["testenvs"]):
+        toxenv = ToxResultEnv(toxresult, envname)
+        if toxenv.key in seen:
+            continue
+        if newest:
+            seen.add(toxenv.key)
+        envs.append(toxenv)
+    return envs
+
+
+def iter_toxresults(links, load, newest=True):
+    seen = set()
+    for link in reversed(links):
+        toxresult = load(link)
+        try:
+            yield link, get_toxenvs(toxresult, seen, newest=newest)
+        except KeyError:
+            yield link, None

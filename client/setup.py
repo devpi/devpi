@@ -9,7 +9,7 @@ if __name__ == "__main__":
     README = open(os.path.join(here, 'README.rst')).read()
 
     install_requires=["tox>=1.7.1",
-                      "devpi_common>=2.0.2",
+                      "devpi_common>2.0.2",
                       "pkginfo>=1.2b1",
                       "check-manifest>=0.21",
                       "py>=1.4.20"]

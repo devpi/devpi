@@ -1,7 +1,9 @@
 import json
 from devpi_common.url import URL
 from devpi_common.metadata import get_sorted_versions, parse_requirement, Version
-from devpi_common.viewhelp import ViewLinkStore
+from devpi_common.viewhelp import ViewLinkStore, iter_toxresults
+from functools import partial
+
 
 def out_index(hub, projects):
     for name in sorted(projects):
@@ -55,50 +57,36 @@ def out_project_version_files(hub, url, verdata, version, index):
             show_test_status(hub, toxlinks)
     return bool(release_links)
 
+
+def _load_toxresult(hub, link):
+    res = hub.http.get(link.href)
+    assert res.status_code == 200
+    return json.loads(res.content.decode("utf8"))
+
+
 def show_test_status(hub, toxlinks):
-    # XXX this code is not auto-tested in all detail
-    # so change with great care or write tests first
-    seen = set()
-    for toxlink in toxlinks:
-        res = hub.http.get(toxlink.href)
-        assert res.status_code == 200
-        toxresult = json.loads(res.content.decode("utf8"))
-        try:
-            base_prefix = "  {host} {platform} ".format(**toxresult)
-        except KeyError:
+    load_toxresult = partial(_load_toxresult, hub)
+    for toxlink, toxenvs in iter_toxresults(toxlinks, load_toxresult):
+        if toxenvs is None:
             hub.error("corrupt toxresult, skipping: %s" % (toxlink,))
             continue
-        for envname, env in toxresult["testenvs"].items():
-            prefix = base_prefix + envname
-            if prefix in seen:
-                continue
-            seen.add(prefix)
-            setup = env.get("setup")
-            if not setup:
+        for toxenv in toxenvs:
+            prefix = "  %s %s %s" % (toxenv.host, toxenv.platform, toxenv.envname)
+            if not toxenv.setup['commands']:
                 hub.error("%s no setup was performed" % prefix)
-            elif has_failing_commands(setup):
+            elif toxenv.setup['failed']:
                 hub.error("%s setup failed" % prefix)
-                show_commands(hub, setup)
-            try:
-                pyversion = env["python"]["version"].split(None, 1)[0]
-            except KeyError:
-                pass
-            else:
-                prefix = prefix + " " + pyversion
-            test = env.get("test")
-            if not test:
+                show_commands(hub, toxenv.setup)
+            if toxenv.pyversion:
+                prefix = prefix + " " + toxenv.pyversion
+            if not toxenv.test['commands']:
                 hub.error("%s no tests were run" % prefix)
-            elif has_failing_commands(test):
+            elif toxenv.test['failed']:
                 hub.error("%s tests failed" % prefix)
-                show_commands(hub, test)
+                show_commands(hub, toxenv.test)
             else:
                 hub.line("%s tests passed" % prefix)
 
-def has_failing_commands(commands):
-    for command in commands:
-        if command["retcode"] != "0":
-            return True
-    return False
 
 def show_commands(hub, commands):
     if not hub.args.failures:
