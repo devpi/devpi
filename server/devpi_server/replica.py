@@ -6,7 +6,7 @@ import time
 from pyramid.httpexceptions import HTTPNotFound, HTTPAccepted
 from pyramid.view import view_config
 from pyramid.response import Response
-from webob.headers import EnvironHeaders
+from webob.headers import EnvironHeaders, ResponseHeaders
 
 from .keyfs import load, loads, dump, get_write_file_ensure_dir
 from .log import thread_push_log, threadlog
@@ -255,7 +255,7 @@ def clean_request_headers(request):
 
 
 def clean_response_headers(response):
-    headers = dict()
+    headers = ResponseHeaders()
     # remove hop by hop headers, see:
     # https://www.mnot.net/blog/2011/07/11/what_proxies_must_do
     hop_keys = set(hop_by_hop)

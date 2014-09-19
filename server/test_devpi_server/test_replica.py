@@ -187,6 +187,21 @@ def test_clean_request_headers(blank_request):
     assert 'foo' in headers
 
 
+def test_clean_response_headers():
+    from devpi_server.replica import clean_response_headers
+    from mock import Mock
+    response = Mock()
+    response.headers = dict(foo='bar')
+    # make sure the result is a case insensitive header dict
+    headers = clean_response_headers(response)
+    assert 'foo' in headers
+    assert 'FOO' in headers
+    assert 'bar' not in headers
+    headers['egg'] = 'ham'
+    assert 'egg' in headers
+    assert 'EGG' in headers
+
+
 class TestTweenReplica:
     def test_nowrite(self, xom, blank_request):
         l = []
