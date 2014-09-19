@@ -174,12 +174,14 @@ class Current(object):
             if oldval != newval:
                 setattr(self, name, newval)
                 log.info("changing %r to %r", name, newval)
+                print("changing %r to %r", name, newval)
         try:
             olddata = json.loads(self.path.read())
         except Exception:
             olddata = {}
         if self._currentdict != olddata:
-            log.debug("writing current %s", self.path)
+            log.info("writing current %s", self.path)
+            print ("writing current %s", self.path)
             oldumask = os.umask(7 * 8 + 7)
             try:
                 self.path.write(
@@ -335,6 +337,7 @@ def main(hub, args=None):
     if user:
         login_status = "logged in as %s" % user
     else:
+        import pdb ; pdb.set_trace()
         login_status = "not logged in"
     if current.rooturl:
         if current.index:
