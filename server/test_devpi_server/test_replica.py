@@ -149,10 +149,9 @@ def test_clean_request_headers(blank_request):
     assert 'foo' in headers
 
 
-def test_clean_response_headers():
+def test_clean_response_headers(mock):
     from devpi_server.replica import clean_response_headers
-    from mock import Mock
-    response = Mock()
+    response = mock.Mock()
     response.headers = dict(foo='bar')
     # make sure the result is a case insensitive header dict
     headers = clean_response_headers(response)
