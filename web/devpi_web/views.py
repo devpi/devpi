@@ -186,8 +186,8 @@ def make_history_view_item(request, log_item):
             result[key] = dict(
                 title=log_item[key],
                 href=request.stage_url(log_item[key]))
-    if 'md5' in log_item:
-        result['md5'] = result
+    if 'count' in log_item:
+        result['count'] = log_item['count']
     return result
 
 

@@ -417,27 +417,28 @@ class TestSubmitValidation:
         r = testapp.xget(200, "%s/Pkg5/2.6" % mapp.api.index)
         link, = r.json['result']['+links']
         log1, log2 = link['log']
-        assert sorted(log1.keys()) == ['md5', 'what', 'when', 'who']
+        assert sorted(log1.keys()) == ['count', 'what', 'when', 'who']
         assert log1['what'] == 'overwrite'
         assert log1['who'] is None
-        assert log1['md5'] == '202cb962ac59075b964b07152d234b70'
+        assert log1['count'] == 1
         assert sorted(log2.keys()) == ['dst', 'what', 'when', 'who']
         assert log2['what'] == 'upload'
         assert log2['who'] == 'user'
         assert log2['dst'] == 'user/dev'
 
-    def test_upload_twice_and_push(self, submit, testapp, mapp):
+    def test_upload_thrice_and_push(self, submit, testapp, mapp):
         metadata = {"name": "Pkg5", "version": "2.6", ":action": "submit"}
         submit.metadata(metadata, code=200)
         submit.file("pkg5-2.6.tgz", b"123", {"name": "Pkg5"}, code=200)
         submit.file("pkg5-2.6.tgz", b"1234", {"name": "Pkg5"}, code=200)
+        submit.file("pkg5-2.6.tgz", b"12345", {"name": "Pkg5"}, code=200)
         r = testapp.xget(200, "%s/Pkg5/2.6" % mapp.api.index)
         link, = r.json['result']['+links']
         log1, log2 = link['log']
-        assert sorted(log1.keys()) == ['md5', 'what', 'when', 'who']
+        assert sorted(log1.keys()) == ['count', 'what', 'when', 'who']
         assert log1['what'] == 'overwrite'
         assert log1['who'] is None
-        assert log1['md5'] == '202cb962ac59075b964b07152d234b70'
+        assert log1['count'] == 2
         assert sorted(log2.keys()) == ['dst', 'what', 'when', 'who']
         assert log2['what'] == 'upload'
         assert log2['who'] == 'user'

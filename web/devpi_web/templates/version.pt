@@ -62,9 +62,9 @@
                                 <tal:by condition="log.get('who')">
                                     by ${log.who}
                                 </tal:by>
-                                <tal:md5 condition="log.get('md5')">
-                                    <code>${log.md5}</code>
-                                </tal:md5>
+                                <tal:count condition="log.get('count')">
+                                    <code>${log.count} time(s)</code>
+                                </tal:count>
                                 <span class="timestamp">${log.when}</span>
                             </li>
                         </ul>
