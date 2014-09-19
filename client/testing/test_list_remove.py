@@ -72,10 +72,6 @@ def test_confirm_delete(loghub, monkeypatch):
     assert "x-1.0" not in req
 
 
-def test_has_failing_commands():
-    assert not has_failing_commands([dict(retcode="0"), dict(retcode="0")])
-    assert has_failing_commands([dict(retcode="0"), dict(retcode="1")])
-
 def test_showcommands(loghub):
     loghub.args.failures = True
     show_commands(loghub, [
