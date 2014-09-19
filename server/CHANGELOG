@@ -1,6 +1,11 @@
 2.1.dev
 ----------------
 
+- make replication more precise: if a file cannot be replicated,
+  fail with an error log and try again in a few seconds.
+  This helps to maintain a consistent replica and discover 
+  the potential remaining bugs in the replication code.
+
 - add who/when metadata to release files, doczips and test results
   and preserve it during push operations so that any such file provides
   some history which can be visualized via the web-plugin.  The metadata

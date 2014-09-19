@@ -135,7 +135,7 @@ class TestReplicaThread:
         mockchangelog(0, code=200, data=b'qwelk')
         with pytest.raises(ZeroDivisionError):
             rt.thread_run()
-        assert caplog.getrecords("could not read answer")
+        assert caplog.getrecords("could not process")
 
     def test_thread_run_ok(self, rt, mockchangelog, caplog, xom):
         rt.thread.sleep = lambda *x: 0/0
@@ -187,10 +187,9 @@ def test_clean_request_headers(blank_request):
     assert 'foo' in headers
 
 
-def test_clean_response_headers():
+def test_clean_response_headers(mock):
     from devpi_server.replica import clean_response_headers
-    from mock import Mock
-    response = Mock()
+    response = mock.Mock()
     response.headers = dict(foo='bar')
     # make sure the result is a case insensitive header dict
     headers = clean_response_headers(response)
@@ -336,7 +335,8 @@ class TestFileReplication:
         master_url = replica_xom.config.master_url
         master_file_path = master_url.joinpath(entry.relpath).url
         xom.httpget.mockresponse(master_file_path, code=200, content=b'13')
-        replay(xom, replica_xom)
+        with pytest.raises(FileReplicationError):
+            replay(xom, replica_xom)
         with replica_xom.keyfs.transaction():
             assert not r_entry.file_exists()
             assert not os.path.exists(r_entry._filepath)
@@ -378,7 +378,14 @@ class TestFileReplication:
 
         master_url = replica_xom.config.master_url
         master_file_path = master_url.joinpath(entry.relpath).url
-        replica_xom.httpget.mockresponse(master_file_path, code=200,
+        # simulate some 500 master server error
+        replica_xom.httpget.mockresponse(master_file_path, status_code=500,
+                                         content=b'')
+        with pytest.raises(FileReplicationError):
+            replay(xom, replica_xom)
+
+        # now get the real thing
+        replica_xom.httpget.mockresponse(master_file_path, status_code=200,
                                          content=content1)
         replay(xom, replica_xom)
         with replica_xom.keyfs.transaction():

@@ -160,13 +160,11 @@ class ReplicaThread:
                     continue
                 if r.status_code == 200:
                     try:
-                        entry = loads(r.content)
-                    except Exception:
-                        log.exception("could not read answer %s, %r", url,
-                                      r.content)
-                    else:
-                        changes, rel_renames = entry
+                        changes, rel_renames = loads(r.content)
                         keyfs.import_changes(serial, changes)
+                    except Exception:
+                        log.exception("could not process: %s", r.url)
+                    else:
                         serial += 1
                         # we successfully received data so let's
                         # record the master_uuid for future consistency checks
@@ -326,14 +324,26 @@ class ImportFileReplica:
         url = self.xom.config.master_url.joinpath(relpath).url
         r = self.xom.httpget(url, allow_redirects=True)
         if r.status_code != 200:
-            threadlog.error("got %s from upstream", r.status_code)
-            return
+            raise FileReplicationError(r)
         remote_md5 = hashlib.md5(r.content).hexdigest()
         if entry.md5 and entry.md5 != remote_md5:
-            threadlog.error("%s: remote has md5 %s, expected %s",
-                            url, remote_md5, entry.md5)
-        else:
-            tmppath = entry._filepath + "-tmp"
-            with get_write_file_ensure_dir(tmppath) as f:
-                f.write(r.content)
-            fswriter.record_rename_file(tmppath, entry._filepath)
+            raise FileReplicationError(r, "remote has md5 %s, expected %s" %(
+                                       remote_md5, entry.md5))
+        tmppath = entry._filepath + "-tmp"
+        with get_write_file_ensure_dir(tmppath) as f:
+            f.write(r.content)
+        fswriter.record_rename_file(tmppath, entry._filepath)
+
+
+class FileReplicationError(Exception):
+    """ raised when replicating a file from the master failed. """
+    def __init__(self, response, message=None):
+        self.url = response.url
+        self.status_code = response.status_code
+        self.message = message or "failed"
+
+    def __str__(self):
+        return "FileReplicationError with %s, code=%s, message=%s" %(
+               self.url, self.status_code, self.message)
+
+

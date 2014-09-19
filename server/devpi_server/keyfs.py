@@ -403,17 +403,17 @@ class KeyFS(object):
 
     def import_changes(self, serial, changes):
         with self._write_lock:
-            sqlconn = self._fs.get_sqlconn()
-            with self._fs.write_transaction(sqlconn) as fswriter:
-                next_serial = self.get_next_serial()
-                assert next_serial == serial, (next_serial, serial)
-                for relpath, tup in changes.items():
-                    name, back_serial, val = tup
-                    typedkey = self.derive_key(relpath, name, conn=sqlconn)
-                    fswriter.record_set(typedkey, val)
-                    meth = self._import_subscriber.get(typedkey.name)
-                    if meth is not None:
-                        meth(fswriter, typedkey, val, back_serial)
+            with self._fs.get_sqlconn() as sqlconn:
+                with self._fs.write_transaction(sqlconn) as fswriter:
+                    next_serial = self.get_next_serial()
+                    assert next_serial == serial, (next_serial, serial)
+                    for relpath, tup in changes.items():
+                        name, back_serial, val = tup
+                        typedkey = self.derive_key(relpath, name, conn=sqlconn)
+                        fswriter.record_set(typedkey, val)
+                        meth = self._import_subscriber.get(typedkey.name)
+                        if meth is not None:
+                            meth(fswriter, typedkey, val, back_serial)
 
     def subscribe_on_import(self, key, subscriber):
         assert key.name not in self._import_subscriber

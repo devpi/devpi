@@ -1,4 +1,3 @@
-import pytest
 
 
 class API:
