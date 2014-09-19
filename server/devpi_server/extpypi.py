@@ -206,7 +206,9 @@ class PyPIStage(BaseStage):
 
     def clear_cache(self, projectname):
         normname = normalize_name(projectname)
-        self.keyfs.PYPILINKS(name=normname).delete()
+        # we have to set to an empty dict instead of removing the key, so
+        # replicas behave correctly
+        self.keyfs.PYPILINKS(name=normname).set({})
         threadlog.debug("cleared cache for %s", projectname)
 
     def get_releaselinks_perstage(self, projectname):
