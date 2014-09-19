@@ -62,6 +62,9 @@
 - fix an internal link code issue possibly affecting strangeness
   or exceptions with test result links
 
+- be more tolerant when different indexes have different project names 
+  all mapping to the same canonical project name.
+
 2.0.6
 ----------------
 

@@ -469,10 +469,12 @@ class PrivateStage(BaseStage):
         self._set_versiondata(metadata)
 
     def key_projversions(self, name):
+        name = normalize_name(name)
         return self.keyfs.PROJVERSIONS(
             user=self.user.name, index=self.index, name=name)
 
     def key_projversion(self, name, version):
+        name = normalize_name(name)
         return self.keyfs.PROJVERSION(
             user=self.user.name, index=self.index, name=name, version=version)
 
