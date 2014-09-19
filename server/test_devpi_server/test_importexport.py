@@ -116,6 +116,25 @@ class TestImportExport:
             assert len(results) == 1
             assert results[0] == tox_result_data
 
+    def test_skip_missing_toxresult_file(self, impexp, capfd):
+        from test_devpi_server.example import tox_result_data
+        mapp1 = impexp.mapp1
+        api = mapp1.create_and_use()
+        content = b'content'
+        mapp1.upload_file_pypi("hello-1.0.tar.gz", content, "hello", "1.0")
+        path, = mapp1.get_release_paths("hello")
+        path = path.strip("/")
+        with mapp1.xom.keyfs.transaction(write=True):
+            stage = mapp1.xom.model.getstage(api.stagename)
+            link = stage.get_link_from_entrypath(path)
+            tlink = stage.store_toxresult(link, tox_result_data)
+        # delete file
+        os.remove(tlink.entry._filepath)
+        capfd.readouterr()
+        impexp.export()
+        out, err = capfd.readouterr()
+        assert "skipping missing toxresult" in out
+
     def test_version_not_set_in_imported_versiondata(self, impexp):
         mapp1 = impexp.mapp1
         api = mapp1.create_and_use()

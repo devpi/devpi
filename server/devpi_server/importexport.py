@@ -238,6 +238,10 @@ class IndexDump:
 
     def dump_toxresults(self, linkstore):
         for tox_link in linkstore.get_links(rel="toxresult"):
+            if not tox_link.entry.file_exists():
+                self.exporter.warn("skipping missing toxresult file: %r" %
+                                   tox_link)
+                continue
             reflink = linkstore.stage.get_link_from_entrypath(tox_link.for_entrypath)
             relpath = self.exporter.write_file(
                 content=tox_link.entry.file_get_content(),

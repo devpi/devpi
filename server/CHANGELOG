@@ -15,6 +15,8 @@
 - fix an internal link code issue possibly affecting strangeness
   or exceptions with test result links
 
+- on export warn but otherwise skip missing toxresult files
+
 2.0.6
 ----------------
 
