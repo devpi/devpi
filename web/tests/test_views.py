@@ -10,7 +10,6 @@ import re
 
 
 devpi_server_version = parse_version(devpi_server_version)
-server21_or_newer = devpi_server_version >= parse_version('2.1dev')
 
 
 @pytest.mark.parametrize("input, expected", [
@@ -314,8 +313,12 @@ def test_version_view(mapp, testapp, monkeypatch):
     # use fixed time
     gmtime = lambda *x: struct_time((2014, 9, 15, 11, 11, 11, 0, 258, 0))
     monkeypatch.setattr('time.gmtime', gmtime)
-    monkeypatch.setattr(devpi_server.model, 'gmtime', gmtime, raising=server21_or_newer)
+    monkeypatch.setattr(devpi_server.model, 'gmtime', gmtime)
     api = mapp.create_and_use()
+    mapp.upload_file_pypi(
+        "pkg1-2.6.tar.gz", b"contentveryold", "pkg1", "2.6")
+    mapp.upload_file_pypi(
+        "pkg1-2.6.tar.gz", b"contentold", "pkg1", "2.6")
     mapp.upload_file_pypi(
         "pkg1-2.6.tar.gz", b"content", "pkg1", "2.6")
     mapp.upload_file_pypi(
@@ -348,31 +351,20 @@ def test_version_view(mapp, testapp, monkeypatch):
     assert [x[:3] + x[-2:] for x in filesinfo] == [
         (['pkg1-2.6.tar.gz', '9a0364b9e99bb480dd25e1f0284c8555'], ['Source'], [], [u'7', u'bytes'], []),
         (['pkg1-2.6.zip', '52360ae08d733016c5603d54b06b5300'], ['Source'], [], [u'10', u'bytes'], [])]
-    if server21_or_newer:
-        assert [x[3] for x in filesinfo] == [
-            [u'Last', u'modified', u'2014-09-15', u'11:11:11',
-             u'Uploaded', u'to', u'user1/dev', u'by', u'user1', u'2014-09-15', u'11:11:11'],
-            [u'Last', u'modified', u'2014-09-15', u'11:11:11',
-             u'Uploaded', u'to', u'user1/dev', u'by', u'user1', u'2014-09-15', u'11:11:11']]
-    else:
-        assert [x[3] for x in filesinfo] == [
-            [u'Last', u'modified', u'2014-09-15', u'11:11:11'],
-            [u'Last', u'modified', u'2014-09-15', u'11:11:11']]
+    assert [x[3] for x in filesinfo] == [
+        [u'Last', u'modified', u'2014-09-15', u'11:11:11',
+         u'Replaced', u'2', u'time(s)', u'2014-09-15', u'11:11:11',
+         u'Uploaded', u'to', u'user1/dev', u'by', u'user1', u'2014-09-15', u'11:11:11'],
+        [u'Last', u'modified', u'2014-09-15', u'11:11:11',
+         u'Uploaded', u'to', u'user1/dev', u'by', u'user1', u'2014-09-15', u'11:11:11']]
     links = r.html.select('#content a')
-    if server21_or_newer:
-        assert [(l.text.strip(), l.attrs['href']) for l in links] == [
-            ("Documentation", "http://localhost/%s/pkg1/2.6/+d/index.html" % api.stagename),
-            ("Simple index", "http://localhost/%s/+simple/pkg1" % api.stagename),
-            ("pkg1-2.6.tar.gz", "http://localhost/%s/+f/9a0/364b9e99bb480/pkg1-2.6.tar.gz#md5=9a0364b9e99bb480dd25e1f0284c8555" % api.stagename),
-            ('user1/dev', 'http://localhost/user1/dev'),
-            ("pkg1-2.6.zip", "http://localhost/%s/+f/523/60ae08d733016/pkg1-2.6.zip#md5=52360ae08d733016c5603d54b06b5300" % api.stagename),
-            ('user1/dev', 'http://localhost/user1/dev')]
-    else:
-        assert [(l.text.strip(), l.attrs['href']) for l in links] == [
-            ("Documentation", "http://localhost/%s/pkg1/2.6/+d/index.html" % api.stagename),
-            ("Simple index", "http://localhost/%s/+simple/pkg1" % api.stagename),
-            ("pkg1-2.6.tar.gz", "http://localhost/%s/+f/9a0/364b9e99bb480/pkg1-2.6.tar.gz#md5=9a0364b9e99bb480dd25e1f0284c8555" % api.stagename),
-            ("pkg1-2.6.zip", "http://localhost/%s/+f/523/60ae08d733016/pkg1-2.6.zip#md5=52360ae08d733016c5603d54b06b5300" % api.stagename)]
+    assert [(l.text.strip(), l.attrs['href']) for l in links] == [
+        ("Documentation", "http://localhost/%s/pkg1/2.6/+d/index.html" % api.stagename),
+        ("Simple index", "http://localhost/%s/+simple/pkg1" % api.stagename),
+        ("pkg1-2.6.tar.gz", "http://localhost/%s/+f/9a0/364b9e99bb480/pkg1-2.6.tar.gz#md5=9a0364b9e99bb480dd25e1f0284c8555" % api.stagename),
+        ('user1/dev', 'http://localhost/user1/dev'),
+        ("pkg1-2.6.zip", "http://localhost/%s/+f/523/60ae08d733016/pkg1-2.6.zip#md5=52360ae08d733016c5603d54b06b5300" % api.stagename),
+        ('user1/dev', 'http://localhost/user1/dev')]
 
 
 def test_version_not_found(mapp, testapp):
@@ -438,8 +430,8 @@ def test_root_pypi_upstream_error(url, mapp, testapp, pypistage):
 
 
 def test_error_html_only(mapp, testapp, monkeypatch):
-    from pyramid.httpexceptions import HTTPBadGateway
     def error(self):
+        from pyramid.httpexceptions import HTTPBadGateway
         raise HTTPBadGateway()
     monkeypatch.setattr("devpi_server.views.PyPIView.user_list", error)
     r = testapp.get("/", headers=dict(accept="application/json"))
@@ -728,7 +720,6 @@ def test_url_rewriting(url, headers, selector, expected, mapp, testapp):
     assert links == expected
 
 
-@pytest.mark.xfail(not server21_or_newer, reason="devpi-server < 2.1dev")
 def test_static_404(testapp):
     r = testapp.xget(404, '/+static/foo.png')
     assert [x.text for x in r.html.select('#content p')] == [

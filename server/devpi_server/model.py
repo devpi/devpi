@@ -647,14 +647,14 @@ class LinkStore:
                 raise NonVolatile("rel=%s basename=%s on stage %s" % (
                     rel, basename, self.stage.name))
             assert overwrite is None
-            overwrite = link.md5
+            overwrite = sum(x.get('count', 0) for x in link.get_logs() if x.get('what') == 'overwrite')
             self.remove_links(rel=rel, basename=basename)
         file_entry = self._create_file_entry(basename, file_content)
         if last_modified is not None:
             file_entry.last_modified = last_modified
         link = self._add_link_to_file_entry(rel, file_entry)
         if overwrite is not None:
-            link.add_log('overwrite', None, md5=overwrite)
+            link.add_log('overwrite', None, count=overwrite + 1)
         return link
 
     def new_reflink(self, rel, file_content, for_entrypath):
