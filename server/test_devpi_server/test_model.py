@@ -465,7 +465,8 @@ class TestStage:
         assert entry.version == "1.0"
         toxresultdata = {'hello': 'world'}
         link = stage.get_link_from_entrypath(entry.relpath)
-        stage.store_toxresult(link, toxresultdata)
+        tlink = stage.store_toxresult(link, toxresultdata)
+        assert tlink.entry.file_exists()
         linkstore = stage.get_linkstore_perstage("pkg1", "1.0")
         tox_links = list(linkstore.get_links(rel="toxresult"))
         assert len(tox_links) == 1

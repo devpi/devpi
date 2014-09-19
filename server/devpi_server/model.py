@@ -702,7 +702,8 @@ class LinkStore:
         linkdicts.append(new_linkdict)
         threadlog.info("added %r link %s", rel, file_entry.relpath)
         self._mark_dirty()
-        return ELink(self, new_linkdict, self.projectname, self.version)
+        return ELink(self.filestore, new_linkdict, self.projectname,
+                     self.version)
 
 
 def normalize_bases(model, bases):

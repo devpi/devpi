@@ -10,6 +10,11 @@
 - be more tolerant when different indexes have different project names
   wrt to "normalization"
 
+- fix "refresh" button on simple pages on replica sites
+
+- fix an internal link code issue possibly affecting strangeness
+  or exceptions with test result links
+
 2.0.6
 ----------------
 
