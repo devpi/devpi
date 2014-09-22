@@ -53,6 +53,9 @@
 - address issue152: return a proper 400 "not registered" message instead
   of 500 when a doczip is uploaded without prior registration.
 
+- add OSX/launchd example configuration when "--gen-config" is issued.
+  thanks Sean Fisk.
+
 - fix replica proxying: don't pass original host header when relaying a
   modifying request from replica to master.
 
