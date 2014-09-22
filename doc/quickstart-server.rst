@@ -6,10 +6,10 @@ Quickstart: permanent install on server/laptop
 
 .. include:: links.rst
 
-This document walks you through setting up your own
-``devpi-server`` instance, controling it with supervisor_ and 
-(optionally) serving it through nginx_ on a unix like system.  It also
-shows how to create a first user and index.
+This document walks you through setting up your own ``devpi-server``
+instance, controlling it with supervisor_ on a UNIX-like system or
+launchd_ on Mac OS X and (optionally) serving it through nginx_ on a
+UNIX-like system. It also shows how to create a first user and index.
 
 Note that the :doc:`the pypi-mirroring quickstart
 <quickstart-pypimirror>` already discusses the ``devpi-server
@@ -33,8 +33,8 @@ And let's check the version::
 
 .. _genconfig:
 
-generating example config files for supervisor/nginx/cron
------------------------------------------------------------
+generating example config files for supervisor/nginx/cron/launchd
+-----------------------------------------------------------------
 
 Use ``devpi-server --gen-config`` to write out several example config files 
 into the ``gen-config`` directory (relative to where you invoke it
@@ -54,6 +54,7 @@ Here is an example run::
     wrote gen-config/supervisor-devpi.conf
     wrote gen-config/nginx-devpi.conf
     wrote gen-config/crontab
+    wrote gen-config/net.devpi.plist
 
 Below we look at the config files in a bit of detail.
 
@@ -140,9 +141,9 @@ configuration directory
 crontab / start at bootup 
 +++++++++++++++++++++++++
 
-Lastly, if you want to have things running at system startup and you are
-using a standard cron, a modified copy of your user crontab has been
-amended which you may inspect::
+If you want to have things running at system startup and you are using
+a standard cron, a modified copy of your user crontab has been amended
+which you may inspect::
 
     $ cat gen-config/crontab
     @reboot /home/hpk/venv/0/bin/devpi-server --start --port 4040 --serverdir /tmp/home/mydevpiserver
@@ -150,6 +151,58 @@ amended which you may inspect::
 and install with::
 
     crontab TARGETDIR/etc/crontab
+
+
+launchd / start at bootup (on Mac OS X)
++++++++++++++++++++++++++++++++++++++++
+
+Although cron can be used on Mac OS X, the preferred service manager
+on Mac OS X is launchd_. With launchd, you will be able to use the
+``launchctl`` command to start, stop, and monitor your server like any
+other Mac OS X service. An example property list file for your launch
+agent has been generated for you::
+
+    $ cat gen-config/net.devpi.plist
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Label</key>
+        <string>net.devpi</string>
+        <key>ProgramArguments</key>
+        <array>
+            <string>/home/hpk/venv/0/bin/devpi-server</string>
+            <string>--port</string>
+            <string>4040</string>
+            <string>--serverdir</string>
+            <string>/tmp/home/mydevpiserver</string>
+        </array>
+        <key>RunAtLoad</key>
+        <true/>
+    </dict>
+    </plist>
+
+You can install this agent for your user account (recommended) by running::
+
+    mkdir -p ~/Library/LaunchAgents
+    cp gen-config/net.devpi.plist ~/Library/LaunchAgents
+
+You can also install to any of the system locations listed in the FILES section of :manpage:`launchd(8)`. However, this isn't recommended unless you know what you're doing.
+
+devpi should now launch upon the next reboot. You can tell launchd to launch it right now by running the following::
+
+    launchctl load ~/Library/LaunchAgents/net.devpi.plist
+    launchctl start net.devpi
+
+The argument passed to ``launchctl start`` corresponds to the ``Label`` keyword in the plist file, but also matches the file name by convention.
+
+To manually stop the devpi server started by launchd::
+
+    launchctl stop net.devpi
+
+Please see the man pages :manpage:`launchd(8)`,
+:manpage:`launchd.plist(5)`, and :manpage:`launchctl(1)` on your
+system for more information on launchd.
 
 
 Installing devpi server and client
