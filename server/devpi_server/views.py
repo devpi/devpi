@@ -629,7 +629,8 @@ class PyPIView:
                     'upload', request.authenticated_userid, dst=stage.name)
                 jenkinurl = stage.ixconfig["uploadtrigger_jenkins"]
                 if jenkinurl:
-                    jenkinurl = jenkinurl.format(pkgname=name)
+                    jenkinurl = jenkinurl.format(pkgname=name,
+                                                 pkgversion=version)
                     if trigger_jenkins(request, stage, jenkinurl, name) == -1:
                         abort_submit(200,
                             "OK, but couldn't trigger jenkins at %s" %

@@ -827,11 +827,11 @@ class TestPluginPermissions:
 
 def test_upload_with_jenkins(mapp, reqmock):
     mapp.create_and_use()
-    mapp.set_uploadtrigger_jenkins("http://x.com/{pkgname}")
+    mapp.set_uploadtrigger_jenkins("http://x.com/{pkgname}/{pkgversion}")
     rec = reqmock.mockresponse(code=200, url=None)
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200)
     assert len(rec.requests) == 1
-    assert rec.requests[0].url == "http://x.com/pkg1"
+    assert rec.requests[0].url == "http://x.com/pkg1/2.6"
     # XXX properly decode form
     #assert args[1]["data"]["Submit"] == "Build"
 

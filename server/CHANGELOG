@@ -68,6 +68,8 @@
 - be more tolerant when different indexes have different project names 
   all mapping to the same canonical project name.
 
+- fix issue161: allow "{pkgversion}" to be part of a jenkins url
+
 2.0.6
 ----------------
 

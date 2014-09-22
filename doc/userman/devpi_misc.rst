@@ -31,9 +31,11 @@ and a Jenkins server at http://localhost:8080::
     devpi index /testuser/dev uploadtrigger_jenkins=http://localhost:8080/job/{pkgname}/build
 
 Any package which gets uploaded to ``/testuser/dev`` will now trigger
-a POST request to the specified url.  The ``{pkgname}`` part will be substituted with the name of the uploaded package.  You don't need to specify such
-a substitution, however, if you rather want to have one generic Jenkins
-job which executes all tests for all your uploads::
+a POST request to the specified url.  The ``{pkgname}`` and
+``{pkgversion}`` strings will be substituted with the name of the
+uploaded package.  You don't need to specify such substitutions,
+however, if you rather want to have one generic Jenkins job which
+executes all tests for all your uploads::
 
     # one generic job for all uploaded packages
     devpi index /testuser/dev uploadtrigger_jenkins=http://localhost:8080/job/multijob/build
