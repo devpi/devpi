@@ -6,18 +6,10 @@
 Project status, roadmap and contact
 ----------------------------------------
 
-Latest release
-++++++++++++++++++++++++++++
-
-As of July 2014, ``devpi-{server,client,web,common}`` are released as 2.0
-packages under the MIT license.  Around 750 automated tests are passing 
-on python2.6, python2.7 and python3.4 on Ubuntu 12.04 and Windows 7 
-against the packages.
-
 Development background and road map
 +++++++++++++++++++++++++++++++++++++
 
-The initial devpi efforts were partly funded through commercial contracts
+Many devpi efforts were partly funded through commercial contracts
 carried out by merlinux_ with Holger Krekel and Florian Schulze as lead
 developers.  We aim to further the devpi system through further
 contracts and payed support and to also collaborate with Donald Stufft

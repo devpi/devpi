@@ -1,4 +1,4 @@
-2.1.dev
+2.1.0
 ----------------
 
 - make replication more precise: if a file cannot be replicated,
