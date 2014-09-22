@@ -147,6 +147,15 @@ def test_simple_refresh(mapp, model, pypistage, testapp):
         info = pypistage._load_project_cache("hello")
     assert info == {}
 
+def test_inheritance_versiondata(mapp, model):
+    api1 = mapp.create_and_use()
+    mapp.upload_file_pypi("package-1.0.tar.gz", b'123',
+                          "package", "1.0", indexname=api1.stagename)
+    api2 = mapp.create_and_use(indexconfig={"bases": (api1.stagename,)})
+    r = mapp.getjson(api2.index + "/package")
+    assert len(r["result"]) == 1
+
+
 def test_simple_refresh_inherited(mapp, model, pypistage, testapp):
     pypistage.mock_simple("pkg", "<html/>")
     api = mapp.create_and_use()
@@ -746,6 +755,7 @@ def test_upload_and_delete_project(mapp, testapp):
     r = testapp.delete(api.index + "/pkg1/2.7")
     assert r.status_code == 200
     mapp.getjson(api.index + "/pkg1", code=404)
+    mapp.getjson(api.index + "/pkg1/2.7", code=404)
 
 def test_upload_with_acl(mapp):
     mapp.login("root")

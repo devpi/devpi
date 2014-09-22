@@ -251,7 +251,8 @@ class BaseStage:
         entry = self.xom.filestore.get_file_entry(entrypath)
         if entry.projectname is None:
             return None
-        linkstore = self.get_linkstore_perstage(entry.projectname, entry.version)
+        linkstore = self.get_linkstore_perstage(entry.projectname,
+                                                entry.version)
         links = linkstore.get_links(entrypath=entrypath)
         assert len(links) < 2
         return links[0] if links else None
