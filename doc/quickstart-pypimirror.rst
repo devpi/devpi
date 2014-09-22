@@ -17,7 +17,7 @@ Install the ``devpi-server`` package on our machine::
 Show version::
 
     $ devpi-server --version
-    2.0.5
+    2.1.0
 
 .. note::
 
@@ -33,15 +33,15 @@ start background devpi-server process
 To start ``devpi-server`` in the background issue::
     
     $ devpi-server --start
-    2014-09-04 15:11:54,355 INFO  NOCTX DB: Creating schema
-    2014-09-04 15:11:54,391 INFO  [Wtx-1] setting password for user u'root'
-    2014-09-04 15:11:54,391 INFO  [Wtx-1] created user u'root' with email None
-    2014-09-04 15:11:54,391 INFO  [Wtx-1] created root user
-    2014-09-04 15:11:54,391 INFO  [Wtx-1] created root/pypi index
-    2014-09-04 15:11:54,403 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
+    2014-09-22 11:30:34,331 INFO  NOCTX DB: Creating schema
+    2014-09-22 11:30:34,382 INFO  [Wtx-1] setting password for user u'root'
+    2014-09-22 11:30:34,382 INFO  [Wtx-1] created user u'root' with email None
+    2014-09-22 11:30:34,382 INFO  [Wtx-1] created root user
+    2014-09-22 11:30:34,382 INFO  [Wtx-1] created root/pypi index
+    2014-09-22 11:30:34,402 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
     starting background devpi-server at http://localhost:3141
     /tmp/home/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server
-    process u'devpi-server' started pid=628
+    process u'devpi-server' started pid=8076
     devpi-server process startup detected
     logfile is at /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
 
@@ -91,8 +91,8 @@ and then re-install it with ``easy_install``::
     Best match: simplejson 3.6.3
     Downloading http://localhost:3141/root/pypi/+f/bbb/654c2d9b5e3c1/simplejson-3.6.3.tar.gz#md5=bbb654c2d9b5e3c176af1a22522a458f
     Processing simplejson-3.6.3.tar.gz
-    Writing /tmp/easy_install-MQL3cv/simplejson-3.6.3/setup.cfg
-    Running simplejson-3.6.3/setup.py -q bdist_egg --dist-dir /tmp/easy_install-MQL3cv/simplejson-3.6.3/egg-dist-tmp-hxOwcl
+    Writing /tmp/easy_install-MC0TEa/simplejson-3.6.3/setup.cfg
+    Running simplejson-3.6.3/setup.py -q bdist_egg --dist-dir /tmp/easy_install-MC0TEa/simplejson-3.6.3/egg-dist-tmp-cX08F8
     zip_safe flag not set; analyzing archive contents...
     simplejson.tests.__init__: module references __file__
     Adding simplejson 3.6.3 to easy-install.pth file
@@ -144,23 +144,23 @@ Checking and stopping the background server
 At any time you can check the background server status with::
 
     $ devpi-server --status
-    server is running with pid 628
+    server is running with pid 8076
 
 Or stop it::
     
     $ devpi-server --stop
-    killed server pid=628
+    killed server pid=8076
 
 Finally, you can also look at the logfile of the background server
 (also after it has been stopped)::
 
     $ devpi-server --log
     last lines of devpi-server log
-    2014-09-04 15:12:08,934 INFO  [req3] GET /root/pypi/+f/bbb/654c2d9b5e3c1/simplejson-3.6.3.tar.gz
-    2014-09-04 15:12:08,983 INFO  [req3] [Wtx2] reading remote: https://pypi.python.org/packages/source/s/simplejson/simplejson-3.6.3.tar.gz, target root/pypi/+f/bbb/654c2d9b5e3c1/simplejson-3.6.3.tar.gz
-    2014-09-04 15:12:09,105 INFO  [req3] [Wtx2] fswriter3: committed: keys: u'root/pypi/+f/bbb/654c2d9b5e3c1/simplejson-3.6.3.tar.gz', files_commit: +files/root/pypi/+f/bbb/654c2d9b5e3c1/simplejson-3.6.3.tar.gz
-    2014-09-04 15:12:11,800 INFO  [req4] GET /root/pypi/+simple/simplejson/
-    2014-09-04 15:12:11,970 INFO  [req5] GET /root/pypi/+f/bbb/654c2d9b5e3c1/simplejson-3.6.3.tar.gz
+    2014-09-22 11:30:47,409 INFO  [req3] GET /root/pypi/+f/bbb/654c2d9b5e3c1/simplejson-3.6.3.tar.gz
+    2014-09-22 11:30:47,458 INFO  [req3] [Wtx2] reading remote: https://pypi.python.org/packages/source/s/simplejson/simplejson-3.6.3.tar.gz, target root/pypi/+f/bbb/654c2d9b5e3c1/simplejson-3.6.3.tar.gz
+    2014-09-22 11:30:47,570 INFO  [req3] [Wtx2] fswriter3: committed: keys: u'root/pypi/+f/bbb/654c2d9b5e3c1/simplejson-3.6.3.tar.gz', files_commit: +files/root/pypi/+f/bbb/654c2d9b5e3c1/simplejson-3.6.3.tar.gz
+    2014-09-22 11:30:49,461 INFO  [req4] GET /root/pypi/+simple/simplejson/
+    2014-09-22 11:30:49,595 INFO  [req5] GET /root/pypi/+f/bbb/654c2d9b5e3c1/simplejson-3.6.3.tar.gz
     logfile at: /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
 
 running devpi-server permanently
