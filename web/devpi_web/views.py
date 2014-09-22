@@ -247,7 +247,7 @@ def get_toxresults_info(linkstore, for_link, newest=True):
     for toxlink, toxenvs in iter_toxresults(toxlinks, load_toxresult, newest=newest):
         if toxenvs is None:
             log.error("Couldn't parse test results %s." % toxlink)
-            break
+            continue
         for toxenv in toxenvs:
             info = dict(
                 basename=toxlink.basename,

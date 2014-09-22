@@ -451,6 +451,7 @@ def test_testdata(mapp, testapp):
     path, = mapp.get_release_paths("pkg1")
     r = testapp.post(path, json.dumps(tox_result_data))
     assert r.status_code == 200
+    r = testapp.post(path, json.dumps({"testenvs": {"py27": {}}}))
     r = testapp.xget(200, api.index, headers=dict(accept="text/html"))
     passed, = r.html.select('.passed')
     assert passed.text == 'tests'
@@ -476,17 +477,20 @@ def test_testdata(mapp, testapp):
     assert rows == [
         ("pkg1-2.6.tgz.toxresult0", "foo", "linux2", "py27", "", "No setup performed Tests passed")]
 
+
 @pytest.mark.with_notifier
 def test_testdata_corrupt(mapp, testapp):
     api = mapp.create_and_use()
     mapp.set_versiondata(
         {"name": "pkg1", "version": "2.6", "description": "foo"})
     mapp.upload_file_pypi(
-        "pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200, waithooks=True)
+        "pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200,
+        waithooks=True)
     path, = mapp.get_release_paths("pkg1")
     r = testapp.post(path, json.dumps({"testenvs": {"py27": {}}}))
     assert r.status_code == 200
     testapp.xget(200, api.index, headers=dict(accept="text/html"))
+
 
 def test_search_nothing(testapp):
     r = testapp.get('/+search?query=')
