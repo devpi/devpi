@@ -84,7 +84,7 @@ Indexes
 
    For instance, imagine Emilie creates her own production index (called 
    */emilie/prod* - the default base is */root/pypi*)) and decide to have a 
-   developement index (*/emilie.dev*) which derives from her production index 
+   developement index (*/emilie/dev*) which derives from her production index 
    (a base). The later is used to upload tempory packages currently under 
    development.
    
