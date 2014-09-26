@@ -5,6 +5,8 @@
 
 - version.pt: removed "code" tag around overwrite count.
 
+- macros.pt: added "footer" tag around the whole footer part.
+
 
 2.2.0
 ---------------
