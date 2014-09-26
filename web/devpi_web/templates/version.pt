@@ -63,7 +63,7 @@
                                     by ${log.who}
                                 </tal:by>
                                 <tal:count condition="log.get('count')">
-                                    <code>${log.count} time(s)</code>
+                                    ${log.count} time(s)
                                 </tal:count>
                                 <span class="timestamp">${log.when}</span>
                             </li>

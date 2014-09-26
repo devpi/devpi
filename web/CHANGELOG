@@ -3,6 +3,9 @@
 
 - fix view when tox results can not be parsed.
 
+- version.pt: removed "code" tag around overwrite count.
+
+
 2.2.0
 ---------------
 
