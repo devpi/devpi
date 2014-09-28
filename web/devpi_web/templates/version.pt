@@ -24,27 +24,44 @@
             <thead>
                 <tr>
                     <th>File</th>
-                    <th>Type</th>
-                    <th>Py Version</th>
-                    <th>History</th>
-                    <th>Size</th>
                     <th class="toxresults" tal:condition="show_toxresults">Tox results</th>
+                    <th>History</th>
                 </tr>
             </thead>
             <tbody>
                 <tr tal:repeat="file files">
                     <td>
-                        <a href="${file.url}">${file.title}</a><br />
+                        <a href="${file.url}">${file.title}</a>
+                        <dl>
+                            <tal:size condition="file.size">
+                                <dt>Size</dt>
+                                <dd>${file.size}</dd>
+                            </tal:size>
+                            <tal:dist_type condition="file.dist_type">
+                                <dt>Type</dt>
+                                <dd>${file.dist_type}</dd>
+                            </tal:dist_type>
+                            <tal:py_version condition="file.py_version">
+                                <dt>Python</dt>
+                                <dd>${file.py_version}</dd>
+                            </tal:py_version>
+                        </dl>
                         <code>${file.md5}</code>
                     </td>
-                    <td>${file.dist_type}</td>
-                    <td>${file.py_version}</td>
+                    <td class="toxresults" tal:condition="show_toxresults">
+                        <tal:toxresults condition="file.get('toxresults')">
+                            <div tal:repeat="toxresult file.get('toxresults')">
+                                <a href="${make_toxresult_url(basename=file.basename, toxresult=toxresult.basename)}#${toxresult._key}" tal:attributes="class 'failed' if toxresult.failed else 'passed'">
+                                    ${toxresult.host} ${toxresult.platform} ${toxresult.envname} ${toxresult.get('pyversion')}
+                                </a>
+                            </div>
+                            <a href="${make_toxresults_url(basename=file.basename)}">
+                                All toxresults …
+                            </a>
+                        </tal:toxresults>
+                    </td>
                     <td>
                         <ul class="file_history">
-                            <li tal:condition="file.last_modified">
-                                Last modified
-                                <span class="timestamp">${file.last_modified}</span>
-                            </li>
                             <li tal:repeat="log file.history">
                                 ${log.what}
                                 <tal:src condition="log.get('src')">
@@ -65,22 +82,9 @@
                                 <tal:count condition="log.get('count')">
                                     ${log.count} time(s)
                                 </tal:count>
-                                <span class="timestamp">${log.when}</span>
+                                <span tal:condition="log.get('when')" class="timestamp">${log.when}</span>
                             </li>
                         </ul>
-                    </td>
-                    <td>${file.size}</td>
-                    <td class="toxresults" tal:condition="show_toxresults">
-                        <tal:toxresults condition="file.get('toxresults')">
-                            <div tal:repeat="toxresult file.get('toxresults')">
-                                <a href="${make_toxresult_url(basename=file.basename, toxresult=toxresult.basename)}#${toxresult._key}" tal:attributes="class 'failed' if toxresult.failed else 'passed'">
-                                    ${toxresult.host} ${toxresult.platform} ${toxresult.envname} ${toxresult.get('pyversion')}
-                                </a>
-                            </div>
-                            <a href="${make_toxresults_url(basename=file.basename)}">
-                                All toxresults …
-                            </a>
-                        </tal:toxresults>
                     </td>
                 </tr>
             </tbody>
