@@ -59,8 +59,10 @@
     </ul>
 </metal:versions>
 <metal:footer define-macro="footer">
-    <metal:headcss define-slot="footer" />
-    <metal:versions use-macro="request.macros['versions']" />
+    <footer>
+        <metal:footer define-slot="footer" />
+        <metal:versions use-macro="request.macros['versions']" />
+    </footer>
 </metal:footer>
 <metal:rootaboveuserindexlist define-macro="rootaboveuserindexlist">
 </metal:rootaboveuserindexlist>

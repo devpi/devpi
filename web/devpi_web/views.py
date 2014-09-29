@@ -181,7 +181,8 @@ def make_history_view_item(request, log_item):
     result = {}
     result['what'] = _what_map.get(log_item['what'], log_item['what'])
     result['who'] = log_item['who']
-    result['when'] = format_timetuple(log_item['when'])
+    if log_item['what'] != 'overwrite':
+        result['when'] = format_timetuple(log_item['when'])
     for key in ('dst', 'src'):
         if key in log_item:
             result[key] = dict(

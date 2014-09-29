@@ -12,6 +12,10 @@ import re
 devpi_server_version = parse_version(devpi_server_version)
 
 
+def compareable_text(text):
+    return re.sub('\s+', ' ', text.strip())
+
+
 @pytest.mark.parametrize("input, expected", [
     ((0, 0), []),
     ((1, 0), [0]),
@@ -67,13 +71,13 @@ def test_docs_raw_view(mapp, testapp):
     testapp.xget(200, r.location)
     r = testapp.xget(404, "/blubber/blubb/pkg1/2.6/+doc/index.html")
     content, = r.html.select('#content')
-    assert 'The stage blubber/blubb could not be found.' in content.text.strip()
+    assert 'The stage blubber/blubb could not be found.' in compareable_text(content.text)
     r = testapp.xget(404, api.index + "/pkg1/2.7/+doc/index.html")
     content, = r.html.select('#content')
-    assert 'No documentation available.' in content.text.strip()
+    assert 'No documentation available.' in compareable_text(content.text)
     r = testapp.xget(404, api.index + "/pkg1/2.6/+doc/foo.html")
     content, = r.html.select('#content')
-    assert 'File foo.html not found in documentation.' in content.text.strip()
+    assert 'File foo.html not found in documentation.' in compareable_text(content.text)
 
 
 @pytest.mark.with_notifier
@@ -90,13 +94,13 @@ def test_docs_view(mapp, testapp):
     assert iframe.attrs['src'] == api.index + "/pkg1/2.6/+doc/index.html"
     r = testapp.xget(404, "/blubber/blubb/pkg1/2.6/+d/index.html")
     content, = r.html.select('#content')
-    assert 'The stage blubber/blubb could not be found.' in content.text.strip()
+    assert 'The stage blubber/blubb could not be found.' in compareable_text(content.text)
     r = testapp.xget(404, api.index + "/pkg1/2.7/+d/index.html")
     content, = r.html.select('#content')
-    assert 'No documentation available.' in content.text.strip()
+    assert 'No documentation available.' in compareable_text(content.text)
     r = testapp.xget(404, api.index + "/pkg1/2.6/+d/foo.html")
     content, = r.html.select('#content')
-    assert 'File foo.html not found in documentation.' in content.text.strip()
+    assert 'File foo.html not found in documentation.' in compareable_text(content.text)
 
 
 @pytest.mark.with_notifier
@@ -192,7 +196,7 @@ def test_index_not_found(testapp):
     r = testapp.get("/blubber/blubb", headers=dict(accept="text/html"))
     assert r.status_code == 404
     content, = r.html.select('#content')
-    assert 'The stage blubber/blubb could not be found.' in content.text.strip()
+    assert 'The stage blubber/blubb could not be found.' in compareable_text(content.text)
 
 
 def test_index_view_project_info(mapp, testapp):
@@ -257,7 +261,7 @@ def test_index_view_permissions(mapp, testapp):
     mapp.set_acl([api.user, ':developers', ':ANONYMOUS:'])
     r = testapp.xget(200, api.index, headers=dict(accept="text/html"))
     elements = r.html.select('#content dl.permissions > *')
-    text = [re.sub('\s+', ' ', x.text.strip()) for x in elements]
+    text = [compareable_text(x.text) for x in elements]
     assert text == [
         'upload', 'Users: user1', 'Groups: developers', 'Special: ANONYMOUS']
 
@@ -285,11 +289,11 @@ def test_project_not_found(mapp, testapp):
     r = testapp.get("/blubber/blubb/pkg1", headers=dict(accept="text/html"))
     assert r.status_code == 404
     content, = r.html.select('#content')
-    assert 'The stage blubber/blubb could not be found.' in content.text.strip()
+    assert 'The stage blubber/blubb could not be found.' in compareable_text(content.text)
     r = testapp.get(api.index + "/pkg1", headers=dict(accept="text/html"))
     assert r.status_code == 404
     content, = r.html.select('#content')
-    assert 'The project pkg1 does not exist.' in content.text.strip()
+    assert 'The project pkg1 does not exist.' in compareable_text(content.text)
 
 
 def test_project_view_root_pypi(mapp, testapp, pypistage):
@@ -345,20 +349,18 @@ def test_version_view(mapp, testapp, monkeypatch):
         'utf-8') == u'<p>föö</p>'
     filesinfo = [
         tuple(
-            re.sub('\s+', ' ', t.text.strip()).split()
+            compareable_text(t.text).split()
             for t in x.findAll('td'))
         for x in r.html.select('.files tbody tr')]
-    assert [x[:3] + x[-2:] for x in filesinfo] == [
-        (['pkg1-2.6.tar.gz', '9a0364b9e99bb480dd25e1f0284c8555'], ['Source'], [], [u'7', u'bytes'], []),
-        (['pkg1-2.6.zip', '52360ae08d733016c5603d54b06b5300'], ['Source'], [], [u'10', u'bytes'], [])]
-    assert [x[3] for x in filesinfo] == [
-        [u'Last', u'modified', u'2014-09-15', u'11:11:11',
-         u'Replaced', u'2', u'time(s)', u'2014-09-15', u'11:11:11',
+    assert [x[:2] for x in filesinfo] == [
+        (['pkg1-2.6.tar.gz', 'Size', '7', 'bytes', 'Type', 'Source', '9a0364b9e99bb480dd25e1f0284c8555'], []),
+        (['pkg1-2.6.zip', 'Size', '10', 'bytes', 'Type', 'Source', '52360ae08d733016c5603d54b06b5300'], [])]
+    assert [x[-1] for x in filesinfo] == [
+        [u'Replaced', u'2', u'time(s)',
          u'Uploaded', u'to', u'user1/dev', u'by', u'user1', u'2014-09-15', u'11:11:11'],
-        [u'Last', u'modified', u'2014-09-15', u'11:11:11',
-         u'Uploaded', u'to', u'user1/dev', u'by', u'user1', u'2014-09-15', u'11:11:11']]
+        [u'Uploaded', u'to', u'user1/dev', u'by', u'user1', u'2014-09-15', u'11:11:11']]
     links = r.html.select('#content a')
-    assert [(l.text.strip(), l.attrs['href']) for l in links] == [
+    assert [(compareable_text(l.text), l.attrs['href']) for l in links] == [
         ("Documentation", "http://localhost/%s/pkg1/2.6/+d/index.html" % api.stagename),
         ("Simple index", "http://localhost/%s/+simple/pkg1" % api.stagename),
         ("pkg1-2.6.tar.gz", "http://localhost/%s/+f/9a0/364b9e99bb480/pkg1-2.6.tar.gz#md5=9a0364b9e99bb480dd25e1f0284c8555" % api.stagename),
@@ -374,15 +376,15 @@ def test_version_not_found(mapp, testapp):
     r = testapp.get("/blubber/blubb/pkg1/2.6", headers=dict(accept="text/html"))
     assert r.status_code == 404
     content, = r.html.select('#content')
-    assert 'The stage blubber/blubb could not be found.' in content.text.strip()
+    assert 'The stage blubber/blubb could not be found.' in compareable_text(content.text)
     r = testapp.get(api.index + "/pkg2/2.6", headers=dict(accept="text/html"))
     assert r.status_code == 404
     content, = r.html.select('#content')
-    assert 'The project pkg2 does not exist.' in content.text.strip()
+    assert 'The project pkg2 does not exist.' in compareable_text(content.text)
     r = testapp.get(api.index + "/pkg1/2.7", headers=dict(accept="text/html"))
     assert r.status_code == 404
     content, = r.html.select('#content')
-    assert 'The version 2.7 of project pkg1 does not exist.' in content.text.strip()
+    assert 'The version 2.7 of project pkg1 does not exist.' in compareable_text(content.text)
 
 
 def test_version_view_root_pypi(mapp, testapp, pypistage):
@@ -391,8 +393,8 @@ def test_version_view_root_pypi(mapp, testapp, pypistage):
         ''', pypiserial=10)
     r = testapp.xget(200, '/root/pypi/pkg1/2.6',
                      headers=dict(accept="text/html"))
-    filesinfo = [tuple(t.text.strip() for t in x.findAll('td')[:3]) for x in r.html.select('.files tbody tr')]
-    assert filesinfo == [('pkg1-2.6.zip', 'Source', '')]
+    filesinfo = [tuple(compareable_text(t.text) for t in x.findAll('td')[:3]) for x in r.html.select('.files tbody tr')]
+    assert filesinfo == [('pkg1-2.6.zip Type Source', '')]
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
         ("Simple index", "http://localhost/root/pypi/+simple/pkg1"),
@@ -405,9 +407,9 @@ def test_version_view_root_pypi_external_files(mapp, testapp, pypistage):
         "pkg1", '<a href="http://example.com/releases/pkg1-2.7.zip" /a>)')
     r = testapp.get('/root/pypi/pkg1/2.7', headers=dict(accept="text/html"))
     assert r.status_code == 200
-    filesinfo = [tuple(t.text.strip() for t in x.findAll('td')[:3])
+    filesinfo = [tuple(compareable_text(t.text) for t in x.findAll('td')[:3])
                  for x in r.html.select('.files tbody tr')]
-    assert filesinfo == [('pkg1-2.7.zip', 'Source', '')]
+    assert filesinfo == [('pkg1-2.7.zip Type Source', '')]
     silink, link1, link2 = list(r.html.select("#content a"))
     assert silink.text == "Simple index"
     assert silink.attrs["href"] == "http://localhost/root/pypi/+simple/pkg1"
@@ -425,7 +427,7 @@ def test_root_pypi_upstream_error(url, mapp, testapp, pypistage):
     r = testapp.get(url, headers=dict(accept="text/html"))
     assert r.status_code == 502
     content, = r.html.select('#content')
-    text = re.sub('\s+', ' ', content.text.strip())
+    text = compareable_text(content.text)
     assert text == 'Error An error has occurred: 502 Bad Gateway 404 status on GET https://pypi.python.org/simple/someproject/'
 
 
@@ -465,13 +467,13 @@ def test_testdata(mapp, testapp):
     assert 'foo linux2 py27' in links[0].text
     assert 'All toxresults' in links[1].text
     r = testapp.xget(200, links[0].attrs['href'])
-    content = "\n".join([x.text.strip() for x in r.html.select('.toxresult')])
+    content = "\n".join([compareable_text(x.text) for x in r.html.select('.toxresult')])
     assert "No setup performed" in content
     assert "everything fine" in content
     r = testapp.xget(200, links[1].attrs['href'])
     rows = [
         tuple(
-            t.text.strip() if len(t.text.split()) < 2 else " ".join(t.text.split())
+            compareable_text(t.text) if len(t.text.split()) < 2 else " ".join(t.text.split())
             for t in x.findAll('td'))
         for x in r.html.select('tbody tr')]
     assert rows == [
@@ -497,7 +499,7 @@ def test_search_nothing(testapp):
     assert r.status_code == 200
     assert r.html.select('.searchresults') == []
     content, = r.html.select('#content')
-    assert content.text.strip() == 'Your search  did not match anything.'
+    assert compareable_text(content.text) == 'Your search did not match anything.'
 
 
 def test_search_no_results(testapp):
@@ -505,7 +507,7 @@ def test_search_no_results(testapp):
     assert r.status_code == 200
     assert r.html.select('.searchresults') == []
     content, = r.html.select('#content')
-    assert content.text.strip() == 'Your search blubber did not match anything.'
+    assert compareable_text(content.text) == 'Your search blubber did not match anything.'
 
 
 @pytest.mark.with_notifier
@@ -528,7 +530,7 @@ def test_search_docs(mapp, testapp):
     r = testapp.get('/+search?query=bar')
     assert r.status_code == 200
     links = r.html.select('.searchresults a')
-    assert [(l.text.strip(), l.attrs['href']) for l in links] == [
+    assert [(compareable_text(l.text), l.attrs['href']) for l in links] == [
         ("pkg1-2.6", "http://localhost/%s/pkg1/2.6" % api.stagename),
         ("Foo", "http://localhost/%s/pkg1/2.6/+d/index.html" % api.stagename)]
 
@@ -542,7 +544,7 @@ def test_search_deleted_stage(mapp, testapp):
         "description": "foo"})
     mapp.delete_index(api.stagename, waithooks=True)
     r = testapp.xget(200, '/+search?query=pkg')
-    content = r.html.select('#content')[0].text.strip()
+    content = compareable_text(r.html.select('#content')[0].text)
     assert content == 'Your search pkg did not match anything.'
 
 
@@ -555,7 +557,7 @@ def test_search_deleted_package(mapp, testapp):
         "description": "foo"})
     mapp.delete_project('pkg1', waithooks=True)
     r = testapp.xget(200, '/+search?query=pkg')
-    content = r.html.select('#content')[0].text.strip()
+    content = compareable_text(r.html.select('#content')[0].text)
     assert content == 'Your search pkg did not match anything.'
 
 
@@ -575,7 +577,7 @@ def test_search_deleted_version(mapp, testapp):
     search_results = r.html.select('.searchresults > dl')
     assert len(search_results) == 1
     links = search_results[0].findAll('a')
-    assert [(l.text.strip(), l.attrs['href']) for l in links] == [
+    assert [(compareable_text(l.text), l.attrs['href']) for l in links] == [
         ("pkg1-2.6", "http://localhost/user1/dev/pkg1/2.6"),
         ("Summary", "http://localhost/user1/dev/pkg1/2.6#summary")]
 
@@ -594,10 +596,10 @@ def test_search_deleted_all_versions(mapp, testapp):
     mapp.delete_project("pkg1/2.6")
     mapp.delete_project("pkg1/2.7", waithooks=True)
     r = testapp.xget(200, '/+search?query=bar%20OR%20foo')
-    content = r.html.select('#content')[0].text.strip()
+    content = compareable_text(r.html.select('#content')[0].text)
     assert content == 'Your search bar OR foo did not match anything.'
     r = testapp.xget(200, '/+search?query=pkg')
-    content = r.html.select('#content')[0].text.strip()
+    content = compareable_text(r.html.select('#content')[0].text)
     assert content == 'Your search pkg did not match anything.'
 
 
@@ -613,10 +615,10 @@ def test_search_root_pypi(mapp, testapp, pypistage):
     search_results = r.html.select('.searchresults > dl > dt')
     assert len(search_results) == 2
     links = search_results[0].findAll('a')
-    assert sorted((l.text.strip(), l.attrs['href']) for l in links) == [
+    assert sorted((compareable_text(l.text), l.attrs['href']) for l in links) == [
         ("pkg1", "http://localhost/root/pypi/pkg1")]
     links = search_results[1].findAll('a')
-    assert sorted((l.text.strip(), l.attrs['href']) for l in links) == [
+    assert sorted((compareable_text(l.text), l.attrs['href']) for l in links) == [
         ("pkg2", "http://localhost/root/pypi/pkg2")]
 
 
@@ -631,7 +633,7 @@ def test_indexing_doc_with_missing_title(mapp, testapp):
     search_results = r.html.select('.searchresults > dl > dt')
     assert len(search_results) == 1
     links = search_results[0].findAll('a')
-    assert sorted((l.text.strip(), l.attrs['href']) for l in links) == [
+    assert sorted((compareable_text(l.text), l.attrs['href']) for l in links) == [
         ("pkg1-2.6", "http://localhost/user1/dev/pkg1/2.6")]
 
 
@@ -729,7 +731,7 @@ def test_url_rewriting(url, headers, selector, expected, mapp, testapp):
     url = url.format(stage=api.stagename)
     r = testapp.xget(200, url, headers=dict(accept="text/html", **headers))
     links = [
-        (x.text.strip(), x.attrs.get('href'))
+        (compareable_text(x.text), x.attrs.get('href'))
         for x in r.html.select(selector)]
     expected = [(t, u.format(stage=api.stagename)) for t, u in expected]
     assert links == expected

@@ -3,6 +3,21 @@
 
 - fix view when tox results can not be parsed.
 
+- version.pt: removed "code" tag around overwrite count.
+
+- macros.pt: added "footer" tag around the whole footer part.
+
+- version.pt: moved file type, python version and size info from their own
+  columns into the file column.
+
+- version.pt: moved history column from before the tox results column to behind
+  the tox results.
+
+- version.pt: removed "last modified" from history column
+
+- version.pt: removed timestamp from "replaced" action in history column
+
+
 2.2.0
 ---------------
 

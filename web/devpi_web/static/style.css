@@ -165,6 +165,23 @@ table.versions tbody tr:nth-child(even) {
     background: #efefef;
 }
 
+table.files dl {
+    margin: 0;
+    padding: 0;
+}
+table.files dt {
+    font-weight: bold;
+    display: inline;
+}
+table.files dt:after {
+    content: ": ";
+}
+table.files dd {
+    margin: 0 1em 0 0;
+    padding: 0;
+    display: inline;
+}
+
 .packagename {
     font-weight: bold;
     font-size: 125%;
