@@ -1,3 +1,10 @@
+DEV
+----------------
+
+- generate "systemd" configuration example when "--gen-config" is issued.
+  Thanks Pavel Sedlak.
+
+
 2.1.0
 ----------------
 
