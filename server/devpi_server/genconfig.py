@@ -1,10 +1,11 @@
 from __future__ import unicode_literals
+import os
 import py
 import sys
 import subprocess
 from devpi_common.url import URL
 
-from devpi_server.config import render, parseoptions
+from devpi_server.config import render, parseoptions, get_default_serverdir
 
 try:
     # python >= 3.4
@@ -80,6 +81,26 @@ def gen_launchd(tw, config, writer):
     ]))
     writer("net.devpi.plist", plist_content)
 
+
+def gen_systemd(tw, config, writer):
+    import getpass
+    devpibin = py.path.local(sys.argv[0])
+    assert devpibin.exists()
+    serverdir = config.args.serverdir
+    if serverdir is None:
+        serverdir = get_default_serverdir()
+    pid_file = os.path.join(os.path.expanduser(serverdir),
+                            '.xproc/devpi-server/xprocess.PID')
+    content = render(
+        tw, "devpi.service",
+        server_args=subprocess.list2cmdline(config.args._raw),
+        pid_file=pid_file,
+        user=getpass.getuser(),
+        devpibin=devpibin,
+    )
+    writer("devpi.service", content)
+
+
 def reparse_without_genconfig(config):
     new_args = [x for x in config.args._raw if x != "--gen-config"]
     return parseoptions(["devpi-server"] + new_args)
@@ -91,7 +112,7 @@ def genconfig(config):
     destdir = tw.cwd.ensure("gen-config", dir=1)
 
     new_config =  reparse_without_genconfig(config)
-    for cfg_type in ["supervisor", "nginx", "cron", "launchd"]:
+    for cfg_type in ["supervisor", "nginx", "cron", "launchd", "systemd"]:
         def writer(basename, content):
             p = destdir.join(basename)
             p.write(content)

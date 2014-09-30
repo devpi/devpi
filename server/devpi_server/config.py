@@ -73,8 +73,8 @@ def addoptions(parser):
 
     deploy.addoption("--gen-config", dest="genconfig", action="store_true",
             help="(unix only ) generate example config files for "
-                 "nginx/supervisor/crontab, taking other passed options "
-                 "into account (e.g. port, host, etc.)"
+                 "nginx/supervisor/crontab/systemd, taking other passed "
+                 "options into account (e.g. port, host, etc.)"
     )
 
     deploy.addoption("--secretfile", type=str, metavar="path",

@@ -1,0 +1,11 @@
+[Unit]
+Requires=network-online.target
+After=network-online.target
+
+[Service]
+Type=forking
+PIDFile={pid_file}
+Restart=always
+ExecStart={devpibin} {server_args} --start
+ExecStop={devpibin} {server_args} --stop
+User={user}

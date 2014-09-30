@@ -547,8 +547,8 @@ devpi command reference (server)
                             the SSL client certificate to authenticate to the
                             server (EXPERIMENTAL)
       --gen-config          (unix only ) generate example config files for
-                            nginx/supervisor/crontab, taking other passed options
-                            into account (e.g. port, host, etc.)
+                            nginx/supervisor/crontab/systemd, taking other passed
+                            options into account (e.g. port, host, etc.)
       --secretfile path     file containing the server side secret used for user
                             validation. If it does not exist, a random secret is
                             generated on start up and used subsequently.
