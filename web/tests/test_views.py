@@ -398,6 +398,7 @@ def test_version_view_root_pypi(mapp, testapp, pypistage):
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
         ("Simple index", "http://localhost/root/pypi/+simple/pkg1"),
+        ("PyPI page", "https://pypi.python.org/pypi/pkg1"),
         ("pkg1-2.6.zip", "http://localhost/root/pypi/+e/https_pypi.python.org_pkg/pkg1-2.6.zip"),
         ("https://pypi.python.org/pypi/pkg1/2.6/", "https://pypi.python.org/pypi/pkg1/2.6/")]
 
@@ -410,9 +411,11 @@ def test_version_view_root_pypi_external_files(mapp, testapp, pypistage):
     filesinfo = [tuple(compareable_text(t.text) for t in x.findAll('td')[:3])
                  for x in r.html.select('.files tbody tr')]
     assert filesinfo == [('pkg1-2.7.zip Type Source', '')]
-    silink, link1, link2 = list(r.html.select("#content a"))
+    silink, pypi_link, link1, link2 = list(r.html.select("#content a"))
     assert silink.text == "Simple index"
     assert silink.attrs["href"] == "http://localhost/root/pypi/+simple/pkg1"
+    assert pypi_link.text == "PyPI page"
+    assert pypi_link.attrs["href"] == "https://pypi.python.org/pypi/pkg1"
     assert link1.text == "pkg1-2.7.zip"
     assert link1.attrs["href"].endswith("pkg1-2.7.zip")
     assert link2.text == "https://pypi.python.org/pypi/pkg1/2.7/"

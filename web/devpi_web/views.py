@@ -457,6 +457,10 @@ def version_get(context, request):
         url=request.route_url(
             "/{user}/{index}/+simple/{name}",
             user=context.username, index=context.index, name=context.name)))
+    if stage.has_pypi_base(name):
+        nav_links.append(dict(
+            title="PyPI page",
+            url="https://pypi.python.org/pypi/%s" % name))
     return dict(
         title="%s/: %s-%s metadata and description" % (stage.name, name, version),
         content=get_description(stage, name, version),

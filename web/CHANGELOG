@@ -17,6 +17,8 @@
 
 - version.pt: removed timestamp from "replaced" action in history column
 
+- version.pt: add link to PyPI page if applicable.
+
 
 2.2.0
 ---------------
