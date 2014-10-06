@@ -610,7 +610,11 @@ class ELink:
             raise AttributeError(name)
 
     def __repr__(self):
-        return "<ELink rel=%r entrypath=%r>" %(self.rel, self.entrypath)
+        try:
+            rel = self.rel
+        except AttributeError as e:
+            rel = e
+        return "<ELink rel=%r entrypath=%r>" % (rel, self.entrypath)
 
     @cached_property
     def entry(self):
