@@ -311,6 +311,24 @@ def test_project_view_root_pypi(mapp, testapp, pypistage):
         ("2.6", "http://localhost/root/pypi/pkg1/2.6")]
 
 
+def test_project_view_root_pypi_external_link_bad_name(mapp, testapp, pypistage):
+    # root/pypi/+e/https_github.com_pypa_pip_tarball/develop
+    # http://localhost:8141/root/pypi/+e/https_github.com_pypa_pip_tarball/develop#egg=pip-dev
+    pypistage.mock_simple("pkg1", text='''
+            <a rel="internal" href="../../pkg/pkg1-2.7.zip" />
+            <a rel="internal" href="../../pkg/pkg1-2.6.zip" />
+            <a href="https://github.com/pypa/pip/tarball/develop#egg=pkg1-dev" />
+        ''', pypiserial=10)
+    r = testapp.get('/root/pypi/pkg1', headers=dict(accept="text/html"))
+    assert r.status_code == 200
+    links = r.html.select('#content a')
+    assert [(l.text, l.attrs['href']) for l in links] == [
+        ("root/pypi", "http://localhost/root/pypi"),
+        ("2.7", "http://localhost/root/pypi/pkg1/2.7"),
+        ("root/pypi", "http://localhost/root/pypi"),
+        ("2.6", "http://localhost/root/pypi/pkg1/2.6")]
+
+
 @pytest.mark.with_notifier
 def test_version_view(mapp, testapp, monkeypatch):
     import devpi_server.model

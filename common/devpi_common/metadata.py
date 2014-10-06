@@ -58,7 +58,7 @@ def splitbasename(path, checkarch=True):
         raise ValueError("could not identify projectname in path: %s" %
                          path)
     if checkarch and ext.lower() not in ALLOWED_ARCHIVE_EXTS:
-        raise ValueError("invalide archive type %r in: %s" %(ext, path))
+        raise ValueError("invalid archive type %r in: %s" %(ext, path))
     if len(parts) == 1:  # no version
         return projectname, "", ext
     non_projectname = nameversion[len(projectname)+1:] + ext
