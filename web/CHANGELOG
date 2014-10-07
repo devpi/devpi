@@ -17,6 +17,9 @@
 
 - version.pt: removed timestamp from "replaced" action in history column
 
+- fix project page view if there are downloads with filenames which can't be
+  parsed as packages with version number
+
 
 2.2.0
 ---------------
