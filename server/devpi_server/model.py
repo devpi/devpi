@@ -605,12 +605,12 @@ class ELink:
         try:
             return self.linkdict[name]
         except KeyError:
-            if name in ("for_entrypath", "eggfragment"):
+            if name in ("for_entrypath", "eggfragment", "rel"):
                 return None
             raise AttributeError(name)
 
     def __repr__(self):
-        return "<ELink rel=%r entrypath=%r>" %(self.rel, self.entrypath)
+        return "<ELink rel=%r entrypath=%r>" % (self.rel, self.entrypath)
 
     @cached_property
     def entry(self):

@@ -392,7 +392,10 @@ def project_get(context, request):
     seen = set()
     for release in releaselinks:
         user, index = release.entrypath.split("/", 2)[:2]
-        name, version = splitbasename(release)[:2]
+        try:
+            name, version = splitbasename(release)[:2]
+        except ValueError:
+            continue
         seen_key = (user, index, name, version)
         if seen_key in seen:
             continue
