@@ -4,6 +4,9 @@ DEV
 - generate "systemd" configuration example when "--gen-config" is issued.
   Thanks Pavel Sedlak.
 
+- fix issue109: fix relative URLs in simple index pages when serving under an
+  outside URL with a sub path.
+  Thanks to Joe Holloway for detailed infos.
 
 2.1.0
 ----------------

@@ -316,7 +316,7 @@ class PyPIView:
         for link in result:
             relpath = link.entrypath
             href = "/" + relpath
-            href = URL(request.path).relpath(href)
+            href = URL(request.path_info).relpath(href)
             if link.eggfragment:
                 href += "#egg=%s" % link.eggfragment
             elif link.md5:

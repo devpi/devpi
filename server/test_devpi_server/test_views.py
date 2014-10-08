@@ -73,6 +73,22 @@ def test_simple_project(pypistage, testapp):
     assert len(links) == 1
     assert links[0].get("href").endswith(path)
 
+@pytest.mark.parametrize("outside_url", ['', 'http://localhost/devpi'])
+def test_simple_project_outside_url_subpath(mapp, outside_url, pypistage, testapp):
+    api = mapp.create_and_use()
+    mapp.upload_file_pypi(
+        "qpwoei-1.0.tar.gz", b'123', "qpwoei", "1.0", indexname=api.stagename)
+    pypistage.mock_simple("qpwoei", text='<a href="/qpwoei-1.0.zip"/>')
+    r = testapp.get(
+        "/%s/+simple/qpwoei" % api.stagename,
+        headers={'X-outside-url': outside_url})
+    assert r.status_code == 200
+    links = sorted(x["href"] for x in BeautifulSoup(r.text).findAll("a"))
+    assert len(links) == 2
+    assert links == [
+        '../+f/202/cb962ac59075b/qpwoei-1.0.tar.gz#md5=202cb962ac59075b964b07152d234b70',
+        '../../../root/pypi/+e/https_pypi.python.org/qpwoei-1.0.zip']
+
 def test_project_redirect(pypistage, testapp):
     name = "qpwoei"
     headers = {'User-Agent': str('pip/1.4.1'), "Accept": str("text/html")}
