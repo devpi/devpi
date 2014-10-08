@@ -22,6 +22,8 @@
 - fix project page view if there are downloads with filenames which can't be
   parsed as packages with version number
 
+- fix notfound-redirect when serving under an outside URL with a sub path
+
 
 2.2.0
 ---------------

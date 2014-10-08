@@ -130,7 +130,7 @@ def notfound(request):
                 qs = request.query_string
                 if qs:
                     qs = '?' + qs
-                return HTTPFound(location=nonslashpath + qs)
+                return HTTPFound(location=request.application_url + nonslashpath + qs)
     request.response.status = 404
     return dict(msg=request.exception)
 

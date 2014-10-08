@@ -145,10 +145,16 @@ def test_docs_latest(mapp, testapp):
     assert r.text == "<html><body>2.7</body></html>"
 
 
-def test_not_found_redirect(testapp):
-    r = testapp.get('/root/pypi/?foo=bar', headers=dict(accept="text/html"))
+@pytest.mark.parametrize("outside_url, subpath", [
+    ('', ''),
+    ('http://localhost/devpi', '/devpi')])
+def test_not_found_redirect(testapp, outside_url, subpath):
+    r = testapp.get(
+        '/root/pypi/?foo=bar', headers={
+            'accept': "text/html",
+            'X-outside-url': outside_url})
     assert r.status_code == 302
-    assert r.location == 'http://localhost/root/pypi?foo=bar'
+    assert r.location == 'http://localhost%s/root/pypi?foo=bar' % subpath
 
 
 def test_not_found_on_post(testapp):
