@@ -928,11 +928,11 @@ def trigger_jenkins(request, stage, jenkinurl, testspec):
     source = render_string("devpibootstrap.py",
         INDEXURL=baseurl + "/" + stage.name,
         VIRTUALENVTARURL= (baseurl +
-            "root/pypi/+f/d3d/915836c1ada1be731ccaa12412b98/"
-            "virtualenv-1.11.2.tar.gz",
+            "/root/pypi/+f/f61/cdd983d2c4e6a/"
+            "virtualenv-1.11.6.tar.gz"
             ),
         TESTSPEC=testspec,
-        DEVPI_INSTALL_INDEX = baseurl + stage.name + "/+simple/"
+        DEVPI_INSTALL_INDEX = baseurl + "/" + stage.name + "/+simple/"
     )
     inputfile = py.io.BytesIO(source.encode("ascii"))
     session = new_requests_session(agent=("server", server_version))
