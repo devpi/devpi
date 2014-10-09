@@ -279,7 +279,7 @@ class PyPIView:
                  request_method="POST")
     def post_toxresult(self):
         stage = self.context.stage
-        relpath = self.request.path.strip("/")
+        relpath = self.request.path_info.strip("/")
         link = stage.get_link_from_entrypath(relpath)
         if link is None or link.rel != "releasefile":
             apireturn(404, message="no release file found at %s" % relpath)
@@ -774,7 +774,7 @@ class PyPIView:
     @view_config(route_name="/{user}/{index}/+f/{relpath:.*}")
     def pkgserv(self):
         request = self.request
-        relpath = request.path.strip("/")
+        relpath = request.path_info.strip("/")
         if "#" in relpath:   # XXX unclear how this happens (did with bottle)
             relpath = relpath.split("#", 1)[0]
         filestore = self.xom.filestore

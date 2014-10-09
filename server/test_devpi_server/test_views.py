@@ -88,6 +88,9 @@ def test_simple_project_outside_url_subpath(mapp, outside_url, pypistage, testap
     assert links == [
         '../+f/202/cb962ac59075b/qpwoei-1.0.tar.gz#md5=202cb962ac59075b964b07152d234b70',
         '../../../root/pypi/+e/https_pypi.python.org/qpwoei-1.0.zip']
+    testapp.xget(
+        200, URL("/%s/+simple/qpwoei" % api.stagename).joinpath(links[0]).path,
+        headers={'X-outside-url': outside_url})
 
 def test_project_redirect(pypistage, testapp):
     name = "qpwoei"
@@ -656,7 +659,8 @@ def test_upload_and_push_internal(mapp, testapp, monkeypatch, proj):
     assert link.href.endswith("/pkg1-2.6.tgz")
 
 
-def test_upload_and_push_with_toxresults(mapp, testapp):
+@pytest.mark.parametrize("outside_url", ['', 'http://localhost/devpi'])
+def test_upload_and_push_with_toxresults(mapp, testapp, outside_url):
     from test_devpi_server.example import tox_result_data
     mapp.create_and_login_user("user1", "1")
     mapp.create_index("prod")
@@ -664,13 +668,19 @@ def test_upload_and_push_with_toxresults(mapp, testapp):
     mapp.use("user1/dev")
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200)
     path, = mapp.get_release_paths("pkg1")
-    r = testapp.post(path, json.dumps(tox_result_data))
+    r = testapp.post(
+        path, json.dumps(tox_result_data),
+        headers={'X-outside-url': outside_url})
     # store a second toxresult
-    r = testapp.post(path, json.dumps(tox_result_data))
+    r = testapp.post(
+        path, json.dumps(tox_result_data),
+        headers={'X-outside-url': outside_url})
     assert r.status_code == 200
-    testapp.xget(200, path)
+    testapp.xget(200, path, headers={'X-outside-url': outside_url})
     req = dict(name="pkg1", version="2.6", targetindex="user1/prod")
-    r = testapp.push("/user1/dev", json.dumps(req))
+    r = testapp.push(
+        "/user1/dev", json.dumps(req),
+        headers={'X-outside-url': outside_url})
     for actionlog in r.json["result"]:
         assert "user1/dev" not in actionlog[-1]
 
