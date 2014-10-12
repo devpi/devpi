@@ -9,6 +9,9 @@ DEV
   with a sub path.
   Thanks to Joe Holloway for detailed infos.
 
+- drop limitation on maximum documentation size. Body size is now only
+  controlled by frontends such as nginx.
+
 2.1.0
 ----------------
 
