@@ -9,7 +9,7 @@ DEV
   with a sub path.  Thanks to Joe Holloway for detailed infos.
 
 - drop limitation on maximum documentation size. Body size is now only
-  controlled by frontends such as nginx. Thanks Stefan Erb.
+  controlled by frontends such as nginx. Thanks Stephan Erb.
 
 - use newer version of virtualenv for jenkins trigger. Thank brunsgaard.
 
