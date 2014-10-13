@@ -29,8 +29,6 @@ from .config import render_string
 server_version = devpi_server.__version__
 
 
-MAXDOCZIPSIZE = 30 * 1024 * 1024    # 30MB
-
 H_MASTER_UUID = str("X-DEVPI-MASTER-UUID")
 
 
@@ -637,9 +635,6 @@ class PyPIView:
                             (jenkinurl,))
             else:
                 doczip = content.file.read()
-                if len(doczip) > MAXDOCZIPSIZE:
-                    abort_submit(413, "zipfile size %d too large, max=%s"
-                                   % (len(doczip), MAXDOCZIPSIZE))
                 try:
                     link = stage.store_doczip(name, version, doczip)
                 except stage.MissesRegistration:

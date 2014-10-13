@@ -953,13 +953,6 @@ def test_upload_docs_no_project_ever_registered(mapp, testapp):
     content = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "", code=400)
 
-def test_upload_docs_too_large(mapp):
-    from devpi_server.views import MAXDOCZIPSIZE
-    mapp.create_and_use()
-    content = b"*" * (MAXDOCZIPSIZE + 1)
-    mapp.set_versiondata(dict(name="pkg1", version="0.0"))
-    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=413)
-
 @proj
 def test_upload_docs(mapp, testapp, proj):
     api = mapp.create_and_use()
