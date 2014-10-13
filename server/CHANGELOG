@@ -6,11 +6,12 @@ DEV
 
 - fix issue109: fix relative URLs in simple index pages and 404 errors on
   uploading toxresults and downloading files when serving under an outside URL
-  with a sub path.
-  Thanks to Joe Holloway for detailed infos.
+  with a sub path.  Thanks to Joe Holloway for detailed infos.
 
 - drop limitation on maximum documentation size. Body size is now only
-  controlled by frontends such as nginx.
+  controlled by frontends such as nginx. Thanks Stefan Erb.
+
+- use newer version of virtualenv for jenkins trigger. Thank brunsgaard.
 
 2.1.0
 ----------------
