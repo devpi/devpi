@@ -79,9 +79,8 @@ def test_simple_project_outside_url_subpath(mapp, outside_url, pypistage, testap
     mapp.upload_file_pypi(
         "qpwoei-1.0.tar.gz", b'123', "qpwoei", "1.0", indexname=api.stagename)
     pypistage.mock_simple("qpwoei", text='<a href="/qpwoei-1.0.zip"/>')
-    r = testapp.get(
-        "/%s/+simple/qpwoei" % api.stagename,
-        headers={'X-outside-url': outside_url})
+    headers={str('X-outside-url'): str(outside_url)}
+    r = testapp.get("/%s/+simple/qpwoei" % api.stagename, headers=headers)
     assert r.status_code == 200
     links = sorted(x["href"] for x in BeautifulSoup(r.text).findAll("a"))
     assert len(links) == 2
@@ -90,7 +89,7 @@ def test_simple_project_outside_url_subpath(mapp, outside_url, pypistage, testap
         '../../../root/pypi/+e/https_pypi.python.org/qpwoei-1.0.zip']
     testapp.xget(
         200, URL("/%s/+simple/qpwoei" % api.stagename).joinpath(links[0]).path,
-        headers={'X-outside-url': outside_url})
+        headers=headers)
 
 def test_project_redirect(pypistage, testapp):
     name = "qpwoei"
@@ -668,19 +667,14 @@ def test_upload_and_push_with_toxresults(mapp, testapp, outside_url):
     mapp.use("user1/dev")
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200)
     path, = mapp.get_release_paths("pkg1")
-    r = testapp.post(
-        path, json.dumps(tox_result_data),
-        headers={'X-outside-url': outside_url})
+    headers={str('X-outside-url'): str(outside_url)}
+    r = testapp.post(path, json.dumps(tox_result_data), headers=headers)
     # store a second toxresult
-    r = testapp.post(
-        path, json.dumps(tox_result_data),
-        headers={'X-outside-url': outside_url})
+    r = testapp.post(path, json.dumps(tox_result_data), headers=headers)
     assert r.status_code == 200
-    testapp.xget(200, path, headers={'X-outside-url': outside_url})
+    testapp.xget(200, path, headers=headers)
     req = dict(name="pkg1", version="2.6", targetindex="user1/prod")
-    r = testapp.push(
-        "/user1/dev", json.dumps(req),
-        headers={'X-outside-url': outside_url})
+    r = testapp.push("/user1/dev", json.dumps(req), headers=headers)
     for actionlog in r.json["result"]:
         assert "user1/dev" not in actionlog[-1]
 
