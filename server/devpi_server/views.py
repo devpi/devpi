@@ -44,7 +44,7 @@ def abort(request, code, body):
     if "application/json" in request.headers.get("Accept", ""):
         apireturn(code, body)
     threadlog.error(body)
-    raise exception_response(code, body=body, headers=meta_headers)
+    raise exception_response(code, explanation=body, headers=meta_headers)
 
 def abort_submit(code, msg):
     # we construct our own type because we need to set the title
@@ -717,14 +717,7 @@ class PyPIView:
     @view_config(route_name="/{user}/{index}/{name}/{version}", accept="application/json", request_method="GET")
     def version_get(self):
         stage = self.context.stage
-        name, version = self.context.name, self.context.version
-        versions = stage.list_versions(name)
-        if not versions:
-            abort(self.request, 404, "project %r does not exist" % name)
-        verdata = stage.get_versiondata(name, version)
-        if not verdata:
-            abort(self.request, 404, "version %r does not exist" % version)
-
+        verdata = self.context.get_versiondata(perstage=False)
         view_verdata = self._make_view_verdata(verdata)
         apireturn(200, type="versiondata", result=view_verdata)
 

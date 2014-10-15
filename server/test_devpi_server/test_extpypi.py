@@ -285,8 +285,8 @@ class TestExtPYPIDB:
 
     def test_get_versiondata_inexistent(self, pypistage):
         pypistage.mock_simple("pytest", status_code=404)
-        data = pypistage.get_versiondata("Pytest", "1.0")
-        assert not data
+        with pytest.raises(pypistage.UpstreamError):
+            pypistage.get_versiondata("Pytest", "1.0")
 
     def test_get_versiondata(self, pypistage):
         pypistage.mock_simple("Pytest", pkgver="pytest-1.0.zip")

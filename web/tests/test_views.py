@@ -408,7 +408,16 @@ def test_version_not_found(mapp, testapp):
     r = testapp.get(api.index + "/pkg1/2.7", headers=dict(accept="text/html"))
     assert r.status_code == 404
     content, = r.html.select('#content')
-    assert 'The version 2.7 of project pkg1 does not exist.' in compareable_text(content.text)
+    assert 'The version 2.7 of project pkg1 does not exist on stage' in content.text.strip()
+
+
+def test_version_not_found_but_inherited_has_them(mapp, testapp):
+    api1 = mapp.create_and_use(indexconfig=dict(bases=()))
+    mapp.upload_file_pypi("pkg1-2.6.tar.gz", b"content", "pkg1", "2.6")
+    api2 = mapp.create_and_use(indexconfig=dict(bases=(api1.stagename,)))
+    testapp.xget(200, "/%s/pkg1/2.6" % api1.stagename, accept="text/html")
+    testapp.xget(404, "/%s/pkg1/2.6" % api2.stagename, accept="text/html")
+    testapp.xget(404, "/%s/pkg1/2.5" % api2.stagename, accept="text/html")
 
 
 def test_version_view_root_pypi(mapp, testapp, pypistage):
@@ -451,7 +460,7 @@ def test_version_view_root_pypi_external_files(mapp, testapp, pypistage):
     '/root/pypi/someproject/2.6'])
 def test_root_pypi_upstream_error(url, mapp, testapp, pypistage):
     pypistage.mock_simple("someproject", status_code=404)
-    r = testapp.get(url, headers=dict(accept="text/html"))
+    r = testapp.get(url, accept="text/html")
     assert r.status_code == 502
     content, = r.html.select('#content')
     text = compareable_text(content.text)

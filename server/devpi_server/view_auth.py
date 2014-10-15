@@ -74,8 +74,32 @@ class RootFactory(object):
     def getstage(self, user, index):
         stage = self.model.getstage(user, index)
         if not stage:
-            abort(self.request, 404, "no stage %s/%s" % (user, index))
+            abort(self.request, 404,
+                  "The stage %s/%s could not be found." % (user, index))
         return stage
+
+    def get_versiondata(self, perstage=False):
+        projectname = self.projectname  # raises 404 if not found
+        if perstage:
+            get = self.stage.get_versiondata_perstage
+            msg = " on stage %r" %(self.index,)
+        else:
+            get = self.stage.get_versiondata
+            msg = ""
+        verdata = get(projectname, self.version)
+        if not verdata:
+            abort(self.request, 404,
+                  "The version %s of project %s does not exist%s." %
+                               (self.version, projectname, msg))
+        return verdata
+
+    @reify
+    def projectname(self):
+        name = self.stage.get_projectname(self.name)
+        if name is None:
+            raise abort(self.request, 404,
+                        "The project %s does not exist." % self.name)
+        return name
 
     @reify
     def index(self):

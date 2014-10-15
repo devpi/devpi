@@ -234,6 +234,9 @@ class PyPIStage(BaseStage):
         threadlog.debug("visiting index %s", url)
         response = self.httpget(url, allow_redirects=True)
         if response.status_code != 200:
+            # XXX it's not correct to return UpstreamError
+            # if indeed the project was deleted but that fact
+            # is not yet noticed (the changelog protocol needs to do so)
             raise self.UpstreamError("%s status on GET %s" %
                                      (response.status_code, url))
 
@@ -249,19 +252,22 @@ class PyPIStage(BaseStage):
             raise self.UpstreamError("no cache links from master for %s" %
                                      projectname)
 
-        # check returned url has the same normalized name
-        ret_projectname = response.url.strip("/").split("/")[-1]
-        assert normalize_name(projectname) == normalize_name(ret_projectname)
-
         # check that we got a fresh enough page
         serial = int(response.headers["X-PYPI-LAST-SERIAL"])
         newest_serial = self.pypimirror.name2serials.get(projectname, -1)
         if serial < newest_serial:
-            raise self.UpstreamError("%s: pypi returned serial %s, expected %s",
+            raise self.UpstreamError(
+                        "%s: pypi returned serial %s, expected %s",
                         projectname, serial, newest_serial)
 
         threadlog.debug("%s: got response with serial %s" %
                   (projectname, serial))
+
+
+        # check returned url has the same normalized name
+        ret_projectname = response.url.strip("/").split("/")[-1]
+        assert normalize_name(projectname) == normalize_name(ret_projectname)
+
 
         # parse simple index's link and perform crawling
         assert response.text is not None, response.text
@@ -290,10 +296,7 @@ class PyPIStage(BaseStage):
         return versions
 
     def get_versiondata_perstage(self, projectname, version):
-        try:
-            links = self.get_releaselinks_perstage(projectname)
-        except self.UpstreamError:
-            return {}
+        links = self.get_releaselinks_perstage(projectname)
         verdata = {}
         for link in links:
             basename = link.basename
