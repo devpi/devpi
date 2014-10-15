@@ -357,6 +357,38 @@ class TestFileReplication:
         with replica_xom.keyfs.transaction():
             assert not r_entry.file_exists()
 
+    def test_fetch_later_deleted(self, gen, reqmock, xom, replica_xom):
+        replay(xom, replica_xom)
+        content1 = b'hello'
+        md5 = hashlib.md5(content1).hexdigest()
+        link = gen.pypi_package_link("pytest-1.8.zip#md5=%s" % md5, md5=False)
+        with xom.keyfs.transaction(write=True):
+            entry = xom.filestore.maplink(link)
+            assert not entry.file_exists()
+
+        master_url = replica_xom.config.master_url
+        master_file_path = master_url.joinpath(entry.relpath).url
+
+        # first we create
+        with xom.keyfs.transaction(write=True):
+            entry.file_set_content(content1)
+
+        # then we delete
+        with xom.keyfs.transaction(write=True):
+            entry.file_delete()
+            entry.delete()
+        assert not os.path.exists(entry._filepath)
+
+        # and simulate what the master will respond
+        xom.httpget.mockresponse(master_file_path, status_code=410)
+
+        # and then we try to see if we can replicate the create and del changes
+        replay(xom, replica_xom)
+
+        with replica_xom.keyfs.transaction():
+            r_entry = replica_xom.filestore.get_file_entry(entry.relpath)
+            assert not r_entry.file_exists()
+
     def test_fetch_pypi_nomd5(self, gen, reqmock, xom, replica_xom):
         replay(xom, replica_xom)
         content1 = b'hello'

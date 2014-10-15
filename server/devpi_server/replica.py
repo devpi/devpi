@@ -326,6 +326,12 @@ class ImportFileReplica:
         threadlog.info("retrieving file from master: %s", relpath)
         url = self.xom.config.master_url.joinpath(relpath).url
         r = self.xom.httpget(url, allow_redirects=True)
+        if r.status_code == 410:
+            # master indicates Gone for files which were later deleted
+            threadlog.warn("ignoring because of later deletion: %s",
+                           relpath)
+            return
+
         if r.status_code != 200:
             raise FileReplicationError(r)
         remote_md5 = hashlib.md5(r.content).hexdigest()

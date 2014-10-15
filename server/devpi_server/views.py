@@ -779,7 +779,10 @@ class PyPIView:
                 apireturn(404, "no such release file")
             apireturn(200, type="releasefilemeta", result=entry.meta)
         if not entry or not entry.meta:
-            abort(request, 404, "no such file")
+            if entry is None:
+                abort(request, 404, "no such file")
+            else:
+                abort(request, 410, "file existed, deleted in later serial")
 
         if not entry.file_exists() or entry.eggfragment:
             keyfs = self.xom.keyfs

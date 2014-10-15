@@ -413,9 +413,12 @@ class TestSubmitValidation:
             with testapp.xom.keyfs.transaction():
                 entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
                 assert entry.file_exists()
+        # try a slightly different path and see if it fails
+        testapp.xget(404, path[:-2])
+
         mapp.delete_index(submit.stagename)
         for path in paths:
-            testapp.xget(404, path)
+            testapp.xget(410, path)
             with testapp.xom.keyfs.transaction():
                 entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
                 assert not entry.file_exists()
@@ -439,7 +442,7 @@ class TestSubmitValidation:
         testapp.xget(200, path1)
         submit.file("pkg5-2.6.tgz", b"1234", {"name": "Pkg5"}, code=200)
         path2, = mapp.get_release_paths("Pkg5")
-        testapp.xget(404, path1)
+        testapp.xget(410, path1)  # existed once but deleted during overwrite
         testapp.xget(200, path2)
         r = testapp.xget(200, "%s/Pkg5/2.6" % mapp.api.index)
         link, = r.json['result']['+links']
