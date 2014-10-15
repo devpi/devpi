@@ -1,5 +1,11 @@
-DEV
+2.1.1
 ----------------
+
+- fix replication issue reported by a customer: if a replica lags
+  behind a master and a file was created and then deleted meanwhile,
+  the replica would get stuck with a FileReplicationError.  We now
+  let the master report a 410 GONE code so that the replica knows
+  it can safely proceed because the file was deleted later anyways.
 
 - generate "systemd" configuration example when "--gen-config" is issued.
   Thanks Pavel Sedlak.
@@ -12,12 +18,6 @@ DEV
   controlled by frontends such as nginx. Thanks Stephan Erb.
 
 - use newer version of virtualenv for jenkins trigger. Thank brunsgaard.
-
-- fix replication issue reported by a customer: if a replica lags
-  behind a master and a file was created and then deleted meanwhile,
-  the replica would get stuck with a FileReplicationError.  We now
-  let the master report a 410 GONE code so that the replica knows
-  it can safely proceed because the file was deleted later anyways.
 
 2.1.0
 ----------------
