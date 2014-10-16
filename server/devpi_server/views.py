@@ -301,6 +301,9 @@ class PyPIView:
         stage = self.context.stage
         projectname = stage.get_projectname(name)
         if projectname is None:
+            # we return 200 instead of !=200 so that pip/easy_install don't
+            # ask for the full simple page although we know it doesn't exist
+            # XXX change that when pip-6.0 is released?
             abort(request, 200, "no such project %r" % projectname)
 
         if name != projectname:
@@ -679,44 +682,38 @@ class PyPIView:
         real_name = projectname if projectname else name
         redirect("/%s/+simple/%s" % (stage.name, real_name))
 
-    @view_config(route_name="/{user}/{index}/{name}", accept="application/json", request_method="GET")
+    @view_config(route_name="/{user}/{index}/{name}",
+                 accept="application/json", request_method="GET")
     def project_get(self):
-        request = self.request
-        #self.log.debug("HEADERS: %s", request.headers.items())
-        stage, name = self.context.stage, self.context.name
-        projectname = stage.get_projectname(name)
-        if not json_preferred(request):
+        if not json_preferred(self.request):
             apireturn(415, "unsupported media type %s" %
-                      request.headers.items())
-        if not projectname:
-            apireturn(404, "project %r does not exist" % name)
-        if projectname != name:
-            redirect("/%s/%s" % (stage.name, projectname))
+                      self.request.headers.items())
+        context = self.context
+        if context.projectname != context.name:
+            redirect("/%s/%s" % (context.stage.name, context.projectname))
         view_metadata = {}
-        for version in stage.list_versions(projectname):
+        for version in context.list_versions():
             view_metadata[version] = self._make_view_verdata(
-                stage.get_versiondata(projectname, version))
+                context.get_versiondata(version=version))
         apireturn(200, type="projectconfig", result=view_metadata)
 
     @view_config(
         route_name="/{user}/{index}/{name}", request_method="DELETE",
         permission="del_project")
     def del_project(self):
-        stage, name = self.context.stage, self.context.name
+        stage = self.context.stage
         if stage.name == "root/pypi":
             abort(self.request, 405, "cannot delete root/pypi index")
-        projectname = stage.get_projectname(name)
-        if projectname is None:
-            apireturn(404, "project %r does not exist" % name)
+        projectname = self.context.projectname
         if not stage.ixconfig["volatile"]:
             apireturn(403, "project %r is on non-volatile index %s" %(
                       projectname, stage.name))
         stage.del_project(projectname)
-        apireturn(200, "project %r deleted from stage %s" % (name, stage.name))
+        apireturn(200, "project {name} deleted from stage {sname}".format(
+                  name=projectname, sname=stage.name))
 
     @view_config(route_name="/{user}/{index}/{name}/{version}", accept="application/json", request_method="GET")
     def version_get(self):
-        stage = self.context.stage
         verdata = self.context.get_versiondata(perstage=False)
         view_verdata = self._make_view_verdata(verdata)
         apireturn(200, type="versiondata", result=view_verdata)

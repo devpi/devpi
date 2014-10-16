@@ -234,9 +234,9 @@ class PyPIStage(BaseStage):
         threadlog.debug("visiting index %s", url)
         response = self.httpget(url, allow_redirects=True)
         if response.status_code != 200:
-            # XXX it's not correct to return UpstreamError
+            # XXX it's not correct to return UpstreamError in all cases
             # if indeed the project was deleted but that fact
-            # is not yet noticed (the changelog protocol needs to do so)
+            # is not yet properly processed
             raise self.UpstreamError("%s status on GET %s" %
                                      (response.status_code, url))
 

@@ -211,12 +211,18 @@ def test_indexroot_root_pypi(testapp, xom):
     assert r.status_code == 200
     assert b"in-stage" not in r.body
 
-@pytest.mark.parametrize("code", [-1, 500, 501, 502, 503])
-def test_upstream_not_reachable(pypistage, testapp, xom, code):
-    name = "whatever%d" % (code + 1)
-    pypistage.mock_simple(name, status_code = code)
-    r = testapp.get("/root/pypi/+simple/%s" % name)
+@pytest.mark.parametrize("url", [
+    '/root/pypi/{name}',
+    '/root/pypi/{name}/2.6',
+    '/root/pypi/+simple/{name}',
+])
+@pytest.mark.parametrize("code", [-1, 404, 500, 501, 502, 503])
+def test_upstream_not_reachable(reqmock, pypistage, testapp, code, url):
+    name = "whatever{code}".format(code=code+100)
+    pypistage.mock_simple(name, '', status_code=code)
+    r = testapp.get(url.format(name=name), accept="application/json")
     assert r.status_code == 502
+
 
 def test_pkgserv(httpget, pypistage, testapp):
     pypistage.mock_simple("package", '<a href="/package-1.0.zip" />')
