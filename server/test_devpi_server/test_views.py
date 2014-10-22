@@ -91,9 +91,17 @@ def test_simple_project_outside_url_subpath(mapp, outside_url, pypistage, testap
         200, URL("/%s/+simple/qpwoei" % api.stagename).joinpath(links[0]).path,
         headers=headers)
 
-def test_project_redirect(pypistage, testapp):
+
+@pytest.mark.parametrize(
+    "user_agent",
+    [
+        'pip/1.4.1',
+        'setuptools/6.1',
+        'pip/6.0.dev1 {"cpu":"x86_64","distro":{"name":"OS X","version":"10.9.5"},"implementation":{"name":"CPython","version":"2.7.8"},"installer":{"name":"pip","version":"6.0.dev1"},"python":"2.7.8","system":{"name":"Darwin","release":"13.4.0"}}'],
+    ids=['pip', 'setuptools', 'pip6'])
+def test_project_redirect(pypistage, testapp, user_agent):
     name = "qpwoei"
-    headers = {'User-Agent': str('pip/1.4.1'), "Accept": str("text/html")}
+    headers = {'User-Agent': str(user_agent), "Accept": str("text/html")}
 
     r = testapp.get("/root/pypi/%s" % name, headers=headers)
     assert r.status_code == 302
