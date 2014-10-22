@@ -3,6 +3,7 @@
 
 - fix issue172: avoid traceback when user/index/name/version is accessed.
 
+- fix issue158: redirect to normalized projectname for all GET views.
 
 2.1.1
 ----------------

@@ -1,6 +1,6 @@
 from devpi_common.types import ensure_unicode
 from devpi_server.auth import Auth
-from devpi_server.views import abort, abort_authenticate
+from devpi_server.views import abort, abort_authenticate, redirect
 from devpi_server.model import UpstreamError
 from pyramid.authentication import CallbackAuthenticationPolicy, b64decode
 from pyramid.decorator import reify
@@ -114,6 +114,12 @@ class RootFactory(object):
         if name is None:
             raise abort(self.request, 404,
                         "The project %s does not exist." % self.name)
+        if self.request.method == 'GET' and name != self.name:
+            new_matchdict = dict(self.request.matchdict)
+            new_matchdict['name'] = name
+            route_name = self.request.matched_route.name
+            url = self.request.route_url(route_name, **new_matchdict)
+            raise redirect(url)
         return name
 
     @reify
@@ -122,11 +128,17 @@ class RootFactory(object):
 
     @reify
     def name(self):
-        return ensure_unicode(self.matchdict.get('name'))
+        name = self.matchdict.get('name')
+        if name is None:
+            return
+        return ensure_unicode(name)
 
     @reify
     def version(self):
-        return ensure_unicode(self.matchdict.get('version'))
+        version = self.matchdict.get('version')
+        if version is None:
+            return
+        return ensure_unicode(version)
 
     @reify
     def stage(self):

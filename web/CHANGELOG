@@ -24,6 +24,9 @@
 
 - fix notfound-redirect when serving under an outside URL with a sub path
 
+- fix issue175: use normalized name of projects, so redirects from unnormalized
+  names works.
+
 
 2.2.0
 ---------------

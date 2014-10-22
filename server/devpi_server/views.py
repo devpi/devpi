@@ -299,15 +299,13 @@ class PyPIView:
         # we only serve absolute links so we don't care about the route's slash
         abort_if_invalid_projectname(request, name)
         stage = self.context.stage
-        projectname = stage.get_projectname(name)
-        if projectname is None:
+        if stage.get_projectname(name) is None:
             # we return 200 instead of !=200 so that pip/easy_install don't
             # ask for the full simple page although we know it doesn't exist
             # XXX change that when pip-6.0 is released?
-            abort(request, 200, "no such project %r" % projectname)
+            abort(request, 200, "no such project %r" % name)
 
-        if name != projectname:
-            redirect("/%s/+simple/%s/" % (stage.name, projectname))
+        projectname = self.context.projectname
         try:
             result = stage.get_releaselinks(projectname)
         except stage.UpstreamError as e:
@@ -689,8 +687,6 @@ class PyPIView:
             apireturn(415, "unsupported media type %s" %
                       self.request.headers.items())
         context = self.context
-        if context.projectname != context.name:
-            redirect("/%s/%s" % (context.stage.name, context.projectname))
         view_metadata = {}
         for version in context.list_versions():
             view_metadata[version] = self._make_view_verdata(

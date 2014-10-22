@@ -47,7 +47,7 @@ def get_doc_path_info(context, request):
     relpath = request.matchdict['relpath']
     if not relpath:
         raise HTTPFound(location="index.html")
-    name = context.name
+    name = context.projectname
     version = context.version
     if version != 'latest':
         versions = [version]
@@ -81,7 +81,7 @@ def doc_show(context, request):
     """ Shows the documentation wrapped in an iframe """
     context = ContextWrapper(context)
     stage = context.stage
-    name, version = context.name, context.version
+    name, version = context.projectname, context.version
     doc_path, relpath = get_doc_path_info(context, request)
     return dict(
         title="%s-%s Documentation" % (name, version),
@@ -365,12 +365,10 @@ def index_get(context, request):
 def project_get(context, request):
     context = ContextWrapper(context)
     try:
-        releaselinks = context.stage.get_releaselinks(context.name)
+        releaselinks = context.stage.get_releaselinks(context.projectname)
     except context.stage.UpstreamError as e:
         log.error(e.msg)
         raise HTTPBadGateway(e.msg)
-    if not releaselinks:
-        raise HTTPNotFound("The project %s does not exist." % context.name)
     versions = []
     seen = set()
     for release in releaselinks:
