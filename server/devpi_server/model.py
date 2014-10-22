@@ -826,16 +826,17 @@ class EventSubscribers:
             if stage.ixconfig["type"] == "mirror":
                 return  # we don't trigger on file changes of pypi mirror
             entry = FileEntry(self.xom, ev.typedkey, meta=ev.value)
-            if not entry.projectname or not entry.version:
+            projectname = stage.get_projectname(entry.projectname)
+            if not projectname or not entry.version:
                 # the entry was deleted
                 return
             stage = self.xom.model.getstage(user, index)
             linkstore = stage.get_linkstore_perstage(
-                                                entry.projectname, entry.version)
+                                                projectname, entry.version)
             links = linkstore.get_links(basename=entry.basename)
             if len(links) == 1:
                 self.xom.config.hook.devpiserver_on_upload(
-                    stage=stage, projectname=entry.projectname,
+                    stage=stage, projectname=projectname,
                     version=entry.version,
                     link=links[0])
 

@@ -7,6 +7,7 @@
   string properly so that using the username/index url works with pip.
   Thanks Donald Stufft and Florian Schulze.
 
+- fix issue158: redirect to normalized projectname for all GET views.
 
 2.1.1
 ----------------

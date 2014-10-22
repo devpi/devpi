@@ -104,6 +104,36 @@ def test_docs_view(mapp, testapp):
 
 
 @pytest.mark.with_notifier
+def test_docs_raw_projectname_redirect(mapp, testapp):
+    api = mapp.create_and_use()
+    content = zip_dict({"index.html": "<html><body>foo</body></"})
+    mapp.set_versiondata({
+        "name": "pkg_hello", "version": "1.0"})
+    mapp.upload_doc(
+        "pkg-hello.zip", content, "pkg-hello", "1.0", code=200, waithooks=True)
+    r = testapp.xget(302, api.index + "/pkg-hello/1.0/+doc/index.html")
+    assert r.location == '%s/pkg_hello/1.0/+doc/index.html' % api.index
+    r = testapp.xget(200, r.location, headers=dict(accept="text/html"))
+    html = py.builtin._totext(r.html.renderContents().strip(), 'utf-8')
+    assert '<html><body>foo</body></html>' == html
+
+
+@pytest.mark.with_notifier
+def test_docs_show_projectname_redirect(mapp, testapp):
+    api = mapp.create_and_use()
+    content = zip_dict({"index.html": "<html><body>foo</body></"})
+    mapp.set_versiondata({
+        "name": "pkg_hello", "version": "1.0"})
+    mapp.upload_doc(
+        "pkg-hello.zip", content, "pkg-hello", "1.0", code=200, waithooks=True)
+    r = testapp.xget(302, api.index + "/pkg-hello/1.0/+d/index.html")
+    assert r.location == '%s/pkg_hello/1.0/+d/index.html' % api.index
+    r = testapp.xget(200, r.location, headers=dict(accept="text/html"))
+    iframe, = r.html.findAll('iframe')
+    assert iframe.attrs['src'] == api.index + "/pkg_hello/1.0/+doc/index.html"
+
+
+@pytest.mark.with_notifier
 def test_docs_latest(mapp, testapp):
     api = mapp.create_and_use()
     content = zip_dict({"index.html": "<html><body>2.6</body></html>"})
@@ -290,6 +320,21 @@ def test_project_view(mapp, testapp):
         ("2.6", "http://localhost/%s/pkg1/2.6" % api.stagename)]
 
 
+def test_project_projectname_redirect(mapp, testapp):
+    api = mapp.create_and_use()
+    mapp.set_versiondata({
+        "name": "pkg_hello", "version": "1.0"})
+    mapp.upload_file_pypi(
+        "pkg-hello-1.0.whl", b"123", "pkg-hello", "1.0")
+    r = testapp.xget(302, api.index + '/pkg-hello', headers=dict(accept="text/html"))
+    assert r.location == '%s/pkg_hello' % api.index
+    r = testapp.xget(200, r.location, headers=dict(accept="text/html"))
+    links = r.html.select('#content a')
+    assert [(l.text, l.attrs['href']) for l in links] == [
+        (api.stagename, "http://localhost/%s" % api.stagename),
+        ("1.0", "http://localhost/%s/pkg_hello/1.0" % api.stagename)]
+
+
 def test_project_not_found(mapp, testapp):
     api = mapp.create_and_use()
     r = testapp.get("/blubber/blubb/pkg1", headers=dict(accept="text/html"))
@@ -391,6 +436,21 @@ def test_version_view(mapp, testapp, monkeypatch):
         ('user1/dev', 'http://localhost/user1/dev'),
         ("pkg1-2.6.zip", "http://localhost/%s/+f/523/60ae08d733016/pkg1-2.6.zip#md5=52360ae08d733016c5603d54b06b5300" % api.stagename),
         ('user1/dev', 'http://localhost/user1/dev')]
+
+
+@pytest.mark.with_notifier
+def test_version_projectname_redirect(mapp, testapp):
+    api = mapp.create_and_use()
+    mapp.set_versiondata({
+        "name": "pkg_hello", "version": "1.0", "description": "foo"})
+    mapp.upload_file_pypi(
+        "pkg-hello-1.0.whl", b"123", "pkg-hello", "1.0",
+        register=False, waithooks=True)
+    r = testapp.xget(302, api.index + '/pkg-hello/1.0', headers=dict(accept="text/html"))
+    assert r.location == '%s/pkg_hello/1.0' % api.index
+    r = testapp.xget(200, r.location, headers=dict(accept="text/html"))
+    description, = r.html.select('#description')
+    assert '<p>foo</p>' == py.builtin._totext(description.renderContents().strip(), 'utf-8')
 
 
 def test_version_not_found(mapp, testapp):

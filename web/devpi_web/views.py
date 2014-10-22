@@ -1,6 +1,6 @@
 # coding: utf-8
 from __future__ import unicode_literals
-from devpi_common.metadata import get_pyversion_filetype, splitbasename
+from devpi_common.metadata import get_pyversion_filetype
 from devpi_common.metadata import get_sorted_versions
 from devpi_common.viewhelp import iter_toxresults
 from devpi_server.log import threadlog as log
@@ -47,7 +47,7 @@ def get_doc_path_info(context, request):
     relpath = request.matchdict['relpath']
     if not relpath:
         raise HTTPFound(location="index.html")
-    name = context.name
+    name = context.projectname
     version = context.version
     if version != 'latest':
         versions = [version]
@@ -81,7 +81,7 @@ def doc_show(context, request):
     """ Shows the documentation wrapped in an iframe """
     context = ContextWrapper(context)
     stage = context.stage
-    name, version = context.name, context.version
+    name, version = context.projectname, context.version
     doc_path, relpath = get_doc_path_info(context, request)
     return dict(
         title="%s-%s Documentation" % (name, version),
@@ -365,19 +365,16 @@ def index_get(context, request):
 def project_get(context, request):
     context = ContextWrapper(context)
     try:
-        releaselinks = context.stage.get_releaselinks(context.name)
+        releaselinks = context.stage.get_releaselinks(context.projectname)
     except context.stage.UpstreamError as e:
         log.error(e.msg)
         raise HTTPBadGateway(e.msg)
-    if not releaselinks:
-        raise HTTPNotFound("The project %s does not exist." % context.name)
     versions = []
     seen = set()
     for release in releaselinks:
         user, index = release.entrypath.split("/", 2)[:2]
-        try:
-            name, version = splitbasename(release)[:2]
-        except ValueError:
+        name, version = release.projectname, release.version
+        if version == 'XXX':
             continue
         seen_key = (user, index, name, version)
         if seen_key in seen:

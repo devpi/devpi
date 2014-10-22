@@ -17,7 +17,7 @@ from devpi_common.vendor._pip import HTMLPage
 
 from devpi_common.url import URL
 from devpi_common.metadata import BasenameMeta
-from devpi_common.metadata import is_archive_of_project
+from devpi_common.metadata import is_archive_of_project, splitbasename
 from devpi_common.types import ensure_unicode_keys
 from devpi_common.validation import normalize_name, ensure_unicode
 from devpi_common.request import new_requests_session
@@ -204,7 +204,12 @@ class PyPIStage(BaseStage):
         from .model import ELink
         for relpath, md5, eggfragment in data:
             linkdict = dict(entrypath=relpath, md5=md5, eggfragment=eggfragment)
-            yield ELink(self.filestore, linkdict, projectname, "XXX")
+            version = "XXX"
+            try:
+                name, version = splitbasename(relpath)[:2]
+            except ValueError:
+                pass
+            yield ELink(self.filestore, linkdict, projectname, version)
 
     def clear_cache(self, projectname):
         normname = normalize_name(projectname)
