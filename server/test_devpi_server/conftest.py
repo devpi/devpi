@@ -638,6 +638,10 @@ class MyTestApp(TApp):
 
     def get(self, *args, **kwargs):
         kwargs.setdefault("expect_errors", True)
+        accept = kwargs.pop("accept", None)
+        if accept is not None:
+            headers = kwargs.setdefault("headers", {})
+            headers[str("Accept")] = str(accept)
         return super(MyTestApp, self).get(*args, **kwargs)
 
     def xget(self, code, *args, **kwargs):

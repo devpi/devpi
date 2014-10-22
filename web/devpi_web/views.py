@@ -32,28 +32,11 @@ class ContextWrapper(object):
         return getattr(self.context, name)
 
     @reify
-    def stage(self):
-        stage = self.model.getstage(self.username, self.index)
-        if not stage:
-            raise HTTPNotFound(
-                "The stage %s/%s could not be found." % (self.username, self.index))
-        return stage
-
-    @reify
     def versions(self):
         versions = self.stage.list_versions(self.name)
         if not versions:
             raise HTTPNotFound("The project %s does not exist." % self.name)
         return get_sorted_versions(versions)
-
-    @reify
-    def verdata(self):
-        verdata = self.stage.get_versiondata(self.name, self.version)
-        if not verdata and self.versions:
-            raise HTTPNotFound(
-                "The version %s of project %s does not exist." % (
-                    self.version, self.name))
-        return verdata
 
     @reify
     def linkstore(self):
@@ -417,12 +400,13 @@ def project_get(context, request):
     accept="text/html", request_method="GET",
     renderer="templates/version.pt")
 def version_get(context, request):
+    """ Show version for the precise stage, ignores inheritance. """
     context = ContextWrapper(context)
     user, index = context.username, context.index
     name, version = context.name, context.version
     stage = context.stage
     try:
-        verdata = context.verdata
+        verdata = context.get_versiondata(perstage=True)
     except stage.UpstreamError as e:
         log.error(e.msg)
         raise HTTPBadGateway(e.msg)

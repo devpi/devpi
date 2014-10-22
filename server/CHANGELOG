@@ -1,3 +1,9 @@
+2.1.2.dev
+----------------
+
+- fix issue172: avoid traceback when user/index/name/version is accessed.
+
+
 2.1.1
 ----------------
 

@@ -1,6 +1,7 @@
 from devpi_common.types import ensure_unicode
 from devpi_server.auth import Auth
 from devpi_server.views import abort, abort_authenticate
+from devpi_server.model import UpstreamError
 from pyramid.authentication import CallbackAuthenticationPolicy, b64decode
 from pyramid.decorator import reify
 from pyramid.security import Allow, Deny, Everyone
@@ -74,8 +75,46 @@ class RootFactory(object):
     def getstage(self, user, index):
         stage = self.model.getstage(user, index)
         if not stage:
-            abort(self.request, 404, "no stage %s/%s" % (user, index))
+            abort(self.request, 404,
+                  "The stage %s/%s could not be found." % (user, index))
         return stage
+
+    def get_versiondata(self, projectname=None, version=None, perstage=False):
+        if projectname is None:
+            projectname = self.projectname  # raises 404 if not found
+        if version is None:
+            version = self.version
+        if perstage:
+            get = self.stage.get_versiondata_perstage
+            msg = " on stage %r" %(self.index,)
+        else:
+            get = self.stage.get_versiondata
+            msg = ""
+        try:
+            verdata = get(projectname, version)
+        except UpstreamError as e:
+            abort(self.request, 502, str(e))
+        if not verdata:
+            abort(self.request, 404,
+                  "The version %s of project %s does not exist%s." %
+                               (self.version, projectname, msg))
+        return verdata
+
+    def list_versions(self, projectname=None):
+        if projectname is None:
+            projectname = self.projectname
+        try:
+            return self.stage.list_versions(projectname)
+        except UpstreamError as e:
+            abort(self.request, 502, str(e))
+
+    @reify
+    def projectname(self):
+        name = self.stage.get_projectname(self.name)
+        if name is None:
+            raise abort(self.request, 404,
+                        "The project %s does not exist." % self.name)
+        return name
 
     @reify
     def index(self):
