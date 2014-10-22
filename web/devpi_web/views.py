@@ -1,6 +1,6 @@
 # coding: utf-8
 from __future__ import unicode_literals
-from devpi_common.metadata import get_pyversion_filetype, splitbasename
+from devpi_common.metadata import get_pyversion_filetype
 from devpi_common.metadata import get_sorted_versions
 from devpi_common.viewhelp import iter_toxresults
 from devpi_server.log import threadlog as log
@@ -375,9 +375,8 @@ def project_get(context, request):
     seen = set()
     for release in releaselinks:
         user, index = release.entrypath.split("/", 2)[:2]
-        try:
-            name, version = splitbasename(release)[:2]
-        except ValueError:
+        name, version = release.projectname, release.version
+        if version == 'XXX':
             continue
         seen_key = (user, index, name, version)
         if seen_key in seen:
