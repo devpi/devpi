@@ -3,6 +3,10 @@
 
 - fix issue172: avoid traceback when user/index/name/version is accessed.
 
+- fix issue170: ensure that we parse the prospective pip-6.0 user agent
+  string properly so that using the username/index url works with pip.
+  Thanks Donald Stufft and Florian Schulze.
+
 
 2.1.1
 ----------------
