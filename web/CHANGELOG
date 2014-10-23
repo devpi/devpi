@@ -1,6 +1,11 @@
 2.2.X
 ---------------
 
+- fix issue175: use normalized name of projects, so redirects from unnormalized
+  names works.  NOTE that if you had issues with documentation uploads
+  not appearing because of normalization issues ("-" or "_" appearing in the name
+  for example) you need to re-upload the docs or do a full export/import cycle.
+
 - fix view when tox results can not be parsed.
 
 - version.pt: removed "code" tag around overwrite count.
@@ -24,8 +29,6 @@
 
 - fix notfound-redirect when serving under an outside URL with a sub path
 
-- fix issue175: use normalized name of projects, so redirects from unnormalized
-  names works.
 
 
 2.2.0
