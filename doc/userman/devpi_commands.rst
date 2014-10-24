@@ -504,8 +504,7 @@ devpi command reference (server)
                         [--replica-cert pem_file] [--gen-config]
                         [--secretfile path] [--export PATH] [--import PATH]
                         [--passwd USER] [--serverdir DIR] [--restrict-modify SPEC]
-                        [--start] [--stop] [--status] [--log] [--theme THEME]
-                        [--recreate-search-index]
+                        [--start] [--stop] [--status] [--log]
     
     Start a server which serves multiples users and indices. The special root/pypi
     index is a real-time mirror of pypi.python.org and is created by default. All
@@ -525,8 +524,6 @@ devpi command reference (server)
                             server and the web server does not set or you want to
                             override the custom X-outside-url header.
       --debug               run wsgi application with debug logging
-      --theme THEME         folder with template and resource overwrites for the
-                            web interface
     
     pypi mirroring options (root/pypi):
       --refresh SECS        interval for consulting changelog api of
@@ -537,7 +534,7 @@ devpi command reference (server)
                             are not using a http proxy.
     
     deployment and data options:
-      --version             show devpi_version (2.1.0)
+      --version             show devpi_version (2.1.2)
       --role {master,replica,auto}
                             set role of this instance. [auto]
       --master-url MASTER_URL
@@ -582,11 +579,3 @@ devpi command reference (server)
       --stop                stop the background devpi-server
       --status              show status of background devpi-server
       --log                 show logfile content of background server
-    
-    search indexing:
-      --recreate-search-index
-                            Recreate search index for all projects and their
-                            documentation. This is only needed if there where
-                            indexing related errors in a devpi-web release and you
-                            want to upgrade only devpi-web without a full devpi-
-                            server import/export.

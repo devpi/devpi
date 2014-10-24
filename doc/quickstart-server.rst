@@ -29,7 +29,7 @@ Install or upgrade ``devpi-server``::
 And let's check the version::
 
     $ devpi-server --version
-    2.1.0
+    2.1.2
 
 .. _genconfig:
 
@@ -55,6 +55,7 @@ Here is an example run::
     wrote gen-config/nginx-devpi.conf
     wrote gen-config/crontab
     wrote gen-config/net.devpi.plist
+    wrote gen-config/devpi.service
 
 Below we look at the config files in a bit of detail.
 
@@ -167,18 +168,18 @@ agent has been generated for you::
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
     <plist version="1.0">
     <dict>
-        <key>Label</key>
-        <string>net.devpi</string>
-        <key>ProgramArguments</key>
-        <array>
-            <string>/home/hpk/venv/0/bin/devpi-server</string>
-            <string>--port</string>
-            <string>4040</string>
-            <string>--serverdir</string>
-            <string>/tmp/home/mydevpiserver</string>
-        </array>
-        <key>RunAtLoad</key>
-        <true/>
+    	<key>Label</key>
+    	<string>net.devpi</string>
+    	<key>ProgramArguments</key>
+    	<array>
+    		<string>/home/hpk/venv/0/bin/devpi-server</string>
+    		<string>--port</string>
+    		<string>4040</string>
+    		<string>--serverdir</string>
+    		<string>/tmp/home/mydevpiserver</string>
+    	</array>
+    	<key>RunAtLoad</key>
+    	<true/>
     </dict>
     </plist>
 
@@ -210,12 +211,12 @@ Installing devpi server and client
 
 .. 
     $ devpi-server --stop
-    2014-09-22 11:31:21,882 INFO  NOCTX DB: Creating schema
-    2014-09-22 11:31:21,922 INFO  [Wtx-1] setting password for user u'root'
-    2014-09-22 11:31:21,922 INFO  [Wtx-1] created user u'root' with email None
-    2014-09-22 11:31:21,922 INFO  [Wtx-1] created root user
-    2014-09-22 11:31:21,923 INFO  [Wtx-1] created root/pypi index
-    2014-09-22 11:31:21,938 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
+    2014-10-24 17:29:15,534 INFO  NOCTX DB: Creating schema
+    2014-10-24 17:29:15,577 INFO  [Wtx-1] setting password for user u'root'
+    2014-10-24 17:29:15,577 INFO  [Wtx-1] created user u'root' with email None
+    2014-10-24 17:29:15,577 INFO  [Wtx-1] created root user
+    2014-10-24 17:29:15,578 INFO  [Wtx-1] created root/pypi index
+    2014-10-24 17:29:15,591 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
     no server found
 
 ..
@@ -228,15 +229,15 @@ and caches https://pypi.python.org packages.  Let's start a server
 for the purposes of this tutorial in the background::
 
     $ devpi-server --port 4040 --start
-    2014-09-22 11:31:22,554 INFO  NOCTX DB: Creating schema
-    2014-09-22 11:31:22,600 INFO  [Wtx-1] setting password for user u'root'
-    2014-09-22 11:31:22,600 INFO  [Wtx-1] created user u'root' with email None
-    2014-09-22 11:31:22,600 INFO  [Wtx-1] created root user
-    2014-09-22 11:31:22,600 INFO  [Wtx-1] created root/pypi index
-    2014-09-22 11:31:22,613 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
+    2014-10-24 17:29:15,945 INFO  NOCTX DB: Creating schema
+    2014-10-24 17:29:15,988 INFO  [Wtx-1] setting password for user u'root'
+    2014-10-24 17:29:15,988 INFO  [Wtx-1] created user u'root' with email None
+    2014-10-24 17:29:15,988 INFO  [Wtx-1] created root user
+    2014-10-24 17:29:15,988 INFO  [Wtx-1] created root/pypi index
+    2014-10-24 17:29:16,008 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
     starting background devpi-server at http://localhost:4040
     /tmp/home/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server --port 4040
-    process u'devpi-server' started pid=8582
+    process u'devpi-server' started pid=19396
     devpi-server process startup detected
     logfile is at /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
 
@@ -268,9 +269,9 @@ For purposes of this tutorial, we use the URL
     $ devpi use http://localhost:4040
     using server: http://localhost:4040/ (not logged in)
     no current index: type 'devpi use -l' to discover indices
-    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
+    ~/.pydistutils.cfg     : no config file exists
+    ~/.pip/pip.conf        : no config file exists
+    ~/.buildout/default.cfg: no config file exists
     always-set-cfg: no
 
 At this point we are not connected to any index, just to the
@@ -329,9 +330,9 @@ and use it ::
 
     $ devpi use alice/dev
     current devpi index: http://localhost:4040/alice/dev (logged in as alice)
-    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
+    ~/.pydistutils.cfg     : no config file exists
+    ~/.pip/pip.conf        : no config file exists
+    ~/.buildout/default.cfg: no config file exists
     always-set-cfg: no
 
 Our ``alice/dev`` index derives from ``root/pypi`` by default
@@ -383,7 +384,7 @@ Stopping the server
 Let's not forget to stop our background tutorial server::
 
     $ devpi-server --stop
-    killed server pid=8582
+    killed server pid=19396
 
 .. _upgrade:
 

@@ -475,7 +475,7 @@ And to prove it::
 
    $ devpi getjson /emilie/oups
    GET http://localhost:3141/emilie/oups
-   404 Not Found: no stage emilie/oups
+   404 Not Found: The stage emilie/oups could not be found.
    
 .. _devpi_um_indices_list:   
    
