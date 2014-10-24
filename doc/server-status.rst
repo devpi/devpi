@@ -17,6 +17,8 @@ information about a running server::
     port: port this server is listening on
     outside-url: nill|url this host is meant to be accessed from
     serverdir: local path to serverdir 
+    serial: serial of the current server state
+    event-serial: serial for which events have been processed
   
 Master nodes also provide a list of replicas::
  
@@ -32,6 +34,7 @@ Replica nodes also provide extra information related to their master:
     master-url: URL of master if we are a replica
     master-uuid: uuid of master
     master-serial: last known serial the master has
+
 
 
 UUIDs of master and replica sites

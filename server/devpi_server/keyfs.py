@@ -315,7 +315,7 @@ class TxNotificationThread:
     def wait_event_serial(self, serial):
         with threadlog.around("info", "waiting for event-serial %s", serial):
             with self.cv_new_event_serial:
-                while serial >= self.read_event_serial():
+                while serial > self.read_event_serial():
                     self.cv_new_event_serial.wait()
 
     def wait_tx_serial(self, serial):
@@ -325,7 +325,13 @@ class TxNotificationThread:
                     self.cv_new_transaction.wait()
 
     def read_event_serial(self):
-        return read_int_from_file(self.event_serial_path, 0)
+        # the disk serial is kept one higher because pre-2.1.2
+        # "event_serial" pointed to the "next event serial to be
+        # processed" instead of the now "last processed event serial"
+        return read_int_from_file(self.event_serial_path, 0) - 1
+
+    def write_event_serial(self, event_serial):
+        write_int_to_file(event_serial + 1, self.event_serial_path)
 
     def notify_on_commit(self, serial):
         with self.cv_new_transaction:
@@ -339,14 +345,14 @@ class TxNotificationThread:
         event_serial = self.read_event_serial()
         log = thread_push_log("[NOTI]")
         while 1:
-            while event_serial < self.keyfs._fs.next_serial:
+            while event_serial < self.keyfs.get_current_serial():
                 self.thread.exit_if_shutdown()
+                event_serial += 1
                 self._execute_hooks(event_serial, log)
                 with self.cv_new_event_serial:
-                    event_serial += 1
-                    write_int_to_file(event_serial, self.event_serial_path)
+                    self.write_event_serial(event_serial)
                     self.cv_new_event_serial.notify_all()
-            if event_serial >= self.keyfs._fs.next_serial:
+            if event_serial >= self.keyfs.get_current_serial():
                 with self.cv_new_transaction:
                     self.cv_new_transaction.wait()
                     self.thread.exit_if_shutdown()

@@ -9,6 +9,11 @@
 
 - fix issue158: redirect to normalized projectname for all GET views.
 
+- fix issue169: change /+status to expose "event_serial" as "the last
+  event serial that was processed".  document "serial" and
+  "event-serial" and also refine internals wrt to "event-serial" so that
+  it means the "last serial for which events have been processed"
+
 2.1.1
 ----------------
 
