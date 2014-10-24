@@ -443,7 +443,7 @@ class TestSubscriber:
                 with key1.keyfs.transaction(write=True):
                     key1.set(1)
             assert key1.keyfs.get_next_serial() == 1
-            assert key1.keyfs.notifier.read_event_serial() == 0
+            assert key1.keyfs.notifier.read_event_serial() == -1
             monkeypatch.undo()
 
         # and then we restart keyfs and see if the hook still gets called
@@ -452,7 +452,7 @@ class TestSubscriber:
         assert event.at_serial == 0
         assert event.typedkey == key1
         key1.keyfs.notifier.wait_event_serial(0)
-        assert key1.keyfs.notifier.read_event_serial() == 1
+        assert key1.keyfs.notifier.read_event_serial() == 0
 
     def test_subscribe_pattern_key(self, keyfs, queue, pool):
         pkey = keyfs.add_key("NAME1", "{name}", int)
@@ -577,3 +577,9 @@ class TestRenameFileLogic:
         check_pending_renames(str(tmpdir), rel_renames)
         assert not file1.exists()
         assert len(caplog.getrecords(".*completed.*file-del.*")) == 1
+
+
+def test_devpiserver_22_event_serial():
+    import devpi_server
+    if devpi_server.__version__ == "2.2.":
+        pytest.fail("change event_serial disk representation wrt -1/+1 hack")

@@ -32,9 +32,9 @@ def check_compatible_version(xom):
         return
     state_version = xom.get_state_version()
     if server_version != state_version:
-        state_ver = list(map(int, state_version.split(".")[:2]))
-        server_ver = list(map(int, server_version.split(".")[:2]))
-        if state_ver != server_ver:
+        state_ver = state_version.split(".")
+        server_ver = server_version.split(".")
+        if state_ver[:2] != server_ver[:2]:
             fatal("Incompatible state: server %s cannot run serverdir "
                   "%s created by %s.\n"
                   "Use --export from older version, then --import with newer "
@@ -45,6 +45,7 @@ def check_compatible_version(xom):
         tw = py.io.TerminalWriter(sys.stderr)
         tw.line("minor version upgrade: setting serverstate to %s from %s" %(
                 server_version, state_version), bold=True)
+
 
 def main(argv=None, plugins=None):
     """ devpi-server command line entry point. """
