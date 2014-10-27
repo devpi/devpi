@@ -737,6 +737,7 @@ class PyPIView:
         return view_verdata
 
     @view_config(route_name="/{user}/{index}/{name}/{version}",
+                 permission="del_verdata",
                  request_method="DELETE")
     def del_versiondata(self):
         stage = self.context.stage
