@@ -437,6 +437,12 @@ class TestSubmitValidation:
                 entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
                 assert not entry.file_exists()
 
+    def test_delete_verdata_noacl_issue179(self, submit, testapp, mapp):
+        metadata = {"name": "pkg5", "version": "2.6", ":action": "submit"}
+        submit.metadata(metadata, code=200)
+        mapp.create_and_login_user("user2")
+        testapp.xdel(403, "/%s/pkg5/2.6" % submit.stagename)
+
     def test_upload_and_delete_user_issue130(self, submit, testapp, mapp):
         metadata = {"name": "pkg5", "version": "2.6", ":action": "submit"}
         submit.metadata(metadata, code=200)

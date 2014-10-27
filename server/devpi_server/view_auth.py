@@ -39,7 +39,8 @@ class RootFactory(object):
                 (Allow, 'root', 'index_create'),
                 (Allow, 'root', 'index_modify'),
                 (Allow, 'root', 'index_delete'),
-                (Allow, 'root', 'del_project')])
+                (Allow, 'root', 'del_project'),
+                (Allow, 'root', 'del_verdata')])
             if self.username == 'root':
                 acl.append((Deny, Everyone, 'user_delete'))
             if self.username:
@@ -56,6 +57,7 @@ class RootFactory(object):
                     (Allow, principal, 'index_create'),
                     (Allow, principal, 'index_modify'),
                     (Allow, principal, 'index_delete'),
+                    (Allow, principal, 'del_verdata'),
                     (Allow, principal, 'del_project')])
         stage = None
         if self.username and self.index:
@@ -69,6 +71,7 @@ class RootFactory(object):
                 acl.extend([
                     (Allow, self.username, 'index_modify'),
                     (Allow, self.username, 'index_delete'),
+                    (Allow, self.username, 'del_verdata'),
                     (Allow, self.username, 'del_project')])
         return acl
 

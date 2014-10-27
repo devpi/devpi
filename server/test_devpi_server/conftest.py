@@ -649,6 +649,12 @@ class MyTestApp(TApp):
         assert r.status_code == code
         return r
 
+    def xdel(self, code, *args, **kwargs):
+        kwargs.setdefault("expect_errors", True)
+        r = self.delete(*args, **kwargs)
+        assert r.status_code == code
+        return r
+
 
     def get_json(self, *args, **kwargs):
         headers = kwargs.setdefault("headers", {})
