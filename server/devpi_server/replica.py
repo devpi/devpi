@@ -325,23 +325,12 @@ class ReplicationErrors:
         with self.errorsfn.open('w') as f:
             json.dump(self.errors, f)
 
-    def remove(self, md5):
-        error = self.errors.pop(md5, None)
-        if error is not None and error['md5'] in self.errors:
-            # we got a new file for something which caused an error before
-            self.remove(error['md5'])
+    def remove(self, entry):
+        self.errors.pop(entry.relpath, None)
         self._write()
 
     def add(self, error):
-        error_dict = dict(
-            url=error.url,
-            status_code=error.status_code,
-            message=error.message,
-            md5=error.md5,
-            remote_md5=error.remote_md5)
-        self.errors[error.md5] = error_dict
-        if error.remote_md5 is not None:
-            self.errors[error.remote_md5] = error_dict
+        self.errors[error.relpath] = error
         self._write()
 
 
@@ -350,11 +339,10 @@ class ImportFileReplica:
         self.xom = xom
         self.errors = errors
 
-    def _process(self, fswriter, key, val, back_serial):
+    def __call__(self, fswriter, key, val, back_serial):
         threadlog.debug("ImportFileReplica for %s, %s", key, val)
         relpath = key.relpath
         entry = self.xom.filestore.get_file_entry_raw(key, val)
-        self.errors.remove(entry.md5)
         file_exists = os.path.exists(entry._filepath)
         if val is None:
             if back_serial >= 0:
@@ -380,33 +368,30 @@ class ImportFileReplica:
             raise FileReplicationError(r, entry)
         remote_md5 = hashlib.md5(r.content).hexdigest()
         if entry.md5 and entry.md5 != remote_md5:
-            raise FileReplicationError(
-                r, entry,
+            # the file we got is different, it may have changed later.
+            # we remember the error and move on
+            self.errors.add(dict(
+                url=r.url,
                 message="remote has md5 %s, expected %s" % (
                     remote_md5, entry.md5),
-                remote_md5=remote_md5)
+                relpath=entry.relpath))
+            return
+        # in case there were errors before, we can now remove them
+        self.errors.remove(entry)
         tmppath = entry._filepath + "-tmp"
         with get_write_file_ensure_dir(tmppath) as f:
             f.write(r.content)
         fswriter.record_rename_file(tmppath, entry._filepath)
 
-    def __call__(self, *args, **kwargs):
-        try:
-            self._process(*args, **kwargs)
-        except FileReplicationError as e:
-            threadlog.error("could not process: %s\n%s", e.url, e)
-            self.errors.add(e)
-
 
 class FileReplicationError(Exception):
     """ raised when replicating a file from the master failed. """
-    def __init__(self, response, entry, message=None, remote_md5=None):
+    def __init__(self, response, entry, message=None):
         self.url = response.url
         self.status_code = response.status_code
         self.message = message or "failed"
-        self.md5 = entry.md5
-        self.remote_md5 = remote_md5
+        self.relpath = entry.relpath
 
     def __str__(self):
-        return "FileReplicationError with %s, code=%s, md5=%s, message=%s" % (
-               self.url, self.status_code, self.md5, self.message)
+        return "FileReplicationError with %s, code=%s, relpath=%s, message=%s" % (
+               self.url, self.status_code, self.relpath, self.message)
