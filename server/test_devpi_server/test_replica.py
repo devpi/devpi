@@ -284,7 +284,7 @@ class TestFileReplication:
         from devpi_server.replica import ReplicationErrors
         replica_xom = makexom(["--master", "http://localhost"])
         keyfs = replica_xom.keyfs
-        replica_xom.errors = ReplicationErrors(replica_xom)
+        replica_xom.errors = ReplicationErrors(replica_xom.config.serverdir)
         for key in (keyfs.STAGEFILE, keyfs.PYPIFILE_NOMD5):
             keyfs.subscribe_on_import(
                 key, ImportFileReplica(replica_xom, replica_xom.errors))

@@ -213,7 +213,7 @@ class StatusView:
             status["role"] = "REPLICA"
             status["master-url"] = master_url
             status["master-uuid"] = config.nodeinfo.get("master-uuid")
-            replication_errors = ReplicationErrors(self.xom)
+            replication_errors = ReplicationErrors(self.xom.config.serverdir)
             status["replication-errors"] = replication_errors.errors
         else:
             status["role"] = "MASTER"

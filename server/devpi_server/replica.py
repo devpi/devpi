@@ -126,7 +126,7 @@ class ReplicaThread:
         log = thread_push_log("[REP]")
         session = self.xom.new_http_session("replica")
         keyfs = self.xom.keyfs
-        errors = ReplicationErrors(self.xom)
+        errors = ReplicationErrors(self.xom.config.serverdir)
         for key in (keyfs.STAGEFILE, keyfs.PYPIFILE_NOMD5):
             keyfs.subscribe_on_import(key, ImportFileReplica(self.xom, errors))
         config = self.xom.config
@@ -307,8 +307,8 @@ def proxy_write_to_master(xom, request):
 
 
 class ReplicationErrors:
-    def __init__(self, xom):
-        self.errorsfn = xom.config.serverdir.join(".replicationerrors")
+    def __init__(self, serverdir):
+        self.errorsfn = serverdir.join(".replicationerrors")
         self.errors = dict()
         self._read()
 
