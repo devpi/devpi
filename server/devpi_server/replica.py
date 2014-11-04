@@ -9,7 +9,7 @@ from pyramid.view import view_config
 from pyramid.response import Response
 from webob.headers import EnvironHeaders, ResponseHeaders
 
-from .keyfs import load, loads, dump, get_write_file_ensure_dir
+from .keyfs import load, loads, dump, get_write_file_ensure_dir, rename
 from .log import thread_push_log, threadlog
 from .views import is_mutating_http_method, H_MASTER_UUID
 from .model import UpstreamError
@@ -322,12 +322,14 @@ class ReplicationErrors:
                 pass
 
     def _write(self):
-        with self.errorsfn.open('w') as f:
+        tmppath = self.errorsfn.strpath + "-tmp"
+        with open(tmppath, 'w') as f:
             json.dump(self.errors, f)
+        rename(tmppath, self.errorsfn.strpath)
 
     def remove(self, entry):
-        self.errors.pop(entry.relpath, None)
-        self._write()
+        if self.errors.pop(entry.relpath, None) is not None:
+            self._write()
 
     def add(self, error):
         self.errors[error['relpath']] = error
