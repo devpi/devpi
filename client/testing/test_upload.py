@@ -139,6 +139,11 @@ class TestUploadFunctional:
         devpi("use", "root/pypi")
         devpi("upload", "--dry-run")
 
+        # see if we get an error return code
+        res = devpi("upload")
+        assert isinstance(res.sysex, SystemExit)
+        assert res.sysex.args == (1,)
+
     def test_fromdir(self, initproj, devpi, out_devpi, runproc, monkeypatch):
         initproj("hello-1.1", {"doc": {
             "conf.py": "",

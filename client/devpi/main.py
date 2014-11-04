@@ -390,6 +390,11 @@ def parse_docstring(txt):
 
 def add_subparsers(parser):
     subparsers = parser.add_subparsers()
+    # see http://stackoverflow.com/questions/18282403/
+    # for the following two lines (py3 compat)
+    subparsers.required = True
+    subparsers.dest = "command"
+
     for func, args, kwargs in subcommand.discover(globals()):
         if len(args) > 1:
             name = args[1]

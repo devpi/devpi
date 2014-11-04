@@ -1,5 +1,10 @@
 import pytest
-from devpi.main import verify_reply_version
+from devpi.main import verify_reply_version, initmain
+
+def test_initmain():
+    with pytest.raises(SystemExit) as excinfo:
+        initmain(["devpi"])
+    assert excinfo.value.args == (0,)
 
 class TestVerifyAPIVersion:
     def test_noversion(self, loghub):
