@@ -1,6 +1,7 @@
 import os
 import py
 import hashlib
+import json
 import contextlib
 import time
 from pyramid.httpexceptions import HTTPNotFound, HTTPAccepted
@@ -125,8 +126,9 @@ class ReplicaThread:
         log = thread_push_log("[REP]")
         session = self.xom.new_http_session("replica")
         keyfs = self.xom.keyfs
+        errors = ReplicationErrors(self.xom)
         for key in (keyfs.STAGEFILE, keyfs.PYPIFILE_NOMD5):
-            keyfs.subscribe_on_import(key, ImportFileReplica(self.xom))
+            keyfs.subscribe_on_import(key, ImportFileReplica(self.xom, errors))
         config = self.xom.config
         nodeinfo = config.nodeinfo
         while 1:
@@ -303,14 +305,56 @@ def proxy_write_to_master(xom, request):
                     body=r.content,
                     headers=headers)
 
-class ImportFileReplica:
-    def __init__(self, xom):
-        self.xom = xom
 
-    def __call__(self, fswriter, key, val, back_serial):
+class ReplicationErrors:
+    def __init__(self, xom):
+        self.errorsfn = xom.config.serverdir.join(".replicationerrors")
+        self.errors = dict()
+        self._read()
+
+    def _read(self):
+        if not self.errorsfn.exists():
+            return
+        with self.errorsfn.open() as f:
+            try:
+                self.errors = json.load(f)
+            except ValueError:
+                pass
+
+    def _write(self):
+        with self.errorsfn.open('w') as f:
+            json.dump(self.errors, f)
+
+    def remove(self, md5):
+        error = self.errors.pop(md5, None)
+        if error is not None and error['md5'] in self.errors:
+            # we got a new file for something which caused an error before
+            self.remove(error['md5'])
+        self._write()
+
+    def add(self, error):
+        error_dict = dict(
+            url=error.url,
+            status_code=error.status_code,
+            message=error.message,
+            md5=error.md5,
+            remote_md5=error.remote_md5)
+        self.errors[error.md5] = error_dict
+        if error.remote_md5 is not None:
+            self.errors[error.remote_md5] = error_dict
+        self._write()
+
+
+class ImportFileReplica:
+    def __init__(self, xom, errors):
+        self.xom = xom
+        self.errors = errors
+
+    def _process(self, fswriter, key, val, back_serial):
         threadlog.debug("ImportFileReplica for %s, %s", key, val)
         relpath = key.relpath
         entry = self.xom.filestore.get_file_entry_raw(key, val)
+        self.errors.remove(entry.md5)
         file_exists = os.path.exists(entry._filepath)
         if val is None:
             if back_serial >= 0:
@@ -333,26 +377,36 @@ class ImportFileReplica:
             return
 
         if r.status_code != 200:
-            raise FileReplicationError(r)
+            raise FileReplicationError(r, entry)
         remote_md5 = hashlib.md5(r.content).hexdigest()
         if entry.md5 and entry.md5 != remote_md5:
-            raise FileReplicationError(r, "remote has md5 %s, expected %s" %(
-                                       remote_md5, entry.md5))
+            raise FileReplicationError(
+                r, entry,
+                message="remote has md5 %s, expected %s" % (
+                    remote_md5, entry.md5),
+                remote_md5=remote_md5)
         tmppath = entry._filepath + "-tmp"
         with get_write_file_ensure_dir(tmppath) as f:
             f.write(r.content)
         fswriter.record_rename_file(tmppath, entry._filepath)
 
+    def __call__(self, *args, **kwargs):
+        try:
+            self._process(*args, **kwargs)
+        except FileReplicationError as e:
+            threadlog.error("could not process: %s\n%s", e.url, e)
+            self.errors.add(e)
+
 
 class FileReplicationError(Exception):
     """ raised when replicating a file from the master failed. """
-    def __init__(self, response, message=None):
+    def __init__(self, response, entry, message=None, remote_md5=None):
         self.url = response.url
         self.status_code = response.status_code
         self.message = message or "failed"
+        self.md5 = entry.md5
+        self.remote_md5 = remote_md5
 
     def __str__(self):
-        return "FileReplicationError with %s, code=%s, message=%s" %(
-               self.url, self.status_code, self.message)
-
-
+        return "FileReplicationError with %s, code=%s, md5=%s, message=%s" % (
+               self.url, self.status_code, self.md5, self.message)
