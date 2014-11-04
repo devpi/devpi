@@ -141,6 +141,7 @@ class Uploader:
                 if r.type == "actionlog":
                     for x in r.result:
                         hub.error("  " + x)
+                hub.fatal("POST to %s FAILED" % hub.current.pypisubmit)
 
     def upload_release_file(self, path, pkginfo):
         meta = {}

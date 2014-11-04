@@ -1,3 +1,8 @@
+2.0.4.dev
+----------------
+
+- fix issue181: provide Return code != 0 for failed upload POST requests.
+ 
 2.0.3
 ----------------
 
