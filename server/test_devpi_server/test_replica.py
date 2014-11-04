@@ -281,10 +281,13 @@ def replay(xom, replica_xom):
 class TestFileReplication:
     @pytest.fixture
     def replica_xom(self, makexom):
+        from devpi_server.replica import ReplicationErrors
         replica_xom = makexom(["--master", "http://localhost"])
         keyfs = replica_xom.keyfs
+        replica_xom.errors = ReplicationErrors(replica_xom)
         for key in (keyfs.STAGEFILE, keyfs.PYPIFILE_NOMD5):
-            keyfs.subscribe_on_import(key, ImportFileReplica(replica_xom))
+            keyfs.subscribe_on_import(
+                key, ImportFileReplica(replica_xom, replica_xom.errors))
         return replica_xom
 
     def test_no_set_default_indexes(self, replica_xom):
@@ -335,8 +338,12 @@ class TestFileReplication:
         master_url = replica_xom.config.master_url
         master_file_path = master_url.joinpath(entry.relpath).url
         xom.httpget.mockresponse(master_file_path, code=200, content=b'13')
-        with pytest.raises(FileReplicationError):
-            replay(xom, replica_xom)
+        replay(xom, replica_xom)
+        assert list(replica_xom.errors.errors.keys()) == [
+            'root/pypi/+f/5d4/1402abc4b2a76/pytest-1.8.zip']
+        with replica_xom.errors.errorsfn.open() as f:
+            persisted_errors = json.load(f)
+        assert persisted_errors == replica_xom.errors.errors
         with replica_xom.keyfs.transaction():
             assert not r_entry.file_exists()
             assert not os.path.exists(r_entry._filepath)
@@ -346,6 +353,10 @@ class TestFileReplication:
             entry.file_set_content(content1, md5=md5)
         xom.httpget.mockresponse(master_file_path, code=200, content=content1)
         replay(xom, replica_xom)
+        assert replica_xom.errors.errors == {}
+        with replica_xom.errors.errorsfn.open() as f:
+            persisted_errors = json.load(f)
+        assert persisted_errors == replica_xom.errors.errors
         with replica_xom.keyfs.transaction():
             assert r_entry.file_exists()
             assert r_entry.file_get_content() == content1

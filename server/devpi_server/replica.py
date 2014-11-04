@@ -330,7 +330,7 @@ class ReplicationErrors:
         self._write()
 
     def add(self, error):
-        self.errors[error.relpath] = error
+        self.errors[error['relpath']] = error
         self._write()
 
 
