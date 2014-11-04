@@ -1,6 +1,7 @@
 import os
 import py
 import hashlib
+import json
 import contextlib
 import time
 from pyramid.httpexceptions import HTTPNotFound, HTTPAccepted
@@ -8,7 +9,7 @@ from pyramid.view import view_config
 from pyramid.response import Response
 from webob.headers import EnvironHeaders, ResponseHeaders
 
-from .keyfs import load, loads, dump, get_write_file_ensure_dir
+from .keyfs import load, loads, dump, get_write_file_ensure_dir, rename
 from .log import thread_push_log, threadlog
 from .views import is_mutating_http_method, H_MASTER_UUID
 from .model import UpstreamError
@@ -125,8 +126,9 @@ class ReplicaThread:
         log = thread_push_log("[REP]")
         session = self.xom.new_http_session("replica")
         keyfs = self.xom.keyfs
+        errors = ReplicationErrors(self.xom.config.serverdir)
         for key in (keyfs.STAGEFILE, keyfs.PYPIFILE_NOMD5):
-            keyfs.subscribe_on_import(key, ImportFileReplica(self.xom))
+            keyfs.subscribe_on_import(key, ImportFileReplica(self.xom, errors))
         config = self.xom.config
         nodeinfo = config.nodeinfo
         while 1:
@@ -303,9 +305,41 @@ def proxy_write_to_master(xom, request):
                     body=r.content,
                     headers=headers)
 
+
+class ReplicationErrors:
+    def __init__(self, serverdir):
+        self.errorsfn = serverdir.join(".replicationerrors")
+        self.errors = dict()
+        self._read()
+
+    def _read(self):
+        if not self.errorsfn.exists():
+            return
+        with self.errorsfn.open() as f:
+            try:
+                self.errors = json.load(f)
+            except ValueError:
+                pass
+
+    def _write(self):
+        tmppath = self.errorsfn.strpath + "-tmp"
+        with open(tmppath, 'w') as f:
+            json.dump(self.errors, f)
+        rename(tmppath, self.errorsfn.strpath)
+
+    def remove(self, entry):
+        if self.errors.pop(entry.relpath, None) is not None:
+            self._write()
+
+    def add(self, error):
+        self.errors[error['relpath']] = error
+        self._write()
+
+
 class ImportFileReplica:
-    def __init__(self, xom):
+    def __init__(self, xom, errors):
         self.xom = xom
+        self.errors = errors
 
     def __call__(self, fswriter, key, val, back_serial):
         threadlog.debug("ImportFileReplica for %s, %s", key, val)
@@ -336,8 +370,16 @@ class ImportFileReplica:
             raise FileReplicationError(r)
         remote_md5 = hashlib.md5(r.content).hexdigest()
         if entry.md5 and entry.md5 != remote_md5:
-            raise FileReplicationError(r, "remote has md5 %s, expected %s" %(
-                                       remote_md5, entry.md5))
+            # the file we got is different, it may have changed later.
+            # we remember the error and move on
+            self.errors.add(dict(
+                url=r.url,
+                message="remote has md5 %s, expected %s" % (
+                    remote_md5, entry.md5),
+                relpath=entry.relpath))
+            return
+        # in case there were errors before, we can now remove them
+        self.errors.remove(entry)
         tmppath = entry._filepath + "-tmp"
         with get_write_file_ensure_dir(tmppath) as f:
             f.write(r.content)
@@ -352,7 +394,5 @@ class FileReplicationError(Exception):
         self.message = message or "failed"
 
     def __str__(self):
-        return "FileReplicationError with %s, code=%s, message=%s" %(
-               self.url, self.status_code, self.message)
-
-
+        return "FileReplicationError with %s, code=%s, relpath=%s, message=%s" % (
+               self.url, self.status_code, self.relpath, self.message)

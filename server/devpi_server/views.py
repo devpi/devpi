@@ -209,9 +209,12 @@ class StatusView:
         }
         master_url = config.args.master_url
         if master_url:
+            from .replica import ReplicationErrors
             status["role"] = "REPLICA"
             status["master-url"] = master_url
             status["master-uuid"] = config.nodeinfo.get("master-uuid")
+            replication_errors = ReplicationErrors(self.xom.config.serverdir)
+            status["replication-errors"] = replication_errors.errors
         else:
             status["role"] = "MASTER"
         status["polling_replicas"] = self.xom.polling_replicas
