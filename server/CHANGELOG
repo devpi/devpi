@@ -3,6 +3,10 @@
 
 - fix issue179: protect deletion of versions 
 
+- fix issue176: better allow replicas to export their state by removing 
+  an obsolete way of normalizing project names upon export (nowadays,
+  project names should be normalized already and normalization
+  is bound to change/be refined further for devpi-server-2.2)
 
 2.1.2
 ----------------
