@@ -367,7 +367,7 @@ class ImportFileReplica:
             return
 
         if r.status_code != 200:
-            raise FileReplicationError(r, entry)
+            raise FileReplicationError(r)
         remote_md5 = hashlib.md5(r.content).hexdigest()
         if entry.md5 and entry.md5 != remote_md5:
             # the file we got is different, it may have changed later.
@@ -388,11 +388,10 @@ class ImportFileReplica:
 
 class FileReplicationError(Exception):
     """ raised when replicating a file from the master failed. """
-    def __init__(self, response, entry, message=None):
+    def __init__(self, response, message=None):
         self.url = response.url
         self.status_code = response.status_code
         self.message = message or "failed"
-        self.relpath = entry.relpath
 
     def __str__(self):
         return "FileReplicationError with %s, code=%s, relpath=%s, message=%s" % (
