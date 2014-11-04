@@ -274,6 +274,7 @@ class TestStatus:
         data = r.json["result"]
         assert data["role"] == "REPLICA"
         assert data["serial"] == replica_xom.keyfs.get_current_serial()
+        assert data["replication-errors"] == {}
 
 
 def test_apiconfig_with_outside_url(testapp):
