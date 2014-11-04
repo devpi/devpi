@@ -156,7 +156,10 @@ class Hub:
             self.fatal("you need to be logged in (use 'devpi login USER')")
 
     def raw_input(self, msg):
-        return raw_input(msg)
+        try:
+            return raw_input(msg)
+        except NameError:
+            return input(msg)
 
     def getdir(self, name):
         return self._workdir.mkdir(name)
@@ -267,7 +270,7 @@ class Hub:
             self.info(question + "yes (autoset from -y option)")
             return True
         while got not in choices:
-            got = raw_input(question)
+            got = self.raw_input(question)
             if got in choices:
                 break
             self.error("not a valid choice %r" % got)
@@ -387,6 +390,11 @@ def parse_docstring(txt):
 
 def add_subparsers(parser):
     subparsers = parser.add_subparsers()
+    # see http://stackoverflow.com/questions/18282403/
+    # for the following two lines (py3 compat)
+    subparsers.required = True
+    subparsers.dest = "command"
+
     for func, args, kwargs in subcommand.discover(globals()):
         if len(args) > 1:
             name = args[1]

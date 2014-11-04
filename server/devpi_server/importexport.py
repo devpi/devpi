@@ -5,7 +5,7 @@ import json
 import py
 import logging
 from devpi_common.validation import normalize_name
-from devpi_common.metadata import Version, splitbasename, BasenameMeta
+from devpi_common.metadata import splitbasename, BasenameMeta
 from devpi_server.main import fatal
 import devpi_server
 
@@ -72,7 +72,6 @@ class Exporter:
         self.export["devpi_server"] = devpi_server.__version__
         self.export["secret"] = self.config.secret
         self.export["uuid"] = self.xom.config.get_master_uuid()
-        self.compute_global_projectname_normalization()
         for user in self.xom.model.get_userlist():
             userdir = path.join(user.name)
             data = user.get(credentials=True)
@@ -86,48 +85,6 @@ class Exporter:
                 indexdir = userdir.ensure(indexname, dir=1)
                 IndexDump(self, stage, indexdir).dump()
         self._write_json(path.join("dataindex.json"), self.export)
-
-    def compute_global_projectname_normalization(self):
-        self.tw.line("computing global projectname normalization map")
-
-        norm2maxversion = {}
-        # compute latest normname version across all stages
-        for user in self.xom.model.get_userlist():
-            userconfig = user.get()
-            for indexname in userconfig.get("indexes", []):
-                stage = self.xom.model.getstage(user.name, indexname)
-                names = stage.list_projectnames_perstage()
-                for name in names:
-                    # pypi names take precedence for defining the realname
-                    if stage.name == "root/pypi":
-                        version = Version("999999.99999")
-                        version.realname = name
-                        norm2maxversion[normalize_name(name)] = version
-                        continue
-                    versions = stage.list_versions_perstage(name)
-                    if versions:
-                        maxver = None
-                        for ver in versions:
-                            version = Version(ver)
-                            verdata = stage.get_versiondata(name, ver)
-                            version.realname = verdata.get("name", name)
-                            if maxver is None or version > maxver:
-                                maxver = version
-                        if not maxver:
-                            continue
-                        norm = normalize_name(name)
-                        normver = norm2maxversion.setdefault(norm, maxver)
-                        if maxver > normver:
-                            norm2maxversion[norm] = maxver
-
-        # determine real name of a project
-        self.norm2name = norm2name = {}
-        for norm, maxver in norm2maxversion.items():
-            norm2name[norm] = maxver.realname
-
-    def get_real_projectname(self, name):
-        norm = normalize_name(name)
-        return self.norm2name[norm]
 
     def _write_json(self, path, data):
         writedata = json.dumps(data, indent=2)
@@ -157,9 +114,9 @@ class IndexDump:
                     self.stage.get_versiondata_perstage(name, version))
             for val in data.values():
                 val.pop("+elinks", None)
-            realname = self.exporter.get_real_projectname(name)
-            assert realname not in self.indexmeta["projects"]
-            self.indexmeta["projects"][realname] = data
+            norm_name = normalize_name(name)
+            assert norm_name not in self.indexmeta["projects"]
+            self.indexmeta["projects"][norm_name] = data
 
             for version in data:
                 vername = data[version]["name"]
@@ -168,7 +125,7 @@ class IndexDump:
                 self.dump_toxresults(linkstore)
                 content = self.stage.get_doczip(vername, version)
                 if content:
-                    self.dump_docfile(realname, version, content)
+                    self.dump_docfile(vername, version, content)
         self.exporter.completed("index %r" % self.stage.name)
 
     def dump_releasefiles(self, linkstore):
