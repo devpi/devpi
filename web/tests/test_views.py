@@ -590,6 +590,30 @@ def test_testdata_corrupt(mapp, testapp):
     testapp.xget(200, api.index, headers=dict(accept="text/html"))
 
 
+@pytest.mark.with_notifier
+def test_testdata_missing(mapp, testapp):
+    from test_devpi_server.example import tox_result_data
+    import os
+    api = mapp.create_and_use()
+    mapp.set_versiondata(
+        {"name": "pkg1", "version": "2.6", "description": "foo"})
+    mapp.upload_file_pypi(
+        "pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200,
+        waithooks=True)
+    path, = mapp.get_release_paths("pkg1")
+    r = testapp.post(path, json.dumps(tox_result_data))
+    assert r.status_code == 200
+    with mapp.xom.model.keyfs.transaction(write=False):
+        stage = mapp.xom.model.getstage(api.stagename)
+        link, = stage.get_releaselinks('pkg1')
+        linkstore = stage.get_linkstore_perstage(link.projectname, link.version)
+        toxresult_link, = linkstore.get_links(rel="toxresult", for_entrypath=link)
+        # delete the tox result file
+        os.remove(toxresult_link.entry._filepath)
+    r = testapp.xget(200, api.index, headers=dict(accept="text/html"))
+    assert '.toxresult' not in r.unicode_body
+
+
 def test_search_nothing(testapp):
     r = testapp.get('/+search?query=')
     assert r.status_code == 200

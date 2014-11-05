@@ -1,4 +1,11 @@
-2.0.3.dev1
+2.0.4.dev1
+-------------
+
+- gracefully handle missing toxresult files. They can be missing on replicas
+  while it's catching up with the master.
+
+
+2.0.3
 -------------
 
 - added code to iterate over toxresults handling all the details.
