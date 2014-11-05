@@ -83,7 +83,11 @@ def get_toxenvs(toxresult, seen, newest=True):
 def iter_toxresults(links, load, newest=True):
     seen = set()
     for link in reversed(links):
-        toxresult = load(link)
+        try:
+            toxresult = load(link)
+        except IOError:
+            yield link, None
+            continue
         try:
             yield link, get_toxenvs(toxresult, seen, newest=newest)
         except KeyError:
