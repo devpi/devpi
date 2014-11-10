@@ -80,6 +80,8 @@ Tutorials and Documentation
    
    glossary
 
+   devguide/index
+
 
 .. toctree::
    :hidden:
