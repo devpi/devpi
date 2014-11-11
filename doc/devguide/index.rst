@@ -3,33 +3,32 @@ Developers' guide to devpi
 ==========================
 
 
-Glossary
-========
+Glossary devpi-server
+=====================
 
 
 .. glossary::
 
-   BackgroundServer
+   XOM
 
-      ???
+      An internal "registry" object which holds several sub components
+      as attributes.
 
-      Defined in :mod:`devpi_server.bgserver`. See :class:`devpi_server.bgserver.BackgroundServer`.
+      Defined in :mod:`devpi_server.main`. See :class:`devpi_server.main.XOM`
 
-      .. todo::
-
-         What is the purpose of this?
 
    sro
 
-      :term:`Stage` Resolution Order
+      :term:`Stage` Resolution Order defines how a name is looked up through
+      the bases of a stage.  It's similar to what is known as "MRO" aka method
+      resolution order for programming languages.
 
       See :func:`devpi_server.model.BaseStage._sro`
 
    stage
 
-      Same as an :term:`index`?
-
-      One of:
+      Stage and :term:`index` are used somewhat interchangeably.  ``stage``
+      within devpi-server source usually refers to one of:
 
       - :class:`devpi_server.model.BaseStage`
       - :class:`devpi_server.model.PrivateStage`
@@ -37,20 +36,20 @@ Glossary
 
    waitress
 
-      The WSGI server that devpi-server runs inside. See http://waitress.readthedocs.org/
+      The WSGI server that devpi-server runs inside. 
+      See http://waitress.readthedocs.org/
+      
 
-   XOM
+   BackgroundServer
 
-      ???
+      Controls the ``--start/--stop/--status`` functionality for 
+      running a devpi-server instance in the background.
 
-      Defined in :mod:`devpi_server.main`. See :class:`devpi_server.main.XOM`
+      Defined in :mod:`devpi_server.bgserver`. See :class:`devpi_server.bgserver.BackgroundServer`.
 
    XProcess
 
-      ???
-
-      Defined in :mod:`devpi_server.vendor.xprocess`. See :class:`devpi_server.vendor.xprocess.XProcess`
-
-      .. todo::
-
-         What is the purpose of this?
+      Implements background process control primitives 
+      (vendored from pytest-xprocess).
+      Defined in :mod:`devpi_server.vendor.xprocess`. 
+      See :class:`devpi_server.vendor.xprocess.XProcess`
