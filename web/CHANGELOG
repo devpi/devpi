@@ -1,6 +1,8 @@
 2.2.2.dev
 ---------------
 
+- fix issue184: better height calculation of documentation iframe.
+
 
 2.2.1
 ---------------

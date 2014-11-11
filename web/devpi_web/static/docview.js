@@ -9,7 +9,7 @@ function scrollToAnchor(iframe, hash) {
 
 function onIFrameLoad(iframe) {
     // set iframe height to the height of the content, so there are no scrollbars
-    iframe.height = iframe.contentWindow.document.body.scrollHeight + "px";
+    iframe.height = Math.ceil($(iframe.contentWindow.document).height()) + "px";
     // scroll main window to anchor location inside the iframe
     scrollToAnchor(iframe, window.location.hash);
     // copy title
