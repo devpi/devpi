@@ -13,6 +13,10 @@
   project names should be normalized already and normalization
   is bound to change/be refined further for devpi-server-2.2)
 
+- fix replication when a "volatile" file like egg-links from
+  repositories are involved: a master will not re-fetch such files
+  but rather use the existing one if the request comes from a replica.
+
 2.1.2
 ----------------
 

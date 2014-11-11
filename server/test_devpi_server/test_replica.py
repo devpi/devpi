@@ -467,3 +467,15 @@ class TestFileReplication:
                 assert l[0] == 10
 
 
+def test_should_fetch_remote_file():
+    from devpi_server.views import should_fetch_remote_file
+    from devpi_server.replica import H_REPLICA_FILEREPL
+    class Entry:
+        eggfragment = "some"
+        def file_exists(self):
+            return True
+    assert should_fetch_remote_file(Entry(), {})
+    assert not \
+           should_fetch_remote_file(Entry(), {H_REPLICA_FILEREPL: str("YES")})
+
+
