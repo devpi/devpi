@@ -249,8 +249,10 @@ class XOM:
     def _httpsession(self):
         return self.new_http_session("server")
 
-    def httpget(self, url, allow_redirects, timeout=30):
+    def httpget(self, url, allow_redirects, timeout=30, extra_headers=None):
         headers = {}
+        if extra_headers:
+            headers.update(extra_headers)
         USE_FRONT = self.config.args.bypass_cdn
         if USE_FRONT:
             self.log.debug("bypassing pypi CDN for: %s", url)

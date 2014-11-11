@@ -16,6 +16,7 @@ from .model import UpstreamError
 
 H_REPLICA_UUID = str("X-DEVPI-REPLICA-UUID")
 H_REPLICA_OUTSIDE_URL = str("X-DEVPI-REPLICA-OUTSIDE-URL")
+H_REPLICA_FILEREPL = str("X-DEVPI-REPLICA-FILEREPL")
 
 class MasterChangelogRequest:
     MAX_REPLICA_BLOCK_TIME = 30.0
@@ -359,7 +360,10 @@ class ImportFileReplica:
 
         threadlog.info("retrieving file from master: %s", relpath)
         url = self.xom.config.master_url.joinpath(relpath).url
-        r = self.xom.httpget(url, allow_redirects=True)
+        # we perform the request with a special header so that
+        # the master can avoid -getting "volatile" links
+        r = self.xom.httpget(url, allow_redirects=True, extra_headers=
+                             {H_REPLICA_FILEREPL: str("YES")})
         if r.status_code == 410:
             # master indicates Gone for files which were later deleted
             threadlog.warn("ignoring because of later deletion: %s",

@@ -774,7 +774,7 @@ class PyPIView:
             else:
                 abort(request, 410, "file existed, deleted in later serial")
 
-        if not entry.file_exists() or entry.eggfragment:
+        if should_fetch_remote_file(entry, request.headers):
             keyfs = self.xom.keyfs
             try:
                 if not self.xom.is_replica():
@@ -886,6 +886,16 @@ class PyPIView:
         for user in self.model.get_userlist():
             d[user.name] = user.get()
         apireturn(200, type="list:userconfig", result=d)
+
+
+def should_fetch_remote_file(entry, headers):
+    from .replica import H_REPLICA_FILEREPL
+    should_fetch = not entry.file_exists()
+    # if we are asked for an "egg" development link we cause
+    # refetching it unless we are called within file replication context
+    if entry.eggfragment and not headers.get(H_REPLICA_FILEREPL):
+        should_fetch = True
+    return should_fetch
 
 
 def url_for_entrypath(request, entrypath):
