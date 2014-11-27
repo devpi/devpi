@@ -1,4 +1,4 @@
-2.1.3.dev
+2.1.3
 ----------------
 
 - fix replication when files with identical name are later changed. This can

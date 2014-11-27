@@ -51,7 +51,9 @@ class TestCheckout:
         # this is a test for issue154 although we actually don't really
         # need to test the vcs-exporting code much since we started
         # relying on the external check-manifest project to do things.
-        unicode_fn = "something-\342\200\223.txt"
+        unicode_fn = b"something-\342\200\223.txt"
+        if sys.version_info >= (3,0):
+            unicode_fn = str(unicode_fn, "utf8")
         repo.ensure(unicode_fn)
         if request.param == "hg":
             if not py.path.local.sysfind("hg"):

@@ -1,4 +1,4 @@
-2.0.4.dev1
+2.0.4
 -------------
 
 - gracefully handle missing toxresult files. They can be missing on replicas
