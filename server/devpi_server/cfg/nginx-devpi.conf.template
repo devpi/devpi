@@ -1,5 +1,5 @@
 server {
-    server_name %(outside_host)s;   
+    server_name %(outside_host)s $hostname "";   
     listen %(outside_port)s;
     gzip             on;
     gzip_min_length  2000;
@@ -30,8 +30,7 @@ server {
     }
     location @proxy_to_app {
         proxy_pass http://localhost:%(port)s;
-        #dynamic: proxy_set_header X-outside-url $scheme://$host:$server_port;
-        proxy_set_header  X-outside-url %(outside_url)s;
-        proxy_set_header  X-Real-IP $remote_addr;
+        proxy_set_header X-outside-url $scheme://$host:$server_port;
+        proxy_set_header X-Real-IP $remote_addr;
     }   
 } 
