@@ -7,8 +7,8 @@ import contextlib
 threadlocal = threading.local()
 
 
-def configure_logging(config):
-    if config.args.debug:
+def configure_logging(config=None):
+    if config and config.args.debug:
         loglevel = logging.DEBUG
     else:
         loglevel = logging.INFO
