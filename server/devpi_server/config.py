@@ -284,6 +284,7 @@ class Config:
                     os.path.expanduser(args.secretfile))
 
         self.path_nodeinfo = self.serverdir.join(".nodeinfo")
+        log.info("Loading node info from %s", self.path_nodeinfo)
         self._determine_roles()
         self._determine_uuid()
         self.write_nodeinfo()

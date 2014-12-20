@@ -61,6 +61,10 @@ def main(argv=None, plugins=None):
         return 1
 
 def _main(argv=None, hook=None):
+    # Set up logging with no config just so we can log while parsing options
+    # Later when we get the config, we will call this again with the config.
+    configure_logging()
+
     if argv is None:
         argv = sys.argv
 
