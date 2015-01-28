@@ -7,6 +7,9 @@
     </head>
     <body>
         <metal:search use-macro="request.macros['navigation']" />
+        <div class="infonote" tal:condition="version_mismatch">
+            The latest available documentation (version ${doc_version}) isn't for the latest available package version.
+        </div>
         <iframe
             src="${url}" data-base_url="${base_url}" data-baseview_url="${baseview_url}"
             width="100%" height="100%" scrolling="no"

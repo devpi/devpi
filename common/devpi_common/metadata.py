@@ -90,6 +90,13 @@ class Version(CompareMixin):
     def __str__(self):
         return self.string
 
+    def is_prerelease(self):
+        for x in self.cmpval:
+            if x.startswith('*') and x < '*final':
+                return True
+        return False
+
+
 class BasenameMeta(CompareMixin):
     def __init__(self, obj, sameproject=False):
         self.obj = obj
@@ -114,12 +121,20 @@ def sorted_sameproject_links(links):
                      for link in links), reverse=True)
     return [x.obj for x in s]
 
-def get_latest_version(seq):
-    return max(map(Version, seq)).string
+def get_latest_version(seq, stable=False):
+    versions = map(Version, seq)
+    if stable:
+        versions = [x for x in versions if not x.is_prerelease()]
+        if not versions:
+            return
+    return max(versions).string
 
 
-def get_sorted_versions(versions, reverse=True):
-    return [x.string for x in sorted(map(Version, versions), reverse=reverse)]
+def get_sorted_versions(versions, reverse=True, stable=False):
+    versions = sorted(map(Version, versions), reverse=reverse)
+    if stable:
+        versions = [x for x in versions if not x.is_prerelease()]
+    return [x.string for x in versions]
 
 
 def is_archive_of_project(basename, targetname):
