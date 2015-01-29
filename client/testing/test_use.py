@@ -346,6 +346,11 @@ def test_parse_keyvalue_spec_unknown_key():
 def test_user_no_index(loghub):
     out_index_list(loghub, {"user": {"username": "user"}})
 
+def test_pipcfg_default_location(tmpdir, monkeypatch):
+    path = PipCfg().path
+    monkeypatch.setenv('PIP_CONFIG_FILE', tmpdir.join("cfg"))
+    assert path != PipCfg().path
+
 class TestCfgParsing:
     @pytest.fixture(scope="class", params=[DistutilsCfg, PipCfg, BuildoutCfg])
     def cfgclass(self, request):
