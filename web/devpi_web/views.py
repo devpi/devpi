@@ -8,6 +8,7 @@ from devpi_server.views import url_for_entrypath
 from devpi_web.description import get_description
 from devpi_web.doczip import Docs, get_unpack_path
 from devpi_web.indexing import is_project_cached
+from devpi_web.main import navigation_version
 from email.utils import parsedate
 from operator import attrgetter, itemgetter
 from py.xml import html
@@ -39,38 +40,56 @@ class ContextWrapper(object):
         return get_sorted_versions(versions)
 
     @reify
+    def stable_versions(self):
+        versions = self.stage.list_versions(self.name)
+        if not versions:
+            raise HTTPNotFound("The project %s does not exist." % self.name)
+        versions = get_sorted_versions(versions, stable=True)
+        if not versions:
+            raise HTTPNotFound("The project %s has no stable release." % self.name)
+        return versions
+
+    @reify
     def linkstore(self):
         return self.stage.get_linkstore_perstage(self.name, self.version)
 
 
-def get_doc_path_info(context, request):
+def get_doc_info(context, request):
     relpath = request.matchdict['relpath']
     if not relpath:
         raise HTTPFound(location="index.html")
     name = context.projectname
     version = context.version
-    if version != 'latest':
-        versions = [version]
-    else:
+    if version == 'latest':
         versions = context.versions
-    for version in versions:
-        doc_path = get_unpack_path(context.stage, name, version)
+    elif version == 'stable':
+        versions = context.stable_versions
+    else:
+        versions = [version]
+    for doc_version in versions:
+        doc_path = get_unpack_path(context.stage, name, doc_version)
         if doc_path.check():
             break
     if not doc_path.check():
+        if version == 'stable':
+            raise HTTPNotFound("No stable documentation available.")
         raise HTTPNotFound("No documentation available.")
     doc_path = doc_path.join(relpath)
     if not doc_path.check():
         raise HTTPNotFound("File %s not found in documentation." % relpath)
-    return doc_path, relpath
+    return dict(
+        doc_path=doc_path,
+        relpath=relpath,
+        doc_version=doc_version,
+        version_mismatch=doc_version != navigation_version(context))
 
 
 @view_config(route_name="docroot", request_method="GET")
 def doc_serve(context, request):
     """ Serves the raw documentation files. """
     context = ContextWrapper(context)
-    doc_path, relpath = get_doc_path_info(context, request)
-    return FileResponse(str(doc_path))
+    doc_info = get_doc_info(context, request)
+    return FileResponse(str(doc_info['doc_path']))
 
 
 @view_config(
@@ -82,7 +101,7 @@ def doc_show(context, request):
     context = ContextWrapper(context)
     stage = context.stage
     name, version = context.projectname, context.version
-    doc_path, relpath = get_doc_path_info(context, request)
+    doc_info = get_doc_info(context, request)
     return dict(
         title="%s-%s Documentation" % (name, version),
         base_url=request.route_url(
@@ -93,7 +112,9 @@ def doc_show(context, request):
             name=name, version=version, relpath=''),
         url=request.route_url(
             "docroot", user=stage.user.name, index=stage.index,
-            name=name, version=version, relpath=relpath))
+            name=name, version=version, relpath=doc_info['relpath']),
+        version_mismatch=doc_info['version_mismatch'],
+        doc_version=doc_info['doc_version'])
 
 
 @notfound_view_config(renderer="templates/notfound.pt")

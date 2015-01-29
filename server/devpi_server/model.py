@@ -281,11 +281,11 @@ class BaseStage:
             versions.update(res)
         return versions
 
-    def get_latest_version(self, name):
-        return get_latest_version(self.list_versions(name))
+    def get_latest_version(self, name, stable=False):
+        return get_latest_version(self.list_versions(name), stable=stable)
 
-    def get_latest_version_perstage(self, name):
-        return get_latest_version(self.list_versions_perstage(name))
+    def get_latest_version_perstage(self, name, stable=False):
+        return get_latest_version(self.list_versions_perstage(name), stable=stable)
 
     def get_versiondata(self, projectname, version):
         assert py.builtin._istext(projectname)

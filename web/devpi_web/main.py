@@ -34,6 +34,17 @@ def macros(request):
     return result
 
 
+def navigation_version(context):
+    version = context.version
+    if version == 'latest':
+        stage = context.model.getstage(context.username, context.index)
+        version = stage.get_latest_version(context.name)
+    elif version == 'stable':
+        stage = context.model.getstage(context.username, context.index)
+        version = stage.get_latest_version(context.name, stable=True)
+    return version
+
+
 def navigation_info(request):
     context = request.context
     path = [dict(
@@ -60,10 +71,7 @@ def navigation_info(request):
     else:
         return result
     if 'version' in context.matchdict:
-        version = context.version
-        if version == 'latest':
-            stage = context.model.getstage(user, index)
-            version = stage.get_latest_version(name)
+        version = navigation_version(context)
         path.append(dict(
             url=request.route_url(
                 "/{user}/{index}/{name}/{version}",
