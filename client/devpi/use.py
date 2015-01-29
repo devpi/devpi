@@ -449,8 +449,12 @@ class DistutilsCfg(BaseCfg):
 
 class PipCfg(BaseCfg):
     section_name = "[global]"
-    default_location = ("~/.pip/pip.conf" if sys.platform != "win32"
-                        else "~/pip/pip.ini")
+
+    @property
+    def default_location(self):
+        default_location = ("~/.pip/pip.conf" if sys.platform != "win32"
+                            else "~/pip/pip.ini")
+        return os.environ.get('PIP_CONFIG_FILE', default_location)
 
 class BuildoutCfg(BaseCfg):
     section_name = "[buildout]"
