@@ -1,6 +1,8 @@
 2.1.4.dev
 ----------------
 
+- added code to allow filtering on packages with stable version numbers.
+
 - Change nginx template to set the X-outside-url header based on the
   requested URL.  This makes it possible to connect by IP address when
   the server name is not in DNS.
