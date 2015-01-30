@@ -63,6 +63,7 @@ class MissesRegistration(ModelException):
 
 class NonVolatile(ModelException):
     """ A release is overwritten on a non volatile index. """
+    link = None  # the conflicting link
 
 
 class RootModel:
@@ -645,8 +646,10 @@ class LinkStore:
         overwrite = None
         for link in self.get_links(rel=rel, basename=basename):
             if not self.stage.ixconfig.get("volatile"):
-                raise NonVolatile("rel=%s basename=%s on stage %s" % (
+                exc = NonVolatile("rel=%s basename=%s on stage %s" % (
                     rel, basename, self.stage.name))
+                exc.link = link
+                raise exc
             assert overwrite is None
             overwrite = sum(x.get('count', 0) for x in link.get_logs() if x.get('what') == 'overwrite')
             self.remove_links(rel=rel, basename=basename)

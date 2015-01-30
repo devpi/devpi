@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import hashlib
 import os
 import py
 from py.xml import html
@@ -620,11 +621,16 @@ class PyPIView:
                     metadata = stage.get_versiondata(projectname, version)
                     if not metadata:
                         abort_submit(400, "could not process form metadata")
+                file_content = content.file.read()
                 try:
                     link = stage.store_releasefile(
                         projectname, version,
-                        content.filename, content.file.read())
-                except stage.NonVolatile:
+                        content.filename, file_content)
+                except stage.NonVolatile as e:
+                    md5 = hashlib.md5(file_content).hexdigest()
+                    if md5 == e.link.md5:
+                        abort_submit(200,
+                            "Upload of identical file to non volatile index.")
                     abort_submit(409, "%s already exists in non-volatile index" % (
                          content.filename,))
                 link.add_log(
