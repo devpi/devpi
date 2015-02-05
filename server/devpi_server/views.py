@@ -42,6 +42,10 @@ meta_headers = {str("X-DEVPI-API-VERSION"): str(API_VERSION),
                 str("X-DEVPI-SERVER-VERSION"): server_version}
 
 def abort(request, code, body):
+    # if no Accept header is set, then force */*, otherwise the exception
+    # will be returned as text/plain, which causes easy_install/setuptools
+    # to fail improperly
+    request.headers.setdefault("Accept", "*/*")
     if "application/json" in request.headers.get("Accept", ""):
         apireturn(code, body)
     threadlog.error(body)

@@ -1,6 +1,9 @@
 2.1.4.dev
 ----------------
 
+- fix regression: easy_install went to the full simple project list for a
+  non existing project.
+
 - When uploading an existing version to a non-volatile index, it's now a
   no op instead of an error if the content is identical. If the content is
   different, it's still an error.

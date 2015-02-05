@@ -64,6 +64,8 @@ def test_simple_project(pypistage, testapp):
     r = testapp.get("/root/pypi/+simple/" + name)
     assert r.status_code == 200
     assert r.headers["X-DEVPI-SERIAL"]
+    # easy_install fails if the result isn't html
+    assert "html" in r.headers['content-type']
     assert not BeautifulSoup(r.text).findAll("a")
     path = "/%s-1.0.zip" % name
     pypistage.mock_simple(name, text='<a href="%s"/>' % path)
@@ -149,6 +151,8 @@ def test_simple_list(pypistage, testapp):
     r = testapp.get("/root/pypi/+simple/hello3")
     assert r.status_code == 200
     assert "no such project" in r.text
+    # easy_install fails if the result isn't html
+    assert "html" in r.headers['content-type']
     r = testapp.get("/root/pypi/+simple/")
     assert r.status_code == 200
     links = BeautifulSoup(r.text).findAll("a")
