@@ -114,6 +114,54 @@ def test_main_push_pypi(monkeypatch, tmpdir):
     assert req["username"] == "test"
     assert req["password"] == "testp"
 
+
+def test_fail_push(monkeypatch, tmpdir):
+    from devpi.push import main
+    l = []
+    def mypost(method, url, data, headers, auth=None, cert=None):
+        l.append((method, url, data))
+        class r:
+            status_code = 500
+            reason = "Internal Server Error"
+            content = json.dumps(dict(type="actionlog", status=201,
+                result=[("500", "Internal Server Error", "Internal Server Error")]
+            ))
+            headers = {"content-type": "application/json"}
+            _json = json.loads(content)
+            class request:
+                method = ''
+        r.url = url
+        r.request.method = method
+
+        return r
+
+    class args:
+        clientdir = tmpdir.join("client")
+        debug = False
+    hub = Hub(args)
+    monkeypatch.setattr(hub.http, "request", mypost)
+    hub.current.reconfigure(dict(index="/some/index"))
+    p = tmpdir.join("pypirc")
+    p.write(py.std.textwrap.dedent("""
+        [distutils]
+        index-servers = whatever
+
+        [whatever]
+        repository: http://anotherserver
+        username: test
+        password: testp
+    """))
+    class args:
+        pypirc = str(p)
+        target = "pypi:whatever"
+        nameversion = "pkg-1.0"
+
+    try:
+        main(hub, args)
+    except SystemExit as e:
+        assert e.code==1
+
+
 class TestPush:
     def test_help(self, ext_devpi):
         result = ext_devpi("push", "-h")
