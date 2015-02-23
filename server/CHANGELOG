@@ -8,6 +8,9 @@
   no op instead of an error if the content is identical. If the content is
   different, it's still an error.
 
+- Uploading documentation to non-volatile indexes is now protected the same
+  way as packages.
+
 - added code to allow filtering on packages with stable version numbers.
 
 - Change nginx template to set the X-outside-url header based on the
