@@ -1,4 +1,4 @@
-2.1.4.dev
+2.1.4
 ----------------
 
 - fix issue214: the whitelisting code stopped inheritance too early.

@@ -1,4 +1,4 @@
-2.0.5.dev0
+2.0.5
 ----------------
 
 - fix issue163: use PIP_CONFIG_FILE environment variable if set.
