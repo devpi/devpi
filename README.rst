@@ -1,7 +1,8 @@
 devpi: PyPI server and packaging/testing/release tool
 ===================================================================
 
-``devpi`` is a meta package installing two other packages:
+This repository contains three packages comprising the core devpi system 
+on the server and client side:
 
 - `devpi-server <http://pypi.python.org/pypi/devpi-server>`_: 
   for serving a pypi.python.org consistent
@@ -15,7 +16,10 @@ devpi: PyPI server and packaging/testing/release tool
   creating users, using indexes, uploading to and installing
   from indexes, as well as a "test" command for invoking tox.
 
+For getting started, more docs see http://doc.devpi.net/
 
-For getting started see http://doc.devpi.net/
+.. note::
 
-Holger Krekel, September 2014
+    The "devpi" pypi metapackage is obsolete, don't use it anymore.
+
+Holger Krekel, Feb 2015
