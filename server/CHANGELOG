@@ -1,6 +1,8 @@
 2.1.4.dev
 ----------------
 
+- fix issue214: the whitelisting code stopped inheritance too early.
+
 - fix regression: easy_install went to the full simple project list for a
   non existing project.
 

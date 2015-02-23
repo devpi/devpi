@@ -160,6 +160,32 @@ class TestStage:
         assert stage.list_projectnames_perstage() == set()
         assert stage_dev2.list_projectnames_perstage() == set(["someproject"])
 
+    def test_inheritance_complex_issue_214(self, pypistage, model):
+        prov_user = model.create_user('provider', password="123")
+        prov_a = prov_user.create_stage(index='A', bases=[])
+        prov_b = prov_user.create_stage(index='B', bases=['provider/A'])
+        aggr_user = model.create_user('aggregator', password="123")
+        aggr_index = aggr_user.create_stage(index='index', bases=['provider/B'])
+        cons_user = model.create_user('consumer', password="123")
+        cons_index = cons_user.create_stage(index='index', bases=['aggregator/index'])
+        extagg_user = model.create_user('extagg', password="123")
+        extagg_index1 = extagg_user.create_stage(index='index1', bases=['root/pypi'])
+        extagg_index2 = extagg_user.create_stage(index='index2', bases=['aggregator/index', 'extagg/index1'])
+        content = b"123"
+        register_and_store(prov_a, "pkg-1.0.zip", content)
+        register_and_store(prov_a, "pkg-2.0.zip", content)
+        register_and_store(prov_a, "pkg-3.0.zip", content)
+        register_and_store(prov_b, "pkg-1.0.zip", content)
+        register_and_store(prov_b, "pkg-2.0.zip", content)
+        assert prov_a.list_versions_perstage('pkg') == set(['1.0', '2.0', '3.0'])
+        assert prov_b.list_versions_perstage('pkg') == set(['1.0', '2.0'])
+        assert prov_a.list_versions('pkg') == set(['1.0', '2.0', '3.0'])
+        assert prov_b.list_versions('pkg') == set(['1.0', '2.0', '3.0'])
+        assert aggr_index.list_versions('pkg') == set(['1.0', '2.0', '3.0'])
+        assert cons_index.list_versions('pkg') == set(['1.0', '2.0', '3.0'])
+        assert extagg_index1.list_versions('pkg') == set([])
+        assert extagg_index2.list_versions('pkg') == set(['1.0', '2.0', '3.0'])
+
     def test_inheritance_normalize_multipackage(self, pypistage, stage):
         stage.modify(bases=("root/pypi",), pypi_whitelist=['some-project'])
         pypistage.mock_simple("some-project", """
