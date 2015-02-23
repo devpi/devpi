@@ -650,9 +650,16 @@ class PyPIView:
             else:
                 doczip = content.file.read()
                 try:
-                    link = stage.store_doczip(name, version, doczip)
+                    link = stage.store_doczip(projectname, version, doczip)
                 except stage.MissesRegistration:
                     apireturn(400, "%s-%s is not registered" %(name, version))
+                except stage.NonVolatile as e:
+                    md5 = hashlib.md5(doczip).hexdigest()
+                    if md5 == e.link.md5:
+                        abort_submit(200,
+                            "Upload of identical file to non volatile index.")
+                    abort_submit(409, "%s already exists in non-volatile index" % (
+                         content.filename,))
                 link.add_log(
                     'upload', request.authenticated_userid, dst=stage.name)
         else:

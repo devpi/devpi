@@ -463,13 +463,19 @@ class TestSubmitValidation:
         metadata = {"name": "Pkg5", "version": "2.6", ":action": "submit"}
         submit.metadata(metadata, code=200)
         submit.file("pkg5-2.6.tgz", b"123", {"name": "Pkg5"}, code=200)
+        mapp.upload_doc("pkg5-2.6.doc.zip", b"123", "pkg5", "2.6", code=200)
         path1, = mapp.get_release_paths("Pkg5")
         testapp.xget(200, path1)
         # we now try to upload a different file which should fail
         r = submit.file("pkg5-2.6.tgz", b"1234", {"name": "Pkg5"}, code=409)
         assert '409 pkg5-2.6.tgz already exists in non-volatile index' in r.text
+        # import pdb; pdb.set_trace()
+        r = mapp.upload_doc("pkg5-2.6.doc.zip", b"1234", "Pkg5", "2.6", code=409)
+        assert '409 pkg5-2.6.doc.zip already exists in non-volatile index' in r.text
         # if we upload the same file as originally, then it's a no op
         r = submit.file("pkg5-2.6.tgz", b"123", {"name": "Pkg5"}, code=200)
+        assert '200 Upload of identical file to non volatile index.' in r.text
+        r = mapp.upload_doc("pkg5-2.6.doc.zip", b"123", "Pkg5", "2.6", code=200)
         assert '200 Upload of identical file to non volatile index.' in r.text
         path2, = mapp.get_release_paths("Pkg5")
         # check that nothing changed
@@ -477,34 +483,40 @@ class TestSubmitValidation:
         r = testapp.xget(200, path2)
         assert r.body == b'123'
         r = testapp.xget(200, "%s/Pkg5/2.6" % mapp.api.index)
-        link, = r.json['result']['+links']
-        log1, = link['log']
-        assert sorted(log1.keys()) == ['dst', 'what', 'when', 'who']
-        assert log1['what'] == 'upload'
-        assert log1['who'] == 'user'
-        assert log1['dst'] == 'user/dev'
+        links = r.json['result']['+links']
+        assert len(links) == 2
+        for link in links:
+            log1, = link['log']
+            assert sorted(log1.keys()) == ['dst', 'what', 'when', 'who']
+            assert log1['what'] == 'upload'
+            assert log1['who'] == 'user'
+            assert log1['dst'] == 'user/dev'
 
     def test_upload_twice_to_volatile(self, submit, testapp, mapp):
         metadata = {"name": "Pkg5", "version": "2.6", ":action": "submit"}
         submit.metadata(metadata, code=200)
         submit.file("pkg5-2.6.tgz", b"123", {"name": "Pkg5"}, code=200)
+        mapp.upload_doc("pkg5-2.6.doc.zip", b'', "pkg5", "2.6", code=200)
         path1, = mapp.get_release_paths("Pkg5")
         testapp.xget(200, path1)
         submit.file("pkg5-2.6.tgz", b"1234", {"name": "Pkg5"}, code=200)
+        mapp.upload_doc("pkg5-2.6.doc.zip", b"1234", "Pkg5", "2.6", code=200)
         path2, = mapp.get_release_paths("Pkg5")
         testapp.xget(410, path1)  # existed once but deleted during overwrite
         testapp.xget(200, path2)
         r = testapp.xget(200, "%s/Pkg5/2.6" % mapp.api.index)
-        link, = r.json['result']['+links']
-        log1, log2 = link['log']
-        assert sorted(log1.keys()) == ['count', 'what', 'when', 'who']
-        assert log1['what'] == 'overwrite'
-        assert log1['who'] is None
-        assert log1['count'] == 1
-        assert sorted(log2.keys()) == ['dst', 'what', 'when', 'who']
-        assert log2['what'] == 'upload'
-        assert log2['who'] == 'user'
-        assert log2['dst'] == 'user/dev'
+        links = r.json['result']['+links']
+        assert len(links) == 2
+        for link in links:
+            log1, log2 = link['log']
+            assert sorted(log1.keys()) == ['count', 'what', 'when', 'who']
+            assert log1['what'] == 'overwrite'
+            assert log1['who'] is None
+            assert log1['count'] == 1
+            assert sorted(log2.keys()) == ['dst', 'what', 'when', 'who']
+            assert log2['what'] == 'upload'
+            assert log2['who'] == 'user'
+            assert log2['dst'] == 'user/dev'
 
     def test_upload_thrice_and_push(self, submit, testapp, mapp):
         metadata = {"name": "Pkg5", "version": "2.6", ":action": "submit"}
