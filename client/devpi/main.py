@@ -414,10 +414,10 @@ def add_subparsers(parser):
 
 def getbaseparser(prog):
     parser = MyArgumentParser(prog=prog, description=main_description)
-    add_generic_options(parser)
+    add_generic_options(parser, defaults=True)
     return parser
 
-def add_generic_options(parser):
+def add_generic_options(parser, defaults=False):
     group = parser.add_argument_group("generic options")
     group.add_argument("--version", action="version",
                        version=devpi.__version__)
@@ -427,9 +427,16 @@ def add_generic_options(parser):
         help="assume 'yes' on confirmation questions")
     group.add_argument("-v", "--verbose", action="count",
         help="increase verbosity")
+    # workaround for http://bugs.python.org/issue23058
+    if defaults:
+        clientdir_default = os.path.expanduser(
+            os.environ.get("DEVPI_CLIENTDIR", "~/.devpi/client"))
+    else:
+        # subcommands will have their default being suppressed, so only the
+        # main one is used
+        clientdir_default = argparse.SUPPRESS
     group.add_argument("--clientdir", action="store", metavar="DIR",
-        default=os.path.expanduser(os.environ.get("DEVPI_CLIENTDIR",
-                                                  "~/.devpi/client")),
+        default=clientdir_default,
         help="directory for storing login and other state")
 
 @subcommand("devpi.quickstart")
