@@ -1,6 +1,7 @@
 2.0.5
 ----------------
 
+- fix issue209: argument default handling changed in argparse in Python 2.7.9.
 - fix issue163: use PIP_CONFIG_FILE environment variable if set.
 - fix issue191: provide return code !=0 for failures during push
 
