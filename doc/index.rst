@@ -9,7 +9,7 @@ devpi: PyPI server and packaging/testing/release tool
 
    :ref:`tutorials and documentation <label_quickstart_section>`
    
-   :doc:`changelog`
+   `repo of server/web/client <https://bitbucket.org/hpk42/devpi/>`_
 
    #devpi on freenode
 

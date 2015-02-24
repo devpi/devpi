@@ -13,9 +13,11 @@ Installing devpi client and server
 
 We want to run the full devpi system on our laptop::
 
-    pip install -U devpi
+    pip install -U devpi-web devpi-client
 
-This will install ``devpi-client`` and ``devpi-server`` pypi packages.
+Note that the ``devpi-web`` package will pull in the core
+``devpi-server`` package.  If you don't want a web interface you 
+can just install the latter only.
 
 devpi quickstart: initializing basic scenario
 +++++++++++++++++++++++++++++++++++++++++++++
