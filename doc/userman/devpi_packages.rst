@@ -254,7 +254,7 @@ bases (index).
 In this example, the current index is ``/emilie/dev/`` and we want to  :term:`push` 
 version ``0.2.0`` to ``/emilie/prod``::
 
-   $ devpi push  pysober-0.2.0 emilie/prod
+   $ devpi push  pysober==0.2.0 emilie/prod
       200 register pysober 0.2.0 -> emilie/prod
       200 store_releasefile emilie/prod/+f/ba2/0d8eff80f73fb/pysober-0.2.0.tar.gz
    
@@ -346,7 +346,7 @@ which leads to::
 Attempting to :term:`push` this :term:`release file` to Emilie's prod index would 
 fails unless Emilie added Sophie in the ``acl_upload`` list::
 
-   $ devpi push  pysober-0.2.1 emilie/prod
+   $ devpi push pysober==0.2.1 emilie/prod
    PUSH http://localhost:3141/sophie/dev
    401 Unauthorized: user u'sophie' cannot upload to u'emilie/prod'
    
@@ -362,7 +362,7 @@ version to her ``/sophie/dev`` index by first using the index::
 
 And then performing the :term:`push`::
 
-   $ devpi push  pysober-0.2.0 sophie/dev
+   $ devpi push pysober==0.2.0 sophie/dev
       200 register pysober 0.2.0 -> sophie/dev
       200 store_releasefile sophie/dev/+f/ba2/0d8eff80f73fb/pysober-0.2.0.tar.gz
 

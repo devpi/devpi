@@ -31,14 +31,12 @@
                             <a href="${make_toxresult_url(toxresult=toxresult.basename)}#${toxresult._key}-setup" tal:attributes="class 'failed' if toxresult.setup.failed else 'passed'">
                                 <tal:nosetup condition="not toxresult.setup.commands">No setup performed</tal:nosetup>
                                 <tal:setup condition="toxresult.setup.commands and toxresult.setup.failed">Setup failed</tal:setup>
-                                <tal:setup condition="toxresult.setup.commands and not toxresult.setup.failed">Setup performed</tal:setup>
+                                <tal:setup condition="toxresult.setup.commands and not toxresult.setup.failed">Setup</tal:setup>
                             </a>
-                        </div>
-                        <div>
                             <a href="${make_toxresult_url(toxresult=toxresult.basename)}#${toxresult._key}-test" tal:attributes="class 'failed' if toxresult.test.failed else 'passed'">
                                 <tal:notest condition="not toxresult.test.commands">No test run</tal:notest>
                                 <tal:test condition="toxresult.test.commands and toxresult.test.failed">Tests failed</tal:test>
-                                <tal:test condition="toxresult.test.commands and not toxresult.test.failed">Tests passed</tal:test>
+                                <tal:test condition="toxresult.test.commands and not toxresult.test.failed">Tests</tal:test>
                             </a>
                         </div>
                     </td>
