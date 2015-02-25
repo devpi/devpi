@@ -1,5 +1,0 @@
-
-CHANGELOG
--------------------
-
-.. include:: ../CHANGELOG
