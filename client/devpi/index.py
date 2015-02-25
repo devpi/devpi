@@ -14,8 +14,10 @@ def index_modify(hub, url, kvdict):
     index_show(hub, url)
 
 def index_delete(hub, url):
-    hub.http_api("delete", url, None)
-    hub.info("index deleted: %s" % url)
+    hub.info("About to remove: %s" % url)
+    if hub.ask_confirm("Are you sure"):
+        hub.http_api("delete", url, None)
+        hub.info("index deleted: %s" % url)
 
 def index_list(hub, indexname):
     url = hub.current.get_user_url()
