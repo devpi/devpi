@@ -1,5 +1,5 @@
 import py
-from devpi_common.metadata import parse_requirement
+from devpi_common.metadata import parse_requirement, splitbasename
 from . import pypirc
 
 class PyPIPush:
@@ -50,11 +50,22 @@ def parse_target(hub, args):
 
 def main(hub, args):
     pusher = parse_target(hub, args)
-    req = parse_requirement(args.pkgspec)
-    if len(req.specs) != 1 or req.specs[0][0] != '==':
-        hub.fatal("The release specification needs to be of this form: name==version")
-    version = req.specs[0][1]
-    r = pusher.execute(hub, req.project_name, version)
+    name = None
+    version = None
+    if '==' not in args.pkgspec and '-' in args.pkgspec:
+        name, version = splitbasename(args.pkgspec + ".zip")[:2]
+    if not name or not version:
+        req = parse_requirement(args.pkgspec)
+        if len(req.specs) != 1 or req.specs[0][0] != '==':
+            hub.fatal(
+                "The release specification needs to be of this form: name==version")
+        name = req.project_name
+        version = req.specs[0][1]
+    else:
+        hub.warn(
+            "Old style package specification is deprecated, use this form: %s==%s" % (
+                name, version))
+    r = pusher.execute(hub, name, version)
     if r.type == "actionlog":
         for action in r["result"]:
             red = int(action[0]) >= 400
