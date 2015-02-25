@@ -269,13 +269,13 @@ on this setting.
 We can now push the ``example-1.0.tar.gz`` from above to
 our ``staging`` index::
 
-    $ devpi push example-1.0 testuser/staging
+    $ devpi push example==1.0 testuser/staging
        200 register example 1.0 -> testuser/staging
        200 store_releasefile testuser/staging/+f/12f/e201aaf372334/example-1.0.tar.gz
        200 store_toxresult testuser/staging/+f/12f/e201aaf372334/example-1.0.tar.gz.toxresult0
 
 This will determine all files on our ``testuser/dev`` index belonging to
-the specified ``example-1.0`` release and copy them to the
+the specified ``example==1.0`` release and copy them to the
 ``testuser/staging`` index. 
 
 devpi push: releasing to an external index

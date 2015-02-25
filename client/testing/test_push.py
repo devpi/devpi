@@ -101,7 +101,7 @@ def test_main_push_pypi(monkeypatch, tmpdir):
     class args:
         pypirc = str(p)
         target = "pypi:whatever"
-        nameversion = "pkg-1.0"
+        pkgspec = "pkg==1.0"
 
     main(hub, args)
     assert len(l) == 1
@@ -154,7 +154,7 @@ def test_fail_push(monkeypatch, tmpdir):
     class args:
         pypirc = str(p)
         target = "pypi:whatever"
-        nameversion = "pkg-1.0"
+        pkgspec = "pkg==1.0"
 
     try:
         main(hub, args)

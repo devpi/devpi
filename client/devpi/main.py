@@ -732,9 +732,9 @@ def push(parser):
     parser.add_argument("--pypirc", metavar="path", type=str,
         default=None, action="store",
         help="path to pypirc")
-    parser.add_argument("nameversion", metavar="NAME-VER", type=str,
+    parser.add_argument("pkgspec", metavar="pkgspec", type=str,
         default=None, action="store",
-        help="release in format 'name-version'. of which the metadata and "
+        help="release in format 'name==version'. of which the metadata and "
              "all release files are to be uploaded to the specified "
              "external pypi repo." )
     parser.add_argument("target", metavar="TARGETSPEC", type=str,
