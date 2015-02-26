@@ -275,7 +275,7 @@ def out_devpi(devpi):
     return out_devpi_func
 
 @pytest.fixture
-def cmd_devpi(tmpdir):
+def cmd_devpi(tmpdir, monkeypatch):
     """ execute devpi subcommand in-process (with fresh init) """
     clientdir = tmpdir.join("client")
     def run_devpi(*args, **kwargs):
@@ -286,6 +286,7 @@ def cmd_devpi(tmpdir):
             callargs.append(str(arg))
         print_info("*** inline$ %s" % " ".join(callargs))
         hub, method = initmain(callargs)
+        monkeypatch.setattr(hub, "ask_confirm", lambda msg: True)
         try:
             method(hub, hub.args)
         except SystemExit as sysex:
