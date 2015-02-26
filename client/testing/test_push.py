@@ -1,4 +1,5 @@
 import py
+import pytest
 import json
 from devpi.main import Hub, check_output
 from devpi.push import parse_target, PyPIPush, DevpiPush
@@ -65,7 +66,9 @@ def test_push_devpi(loghub, monkeypatch, mock_http_api):
     # loghub.http_api.assert_called_once_with(
     #            "push", loghub.current.index, kvdict=req)
 
-def test_main_push_pypi(monkeypatch, tmpdir):
+
+@pytest.mark.parametrize("spec", ("pkg==1.0", "pkg-1.0"))
+def test_main_push_pypi(monkeypatch, tmpdir, spec):
     from devpi.push import main
     l = []
     def mypost(method, url, data, headers, auth=None, cert=None):
@@ -101,7 +104,7 @@ def test_main_push_pypi(monkeypatch, tmpdir):
     class args:
         pypirc = str(p)
         target = "pypi:whatever"
-        pkgspec = "pkg==1.0"
+        pkgspec = spec
 
     main(hub, args)
     assert len(l) == 1
