@@ -3,6 +3,8 @@
 
 - fix issue174: ask for confirmation when deleting an index or user.
 - fix issue156: "devpi push" now uses "pkgname==version" like "list" and "test".
+- fix issue171: "devpi push" of an existing package fails on non volatile index
+  and overwrites on volatile.
 
 2.0.5
 ----------------

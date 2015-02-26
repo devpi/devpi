@@ -321,6 +321,9 @@ class Mapp(MappMixin):
         commit_serial = int(r.headers["X-DEVPI-SERIAL"])
         self.xom.keyfs.notifier.wait_event_serial(commit_serial)
 
+    def makepkg(self, basename, content, name, version):
+        return content
+
     def delete_user(self, user, code=200):
         r = self.testapp.delete_json("/%s" % user, expect_errors=True)
         assert r.status_code == code
@@ -550,6 +553,14 @@ class Mapp(MappMixin):
         assert r.status_code == code
         if waithooks:
             self._wait_for_serial_in_result(r)
+        return r
+
+    def push(self, name, version, index, indexname=None, code=200):
+        indexname = self._getindexname(indexname)
+        req = dict(name=name, version=version, targetindex=index)
+        r = self.testapp.push(
+            '/%s' % indexname, py.std.json.dumps(req), expect_errors=True)
+        assert r.status_code == code
         return r
 
     def get_release_paths(self, projectname):
