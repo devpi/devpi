@@ -1,7 +1,7 @@
 2.0.6.dev
 ----------------
 
-- fix issue174: ask for confirmation when deleting an index.
+- fix issue174: ask for confirmation when deleting an index or user.
 - fix issue156: "devpi push" now uses "pkgname==version" like "list" and "test".
 
 2.0.5

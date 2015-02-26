@@ -21,8 +21,11 @@ def user_modify(hub, user, kvdict):
     hub.info("user modified: %s" % user)
 
 def user_delete(hub, user):
-    hub.http_api("delete", hub.current.get_user_url(user), None)
-    hub.info("user deleted: %s" % user)
+    url = hub.current.get_user_url(user)
+    hub.info("About to remove: %s" % url)
+    if hub.ask_confirm("Are you sure"):
+        hub.http_api("delete", url, None)
+        hub.info("user deleted: %s" % user)
 
 def user_list(hub):
     r = hub.http_api("get", hub.current.rooturl)
