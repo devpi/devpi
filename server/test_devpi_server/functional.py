@@ -194,6 +194,58 @@ class TestIndexThings:
         mapp.delete_index("dev", code=403)
         mapp.delete_user("cuser4", code=403)
 
+    def test_push_existing_to_volatile(self, mapp):
+        username = 'puser1'
+        mapp.create_and_login_user("%s" % username)
+        mapp.create_index("prod", indexconfig={"volatile": True})
+        mapp.create_index("dev", indexconfig={"volatile": True, "bases": ['%s/prod' % username]})
+        mapp.use("%s/prod" % username)
+        content1 = mapp.makepkg("hello-1.0.tar.gz", b"content1", "hello", "1.0")
+        mapp.upload_file_pypi("hello-1.0.tar.gz", content1, "hello", "1.0")
+        mapp.use("%s/dev" % username)
+        content2 = mapp.makepkg("hello-1.0.tar.gz", b"content2", "hello", "1.0")
+        mapp.upload_file_pypi("hello-1.0.tar.gz", content2, "hello", "1.0")
+        mapp.push("hello", "1.0", "%s/prod" % username)
+        res = mapp.getjson("/%s/prod/hello" % username)
+        assert list(res['result'].keys()) == ['1.0']
+        link, = res['result']['1.0']['+links']
+        assert len(link['log']) == 3
+        assert link['log'][0]['what'] == 'overwrite'
+        assert link['log'][0]['count'] == 1
+        assert link['log'][1]['what'] == 'upload'
+        assert link['log'][1]['dst'] == '%s/dev' % username
+        res = mapp.getjson("/%s/dev/hello" % username)
+        assert list(res['result'].keys()) == ['1.0']
+        link, = res['result']['1.0']['+links']
+        assert len(link['log']) == 1
+        assert link['log'][0]['what'] == 'upload'
+        assert link['log'][0]['dst'] == '%s/dev' % username
+
+    def test_push_existing_to_nonvolatile(self, mapp):
+        username = 'puser2'
+        mapp.create_and_login_user("%s" % username)
+        mapp.create_index("prod", indexconfig={"volatile": False})
+        mapp.create_index("dev", indexconfig={"volatile": True, "bases": ['%s/prod' % username]})
+        mapp.use("%s/prod" % username)
+        content1 = mapp.makepkg("hello-1.0.tar.gz", b"content1", "hello", "1.0")
+        mapp.upload_file_pypi("hello-1.0.tar.gz", content1, "hello", "1.0")
+        mapp.use("%s/dev" % username)
+        content2 = mapp.makepkg("hello-1.0.tar.gz", b"content2", "hello", "1.0")
+        mapp.upload_file_pypi("hello-1.0.tar.gz", content2, "hello", "1.0")
+        mapp.push("hello", "1.0", "%s/prod" % username, code=409)
+        res = mapp.getjson("/%s/prod/hello" % username)
+        assert list(res['result'].keys()) == ['1.0']
+        link, = res['result']['1.0']['+links']
+        assert len(link['log']) == 1
+        assert link['log'][0]['what'] == 'upload'
+        assert link['log'][0]['dst'] == '%s/prod' % username
+        res = mapp.getjson("/%s/dev/hello" % username)
+        assert list(res['result'].keys()) == ['1.0']
+        link, = res['result']['1.0']['+links']
+        assert len(link['log']) == 1
+        assert link['log'][0]['what'] == 'upload'
+        assert link['log'][0]['dst'] == '%s/dev' % username
+
     def test_custom_data(self, mapp):
         mapp.create_and_login_user("cuser5")
         mapp.create_index("dev")

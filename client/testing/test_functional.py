@@ -1,6 +1,7 @@
-
+from io import BytesIO
+import py
 import pytest
-from py import std
+import tarfile
 import time
 
 from test_devpi_server.functional import TestUserThings, TestIndexThings # noqa
@@ -25,6 +26,21 @@ class Mapp(MappMixin):
             indexname = self.current_stage
         assert indexname
         return indexname
+
+    def makepkg(self, basename, content, name, version):
+        s = BytesIO()
+        pkg_info = '\n'.join([
+            "Metadata-Version: 1.1",
+            "Name: %s" % name,
+            "Version: %s" % version]).encode('utf-8')
+        with tarfile.open(basename, mode='w:gz', fileobj=s) as tf:
+            tinfo = tarfile.TarInfo('PKG-INFO')
+            tinfo.size = len(pkg_info)
+            tf.addfile(tinfo, BytesIO(pkg_info))
+            tinfo = tarfile.TarInfo('content')
+            tinfo.size = len(content)
+            tf.addfile(tinfo, BytesIO(content))
+        return s.getvalue()
 
     def cleanup(self):
         pw = getattr(self, "_rootpassword", None)
@@ -59,7 +75,7 @@ class Mapp(MappMixin):
     def getjson(self, path, code=200):
         result = self.out_devpi("getjson", path, code=code)
         if code == 200:
-            return std.json.loads(result.stdout.str())
+            return py.std.json.loads(result.stdout.str())
 
     def getindexlist(self):
         result = self.out_devpi("index", "-l")
@@ -160,6 +176,16 @@ class Mapp(MappMixin):
             line = line.strip()
             parts = line.split("pypi_whitelist=", 1)
             return parts[1].split(",")
+
+    def upload_file_pypi(self, basename, content,
+                         name=None, version=None):
+        assert py.builtin._isbytes(content)
+        pkg = self.tmpdir.join(basename)
+        pkg.write_binary(content)
+        self.devpi('upload', pkg.strpath)
+
+    def push(self, name, version, index, indexname=None, code=200):
+        self.devpi('push', '%s==%s' % (name, version), index)
 
     def create_project(self, projectname, code=201, indexname=None):
         pytest.xfail(reason="no way to create project via command line yet")

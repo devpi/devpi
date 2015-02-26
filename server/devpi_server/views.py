@@ -489,7 +489,11 @@ class PyPIView:
             self._set_versiondata_dict(target_stage, metadata)
             results.append((200, "register", name, version,
                             "->", target_stage.name))
-            results.extend(self._push_links(links, target_stage, name, version))
+            try:
+                results.extend(self._push_links(links, target_stage, name, version))
+            except target_stage.NonVolatile as e:
+                apireturn(409, "%s already exists in non-volatile index" % (
+                          e.link.basename,))
             apireturn(200, result=results, type="actionlog")
         else:
             posturl = pushdata["posturl"]
