@@ -4,14 +4,16 @@ import os
 import sys
 import shlex
 import hashlib
+import pkg_resources
 import py
 from devpi_common.archive import Archive
 import json
 import tox
 
 from devpi_common.url import URL
-from devpi_common.metadata import splitbasename
-from devpi.remoteindex import RemoteIndex
+from devpi_common.metadata import get_sorted_versions, splitbasename
+from devpi_common.viewhelp import ViewLinkStore
+
 
 def setenv_devpi(hub, env, posturl, packageurl, packagemd5):
     if not packagemd5:
@@ -33,15 +35,14 @@ class DevIndex:
         self.rootdir = rootdir
         self.current = current
         self.hub = hub
-        self.remoteindex = RemoteIndex(current)
         self.dir_download = self.rootdir.mkdir("downloads")
 
-    def download_and_unpack(self, link):
-        url = link.url
-        try:
-            (url, content) = self.remoteindex.getcontent(url, bytes=True)
-        except self.remoteindex.ReceiveError:
+    def download_and_unpack(self, versioninfo, link):
+        url = link.href
+        r = self.hub.http.get(url)
+        if r.status_code != 200:
             self.hub.fatal("could not receive", url)
+        content = r.content
 
         self.hub.info("received", url)
         if hasattr(link, "md5"):
@@ -54,29 +55,35 @@ class DevIndex:
         path_archive = self.dir_download.join(basename)
         with path_archive.open("wb") as f:
             f.write(content)
-        pkg = UnpackedPackage(self.hub, self.rootdir, path_archive, link)
+        pkg = UnpackedPackage(
+            self.hub, self.rootdir, path_archive, versioninfo, link)
         pkg.unpack()
-        link.pkg = pkg
+        return pkg
 
-    def getbestlink(self, pkgname):
-        #req = pkg_resources.parse_requirements(pkgspec)[0]
-        return self.remoteindex.getbestlink(pkgname)
+    def getbest(self, pkgname):
+        req = next(pkg_resources.parse_requirements(pkgname))
+        projurl = self.hub.current.index_url.asdir().joinpath(req.project_name).url
+        r = self.hub.http_api("get", projurl)
+        for version in get_sorted_versions(r.result):
+            if version not in req:
+                continue
+            versioninfo = ViewLinkStore(projurl, r.result[version])
+            link = versioninfo.get_link('releasefile')
+            if link:
+                return (versioninfo, link)
+        return (None, None)
 
-    def runtox(self, link):
-        # publishing some infos to the commands started by tox
-        #setenv_devpi(self.hub, env, posturl=self.current.resultlog,
-        #                  packageurl=link.url,
-        #                  packagemd5=link.md5)
-        jsonreport = link.pkg.rootdir.join("toxreport.json")
-        path_archive = link.pkg.path_archive
+    def runtox(self, link, pkg):
+        jsonreport = pkg.rootdir.join("toxreport.json")
+        path_archive = pkg.path_archive
         toxargs = ["--installpkg", str(path_archive),
                    "-i ALL=%s" % str(self.current.simpleindex),
                    "--result-json", str(jsonreport),
         ]
-        unpack_path = link.pkg.path_unpacked
+        unpack_path = pkg.path_unpacked
 
         toxargs.extend(self.get_tox_args(unpack_path=unpack_path))
-        with link.pkg.path_unpacked.as_cwd():
+        with pkg.path_unpacked.as_cwd():
             self.hub.info("%s$ tox %s" %(os.getcwd(), " ".join(toxargs)))
             try:
                 ret = tox.cmdline(toxargs)
@@ -84,7 +91,7 @@ class DevIndex:
                 ret = e.args[0]
         if ret != 2:
             jsondata = json.load(jsonreport.open("r"))
-            url = URL(link.url)
+            url = URL(link.href)
             post_tox_json_report(self.hub, url.url_nofrag, jsondata)
         if ret != 0:
             self.hub.error("tox command failed", ret)
@@ -119,19 +126,20 @@ def post_tox_json_report(hub, href, jsondata):
         hub.error("could not post tox result data to: %s" % href)
 
 class UnpackedPackage:
-    def __init__(self, hub, rootdir, path_archive, link):
+    def __init__(self, hub, rootdir, path_archive, versioninfo, link):
         self.hub = hub
         self.rootdir = rootdir
         self.path_archive = path_archive
+        self.versioninfo = versioninfo
         self.link = link
 
     def unpack(self):
         self.hub.info("unpacking", self.path_archive, "to", str(self.rootdir))
         with Archive(self.path_archive) as archive:
             archive.extract(self.rootdir)
-        basename = URL(self.link.url).basename
-        pkgname, version = splitbasename(basename)[:2]
-        subdir = "%s-%s" %(pkgname, version)
+        pkgname = self.versioninfo.versiondata['name']
+        version = self.versioninfo.versiondata['version']
+        subdir = "%s-%s" % (pkgname, version)
         inpkgdir = self.rootdir.join(subdir)
         assert inpkgdir.check(), inpkgdir
         self.path_unpacked = inpkgdir
@@ -141,9 +149,9 @@ def main(hub, args):
     current = hub.require_valid_current_with_index()
     tmpdir = py.path.local.make_numbered_dir("devpi-test", keep=3)
     devindex = DevIndex(hub, tmpdir, current)
-    link = devindex.getbestlink(args.pkgspec[0])
+    versioninfo, link = devindex.getbest(args.pkgspec[0])
     if not link:
         hub.fatal("could not find/receive link")
-    devindex.download_and_unpack(link)
-    ret = devindex.runtox(link)
+    pkg = devindex.download_and_unpack(versioninfo, link)
+    ret = devindex.runtox(link, pkg)
     return ret

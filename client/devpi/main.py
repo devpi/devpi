@@ -179,15 +179,6 @@ class Hub:
         path = self.clientdir.join("current.json")
         return Current(path)
 
-    @property
-    def remoteindex(self):
-        try:
-            return self._remoteindex
-        except AttributeError:
-            from devpi.remoteindex import RemoteIndex
-            self._remoteindex = RemoteIndex(self.current)
-            return self._remoteindex
-
     def get_existing_file(self, arg):
         p = py.path.local(arg, expanduser=True)
         if not p.exists():
