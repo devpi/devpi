@@ -589,8 +589,19 @@ class PrivateStage(BaseStage):
         linkstore = self.get_linkstore_perstage(name, version)
         links = linkstore.get_links(rel="doczip")
         if links:
-            assert len(links) == 1, links
-            return links[0].entry.file_get_content()
+            if len(links) > 1:
+                def key(link):
+                    when = None
+                    for log in link.get_logs():
+                        when = log.get('when')
+                        if when is not None:
+                            break
+                    return when
+                link = max(links, key=key)
+                threadlog.warn("Multiple documentation files for %s-%s, returning newest", name, version)
+            else:
+                link = links[0]
+            return link.entry.file_get_content()
 
 
 class ELink:
