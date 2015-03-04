@@ -3,6 +3,10 @@
 
 - fix issue171: "devpi push" of an existing package fails on non volatile index
   and overwrites on volatile.
+- before devpi-server 2.1.5 it was possible to upload multiple documentation
+  zip files for the same package version if the filename differed in case, this
+  broke export and replication of server state and the documentation view.
+  Now the newest upload will be used and older ones ignored.
 
 2.1.4
 ----------------

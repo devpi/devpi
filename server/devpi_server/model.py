@@ -275,7 +275,7 @@ class BaseStage:
         return l
 
     def list_versions(self, projectname):
-        assert py.builtin._istext(projectname)
+        assert py.builtin._istext(projectname), "projectname %r not text" % projectname
         versions = set()
         for stage, res in self.op_sro_check_pypi_whitelist(
                 "list_versions_perstage", projectname=projectname):
@@ -289,7 +289,7 @@ class BaseStage:
         return get_latest_version(self.list_versions_perstage(name), stable=stable)
 
     def get_versiondata(self, projectname, version):
-        assert py.builtin._istext(projectname)
+        assert py.builtin._istext(projectname), "projectname %r not text" % projectname
         result = {}
         for stage, res in self.op_sro_check_pypi_whitelist(
                 "get_versiondata_perstage",
@@ -446,7 +446,7 @@ class PrivateStage(BaseStage):
     def get_projectname_perstage(self, name):
         """ return existing projectname for the given name which may
         be in a non-canonical form. """
-        assert py.builtin._istext(name)
+        assert py.builtin._istext(name), "name %r not text" % name
         names = self.list_projectnames_perstage()
         if name in names:
             return name
@@ -589,8 +589,19 @@ class PrivateStage(BaseStage):
         linkstore = self.get_linkstore_perstage(name, version)
         links = linkstore.get_links(rel="doczip")
         if links:
-            assert len(links) == 1, links
-            return links[0].entry.file_get_content()
+            if len(links) > 1:
+                def key(link):
+                    when = None
+                    for log in link.get_logs():
+                        when = log.get('when')
+                        if when is not None:
+                            break
+                    return when
+                link = max(links, key=key)
+                threadlog.warn("Multiple documentation files for %s-%s, returning newest", name, version)
+            else:
+                link = links[0]
+            return link.entry.file_get_content()
 
 
 class ELink:
