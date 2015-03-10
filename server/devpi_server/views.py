@@ -996,7 +996,7 @@ def abort_if_invalid_projectname(request, projectname):
 
 def getkvdict_index(req):
     req_volatile = req.get("volatile")
-    kvdict = dict(volatile=True, type="stage", bases=["root/pypi"])
+    kvdict = {"volatile": True, "type": "stage", "bases": ["root/pypi"]}
     if req_volatile is not None:
         if req_volatile == False or (req_volatile != True and
             req_volatile.lower() in ["false", "no"]):

@@ -8,6 +8,10 @@
   broke export and replication of server state and the documentation view.
   Now the newest upload will be used and older ones ignored.
 
+- fix issue217: try harder to avoid using "bytes" in python2 to allow
+  py2/py3 master/replica setups and generally have more type-uniform bytes.
+
+
 2.1.4
 ----------------
 

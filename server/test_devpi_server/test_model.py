@@ -745,3 +745,10 @@ def test_setdefault_indexes(xom, model):
         set_default_indexes(xom.model)
     with model.keyfs.transaction(write=False):
         assert model.getstage("root/pypi").ixconfig["type"] == "mirror"
+    with model.keyfs.transaction(write=False):
+        ixconfig = model.getstage("root/pypi").ixconfig
+        for key in ixconfig:
+            assert py.builtin._istext(key)
+        userconfig = model.get_user("root").get()
+        for key in userconfig["indexes"]["pypi"]:
+            assert py.builtin._istext(key)
