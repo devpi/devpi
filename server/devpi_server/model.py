@@ -399,10 +399,6 @@ class PrivateStage(BaseStage):
         self.key_projectnames = self.keyfs.PROJNAMES(
                     user=self.user.name, index=self.index)
 
-    def can_upload(self, username):
-        acl_upload = self.ixconfig.get("acl_upload", [])
-        return username in acl_upload or ':ANONYMOUS:' in acl_upload
-
     def modify(self, index=None, **kw):
         diff = list(set(kw).difference(_ixconfigattr))
         if diff:

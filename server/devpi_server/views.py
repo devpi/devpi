@@ -483,7 +483,7 @@ class PyPIView:
             auth_user = request.authenticated_userid
             self.log.debug("targetindex %r, auth_user %r", targetindex,
                            auth_user)
-            if not target_stage.can_upload(auth_user):
+            if not request.has_permission("pypi_submit", context=target_stage):
                apireturn(401, message="user %r cannot upload to %r"
                                       %(auth_user, targetindex))
             self._set_versiondata_dict(target_stage, metadata)
