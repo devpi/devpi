@@ -8,8 +8,9 @@ function scrollToAnchor(iframe, hash) {
 }
 
 function onIFrameLoad(iframe) {
-    // set iframe height to the height of the content, so there are no scrollbars
-    iframe.height = Math.ceil($(iframe.contentWindow.document).height()) + "px";
+    // place iframe's parent div below navigation
+    var nav = $('div#navigation');
+    $(iframe).parent().css('top', nav.offset().top + nav.outerHeight());
     // scroll main window to anchor location inside the iframe
     scrollToAnchor(iframe, window.location.hash);
     // copy title
@@ -18,8 +19,8 @@ function onIFrameLoad(iframe) {
         $('title').text(title);
     }
     // fixup links
-    var base_url = $('iframe').data('base_url');
-    var baseview_url = $('iframe').data('baseview_url');
+    var base_url = $(iframe).data('base_url');
+    var baseview_url = $(iframe).data('baseview_url');
     var links = $(iframe.contentWindow.document).find('a');
     links.each(function (){
         var link = this;

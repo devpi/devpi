@@ -366,9 +366,14 @@ table.projectinfos .closed .value:after,
     overflow: scroll;
 }
 
-iframe {
+div.iframe {
     margin: 0.5em 0 0 0;
+}
+
+div.iframe, iframe {
     position: absolute;
+    top: 0;
+    bottom: 0;
     left: 0;
     right: 0;
     width: 100%;

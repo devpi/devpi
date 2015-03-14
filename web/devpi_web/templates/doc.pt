@@ -10,10 +10,22 @@
         <div class="infonote" tal:condition="version_mismatch">
             The latest available documentation (version ${doc_version}) isn't for the latest available package version.
         </div>
-        <iframe
-            src="${url}" data-base_url="${base_url}" data-baseview_url="${baseview_url}"
-            width="100%" height="100%" scrolling="no"
-            onload="onIFrameLoad(this)">
-        </iframe>
+	<div class="iframe">
+            <iframe
+                src="${url}" data-base_url="${base_url}" data-baseview_url="${baseview_url}"
+                width="100%" height="100%" scrolling="yes"
+                onload="onIFrameLoad(this)">
+            </iframe>
+	</div>
+	<script type="text/javascript">
+	    // make keyboard actions affect the actual documentation
+	    // in the iframe by default
+	    $(document).ready(function () {
+	        //TODO: doesn't work in IE!
+	        //      $('iframe')[0].contentWindow.focus() works in IE
+	        //      but not via $(document).ready()
+	        $('iframe').focus();
+	    });
+	</script>
     </body>
 </html>
