@@ -1,6 +1,9 @@
 2.1.5.dev
 ----------------
 
+- fix devpi-ldap issue17: the push command directly used the username instead
+  of using a general permission check, that caused groups in acl_upload to not
+  be honored.
 - fix issue171: "devpi push" of an existing package fails on non volatile index
   and overwrites on volatile.
 - before devpi-server 2.1.5 it was possible to upload multiple documentation
