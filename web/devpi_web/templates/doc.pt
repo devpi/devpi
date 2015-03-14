@@ -20,11 +20,8 @@
 	<script type="text/javascript">
 	    // make keyboard actions affect the actual documentation
 	    // in the iframe by default
-	    $(document).ready(function () {
-	        //TODO: doesn't work in IE!
-	        //      $('iframe')[0].contentWindow.focus() works in IE
-	        //      but not via $(document).ready()
-	        $('iframe').focus();
+	    $(window).load(function () {
+	        $('iframe')[0].contentWindow.focus();
 	    });
 	</script>
     </body>
