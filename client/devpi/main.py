@@ -670,6 +670,10 @@ def upload(parser):
     direct.add_argument("--only-latest", action="store_true",
         help="upload only latest version if multiple archives for a "
              "package are found (only effective with --from-dir)")
+    direct.add_argument("--projname", action="store",
+        help="explicitly set project name used for upload of files")
+    direct.add_argument("--projversion", action="store",
+        help="explicitly set project version used for upload of files")
     direct.add_argument("--dry-run", dest="dryrun",
         action="store_true", default=None,
         help="don't perform any server-modifying actions")

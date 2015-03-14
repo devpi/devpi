@@ -22,6 +22,9 @@ def main(hub, args):
     if args.path:
         return main_fromfiles(hub, args)
 
+    if args.projname is not None or args.projversion is not None:
+        hub.fatal("the --projname and --projversion options are only supported for uploads of files")
+
     setup = hub.cwd.join("setup.py")
     if not setup.check():
         hub.fatal("no setup.py found in", hub.cwd)
@@ -37,7 +40,8 @@ def main(hub, args):
         archives.append(exported.setup_build_docs())
     if not archives:
         hub.fatal("nothing built!")
-    uploader = Uploader(hub, args)
+    name_version = exported.setup_name_and_version()
+    uploader = Uploader(hub, args, name_version=name_version)
     uploader.do_upload_paths(archives)
 
 def filter_latest(path_pkginfo):
@@ -54,6 +58,13 @@ def filter_latest(path_pkginfo):
     return retval
 
 def main_fromfiles(hub, args):
+    if args.projname is not None and args.projversion is not None:
+        name_version = (args.projname, args.projversion)
+    elif args.projname is None and args.projversion is None:
+        name_version = None
+    else:
+        hub.fatal("the --projname and --projversion options must be used together")
+
     paths = []
     for p in args.path:
         p = py.path.local(os.path.expanduser(p))
@@ -63,13 +74,17 @@ def main_fromfiles(hub, args):
             hub.fatal("%s: is a directory but --from-dir not specified" % p)
         paths.append(p)
 
-    uploader = Uploader(hub, args)
+    uploader = Uploader(hub, args, name_version=name_version)
     uploader.do_upload_paths(paths)
 
 class Uploader:
-    def __init__(self, hub, args):
+    def __init__(self, hub, args, name_version=None):
         self.hub = hub
         self.args = args
+        # allow explicit name and version instead of using pkginfo which
+        # has a high failure rate for documentation zips because they miss
+        # explicit metadata and the implementation has to guess
+        self.name_version = name_version
 
     def do_upload_paths(self, paths):
         hub = self.hub
@@ -99,8 +114,12 @@ class Uploader:
 
 
     def upload_doc(self, path, pkginfo):
+        name = pkginfo.name
+        version = pkginfo.version
+        if self.name_version:
+            (name, version) = self.name_version
         self.post("doc_upload", path,
-                {"name": pkginfo.name, "version": pkginfo.version})
+                {"name": name, "version": version})
 
     def post(self, action, path, meta):
         hub = self.hub
@@ -147,6 +166,8 @@ class Uploader:
         meta = {}
         for attr in pkginfo:
             meta[attr] = getattr(pkginfo, attr)
+        if self.name_version:
+            (meta['name'], meta['version']) = self.name_version
         self.post("register", None, meta=meta)
         pyver = get_pyversion_filetype(path.basename)
         meta["pyversion"], meta["filetype"] = pyver

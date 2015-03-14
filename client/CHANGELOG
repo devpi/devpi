@@ -1,6 +1,9 @@
 2.1.0.dev
 ----------------
 
+- fix issue199: "devpi upload" can now handle packages with dashes in their
+  name. For uploading documentation files directly the new options "--projname"
+  and "--projversion" have been added.
 - fix issue199: "devpi test" can now handle packages with dashes in their name.
 - change: the following fixes change behavior if used in scripts
 - fix issue174: ask for confirmation when deleting an index or user.
