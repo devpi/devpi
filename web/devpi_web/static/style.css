@@ -72,6 +72,7 @@ form#search h1 a {
 
 form#search {
     text-align: center;
+    z-index: 1;
 }
 
 form#search input {
