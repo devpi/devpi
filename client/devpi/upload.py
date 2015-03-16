@@ -1,11 +1,13 @@
 import os
 import py
+import re
 
 import check_manifest
 
 from devpi import log
-from devpi_common.metadata import Version, BasenameMeta, get_pyversion_filetype
+from devpi_common.metadata import Version, get_pyversion_filetype
 from devpi_common.archive import zip_dir
+from devpi_common.types import CompareMixin
 from .main import HTTPReply, set_devpi_auth_header
 
 def main(hub, args):
@@ -21,9 +23,6 @@ def main(hub, args):
 
     if args.path:
         return main_fromfiles(hub, args)
-
-    if args.projname is not None or args.projversion is not None:
-        hub.fatal("the --projname and --projversion options are only supported for uploads of files")
 
     setup = hub.cwd.join("setup.py")
     if not setup.check():
@@ -58,13 +57,6 @@ def filter_latest(path_pkginfo):
     return retval
 
 def main_fromfiles(hub, args):
-    if args.projname is not None and args.projversion is not None:
-        name_version = (args.projname, args.projversion)
-    elif args.projname is None and args.projversion is None:
-        name_version = None
-    else:
-        hub.fatal("the --projname and --projversion options must be used together")
-
     paths = []
     for p in args.path:
         p = py.path.local(os.path.expanduser(p))
@@ -74,7 +66,7 @@ def main_fromfiles(hub, args):
             hub.fatal("%s: is a directory but --from-dir not specified" % p)
         paths.append(p)
 
-    uploader = Uploader(hub, args, name_version=name_version)
+    uploader = Uploader(hub, args)
     uploader.do_upload_paths(paths)
 
 class Uploader:
@@ -186,9 +178,33 @@ def get_archive_files(path):
             if x.basename.endswith(name):
                 yield x
 
+
+def get_name_version_doczip(path):
+    path = str(path)
+    DOCZIPSUFFIX = ".doc.zip"
+    assert path.endswith(DOCZIPSUFFIX)
+    fn = path[:-len(DOCZIPSUFFIX)]
+    # for documentation we presume that versions do not contain "-"
+    # TODO: use packaging.version.VERSION_STRING like pip does
+    name, version = re.match("(.*)-([a-zA-Z0-9\.!]+)", fn).groups()
+    return name, version
+
+
+class DocZipMeta(CompareMixin):
+    def __init__(self, archivepath):
+        basename = py.path.local(archivepath).basename
+        name, version = get_name_version_doczip(basename)
+        self.name = name
+        self.version = version
+        self.cmpval = (name, version)
+
+    def __repr__(self):
+        return "<DocZipMeta name=%r version=%r>" % (self.name, self.version)
+
+
 def get_pkginfo(archivepath):
     if str(archivepath).endswith(".doc.zip"):
-        return BasenameMeta(archivepath)
+        return DocZipMeta(archivepath)
 
     import pkginfo
     info = pkginfo.get_metadata(str(archivepath))

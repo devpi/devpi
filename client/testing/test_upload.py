@@ -237,7 +237,7 @@ class TestUploadFunctional:
         assert vv.get_link(basename="hello-1.3.zip")
         assert vv.get_link(basename="hello-1.3.doc.zip")
 
-    def test_frompath_nameversion(self, initproj, devpi, out_devpi, runproc):
+    def test_frompath_complex_name(self, initproj, devpi, out_devpi, runproc):
         from devpi_common.archive import zip_dir
         initproj(NameHack("my-pkg-123", "1.3"), {"doc": {
             "conf.py": "",
@@ -252,8 +252,7 @@ class TestUploadFunctional:
         zip_dir(bpath.join('html'), dist.join("my-pkg-123-1.3.doc.zip"))
         assert len(dist.listdir()) == 2
         (p, dp) = sorted(dist.listdir(), key=lambda x: '.doc.zip' in x.basename)
-        hub = devpi("upload", "--projname", "my-pkg-123",
-                    "--projversion", "1.3", p, dp)
+        hub = devpi("upload", p, dp)
         path = "my-pkg-123/1.3/"
         url = hub.current.get_index_url().url + path
         out = out_devpi("getjson", url)
