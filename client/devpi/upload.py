@@ -106,10 +106,10 @@ class Uploader:
 
 
     def upload_doc(self, path, pkginfo):
-        name = pkginfo.name
-        version = pkginfo.version
         if self.name_version:
             (name, version) = self.name_version
+        else:
+            (name, version) = (pkginfo.name, pkginfo.version)
         self.post("doc_upload", path,
                 {"name": name, "version": version})
 
