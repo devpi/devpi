@@ -147,13 +147,13 @@ class TestUploadFunctional:
         assert out.ret == 0
         out.stdout.fnmatch_lines("""
             built:*
-            skipped: file_upload of {projname_version}.tar.gz*
+            skipped: file_upload of {projname_version}.*
             """.format(projname_version=projname_version))
         out = out_devpi("upload", "--dry-run", "--with-docs")
         assert out.ret == 0
         out.stdout.fnmatch_lines("""
             built:*
-            skipped: file_upload of {projname_version}.tar.gz*
+            skipped: file_upload of {projname_version}.*
             skipped: doc_upload of {projname_version}.doc.zip*
             """.format(projname_version=projname_version))
         out = out_devpi("upload", "--dry-run", "--only-docs")
@@ -166,7 +166,7 @@ class TestUploadFunctional:
         assert out.ret == 0
         out.stdout.fnmatch_lines("""
             built:*
-            file_upload of {projname_version}.tar.gz*
+            file_upload of {projname_version}.*
             doc_upload of {projname_version}.doc.zip*
             """.format(projname_version=projname_version))
         out = out_devpi("upload", "--formats", "sdist.zip", code=[200,200])
@@ -178,7 +178,7 @@ class TestUploadFunctional:
         out = out_devpi("upload", "--formats", "sdist.zip,bdist_dumb",
                         code=[200, 200, 200, 200])
         out.stdout.fnmatch_lines_random("""
-            file_upload of {projname_version}.*.tar.gz*
+            file_upload of {projname_version}.*
             file_upload of {projname_version}.zip*
             """.format(projname_version=projname_version))
 

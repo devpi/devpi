@@ -103,12 +103,12 @@ class TestFunctional:
         })
         result = out_devpi("test", "--debug", "exa==1.0")
         assert result.ret == 0
-        result.stdout.fnmatch_lines("""*exa-1.0.tar.gz*""")
+        result.stdout.fnmatch_lines("""*exa-1.0.*""")
         result = out_devpi("list", "-f", "exa")
         assert result.ret == 0
         result.stdout.fnmatch_lines("""
-            *exa-1.1.tar.gz*
-            *exa-1.0.tar.gz*
+            *exa-1.1.*
+            *exa-1.0.*
             *tests passed*""")
 
     def test_pkgname_with_dashes(self, out_devpi, create_and_upload):
