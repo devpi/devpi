@@ -120,18 +120,67 @@ def test_parent_subpath(tmpdir):
     pytest.raises(ValueError, lambda: find_parent_subpath(tmpdir, "poiqel123"))
 
 
+# this class is necessary, because the tox initproj fixture doesn't
+# support names like this (yet)
+class NameHack:
+    def __init__(self, name, version):
+        self.name = name
+        self.version = version
+
+    def split(self, sep):
+        assert sep == '-'
+        return self.name, self.version
+
+    def __str__(self):
+        return "%s-%s" % (self.name, self.version)
+
+
 class TestUploadFunctional:
-    def test_all(self, initproj, devpi):
-        initproj("hello-1.0", {"doc": {
+    @pytest.mark.parametrize("projname_version", [
+        "hello-1.0", NameHack("my-pkg-123", "1.0")])
+    def test_all(self, initproj, devpi, out_devpi, projname_version):
+        initproj(projname_version, {"doc": {
             "conf.py": "#nothing",
             "index.html": "<html/>"}})
         assert py.path.local("setup.py").check()
-        devpi("upload", "--dry-run")
-        devpi("upload", "--dry-run", "--with-docs")
-        devpi("upload", "--dry-run", "--only-docs")
-        devpi("upload", "--with-docs", code=[200,200,200])
-        devpi("upload", "--formats", "sdist.zip", code=[200,200])
-        devpi("upload", "--formats", "sdist.zip,bdist_dumb", [200,200,200])
+        out = out_devpi("upload", "--dry-run")
+        assert out.ret == 0
+        out.stdout.fnmatch_lines("""
+            built:*
+            skipped: file_upload of {projname_version}.tar.gz*
+            """.format(projname_version=projname_version))
+        out = out_devpi("upload", "--dry-run", "--with-docs")
+        assert out.ret == 0
+        out.stdout.fnmatch_lines("""
+            built:*
+            skipped: file_upload of {projname_version}.tar.gz*
+            skipped: doc_upload of {projname_version}.doc.zip*
+            """.format(projname_version=projname_version))
+        out = out_devpi("upload", "--dry-run", "--only-docs")
+        assert out.ret == 0
+        out.stdout.fnmatch_lines("""
+            built:*
+            skipped: doc_upload of {projname_version}.doc.zip*
+            """.format(projname_version=projname_version))
+        out = out_devpi("upload", "--with-docs", code=[200,200,200])
+        assert out.ret == 0
+        out.stdout.fnmatch_lines("""
+            built:*
+            file_upload of {projname_version}.tar.gz*
+            doc_upload of {projname_version}.doc.zip*
+            """.format(projname_version=projname_version))
+        out = out_devpi("upload", "--formats", "sdist.zip", code=[200,200])
+        assert out.ret == 0
+        out.stdout.fnmatch_lines("""
+            built:*
+            file_upload of {projname_version}.zip*
+            """.format(projname_version=projname_version))
+        out = out_devpi("upload", "--formats", "sdist.zip,bdist_dumb",
+                        code=[200, 200, 200, 200])
+        out.stdout.fnmatch_lines_random("""
+            file_upload of {projname_version}.*.tar.gz*
+            file_upload of {projname_version}.zip*
+            """.format(projname_version=projname_version))
 
         # logoff then upload
         devpi("logoff")
@@ -165,20 +214,52 @@ class TestUploadFunctional:
             assert vv.get_link(basename="hello-%s.zip" % ver)
 
     def test_frompath(self, initproj, devpi, out_devpi, runproc):
+        from devpi_common.archive import zip_dir
         initproj("hello-1.3", {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
         tmpdir = py.path.local()
         runproc(tmpdir, "python setup.py sdist --format=zip".split())
+        bpath = tmpdir.join('build')
+        out = runproc(
+            tmpdir,
+            "python setup.py build_sphinx -E --build-dir".split() + [bpath.strpath])
         dist = tmpdir.join("dist")
-        assert len(dist.listdir()) == 1
-        p = dist.listdir()[0]
-        hub = devpi("upload", p)
-        url = hub.current.get_index_url().url + "hello/1.3/"
+        zip_dir(bpath.join('html'), dist.join("hello-1.3.doc.zip"))
+        assert len(dist.listdir()) == 2
+        (p, dp) = sorted(dist.listdir(), key=lambda x: '.doc.zip' in x.basename)
+        hub = devpi("upload", p, dp)
+        path = "hello/1.3/"
+        url = hub.current.get_index_url().url + path
         out = out_devpi("getjson", url)
         data = json.loads(out.stdout.str())
         vv = ViewLinkStore(url, data["result"])
         assert vv.get_link(basename="hello-1.3.zip")
+        assert vv.get_link(basename="hello-1.3.doc.zip")
+
+    def test_frompath_complex_name(self, initproj, devpi, out_devpi, runproc):
+        from devpi_common.archive import zip_dir
+        initproj(NameHack("my-pkg-123", "1.3"), {"doc": {
+            "conf.py": "",
+            "index.html": "<html/>"}})
+        tmpdir = py.path.local()
+        runproc(tmpdir, "python setup.py sdist --format=zip".split())
+        bpath = tmpdir.join('build')
+        out = runproc(
+            tmpdir,
+            "python setup.py build_sphinx -E --build-dir".split() + [bpath.strpath])
+        dist = tmpdir.join("dist")
+        zip_dir(bpath.join('html'), dist.join("my-pkg-123-1.3.doc.zip"))
+        assert len(dist.listdir()) == 2
+        (p, dp) = sorted(dist.listdir(), key=lambda x: '.doc.zip' in x.basename)
+        hub = devpi("upload", p, dp)
+        path = "my-pkg-123/1.3/"
+        url = hub.current.get_index_url().url + path
+        out = out_devpi("getjson", url)
+        data = json.loads(out.stdout.str())
+        vv = ViewLinkStore(url, data["result"])
+        assert vv.get_link(basename="my-pkg-123-1.3.zip")
+        assert vv.get_link(basename="my-pkg-123-1.3.doc.zip")
 
 
 
