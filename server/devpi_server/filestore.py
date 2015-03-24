@@ -94,7 +94,7 @@ class FileEntry(object):
     projectname = metaprop("projectname")
     version = metaprop("version")
 
-    def __init__(self, xom, key, meta=_nodefault, md5=_nodefault):
+    def __init__(self, xom, key, meta=_nodefault):
         self.xom = xom
         self.key = key
         self.relpath = key.relpath
@@ -102,8 +102,6 @@ class FileEntry(object):
         self._filepath = str(self.xom.filestore.storedir.join(self.relpath))
         if meta is not _nodefault:
             self.meta = meta or {}
-        elif md5 is not _nodefault:
-            self.meta = {"md5": md5}
 
     @property
     def tx(self):
@@ -118,10 +116,6 @@ class FileEntry(object):
 
     def file_delete(self):
         return self.tx.io_file_delete(self._filepath)
-
-    def file_md5(self):
-        if self.file_exists():
-            return hashlib.md5(self.file_get_content()).hexdigest()
 
     def file_size(self):
         return self.tx.io_file_size(self._filepath)
