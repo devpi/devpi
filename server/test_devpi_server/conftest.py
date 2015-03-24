@@ -21,6 +21,15 @@ try:
 except ImportError:
     from Queue import Queue as BaseQueue
 
+def make_file_url(basename, content, stagename=None, baseurl="http://localhost/"):
+    from devpi_server.filestore import get_default_hash_spec, make_splitdir
+    hash_spec = get_default_hash_spec(content)
+    hashdir = make_splitdir(hash_spec)
+    s = "%s{stage}/+f/%s/%s#%s" %(baseurl, hashdir, basename, hash_spec)
+    if stagename is not None:
+        s = s.format(stage=stagename)
+    return s
+
 class TimeoutQueue(BaseQueue):
     def get(self, timeout=2):
         return BaseQueue.get(self, timeout=timeout)
@@ -221,18 +230,22 @@ def httpget(pypiurls):
             log.debug("set mocking response %s %s", mockurl, kw)
             self.url2response[mockurl] = kw
 
-        def mock_simple(self, name, text=None, pkgver=None,
+        def mock_simple(self, name, text=None, pkgver=None, hashtype=None,
             pypiserial=10000, **kw):
             class ret:
-                md5 = None
+                hash_spec = ""
             if pkgver is not None:
                 assert not text
-                if "#" not in pkgver:
-                    ret.md5 = self._getmd5digest(pkgver)
-                    pkgver += "#md5=" + ret.md5
+                if hashtype and "#" not in pkgver:
+                    hv = pkgver + str(pypiserial)
+                    hash_value = getattr(hashlib, hashtype)(hv).hexdigest()
+                    ret.hash_spec = "%s=%s" %(hashtype, hash_value)
+                    pkgver += "#" + ret.hash_spec
                 text = '<a href="../../pkg/{pkgver}" />'.format(pkgver=pkgver)
             elif text and "{md5}" in text:
                 text = text.format(md5=getmd5(text))
+            elif text and "{sha256}" in text:
+                text = text.format(sha256=getsha256(text))
             headers = kw.setdefault("headers", {})
             headers["X-PYPI-LAST-SERIAL"] = pypiserial
             self.mockresponse(pypiurls.simple + name + "/",
@@ -553,6 +566,10 @@ class Mapp(MappMixin):
         assert r.status_code == code
         if waithooks:
             self._wait_for_serial_in_result(r)
+
+        # return the file url so users/callers can easily use it
+        # (probably the official server response should include the url)
+        r.file_url = make_file_url(basename, content, stagename=indexname)
         return r
 
     def push(self, name, version, index, indexname=None, code=200):
@@ -790,6 +807,9 @@ class Gen:
 
 def getmd5(s):
     return hashlib.md5(s.encode("utf8")).hexdigest()
+
+def getsha256(s):
+    return hashlib.sha256(s.encode("utf8")).hexdigest()
 
 
 @pytest.yield_fixture

@@ -208,8 +208,10 @@ def get_files_info(request, linkstore, show_toxresults=False):
         entry = link.entry
         if entry.eggfragment:
             url += "#egg=%s" % entry.eggfragment
-        elif entry.md5:
-            url += "#md5=%s" % entry.md5
+        elif entry.hash_spec:
+            url += "#" + entry.hash_spec
+        #elif getattr(entry, "md5"):
+        #    url += "#md5=%s" % entry.md5
         py_version, file_type = get_pyversion_filetype(link.basename)
         if py_version == 'source':
             py_version = ''
@@ -227,7 +229,7 @@ def get_files_info(request, linkstore, show_toxresults=False):
             title=link.basename,
             url=url,
             basename=link.basename,
-            md5=entry.md5,
+            hash_spec=entry.hash_spec,
             dist_type=dist_file_types.get(file_type, ''),
             py_version=py_version,
             last_modified=last_modified,

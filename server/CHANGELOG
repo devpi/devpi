@@ -1,3 +1,14 @@
+2.2.0.DEV
+----------------
+
+- use sha256 instead of md5 checksums for serving own files
+  (BACKWARD INCOMPATIBLE: needs export/import)
+
+- parse arbitrary checksums from PyPI in preparation for 
+  a pending change on pypi.python.org which will see 
+  it serving sha256 checksums only.
+
+
 2.1.5
 ----------------
 

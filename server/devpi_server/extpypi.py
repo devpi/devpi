@@ -38,7 +38,7 @@ class IndexParser:
 
     def _mergelink_ifbetter(self, newurl):
         entry = self.basename2link.get(newurl.basename)
-        if entry is None or (not entry.md5 and newurl.md5):
+        if entry is None or (not entry.hash_spec and newurl.hash_spec):
             self.basename2link[newurl.basename] = newurl
             threadlog.debug("adding link %s", newurl)
         else:
@@ -179,7 +179,7 @@ class PyPIStage(BaseStage):
 
     def _dump_project_cache(self, projectname, entries, serial):
         normname = normalize_name(projectname)
-        dumplist = [(entry.relpath, entry.md5, entry.eggfragment)
+        dumplist = [(entry.relpath, entry.hash_spec, entry.eggfragment)
                             for entry in entries]
         data = {"serial": serial,
                 "latest_serial": serial,
@@ -202,8 +202,10 @@ class PyPIStage(BaseStage):
 
     def _make_elinks(self, projectname, data):
         from .model import ELink
-        for relpath, md5, eggfragment in data:
-            linkdict = dict(entrypath=relpath, md5=md5, eggfragment=eggfragment)
+        for relpath, hash_spec, eggfragment in data:
+            linkdict = dict(entrypath=relpath,
+                            hash_spec=hash_spec,
+                            eggfragment=eggfragment)
             version = "XXX"
             try:
                 name, version = splitbasename(relpath)[:2]

@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+import hashlib
 import pytest
 
 from devpi_server.extpypi import *
@@ -9,12 +10,23 @@ from test_devpi_server.conftest import getmd5
 class TestIndexParsing:
     simplepy = URL("http://pypi.python.org/simple/py/")
 
-    def test_parse_index_simple(self):
+    @pytest.mark.parametrize("hashtype,hash_value", [
+        ("sha256", "090123"),
+        ("sha224", "1209380123"),
+        ("md5", "102938")
+    ])
+    def test_parse_index_simple_hashtypes(self, hashtype, hash_value):
         result = parse_index(self.simplepy,
-            """<a href="../../pkg/py-1.4.12.zip#md5=12ab">qwe</a>""")
+            """<a href="../../pkg/py-1.4.12.zip#%s=%s" /a>"""
+            %(hashtype, hash_value))
         link, = result.releaselinks
         assert link.basename == "py-1.4.12.zip"
-        assert link.md5 == "12ab"
+        assert link.hash_spec == "%s=%s" %(hashtype, hash_value)
+        if hashtype == "md5":
+            assert link.md5 == hash_value
+        else:
+            assert link.md5 is None
+        assert link.hash_algo == getattr(hashlib, hashtype)
 
     def test_parse_index_simple_tilde(self):
         result = parse_index(self.simplepy,
@@ -258,7 +270,7 @@ class TestExtPYPIDB:
         links = pypistage.get_releaselinks("pytest")
         link, = links
         assert link.entry.url == "https://pypi.python.org/pkg/pytest-1.0.zip"
-        assert link.md5 == x.md5
+        assert not link.hash_spec
         assert link.entrypath.endswith("/pytest-1.0.zip")
         assert link.entrypath == link.entry.relpath
 
@@ -272,16 +284,17 @@ class TestExtPYPIDB:
         links = pypistage.get_releaselinks("pytest")
         assert links[0].eggfragment == "pytest-dev2"
 
-    def test_parse_project_replaced_md5(self, pypistage):
-        x = pypistage.mock_simple("pytest", pypiserial=10,
+    @pytest.mark.parametrize("hashtype", ["md5", "sha256"])
+    def test_parse_project_replaced_md5(self, pypistage, hashtype):
+        x = pypistage.mock_simple("pytest", pypiserial=10, hashtype=hashtype,
                                    pkgver="pytest-1.0.zip")
         links = pypistage.get_releaselinks("pytest")
-        assert links[0].md5 == x.md5
-        y = pypistage.mock_simple("pytest", pypiserial=11,
+        assert links[0].hash_spec == x.hash_spec
+        y = pypistage.mock_simple("pytest", pypiserial=11, hashtype=hashtype,
                                    pkgver="pytest-1.0.zip")
         links = pypistage.get_releaselinks("pytest")
-        assert links[0].md5 == y.md5
-        assert x.md5 != y.md5
+        assert links[0].hash_spec == y.hash_spec
+        assert x.hash_spec != y.hash_spec
 
     def test_get_versiondata_inexistent(self, pypistage):
         pypistage.mock_simple("pytest", status_code=404)
@@ -320,7 +333,8 @@ class TestExtPYPIDB:
         links = pypistage.get_linkstore_perstage("pytest", "1.0").get_links()
         assert len(links) == 1
         assert links[0].basename == "pytest-1.0.zip"
-        assert links[0].entry.md5 == md5
+        assert links[0].entry.hash_spec.startswith("md5=")
+        assert links[0].entry.hash_spec.endswith(md5)
 
         # check refresh
         md5b = getmd5("456")

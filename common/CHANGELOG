@@ -1,6 +1,9 @@
 2.0.6.dev
 ----------------
 
+- add devpi_common.type.parse_hash_spec helper for parsing 
+  "HASH_TYPE=VALUE" strings into an callable algorithm and the value
+
 
 2.0.5
 ----------------

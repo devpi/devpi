@@ -1,14 +1,15 @@
 from __future__ import unicode_literals
 import posixpath
+import hashlib
 import py
 import re
 import json
 from devpi_common.metadata import sorted_sameproject_links, get_latest_version
 from devpi_common.validation import validate_metadata, normalize_name
-from devpi_common.types import ensure_unicode, cached_property
+from devpi_common.types import ensure_unicode, cached_property, parse_hash_spec
 from time import gmtime
 from .auth import crypt_password, verify_password
-from .filestore import FileEntry, split_md5
+from .filestore import FileEntry, make_splitdir
 from .log import threadlog, thread_current_log
 
 
@@ -609,6 +610,20 @@ class ELink:
         self.projectname = projectname
         self.version = version
 
+    @property
+    def hash_spec(self):
+        return self.linkdict.get("hash_spec", "")
+
+    @property
+    def hash_value(self):
+        return self.hash_spec.split("=")[1]
+
+    def matches_checksum(self, content):
+        hash_algo, hash_value = parse_hash_spec(self.hash_spec)
+        if not hash_algo:
+            return True
+        return hash_algo(content).hexdigest() == hash_value
+
     def __getattr__(self, name):
         try:
             return self.linkdict[name]
@@ -677,7 +692,7 @@ class LinkStore:
         other_reflinks = self.get_links(rel=rel, for_entrypath=for_entrypath)
         filename = "%s.%s%d" %(base_entry.basename, rel, len(other_reflinks))
         entry = self._create_file_entry(filename, file_content,
-                                        ref_md5=base_entry.md5)
+                                        ref_reprhash=base_entry.hash_spec)
         return self._add_link_to_file_entry(rel, entry, for_entrypath=for_entrypath)
 
     def remove_links(self, rel=None, basename=None, for_entrypath=None):
@@ -707,11 +722,11 @@ class LinkStore:
         return list(filter(fil, [ELink(self.filestore, linkdict, self.projectname, self.version)
                            for linkdict in self.verdata.get("+elinks", [])]))
 
-    def _create_file_entry(self, basename, file_content, ref_md5=None):
-        if ref_md5 is None:
+    def _create_file_entry(self, basename, file_content, ref_reprhash=None):
+        if ref_reprhash is None:
             md5dir = None
         else:
-            md5dir = "/".join(split_md5(ref_md5))
+            md5dir = make_splitdir(ref_reprhash)
         entry = self.filestore.store(
                     user=self.stage.user.name, index=self.stage.index,
                     basename=basename,
@@ -735,7 +750,7 @@ class LinkStore:
             relextra["for_entrypath"] = for_entrypath
         linkdicts = self._get_inplace_linkdicts()
         new_linkdict = dict(rel=rel, entrypath=file_entry.relpath,
-                            md5=file_entry.md5, _log=[], **relextra)
+                            hash_spec=file_entry.hash_spec, _log=[], **relextra)
         linkdicts.append(new_linkdict)
         threadlog.info("added %r link %s", rel, file_entry.relpath)
         self._mark_dirty()

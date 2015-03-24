@@ -1,7 +1,8 @@
 
 import sys
 import posixpath
-from devpi_common.types import cached_property, ensure_unicode
+import hashlib
+from devpi_common.types import cached_property, ensure_unicode, parse_hash_spec
 from requests.models import parse_url
 
 if sys.version_info >= (3, 0):
@@ -46,6 +47,22 @@ class URL:
         """ return url without fragment """
         scheme, netloc, url, params, query, ofragment = self._parsed
         return URL(urlunsplit((scheme, netloc, url, query, "")))
+
+    @property
+    def hash_spec(self):
+        hashalgo, hash_value = parse_hash_spec(self._parsed[-1])
+        if hashalgo:
+            hashtype = self._parsed[-1].split("=")[0]
+            return "%s=%s" %(hashtype, hash_value)
+        return ""
+
+    @property
+    def hash_algo(self):
+        return parse_hash_spec(self._parsed[-1])[0]
+
+    @property
+    def hash_value(self):
+        return parse_hash_spec(self._parsed[-1])[1]
 
     def replace(self, **kwargs):
         _parsed = self._parsed
@@ -102,6 +119,12 @@ class URL:
     def md5(self):
         val = self._parsed.fragment
         if val.startswith("md5="):
+            return ensure_unicode(val[4:])
+
+    @property
+    def sha256(self):
+        val = self._parsed.fragment
+        if val.startswith("sha256="):
             return ensure_unicode(val[4:])
 
     def joinpath(self, *args, **kwargs):

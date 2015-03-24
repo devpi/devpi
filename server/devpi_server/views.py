@@ -326,8 +326,8 @@ class PyPIView:
             href = URL(request.path_info).relpath(href)
             if link.eggfragment:
                 href += "#egg=%s" % link.eggfragment
-            elif link.md5:
-                href += "#md5=%s" % link.md5
+            elif link.hash_spec:
+                href += "#" + link.hash_spec
             links.extend([
                  "/".join(relpath.split("/", 2)[:2]) + " ",
                  html.a(link.basename, href=href),
@@ -635,8 +635,7 @@ class PyPIView:
                         projectname, version,
                         content.filename, file_content)
                 except stage.NonVolatile as e:
-                    md5 = hashlib.md5(file_content).hexdigest()
-                    if md5 == e.link.md5:
+                    if e.link.matches_checksum(file_content):
                         abort_submit(200,
                             "Upload of identical file to non volatile index.")
                     abort_submit(409, "%s already exists in non-volatile index" % (
@@ -658,8 +657,7 @@ class PyPIView:
                 except stage.MissesRegistration:
                     apireturn(400, "%s-%s is not registered" %(name, version))
                 except stage.NonVolatile as e:
-                    md5 = hashlib.md5(doczip).hexdigest()
-                    if md5 == e.link.md5:
+                    if e.link.matches_checksum(doczip):
                         abort_submit(200,
                             "Upload of identical file to non volatile index.")
                     abort_submit(409, "%s already exists in non-volatile index" % (

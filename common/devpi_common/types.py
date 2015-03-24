@@ -1,7 +1,8 @@
 from __future__ import unicode_literals
 
-import py
+import hashlib
 import operator
+import py
 
 FunctionType = py.std.types.FunctionType
 
@@ -159,3 +160,11 @@ def ensure_unicode_keys(somedict, ensure_unicode=ensure_unicode):
         if not py.builtin._istext(key):
             val = somedict.pop(key)
             somedict[py.builtin.text(key, "utf-8")] = val
+
+def parse_hash_spec(fragment):
+    """ Return (hashtype, hash_value) from parsing a given X=Y fragment.
+    X must be a supported algorithm by the python hashlib module."""
+    for algo in hashlib.algorithms:
+        if fragment.startswith(algo + "="):
+            return getattr(hashlib, algo), fragment[len(algo)+1:]
+    return None, None

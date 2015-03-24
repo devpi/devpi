@@ -1,14 +1,18 @@
-
 import os
 import pytest
 import py
 from devpi_server.filestore import *
+from devpi_common.url import URL
 
 pytestmark = [pytest.mark.writetransaction]
 
 zip_types = ("application/zip", "application/x-zip-compressed")
 
 BytesIO = py.io.BytesIO
+
+def getdigest(content, hash_type):
+    return getattr(hashlib, hash_type)(content).hexdigest()
+
 
 class TestFileStore:
     def test_maplink_deterministic(self, filestore, gen):
@@ -17,7 +21,7 @@ class TestFileStore:
         entry2 = filestore.maplink(link)
         assert entry1.relpath == entry2.relpath
         assert entry1.basename == "pytest-1.2.zip"
-        assert py.builtin._istext(entry1.md5)
+        assert py.builtin._istext(entry1.hash_spec)
 
     def test_maplink_splitmd5_issue78(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.2.zip")
@@ -29,6 +33,16 @@ class TestFileStore:
         assert parent1 == link.md5[:3]
         assert parent2 == link.md5[3:16]
 
+    def test_maplink_splithash_value_sha256(self, filestore, gen):
+        link = URL("http://package.org/pytest-1.2.zip#sha256=12301238900980123")
+        entry1 = filestore.maplink(link)
+        parts = entry1.relpath.split("/")
+        parent2 = parts[-2]
+        parent1 = parts[-3]
+        assert link.hash_algo == hashlib.sha256
+        assert parent1 == link.hash_value[:3]
+        assert parent2 == link.hash_value[3:16]
+
     def test_maplink(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.2.zip")
         entry1 = filestore.maplink(link)
@@ -36,16 +50,16 @@ class TestFileStore:
         assert not entry1.file_exists() and not entry2.file_exists()
         assert entry1 == entry2
         assert entry1.relpath.endswith("/pytest-1.2.zip")
-        assert entry1.md5 == link.md5
+        assert entry1.hash_spec == link.hash_spec
 
     def test_maplink_replaced_release_not_cached_yet(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.2.zip")
         entry1 = filestore.maplink(link)
         assert not entry1.file_exists()
-        assert entry1.md5 == link.md5
+        assert entry1.hash_spec and entry1.hash_spec == link.hash_spec
         newlink = gen.pypi_package_link("pytest-1.2.zip")
         entry2 = filestore.maplink(newlink)
-        assert entry2.md5 == newlink.md5
+        assert entry2.hash_spec and entry2.hash_spec == newlink.hash_spec
 
     def test_maplink_replaced_release_already_cached(self, filestore, gen):
         content = b'somedata'
@@ -57,7 +71,7 @@ class TestFileStore:
         assert entry1.file_exists()
         newlink = gen.pypi_package_link("pytest-1.2.zip")
         entry2 = filestore.maplink(newlink)
-        assert entry2.md5 == newlink.md5
+        assert entry2.hash_spec and entry2.hash_spec == newlink.hash_spec
         assert not entry2.file_exists()
 
     def test_file_delete(self, filestore, gen):
@@ -76,7 +90,7 @@ class TestFileStore:
         assert not entry1 != entry2
         assert entry1.relpath.endswith("/master")
         assert entry1.eggfragment == "pytest-dev"
-        assert not entry1.md5
+        assert not entry1.hash_spec
         assert entry1.url == link.url_nofrag
         assert entry1.eggfragment == "pytest-dev"
 
@@ -85,26 +99,27 @@ class TestFileStore:
         entry = filestore.maplink(link)
         assert entry.url == link.url
         assert not entry.file_exists()
-        md = hashlib.md5(b"").hexdigest()
-        entry.md5 = md
+        hashtype = "sha256"
+        hash_value = getattr(hashlib, hashtype)(b"").hexdigest()
+        entry.hash_spec = hash_spec = "%s=%s" %(hashtype, hash_value)
         assert not entry.file_exists()
         entry.file_set_content(b"")
         assert entry.file_exists()
         assert entry.url == link.url
-        assert entry.md5 == md
+        assert entry.hash_spec.endswith(hash_value)
 
         # reget
         entry = filestore.get_file_entry(entry.relpath)
         assert entry.file_exists()
         assert entry.url == link.url
-        assert entry.md5 == md
+        assert entry.hash_spec == hash_spec
         entry.delete()
         assert not entry.file_exists()
 
     def test_cache_remote_file(self, filestore, httpget, gen):
         link = gen.pypi_package_link("pytest-1.8.zip", md5=False)
         entry = filestore.maplink(link)
-        assert not entry.md5 and not entry.file_exists()
+        assert not entry.hash_spec and not entry.file_exists()
         filestore.keyfs.restart_as_write_transaction()
         headers={"content-length": "3",
                  "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
@@ -123,7 +138,7 @@ class TestFileStore:
         filestore.keyfs.restart_as_write_transaction()
         entry = filestore.get_file_entry(entry.relpath)
         assert entry.file_exists()
-        assert entry.md5 == hashlib.md5(bytes).hexdigest()
+        assert entry.hash_value == getdigest(bytes, entry.hashtype)
         assert entry.file_size() == 3
         rheaders = entry.gethttpheaders()
         assert entry.file_get_content() == b"123"
@@ -153,7 +168,7 @@ class TestFileStore:
     def test_iterfile_remote_no_headers(self, filestore, httpget, gen):
         link = gen.pypi_package_link("pytest-1.8.zip", md5=False)
         entry = filestore.maplink(link)
-        assert not entry.md5
+        assert not entry.hash_spec
         headers={}
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw = BytesIO(b"123"))
@@ -166,7 +181,7 @@ class TestFileStore:
     def test_iterfile_remote_error_size_mismatch(self, filestore, httpget, gen):
         link = gen.pypi_package_link("pytest-3.0.zip", md5=False)
         entry = filestore.maplink(link)
-        assert not entry.md5
+        assert not entry.hash_spec
         headers={"content-length": "3",
                  "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
                  "content-type": "application/zip"}
@@ -178,7 +193,7 @@ class TestFileStore:
     def test_iterfile_remote_nosize(self, filestore, httpget, gen):
         link = gen.pypi_package_link("pytest-3.0.zip", md5=False)
         entry = filestore.maplink(link)
-        assert not entry.md5
+        assert not entry.hash_spec
         headers={"last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
                  "content-length": None,}
         assert entry.file_size() is None
@@ -195,7 +210,7 @@ class TestFileStore:
     def test_iterfile_remote_error_md5(self, filestore, httpget, gen):
         link = gen.pypi_package_link("pytest-3.0.zip")
         entry = filestore.maplink(link)
-        assert entry.md5 == link.md5
+        assert entry.hash_spec and entry.hash_spec == link.hash_spec
         headers={"content-length": "3",
                  "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
                  "content-type": "application/zip"}
@@ -226,12 +241,12 @@ class TestFileStore:
     def test_store_and_iter(self, filestore):
         content = b"hello"
         entry = filestore.store("user", "index", "something-1.0.zip", content)
-        assert entry.md5 == hashlib.md5(content).hexdigest()
+        assert entry.hash_spec.endswith("="+getdigest(content, entry.hashtype))
         assert entry.file_exists()
         filestore.keyfs.restart_as_write_transaction()
         entry2 = filestore.get_file_entry(entry.relpath)
         assert entry2.basename == "something-1.0.zip"
         assert entry2.file_exists()
-        assert entry2.md5 == entry.md5
+        assert entry2.hash_spec == entry.hash_spec
         assert entry2.last_modified
         assert entry2.file_get_content() == content

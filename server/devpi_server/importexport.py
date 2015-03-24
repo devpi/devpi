@@ -1,11 +1,14 @@
 from __future__ import unicode_literals
 import sys
+import hashlib
 import os
 import json
 import py
 import logging
+import posixpath
 from devpi_common.validation import normalize_name
 from devpi_common.metadata import splitbasename, BasenameMeta
+from devpi_common.types import parse_hash_spec
 from devpi_server.main import fatal
 import devpi_server
 
@@ -146,7 +149,7 @@ class IndexDump:
             reflink = linkstore.stage.get_link_from_entrypath(tox_link.for_entrypath)
             relpath = self.exporter.write_file(
                 content=tox_link.entry.file_get_content(),
-                dest=self.basedir.join(linkstore.projectname, reflink.md5,
+                dest=self.basedir.join(linkstore.projectname, reflink.hash_spec,
                                        tox_link.basename)
             )
             self.add_filedesc(type="toxresult",
@@ -282,8 +285,15 @@ class Importer:
             link = stage.store_releasefile(projectname, version,
                                            p.basename, p.read("rb"),
                                            last_modified=mapping["last_modified"])
-            assert link.entry.md5 == mapping["md5"]
-            self.import_pre2_toxresults(stage, link.entry)
+            # devpi-server-2.1 exported with md5 checksums
+            if "md5" in mapping:
+                assert "hash_spec" not in mapping
+                mapping["hash_spec"] = "md5=" + mapping["md5"]
+            hash_algo, hash_value = parse_hash_spec(mapping["hash_spec"])
+            digest = hash_algo(link.entry.file_get_content()).hexdigest()
+            assert digest == hash_value
+            # note that the actual hash_type used within devpi-server is not
+            # determined here but in store_releasefile/store_doczip/store_toxresult etc
         elif filedesc["type"] == "doczip":
             basename = os.path.basename(rel)
             name, version, suffix = splitbasename(basename)
@@ -291,7 +301,10 @@ class Importer:
         elif filedesc["type"] == "toxresult":
             linkstore = stage.get_linkstore_perstage(filedesc["projectname"],
                                            filedesc["version"])
-            link, = linkstore.get_links(entrypath=filedesc["for_entrypath"])
+            # we can not search for the full relative path because
+            # it might use a different checksum
+            basename = posixpath.basename(filedesc["for_entrypath"])
+            link, = linkstore.get_links(basename=basename)
             link = stage.store_toxresult(link, json.loads(p.read("rb").decode("utf8")))
         else:
             fatal("unknown file type: %s" % (type,))
@@ -300,24 +313,6 @@ class Importer:
             link.add_log('upload', '<import>', dst=stage.name)
         else:
             link.add_logs(history_log)
-
-    def import_pre2_toxresults(self, stage, releasefile_entry):
-        # pre 2.0 export structure (called "attachments")
-        md5 = releasefile_entry.md5
-        type_path = self.import_rootdir.join("attach", md5, "toxresult")
-        if not type_path.exists():
-            return
-        releasefile_link = stage.get_link_from_entrypath(
-                entrypath=releasefile_entry.relpath)
-        type = type_path.basename
-        for i in range(len(type_path.listdir())):
-            attachment_data = type_path.join(str(i)).read(mode="rb")
-            attachment_data = attachment_data.decode('utf-8')
-            toxresultdata = json.loads(attachment_data)
-            self.tw.line("importing pre-2.0 test  results %s/%s" %(md5, type))
-            tox_link = stage.store_toxresult(releasefile_link, toxresultdata)
-            tox_link.add_log('upload', '<import>')
-            self.tw.line("imported %s" % tox_link.entrypath)
 
 
 class IndexTree:
