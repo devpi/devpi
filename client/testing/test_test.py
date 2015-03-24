@@ -112,12 +112,7 @@ class TestFunctional:
             *tests passed*""")
 
     def test_pkgname_with_dashes(self, out_devpi, create_and_upload):
-        class NameHack:
-            # this is necessary, because the tox initproj fixture doesn't
-            # support names like this (yet)
-            def split(self, sep):
-                return "my-pkg-123", "1.0"
-        create_and_upload(NameHack(), filedefs={
+        create_and_upload(("my-pkg-123", "1.0"), filedefs={
            "tox.ini": """
               [testenv]
               commands = python -c "print('ok')"
