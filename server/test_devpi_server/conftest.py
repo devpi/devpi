@@ -24,7 +24,7 @@ except ImportError:
 def make_file_url(basename, content, stagename=None, baseurl="http://localhost/"):
     from devpi_server.filestore import get_default_hash_spec, make_splitdir
     hash_spec = get_default_hash_spec(content)
-    hashdir = make_splitdir(hash_spec)
+    hashdir = "/".join(make_splitdir(hash_spec))
     s = "%s{stage}/+f/%s/%s#%s" %(baseurl, hashdir, basename, hash_spec)
     if stagename is not None:
         s = s.format(stage=stagename)

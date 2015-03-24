@@ -21,7 +21,7 @@ def make_splitdir(hash_spec):
     parts = hash_spec.split("=")
     assert len(parts) == 2
     hash_value = parts[1]
-    return hash_value[:3] + "/" + hash_value[3:16]
+    return hash_value[:3], hash_value[3:16]
 
 
 class FileStore:
@@ -37,9 +37,9 @@ class FileStore:
             # we can only create 32K entries per directory
             # so let's take the first 3 bytes which gives
             # us a maximum of 16^3 = 4096 entries in the root dir
-            a, b = make_splitdir(link.hash_spec).split("/")
+            a, b = make_splitdir(link.hash_spec)
             key = self.keyfs.STAGEFILE(user="root", index="pypi",
-                                       md5a=a, md5b=b,
+                                       hashdir_a=a, hashdir_b=b,
                                        filename=link.basename)
         else:
             parts = link.torelpath().split("/")
@@ -73,14 +73,12 @@ class FileStore:
     def get_file_entry_raw(self, key, meta):
         return FileEntry(self.xom, key, meta=meta)
 
-    def store(self, user, index, basename, file_content, md5dir=None):
-        if md5dir is None:
-            hash_spec = get_default_hash_spec(file_content)
-            md5a, md5b = make_splitdir(hash_spec).split("/")
-        else:
-            md5a, md5b = md5dir.split("/")
-        key = self.keyfs.STAGEFILE(
-            user=user, index=index, md5a=md5a, md5b=md5b, filename=basename)
+    def store(self, user, index, basename, file_content, dir_hash_spec=None):
+        if dir_hash_spec is None:
+            dir_hash_spec = get_default_hash_spec(file_content)
+        hashdir_a, hashdir_b = make_splitdir(dir_hash_spec)
+        key = self.keyfs.STAGEFILE(user=user, index=index,
+                   hashdir_a=hashdir_a, hashdir_b=hashdir_b, filename=basename)
         entry = FileEntry(self.xom, key)
         entry.file_set_content(file_content)
         return entry

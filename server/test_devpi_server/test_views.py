@@ -95,9 +95,9 @@ def test_simple_project_outside_url_subpath(mapp, outside_url, pypistage, testap
     links = sorted(x["href"] for x in BeautifulSoup(r.text).findAll("a"))
     assert len(links) == 2
     hash_spec = get_default_hash_spec(b'123')
-    md5dir = make_splitdir(hash_spec)
+    hashdir = "/".join(make_splitdir(hash_spec))
     assert links == [
-        '../+f/%s/qpwoei-1.0.tar.gz#%s' % (md5dir, hash_spec),
+        '../+f/%s/qpwoei-1.0.tar.gz#%s' % (hashdir, hash_spec),
         '../../../root/pypi/+e/https_pypi.python.org/qpwoei-1.0.zip']
     testapp.xget(
         200, URL("/%s/+simple/qpwoei" % api.stagename).joinpath(links[0]).path,

@@ -9,7 +9,7 @@ from devpi_common.validation import validate_metadata, normalize_name
 from devpi_common.types import ensure_unicode, cached_property, parse_hash_spec
 from time import gmtime
 from .auth import crypt_password, verify_password
-from .filestore import FileEntry, make_splitdir
+from .filestore import FileEntry
 from .log import threadlog, thread_current_log
 
 
@@ -673,7 +673,8 @@ class LinkStore:
                 exc.link = link
                 raise exc
             assert overwrite is None
-            overwrite = sum(x.get('count', 0) for x in link.get_logs() if x.get('what') == 'overwrite')
+            overwrite = sum(x.get('count', 0)
+                            for x in link.get_logs() if x.get('what') == 'overwrite')
             self.remove_links(rel=rel, basename=basename)
         file_entry = self._create_file_entry(basename, file_content)
         if last_modified is not None:
@@ -692,7 +693,7 @@ class LinkStore:
         other_reflinks = self.get_links(rel=rel, for_entrypath=for_entrypath)
         filename = "%s.%s%d" %(base_entry.basename, rel, len(other_reflinks))
         entry = self._create_file_entry(filename, file_content,
-                                        ref_reprhash=base_entry.hash_spec)
+                                        ref_hash_spec=base_entry.hash_spec)
         return self._add_link_to_file_entry(rel, entry, for_entrypath=for_entrypath)
 
     def remove_links(self, rel=None, basename=None, for_entrypath=None):
@@ -722,16 +723,12 @@ class LinkStore:
         return list(filter(fil, [ELink(self.filestore, linkdict, self.projectname, self.version)
                            for linkdict in self.verdata.get("+elinks", [])]))
 
-    def _create_file_entry(self, basename, file_content, ref_reprhash=None):
-        if ref_reprhash is None:
-            md5dir = None
-        else:
-            md5dir = make_splitdir(ref_reprhash)
+    def _create_file_entry(self, basename, file_content, ref_hash_spec=None):
         entry = self.filestore.store(
                     user=self.stage.user.name, index=self.stage.index,
                     basename=basename,
                     file_content=file_content,
-                    md5dir=md5dir)
+                    dir_hash_spec=ref_hash_spec)
         entry.projectname = self.projectname
         entry.version = self.version
         return entry
@@ -793,7 +790,7 @@ def add_keys(xom, keyfs):
     keyfs.add_key("PROJVERSION", "{user}/{index}/{name}/{version}/.config", dict)
     keyfs.add_key("PROJNAMES", "{user}/{index}/.projectnames", set)
     keyfs.add_key("STAGEFILE",
-                  "{user}/{index}/+f/{md5a}/{md5b}/{filename}", dict)
+                  "{user}/{index}/+f/{hashdir_a}/{hashdir_b}/{filename}", dict)
 
     sub = EventSubscribers(xom)
     keyfs.notifier.on_key_change("PROJVERSION", sub.on_changed_version_config)

@@ -337,12 +337,12 @@ class TestExtPYPIDB:
         assert links[0].entry.hash_spec.endswith(md5)
 
         # check refresh
-        md5b = getmd5("456")
+        hashdir_b = getmd5("456")
         pypistage.mock_simple("pytest", text='''
-                <a href="../../pkg/pytest-1.0.1.zip#md5={md5b}" />
+                <a href="../../pkg/pytest-1.0.1.zip#md5={hashdir_b}" />
                 <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
                 <a rel="download" href="https://download.com/index.html" />
-            '''.format(md5=md5, md5b=md5b), pypiserial=25)
+            '''.format(md5=md5, hashdir_b=hashdir_b), pypiserial=25)
         links = pypistage.get_releaselinks("pytest")
         assert len(links) == 3
         assert links[1].entry.url == "https://pypi.python.org/pkg/pytest-1.0.1.zip"
