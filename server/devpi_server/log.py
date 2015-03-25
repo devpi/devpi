@@ -8,6 +8,9 @@ threadlocal = threading.local()
 
 
 def configure_logging(config=None):
+    # clear handlers so that a second call to configure_logging
+    # reconfigures properly
+    logging.getLogger('').handlers = []
     if config and config.args.debug:
         loglevel = logging.DEBUG
     else:
