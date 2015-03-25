@@ -17,6 +17,8 @@
 - fix issue217: systematically avoid using bytes in persisted dictionaries 
   to avoid any py2/py3 bytes/unicode issue.
 
+- show actual instead of prospective replica serial in master /+status page 
+
 
 2.1.5
 ----------------
