@@ -7,6 +7,7 @@ from __future__ import unicode_literals
 import hashlib
 import mimetypes
 from wsgiref.handlers import format_date_time
+import py
 from devpi_common.types import cached_property, parse_hash_spec
 from .keyfs import _nodefault
 from .log import threadlog
@@ -22,6 +23,11 @@ def make_splitdir(hash_spec):
     assert len(parts) == 2
     hash_value = parts[1]
     return hash_value[:3], hash_value[3:16]
+
+def unicode_if_bytes(val):
+    if isinstance(val, py.builtin.bytes):
+        val = py.builtin._totext(val)
+    return val
 
 
 class FileStore:
@@ -61,7 +67,7 @@ class FileStore:
             if err:
                 threadlog.error(err)
                 entry.file_delete()
-        entry.hash_spec = link.hash_spec
+        entry.hash_spec = unicode_if_bytes(link.hash_spec)
         return entry
 
     def get_file_entry(self, relpath):
@@ -90,7 +96,7 @@ def metaprop(name):
         if self.meta is not None:
             return self.meta.get(name)
     def fset(self, val):
-        self.meta[name] = val
+        self.meta[name] = unicode_if_bytes(val)
         self.key.set(self.meta)
     return property(fget, fset)
 
@@ -165,7 +171,7 @@ class FileEntry(object):
         assert isinstance(content, bytes)
         if last_modified != -1:
             if last_modified is None:
-                last_modified = format_date_time(None)
+                last_modified = unicode_if_bytes(format_date_time(None))
             self.last_modified = last_modified
         #else we are called from replica thread and just write outside
         if hash_spec:
