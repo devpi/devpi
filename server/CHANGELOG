@@ -8,6 +8,12 @@
   a pending change on pypi.python.org which will see 
   it serving sha256 checksums only.
 
+- fix debug logging to actually show debug logs
+  (logging was not properly reconfigured)
+
+- fix issue221: avoid looking at file entries who are not part of a project
+  (because they got deleted)
+
 
 2.1.5
 ----------------
