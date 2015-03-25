@@ -63,8 +63,8 @@ def main(hub, args):
         version = req.specs[0][1]
     else:
         hub.warn(
-            "Old style package specification is deprecated, use this form: %s==%s" % (
-                name, version))
+            "Old style package specification is deprecated, "
+            "use this form: your-pkg-name==your.version.specifier")
     r = pusher.execute(hub, name, version)
     if r.type == "actionlog":
         for action in r["result"]:

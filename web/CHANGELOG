@@ -1,7 +1,9 @@
-2.2.4.dev1
+2.3.0.dev1
 ---------------
 
 - toxresults.pt: use just one line for result status indicator
+
+- adapt devpi-web to devpi-server-2.2.0 hash-spec changes 
 
 
 2.2.3

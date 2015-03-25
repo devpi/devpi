@@ -103,21 +103,16 @@ class TestFunctional:
         })
         result = out_devpi("test", "--debug", "exa==1.0")
         assert result.ret == 0
-        result.stdout.fnmatch_lines("""*exa-1.0.tar.gz*""")
+        result.stdout.fnmatch_lines("""*exa-1.0.*""")
         result = out_devpi("list", "-f", "exa")
         assert result.ret == 0
         result.stdout.fnmatch_lines("""
-            *exa-1.1.tar.gz*
-            *exa-1.0.tar.gz*
+            *exa-1.1.*
+            *exa-1.0.*
             *tests passed*""")
 
     def test_pkgname_with_dashes(self, out_devpi, create_and_upload):
-        class NameHack:
-            # this is necessary, because the tox initproj fixture doesn't
-            # support names like this (yet)
-            def split(self, sep):
-                return "my-pkg-123", "1.0"
-        create_and_upload(NameHack(), filedefs={
+        create_and_upload(("my-pkg-123", "1.0"), filedefs={
            "tox.ini": """
               [testenv]
               commands = python -c "print('ok')"

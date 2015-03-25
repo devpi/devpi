@@ -8,6 +8,26 @@ from pyramid.security import Allow, Deny, Everyone
 import binascii
 
 
+class StageACL(object):
+    def __init__(self, stage, restrict_modify):
+        self.restrict_modify = restrict_modify
+        self.stage = stage
+
+    def __acl__(self):
+        acl = []
+        for principal in self.stage.ixconfig.get("acl_upload", []):
+            if principal == ':ANONYMOUS:':
+                principal = Everyone
+            acl.append((Allow, principal, 'pypi_submit'))
+        if self.restrict_modify is None:
+            acl.extend([
+                (Allow, self.stage.username, 'index_modify'),
+                (Allow, self.stage.username, 'index_delete'),
+                (Allow, self.stage.username, 'del_verdata'),
+                (Allow, self.stage.username, 'del_project')])
+        return acl
+
+
 class RootFactory(object):
     def __init__(self, request):
         self.request = request
@@ -63,16 +83,8 @@ class RootFactory(object):
         if self.username and self.index:
             stage = self.model.getstage(self.username, self.index)
         if stage:
-            for principal in stage.ixconfig.get("acl_upload", []):
-                if principal == ':ANONYMOUS:':
-                    principal = Everyone
-                acl.append((Allow, principal, 'pypi_submit'))
-            if self.restrict_modify is None:
-                acl.extend([
-                    (Allow, self.username, 'index_modify'),
-                    (Allow, self.username, 'index_delete'),
-                    (Allow, self.username, 'del_verdata'),
-                    (Allow, self.username, 'del_project')])
+            stage.__acl__ = StageACL(stage, self.restrict_modify).__acl__
+            acl.extend(stage.__acl__())
         return acl
 
     def getstage(self, user, index):
@@ -80,6 +92,7 @@ class RootFactory(object):
         if not stage:
             abort(self.request, 404,
                   "The stage %s/%s could not be found." % (user, index))
+        stage.__acl__ = StageACL(stage, self.restrict_modify).__acl__
         return stage
 
     def get_versiondata(self, projectname=None, version=None, perstage=False):

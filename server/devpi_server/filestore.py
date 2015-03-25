@@ -7,11 +7,22 @@ from __future__ import unicode_literals
 import hashlib
 import mimetypes
 from wsgiref.handlers import format_date_time
-from devpi_common.types import cached_property
+from devpi_common.types import cached_property, parse_hash_spec
 from .keyfs import _nodefault
 from .log import threadlog
 
 log = threadlog
+
+def get_default_hash_spec(content):
+    #return "md5=" + hashlib.md5(content).hexdigest()
+    return "sha256=" + hashlib.sha256(content).hexdigest()
+
+def make_splitdir(hash_spec):
+    parts = hash_spec.split("=")
+    assert len(parts) == 2
+    hash_value = parts[1]
+    return hash_value[:3], hash_value[3:16]
+
 
 class FileStore:
     attachment_encoding = "utf-8"
@@ -22,14 +33,13 @@ class FileStore:
         self.storedir = self.keyfs.basedir.ensure("+files", dir=1)
 
     def maplink(self, link):
-        if link.md5:
-            assert len(link.md5) == 32
+        if link.hash_spec:
             # we can only create 32K entries per directory
             # so let's take the first 3 bytes which gives
             # us a maximum of 16^3 = 4096 entries in the root dir
-            md5a, md5b = split_md5(link.md5)
+            a, b = make_splitdir(link.hash_spec)
             key = self.keyfs.STAGEFILE(user="root", index="pypi",
-                                       md5a=md5a, md5b=md5b,
+                                       hashdir_a=a, hashdir_b=b,
                                        filename=link.basename)
         else:
             parts = link.torelpath().split("/")
@@ -41,14 +51,17 @@ class FileStore:
         entry = FileEntry(self.xom, key)
         entry.url = link.geturl_nofragment().url
         entry.eggfragment = link.eggfragment
-        if link.md5 != entry.md5:
-            if entry.file_exists():
-                log.info("replaced md5, deleting stale %s" % entry.relpath)
+        # verify checksum if the entry is fresh, a file exists
+        # and the link specifies a checksum.  It's a situation
+        # that shouldn't happen unless some manual file system
+        # intervention or corruption happened
+        if link.hash_spec and entry.file_exists() and not entry.hash_spec:
+            threadlog.debug("verifying checksum of %s", entry.relpath)
+            err = get_checksum_error(entry.file_get_content(), link.hash_spec)
+            if err:
+                threadlog.error(err)
                 entry.file_delete()
-            else:
-                if entry.md5:
-                    log.info("replaced md5 info for %s" % entry.relpath)
-        entry.md5 = link.md5
+        entry.hash_spec = link.hash_spec
         return entry
 
     def get_file_entry(self, relpath):
@@ -61,17 +74,16 @@ class FileStore:
     def get_file_entry_raw(self, key, meta):
         return FileEntry(self.xom, key, meta=meta)
 
-    def store(self, user, index, basename, file_content, md5dir=None):
-        if md5dir is None:
-            md5 = hashlib.md5(file_content).hexdigest()
-            md5a, md5b = split_md5(md5)
-        else:
-            md5a, md5b = md5dir.split("/")
-        key = self.keyfs.STAGEFILE(
-            user=user, index=index, md5a=md5a, md5b=md5b, filename=basename)
+    def store(self, user, index, basename, file_content, dir_hash_spec=None):
+        if dir_hash_spec is None:
+            dir_hash_spec = get_default_hash_spec(file_content)
+        hashdir_a, hashdir_b = make_splitdir(dir_hash_spec)
+        key = self.keyfs.STAGEFILE(user=user, index=index,
+                   hashdir_a=hashdir_a, hashdir_b=hashdir_b, filename=basename)
         entry = FileEntry(self.xom, key)
         entry.file_set_content(file_content)
         return entry
+
 
 def metaprop(name):
     def fget(self):
@@ -87,14 +99,14 @@ class FileEntry(object):
     class BadGateway(Exception):
         pass
 
-    md5 = metaprop("md5")
+    hash_spec = metaprop("hash_spec")  # e.g. "md5=120938012"
     eggfragment = metaprop("eggfragment")
     last_modified = metaprop("last_modified")
     url = metaprop("url")
     projectname = metaprop("projectname")
     version = metaprop("version")
 
-    def __init__(self, xom, key, meta=_nodefault, md5=_nodefault):
+    def __init__(self, xom, key, meta=_nodefault):
         self.xom = xom
         self.key = key
         self.relpath = key.relpath
@@ -102,12 +114,30 @@ class FileEntry(object):
         self._filepath = str(self.xom.filestore.storedir.join(self.relpath))
         if meta is not _nodefault:
             self.meta = meta or {}
-        elif md5 is not _nodefault:
-            self.meta = {"md5": md5}
+
+    @property
+    def hash_value(self):
+        return self.hash_spec.split("=", 1)[1]
+
+    @property
+    def hash_type(self):
+        return self.hash_spec.split("=")[0]
+
+    def check_checksum(self, content):
+        if not self.hash_spec:
+            return
+        err = get_checksum_error(content, self.hash_spec)
+        if err:
+            return ValueError("%s: %s" %(self.relpath, err))
+
+    def file_get_checksum(self, hash_type):
+        return getattr(hashlib, hash_type)(self.file_get_content()).hexdigest()
 
     @property
     def tx(self):
         return self.key.keyfs.tx
+
+    md5 = property(None, None)
 
     @cached_property
     def meta(self):
@@ -118,10 +148,6 @@ class FileEntry(object):
 
     def file_delete(self):
         return self.tx.io_file_delete(self._filepath)
-
-    def file_md5(self):
-        if self.file_exists():
-            return hashlib.md5(self.file_get_content()).hexdigest()
 
     def file_size(self):
         return self.tx.io_file_size(self._filepath)
@@ -135,17 +161,20 @@ class FileEntry(object):
     def file_get_content(self):
         return self.tx.io_file_get(self._filepath)
 
-    def file_set_content(self, content, last_modified=None, md5=None):
+    def file_set_content(self, content, last_modified=None, hash_spec=None):
         assert isinstance(content, bytes)
         if last_modified != -1:
             if last_modified is None:
                 last_modified = format_date_time(None)
             self.last_modified = last_modified
         #else we are called from replica thread and just write outside
-        file_md5 = hashlib.md5(content).hexdigest()
-        if md5 and md5 != file_md5:
-            raise ValueError("md5 mismatch: %s" % self.relpath)
-        self.md5 = file_md5
+        if hash_spec:
+            err = get_checksum_error(content, hash_spec)
+            if err:
+                raise ValueError(err)
+        else:
+            hash_spec = get_default_hash_spec(content)
+        self.hash_spec = hash_spec
         self.tx.io_file_set(self._filepath, content)
 
     def gethttpheaders(self):
@@ -183,7 +212,6 @@ class FileEntry(object):
             raise self.BadGateway(msg)
         log.info("reading remote: %s, target %s", r.url, self.relpath)
         content = r.raw.read()
-        digest = hashlib.md5(content).hexdigest()
         filesize = len(content)
         content_size = r.headers.get("content-length")
         err = None
@@ -192,15 +220,14 @@ class FileEntry(object):
             err = ValueError(
                       "%s: got %s bytes of %r from remote, expected %s" % (
                       self.relpath, filesize, r.url, content_size))
-        if not self.eggfragment and self.md5 and digest != self.md5:
-            err = ValueError("%s: md5 mismatch, got %s, expected %s",
-                             self.relpath, digest, self.md5)
+        if not err and not self.eggfragment:
+            err = self.check_checksum(content)
+
         if err is not None:
             log.error(str(err))
             raise err
 
-        self.file_set_content(content, r.headers.get("last-modified", None),
-                              md5=digest)
+        self.file_set_content(content, r.headers.get("last-modified", None))
 
     def cache_remote_file_replica(self):
         # construct master URL with param
@@ -227,5 +254,10 @@ class FileEntry(object):
         return entry
 
 
-def split_md5(hexdigest):
-    return hexdigest[:3], hexdigest[3:16]
+def get_checksum_error(content, hash_spec):
+    hash_algo, hash_value = parse_hash_spec(hash_spec)
+    hash_type = hash_spec.split("=")[0]
+    digest = hash_algo(content).hexdigest()
+    if digest != hash_value:
+       return "%s mismatch, got %s, expected %s" % (hash_type, digest, hash_value)
+

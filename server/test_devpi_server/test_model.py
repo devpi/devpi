@@ -78,32 +78,6 @@ class TestStage:
         assert model.getstage("hello", "world2") is None
         assert model.getstage("hello", "world") is not None
 
-    def test_set_and_get_acl(self, model, stage):
-        indexconfig = stage.ixconfig
-        # check that "hello" was included in acl_upload by default
-        assert indexconfig["acl_upload"] == ["hello"]
-        stage = model.getstage("hello/world")
-        # root cannot upload
-        assert not stage.can_upload("root")
-        # but hello can upload
-        assert stage.can_upload("hello")
-
-        # and we remove 'hello' from acl_upload ...
-        stage.modify(acl_upload=[])
-        # ... now it cannot upload either
-        stage = model.getstage("hello/world")
-        assert not stage.can_upload("hello")
-
-        # and we add the special :ANONYMOUS: to acl_upload ...
-        stage.modify(acl_upload=[':anonymous:'])
-        # which is always changed to uppercase
-        assert stage.ixconfig['acl_upload'] == [':ANONYMOUS:']
-        # and now anyone can upload
-        stage = model.getstage("hello/world")
-        assert stage.can_upload("hello")
-        assert stage.can_upload("root")
-        assert stage.can_upload("whoever")
-
     def test_getstage_normalized(self, model):
         assert model.getstage("/root/pypi/").name == "root/pypi"
 
@@ -268,10 +242,11 @@ class TestStage:
         content = b"123"
         link = register_and_store(stage, "some-1.0.zip", content)
         entry = link.entry
+        assert entry.hash_spec
         assert entry.last_modified != None
         entries = stage.get_releaselinks("some")
         assert len(entries) == 1
-        assert entries[0].md5 == entry.md5
+        assert entries[0].hash_spec == entry.hash_spec
         assert stage.list_projectnames_perstage() == set(["some"])
         verdata = stage.get_versiondata("some", "1.0")
         links = verdata["+elinks"]

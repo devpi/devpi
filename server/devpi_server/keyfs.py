@@ -371,7 +371,7 @@ class TxNotificationThread:
                 try:
                     sub(ev)
                 except Exception:
-                    log.exception("calling %s with %s failed", sub, ev)
+                    log.exception("calling %s failed, serial=%s", sub, event_serial)
 
         log.debug("finished calling all hooks for tx%s", event_serial)
 
