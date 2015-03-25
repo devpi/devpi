@@ -1,6 +1,5 @@
 import os
 import py
-import hashlib
 import json
 import contextlib
 import time
@@ -372,14 +371,13 @@ class ImportFileReplica:
 
         if r.status_code != 200:
             raise FileReplicationError(r)
-        remote_md5 = hashlib.md5(r.content).hexdigest()
-        if entry.md5 and entry.md5 != remote_md5:
+        err = entry.check_checksum(r.content)
+        if err:
             # the file we got is different, it may have changed later.
             # we remember the error and move on
             self.errors.add(dict(
                 url=r.url,
-                message="remote has md5 %s, expected %s" % (
-                    remote_md5, entry.md5),
+                message=str(err),
                 relpath=entry.relpath))
             return
         # in case there were errors before, we can now remove them

@@ -30,6 +30,22 @@ class TestURL:
     def test_md5(self):
         url = URL("http://a/py.tar.gz#md5=123123")
         assert url.md5 == "123123"
+        assert url.hash_algo == hashlib.md5
+        assert url.hash_value == "123123"
+
+    @pytest.mark.parametrize("hashtype,hash_value", [
+        ("sha256", "090123"),
+        ("sha224", "1209380123"),
+        ("md5", "102938")
+    ])
+    def test_hashtypes(self, hashtype, hash_value):
+        link = URL('py-1.4.12.zip#%s=%s' % (hashtype, hash_value))
+        assert link.hash_algo == getattr(hashlib, hashtype)
+        assert link.hash_value == hash_value
+
+    def test_nohashtypes(self):
+        link = URL("whateveer#lqk=123")
+        assert link.hash_value is None and link.hash_algo is None
 
     @pytest.mark.parametrize("url,path,expected", [
         ("http://root", "dir1", "http://root/dir1"),

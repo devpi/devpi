@@ -120,26 +120,11 @@ def test_parent_subpath(tmpdir):
     pytest.raises(ValueError, lambda: find_parent_subpath(tmpdir, "poiqel123"))
 
 
-# this class is necessary, because the tox initproj fixture doesn't
-# support names like this (yet)
-class NameHack:
-    def __init__(self, name, version):
-        self.name = name
-        self.version = version
-
-    def split(self, sep):
-        assert sep == '-'
-        return self.name, self.version
-
-    def __str__(self):
-        return "%s-%s" % (self.name, self.version)
-
-
 class TestUploadFunctional:
     @pytest.mark.parametrize("projname_version", [
-        "hello-1.0", NameHack("my-pkg-123", "1.0")])
+        "hello-1.0", "my-pkg-123-1.0"])
     def test_all(self, initproj, devpi, out_devpi, projname_version):
-        initproj(projname_version, {"doc": {
+        initproj(projname_version.rsplit("-", 1), {"doc": {
             "conf.py": "#nothing",
             "index.html": "<html/>"}})
         assert py.path.local("setup.py").check()
@@ -239,7 +224,7 @@ class TestUploadFunctional:
 
     def test_frompath_complex_name(self, initproj, devpi, out_devpi, runproc):
         from devpi_common.archive import zip_dir
-        initproj(NameHack("my-pkg-123", "1.3"), {"doc": {
+        initproj(("my-pkg-123", "1.3"), {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
         tmpdir = py.path.local()
