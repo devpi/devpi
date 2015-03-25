@@ -23,25 +23,20 @@ class TestFileStore:
         assert entry1.basename == "pytest-1.2.zip"
         assert py.builtin._istext(entry1.hash_spec)
 
-    def test_maplink_splitmd5_issue78(self, filestore, gen):
-        link = gen.pypi_package_link("pytest-1.2.zip")
+    @pytest.mark.parametrize("hash_spec", [
+        "sha256=%s" %(hashlib.sha256(b'qwe').hexdigest()),
+        "md5=%s" %(hashlib.md5(b'qwe').hexdigest()),
+    ])
+    def test_maplink_splithashdir_issue78(self, filestore, gen, hash_spec):
+        link = gen.pypi_package_link("pytest-1.2.zip#" + hash_spec, md5=False)
         entry1 = filestore.maplink(link)
         # check md5 directory structure (issue78)
         parts = entry1.relpath.split("/")
         parent2 = parts[-2]
         parent1 = parts[-3]
-        assert parent1 == link.md5[:3]
-        assert parent2 == link.md5[3:16]
-
-    def test_maplink_splithash_value_sha256(self, filestore, gen):
-        link = URL("http://package.org/pytest-1.2.zip#sha256=12301238900980123")
-        entry1 = filestore.maplink(link)
-        parts = entry1.relpath.split("/")
-        parent2 = parts[-2]
-        parent1 = parts[-3]
-        assert link.hash_algo == hashlib.sha256
         assert parent1 == link.hash_value[:3]
         assert parent2 == link.hash_value[3:16]
+        assert getattr(hashlib, hash_spec.split("=")[0]) == link.hash_algo
 
     def test_maplink(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.2.zip")
