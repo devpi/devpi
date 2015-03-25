@@ -4,6 +4,8 @@
 - add devpi_common.type.parse_hash_spec helper for parsing 
   "HASH_TYPE=VALUE" strings into an callable algorithm and the value
 
+- add hash_type, hash_value and hash_algo to URL class
+
 
 2.0.5
 ----------------
