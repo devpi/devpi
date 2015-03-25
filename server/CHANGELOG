@@ -1,7 +1,7 @@
 2.2.0.DEV
 ----------------
 
-- use sha256 instead of md5 checksums for serving own files
+- fix issue216: use sha256 instead of md5 checksums for serving own files
   (BACKWARD INCOMPATIBLE: needs export/import)
 
 - parse arbitrary checksums from PyPI in preparation for 
