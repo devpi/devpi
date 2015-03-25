@@ -33,7 +33,9 @@ class MasterChangelogRequest:
             polling_replicas = self.xom.polling_replicas
             polling_replicas[uuid] = {
                 "remote-ip": self.request.get_remote_ip(),
-                "serial": serial,
+                # the replica always polls its own serial+1
+                # and we want to show where the replica serial is at
+                "serial": int(serial)-1,
                 "in-request": True,
                 "last-request": time.time(),
                 "outside-url": headers.get(H_REPLICA_OUTSIDE_URL),

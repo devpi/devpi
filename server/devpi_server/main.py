@@ -409,6 +409,6 @@ def set_default_indexes(model):
     userconfig = root_user.key.get()
     indexes = userconfig["indexes"]
     if "pypi" not in indexes:
-        indexes["pypi"] = dict(bases=(), type="mirror", volatile=False)
+        indexes["pypi"] = {"bases": (), "type": "mirror", "volatile": False}
         root_user.key.set(userconfig)
         threadlog.info("created root/pypi index")

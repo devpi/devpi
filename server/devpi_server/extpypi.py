@@ -157,9 +157,9 @@ class PyPIStage(BaseStage):
     username = "root"
     index = "pypi"
     name = "root/pypi"
-    ixconfig = dict(bases=(), volatile=False, type="mirror",
-                    pypi_whitelist=(), custom_data="",
-                    uploadtrigger_jenkins="", acl_upload=["root"])
+    ixconfig = {"bases": (), "volatile": False, "type": "mirror",
+                "pypi_whitelist": (), "custom_data": "",
+                "uploadtrigger_jenkins": "", "acl_upload": ["root"]}
 
     def __init__(self, xom):
         self.keyfs = xom.keyfs
@@ -203,9 +203,8 @@ class PyPIStage(BaseStage):
     def _make_elinks(self, projectname, data):
         from .model import ELink
         for relpath, hash_spec, eggfragment in data:
-            linkdict = dict(entrypath=relpath,
-                            hash_spec=hash_spec,
-                            eggfragment=eggfragment)
+            linkdict = {"entrypath": relpath, "hash_spec": hash_spec,
+                        "eggfragment": eggfragment}
             version = "XXX"
             try:
                 name, version = splitbasename(relpath)[:2]
@@ -317,9 +316,7 @@ class PyPIStage(BaseStage):
                 verdata['name'] = projectname
                 verdata['version'] = version
             links = verdata.setdefault("+elinks", [])
-            links.append(dict(
-                rel="releasefile",
-                entrypath=link.entrypath))
+            links.append({"rel": "releasefile", "entrypath": link.entrypath})
         return verdata
 
 

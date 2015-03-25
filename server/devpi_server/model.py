@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 import posixpath
+import sys
 import py
 import re
 import json
@@ -608,6 +609,9 @@ class ELink:
         self.basename = posixpath.basename(self.entrypath)
         self.projectname = projectname
         self.version = version
+        if sys.version_info < (3,0):
+            for key in linkdict:
+                assert py.builtin._istext(key)
 
     @property
     def hash_spec(self):
@@ -639,7 +643,12 @@ class ELink:
         return self.filestore.get_file_entry(self.entrypath)
 
     def add_log(self, what, who, **kw):
-        self._log.append(dict(what=what, who=who, when=gmtime()[:6], **kw))
+        d = {"what": what, "who": who, "when": gmtime()[:6]}
+        if sys.version_info < (3,0):
+            # make sure keys are unicode as they are on py3
+            kw = dict((py.builtin.text(name), value) for name, value in kw.items())
+        d.update(kw)
+        self._log.append(d)
 
     def add_logs(self, logs):
         self._log.extend(logs)
@@ -680,7 +689,7 @@ class LinkStore:
             file_entry.last_modified = last_modified
         link = self._add_link_to_file_entry(rel, file_entry)
         if overwrite is not None:
-            link.add_log('overwrite', None, count=overwrite + 1)
+            link.add_log('overwrite', None, count=overwrite+1)
         return link
 
     def new_reflink(self, rel, file_content, for_entrypath):
@@ -741,12 +750,11 @@ class LinkStore:
     def _add_link_to_file_entry(self, rel, file_entry, for_entrypath=None):
         if isinstance(for_entrypath, ELink):
             for_entrypath = for_entrypath.entrypath
-        relextra = {}
+        new_linkdict = {"rel": rel, "entrypath": file_entry.relpath,
+                        "hash_spec": file_entry.hash_spec, "_log": []}
         if for_entrypath:
-            relextra["for_entrypath"] = for_entrypath
+            new_linkdict["for_entrypath"] = for_entrypath
         linkdicts = self._get_inplace_linkdicts()
-        new_linkdict = dict(rel=rel, entrypath=file_entry.relpath,
-                            hash_spec=file_entry.hash_spec, _log=[], **relextra)
         linkdicts.append(new_linkdict)
         threadlog.info("added %r link %s", rel, file_entry.relpath)
         self._mark_dirty()

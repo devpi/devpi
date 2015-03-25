@@ -699,6 +699,10 @@ class Transaction(object):
 
     def set(self, typedkey, val):
         assert self.write, "not in write-transaction"
+        # sanity check for dictionaries: we always want to have unicode
+        # keys, not bytes
+        if typedkey.type == dict:
+            check_unicode_keys(val)
         self.cache[typedkey] = val
         self.dirty.add(typedkey)
 
@@ -757,3 +761,14 @@ def copy_if_mutable(val, _immutable=(py.builtin.text, type(None), int, tuple,
     elif isinstance(val, set):
         return set(copy_if_mutable(item) for item in val)
     raise ValueError("don't know how to handle type %r" % type(val))
+
+
+def check_unicode_keys(d):
+    for key, val in d.items():
+        assert not isinstance(key, py.builtin.bytes), repr(key)
+        # not allowing bytes seems ok for now, we might need to relax that
+        # it certainly helps to get unicode clean
+        assert not isinstance(val, py.builtin.bytes), repr(key) + "=" + repr(val)
+        if isinstance(val, dict):
+            check_unicode_keys(val)
+

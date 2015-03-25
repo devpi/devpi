@@ -149,7 +149,7 @@ class TestKey:
         with key1.update() as d:
             with key2.update() as l:
                 l.append(1)
-                d["hello"] = l
+                d[py.builtin._totext("hello")] = l
         assert key1.get()["hello"] == l
 
     def test_get_inplace(self, keyfs):

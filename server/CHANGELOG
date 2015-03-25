@@ -14,6 +14,11 @@
 - fix issue221: avoid looking at file entries who are not part of a project
   (because they got deleted)
 
+- fix issue217: systematically avoid using bytes in persisted dictionaries 
+  to avoid any py2/py3 bytes/unicode issue.
+
+- show actual instead of prospective replica serial in master /+status page 
+
 
 2.1.5
 ----------------
@@ -27,6 +32,10 @@
   zip files for the same package version if the filename differed in case, this
   broke export and replication of server state and the documentation view.
   Now the newest upload will be used and older ones ignored.
+
+- fix issue217: try harder to avoid using "bytes" in python2 to allow
+  py2/py3 master/replica setups and generally have more type-uniform bytes.
+
 
 2.1.4
 ----------------

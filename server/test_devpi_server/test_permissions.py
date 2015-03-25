@@ -1,13 +1,13 @@
+from __future__ import unicode_literals
 import pytest
-
 
 pytestmark = [pytest.mark.writetransaction]
 
 
 @pytest.fixture
 def stage(request, model):
-    config = dict(index="world", bases=(),
-                  type="stage", volatile=True)
+    config = {"index": "world", "bases": (),
+              "type": "stage", "volatile": True}
     if "bases" in request.fixturenames:
         config["bases"] = request.getfuncargvalue("bases")
     user = model.create_user("hello", password="123")
