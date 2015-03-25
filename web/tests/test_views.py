@@ -665,10 +665,8 @@ def test_testdata(mapp, testapp):
             for t in x.findAll('td'))
         for x in r.html.select('tbody tr')]
     assert rows == [
-        # ("pkg1-2.6.tgz.toxresult0", "foo", "linux2", "py27", "", "No
-        # setup performed Tests passed")]  XXX Why does "Tests passed"
-        # not appear anymore?
-        ("pkg1-2.6.tgz.toxresult0", "foo", "linux2", "py27", "", "No setup performed Tests")]
+        ("pkg1-2.6.tgz.toxresult0", "foo", "linux2", "py27",
+         "", "No setup performed Tests")]
 
 
 @pytest.mark.with_notifier
