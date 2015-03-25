@@ -237,7 +237,7 @@ def httpget(pypiurls):
             if pkgver is not None:
                 assert not text
                 if hashtype and "#" not in pkgver:
-                    hv = pkgver + str(pypiserial)
+                    hv = (pkgver + str(pypiserial)).encode("ascii")
                     hash_value = getattr(hashlib, hashtype)(hv).hexdigest()
                     ret.hash_spec = "%s=%s" %(hashtype, hash_value)
                     pkgver += "#" + ret.hash_spec

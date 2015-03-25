@@ -164,7 +164,10 @@ def ensure_unicode_keys(somedict, ensure_unicode=ensure_unicode):
 def parse_hash_spec(fragment):
     """ Return (hashtype, hash_value) from parsing a given X=Y fragment.
     X must be a supported algorithm by the python hashlib module."""
-    for algo in hashlib.algorithms:
-        if fragment.startswith(algo + "="):
-            return getattr(hashlib, algo), fragment[len(algo)+1:]
+    parts = fragment.split("=", 1)
+    if len(parts) == 2:
+        algoname, hash_value = parts
+        algo = getattr(hashlib, algoname, None)
+        if algo is not None:
+            return algo, hash_value
     return None, None
