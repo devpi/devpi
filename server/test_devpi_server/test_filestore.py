@@ -118,9 +118,9 @@ class TestFileStore:
         entry = filestore.maplink(link)
         assert entry.url == link.url
         assert not entry.file_exists()
-        hashtype = "sha256"
-        hash_value = getattr(hashlib, hashtype)(b"").hexdigest()
-        entry.hash_spec = hash_spec = "%s=%s" %(hashtype, hash_value)
+        hash_type = "sha256"
+        hash_value = getattr(hashlib, hash_type)(b"").hexdigest()
+        entry.hash_spec = hash_spec = "%s=%s" %(hash_type, hash_value)
         assert not entry.file_exists()
         entry.file_set_content(b"")
         assert entry.file_exists()
@@ -157,7 +157,7 @@ class TestFileStore:
         filestore.keyfs.restart_as_write_transaction()
         entry = filestore.get_file_entry(entry.relpath)
         assert entry.file_exists()
-        assert entry.hash_value == getdigest(bytes, entry.hashtype)
+        assert entry.hash_value == getdigest(bytes, entry.hash_type)
         assert entry.file_size() == 3
         rheaders = entry.gethttpheaders()
         assert entry.file_get_content() == b"123"
@@ -260,7 +260,7 @@ class TestFileStore:
     def test_store_and_iter(self, filestore):
         content = b"hello"
         entry = filestore.store("user", "index", "something-1.0.zip", content)
-        assert entry.hash_spec.endswith("="+getdigest(content, entry.hashtype))
+        assert entry.hash_spec.endswith("="+getdigest(content, entry.hash_type))
         assert entry.file_exists()
         filestore.keyfs.restart_as_write_transaction()
         entry2 = filestore.get_file_entry(entry.relpath)

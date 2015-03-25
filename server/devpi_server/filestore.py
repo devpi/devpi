@@ -120,7 +120,7 @@ class FileEntry(object):
         return self.hash_spec.split("=", 1)[1]
 
     @property
-    def hashtype(self):
+    def hash_type(self):
         return self.hash_spec.split("=")[0]
 
     def check_checksum(self, content):
@@ -130,8 +130,8 @@ class FileEntry(object):
         if err:
             return ValueError("%s: %s" %(self.relpath, err))
 
-    def file_get_checksum(self, hashtype):
-        return getattr(hashlib, hashtype)(self.file_get_content()).hexdigest()
+    def file_get_checksum(self, hash_type):
+        return getattr(hashlib, hash_type)(self.file_get_content()).hexdigest()
 
     @property
     def tx(self):

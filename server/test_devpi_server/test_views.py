@@ -28,8 +28,8 @@ def getfirstlink(text):
     return BeautifulSoup(text).findAll("a")[0]
 
 def hash_spec_matches(hash_spec, content):
-    hashtype, hash_value = hash_spec.split("=")
-    digest = getattr(hashlib, hashtype)(content).hexdigest()
+    hash_type, hash_value = hash_spec.split("=")
+    digest = getattr(hashlib, hash_type)(content).hexdigest()
     return digest == hash_value
 
 

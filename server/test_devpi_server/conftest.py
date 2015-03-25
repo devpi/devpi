@@ -230,16 +230,16 @@ def httpget(pypiurls):
             log.debug("set mocking response %s %s", mockurl, kw)
             self.url2response[mockurl] = kw
 
-        def mock_simple(self, name, text=None, pkgver=None, hashtype=None,
+        def mock_simple(self, name, text=None, pkgver=None, hash_type=None,
             pypiserial=10000, **kw):
             class ret:
                 hash_spec = ""
             if pkgver is not None:
                 assert not text
-                if hashtype and "#" not in pkgver:
+                if hash_type and "#" not in pkgver:
                     hv = (pkgver + str(pypiserial)).encode("ascii")
-                    hash_value = getattr(hashlib, hashtype)(hv).hexdigest()
-                    ret.hash_spec = "%s=%s" %(hashtype, hash_value)
+                    hash_value = getattr(hashlib, hash_type)(hv).hexdigest()
+                    ret.hash_spec = "%s=%s" %(hash_type, hash_value)
                     pkgver += "#" + ret.hash_spec
                 text = '<a href="../../pkg/{pkgver}" />'.format(pkgver=pkgver)
             elif text and "{md5}" in text:

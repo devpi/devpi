@@ -10,23 +10,23 @@ from test_devpi_server.conftest import getmd5
 class TestIndexParsing:
     simplepy = URL("http://pypi.python.org/simple/py/")
 
-    @pytest.mark.parametrize("hashtype,hash_value", [
+    @pytest.mark.parametrize("hash_type,hash_value", [
         ("sha256", "090123"),
         ("sha224", "1209380123"),
         ("md5", "102938")
     ])
-    def test_parse_index_simple_hashtypes(self, hashtype, hash_value):
+    def test_parse_index_simple_hash_types(self, hash_type, hash_value):
         result = parse_index(self.simplepy,
             """<a href="../../pkg/py-1.4.12.zip#%s=%s" /a>"""
-            %(hashtype, hash_value))
+            %(hash_type, hash_value))
         link, = result.releaselinks
         assert link.basename == "py-1.4.12.zip"
-        assert link.hash_spec == "%s=%s" %(hashtype, hash_value)
-        if hashtype == "md5":
+        assert link.hash_spec == "%s=%s" %(hash_type, hash_value)
+        if hash_type == "md5":
             assert link.md5 == hash_value
         else:
             assert link.md5 is None
-        assert link.hash_algo == getattr(hashlib, hashtype)
+        assert link.hash_algo == getattr(hashlib, hash_type)
 
     def test_parse_index_simple_tilde(self):
         result = parse_index(self.simplepy,
@@ -284,13 +284,13 @@ class TestExtPYPIDB:
         links = pypistage.get_releaselinks("pytest")
         assert links[0].eggfragment == "pytest-dev2"
 
-    @pytest.mark.parametrize("hashtype", ["md5", "sha256"])
-    def test_parse_project_replaced_md5(self, pypistage, hashtype):
-        x = pypistage.mock_simple("pytest", pypiserial=10, hashtype=hashtype,
+    @pytest.mark.parametrize("hash_type", ["md5", "sha256"])
+    def test_parse_project_replaced_md5(self, pypistage, hash_type):
+        x = pypistage.mock_simple("pytest", pypiserial=10, hash_type=hash_type,
                                    pkgver="pytest-1.0.zip")
         links = pypistage.get_releaselinks("pytest")
         assert links[0].hash_spec == x.hash_spec
-        y = pypistage.mock_simple("pytest", pypiserial=11, hashtype=hashtype,
+        y = pypistage.mock_simple("pytest", pypiserial=11, hash_type=hash_type,
                                    pkgver="pytest-1.0.zip")
         links = pypistage.get_releaselinks("pytest")
         assert links[0].hash_spec == y.hash_spec
