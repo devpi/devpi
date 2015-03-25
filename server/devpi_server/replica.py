@@ -1,6 +1,5 @@
 import os
 import py
-import hashlib
 import json
 import contextlib
 import time

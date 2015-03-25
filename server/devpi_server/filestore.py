@@ -51,15 +51,16 @@ class FileStore:
         entry = FileEntry(self.xom, key)
         entry.url = link.geturl_nofragment().url
         entry.eggfragment = link.eggfragment
-        if link.hash_spec != entry.hash_spec:
-            if entry.file_exists():
-                log.info("new checksum %s, deleting stale %s" % (
-                         hash_spec, entry.relpath))
+        # verify checksum if the entry is fresh, a file exists
+        # and the link specifies a checksum.  It's a situation
+        # that shouldn't happen unless some manual file system
+        # intervention or corruption happened
+        if link.hash_spec and entry.file_exists() and not entry.hash_spec:
+            threadlog.debug("verifying checksum of %s", entry.relpath)
+            err = get_checksum_error(entry.file_get_content(), link.hash_spec)
+            if err:
+                threadlog.error(err)
                 entry.file_delete()
-            else:
-                if entry.hash_spec:
-                    log.info("replaced checksum info for %s, %s" % (
-                             entry.relpath, hash_spec))
         entry.hash_spec = link.hash_spec
         return entry
 
@@ -171,7 +172,9 @@ class FileEntry(object):
             err = get_checksum_error(content, hash_spec)
             if err:
                 raise ValueError(err)
-        self.hash_spec = get_default_hash_spec(content)
+        else:
+            hash_spec = get_default_hash_spec(content)
+        self.hash_spec = hash_spec
         self.tx.io_file_set(self._filepath, content)
 
     def gethttpheaders(self):

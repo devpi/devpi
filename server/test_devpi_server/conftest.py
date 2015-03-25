@@ -803,6 +803,8 @@ class Gen:
         if md5 == True:
             self._md5.update(link.encode("utf8"))  # basically random
             link += "#md5=%s" % self._md5.hexdigest()
+        elif md5:
+            link += "#md5=%s" % md5
         return URL(link)
 
 def getmd5(s):

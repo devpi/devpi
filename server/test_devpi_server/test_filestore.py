@@ -62,17 +62,41 @@ class TestFileStore:
         assert entry2.hash_spec and entry2.hash_spec == newlink.hash_spec
 
     def test_maplink_replaced_release_already_cached(self, filestore, gen):
-        content = b'somedata'
-        md5 = hashlib.md5(content).hexdigest()
-        link = gen.pypi_package_link("pytest-1.2.zip", md5=md5)
-        entry1 = filestore.maplink(link)
-        # pseudo-write a release file
-        entry1.file_set_content(content)
+        content1 = b'somedata'
+        md5_1 = hashlib.md5(content1).hexdigest()
+        link1 = gen.pypi_package_link("pytest-1.2.zip", md5=md5_1)
+        entry1 = filestore.maplink(link1)
+        # pseudo-write a release file with a specific hash_spec
+        entry1.file_set_content(content1, hash_spec="md5=" + md5_1)
         assert entry1.file_exists()
-        newlink = gen.pypi_package_link("pytest-1.2.zip")
-        entry2 = filestore.maplink(newlink)
-        assert entry2.hash_spec and entry2.hash_spec == newlink.hash_spec
+        # make sure the entry has the same hash_spec as the external link
+        assert entry1.hash_spec and entry1.hash_spec == link1.hash_spec
+
+        # now replace the hash of the link and check again
+        content2 = b'otherdata'
+        md5_2 = hashlib.md5(content2).hexdigest()
+        link2 = gen.pypi_package_link("pytest-1.2.zip", md5=md5_2)
+        entry2 = filestore.maplink(link2)
+        assert entry2.hash_spec and entry2.hash_spec == link2.hash_spec
         assert not entry2.file_exists()
+
+    def test_file_exists_new_hash(self, filestore, gen):
+        content1 = b'somedata'
+        md5_1 = hashlib.md5(content1).hexdigest()
+        link1 = gen.pypi_package_link("pytest-1.2.zip", md5=md5_1)
+        entry1 = filestore.maplink(link1)
+        # write a wrong file outside the transaction
+        filepath = entry1._filepath
+        py.path.local(filepath).dirpath().ensure(dir=1)
+        with open(filepath, "w") as f:
+            f.write('othercontent')
+        filestore.keyfs.rollback_transaction_in_thread()
+        filestore.keyfs.begin_transaction_in_thread(write=True)
+        # now check if the file got replaced
+        entry2 = filestore.maplink(link1)
+        assert not entry2.file_exists()
+        filestore.keyfs.commit_transaction_in_thread()
+        assert not py.path.local(filepath).exists()
 
     def test_file_delete(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.2.zip", md5=False)

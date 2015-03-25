@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 import posixpath
-import hashlib
 import py
 import re
 import json

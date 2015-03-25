@@ -266,7 +266,7 @@ class TestExtPYPIDB:
             assert name in pypistage.ixconfig
 
     def test_parse_project_nomd5(self, pypistage):
-        x = pypistage.mock_simple("pytest", pkgver="pytest-1.0.zip")
+        pypistage.mock_simple("pytest", pkgver="pytest-1.0.zip")
         links = pypistage.get_releaselinks("pytest")
         link, = links
         assert link.entry.url == "https://pypi.python.org/pkg/pytest-1.0.zip"

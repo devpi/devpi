@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 import sys
-import hashlib
 import os
 import json
 import py
