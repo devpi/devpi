@@ -46,4 +46,4 @@ def main(hub, args):
     elif args.list:
         return user_list(hub)
     else:
-        hub.fatal("need to specify -c|-d|-m|-l")
+        hub.fatal("need to specify -c|--delete|-m|-l")
