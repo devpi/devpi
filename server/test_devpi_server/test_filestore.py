@@ -2,7 +2,6 @@ import os
 import pytest
 import py
 from devpi_server.filestore import *
-from devpi_common.url import URL
 
 pytestmark = [pytest.mark.writetransaction]
 
