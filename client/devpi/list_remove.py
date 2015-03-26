@@ -71,9 +71,6 @@ def show_test_status(hub, toxlinks):
             hub.error("corrupt toxresult, skipping: %s" % (toxlink,))
             continue
         for toxenv in toxenvs:
-            #if toxenv.envname == "py27-pexpect":
-            #    print toxenv.setup
-            #    assert 0
             prefix = "  %s %s %s" % (toxenv.host, toxenv.platform, toxenv.envname)
             if not toxenv.setup['commands']:
                 hub.error("%s no setup was performed" % prefix)
