@@ -92,11 +92,6 @@ def show_commands(hub, view_result):
     if not hub.args.failures:
         return
     for command_dict in view_result["commands"]:
-        #if not isinstance(command, dict):
-        #    print "SKIPPING", repr(command)
-        #    continue
-        #argv = command["command"]
-        #shellcommand = " ".join(argv)
         shellcommand = command_dict["command"]
         output = command_dict["output"]
         if command_dict["failed"]:
