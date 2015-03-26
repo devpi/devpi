@@ -74,14 +74,14 @@ def test_confirm_delete(loghub, monkeypatch):
 
 def test_showcommands(loghub):
     loghub.args.failures = True
-    show_commands(loghub, [
-        {"retcode": "0", "command": ["OK"], "output": "out1"},
-        {"retcode": "1", "command": ["fail1"], "output": "FAIL1OUT"}
-    ])
+    show_commands(loghub, {"failed": True, "commands": [
+        {"failed": False, "command": "ok_command", "output": "ok_output"},
+        {"failed": True, "command": "fail_command", "output": "fail_output"},
+    ]})
     loghub._getmatcher().fnmatch_lines("""
-        *OK:*OK*
-        *FAIL:*fail1
-        *FAIL1OUT*
+        *OK:*ok_command*
+        *FAIL:*fail_command
+        *fail_output*
     """)
 
 
