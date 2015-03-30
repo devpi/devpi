@@ -426,6 +426,21 @@ class TestExtPYPIDB:
         assert pypistage.get_projectname("s_p") == "s-p"
         assert pypistage.get_projectname("sqwe_p") is None
 
+    def test_parse_with_outdated_links_issue165(self, pypistage, caplog):
+        pypistage.mock_simple("pytest", pypiserial=10, pkgver="pytest-1.0.zip")
+        links = pypistage.get_releaselinks("pytest")
+        assert len(links) == 1
+        # update the links just as the PyPIMirror thread would
+        with pypistage.keyfs.PYPILINKS(name="pytest").update() as cache:
+            cache["latest_serial"] = 11
+        # make pypi.python.org unreachable
+        pypistage.mock_simple("pytest", status_code=-1)
+        links2 = pypistage.get_releaselinks("pytest")
+        assert links2[0].linkdict == links[0].linkdict and len(links2) == 1
+        recs = caplog.getrecords("serving stale.*pytest.*")
+        assert len(recs) == 1
+
+
 @pytest.mark.notransaction
 def test_pypi_mirror_redirect_to_canonical_issue139(xom, keyfs, mock):
     proxy = mock.create_autospec(XMLProxy)

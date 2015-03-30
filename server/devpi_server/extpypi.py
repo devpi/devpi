@@ -197,8 +197,10 @@ class PyPIStage(BaseStage):
 
     def _load_cache_links(self, projectname):
         cache = self._load_project_cache(projectname)
-        if cache and cache["serial"] >= cache["latest_serial"]:
-            return list(self._make_elinks(projectname, cache["entrylist"]))
+        if cache:
+            return (cache["serial"] >= cache["latest_serial"],
+                   list(self._make_elinks(projectname, cache["entrylist"])))
+        return True, None
 
     def _make_elinks(self, projectname, data):
         from .model import ELink
@@ -231,8 +233,8 @@ class PyPIStage(BaseStage):
         projectname = self.get_projectname_perstage(projectname)
         if projectname is None:
             return []
-        links = self._load_cache_links(projectname)
-        if links is not None:
+        is_fresh, links = self._load_cache_links(projectname)
+        if links is not None and is_fresh:
             return links
 
         # get the simple page for the project
@@ -240,6 +242,11 @@ class PyPIStage(BaseStage):
         threadlog.debug("visiting index %s", url)
         response = self.httpget(url, allow_redirects=True)
         if response.status_code != 200:
+            # if we have an old version, return it instead of erroring out
+            if links is not None:
+                threadlog.error("serving stale links for %r, upstream not reachable",
+                                projectname)
+                return links
             # XXX it's not correct to return UpstreamError in all cases
             # if indeed the project was deleted but that fact
             # is not yet properly processed
@@ -247,12 +254,16 @@ class PyPIStage(BaseStage):
                                      (response.status_code, url))
 
         if self.xom.is_replica():
+            # XXX this code path is not currently tested, handle with care!
+            # we have already triggered the master above
+            # and now need to wait until the parsed new links are
+            # transferred back to the replica
             devpi_serial = int(response.headers["X-DEVPI-SERIAL"])
             self.keyfs.notifier.wait_tx_serial(devpi_serial)
             # XXX raise TransactionRestart to get a consistent clean view
             self.keyfs.commit_transaction_in_thread()
             self.keyfs.begin_transaction_in_thread()
-            links = self._load_cache_links(projectname)
+            is_fresh, links = self._load_cache_links(projectname)
             if links is not None:
                 return links
             raise self.UpstreamError("no cache links from master for %s" %
