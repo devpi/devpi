@@ -202,7 +202,8 @@ class User:
     def create_stage(self, index, type="stage",
                      volatile=True, bases=("root/pypi",),
                      uploadtrigger_jenkins=None,
-                     acl_upload=None, pypi_whitelist=()):
+                     acl_upload=None, pypi_whitelist=(),
+                     custom_data=None):
         if acl_upload is None:
             acl_upload = [self.name]
         bases = tuple(normalize_bases(self.xom.model, bases))
@@ -214,8 +215,10 @@ class User:
             indexes[index] = {
                 "type": type, "volatile": volatile, "bases": bases,
                 "uploadtrigger_jenkins": uploadtrigger_jenkins,
-                "acl_upload": acl_upload, "pypi_whitelist": pypi_whitelist
+                "acl_upload": acl_upload, "pypi_whitelist": pypi_whitelist,
             }
+            if custom_data is not None:
+                indexes[index]["custom_data"] = custom_data
         stage = self.getstage(index)
         threadlog.info("created index %s: %s", stage.name, stage.ixconfig)
         return stage

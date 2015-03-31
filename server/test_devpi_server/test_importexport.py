@@ -98,6 +98,16 @@ class TestImportExport:
         assert indexlist[stagename2]["bases"] == [api.stagename]
         assert mapp2.xom.config.secret == mapp1.xom.config.secret
 
+    def test_indexes_custom_data(self, impexp):
+        mapp1 = impexp.mapp1
+        api = mapp1.create_and_use()
+        mapp1.set_custom_data(42)
+        impexp.export()
+        mapp2 = impexp.new_import()
+        assert api.user in mapp2.getuserlist()
+        indexlist = mapp2.getindexlist(api.user)
+        assert indexlist[api.stagename]["custom_data"] == 42
+
     def test_upload_releasefile_with_toxresult(self, impexp):
         from test_devpi_server.example import tox_result_data
         mapp1 = impexp.mapp1

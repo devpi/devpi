@@ -23,6 +23,8 @@
   a change but pypi is currently not reachable (just serve the old cached
   links and issue an error to the logs)
 
+- fix importing of indexes with custom_data
+
 2.1.5
 ----------------
 
