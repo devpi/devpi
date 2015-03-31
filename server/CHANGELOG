@@ -19,6 +19,9 @@
 
 - show actual instead of prospective replica serial in master /+status page 
 
+- fix issue165: make off-line serving more robust when we know there is
+  a change but pypi is currently not reachable (just serve the old cached
+  links and issue an error to the logs)
 
 2.1.5
 ----------------
