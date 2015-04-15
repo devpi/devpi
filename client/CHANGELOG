@@ -6,6 +6,7 @@
 
 - fix issue222: fix help string
 
+- add "refresh" command to invalidate the pypi release list cache of packages.
 
 2.1.0
 ----------------

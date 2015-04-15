@@ -755,6 +755,19 @@ def install(parser):
         help="uri or package file for installation from current index. """
     )
 
+
+@subcommand("devpi.refresh")
+def refresh(parser):
+    """ invalidates the root/pypi cache for the specified package(s).
+
+    In case your devpi server hasn't updated the list of latest releases, this
+    forces a reload of the them.
+    """
+    parser.add_argument(
+        "pkgnames", metavar="pkg", type=str, action="store", nargs="+",
+        help="package name to refresh.""")
+
+
 def verify_reply_version(hub, reply):
     acceptable_api_version = ("2",)
     version = reply.headers.get("X-DEVPI-API-VERSION", None)
