@@ -143,6 +143,9 @@ def mock():
 @pytest.fixture
 def makexom(request, gentmp, httpget, monkeypatch, mock):
     def makexom(opts=(), httpget=httpget, proxy=None, mocking=True, plugins=()):
+        from devpi_server import auth_basic
+        from devpi_server import auth_devpi
+        plugins = list(plugins) + [(auth_basic, None), (auth_devpi, None)]
         hook = PluginManager(plugins)
         serverdir = gentmp()
         fullopts = ["devpi-server", "--serverdir", serverdir] + list(opts)

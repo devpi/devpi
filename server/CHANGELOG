@@ -1,6 +1,9 @@
 2.2.0.DEV
 ----------------
 
+- add new ``devpiserver_auth_credentials`` plugin hook to extract credentials
+  from request
+
 - fix issue216: use sha256 instead of md5 checksums for serving own files
   (BACKWARD INCOMPATIBLE: needs export/import)
 
