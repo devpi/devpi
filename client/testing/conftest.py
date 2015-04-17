@@ -287,13 +287,20 @@ def cmd_devpi(tmpdir, monkeypatch):
         print_info("*** inline$ %s" % " ".join(callargs))
         hub, method = initmain(callargs)
         monkeypatch.setattr(hub, "ask_confirm", lambda msg: True)
+        expected = kwargs.get("code", None)
         try:
             method(hub, hub.args)
         except SystemExit as sysex:
             hub.sysex = sysex
-        expected = kwargs.get("code", None)
+            if expected < 0 or expected >= 400:
+                # we expected an error, don't raise
+                pass
+            else:
+                raise
         if expected is not None:
-            if isinstance(expected, list):
+            if expected == -2:  # failed-to-start
+                assert hasattr(hub, "sysex")
+            elif isinstance(expected, list):
                 assert hub._last_http_stati == expected
             else:
                 if not isinstance(expected, tuple):

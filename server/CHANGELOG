@@ -26,6 +26,10 @@
   a change but pypi is currently not reachable (just serve the old cached
   links and issue an error to the logs)
 
+- fix flaky devpi-server "--start" startup detection which would
+  previously assume success if another server was already running on
+  the address/port we want to run on. 
+
 - fix importing of indexes with custom_data and importing of
   documentation which follows uncommon package naming
 

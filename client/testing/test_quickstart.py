@@ -13,7 +13,7 @@ def test_functional(cmd_devpi, monkeypatch, tmpdir):
     monkeypatch.setenv("DEVPI_CLIENTDIR", tmpdir.join("client"))
     cmd_devpi("quickstart")
     try:
-        hub = cmd_devpi("quickstart")
+        hub = cmd_devpi("quickstart", code=-2)
         assert isinstance(hub.sysex, SystemExit)
     finally:
         p = py.path.local.sysfind("devpi-server")

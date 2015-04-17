@@ -134,7 +134,7 @@ class TestUnit:
     def test_use_with_no_rooturl(self, capfd, cmd_devpi, monkeypatch):
         from devpi import main
         monkeypatch.setattr(main.Hub, "http_api", None)
-        cmd_devpi("use", "some/index", code=None)
+        cmd_devpi("use", "some/index", code=-2)
         out, err = capfd.readouterr()
         assert "invalid" in out
 

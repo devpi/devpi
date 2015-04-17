@@ -13,5 +13,8 @@ def test_server_commands(tmpdir, monkeypatch):
     try:
         main(["devpi-server", "--status"])
         main(["devpi-server", "--log"])
+        # make sure we can't start a server if one is already running
+        with pytest.raises(SystemExit):
+            main(["devpi-server", "--start", "--port=3499"])
     finally:
         main(["devpi-server", "--stop"])
