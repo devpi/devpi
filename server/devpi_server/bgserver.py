@@ -59,8 +59,11 @@ class BackgroundServer:
         if not py.path.local(devpi_server).exists():
             self.fatal("not existing devpi-server: %r" % devpi_server)
 
+        url = "http://%s:%s" % (args.host, args.port)
+        if self._waitup(url, count=1):
+            self.fatal("a server is already running at %s" % url)
+
         def prepare_devpiserver(cwd):
-            url = "http://%s:%s" % (args.host, args.port)
             self.line("starting background devpi-server at %s" % url)
             argv = [devpi_server, ] + filtered_args
             #self.line("command: %s" % (argv,))

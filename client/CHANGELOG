@@ -1,6 +1,8 @@
 2.1.1.dev
 ----------------
 
+- improve internal testing mechanics
+
 - fix regression for "devpi list -f" output which would fail when trying
   to present failures with recent devpi-server versions/tox outputs.
 
