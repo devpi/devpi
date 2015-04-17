@@ -1,12 +1,11 @@
 from __future__ import unicode_literals
 import sys
-import os
 import json
 import py
 import logging
 import posixpath
 from devpi_common.validation import normalize_name
-from devpi_common.metadata import splitbasename, BasenameMeta
+from devpi_common.metadata import BasenameMeta
 from devpi_common.types import parse_hash_spec
 from devpi_server.main import fatal
 import devpi_server
@@ -294,9 +293,8 @@ class Importer:
             # note that the actual hash_type used within devpi-server is not
             # determined here but in store_releasefile/store_doczip/store_toxresult etc
         elif filedesc["type"] == "doczip":
-            basename = os.path.basename(rel)
-            name, version, suffix = splitbasename(basename)
-            link = stage.store_doczip(name, version, p.read("rb"))
+            version = filedesc["version"]
+            link = stage.store_doczip(projectname, version, p.read("rb"))
         elif filedesc["type"] == "toxresult":
             linkstore = stage.get_linkstore_perstage(filedesc["projectname"],
                                            filedesc["version"])

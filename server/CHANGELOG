@@ -30,7 +30,9 @@
   previously assume success if another server was already running on
   the address/port we want to run on. 
 
-- fix importing of indexes with custom_data
+- fix importing of indexes with custom_data and importing of
+  documentation which follows uncommon package naming
+
 
 2.1.5
 ----------------
