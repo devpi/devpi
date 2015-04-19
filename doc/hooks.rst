@@ -20,6 +20,18 @@ other prospective extensions.
 hook semantics for authentication
 ---------------------------------
 
+To get the username and password from the request, the following hook is used::
+
+    def devpiserver_auth_credentials(request):
+        """Extracts username and password from request.
+
+        Returns a tuple with (username, password) if credentials could be
+        extracted, or None if no credentials were found.
+
+        The first plugin to return credentials is used, the order of plugin
+        calls is undefined.
+        """
+
 There is one hook to enable authentication from external sources::
 
     devpiserver_auth_user(userdict, username, password):

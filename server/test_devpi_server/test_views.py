@@ -19,11 +19,19 @@ from devpi_server.views import tween_keyfs_transaction, make_uuid_headers
 
 from .functional import TestUserThings, TestIndexThings  # noqa
 
+from devpi_server.filestore import get_default_hash_spec, make_splitdir
+
 proj = pytest.mark.parametrize("proj", [True, False])
 pytestmark = [pytest.mark.notransaction]
 
 def getfirstlink(text):
     return BeautifulSoup(text).findAll("a")[0]
+
+def hash_spec_matches(hash_spec, content):
+    hash_type, hash_value = hash_spec.split("=")
+    digest = getattr(hashlib, hash_type)(content).hexdigest()
+    return digest == hash_value
+
 
 @pytest.mark.parametrize("user,status", [
     ("foo_bar", 'ok'),
@@ -86,8 +94,10 @@ def test_simple_project_outside_url_subpath(mapp, outside_url, pypistage, testap
     assert r.status_code == 200
     links = sorted(x["href"] for x in BeautifulSoup(r.text).findAll("a"))
     assert len(links) == 2
+    hash_spec = get_default_hash_spec(b'123')
+    hashdir = "/".join(make_splitdir(hash_spec))
     assert links == [
-        '../+f/202/cb962ac59075b/qpwoei-1.0.tar.gz#md5=202cb962ac59075b964b07152d234b70',
+        '../+f/%s/qpwoei-1.0.tar.gz#%s' % (hashdir, hash_spec),
         '../../../root/pypi/+e/https_pypi.python.org/qpwoei-1.0.zip']
     testapp.xget(
         200, URL("/%s/+simple/qpwoei" % api.stagename).joinpath(links[0]).path,
@@ -949,13 +959,14 @@ def test_upload_and_testdata(mapp, testapp):
 @proj
 def test_upload_and_access_releasefile_meta(mapp, testapp, proj):
     api = mapp.create_and_use()
-    mapp.upload_file_pypi("pkg5-2.6.tgz", b"123", "pkg5", "2.6")
+    content = b"123"
+    mapp.upload_file_pypi("pkg5-2.6.tgz", content, "pkg5", "2.6")
     vv = get_view_version_links(testapp, api.index, "pkg5", "2.6", proj=proj)
     link = vv.get_link("releasefile")
     pkgmeta = mapp.getjson(link.href)
     assert pkgmeta["type"] == "releasefilemeta"
-    assert pkgmeta["result"]["md5"] == hashlib.md5(b'123').hexdigest()
-
+    hash_spec = pkgmeta["result"]["hash_spec"]
+    assert hash_spec_matches(hash_spec, content)
 
 def test_upload_and_delete_project_version(mapp):
     api = mapp.create_and_use()

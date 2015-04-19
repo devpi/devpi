@@ -1,14 +1,15 @@
 from __future__ import unicode_literals
 import posixpath
+import sys
 import py
 import re
 import json
 from devpi_common.metadata import sorted_sameproject_links, get_latest_version
 from devpi_common.validation import validate_metadata, normalize_name
-from devpi_common.types import ensure_unicode, cached_property
+from devpi_common.types import ensure_unicode, cached_property, parse_hash_spec
 from time import gmtime
 from .auth import crypt_password, verify_password
-from .filestore import FileEntry, split_md5
+from .filestore import FileEntry
 from .log import threadlog, thread_current_log
 
 
@@ -201,7 +202,8 @@ class User:
     def create_stage(self, index, type="stage",
                      volatile=True, bases=("root/pypi",),
                      uploadtrigger_jenkins=None,
-                     acl_upload=None, pypi_whitelist=()):
+                     acl_upload=None, pypi_whitelist=(),
+                     custom_data=None):
         if acl_upload is None:
             acl_upload = [self.name]
         bases = tuple(normalize_bases(self.xom.model, bases))
@@ -213,8 +215,10 @@ class User:
             indexes[index] = {
                 "type": type, "volatile": volatile, "bases": bases,
                 "uploadtrigger_jenkins": uploadtrigger_jenkins,
-                "acl_upload": acl_upload, "pypi_whitelist": pypi_whitelist
+                "acl_upload": acl_upload, "pypi_whitelist": pypi_whitelist,
             }
+            if custom_data is not None:
+                indexes[index]["custom_data"] = custom_data
         stage = self.getstage(index)
         threadlog.info("created index %s: %s", stage.name, stage.ixconfig)
         return stage
@@ -398,10 +402,6 @@ class PrivateStage(BaseStage):
         self.ixconfig = ixconfig
         self.key_projectnames = self.keyfs.PROJNAMES(
                     user=self.user.name, index=self.index)
-
-    def can_upload(self, username):
-        acl_upload = self.ixconfig.get("acl_upload", [])
-        return username in acl_upload or ':ANONYMOUS:' in acl_upload
 
     def modify(self, index=None, **kw):
         diff = list(set(kw).difference(_ixconfigattr))
@@ -612,6 +612,23 @@ class ELink:
         self.basename = posixpath.basename(self.entrypath)
         self.projectname = projectname
         self.version = version
+        if sys.version_info < (3,0):
+            for key in linkdict:
+                assert py.builtin._istext(key)
+
+    @property
+    def hash_spec(self):
+        return self.linkdict.get("hash_spec", "")
+
+    @property
+    def hash_value(self):
+        return self.hash_spec.split("=")[1]
+
+    def matches_checksum(self, content):
+        hash_algo, hash_value = parse_hash_spec(self.hash_spec)
+        if not hash_algo:
+            return True
+        return hash_algo(content).hexdigest() == hash_value
 
     def __getattr__(self, name):
         try:
@@ -629,7 +646,12 @@ class ELink:
         return self.filestore.get_file_entry(self.entrypath)
 
     def add_log(self, what, who, **kw):
-        self._log.append(dict(what=what, who=who, when=gmtime()[:6], **kw))
+        d = {"what": what, "who": who, "when": gmtime()[:6]}
+        if sys.version_info < (3,0):
+            # make sure keys are unicode as they are on py3
+            kw = dict((py.builtin.text(name), value) for name, value in kw.items())
+        d.update(kw)
+        self._log.append(d)
 
     def add_logs(self, logs):
         self._log.extend(logs)
@@ -662,7 +684,8 @@ class LinkStore:
                 exc.link = link
                 raise exc
             assert overwrite is None
-            overwrite = sum(x.get('count', 0) for x in link.get_logs() if x.get('what') == 'overwrite')
+            overwrite = sum(x.get('count', 0)
+                            for x in link.get_logs() if x.get('what') == 'overwrite')
             self.remove_links(rel=rel, basename=basename)
         file_entry = self._create_file_entry(basename, file_content)
         if last_modified is not None:
@@ -681,7 +704,7 @@ class LinkStore:
         other_reflinks = self.get_links(rel=rel, for_entrypath=for_entrypath)
         filename = "%s.%s%d" %(base_entry.basename, rel, len(other_reflinks))
         entry = self._create_file_entry(filename, file_content,
-                                        ref_md5=base_entry.md5)
+                                        ref_hash_spec=base_entry.hash_spec)
         return self._add_link_to_file_entry(rel, entry, for_entrypath=for_entrypath)
 
     def remove_links(self, rel=None, basename=None, for_entrypath=None):
@@ -711,16 +734,12 @@ class LinkStore:
         return list(filter(fil, [ELink(self.filestore, linkdict, self.projectname, self.version)
                            for linkdict in self.verdata.get("+elinks", [])]))
 
-    def _create_file_entry(self, basename, file_content, ref_md5=None):
-        if ref_md5 is None:
-            md5dir = None
-        else:
-            md5dir = "/".join(split_md5(ref_md5))
+    def _create_file_entry(self, basename, file_content, ref_hash_spec=None):
         entry = self.filestore.store(
                     user=self.stage.user.name, index=self.stage.index,
                     basename=basename,
                     file_content=file_content,
-                    md5dir=md5dir)
+                    dir_hash_spec=ref_hash_spec)
         entry.projectname = self.projectname
         entry.version = self.version
         return entry
@@ -734,12 +753,11 @@ class LinkStore:
     def _add_link_to_file_entry(self, rel, file_entry, for_entrypath=None):
         if isinstance(for_entrypath, ELink):
             for_entrypath = for_entrypath.entrypath
-        relextra = {}
+        new_linkdict = {"rel": rel, "entrypath": file_entry.relpath,
+                        "hash_spec": file_entry.hash_spec, "_log": []}
         if for_entrypath:
-            relextra["for_entrypath"] = for_entrypath
+            new_linkdict["for_entrypath"] = for_entrypath
         linkdicts = self._get_inplace_linkdicts()
-        new_linkdict = dict(rel=rel, entrypath=file_entry.relpath,
-                            md5=file_entry.md5, _log=[], **relextra)
         linkdicts.append(new_linkdict)
         threadlog.info("added %r link %s", rel, file_entry.relpath)
         self._mark_dirty()
@@ -782,7 +800,7 @@ def add_keys(xom, keyfs):
     keyfs.add_key("PROJVERSION", "{user}/{index}/{name}/{version}/.config", dict)
     keyfs.add_key("PROJNAMES", "{user}/{index}/.projectnames", set)
     keyfs.add_key("STAGEFILE",
-                  "{user}/{index}/+f/{md5a}/{md5b}/{filename}", dict)
+                  "{user}/{index}/+f/{hashdir_a}/{hashdir_b}/{filename}", dict)
 
     sub = EventSubscribers(xom)
     keyfs.notifier.on_key_change("PROJVERSION", sub.on_changed_version_config)
@@ -840,10 +858,10 @@ class EventSubscribers:
             if stage.ixconfig["type"] == "mirror":
                 return  # we don't trigger on file changes of pypi mirror
             entry = FileEntry(self.xom, ev.typedkey, meta=ev.value)
-            projectname = stage.get_projectname(entry.projectname)
-            if not projectname or not entry.version:
+            if not entry.projectname or not entry.version:
                 # the entry was deleted
                 return
+            projectname = stage.get_projectname(entry.projectname)
             stage = self.xom.model.getstage(user, index)
             linkstore = stage.get_linkstore_perstage(
                                                 projectname, entry.version)

@@ -1,6 +1,5 @@
 import os
 import py
-import hashlib
 import json
 import contextlib
 import time
@@ -34,7 +33,9 @@ class MasterChangelogRequest:
             polling_replicas = self.xom.polling_replicas
             polling_replicas[uuid] = {
                 "remote-ip": self.request.get_remote_ip(),
-                "serial": serial,
+                # the replica always polls its own serial+1
+                # and we want to show where the replica serial is at
+                "serial": int(serial)-1,
                 "in-request": True,
                 "last-request": time.time(),
                 "outside-url": headers.get(H_REPLICA_OUTSIDE_URL),
@@ -372,14 +373,13 @@ class ImportFileReplica:
 
         if r.status_code != 200:
             raise FileReplicationError(r)
-        remote_md5 = hashlib.md5(r.content).hexdigest()
-        if entry.md5 and entry.md5 != remote_md5:
+        err = entry.check_checksum(r.content)
+        if err:
             # the file we got is different, it may have changed later.
             # we remember the error and move on
             self.errors.add(dict(
                 url=r.url,
-                message="remote has md5 %s, expected %s" % (
-                    remote_md5, entry.md5),
+                message=str(err),
                 relpath=entry.relpath))
             return
         # in case there were errors before, we can now remove them

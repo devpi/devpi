@@ -1,12 +1,55 @@
-2.1.5.dev
+2.2.0.DEV
 ----------------
 
+- add new ``devpiserver_auth_credentials`` plugin hook to extract credentials
+  from request
+
+- fix issue216: use sha256 instead of md5 checksums for serving own files
+  (BACKWARD INCOMPATIBLE: needs export/import)
+
+- parse arbitrary checksums from PyPI in preparation for 
+  a pending change on pypi.python.org which will see 
+  it serving sha256 checksums only.
+
+- fix debug logging to actually show debug logs
+  (logging was not properly reconfigured)
+
+- fix issue221: avoid looking at file entries who are not part of a project
+  (because they got deleted)
+
+- fix issue217: systematically avoid using bytes in persisted dictionaries 
+  to avoid any py2/py3 bytes/unicode issue.
+
+- show actual instead of prospective replica serial in master /+status page 
+
+- fix issue165: make off-line serving more robust when we know there is
+  a change but pypi is currently not reachable (just serve the old cached
+  links and issue an error to the logs)
+
+- fix flaky devpi-server "--start" startup detection which would
+  previously assume success if another server was already running on
+  the address/port we want to run on. 
+
+- fix importing of indexes with custom_data and importing of
+  documentation which follows uncommon package naming
+
+
+2.1.5
+----------------
+
+- fix devpi-ldap issue17: the push command directly used the username instead
+  of using a general permission check, that caused groups in acl_upload to not
+  be honored.
 - fix issue171: "devpi push" of an existing package fails on non volatile index
   and overwrites on volatile.
 - before devpi-server 2.1.5 it was possible to upload multiple documentation
   zip files for the same package version if the filename differed in case, this
   broke export and replication of server state and the documentation view.
   Now the newest upload will be used and older ones ignored.
+
+- fix issue217: try harder to avoid using "bytes" in python2 to allow
+  py2/py3 master/replica setups and generally have more type-uniform bytes.
+
 
 2.1.4
 ----------------

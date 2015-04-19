@@ -88,14 +88,13 @@ def show_test_status(hub, toxlinks):
                 hub.line("%s tests passed" % prefix)
 
 
-def show_commands(hub, commands):
+def show_commands(hub, view_result):
     if not hub.args.failures:
         return
-    for command in commands:
-        argv = command["command"]
-        output = command["output"]
-        shellcommand = " ".join(argv)
-        if command["retcode"] != "0":
+    for command_dict in view_result["commands"]:
+        shellcommand = command_dict["command"]
+        output = command_dict["output"]
+        if command_dict["failed"]:
             hub.error("    FAIL: %s" % shellcommand)
             for line in output.split("\n"):
                 hub.error("    %s" % line)

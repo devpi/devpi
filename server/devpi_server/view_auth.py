@@ -2,10 +2,29 @@ from devpi_common.types import ensure_unicode
 from devpi_server.auth import Auth
 from devpi_server.views import abort, abort_authenticate, redirect
 from devpi_server.model import UpstreamError
-from pyramid.authentication import CallbackAuthenticationPolicy, b64decode
+from pyramid.authentication import CallbackAuthenticationPolicy
 from pyramid.decorator import reify
 from pyramid.security import Allow, Deny, Everyone
-import binascii
+
+
+class StageACL(object):
+    def __init__(self, stage, restrict_modify):
+        self.restrict_modify = restrict_modify
+        self.stage = stage
+
+    def __acl__(self):
+        acl = []
+        for principal in self.stage.ixconfig.get("acl_upload", []):
+            if principal == ':ANONYMOUS:':
+                principal = Everyone
+            acl.append((Allow, principal, 'pypi_submit'))
+        if self.restrict_modify is None:
+            acl.extend([
+                (Allow, self.stage.username, 'index_modify'),
+                (Allow, self.stage.username, 'index_delete'),
+                (Allow, self.stage.username, 'del_verdata'),
+                (Allow, self.stage.username, 'del_project')])
+        return acl
 
 
 class RootFactory(object):
@@ -63,16 +82,8 @@ class RootFactory(object):
         if self.username and self.index:
             stage = self.model.getstage(self.username, self.index)
         if stage:
-            for principal in stage.ixconfig.get("acl_upload", []):
-                if principal == ':ANONYMOUS:':
-                    principal = Everyone
-                acl.append((Allow, principal, 'pypi_submit'))
-            if self.restrict_modify is None:
-                acl.extend([
-                    (Allow, self.username, 'index_modify'),
-                    (Allow, self.username, 'index_delete'),
-                    (Allow, self.username, 'del_verdata'),
-                    (Allow, self.username, 'del_project')])
+            stage.__acl__ = StageACL(stage, self.restrict_modify).__acl__
+            acl.extend(stage.__acl__())
         return acl
 
     def getstage(self, user, index):
@@ -80,6 +91,7 @@ class RootFactory(object):
         if not stage:
             abort(self.request, 404,
                   "The stage %s/%s could not be found." % (user, index))
+        stage.__acl__ = StageACL(stage, self.restrict_modify).__acl__
         return stage
 
     def get_versiondata(self, projectname=None, version=None, perstage=False):
@@ -163,6 +175,7 @@ class DevpiAuthenticationPolicy(CallbackAuthenticationPolicy):
     def __init__(self, xom):
         self.realm = "pypi"
         self.auth = Auth(xom.model, xom.config.secret)
+        self.hook = xom.config.hook.devpiserver_auth_credentials
 
     def unauthenticated_userid(self, request):
         """ The userid parsed from the ``Authorization`` request header."""
@@ -198,37 +211,6 @@ class DevpiAuthenticationPolicy(CallbackAuthenticationPolicy):
             raise ValueError("Unknown authentication status: %s" % status)
 
     def _get_credentials(self, request):
-        authorization = request.headers.get('X-Devpi-Auth')
-        if not authorization:
-            # support basic authentication for setup.py upload/register
-            authorization = request.headers.get('Authorization')
-            if not authorization:
-                return None
-            try:
-                authmeth, auth = authorization.split(' ', 1)
-            except ValueError: # not enough values to unpack
-                return None
-            if authmeth.lower() != 'basic':
-                return None
-        else:
-            auth = authorization
-
-        try:
-            authbytes = b64decode(auth.strip())
-        except (TypeError, binascii.Error):  # can't decode
-            return None
-
-        # try utf-8 first, then latin-1; see discussion in
-        # https://github.com/Pylons/pyramid/issues/898
-        try:
-            auth = authbytes.decode('utf-8')
-        except UnicodeDecodeError:
-            auth = authbytes.decode('latin-1')
-
-        try:
-            username, password = auth.split(':', 1)
-        except ValueError:  # not enough values to unpack
-            return None
-        return username, password
-
-
+        results = list(filter(None, self.hook(request)))
+        if results:
+            return results[0]

@@ -252,6 +252,18 @@ class PluginManager:
                                   stage=stage,
                                   name2serials=name2serials)
 
+    def devpiserver_auth_credentials(self, request):
+        """Extracts username and password from request.
+
+        Returns a tuple with (username, password) if credentials could be
+        extracted, or None if no credentials were found.
+
+        The first plugin to return credentials is used, the order of plugin
+        calls is undefined.
+        """
+        return self._call_plugins("devpiserver_auth_credentials",
+                                  request=request)
+
     def devpiserver_auth_user(self, userdict, username, password):
         """Needs to validate the username and password.
 

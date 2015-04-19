@@ -1,11 +1,13 @@
 import os
 import py
+import re
 
 import check_manifest
 
 from devpi import log
-from devpi_common.metadata import Version, BasenameMeta, get_pyversion_filetype
+from devpi_common.metadata import Version, get_pyversion_filetype
 from devpi_common.archive import zip_dir
+from devpi_common.types import CompareMixin
 from .main import HTTPReply, set_devpi_auth_header
 
 def main(hub, args):
@@ -37,7 +39,8 @@ def main(hub, args):
         archives.append(exported.setup_build_docs())
     if not archives:
         hub.fatal("nothing built!")
-    uploader = Uploader(hub, args)
+    name_version = exported.setup_name_and_version()
+    uploader = Uploader(hub, args, name_version=name_version)
     uploader.do_upload_paths(archives)
 
 def filter_latest(path_pkginfo):
@@ -67,9 +70,13 @@ def main_fromfiles(hub, args):
     uploader.do_upload_paths(paths)
 
 class Uploader:
-    def __init__(self, hub, args):
+    def __init__(self, hub, args, name_version=None):
         self.hub = hub
         self.args = args
+        # allow explicit name and version instead of using pkginfo which
+        # has a high failure rate for documentation zips because they miss
+        # explicit metadata and the implementation has to guess
+        self.name_version = name_version
 
     def do_upload_paths(self, paths):
         hub = self.hub
@@ -99,8 +106,12 @@ class Uploader:
 
 
     def upload_doc(self, path, pkginfo):
+        if self.name_version:
+            (name, version) = self.name_version
+        else:
+            (name, version) = (pkginfo.name, pkginfo.version)
         self.post("doc_upload", path,
-                {"name": pkginfo.name, "version": pkginfo.version})
+                {"name": name, "version": version})
 
     def post(self, action, path, meta):
         hub = self.hub
@@ -147,6 +158,8 @@ class Uploader:
         meta = {}
         for attr in pkginfo:
             meta[attr] = getattr(pkginfo, attr)
+        if self.name_version:
+            (meta['name'], meta['version']) = self.name_version
         self.post("register", None, meta=meta)
         pyver = get_pyversion_filetype(path.basename)
         meta["pyversion"], meta["filetype"] = pyver
@@ -165,9 +178,33 @@ def get_archive_files(path):
             if x.basename.endswith(name):
                 yield x
 
+
+def get_name_version_doczip(path):
+    path = str(path)
+    DOCZIPSUFFIX = ".doc.zip"
+    assert path.endswith(DOCZIPSUFFIX)
+    fn = path[:-len(DOCZIPSUFFIX)]
+    # for documentation we presume that versions do not contain "-"
+    # TODO: use packaging.version.VERSION_STRING like pip does
+    name, version = re.match("(.*)-([a-zA-Z0-9\.!]+)", fn).groups()
+    return name, version
+
+
+class DocZipMeta(CompareMixin):
+    def __init__(self, archivepath):
+        basename = py.path.local(archivepath).basename
+        name, version = get_name_version_doczip(basename)
+        self.name = name
+        self.version = version
+        self.cmpval = (name, version)
+
+    def __repr__(self):
+        return "<DocZipMeta name=%r version=%r>" % (self.name, self.version)
+
+
 def get_pkginfo(archivepath):
     if str(archivepath).endswith(".doc.zip"):
-        return BasenameMeta(archivepath)
+        return DocZipMeta(archivepath)
 
     import pkginfo
     info = pkginfo.get_metadata(str(archivepath))

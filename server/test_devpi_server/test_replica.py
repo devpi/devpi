@@ -350,7 +350,7 @@ class TestFileReplication:
 
         # then we try to return the correct thing
         with xom.keyfs.transaction(write=True):
-            entry.file_set_content(content1, md5=md5)
+            entry.file_set_content(content1)
         xom.httpget.mockresponse(master_file_path, code=200, content=content1)
         replay(xom, replica_xom)
         assert replica_xom.errors.errors == {}
@@ -407,14 +407,14 @@ class TestFileReplication:
         with xom.keyfs.transaction(write=True):
             entry = xom.filestore.maplink(link)
             assert not entry.file_exists()
-            assert not entry.md5
+            assert not entry.hash_spec
 
         replay(xom, replica_xom)
         with replica_xom.keyfs.transaction():
             r_entry = replica_xom.filestore.get_file_entry(entry.relpath)
             assert not r_entry.file_exists()
             assert r_entry.meta
-            assert not r_entry.md5
+            assert not r_entry.hash_spec
 
         with xom.keyfs.transaction(write=True):
             entry.file_set_content(content1)
@@ -445,7 +445,7 @@ class TestFileReplication:
         with xom.keyfs.transaction(write=True):
             link = gen.pypi_package_link("pytest-1.8.zip", md5=True)
             entry = xom.filestore.maplink(link)
-            assert entry.md5 and not entry.file_exists()
+            assert entry.hash_spec and not entry.file_exists()
         replay(xom, replica_xom)
         with replica_xom.keyfs.transaction():
             headers={"content-length": "3",

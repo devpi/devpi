@@ -100,7 +100,7 @@ def getpwhash(password, salt):
     hash = hashlib.sha256()
     hash.update(salt.encode("ascii"))
     hash.update(password.encode("utf-8"))
-    return hash.hexdigest()
+    return py.builtin._totext(hash.hexdigest())
 
 def newsalt():
     return py.builtin._totext(base64.b64encode(os.urandom(16)), "ascii")

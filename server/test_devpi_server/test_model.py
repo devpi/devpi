@@ -11,6 +11,13 @@ from py.io import BytesIO
 
 pytestmark = [pytest.mark.writetransaction]
 
+def udict(**kw):
+    """ return a dict where the keys are normalized to unicode. """
+    d = {}
+    for name, val in kw.items():
+        d[py.builtin._totext(name)] = val
+    return d
+
 
 @pytest.fixture(params=[(), ("root/pypi",)])
 def bases(request):
@@ -21,7 +28,7 @@ def register_and_store(stage, basename, content=b"123", name=None):
     n, version = splitbasename(basename)[:2]
     if name is None:
         name = n
-    stage.set_versiondata(dict(name=name, version=version))
+    stage.set_versiondata(udict(name=name, version=version))
     res = stage.store_releasefile(name, version, basename, content)
     return res
 
@@ -40,8 +47,7 @@ def test_is_empty(model, keyfs):
 
 @pytest.fixture
 def stage(request, user):
-    config = dict(index="world", bases=(),
-                  type="stage", volatile=True)
+    config = udict(index="world", bases=(), type="stage", volatile=True)
     if "bases" in request.fixturenames:
         config["bases"] = request.getfuncargvalue("bases")
     return user.create_stage(**config)
@@ -77,32 +83,6 @@ class TestStage:
         stage.delete()
         assert model.getstage("hello", "world2") is None
         assert model.getstage("hello", "world") is not None
-
-    def test_set_and_get_acl(self, model, stage):
-        indexconfig = stage.ixconfig
-        # check that "hello" was included in acl_upload by default
-        assert indexconfig["acl_upload"] == ["hello"]
-        stage = model.getstage("hello/world")
-        # root cannot upload
-        assert not stage.can_upload("root")
-        # but hello can upload
-        assert stage.can_upload("hello")
-
-        # and we remove 'hello' from acl_upload ...
-        stage.modify(acl_upload=[])
-        # ... now it cannot upload either
-        stage = model.getstage("hello/world")
-        assert not stage.can_upload("hello")
-
-        # and we add the special :ANONYMOUS: to acl_upload ...
-        stage.modify(acl_upload=[':anonymous:'])
-        # which is always changed to uppercase
-        assert stage.ixconfig['acl_upload'] == [':ANONYMOUS:']
-        # and now anyone can upload
-        stage = model.getstage("hello/world")
-        assert stage.can_upload("hello")
-        assert stage.can_upload("root")
-        assert stage.can_upload("whoever")
 
     def test_getstage_normalized(self, model):
         assert model.getstage("/root/pypi/").name == "root/pypi"
@@ -141,7 +121,7 @@ class TestStage:
         assert stage.list_projectnames_perstage() == set()
         links = stage.get_releaselinks("someproject")
         assert len(links) == 1
-        stage.set_versiondata(dict(name="someproject", version="1.1"))
+        stage.set_versiondata(udict(name="someproject", version="1.1"))
         assert stage.list_projectnames_perstage() == set(["someproject"])
 
     def test_inheritance_twice(self, pypistage, stage, user):
@@ -268,10 +248,11 @@ class TestStage:
         content = b"123"
         link = register_and_store(stage, "some-1.0.zip", content)
         entry = link.entry
+        assert entry.hash_spec
         assert entry.last_modified != None
         entries = stage.get_releaselinks("some")
         assert len(entries) == 1
-        assert entries[0].md5 == entry.md5
+        assert entries[0].hash_spec == entry.hash_spec
         assert stage.list_projectnames_perstage() == set(["some"])
         verdata = stage.get_versiondata("some", "1.0")
         links = verdata["+elinks"]
@@ -446,15 +427,15 @@ class TestStage:
         assert entries[0].basename == "some-1.1.zip"
 
     def test_set_versiondata_twice(self, stage, bases, caplog):
-        stage.set_versiondata(dict(name="pkg1", version="1.0"))
+        stage.set_versiondata(udict(name="pkg1", version="1.0"))
         assert not caplog.getrecords("ignored")
         stage.xom.keyfs.commit_transaction_in_thread()
         with stage.xom.keyfs.transaction(write=True):
-            stage.set_versiondata(dict(name="pkg1", version="1.0"))
+            stage.set_versiondata(udict(name="pkg1", version="1.0"))
             assert caplog.getrecords("same metadata")
 
     def test_getdoczip(self, stage, bases, tmpdir):
-        stage.set_versiondata(dict(name="pkg1", version="1.0"))
+        stage.set_versiondata(udict(name="pkg1", version="1.0"))
         assert not stage.get_doczip("pkg1", "1.0")
         content = zip_dict({"index.html": "<html/>",
             "_static": {}, "_templ": {"x.css": ""}})
@@ -469,7 +450,7 @@ class TestStage:
 
     def test_storedoczipfile(self, stage, bases):
         from devpi_common.archive import Archive
-        stage.set_versiondata(dict(name="pkg1", version="1.0"))
+        stage.set_versiondata(udict(name="pkg1", version="1.0"))
         content = zip_dict({"index.html": "<html/>",
             "_static": {}, "_templ": {"x.css": ""}})
         stage.store_doczip("pkg1", "1.0", content)
@@ -535,17 +516,17 @@ class TestStage:
     def test_releasedata(self, stage):
         assert stage.metadata_keys
         assert not stage.get_versiondata("hello", "1.0")
-        stage.set_versiondata(dict(name="hello", version="1.0", author="xy"))
+        stage.set_versiondata(udict(name="hello", version="1.0", author="xy"))
         d = stage.get_versiondata("hello", "1.0")
         assert d["author"] == "xy"
         #stage.ixconfig["volatile"] = False
         #with pytest.raises(stage.MetadataExists):
-        #    stage.set_versiondata(dict(name="hello", version="1.0"))
+        #    stage.set_versiondata(udict(name="hello", version="1.0"))
         #
 
     def test_filename_version_mangling_issue68(self, stage):
         assert not stage.get_versiondata("hello", "1.0")
-        metadata = dict(name="hello", version="1.0-test")
+        metadata = udict(name="hello", version="1.0-test")
         stage.set_versiondata(metadata)
         stage.store_releasefile("hello", "1.0-test",
                             "hello-1.0_test.whl", b"")
@@ -553,35 +534,35 @@ class TestStage:
         assert ver == "1.0-test"
         #stage.ixconfig["volatile"] = False
         #with pytest.raises(stage.MetadataExists):
-        #    stage.set_versiondata(dict(name="hello", version="1.0"))
+        #    stage.set_versiondata(udict(name="hello", version="1.0"))
         #
 
     def test_get_versiondata_latest(self, stage):
-        stage.set_versiondata(dict(name="hello", version="1.0"))
-        stage.set_versiondata(dict(name="hello", version="1.1"))
-        stage.set_versiondata(dict(name="hello", version="0.9"))
+        stage.set_versiondata(udict(name="hello", version="1.0"))
+        stage.set_versiondata(udict(name="hello", version="1.1"))
+        stage.set_versiondata(udict(name="hello", version="0.9"))
         assert stage.get_latest_version_perstage("hello") == "1.1"
 
     def test_get_versiondata_latest_inheritance(self, user, model, stage):
         stage_base_name = stage.index + "base"
         user.create_stage(index=stage_base_name, bases=(stage.name,))
         stage_sub = model.getstage(stage.user.name, stage_base_name)
-        stage_sub.set_versiondata(dict(name="hello", version="1.0"))
-        stage.set_versiondata(dict(name="hello", version="1.1"))
+        stage_sub.set_versiondata(udict(name="hello", version="1.0"))
+        stage.set_versiondata(udict(name="hello", version="1.1"))
         assert stage_sub.get_latest_version_perstage("hello") == "1.0"
         assert stage.get_latest_version_perstage("hello") == "1.1"
 
     def test_releasedata_validation(self, stage):
         with pytest.raises(ValueError):
-             stage.set_versiondata(dict(name="hello_", version="1.0"))
+             stage.set_versiondata(udict(name="hello_", version="1.0"))
 
     def test_set_versiondata_take_existing_name_issue84(self, stage, caplog):
         import logging
-        stage.set_versiondata(dict(name="hello-World", version="1.0"))
+        stage.set_versiondata(udict(name="hello-World", version="1.0"))
         for name in ("Hello-World", "hello_world"):
             caplog.handler.records = []
             caplog.setLevel(logging.WARNING)
-            stage.set_versiondata(dict(name=name, version="1.0"))
+            stage.set_versiondata(udict(name=name, version="1.0"))
             rec = caplog.getrecords()
             assert len(rec) == 1, [str(x) for x in rec]
             assert "using" in rec[0].msg and name in rec[0].msg
@@ -593,7 +574,7 @@ class TestStage:
                     stage, projectname, version, metadata):
                 queue.put((stage, metadata))
         stage.xom.config.hook._plugins = [(Plugin(), None)]
-        orig_metadata = dict(name="hello", version="1.0")
+        orig_metadata = udict(name="hello", version="1.0")
         stage.set_versiondata(orig_metadata)
         stage.xom.keyfs.commit_transaction_in_thread()
         stage2, metadata = queue.get()
@@ -611,7 +592,7 @@ class TestStage:
             def devpiserver_on_upload(self, stage, projectname, version, link):
                 queue.put((stage, projectname, version, link))
         stage.xom.config.hook._plugins = [(Plugin(), None)]
-        stage.set_versiondata(dict(name="pkg1", version="1.0"))
+        stage.set_versiondata(udict(name="pkg1", version="1.0"))
         content = zip_dict({"index.html": "<html/>",
             "_static": {}, "_templ": {"x.css": ""}})
         stage.store_doczip("pkg1", "1.0", content)
@@ -636,15 +617,16 @@ class TestStage:
 
 
     def test_get_existing_project(self, stage):
-        stage.set_versiondata(dict(name="Hello", version="1.0"))
-        stage.set_versiondata(dict(name="this", version="1.0"))
+        stage.set_versiondata(udict(name="Hello", version="1.0"))
+        stage.set_versiondata(udict(name="this", version="1.0"))
         name = stage.get_projectname("hello")
         assert name == "Hello"
+
 
 class TestLinkStore:
     @pytest.fixture
     def linkstore(self, stage):
-        stage.set_versiondata(dict(name="proj1", version="1.0"))
+        stage.set_versiondata(udict(name="proj1", version="1.0"))
         return stage.get_linkstore_perstage("proj1", "1.0")
 
     def test_store_file(self, linkstore):
@@ -745,3 +727,10 @@ def test_setdefault_indexes(xom, model):
         set_default_indexes(xom.model)
     with model.keyfs.transaction(write=False):
         assert model.getstage("root/pypi").ixconfig["type"] == "mirror"
+    with model.keyfs.transaction(write=False):
+        ixconfig = model.getstage("root/pypi").ixconfig
+        for key in ixconfig:
+            assert py.builtin._istext(key)
+        userconfig = model.get_user("root").get()
+        for key in userconfig["indexes"]["pypi"]:
+            assert py.builtin._istext(key)

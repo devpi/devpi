@@ -33,13 +33,14 @@ class Mapp(MappMixin):
             "Metadata-Version: 1.1",
             "Name: %s" % name,
             "Version: %s" % version]).encode('utf-8')
-        with tarfile.open(basename, mode='w:gz', fileobj=s) as tf:
-            tinfo = tarfile.TarInfo('PKG-INFO')
-            tinfo.size = len(pkg_info)
-            tf.addfile(tinfo, BytesIO(pkg_info))
-            tinfo = tarfile.TarInfo('content')
-            tinfo.size = len(content)
-            tf.addfile(tinfo, BytesIO(content))
+        tf = tarfile.open(basename, mode='w:gz', fileobj=s)
+        tinfo = tarfile.TarInfo('PKG-INFO')
+        tinfo.size = len(pkg_info)
+        tf.addfile(tinfo, BytesIO(pkg_info))
+        tinfo = tarfile.TarInfo('content')
+        tinfo.size = len(content)
+        tf.addfile(tinfo, BytesIO(content))
+        tf.close()
         return s.getvalue()
 
     def cleanup(self):
@@ -185,7 +186,7 @@ class Mapp(MappMixin):
         self.devpi('upload', pkg.strpath)
 
     def push(self, name, version, index, indexname=None, code=200):
-        self.devpi('push', '%s==%s' % (name, version), index)
+        self.devpi('push', '%s==%s' % (name, version), index, code=code)
 
     def create_project(self, projectname, code=201, indexname=None):
         pytest.xfail(reason="no way to create project via command line yet")

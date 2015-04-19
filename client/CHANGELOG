@@ -1,7 +1,19 @@
-2.1.0.dev
+2.1.1.dev
 ----------------
 
-- fix issue199: "devpi test" can now handle packages with dashes in their name.
+- improve internal testing mechanics
+
+- fix regression for "devpi list -f" output which would fail when trying
+  to present failures with recent devpi-server versions/tox outputs.
+
+- fix issue222: fix help string
+
+
+2.1.0
+----------------
+
+- fix issue199: "devpi upload" and "devpi test" can now handle packages with
+  dashes in their name.
 - change: the following fixes change behavior if used in scripts
 - fix issue174: ask for confirmation when deleting an index or user.
 - fix issue156 and issue199: "devpi push" now uses "pkgname==version" like

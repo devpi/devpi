@@ -98,6 +98,16 @@ class TestImportExport:
         assert indexlist[stagename2]["bases"] == [api.stagename]
         assert mapp2.xom.config.secret == mapp1.xom.config.secret
 
+    def test_indexes_custom_data(self, impexp):
+        mapp1 = impexp.mapp1
+        api = mapp1.create_and_use()
+        mapp1.set_custom_data(42)
+        impexp.export()
+        mapp2 = impexp.new_import()
+        assert api.user in mapp2.getuserlist()
+        indexlist = mapp2.getindexlist(api.user)
+        assert indexlist[api.stagename]["custom_data"] == 42
+
     def test_upload_releasefile_with_toxresult(self, impexp):
         from test_devpi_server.example import tox_result_data
         mapp1 = impexp.mapp1
@@ -242,6 +252,29 @@ class TestImportExport:
             links = stage.get_releaselinks("hello")
             assert len(links) == 1
             assert links[0].entry.file_get_content() == b"content"
+
+    def test_dashes_in_name_issue199(self, impexp):
+        mapp1 = impexp.mapp1
+        api = mapp1.create_and_use()
+        content = b'content'
+        name = "plugin-ddpenc-3-5-1-rel"
+        mapp1.upload_file_pypi(name + "-1.0.tar.gz", content, name, "1.0")
+        with mapp1.xom.keyfs.transaction(write=True):
+            stage = mapp1.xom.model.getstage(api.stagename)
+            doccontent = zip_dict({"index.html": "<html><body>Hello"})
+            link1 = stage.store_doczip( name, "1.0", content=doccontent)
+
+        impexp.export()
+
+        mapp2 = impexp.new_import()
+
+        with mapp2.xom.keyfs.transaction():
+            stage = mapp2.xom.model.getstage(api.stagename)
+            content = stage.get_doczip(name, "1.0")
+            assert content == doccontent
+            linkstore = stage.get_linkstore_perstage(name, "1.0")
+            link2, = linkstore.get_links(rel="doczip")
+            assert link2.basename == link1.basename
 
     def test_dashes_to_undescores_when_imported_from_v1(self, impexp):
         """ Much like the above case, but exported from a version 1.2 server,

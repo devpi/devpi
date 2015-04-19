@@ -5,7 +5,7 @@ setup(
     name="devpi-web",
     description="devpi-web: a web view for devpi-server",
     url="http://doc.devpi.net",
-    version='2.2.4.dev1',
+    version='2.3.0.dev1',
     maintainer="Holger Krekel, Florian Schulze",
     maintainer_email="holger@merlinux.eu",
     license="MIT",
