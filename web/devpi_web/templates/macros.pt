@@ -30,22 +30,22 @@
     <script type="text/javascript"><!--
         $(function() {
             $('.help a').click(function() {
-                var $_help = $('.query_doc.inline');
+                var $help = $('.query_doc.inline');
                 // is there a docview iframe?
-                var $_iframe = $('iframe');
-                if ($_iframe.length && $_help.is(':hidden')) {
+                var $iframe = $('iframe');
+                if ($iframe.length && $help.is(':hidden')) {
                     // then hide the iframe's scrollbar
                     // (double scrollbar doesn't look nice)
-                    $('body', $_iframe[0].contentWindow.document
+                    $('body', $iframe[0].contentWindow.document
                       ).css('overflow', 'hidden');
                 }
-                $_help.slideToggle({
+                $help.slideToggle({
                     complete: function () {
-                        if ($_iframe.length && $_help.is(':hidden')) {
+                        if ($iframe.length && $help.is(':hidden')) {
                             // give focus and scrollbar back to iframe
-                            var iframe_window = $_iframe[0].contentWindow;
-                            iframe_window.focus();
-                            $('body', iframe_window.document
+                            var iframeWindow = $iframe[0].contentWindow;
+                            iframeWindow.focus();
+                            $('body', iframeWindow.document
                               ).css('overflow', 'auto');
                         }
                     }
