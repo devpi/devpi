@@ -39,6 +39,12 @@ def do_import(path, xom):
     importer.import_all(path)
     if xom.config.args.wait_for_events:
         importer.wait_for_events()
+    else:
+        importer.warn(
+            "Update events have not been processed, when you start the server "
+            "they will be processed in order. If you use devpi-web, then the "
+            "search index and documentation will gradually update until all "
+            "events have been processed.")
     return 0
 
 
