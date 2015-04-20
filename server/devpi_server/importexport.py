@@ -37,7 +37,8 @@ def do_import(path, xom):
                   xom.config.serverdir)
     importer = Importer(tw, xom)
     importer.import_all(path)
-    importer.wait_for_events()
+    if xom.config.args.wait_for_events:
+        importer.wait_for_events()
     return 0
 
 

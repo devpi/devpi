@@ -197,7 +197,8 @@ class XOM:
             from devpi_server.importexport import do_import
             # we need to start the keyfs notifier so that import
             # can wait on completion of events
-            xom.thread_pool.start_one(xom.keyfs.notifier)
+            if args.wait_for_events:
+                xom.thread_pool.start_one(xom.keyfs.notifier)
             return do_import(args.import_, xom)
 
         # creation of app will register handlers of key change events

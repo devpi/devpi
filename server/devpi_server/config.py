@@ -97,6 +97,15 @@ def addoptions(parser):
                  "Note that you can only import into a fresh server "
                  "state directory (positional argument to devpi-server).")
 
+    deploy.addoption("--dont-wait-for-events", action="store_false",
+            default=True, dest="wait_for_events",
+            help="no events will be run during import, instead they are"
+                 "postponed to run on server start. This allows much faster "
+                 "start of the server after import, when devpi-web is used. "
+                 "Be aware, that the search index and documentation will "
+                 "update gradually until the server has caught up with all "
+                 "events.")
+
     deploy.addoption("--passwd", action="store", metavar="USER",
             help="set password for user USER (interactive)")
 

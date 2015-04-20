@@ -1,6 +1,9 @@
 2.2.0.DEV
 ----------------
 
+- add "--dont-wait-for-events" option to postpone running events after import
+  to server start
+
 - add new ``devpiserver_auth_credentials`` plugin hook to extract credentials
   from request
 
