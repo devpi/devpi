@@ -11,7 +11,7 @@ import json
 import tox
 
 from devpi_common.url import URL
-from devpi_common.metadata import get_sorted_versions, splitbasename
+from devpi_common.metadata import get_sorted_versions
 from devpi_common.viewhelp import ViewLinkStore
 
 
@@ -43,6 +43,7 @@ class DevIndex:
         if r.status_code != 200:
             self.hub.fatal("could not receive", url)
         content = r.content
+        assert content
 
         self.hub.info("received", url)
         if hasattr(link, "md5"):
@@ -52,6 +53,7 @@ class DevIndex:
             assert digest == link.md5, (digest, link.md5)
             #self.hub.info("verified md5 ok", link.md5)
         basename = URL(url).basename
+
         path_archive = self.dir_download.join(basename)
         with path_archive.open("wb") as f:
             f.write(content)
@@ -60,30 +62,28 @@ class DevIndex:
         pkg.unpack()
         return pkg
 
-    def getbest(self, pkgname):
+    def get_matching_versioninfo(self, pkgname):
         req = next(pkg_resources.parse_requirements(pkgname))
         projurl = self.hub.current.index_url.asdir().joinpath(req.project_name).url
         r = self.hub.http_api("get", projurl)
         for version in get_sorted_versions(r.result):
             if version not in req:
                 continue
-            versioninfo = ViewLinkStore(projurl, r.result[version])
-            link = versioninfo.get_link('releasefile')
-            if link:
-                return (versioninfo, link)
-        return (None, None)
+            return ViewLinkStore(projurl, r.result[version])
 
-    def runtox(self, link, pkg):
+    def runtox(self, link, pkg, sdist_pkg=None):
         jsonreport = pkg.rootdir.join("toxreport.json")
         path_archive = pkg.path_archive
         toxargs = ["--installpkg", str(path_archive),
                    "-i ALL=%s" % str(self.current.simpleindex),
                    "--result-json", str(jsonreport),
         ]
-        unpack_path = pkg.path_unpacked
 
-        toxargs.extend(self.get_tox_args(unpack_path=unpack_path))
-        with pkg.path_unpacked.as_cwd():
+        if sdist_pkg is None:
+            sdist_pkg = pkg
+        toxargs.extend(self.get_tox_args(unpack_path=sdist_pkg.path_unpacked))
+
+        with sdist_pkg.path_unpacked.as_cwd():
             self.hub.info("%s$ tox %s" %(os.getcwd(), " ".join(toxargs)))
             try:
                 ret = tox.cmdline(toxargs)
@@ -128,7 +128,14 @@ def post_tox_json_report(hub, href, jsondata):
 class UnpackedPackage:
     def __init__(self, hub, rootdir, path_archive, versioninfo, link):
         self.hub = hub
-        self.rootdir = rootdir
+        basename = link.basename
+        if basename.endswith(".whl"):
+            dir = "whl"
+        elif basename.endswith(".zip"):
+            dir = "zip"
+        elif basename.endswith(".tar.gz") or basename.endswith(".tgz"):
+            dir = "tgz"
+        self.rootdir = rootdir + "-" + dir
         self.path_archive = path_archive
         self.versioninfo = versioninfo
         self.link = link
@@ -139,19 +146,60 @@ class UnpackedPackage:
             archive.extract(self.rootdir)
         pkgname = self.versioninfo.versiondata['name']
         version = self.versioninfo.versiondata['version']
-        subdir = "%s-%s" % (pkgname, version)
-        inpkgdir = self.rootdir.join(subdir)
+        if self.link.basename.endswith(".whl"):
+            inpkgdir = self.rootdir
+        else:
+            inpkgdir = self.rootdir.join("%s-%s" %(pkgname, version))
         assert inpkgdir.check(), inpkgdir
         self.path_unpacked = inpkgdir
+
+
+def find_sdist_and_wheels(hub, links):
+    sdist_links = []
+    wheel_links = []
+    for link in links:
+        bn = link.basename
+        if bn.endswith(".tar.gz"):
+            sdist_links.insert(0, link)
+        elif bn.endswith(".zip"):
+            sdist_links.append(link)
+        elif bn.endswith(".whl"):
+            if not bn.endswith("py2.py3-none-any.whl"):
+                hub.fatal("only universal wheels supported, found", bn)
+            wheel_links.append(link)
+    if not sdist_links:
+        hub.fatal("need at least one sdist distribution")
+    return sdist_links, wheel_links
+
+
+def prepare_toxrun_args(dev_index, versioninfo, sdist_links, wheel_links):
+    toxrunargs = []
+    for sdist_link in sdist_links:
+        sdist_pkg = dev_index.download_and_unpack(versioninfo, sdist_link)
+        toxrunargs.append((sdist_link, sdist_pkg))
+    # for testing wheels we need an sdist because wheels
+    # typically don't contain test or tox.ini files
+    for wheel_link in wheel_links:
+        wheel_pkg = dev_index.download_and_unpack(versioninfo, wheel_link)
+        toxrunargs.append((wheel_link, wheel_pkg, toxrunargs[0][1]))
+    return toxrunargs
 
 
 def main(hub, args):
     current = hub.require_valid_current_with_index()
     tmpdir = py.path.local.make_numbered_dir("devpi-test", keep=3)
     devindex = DevIndex(hub, tmpdir, current)
-    versioninfo, link = devindex.getbest(args.pkgspec[0])
-    if not link:
-        hub.fatal("could not find/receive link")
-    pkg = devindex.download_and_unpack(versioninfo, link)
-    ret = devindex.runtox(link, pkg)
-    return ret
+    for pkgspec in args.pkgspec:
+        versioninfo = devindex.get_matching_versioninfo(pkgspec)
+        links = versioninfo.get_links("releasefile")
+        if not links:
+            hub.fatal("could not find/receive links for", pkgspec)
+
+        sdist_links, wheel_links = find_sdist_and_wheels(hub, links)
+        toxrunargs = prepare_toxrun_args(devindex, versioninfo, sdist_links, wheel_links)
+        all_ret = 0
+        for args in toxrunargs:
+            ret = devindex.runtox(*args)
+            if ret != 0:
+                all_ret = 1
+    return all_ret

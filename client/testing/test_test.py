@@ -1,4 +1,4 @@
-
+import subprocess
 import pytest
 from devpi.test import *
 
@@ -66,6 +66,100 @@ def test_fallback_ini(makehub, tmpdir, pseudo_current):
     p2 = tmpdir.ensure("tox.ini")
     args = index.get_tox_args(unpack_path=tmpdir)
     assert contains_sublist(args, ["-c", str(p2)])
+
+class TestWheel:
+    def test_find_wheels_and_sdist(self, loghub):
+        vl = ViewLinkStore("http://something/index", {"+links": [
+            {"href": "http://b/pytest-2.7.0.zip", "rel": "releasefile"},
+            {"href": "http://b/pytest-2.7.0.tar.gz", "rel": "releasefile"},
+            {"href": "http://b/pytest-2.7.0-py2.py3-none-any.whl", "rel": "releasefile"},
+        ]})
+        links = vl.get_links(rel="releasefile")
+        sdist_links, wheel_links = find_sdist_and_wheels(loghub, links)
+        assert len(sdist_links) == 2
+        assert sdist_links[0].basename.endswith(".tar.gz")
+        assert sdist_links[1].basename.endswith(".zip")
+        assert len(wheel_links) == 1
+        assert wheel_links[0].basename == "pytest-2.7.0-py2.py3-none-any.whl"
+
+    def test_find_wheels_and_no_sdist(self, loghub):
+        vl = ViewLinkStore("http://something/index", {"+links": [
+            {"href": "http://b/pytest-2.7.0-py2.py3-none-any.whl", "rel": "releasefile"},
+        ]})
+        links = vl.get_links(rel="releasefile")
+        with pytest.raises(SystemExit):
+            find_sdist_and_wheels(loghub, links)
+
+        loghub._getmatcher().fnmatch_lines("""
+            *need at least one sdist*
+        """)
+
+    def test_find_wheels_not_universal(self, loghub):
+        vl = ViewLinkStore("http://something/index", {"+links": [
+            {"href": "http://b/pytest-2.7.0-py26-none-any.whl", "rel": "releasefile"},
+        ]})
+        links = vl.get_links(rel="releasefile")
+        with pytest.raises(SystemExit):
+            find_sdist_and_wheels(loghub, links)
+
+        loghub._getmatcher().fnmatch_lines("""
+            *only universal wheels*
+        """)
+
+    def test_prepare_toxrun_args(self, loghub, pseudo_current, tmpdir, reqmock, initproj):
+        # XXX this test was a bit hard to setup and is also somewhat covered by
+        # the below wheel functional test so unclear if it's worth to
+        # maintain it (but now that we have it ...)
+        vl = ViewLinkStore("http://something/index", {"+links": [
+            {"href": "http://b/prep1-1.0.zip", "rel": "releasefile"},
+            {"href": "http://b/prep1-1.0.tar.gz", "rel": "releasefile"},
+            {"href": "http://b/prep1-1.0-py2.py3-none-any.whl", "rel": "releasefile"},
+        ], "name": "prep1", "version": "1.0"})
+        links = vl.get_links(rel="releasefile")
+        sdist_links, wheel_links = find_sdist_and_wheels(loghub, links)
+        dev_index = DevIndex(loghub, tmpdir, pseudo_current)
+
+        initproj("prep1-1.0", filedefs={})
+        subprocess.check_call(["python", "setup.py", "sdist", "--formats=gztar,zip"])
+        subprocess.check_call(["python", "setup.py", "bdist_wheel", "--universal"])
+        for p in py.path.local("dist").listdir():
+            reqmock.mockresponse("http://b/" + p.basename, code=200, method="GET",
+                                 data=p.read("rb"))
+        toxrunargs = prepare_toxrun_args(dev_index, vl, sdist_links, wheel_links)
+        assert len(toxrunargs) == 3
+        sdist1, sdist2, wheel1 = toxrunargs
+        assert sdist1[0].basename == "prep1-1.0.tar.gz"
+        assert str(sdist1[1].path_unpacked).endswith("-tgz/prep1-1.0")
+        assert sdist2[0].basename == "prep1-1.0.zip"
+        assert str(sdist2[1].path_unpacked).endswith("-zip/prep1-1.0")
+        assert wheel1[0].basename == "prep1-1.0-py2.py3-none-any.whl"
+        assert str(wheel1[1].path_unpacked).endswith("-whl")
+
+    def test_wheels_and_sdist(self, out_devpi, create_and_upload):
+        create_and_upload("exa-1.0", filedefs={
+           "tox.ini": """
+              [testenv]
+              commands = python -c "print('ok')"
+            """,
+            "setup.cfg": """
+                [bdist_wheel]
+                universal = True
+            """
+        }, opts=["--format=sdist.tgz,sdist.zip,bdist_wheel"])
+        result = out_devpi("test", "-epy", "--debug", "exa==1.0")
+        assert result.ret == 0
+        result.stdout.fnmatch_lines("""*exa-1.0.*""")
+        result = out_devpi("list", "-f", "exa")
+        assert result.ret == 0
+        result.stdout.fnmatch_lines_random("""
+            *exa-1.0*whl*
+            *tests*passed*
+            *exa-1.0*zip*
+            *tests*passed*
+            *exa-1.0*tar.gz*
+            *tests*passed*
+        """)
+
 
 class TestFunctional:
     @pytest.mark.xfail(reason="output capturing for devpi calls")
