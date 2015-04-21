@@ -24,7 +24,7 @@ if __name__ == "__main__":
       keywords="pypi cache server wsgi",
       long_description=README,
       url="http://doc.devpi.net",
-      version='2.2.0.dev3',
+      version='2.2.0.dev4',
       maintainer="Holger Krekel",
       maintainer_email="holger@merlinux.eu",
       packages=find_packages(),
@@ -47,5 +47,6 @@ if __name__ == "__main__":
       entry_points = {
         'console_scripts':
                     ["devpi-server = devpi_server.main:main"],
-      })
-
+        'devpi_server': [
+            "devpi-server-auth-basic = devpi_server.auth_basic",
+            "devpi-server-auth-devpi = devpi_server.auth_devpi"]})

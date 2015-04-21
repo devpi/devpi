@@ -855,14 +855,13 @@ class EventSubscribers:
         keyfs = self.xom.keyfs
         with keyfs.transaction(at_serial=ev.at_serial):
             stage = self.xom.model.getstage(user, index)
-            if stage.ixconfig["type"] == "mirror":
+            if stage is not None and stage.ixconfig["type"] == "mirror":
                 return  # we don't trigger on file changes of pypi mirror
             entry = FileEntry(self.xom, ev.typedkey, meta=ev.value)
             if not entry.projectname or not entry.version:
                 # the entry was deleted
                 return
             projectname = stage.get_projectname(entry.projectname)
-            stage = self.xom.model.getstage(user, index)
             linkstore = stage.get_linkstore_perstage(
                                                 projectname, entry.version)
             links = linkstore.get_links(basename=entry.basename)

@@ -1,10 +1,21 @@
-2.1.1.dev
+2.2.0.dev
 ----------------
+
+- improve internal testing mechanics
 
 - fix regression for "devpi list -f" output which would fail when trying
   to present failures with recent devpi-server versions/tox outputs.
 
 - fix issue222: fix help string
+
+- fix issue190: introduce support for testing universal wheels (platform/interpreter
+  specific wheels are not supported yet because they require tox support).  
+  Testing a wheel requires that there also is an sdist next to it so
+  that tox.ini and the tests can be discovered from it.  Note that this
+  means your tox testrun setup must be able to run tests against an
+  installed version of the package, not the sdist-inplace version.  If
+  your tests reside in a subfolder that has no __init__.py this should
+  usually be the case (at least with pytest).
 
 - add "refresh" command to invalidate the pypi release list cache of packages.
 

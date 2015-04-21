@@ -12,6 +12,7 @@ from devpi import log
 from _pytest.pytester import RunResult, LineMatcher
 from devpi.main import Hub, initmain, parse_args
 from devpi_common.url import URL
+from test_devpi_server.conftest import reqmock  # noqa
 
 import subprocess
 
@@ -139,7 +140,7 @@ def initproj(request, tmpdir):
 
 @pytest.fixture
 def create_and_upload(request, devpi, initproj, Popen):
-    def upload(name, filedefs=None):
+    def upload(name, filedefs=None, opts=()):
         initproj(name, filedefs)
         # we need to patch .pypirc
         #with devpi.patched_pypirc as reponame:
@@ -151,7 +152,7 @@ def create_and_upload(request, devpi, initproj, Popen):
         #                   "-r", reponame])
         #    popen.communicate()
         #    assert popen.returncode == 0
-        devpi("upload")
+        devpi("upload", *opts)
     return upload
 
 
@@ -287,13 +288,20 @@ def cmd_devpi(tmpdir, monkeypatch):
         print_info("*** inline$ %s" % " ".join(callargs))
         hub, method = initmain(callargs)
         monkeypatch.setattr(hub, "ask_confirm", lambda msg: True)
+        expected = kwargs.get("code", None)
         try:
             method(hub, hub.args)
         except SystemExit as sysex:
             hub.sysex = sysex
-        expected = kwargs.get("code", None)
+            if expected == None or expected < 0 or expected >= 400:
+                # we expected an error or nothing, don't raise
+                pass
+            else:
+                raise
         if expected is not None:
-            if isinstance(expected, list):
+            if expected == -2:  # failed-to-start
+                assert hasattr(hub, "sysex")
+            elif isinstance(expected, list):
                 assert hub._last_http_stati == expected
             else:
                 if not isinstance(expected, tuple):
@@ -363,7 +371,7 @@ def create_venv(request, testdir, monkeypatch):
 
 
 @pytest.fixture
-def loghub(tmpdir, mock_http_api):
+def loghub(tmpdir):
     class args:
         debug = True
         clientdir = tmpdir.join("clientdir")

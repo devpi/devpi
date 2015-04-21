@@ -84,6 +84,21 @@ class TestStage:
         assert model.getstage("hello", "world2") is None
         assert model.getstage("hello", "world") is not None
 
+    @pytest.mark.with_notifier
+    def test_delete_user_hooks_issue228(self, model, caplog):
+        keyfs = model.xom.keyfs
+        keyfs.commit_transaction_in_thread()
+        with keyfs.transaction(write=True):
+            user = model.create_user("hello", password="123")
+            user.create_stage("world", bases=(), type="stage", volatile=False)
+            stage = model.getstage("hello", "world")
+            register_and_store(stage, "someproject-1.0.zip", b"123")
+        with keyfs.transaction(write=True):
+            user.delete()
+        serial = keyfs.get_current_serial()
+        keyfs.notifier.wait_event_serial(serial)
+        assert not caplog.getrecords(minlevel="ERROR")
+
     def test_getstage_normalized(self, model):
         assert model.getstage("/root/pypi/").name == "root/pypi"
 

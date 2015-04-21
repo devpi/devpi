@@ -30,7 +30,7 @@
             </thead>
             <tbody>
                 <tr tal:repeat="file files">
-                    <td>
+                    <td title="${file.hash_spec}">
                         <a href="${file.url}">${file.title}</a>
                         <dl>
                             <tal:size condition="file.size">
@@ -46,7 +46,6 @@
                                 <dd>${file.py_version}</dd>
                             </tal:py_version>
                         </dl>
-                        <code>${file.hash_spec}</code>
                     </td>
                     <td class="toxresults" tal:condition="show_toxresults">
                         <tal:toxresults condition="file.get('toxresults')">

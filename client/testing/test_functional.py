@@ -186,7 +186,7 @@ class Mapp(MappMixin):
         self.devpi('upload', pkg.strpath)
 
     def push(self, name, version, index, indexname=None, code=200):
-        self.devpi('push', '%s==%s' % (name, version), index)
+        self.devpi('push', '%s==%s' % (name, version), index, code=code)
 
     def create_project(self, projectname, code=201, indexname=None):
         pytest.xfail(reason="no way to create project via command line yet")

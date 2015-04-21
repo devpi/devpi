@@ -706,7 +706,7 @@ def test(parser):
              "--toxargs=\"-c othertox.ini\"")
 
     parser.add_argument("pkgspec", metavar="pkgspec", type=str,
-        default=None, action="store", nargs=1,
+        default=None, action="store", nargs="+",
         help="package specification in pip/setuptools requirement-syntax, "
              "e.g. 'pytest' or 'pytest==2.4.2'")
 
