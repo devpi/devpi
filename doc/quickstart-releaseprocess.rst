@@ -243,6 +243,13 @@ We can verify that the test status was recorded via::
     http://localhost:3141/testuser/dev/+f/5e8/3ca1ec707a391/example-1.0.tar.gz
       cobra linux2 python 2.7.6 tests passed
 
+.. note::
+
+    Since version 2.2.0 testing of universal wheels is supported if there
+    also is an sdist which contains the neccessary tox.ini and tests files.
+    Wheels typically don't contain them as they are a pure installation
+    package.
+
 devpi push: staging a release to another index
 ++++++++++++++++++++++++++++++++++++++++++++++
 
