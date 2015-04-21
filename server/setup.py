@@ -20,12 +20,12 @@ if __name__ == "__main__":
 
     setup(
       name="devpi-server",
-      description="devpi-server: reliable fast pypi.python.org caching server",
-      keywords="pypi cache server wsgi",
+      description="devpi-server: reliable private and pypi.python.org caching server",
+      keywords="pypi realtime cache server",
       long_description=README,
       url="http://doc.devpi.net",
       version='2.2.0.dev4',
-      maintainer="Holger Krekel",
+      maintainer="Holger Krekel, Florian Schulze",
       maintainer_email="holger@merlinux.eu",
       packages=find_packages(),
       include_package_data=True,
