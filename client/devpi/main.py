@@ -761,7 +761,7 @@ def refresh(parser):
     """ invalidates the root/pypi cache for the specified package(s).
 
     In case your devpi server hasn't updated the list of latest releases, this
-    forces a reload of the them.
+    forces a reload of the them (EXPERIMENTAL).
     """
     parser.add_argument(
         "pkgnames", metavar="pkg", type=str, action="store", nargs="+",

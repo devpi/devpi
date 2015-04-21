@@ -17,7 +17,8 @@
   your tests reside in a subfolder that has no __init__.py this should
   usually be the case (at least with pytest).
 
-- add "refresh" command to invalidate the pypi release list cache of packages.
+- add experimental "refresh" command to invalidate the pypi release list cache
+  of packages.
 
 2.1.0
 ----------------
