@@ -247,7 +247,7 @@ We can verify that the test status was recorded via::
 
     Since version 2.2.0 testing of universal wheels is supported if there
     also is an sdist which contains the neccessary tox.ini and tests files.
-    Wheels typically don't contain them are they are a pure installation
+    Wheels typically don't contain them as they are a pure installation
     package.
 
 devpi push: staging a release to another index

@@ -130,12 +130,13 @@ class UnpackedPackage:
         self.hub = hub
         basename = link.basename
         if basename.endswith(".whl"):
-            dir = "whl"
-        elif basename.endswith(".zip"):
-            dir = "zip"
+            rootdir = rootdir.join(basename)
         elif basename.endswith(".tar.gz") or basename.endswith(".tgz"):
-            dir = "tgz"
-        self.rootdir = rootdir + "-" + dir
+            rootdir = rootdir.join("targz")
+        elif basename.endswith(".zip"):
+            rootdir = rootdir.join("zip")
+        assert not rootdir.check(), rootdir
+        self.rootdir = rootdir
         self.path_archive = path_archive
         self.versioninfo = versioninfo
         self.link = link

@@ -129,11 +129,11 @@ class TestWheel:
         assert len(toxrunargs) == 3
         sdist1, sdist2, wheel1 = toxrunargs
         assert sdist1[0].basename == "prep1-1.0.tar.gz"
-        assert str(sdist1[1].path_unpacked).endswith("-tgz/prep1-1.0")
+        assert sdist1[1].path_unpacked.strpath.endswith("targz" + os.sep + "prep1-1.0")
         assert sdist2[0].basename == "prep1-1.0.zip"
-        assert str(sdist2[1].path_unpacked).endswith("-zip/prep1-1.0")
+        assert sdist2[1].path_unpacked.strpath.endswith("zip" + os.sep + "prep1-1.0")
         assert wheel1[0].basename == "prep1-1.0-py2.py3-none-any.whl"
-        assert str(wheel1[1].path_unpacked).endswith("-whl")
+        assert str(wheel1[1].path_unpacked).endswith(wheel1[0].basename)
 
     def test_wheels_and_sdist(self, out_devpi, create_and_upload):
         create_and_upload("exa-1.0", filedefs={
