@@ -36,6 +36,10 @@
 - fix importing of indexes with custom_data and importing of
   documentation which follows uncommon package naming
 
+- fix issue228: when a stage is deleted don't veriy if it was root/pypi
+  because you cannot delete root/pypi anyway.
+
+
 
 2.1.5
 ----------------
