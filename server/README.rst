@@ -7,7 +7,7 @@ devpi-server: consistent pypi.python.org cache, github-style internal indexes
 * IRC: #devpi on freenode, `mailing list
   <https://groups.google.com/d/forum/devpi-dev>`_ 
 
-* compatibility: {win,unix}-py{26,27,33,34}
+* compatibility: {win,unix}-py{26,27,34}
 
 consistent robust pypi-cache
 ----------------------------------------

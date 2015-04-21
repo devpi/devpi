@@ -32,7 +32,7 @@ if __name__ == "__main__":
       zip_safe=False,
       license="MIT",
       classifiers=[
-        "Development Status :: 4 - Beta",
+        "Development Status :: 5 - Production/Stable",
         "Environment :: Web Environment",
         "Intended Audience :: Developers",
         "Intended Audience :: System Administrators",
@@ -42,7 +42,7 @@ if __name__ == "__main__":
         "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
         ] + [
             ("Programming Language :: Python :: %s" % x) for x in
-                "2.7 3.3".split()],
+                "2.7 3.4".split()],
       install_requires=install_requires,
       entry_points = {
         'console_scripts':
