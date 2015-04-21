@@ -6,3 +6,4 @@ def main(hub, args):
         if r.status_code != 200:
             hub.error("Couldn't refresh %s via %s: %s %s" % (
                 pkg, url, r.status_code, r.reason))
+        hub.info("Refreshed %s" % pkg)
