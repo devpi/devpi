@@ -510,10 +510,8 @@ def test_version_view(mapp, testapp, monkeypatch):
         for x in r.html.select('.files tbody tr')]
 
     assert [x[:2] for x in filesinfo] == [
-        (['pkg1-2.6.tar.gz', 'Size', '7', 'bytes', 'Type', 'Source',
-          tar3.split("#")[-1]], []),
-        (['pkg1-2.6.zip', 'Size', '10', 'bytes', 'Type', 'Source',
-         zip.split("#")[-1]], [])
+        (['pkg1-2.6.tar.gz', 'Size', '7', 'bytes', 'Type', 'Source'], []),
+        (['pkg1-2.6.zip', 'Size', '10', 'bytes', 'Type', 'Source'], [])
     ]
 
     assert [x[-1] for x in filesinfo] == [
