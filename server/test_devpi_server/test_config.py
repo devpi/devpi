@@ -115,26 +115,16 @@ class TestConfig:
         assert config.get_master_uuid() != uuid
 
     def test_add_parser_options_called(self):
-        from devpi_server.config import PluginManager
+        from devpi_server.main import get_pluginmanager
         l = []
         class Plugin:
             def devpiserver_add_parser_options(self, parser):
                 l.append(parser)
-        hook = PluginManager([(Plugin(), None)])
-        parseoptions(["devpi-server"], hook=hook)
+        pm = get_pluginmanager()
+        pm.register(Plugin())
+        parseoptions(["devpi-server"], hook=pm.hook)
         assert len(l) == 1
         assert isinstance(l[0], MyArgumentParser)
-
-
-def test_pluginmanager_call():
-    from devpi_server.config import PluginManager
-    class Plugin:
-        def meth1(self, x, y):
-            return x + y
-    pm = PluginManager([(Plugin(), None)])
-    l = pm._call_plugins("meth1", x=1, y=2)
-    assert len(l) == 1
-    assert l[0] == 3
 
 
 def test_load_setuptools_plugins(monkeypatch):

@@ -215,13 +215,14 @@ class MyArgumentParser(argparse.ArgumentParser):
 class ConfigurationError(Exception):
     """ incorrect configuration or environment settings. """
 
-class PluginManager:
-    def __init__(self, plugins):
-        self._plugins = plugins
+
+class HookRelay:
+    def __init__(self, pm):
+        self._pm = pm
 
     def _call_plugins(self, _name, **kwargs):
         results = []
-        for plug, distinfo in self._plugins:
+        for plug, distinfo in self._pm._plugins:
             meth = getattr(plug, _name, None)
             if meth is not None:
                 name = "%s.%s" % (
@@ -288,6 +289,16 @@ class PluginManager:
         return self._call_plugins("devpiserver_auth_user",
                                   userdict=userdict,
                                   username=username, password=password)
+
+
+class PluginManager:
+    def __init__(self, prefix):
+        self.prefix = prefix
+        self.hook = HookRelay(self)
+        self._plugins = []
+
+    def register(self, plugin, name=None):
+        self._plugins.append((plugin, name))
 
 
 class Config:

@@ -588,7 +588,7 @@ class TestStage:
             def devpiserver_on_changed_versiondata(self,
                     stage, projectname, version, metadata):
                 queue.put((stage, metadata))
-        stage.xom.config.hook._plugins = [(Plugin(), None)]
+        stage.xom.config.hook._pm.register(Plugin())
         orig_metadata = udict(name="hello", version="1.0")
         stage.set_versiondata(orig_metadata)
         stage.xom.keyfs.commit_transaction_in_thread()
@@ -606,7 +606,7 @@ class TestStage:
         class Plugin:
             def devpiserver_on_upload(self, stage, projectname, version, link):
                 queue.put((stage, projectname, version, link))
-        stage.xom.config.hook._plugins = [(Plugin(), None)]
+        stage.xom.config.hook._pm.register(Plugin())
         stage.set_versiondata(udict(name="pkg1", version="1.0"))
         content = zip_dict({"index.html": "<html/>",
             "_static": {}, "_templ": {"x.css": ""}})
