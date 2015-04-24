@@ -173,7 +173,7 @@ def parseoptions(argv, addoptions=addoptions, hook=None):
 
     addoptions(parser)
     if hook:
-        hook.devpiserver_add_parser_options(parser)
+        hook.devpiserver_add_parser_options(parser=parser)
     try_argcomplete(parser)
     raw = [str(x) for x in argv[1:]]
     args = parser.parse_args(raw)

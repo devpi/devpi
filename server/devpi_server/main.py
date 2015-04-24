@@ -204,7 +204,7 @@ class XOM:
         # creation of app will register handlers of key change events
         # which cannot happen anymore after the tx notifier has started
         with xom.keyfs.transaction():
-            results = xom.config.hook.devpiserver_run_commands(xom)
+            results = xom.config.hook.devpiserver_run_commands(xom=xom)
             if [x for x in results if x is not None]:
                 errors = list(filter(None, results))
                 if errors:
