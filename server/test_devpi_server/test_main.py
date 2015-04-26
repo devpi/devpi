@@ -55,7 +55,7 @@ def test_pyramid_configure_called(makexom):
 
 @wsgi_run_throws
 def test_run_commands_called(monkeypatch, tmpdir):
-    from devpi_server.main import _main
+    from devpi_server.main import _main, get_pluginmanager
     l = []
     class Plugin:
         def devpiserver_run_commands(self, xom):
@@ -63,9 +63,11 @@ def test_run_commands_called(monkeypatch, tmpdir):
             return 1
     monkeypatch.setattr(devpi_server.extpypi.PyPIMirror, "init_pypi_mirror",
                         lambda self, proxy: None)
+    pm = get_pluginmanager()
+    pm.register(Plugin())
     result = _main(
         argv=["devpi-server", "--serverdir", str(tmpdir)],
-        hook=PluginManager([(Plugin(), None)]))
+        hook=pm.hook)
     assert result == 1
     assert len(l) == 1
     assert isinstance(l[0], XOM)
@@ -73,16 +75,18 @@ def test_run_commands_called(monkeypatch, tmpdir):
 
 @wsgi_run_throws
 def test_main_starts_server_if_run_commands_returns_none(monkeypatch, tmpdir):
-    from devpi_server.main import _main
+    from devpi_server.main import _main, get_pluginmanager
     l = []
     class Plugin:
         def devpiserver_run_commands(self, xom):
             l.append(xom)
     monkeypatch.setattr(devpi_server.extpypi.PyPIMirror, "init_pypi_mirror",
                         lambda self, proxy: None)
+    pm = get_pluginmanager()
+    pm.register(Plugin())
     with pytest.raises(ZeroDivisionError):
         _main(
             argv=["devpi-server", "--serverdir", str(tmpdir)],
-            hook=PluginManager([(Plugin(), None)]))
+            hook=pm.hook)
     assert len(l) == 1
     assert isinstance(l[0], XOM)

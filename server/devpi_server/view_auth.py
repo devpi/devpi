@@ -211,6 +211,6 @@ class DevpiAuthenticationPolicy(CallbackAuthenticationPolicy):
             raise ValueError("Unknown authentication status: %s" % status)
 
     def _get_credentials(self, request):
-        results = list(filter(None, self.hook(request)))
+        results = list(filter(None, self.hook(request=request)))
         if results:
             return results[0]

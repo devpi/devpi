@@ -819,7 +819,8 @@ class EventSubscribers:
         with xom.keyfs.transaction(write=False, at_serial=ev.at_serial):
             stage = xom.model.getstage("root", "pypi")
             name2serials = stage.pypimirror.name2serials
-            hook.devpiserver_pypi_initial(stage, name2serials)
+            hook.devpiserver_pypi_initial(
+                stage=stage, name2serials=name2serials)
 
     def on_changed_version_config(self, ev):
         """ when version config is changed for a project in a stage"""
@@ -845,7 +846,8 @@ class EventSubscribers:
             if metadata != old:
                 stage = self.xom.model.getstage(user, index)
                 hook.devpiserver_on_changed_versiondata(
-                    stage, projectname, version, metadata)
+                    stage=stage, projectname=projectname,
+                    version=version, metadata=metadata)
 
     def on_changed_file_entry(self, ev):
         """ when a file entry is modified. """

@@ -14,7 +14,7 @@ from .config import PluginManager
 from .config import parseoptions, load_setuptools_entrypoints
 from .log import configure_logging, threadlog
 from .model import BaseStage
-from . import extpypi, replica, mythread
+from . import extpypi, replica, mythread  #, hookspecs
 from . import __version__ as server_version
 
 
@@ -47,14 +47,24 @@ def check_compatible_version(xom):
                 server_version, state_version), bold=True)
 
 
+def get_pluginmanager():
+    pm = PluginManager("devpiserver_")
+    # pm.addhooks(hookspecs)
+    return pm
+
+
 def main(argv=None, plugins=None):
     """ devpi-server command line entry point. """
     if plugins is None:
         plugins = []
     plugins.extend(load_setuptools_entrypoints())
-    hook = PluginManager(plugins)
+    pm = get_pluginmanager()
+    # as of 2015-04-24 this won't work with PluginManager from _pytest
+    # remove the name
+    for plugin, name in plugins:
+        pm.register(plugin, name)
     try:
-        return _main(argv, hook=hook)
+        return _main(argv, hook=pm.hook)
     except Fatal as e:
         tw = py.io.TerminalWriter(sys.stderr)
         tw.line("fatal: %s" %  e.args[0], red=True)
@@ -204,7 +214,7 @@ class XOM:
         # creation of app will register handlers of key change events
         # which cannot happen anymore after the tx notifier has started
         with xom.keyfs.transaction():
-            results = xom.config.hook.devpiserver_run_commands(xom)
+            results = xom.config.hook.devpiserver_run_commands(xom=xom)
             if [x for x in results if x is not None]:
                 errors = list(filter(None, results))
                 if errors:
@@ -292,7 +302,8 @@ class XOM:
 
         version_info = [
             ("devpi-server", get_distribution("devpi_server").version)]
-        for plug, distinfo in self.config.hook._plugins:
+        # as of 2015-04-24 this won't work with PluginManager from _pytest
+        for plug, distinfo in self.config.hook._pm._plugins:
             if distinfo is None:
                 continue
             threadlog.info("Found plugin %s-%s (%s)." % (
