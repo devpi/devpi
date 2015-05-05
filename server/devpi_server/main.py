@@ -10,11 +10,10 @@ import py
 
 from devpi_common.types import cached_property
 from devpi_common.request import new_requests_session
-from .config import PluginManager
-from .config import parseoptions, load_setuptools_entrypoints
+from .config import parseoptions, get_pluginmanager
 from .log import configure_logging, threadlog
 from .model import BaseStage
-from . import extpypi, replica, mythread  #, hookspecs
+from . import extpypi, replica, mythread
 from . import __version__ as server_version
 
 
@@ -47,30 +46,17 @@ def check_compatible_version(xom):
                 server_version, state_version), bold=True)
 
 
-def get_pluginmanager():
-    pm = PluginManager("devpiserver_")
-    # pm.addhooks(hookspecs)
-    return pm
-
-
-def main(argv=None, plugins=None):
+def main(argv=None):
     """ devpi-server command line entry point. """
-    if plugins is None:
-        plugins = []
-    plugins.extend(load_setuptools_entrypoints())
-    pm = get_pluginmanager()
-    # as of 2015-04-24 this won't work with PluginManager from _pytest
-    # remove the name
-    for plugin, name in plugins:
-        pm.register(plugin, name)
+    pluginmanager = get_pluginmanager()
     try:
-        return _main(argv, hook=pm.hook)
+        return _main(pluginmanager, argv=argv)
     except Fatal as e:
         tw = py.io.TerminalWriter(sys.stderr)
         tw.line("fatal: %s" %  e.args[0], red=True)
         return 1
 
-def _main(argv=None, hook=None):
+def _main(pluginmanager, argv=None):
     # Set up logging with no config just so we can log while parsing options
     # Later when we get the config, we will call this again with the config.
     configure_logging()
@@ -79,7 +65,7 @@ def _main(argv=None, hook=None):
         argv = sys.argv
 
     argv = [str(x) for x in argv]
-    config = parseoptions(argv, hook=hook)
+    config = parseoptions(argv, pluginmanager=pluginmanager)
     args = config.args
 
     # meta commmands
@@ -214,12 +200,9 @@ class XOM:
         # creation of app will register handlers of key change events
         # which cannot happen anymore after the tx notifier has started
         with xom.keyfs.transaction():
-            results = xom.config.hook.devpiserver_run_commands(xom=xom)
-            if [x for x in results if x is not None]:
-                errors = list(filter(None, results))
-                if errors:
-                    return errors[0]
-                return 0
+            res = xom.config.hook.devpiserver_run_commands(xom=xom)
+            if isinstance(res, int):
+                return res
 
         app = xom.create_app()
         with xom.thread_pool.live():
@@ -303,9 +286,7 @@ class XOM:
         version_info = [
             ("devpi-server", get_distribution("devpi_server").version)]
         # as of 2015-04-24 this won't work with PluginManager from _pytest
-        for plug, distinfo in self.config.hook._pm._plugins:
-            if distinfo is None:
-                continue
+        for plug, distinfo in self.config.pluginmanager.list_plugin_distinfo():
             threadlog.info("Found plugin %s-%s (%s)." % (
                 distinfo.project_name, distinfo.version, distinfo.location))
             version_info.append((distinfo.project_name, distinfo.version))

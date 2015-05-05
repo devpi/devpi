@@ -7,7 +7,8 @@ import mimetypes
 import pytest
 import py
 from bs4 import BeautifulSoup
-from devpi_server.main import XOM, get_pluginmanager, parseoptions
+from devpi_server.config import get_pluginmanager
+from devpi_server.main import XOM, parseoptions
 from devpi_common.url import URL
 from devpi_server.extpypi import XMLProxy
 from devpi_server.extpypi import PyPIStage
@@ -150,14 +151,16 @@ def makexom(request, gentmp, httpget, monkeypatch, mock):
         from devpi_server import auth_devpi
         plugins = list(plugins) + [(auth_basic, None), (auth_devpi, None)]
         pm = get_pluginmanager()
-        for plugin, name in plugins:
-            # as of 2015-04-24 this won't work with PluginManager from _pytest
-            # remove the name
-            pm.register(plugin, name)
+        #for plugin, name in plugins:
+        #    # as of 2015-04-24 this won't work with PluginManager from _pytest
+        #    # remove the name
+        #    pm.register(plugin) #, name)
+        for plugin in plugins:
+            pm.register(plugin)
         serverdir = gentmp()
         fullopts = ["devpi-server", "--serverdir", serverdir] + list(opts)
         fullopts = [str(x) for x in fullopts]
-        config = parseoptions(fullopts, hook=pm.hook)
+        config = parseoptions(fullopts, pluginmanager=pm)
         if mocking:
             if proxy is None:
                 proxy = mock.create_autospec(XMLProxy)

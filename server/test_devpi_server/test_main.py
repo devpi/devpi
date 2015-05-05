@@ -46,7 +46,7 @@ def test_pyramid_configure_called(makexom):
     class Plugin:
         def devpiserver_pyramid_configure(self, config, pyramid_config):
             l.append((config, pyramid_config))
-    xom = makexom(plugins=[(Plugin(),None)])
+    xom = makexom(plugins=[Plugin()])
     xom.create_app()
     assert len(l) == 1
     config, pyramid_config = l[0]
@@ -67,7 +67,7 @@ def test_run_commands_called(monkeypatch, tmpdir):
     pm.register(Plugin())
     result = _main(
         argv=["devpi-server", "--serverdir", str(tmpdir)],
-        hook=pm.hook)
+        pluginmanager=pm)
     assert result == 1
     assert len(l) == 1
     assert isinstance(l[0], XOM)
@@ -87,6 +87,6 @@ def test_main_starts_server_if_run_commands_returns_none(monkeypatch, tmpdir):
     with pytest.raises(ZeroDivisionError):
         _main(
             argv=["devpi-server", "--serverdir", str(tmpdir)],
-            hook=pm.hook)
+            pluginmanager=pm)
     assert len(l) == 1
     assert isinstance(l[0], XOM)

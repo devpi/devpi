@@ -1,4 +1,4 @@
-from devpi_server.config import MyArgumentParser, parseoptions
+from devpi_server.config import MyArgumentParser, parseoptions, get_pluginmanager
 from devpi_server.main import Fatal
 import pytest
 
@@ -115,36 +115,13 @@ class TestConfig:
         assert config.get_master_uuid() != uuid
 
     def test_add_parser_options_called(self):
-        from devpi_server.main import get_pluginmanager
         l = []
         class Plugin:
             def devpiserver_add_parser_options(self, parser):
                 l.append(parser)
         pm = get_pluginmanager()
         pm.register(Plugin())
-        parseoptions(["devpi-server"], hook=pm.hook)
+        parseoptions(["devpi-server"], pluginmanager=pm)
         assert len(l) == 1
         assert isinstance(l[0], MyArgumentParser)
-
-
-def test_load_setuptools_plugins(monkeypatch):
-    from devpi_server.config import load_setuptools_entrypoints
-    pkg_resources = pytest.importorskip("pkg_resources")
-    def my_iter(name):
-        assert name == "devpi_server"
-        class EntryPoint:
-            name = "mytestplugin"
-            class dist:
-                pass
-            def load(self):
-                class PseudoPlugin:
-                    x = 42
-                return PseudoPlugin()
-        return iter([EntryPoint()])
-    monkeypatch.setattr(pkg_resources, 'iter_entry_points', my_iter)
-    l = list(load_setuptools_entrypoints())
-    assert len(l) == 1
-    plugin, distinfo = l[0]
-    assert plugin.x == 42
-    assert distinfo.__name__ == "dist"
 

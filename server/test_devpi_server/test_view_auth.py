@@ -17,7 +17,7 @@ class TestCredentialPlugin:
 
     @pytest.fixture
     def xom(self, makexom, plugin):
-        xom = makexom(plugins=[(plugin, None)])
+        xom = makexom(plugins=[plugin])
         return xom
 
     def test_credential_plugin_no_credentials(self, blank_request, dap, plugin):
@@ -49,7 +49,7 @@ class TestCredentialPlugins:
     @pytest.fixture
     def xom(self, makexom, plugin1, plugin2):
         import random
-        plugins = [(plugin1, None), (plugin2, None)]
+        plugins = [plugin1, plugin2]
         random.shuffle(plugins)
         xom = makexom(plugins=plugins)
         return xom
@@ -91,8 +91,7 @@ class TestHeaderCredentialPlugin:
 
     @pytest.fixture
     def xom(self, makexom, plugin):
-        xom = makexom(plugins=[(plugin, None)])
-        return xom
+        return makexom(plugins=[plugin])
 
     def test_credential_plugin_no_credentials(self, blank_request, dap, plugin):
         request = blank_request()

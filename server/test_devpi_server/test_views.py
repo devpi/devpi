@@ -913,7 +913,7 @@ class TestPluginPermissions:
 
     @pytest.fixture
     def xom(self, makexom, plugin):
-        xom = makexom(plugins=[(plugin, None)])
+        xom = makexom(plugins=[plugin])
         return xom
 
     def test_plugin_upload_group(self, mapp, plugin):
@@ -1219,7 +1219,7 @@ class TestRestrictModify:
 
     @pytest.fixture
     def xom(self, makexom, plugin, restrict_modify):
-        xom = makexom(plugins=[(plugin, None)])
+        xom = makexom(plugins=[plugin])
         xom.config.args.restrict_modify = restrict_modify
         return xom
 

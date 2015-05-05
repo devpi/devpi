@@ -4,14 +4,25 @@ import os.path
 import argparse
 import uuid
 
+from pluggy import PluginManager
 import py
 from devpi_common.types import cached_property
 from .log import threadlog
+from . import hookspecs
 import json
 import devpi_server
 from devpi_common.url import URL
 
 log = threadlog
+
+def get_pluginmanager():
+    pm = PluginManager("devpiserver", implprefix="devpiserver_")
+    pm.add_hookspecs(hookspecs)
+    # XXX load internal plugins here
+    pm.load_setuptools_entrypoints("devpi_server")
+    pm.check_pending()
+    return pm
+
 
 def get_default_serverdir():
     return os.environ.get("DEVPI_SERVERDIR", "~/.devpi/server")
@@ -141,19 +152,6 @@ def addoptions(parser):
     #group.addoption("--logfile", action="store",
     #        help="set log file file location")
 
-def load_setuptools_entrypoints():
-    try:
-        from pkg_resources import iter_entry_points, DistributionNotFound
-    except ImportError:
-        return # XXX issue a warning
-    for ep in iter_entry_points('devpi_server'):
-        try:
-            plugin = ep.load()
-        except DistributionNotFound:
-            continue
-        yield plugin, ep.dist
-
-
 def try_argcomplete(parser):
     try:
         import argcomplete
@@ -162,7 +160,7 @@ def try_argcomplete(parser):
     else:
         argcomplete.autocomplete(parser)
 
-def parseoptions(argv, addoptions=addoptions, hook=None):
+def parseoptions(argv, addoptions=addoptions, pluginmanager=None):
     parser = MyArgumentParser(
         description="Start a server which serves multiples users and "
                     "indices. The special root/pypi index is a real-time "
@@ -170,15 +168,18 @@ def parseoptions(argv, addoptions=addoptions, hook=None):
                     "All indices are suitable for pip or easy_install usage "
                     "and setup.py upload ... invocations."
     )
+    if pluginmanager is None:
+        # XXX maybe better prevent this from being None
+        pluginmanager = get_pluginmanager()
 
     addoptions(parser)
-    if hook:
-        hook.devpiserver_add_parser_options(parser=parser)
+    pluginmanager.hook.devpiserver_add_parser_options(parser=parser)
+
     try_argcomplete(parser)
     raw = [str(x) for x in argv[1:]]
     args = parser.parse_args(raw)
     args._raw = raw
-    config = Config(args, hook=hook)
+    config = Config(args, pluginmanager=pluginmanager)
     return config
 
 class MyArgumentParser(argparse.ArgumentParser):
@@ -216,93 +217,8 @@ class ConfigurationError(Exception):
     """ incorrect configuration or environment settings. """
 
 
-class HookRelay:
-    def __init__(self, pm):
-        self._pm = pm
-
-    def _call_plugins(self, _name, **kwargs):
-        results = []
-        for plug, distinfo in self._pm._plugins:
-            meth = getattr(plug, _name, None)
-            if meth is not None:
-                name = "%s.%s" % (
-                            getattr(plug, "__class__", plug).__name__,
-                            meth.__name__)
-                with threadlog.around("debug", "call: %s ", name):
-                    results.append(meth(**kwargs))
-            #else:
-            #    threadlog.error("no plugin hook %s on %s", _name, plug)
-        return results
-
-    def devpiserver_pyramid_configure(self, config, pyramid_config):
-        return self._call_plugins("devpiserver_pyramid_configure",
-                                  config=config, pyramid_config=pyramid_config)
-
-    def devpiserver_add_parser_options(self, parser):
-        return self._call_plugins("devpiserver_add_parser_options",
-                                  parser=parser)
-
-    def devpiserver_run_commands(self, xom):
-        return self._call_plugins("devpiserver_run_commands",
-                                  xom=xom)
-
-    def devpiserver_on_upload(self, stage, projectname, version, link):
-        return self._call_plugins("devpiserver_on_upload",
-                                  stage=stage, projectname=projectname,
-                                  version=version, link=link)
-
-    def devpiserver_on_changed_versiondata(self, stage, projectname, version,
-                                           metadata):
-        return self._call_plugins("devpiserver_on_changed_versiondata",
-                                  stage=stage, projectname=projectname,
-                                  version=version, metadata=metadata)
-
-    def devpiserver_pypi_initial(self, stage, name2serials):
-        return self._call_plugins("devpiserver_pypi_initial",
-                                  stage=stage,
-                                  name2serials=name2serials)
-
-    def devpiserver_auth_credentials(self, request):
-        """Extracts username and password from request.
-
-        Returns a tuple with (username, password) if credentials could be
-        extracted, or None if no credentials were found.
-
-        The first plugin to return credentials is used, the order of plugin
-        calls is undefined.
-        """
-        return self._call_plugins("devpiserver_auth_credentials",
-                                  request=request)
-
-    def devpiserver_auth_user(self, userdict, username, password):
-        """Needs to validate the username and password.
-
-        A dict must be returned with a key "status" with one of the following
-        values:
-            "ok" - authentication succeeded
-            "unknown" - no matching user, other plugins are tried
-            "reject" - invalid password, authentication stops
-
-        Optionally the plugin can return a list of group names the user is
-        member of using the "groups" key of the result dict.
-        """
-        return self._call_plugins("devpiserver_auth_user",
-                                  userdict=userdict,
-                                  username=username, password=password)
-
-
-class PluginManager:
-    def __init__(self, prefix):
-        self.prefix = prefix
-        self.hook = HookRelay(self)
-        self._plugins = []
-
-    def register(self, plugin, name=None):
-        self._plugins.append((plugin, name))
-
-
 class Config:
-    def __init__(self, args, hook):
+    def __init__(self, args, pluginmanager):
         self.args = args
         serverdir = args.serverdir
         if serverdir is None:
@@ -320,7 +236,8 @@ class Config:
         self._determine_roles()
         self._determine_uuid()
         self.write_nodeinfo()
-        self.hook = hook
+        self.pluginmanager = pluginmanager
+        self.hook = pluginmanager.hook
 
     def _determine_uuid(self):
         if "uuid" not in self.nodeinfo:
