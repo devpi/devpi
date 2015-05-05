@@ -185,7 +185,7 @@ def test_simple_refresh(mapp, model, pypistage, testapp):
     assert r.location.endswith("/root/pypi/+simple/hello")
     with model.keyfs.transaction(write=False):
         info = pypistage._load_project_cache("hello")
-    assert info == {}
+    assert info["entrylist"] == []
 
 def test_inheritance_versiondata(mapp, model):
     api1 = mapp.create_and_use()
@@ -196,24 +196,38 @@ def test_inheritance_versiondata(mapp, model):
     assert len(r["result"]) == 1
 
 
-def test_simple_refresh_inherited(mapp, model, pypistage, testapp):
-    pypistage.mock_simple("pkg", "<html/>")
-    api = mapp.create_and_use()
-    mapp.set_versiondata(dict(name="pkg", version="1.0"))
-    r = testapp.xget(200, "/%s/+simple/pkg" % api.stagename)
+@pytest.mark.parametrize("projectname", ["pkg", "pkg_some"])
+@pytest.mark.parametrize("stagename", [None, "root/pypi"])
+def test_simple_refresh_inherited(mapp, model, pypistage, testapp, projectname,
+                                  stagename):
+    pypistage.mock_simple(projectname, '<a href="/%s-1.0.zip" />' % projectname,
+                          serial=100)
+    if stagename is None:
+        api = mapp.create_and_use()
+    else:
+        api = mapp.use(stagename)
+    stagename = api.stagename
+
+    r = testapp.xget(200, "/%s/+simple/%s" % (stagename, projectname))
     input, = r.html.select('form input')
     assert input.attrs['name'] == 'refresh'
-    assert input.attrs['value'] == 'Refresh PyPI links'
+    #assert input.attrs['value'] == 'Refresh PyPI links'
     with model.keyfs.transaction(write=False):
-        info = pypistage._load_project_cache("pkg")
+        info = pypistage._load_project_cache(projectname)
     assert info != {}
-    assert info['projectname'] == 'pkg'
-    r = testapp.post("/%s/+simple/pkg/refresh" % api.stagename)
+    assert info['projectname'] == projectname
+    pypistage.mock_simple(projectname, '<a href="/%s-2.0.zip" />' % projectname,
+                          serial=200)
+    r = testapp.post("/%s/+simple/%s/refresh" % (stagename, projectname))
     assert r.status_code == 302
-    assert r.location.endswith("/%s/+simple/pkg" % api.stagename)
+    assert r.location.endswith("/%s/+simple/%s" % (stagename, projectname))
     with model.keyfs.transaction(write=False):
-        info = pypistage._load_project_cache("pkg")
-    assert info == {}
+        info = pypistage._load_project_cache(projectname)
+    assert info["projectname"] == projectname
+    elist = info["entrylist"]
+    assert len(elist) == 1
+    assert elist[0][0].endswith("-2.0.zip")
+
 
 def test_simple_refresh_inherited_not_whitelisted(mapp, testapp):
     api = mapp.create_and_use()

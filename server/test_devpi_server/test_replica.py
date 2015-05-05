@@ -87,24 +87,37 @@ class TestPyPIProxy:
         assert isinstance(replica_xom.proxy, PyPIProxy)
 
 
-def test_pypi_project_changed(replica_xom):
+@pytest.mark.parametrize("normname,realname",
+                         [("proj", "proj"), ("proj-x", "proj_x")])
+def test_pypi_project_changed(replica_xom, normname, realname):
     handler = PypiProjectChanged(replica_xom)
     class Ev:
-        value = dict(projectname="newproject", serial=12)
-        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(name="newproject")
+        value = dict(projectname=realname, serial=12)
+        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(name=normname)
     handler(Ev())
-    assert replica_xom.pypimirror.name2serials["newproject"] == 12
+    assert replica_xom.pypimirror.name2serials[realname] == 12
+    if normname != realname:
+        assert replica_xom.pypimirror.normname2name[normname] == realname
+
     class Ev2:
-        value = dict(projectname="newproject", serial=15)
-        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(name="newproject")
+        value = dict(projectname=realname, serial=15)
+        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(name=normname)
     handler(Ev2())
-    assert replica_xom.pypimirror.name2serials["newproject"] == 15
+    assert replica_xom.pypimirror.name2serials[realname] == 15
 
     class Ev3:
-        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(name="newproject")
-        value = None
+        value = dict(projectname=realname, serial=12)
+        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(name=normname)
     handler(Ev3())
-    assert "newproject" not in replica_xom.pypimirror.name2serials
+    assert replica_xom.pypimirror.name2serials[realname] == 15
+
+    class Ev4:
+        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(name=normname)
+        value = None
+    handler(Ev4())
+    assert realname not in replica_xom.pypimirror.name2serials
+    if normname != realname:
+        assert normname not in replica_xom.pypimirror.normname2name
 
 
 class TestReplicaThread:
