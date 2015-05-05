@@ -65,7 +65,7 @@ def _main(pluginmanager, argv=None):
         argv = sys.argv
 
     argv = [str(x) for x in argv]
-    config = parseoptions(argv, pluginmanager=pluginmanager)
+    config = parseoptions(pluginmanager, argv)
     args = config.args
 
     # meta commmands
@@ -113,7 +113,7 @@ def _main(pluginmanager, argv=None):
 
 def make_application():
     """ entry point for making an application object with defaults. """
-    config = parseoptions([])
+    config = parseoptions(get_pluginmanager(), [])
     return XOM(config).create_app()
 
 def wsgi_run(xom, app):

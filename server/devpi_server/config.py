@@ -160,7 +160,7 @@ def try_argcomplete(parser):
     else:
         argcomplete.autocomplete(parser)
 
-def parseoptions(argv, addoptions=addoptions, pluginmanager=None):
+def parseoptions(pluginmanager, argv, addoptions=addoptions):
     parser = MyArgumentParser(
         description="Start a server which serves multiples users and "
                     "indices. The special root/pypi index is a real-time "
@@ -168,10 +168,6 @@ def parseoptions(argv, addoptions=addoptions, pluginmanager=None):
                     "All indices are suitable for pip or easy_install usage "
                     "and setup.py upload ... invocations."
     )
-    if pluginmanager is None:
-        # XXX maybe better prevent this from being None
-        pluginmanager = get_pluginmanager()
-
     addoptions(parser)
     pluginmanager.hook.devpiserver_add_parser_options(parser=parser)
 

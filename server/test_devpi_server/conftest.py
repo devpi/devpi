@@ -151,16 +151,12 @@ def makexom(request, gentmp, httpget, monkeypatch, mock):
         from devpi_server import auth_devpi
         plugins = list(plugins) + [(auth_basic, None), (auth_devpi, None)]
         pm = get_pluginmanager()
-        #for plugin, name in plugins:
-        #    # as of 2015-04-24 this won't work with PluginManager from _pytest
-        #    # remove the name
-        #    pm.register(plugin) #, name)
         for plugin in plugins:
             pm.register(plugin)
         serverdir = gentmp()
         fullopts = ["devpi-server", "--serverdir", serverdir] + list(opts)
         fullopts = [str(x) for x in fullopts]
-        config = parseoptions(fullopts, pluginmanager=pm)
+        config = parseoptions(pm, fullopts)
         if mocking:
             if proxy is None:
                 proxy = mock.create_autospec(XMLProxy)
