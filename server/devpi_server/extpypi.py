@@ -369,6 +369,7 @@ class PyPIMirror:
                 fatal("mirror initialization failed: "
                       "pypi.python.org not reachable")
             ensure_unicode_keys(name2serials)
+
             dump_to_file(name2serials, self.path_name2serials)
             # trigger anything (e.g. web-search indexing) that wants to
             # look at the initially loaded serials
@@ -379,11 +380,24 @@ class PyPIMirror:
         return name2serials
 
     def set_project_serial(self, name, serial):
-        """ set the current serial and fill normalization table. """
-        self.name2serials[name] = serial
+        """ set the current serial and update projectname normalization table.
+
+        Usually ``name`` is a "realname" not a normalized name.
+        But you can pass in a normalized name if the project
+        is already known in which case we derive the real name
+        automatically.
+        """
         n = normalize_name(name)
-        if n != name:
-            self.normname2name[n] = name
+        if n in self.normname2name:
+            name = self.normname2name[n]
+
+        if serial is None:
+            del self.name2serials[name]
+            self.normname2name.pop(n, None)
+        else:
+            self.name2serials[name] = serial
+            if n != name:
+                self.normname2name[n] = name
         return n
 
     def thread_run(self, proxy):

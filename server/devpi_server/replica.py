@@ -6,6 +6,7 @@ import time
 from pyramid.httpexceptions import HTTPNotFound, HTTPAccepted
 from pyramid.view import view_config
 from pyramid.response import Response
+from devpi_common.validation import normalize_name
 from webob.headers import EnvironHeaders, ResponseHeaders
 
 from .keyfs import load, loads, dump, get_write_file_ensure_dir, rename
@@ -211,19 +212,21 @@ class PypiProjectChanged:
         pypimirror = self.xom.pypimirror
         name2serials = pypimirror.name2serials
         cache = ev.value
+
+        # get the normalized projectname (PYPILINKS uses it)
+        nname = ev.typedkey.params["name"]
+        if not nname:
+            threadlog.error("project %r missing", nname)
+            return
+        assert normalize_name(nname) == nname
+
+        projectname = ev.value["projectname"] if cache else nname
         if cache is None:  # deleted
-            # derive projectname to delete from key
-            name = ev.typedkey.params["name"]
-            projectname = pypimirror.get_registered_name(name)
-            if projectname:
-                del name2serials[projectname]
-            else:
-                threadlog.error("project %r missing", name)
+            pypimirror.set_project_serial(projectname, None)
         else:
-            name = cache["projectname"]
-            cur_serial = name2serials.get(name, -1)
+            cur_serial = name2serials.get(projectname, -1)
             if cache and cache["serial"] > cur_serial:
-                name2serials[cache["projectname"]] = cache["serial"]
+                pypimirror.set_project_serial(projectname, cache["serial"])
 
 
 def tween_replica_proxy(handler, registry):

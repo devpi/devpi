@@ -39,6 +39,8 @@
 - fix issue228: when a stage is deleted don't veriy if it was root/pypi
   because you cannot delete root/pypi anyway.
 
+- fix issue232: pypi-refresh now works better for projects which have  
+  have a non-nomalized projectname, and also works better across replication.
 
 
 2.1.5
