@@ -1,7 +1,8 @@
-
 import threading
 import logging
+import logging.config
 import contextlib
+import json
 
 
 threadlocal = threading.local()
@@ -11,6 +12,7 @@ def configure_logging(config=None):
     # clear handlers so that a second call to configure_logging
     # reconfigures properly
     logging.getLogger('').handlers = []
+
     if config and config.args.debug:
         loglevel = logging.DEBUG
     else:
@@ -19,6 +21,11 @@ def configure_logging(config=None):
          format='%(asctime)s %(levelname)-5.5s %(message)s')
     requests_log = logging.getLogger("requests.packages.urllib3")
     requests_log.setLevel(logging.ERROR)
+
+    if config and config.args.logger_cfg:
+        with open(config.args.logger_cfg, 'rt') as f:
+            logger_cfg = json.load(f)
+        logging.config.dictConfig(logger_cfg)
 
 
 class TagLogger:

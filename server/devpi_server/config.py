@@ -38,6 +38,9 @@ def addoptions(parser):
     web.addoption("--debug", action="store_true",
             help="run wsgi application with debug logging")
 
+    web.addoption("--logger-cfg", action="store", dest="logger_cfg",
+            help="path to json logger configuration file",
+            default=None)
 
     mirror = parser.addgroup("pypi mirroring options (root/pypi)")
     mirror.addoption("--refresh", type=float, metavar="SECS",
