@@ -91,7 +91,7 @@ def _main(argv=None, hook=None):
         from devpi_server.genconfig import genconfig
         return genconfig(config)
 
-    configure_logging(config)
+    configure_logging(config.args)
     xom = XOM(config)
     if not xom.is_replica():
         with xom.keyfs.transaction(write=True):

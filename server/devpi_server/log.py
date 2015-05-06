@@ -8,12 +8,12 @@ import yaml
 threadlocal = threading.local()
 
 
-def configure_logging(config=None):
+def configure_logging(config_args=None):
     # clear handlers so that a second call to configure_logging
     # reconfigures properly
     logging.getLogger('').handlers = []
 
-    if config and config.args.debug:
+    if config_args and config_args.debug:
         loglevel = logging.DEBUG
     else:
         loglevel = logging.INFO
@@ -22,8 +22,8 @@ def configure_logging(config=None):
     requests_log = logging.getLogger("requests.packages.urllib3")
     requests_log.setLevel(logging.ERROR)
 
-    if config and config.args.logger_cfg:
-        with open(config.args.logger_cfg, 'rt') as f:
+    if config_args and config_args.logger_cfg:
+        with open(config_args.logger_cfg, 'rt') as f:
             logger_cfg = yaml.load(f.read())
         logging.config.dictConfig(logger_cfg)
 
