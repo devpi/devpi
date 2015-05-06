@@ -1,7 +1,7 @@
 
-from pluggy import HookspecDecorator
+from pluggy import HookspecMarker
 
-hookspec = HookspecDecorator("devpiserver")
+hookspec = HookspecMarker("devpiserver")
 
 @hookspec
 def devpiserver_add_parser_options(parser):
