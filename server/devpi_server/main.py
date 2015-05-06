@@ -201,7 +201,7 @@ class XOM:
         # which cannot happen anymore after the tx notifier has started
         with xom.keyfs.transaction():
             res = xom.config.hook.devpiserver_run_commands(xom=xom)
-            if isinstance(res, int):
+            if res is not None:
                 return res
 
         app = xom.create_app()
