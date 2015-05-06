@@ -87,3 +87,16 @@ There are currently two hooks notifying plugins of changes::
 
 - hook subscribers must honour **idempotency**: they should properly
   deal with getting executed multiple times for each serial.
+
+
+hook semantics for index configuration settings
+------------------------------------------------
+
+Plugins can add key names and default values to the index configuration::
+
+    def devpiserver_indexconfig_defaults():
+        """Returns a dictionary with keys and their defaults for the index
+        configuration dictionary.
+
+        It's best to use the plugin name as prefix to avoid clashes between
+        key names in different plugins."""

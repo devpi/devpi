@@ -3,6 +3,7 @@ from pluggy import HookspecMarker
 
 hookspec = HookspecMarker("devpiserver")
 
+
 @hookspec
 def devpiserver_add_parser_options(parser):
     """ called before command line parsing to allow plugins
@@ -23,11 +24,13 @@ def devpiserver_pyramid_configure(config, pyramid_config):
     """ called during initializing with the pyramid_config and the devpi_server
     config object. """
 
+
 @hookspec
 def devpiserver_pypi_initial(stage, name2serials):
     """ called when name2serials are loaded for the first time into the server
     instance (both for a replica and a master).
     """
+
 
 @hookspec
 def devpiserver_on_changed_versiondata(stage, projectname, version, metadata):
@@ -71,3 +74,10 @@ def devpiserver_auth_user(userdict, username, password):
     """
 
 
+@hookspec
+def devpiserver_indexconfig_defaults():
+    """Returns a dictionary with keys and their defaults for the index
+    configuration dictionary.
+
+    It's best to use the plugin name as prefix to avoid clashes between
+    key names in different plugins."""

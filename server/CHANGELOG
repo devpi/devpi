@@ -42,6 +42,8 @@
 - fix issue232: pypi-refresh now works better for projects which have  
   have a non-nomalized projectname, and also works better across replication.
 
+- add new ``devpiserver_indexconfig_defaults`` plugin hook to add key names for
+  settings in the index configuration.
 
 2.1.5
 ----------------

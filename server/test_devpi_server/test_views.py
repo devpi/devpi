@@ -1089,9 +1089,9 @@ def test_wrong_login_format(testapp, mapp):
       dict(type="stage", volatile=False, bases=["root/pypi"],
            acl_upload=["hello"])),
 ])
-def test_kvdict(input, expected):
+def test_kvdict(xom, input, expected):
     from devpi_server.views import getkvdict_index
-    result = getkvdict_index(input)
+    result = getkvdict_index(xom.config.hook, input)
     assert result == expected
 
 

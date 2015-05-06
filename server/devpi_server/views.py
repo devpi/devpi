@@ -19,7 +19,7 @@ import json
 from devpi_common.request import new_requests_session
 from devpi_common.validation import normalize_name, is_valid_archive_name
 
-from .model import InvalidIndexconfig, InvalidUser, _ixconfigattr
+from .model import InvalidIndexconfig, InvalidUser, get_ixconfigattrs
 from .keyfs import copy_if_mutable
 from .log import thread_push_log, thread_pop_log, threadlog
 
@@ -414,7 +414,7 @@ class PyPIView:
         if not self.request.has_permission("index_create"):
             apireturn(403, "no permission to create index %s/%s" % (
                 self.context.username, self.context.index))
-        kvdict = getkvdict_index(getjson(self.request))
+        kvdict = getkvdict_index(self.xom.config.hook, getjson(self.request))
         try:
             stage = self.context.user.create_stage(self.context.index, **kvdict)
             ixconfig = stage.ixconfig
@@ -429,7 +429,7 @@ class PyPIView:
         stage = self.context.stage
         if stage.name == "root/pypi":
             apireturn(403, "root/pypi index config can not be modified")
-        kvdict = getkvdict_index(getjson(self.request))
+        kvdict = getkvdict_index(self.xom.config.hook, getjson(self.request))
         try:
             ixconfig = stage.modify(**kvdict)
         except InvalidIndexconfig as e:
@@ -993,7 +993,7 @@ def abort_if_invalid_projectname(request, projectname):
         abort(request, 400, "unicode project names not allowed")
 
 
-def getkvdict_index(req):
+def getkvdict_index(hook, req):
     req_volatile = req.get("volatile")
     kvdict = {"volatile": True, "type": "stage", "bases": ["root/pypi"]}
     if req_volatile is not None:
@@ -1006,7 +1006,7 @@ def getkvdict_index(req):
             kvdict["bases"] = bases.split(",")
         else:
             kvdict["bases"] = bases
-    additional_keys = _ixconfigattr - set(('volatile', 'bases'))
+    additional_keys = get_ixconfigattrs(hook) - set(('volatile', 'bases'))
     for key in additional_keys:
         if key in req:
             kvdict[key] = req[key]
