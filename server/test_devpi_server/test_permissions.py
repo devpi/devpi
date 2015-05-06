@@ -42,8 +42,7 @@ def plugin():
 
 @pytest.fixture
 def xom(makexom, plugin):
-    xom = makexom(plugins=[(plugin, None)])
-    return xom
+    return makexom(plugins=[plugin])
 
 
 def with_user(request, user):

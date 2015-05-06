@@ -5,7 +5,9 @@ import sys
 import subprocess
 from devpi_common.url import URL
 
-from devpi_server.config import render, parseoptions, get_default_serverdir
+from devpi_server.config import (
+    render, parseoptions, get_default_serverdir, get_pluginmanager
+)
 
 try:
     # python >= 3.4
@@ -103,7 +105,7 @@ def gen_systemd(tw, config, writer):
 
 def reparse_without_genconfig(config):
     new_args = [x for x in config.args._raw if x != "--gen-config"]
-    return parseoptions(["devpi-server"] + new_args)
+    return parseoptions(get_pluginmanager(), ["devpi-server"] + new_args)
 
 def genconfig(config):
     tw = py.io.TerminalWriter()

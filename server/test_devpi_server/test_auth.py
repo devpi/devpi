@@ -67,7 +67,7 @@ class TestAuthPlugin:
 
     @pytest.fixture
     def xom(self, makexom, plugin):
-        xom = makexom(plugins=[(plugin, None)])
+        xom = makexom(plugins=[plugin])
         return xom
 
     @pytest.fixture
@@ -137,7 +137,7 @@ class TestAuthPlugins:
 
     @pytest.fixture
     def xom(self, makexom, plugin1, plugin2):
-        xom = makexom(plugins=[(plugin1, None), (plugin2, None)])
+        xom = makexom(plugins=[plugin1,plugin2])
         return xom
 
     @pytest.fixture
