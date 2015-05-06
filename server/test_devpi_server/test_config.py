@@ -1,6 +1,10 @@
-from devpi_server.config import MyArgumentParser, parseoptions
+from devpi_server.config import MyArgumentParser, parseoptions, get_pluginmanager
 from devpi_server.main import Fatal
 import pytest
+
+def make_config(args):
+    return parseoptions(get_pluginmanager(), args)
+
 
 class TestParser:
 
@@ -44,10 +48,10 @@ class TestConfig:
         p = tmpdir.join("secret")
         secret = "qwoieuqwelkj123"
         p.write(secret)
-        config = parseoptions(["devpi-server", "--secretfile=%s" % p])
+        config = make_config(["devpi-server", "--secretfile=%s" % p])
         assert config.secretfile == str(p)
         assert config.secret == secret
-        config = parseoptions(["devpi-server", "--serverdir", tmpdir])
+        config = make_config(["devpi-server", "--serverdir", tmpdir])
         assert config.secretfile == tmpdir.join(".secret")
         config.secretfile.write(secret)
         assert config.secret == config.secretfile.read()
@@ -65,93 +69,70 @@ class TestConfig:
 
     def test_devpi_serverdir_env(self, tmpdir, monkeypatch):
         monkeypatch.setenv("DEVPI_SERVERDIR", tmpdir)
-        config = parseoptions(["devpi-server"])
+        config = make_config(["devpi-server"])
         assert config.serverdir == tmpdir
 
     def test_role_permanence_master(self, tmpdir):
-        config = parseoptions(["devpi-server", "--serverdir", str(tmpdir)])
+        config = make_config(["devpi-server", "--serverdir", str(tmpdir)])
         assert config.role == "master"
-        config = parseoptions(["devpi-server", "--role=master",
+        config = make_config(["devpi-server", "--role=master",
                                "--serverdir", str(tmpdir)])
         assert config.role == "master"
         with pytest.raises(Fatal):
-            parseoptions(["devpi-server", "--role=replica",
+            make_config(["devpi-server", "--role=replica",
                           "--serverdir", str(tmpdir)])
 
     def test_role_permanence_replica(self, tmpdir):
-        config = parseoptions(["devpi-server", "--master-url", "http://qwe",
+        config = make_config(["devpi-server", "--master-url", "http://qwe",
                                "--serverdir", str(tmpdir)])
         assert config.role == "replica"
         assert not config.get_master_uuid()
         with pytest.raises(Fatal) as excinfo:
-            parseoptions(["devpi-server", "--serverdir", str(tmpdir)])
+            make_config(["devpi-server", "--serverdir", str(tmpdir)])
         assert "specify --role=master" in str(excinfo.value)
-        config = parseoptions(["devpi-server", "--serverdir", str(tmpdir),
+        config = make_config(["devpi-server", "--serverdir", str(tmpdir),
                                "--role=master"])
         assert config.role == "master"
         with pytest.raises(Fatal):
-            parseoptions(["devpi-server", "--master-url=xyz",
+            make_config(["devpi-server", "--master-url=xyz",
                           "--serverdir", str(tmpdir)])
         with pytest.raises(Fatal):
-            parseoptions(["devpi-server", "--role=replica",
+            make_config(["devpi-server", "--role=replica",
                           "--serverdir", str(tmpdir)])
 
     def test_replica_role_missing_master_url(self, tmpdir):
         with pytest.raises(Fatal) as excinfo:
-            parseoptions(["devpi-server", "--role=replica",
+            make_config(["devpi-server", "--role=replica",
                           "--serverdir", str(tmpdir)])
         assert "need to specify --master-url" in str(excinfo)
 
     def test_uuid(self, tmpdir):
-        config = parseoptions(["devpi-server", "--serverdir", str(tmpdir)])
+        config = make_config(["devpi-server", "--serverdir", str(tmpdir)])
         uuid = config.nodeinfo["uuid"]
         assert uuid
         assert config.get_master_uuid() == uuid
-        config = parseoptions(["devpi-server", "--serverdir", str(tmpdir)])
+        config = make_config(["devpi-server", "--serverdir", str(tmpdir)])
         assert uuid == config.nodeinfo["uuid"]
         tmpdir.remove()
-        config = parseoptions(["devpi-server", "--serverdir", str(tmpdir)])
+        config = make_config(["devpi-server", "--serverdir", str(tmpdir)])
         assert config.nodeinfo["uuid"] != uuid
         assert config.get_master_uuid() != uuid
 
     def test_add_parser_options_called(self):
-        from devpi_server.main import get_pluginmanager
         l = []
         class Plugin:
             def devpiserver_add_parser_options(self, parser):
                 l.append(parser)
         pm = get_pluginmanager()
         pm.register(Plugin())
-        parseoptions(["devpi-server"], hook=pm.hook)
+        parseoptions(pm, ["devpi-server"])
         assert len(l) == 1
         assert isinstance(l[0], MyArgumentParser)
 
     def test_logger_cfg(self):
-        config = parseoptions(["devpi-server"])
+        config = make_config(["devpi-server"])
         assert not config.args.logger_cfg
         config_file = 'path/to/a.file'
-        config = parseoptions(["devpi-server", "--logger-cfg", config_file])
+        config = make_config(["devpi-server", "--logger-cfg", config_file])
         assert config.args.logger_cfg == config_file
-
-
-def test_load_setuptools_plugins(monkeypatch):
-    from devpi_server.config import load_setuptools_entrypoints
-    pkg_resources = pytest.importorskip("pkg_resources")
-    def my_iter(name):
-        assert name == "devpi_server"
-        class EntryPoint:
-            name = "mytestplugin"
-            class dist:
-                pass
-            def load(self):
-                class PseudoPlugin:
-                    x = 42
-                return PseudoPlugin()
-        return iter([EntryPoint()])
-    monkeypatch.setattr(pkg_resources, 'iter_entry_points', my_iter)
-    l = list(load_setuptools_entrypoints())
-    assert len(l) == 1
-    plugin, distinfo = l[0]
-    assert plugin.x == 42
-    assert distinfo.__name__ == "dist"
 
