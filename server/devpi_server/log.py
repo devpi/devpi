@@ -2,7 +2,7 @@ import threading
 import logging
 import logging.config
 import contextlib
-import json
+import yaml
 
 
 threadlocal = threading.local()
@@ -24,7 +24,7 @@ def configure_logging(config=None):
 
     if config and config.args.logger_cfg:
         with open(config.args.logger_cfg, 'rt') as f:
-            logger_cfg = json.load(f)
+            logger_cfg = yaml.load(f.read())
         logging.config.dictConfig(logger_cfg)
 
 

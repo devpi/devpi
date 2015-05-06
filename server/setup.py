@@ -14,6 +14,7 @@ if __name__ == "__main__":
                         "pyramid>=1.5.1",
                         "waitress>=0.8.9",
                         "repoze.lru>=0.6",
+                        "pyyaml",
                         ]
     if sys.version_info < (2,7):
         install_requires.append("argparse>=1.2.1")
