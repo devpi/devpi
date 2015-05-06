@@ -89,6 +89,26 @@ There are currently two hooks notifying plugins of changes::
   deal with getting executed multiple times for each serial.
 
 
+hook semantics for package uploads
+-----------------------------------
+
+The devpiserver_trigger is called during the request and can write to the log
+and provide user feedback via the TriggerError exception. It is meant for
+triggering CI servers and similar use cases::
+
+    def devpiserver_trigger(log, application_url, stage, projectname, version):
+        """Called after release upload.
+
+        Mainly to implement plugins which trigger external services like
+        Jenkins to do something upon upload.
+
+        Must raise devpi_server.views.TriggerError to provide user feedback.
+        """
+
+The application_url is the base URL of the devpi-server request and can be
+used for uploading test results etc.
+
+
 hook semantics for index configuration settings
 ------------------------------------------------
 

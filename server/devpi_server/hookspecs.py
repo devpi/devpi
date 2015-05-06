@@ -81,3 +81,14 @@ def devpiserver_indexconfig_defaults():
 
     It's best to use the plugin name as prefix to avoid clashes between
     key names in different plugins."""
+
+
+@hookspec
+def devpiserver_trigger(log, application_url, stage, projectname, version):
+    """Called after release upload.
+
+    Mainly to implement plugins which trigger external services like
+    Jenkins to do something upon upload.
+
+    Must raise devpi_server.views.TriggerError to provide user feedback.
+    """

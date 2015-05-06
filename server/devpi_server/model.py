@@ -34,7 +34,7 @@ def run_passwd(root, username):
 
 def get_ixconfigattrs(hooks):
     base = set((
-        "type", "volatile", "bases", "uploadtrigger_jenkins", "acl_upload",
+        "type", "volatile", "bases", "acl_upload",
         "pypi_whitelist", "custom_data"))
     for defaults in hooks.devpiserver_indexconfig_defaults():
         conflicting = base.intersection(defaults)
@@ -211,7 +211,6 @@ class User:
 
     def create_stage(self, index, type="stage",
                      volatile=True, bases=("root/pypi",),
-                     uploadtrigger_jenkins=None,
                      acl_upload=None, pypi_whitelist=(),
                      custom_data=None, **kwargs):
         if acl_upload is None:

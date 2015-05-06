@@ -113,7 +113,6 @@ class TestIndexThings:
         data = mapp.getjson("/root/pypi")
         res = data["result"]
         assert res["volatile"] == False
-        assert not res["uploadtrigger_jenkins"]
         assert res["acl_upload"] == ["root"]
 
     def test_pypi_not_modifiable(self, mapp):
@@ -162,15 +161,6 @@ class TestIndexThings:
         assert mapp.get_acl() == []
         mapp.set_acl([':anonymous:'])
         assert mapp.get_acl() == [':ANONYMOUS:']
-
-    def test_create_index_with_jenkinsurl(self, mapp):
-        url = "http://localhost:8080/"
-        mapp.login_root()
-        mapp.create_index("root/test3")
-        mapp.use("root/test3")
-        mapp.set_uploadtrigger_jenkins(url)
-        data = mapp.getjson("/root/test3")
-        assert data["result"]["uploadtrigger_jenkins"] == url
 
     def test_config_get_user_empty(self, mapp):
         mapp.getjson("/user", code=404)

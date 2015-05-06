@@ -24,7 +24,6 @@ from .keyfs import copy_if_mutable
 from .log import thread_push_log, thread_pop_log, threadlog
 
 from .auth import Auth
-from .config import render_string
 
 server_version = devpi_server.__version__
 
@@ -39,6 +38,11 @@ API_VERSION = "2"
 
 meta_headers = {str("X-DEVPI-API-VERSION"): str(API_VERSION),
                 str("X-DEVPI-SERVER-VERSION"): server_version}
+
+
+class TriggerError(Exception):
+    pass
+
 
 def abort(request, code, body):
     # if no Accept header is set, then force */*, otherwise the exception
@@ -643,14 +647,15 @@ class PyPIView:
                          content.filename,))
                 link.add_log(
                     'upload', request.authenticated_userid, dst=stage.name)
-                jenkinurl = stage.ixconfig["uploadtrigger_jenkins"]
-                if jenkinurl:
-                    jenkinurl = jenkinurl.format(pkgname=name,
-                                                 pkgversion=version)
-                    if trigger_jenkins(request, stage, jenkinurl, name) == -1:
-                        abort_submit(200,
-                            "OK, but couldn't trigger jenkins at %s" %
-                            (jenkinurl,))
+                try:
+                    self.xom.config.hook.devpiserver_trigger(
+                        log=request.log, application_url=request.application_url,
+                        stage=stage, projectname=projectname, version=version)
+                except TriggerError as e:
+                    abort_submit(200, "OK, but a trigger plugin failed: %s" % e)
+                except Exception as e:
+                    request.log.exception("Trigger plugin failure:")
+                    abort_submit(200, "OK, but a trigger plugin failed: %s" % e)
             else:
                 doczip = content.file.read()
                 try:
@@ -939,41 +944,6 @@ def getjson(request, allowed_keys=None):
             abort(request, 400, "json keys not recognized: %s" % ",".join(diff))
     return dict
 
-def trigger_jenkins(request, stage, jenkinurl, testspec):
-    log = request.log
-    baseurl = request.application_url
-
-    source = render_string("devpibootstrap.py",
-        INDEXURL=baseurl + "/" + stage.name,
-        VIRTUALENVTARURL= (baseurl +
-            "/root/pypi/+f/f61/cdd983d2c4e6a/"
-            "virtualenv-1.11.6.tar.gz"
-            ),
-        TESTSPEC=testspec,
-        DEVPI_INSTALL_INDEX = baseurl + "/" + stage.name + "/+simple/"
-    )
-    inputfile = py.io.BytesIO(source.encode("ascii"))
-    session = new_requests_session(agent=("server", server_version))
-    try:
-        r = session.post(jenkinurl, data={
-                        "Submit": "Build",
-                        "name": "jobscript.py",
-                        "json": json.dumps(
-                    {"parameter": {"name": "jobscript.py", "file": "file0"}}),
-            },
-                files={"file0": ("file0", inputfile)})
-    except session.Errors:
-        log.error("%s: failed to connect to jenkins at %s",
-                  testspec, jenkinurl)
-        return -1
-
-    if 200 <= r.status_code < 300:
-        log.info("successfully triggered jenkins: %s", jenkinurl)
-    else:
-        log.error("%s: failed to trigger jenkins at %s", r.status_code,
-                  jenkinurl)
-        log.debug(r.content)
-        return -1
 
 def abort_if_invalid_filename(name, filename):
     if not is_valid_archive_name(filename):

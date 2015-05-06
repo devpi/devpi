@@ -944,15 +944,20 @@ class TestPluginPermissions:
         mapp.create_index("pluginuser/dev", code=404)
 
 
-def test_upload_with_jenkins(mapp, reqmock):
+def test_upload_trigger(mapp):
+    class Plugin:
+        def devpiserver_trigger(self, log, application_url,
+                                stage, projectname, version):
+            self.results.append(
+                (application_url, stage.name, projectname, version))
+    plugin = Plugin()
+    plugin.results = []
+    mapp.xom.config.pluginmanager.register(plugin)
     mapp.create_and_use()
-    mapp.set_uploadtrigger_jenkins("http://x.com/{pkgname}/{pkgversion}")
-    rec = reqmock.mockresponse(code=200, url=None)
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200)
-    assert len(rec.requests) == 1
-    assert rec.requests[0].url == "http://x.com/pkg1/2.6"
-    # XXX properly decode form
-    #assert args[1]["data"]["Submit"] == "Build"
+    assert plugin.results == [
+        ('http://localhost', 'user1/dev', 'pkg1', '2.6')]
+
 
 def test_upload_and_testdata(mapp, testapp):
     from test_devpi_server.example import tox_result_data
