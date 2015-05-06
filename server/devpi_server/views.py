@@ -40,10 +40,6 @@ meta_headers = {str("X-DEVPI-API-VERSION"): str(API_VERSION),
                 str("X-DEVPI-SERVER-VERSION"): server_version}
 
 
-class TriggerError(Exception):
-    pass
-
-
 def abort(request, code, body):
     # if no Accept header is set, then force */*, otherwise the exception
     # will be returned as text/plain, which causes easy_install/setuptools
@@ -648,13 +644,10 @@ class PyPIView:
                 link.add_log(
                     'upload', request.authenticated_userid, dst=stage.name)
                 try:
-                    self.xom.config.hook.devpiserver_trigger(
+                    self.xom.config.hook.devpiserver_on_upload_sync(
                         log=request.log, application_url=request.application_url,
                         stage=stage, projectname=projectname, version=version)
-                except TriggerError as e:
-                    abort_submit(200, "OK, but a trigger plugin failed: %s" % e)
                 except Exception as e:
-                    request.log.exception("Trigger plugin failure:")
                     abort_submit(200, "OK, but a trigger plugin failed: %s" % e)
             else:
                 doczip = content.file.read()

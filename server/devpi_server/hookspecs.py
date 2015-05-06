@@ -84,11 +84,9 @@ def devpiserver_indexconfig_defaults():
 
 
 @hookspec
-def devpiserver_trigger(log, application_url, stage, projectname, version):
+def devpiserver_on_upload_sync(log, application_url, stage, projectname, version):
     """Called after release upload.
 
     Mainly to implement plugins which trigger external services like
     Jenkins to do something upon upload.
-
-    Must raise devpi_server.views.TriggerError to provide user feedback.
     """

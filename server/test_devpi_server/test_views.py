@@ -946,8 +946,8 @@ class TestPluginPermissions:
 
 def test_upload_trigger(mapp):
     class Plugin:
-        def devpiserver_trigger(self, log, application_url,
-                                stage, projectname, version):
+        def devpiserver_on_upload_sync(self, log, application_url,
+                                       stage, projectname, version):
             self.results.append(
                 (application_url, stage.name, projectname, version))
     plugin = Plugin()
