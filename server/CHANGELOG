@@ -17,6 +17,9 @@
 - fix debug logging to actually show debug logs
   (logging was not properly reconfigured)
 
+- make logging fully configurable via a config yaml/json
+  (e.g., log to an external syslog server)
+
 - fix issue221: avoid looking at file entries who are not part of a project
   (because they got deleted)
 

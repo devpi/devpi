@@ -129,3 +129,10 @@ class TestConfig:
         assert len(l) == 1
         assert isinstance(l[0], MyArgumentParser)
 
+    def test_logger_cfg(self):
+        config = make_config(["devpi-server"])
+        assert not config.args.logger_cfg
+        config_file = 'path/to/a.file'
+        config = make_config(["devpi-server", "--logger-cfg", config_file])
+        assert config.args.logger_cfg == config_file
+

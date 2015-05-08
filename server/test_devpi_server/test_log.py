@@ -1,6 +1,6 @@
-
 import pytest
 import logging
+import textwrap
 from devpi_server.log import *
 
 
@@ -80,4 +80,36 @@ def test_threadlog_around(caplog):
     assert recs[0].msg == "NOCTX hello"
     assert recs[1].msg == "NOCTX inner"
     assert recs[2].msg == "NOCTX FIN: hello"
+
+
+class TestLoggerConfiguration:
+
+    def test_default(self):
+        configure_logging()
+
+        assert logging.getLogger().getEffectiveLevel() == logging.INFO
+        assert logging.getLogger("requests.packages.urllib3").getEffectiveLevel() == logging.ERROR
+
+    def test_logger_cfg(self, tmpdir):
+        logger_cfg = tmpdir.join("logging.yml")
+        logger_cfg.write(textwrap.dedent("""
+            ---
+            version: 1
+            disable_existing_loggers: False
+
+            root:
+                handlers: []
+                level: WARNING
+        """))
+
+        class MockConfig(object):
+            pass
+        mock_config = MockConfig()
+        mock_config.logger_cfg = str(logger_cfg)
+        mock_config.debug = False
+
+        configure_logging(mock_config)
+
+        assert logging.getLogger().getEffectiveLevel() == logging.WARNING
+        assert not logging.getLogger().handlers
 
