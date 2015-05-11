@@ -102,6 +102,11 @@ def addoptions(parser):
                  "This will export all users, indices (except root/pypi),"
                  " release files, test results and documentation. "
     )
+    deploy.addoption("--hard-links", action="store_true",
+            help="use hard links during export instead of copying files. "
+                 "All limitations for hard links on your OS apply. "
+                 "USE AT YOUR OWN RISK"
+    )
     deploy.addoption("--import", type=str, metavar="PATH",
             dest="import_",
             help="import devpi-server database from PATH where PATH "
