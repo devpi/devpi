@@ -58,7 +58,7 @@ def test_run_commands_called(monkeypatch, tmpdir):
     from devpi_server.main import _main, get_pluginmanager
     l = []
     class Plugin:
-        def devpiserver_run_commands(self, xom):
+        def devpiserver_cmdline_run(self, xom):
             l.append(xom)
             return 1
     monkeypatch.setattr(devpi_server.extpypi.PyPIMirror, "init_pypi_mirror",
@@ -78,7 +78,7 @@ def test_main_starts_server_if_run_commands_returns_none(monkeypatch, tmpdir):
     from devpi_server.main import _main, get_pluginmanager
     l = []
     class Plugin:
-        def devpiserver_run_commands(self, xom):
+        def devpiserver_cmdline_run(self, xom):
             l.append(xom)
     monkeypatch.setattr(devpi_server.extpypi.PyPIMirror, "init_pypi_mirror",
                         lambda self, proxy: None)

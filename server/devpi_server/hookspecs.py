@@ -12,7 +12,7 @@ def devpiserver_add_parser_options(parser):
 
 
 @hookspec(firstresult=True)
-def devpiserver_run_commands(xom):
+def devpiserver_cmdline_run(xom):
     """ return an integer with a success code (0 == no errors) if
     you handle the command line invocation, otherwise None.  When
     the first plugin returns an integer, the remaining plugins
