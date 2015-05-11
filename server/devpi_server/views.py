@@ -969,7 +969,7 @@ def getkvdict_index(hook, req):
             kvdict["bases"] = bases.split(",")
         else:
             kvdict["bases"] = bases
-    additional_keys = get_ixconfigattrs(hook) - set(('volatile', 'bases'))
+    additional_keys = get_ixconfigattrs(hook, "stage") - set(('volatile', 'bases'))
     for key in additional_keys:
         if key in req:
             kvdict[key] = req[key]

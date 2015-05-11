@@ -505,11 +505,15 @@ class TestImportExport:
 
     def test_plugin_index_config(self, impexp):
         class Plugin:
-            def devpiserver_indexconfig_defaults(self):
-                return {"foo_plugin": None}
+            def devpiserver_indexconfig_defaults(self, index_type):
+                return {"foo_plugin": index_type}
         mapp1 = impexp.mapp1
         mapp1.xom.config.pluginmanager.register(Plugin())
         api = mapp1.create_and_use()
+        with mapp1.xom.keyfs.transaction():
+            stage = mapp1.xom.model.getstage(api.stagename)
+            assert stage.ixconfig["foo_plugin"] == "stage"
+
         mapp1.set_indexconfig_option("foo_plugin", "foo")
         with mapp1.xom.keyfs.transaction():
             stage = mapp1.xom.model.getstage(api.stagename)

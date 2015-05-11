@@ -32,11 +32,11 @@ def run_passwd(root, username):
     user.modify(password=pwd)
 
 
-def get_ixconfigattrs(hooks):
+def get_ixconfigattrs(hooks, index_type):
     base = set((
         "type", "volatile", "bases", "acl_upload",
         "pypi_whitelist", "custom_data"))
-    for defaults in hooks.devpiserver_indexconfig_defaults():
+    for defaults in hooks.devpiserver_indexconfig_defaults(index_type=index_type):
         conflicting = base.intersection(defaults)
         if conflicting:
             raise ValueError(
@@ -228,7 +228,7 @@ class User:
             if custom_data is not None:
                 indexes[index]["custom_data"] = custom_data
             hooks = self.xom.config.hook
-            for defaults in hooks.devpiserver_indexconfig_defaults():
+            for defaults in hooks.devpiserver_indexconfig_defaults(index_type=type):
                 for key, value in defaults.items():
                     indexes[index][key] = kwargs.pop(key, value)
             if kwargs:
@@ -420,7 +420,8 @@ class PrivateStage(BaseStage):
                     user=self.user.name, index=self.index)
 
     def modify(self, index=None, **kw):
-        diff = list(set(kw).difference(get_ixconfigattrs(self.xom.config.hook)))
+        attrs = get_ixconfigattrs(self.xom.config.hook, self.ixconfig["type"])
+        diff = list(set(kw).difference(attrs))
         if diff:
             raise InvalidIndexconfig(
                 ["invalid keys for index configuration: %s" %(diff,)])
