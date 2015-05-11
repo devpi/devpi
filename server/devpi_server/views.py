@@ -19,12 +19,11 @@ import json
 from devpi_common.request import new_requests_session
 from devpi_common.validation import normalize_name, is_valid_archive_name
 
-from .model import InvalidIndexconfig, InvalidUser, _ixconfigattr
+from .model import InvalidIndexconfig, InvalidUser, get_ixconfigattrs
 from .keyfs import copy_if_mutable
 from .log import thread_push_log, thread_pop_log, threadlog
 
 from .auth import Auth
-from .config import render_string
 
 server_version = devpi_server.__version__
 
@@ -39,6 +38,7 @@ API_VERSION = "2"
 
 meta_headers = {str("X-DEVPI-API-VERSION"): str(API_VERSION),
                 str("X-DEVPI-SERVER-VERSION"): server_version}
+
 
 def abort(request, code, body):
     # if no Accept header is set, then force */*, otherwise the exception
@@ -414,7 +414,7 @@ class PyPIView:
         if not self.request.has_permission("index_create"):
             apireturn(403, "no permission to create index %s/%s" % (
                 self.context.username, self.context.index))
-        kvdict = getkvdict_index(getjson(self.request))
+        kvdict = getkvdict_index(self.xom.config.hook, getjson(self.request))
         try:
             stage = self.context.user.create_stage(self.context.index, **kvdict)
             ixconfig = stage.ixconfig
@@ -429,7 +429,7 @@ class PyPIView:
         stage = self.context.stage
         if stage.name == "root/pypi":
             apireturn(403, "root/pypi index config can not be modified")
-        kvdict = getkvdict_index(getjson(self.request))
+        kvdict = getkvdict_index(self.xom.config.hook, getjson(self.request))
         try:
             ixconfig = stage.modify(**kvdict)
         except InvalidIndexconfig as e:
@@ -643,14 +643,12 @@ class PyPIView:
                          content.filename,))
                 link.add_log(
                     'upload', request.authenticated_userid, dst=stage.name)
-                jenkinurl = stage.ixconfig["uploadtrigger_jenkins"]
-                if jenkinurl:
-                    jenkinurl = jenkinurl.format(pkgname=name,
-                                                 pkgversion=version)
-                    if trigger_jenkins(request, stage, jenkinurl, name) == -1:
-                        abort_submit(200,
-                            "OK, but couldn't trigger jenkins at %s" %
-                            (jenkinurl,))
+                try:
+                    self.xom.config.hook.devpiserver_on_upload_sync(
+                        log=request.log, application_url=request.application_url,
+                        stage=stage, projectname=projectname, version=version)
+                except Exception as e:
+                    abort_submit(200, "OK, but a trigger plugin failed: %s" % e)
             else:
                 doczip = content.file.read()
                 try:
@@ -939,41 +937,6 @@ def getjson(request, allowed_keys=None):
             abort(request, 400, "json keys not recognized: %s" % ",".join(diff))
     return dict
 
-def trigger_jenkins(request, stage, jenkinurl, testspec):
-    log = request.log
-    baseurl = request.application_url
-
-    source = render_string("devpibootstrap.py",
-        INDEXURL=baseurl + "/" + stage.name,
-        VIRTUALENVTARURL= (baseurl +
-            "/root/pypi/+f/f61/cdd983d2c4e6a/"
-            "virtualenv-1.11.6.tar.gz"
-            ),
-        TESTSPEC=testspec,
-        DEVPI_INSTALL_INDEX = baseurl + "/" + stage.name + "/+simple/"
-    )
-    inputfile = py.io.BytesIO(source.encode("ascii"))
-    session = new_requests_session(agent=("server", server_version))
-    try:
-        r = session.post(jenkinurl, data={
-                        "Submit": "Build",
-                        "name": "jobscript.py",
-                        "json": json.dumps(
-                    {"parameter": {"name": "jobscript.py", "file": "file0"}}),
-            },
-                files={"file0": ("file0", inputfile)})
-    except session.Errors:
-        log.error("%s: failed to connect to jenkins at %s",
-                  testspec, jenkinurl)
-        return -1
-
-    if 200 <= r.status_code < 300:
-        log.info("successfully triggered jenkins: %s", jenkinurl)
-    else:
-        log.error("%s: failed to trigger jenkins at %s", r.status_code,
-                  jenkinurl)
-        log.debug(r.content)
-        return -1
 
 def abort_if_invalid_filename(name, filename):
     if not is_valid_archive_name(filename):
@@ -993,7 +956,7 @@ def abort_if_invalid_projectname(request, projectname):
         abort(request, 400, "unicode project names not allowed")
 
 
-def getkvdict_index(req):
+def getkvdict_index(hook, req):
     req_volatile = req.get("volatile")
     kvdict = {"volatile": True, "type": "stage", "bases": ["root/pypi"]}
     if req_volatile is not None:
@@ -1006,7 +969,7 @@ def getkvdict_index(req):
             kvdict["bases"] = bases.split(",")
         else:
             kvdict["bases"] = bases
-    additional_keys = _ixconfigattr - set(('volatile', 'bases'))
+    additional_keys = get_ixconfigattrs(hook) - set(('volatile', 'bases'))
     for key in additional_keys:
         if key in req:
             kvdict[key] = req[key]

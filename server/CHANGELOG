@@ -45,6 +45,11 @@
 - fix issue232: pypi-refresh now works better for projects which have  
   have a non-nomalized projectname, and also works better across replication.
 
+- add new ``devpiserver_indexconfig_defaults`` plugin hook to add key names for
+  settings in the index configuration.
+
+- add new ``devpiserver_on_upload_sync`` plugin hook and use it to move the
+  Jenkins triggering to the ``devpi-jenkins`` plugin.
 
 2.1.5
 ----------------

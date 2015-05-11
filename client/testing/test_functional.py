@@ -146,12 +146,12 @@ class Mapp(MappMixin):
             self.devpi("index", indexname,
                        "custom_data=%s" % data, code=200)
 
-    def set_uploadtrigger_jenkins(self, url, indexname=None):
+    def set_indexconfig_option(self, key, value, indexname=None):
         if indexname is None:
-            self.devpi("index", "uploadtrigger_jenkins=%s" % url, code=200)
+            self.devpi("index", "%s=%s" % (key, value), code=200)
         else:
             self.devpi("index", indexname,
-                       "uploadtrigger_jenkins=%s" % url, code=200)
+                       "%s=%s" % (key, value), code=200)
 
     def set_pypi_whitelist(self, whitelist, indexname=None):
         if indexname is None:

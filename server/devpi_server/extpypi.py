@@ -159,7 +159,7 @@ class PyPIStage(BaseStage):
     name = "root/pypi"
     ixconfig = {"bases": (), "volatile": False, "type": "mirror",
                 "pypi_whitelist": (), "custom_data": "",
-                "uploadtrigger_jenkins": "", "acl_upload": ["root"]}
+                "acl_upload": ["root"]}
 
     def __init__(self, xom):
         self.keyfs = xom.keyfs

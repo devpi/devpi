@@ -20,6 +20,8 @@
 - add experimental "refresh" command to invalidate the pypi release list cache
   of packages.
 
+- show index configuration settings added by plugins in devpi-server >= 2.2.0.
+
 2.1.0
 ----------------
 

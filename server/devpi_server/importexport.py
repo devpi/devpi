@@ -234,6 +234,11 @@ class Importer:
                     continue
                 import_index = self.import_indexes[stagename]
                 indexconfig = import_index["indexconfig"]
+                if 'uploadtrigger_jenkins' in indexconfig:
+                    if not indexconfig['uploadtrigger_jenkins']:
+                        # remove if not set, so if the trigger was never
+                        # used, you don't need to install the plugin
+                        del indexconfig['uploadtrigger_jenkins']
                 user, index = stagename.split("/")
                 user = self.xom.model.get_user(user)
                 stage = user.create_stage(index, **indexconfig)

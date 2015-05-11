@@ -73,8 +73,10 @@ class TestImportExport:
             def export(self):
                 assert self.mapp1.xom.main() == 0
 
-            def new_import(self):
+            def new_import(self, plugin=None):
                 mapp2 = makemapp(options=("--import", str(self.exportdir)))
+                if plugin is not None:
+                    mapp2.xom.config.pluginmanager.register(plugin)
                 assert mapp2.xom.main() == 0
                 return mapp2
         return ImpExp()
@@ -460,3 +462,64 @@ class TestImportExport:
             links = stage.get_releaselinks(projectname)
             assert len(links) == 2
 
+    def test_uploadtrigger_jenkins_removed_if_not_set(self, impexp):
+        mapp1 = impexp.mapp1
+        api = mapp1.create_and_use()
+        (user, index) = api.stagename.split('/')
+        with mapp1.xom.keyfs.transaction(write=True):
+            stage = mapp1.xom.model.getstage(api.stagename)
+            with stage.user.key.update() as userconfig:
+                ixconfig = userconfig["indexes"][index]
+                ixconfig["uploadtrigger_jenkins"] = None
+        with mapp1.xom.keyfs.transaction():
+            stage = mapp1.xom.model.getstage(api.stagename)
+            assert "uploadtrigger_jenkins" in stage.ixconfig
+            assert stage.ixconfig["uploadtrigger_jenkins"] is None
+
+        impexp.export()
+
+        mapp2 = impexp.new_import()
+        with mapp2.xom.keyfs.transaction():
+            stage = mapp2.xom.model.getstage(api.stagename)
+            assert "uploadtrigger_jenkins" not in stage.ixconfig
+
+    def test_import_fails_if_uploadtrigger_jenkins_set(self, impexp):
+        mapp1 = impexp.mapp1
+        api = mapp1.create_and_use()
+        (user, index) = api.stagename.split('/')
+        with mapp1.xom.keyfs.transaction(write=True):
+            stage = mapp1.xom.model.getstage(api.stagename)
+            with stage.user.key.update() as userconfig:
+                ixconfig = userconfig["indexes"][index]
+                ixconfig["uploadtrigger_jenkins"] = "foo"
+        with mapp1.xom.keyfs.transaction():
+            stage = mapp1.xom.model.getstage(api.stagename)
+            assert "uploadtrigger_jenkins" in stage.ixconfig
+            assert stage.ixconfig["uploadtrigger_jenkins"] == "foo"
+
+        impexp.export()
+
+        with pytest.raises(TypeError) as excinfo:
+            impexp.new_import()
+        assert "uploadtrigger_jenkins" in excinfo.value.args[0]
+
+    def test_plugin_index_config(self, impexp):
+        class Plugin:
+            def devpiserver_indexconfig_defaults(self):
+                return {"foo_plugin": None}
+        mapp1 = impexp.mapp1
+        mapp1.xom.config.pluginmanager.register(Plugin())
+        api = mapp1.create_and_use()
+        mapp1.set_indexconfig_option("foo_plugin", "foo")
+        with mapp1.xom.keyfs.transaction():
+            stage = mapp1.xom.model.getstage(api.stagename)
+            assert "foo_plugin" in stage.ixconfig
+            assert stage.ixconfig["foo_plugin"] == "foo"
+
+        impexp.export()
+
+        mapp2 = impexp.new_import(plugin=Plugin())
+        with mapp2.xom.keyfs.transaction():
+            stage = mapp2.xom.model.getstage(api.stagename)
+            assert "foo_plugin" in stage.ixconfig
+            assert stage.ixconfig["foo_plugin"] == "foo"

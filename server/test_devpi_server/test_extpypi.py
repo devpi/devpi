@@ -260,11 +260,6 @@ class TestIndexParsing:
 
 
 class TestExtPYPIDB:
-    def test_parse_project_attributes(self, pypistage):
-        from devpi_server.model import _ixconfigattr
-        for name in _ixconfigattr:
-            assert name in pypistage.ixconfig
-
     def test_parse_project_nomd5(self, pypistage):
         pypistage.mock_simple("pytest", pkgver="pytest-1.0.zip")
         links = pypistage.get_releaselinks("pytest")

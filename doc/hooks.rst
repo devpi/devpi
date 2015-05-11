@@ -87,3 +87,33 @@ There are currently two hooks notifying plugins of changes::
 
 - hook subscribers must honour **idempotency**: they should properly
   deal with getting executed multiple times for each serial.
+
+
+hook semantics for package uploads
+-----------------------------------
+
+The devpiserver_on_upload_sync is called during the request and can write to
+the log. It is meant for triggering CI servers and similar use cases::
+
+    def devpiserver_on_upload_sync(log, application_url, stage, projectname, version):
+        """Called after release upload.
+
+        Mainly to implement plugins which trigger external services like
+        Jenkins to do something upon upload.
+        """
+
+The application_url is the base URL of the devpi-server request and can be
+used for uploading test results etc.
+
+
+hook semantics for index configuration settings
+------------------------------------------------
+
+Plugins can add key names and default values to the index configuration::
+
+    def devpiserver_indexconfig_defaults():
+        """Returns a dictionary with keys and their defaults for the index
+        configuration dictionary.
+
+        It's best to use the plugin name as prefix to avoid clashes between
+        key names in different plugins."""

@@ -32,9 +32,19 @@ def run_passwd(root, username):
     user.modify(password=pwd)
 
 
-_ixconfigattr = set((
-    "type", "volatile", "bases", "uploadtrigger_jenkins", "acl_upload",
-    "pypi_whitelist", "custom_data"))
+def get_ixconfigattrs(hooks):
+    base = set((
+        "type", "volatile", "bases", "acl_upload",
+        "pypi_whitelist", "custom_data"))
+    for defaults in hooks.devpiserver_indexconfig_defaults():
+        conflicting = base.intersection(defaults)
+        if conflicting:
+            raise ValueError(
+                "A plugin returned the following keys which conflict with "
+                "existing index configuration keys: %s"
+                % ", ".join(sorted(conflicting)))
+        base.update(defaults)
+    return base
 
 
 class ModelException(Exception):
@@ -201,9 +211,8 @@ class User:
 
     def create_stage(self, index, type="stage",
                      volatile=True, bases=("root/pypi",),
-                     uploadtrigger_jenkins=None,
                      acl_upload=None, pypi_whitelist=(),
-                     custom_data=None):
+                     custom_data=None, **kwargs):
         if acl_upload is None:
             acl_upload = [self.name]
         bases = tuple(normalize_bases(self.xom.model, bases))
@@ -214,11 +223,18 @@ class User:
             assert index not in indexes, indexes[index]
             indexes[index] = {
                 "type": type, "volatile": volatile, "bases": bases,
-                "uploadtrigger_jenkins": uploadtrigger_jenkins,
                 "acl_upload": acl_upload, "pypi_whitelist": pypi_whitelist,
             }
             if custom_data is not None:
                 indexes[index]["custom_data"] = custom_data
+            hooks = self.xom.config.hook
+            for defaults in hooks.devpiserver_indexconfig_defaults():
+                for key, value in defaults.items():
+                    indexes[index][key] = kwargs.pop(key, value)
+            if kwargs:
+                raise TypeError(
+                    "create_stage() got unexpected keyword arguments: %s"
+                    % ", ".join(kwargs))
         stage = self.getstage(index)
         threadlog.info("created index %s: %s", stage.name, stage.ixconfig)
         return stage
@@ -404,7 +420,7 @@ class PrivateStage(BaseStage):
                     user=self.user.name, index=self.index)
 
     def modify(self, index=None, **kw):
-        diff = list(set(kw).difference(_ixconfigattr))
+        diff = list(set(kw).difference(get_ixconfigattrs(self.xom.config.hook)))
         if diff:
             raise InvalidIndexconfig(
                 ["invalid keys for index configuration: %s" %(diff,)])

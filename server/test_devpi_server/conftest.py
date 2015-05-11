@@ -488,14 +488,15 @@ class Mapp(MappMixin):
         r = self.testapp.patch_json(indexurl, result)
         assert r.status_code == 200
 
-    def set_uploadtrigger_jenkins(self, triggerurl, indexname=None):
+    def set_indexconfig_option(self, key, value, indexname=None):
         indexname = self._getindexname(indexname)
         indexurl = "/" + indexname
         r = self.testapp.get_json(indexurl)
         result = r.json["result"]
-        result["uploadtrigger_jenkins"] = triggerurl
+        result[key] = value
         r = self.testapp.patch_json(indexurl, result)
         assert r.status_code == 200
+        assert r.json["result"][key] == value
 
     def set_pypi_whitelist(self, whitelist, indexname=None):
         indexname = self._getindexname(indexname)
