@@ -12,7 +12,7 @@ def devpiserver_add_parser_options(parser):
 
 
 @hookspec(firstresult=True)
-def devpiserver_run_commands(xom):
+def devpiserver_cmdline_run(xom):
     """ return an integer with a success code (0 == no errors) if
     you handle the command line invocation, otherwise None.  When
     the first plugin returns an integer, the remaining plugins
@@ -49,7 +49,7 @@ def devpiserver_on_upload(stage, projectname, version, link):
 
 
 @hookspec(firstresult=True)
-def devpiserver_auth_credentials(request):
+def devpiserver_get_credentials(request):
     """Extracts username and password from request.
 
     Returns a tuple with (username, password) if credentials could be
@@ -75,12 +75,12 @@ def devpiserver_auth_user(userdict, username, password):
 
 
 @hookspec
-def devpiserver_indexconfig_defaults():
+def devpiserver_indexconfig_defaults(index_type):
     """Returns a dictionary with keys and their defaults for the index
     configuration dictionary.
 
-    It's best to use the plugin name as prefix to avoid clashes between
-    key names in different plugins."""
+    It's a good idea to use the plugin name as prefix for the key names
+    to avoid clashes between key names in different plugins."""
 
 
 @hookspec

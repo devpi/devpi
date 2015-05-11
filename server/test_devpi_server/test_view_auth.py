@@ -11,7 +11,7 @@ class TestCredentialPlugin:
     @pytest.fixture
     def plugin(self):
         class Plugin:
-            def devpiserver_auth_credentials(self, request):
+            def devpiserver_get_credentials(self, request):
                 return self.results.pop()
         return Plugin()
 
@@ -35,14 +35,14 @@ class TestCredentialPlugins:
     @pytest.fixture
     def plugin1(self):
         class Plugin:
-            def devpiserver_auth_credentials(self, request):
+            def devpiserver_get_credentials(self, request):
                 return self.results.pop()
         return Plugin()
 
     @pytest.fixture
     def plugin2(self):
         class Plugin:
-            def devpiserver_auth_credentials(self, request):
+            def devpiserver_get_credentials(self, request):
                 return self.results.pop()
         return Plugin()
 
@@ -84,7 +84,7 @@ class TestHeaderCredentialPlugin:
     @pytest.fixture
     def plugin(self):
         class Plugin:
-            def devpiserver_auth_credentials(self, request):
+            def devpiserver_get_credentials(self, request):
                 if 'X-Devpi-User' in request.headers:
                     return (request.headers['X-Devpi-User'], '')
         return Plugin()

@@ -2,7 +2,7 @@ from pyramid.authentication import b64decode
 import binascii
 
 
-def devpiserver_auth_credentials(request):
+def devpiserver_get_credentials(request):
     """Extracts username and password from X-Devpi-Auth header.
 
     Returns a tuple with (username, password) if credentials could be

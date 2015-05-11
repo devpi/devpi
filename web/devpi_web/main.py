@@ -207,7 +207,7 @@ def devpiserver_pypi_initial(stage, name2serials):
     threadlog.info("finished initial indexing op")
 
 
-def devpiserver_run_commands(xom):
+def devpiserver_cmdline_run(xom):
     ix = get_indexer(xom.config)
     if xom.config.args.recreate_search_index:
         ix.delete_index()

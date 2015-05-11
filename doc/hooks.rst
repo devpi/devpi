@@ -22,7 +22,7 @@ hook semantics for authentication
 
 To get the username and password from the request, the following hook is used::
 
-    def devpiserver_auth_credentials(request):
+    def devpiserver_get_credentials(request):
         """Extracts username and password from request.
 
         Returns a tuple with (username, password) if credentials could be

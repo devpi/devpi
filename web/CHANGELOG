@@ -8,6 +8,8 @@
 - version.pt: moved hash to title attribute of table cell. With the upcoming
   change to sha256 it's too long and it's available from the link url as well.
 
+- use renamed devpiserver_run_commands hook 
+
 - fix issue233: projects on root/pypi with no releases lead to a traceback
 
 
