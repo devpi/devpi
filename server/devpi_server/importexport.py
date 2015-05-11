@@ -1,9 +1,11 @@
 from __future__ import unicode_literals
 import sys
 import json
+import os
 import py
 import logging
 import posixpath
+import shutil
 from devpi_common.validation import normalize_name
 from devpi_common.metadata import BasenameMeta
 from devpi_common.types import parse_hash_spec
@@ -60,12 +62,16 @@ class Exporter:
         self.export_users = self.export["users"] = {}
         self.export_indexes = self.export["indexes"] = {}
 
-    def write_file(self, content, dest):
+    def copy_file(self, src, dest):
         dest.dirpath().ensure(dir=1)
-        with dest.open("wb") as f:
-            f.write(content)
-        self.tw.line("write file at %s" %(dest.relto(self.basepath),))
-        return dest.relto(self.basepath)
+        relpath = dest.relto(self.basepath)
+        if self.config.args.hard_links:
+            self.tw.line("link file at %s" % relpath)
+            os.link(src, dest.strpath)
+        else:
+            self.tw.line("write file at %s" % relpath)
+            shutil.copyfile(src, dest.strpath)
+        return relpath
 
     def warn(self, msg):
         self.tw.line(msg, red=True)
@@ -131,18 +137,17 @@ class IndexDump:
                 linkstore = self.stage.get_linkstore_perstage(vername, version)
                 self.dump_releasefiles(linkstore)
                 self.dump_toxresults(linkstore)
-                content = self.stage.get_doczip(vername, version)
-                if content:
-                    self.dump_docfile(vername, version, content)
+                entry = self.stage.get_doczip_entry(vername, version)
+                if entry:
+                    self.dump_docfile(vername, version, entry)
         self.exporter.completed("index %r" % self.stage.name)
 
     def dump_releasefiles(self, linkstore):
         for link in linkstore.get_links(rel="releasefile"):
             entry = self.exporter.filestore.get_file_entry(link.entrypath)
             assert entry.file_exists(), entry.relpath
-            content = entry.file_get_content()
-            relpath = self.exporter.write_file(
-                content,
+            relpath = self.exporter.copy_file(
+                entry._filepath,
                 self.basedir.join(linkstore.projectname, entry.basename))
             self.add_filedesc("releasefile", linkstore.projectname, relpath,
                                version=linkstore.version,
@@ -152,10 +157,10 @@ class IndexDump:
     def dump_toxresults(self, linkstore):
         for tox_link in linkstore.get_links(rel="toxresult"):
             reflink = linkstore.stage.get_link_from_entrypath(tox_link.for_entrypath)
-            relpath = self.exporter.write_file(
-                content=tox_link.entry.file_get_content(),
-                dest=self.basedir.join(linkstore.projectname, reflink.hash_spec,
-                                       tox_link.basename)
+            relpath = self.exporter.copy_file(
+                tox_link.entry._filepath,
+                self.basedir.join(linkstore.projectname, reflink.hash_spec,
+                                  tox_link.basename)
             )
             self.add_filedesc(type="toxresult",
                               projectname=linkstore.projectname,
@@ -173,11 +178,10 @@ class IndexDump:
         self.indexmeta["files"].append(d)
         self.exporter.completed("%s: %s " %(type, relpath))
 
-    def dump_docfile(self, projectname, version, content):
-        p = self.basedir.join("%s-%s.doc.zip" %(projectname, version))
-        with p.open("wb") as f:
-            f.write(content)
-        relpath = p.relto(self.exporter.basepath)
+    def dump_docfile(self, projectname, version, entry):
+        relpath = self.exporter.copy_file(
+            entry._filepath,
+            self.basedir.join("%s-%s.doc.zip" % (projectname, version)))
         self.add_filedesc("doczip", projectname, relpath, version=version)
 
 

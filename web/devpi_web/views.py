@@ -409,7 +409,7 @@ def project_get(context, request):
                 user=user, index=index, name=name, version=version)))
         seen.add(seen_key)
     return dict(
-        title="%s/: %s versions" % (context.stage.name, name),
+        title="%s/: %s versions" % (context.stage.name, context.name),
         versions=versions)
 
 

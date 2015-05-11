@@ -449,6 +449,14 @@ def test_project_view_root_pypi(mapp, testapp, pypistage):
         ("2.6", "http://localhost/root/pypi/pkg1/2.6")]
 
 
+def test_project_view_root_pypi_no_releases(mapp, testapp, pypistage):
+    pypistage.mock_simple("pkg1", text='', pypiserial=10)
+    r = testapp.get('/root/pypi/pkg1', headers=dict(accept="text/html"))
+    assert r.status_code == 200
+    links = r.html.select('#content a')
+    assert [(l.text, l.attrs['href']) for l in links] == []
+
+
 def test_project_view_root_pypi_external_link_bad_name(mapp, testapp, pypistage):
     # root/pypi/+e/https_github.com_pypa_pip_tarball/develop
     # http://localhost:8141/root/pypi/+e/https_github.com_pypa_pip_tarball/develop#egg=pip-dev

@@ -600,9 +600,8 @@ class PrivateStage(BaseStage):
         )
         return link
 
-    def get_doczip(self, name, version):
-        """ get documentation zip as an open file
-        (or None if no docs exists). """
+    def get_doczip_entry(self, name, version):
+        """ get entry of documentation zip or None if no docs exists. """
         linkstore = self.get_linkstore_perstage(name, version)
         links = linkstore.get_links(rel="doczip")
         if links:
@@ -618,7 +617,13 @@ class PrivateStage(BaseStage):
                 threadlog.warn("Multiple documentation files for %s-%s, returning newest", name, version)
             else:
                 link = links[0]
-            return link.entry.file_get_content()
+            return link.entry
+
+    def get_doczip(self, name, version):
+        """ get documentation zip content or None if no docs exists. """
+        entry = self.get_doczip_entry(name, version)
+        if entry is not None:
+            return entry.file_get_content()
 
 
 class ELink:

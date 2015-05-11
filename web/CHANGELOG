@@ -10,6 +10,8 @@
 
 - use renamed devpiserver_run_commands hook 
 
+- fix issue233: projects on root/pypi with no releases lead to a traceback
+
 
 2.2.3
 ---------------
