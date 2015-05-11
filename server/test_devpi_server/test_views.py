@@ -649,10 +649,10 @@ def test_submit_authorization(mapp, testapp):
 
 def test_push_non_existent(mapp, testapp, monkeypatch):
     req = dict(name="pkg5", version="2.6", targetindex="user2/dev")
-    # check redirection
+    # check redirection/404 (depending on if devpi-web is installed,
+    # status_code is different)
     r = testapp.push("/user2/dev/", json.dumps(req), expect_errors=True)
-    assert r.status_code == 302
-    assert r.location.endswith("/user2/dev")
+    assert r.status_code in (302, 404)
 
     # check that push to from non-existent index results in 404
     r = testapp.push("/user2/dev", json.dumps(req), expect_errors=True)
