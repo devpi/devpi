@@ -51,6 +51,9 @@
 - add new ``devpiserver_on_upload_sync`` plugin hook and use it to move the
   Jenkins triggering to the ``devpi-jenkins`` plugin.
 
+- add ``--hard-links`` option to use hard links for releases and doc zips
+  during export.
+
 2.1.5
 ----------------
 

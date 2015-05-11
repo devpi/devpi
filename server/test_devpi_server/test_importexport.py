@@ -6,7 +6,7 @@ import json
 import time
 from devpi_server.importexport import *
 from devpi_server.main import Fatal
-from devpi_common.archive import zip_dict
+from devpi_common.archive import Archive, zip_dict
 
 import devpi_server
 
@@ -62,24 +62,28 @@ class TestIndexTree:
 
 class TestImportExport:
     @pytest.fixture
-    def impexp(self, makemapp, gentmp):
+    def makeimpexp(self, makemapp, gentmp):
         class ImpExp:
-            def __init__(self):
+            def __init__(self, options=()):
                 self.exportdir = gentmp()
-                self.mapp1 = makemapp(options=[
-                    "--export", self.exportdir]
-                )
+                self.mapp1 = makemapp(
+                    options=("--export", self.exportdir) + options)
 
             def export(self):
                 assert self.mapp1.xom.main() == 0
 
-            def new_import(self, plugin=None):
-                mapp2 = makemapp(options=("--import", str(self.exportdir)))
+            def new_import(self, options=(), plugin=None):
+                mapp2 = makemapp(
+                    options=("--import", str(self.exportdir)) + options)
                 if plugin is not None:
                     mapp2.xom.config.pluginmanager.register(plugin)
                 assert mapp2.xom.main() == 0
                 return mapp2
-        return ImpExp()
+        return ImpExp
+
+    @pytest.fixture
+    def impexp(self, makeimpexp):
+        return makeimpexp()
 
     def test_uuid(self, impexp):
         impexp.export()
@@ -393,7 +397,6 @@ class TestImportExport:
         assert mapp2.xom.config.nodeinfo["uuid"] == "mm"
 
     def test_docs_are_preserved(self, impexp):
-        from devpi_common.archive import Archive
         mapp1 = impexp.mapp1
         api = mapp1.create_and_use()
         mapp1.set_versiondata({"name": "hello", "version": "1.0"})
@@ -410,7 +413,6 @@ class TestImportExport:
                 archive.read("index.html"), 'utf-8') == "<html/>"
 
     def test_multiple_docs_on_same_version(self, impexp):
-        from devpi_common.archive import Archive
         mapp1 = impexp.mapp1
         api = mapp1.create_and_use()
         mapp1.set_versiondata({"name": "hello", "version": "1.0"})
@@ -461,6 +463,41 @@ class TestImportExport:
             projectname = stage.get_projectname("he-llo")
             links = stage.get_releaselinks(projectname)
             assert len(links) == 2
+
+    @pytest.mark.skipif(not hasattr(os, 'link'),
+                        reason="OS doesn't support hard links")
+    def test_hard_links(self, makeimpexp):
+        impexp = makeimpexp(options=('--hard-links',))
+        mapp1 = impexp.mapp1
+        api = mapp1.create_and_use()
+        content = b'content'
+        mapp1.upload_file_pypi("he-llo-1.0.tar.gz", content, "he_llo", "1.0")
+        content = zip_dict({"index.html": "<html/>"})
+        mapp1.upload_doc("he-llo.zip", content, "he-llo", "")
+
+        impexp.export()
+
+        assert impexp.exportdir.join(
+          'dataindex.json').stat().nlink == 1
+        assert impexp.exportdir.join(
+          'user1', 'dev', 'he_llo-1.0.doc.zip').stat().nlink == 2
+        assert impexp.exportdir.join(
+          'user1', 'dev', 'he_llo', 'he-llo-1.0.tar.gz').stat().nlink == 2
+
+        mapp2 = impexp.new_import()
+
+        with mapp2.xom.keyfs.transaction():
+            stage = mapp2.xom.model.getstage(api.stagename)
+            verdata = stage.get_versiondata_perstage("he_llo", "1.0")
+            assert verdata["version"] == "1.0"
+            links = stage.get_releaselinks("he_llo")
+            assert len(links) == 1
+            assert links[0].entry.file_get_content() == b'content'
+            doczip = stage.get_doczip("he_llo", "1.0")
+            archive = Archive(py.io.BytesIO(doczip))
+            assert 'index.html' in archive.namelist()
+            assert py.builtin._totext(
+                archive.read("index.html"), 'utf-8') == "<html/>"
 
     def test_uploadtrigger_jenkins_removed_if_not_set(self, impexp):
         mapp1 = impexp.mapp1
