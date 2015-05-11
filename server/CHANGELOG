@@ -4,7 +4,7 @@
 - add "--no-events" option to postpone running events after import
   to server start
 
-- add new ``devpiserver_auth_credentials`` plugin hook to extract credentials
+- add new ``devpiserver_get_credentials`` plugin hook to extract credentials
   from request
 
 - fix issue216: use sha256 instead of md5 checksums for serving own files
@@ -50,6 +50,10 @@
 
 - add new ``devpiserver_on_upload_sync`` plugin hook and use it to move the
   Jenkins triggering to the ``devpi-jenkins`` plugin.
+
+- rename hooks: ``devpiserver_auth_credentials`` to
+  ``devpiserver_get_credentials`` and ``devpiserver_run_commands`` to
+  ``devpiserver_cmdline_run``.
 
 2.1.5
 ----------------

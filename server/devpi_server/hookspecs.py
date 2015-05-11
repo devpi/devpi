@@ -49,7 +49,7 @@ def devpiserver_on_upload(stage, projectname, version, link):
 
 
 @hookspec(firstresult=True)
-def devpiserver_auth_credentials(request):
+def devpiserver_get_credentials(request):
     """Extracts username and password from request.
 
     Returns a tuple with (username, password) if credentials could be
