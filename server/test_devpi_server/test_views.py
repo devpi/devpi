@@ -648,27 +648,32 @@ def test_submit_authorization(mapp, testapp):
 
 
 def test_push_non_existent(mapp, testapp, monkeypatch):
-    # check that push from non-existent index results in 404
     req = dict(name="pkg5", version="2.6", targetindex="user2/dev")
+    # check redirection
     r = testapp.push("/user2/dev/", json.dumps(req), expect_errors=True)
+    assert r.status_code == 302
+    assert r.location.endswith("/user2/dev")
+
+    # check that push to from non-existent index results in 404
+    r = testapp.push("/user2/dev", json.dumps(req), expect_errors=True)
     assert r.status_code == 404
     mapp.create_and_login_user("user1", "1")
     mapp.create_index("dev")
 
-    # check that push to non-existent target index results in 404
-    r = testapp.push("/user1/dev/", json.dumps(req), expect_errors=True)
-    assert r.status_code == 404
+    # check that push to non-existent target index results in error
+    r = testapp.push("/user1/dev", json.dumps(req), expect_errors=True)
+    assert r.status_code == 400
 
     mapp.create_and_login_user("user2")
     mapp.create_index("dev", indexconfig=dict(acl_upload=["user2"]))
     mapp.login("user1", "1")
-    # check that push of non-existent release results in 404
-    r = testapp.push("/user1/dev/", json.dumps(req), expect_errors=True)
-    assert r.status_code == 404
+    # check push of non-existent release results in error
+    r = testapp.push("/user1/dev", json.dumps(req), expect_errors=True)
+    assert r.status_code == 400
     #
     mapp.use("user1/dev")
     mapp.upload_file_pypi("pkg5-2.6.tgz", b"123", "pkg5", "2.6")
-    # check that push to non-authoried existent target index results in 401
+    # check that push to non-authorized existent target index results in error
     r = testapp.push("/user1/dev", json.dumps(req), expect_errors=True)
     assert r.status_code == 401
 

@@ -669,7 +669,6 @@ class MyTestApp(TApp):
             assert r.status_code == code
         return r
 
-
     def push(self, url, params=None, **kw):
         kw.setdefault("expect_errors", True)
         return self._gen_request("PUSH", url, params=params, **kw)
