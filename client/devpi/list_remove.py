@@ -71,7 +71,7 @@ def show_test_status(hub, toxlinks):
             hub.error("corrupt toxresult, skipping: %s" % (toxlink,))
             continue
         for toxenv in toxenvs:
-            prefix = "  %s %s %s" % (toxenv.host, toxenv.platform, toxenv.envname)
+            prefix = "%-10s %-7s %-10s" % (toxenv.host, toxenv.platform, toxenv.envname)
             if not toxenv.setup['commands']:
                 hub.error("%s no setup was performed" % prefix)
             elif toxenv.setup['failed']:

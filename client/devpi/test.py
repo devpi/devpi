@@ -76,6 +76,7 @@ class DevIndex:
         path_archive = pkg.path_archive
         toxargs = ["--installpkg", str(path_archive),
                    "-i ALL=%s" % str(self.current.simpleindex),
+                   "--recreate",
                    "--result-json", str(jsonreport),
         ]
 

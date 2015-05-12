@@ -106,6 +106,7 @@ class TestWheel:
             *only universal wheels*
         """)
 
+    @pytest.mark.skipif("sys.version_info < (2,7)")
     def test_prepare_toxrun_args(self, loghub, pseudo_current, tmpdir, reqmock, initproj):
         # XXX this test was a bit hard to setup and is also somewhat covered by
         # the below wheel functional test so unclear if it's worth to
@@ -145,7 +146,7 @@ class TestWheel:
                 [bdist_wheel]
                 universal = True
             """
-        }, opts=["--format=sdist.tgz,sdist.zip,bdist_wheel"])
+        }, opts=["--format=sdist.zip,bdist_wheel"])
         result = out_devpi("test", "-epy", "--debug", "exa==1.0")
         assert result.ret == 0
         result.stdout.fnmatch_lines("""*exa-1.0.*""")
@@ -155,8 +156,6 @@ class TestWheel:
             *exa-1.0*whl*
             *tests*passed*
             *exa-1.0*zip*
-            *tests*passed*
-            *exa-1.0*tar.gz*
             *tests*passed*
         """)
 

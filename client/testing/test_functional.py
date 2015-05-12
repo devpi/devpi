@@ -146,6 +146,10 @@ class Mapp(MappMixin):
             self.devpi("index", indexname,
                        "custom_data=%s" % data, code=200)
 
+    def set_uploadtrigger_jenkins(self, *args, **kwargs):
+        # called when we run client tests against server-2.1
+        pytest.skip("jenkins functionality moved out to pytest-jenkins")
+
     def set_indexconfig_option(self, key, value, indexname=None):
         if indexname is None:
             self.devpi("index", "%s=%s" % (key, value), code=200)

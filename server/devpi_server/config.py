@@ -50,7 +50,8 @@ def addoptions(parser):
             help="run wsgi application with debug logging")
 
     web.addoption("--logger-cfg", action="store", dest="logger_cfg",
-            help="path to yaml/json logger configuration file",
+            help="path to yaml/json logger configuration file,"
+                 " requires python2.7 or higher.",
             default=None)
 
     mirror = parser.addgroup("pypi mirroring options (root/pypi)")

@@ -1,5 +1,7 @@
 import subprocess
+import pytest
 
+@pytest.mark.skipif("sys.platform == 'win32'")
 def test_gen_config_all(tmpdir):
     tmpdir.chdir()
     proc = subprocess.Popen(["devpi-server", "--gen-config"])

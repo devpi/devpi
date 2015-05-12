@@ -557,7 +557,6 @@ class TypedKey:
         self.relpath = relpath
         self.type = type
         self.name = name
-        self.filepath = os.path.join(str(keyfs.basedir), relpath)
         self.params = params or {}
 
     @cached_property
