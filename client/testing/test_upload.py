@@ -160,12 +160,16 @@ class TestUploadFunctional:
             built:*
             file_upload of {projname_version}.zip*
             """.format(projname_version=projname_version))
-        out = out_devpi("upload", "--formats", "sdist.zip,bdist_dumb",
+
+        print ("*"*80)
+        out = out_devpi("upload", "--formats", "sdist.zip,bdist_wheel",
                         code=[200, 200, 200, 200])
         out.stdout.fnmatch_lines_random("""
             file_upload of {projname_version}.*
-            file_upload of {projname_version}.zip*
-            """.format(projname_version=projname_version))
+            file_upload of {projname_version_norm}*.whl*
+            """.format(projname_version=projname_version,
+                       projname_version_norm=projname_version.replace("-", "*")
+                       ))
 
         # logoff then upload
         devpi("logoff")
