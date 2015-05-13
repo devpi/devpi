@@ -17,10 +17,7 @@ Install the ``devpi-server`` package on our machine::
 Show version::
 
     $ devpi-server --version
-    2015-03-16 12:29:39,498 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2015-03-16 12:29:39,499 INFO  NOCTX generated uuid: dd392caf45644e819943d632d937a252
-    2015-03-16 12:29:39,499 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2.1.5
+    2.2.0
 
 .. note::
 
@@ -36,17 +33,18 @@ start background devpi-server process
 To start ``devpi-server`` in the background issue::
     
     $ devpi-server --start
-    2015-03-16 12:29:40,115 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2015-03-16 12:29:40,115 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2015-03-16 12:29:40,116 INFO  NOCTX DB: Creating schema
-    2015-03-16 12:29:40,165 INFO  [Wtx-1] setting password for user u'root'
-    2015-03-16 12:29:40,165 INFO  [Wtx-1] created user u'root' with email None
-    2015-03-16 12:29:40,165 INFO  [Wtx-1] created root user
-    2015-03-16 12:29:40,165 INFO  [Wtx-1] created root/pypi index
-    2015-03-16 12:29:40,180 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
+    2015-05-13 15:17:00,168 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2015-05-13 15:17:00,168 INFO  NOCTX generated uuid: 27e27e0405304ce09f74c7ba48959bf5
+    2015-05-13 15:17:00,169 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    2015-05-13 15:17:00,169 INFO  NOCTX DB: Creating schema
+    2015-05-13 15:17:00,216 INFO  [Wtx-1] setting password for user u'root'
+    2015-05-13 15:17:00,216 INFO  [Wtx-1] created user u'root' with email None
+    2015-05-13 15:17:00,216 INFO  [Wtx-1] created root user
+    2015-05-13 15:17:00,216 INFO  [Wtx-1] created root/pypi index
+    2015-05-13 15:17:00,236 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
     starting background devpi-server at http://localhost:3141
     /tmp/home/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server
-    process u'devpi-server' started pid=12887
+    process u'devpi-server' started pid=31405
     devpi-server process startup detected
     logfile is at /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
 
@@ -67,9 +65,6 @@ Let's install the ``simplejson`` package as a test from our cache::
       Downloading http://localhost:3141/root/pypi/+f/b65/dc21c7aaad14c/simplejson-3.6.5.tar.gz (73kB)
     Installing collected packages: simplejson
       Running setup.py install for simplejson
-        building 'simplejson._speedups' extension
-        x86_64-linux-gnu-gcc -pthread -fno-strict-aliasing -DNDEBUG -g -fwrapv -O2 -Wall -Wstrict-prototypes -fPIC -I/usr/include/python2.7 -c simplejson/_speedups.c -o build/temp.linux-x86_64-2.7/simplejson/_speedups.o
-        x86_64-linux-gnu-gcc -pthread -shared -Wl,-O1 -Wl,-Bsymbolic-functions -Wl,-Bsymbolic-functions -Wl,-z,relro -fno-strict-aliasing -DNDEBUG -g -fwrapv -O2 -Wall -Wstrict-prototypes -D_FORTIFY_SOURCE=2 -g -fstack-protector --param=ssp-buffer-size=4 -Wformat -Werror=format-security build/temp.linux-x86_64-2.7/simplejson/_speedups.o -o build/lib.linux-x86_64-2.7/simplejson/_speedups.so
     Successfully installed simplejson-3.6.5
 
 Let's uninstall it::
@@ -86,8 +81,8 @@ and then re-install it with ``easy_install``::
     Best match: simplejson 3.6.5
     Downloading http://localhost:3141/root/pypi/+f/b65/dc21c7aaad14c/simplejson-3.6.5.tar.gz#md5=b65dc21c7aaad14c6b4ad0d9179e437d
     Processing simplejson-3.6.5.tar.gz
-    Writing /tmp/easy_install-z8Y_uo/simplejson-3.6.5/setup.cfg
-    Running simplejson-3.6.5/setup.py -q bdist_egg --dist-dir /tmp/easy_install-z8Y_uo/simplejson-3.6.5/egg-dist-tmp-P1DbnF
+    Writing /tmp/easy_install-86FOtT/simplejson-3.6.5/setup.cfg
+    Running simplejson-3.6.5/setup.py -q bdist_egg --dist-dir /tmp/easy_install-86FOtT/simplejson-3.6.5/egg-dist-tmp-nTfHNx
     zip_safe flag not set; analyzing archive contents...
     simplejson.tests.__init__: module references __file__
     creating /tmp/docenv/lib/python2.7/site-packages/simplejson-3.6.5-py2.7-linux-x86_64.egg
@@ -141,31 +136,31 @@ Checking and stopping the background server
 At any time you can check the background server status with::
 
     $ devpi-server --status
-    2015-03-16 12:29:53,474 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2015-03-16 12:29:53,475 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    server is running with pid 12887
+    2015-05-13 15:17:28,080 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2015-05-13 15:17:28,081 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    server is running with pid 31405
 
 Or stop it::
     
     $ devpi-server --stop
-    2015-03-16 12:29:54,138 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2015-03-16 12:29:54,139 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    killed server pid=12887
+    2015-05-13 15:17:28,881 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2015-05-13 15:17:28,882 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    killed server pid=31405
 
 Finally, you can also look at the logfile of the background server
 (also after it has been stopped)::
 
     $ devpi-server --log
-    2015-03-16 12:29:54,754 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2015-03-16 12:29:54,755 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    2015-05-13 15:17:29,567 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2015-05-13 15:17:29,568 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
     last lines of devpi-server log
-    2015-03-16 12:29:49,013 INFO  [req3] GET /root/pypi/simplejson/
-    2015-03-16 12:29:49,023 INFO  [req4] GET /root/pypi/+simple/simplejson
-    2015-03-16 12:29:49,113 INFO  [req5] GET /root/pypi/+f/b65/dc21c7aaad14c/simplejson-3.6.5.tar.gz
-    2015-03-16 12:29:49,151 INFO  [req5] [Wtx2] reading remote: https://pypi.python.org/packages/source/s/simplejson/simplejson-3.6.5.tar.gz, target root/pypi/+f/b65/dc21c7aaad14c/simplejson-3.6.5.tar.gz
-    2015-03-16 12:29:49,250 INFO  [req5] [Wtx2] fswriter3: committed: keys: u'root/pypi/+f/b65/dc21c7aaad14c/simplejson-3.6.5.tar.gz', files_commit: +files/root/pypi/+f/b65/dc21c7aaad14c/simplejson-3.6.5.tar.gz
-    2015-03-16 12:29:51,528 INFO  [req6] GET /root/pypi/+simple/simplejson/
-    2015-03-16 12:29:51,684 INFO  [req7] GET /root/pypi/+f/b65/dc21c7aaad14c/simplejson-3.6.5.tar.gz
+    2015-05-13 15:17:23,237 INFO  [req3] GET /root/pypi/simplejson/
+    2015-05-13 15:17:23,253 INFO  [req4] GET /root/pypi/+simple/simplejson
+    2015-05-13 15:17:23,336 INFO  [req5] GET /root/pypi/+f/b65/dc21c7aaad14c/simplejson-3.6.5.tar.gz
+    2015-05-13 15:17:23,428 INFO  [req5] [Wtx2] reading remote: https://pypi.python.org/packages/source/s/simplejson/simplejson-3.6.5.tar.gz, target root/pypi/+f/b65/dc21c7aaad14c/simplejson-3.6.5.tar.gz
+    2015-05-13 15:17:23,534 INFO  [req5] [Wtx2] fswriter3: committed: keys: u'root/pypi/+f/b65/dc21c7aaad14c/simplejson-3.6.5.tar.gz', files_commit: +files/root/pypi/+f/b65/dc21c7aaad14c/simplejson-3.6.5.tar.gz
+    2015-05-13 15:17:25,913 INFO  [req6] GET /root/pypi/+simple/simplejson/
+    2015-05-13 15:17:26,079 INFO  [req7] GET /root/pypi/+f/b65/dc21c7aaad14c/simplejson-3.6.5.tar.gz
     logfile at: /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
 
 running devpi-server permanently

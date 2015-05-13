@@ -213,7 +213,7 @@ push
     $ devpi push -h
     usage: /home/hpk/venv/0/bin/devpi push [-h] [--version] [--debug] [-y] [-v]
                                            [--clientdir DIR] [--pypirc path]
-                                           NAME-VER TARGETSPEC
+                                           pkgspec TARGETSPEC
     
     push a release and releasefiles to an internal or external index. You can push
     a release with all its release files either to an external pypi server
@@ -221,8 +221,8 @@ push
     Or you can push to another devpi index ("user/name").
     
     positional arguments:
-      NAME-VER         release in format 'name-version'. of which the metadata and
-                       all release files are to be uploaded to the specified
+      pkgspec          release in format 'name==version'. of which the metadata
+                       and all release files are to be uploaded to the specified
                        external pypi repo.
       TARGETSPEC       local or remote target index. local targets are of form
                        'USER/NAME', specifying an existing writeable local index.
@@ -315,7 +315,7 @@ test
                                            [--clientdir DIR] [-e ENVNAME]
                                            [-c PATH] [--fallback-ini PATH]
                                            [--tox-args toxargs]
-                                           pkgspec
+                                           pkgspec [pkgspec ...]
     
     download and test a package against tox environments. Download a package and
     run tests as configured by the tox.ini file (which must be contained in the
@@ -499,12 +499,14 @@ devpi command reference (server)
 
     $ devpi-server -h
     usage: devpi-server [-h] [--host HOST] [--port PORT] [--outside-url URL]
-                        [--debug] [--refresh SECS] [--bypass-cdn] [--version]
-                        [--role {master,replica,auto}] [--master-url MASTER_URL]
-                        [--replica-cert pem_file] [--gen-config]
-                        [--secretfile path] [--export PATH] [--import PATH]
+                        [--debug] [--logger-cfg LOGGER_CFG] [--refresh SECS]
+                        [--bypass-cdn] [--version] [--role {master,replica,auto}]
+                        [--master-url MASTER_URL] [--replica-cert pem_file]
+                        [--gen-config] [--secretfile path] [--export PATH]
+                        [--hard-links] [--import PATH] [--no-events]
                         [--passwd USER] [--serverdir DIR] [--restrict-modify SPEC]
-                        [--start] [--stop] [--status] [--log]
+                        [--start] [--stop] [--status] [--log] [--theme THEME]
+                        [--recreate-search-index]
     
     Start a server which serves multiples users and indices. The special root/pypi
     index is a real-time mirror of pypi.python.org and is created by default. All
@@ -524,6 +526,11 @@ devpi command reference (server)
                             server and the web server does not set or you want to
                             override the custom X-outside-url header.
       --debug               run wsgi application with debug logging
+      --logger-cfg LOGGER_CFG
+                            path to yaml/json logger configuration file, requires
+                            python2.7 or higher.
+      --theme THEME         folder with template and resource overwrites for the
+                            web interface
     
     pypi mirroring options (root/pypi):
       --refresh SECS        interval for consulting changelog api of
@@ -534,7 +541,7 @@ devpi command reference (server)
                             are not using a http proxy.
     
     deployment and data options:
-      --version             show devpi_version (2.1.2)
+      --version             show devpi_version (2.2.0)
       --role {master,replica,auto}
                             set role of this instance. [auto]
       --master-url MASTER_URL
@@ -553,12 +560,22 @@ devpi command reference (server)
       --export PATH         export devpi-server database state into PATH. This
                             will export all users, indices (except root/pypi),
                             release files, test results and documentation.
+      --hard-links          use hard links during export instead of copying files.
+                            All limitations for hard links on your OS apply. USE
+                            AT YOUR OWN RISK
       --import PATH         import devpi-server database from PATH where PATH is a
                             directory which was created by a 'devpi-server
                             --export PATH' operation, using the same or an earlier
                             devpi-server version. Note that you can only import
                             into a fresh server state directory (positional
                             argument to devpi-server).
+      --no-events           no events will be run during import, instead they
+                            arepostponed to run on server start. This allows much
+                            faster start of the server after import, when devpi-
+                            web is used. When you start the server after the
+                            import, the search index and documentation will
+                            gradually update until the server has caught up with
+                            all events. [True]
       --passwd USER         set password for user USER (interactive)
       --serverdir DIR       directory for server data. By default,
                             $DEVPI_SERVERDIR is used if it exists, otherwise the
@@ -579,3 +596,11 @@ devpi command reference (server)
       --stop                stop the background devpi-server
       --status              show status of background devpi-server
       --log                 show logfile content of background server
+    
+    search indexing:
+      --recreate-search-index
+                            Recreate search index for all projects and their
+                            documentation. This is only needed if there where
+                            indexing related errors in a devpi-web release and you
+                            want to upgrade only devpi-web without a full devpi-
+                            server import/export.

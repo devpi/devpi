@@ -126,7 +126,9 @@ credentials::
    
 ::
 
-   $ devpi user mistake --delete  
+   $ devpi user mistake -y --delete  
+   About to remove: <URL 'http://localhost:3141/mistake'>
+   Are you sure (yes/no)? yes (autoset from -y option)
    user deleted: mistake
 
 .. rubric:: Footnotes
