@@ -157,6 +157,7 @@ def makexom(request, gentmp, httpget, monkeypatch, mock):
         fullopts = ["devpi-server", "--serverdir", serverdir] + list(opts)
         fullopts = [str(x) for x in fullopts]
         config = parseoptions(pm, fullopts)
+        config.init_nodeinfo()
         if mocking:
             if proxy is None:
                 proxy = mock.create_autospec(XMLProxy)

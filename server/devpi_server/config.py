@@ -225,6 +225,8 @@ class ConfigurationError(Exception):
 class Config:
     def __init__(self, args, pluginmanager):
         self.args = args
+        self.pluginmanager = pluginmanager
+        self.hook = pluginmanager.hook
         serverdir = args.serverdir
         if serverdir is None:
             serverdir = get_default_serverdir()
@@ -237,12 +239,12 @@ class Config:
                     os.path.expanduser(args.secretfile))
 
         self.path_nodeinfo = self.serverdir.join(".nodeinfo")
+
+    def init_nodeinfo(self):
         log.info("Loading node info from %s", self.path_nodeinfo)
         self._determine_roles()
         self._determine_uuid()
         self.write_nodeinfo()
-        self.pluginmanager = pluginmanager
-        self.hook = pluginmanager.hook
 
     def _determine_uuid(self):
         if "uuid" not in self.nodeinfo:

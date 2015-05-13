@@ -2,6 +2,7 @@ import pytest
 import logging
 import textwrap
 from devpi_server.log import *
+from .test_config import make_config
 
 
 @pytest.fixture
@@ -85,10 +86,12 @@ def test_threadlog_around(caplog):
 class TestLoggerConfiguration:
 
     def test_default(self):
-        configure_logging()
+        config = make_config(["devpi-server"])
+        configure_logging(config.args)
 
         assert logging.getLogger().getEffectiveLevel() == logging.INFO
-        assert logging.getLogger("requests.packages.urllib3").getEffectiveLevel() == logging.ERROR
+        level = logging.getLogger("requests.packages.urllib3").getEffectiveLevel()
+        assert level == logging.ERROR
 
     @pytest.mark.skipif("sys.version_info < (2,7)")
     def test_logger_cfg(self, tmpdir):
@@ -102,14 +105,8 @@ class TestLoggerConfiguration:
                 handlers: []
                 level: WARNING
         """))
-
-        class MockConfig(object):
-            pass
-        mock_config = MockConfig()
-        mock_config.logger_cfg = str(logger_cfg)
-        mock_config.debug = False
-
-        configure_logging(mock_config)
+        config = make_config(["devpi-server", "--logger-cfg=%s" % logger_cfg])
+        configure_logging(config.args)
 
         assert logging.getLogger().getEffectiveLevel() == logging.WARNING
         assert not logging.getLogger().handlers

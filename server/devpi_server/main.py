@@ -57,9 +57,7 @@ def main(argv=None):
         return 1
 
 def _main(pluginmanager, argv=None):
-    # Set up logging with no config just so we can log while parsing options
-    # Later when we get the config, we will call this again with the config.
-    configure_logging()
+    # During parsing of options logging should not be used
 
     if argv is None:
         argv = sys.argv
@@ -78,6 +76,10 @@ def _main(pluginmanager, argv=None):
         return genconfig(config)
 
     configure_logging(config.args)
+
+    # read/create node UUID and role of this server
+    config.init_nodeinfo()
+
     xom = XOM(config)
     if not xom.is_replica():
         with xom.keyfs.transaction(write=True):
