@@ -3,7 +3,7 @@ import py
 import json
 import contextlib
 import time
-from pyramid.httpexceptions import HTTPNotFound, HTTPAccepted
+from pyramid.httpexceptions import HTTPNotFound, HTTPAccepted, HTTPBadRequest
 from pyramid.view import view_config
 from pyramid.response import Response
 from devpi_common.validation import normalize_name
@@ -11,12 +11,13 @@ from webob.headers import EnvironHeaders, ResponseHeaders
 
 from .keyfs import load, loads, dump, get_write_file_ensure_dir, rename
 from .log import thread_push_log, threadlog
-from .views import is_mutating_http_method, H_MASTER_UUID
+from .views import is_mutating_http_method, H_MASTER_UUID, make_uuid_headers
 from .model import UpstreamError
 
 H_REPLICA_UUID = str("X-DEVPI-REPLICA-UUID")
 H_REPLICA_OUTSIDE_URL = str("X-DEVPI-REPLICA-OUTSIDE-URL")
 H_REPLICA_FILEREPL = str("X-DEVPI-REPLICA-FILEREPL")
+H_EXPECTED_MASTER_ID = str("X-DEVPI-EXPECTED-MASTER-ID")
 
 class MasterChangelogRequest:
     MAX_REPLICA_BLOCK_TIME = 30.0
@@ -61,6 +62,12 @@ class MasterChangelogRequest:
         # - if the replica is not waiting anymore we would otherwise
         #   never time out here, leading to more and more threads
         # if no commits happen.
+
+        expected_uuid = self.request.headers.get(H_EXPECTED_MASTER_ID)
+        master_uuid = self.xom.config.get_master_uuid()
+        if expected_uuid and expected_uuid != master_uuid:
+            raise HTTPBadRequest("expected %s as master_uuid, replica sent %s" %
+                                 (master_uuid, expected_uuid))
 
         serial = self.request.matchdict["serial"]
 
@@ -133,15 +140,17 @@ class ReplicaThread:
         for key in (keyfs.STAGEFILE, keyfs.PYPIFILE_NOMD5):
             keyfs.subscribe_on_import(key, ImportFileReplica(self.xom, errors))
         config = self.xom.config
-        nodeinfo = config.nodeinfo
         while 1:
             self.thread.exit_if_shutdown()
             serial = keyfs.get_next_serial()
             url = self.master_url.joinpath("+changelog", str(serial)).url
             log.info("fetching %s", url)
+            uuid, master_uuid = make_uuid_headers(config.nodeinfo)
+            assert uuid != master_uuid
             try:
                 r = session.get(url, headers={
-                    H_REPLICA_UUID: nodeinfo["uuid"],
+                    H_REPLICA_UUID: uuid,
+                    H_EXPECTED_MASTER_ID: master_uuid,
                     H_REPLICA_OUTSIDE_URL: config.args.outside_url,
                 })
             except session.Errors as e:
@@ -152,17 +161,24 @@ class ReplicaThread:
                 master_uuid = config.get_master_uuid()
                 remote_master_uuid = r.headers.get(H_MASTER_UUID)
                 if not remote_master_uuid:
+                    # we don't fatally leave the process because
+                    # it might just be a temporary misconfiguration
+                    # for example of a nginx frontend
                     log.error("remote provides no %r header, running "
                               "<devpi-server-2.1?"
                               " headers were: %s", H_MASTER_UUID, r.headers)
                     self.thread.sleep(self.ERROR_SLEEP)
                     continue
                 if master_uuid and remote_master_uuid != master_uuid:
-                    log.error("master UUID %r does not match "
-                              "locally recorded master UUID %r",
+                    # we got a master_uuid and it is not the one we
+                    # expect, we are replicating for -- it's unlikely this heals
+                    # itself.  It's thus better to die and signal we can't operate.
+                    log.error("FATAL: master UUID %r does not match "
+                              "expected master UUID %r. EXITTING.",
                               remote_master_uuid, master_uuid)
-                    self.thread.sleep(self.ERROR_SLEEP)
-                    continue
+                    # force exit of the process
+                    os._exit(3)
+
                 if r.status_code == 200:
                     try:
                         changes, rel_renames = loads(r.content)

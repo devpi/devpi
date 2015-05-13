@@ -58,6 +58,11 @@
 - add ``--hard-links`` option to use hard links for releases and doc zips
   during export.
 
+- speed up detecting replica/master mismatches and let a replica
+  instantly die if it talks to a master that doesn't match the
+  master id the replica is operating for.
+
+
 2.1.5
 ----------------
 

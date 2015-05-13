@@ -69,6 +69,9 @@ class TestChangelog:
         assert r.status_code == 202
         assert int(r.headers["X-DEVPI-SERIAL"]) == latest_serial
 
+    def test_master_id_mismatch(self, testapp):
+        testapp.xget(400, "/+changelog/0", headers={H_EXPECTED_MASTER_ID:str("123")})
+
 
 class TestPyPIProxy:
     def test_pypi_proxy(self, xom, reqmock):
@@ -167,7 +170,8 @@ class TestReplicaThread:
             rt.thread_run()
         assert caplog.getrecords("remote.*no.*UUID")
 
-    def test_thread_run_ok_uuid_change(self, rt, mockchangelog, caplog, xom):
+    def test_thread_run_ok_uuid_change(self, rt, mockchangelog, caplog, xom, monkeypatch):
+        monkeypatch.setattr("os._exit", lambda n: 0/0)
         rt.thread.sleep = lambda *x: 0/0
         data = xom.keyfs._fs.get_raw_changelog_entry(0)
         assert data
