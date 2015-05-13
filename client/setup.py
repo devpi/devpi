@@ -2,7 +2,28 @@
 
 import sys, os
 
+import setuptools
 from setuptools import setup, find_packages
+
+def has_environment_marker_support():
+    """
+    Tests that setuptools has support for PEP-426 environment marker support.
+
+    The first known release to support it is 0.7 (and the earliest on PyPI seems to be 0.7.2
+    so we're using that), see: http://pythonhosted.org/setuptools/history.html#id142
+
+    References:
+
+    * https://wheel.readthedocs.org/en/latest/index.html#defining-conditional-dependencies
+    * https://www.python.org/dev/peps/pep-0426/#environment-markers
+    """
+    import pkg_resources
+    try:
+        return pkg_resources.parse_version(setuptools.__version__) >= pkg_resources.parse_version('0.7.2')
+    except Exception as exc:
+        sys.stderr.write("Could not test setuptool's version: %s\n" % exc)
+        return False
+
 
 if __name__ == "__main__":
     here = os.path.abspath(".")
@@ -14,7 +35,10 @@ if __name__ == "__main__":
                       "check-manifest>=0.21",
                       "py>=1.4.20"]
 
-    if sys.version_info < (2,7):
+    extras_require = {}
+    if has_environment_marker_support():
+        extras_require[':python_version=="2.6"'] = ['argparse']
+    elif sys.version_info < (2,7):
         install_requires.append("argparse>=1.2.1")
 
     setup(
@@ -25,6 +49,7 @@ if __name__ == "__main__":
       version='2.2.0',
       packages=find_packages(),
       install_requires=install_requires,
+      extras_require=extras_require,
       url="https://bitbucket.org/hpk42/devpi",
       maintainer="Holger Krekel",
       maintainer_email="holger@merlinux.eu",
