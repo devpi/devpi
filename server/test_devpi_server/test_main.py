@@ -14,6 +14,12 @@ def test_pkgresources_version_matches_init():
     ver = devpi_server.__version__
     assert pkg_resources.get_distribution("devpi_server").version == ver
 
+def test_version(capfd):
+    main(["devpi-server", "--version"])
+    out, err = capfd.readouterr()
+    assert not err  # not logging output
+    assert devpi_server.__version__ in out.strip()
+
 def test_check_compatible_version_earlier(xom, monkeypatch):
     monkeypatch.setattr(xom, "get_state_version", lambda: "1.0")
     with pytest.raises(Fatal):

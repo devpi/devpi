@@ -74,40 +74,46 @@ class TestConfig:
 
     def test_role_permanence_master(self, tmpdir):
         config = make_config(["devpi-server", "--serverdir", str(tmpdir)])
+        config.init_nodeinfo()
         assert config.role == "master"
         config = make_config(["devpi-server", "--role=master",
                                "--serverdir", str(tmpdir)])
+        config.init_nodeinfo()
         assert config.role == "master"
         with pytest.raises(Fatal):
             make_config(["devpi-server", "--role=replica",
-                          "--serverdir", str(tmpdir)])
+                          "--serverdir", str(tmpdir)]).init_nodeinfo()
 
     def test_role_permanence_replica(self, tmpdir):
         config = make_config(["devpi-server", "--master-url", "http://qwe",
                                "--serverdir", str(tmpdir)])
+        config.init_nodeinfo()
         assert config.role == "replica"
         assert not config.get_master_uuid()
         with pytest.raises(Fatal) as excinfo:
-            make_config(["devpi-server", "--serverdir", str(tmpdir)])
+            make_config(["devpi-server", "--serverdir", str(tmpdir)]).init_nodeinfo()
         assert "specify --role=master" in str(excinfo.value)
         config = make_config(["devpi-server", "--serverdir", str(tmpdir),
                                "--role=master"])
+        config.init_nodeinfo()
         assert config.role == "master"
         with pytest.raises(Fatal):
             make_config(["devpi-server", "--master-url=xyz",
-                          "--serverdir", str(tmpdir)])
+                          "--serverdir", str(tmpdir)]).init_nodeinfo()
         with pytest.raises(Fatal):
             make_config(["devpi-server", "--role=replica",
-                          "--serverdir", str(tmpdir)])
+                          "--serverdir", str(tmpdir)]).init_nodeinfo()
 
     def test_replica_role_missing_master_url(self, tmpdir):
+        config = make_config(["devpi-server", "--role=replica",
+                             "--serverdir", str(tmpdir)])
         with pytest.raises(Fatal) as excinfo:
-            make_config(["devpi-server", "--role=replica",
-                          "--serverdir", str(tmpdir)])
+            config.init_nodeinfo()
         assert "need to specify --master-url" in str(excinfo)
 
     def test_uuid(self, tmpdir):
         config = make_config(["devpi-server", "--serverdir", str(tmpdir)])
+        config.init_nodeinfo()
         uuid = config.nodeinfo["uuid"]
         assert uuid
         assert config.get_master_uuid() == uuid
@@ -115,6 +121,7 @@ class TestConfig:
         assert uuid == config.nodeinfo["uuid"]
         tmpdir.remove()
         config = make_config(["devpi-server", "--serverdir", str(tmpdir)])
+        config.init_nodeinfo()
         assert config.nodeinfo["uuid"] != uuid
         assert config.get_master_uuid() != uuid
 

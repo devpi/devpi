@@ -10,6 +10,10 @@ from devpi_common.archive import Archive, zip_dict
 
 import devpi_server
 
+def make_export(tmpdir, xom):
+    xom.config.init_nodeinfo()
+    return do_export(tmpdir, xom)
+
 pytestmark = [pytest.mark.notransaction]
 
 def test_not_exists(tmpdir, xom):
@@ -23,19 +27,20 @@ def test_import_wrong_dumpversion(tmpdir, xom):
         do_import(tmpdir, xom)
 
 def test_empty_export(tmpdir, xom):
-    ret = do_export(tmpdir, xom)
+    xom.config.init_nodeinfo()
+    ret = make_export(tmpdir, xom)
     assert not ret
     data = json.loads(tmpdir.join("dataindex.json").read())
     assert data["dumpversion"] == Exporter.DUMPVERSION
     assert data["pythonversion"] == list(sys.version_info)
     assert data["devpi_server"] == devpi_server.__version__
     with pytest.raises(Fatal):
-        do_export(tmpdir, xom)
+        make_export(tmpdir, xom)
 
 def test_import_on_existing_server_data(tmpdir, xom):
     with xom.keyfs.transaction(write=True):
         xom.model.create_user("someuser", password="qwe")
-    assert not do_export(tmpdir, xom)
+    assert not make_export(tmpdir, xom)
     with pytest.raises(Fatal):
         do_import(tmpdir, xom)
 
@@ -69,7 +74,9 @@ class TestImportExport:
                 self.mapp1 = makemapp(
                     options=("--export", self.exportdir) + options)
 
-            def export(self):
+            def export(self, initnodeinfo=True):
+                if initnodeinfo:
+                    self.mapp1.xom.config.init_nodeinfo()
                 assert self.mapp1.xom.main() == 0
 
             def new_import(self, options=(), plugin=None):
@@ -77,6 +84,7 @@ class TestImportExport:
                     options=("--import", str(self.exportdir)) + options)
                 if plugin is not None:
                     mapp2.xom.config.pluginmanager.register(plugin)
+                mapp2.xom.config.init_nodeinfo()
                 assert mapp2.xom.main() == 0
                 return mapp2
         return ImpExp
@@ -387,10 +395,11 @@ class TestImportExport:
         mapp1 = impexp.mapp1
         mapp1.create_and_login_user("exp", "pass")
         # fake it's a replica
+        mapp1.xom.config.init_nodeinfo()
         mapp1.xom.config.nodeinfo["role"] = "replica"
         mapp1.xom.config.set_master_uuid("mm")
         mapp1.xom.config.set_uuid("1111")
-        impexp.export()
+        impexp.export(initnodeinfo=False)
         mapp2 = impexp.new_import()
         assert mapp2.xom.config.nodeinfo["role"] == "master"
         assert mapp2.xom.config.get_master_uuid() == "mm"
