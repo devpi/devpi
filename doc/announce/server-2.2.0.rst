@@ -23,6 +23,9 @@ UPGRADE note: devpi-server-2.2 requires to ``--export`` your 2.1
 server state and then using ``--import`` with the new version
 before you can serve your private packages through devpi-server-2.2.
 
+UPGRADE note: if you use ``updatetrigger_jenkins``, you have to install
+the devpi-jenkins plugin. You will get an error during import if you forget it.
+
 For docs and quickstart tutorials see http://doc.devpi.net
 
 many thanks to Florian Schulze who co-implemented many of the new features.
