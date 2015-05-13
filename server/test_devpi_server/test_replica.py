@@ -17,6 +17,13 @@ def test_view_name2serials(pypistage, testapp):
     entries = load(io)
     assert entries["package"] == 15
 
+@pytest.fixture
+def testapp(testapp):
+    master_uuid = testapp.xom.config.get_master_uuid()
+    assert master_uuid
+    testapp.set_header_default(H_EXPECTED_MASTER_ID, master_uuid)
+    return testapp
+
 
 class TestChangelog:
     replica_uuid = "111"
@@ -68,6 +75,11 @@ class TestChangelog:
         r = reqchangelog(latest_serial+1)
         assert r.status_code == 202
         assert int(r.headers["X-DEVPI-SERIAL"]) == latest_serial
+
+    def test_master_id_mismatch(self, testapp):
+        testapp.xget(400, "/+changelog/0", headers={H_EXPECTED_MASTER_ID:str("123")})
+        del testapp.headers[H_EXPECTED_MASTER_ID]
+        testapp.xget(400, "/+changelog/0")
 
 
 class TestPyPIProxy:
@@ -167,7 +179,8 @@ class TestReplicaThread:
             rt.thread_run()
         assert caplog.getrecords("remote.*no.*UUID")
 
-    def test_thread_run_ok_uuid_change(self, rt, mockchangelog, caplog, xom):
+    def test_thread_run_ok_uuid_change(self, rt, mockchangelog, caplog, xom, monkeypatch):
+        monkeypatch.setattr("os._exit", lambda n: 0/0)
         rt.thread.sleep = lambda *x: 0/0
         data = xom.keyfs._fs.get_raw_changelog_entry(0)
         assert data
