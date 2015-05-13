@@ -63,9 +63,11 @@ class MasterChangelogRequest:
         #   never time out here, leading to more and more threads
         # if no commits happen.
 
-        expected_uuid = self.request.headers.get(H_EXPECTED_MASTER_ID)
+        expected_uuid = self.request.headers.get(H_EXPECTED_MASTER_ID, None)
         master_uuid = self.xom.config.get_master_uuid()
-        if expected_uuid and expected_uuid != master_uuid:
+        # we require the header but it is allowed to be empty
+        # (during initialization)
+        if expected_uuid is None or (not expected_uuid or expected_uuid != master_uuid):
             raise HTTPBadRequest("expected %s as master_uuid, replica sent %s" %
                                  (master_uuid, expected_uuid))
 

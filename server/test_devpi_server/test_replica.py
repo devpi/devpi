@@ -17,6 +17,13 @@ def test_view_name2serials(pypistage, testapp):
     entries = load(io)
     assert entries["package"] == 15
 
+@pytest.fixture
+def testapp(testapp):
+    master_uuid = testapp.xom.config.get_master_uuid()
+    assert master_uuid
+    testapp.set_header_default(H_EXPECTED_MASTER_ID, master_uuid)
+    return testapp
+
 
 class TestChangelog:
     replica_uuid = "111"
@@ -71,6 +78,8 @@ class TestChangelog:
 
     def test_master_id_mismatch(self, testapp):
         testapp.xget(400, "/+changelog/0", headers={H_EXPECTED_MASTER_ID:str("123")})
+        del testapp.headers[H_EXPECTED_MASTER_ID]
+        testapp.xget(400, "/+changelog/0")
 
 
 class TestPyPIProxy:

@@ -649,23 +649,38 @@ def noiter(monkeypatch, request):
 class MyTestApp(TApp):
     auth = None
 
+    def __init__(self, *args, **kwargs):
+        super(MyTestApp, self).__init__(*args, **kwargs)
+        self.headers = {}
+
     def set_auth(self, user, password):
         self.auth = (user, password)
 
-    def _gen_request(self, method, url, **kw):
+    def set_header_default(self, name, value):
+        self.headers[str(name)] = str(value)
+
+    def _gen_request(self, method, url, params=None, headers=None, **kw):
+        headers = {} if headers is None else headers.copy()
         if self.auth:
-            headers = kw.get("headers")
             if not headers:
                 headers = kw["headers"] = {}
             headers["X-Devpi-Auth"] = b64encode("%s:%s" % self.auth)
             #print ("setting auth header %r %s %s" % (auth, method, url))
+
+        # fill headers with defaults
+        for name, val in self.headers.items():
+            headers.setdefault(name, val)
+
+        kw["headers"] = headers
+        if params is not None:
+            kw["params"] = params
         return super(MyTestApp, self)._gen_request(method, url, **kw)
 
     def post(self, *args, **kwargs):
         code = kwargs.pop("code", None)
         if code is not None and code >= 300:
             kwargs.setdefault("expect_errors", True)
-        r = super(MyTestApp, self).post(*args, **kwargs)
+        r = self._gen_request("POST", *args, **kwargs)
         if code is not None:
             assert r.status_code == code
         return r
@@ -680,7 +695,7 @@ class MyTestApp(TApp):
         if accept is not None:
             headers = kwargs.setdefault("headers", {})
             headers[str("Accept")] = str(accept)
-        return super(MyTestApp, self).get(*args, **kwargs)
+        return self._gen_request("GET", *args, **kwargs)
 
     def xget(self, code, *args, **kwargs):
         r = self.get(*args, **kwargs)
@@ -689,7 +704,7 @@ class MyTestApp(TApp):
 
     def xdel(self, code, *args, **kwargs):
         kwargs.setdefault("expect_errors", True)
-        r = self.delete(*args, **kwargs)
+        r = self._gen_request("DELETE", *args, **kwargs)
         assert r.status_code == code
         return r
 
