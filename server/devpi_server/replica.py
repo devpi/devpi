@@ -67,7 +67,14 @@ class MasterChangelogRequest:
         master_uuid = self.xom.config.get_master_uuid()
         # we require the header but it is allowed to be empty
         # (during initialization)
-        if expected_uuid is None or (not expected_uuid or expected_uuid != master_uuid):
+        if expected_uuid is None:
+            msg = "replica sent no %s header" % H_EXPECTED_MASTER_ID
+            threadlog.error(msg)
+            raise HTTPBadRequest(msg)
+
+        if expected_uuid and expected_uuid != master_uuid:
+            threadlog.error("expected %r as master_uuid, replica sent %r", master_uuid,
+                      expected_uuid)
             raise HTTPBadRequest("expected %s as master_uuid, replica sent %s" %
                                  (master_uuid, expected_uuid))
 
@@ -198,7 +205,7 @@ class ReplicaThread:
                     log.debug("%s: trying again %s\n", r.status_code, url)
                     continue
                 else:
-                    log.debug("%s: failed fetching %s", r.status_code, url)
+                    log.error("%s: failed fetching %s", r.status_code, url)
             # we got an error, let's wait a bit
             self.thread.sleep(5.0)
 

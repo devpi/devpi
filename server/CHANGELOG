@@ -1,3 +1,10 @@
+2.2.1
+----------------
+
+- fix issue237: fix wrong initial replica setup which would prevent
+  initialization.  Thanks Stephan Erb.
+
+
 2.2.0
 ----------------
 
