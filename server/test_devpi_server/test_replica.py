@@ -78,6 +78,8 @@ class TestChangelog:
 
     def test_master_id_mismatch(self, testapp):
         testapp.xget(400, "/+changelog/0", headers={H_EXPECTED_MASTER_ID:str("123")})
+        r = testapp.xget(200, "/+changelog/0", headers={H_EXPECTED_MASTER_ID: ''})
+        assert r.headers[H_MASTER_UUID]
         del testapp.headers[H_EXPECTED_MASTER_ID]
         testapp.xget(400, "/+changelog/0")
 
