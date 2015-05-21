@@ -664,6 +664,8 @@ def upload(parser):
         help="as --with-docs but don't build or upload release files")
 
     direct = parser.add_argument_group("direct file upload options")
+    direct.add_argument("--index", default=None,
+        help="index to upload to (defaults to current index)")
     direct.add_argument("--from-dir", action="store_true", default=None,
         dest="fromdir",
         help="recursively look for archive files in path if it is a dir")

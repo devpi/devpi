@@ -18,7 +18,7 @@ def main(hub, args):
     # so we need to monkeypatch distutils in the setup.py process
 
     current = hub.require_valid_current_with_index()
-    if not current.pypisubmit:
+    if not args.index and not current.pypisubmit:
         hub.fatal("no pypisubmit endpoint available for: %s" % current.index)
 
     if args.path:
@@ -41,6 +41,8 @@ def main(hub, args):
         hub.fatal("nothing built!")
     name_version = exported.setup_name_and_version()
     uploader = Uploader(hub, args, name_version=name_version)
+    if args.index:
+        uploader.pypisubmit = hub.current.get_index_url(args.index).url
     uploader.do_upload_paths(archives)
 
 def filter_latest(path_pkginfo):
@@ -67,6 +69,8 @@ def main_fromfiles(hub, args):
         paths.append(p)
 
     uploader = Uploader(hub, args)
+    if args.index:
+        uploader.pypisubmit = hub.current.get_index_url(args.index).url
     uploader.do_upload_paths(paths)
 
 class Uploader:
@@ -77,6 +81,7 @@ class Uploader:
         # has a high failure rate for documentation zips because they miss
         # explicit metadata and the implementation has to guess
         self.name_version = name_version
+        self.pypisubmit = hub.current.pypisubmit
 
     def do_upload_paths(self, paths):
         hub = self.hub
@@ -132,14 +137,14 @@ class Uploader:
         else:
             files = None
         if path:
-            msg = "%s of %s to %s" %(action, path.basename, hub.current.pypisubmit)
+            msg = "%s of %s to %s" %(action, path.basename, self.pypisubmit)
         else:
             msg = "%s %s-%s to %s" %(action, meta["name"], meta["version"],
-                                     hub.current.pypisubmit)
+                                     self.pypisubmit)
         if self.args.dryrun:
             hub.line("skipped: %s" % msg)
         else:
-            r = hub.http.post(hub.current.pypisubmit, dic, files=files,
+            r = hub.http.post(self.pypisubmit, dic, files=files,
                               headers=headers, auth=hub.current.get_basic_auth(),
                               cert=hub.current.get_client_cert())
             hub._last_http_stati.append(r.status_code)
@@ -152,7 +157,7 @@ class Uploader:
                 if r.type == "actionlog":
                     for x in r.result:
                         hub.error("  " + x)
-                hub.fatal("POST to %s FAILED" % hub.current.pypisubmit)
+                hub.fatal("POST to %s FAILED" % self.pypisubmit)
 
     def upload_release_file(self, path, pkginfo):
         meta = {}
