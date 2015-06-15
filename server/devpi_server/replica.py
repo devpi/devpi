@@ -162,7 +162,7 @@ class ReplicaThread:
                     H_EXPECTED_MASTER_ID: master_uuid,
                     H_REPLICA_OUTSIDE_URL: config.args.outside_url,
                 })
-            except session.Errors as e:
+            except Exception as e:
                 log.error("error fetching %s: %s", url, str(e))
             else:
                 # we check that the remote instance
