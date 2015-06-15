@@ -164,6 +164,28 @@ class TestReplicaThread:
             rt.thread_run()
         assert caplog.getrecords("could not process")
 
+    def test_thread_run_recovers_from_error(self, mock, rt, reqmock, mockchangelog, caplog, xom):
+        import socket
+        # setup a regular request
+        data = xom.keyfs._fs.get_raw_changelog_entry(0)
+        assert data
+        mockchangelog(0, code=200, data=data)
+        # get the result
+        orig_req = reqmock.url2reply[("http://localhost/+changelog/0", None)]
+        # setup so the first attempt fails, then the second succeeds
+        reqmock.url2reply = mock.Mock()
+        reqmock.url2reply.get.side_effect = [socket.error(), orig_req]
+        rt.thread.sleep = mock.Mock()
+        rt.thread.sleep.side_effect = [0, ZeroDivisionError()]
+        # run
+        with pytest.raises(ZeroDivisionError):
+            rt.thread_run()
+        msgs = [x.msg for x in caplog.getrecords(".*http://localhost/\+changelog/0")]
+        assert msgs == [
+            '[REP] fetching %s',
+            '[REP] error fetching %s: %s',
+            '[REP] fetching %s']
+
     def test_thread_run_ok(self, rt, mockchangelog, caplog, xom):
         rt.thread.sleep = lambda *x: 0/0
         data = xom.keyfs._fs.get_raw_changelog_entry(0)

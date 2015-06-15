@@ -4,6 +4,8 @@
 - fix issue237: fix wrong initial replica setup which would prevent
   initialization.  Thanks Stephan Erb.
 
+- make replica thread more robust by catching more exceptions
+
 
 2.2.0
 ----------------
