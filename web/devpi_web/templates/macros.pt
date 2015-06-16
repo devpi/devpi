@@ -18,7 +18,7 @@
 <metal:search define-macro="search">
     <form method="get" id="search" action="${request.route_url('search')}">
         <metal:search use-macro="request.macros['logo']" />
-        <input type="text" size="60" name="query" tal:attributes="value query|None" />
+        <input type="text" size="60" name="query" autofocus tal:attributes="value query|None" />
         <input type="submit" value="Search" />
         <div class="query_doc inline" style="display: none">
             <span class="help">
