@@ -507,19 +507,19 @@ dl.status dd {
 }
 
 @media (min-width:780px) {
-    form, #content, #navigation, .searchresults {
+    form, #content, #navigation, #serverstatus, .searchresults, footer {
         width: 740px;
     }
 }
 
 @media (min-width:1000px) {
-    form, #content, #navigation, .searchresults {
+    form, #content, #navigation, #serverstatus, .searchresults, footer {
         width: 960px;
     }
 }
 
 @media (min-width:1200px) {
-    form, #content, #navigation, .searchresults {
+    form, #content, #navigation, #serverstatus, .searchresults, footer {
         width: 1160px;
     }
 }
