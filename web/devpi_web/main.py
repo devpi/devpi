@@ -1,12 +1,14 @@
 from __future__ import unicode_literals
 from chameleon.config import AUTO_RELOAD
 from devpi_common.metadata import get_latest_version
+from devpi_web import hookspecs
 from devpi_web.description import render_description
 from devpi_web.doczip import unpack_docs
 from devpi_web.indexing import iter_projects, preprocess_project
 from devpi_web.whoosh_index import Index
 from devpi_server.log import threadlog
 from pkg_resources import resource_filename
+from pluggy import PluginManager
 from pyramid.renderers import get_renderer
 from pyramid_chameleon.renderer import ChameleonRendererLookup
 import os
@@ -101,6 +103,14 @@ class ThemeChameleonRendererLookup(ChameleonRendererLookup):
         return ChameleonRendererLookup.__call__(self, info)
 
 
+def get_pluginmanager():
+    pm = PluginManager("devpiweb", implprefix="devpiweb_")
+    pm.add_hookspecs(hookspecs)
+    pm.load_setuptools_entrypoints("devpi_web")
+    pm.check_pending()
+    return pm
+
+
 def includeme(config):
     from pyramid_chameleon.interfaces import IChameleonLookup
     from pyramid_chameleon.zpt import ZPTTemplateRenderer
@@ -137,6 +147,7 @@ def includeme(config):
     config.add_request_method(macros, reify=True)
     config.add_request_method(navigation_info, reify=True)
     config.add_request_method(query_docs_html, reify=True)
+    config.registry['devpiweb-pluginmanager'] = get_pluginmanager()
     config.scan()
 
 
