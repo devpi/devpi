@@ -200,6 +200,10 @@ class ReplicaThread:
                         # record the master_uuid for future consistency checks
                         if not master_uuid:
                             self.xom.config.set_master_uuid(remote_master_uuid)
+                        # also record the current master serial for status info
+                        remote_master_serial = r.headers.get("X-DEVPI-SERIAL")
+                        if remote_master_serial:
+                            self.xom.master_serial = remote_master_serial
                         continue
                 elif r.status_code == 202:
                     log.debug("%s: trying again %s\n", r.status_code, url)

@@ -564,6 +564,7 @@ def statusview(request):
             outside_url=status.get('outside-url', 'unknown'),
             master_url=status.get('master-url'),
             master_uuid=status.get('master-uuid'),
+            master_serial=status.get('master-serial'),
             serial=status.get('serial', 'unknown'),
             event_serial=status.get('event-serial', 'unknown')),
         replication_errors=replication_errors,

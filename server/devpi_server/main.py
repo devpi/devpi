@@ -156,6 +156,7 @@ class XOM:
             self.set_state_version(server_version)
         self.log = threadlog
         self.polling_replicas = {}
+        self.master_serial = None
 
     def get_state_version(self):
         versionfile = self.config.serverdir.join(".serverversion")

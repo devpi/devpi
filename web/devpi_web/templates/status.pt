@@ -44,6 +44,12 @@
                     <td>${info.master_uuid}</td>
                 </tr>
             </tal:masteruuid>
+            <tal:masterserial condition="info.master_serial">
+                <tr>
+                    <th>Master serial</th>
+                    <td>${info.master_serial}</td>
+                </tr>
+            </tal:masterserial>
             <tr>
                 <th>Current serial</th>
                 <td>${info.serial}</td>
