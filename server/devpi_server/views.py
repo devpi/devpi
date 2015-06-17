@@ -195,8 +195,7 @@ class StatusView:
         self.request = request
         self.xom = request.registry["xom"]
 
-    @view_config(route_name="/+status")
-    def status(self):
+    def _status(self):
         config = self.xom.config
 
         status = {
@@ -222,7 +221,11 @@ class StatusView:
         else:
             status["role"] = "MASTER"
         status["polling_replicas"] = self.xom.polling_replicas
-        apireturn(200, type="status", result=status)
+        return status
+
+    @view_config(route_name="/+status", accept="application/json")
+    def status(self):
+        apireturn(200, type="status", result=self._status())
 
 
 class PyPIView:
