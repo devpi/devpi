@@ -3,6 +3,8 @@
 
 - make replica thread more robust by catching more exceptions
 
+- Remove duplicates in plugin version info
+
 
 2.2.1
 ----------------

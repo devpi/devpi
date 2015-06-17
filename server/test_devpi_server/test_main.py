@@ -96,3 +96,11 @@ def test_main_starts_server_if_run_commands_returns_none(monkeypatch, tmpdir):
             pluginmanager=pm)
     assert len(l) == 1
     assert isinstance(l[0], XOM)
+
+
+def test_version_info(xom):
+    app = xom.create_app()
+    counts = {}
+    for name, version in app.app.registry['devpi_version_info']:
+        counts[name] = counts.get(name, 0) + 1
+    assert counts['devpi-server'] == 1
