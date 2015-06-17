@@ -229,6 +229,27 @@ class StatusView:
         apireturn(200, type="status", result=self._status())
 
 
+def devpiweb_get_status_info(request):
+    msgs = []
+    status = StatusView(request)._status()
+    # TODO we should track timestamps, so we can determine how far behind we are
+    if status["role"] == "REPLICA":
+        master_serial = status["master-serial"]
+        if master_serial is not None:
+            try:
+                master_serial = int(master_serial)
+            except ValueError:
+                master_serial = None
+        if master_serial is not None and master_serial > status["serial"]:
+            msgs.append(dict(status="warn", msg="Replica is behind master"))
+        else:
+            if len(status["replication-errors"]):
+                msgs.append(dict(status="fatal", msg="Unhandled replication errors"))
+    if status["serial"] > status["event-serial"]:
+        msgs.append(dict(status="warn", msg="Not all changes processed by plugins yet"))
+    return msgs
+
+
 class PyPIView:
     def __init__(self, request):
         self.request = request
