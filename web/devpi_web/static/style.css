@@ -466,6 +466,18 @@ table .file_history li:last-child {
     padding: 0.4em;
 }
 
+table.status th {
+    text-align: left;
+}
+
+dl.status dt {
+    font-weight: bold;
+}
+
+dl.status dd {
+    margin-bottom: 0.5em;
+}
+
 @media (max-width:1199px) {
     form#search input {
         font-size: 18px;
