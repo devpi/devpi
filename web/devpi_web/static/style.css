@@ -32,6 +32,36 @@ form, #content, #navigation, .searchresults {
     padding: 0.25em 0 0.25em 0;
 }
 
+#serverstatus {
+    padding: 1em;
+    margin: 1em;
+    box-sizing: border-box;
+}
+
+#serverstatus ul {
+    padding: 0;
+    margin: 0 0 0 1em;
+}
+
+#serverstatus li {
+    padding: 0;
+    margin: 0;
+}
+
+#serverstatus.fatal {
+    background-color: #bf4545;
+    color: white;
+}
+
+#serverstatus.warn {
+    background-color: #bfa047;
+    color: white;
+}
+
+#serverstatus a {
+    font-size: 12px;
+}
+
 footer {
     margin: 0 1em;
 }

@@ -12,6 +12,17 @@
     <metal:headcss use-macro="request.macros['headcss']" />
     <metal:headscript use-macro="request.macros['headscript']" />
 </metal:head>
+<metal:status define-macro="status">
+    <div id="serverstatus" class="${request.status_info.status}"
+         tal:condition="request.status_info.status == 'fatal'">
+        <ul>
+            <li tal:repeat="msg request.status_info.msgs">${msg.msg}</li>
+        </ul>
+        <a href="${request.status_info.url}">
+            Server status ...
+        </a>
+    </div>
+</metal:status>
 <metal:search define-macro="logo">
     <h1><a href="${request.route_url('root')}">devpi</a></h1>
 </metal:search>
@@ -47,6 +58,7 @@
             <a href="${request.route_url('search_help')}">How to search?</a>
         </span>
     </div>
+    <metal:status use-macro="request.macros['status']" />
 </metal:search>
 <metal:query_doc define-macro="query_doc">
     <p tal:repeat="html request.query_docs_html" tal:content="structure html"></p>
