@@ -51,6 +51,12 @@
 <metal:query_doc define-macro="query_doc">
     <p tal:repeat="html request.query_docs_html" tal:content="structure html"></p>
 </metal:query_doc>
+<metal:statusbadge define-macro="statusbadge">
+    <a class="footer-statusbadge ${request.status_info.status}"
+       href="${request.status_info.url}">
+        ${request.status_info.short_msg}
+    </a>
+</metal:statusbadge>
 <metal:versions define-macro="versions">
     <ul class="footer-versions"
         tal:define="version_infos request.registry.get('devpi_version_info')"
@@ -61,6 +67,7 @@
 <metal:footer define-macro="footer">
     <footer>
         <metal:footer define-slot="footer" />
+        <metal:statusbadge use-macro="request.macros['statusbadge']" />
         <metal:versions use-macro="request.macros['versions']" />
     </footer>
 </metal:footer>

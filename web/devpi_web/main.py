@@ -84,6 +84,26 @@ def navigation_info(request):
     return result
 
 
+def status_info(request):
+    msgs = []
+    pm = request.registry['devpiweb-pluginmanager']
+    for result in pm.hook.devpiweb_get_status_info(request=request):
+        for msg in result:
+            msgs.append(msg)
+    states = set(x['status'] for x in msgs)
+    if 'fatal' in states:
+        status = 'fatal'
+        short_msg = 'fatal'
+    elif 'warn' in states:
+        status = 'warn'
+        short_msg = 'degraded'
+    else:
+        status = 'ok'
+        short_msg = 'ok'
+    url = request.route_url('/+status')
+    return dict(status=status, short_msg=short_msg, msgs=msgs, url=url)
+
+
 def query_docs_html(request):
     search_index = request.registry['search_index']
     return search_index.get_query_parser_html_help()
@@ -146,6 +166,7 @@ def includeme(config):
         "/{user}/{index}/{name}/{version}/+toxresults/{basename}/{toxresult}")
     config.add_request_method(macros, reify=True)
     config.add_request_method(navigation_info, reify=True)
+    config.add_request_method(status_info, reify=True)
     config.add_request_method(query_docs_html, reify=True)
     config.registry['devpiweb-pluginmanager'] = get_pluginmanager()
     config.scan()
