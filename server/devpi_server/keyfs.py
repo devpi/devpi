@@ -14,6 +14,7 @@ from . import mythread
 from .log import threadlog, thread_push_log, thread_pop_log
 import os
 import sys
+import time
 from repoze.lru import LRUCache
 import sqlite3
 
@@ -81,6 +82,7 @@ class Filesystem:
         self.basedir = basedir
         self._notify_on_commit = notify_on_commit
         self._changelog_cache = LRUCache(1000)  # is thread safe
+        self.last_commit_timestamp = time.time()
         with self.get_sqlconn() as conn:
             row = conn.execute("select max(serial) from changelog").fetchone()
             serial = row[0]
@@ -235,6 +237,7 @@ class FSWriter:
         # - initialize next_serial from the max committed serial + 1
         files_commit, files_del = commit_renames(basedir, rel_renames)
         self.fs.next_serial += 1
+        self.fs.last_commit_timestamp = time.time()
         return list(self.changes), files_commit, files_del
 
 
@@ -303,6 +306,7 @@ class TxNotificationThread:
         self.cv_new_transaction = mythread.threading.Condition()
         self.cv_new_event_serial = mythread.threading.Condition()
         self.event_serial_path = str(self.keyfs.basedir.join(".event_serial"))
+        self.event_serial_in_sync_at = None
         self._on_key_change = {}
 
     def on_key_change(self, key, subscriber):
@@ -330,6 +334,13 @@ class TxNotificationThread:
         # processed" instead of the now "last processed event serial"
         return read_int_from_file(self.event_serial_path, 0) - 1
 
+    @property
+    def event_serial_timestamp(self):
+        f = py.path.local(self.event_serial_path)
+        if not f.exists():
+            return
+        return f.stat().mtime
+
     def write_event_serial(self, event_serial):
         write_int_to_file(event_serial + 1, self.event_serial_path)
 
@@ -352,7 +363,10 @@ class TxNotificationThread:
                 with self.cv_new_event_serial:
                     self.write_event_serial(event_serial)
                     self.cv_new_event_serial.notify_all()
-            if event_serial >= self.keyfs.get_current_serial():
+            serial = self.keyfs.get_current_serial()
+            if event_serial >= serial:
+                if event_serial == serial:
+                    self.event_serial_in_sync_at = time.time()
                 with self.cv_new_transaction:
                     self.cv_new_transaction.wait()
                     self.thread.exit_if_shutdown()
@@ -430,6 +444,9 @@ class KeyFS(object):
 
     def get_current_serial(self):
         return self._fs.next_serial - 1
+
+    def get_last_commit_timestamp(self):
+        return self._fs.last_commit_timestamp
 
     @property
     def tx(self):

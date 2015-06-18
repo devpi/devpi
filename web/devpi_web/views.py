@@ -176,6 +176,18 @@ def format_timetuple(tt):
         return "{0}-{1:02d}-{2:02d} {3:02d}:{4:02d}:{5:02d}".format(*tt)
 
 
+def format_timestamp(ts, unset_value=None):
+    orig = ts
+    if ts is None:
+        ts = unset_value
+    try:
+        if ts is not None:
+            ts = format_timetuple(gmtime(ts)[:6])
+    except (ValueError, TypeError):
+        pass
+    return ts
+
+
 _what_map = dict(
     overwrite="Replaced",
     push="Pushed",
@@ -544,18 +556,14 @@ def statusview(request):
     polling_replicas = []
     for replica_uuid in sorted(_polling_replicas):
         replica = _polling_replicas[replica_uuid]
-        last_request = replica.get('last-request', 'unknown')
-        try:
-            last_request = format_timetuple(gmtime(last_request)[:6])
-        except (ValueError, TypeError):
-            pass
         polling_replicas.append(dict(
             uuid=replica_uuid,
             remote_ip=replica.get('remote-ip', 'unknown'),
             outside_url=replica.get('outside-url', 'unknown'),
             serial=replica.get('serial', 'unknown'),
             in_request=replica.get('in-request', 'unknown'),
-            last_request=last_request))
+            last_request=format_timestamp(
+                replica.get('last-request', 'unknown'))))
     return dict(
         msgs=request.status_info['msgs'],
         info=dict(
@@ -565,8 +573,19 @@ def statusview(request):
             master_url=status.get('master-url'),
             master_uuid=status.get('master-uuid'),
             master_serial=status.get('master-serial'),
+            master_serial_timestamp=format_timestamp(
+                status.get('master-serial-timestamp')),
+            replica_in_sync_at=format_timestamp(
+                status.get('replica-in-sync-at'), unset_value="never"),
             serial=status.get('serial', 'unknown'),
-            event_serial=status.get('event-serial', 'unknown')),
+            last_commit_timestamp=format_timestamp(
+                status.get('last-commit-timestamp', 'unknown')),
+            event_serial=status.get('event-serial', 'unknown'),
+            event_serial_timestamp=format_timestamp(
+                status.get('event-serial-timestamp', 'unknown')),
+            event_serial_in_sync_at=format_timestamp(
+                status.get('event-serial-in-sync-at', 'unknown'),
+                unset_value="never")),
         replication_errors=replication_errors,
         polling_replicas=polling_replicas)
 

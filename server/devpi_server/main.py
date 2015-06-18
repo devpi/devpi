@@ -7,6 +7,7 @@ from __future__ import unicode_literals
 
 import os, sys
 import py
+import time
 
 from devpi_common.types import cached_property
 from devpi_common.request import new_requests_session
@@ -140,6 +141,7 @@ def wsgi_run(xom, app):
         pass
     return 0
 
+
 class XOM:
     class Exiting(SystemExit):
         pass
@@ -156,7 +158,29 @@ class XOM:
             self.set_state_version(server_version)
         self.log = threadlog
         self.polling_replicas = {}
-        self.master_serial = None
+        self._master_serial = None
+        self.master_serial_timestamp = None
+        self.replica_in_sync_at = None
+
+    @property
+    def master_serial(self):
+        return self._master_serial
+
+    @master_serial.setter
+    def master_serial(self, serial):
+        if serial is None:
+            return
+        try:
+            serial = int(serial)
+        except ValueError:
+            return
+        now = time.time()
+        if self.keyfs.get_current_serial() == serial:
+            self.replica_in_sync_at = now
+        if self._master_serial == serial:
+            return
+        self._master_serial = serial
+        self.master_serial_timestamp = now
 
     def get_state_version(self):
         versionfile = self.config.serverdir.join(".serverversion")

@@ -16,7 +16,9 @@
     <div id="serverstatus" class="${request.status_info.status}"
          tal:condition="request.status_info.status == 'fatal'">
         <ul>
-            <li tal:repeat="msg request.status_info.msgs">${msg.msg}</li>
+            <tal:msgs repeat="msg request.status_info.msgs">
+                <li tal:condition="msg.status == 'fatal'">${msg.msg}</li>
+            </tal:msgs>
         </ul>
         <a href="${request.status_info.url}">
             Server status ...

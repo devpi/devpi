@@ -468,6 +468,11 @@ table .file_history li:last-child {
 
 table.status th {
     text-align: left;
+    vertical-align: top;
+}
+
+table.status th, table.status td {
+    padding-bottom: 4px;
 }
 
 dl.status dt {

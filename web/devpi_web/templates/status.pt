@@ -47,16 +47,27 @@
             <tal:masterserial condition="info.master_serial">
                 <tr>
                     <th>Master serial</th>
-                    <td>${info.master_serial}</td>
+                    <td>
+                        ${info.master_serial}<br />
+                        last time changed <span class="timestamp">${info.master_serial_timestamp}</span><br />
+                        last in sync <span class="timestamp">${info.replica_in_sync_at}</span>
+                    </td>
                 </tr>
             </tal:masterserial>
             <tr>
                 <th>Current serial</th>
-                <td>${info.serial}</td>
+                <td>
+                    ${info.serial}<br />
+                    last time changed <span class="timestamp">${info.last_commit_timestamp}</span><br />
+                </td>
             </tr>
             <tr>
                 <th>Processed events serial</th>
-                <td>${info.event_serial}</td>
+                <td>
+                    ${info.event_serial}<br />
+                    last time processed <span class="timestamp">${info.event_serial_timestamp}</span><br />
+                    last in sync <span class="timestamp">${info.event_serial_in_sync_at}</span>
+                </td>
             </tr>
         </table>
         <tal:replicationerrors condition="replication_errors">
