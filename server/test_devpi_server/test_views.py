@@ -506,7 +506,8 @@ class TestSubmitValidation:
         assert path1 == path2
         r = testapp.xget(200, path2)
         assert r.body == b'123'
-        r = testapp.xget(200, "%s/Pkg5/2.6" % mapp.api.index)
+        r = testapp.xget(200, "%s/Pkg5/2.6" % mapp.api.index,
+                         accept="application/json")
         links = r.json['result']['+links']
         assert len(links) == 2
         for link in links:
@@ -528,7 +529,8 @@ class TestSubmitValidation:
         path2, = mapp.get_release_paths("Pkg5")
         testapp.xget(410, path1)  # existed once but deleted during overwrite
         testapp.xget(200, path2)
-        r = testapp.xget(200, "%s/Pkg5/2.6" % mapp.api.index)
+        r = testapp.xget(200, "%s/Pkg5/2.6" % mapp.api.index,
+                         accept="application/json")
         links = r.json['result']['+links']
         assert len(links) == 2
         for link in links:
@@ -548,7 +550,8 @@ class TestSubmitValidation:
         submit.file("pkg5-2.6.tgz", b"123", {"name": "Pkg5"}, code=200)
         submit.file("pkg5-2.6.tgz", b"1234", {"name": "Pkg5"}, code=200)
         submit.file("pkg5-2.6.tgz", b"12345", {"name": "Pkg5"}, code=200)
-        r = testapp.xget(200, "%s/Pkg5/2.6" % mapp.api.index)
+        r = testapp.xget(200, "%s/Pkg5/2.6" % mapp.api.index,
+                         accept="application/json")
         link, = r.json['result']['+links']
         log1, log2 = link['log']
         assert sorted(log1.keys()) == ['count', 'what', 'when', 'who']
@@ -565,7 +568,8 @@ class TestSubmitValidation:
         mapp.use(old_stage)
         req = dict(name="Pkg5", version="2.6", targetindex=new_stage)
         r = testapp.push("/%s" % old_stage, json.dumps(req))
-        r = testapp.xget(200, "/%s/Pkg5/2.6" % new_stage)
+        r = testapp.xget(200, "/%s/Pkg5/2.6" % new_stage,
+                         accept="application/json")
         link, = r.json['result']['+links']
         # the overwrite info should be gone
         log1, log2 = link['log']
