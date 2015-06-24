@@ -7,7 +7,6 @@ from __future__ import unicode_literals
 
 import os, sys
 import py
-import time
 
 from devpi_common.types import cached_property
 from devpi_common.request import new_requests_session
