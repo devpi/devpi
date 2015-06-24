@@ -158,29 +158,6 @@ class XOM:
             self.set_state_version(server_version)
         self.log = threadlog
         self.polling_replicas = {}
-        self._master_serial = None
-        self.master_serial_timestamp = None
-        self.replica_in_sync_at = None
-
-    @property
-    def master_serial(self):
-        return self._master_serial
-
-    @master_serial.setter
-    def master_serial(self, serial):
-        if serial is None:
-            return
-        try:
-            serial = int(serial)
-        except ValueError:
-            return
-        now = time.time()
-        if self.keyfs.get_current_serial() == serial:
-            self.replica_in_sync_at = now
-        if self._master_serial == serial:
-            return
-        self._master_serial = serial
-        self.master_serial_timestamp = now
 
     def get_state_version(self):
         versionfile = self.config.serverdir.join(".serverversion")
@@ -371,11 +348,11 @@ class XOM:
         app = pyramid_config.make_wsgi_app()
         if self.is_replica():
             from devpi_server.replica import ReplicaThread
-            replica_thread = ReplicaThread(self)
+            self.replica_thread = ReplicaThread(self)
             # the replica thread replays keyfs changes
             # and pypimirror.name2serials changes are discovered
             # and replayed through the PypiProjectChange event
-            self.thread_pool.register(replica_thread)
+            self.thread_pool.register(self.replica_thread)
         else:
             # the master thread directly syncs using the
             # pypi changelog protocol

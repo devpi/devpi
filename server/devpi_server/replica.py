@@ -139,6 +139,30 @@ class ReplicaThread:
         if xom.is_replica():
             xom.keyfs.notifier.on_key_change("PYPILINKS",
                                              PypiProjectChanged(xom))
+        self._master_serial = None
+        self._master_serial_timestamp = None
+        self.replica_in_sync_at = None
+
+    def get_master_serial(self):
+        return self._master_serial
+
+    def get_master_serial_timestamp(self):
+        return self._master_serial_timestamp
+
+    def update_master_serial(self, serial):
+        if serial is None:
+            return
+        try:
+            serial = int(serial)
+        except ValueError:
+            return
+        now = time.time()
+        if self.xom.keyfs.get_current_serial() == serial:
+            self.replica_in_sync_at = now
+        if self._master_serial == serial:
+            return
+        self._master_serial = serial
+        self._master_serial_timestamp = now
 
     def thread_run(self):
         # within a devpi replica server this thread is the only writer
@@ -201,7 +225,7 @@ class ReplicaThread:
                         if not master_uuid:
                             self.xom.config.set_master_uuid(remote_master_uuid)
                         # also record the current master serial for status info
-                        self.xom.master_serial = r.headers.get("X-DEVPI-SERIAL")
+                        self.update_master_serial(r.headers.get("X-DEVPI-SERIAL"))
                         continue
                 elif r.status_code == 202:
                     log.debug("%s: trying again %s\n", r.status_code, url)

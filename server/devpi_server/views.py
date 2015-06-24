@@ -221,9 +221,9 @@ class StatusView:
             status["role"] = "REPLICA"
             status["master-url"] = master_url
             status["master-uuid"] = config.nodeinfo.get("master-uuid")
-            status["master-serial"] = self.xom.master_serial
-            status["master-serial-timestamp"] = self.xom.master_serial_timestamp
-            status["replica-in-sync-at"] = self.xom.replica_in_sync_at
+            status["master-serial"] = self.xom.replica_thread.get_master_serial()
+            status["master-serial-timestamp"] = self.xom.replica_thread.get_master_serial_timestamp()
+            status["replica-in-sync-at"] = self.xom.replica_thread.replica_in_sync_at
             replication_errors = ReplicationErrors(self.xom.config.serverdir)
             status["replication-errors"] = replication_errors.errors
         else:
