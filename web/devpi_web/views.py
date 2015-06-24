@@ -177,7 +177,6 @@ def format_timetuple(tt):
 
 
 def format_timestamp(ts, unset_value=None):
-    orig = ts
     if ts is None:
         ts = unset_value
     try:
@@ -542,11 +541,7 @@ def toxresult(context, request):
     accept="text/html",
     renderer="templates/status.pt")
 def statusview(request):
-    sv = StatusView(request)
-    if hasattr(sv, '_status'):
-        status = sv._status()
-    else:
-        status = {}
+    status = StatusView(request)._status()
     replication_errors = []
     for index, error in enumerate(status.get('replication-errors', {}).values()):
         replication_errors.append(error)

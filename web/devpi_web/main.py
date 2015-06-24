@@ -123,10 +123,11 @@ class ThemeChameleonRendererLookup(ChameleonRendererLookup):
         return ChameleonRendererLookup.__call__(self, info)
 
 
-def get_pluginmanager():
+def get_pluginmanager(load_entry_points=True):
     pm = PluginManager("devpiweb", implprefix="devpiweb_")
     pm.add_hookspecs(hookspecs)
-    pm.load_setuptools_entrypoints("devpi_web")
+    if load_entry_points:
+        pm.load_setuptools_entrypoints("devpi_web")
     pm.check_pending()
     return pm
 

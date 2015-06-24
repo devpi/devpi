@@ -840,12 +840,20 @@ def getsha256(s):
 
 
 @pytest.yield_fixture
-def dummyrequest():
-    from pyramid.testing import DummyRequest, setUp, tearDown
-    request = DummyRequest()
-    setUp(request=request)
-    yield request
+def pyramidconfig():
+    from pyramid.testing import setUp, tearDown
+    config = setUp()
+    yield config
     tearDown()
+
+
+@pytest.yield_fixture
+def dummyrequest(pyramidconfig):
+    from pyramid.testing import DummyRequest
+    request = DummyRequest()
+    pyramidconfig.begin(request=request)
+    yield request
+
 
 @pytest.fixture
 def blank_request():
