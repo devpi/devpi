@@ -117,3 +117,19 @@ Plugins can add key names and default values to the index configuration::
 
         It's best to use the plugin name as prefix to avoid clashes between
         key names in different plugins."""
+
+
+devpi-web plugin hooks (experimental)
+============================================
+
+hook semantics for status messages in web ui
+------------------------------------------------
+
+Plugins can show server status messages in the web interface::
+
+  def devpiweb_get_status_info(request):
+      """Called on every request to gather status information.
+
+      Returns a list of dictionaries with keys ``status`` and ``msg``, where
+      status is ``warn`` or ``fatal``.
+      """

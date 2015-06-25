@@ -3,6 +3,13 @@
 
 - make replica thread more robust by catching more exceptions
 
+- track timestamps for event processing and replication and expose in /+status
+
+- implement devpiweb_get_status_info hook for devpi-web >= 2.4.0 status messages
+
+- UPGRADE NOTE: if devpi-web is installed, you have to request
+  ``application/json`` for ``/+status``, or you might get a html page.
+
 
 2.2.1
 ----------------

@@ -1,3 +1,16 @@
+2.4.0
+---------------
+
+- fix issue244: server status info
+
+  - added support for status message plugin hook ``devpiweb_get_status_info``
+  - macros.pt: added macros ``status`` (below search) and ``statusbadge`` (in
+    footer)
+  - added status.pt: shows server status information
+
+- toxresults.pt: fix missing closing ``div`` tag.
+
+
 2.3.0
 ---------------
 
