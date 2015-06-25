@@ -334,8 +334,7 @@ class TxNotificationThread:
         # processed" instead of the now "last processed event serial"
         return read_int_from_file(self.event_serial_path, 0) - 1
 
-    @property
-    def event_serial_timestamp(self):
+    def get_event_serial_timestamp(self):
         f = py.path.local(self.event_serial_path)
         if not f.exists():
             return

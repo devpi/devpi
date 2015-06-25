@@ -305,6 +305,96 @@ class TestStatus:
         assert data["replication-errors"] == {}
 
 
+class TestStatusInfoPlugin:
+    @pytest.fixture
+    def plugin(self):
+        from devpi_server.views import devpiweb_get_status_info
+        return devpiweb_get_status_info
+
+    def _xomrequest(self, xom):
+        from pyramid.request import Request
+        request = Request.blank("/blankpath")
+        request.registry = dict(
+            xom=xom,
+            devpi_version_info=[])
+        return request
+
+    @pytest.mark.with_notifier
+    def test_no_issue(self, plugin, xom):
+        request = self._xomrequest(xom)
+        serial = xom.keyfs.get_current_serial()
+        xom.keyfs.notifier.wait_event_serial(serial)
+        result = plugin(request)
+        assert not xom.is_replica()
+        assert result == []
+
+    @pytest.mark.with_replica_thread
+    @pytest.mark.with_notifier
+    def test_no_issue_replica(self, plugin, xom):
+        request = self._xomrequest(xom)
+        serial = xom.keyfs.get_current_serial()
+        xom.keyfs.notifier.wait_event_serial(serial)
+        result = plugin(request)
+        assert hasattr(xom, 'replica_thread')
+        assert xom.is_replica()
+        assert result == []
+
+    def test_events_lagging(self, plugin, xom, monkeypatch):
+        import time
+        now = time.time()
+        request = self._xomrequest(xom)
+        # fatal if events never processed
+        result = plugin(request)
+        assert result == [dict(
+            status='fatal',
+            msg='Not all changes processed by plugins for more than 5 minutes')]
+        # fake first event processed
+        xom.keyfs.notifier.write_event_serial(0)
+        xom.keyfs.notifier.event_serial_in_sync_at = now
+        # no report in the first minute
+        result = plugin(request)
+        assert result == []
+        # warning after one minute
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 70)
+        result = plugin(request)
+        assert result == [dict(
+            status='warn',
+            msg='Not all changes processed by plugins for more than 1 minute')]
+        # fatal after five minutes
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 310)
+        result = plugin(request)
+        assert result == [dict(
+            status='fatal',
+            msg='Not all changes processed by plugins for more than 5 minutes')]
+
+    def test_replica_lagging(self, plugin, makexom, monkeypatch):
+        from devpi_server.replica import ReplicaThread
+        import time
+        now = time.time()
+        xom = makexom(["--master=http://localhost"])
+        request = self._xomrequest(xom)
+        xom.replica_thread = ReplicaThread(xom)
+        assert xom.is_replica()
+        # fake first serial processed
+        xom.replica_thread.update_master_serial(0)
+        xom.replica_thread.replica_in_sync_at = now
+        # no report in the first minute
+        result = plugin(request)
+        assert result == []
+        # warning after one minute
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 70)
+        result = plugin(request)
+        assert result == [dict(
+            status='warn',
+            msg='Replica is behind master for more than 1 minute')]
+        # fatal after five minutes
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 310)
+        result = plugin(request)
+        assert result == [dict(
+            status='fatal',
+            msg='Replica is behind master for more than 5 minutes')]
+
+
 def test_apiconfig_with_outside_url(testapp):
     testapp.xom.config.args.outside_url = u = "http://outside.com"
     r = testapp.get_json("/root/pypi/+api")

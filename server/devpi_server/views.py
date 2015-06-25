@@ -211,7 +211,7 @@ class StatusView:
             "last-commit-timestamp": self.xom.keyfs.get_last_commit_timestamp(),
             "event-serial": self.xom.keyfs.notifier.read_event_serial(),
             "event-serial-timestamp":
-                self.xom.keyfs.notifier.event_serial_timestamp,
+                self.xom.keyfs.notifier.get_event_serial_timestamp(),
             "event-serial-in-sync-at":
                 self.xom.keyfs.notifier.event_serial_in_sync_at,
         }
@@ -240,7 +240,6 @@ def devpiweb_get_status_info(request):
     msgs = []
     status = StatusView(request)._status()
     now = time()
-    # TODO we should track timestamps, so we can determine how far behind we are
     if status["role"] == "REPLICA":
         master_serial = status["master-serial"]
         if master_serial is not None and master_serial > status["serial"]:
