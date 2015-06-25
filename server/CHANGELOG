@@ -3,6 +3,8 @@
 
 - make replica thread more robust by catching more exceptions
 
+- Remove duplicates in plugin version info
+
 - track timestamps for event processing and replication and expose in /+status
 
 - implement devpiweb_get_status_info hook for devpi-web >= 2.4.0 status messages
