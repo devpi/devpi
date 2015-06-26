@@ -5,7 +5,7 @@ setup(
     name="devpi-web",
     description="devpi-web: a web view for devpi-server",
     url="http://doc.devpi.net",
-    version='2.3.1.dev0',
+    version='2.4.0.dev0',
     maintainer="Holger Krekel, Florian Schulze",
     maintainer_email="holger@merlinux.eu",
     license="MIT",
@@ -26,7 +26,7 @@ setup(
     install_requires=[
         'Whoosh',
         'beautifulsoup4>=4.3.2',
-        'devpi-server>=2.2.0.dev0',
+        'devpi-server>=2.2.2.dev0',
         'devpi-common>=2.0.5.dev0',
         'docutils>=0.11',
         'pygments>=1.6',

@@ -155,6 +155,8 @@ def makexom(request, gentmp, httpget, monkeypatch, mock):
             pm.register(plugin)
         serverdir = gentmp()
         fullopts = ["devpi-server", "--serverdir", serverdir] + list(opts)
+        if request.node.get_marker("with_replica_thread"):
+            fullopts.append("--master=http://localhost")
         fullopts = [str(x) for x in fullopts]
         config = parseoptions(pm, fullopts)
         config.init_nodeinfo()
@@ -173,6 +175,12 @@ def makexom(request, gentmp, httpget, monkeypatch, mock):
                 set_default_indexes(xom.model)
         if mocking:
             xom.pypimirror.init_pypi_mirror(proxy)
+        if request.node.get_marker("with_replica_thread"):
+            from devpi_server.replica import ReplicaThread
+            rt = ReplicaThread(xom)
+            xom.replica_thread = rt
+            xom.thread_pool.register(rt)
+            xom.thread_pool.start_one(rt)
         if request.node.get_marker("start_threads"):
             xom.thread_pool.start()
         elif request.node.get_marker("with_notifier"):
@@ -840,12 +848,20 @@ def getsha256(s):
 
 
 @pytest.yield_fixture
-def dummyrequest():
-    from pyramid.testing import DummyRequest, setUp, tearDown
-    request = DummyRequest()
-    setUp(request=request)
-    yield request
+def pyramidconfig():
+    from pyramid.testing import setUp, tearDown
+    config = setUp()
+    yield config
     tearDown()
+
+
+@pytest.yield_fixture
+def dummyrequest(pyramidconfig):
+    from pyramid.testing import DummyRequest
+    request = DummyRequest()
+    pyramidconfig.begin(request=request)
+    yield request
+
 
 @pytest.fixture
 def blank_request():

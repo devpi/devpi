@@ -965,3 +965,147 @@ def test_static_404(testapp):
     assert [x.text for x in r.html.select('#content p')] == [
         u'The following resource could not be found:',
         u'http://localhost/+static/foo.png']
+
+
+class TestStatusView:
+    def _getRouteRequestIface(self, config, name):
+        from pyramid.interfaces import IRouteRequest
+        iface = config.registry.getUtility(IRouteRequest, name)
+        return iface
+
+    def _getViewCallable(self, config, request_iface=None, name=''):
+        from zope.interface import Interface
+        from pyramid.interfaces import IRequest
+        from pyramid.interfaces import IView
+        from pyramid.interfaces import IViewClassifier
+        if request_iface is None:
+            request_iface = IRequest
+        return config.registry.adapters.lookup(
+            (IViewClassifier, request_iface, Interface), IView, name=name,
+            default=None)
+
+    @pytest.fixture
+    def plugin(self):
+        class Plugin:
+            def devpiweb_get_status_info(self, request):
+                result = self.results.pop()
+                if isinstance(result, Exception):
+                    raise result
+                return result
+        return Plugin()
+
+    @pytest.fixture
+    def dummyrequest(self, dummyrequest, plugin, pyramidconfig, xom):
+        from devpi_web.main import get_pluginmanager
+        dummyrequest.registry = pyramidconfig.registry
+        dummyrequest.registry['devpi_version_info'] = []
+        pm = get_pluginmanager(load_entry_points=False)
+        pm.register(plugin)
+        dummyrequest.registry['devpiweb-pluginmanager'] = pm
+        dummyrequest.registry['xom'] = xom
+        dummyrequest.accept = 'text/html'
+        dummyrequest.route_url = lambda r, **kw: "#"
+        dummyrequest.query_docs_html = ''
+        dummyrequest.navigation_info = {'path': ''}
+        return dummyrequest
+
+    @pytest.fixture
+    def statusview(self, dummyrequest, pyramidconfig):
+        from devpi_web.main import macros
+        pyramidconfig.include('pyramid_chameleon')
+        pyramidconfig.add_static_view('+static', 'devpi_web:static')
+        pyramidconfig.add_route("/+status", "/+status")
+        pyramidconfig.scan('devpi_web.views', ignore=lambda n: 'statusview' not in n)
+        dummyrequest.macros = macros(dummyrequest)
+        view = self._getViewCallable(
+            pyramidconfig,
+            request_iface=self._getRouteRequestIface(pyramidconfig, "/+status"))
+        return view
+
+    # def test_exception(self, dummyrequest, plugin):
+    #     from devpi_web.main import status_info
+    #     plugin.results = [ValueError("Foo")]
+    #     result = status_info(dummyrequest)
+
+    def test_nothing(self, dummyrequest, plugin):
+        from devpi_web.main import status_info
+        plugin.results = [[]]
+        result = status_info(dummyrequest)
+        assert result['status'] == 'ok'
+        assert result['short_msg'] == 'ok'
+        assert result['msgs'] == []
+
+    def test_warn(self, dummyrequest, plugin):
+        from devpi_web.main import status_info
+        plugin.results = [[dict(status="warn", msg="Foo")]]
+        result = status_info(dummyrequest)
+        assert result['status'] == 'warn'
+        assert result['short_msg'] == 'degraded'
+        assert result['msgs'] == [{'status': 'warn', 'msg': 'Foo'}]
+
+    def test_fatal(self, dummyrequest, plugin):
+        from devpi_web.main import status_info
+        plugin.results = [[dict(status="fatal", msg="Foo")]]
+        result = status_info(dummyrequest)
+        assert result['status'] == 'fatal'
+        assert result['short_msg'] == 'fatal'
+        assert result['msgs'] == [{'status': 'fatal', 'msg': 'Foo'}]
+
+    @pytest.mark.parametrize("msgs", [
+        [dict(status="warn", msg="Bar"), dict(status="fatal", msg="Foo")],
+        [dict(status="fatal", msg="Foo"), dict(status="warn", msg="Bar")]])
+    def test_mixed(self, dummyrequest, plugin, msgs):
+        from devpi_web.main import status_info
+        plugin.results = [msgs]
+        result = status_info(dummyrequest)
+        assert result['status'] == 'fatal'
+        assert result['short_msg'] == 'fatal'
+        assert result['msgs'] == msgs
+
+    def test_status_macros_nothing(self, dummyrequest, plugin, statusview):
+        from bs4 import BeautifulSoup
+        from devpi_web.main import status_info
+        plugin.results = [[]]
+        dummyrequest.status_info = status_info(dummyrequest)
+        result = statusview(None, dummyrequest)
+        html = BeautifulSoup(result.body, 'html.parser')
+        assert html.select('.statusbadge')[0].text.strip() == 'ok'
+        assert 'ok' in html.select('.statusbadge')[0].attrs['class']
+        assert html.select('#serverstatus') == []
+
+    def test_status_macros_warn(self, dummyrequest, plugin, statusview):
+        from bs4 import BeautifulSoup
+        from devpi_web.main import status_info
+        plugin.results = [[dict(status="warn", msg="Foo")]]
+        dummyrequest.status_info = status_info(dummyrequest)
+        result = statusview(None, dummyrequest)
+        html = BeautifulSoup(result.body, 'html.parser')
+        assert html.select('.statusbadge')[0].text.strip() == 'degraded'
+        assert 'warn' in html.select('.statusbadge')[0].attrs['class']
+        assert html.select('#serverstatus') == []
+
+    def test_status_macros_fatal(self, dummyrequest, plugin, statusview):
+        from bs4 import BeautifulSoup
+        from devpi_web.main import status_info
+        plugin.results = [[dict(status="fatal", msg="Foo")]]
+        dummyrequest.status_info = status_info(dummyrequest)
+        result = statusview(None, dummyrequest)
+        html = BeautifulSoup(result.body, 'html.parser')
+        assert html.select('.statusbadge')[0].text.strip() == 'fatal'
+        assert 'fatal' in html.select('.statusbadge')[0].attrs['class']
+        assert 'Foo' in html.select('#serverstatus')[0].text
+
+    @pytest.mark.parametrize("msgs", [
+        [dict(status="warn", msg="Bar"), dict(status="fatal", msg="Foo")],
+        [dict(status="fatal", msg="Foo"), dict(status="warn", msg="Bar")]])
+    def test_status_macros_mixed(self, dummyrequest, plugin, statusview, msgs):
+        from bs4 import BeautifulSoup
+        from devpi_web.main import status_info
+        plugin.results = [[dict(status="fatal", msg="Foo")]]
+        dummyrequest.status_info = status_info(dummyrequest)
+        result = statusview(None, dummyrequest)
+        html = BeautifulSoup(result.body, 'html.parser')
+        assert html.select('.statusbadge')[0].text.strip() == 'fatal'
+        assert 'fatal' in html.select('.statusbadge')[0].attrs['class']
+        assert 'Bar' not in html.select('#serverstatus')[0].text
+        assert 'Foo' in html.select('#serverstatus')[0].text

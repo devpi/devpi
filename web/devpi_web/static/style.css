@@ -32,9 +32,42 @@ form, #content, #navigation, .searchresults {
     padding: 0.25em 0 0.25em 0;
 }
 
+#serverstatus {
+    padding: 1em;
+    margin: 1em;
+    box-sizing: border-box;
+}
+
+#serverstatus ul {
+    padding: 0;
+    margin: 0 0 0 1em;
+}
+
+#serverstatus li {
+    padding: 0;
+    margin: 0;
+}
+
+#serverstatus.fatal {
+    background-color: #bf4545;
+    color: white;
+}
+
+#serverstatus.warn {
+    background-color: #bfa047;
+    color: white;
+}
+
+#serverstatus a {
+    font-size: 12px;
+}
+
+footer {
+    margin: 0 1em;
+}
+
 ul.footer-versions {
     border-top: 1px solid #ccc;
-    margin: 0 1em;
     padding: 0.5em 0;
     list-style: none;
 }
@@ -46,9 +79,43 @@ ul.footer-versions li {
     color: #888;
 }
 
-.help {
+a.statusbadge {
     position: absolute;
-    right: 1em;
+    right: 1px;
+    display: inline-block;
+    color: white;
+    font-size: 12px;
+    padding: 3px 5px 3px 0;
+    border-radius: 3px;
+    text-shadow: 1px 1px 1px #555555;
+}
+
+a.statusbadge:before {
+    position: relative;
+    left: -1px;
+    content: "server status";
+    background-color: #555555;
+    padding: 3px 5px;
+    border-radius: 3px 0 0 3px;
+    color: white;
+}
+
+a.statusbadge.ok {
+    background-color: #45bf17;
+    color: white;
+    font-size: 12px;
+}
+
+a.statusbadge.warn {
+    background-color: #bfa047;
+    color: white;
+    font-size: 12px;
+}
+
+a.statusbadge.fatal {
+    background-color: #bf4545;
+    color: white;
+    font-size: 12px;
 }
 
 .query_doc.inline {
@@ -81,6 +148,18 @@ form#search input {
 
 form#search input[type=submit] {
     -webkit-appearance: button;
+}
+
+form#search .help {
+    margin-left: 0.5em;
+    font-size: 14px;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.query_doc .help {
+    position: absolute;
+    right: 1em;
 }
 
 .user_index_list dt {
@@ -396,6 +475,23 @@ table .file_history li:last-child {
     padding: 0.4em;
 }
 
+table.status th {
+    text-align: left;
+    vertical-align: top;
+}
+
+table.status th, table.status td {
+    padding-bottom: 4px;
+}
+
+dl.status dt {
+    font-weight: bold;
+}
+
+dl.status dd {
+    margin-bottom: 0.5em;
+}
+
 @media (max-width:1199px) {
     form#search input {
         font-size: 18px;
@@ -406,18 +502,15 @@ table .file_history li:last-child {
     }
 }
 
-@media (max-width:991px) {
+@media (max-width:999px) {
     form#search input[type=text] {
         width: 20em;
     }
 }
 
-@media (max-width:615px) {
+@media (max-width:779px) {
     form#search h1 {
         display: block;
-    }
-    form#search input[type=text] {
-        width: 15em;
     }
     .packageinfo dl {
         width: 100%;
@@ -425,19 +518,31 @@ table .file_history li:last-child {
 }
 
 @media (min-width:780px) {
-    form, #content, #navigation, .searchresults {
+    form#search input[type=text] {
+        width: 420px;
+    }
+
+    form, #content, #navigation, #serverstatus, .searchresults, footer {
         width: 740px;
     }
 }
 
 @media (min-width:1000px) {
-    form, #content, #navigation, .searchresults {
+    form#search input[type=text] {
+        width: 600px;
+    }
+
+    form, #content, #navigation, #serverstatus, .searchresults, footer {
         width: 960px;
     }
 }
 
 @media (min-width:1200px) {
-    form, #content, #navigation, .searchresults {
+    form#search input[type=text] {
+        width: 800px;
+    }
+
+    form, #content, #navigation, #serverstatus, .searchresults, footer {
         width: 1160px;
     }
 }

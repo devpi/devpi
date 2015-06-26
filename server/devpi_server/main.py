@@ -140,6 +140,7 @@ def wsgi_run(xom, app):
         pass
     return 0
 
+
 class XOM:
     class Exiting(SystemExit):
         pass
@@ -347,11 +348,11 @@ class XOM:
         app = pyramid_config.make_wsgi_app()
         if self.is_replica():
             from devpi_server.replica import ReplicaThread
-            replica_thread = ReplicaThread(self)
+            self.replica_thread = ReplicaThread(self)
             # the replica thread replays keyfs changes
             # and pypimirror.name2serials changes are discovered
             # and replayed through the PypiProjectChange event
-            self.thread_pool.register(replica_thread)
+            self.thread_pool.register(self.replica_thread)
         else:
             # the master thread directly syncs using the
             # pypi changelog protocol

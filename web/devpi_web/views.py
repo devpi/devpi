@@ -4,7 +4,7 @@ from devpi_common.metadata import get_pyversion_filetype
 from devpi_common.metadata import get_sorted_versions
 from devpi_common.viewhelp import iter_toxresults
 from devpi_server.log import threadlog as log
-from devpi_server.views import url_for_entrypath
+from devpi_server.views import StatusView, url_for_entrypath
 from devpi_web.description import get_description
 from devpi_web.doczip import Docs, get_unpack_path
 from devpi_web.indexing import is_project_cached
@@ -20,6 +20,7 @@ from pyramid.httpexceptions import default_exceptionresponse_view
 from pyramid.interfaces import IRoutesMapper
 from pyramid.response import FileResponse
 from pyramid.view import notfound_view_config, view_config
+from time import gmtime
 import functools
 import json
 import py
@@ -173,6 +174,17 @@ def sizeof_fmt(num):
 def format_timetuple(tt):
     if tt is not None:
         return "{0}-{1:02d}-{2:02d} {3:02d}:{4:02d}:{5:02d}".format(*tt)
+
+
+def format_timestamp(ts, unset_value=None):
+    if ts is None:
+        ts = unset_value
+    try:
+        if ts is not None:
+            ts = format_timetuple(gmtime(ts)[:6])
+    except (ValueError, TypeError):
+        pass
+    return ts
 
 
 _what_map = dict(
@@ -522,6 +534,55 @@ def toxresult(context, request):
         title="%s/: %s-%s toxresult %s" % (
             context.stage.name, context.name, context.version, toxresult),
         toxresults=toxresults)
+
+
+@view_config(
+    route_name="/+status",
+    accept="text/html",
+    renderer="templates/status.pt")
+def statusview(request):
+    status = StatusView(request)._status()
+    replication_errors = []
+    for index, error in enumerate(status.get('replication-errors', {}).values()):
+        replication_errors.append(error)
+        if index >= 10:
+            replication_errors.append(dict(message="More than 10 replication errors."))
+    _polling_replicas = status.get('polling_replicas', {})
+    polling_replicas = []
+    for replica_uuid in sorted(_polling_replicas):
+        replica = _polling_replicas[replica_uuid]
+        polling_replicas.append(dict(
+            uuid=replica_uuid,
+            remote_ip=replica.get('remote-ip', 'unknown'),
+            outside_url=replica.get('outside-url', 'unknown'),
+            serial=replica.get('serial', 'unknown'),
+            in_request=replica.get('in-request', 'unknown'),
+            last_request=format_timestamp(
+                replica.get('last-request', 'unknown'))))
+    return dict(
+        msgs=request.status_info['msgs'],
+        info=dict(
+            uuid=status.get('uuid', 'unknown'),
+            role=status.get('role', 'unknown'),
+            outside_url=status.get('outside-url', 'unknown'),
+            master_url=status.get('master-url'),
+            master_uuid=status.get('master-uuid'),
+            master_serial=status.get('master-serial'),
+            master_serial_timestamp=format_timestamp(
+                status.get('master-serial-timestamp')),
+            replica_in_sync_at=format_timestamp(
+                status.get('replica-in-sync-at'), unset_value="never"),
+            serial=status.get('serial', 'unknown'),
+            last_commit_timestamp=format_timestamp(
+                status.get('last-commit-timestamp', 'unknown')),
+            event_serial=status.get('event-serial', 'unknown'),
+            event_serial_timestamp=format_timestamp(
+                status.get('event-serial-timestamp', 'unknown')),
+            event_serial_in_sync_at=format_timestamp(
+                status.get('event-serial-in-sync-at', 'unknown'),
+                unset_value="never")),
+        replication_errors=replication_errors,
+        polling_replicas=polling_replicas)
 
 
 def batch_list(num, current, left=3, right=3):

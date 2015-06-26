@@ -1,0 +1,117 @@
+<html>
+    <head>
+        <title>Status</title>
+        <metal:head use-macro="request.macros['head']" />
+    </head>
+    <body>
+        <metal:search use-macro="request.macros['navigation']" />
+        <div id="content">
+        <h1>Status</h1>
+
+        <tal:msgs condition="msgs">
+            <h2>Status messages</h2>
+            <ul>
+                <li tal:repeat="msg msgs">
+                    <span tal:condition="msg.status == 'warn'">Warning:</span>
+                    <span tal:condition="msg.status == 'fatal'">Error:</span>
+                    ${msg.msg}
+                </li>
+            </ul>
+        </tal:msgs>
+        <h2>Info</h2>
+        <table class="status">
+            <tr>
+                <th>UUID</th>
+                <td>${info.uuid}</td>
+            </tr>
+            <tr>
+                <th>Outside URL</th>
+                <td>${info.outside_url}</td>
+            </tr>
+            <tr>
+                <th>Role</th>
+                <td>${info.role}</td>
+            </tr>
+            <tal:masterurl condition="info.master_url">
+                <tr>
+                    <th>Master URL</th>
+                    <td>${info.master_url}</td>
+                </tr>
+            </tal:masterurl>
+            <tal:masteruuid condition="info.master_uuid">
+                <tr>
+                    <th>Master UUID</th>
+                    <td>${info.master_uuid}</td>
+                </tr>
+            </tal:masteruuid>
+            <tal:masterserial condition="info.master_serial">
+                <tr>
+                    <th>Master serial</th>
+                    <td>
+                        ${info.master_serial}<br />
+                        last time changed <span class="timestamp">${info.master_serial_timestamp}</span><br />
+                        last in sync <span class="timestamp">${info.replica_in_sync_at}</span>
+                    </td>
+                </tr>
+            </tal:masterserial>
+            <tr>
+                <th>Current serial</th>
+                <td>
+                    ${info.serial}<br />
+                    last time changed <span class="timestamp">${info.last_commit_timestamp}</span><br />
+                </td>
+            </tr>
+            <tr>
+                <th>Processed events serial</th>
+                <td>
+                    ${info.event_serial}<br />
+                    last time processed <span class="timestamp">${info.event_serial_timestamp}</span><br />
+                    last in sync <span class="timestamp">${info.event_serial_in_sync_at}</span>
+                </td>
+            </tr>
+        </table>
+        <tal:replicationerrors condition="replication_errors">
+            <h2>Replication errors</h2>
+            <ul>
+                <li tal:repeat="error replication_errors">
+                    <span tal:replace="error.get('relurl', '')" />
+                    ${error.message}
+                </li>
+            </ul>
+        </tal:replicationerrors>
+        <tal:pollingreplicas condition="polling_replicas">
+            <h2>Polling replicas</h2>
+            <dl class="status">
+                <tal:replica repeat="replica polling_replicas">
+                    <dt>${replica.uuid}</dt>
+                    <dd>
+                        <table class="status">
+                            <tr>
+                                <th>Remote IP</th>
+                                <td>${replica.remote_ip}</td>
+                            </tr>
+                            <tr>
+                                <th>Outside URL</th>
+                                <td>${replica.outside_url}</td>
+                            </tr>
+                            <tr>
+                                <th>Serial</th>
+                                <td>${replica.serial}</td>
+                            </tr>
+                            <tr>
+                                <th>In request</th>
+                                <td>${replica.in_request}</td>
+                            </tr>
+                            <tr>
+                                <th>Last request</th>
+                                <td class="timestamp">${replica.last_request}</td>
+                            </tr>
+                        </table>
+                    </dd>
+                </tal:replica>
+            </dl>
+        </tal:pollingreplicas>
+        </div>
+        <metal:footer use-macro="request.macros['footer']" />
+    </body>
+</html>

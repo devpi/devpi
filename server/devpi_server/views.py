@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import os
 import py
+from time import time
 from py.xml import html
 from devpi_common.types import ensure_unicode
 from devpi_common.url import URL
@@ -131,7 +132,6 @@ def route_url(self, *args, **kw):
 
 def tween_request_logging(handler, registry):
     req_count = itertools.count()
-    from time import time
 
     nodeinfo = registry["xom"].config.nodeinfo
 
@@ -195,8 +195,7 @@ class StatusView:
         self.request = request
         self.xom = request.registry["xom"]
 
-    @view_config(route_name="/+status")
-    def status(self):
+    def _status(self):
         config = self.xom.config
 
         status = {
@@ -209,7 +208,12 @@ class StatusView:
             "port": config.args.port,
             "outside-url": config.args.outside_url,
             "serial": self.xom.keyfs.get_current_serial(),
+            "last-commit-timestamp": self.xom.keyfs.get_last_commit_timestamp(),
             "event-serial": self.xom.keyfs.notifier.read_event_serial(),
+            "event-serial-timestamp":
+                self.xom.keyfs.notifier.get_event_serial_timestamp(),
+            "event-serial-in-sync-at":
+                self.xom.keyfs.notifier.event_serial_in_sync_at,
         }
         master_url = config.args.master_url
         if master_url:
@@ -217,12 +221,41 @@ class StatusView:
             status["role"] = "REPLICA"
             status["master-url"] = master_url
             status["master-uuid"] = config.nodeinfo.get("master-uuid")
+            status["master-serial"] = self.xom.replica_thread.get_master_serial()
+            status["master-serial-timestamp"] = self.xom.replica_thread.get_master_serial_timestamp()
+            status["replica-in-sync-at"] = self.xom.replica_thread.replica_in_sync_at
             replication_errors = ReplicationErrors(self.xom.config.serverdir)
             status["replication-errors"] = replication_errors.errors
         else:
             status["role"] = "MASTER"
         status["polling_replicas"] = self.xom.polling_replicas
-        apireturn(200, type="status", result=status)
+        return status
+
+    @view_config(route_name="/+status", accept="application/json")
+    def status(self):
+        apireturn(200, type="status", result=self._status())
+
+
+def devpiweb_get_status_info(request):
+    msgs = []
+    status = StatusView(request)._status()
+    now = time()
+    if status["role"] == "REPLICA":
+        master_serial = status["master-serial"]
+        if master_serial is not None and master_serial > status["serial"]:
+            if status["replica-in-sync-at"] is None or (now - status["replica-in-sync-at"]) > 300:
+                msgs.append(dict(status="fatal", msg="Replica is behind master for more than 5 minutes"))
+            elif (now - status["replica-in-sync-at"]) > 60:
+                msgs.append(dict(status="warn", msg="Replica is behind master for more than 1 minute"))
+        else:
+            if len(status["replication-errors"]):
+                msgs.append(dict(status="fatal", msg="Unhandled replication errors"))
+    if status["serial"] > status["event-serial"]:
+        if status["event-serial-in-sync-at"] is None or (now - status["event-serial-in-sync-at"]) > 300:
+            msgs.append(dict(status="fatal", msg="Not all changes processed by plugins for more than 5 minutes"))
+        elif (now - status["event-serial-in-sync-at"]) > 60:
+            msgs.append(dict(status="warn", msg="Not all changes processed by plugins for more than 1 minute"))
+    return msgs
 
 
 class PyPIView:
