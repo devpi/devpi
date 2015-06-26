@@ -1069,8 +1069,8 @@ class TestStatusView:
         dummyrequest.status_info = status_info(dummyrequest)
         result = statusview(None, dummyrequest)
         html = BeautifulSoup(result.body, 'html.parser')
-        assert html.select('.footer-statusbadge')[0].text.strip() == 'ok'
-        assert 'ok' in html.select('.footer-statusbadge')[0].attrs['class']
+        assert html.select('.statusbadge')[0].text.strip() == 'ok'
+        assert 'ok' in html.select('.statusbadge')[0].attrs['class']
         assert html.select('#serverstatus') == []
 
     def test_status_macros_warn(self, dummyrequest, plugin, statusview):
@@ -1080,8 +1080,8 @@ class TestStatusView:
         dummyrequest.status_info = status_info(dummyrequest)
         result = statusview(None, dummyrequest)
         html = BeautifulSoup(result.body, 'html.parser')
-        assert html.select('.footer-statusbadge')[0].text.strip() == 'degraded'
-        assert 'warn' in html.select('.footer-statusbadge')[0].attrs['class']
+        assert html.select('.statusbadge')[0].text.strip() == 'degraded'
+        assert 'warn' in html.select('.statusbadge')[0].attrs['class']
         assert html.select('#serverstatus') == []
 
     def test_status_macros_fatal(self, dummyrequest, plugin, statusview):
@@ -1091,8 +1091,8 @@ class TestStatusView:
         dummyrequest.status_info = status_info(dummyrequest)
         result = statusview(None, dummyrequest)
         html = BeautifulSoup(result.body, 'html.parser')
-        assert html.select('.footer-statusbadge')[0].text.strip() == 'fatal'
-        assert 'fatal' in html.select('.footer-statusbadge')[0].attrs['class']
+        assert html.select('.statusbadge')[0].text.strip() == 'fatal'
+        assert 'fatal' in html.select('.statusbadge')[0].attrs['class']
         assert 'Foo' in html.select('#serverstatus')[0].text
 
     @pytest.mark.parametrize("msgs", [
@@ -1105,7 +1105,7 @@ class TestStatusView:
         dummyrequest.status_info = status_info(dummyrequest)
         result = statusview(None, dummyrequest)
         html = BeautifulSoup(result.body, 'html.parser')
-        assert html.select('.footer-statusbadge')[0].text.strip() == 'fatal'
-        assert 'fatal' in html.select('.footer-statusbadge')[0].attrs['class']
+        assert html.select('.statusbadge')[0].text.strip() == 'fatal'
+        assert 'fatal' in html.select('.statusbadge')[0].attrs['class']
         assert 'Bar' not in html.select('#serverstatus')[0].text
         assert 'Foo' in html.select('#serverstatus')[0].text

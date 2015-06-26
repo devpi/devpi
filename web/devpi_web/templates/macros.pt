@@ -33,6 +33,9 @@
         <metal:search use-macro="request.macros['logo']" />
         <input type="text" size="60" name="query" autofocus tal:attributes="value query|None" />
         <input type="submit" value="Search" />
+        <span class="help">
+            <a href="${request.route_url('search_help')}">How to<br /> search?</a>
+        </span>
         <div class="query_doc inline" style="display: none">
             <span class="help">
                 <a href="#">Close help</a>
@@ -56,9 +59,7 @@
             <tal:separator condition="not repeat.part.start">»</tal:separator>
             <a href="${part.url}">${part.title}</a>
         </span>
-        <span class="help">
-            <a href="${request.route_url('search_help')}">How to search?</a>
-        </span>
+        <metal:statusbadge use-macro="request.macros['statusbadge']" />
     </div>
     <metal:status use-macro="request.macros['status']" />
 </metal:search>
@@ -66,7 +67,7 @@
     <p tal:repeat="html request.query_docs_html" tal:content="structure html"></p>
 </metal:query_doc>
 <metal:statusbadge define-macro="statusbadge">
-    <a class="footer-statusbadge ${request.status_info.status}"
+    <a class="statusbadge ${request.status_info.status}"
        href="${request.status_info.url}">
         ${request.status_info.short_msg}
     </a>
@@ -81,7 +82,6 @@
 <metal:footer define-macro="footer">
     <footer>
         <metal:footer define-slot="footer" />
-        <metal:statusbadge use-macro="request.macros['statusbadge']" />
         <metal:versions use-macro="request.macros['versions']" />
     </footer>
 </metal:footer>

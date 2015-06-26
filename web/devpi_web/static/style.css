@@ -79,7 +79,9 @@ ul.footer-versions li {
     color: #888;
 }
 
-a.footer-statusbadge {
+a.statusbadge {
+    position: absolute;
+    right: 1px;
     display: inline-block;
     color: white;
     font-size: 12px;
@@ -88,37 +90,32 @@ a.footer-statusbadge {
     text-shadow: 1px 1px 1px #555555;
 }
 
-a.footer-statusbadge:before {
+a.statusbadge:before {
     position: relative;
     left: -1px;
-    content: "status";
+    content: "server status";
     background-color: #555555;
     padding: 3px 5px;
     border-radius: 3px 0 0 3px;
     color: white;
 }
 
-a.footer-statusbadge.ok {
+a.statusbadge.ok {
     background-color: #45bf17;
     color: white;
     font-size: 12px;
 }
 
-a.footer-statusbadge.warn {
+a.statusbadge.warn {
     background-color: #bfa047;
     color: white;
     font-size: 12px;
 }
 
-a.footer-statusbadge.fatal {
+a.statusbadge.fatal {
     background-color: #bf4545;
     color: white;
     font-size: 12px;
-}
-
-.help {
-    position: absolute;
-    right: 1em;
 }
 
 .query_doc.inline {
@@ -151,6 +148,18 @@ form#search input {
 
 form#search input[type=submit] {
     -webkit-appearance: button;
+}
+
+form#search .help {
+    margin-left: 0.5em;
+    font-size: 14px;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.query_doc .help {
+    position: absolute;
+    right: 1em;
 }
 
 .user_index_list dt {
@@ -493,18 +502,15 @@ dl.status dd {
     }
 }
 
-@media (max-width:991px) {
+@media (max-width:999px) {
     form#search input[type=text] {
         width: 20em;
     }
 }
 
-@media (max-width:615px) {
+@media (max-width:779px) {
     form#search h1 {
         display: block;
-    }
-    form#search input[type=text] {
-        width: 15em;
     }
     .packageinfo dl {
         width: 100%;
@@ -512,18 +518,30 @@ dl.status dd {
 }
 
 @media (min-width:780px) {
+    form#search input[type=text] {
+        width: 420px;
+    }
+
     form, #content, #navigation, #serverstatus, .searchresults, footer {
         width: 740px;
     }
 }
 
 @media (min-width:1000px) {
+    form#search input[type=text] {
+        width: 600px;
+    }
+
     form, #content, #navigation, #serverstatus, .searchresults, footer {
         width: 960px;
     }
 }
 
 @media (min-width:1200px) {
+    form#search input[type=text] {
+        width: 800px;
+    }
+
     form, #content, #navigation, #serverstatus, .searchresults, footer {
         width: 1160px;
     }
