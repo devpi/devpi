@@ -394,6 +394,61 @@ class TestStatusInfoPlugin:
             status='fatal',
             msg='Replica is behind master for more than 5 minutes')]
 
+    def test_initial_master_connection(self, plugin, makexom, monkeypatch):
+        from devpi_server.replica import ReplicaThread
+        import time
+        now = time.time()
+        xom = makexom(["--master=http://localhost"])
+        request = self._xomrequest(xom)
+        xom.replica_thread = ReplicaThread(xom)
+        assert xom.is_replica()
+        assert xom.replica_thread.started_at is None
+        # fake replica start
+        xom.replica_thread.started_at = now
+        # no report in the first minute
+        result = plugin(request)
+        assert result == []
+        # warning after one minute
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 70)
+        result = plugin(request)
+        assert result == [dict(
+            status='warn',
+            msg='No contact to master for more than 1 minute')]
+        # fatal after five minutes
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 310)
+        result = plugin(request)
+        assert result == [dict(
+            status='fatal',
+            msg='No contact to master for more than 5 minutes')]
+
+    @pytest.mark.with_replica_thread
+    @pytest.mark.with_notifier
+    def test_no_master_update(self, plugin, xom, monkeypatch):
+        import time
+        now = time.time()
+        request = self._xomrequest(xom)
+        serial = xom.keyfs.get_current_serial()
+        xom.keyfs.notifier.wait_event_serial(serial)
+        assert hasattr(xom, 'replica_thread')
+        assert xom.is_replica()
+        # fake last update
+        xom.replica_thread.update_from_master_at = now
+        # no report in the first minute
+        result = plugin(request)
+        assert result == []
+        # warning after one minute
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 70)
+        result = plugin(request)
+        assert result == [dict(
+            status='warn',
+            msg='No update from master for more than 1 minute')]
+        # fatal after five minutes
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 310)
+        result = plugin(request)
+        assert result == [dict(
+            status='fatal',
+            msg='No update from master for more than 5 minutes')]
+
 
 def test_apiconfig_with_outside_url(testapp):
     testapp.xom.config.args.outside_url = u = "http://outside.com"

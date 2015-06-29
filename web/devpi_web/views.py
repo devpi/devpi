@@ -569,9 +569,13 @@ def statusview(request):
             master_uuid=status.get('master-uuid'),
             master_serial=status.get('master-serial'),
             master_serial_timestamp=format_timestamp(
-                status.get('master-serial-timestamp')),
+                status.get('master-serial-timestamp'), unset_value="never"),
+            replica_started_at=format_timestamp(
+                status.get('replica-started-at')),
             replica_in_sync_at=format_timestamp(
                 status.get('replica-in-sync-at'), unset_value="never"),
+            update_from_master_at=format_timestamp(
+                status.get('update-from-master-at'), unset_value="never"),
             serial=status.get('serial', 'unknown'),
             last_commit_timestamp=format_timestamp(
                 status.get('last-commit-timestamp', 'unknown')),

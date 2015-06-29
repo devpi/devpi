@@ -223,6 +223,9 @@ class StatusView:
             status["master-uuid"] = config.nodeinfo.get("master-uuid")
             status["master-serial"] = self.xom.replica_thread.get_master_serial()
             status["master-serial-timestamp"] = self.xom.replica_thread.get_master_serial_timestamp()
+            status["replica-started-at"] = self.xom.replica_thread.started_at
+            status["master-contacted-at"] = self.xom.replica_thread.master_contacted_at
+            status["update-from-master-at"] = self.xom.replica_thread.update_from_master_at
             status["replica-in-sync-at"] = self.xom.replica_thread.replica_in_sync_at
             replication_errors = ReplicationErrors(self.xom.config.serverdir)
             status["replication-errors"] = replication_errors.errors
@@ -250,6 +253,17 @@ def devpiweb_get_status_info(request):
         else:
             if len(status["replication-errors"]):
                 msgs.append(dict(status="fatal", msg="Unhandled replication errors"))
+        if status["replica-started-at"] is not None:
+            last_update = status["update-from-master-at"]
+            if last_update is None:
+                if (now - status["replica-started-at"]) > 300:
+                    msgs.append(dict(status="fatal", msg="No contact to master for more than 5 minutes"))
+                elif (now - status["replica-started-at"]) > 60:
+                    msgs.append(dict(status="warn", msg="No contact to master for more than 1 minute"))
+            elif (now - last_update) > 300:
+                msgs.append(dict(status="fatal", msg="No update from master for more than 5 minutes"))
+            elif (now - last_update) > 60:
+                msgs.append(dict(status="warn", msg="No update from master for more than 1 minute"))
     if status["serial"] > status["event-serial"]:
         if status["event-serial-in-sync-at"] is None or (now - status["event-serial-in-sync-at"]) > 300:
             msgs.append(dict(status="fatal", msg="Not all changes processed by plugins for more than 5 minutes"))

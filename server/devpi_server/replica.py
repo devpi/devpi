@@ -141,6 +141,9 @@ class ReplicaThread:
                                              PypiProjectChanged(xom))
         self._master_serial = None
         self._master_serial_timestamp = None
+        self.started_at = None
+        self.master_contacted_at = None
+        self.update_from_master_at = None
         self.replica_in_sync_at = None
 
     def get_master_serial(self):
@@ -157,6 +160,7 @@ class ReplicaThread:
         except ValueError:
             return
         now = time.time()
+        self.update_from_master_at = now
         if self.xom.keyfs.get_current_serial() == serial:
             self.replica_in_sync_at = now
         if self._master_serial == serial:
@@ -166,6 +170,7 @@ class ReplicaThread:
 
     def thread_run(self):
         # within a devpi replica server this thread is the only writer
+        self.started_at = time.time()
         log = thread_push_log("[REP]")
         session = self.xom.new_http_session("replica")
         keyfs = self.xom.keyfs
@@ -181,6 +186,7 @@ class ReplicaThread:
             uuid, master_uuid = make_uuid_headers(config.nodeinfo)
             assert uuid != master_uuid
             try:
+                self.master_contacted_at = time.time()
                 r = session.get(url, headers={
                     H_REPLICA_UUID: uuid,
                     H_EXPECTED_MASTER_ID: master_uuid,
@@ -229,6 +235,8 @@ class ReplicaThread:
                         continue
                 elif r.status_code == 202:
                     log.debug("%s: trying again %s\n", r.status_code, url)
+                    # also record the current master serial for status info
+                    self.update_master_serial(r.headers.get("X-DEVPI-SERIAL"))
                     continue
                 else:
                     log.error("%s: failed fetching %s", r.status_code, url)

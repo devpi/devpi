@@ -37,23 +37,24 @@
                     <th>Master URL</th>
                     <td>${info.master_url}</td>
                 </tr>
-            </tal:masterurl>
-            <tal:masteruuid condition="info.master_uuid">
                 <tr>
                     <th>Master UUID</th>
                     <td>${info.master_uuid}</td>
                 </tr>
-            </tal:masteruuid>
-            <tal:masterserial condition="info.master_serial">
+                <tr>
+                    <th>Replica started</th>
+                    <td><span class="timestamp">${info.replica_started_at}</span></td>
+                </tr>
                 <tr>
                     <th>Master serial</th>
                     <td>
                         ${info.master_serial}<br />
                         last time changed <span class="timestamp">${info.master_serial_timestamp}</span><br />
-                        last in sync <span class="timestamp">${info.replica_in_sync_at}</span>
+                        last in sync <span class="timestamp">${info.replica_in_sync_at}</span><br />
+                        last update from master <span class="timestamp">${info.update_from_master_at}</span>
                     </td>
                 </tr>
-            </tal:masterserial>
+            </tal:masterurl>
             <tr>
                 <th>Current serial</th>
                 <td>
