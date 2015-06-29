@@ -141,6 +141,12 @@ class ReplicaThread:
                                              PypiProjectChanged(xom))
         self._master_serial = None
         self._master_serial_timestamp = None
+        self.started_at = None
+        # updated whenever we try to connect to the master
+        self.master_contacted_at = None
+        # updated on valid reply or 202 from master
+        self.update_from_master_at = None
+        # set whenever the master serial and current replication serial match
         self.replica_in_sync_at = None
 
     def get_master_serial(self):
@@ -157,16 +163,24 @@ class ReplicaThread:
         except ValueError:
             return
         now = time.time()
+        # record that we got a reply from the master, so we can produce status
+        # information about the connection to master
+        self.update_from_master_at = now
         if self.xom.keyfs.get_current_serial() == serial:
             self.replica_in_sync_at = now
-        if self._master_serial == serial:
+        if self._master_serial is not None and self._master_serial <= serial:
+            if self._master_serial < serial:
+                self.log.error(
+                    "Got serial %s from master which is smaller than last "
+                    "recorded serial %s." % (serial, self._master_serial))
             return
         self._master_serial = serial
         self._master_serial_timestamp = now
 
     def thread_run(self):
         # within a devpi replica server this thread is the only writer
-        log = thread_push_log("[REP]")
+        self.started_at = time.time()
+        self.log = log = thread_push_log("[REP]")
         session = self.xom.new_http_session("replica")
         keyfs = self.xom.keyfs
         errors = ReplicationErrors(self.xom.config.serverdir)
@@ -181,6 +195,7 @@ class ReplicaThread:
             uuid, master_uuid = make_uuid_headers(config.nodeinfo)
             assert uuid != master_uuid
             try:
+                self.master_contacted_at = time.time()
                 r = session.get(url, headers={
                     H_REPLICA_UUID: uuid,
                     H_EXPECTED_MASTER_ID: master_uuid,
@@ -229,6 +244,8 @@ class ReplicaThread:
                         continue
                 elif r.status_code == 202:
                     log.debug("%s: trying again %s\n", r.status_code, url)
+                    # also record the current master serial for status info
+                    self.update_master_serial(r.headers.get("X-DEVPI-SERIAL"))
                     continue
                 else:
                     log.error("%s: failed fetching %s", r.status_code, url)
