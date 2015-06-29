@@ -163,7 +163,11 @@ class ReplicaThread:
         self.update_from_master_at = now
         if self.xom.keyfs.get_current_serial() == serial:
             self.replica_in_sync_at = now
-        if self._master_serial == serial:
+        if self._master_serial is not None and self._master_serial <= serial:
+            if self._master_serial < serial:
+                self.log.error(
+                    "Got serial %s from master which is smaller than last "
+                    "recorded serial %s." % (serial, self._master_serial))
             return
         self._master_serial = serial
         self._master_serial_timestamp = now
@@ -171,7 +175,7 @@ class ReplicaThread:
     def thread_run(self):
         # within a devpi replica server this thread is the only writer
         self.started_at = time.time()
-        log = thread_push_log("[REP]")
+        self.log = log = thread_push_log("[REP]")
         session = self.xom.new_http_session("replica")
         keyfs = self.xom.keyfs
         errors = ReplicationErrors(self.xom.config.serverdir)
