@@ -142,8 +142,11 @@ class ReplicaThread:
         self._master_serial = None
         self._master_serial_timestamp = None
         self.started_at = None
+        # updated whenever we try to connect to the master
         self.master_contacted_at = None
+        # updated on valid reply or 202 from master
         self.update_from_master_at = None
+        # set whenever the master serial and current replication serial match
         self.replica_in_sync_at = None
 
     def get_master_serial(self):
@@ -160,6 +163,8 @@ class ReplicaThread:
         except ValueError:
             return
         now = time.time()
+        # record that we got a reply from the master, so we can produce status
+        # information about the connection to master
         self.update_from_master_at = now
         if self.xom.keyfs.get_current_serial() == serial:
             self.replica_in_sync_at = now
