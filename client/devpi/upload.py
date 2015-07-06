@@ -4,7 +4,6 @@ import re
 
 import check_manifest
 
-from devpi import log
 from devpi_common.metadata import Version, get_pyversion_filetype
 from devpi_common.archive import zip_dir
 from devpi_common.types import CompareMixin
@@ -246,7 +245,7 @@ class Checkout:
                 dest = newrepo.join(fn)
                 dest.dirpath().ensure(dir=1)
                 source.copy(dest)
-        log.debug("copied %s files to %s", len(files), newrepo)
+        self.hub.debug("copied %s files to %s", len(files), newrepo)
         self.hub.info("%s-exported project to %s -> new CWD" %(
                       self.hasvcs, newrepo))
         return Exported(self.hub, newrepo, self.rootpath)

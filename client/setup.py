@@ -46,7 +46,7 @@ if __name__ == "__main__":
       description="devpi upload/install/... workflow commands for Python "
                   "developers",
       long_description=open("README.rst").read(),
-      version='2.2.0',
+      version='2.2.1.dev0',
       packages=find_packages(),
       install_requires=install_requires,
       extras_require=extras_require,
