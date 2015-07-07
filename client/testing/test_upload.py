@@ -111,6 +111,29 @@ class TestCheckout:
         assert name == "xyz"
         assert version == "1.2.3"
 
+    def test_setup_build_docs(self, uploadhub, repo, tmpdir, monkeypatch):
+        checkout = Checkout(uploadhub, repo)
+        repo.join("setup.py").write(dedent("""
+            from setuptools import setup
+            setup(name="xyz", version="1.2.3")
+        """))
+        exported = checkout.export(tmpdir)
+        assert exported.rootpath != exported.origrepo
+        # we have to mock a bit unfortunately
+        # to find out if the sphinx building popen command
+        # is called with the exported directory instead of he original
+        l = []
+        old_popen_output = exported.hub.popen_output
+        def mock_popen_output(args, **kwargs):
+            if "build_sphinx" in args:
+                l.append(kwargs)
+            else:
+                return old_popen_output(args, **kwargs)
+        exported.hub.popen_output = mock_popen_output
+        # now we can make the call
+        exported.setup_build_docs()
+        assert l[0]["cwd"] == exported.rootpath
+
 
 def test_parent_subpath(tmpdir):
     s = tmpdir.ensure("xyz")

@@ -6,6 +6,10 @@
 - new experimental "-d|--detox" option to run tests via the "detox" distributed testing
   tool instead of "tox" which runs test environments one by one.
 
+- address issue246: make sure we use vcs-export also for building docs (and
+  respect --no-vcs for all building activity)
+
+
 2.2.0
 ----------------
 

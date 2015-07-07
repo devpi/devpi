@@ -235,7 +235,7 @@ class Hub:
                 ["%s=%s" % item for item in extraenv.items()])
         else:
             envadd = ""
-        self.line("--> $", rel, " ".join(args[1:]), envadd)
+        self.line("--> ", base + "$", rel, " ".join(args[1:]), envadd)
 
     def popen_check(self, args, extraenv=None):
         assert args[0], args
