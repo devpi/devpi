@@ -35,7 +35,9 @@ def main(hub, args):
     if not args.onlydocs:
         archives.extend(exported.setup_build())
     if args.onlydocs or args.withdocs:
-        archives.append(exported.setup_build_docs())
+        p = exported.setup_build_docs()
+        if p:
+            archives.append(p)
     if not archives:
         hub.fatal("nothing built!")
     name_version = exported.setup_name_and_version()
@@ -331,9 +333,11 @@ class Exported:
         name, version = self.setup_name_and_version()
         cwd = self.rootpath
         build = cwd.join("build")
-        self.hub.popen_output(
+        out = self.hub.popen_output(
             [self.python, "setup.py", "build_sphinx", "-E",
-             "--build-dir", build])
+             "--build-dir", build], cwd=self.rootpath)
+        if out is None:
+            return
         p = self.target_distdir.join("%s-%s.doc.zip" %(name, version))
         html = build.join("html")
         zip_dir(html, p)
