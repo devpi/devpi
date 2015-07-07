@@ -1,3 +1,8 @@
+2.2.1.dev0
+----------------
+
+- fix issue247: possible password leakage to log in devpi-client
+
 2.2.0
 ----------------
 
