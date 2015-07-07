@@ -86,10 +86,12 @@ class DevIndex:
 
         with sdist_pkg.path_unpacked.as_cwd():
             self.hub.info("%s$ tox %s" %(os.getcwd(), " ".join(toxargs)))
+            toxrunner = self.get_tox_runner()
             try:
-                ret = tox.cmdline(toxargs)
+                ret = toxrunner(toxargs)
             except SystemExit as e:
                 ret = e.args[0]
+
         if ret != 2:
             jsondata = json.load(jsonreport.open("r"))
             url = URL(link.href)
@@ -98,6 +100,13 @@ class DevIndex:
             self.hub.error("tox command failed", ret)
             return 1
         return 0
+
+    def get_tox_runner(self):
+        if self.hub.args.detox:
+            import detox.main
+            return detox.main.main
+        else:
+            return tox.cmdline
 
     def get_tox_args(self, unpack_path):
         hub = self.hub
