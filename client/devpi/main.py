@@ -705,6 +705,11 @@ def test(parser):
         help="extra command line arguments for tox. e.g. "
              "--toxargs=\"-c othertox.ini\"")
 
+    parser.add_argument("--detox", "-d", action="store_true",
+        dest="detox", default=False,
+        help="(experimental) run tests concurrently in multiple processes using "
+             "the detox tool (which must be installed)")
+
     parser.add_argument("pkgspec", metavar="pkgspec", type=str,
         default=None, action="store", nargs="+",
         help="package specification in pip/setuptools requirement-syntax, "

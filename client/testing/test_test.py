@@ -1,5 +1,6 @@
 import subprocess
 import pytest
+import tox
 from devpi.test import *
 
 pytest_plugins = "pytester"
@@ -56,6 +57,20 @@ def test_passthrough_args_env(makehub, tmpdir, pseudo_current):
     tmpdir.ensure("tox.ini")
     args = index.get_tox_args(unpack_path=tmpdir)
     assert contains_sublist(args, ["-epy27"])
+
+def test_no_detox(makehub, tmpdir, pseudo_current):
+    hub = makehub(["test", "-epy27", "somepkg"])
+    index = DevIndex(hub, tmpdir, pseudo_current)
+    runner = index.get_tox_runner()
+    assert runner == tox.cmdline
+
+def test_detox(makehub, tmpdir, pseudo_current):
+    detox_main = pytest.importorskip("detox.main")
+    hub = makehub(["test", "--detox", "-epy27", "somepkg"])
+    index = DevIndex(hub, tmpdir, pseudo_current)
+    runner = index.get_tox_runner()
+    assert runner == detox_main.main
+
 
 def test_fallback_ini(makehub, tmpdir, pseudo_current):
     p = tmpdir.ensure("mytox.ini")

@@ -3,6 +3,9 @@
 
 - fix issue247: possible password leakage to log in devpi-client
 
+- new experimental "-d|--detox" option to run tests via the "detox" distributed testing
+  tool instead of "tox" which runs test environments one by one.
+
 2.2.0
 ----------------
 
