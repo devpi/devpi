@@ -9,6 +9,11 @@
 - address issue246: make sure we use vcs-export also for building docs (and
   respect --no-vcs for all building activity)
 
+- address issue246: copy VCS repo dir to temporary upload dir to help
+  with setuptools_scm. Warn if VCS other than hg/git are used because
+  we don't copy the repo in that case for now and thus cause incompatibility
+  with setuptools_scm.
+
 
 2.2.0
 ----------------
