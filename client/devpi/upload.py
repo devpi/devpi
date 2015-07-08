@@ -224,20 +224,31 @@ def find_parent_subpath(startpath, relpath, raising=True):
 class Checkout:
     def __init__(self, hub, setupdir):
         self.hub = hub
-        self.rootpath = setupdir
         assert setupdir.join("setup.py").check(), setupdir
         hasvcs = not hub.args.novcs
         if hasvcs:
-            with self.rootpath.as_cwd():
+            with setupdir.as_cwd():
                 try:
-                    hasvcs = check_manifest.detect_vcs().__name__
+                    hasvcs = check_manifest.detect_vcs().metadata_name
                 except check_manifest.Failure:
-                    hasvcs = False
+                    hasvcs = None
+                else:
+                    if hasvcs not in (".hg", ".git"):
+                        # XXX for e.g. svn we don't do copying
+                        self.rootpath = setupdir
+                    else:
+                        for p in setupdir.parts(reverse=True):
+                            if p.join(hasvcs).isdir():
+                                self.rootpath = p
+                                break
+                        else:
+                            hasvcs = None
         self.hasvcs = hasvcs
+        self.setupdir = setupdir
 
     def export(self, basetemp):
         if not self.hasvcs:
-            return Exported(self.hub, self.rootpath, self.rootpath)
+            return Exported(self.hub, self.setupdir, self.setupdir)
         with self.rootpath.as_cwd():
             files = check_manifest.get_vcs_files()
         newrepo = basetemp.join(self.rootpath.basename)
@@ -247,10 +258,20 @@ class Checkout:
                 dest = newrepo.join(fn)
                 dest.dirpath().ensure(dir=1)
                 source.copy(dest)
-        self.hub.debug("copied %s files to %s", len(files), newrepo)
-        self.hub.info("%s-exported project to %s -> new CWD" %(
+        self.hub.debug("copied", len(files), "files to", newrepo)
+
+        if self.hasvcs not in (".git", ".hg"):
+            self.hub.warn("not copying vcs repository metadata for", self.hasvcs)
+        else:
+            srcrepo = self.rootpath.join(self.hasvcs)
+            assert srcrepo.exists(), srcrepo
+            destrepo = newrepo.join(self.hasvcs)
+            self.rootpath.join(self.hasvcs).copy(destrepo)
+            self.hub.info("copied repo", srcrepo, "to", destrepo)
+        self.hub.debug("%s-exported project to %s -> new CWD" %(
                       self.hasvcs, newrepo))
-        return Exported(self.hub, newrepo, self.rootpath)
+        setupdir_newrepo = newrepo.join(self.setupdir.relto(self.rootpath))
+        return Exported(self.hub, setupdir_newrepo, self.setupdir)
 
 class Exported:
     def __init__(self, hub, rootpath, origrepo):

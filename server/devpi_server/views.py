@@ -662,14 +662,23 @@ class PyPIView:
             except KeyError:
                 abort_submit(400, "content file field not found")
             name = ensure_unicode(request.POST.get("name"))
-            # version may be empty on plain uploads
+            # version may be empty on plain doczip uploads
             version = ensure_unicode(request.POST.get("version") or "")
             projectname = stage.get_projectname(name)
             if projectname is None:
                 abort_submit(400, "no project named %r was ever registered" % (name))
+
             if action == "file_upload":
                 self.log.debug("metadata in form: %s",
                                list(request.POST.items()))
+
+                # we only check for release files if version is
+                # contained in the filename because for doczip files
+                # we construct the filename ourselves anyway.
+                if version and version not in content.filename:
+                    abort_submit(400, "filename %r does not contain version %r" %(
+                                 content.filename, version))
+
                 abort_if_invalid_filename(name, content.filename)
                 metadata = stage.get_versiondata_perstage(projectname, version)
                 if not metadata:

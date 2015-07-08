@@ -82,13 +82,18 @@ class TestCheckout:
         result = checkout.export(newrepo)
         assert result.rootpath.join("file").check()
         assert result.rootpath == newrepo.join(repo.basename)
+        # ensure we also copied repo meta info
+        if repo.join(".hg").exists():
+            assert result.rootpath.join(".hg").listdir()
+        else:
+            assert result.rootpath.join(".git").listdir()
 
     def test_vcs_export_disabled(self, uploadhub, repo, tmpdir, monkeypatch):
         monkeypatch.setattr(uploadhub.args, "novcs", True)
         checkout = Checkout(uploadhub, repo)
         assert not checkout.hasvcs
         exported = checkout.export(tmpdir)
-        assert exported.rootpath == checkout.rootpath
+        assert exported.rootpath == checkout.setupdir
 
     def test_vcs_export_verify_setup(self, uploadhub, repo,
                                           tmpdir, monkeypatch):
