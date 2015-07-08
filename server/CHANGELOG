@@ -12,6 +12,10 @@
 - UPGRADE NOTE: if devpi-web is installed, you have to request
   ``application/json`` for ``/+status``, or you might get a html page.
 
+- address issue246: refuse uploading release files if they do not
+  contain the version that was transferred with the metadata of
+  the upload request.
+
 
 2.2.1
 ----------------

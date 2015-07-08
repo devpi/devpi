@@ -557,7 +557,13 @@ class TestSubmitValidation:
         assert "not a valid" in r.status
         r = submit.file("pkg5-2.7.tgz", b"123", {"name": "pkg5"}, code=200)
         paths = mapp.get_release_paths("Pkg5")
-        assert paths[0].endswith("pkg5-2.7.tgz")
+
+    def test_upload_file_version_not_in_filename(self, submit, mapp):
+        metadata = {"name": "Pkg5", "version": "1.0", ":action": "submit"}
+        submit.metadata(metadata, code=200)
+        r = submit.file("pkg5-0.0.0.tgz", b"123", {"name": "Pkg5", "version": "1.0"},
+                        code=400)
+        assert "does not contain version" in r.status
 
     def test_upload_use_registered_name_issue84(self, submit, mapp):
         metadata = {"name": "pkg_hello", "version":"1.0", ":action": "submit"}
