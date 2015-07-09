@@ -165,8 +165,8 @@ class TestIndexThings:
     def test_create_with_invalid_type(self, mapp):
         mapp.login_root()
         indexconfig = dict(type="foo")
-        m = mapp.create_index("root/newindex1",
-                              indexconfig=indexconfig, code=400)
+        mapp.create_index("root/newindex1",
+                          indexconfig=indexconfig, code=400)
 
     def test_modify_type_not_allowed(self, mapp):
         mapp.login_root()
