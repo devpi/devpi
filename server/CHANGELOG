@@ -16,6 +16,8 @@
   contain the version that was transferred with the metadata of
   the upload request.
 
+- fix issue248: prevent change of index type after creation
+
 
 2.2.1
 ----------------

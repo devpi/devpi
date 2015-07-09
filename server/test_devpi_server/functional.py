@@ -162,6 +162,21 @@ class TestIndexThings:
         mapp.set_acl([':anonymous:'])
         assert mapp.get_acl() == [':ANONYMOUS:']
 
+    def test_create_with_invalid_type(self, mapp):
+        mapp.login_root()
+        indexconfig = dict(type="foo")
+        m = mapp.create_index("root/newindex1",
+                              indexconfig=indexconfig, code=400)
+
+    def test_modify_type_not_allowed(self, mapp):
+        mapp.login_root()
+        mapp.create_index("root/newindex1")
+        res = mapp.getjson("/root/newindex1")["result"]
+        res["type"] = "foo"
+        mapp.modify_index("root/newindex1", res, code=400)
+        res["type"] = "mirror"
+        mapp.modify_index("root/newindex1", res, code=400)
+
     def test_config_get_user_empty(self, mapp):
         mapp.getjson("/user", code=404)
 

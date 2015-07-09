@@ -216,6 +216,9 @@ class User:
         if acl_upload is None:
             acl_upload = [self.name]
         bases = tuple(normalize_bases(self.xom.model, bases))
+        if type not in ("mirror", "stage"):
+            raise InvalidIndexconfig(
+                ["create_stage() got invalid index type: %s" % type])
 
         # modify user/indexconfig
         with self.key.update() as userconfig:
@@ -420,6 +423,9 @@ class PrivateStage(BaseStage):
                     user=self.user.name, index=self.index)
 
     def modify(self, index=None, **kw):
+        if 'type' in kw and self.ixconfig["type"] != kw['type']:
+            raise InvalidIndexconfig(
+                ["the 'type' of an index can't be changed"])
         attrs = get_ixconfigattrs(self.xom.config.hook, self.ixconfig["type"])
         diff = list(set(kw).difference(attrs))
         if diff:
