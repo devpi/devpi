@@ -556,7 +556,7 @@ class TestSubmitValidation:
         r = submit.file("pkg5-2.6.qwe", b"123", {"name": "Pkg5"}, code=400)
         assert "not a valid" in r.status
         r = submit.file("pkg5-2.7.tgz", b"123", {"name": "pkg5"}, code=200)
-        paths = mapp.get_release_paths("Pkg5")
+        mapp.get_release_paths("Pkg5")
 
     def test_upload_file_version_not_in_filename(self, submit, mapp):
         metadata = {"name": "Pkg5", "version": "1.0", ":action": "submit"}

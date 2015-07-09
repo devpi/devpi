@@ -1,5 +1,5 @@
-2.2.2.dev0
-----------------
+2.2.2
+-----
 
 - make replica thread more robust by catching more exceptions
 
