@@ -140,6 +140,29 @@ class TestCheckout:
         assert l[0]["cwd"] == exported.rootpath
 
 
+def test_setup_build_formats_setupcfg(uploadhub, tmpdir):
+    tmpdir.join("setup.cfg").write(dedent("""
+        [bdist_wheel]
+        universal = 1
+
+        [devpi:upload]
+        formats=bdist_wheel,sdist.zip
+        no-vcs=1
+    """))
+    cfg = read_setupcfg(uploadhub, tmpdir)
+    assert cfg.get("formats") == "bdist_wheel,sdist.zip"
+    assert cfg.get("no-vcs") == "1"
+
+def test_setup_build_formats_setupcfg_nosection(uploadhub, tmpdir):
+    tmpdir.join("setup.cfg").write(dedent("""
+        [bdist_wheel]
+        universal = 1
+    """))
+    cfg = read_setupcfg(uploadhub, tmpdir)
+    assert not cfg.get("formats")
+    assert not cfg.get("no-vcs")
+
+
 def test_parent_subpath(tmpdir):
     s = tmpdir.ensure("xyz")
     assert find_parent_subpath(tmpdir.mkdir("a"), "xyz") == s
