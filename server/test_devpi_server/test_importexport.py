@@ -530,6 +530,7 @@ class TestImportExport:
             assert "uploadtrigger_jenkins" not in stage.ixconfig
 
     def test_import_fails_if_uploadtrigger_jenkins_set(self, impexp):
+        from devpi_server.model import InvalidIndexconfig
         mapp1 = impexp.mapp1
         api = mapp1.create_and_use()
         (user, index) = api.stagename.split('/')
@@ -545,9 +546,9 @@ class TestImportExport:
 
         impexp.export()
 
-        with pytest.raises(TypeError) as excinfo:
+        with pytest.raises(InvalidIndexconfig) as excinfo:
             impexp.new_import()
-        assert "uploadtrigger_jenkins" in excinfo.value.args[0]
+        assert "uploadtrigger_jenkins" in excinfo.value.args[0][0]
 
     def test_plugin_index_config(self, impexp):
         class Plugin:

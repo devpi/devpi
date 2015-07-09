@@ -235,9 +235,9 @@ class User:
                 for key, value in defaults.items():
                     indexes[index][key] = kwargs.pop(key, value)
             if kwargs:
-                raise TypeError(
-                    "create_stage() got unexpected keyword arguments: %s"
-                    % ", ".join(kwargs))
+                raise InvalidIndexconfig(
+                    ["create_stage() got unexpected keyword arguments: %s"
+                     % ", ".join(kwargs)])
         stage = self.getstage(index)
         threadlog.info("created index %s: %s", stage.name, stage.ixconfig)
         return stage
