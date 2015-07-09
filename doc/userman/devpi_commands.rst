@@ -314,7 +314,7 @@ test
     usage: /home/hpk/venv/0/bin/devpi test [-h] [--version] [--debug] [-y] [-v]
                                            [--clientdir DIR] [-e ENVNAME]
                                            [-c PATH] [--fallback-ini PATH]
-                                           [--tox-args toxargs]
+                                           [--tox-args toxargs] [--detox]
                                            pkgspec [pkgspec ...]
     
     download and test a package against tox environments. Download a package and
@@ -333,6 +333,9 @@ test
                            none
       --tox-args toxargs   extra command line arguments for tox. e.g.
                            --toxargs="-c othertox.ini"
+      --detox, -d          (experimental) run tests concurrently in multiple
+                           processes using the detox tool (which must be
+                           installed)
     
     generic options:
       --version            show program's version number and exit
@@ -362,7 +365,9 @@ upload
     positional arguments. Such release files need to contain package metadata as
     created by setup.py or wheel invocations. Or, if you don't specify any path, a
     setup.py file must exist and will be used to perform build and upload
-    commands.
+    commands. If you have a ``setup.cfg`` file you can have a "[devpi:upload]"
+    section with a ``formats`` and a ``no-vcs = 1`` setting providing defaults for
+    the respective command line options.
     
     optional arguments:
       -h, --help         show this help message and exit
@@ -541,7 +546,7 @@ devpi command reference (server)
                             are not using a http proxy.
     
     deployment and data options:
-      --version             show devpi_version (2.2.0)
+      --version             show devpi_version (2.2.2)
       --role {master,replica,auto}
                             set role of this instance. [auto]
       --master-url MASTER_URL

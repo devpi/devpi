@@ -39,22 +39,22 @@ Let's run the quickstart command which will trigger
 a series of other devpi commands::
 
     $ devpi quickstart
-    --> $ devpi-server --start 
-    2015-05-13 15:17:33,144 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2015-05-13 15:17:33,144 INFO  NOCTX generated uuid: fcd2518a19944248be776e5403cbc2df
-    2015-05-13 15:17:33,144 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2015-05-13 15:17:33,145 INFO  NOCTX DB: Creating schema
-    2015-05-13 15:17:33,181 INFO  [Wtx-1] setting password for user u'root'
-    2015-05-13 15:17:33,181 INFO  [Wtx-1] created user u'root' with email None
-    2015-05-13 15:17:33,181 INFO  [Wtx-1] created root user
-    2015-05-13 15:17:33,181 INFO  [Wtx-1] created root/pypi index
-    2015-05-13 15:17:33,210 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
+    -->  /home/hpk/p/devpi/doc$ devpi-server --start 
+    2015-07-09 13:31:02,840 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2015-07-09 13:31:02,840 INFO  NOCTX generated uuid: 96be9ae9147240dfa7f4e6e77f7c6840
+    2015-07-09 13:31:02,841 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    2015-07-09 13:31:02,841 INFO  NOCTX DB: Creating schema
+    2015-07-09 13:31:02,879 INFO  [Wtx-1] setting password for user u'root'
+    2015-07-09 13:31:02,879 INFO  [Wtx-1] created user u'root' with email None
+    2015-07-09 13:31:02,879 INFO  [Wtx-1] created root user
+    2015-07-09 13:31:02,879 INFO  [Wtx-1] created root/pypi index
+    2015-07-09 13:31:02,903 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
     starting background devpi-server at http://localhost:3141
     /tmp/home/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server
-    process u'devpi-server' started pid=31553
+    process u'devpi-server' started pid=14163
     devpi-server process startup detected
     logfile is at /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
-    --> $ devpi use http://localhost:3141 
+    -->  /home/hpk/p/devpi/doc$ devpi use http://localhost:3141 
     using server: http://localhost:3141/ (not logged in)
     no current index: type 'devpi use -l' to discover indices
     ~/.pydistutils.cfg     : no config file exists
@@ -62,13 +62,13 @@ a series of other devpi commands::
     ~/.buildout/default.cfg: no config file exists
     always-set-cfg: no
     
-    --> $ devpi user -c testuser password= 
+    -->  /home/hpk/p/devpi/doc$ devpi user -c testuser password= 
     user created: testuser
     
-    --> $ devpi login testuser --password= 
+    -->  /home/hpk/p/devpi/doc$ devpi login testuser --password= 
     logged in 'testuser', credentials valid for 10.00 hours
     
-    --> $ devpi index -c dev 
+    -->  /home/hpk/p/devpi/doc$ devpi index -c dev 
     http://localhost:3141/testuser/dev:
       type=stage
       bases=root/pypi
@@ -76,7 +76,7 @@ a series of other devpi commands::
       acl_upload=testuser
       pypi_whitelist=
     
-    --> $ devpi use dev 
+    -->  /home/hpk/p/devpi/doc$ devpi use dev 
     current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
     ~/.pydistutils.cfg     : no config file exists
     ~/.pip/pip.conf        : no config file exists
@@ -97,7 +97,7 @@ a series of other devpi commands::
 Show the version::
 
     $ devpi --version
-    2.2.0
+    2.3.0
 
 .. _`quickstart_release_steps`:
 
@@ -108,13 +108,14 @@ We can now use the ``devpi`` command line client to trigger a ``pip
 install`` of a pypi package using the index from our already running server::
 
     $ devpi install pytest
-    --> $ /tmp/docenv/bin/pip install -U -i http://localhost:3141/testuser/dev/+simple/ pytest  [PIP_USE_WHEEL=1,PIP_PRE=1]
+    -->  /home/hpk/p/devpi/doc$ /tmp/docenv/bin/pip install -U -i http://localhost:3141/testuser/dev/+simple/ pytest  [PIP_USE_WHEEL=1,PIP_PRE=1]
+    You are using pip version 6.1.1, however version 7.1.0 is available.
+    You should consider upgrading via the 'pip install --upgrade pip' command.
     Collecting pytest
-      Downloading http://localhost:3141/root/pypi/+f/14c/de91b1106c937/pytest-2.7.0.tar.gz (526kB)
-    Requirement already up-to-date: py>=1.4.25 in /tmp/docenv/lib/python2.7/site-packages (from pytest)
+      Downloading http://localhost:3141/root/pypi/+f/1b6/36c4310d9a3cd/pytest-2.7.2-py2.py3-none-any.whl (127kB)
+    Requirement already up-to-date: py>=1.4.29 in /tmp/docenv/lib/python2.7/site-packages (from pytest)
     Installing collected packages: pytest
-      Running setup.py install for pytest
-    Successfully installed pytest-2.7.0
+    Successfully installed pytest-2.7.2
 
 The ``devpi install`` command configured a pip call, using the
 pypi-compatible ``+simple/`` page on our ``testuser/dev`` index for
@@ -124,7 +125,7 @@ in the ``PATH`` and found in ``docenv/bin/pip``.
 Let's check that ``pytest`` was installed correctly::
 
     $ py.test --version
-    This is pytest version 2.7.0, imported from /tmp/docenv/local/lib/python2.7/site-packages/pytest.pyc
+    This is pytest version 2.7.2, imported from /tmp/docenv/local/lib/python2.7/site-packages/pytest.pyc
 
 You may invoke the ``devpi install`` command a second time which will
 even work when you have no network.
@@ -153,9 +154,9 @@ to our ``testuser/dev`` index::
 
     example $ devpi upload
     using workdir /tmp/devpi0
-    Mercurial-exported project to /tmp/devpi0/upload/example -> new CWD
+    copied repo /home/hpk/p/devpi/.hg to /tmp/devpi0/upload/devpi/.hg
     pre-build: cleaning /home/hpk/p/devpi/doc/example/dist
-    --> $ /tmp/docenv/bin/python setup.py sdist --formats gztar 
+    -->  /tmp/devpi0/upload/devpi/doc/example$ /tmp/docenv/bin/python setup.py sdist --formats gztar 
     built: /home/hpk/p/devpi/doc/example/dist/example-1.0.tar.gz [SDIST.TGZ] 0kb
     register example-1.0 to http://localhost:3141/testuser/dev/
     file_upload of example-1.0.tar.gz to http://localhost:3141/testuser/dev/
@@ -177,9 +178,11 @@ There are three triggered actions:
 We can now install the freshly uploaded package::
 
     $ devpi install example
-    --> $ /tmp/docenv/bin/pip install -U -i http://localhost:3141/testuser/dev/+simple/ example  [PIP_USE_WHEEL=1,PIP_PRE=1]
+    -->  /home/hpk/p/devpi/doc$ /tmp/docenv/bin/pip install -U -i http://localhost:3141/testuser/dev/+simple/ example  [PIP_USE_WHEEL=1,PIP_PRE=1]
+    You are using pip version 6.1.1, however version 7.1.0 is available.
+    You should consider upgrading via the 'pip install --upgrade pip' command.
     Collecting example
-      Downloading http://localhost:3141/testuser/dev/+f/80d/857e80cd77b22/example-1.0.tar.gz
+      Downloading http://localhost:3141/testuser/dev/+f/9b3/78dac7968bd9f/example-1.0.tar.gz
     Installing collected packages: example
       Running setup.py install for example
     Successfully installed example-1.0
@@ -201,17 +204,17 @@ devpi test: testing an uploaded package
 If you have a package which uses tox_ for testing you may now invoke::
 
     $ devpi test example  # package needs to contain tox.ini
-    received http://localhost:3141/testuser/dev/+f/80d/857e80cd77b22/example-1.0.tar.gz
+    received http://localhost:3141/testuser/dev/+f/9b3/78dac7968bd9f/example-1.0.tar.gz
     unpacking /tmp/devpi-test0/downloads/example-1.0.tar.gz to /tmp/devpi-test0/targz
     /tmp/devpi-test0/targz/example-1.0$ tox --installpkg /tmp/devpi-test0/downloads/example-1.0.tar.gz -i ALL=http://localhost:3141/testuser/dev/+simple/ --recreate --result-json /tmp/devpi-test0/targz/toxreport.json -c /tmp/devpi-test0/targz/example-1.0/tox.ini
     python create: /tmp/devpi-test0/targz/example-1.0/.tox/python
     python installdeps: pytest
     python inst: /tmp/devpi-test0/downloads/example-1.0.tar.gz
-    python installed: example==1.0,py==1.4.27,pytest==2.7.0
-    python runtests: PYTHONHASHSEED='949828678'
+    python installed: example==1.0,py==1.4.30,pytest==2.7.2
+    python runtests: PYTHONHASHSEED='245443571'
     python runtests: commands[0] | py.test
     ============================= test session starts ==============================
-    platform linux2 -- Python 2.7.6 -- py-1.4.27 -- pytest-2.7.0
+    platform linux2 -- Python 2.7.6 -- py-1.4.30 -- pytest-2.7.2
     rootdir: /tmp/devpi-test0/targz/example-1.0, inifile: 
     collected 0 items
     
@@ -220,7 +223,7 @@ If you have a package which uses tox_ for testing you may now invoke::
       python: commands succeeded
       congratulations :)
     wrote json report at: /tmp/devpi-test0/targz/toxreport.json
-    posting tox result data to http://localhost:3141/testuser/dev/+f/80d/857e80cd77b22/example-1.0.tar.gz
+    posting tox result data to http://localhost:3141/testuser/dev/+f/9b3/78dac7968bd9f/example-1.0.tar.gz
     successfully posted tox result data
 
 Here is what happened:
@@ -239,7 +242,7 @@ Here is what happened:
 We can verify that the test status was recorded via::
 
     $ devpi list example
-    http://localhost:3141/testuser/dev/+f/80d/857e80cd77b22/example-1.0.tar.gz
+    http://localhost:3141/testuser/dev/+f/9b3/78dac7968bd9f/example-1.0.tar.gz
     cobra      linux2  python     2.7.6 tests passed
 
 .. note::
@@ -274,8 +277,8 @@ our ``staging`` index::
 
     $ devpi push example==1.0 testuser/staging
        200 register example 1.0 -> testuser/staging
-       200 store_releasefile testuser/staging/+f/80d/857e80cd77b22/example-1.0.tar.gz
-       200 store_toxresult testuser/staging/+f/80d/857e80cd77b22/example-1.0.tar.gz.toxresult0
+       200 store_releasefile testuser/staging/+f/9b3/78dac7968bd9f/example-1.0.tar.gz
+       200 store_toxresult testuser/staging/+f/9b3/78dac7968bd9f/example-1.0.tar.gz.toxresult0
 
 This will determine all files on our ``testuser/dev`` index belonging to
 the specified ``example==1.0`` release and copy them to the
@@ -305,7 +308,7 @@ Let's now use our ``testuser/staging`` index::
 and check the test result status again::
 
     $ devpi list example
-    http://localhost:3141/testuser/staging/+f/80d/857e80cd77b22/example-1.0.tar.gz
+    http://localhost:3141/testuser/staging/+f/9b3/78dac7968bd9f/example-1.0.tar.gz
     cobra      linux2  python     2.7.6 tests passed
 
 Good, the test result status is still available after the push
@@ -352,9 +355,9 @@ If we now switch back to using ``testuser/dev``::
 and look at our example release files::
 
     $ devpi list example
-    http://localhost:3141/testuser/dev/+f/80d/857e80cd77b22/example-1.0.tar.gz
+    http://localhost:3141/testuser/dev/+f/9b3/78dac7968bd9f/example-1.0.tar.gz
     cobra      linux2  python     2.7.6 tests passed
-    http://localhost:3141/testuser/staging/+f/80d/857e80cd77b22/example-1.0.tar.gz
+    http://localhost:3141/testuser/staging/+f/9b3/78dac7968bd9f/example-1.0.tar.gz
     cobra      linux2  python     2.7.6 tests passed
 
 we'll see that ``example-1.0.tar.gz`` is contained in both
@@ -363,8 +366,8 @@ indices.  Let's remove the ``testuser/dev`` ``example`` release::
     $ devpi remove -y example
     About to remove the following releases and distributions
     version: 1.0
-      - http://localhost:3141/testuser/dev/+f/80d/857e80cd77b22/example-1.0.tar.gz
-      - http://localhost:3141/testuser/dev/+f/80d/857e80cd77b22/example-1.0.tar.gz.toxresult0
+      - http://localhost:3141/testuser/dev/+f/9b3/78dac7968bd9f/example-1.0.tar.gz
+      - http://localhost:3141/testuser/dev/+f/9b3/78dac7968bd9f/example-1.0.tar.gz.toxresult0
     Are you sure (yes/no)? yes (autoset from -y option)
     deleting release 1.0 of example
 
@@ -375,15 +378,15 @@ The ``example-1.0`` release remains accessible through ``testuser/dev``
 because it inherits all releases from its ``testuser/staging`` base::
 
     $ devpi list example
-    http://localhost:3141/testuser/staging/+f/80d/857e80cd77b22/example-1.0.tar.gz
+    http://localhost:3141/testuser/staging/+f/9b3/78dac7968bd9f/example-1.0.tar.gz
     cobra      linux2  python     2.7.6 tests passed
 
 ::
 
     $ devpi-server --stop
-    2015-05-13 15:17:59,986 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2015-05-13 15:17:59,987 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    killed server pid=31553
+    2015-07-09 13:31:24,974 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2015-07-09 13:31:24,974 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    killed server pid=14163
 
 running devpi-server permanently
 +++++++++++++++++++++++++++++++++
