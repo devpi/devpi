@@ -1,4 +1,5 @@
 import os
+import sys
 import py
 import re
 
@@ -26,14 +27,17 @@ def main(hub, args):
     setup = hub.cwd.join("setup.py")
     if not setup.check():
         hub.fatal("no setup.py found in", hub.cwd)
-    checkout = Checkout(hub, hub.cwd)
+
+    setupcfg = read_setupcfg(hub, hub.cwd)
+    checkout = Checkout(hub, hub.cwd, hasvcs=setupcfg.get("no-vcs"))
     uploadbase = hub.getdir("upload")
     exported = checkout.export(uploadbase)
 
     exported.prepare()
     archives = []
     if not args.onlydocs:
-        archives.extend(exported.setup_build())
+        archives.extend(exported.setup_build(
+                            default_formats=setupcfg.get("formats")))
     if args.onlydocs or args.withdocs:
         p = exported.setup_build_docs()
         if p:
@@ -222,10 +226,10 @@ def find_parent_subpath(startpath, relpath, raising=True):
 
 
 class Checkout:
-    def __init__(self, hub, setupdir):
+    def __init__(self, hub, setupdir, hasvcs=None):
         self.hub = hub
         assert setupdir.join("setup.py").check(), setupdir
-        hasvcs = not hub.args.novcs
+        hasvcs = not hasvcs and not hub.args.novcs
         if hasvcs:
             with setupdir.as_cwd():
                 try:
@@ -317,8 +321,14 @@ class Exported:
             self.target_distdir.remove()
         self.target_distdir.mkdir()
 
-    def setup_build(self):
-        formats = [x.strip() for x in self.hub.args.formats.split(",")]
+    def setup_build(self, default_formats=None):
+        formats = self.hub.args.formats
+        if not formats:
+            formats = default_formats
+            if not formats:
+                formats = "sdist.zip" if sys.platform == "win32" else "sdist.tgz"
+
+        formats = [x.strip() for x in formats.split(",")]
 
         archives = []
         for format in formats:
@@ -390,3 +400,11 @@ def sdistformat(format):
         res = format
     return res
 
+
+def read_setupcfg(hub, path):
+    setup_cfg = path.join("setup.cfg")
+    if setup_cfg.exists():
+        cfg = py.iniconfig.IniConfig(setup_cfg)
+        hub.line("detected devpi:upload section in %s" % setup_cfg, bold=True)
+        return cfg.sections.get("devpi:upload", {})
+    return {}

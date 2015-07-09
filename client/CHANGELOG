@@ -1,4 +1,4 @@
-2.2.1.dev0
+2.3.0
 ----------------
 
 - fix issue247: possible password leakage to log in devpi-client
@@ -13,6 +13,13 @@
   with setuptools_scm. Warn if VCS other than hg/git are used because
   we don't copy the repo in that case for now and thus cause incompatibility
   with setuptools_scm.
+
+- (new,experimental) read a "[devpi:upload]" section from a setup.cfg file
+  with a "formats" setting that will be taken if no "--formats" option
+  is specified to "devpi upload".  This allows to specify the default
+  artefacts that should be created along with a project's setup.cfg file.
+  Also you can use a ``no-vcs = True`` setting to induce the ``--no-vcs``
+  option.
 
 
 2.2.0

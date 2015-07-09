@@ -19,6 +19,29 @@ devpi-server plugins can trigger external CI servers.
 For Jenkins you need to install the ``devpi-jenkins`` plugin. See it's
 documentation for details.
 
+Uploading different release file formats
+----------------------------------------
+
+You can use the ``--formats`` option to tell "devpi upload" which release files
+to build and upload::
+
+    devpi upload --formats=bdist_wheel,sdist.tgz
+
+this will create two release files, a wheel and a source distribution, and upload
+them to the current index.  Note that you can create/use a ``setup.cfg`` file
+to configure the formats along with your project::
+
+    # content of setup.cfg (residing next to setup.py)
+    [bdist_wheel]
+    universal = 1
+
+    [devpi:upload]
+    formats = bdist_wheel,sdist.tgz
+
+Now, when you do a plain ``devpi upload`` it will use the formats specified
+in the ``setup.cfg`` file.
+
+
 Uploading Sphinx docs
 ---------------------
 
