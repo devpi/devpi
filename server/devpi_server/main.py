@@ -17,8 +17,6 @@ from . import extpypi, replica, mythread
 from . import __version__ as server_version
 
 
-PYPIURL_XMLRPC = "https://pypi.python.org/pypi/"
-
 class Fatal(Exception):
     pass
 
@@ -239,7 +237,10 @@ class XOM:
 
     @cached_property
     def proxy(self):
-        return extpypi.PyPIXMLProxy(PYPIURL_XMLRPC)
+        if self.config.args.watch_changelog:
+            return extpypi.PyPIXMLProxy()
+        else:
+            return extpypi.PyPISimpleProxy()
 
     def new_http_session(self, component_name):
         session = new_requests_session(agent=(component_name, server_version))
@@ -353,7 +354,7 @@ class XOM:
             # and pypimirror.name2serials changes are discovered
             # and replayed through the PypiProjectChange event
             self.thread_pool.register(self.replica_thread)
-        else:
+        elif hasattr(self.proxy, 'changelog_since_serial'):
             # the master thread directly syncs using the
             # pypi changelog protocol
             self.thread_pool.register(self.pypimirror,

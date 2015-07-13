@@ -1,9 +1,13 @@
 from __future__ import unicode_literals
 import hashlib
 import pytest
+import py
 
-from devpi_server.extpypi import *
-from devpi_server.main import Fatal, PYPIURL_XMLRPC
+from devpi_server.extpypi import PYPIURL_XMLRPC
+from devpi_server.extpypi import PyPIMirror, PyPIStage
+from devpi_server.extpypi import URL, PyPIXMLProxy
+from devpi_server.extpypi import parse_index, xmlrpc
+from devpi_server.main import Fatal
 from test_devpi_server.conftest import getmd5
 
 
@@ -280,7 +284,7 @@ class TestExtPYPIDB:
         assert links[0].eggfragment == "pytest-dev2"
 
     @pytest.mark.parametrize("hash_type", ["md5", "sha256"])
-    def test_parse_project_replaced_md5(self, pypistage, hash_type):
+    def test_parse_project_replaced_md5(self, pypistage, hash_type, proxymock):
         x = pypistage.mock_simple("pytest", pypiserial=10, hash_type=hash_type,
                                    pkgver="pytest-1.0.zip")
         links = pypistage.get_releaselinks("pytest")
@@ -355,7 +359,9 @@ class TestExtPYPIDB:
         links = pypistage.get_releaselinks("pytest")
         assert len(links) == 1
 
-    def test_get_releaselinks_cache_refresh_semantics(self, pypistage):
+    def test_get_releaselinks_cache_refresh_semantics(self, pypistage, proxymock):
+        if not hasattr(proxymock, 'changelog_since_serial'):
+            pytest.skip("This PyPI proxy doesn't support the changelog.")
         pypistage.mock_simple("pytest", text='''
                 <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
                 <a rel="download" href="https://download.com/index.html" />
@@ -367,7 +373,7 @@ class TestExtPYPIDB:
         pypistage.pypimirror.process_changelog([("pytest", 0,0,0, 11)])
         with pytest.raises(pypistage.UpstreamError) as excinfo:
             pypistage.get_releaselinks("pytest")
-        assert "expected 11" in excinfo.value.msg
+        assert "expected at least 11" in excinfo.value.msg
 
     @pytest.mark.parametrize("errorcode", [404, -1, -2])
     def test_parse_and_scrape_error(self, pypistage, errorcode):
@@ -510,7 +516,9 @@ class TestRefreshManager:
             mirror.thread_run(proxy)
         mirror.process_changelog.assert_called_once_with(changelog)
 
-    def test_pypichanges_changes(self, xom, pypistage, keyfs, monkeypatch):
+    def test_pypichanges_changes(self, xom, pypistage, keyfs, monkeypatch, proxymock):
+        if not hasattr(proxymock, 'changelog_since_serial'):
+            pytest.skip("This PyPI proxy doesn't support the changelog.")
         assert not pypistage.pypimirror.name2serials
         pypistage.mock_simple("pytest", '<a href="pytest-2.3.tgz"/a>',
                           pypiserial=20)
@@ -538,7 +546,7 @@ class TestRefreshManager:
             reqmock, pool):
         pypistage.mock_simple("pytest", pypiserial=10)
         reqreply = reqmock.mockresponse(PYPIURL_XMLRPC, code=400)
-        xmlproxy = PyPIXMLProxy(PYPIURL_XMLRPC)
+        xmlproxy = PyPIXMLProxy()
         mirror = pypistage.pypimirror
         pool.register(mirror)
         pool.shutdown()
@@ -551,11 +559,10 @@ class TestRefreshManager:
         assert xmlrpc.loads(calls[0].body) == ((10,), "changelog_since_serial")
         assert caplog.getrecords(".*changelog_since_serial.*")
 
-    def test_changelog_list_packages_no_network(self, makexom, mock):
-        xmlproxy = mock.create_autospec(PyPIXMLProxy)
-        xmlproxy.list_packages_with_serial.return_value = None
+    def test_changelog_list_packages_no_network(self, makexom, proxymock):
+        proxymock.list_packages_with_serial.return_value = None
         with pytest.raises(Fatal):
-            makexom(proxy=xmlproxy)
+            makexom()
         #assert not xom.keyfs.PYPISERIALS.exists()
 
 

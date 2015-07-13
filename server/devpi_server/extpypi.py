@@ -12,6 +12,7 @@ except ImportError:
     import xmlrpclib as xmlrpc
 
 import py
+import time
 
 from devpi_common.vendor._pip import HTMLPage
 
@@ -98,31 +99,63 @@ def parse_index(disturl, html, scrape=True):
     parser.parse_index(disturl, html, scrape=scrape)
     return parser
 
-class PyPIXMLProxy(object):
-    def __init__(self, url):
-        self._url = url
+
+class PyPISimpleProxy(object):
+    def __init__(self, simple_url=None):
+        if simple_url is None:
+            self._simple_url = PYPIURL_SIMPLE
+        else:
+            self._simple_url = simple_url
         self._session = new_requests_session(agent=("server", server_version))
-        self._session.headers["content-type"] = "text/xml"
-        self._session.headers["Accept"] = "text/xml"
 
     def list_packages_with_serial(self):
-        return self._execute("list_packages_with_serial")
+        headers = {"Accept": "text/html"}
+        try:
+            response = self._session.get(self._simple_url, headers=headers)
+        except Exception as exc:
+            threadlog.warn("error %s with remote %s", exc, self._simple_url)
+            return None
+        page = HTMLPage(response.text, response.url)
+        name2serials = {}
+        baseurl = URL(self._simple_url)
+        basehost = baseurl.replace(path='')
+        for link in page.links:
+            newurl = URL(link.url)
+            if not newurl.is_valid_http_url():
+                continue
+            if not newurl.path.startswith(baseurl.path):
+                continue
+            if basehost != newurl.replace(path=''):
+                continue
+            name2serials[newurl.basename] = -1
+        return name2serials
+
+
+class PyPIXMLProxy(PyPISimpleProxy):
+    def __init__(self, simple_url=None, xmlrpc_url=None):
+        PyPISimpleProxy.__init__(self, simple_url=simple_url)
+        if xmlrpc_url is None:
+            self._xmlrpc_url = PYPIURL_XMLRPC
 
     def changelog_since_serial(self, serial):
         return self._execute("changelog_since_serial", serial)
 
     def _execute(self, method, *args):
+        headers = {
+            "content-type": "text/xml",
+            "Accept": "text/xml"}
         payload = xmlrpc.dumps(args, method)
         threadlog.debug("-> %s%s" %(method, args))
         try:
-            reply = self._session.post(self._url, data=payload, stream=False)
+            reply = self._session.post(
+                self._xmlrpc_url, data=payload, stream=False, headers=headers)
         except Exception as exc:
             threadlog.warn("%s: error %s with remote %s",
-                           method, exc, self._url)
+                           method, exc, self._xmlrpc_url)
             return None
         if reply.status_code != 200:
             threadlog.warn("%s: status_code %s with remote %s", method,
-                     reply.status_code, self._url)
+                           reply.status_code, self._xmlrpc_url)
             return None
         res = xmlrpc.loads(reply.content)[0][0]
         if isinstance(res, (list, dict)) and len(res) > 3:
@@ -166,6 +199,7 @@ class PyPIStage(BaseStage):
         self.httpget = xom.httpget
         self.filestore = xom.filestore
         self.pypimirror = xom.pypimirror
+        self.cache_expiry = xom.config.args.cache_expiry
         self.xom = xom
         if xom.is_replica():
             url = xom.config.master_url
@@ -183,6 +217,7 @@ class PyPIStage(BaseStage):
                             for entry in entries]
         data = {"serial": serial,
                 "latest_serial": serial,
+                "updated_at": time.time(),
                 "entrylist": dumplist,
                 "projectname": projectname}
         threadlog.debug("saving data for %s: %s", projectname, data)
@@ -198,8 +233,11 @@ class PyPIStage(BaseStage):
     def _load_cache_links(self, projectname):
         cache = self._load_project_cache(projectname)
         if cache:
-            return (cache["serial"] >= cache["latest_serial"],
-                   list(self._make_elinks(projectname, cache["entrylist"])))
+            is_fresh = (cache["serial"] >= cache["latest_serial"])
+            if is_fresh:
+                is_fresh = (time.time() - cache["updated_at"]) <= self.cache_expiry
+            return (is_fresh,
+                    list(self._make_elinks(projectname, cache["entrylist"])))
         return True, None
 
     def _make_elinks(self, projectname, data):
@@ -270,12 +308,26 @@ class PyPIStage(BaseStage):
                                      projectname)
 
         # check that we got a fresh enough page
-        serial = int(response.headers["X-PYPI-LAST-SERIAL"])
-        newest_serial = self.pypimirror.name2serials.get(projectname, -1)
-        if serial < newest_serial:
-            raise self.UpstreamError(
-                        "%s: pypi returned serial %s, expected %s",
-                        projectname, serial, newest_serial)
+        # serial = response.headers.get("X-PYPI-LAST-SERIAL")
+        serial = None
+        if serial is not None:
+            serial = int(serial)
+            newest_serial = self.pypimirror.name2serials.get(projectname, -1)
+            if serial < newest_serial:
+                raise self.UpstreamError(
+                            "%s: pypi returned serial %s, expected at least %s",
+                            projectname, serial, newest_serial)
+        else:
+            newest_serial = self.pypimirror.name2serials.get(projectname, -1)
+            if newest_serial == -1:
+                # the mirror doesn't seem to support serials
+                # store what we got in the response without serial
+                serial = -1
+            else:
+                # TODO: it looks like the mirror normally returns serials,
+                # but the last response contained none
+                # store what we got in the response under the old serial
+                serial = newest_serial
 
         threadlog.debug("%s: got response with serial %s" %
                   (projectname, serial))
@@ -446,6 +498,8 @@ class PyPIMirror:
 
 PYPIURL_SIMPLE = "https://pypi.python.org/simple/"
 PYPIURL = "https://pypi.python.org/"
+PYPIURL_XMLRPC = "https://pypi.python.org/pypi/"
+
 
 def itervalues(d):
     return getattr(d, "itervalues", d.values)()

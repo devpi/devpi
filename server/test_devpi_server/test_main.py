@@ -41,7 +41,9 @@ def test_check_incompatible_version_raises(xom):
 
 @wsgi_run_throws
 def test_startup_fails_on_initial_setup_nonetwork(tmpdir, monkeypatch):
-    monkeypatch.setattr(devpi_server.main, "PYPIURL_XMLRPC",
+    monkeypatch.setattr(devpi_server.extpypi, "PYPIURL_XMLRPC",
+                        "http://localhost:1")
+    monkeypatch.setattr(devpi_server.extpypi, "PYPIURL_SIMPLE",
                         "http://localhost:1")
     ret = main(["devpi-server", "--serverdir", str(tmpdir)])
     assert ret
