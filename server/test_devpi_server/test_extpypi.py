@@ -438,7 +438,7 @@ class TestExtPYPIDB:
 
 @pytest.mark.notransaction
 def test_pypi_mirror_redirect_to_canonical_issue139(xom, keyfs, mock):
-    proxy = mock.create_autospec(XMLProxy)
+    proxy = mock.create_autospec(PyPIXMLProxy)
     d = {"Hello_World": 10}
     proxy.list_packages_with_serial.return_value = d
     mirror = PyPIMirror(xom)
@@ -467,7 +467,7 @@ class TestRefreshManager:
 
     @pytest.mark.notransaction
     def test_init_pypi_mirror(self, xom, keyfs, mock):
-        proxy = mock.create_autospec(XMLProxy)
+        proxy = mock.create_autospec(PyPIXMLProxy)
         d = {"hello": 10, "abc": 42}
         proxy.list_packages_with_serial.return_value = d
         mirror = PyPIMirror(xom)
@@ -476,7 +476,7 @@ class TestRefreshManager:
 
     @pytest.mark.notransaction
     def test_pypi_initial(self, makexom, queue, mock):
-        proxy = mock.create_autospec(XMLProxy)
+        proxy = mock.create_autospec(PyPIXMLProxy)
         d = {"hello": 10, "abc": 42}
         proxy.list_packages_with_serial.return_value = d
         class Plugin:
@@ -493,7 +493,7 @@ class TestRefreshManager:
     @pytest.mark.notransaction
     def test_pypichanges_loop(self, pypistage, monkeypatch, pool, mock):
         pypistage.pypimirror.process_changelog = mock.Mock()
-        proxy = mock.create_autospec(XMLProxy)
+        proxy = mock.create_autospec(PyPIXMLProxy)
         changelog = [
             ["pylib", "1.4", 12123, 'new release', 11],
             ["pytest", "2.4", 121231, 'new release', 27]
@@ -538,7 +538,7 @@ class TestRefreshManager:
             reqmock, pool):
         pypistage.mock_simple("pytest", pypiserial=10)
         reqreply = reqmock.mockresponse(PYPIURL_XMLRPC, code=400)
-        xmlproxy = XMLProxy(PYPIURL_XMLRPC)
+        xmlproxy = PyPIXMLProxy(PYPIURL_XMLRPC)
         mirror = pypistage.pypimirror
         pool.register(mirror)
         pool.shutdown()
@@ -552,7 +552,7 @@ class TestRefreshManager:
         assert caplog.getrecords(".*changelog_since_serial.*")
 
     def test_changelog_list_packages_no_network(self, makexom, mock):
-        xmlproxy = mock.create_autospec(XMLProxy)
+        xmlproxy = mock.create_autospec(PyPIXMLProxy)
         xmlproxy.list_packages_with_serial.return_value = None
         with pytest.raises(Fatal):
             makexom(proxy=xmlproxy)

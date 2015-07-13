@@ -84,12 +84,12 @@ class TestChangelog:
         testapp.xget(400, "/+changelog/0")
 
 
-class TestPyPIProxy:
+class TestPyPIDevpiProxy:
     def test_pypi_proxy(self, xom, reqmock):
         from devpi_server.keyfs import dump
         url = "http://localhost:3141/root/pypi/+name2serials"
         master_url = URL("http://localhost:3141")
-        proxy = PyPIProxy(xom._httpsession, master_url)
+        proxy = PyPIDevpiProxy(xom._httpsession, master_url)
         io = py.io.BytesIO()
         dump({"hello": 42}, io)
         data = io.getvalue()
@@ -98,7 +98,7 @@ class TestPyPIProxy:
         assert name2serials == {"hello": 42}
 
     def test_replica_startup(self, replica_xom):
-        assert isinstance(replica_xom.proxy, PyPIProxy)
+        assert isinstance(replica_xom.proxy, PyPIDevpiProxy)
 
 
 @pytest.mark.parametrize("normname,realname",

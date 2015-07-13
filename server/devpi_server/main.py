@@ -183,7 +183,7 @@ class XOM:
         # need to initialize the pypi mirror state before importing
         # because importing may need pypi mirroring state
         if xom.is_replica():
-            proxy = replica.PyPIProxy(xom._httpsession, xom.config.master_url)
+            proxy = replica.PyPIDevpiProxy(xom._httpsession, xom.config.master_url)
         else:
             proxy = self.proxy
         xom.pypimirror.init_pypi_mirror(proxy)
@@ -239,7 +239,7 @@ class XOM:
 
     @cached_property
     def proxy(self):
-        return extpypi.XMLProxy(PYPIURL_XMLRPC)
+        return extpypi.PyPIXMLProxy(PYPIURL_XMLRPC)
 
     def new_http_session(self, component_name):
         session = new_requests_session(agent=(component_name, server_version))

@@ -98,7 +98,7 @@ def parse_index(disturl, html, scrape=True):
     parser.parse_index(disturl, html, scrape=scrape)
     return parser
 
-class XMLProxy(object):
+class PyPIXMLProxy(object):
     def __init__(self, url):
         self._url = url
         self._session = new_requests_session(agent=("server", server_version))

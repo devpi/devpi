@@ -253,7 +253,7 @@ class ReplicaThread:
             self.thread.sleep(5.0)
 
 
-class PyPIProxy(object):
+class PyPIDevpiProxy(object):
     def __init__(self, http, master_url):
         self._url = master_url.joinpath("root/pypi/+name2serials").url
         self._http = http

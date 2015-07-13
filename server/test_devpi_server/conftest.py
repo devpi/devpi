@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 from devpi_server.config import get_pluginmanager
 from devpi_server.main import XOM, parseoptions
 from devpi_common.url import URL
-from devpi_server.extpypi import XMLProxy
+from devpi_server.extpypi import PyPIXMLProxy
 from devpi_server.extpypi import PyPIStage
 from devpi_server.log import threadlog, thread_clear_log
 from pyramid.authentication import b64encode
@@ -162,7 +162,7 @@ def makexom(request, gentmp, httpget, monkeypatch, mock):
         config.init_nodeinfo()
         if mocking:
             if proxy is None:
-                proxy = mock.create_autospec(XMLProxy)
+                proxy = mock.create_autospec(PyPIXMLProxy)
                 proxy.list_packages_with_serial.return_value = {}
             xom = XOM(config, proxy=proxy, httpget=httpget)
             add_pypistage_mocks(monkeypatch, httpget)
@@ -192,10 +192,10 @@ def makexom(request, gentmp, httpget, monkeypatch, mock):
 
 @pytest.fixture
 def replica_xom(request, makexom):
-    from devpi_server.replica import PyPIProxy
+    from devpi_server.replica import PyPIDevpiProxy
     master_url = "http://localhost:3111"
     xom = makexom(["--master", master_url])
-    xom.proxy = PyPIProxy(xom._httpsession, xom.config.master_url)
+    xom.proxy = PyPIDevpiProxy(xom._httpsession, xom.config.master_url)
     return xom
 
 
