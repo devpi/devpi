@@ -308,8 +308,7 @@ class PyPIStage(BaseStage):
                                      projectname)
 
         # check that we got a fresh enough page
-        # serial = response.headers.get("X-PYPI-LAST-SERIAL")
-        serial = None
+        serial = response.headers.get("X-PYPI-LAST-SERIAL")
         if serial is not None:
             serial = int(serial)
             newest_serial = self.pypimirror.name2serials.get(projectname, -1)
