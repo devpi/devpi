@@ -145,9 +145,9 @@ def mock():
     return mock
 
 
-@pytest.fixture(params=['PyPISimpleProxy', 'PyPIXMLProxy'])
+@pytest.fixture()
 def proxymock(request, mock):
-    proxy = mock.create_autospec(getattr(extpypi, request.param))
+    proxy = mock.create_autospec(extpypi.PyPISimpleProxy)
     proxy.list_packages_with_serial.return_value = {}
     return proxy
 
@@ -315,15 +315,12 @@ def add_pypistage_mocks(monkeypatch, httpget, proxymock):
     PyPIStage.url2response = httpget.url2response
     def mock_simple(self, name, text=None, pypiserial=10000, **kw):
         call = lambda: \
-                 self.pypimirror.process_changelog([(name, 0,0,0, pypiserial)])
+                 self.pypimirror.set_project_serial(name, pypiserial)
         if not hasattr(self.keyfs, "tx"):
             with self.keyfs.transaction(write=True):
                 call()
         else:
             call()
-        if not hasattr(proxymock, 'changelog_since_serial'):
-            # the proxy doesn't have serials
-            pypiserial = None
         return self.httpget.mock_simple(name,
                 text=text, pypiserial=pypiserial, **kw)
     monkeypatch.setattr(PyPIStage, "mock_simple", mock_simple, raising=False)

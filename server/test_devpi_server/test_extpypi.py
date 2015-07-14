@@ -5,7 +5,7 @@ import py
 
 from devpi_server.extpypi import PYPIURL_XMLRPC
 from devpi_server.extpypi import PyPIMirror, PyPIStage
-from devpi_server.extpypi import URL, PyPIXMLProxy
+from devpi_server.extpypi import URL, PyPISimpleProxy
 from devpi_server.extpypi import parse_index, xmlrpc
 from devpi_server.main import Fatal
 from test_devpi_server.conftest import getmd5
@@ -284,7 +284,7 @@ class TestExtPYPIDB:
         assert links[0].eggfragment == "pytest-dev2"
 
     @pytest.mark.parametrize("hash_type", ["md5", "sha256"])
-    def test_parse_project_replaced_md5(self, pypistage, hash_type, proxymock):
+    def test_parse_project_replaced_md5(self, pypistage, hash_type):
         x = pypistage.mock_simple("pytest", pypiserial=10, hash_type=hash_type,
                                    pkgver="pytest-1.0.zip")
         links = pypistage.get_releaselinks("pytest")
@@ -359,9 +359,7 @@ class TestExtPYPIDB:
         links = pypistage.get_releaselinks("pytest")
         assert len(links) == 1
 
-    def test_get_releaselinks_cache_refresh_semantics(self, pypistage, proxymock):
-        if not hasattr(proxymock, 'changelog_since_serial'):
-            pytest.skip("This PyPI proxy doesn't support the changelog.")
+    def test_get_releaselinks_cache_refresh_semantics(self, pypistage):
         pypistage.mock_simple("pytest", text='''
                 <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
                 <a rel="download" href="https://download.com/index.html" />
@@ -370,7 +368,7 @@ class TestExtPYPIDB:
         # check get_releaselinks properly returns -2 on stale cache returns
         ret = pypistage.get_releaselinks("pytest")
         assert len(ret) == 1
-        pypistage.pypimirror.process_changelog([("pytest", 0,0,0, 11)])
+        pypistage.pypimirror.set_project_serial("pytest", 11)
         with pytest.raises(pypistage.UpstreamError) as excinfo:
             pypistage.get_releaselinks("pytest")
         assert "expected at least 11" in excinfo.value.msg
@@ -444,7 +442,7 @@ class TestExtPYPIDB:
 
 @pytest.mark.notransaction
 def test_pypi_mirror_redirect_to_canonical_issue139(xom, keyfs, mock):
-    proxy = mock.create_autospec(PyPIXMLProxy)
+    proxy = mock.create_autospec(PyPISimpleProxy)
     d = {"Hello_World": 10}
     proxy.list_packages_with_serial.return_value = d
     mirror = PyPIMirror(xom)
@@ -473,7 +471,7 @@ class TestRefreshManager:
 
     @pytest.mark.notransaction
     def test_init_pypi_mirror(self, xom, keyfs, mock):
-        proxy = mock.create_autospec(PyPIXMLProxy)
+        proxy = mock.create_autospec(PyPISimpleProxy)
         d = {"hello": 10, "abc": 42}
         proxy.list_packages_with_serial.return_value = d
         mirror = PyPIMirror(xom)
@@ -482,7 +480,7 @@ class TestRefreshManager:
 
     @pytest.mark.notransaction
     def test_pypi_initial(self, makexom, queue, mock):
-        proxy = mock.create_autospec(PyPIXMLProxy)
+        proxy = mock.create_autospec(PyPISimpleProxy)
         d = {"hello": 10, "abc": 42}
         proxy.list_packages_with_serial.return_value = d
         class Plugin:
@@ -495,69 +493,6 @@ class TestRefreshManager:
         assert name2serials == d
         for name in name2serials:
             assert py.builtin._istext(name)
-
-    @pytest.mark.notransaction
-    def test_pypichanges_loop(self, pypistage, monkeypatch, pool, mock):
-        pypistage.pypimirror.process_changelog = mock.Mock()
-        proxy = mock.create_autospec(PyPIXMLProxy)
-        changelog = [
-            ["pylib", "1.4", 12123, 'new release', 11],
-            ["pytest", "2.4", 121231, 'new release', 27]
-        ]
-        proxy.changelog_since_serial.return_value = changelog
-
-        # we need to have one entry in serials
-        pypistage.httpget.mock_simple("pytest", pypiserial=27)
-        pypistage.pypimirror.name2serials["pytest"] = 27
-        mirror = pypistage.pypimirror
-        pool.register(mirror)
-        pool.shutdown()
-        with pytest.raises(pool.Shutdown):
-            mirror.thread_run(proxy)
-        mirror.process_changelog.assert_called_once_with(changelog)
-
-    def test_pypichanges_changes(self, xom, pypistage, keyfs, monkeypatch, proxymock):
-        if not hasattr(proxymock, 'changelog_since_serial'):
-            pytest.skip("This PyPI proxy doesn't support the changelog.")
-        assert not pypistage.pypimirror.name2serials
-        pypistage.mock_simple("pytest", '<a href="pytest-2.3.tgz"/a>',
-                          pypiserial=20)
-        pypistage.mock_simple("Django", '<a href="Django-1.6.tgz"/a>',
-                          pypiserial=11)
-        assert len(pypistage.pypimirror.name2serials) == 2
-        assert len(pypistage.get_releaselinks("pytest")) == 1
-        assert len(pypistage.get_releaselinks("Django")) == 1
-        pypistage.mock_simple("pytest", '<a href="pytest-2.4.tgz"/a>',
-                          pypiserial=27)
-        pypistage.mock_simple("Django", '<a href="Django-1.7.tgz"/a>',
-                          pypiserial=25)
-        assert len(pypistage.pypimirror.name2serials) == 2
-        name2serials = pypistage.pypimirror.load_name2serials(None)
-        for name in name2serials:
-            assert py.builtin._istext(name)
-        assert name2serials["pytest"] == 27
-        assert name2serials["Django"] == 25
-        b = pypistage.get_releaselinks("pytest")[0].basename
-        assert b == "pytest-2.4.tgz"
-        b = pypistage.get_releaselinks("Django")[0].basename
-        assert b == "Django-1.7.tgz"
-
-    def test_changelog_since_serial_nonetwork(self, pypistage, caplog,
-            reqmock, pool):
-        pypistage.mock_simple("pytest", pypiserial=10)
-        reqreply = reqmock.mockresponse(PYPIURL_XMLRPC, code=400)
-        xmlproxy = PyPIXMLProxy()
-        mirror = pypistage.pypimirror
-        pool.register(mirror)
-        pool.shutdown()
-        with pytest.raises(pool.Shutdown):
-            mirror.thread_run(xmlproxy)
-        with pytest.raises(pool.Shutdown):
-            mirror.thread_run(xmlproxy)
-        calls = reqreply.requests
-        assert len(calls) == 2
-        assert xmlrpc.loads(calls[0].body) == ((10,), "changelog_since_serial")
-        assert caplog.getrecords(".*changelog_since_serial.*")
 
     def test_changelog_list_packages_no_network(self, makexom, proxymock):
         proxymock.list_packages_with_serial.return_value = None

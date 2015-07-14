@@ -1,11 +1,9 @@
 2.2.3.dev0
 ----------
 
-- by default we don't watch the PyPI changelog anymore.
-  Instead we cache release data for one hour, this can be adjusted with the
-  ``--cache-expiry`` option.
-  Use ``--watch-changelog`` if you want updates to be triggered by PyPI
-  changelog changes like before.
+- The PyPI changelog isn't watched for changes anymore.
+  Instead we cache release data for 30 minutes, this can be adjusted with the
+  ``--mirror-cache-expiry`` option.
 
 
 2.2.2

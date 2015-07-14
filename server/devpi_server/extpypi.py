@@ -131,41 +131,6 @@ class PyPISimpleProxy(object):
         return name2serials
 
 
-class PyPIXMLProxy(PyPISimpleProxy):
-    def __init__(self, simple_url=None, xmlrpc_url=None):
-        PyPISimpleProxy.__init__(self, simple_url=simple_url)
-        if xmlrpc_url is None:
-            self._xmlrpc_url = PYPIURL_XMLRPC
-
-    def changelog_since_serial(self, serial):
-        return self._execute("changelog_since_serial", serial)
-
-    def _execute(self, method, *args):
-        headers = {
-            "content-type": "text/xml",
-            "Accept": "text/xml"}
-        payload = xmlrpc.dumps(args, method)
-        threadlog.debug("-> %s%s" %(method, args))
-        try:
-            reply = self._session.post(
-                self._xmlrpc_url, data=payload, stream=False, headers=headers)
-        except Exception as exc:
-            threadlog.warn("%s: error %s with remote %s",
-                           method, exc, self._xmlrpc_url)
-            return None
-        if reply.status_code != 200:
-            threadlog.warn("%s: status_code %s with remote %s", method,
-                           reply.status_code, self._xmlrpc_url)
-            return None
-        res = xmlrpc.loads(reply.content)[0][0]
-        if isinstance(res, (list, dict)) and len(res) > 3:
-            repr_res = "%r with %s entries" %(type(res).__name__, len(res))
-        else:
-            repr_res = repr(res)
-        threadlog.debug("<- %s%s: %s" %(method, args, repr_res))
-        return res
-
-
 def perform_crawling(pypistage, result, numthreads=10):
     pending = set(result.crawllinks)
     while pending:
@@ -199,7 +164,7 @@ class PyPIStage(BaseStage):
         self.httpget = xom.httpget
         self.filestore = xom.filestore
         self.pypimirror = xom.pypimirror
-        self.cache_expiry = xom.config.args.cache_expiry
+        self.cache_expiry = xom.config.args.mirror_cache_expiry
         self.xom = xom
         if xom.is_replica():
             url = xom.config.master_url
@@ -216,12 +181,13 @@ class PyPIStage(BaseStage):
         dumplist = [(entry.relpath, entry.hash_spec, entry.eggfragment)
                             for entry in entries]
         data = {"serial": serial,
-                "latest_serial": serial,
-                "updated_at": time.time(),
                 "entrylist": dumplist,
                 "projectname": projectname}
+        self.xom.set_updated_at(self.name, projectname, time.time())
         threadlog.debug("saving data for %s: %s", projectname, data)
-        self.keyfs.PYPILINKS(name=normname).set(data)
+        old = self.keyfs.PYPILINKS(name=normname).get()
+        if old != data:
+            self.keyfs.PYPILINKS(name=normname).set(data)
         return list(self._make_elinks(projectname, data["entrylist"]))
 
     def _load_project_cache(self, projectname):
@@ -233,9 +199,11 @@ class PyPIStage(BaseStage):
     def _load_cache_links(self, projectname):
         cache = self._load_project_cache(projectname)
         if cache:
-            is_fresh = (cache["serial"] >= cache["latest_serial"])
+            serial = self.pypimirror.name2serials.get(projectname, -1)
+            is_fresh = (cache["serial"] >= serial)
             if is_fresh:
-                is_fresh = (time.time() - cache["updated_at"]) <= self.cache_expiry
+                updated_at = self.xom.get_updated_at(self.name, projectname)
+                is_fresh = (time.time() - updated_at) <= self.cache_expiry
             return (is_fresh,
                     list(self._make_elinks(projectname, cache["entrylist"])))
         return True, None
@@ -308,25 +276,14 @@ class PyPIStage(BaseStage):
                                      projectname)
 
         # check that we got a fresh enough page
-        serial = response.headers.get("X-PYPI-LAST-SERIAL")
-        if serial is not None:
-            serial = int(serial)
-            newest_serial = self.pypimirror.name2serials.get(projectname, -1)
-            if serial < newest_serial:
-                raise self.UpstreamError(
-                            "%s: pypi returned serial %s, expected at least %s",
-                            projectname, serial, newest_serial)
+        serial = int(response.headers["X-PYPI-LAST-SERIAL"])
+        newest_serial = self.pypimirror.name2serials.get(projectname, -1)
+        if serial < newest_serial:
+            raise self.UpstreamError(
+                        "%s: pypi returned serial %s, expected at least %s",
+                        projectname, serial, newest_serial)
         else:
-            newest_serial = self.pypimirror.name2serials.get(projectname, -1)
-            if newest_serial == -1:
-                # the mirror doesn't seem to support serials
-                # store what we got in the response without serial
-                serial = -1
-            else:
-                # TODO: it looks like the mirror normally returns serials,
-                # but the last response contained none
-                # store what we got in the response under the old serial
-                serial = newest_serial
+            self.pypimirror.name2serials[projectname] = serial
 
         threadlog.debug("%s: got response with serial %s" %
                   (projectname, serial))
@@ -450,49 +407,6 @@ class PyPIMirror:
             if n != name:
                 self.normname2name[n] = name
         return n
-
-    def thread_run(self, proxy):
-        log = thread_push_log("[MIR]")
-        log.info("changelog/update tasks starting")
-        while 1:
-            # get changes since the maximum serial we are aware of
-            current_serial = max(itervalues(self.name2serials))
-            changelog = proxy.changelog_since_serial(current_serial)
-            if changelog:
-                with self.keyfs.transaction(write=True):
-                    self.process_changelog(changelog)
-            self.thread.sleep(self.xom.config.args.refresh)
-
-    def process_changelog(self, changelog):
-        changed = set()
-        log = thread_current_log()
-        for x in changelog:
-            name, version, action, date, serial = x
-            # XXX remove names if action == "remove" and version is None
-            name = ensure_unicode(name)
-            normname = self.set_project_serial(name, serial)
-            changed.add(normname)
-            key = self.keyfs.PYPILINKS(name=normname)
-            cache = key.get()
-            if cache:
-                if cache["latest_serial"] >= serial:  # should this happen?
-                    return  # the cached serial is new enough
-                cache["latest_serial"] = serial
-                key.set(cache)
-                log.debug("set latest_serial of %s to %s",
-                          normname, serial)
-            #else:
-            #    log.debug("no cache found for %s" % name)
-        # XXX include name2serials writing into the ongoing transaction
-        # as an external rename (not managed through keyfs)
-        if self.name2serials:
-            dump_to_file(self.name2serials, self.path_name2serials)
-
-        log.debug("processed changelog of size %d: %s" %(
-                  len(changelog), ",".join(changed)))
-
-
-
 
 
 PYPIURL_SIMPLE = "https://pypi.python.org/simple/"

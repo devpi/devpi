@@ -65,14 +65,8 @@ def addoptions(parser):
                  "invalidation issues.  This will only work if you "
                  "are not using a http proxy.")
 
-    mirror.addoption("--watch-changelog", action="store_true",
-            help="when using this option, a background thread will watch "
-                 "the PyPI changelog for changes and invalidate release "
-                 "caches accordingly. This reduces the time until new "
-                 "releases become visible.")
-
-    mirror.addoption("--cache-expiry", type=float, metavar="SECS",
-            default=3600,
+    mirror.addoption("--mirror-cache-expiry", type=float, metavar="SECS",
+            default=1800,
             help="time after which PyPI is checked for new release. "
                  "If the changelog is watched this is the time after "
                  "which we check regardless of the current serial we "

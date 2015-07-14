@@ -155,6 +155,7 @@ class XOM:
             self.set_state_version(server_version)
         self.log = threadlog
         self.polling_replicas = {}
+        self.stage2name2updated = {}
 
     def get_state_version(self):
         versionfile = self.config.serverdir.join(".serverversion")
@@ -168,6 +169,14 @@ class XOM:
         versionfile = self.config.serverdir.join(".serverversion")
         versionfile.dirpath().ensure(dir=1)
         versionfile.write(version)
+
+    def get_updated_at(self, stagename, projectname):
+        name2updated = self.stage2name2updated.setdefault(stagename, {})
+        return name2updated.setdefault(projectname, 0)
+
+    def set_updated_at(self, stagename, projectname, ts):
+        name2updated = self.stage2name2updated.setdefault(stagename, {})
+        name2updated[projectname] = ts
 
     @property
     def model(self):
@@ -237,10 +246,7 @@ class XOM:
 
     @cached_property
     def proxy(self):
-        if self.config.args.watch_changelog:
-            return extpypi.PyPIXMLProxy()
-        else:
-            return extpypi.PyPISimpleProxy()
+        return extpypi.PyPISimpleProxy()
 
     def new_http_session(self, component_name):
         session = new_requests_session(agent=(component_name, server_version))
@@ -354,11 +360,6 @@ class XOM:
             # and pypimirror.name2serials changes are discovered
             # and replayed through the PypiProjectChange event
             self.thread_pool.register(self.replica_thread)
-        elif hasattr(self.proxy, 'changelog_since_serial'):
-            # the master thread directly syncs using the
-            # pypi changelog protocol
-            self.thread_pool.register(self.pypimirror,
-                                      dict(proxy=self.proxy))
         return OutsideURLMiddleware(app, self)
 
     def is_replica(self):
