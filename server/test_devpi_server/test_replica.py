@@ -151,7 +151,7 @@ class TestReplicaThread:
             headers = dict((k.lower(), v) for k, v in headers.items())
             if uuid is not None:
                 headers.setdefault(H_MASTER_UUID.lower(), "123")
-            headers.setdefault("x-devpi-serial", str(num))
+            headers.setdefault("x-devpi-serial", str(2))
             if headers["x-devpi-serial"] is None:
                 del headers["x-devpi-serial"]
             reqmock.mockresponse("http://localhost/+changelog/%s" % num,
@@ -234,8 +234,8 @@ class TestReplicaThread:
                       headers={"x-devpi-serial": "0"})
         with pytest.raises(ZeroDivisionError):
             rt.thread_run()
-        (rec,) = caplog.getrecords("could not process")
-        assert "Remote serial 0 doesn't match expected serial 1." in rec.exc_text
+        assert caplog.getrecords("Got serial 0 from master which is smaller than last "
+                    "recorded serial")
 
     def test_thread_run_invalid_serial(self, rt, mockchangelog, caplog, xom, monkeypatch):
         monkeypatch.setattr("os._exit", lambda n: 0/0)

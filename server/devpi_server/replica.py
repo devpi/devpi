@@ -224,10 +224,6 @@ class ReplicaThread:
 
                 if r.status_code == 200:
                     try:
-                        if remote_serial != serial:
-                            raise ValueError(
-                                "Remote serial %s doesn't match expected "
-                                "serial %s." % (remote_serial, serial))
                         changes, rel_renames = loads(r.content)
                         keyfs.import_changes(serial, changes)
                     except Exception:
@@ -238,21 +234,13 @@ class ReplicaThread:
                         if not master_uuid:
                             self.xom.config.set_master_uuid(remote_master_uuid)
                         # also record the current master serial for status info
-                        self.update_master_serial(serial)
+                        self.update_master_serial(remote_serial)
                         continue
                 elif r.status_code == 202:
-                    try:
-                        if remote_serial != serial:
-                            raise ValueError(
-                                "Remote serial %s doesn't match expected "
-                                "serial %s." % (remote_serial, serial))
-                    except Exception:
-                        log.exception("could not process: %s", r.url)
-                    else:
-                        log.debug("%s: trying again %s\n", r.status_code, url)
-                        # also record the current master serial for status info
-                        self.update_master_serial(r.headers["X-DEVPI-SERIAL"])
-                        continue
+                    log.debug("%s: trying again %s\n", r.status_code, url)
+                    # also record the current master serial for status info
+                    self.update_master_serial(remote_serial)
+                    continue
                 else:
                     log.error("%s: failed fetching %s", r.status_code, url)
             # we got an error, let's wait a bit
