@@ -145,7 +145,15 @@ class TestReplicaThread:
     @pytest.fixture
     def mockchangelog(self, reqmock):
         def mockchangelog(num, code, data=b'',
-                          headers={H_MASTER_UUID: "123"}):
+                          uuid="123", headers=None):
+            if headers is None:
+                headers = {}
+            headers = dict((k.lower(), v) for k, v in headers.items())
+            if uuid is not None:
+                headers.setdefault(H_MASTER_UUID.lower(), "123")
+            headers.setdefault("x-devpi-serial", str(num))
+            if headers["x-devpi-serial"] is None:
+                del headers["x-devpi-serial"]
             reqmock.mockresponse("http://localhost/+changelog/%s" % num,
                                  code=code, data=data, headers=headers)
         return mockchangelog
@@ -198,7 +206,7 @@ class TestReplicaThread:
 
     def test_thread_run_no_uuid(self, rt, mockchangelog, caplog, xom):
         rt.thread.sleep = lambda x: 0/0
-        mockchangelog(0, code=200, data=b'123', headers={})
+        mockchangelog(0, code=200, data=b'123', uuid=None)
         with pytest.raises(ZeroDivisionError):
             rt.thread_run()
         assert caplog.getrecords("remote.*no.*UUID")
@@ -214,6 +222,46 @@ class TestReplicaThread:
         with pytest.raises(ZeroDivisionError):
             rt.thread_run()
         assert caplog.getrecords("master UUID.*001.*does not match")
+
+    def test_thread_run_serial_mismatch(self, rt, mockchangelog, caplog, xom, monkeypatch):
+        monkeypatch.setattr("os._exit", lambda n: 0/0)
+        rt.thread.sleep = lambda *x: 0/0
+        data = xom.keyfs._fs.get_raw_changelog_entry(0)
+        assert data
+        mockchangelog(0, code=200, data=data)
+        data = xom.keyfs._fs.get_raw_changelog_entry(1)
+        mockchangelog(1, code=200, data=data,
+                      headers={"x-devpi-serial": "0"})
+        with pytest.raises(ZeroDivisionError):
+            rt.thread_run()
+        (rec,) = caplog.getrecords("could not process")
+        assert "Remote serial 0 doesn't match expected serial 1." in rec.exc_text
+
+    def test_thread_run_invalid_serial(self, rt, mockchangelog, caplog, xom, monkeypatch):
+        monkeypatch.setattr("os._exit", lambda n: 0/0)
+        rt.thread.sleep = lambda *x: 0/0
+        data = xom.keyfs._fs.get_raw_changelog_entry(0)
+        assert data
+        mockchangelog(0, code=200, data=data)
+        data = xom.keyfs._fs.get_raw_changelog_entry(1)
+        mockchangelog(1, code=200, data=data,
+                      headers={"x-devpi-serial": "foo"})
+        with pytest.raises(ZeroDivisionError):
+            rt.thread_run()
+        assert caplog.getrecords("error fetching.*invalid literal for int")
+
+    def test_thread_run_missing_serial(self, rt, mockchangelog, caplog, xom, monkeypatch):
+        monkeypatch.setattr("os._exit", lambda n: 0/0)
+        rt.thread.sleep = lambda *x: 0/0
+        data = xom.keyfs._fs.get_raw_changelog_entry(0)
+        assert data
+        mockchangelog(0, code=200, data=data)
+        data = xom.keyfs._fs.get_raw_changelog_entry(1)
+        mockchangelog(1, code=200, data=data,
+                      headers={"x-devpi-serial": None})
+        with pytest.raises(ZeroDivisionError):
+            rt.thread_run()
+        assert caplog.getrecords("error fetching.*x-devpi-serial")
 
     def test_thread_run_try_again(self, rt, mockchangelog, caplog):
         l = [1]
