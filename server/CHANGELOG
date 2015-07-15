@@ -5,6 +5,9 @@
   Instead we cache release data for 30 minutes, this can be adjusted with the
   ``--mirror-cache-expiry`` option.
 
+- fix issue251: Require and validate the "X-DEVPI-SERIAL" from master in
+  replica thread
+
 
 2.2.2
 -----

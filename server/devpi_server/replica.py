@@ -156,20 +156,14 @@ class ReplicaThread:
         return self._master_serial_timestamp
 
     def update_master_serial(self, serial):
-        if serial is None:
-            return
-        try:
-            serial = int(serial)
-        except ValueError:
-            return
         now = time.time()
         # record that we got a reply from the master, so we can produce status
         # information about the connection to master
         self.update_from_master_at = now
         if self.xom.keyfs.get_current_serial() == serial:
             self.replica_in_sync_at = now
-        if self._master_serial is not None and self._master_serial <= serial:
-            if self._master_serial < serial:
+        if self._master_serial is not None and serial <= self._master_serial:
+            if serial < self._master_serial:
                 self.log.error(
                     "Got serial %s from master which is smaller than last "
                     "recorded serial %s." % (serial, self._master_serial))
@@ -201,6 +195,7 @@ class ReplicaThread:
                     H_EXPECTED_MASTER_ID: master_uuid,
                     H_REPLICA_OUTSIDE_URL: config.args.outside_url,
                 })
+                remote_serial = int(r.headers["X-DEVPI-SERIAL"])
             except Exception as e:
                 log.error("error fetching %s: %s", url, str(e))
             else:
@@ -234,18 +229,17 @@ class ReplicaThread:
                     except Exception:
                         log.exception("could not process: %s", r.url)
                     else:
-                        serial += 1
                         # we successfully received data so let's
                         # record the master_uuid for future consistency checks
                         if not master_uuid:
                             self.xom.config.set_master_uuid(remote_master_uuid)
                         # also record the current master serial for status info
-                        self.update_master_serial(r.headers.get("X-DEVPI-SERIAL"))
+                        self.update_master_serial(remote_serial)
                         continue
                 elif r.status_code == 202:
                     log.debug("%s: trying again %s\n", r.status_code, url)
                     # also record the current master serial for status info
-                    self.update_master_serial(r.headers.get("X-DEVPI-SERIAL"))
+                    self.update_master_serial(remote_serial)
                     continue
                 else:
                     log.error("%s: failed fetching %s", r.status_code, url)
