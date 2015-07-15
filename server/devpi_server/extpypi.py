@@ -6,12 +6,9 @@ toxresult storage.
 """
 
 from __future__ import unicode_literals
-try:
-    import xmlrpc.client as xmlrpc
-except ImportError:
-    import xmlrpclib as xmlrpc
 
 import py
+import time
 
 from devpi_common.vendor._pip import HTMLPage
 
@@ -19,13 +16,13 @@ from devpi_common.url import URL
 from devpi_common.metadata import BasenameMeta
 from devpi_common.metadata import is_archive_of_project, splitbasename
 from devpi_common.types import ensure_unicode_keys
-from devpi_common.validation import normalize_name, ensure_unicode
+from devpi_common.validation import normalize_name
 from devpi_common.request import new_requests_session
 
 from . import __version__ as server_version
 from .model import BaseStage
 from .keyfs import load_from_file, dump_to_file
-from .log import threadlog, thread_current_log, thread_push_log
+from .log import threadlog
 
 
 class IndexParser:
@@ -98,39 +95,36 @@ def parse_index(disturl, html, scrape=True):
     parser.parse_index(disturl, html, scrape=scrape)
     return parser
 
-class XMLProxy(object):
-    def __init__(self, url):
-        self._url = url
+
+class PyPISimpleProxy(object):
+    def __init__(self, simple_url=None):
+        if simple_url is None:
+            self._simple_url = PYPIURL_SIMPLE
+        else:
+            self._simple_url = simple_url
         self._session = new_requests_session(agent=("server", server_version))
-        self._session.headers["content-type"] = "text/xml"
-        self._session.headers["Accept"] = "text/xml"
 
     def list_packages_with_serial(self):
-        return self._execute("list_packages_with_serial")
-
-    def changelog_since_serial(self, serial):
-        return self._execute("changelog_since_serial", serial)
-
-    def _execute(self, method, *args):
-        payload = xmlrpc.dumps(args, method)
-        threadlog.debug("-> %s%s" %(method, args))
+        headers = {"Accept": "text/html"}
         try:
-            reply = self._session.post(self._url, data=payload, stream=False)
+            response = self._session.get(self._simple_url, headers=headers)
         except Exception as exc:
-            threadlog.warn("%s: error %s with remote %s",
-                           method, exc, self._url)
+            threadlog.warn("error %s with remote %s", exc, self._simple_url)
             return None
-        if reply.status_code != 200:
-            threadlog.warn("%s: status_code %s with remote %s", method,
-                     reply.status_code, self._url)
-            return None
-        res = xmlrpc.loads(reply.content)[0][0]
-        if isinstance(res, (list, dict)) and len(res) > 3:
-            repr_res = "%r with %s entries" %(type(res).__name__, len(res))
-        else:
-            repr_res = repr(res)
-        threadlog.debug("<- %s%s: %s" %(method, args, repr_res))
-        return res
+        page = HTMLPage(response.text, response.url)
+        name2serials = {}
+        baseurl = URL(self._simple_url)
+        basehost = baseurl.replace(path='')
+        for link in page.links:
+            newurl = URL(link.url)
+            if not newurl.is_valid_http_url():
+                continue
+            if not newurl.path.startswith(baseurl.path):
+                continue
+            if basehost != newurl.replace(path=''):
+                continue
+            name2serials[newurl.basename] = -1
+        return name2serials
 
 
 def perform_crawling(pypistage, result, numthreads=10):
@@ -166,6 +160,7 @@ class PyPIStage(BaseStage):
         self.httpget = xom.httpget
         self.filestore = xom.filestore
         self.pypimirror = xom.pypimirror
+        self.cache_expiry = xom.config.args.mirror_cache_expiry
         self.xom = xom
         if xom.is_replica():
             url = xom.config.master_url
@@ -182,11 +177,13 @@ class PyPIStage(BaseStage):
         dumplist = [(entry.relpath, entry.hash_spec, entry.eggfragment)
                             for entry in entries]
         data = {"serial": serial,
-                "latest_serial": serial,
                 "entrylist": dumplist,
                 "projectname": projectname}
+        self.xom.set_updated_at(self.name, projectname, time.time())
         threadlog.debug("saving data for %s: %s", projectname, data)
-        self.keyfs.PYPILINKS(name=normname).set(data)
+        old = self.keyfs.PYPILINKS(name=normname).get()
+        if old != data:
+            self.keyfs.PYPILINKS(name=normname).set(data)
         return list(self._make_elinks(projectname, data["entrylist"]))
 
     def _load_project_cache(self, projectname):
@@ -198,8 +195,13 @@ class PyPIStage(BaseStage):
     def _load_cache_links(self, projectname):
         cache = self._load_project_cache(projectname)
         if cache:
-            return (cache["serial"] >= cache["latest_serial"],
-                   list(self._make_elinks(projectname, cache["entrylist"])))
+            serial = self.pypimirror.name2serials.get(projectname, -1)
+            is_fresh = (cache["serial"] >= serial)
+            if is_fresh:
+                updated_at = self.xom.get_updated_at(self.name, projectname)
+                is_fresh = (time.time() - updated_at) <= self.cache_expiry
+            return (is_fresh,
+                    list(self._make_elinks(projectname, cache["entrylist"])))
         return True, None
 
     def _make_elinks(self, projectname, data):
@@ -274,8 +276,10 @@ class PyPIStage(BaseStage):
         newest_serial = self.pypimirror.name2serials.get(projectname, -1)
         if serial < newest_serial:
             raise self.UpstreamError(
-                        "%s: pypi returned serial %s, expected %s",
+                        "%s: pypi returned serial %s, expected at least %s",
                         projectname, serial, newest_serial)
+        else:
+            self.pypimirror.name2serials[projectname] = serial
 
         threadlog.debug("%s: got response with serial %s" %
                   (projectname, serial))
@@ -400,52 +404,10 @@ class PyPIMirror:
                 self.normname2name[n] = name
         return n
 
-    def thread_run(self, proxy):
-        log = thread_push_log("[MIR]")
-        log.info("changelog/update tasks starting")
-        while 1:
-            # get changes since the maximum serial we are aware of
-            current_serial = max(itervalues(self.name2serials))
-            changelog = proxy.changelog_since_serial(current_serial)
-            if changelog:
-                with self.keyfs.transaction(write=True):
-                    self.process_changelog(changelog)
-            self.thread.sleep(self.xom.config.args.refresh)
-
-    def process_changelog(self, changelog):
-        changed = set()
-        log = thread_current_log()
-        for x in changelog:
-            name, version, action, date, serial = x
-            # XXX remove names if action == "remove" and version is None
-            name = ensure_unicode(name)
-            normname = self.set_project_serial(name, serial)
-            changed.add(normname)
-            key = self.keyfs.PYPILINKS(name=normname)
-            cache = key.get()
-            if cache:
-                if cache["latest_serial"] >= serial:  # should this happen?
-                    return  # the cached serial is new enough
-                cache["latest_serial"] = serial
-                key.set(cache)
-                log.debug("set latest_serial of %s to %s",
-                          normname, serial)
-            #else:
-            #    log.debug("no cache found for %s" % name)
-        # XXX include name2serials writing into the ongoing transaction
-        # as an external rename (not managed through keyfs)
-        if self.name2serials:
-            dump_to_file(self.name2serials, self.path_name2serials)
-
-        log.debug("processed changelog of size %d: %s" %(
-                  len(changelog), ",".join(changed)))
-
-
-
-
 
 PYPIURL_SIMPLE = "https://pypi.python.org/simple/"
 PYPIURL = "https://pypi.python.org/"
+
 
 def itervalues(d):
     return getattr(d, "itervalues", d.values)()

@@ -65,6 +65,10 @@ def addoptions(parser):
                  "invalidation issues.  This will only work if you "
                  "are not using a http proxy.")
 
+    mirror.addoption("--mirror-cache-expiry", type=float, metavar="SECS",
+            default=1800,
+            help="time after which PyPI projects are checked for new releases.")
+
     deploy = parser.addgroup("deployment and data options")
 
     deploy.addoption("--version", action="store_true",

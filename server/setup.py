@@ -49,7 +49,7 @@ if __name__ == "__main__":
       keywords="pypi realtime cache server",
       long_description=README,
       url="http://doc.devpi.net",
-      version='2.2.2',
+      version='2.2.3.dev0',
       maintainer="Holger Krekel, Florian Schulze",
       maintainer_email="holger@merlinux.eu",
       packages=find_packages(),

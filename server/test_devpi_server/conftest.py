@@ -7,10 +7,10 @@ import mimetypes
 import pytest
 import py
 from bs4 import BeautifulSoup
+from devpi_server import extpypi
 from devpi_server.config import get_pluginmanager
 from devpi_server.main import XOM, parseoptions
 from devpi_common.url import URL
-from devpi_server.extpypi import XMLProxy
 from devpi_server.extpypi import PyPIStage
 from devpi_server.log import threadlog, thread_clear_log
 from pyramid.authentication import b64encode
@@ -144,9 +144,17 @@ def mock():
         import mock
     return mock
 
+
+@pytest.fixture()
+def proxymock(request, mock):
+    proxy = mock.create_autospec(extpypi.PyPISimpleProxy)
+    proxy.list_packages_with_serial.return_value = {}
+    return proxy
+
+
 @pytest.fixture
-def makexom(request, gentmp, httpget, monkeypatch, mock):
-    def makexom(opts=(), httpget=httpget, proxy=None, mocking=True, plugins=()):
+def makexom(request, gentmp, httpget, monkeypatch, proxymock):
+    def makexom(opts=(), httpget=httpget, mocking=True, plugins=()):
         from devpi_server import auth_basic
         from devpi_server import auth_devpi
         plugins = list(plugins) + [(auth_basic, None), (auth_devpi, None)]
@@ -161,11 +169,8 @@ def makexom(request, gentmp, httpget, monkeypatch, mock):
         config = parseoptions(pm, fullopts)
         config.init_nodeinfo()
         if mocking:
-            if proxy is None:
-                proxy = mock.create_autospec(XMLProxy)
-                proxy.list_packages_with_serial.return_value = {}
-            xom = XOM(config, proxy=proxy, httpget=httpget)
-            add_pypistage_mocks(monkeypatch, httpget)
+            xom = XOM(config, proxy=proxymock, httpget=httpget)
+            add_pypistage_mocks(monkeypatch, httpget, proxymock)
         else:
             xom = XOM(config)
         # initialize default indexes
@@ -174,7 +179,7 @@ def makexom(request, gentmp, httpget, monkeypatch, mock):
             with xom.keyfs.transaction(write=True):
                 set_default_indexes(xom.model)
         if mocking:
-            xom.pypimirror.init_pypi_mirror(proxy)
+            xom.pypimirror.init_pypi_mirror(proxymock)
         if request.node.get_marker("with_replica_thread"):
             from devpi_server.replica import ReplicaThread
             rt = ReplicaThread(xom)
@@ -192,10 +197,10 @@ def makexom(request, gentmp, httpget, monkeypatch, mock):
 
 @pytest.fixture
 def replica_xom(request, makexom):
-    from devpi_server.replica import PyPIProxy
+    from devpi_server.replica import PyPIDevpiProxy
     master_url = "http://localhost:3111"
     xom = makexom(["--master", master_url])
-    xom.proxy = PyPIProxy(xom._httpsession, xom.config.master_url)
+    xom.proxy = PyPIDevpiProxy(xom._httpsession, xom.config.master_url)
     return xom
 
 
@@ -265,7 +270,8 @@ def httpget(pypiurls):
             elif text and "{sha256}" in text:
                 text = text.format(sha256=getsha256(text))
             headers = kw.setdefault("headers", {})
-            headers["X-PYPI-LAST-SERIAL"] = pypiserial
+            if pypiserial is not None:
+                headers["X-PYPI-LAST-SERIAL"] = str(pypiserial)
             self.mockresponse(pypiurls.simple + name + "/",
                                       text=text, **kw)
             return ret
@@ -304,12 +310,12 @@ def model(xom):
 def pypistage(xom):
     return PyPIStage(xom)
 
-def add_pypistage_mocks(monkeypatch, httpget):
+def add_pypistage_mocks(monkeypatch, httpget, proxymock):
     # add some mocking helpers
     PyPIStage.url2response = httpget.url2response
     def mock_simple(self, name, text=None, pypiserial=10000, **kw):
         call = lambda: \
-                 self.pypimirror.process_changelog([(name, 0,0,0, pypiserial)])
+                 self.pypimirror.set_project_serial(name, pypiserial)
         if not hasattr(self.keyfs, "tx"):
             with self.keyfs.transaction(write=True):
                 call()

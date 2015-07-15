@@ -1,3 +1,11 @@
+2.2.3.dev0
+----------
+
+- The PyPI changelog isn't watched for changes anymore.
+  Instead we cache release data for 30 minutes, this can be adjusted with the
+  ``--mirror-cache-expiry`` option.
+
+
 2.2.2
 -----
 

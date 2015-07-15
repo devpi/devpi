@@ -17,8 +17,6 @@ from . import extpypi, replica, mythread
 from . import __version__ as server_version
 
 
-PYPIURL_XMLRPC = "https://pypi.python.org/pypi/"
-
 class Fatal(Exception):
     pass
 
@@ -157,6 +155,7 @@ class XOM:
             self.set_state_version(server_version)
         self.log = threadlog
         self.polling_replicas = {}
+        self.stage2name2updated = {}
 
     def get_state_version(self):
         versionfile = self.config.serverdir.join(".serverversion")
@@ -171,6 +170,14 @@ class XOM:
         versionfile.dirpath().ensure(dir=1)
         versionfile.write(version)
 
+    def get_updated_at(self, stagename, projectname):
+        name2updated = self.stage2name2updated.setdefault(stagename, {})
+        return name2updated.setdefault(projectname, 0)
+
+    def set_updated_at(self, stagename, projectname, ts):
+        name2updated = self.stage2name2updated.setdefault(stagename, {})
+        name2updated[projectname] = ts
+
     @property
     def model(self):
         """ root model object. """
@@ -183,7 +190,7 @@ class XOM:
         # need to initialize the pypi mirror state before importing
         # because importing may need pypi mirroring state
         if xom.is_replica():
-            proxy = replica.PyPIProxy(xom._httpsession, xom.config.master_url)
+            proxy = replica.PyPIDevpiProxy(xom._httpsession, xom.config.master_url)
         else:
             proxy = self.proxy
         xom.pypimirror.init_pypi_mirror(proxy)
@@ -239,7 +246,7 @@ class XOM:
 
     @cached_property
     def proxy(self):
-        return extpypi.XMLProxy(PYPIURL_XMLRPC)
+        return extpypi.PyPISimpleProxy()
 
     def new_http_session(self, component_name):
         session = new_requests_session(agent=(component_name, server_version))
@@ -353,11 +360,6 @@ class XOM:
             # and pypimirror.name2serials changes are discovered
             # and replayed through the PypiProjectChange event
             self.thread_pool.register(self.replica_thread)
-        else:
-            # the master thread directly syncs using the
-            # pypi changelog protocol
-            self.thread_pool.register(self.pypimirror,
-                                      dict(proxy=self.proxy))
         return OutsideURLMiddleware(app, self)
 
     def is_replica(self):
