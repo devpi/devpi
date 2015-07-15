@@ -67,10 +67,7 @@ def addoptions(parser):
 
     mirror.addoption("--mirror-cache-expiry", type=float, metavar="SECS",
             default=1800,
-            help="time after which PyPI is checked for new release. "
-                 "If the changelog is watched this is the time after "
-                 "which we check regardless of the current serial we "
-                 "have in cache.")
+            help="time after which PyPI projects are checked for new releases.")
 
     deploy = parser.addgroup("deployment and data options")
 
