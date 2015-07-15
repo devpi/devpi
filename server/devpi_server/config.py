@@ -57,7 +57,7 @@ def addoptions(parser):
     mirror = parser.addgroup("pypi mirroring options (root/pypi)")
     mirror.addoption("--refresh", type=float, metavar="SECS",
             default=60,
-            help="interval for consulting changelog api of pypi.python.org")
+            help="NO EFFECT: changelog API is not used anymore")
 
     mirror.addoption("--bypass-cdn", action="store_true",
             help="set this if you want to bypass pypi's CDN for access to "
