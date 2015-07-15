@@ -6,10 +6,6 @@ toxresult storage.
 """
 
 from __future__ import unicode_literals
-try:
-    import xmlrpc.client as xmlrpc
-except ImportError:
-    import xmlrpclib as xmlrpc
 
 import py
 import time
@@ -20,13 +16,13 @@ from devpi_common.url import URL
 from devpi_common.metadata import BasenameMeta
 from devpi_common.metadata import is_archive_of_project, splitbasename
 from devpi_common.types import ensure_unicode_keys
-from devpi_common.validation import normalize_name, ensure_unicode
+from devpi_common.validation import normalize_name
 from devpi_common.request import new_requests_session
 
 from . import __version__ as server_version
 from .model import BaseStage
 from .keyfs import load_from_file, dump_to_file
-from .log import threadlog, thread_current_log, thread_push_log
+from .log import threadlog
 
 
 class IndexParser:
@@ -411,7 +407,6 @@ class PyPIMirror:
 
 PYPIURL_SIMPLE = "https://pypi.python.org/simple/"
 PYPIURL = "https://pypi.python.org/"
-PYPIURL_XMLRPC = "https://pypi.python.org/pypi/"
 
 
 def itervalues(d):

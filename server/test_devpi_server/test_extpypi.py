@@ -3,10 +3,9 @@ import hashlib
 import pytest
 import py
 
-from devpi_server.extpypi import PYPIURL_XMLRPC
 from devpi_server.extpypi import PyPIMirror, PyPIStage
 from devpi_server.extpypi import URL, PyPISimpleProxy
-from devpi_server.extpypi import parse_index, xmlrpc
+from devpi_server.extpypi import parse_index
 from devpi_server.main import Fatal
 from test_devpi_server.conftest import getmd5
 
