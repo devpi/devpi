@@ -51,13 +51,18 @@ def abort(request, code, body):
     threadlog.error(body)
     raise exception_response(code, explanation=body, headers=meta_headers)
 
-def abort_submit(code, msg):
+def abort_submit(code, msg, level="error"):
     # we construct our own type because we need to set the title
     # so that setup.py upload/register use it to explain the failure
     error = type(
         str('HTTPError'), (HTTPException,), dict(
             code=code, title=msg))
-    threadlog.error(msg)
+    if level == "info":
+        threadlog.info(msg)
+    elif level == "warn":
+        threadlog.warn(msg)
+    else:
+        threadlog.error(msg)
     raise error(headers=meta_headers)
 
 
@@ -694,7 +699,8 @@ class PyPIView:
                 except stage.NonVolatile as e:
                     if e.link.matches_checksum(file_content):
                         abort_submit(200,
-                            "Upload of identical file to non volatile index.")
+                            "Upload of identical file to non volatile index.",
+                            level="info")
                     abort_submit(409, "%s already exists in non-volatile index" % (
                          content.filename,))
                 link.add_log(
@@ -704,7 +710,8 @@ class PyPIView:
                         log=request.log, application_url=request.application_url,
                         stage=stage, projectname=projectname, version=version)
                 except Exception as e:
-                    abort_submit(200, "OK, but a trigger plugin failed: %s" % e)
+                    abort_submit(200,
+                        "OK, but a trigger plugin failed: %s" % e, level="warn")
             else:
                 doczip = content.file.read()
                 try:
@@ -714,7 +721,8 @@ class PyPIView:
                 except stage.NonVolatile as e:
                     if e.link.matches_checksum(doczip):
                         abort_submit(200,
-                            "Upload of identical file to non volatile index.")
+                            "Upload of identical file to non volatile index.",
+                            level="info")
                     abort_submit(409, "%s already exists in non-volatile index" % (
                          content.filename,))
                 link.add_log(
