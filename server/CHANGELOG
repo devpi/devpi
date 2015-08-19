@@ -1,6 +1,10 @@
 2.2.3.dev0
 ----------
 
+- fix issue260: Log identical upload message on level "info"
+
+- Log upload trigger message on level "warn"
+
 - The PyPI changelog isn't watched for changes anymore.
   Instead we cache release data for 30 minutes, this can be adjusted with the
   ``--mirror-cache-expiry`` option.
