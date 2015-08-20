@@ -437,7 +437,7 @@ class ImportFileReplica:
             return
 
         if r.status_code != 200:
-            raise FileReplicationError(r)
+            raise FileReplicationError(r, relpath)
         err = entry.check_checksum(r.content)
         if err:
             # the file we got is different, it may have changed later.
@@ -457,9 +457,10 @@ class ImportFileReplica:
 
 class FileReplicationError(Exception):
     """ raised when replicating a file from the master failed. """
-    def __init__(self, response, message=None):
+    def __init__(self, response, relpath, message=None):
         self.url = response.url
         self.status_code = response.status_code
+        self.relpath = relpath
         self.message = message or "failed"
 
     def __str__(self):

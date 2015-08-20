@@ -8,6 +8,8 @@
 - fix issue251: Require and validate the "X-DEVPI-SERIAL" from master in
   replica thread
 
+- fix issue258: fix FileReplicationError representation for proper logging
+
 
 2.2.2
 -----
