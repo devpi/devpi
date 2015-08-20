@@ -295,7 +295,7 @@ class TestExtPYPIDB:
         assert x.hash_spec != y.hash_spec
 
     def test_get_versiondata_inexistent(self, pypistage):
-        pypistage.mock_simple("pytest", status_code=404)
+        pypistage.mock_simple("pytest", status_code=502)
         with pytest.raises(pypistage.UpstreamError):
             pypistage.get_versiondata("Pytest", "1.0")
 

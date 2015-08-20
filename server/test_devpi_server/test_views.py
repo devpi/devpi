@@ -252,7 +252,7 @@ def test_indexroot_root_pypi(testapp, xom):
     '/root/pypi/{name}/2.6',
     '/root/pypi/+simple/{name}',
 ])
-@pytest.mark.parametrize("code", [-1, 404, 500, 501, 502, 503])
+@pytest.mark.parametrize("code", [-1, 500, 501, 502, 503])
 def test_upstream_not_reachable(reqmock, pypistage, testapp, code, url):
     name = "whatever{code}".format(code=code+100)
     pypistage.mock_simple(name, '', status_code=code)

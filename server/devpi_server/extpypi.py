@@ -249,6 +249,9 @@ class PyPIStage(BaseStage):
                 threadlog.error("serving stale links for %r, upstream not reachable",
                                 projectname)
                 return links
+            if response.status_code == 404:
+                # we get a 404 if a project has no releases or when it's deleted
+                return []
             # XXX it's not correct to return UpstreamError in all cases
             # if indeed the project was deleted but that fact
             # is not yet properly processed
