@@ -301,6 +301,10 @@ class HTTPReply(object):
         return getattr(self._response, name)
 
     @property
+    def reason(self):
+        return self._response.reason
+
+    @property
     def type(self):
         return self._json.get("type")
 
