@@ -16,7 +16,6 @@ from whoosh.util.text import rcompile
 from whoosh.writing import CLEAR
 import itertools
 import shutil
-import threading
 
 
 try:
@@ -180,7 +179,6 @@ class Index(object):
 
     def __init__(self, index_path):
         self.index_path = index_path
-        self.tl = threading.local()
 
     def ix(self, name):
         schema = getattr(self, '%s_schema' % name)
@@ -306,16 +304,6 @@ class Index(object):
                 writer.commit()
             log.info("Finished committing %s documents to search index." % count)
 
-    @property
-    def project_searcher(self):
-        try:
-            searcher = self.tl.searcher
-        except AttributeError:
-            searcher = self.project_ix.searcher()
-        searcher = searcher.refresh()
-        self.tl.searcher = searcher
-        return searcher
-
     def _process_results(self, raw, page=1):
         items = []
         result_info = dict()
@@ -359,9 +347,9 @@ class Index(object):
                 parent['sub_hits'].append(info)
         return result
 
-    def _search_projects(self, query, page=1):
-        searcher = self.project_searcher
-        return searcher.search_page(query, page, terms=True)
+    def _search_projects(self, searcher, query, page=1):
+        result = searcher.search_page(query, page, terms=True)
+        return result
 
     @property
     def _query_parser_help(self):
@@ -433,26 +421,34 @@ class Index(object):
             plugins.OperatorsPlugin(),
             plugins.BoostPlugin()]
 
-    def _query_projects(self, querystring, page=1):
+    def _query_projects(self, searcher, querystring, page=1):
         parser = QueryParser(
             "text", self.project_ix.schema,
             plugins=self._query_parser_plugins())
         query = parser.parse(querystring)
-        return self._search_projects(query, page=page)
+        return self._search_projects(searcher, query, page=page)
 
     def search_projects(self, query, page=1):
+        searcher = self.project_ix.searcher()
         try:
-            return self._process_results(
-                self._search_projects(query, page=page))
+            result = self._process_results(
+                self._search_projects(searcher, query, page=page))
         except (OSError, WhooshIndexError) as e:
             raise SearchUnavailableException(e)
+        else:
+            searcher.close()
+            return result
 
     def query_projects(self, querystring, page=1):
+        searcher = self.project_ix.searcher()
         try:
-            return self._process_results(
-                self._query_projects(querystring, page=page))
+            result = self._process_results(
+                self._query_projects(searcher, querystring, page=page))
         except (OSError, WhooshIndexError) as e:
             raise SearchUnavailableException(e)
+        else:
+            searcher.close()
+            return result
 
     def get_query_parser_html_help(self):
         result = []

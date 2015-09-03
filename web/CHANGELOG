@@ -1,3 +1,10 @@
+2.4.1.dev0
+---------------
+
+- fix issue255: close and discard whoosh searchers after each use, they use too
+  much memory if stored in a thread local for reuse.
+
+
 2.4.0
 ---------------
 
