@@ -15,7 +15,7 @@ server {
     # try serving static files directly
     location ~ /\+f/ {
         error_page 418 = @proxy_to_app;
-        if ($request_method != GET) {
+        if ($request_method !~ (GET)|(HEAD)) {
             return 418; 
         }
         expires max;
