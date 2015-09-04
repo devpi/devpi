@@ -522,8 +522,9 @@ class TestFileReplication:
         # simulate some 500 master server error
         replica_xom.httpget.mockresponse(master_file_path, status_code=500,
                                          content=b'')
-        with pytest.raises(FileReplicationError):
+        with pytest.raises(FileReplicationError) as e:
             replay(xom, replica_xom)
+        assert str(e.value) == 'FileReplicationError with http://localhost/root/pypi/+e/https_pypi.python.org_package_some/some-1.8.zip, code=500, relpath=root/pypi/+e/https_pypi.python.org_package_some/some-1.8.zip, message=failed'
 
         # now get the real thing
         replica_xom.httpget.mockresponse(master_file_path, status_code=200,

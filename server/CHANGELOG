@@ -1,12 +1,18 @@
 2.2.3.dev0
 ----------
 
+- fix issue260: Log identical upload message on level "info"
+
+- Log upload trigger message on level "warn"
+
 - The PyPI changelog isn't watched for changes anymore.
   Instead we cache release data for 30 minutes, this can be adjusted with the
   ``--mirror-cache-expiry`` option.
 
 - fix issue251: Require and validate the "X-DEVPI-SERIAL" from master in
   replica thread
+
+- fix issue258: fix FileReplicationError representation for proper logging
 
 - fix issue256: if a project removes all releases from pypi or the project is
   deleted on pypi, we get a 404 back. In that case we now return an empty list
