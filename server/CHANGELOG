@@ -1,6 +1,9 @@
 2.2.3.dev0
 ----------
 
+- switched to semantic versioning. Only major revisions will ever require an
+  export/import cycle.
+
 - fix issue260: Log identical upload message on level "info"
 
 - Log upload trigger message on level "warn"

@@ -31,7 +31,7 @@ def check_compatible_version(xom):
     if server_version != state_version:
         state_ver = state_version.split(".")
         server_ver = server_version.split(".")
-        if state_ver[:2] != server_ver[:2]:
+        if state_ver[:1] != server_ver[:1]:
             fatal("Incompatible state: server %s cannot run serverdir "
                   "%s created by %s.\n"
                   "Use --export from older version, then --import with newer "
