@@ -21,6 +21,10 @@
   deleted on pypi, we get a 404 back. In that case we now return an empty list
   of releases instead of returning an UpstreamError.
 
+- make keyfs cache size configurable via "--keyfs-cache-size" option and
+  increase the default size to improve performance for installations with many
+  writes
+
 
 2.2.2
 -----
