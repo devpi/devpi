@@ -245,6 +245,8 @@ class PyPIStage(BaseStage):
         response = self.httpget(url, allow_redirects=True)
         if response.status_code != 200:
             # if we have an old version, return it instead of erroring out
+            # in case that a project was deleted or all releases removed, links
+            # will be served until the cache expires
             if links is not None:
                 threadlog.error("serving stale links for %r, upstream not reachable",
                                 projectname)
