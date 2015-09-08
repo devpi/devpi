@@ -249,9 +249,15 @@ class PyPIStage(BaseStage):
                 threadlog.error("serving stale links for %r, upstream not reachable",
                                 projectname)
                 return links
-            # XXX it's not correct to return UpstreamError in all cases
-            # if indeed the project was deleted but that fact
-            # is not yet properly processed
+            if response.status_code == 404:
+                # we get a 404 if a project has no releases or when it's deleted
+                # the empty list must be persisted, so replicas see the same
+                # result. If a release is made, the changelog triggers an update
+                # and when the expiry time is reached pypi is also checked again
+                self.keyfs.restart_as_write_transaction()
+                return self._dump_project_cache(
+                    projectname, [],
+                    self.pypimirror.name2serials.get(projectname, -1))
             raise self.UpstreamError("%s status on GET %s" %
                                      (response.status_code, url))
 
