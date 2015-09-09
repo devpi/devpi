@@ -22,8 +22,8 @@
   of releases instead of returning an UpstreamError.
 
 
-2.2.2
------
+2.2.2 (2015-07-09)
+------------------
 
 - make replica thread more robust by catching more exceptions
 
@@ -43,15 +43,15 @@
 - fix issue248: prevent change of index type after creation
 
 
-2.2.1
-----------------
+2.2.1 (2015-05-20)
+------------------
 
 - fix issue237: fix wrong initial replica setup which would prevent
   initialization.  Thanks Stephan Erb.
 
 
-2.2.0
-----------------
+2.2.0 (2015-05-13)
+------------------
 
 - add "--no-events" option to postpone running events after import
   to server start
@@ -115,8 +115,8 @@
   master id the replica is operating for.
 
 
-2.1.5
-----------------
+2.1.5 (2015-03-16)
+------------------
 
 - fix devpi-ldap issue17: the push command directly used the username instead
   of using a general permission check, that caused groups in acl_upload to not
