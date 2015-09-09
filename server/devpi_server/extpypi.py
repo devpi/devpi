@@ -195,7 +195,7 @@ class PyPIStage(BaseStage):
     def _load_cache_links(self, projectname):
         cache = self._load_project_cache(projectname)
         if cache:
-            serial = self.pypimirror.name2serials.get(projectname, -1)
+            serial = self.pypimirror.get_project_serial(projectname)
             is_fresh = (cache["serial"] >= serial)
             if is_fresh:
                 updated_at = self.xom.get_updated_at(self.name, projectname)
@@ -259,7 +259,7 @@ class PyPIStage(BaseStage):
                 self.keyfs.restart_as_write_transaction()
                 return self._dump_project_cache(
                     projectname, [],
-                    self.pypimirror.name2serials.get(projectname, -1))
+                    self.pypimirror.get_project_serial(projectname))
             raise self.UpstreamError("%s status on GET %s" %
                                      (response.status_code, url))
 
@@ -281,13 +281,13 @@ class PyPIStage(BaseStage):
 
         # check that we got a fresh enough page
         serial = int(response.headers["X-PYPI-LAST-SERIAL"])
-        newest_serial = self.pypimirror.name2serials.get(projectname, -1)
+        newest_serial = self.pypimirror.get_project_serial(projectname)
         if serial < newest_serial:
             raise self.UpstreamError(
                         "%s: pypi returned serial %s, expected at least %s",
                         projectname, serial, newest_serial)
         else:
-            self.pypimirror.name2serials[projectname] = serial
+            self.pypimirror.set_project_serial(projectname, serial)
 
         threadlog.debug("%s: got response with serial %s" %
                   (projectname, serial))
@@ -390,6 +390,15 @@ class PyPIMirror:
                     with self.xom.keyfs.PYPI_SERIALS_LOADED.update():
                         pass
         return name2serials
+
+    def get_project_serial(self, projectname):
+        """ get serial for project.
+
+        Will use the normalization table to look up the correct name.
+        Returns -1 if the project isn't known.
+        """
+        name = self.get_registered_name(projectname)
+        return self.name2serials.get(name, -1)
 
     def set_project_serial(self, name, serial):
         """ set the current serial and update projectname normalization table.

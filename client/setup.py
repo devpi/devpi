@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-import sys, os
+import sys, os, re
 
 import setuptools
 from setuptools import setup, find_packages
@@ -25,9 +25,20 @@ def has_environment_marker_support():
         return False
 
 
+def get_changelog():
+    text = open(os.path.join(here, 'CHANGELOG')).read()
+    header_matches = list(re.finditer('^-+$', text, re.MULTILINE))
+    # until fifth header
+    text = text[:header_matches[5].start()]
+    # all lines without fifth release number
+    lines = text.splitlines()[:-1]
+    return "Changelog\n=========\n\n" + "\n".join(lines)
+
+
 if __name__ == "__main__":
     here = os.path.abspath(".")
     README = open(os.path.join(here, 'README.rst')).read()
+    CHANGELOG = get_changelog()
 
     install_requires=["tox>=1.7.1",
                       "devpi_common>2.0.2",
@@ -45,7 +56,7 @@ if __name__ == "__main__":
       name="devpi-client",
       description="devpi upload/install/... workflow commands for Python "
                   "developers",
-      long_description=open("README.rst").read(),
+      long_description="\n\n".join([README, CHANGELOG]),
       version='2.3.1.dev0',
       packages=find_packages(),
       install_requires=install_requires,

@@ -5,8 +5,8 @@
   much memory if stored in a thread local for reuse.
 
 
-2.4.0
----------------
+2.4.0 (2015-07-09)
+------------------
 
 - macros.pt: Add autofocus attribute to search field
 
@@ -23,8 +23,8 @@
 - toxresults.pt: fix missing closing ``div`` tag.
 
 
-2.3.0
----------------
+2.3.0 (2015-05-13)
+------------------
 
 - toxresults.pt: use just one line for result status indicator
 
@@ -38,14 +38,14 @@
 - fix issue233: projects on root/pypi with no releases lead to a traceback
 
 
-2.2.3
----------------
+2.2.3 (2015-02-24)
+------------------
 
 - fix issue207: added documentation url for latest stable release of a package.
 
 
-2.2.2
----------------
+2.2.2 (2014-11-27)
+------------------
 
 - fix issue184: better height calculation of documentation iframe.
 

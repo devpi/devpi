@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-import os, sys
+import os, re, sys
 import setuptools
 from setuptools import setup, find_packages
 
@@ -23,9 +23,21 @@ def has_environment_marker_support():
         sys.stderr.write("Could not test setuptool's version: %s\n" % exc)
         return False
 
+
+def get_changelog():
+    text = open(os.path.join(here, 'CHANGELOG')).read()
+    header_matches = list(re.finditer('^-+$', text, re.MULTILINE))
+    # until fifth header
+    text = text[:header_matches[5].start()]
+    # all lines without fifth release number
+    lines = text.splitlines()[:-1]
+    return "Changelog\n=========\n\n" + "\n".join(lines)
+
+
 if __name__ == "__main__":
     here = os.path.abspath(".")
     README = open(os.path.join(here, 'README.rst')).read()
+    CHANGELOG = get_changelog()
 
     install_requires = ["py>=1.4.23",
                         "devpi_common<2.1,>=2.0.6.dev0",
@@ -47,7 +59,7 @@ if __name__ == "__main__":
       name="devpi-server",
       description="devpi-server: reliable private and pypi.python.org caching server",
       keywords="pypi realtime cache server",
-      long_description=README,
+      long_description="\n\n".join([README, CHANGELOG]),
       url="http://doc.devpi.net",
       version='2.2.3.dev0',
       maintainer="Holger Krekel, Florian Schulze",
