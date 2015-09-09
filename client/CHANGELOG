@@ -4,8 +4,8 @@
 - fix issue259: print server errors in client
 
 
-2.3.0
-----------------
+2.3.0 (2015-07-09)
+------------------
 
 - fix issue247: possible password leakage to log in devpi-client
 
@@ -28,8 +28,8 @@
   option.
 
 
-2.2.0
-----------------
+2.2.0 (2015-05-13)
+------------------
 
 - improve internal testing mechanics
 
@@ -52,8 +52,8 @@
 
 - show index configuration settings added by plugins in devpi-server >= 2.2.0.
 
-2.1.0
-----------------
+2.1.0 (2015-03-16)
+------------------
 
 - fix issue199: "devpi upload" and "devpi test" can now handle packages with
   dashes in their name.
@@ -63,8 +63,8 @@
   "list" and "test". This also fixes usage with packages containing dashes in
   their name.
 
-2.0.5
-----------------
+2.0.5 (2015-02-24)
+------------------
 
 - fix issue209: argument default handling changed in argparse in Python 2.7.9.
 - fix issue163: use PIP_CONFIG_FILE environment variable if set.
