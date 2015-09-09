@@ -151,6 +151,13 @@ def addoptions(parser):
                  "and modify users and indices. You have to add root "
                  "explicitely if wanted.")
 
+    deploy.addoption("--keyfs-cache-size", type=int, metavar="NUM",
+            action="store", default=10000,
+            help="size of keyfs cache. If your devpi-server installation "
+                 "gets a lot of writes, then increasing this might "
+                 "improve performance. Each entry uses 1kb of memory on "
+                 "average. So by default about 10MB are used.")
+
     bg = parser.addgroup("background server")
     bg.addoption("--start", action="store_true",
             help="start the background devpi-server")

@@ -24,6 +24,10 @@
 - Change nginx template to serve HEAD in addition to GET requests of files
   directly instead of proxying to devpi-server
 
+- make keyfs cache size configurable via "--keyfs-cache-size" option and
+  increase the default size to improve performance for installations with many
+  writes
+
 
 2.2.2 (2015-07-09)
 ------------------

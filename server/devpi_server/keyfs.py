@@ -78,10 +78,10 @@ def get_write_file_ensure_dir(path):
 
 
 class Filesystem:
-    def __init__(self, basedir, notify_on_commit):
+    def __init__(self, basedir, notify_on_commit, cache_size):
         self.basedir = basedir
         self._notify_on_commit = notify_on_commit
-        self._changelog_cache = LRUCache(1000)  # is thread safe
+        self._changelog_cache = LRUCache(cache_size)  # is thread safe
         self.last_commit_timestamp = time.time()
         with self.get_sqlconn() as conn:
             row = conn.execute("select max(serial) from changelog").fetchone()
@@ -394,7 +394,7 @@ class KeyFS(object):
     class ReadOnly(Exception):
         """ attempt to open write transaction while in readonly mode. """
 
-    def __init__(self, basedir, readonly=False):
+    def __init__(self, basedir, readonly=False, cache_size=10000):
         self.basedir = py.path.local(basedir).ensure(dir=1)
         self._keys = {}
         self._mode = None
@@ -403,7 +403,10 @@ class KeyFS(object):
         self._threadlocal = mythread.threading.local()
         self._import_subscriber = {}
         self.notifier = t = TxNotificationThread(self)
-        self._fs = Filesystem(self.basedir, notify_on_commit=t.notify_on_commit)
+        self._fs = Filesystem(
+            self.basedir,
+            notify_on_commit=t.notify_on_commit,
+            cache_size=cache_size)
         self._readonly = readonly
 
     def derive_key(self, relpath, keyname=None, conn=None):
