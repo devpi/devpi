@@ -21,6 +21,9 @@
   deleted on pypi, we get a 404 back. In that case we now return an empty list
   of releases instead of returning an UpstreamError.
 
+- Change nginx template to serve HEAD in addition to GET requests of files
+  directly instead of proxying to devpi-server
+
 
 2.2.2
 -----
