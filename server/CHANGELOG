@@ -1,5 +1,5 @@
-2.3.0
-----------
+2.3.0 (2015-09-10)
+------------------
 
 - switched to semantic versioning. Only major revisions will ever require an
   export/import cycle.
