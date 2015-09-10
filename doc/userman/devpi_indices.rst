@@ -483,6 +483,7 @@ provides, not only the index names and their owner, but also index property
 information::
 
    $ devpi use -l
+   test/dev        bases=root/pypi       volatile=True
    sophie/prod     bases=root/pypi       volatile=False
    sophie/dev      bases=sophie/prod     volatile=True
    root/pypi       bases=                volatile=False

@@ -160,7 +160,7 @@ class PyPIStage(BaseStage):
         self.httpget = xom.httpget
         self.filestore = xom.filestore
         self.pypimirror = xom.pypimirror
-        self.cache_expiry = xom.config.args.mirror_cache_expiry
+        self.cache_expiry = xom.config.args.pypi_cache_expiry
         self.xom = xom
         if xom.is_replica():
             url = xom.config.master_url

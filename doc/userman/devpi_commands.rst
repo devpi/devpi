@@ -505,13 +505,14 @@ devpi command reference (server)
     $ devpi-server -h
     usage: devpi-server [-h] [--host HOST] [--port PORT] [--outside-url URL]
                         [--debug] [--logger-cfg LOGGER_CFG] [--refresh SECS]
-                        [--bypass-cdn] [--version] [--role {master,replica,auto}]
-                        [--master-url MASTER_URL] [--replica-cert pem_file]
-                        [--gen-config] [--secretfile path] [--export PATH]
-                        [--hard-links] [--import PATH] [--no-events]
-                        [--passwd USER] [--serverdir DIR] [--restrict-modify SPEC]
-                        [--start] [--stop] [--status] [--log] [--theme THEME]
-                        [--recreate-search-index]
+                        [--bypass-cdn] [--pypi-cache-expiry SECS] [--version]
+                        [--role {master,replica,auto}] [--master-url MASTER_URL]
+                        [--replica-cert pem_file] [--gen-config]
+                        [--secretfile path] [--export PATH] [--hard-links]
+                        [--import PATH] [--no-events] [--passwd USER]
+                        [--serverdir DIR] [--restrict-modify SPEC]
+                        [--keyfs-cache-size NUM] [--start] [--stop] [--status]
+                        [--log] [--theme THEME] [--recreate-search-index]
     
     Start a server which serves multiples users and indices. The special root/pypi
     index is a real-time mirror of pypi.python.org and is created by default. All
@@ -538,15 +539,17 @@ devpi command reference (server)
                             web interface
     
     pypi mirroring options (root/pypi):
-      --refresh SECS        interval for consulting changelog api of
-                            pypi.python.org [60]
+      --refresh SECS        NO EFFECT: changelog API is not used anymore [60]
       --bypass-cdn          set this if you want to bypass pypi's CDN for access
                             to simple pages and packages, in order to rule out
                             cache-invalidation issues. This will only work if you
                             are not using a http proxy.
+      --pypi-cache-expiry SECS
+                            (experimental) time after which PyPI projects are
+                            checked for new releases. [1800]
     
     deployment and data options:
-      --version             show devpi_version (2.2.2)
+      --version             show devpi_version (2.3.0)
       --role {master,replica,auto}
                             set role of this instance. [auto]
       --master-url MASTER_URL
@@ -595,6 +598,11 @@ devpi command reference (server)
                             can do anything. When this option is set, only the
                             specified users/groups can create and modify users and
                             indices. You have to add root explicitely if wanted.
+      --keyfs-cache-size NUM
+                            size of keyfs cache. If your devpi-server installation
+                            gets a lot of writes, then increasing this might
+                            improve performance. Each entry uses 1kb of memory on
+                            average. So by default about 10MB are used. [10000]
     
     background server:
       --start               start the background devpi-server

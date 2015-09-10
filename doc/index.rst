@@ -20,7 +20,7 @@ release activities with Python.  Main features and usage scenarios:
 - **fast PyPI mirror**: use a local self-updating pypi.python.org 
   caching mirror which works with ``pip`` and ``easy_install``.  
   After an initial cache-fill it can work off-line and will 
-  re-synchronize when you get online again.
+  try to re-check with pypi every 30 minutes by default.
 
 - **uploading, testing and staging**: upload Python archives and documentation
   to private indexes.  Trigger testing of your uploaded release files 
