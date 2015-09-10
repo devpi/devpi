@@ -617,12 +617,12 @@ def test_version_view_root_pypi_external_files(mapp, testapp, pypistage):
     '/root/pypi/someproject',
     '/root/pypi/someproject/2.6'])
 def test_root_pypi_upstream_error(url, mapp, testapp, pypistage):
-    pypistage.mock_simple("someproject", status_code=404)
+    pypistage.mock_simple("someproject", status_code=502)
     r = testapp.get(url, accept="text/html")
     assert r.status_code == 502
     content, = r.html.select('#content')
     text = compareable_text(content.text)
-    assert text == 'Error An error has occurred: 502 Bad Gateway 404 status on GET https://pypi.python.org/simple/someproject/'
+    assert text == 'Error An error has occurred: 502 Bad Gateway 502 status on GET https://pypi.python.org/simple/someproject/'
 
 
 def test_error_html_only(mapp, testapp, monkeypatch):
