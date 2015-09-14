@@ -163,6 +163,12 @@ class TestURL:
         assert new_url is not url
         assert new_url.url == url.url
 
+    def test_comparison(self):
+        base = URL('https://pypi.python.org')
+        url = URL('https://pypi.python.org/simple/foo').replace(path='')
+        assert base == url
+        assert not (base != url)
+
 #
 # test torelpath/fromrelpath
 #
