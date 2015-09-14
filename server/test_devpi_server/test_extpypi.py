@@ -531,3 +531,44 @@ def test_list_packages_with_serial(reqmock):
         </body></html>""")
     result = proxy.list_packages_with_serial()
     assert result == {'ploy-ansible': -1, 'devpi-server': -1, 'django': -1}
+
+
+def test_newly_registered_pypi_project(httpget, pypistage):
+    name = pypistage.get_projectname('foo')
+    assert name is None
+    # we need to reset the cache time
+    pypistage.xom.set_updated_at(pypistage.name, 'foo', 0)
+    # now we can check for the new project
+    httpget.mock_simple("foo")
+    assert pypistage.pypimirror.name2serials == {}
+    name = pypistage.get_projectname('foo')
+    assert name == 'foo'
+    assert pypistage.pypimirror.name2serials == {'foo': -1}
+
+
+def test_404_on_pypi_cached(httpget, pypistage):
+    assert pypistage.xom.get_updated_at(pypistage.name, 'foo') == 0
+    name = pypistage.get_projectname('foo')
+    assert name is None
+    assert pypistage.pypimirror.name2serials == {}
+    updated_at = pypistage.xom.get_updated_at(pypistage.name, 'foo')
+    assert updated_at > 0
+    # if we check again, we should get a cached result and no change in the
+    # updated_at time
+    name = pypistage.get_projectname('foo')
+    assert name is None
+    assert pypistage.pypimirror.name2serials == {}
+    assert pypistage.xom.get_updated_at(pypistage.name, 'foo') == updated_at
+    # now the project exists on pypi, but we still get cached result
+    httpget.mock_simple("foo", text="")
+    name = pypistage.get_projectname('foo')
+    assert name is None
+    assert pypistage.pypimirror.name2serials == {}
+    assert pypistage.xom.get_updated_at(pypistage.name, 'foo') == updated_at
+    # if we reset the cache time, we should get a result
+    pypistage.xom.set_updated_at(pypistage.name, 'foo', 0)
+    name = pypistage.get_projectname('foo')
+    assert name == 'foo'
+    assert pypistage.pypimirror.name2serials == {'foo': -1}
+    assert pypistage.get_releaselinks('foo') == []
+    assert pypistage.xom.get_updated_at(pypistage.name, 'foo') > updated_at

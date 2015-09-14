@@ -311,7 +311,32 @@ class PyPIStage(BaseStage):
         return self._dump_project_cache(projectname, entries, serial)
 
     def get_projectname_perstage(self, name):
-        return self.pypimirror.get_registered_name(name)
+        result = self.pypimirror.get_registered_name(name)
+        if result is None:
+            # we don't know about the project
+            projectname = normalize_name(name)
+            is_fresh, links = self._load_cache_links(projectname)
+            serial = self.pypimirror.get_project_serial(projectname)
+            if links is not None and serial == -1 and is_fresh:
+                # since the serial is -1, this is a cached 404
+                return
+            if links is None or not is_fresh:
+                # get the simple page for the project
+                url = self.PYPIURL_SIMPLE + projectname + "/"
+                threadlog.debug("visiting index %s", url)
+                response = self.httpget(url, allow_redirects=True)
+                if response.status_code == 404:
+                    # the project isn't found, cache that fact
+                    self.keyfs.restart_as_write_transaction()
+                    self._dump_project_cache(projectname, [], -1)
+                    return
+                if response.status_code != 200:
+                    # we can't say if the project exists
+                    return
+                # the project exists, so register it
+                self.pypimirror.set_project_serial(projectname, -1)
+                return projectname
+        return result
 
     def list_versions_perstage(self, projectname):
         versions = set()
