@@ -40,27 +40,26 @@ a series of other devpi commands::
 
     $ devpi quickstart
     -->  /home/hpk/p/devpi/doc$ devpi-server --start 
-    2015-09-10 11:05:56,221 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2015-09-10 11:05:56,222 INFO  NOCTX generated uuid: 4a61e5f1b7b64ee6bdfd38edc4b08b83
-    2015-09-10 11:05:56,222 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2015-09-10 11:05:56,222 INFO  NOCTX DB: Creating schema
-    2015-09-10 11:05:56,268 INFO  [Wtx-1] opening sql
-    2015-09-10 11:05:56,269 INFO  [Wtx-1] setting password for user u'root'
-    2015-09-10 11:05:56,270 INFO  [Wtx-1] created user u'root' with email None
-    2015-09-10 11:05:56,270 INFO  [Wtx-1] created root user
-    2015-09-10 11:05:56,271 INFO  [Wtx-1] created root/pypi index
-    2015-09-10 11:05:56,291 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
+    2015-09-14 17:04:12,313 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2015-09-14 17:04:12,313 INFO  NOCTX generated uuid: 051bedad73334e33bf795d3b258897d2
+    2015-09-14 17:04:12,314 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    2015-09-14 17:04:12,314 INFO  NOCTX DB: Creating schema
+    2015-09-14 17:04:12,351 INFO  [Wtx-1] setting password for user u'root'
+    2015-09-14 17:04:12,352 INFO  [Wtx-1] created user u'root' with email None
+    2015-09-14 17:04:12,352 INFO  [Wtx-1] created root user
+    2015-09-14 17:04:12,352 INFO  [Wtx-1] created root/pypi index
+    2015-09-14 17:04:12,366 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
     starting background devpi-server at http://localhost:3141
     /tmp/home/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server
-    process u'devpi-server' started pid=21862
+    process u'devpi-server' started pid=20341
     devpi-server process startup detected
     logfile is at /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
     -->  /home/hpk/p/devpi/doc$ devpi use http://localhost:3141 
     using server: http://localhost:3141/ (not logged in)
     no current index: type 'devpi use -l' to discover indices
-    ~/.pydistutils.cfg     : no config file exists
-    ~/.pip/pip.conf        : no config file exists
-    ~/.buildout/default.cfg: no config file exists
+    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
     always-set-cfg: no
     
     -->  /home/hpk/p/devpi/doc$ devpi user -c testuser password= 
@@ -79,9 +78,9 @@ a series of other devpi commands::
     
     -->  /home/hpk/p/devpi/doc$ devpi use dev 
     current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
-    ~/.pydistutils.cfg     : no config file exists
-    ~/.pip/pip.conf        : no config file exists
-    ~/.buildout/default.cfg: no config file exists
+    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
     always-set-cfg: no
     COMPLETED!  you can now work with your 'dev' index
       devpi install PKG   # install a pkg from pypi
@@ -111,9 +110,10 @@ install`` of a pypi package using the index from our already running server::
     $ devpi install pytest
     -->  /home/hpk/p/devpi/doc$ /tmp/docenv/bin/pip install -U -i http://localhost:3141/testuser/dev/+simple/ pytest  [PIP_USE_WHEEL=1,PIP_PRE=1]
     Collecting pytest
-      Could not find a version that satisfies the requirement pytest (from versions: )
-    No matching distribution found for pytest
-    command failed
+      Downloading http://localhost:3141/root/pypi/+f/1b6/36c4310d9a3cd/pytest-2.7.2-py2.py3-none-any.whl (127kB)
+    Requirement already up-to-date: py>=1.4.29 in /tmp/docenv/lib/python2.7/site-packages (from pytest)
+    Installing collected packages: pytest
+    Successfully installed pytest-2.7.2
 
 The ``devpi install`` command configured a pip call, using the
 pypi-compatible ``+simple/`` page on our ``testuser/dev`` index for
@@ -123,16 +123,7 @@ in the ``PATH`` and found in ``docenv/bin/pip``.
 Let's check that ``pytest`` was installed correctly::
 
     $ py.test --version
-    This is pytest version 2.8.0.dev4, imported from /home/hpk/p/pytest-hpk/pytest.pyc
-    setuptools registered plugins:
-      pytest-cache-1.1.dev1 at /home/hpk/p/pytest-cache/pytest_cache.pyc
-      pytest-xdist-1.12 at /home/hpk/p/pytest-xdist/xdist/plugin.pyc
-      pytest-pep8-1.0.6 at /home/hpk/p/pytest-pep8/pytest_pep8.pyc
-      pytest-xprocess-0.9 at /home/hpk/p/pytest-xprocess/pytest_xprocess.pyc
-      pytest-capturelog-0.7 at /home/hpk/venv/0/local/lib/python2.7/site-packages/pytest_capturelog.pyc
-      pytest-flakes-1.0.0 at /home/hpk/venv/0/local/lib/python2.7/site-packages/pytest_flakes.pyc
-      pytest-cov-1.8.1 at /home/hpk/venv/0/local/lib/python2.7/site-packages/pytest_cov/__init__.pyc
-      pytest-timeout-0.5 at /home/hpk/venv/0/local/lib/python2.7/site-packages/pytest_timeout.pyc
+    This is pytest version 2.7.2, imported from /tmp/docenv/local/lib/python2.7/site-packages/pytest.pyc
 
 You may invoke the ``devpi install`` command a second time which will
 even work when you have no network.
@@ -150,9 +141,9 @@ Let's verify we are logged in to the correct index::
 
     $ devpi use
     current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
-    ~/.pydistutils.cfg     : no config file exists
-    ~/.pip/pip.conf        : no config file exists
-    ~/.buildout/default.cfg: no config file exists
+    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
     always-set-cfg: no
 
 Now go to the directory of a ``setup.py`` file of one of your projects  
@@ -187,10 +178,10 @@ We can now install the freshly uploaded package::
     $ devpi install example
     -->  /home/hpk/p/devpi/doc$ /tmp/docenv/bin/pip install -U -i http://localhost:3141/testuser/dev/+simple/ example  [PIP_USE_WHEEL=1,PIP_PRE=1]
     Collecting example
-      Downloading http://localhost:3141/testuser/dev/+f/889/12b7eb53ffd81/example-1.0.tar.gz
+      Downloading http://localhost:3141/testuser/dev/+f/2a8/f8e4856d471c5/example-1.0.tar.gz
     Building wheels for collected packages: example
       Running setup.py bdist_wheel for example
-      Stored in directory: /tmp/home/.cache/pip/wheels/78/f9/d3/3078966652d8bdf1f79e5bf7400504b304d30e476446adab83
+      Stored in directory: /tmp/home/.cache/pip/wheels/95/d3/55/4407c803a925f40b7988f30311a81a39289a620b0d0fc98707
     Successfully built example
     Installing collected packages: example
     Successfully installed example-1.0
@@ -212,28 +203,27 @@ devpi test: testing an uploaded package
 If you have a package which uses tox_ for testing you may now invoke::
 
     $ devpi test example  # package needs to contain tox.ini
-    received http://localhost:3141/testuser/dev/+f/889/12b7eb53ffd81/example-1.0.tar.gz
+    received http://localhost:3141/testuser/dev/+f/2a8/f8e4856d471c5/example-1.0.tar.gz
     unpacking /tmp/devpi-test0/downloads/example-1.0.tar.gz to /tmp/devpi-test0/targz
     /tmp/devpi-test0/targz/example-1.0$ tox --installpkg /tmp/devpi-test0/downloads/example-1.0.tar.gz -i ALL=http://localhost:3141/testuser/dev/+simple/ --recreate --result-json /tmp/devpi-test0/targz/toxreport.json -c /tmp/devpi-test0/targz/example-1.0/tox.ini
     python create: /tmp/devpi-test0/targz/example-1.0/.tox/python
     python installdeps: pytest
-    ERROR: invocation failed (exit code 1), logfile: /tmp/devpi-test0/targz/example-1.0/.tox/python/log/python-1.log
-    ERROR: actionid: python
-    msg: getenv
-    cmdargs: [local('/tmp/devpi-test0/targz/example-1.0/.tox/python/bin/pip'), 'install', '-i', 'http://localhost:3141/testuser/dev/+simple/', 'pytest']
-    env: {'LC_PAPER': 'de_DE.UTF-8', 'VIRTUALENVWRAPPER_SCRIPT': '/home/hpk/venv/0/bin/virtualenvwrapper.sh', 'VIRTUAL_ENV': '/tmp/devpi-test0/targz/example-1.0/.tox/python', 'SHELL': '/bin/bash', 'XDG_DATA_DIRS': '/usr/share/ubuntu:/usr/share/gnome:/usr/local/share/:/usr/share/', 'MANDATORY_PATH': '/usr/share/gconf/ubuntu.mandatory.path', 'COMPIZ_CONFIG_PROFILE': 'ubuntu', 'JOB': 'dbus', 'SESSION': 'ubuntu', 'XMODIFIERS': '@im=ibus', 'JAVA_HOME': '/usr/lib/jvm/java-7-oracle', 'MFLAGS': '', 'SELINUX_INIT': 'YES', 'PIP_INDEX_URL': 'https://devpi.net/hpk/dev/', 'XDG_RUNTIME_DIR': '/run/user/1000', 'LC_ADDRESS': 'de_DE.UTF-8', 'COMPIZ_BIN_PATH': '/usr/bin/', 'J2SDKDIR': '/usr/lib/jvm/java-7-oracle', 'XDG_SESSION_ID': 'c2', 'DBUS_SESSION_BUS_ADDRESS': 'unix:abstract=/tmp/dbus-PDc07zA6o1', 'GNOME_KEYRING_PID': '2254', 'DESKTOP_SESSION': 'ubuntu', 'GTK_MODULES': 'overlay-scrollbar:unity-gtk-module', 'INSTANCE': '', 'LC_NAME': 'de_DE.UTF-8', 'XDG_MENU_PREFIX': 'gnome-', 'LS_COLORS': 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arj=01;31:*.taz=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.zip=01;31:*.z=01;31:*.Z=01;31:*.dz=01;31:*.gz=01;31:*.lz=01;31:*.xz=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.jpg=01;35:*.jpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.axv=01;35:*.anx=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.axa=00;36:*.oga=00;36:*.spx=00;36:*.xspf=00;36:', 'LC_NUMERIC': 'de_DE.UTF-8', 'GNOME_DESKTOP_SESSION_ID': 'this-is-deprecated', 'LESSOPEN': '| /usr/bin/lesspipe %s', 'USER': 'testuser', 'XDG_VTNR': '7', 'PS1': '(docenv)(0)\\[\\e]0;\\u@\\h: \\w\\a\\]${debian_chroot:+($debian_chroot)}\\[\\033[01;32m\\]\\u@\\h\\[\\033[00m\\]:\\[\\033[01;34m\\]\\w\\[\\033[00m\\]$(__git_ps1)\\$ ', 'XAUTHORITY': '/home/hpk/.Xauthority', 'LANGUAGE': 'en_US', 'SESSION_MANAGER': 'local/cobra:@/tmp/.ICE-unix/2465,unix/cobra:/tmp/.ICE-unix/2465', 'SHLVL': '1', 'QT_QPA_PLATFORMTHEME': 'appmenu-qt5', 'CLUTTER_IM_MODULE': 'xim', 'WINDOWID': '29360139', 'EDITOR': 'vim', 'GPG_AGENT_INFO': '/run/user/1000/keyring-2akVyb/gpg:0:1', 'VENV_DIR': '/tmp/docenv', 'GDMSESSION': 'ubuntu', 'XDG_SEAT_PATH': '/org/freedesktop/DisplayManager/Seat0', 'TMPDIR': '/tmp', 'GTK_IM_MODULE': 'ibus', 'XDG_CONFIG_DIRS': '/etc/xdg/xdg-ubuntu:/usr/share/upstart/xdg:/etc/xdg', 'COLORTERM': 'gnome-terminal', 'LC_TIME': 'de_DE.UTF-8', 'XDG_GREETER_DATA_DIR': '/var/lib/lightdm-data/hpk', 'QT4_IM_MODULE': 'xim', 'HOME': '/tmp/home', 'DISPLAY': ':0', 'LANG': 'en_US.UTF-8', 'MAILDIR': '/home/hpk/Maildir', 'LC_MONETARY': 'de_DE.UTF-8', 'TEXTDOMAIN': 'im-config', '_': '/usr/bin/make', 'TESTHOME': '/tmp/home', 'GTIMELOG_HOME': '/home/hpk/hpk42/timetrack', 'LC_IDENTIFICATION': 'de_DE.UTF-8', 'VTE_VERSION': '3409', 'PIP_VIRTUALENV_BASE': '/home/hpk/venv', 'XDG_CURRENT_DESKTOP': 'Unity', 'LESSCLOSE': '/usr/bin/lesspipe %s %s', 'VIRTUALENVWRAPPER_HOOK_DIR': '/home/hpk/venv', 'MAKELEVEL': '1', 'LOGNAME': 'hpk', 'J2REDIR': '/usr/lib/jvm/java-7-oracle/jre', 'WORKON_HOME': '/home/hpk/venv', 'QT_IM_MODULE': 'ibus', 'DEVPI_CLIENTDIR': '/tmp/home/.devpi/client', 'XDG_SEAT': 'seat0', 'GNOME_KEYRING_CONTROL': '/run/user/1000/keyring-2akVyb', 'PATH': '/tmp/devpi-test0/targz/example-1.0/.tox/python/bin:/tmp/docenv/bin:/home/hpk/bin:/home/hpk/venv/0/bin:/usr/local/bin:/home/hpk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/usr/lib/jvm/java-7-oracle/bin:/usr/lib/jvm/java-7-oracle/db/bin:/usr/lib/jvm/java-7-oracle/jre/bin', 'MAKEFLAGS': '', 'TERM': 'xterm', 'XDG_SESSION_PATH': '/org/freedesktop/DisplayManager/Session0', 'DEFAULTS_PATH': '/usr/share/gconf/ubuntu.default.path', 'SESSIONTYPE': 'gnome-session', 'IM_CONFIG_PHASE': '1', 'PYTHONHASHSEED': '1905301645', 'SSH_AUTH_SOCK': '/run/user/1000/keyring-2akVyb/ssh', 'DEVPI_SERVERDIR': '/tmp/home/.devpi/server', 'TEXTDOMAINDIR': '/usr/share/locale/', 'VIRTUALENVWRAPPER_PROJECT_FILENAME': '.project', 'DERBY_HOME': '/usr/lib/jvm/java-7-oracle/db', 'UPSTART_SESSION': 'unix:abstract=/com/ubuntu/upstart-session/1000/2269', 'PYTHONSTARTUP': '/home/hpk/python/start.py', 'OLDPWD': '/home/hpk/p/devpi', 'GPGKEY': '79B772D6', 'GDM_LANG': 'en_US', 'LC_TELEPHONE': 'de_DE.UTF-8', 'LC_MEASUREMENT': 'de_DE.UTF-8', 'PWD': '/home/hpk/p/devpi/doc'}
+    python inst: /tmp/devpi-test0/downloads/example-1.0.tar.gz
+    python installed: example==1.0,py==1.4.30,pytest==2.7.2,wheel==0.24.0
+    python runtests: PYTHONHASHSEED='1485627229'
+    python runtests: commands[0] | py.test
+    ============================= test session starts ==============================
+    platform linux2 -- Python 2.7.6 -- py-1.4.30 -- pytest-2.7.2
+    rootdir: /tmp/devpi-test0/targz/example-1.0, inifile: 
+    collected 0 items
     
-    Collecting pytest
-      Could not find a version that satisfies the requirement pytest (from versions: )
-    No matching distribution found for pytest
-    
-    ERROR: could not install deps [pytest]; v = InvocationError('/tmp/devpi-test0/targz/example-1.0/.tox/python/bin/pip install -i http://localhost:3141/testuser/dev/+simple/ pytest (see /tmp/devpi-test0/targz/example-1.0/.tox/python/log/python-1.log)', 1)
+    ===============================  in 0.00 seconds ===============================
     ___________________________________ summary ____________________________________
-    ERROR:   python: could not install deps [pytest]; v = InvocationError('/tmp/devpi-test0/targz/example-1.0/.tox/python/bin/pip install -i http://localhost:3141/testuser/dev/+simple/ pytest (see /tmp/devpi-test0/targz/example-1.0/.tox/python/log/python-1.log)', 1)
+      python: commands succeeded
+      congratulations :)
     wrote json report at: /tmp/devpi-test0/targz/toxreport.json
-    posting tox result data to http://localhost:3141/testuser/dev/+f/889/12b7eb53ffd81/example-1.0.tar.gz
+    posting tox result data to http://localhost:3141/testuser/dev/+f/2a8/f8e4856d471c5/example-1.0.tar.gz
     successfully posted tox result data
-    tox command failed 1
 
 Here is what happened:
 
@@ -251,9 +241,8 @@ Here is what happened:
 We can verify that the test status was recorded via::
 
     $ devpi list example
-    http://localhost:3141/testuser/dev/+f/889/12b7eb53ffd81/example-1.0.tar.gz
-    cobra      linux2  python     setup failed
-    cobra      linux2  python     no tests were run
+    http://localhost:3141/testuser/dev/+f/2a8/f8e4856d471c5/example-1.0.tar.gz
+    cobra      linux2  python     2.7.6 tests passed
 
 .. note::
 
@@ -287,8 +276,8 @@ our ``staging`` index::
 
     $ devpi push example==1.0 testuser/staging
        200 register example 1.0 -> testuser/staging
-       200 store_releasefile testuser/staging/+f/889/12b7eb53ffd81/example-1.0.tar.gz
-       200 store_toxresult testuser/staging/+f/889/12b7eb53ffd81/example-1.0.tar.gz.toxresult0
+       200 store_releasefile testuser/staging/+f/2a8/f8e4856d471c5/example-1.0.tar.gz
+       200 store_toxresult testuser/staging/+f/2a8/f8e4856d471c5/example-1.0.tar.gz.toxresult0
 
 This will determine all files on our ``testuser/dev`` index belonging to
 the specified ``example==1.0`` release and copy them to the
@@ -301,26 +290,25 @@ Let's check again our current index::
 
     $ devpi use
     current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
-    ~/.pydistutils.cfg     : no config file exists
-    ~/.pip/pip.conf        : no config file exists
-    ~/.buildout/default.cfg: no config file exists
+    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
     always-set-cfg: no
 
 Let's now use our ``testuser/staging`` index::
 
     $ devpi use testuser/staging
     current devpi index: http://localhost:3141/testuser/staging (logged in as testuser)
-    ~/.pydistutils.cfg     : no config file exists
-    ~/.pip/pip.conf        : no config file exists
-    ~/.buildout/default.cfg: no config file exists
+    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
     always-set-cfg: no
 
 and check the test result status again::
 
     $ devpi list example
-    http://localhost:3141/testuser/staging/+f/889/12b7eb53ffd81/example-1.0.tar.gz
-    cobra      linux2  python     setup failed
-    cobra      linux2  python     no tests were run
+    http://localhost:3141/testuser/staging/+f/2a8/f8e4856d471c5/example-1.0.tar.gz
+    cobra      linux2  python     2.7.6 tests passed
 
 Good, the test result status is still available after the push
 from the last step.
@@ -358,20 +346,18 @@ If we now switch back to using ``testuser/dev``::
 
     $ devpi use testuser/dev
     current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
-    ~/.pydistutils.cfg     : no config file exists
-    ~/.pip/pip.conf        : no config file exists
-    ~/.buildout/default.cfg: no config file exists
+    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
     always-set-cfg: no
 
 and look at our example release files::
 
     $ devpi list example
-    http://localhost:3141/testuser/dev/+f/889/12b7eb53ffd81/example-1.0.tar.gz
-    cobra      linux2  python     setup failed
-    cobra      linux2  python     no tests were run
-    http://localhost:3141/testuser/staging/+f/889/12b7eb53ffd81/example-1.0.tar.gz
-    cobra      linux2  python     setup failed
-    cobra      linux2  python     no tests were run
+    http://localhost:3141/testuser/dev/+f/2a8/f8e4856d471c5/example-1.0.tar.gz
+    cobra      linux2  python     2.7.6 tests passed
+    http://localhost:3141/testuser/staging/+f/2a8/f8e4856d471c5/example-1.0.tar.gz
+    cobra      linux2  python     2.7.6 tests passed
 
 we'll see that ``example-1.0.tar.gz`` is contained in both
 indices.  Let's remove the ``testuser/dev`` ``example`` release::
@@ -379,8 +365,8 @@ indices.  Let's remove the ``testuser/dev`` ``example`` release::
     $ devpi remove -y example
     About to remove the following releases and distributions
     version: 1.0
-      - http://localhost:3141/testuser/dev/+f/889/12b7eb53ffd81/example-1.0.tar.gz
-      - http://localhost:3141/testuser/dev/+f/889/12b7eb53ffd81/example-1.0.tar.gz.toxresult0
+      - http://localhost:3141/testuser/dev/+f/2a8/f8e4856d471c5/example-1.0.tar.gz
+      - http://localhost:3141/testuser/dev/+f/2a8/f8e4856d471c5/example-1.0.tar.gz.toxresult0
     Are you sure (yes/no)? yes (autoset from -y option)
     deleting release 1.0 of example
 
@@ -391,17 +377,15 @@ The ``example-1.0`` release remains accessible through ``testuser/dev``
 because it inherits all releases from its ``testuser/staging`` base::
 
     $ devpi list example
-    http://localhost:3141/testuser/staging/+f/889/12b7eb53ffd81/example-1.0.tar.gz
-    cobra      linux2  python     setup failed
-    cobra      linux2  python     no tests were run
+    http://localhost:3141/testuser/staging/+f/2a8/f8e4856d471c5/example-1.0.tar.gz
+    cobra      linux2  python     2.7.6 tests passed
 
 ::
 
     $ devpi-server --stop
-    2015-09-10 11:06:12,620 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2015-09-10 11:06:12,621 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2015-09-10 11:06:12,624 INFO  [Wtx10] opening sql
-    killed server pid=21862
+    2015-09-14 17:04:33,240 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2015-09-14 17:04:33,241 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    killed server pid=20341
 
 running devpi-server permanently
 +++++++++++++++++++++++++++++++++

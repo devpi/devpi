@@ -17,7 +17,7 @@ Install the ``devpi-server`` package on our machine::
 Show version::
 
     $ devpi-server --version
-    2.3.0
+    2.3.1
 
 .. note::
 
@@ -33,19 +33,18 @@ start background devpi-server process
 To start ``devpi-server`` in the background issue::
     
     $ devpi-server --start
-    2015-09-10 11:05:44,373 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2015-09-10 11:05:44,374 INFO  NOCTX generated uuid: 468a3072800746b4befa3ec80406f2ec
-    2015-09-10 11:05:44,374 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2015-09-10 11:05:44,375 INFO  NOCTX DB: Creating schema
-    2015-09-10 11:05:44,414 INFO  [Wtx-1] opening sql
-    2015-09-10 11:05:44,416 INFO  [Wtx-1] setting password for user u'root'
-    2015-09-10 11:05:44,416 INFO  [Wtx-1] created user u'root' with email None
-    2015-09-10 11:05:44,416 INFO  [Wtx-1] created root user
-    2015-09-10 11:05:44,417 INFO  [Wtx-1] created root/pypi index
-    2015-09-10 11:05:44,430 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
+    2015-09-14 17:03:56,971 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2015-09-14 17:03:56,971 INFO  NOCTX generated uuid: 3f0ff7fd96e54fd8a82efaf59469af12
+    2015-09-14 17:03:56,971 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    2015-09-14 17:03:56,972 INFO  NOCTX DB: Creating schema
+    2015-09-14 17:03:57,017 INFO  [Wtx-1] setting password for user u'root'
+    2015-09-14 17:03:57,018 INFO  [Wtx-1] created user u'root' with email None
+    2015-09-14 17:03:57,018 INFO  [Wtx-1] created root user
+    2015-09-14 17:03:57,018 INFO  [Wtx-1] created root/pypi index
+    2015-09-14 17:03:57,031 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
     starting background devpi-server at http://localhost:3141
     /tmp/home/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server
-    process u'devpi-server' started pid=21740
+    process u'devpi-server' started pid=20170
     devpi-server process startup detected
     logfile is at /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
 
@@ -63,21 +62,34 @@ Let's install the ``simplejson`` package as a test from our cache::
 
     $ pip install -i http://localhost:3141/root/pypi/ simplejson
     Collecting simplejson
-      Could not find a version that satisfies the requirement simplejson (from versions: )
-    No matching distribution found for simplejson
+    Installing collected packages: simplejson
+    Successfully installed simplejson-3.8.0
 
 Let's uninstall it::
 
     $ pip uninstall -y simplejson
-    Cannot uninstall requirement simplejson, not installed
+    Uninstalling simplejson-3.8.0:
+      Successfully uninstalled simplejson-3.8.0
 
 and then re-install it with ``easy_install``::
 
     $ easy_install -i http://localhost:3141/root/pypi/+simple/ simplejson
     Searching for simplejson
     Reading http://localhost:3141/root/pypi/+simple/simplejson/
-    No local packages or download links found for simplejson
-    error: Could not find suitable distribution for Requirement.parse('simplejson')
+    Best match: simplejson 3.8.0
+    Downloading http://localhost:3141/root/pypi/+f/72f/3b93a6f9808df/simplejson-3.8.0.tar.gz#md5=72f3b93a6f9808df81535f79e79565a2
+    Processing simplejson-3.8.0.tar.gz
+    Writing /tmp/easy_install-7X5xoG/simplejson-3.8.0/setup.cfg
+    Running simplejson-3.8.0/setup.py -q bdist_egg --dist-dir /tmp/easy_install-7X5xoG/simplejson-3.8.0/egg-dist-tmp-jTWn7b
+    zip_safe flag not set; analyzing archive contents...
+    simplejson.tests.__init__: module references __file__
+    creating /tmp/docenv/lib/python2.7/site-packages/simplejson-3.8.0-py2.7-linux-x86_64.egg
+    Extracting simplejson-3.8.0-py2.7-linux-x86_64.egg to /tmp/docenv/lib/python2.7/site-packages
+    Adding simplejson 3.8.0 to easy-install.pth file
+    
+    Installed /tmp/docenv/lib/python2.7/site-packages/simplejson-3.8.0-py2.7-linux-x86_64.egg
+    Processing dependencies for simplejson
+    Finished processing dependencies for simplejson
 
 Feel free to install any other package.  If you encounter lookup/download
 issues when installing a public pypi package, please report the offending
@@ -122,63 +134,30 @@ Checking and stopping the background server
 At any time you can check the background server status with::
 
     $ devpi-server --status
-    2015-09-10 11:05:51,717 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2015-09-10 11:05:51,718 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2015-09-10 11:05:51,721 INFO  [Wtx1] opening sql
-    server is running with pid 21740
+    2015-09-14 17:04:07,698 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2015-09-14 17:04:07,698 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    server is running with pid 20170
 
 Or stop it::
     
     $ devpi-server --stop
-    2015-09-10 11:05:52,318 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2015-09-10 11:05:52,318 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2015-09-10 11:05:52,321 INFO  [Wtx1] opening sql
-    killed server pid=21740
+    2015-09-14 17:04:08,371 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2015-09-14 17:04:08,371 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    killed server pid=20170
 
 Finally, you can also look at the logfile of the background server
 (also after it has been stopped)::
 
     $ devpi-server --log
-    2015-09-10 11:05:52,918 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2015-09-10 11:05:52,918 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2015-09-10 11:05:52,921 INFO  [Wtx1] opening sql
+    2015-09-14 17:04:08,978 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2015-09-14 17:04:08,978 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
     last lines of devpi-server log
-    2015-09-10 11:05:45,108 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2015-09-10 11:05:45,111 INFO  [Wtx0] opening sql
-    2015-09-10 11:05:45,112 INFO  NOCTX retrieving initial name/serial list
-    2015-09-10 11:05:49,528 INFO  [Wtx0] opening sql
-    2015-09-10 11:05:49,543 INFO  [Wtx0] fswriter1: committed: keys: u'root/pypi/initiallinks'
-    2015-09-10 11:05:49,544 INFO  [Rtx1] opening sql
-    2015-09-10 11:05:49,582 INFO  NOCTX Found plugin devpi-server-2.2.3.dev0 (/home/hpk/p/devpi/server).
-    2015-09-10 11:05:49,582 INFO  NOCTX Found plugin devpi-server-2.2.3.dev0 (/home/hpk/p/devpi/server).
-    2015-09-10 11:05:49,582 INFO  NOCTX Found plugin devpi-web-2.4.1.dev0 (/home/hpk/p/devpi/web).
-    2015-09-10 11:05:49,669 INFO  NOCTX devpi-server version: 2.3.0
-    2015-09-10 11:05:49,669 INFO  NOCTX serverdir: /tmp/home/.devpi/server
-    2015-09-10 11:05:49,670 INFO  NOCTX uuid: 468a3072800746b4befa3ec80406f2ec
-    2015-09-10 11:05:49,670 INFO  NOCTX serving at url: http://localhost:3141
-    2015-09-10 11:05:49,670 INFO  NOCTX bug tracker: https://bitbucket.org/hpk42/devpi/issues
-    2015-09-10 11:05:49,670 INFO  NOCTX IRC: #devpi on irc.freenode.net
-    2015-09-10 11:05:49,671 INFO  NOCTX Hit Ctrl-C to quit.
-    2015-09-10 11:05:49,671 INFO  [NOTI] [Rtx1] opening sql
-    2015-09-10 11:05:49,703 INFO  [NOTI] [Rtx1] Search-Indexing root/pypi:
-    2015-09-10 11:05:49,703 INFO  [NOTI] [Rtx1] Committing 0 new documents to search index.
-    2015-09-10 11:05:49,711 INFO  [NOTI] [Rtx1] Finished committing 0 documents to search index.
-    2015-09-10 11:05:49,711 INFO  [NOTI] [Rtx1] finished initial indexing op
-    2015-09-10 11:05:49,726 INFO  [req0] GET /
-    2015-09-10 11:05:49,728 INFO  [req0] [Rtx1] opening sql
-    2015-09-10 11:05:50,325 INFO  [req1] GET /root/pypi/simplejson/
-    2015-09-10 11:05:50,326 INFO  [req1] [Rtx1] opening sql
-    2015-09-10 11:05:50,329 INFO  [req2] GET /root/pypi/+simple/simplejson
-    2015-09-10 11:05:50,329 INFO  [req2] [Rtx1] opening sql
-    2015-09-10 11:05:50,330 ERROR [req2] [Rtx1] no such project u'simplejson'
-    2015-09-10 11:05:50,355 INFO  [req3] GET /root/pypi/simplejson/
-    2015-09-10 11:05:50,356 INFO  [req3] [Rtx1] opening sql
-    2015-09-10 11:05:50,358 INFO  [req4] GET /root/pypi/+simple/simplejson
-    2015-09-10 11:05:50,359 INFO  [req4] [Rtx1] opening sql
-    2015-09-10 11:05:50,359 ERROR [req4] [Rtx1] no such project u'simplejson'
-    2015-09-10 11:05:51,143 INFO  [req5] GET /root/pypi/+simple/simplejson/
-    2015-09-10 11:05:51,144 INFO  [req5] [Rtx1] opening sql
-    2015-09-10 11:05:51,144 ERROR [req5] [Rtx1] no such project u'simplejson'
+    2015-09-14 17:04:04,034 INFO  [req3] GET /root/pypi/simplejson/
+    2015-09-14 17:04:04,041 INFO  [req4] GET /root/pypi/+simple/simplejson
+    2015-09-14 17:04:05,085 INFO  [req5] GET /root/pypi/+simple/simplejson/
+    2015-09-14 17:04:05,255 INFO  [req6] GET /root/pypi/+f/72f/3b93a6f9808df/simplejson-3.8.0.tar.gz
+    2015-09-14 17:04:05,318 INFO  [req6] [Wtx2] reading remote: https://pypi.python.org/packages/source/s/simplejson/simplejson-3.8.0.tar.gz, target root/pypi/+f/72f/3b93a6f9808df/simplejson-3.8.0.tar.gz
+    2015-09-14 17:04:05,364 INFO  [req6] [Wtx2] fswriter3: committed: keys: u'root/pypi/+f/72f/3b93a6f9808df/simplejson-3.8.0.tar.gz', files_commit: +files/root/pypi/+f/72f/3b93a6f9808df/simplejson-3.8.0.tar.gz
     logfile at: /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
 
 running devpi-server permanently
