@@ -520,3 +520,14 @@ def test_requests_httpget_timeout(xom_notmocked, monkeypatch):
                               timeout=1.2)
     assert r.status_code == -1
 
+
+def test_list_packages_with_serial(reqmock):
+    proxy = PyPISimpleProxy()
+    reqmock.mockresponse(proxy._simple_url, code=200, data="""
+        <html><head><title>Simple Index</title><meta name="api-version" value="2" /></head><body>
+            <a href='devpi-server'>devpi-server</a><br/>
+            <a href='django'>Django</a><br/>
+            <a href='ploy-ansible'>ploy_ansible</a><br/>
+        </body></html>""")
+    result = proxy.list_packages_with_serial()
+    assert result == {'ploy-ansible': -1, 'devpi-server': -1, 'django': -1}

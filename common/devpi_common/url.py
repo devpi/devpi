@@ -43,6 +43,9 @@ class URL:
     def __eq__(self, other):
         return self.url == getattr(other, "url", other)
 
+    def __ne__(self, other):
+        return not (self == other)
+
     def geturl_nofragment(self):
         """ return url without fragment """
         scheme, netloc, url, params, query, ofragment = self._parsed
