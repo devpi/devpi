@@ -3,6 +3,9 @@
 
 - fix issue272: require devpi-common >= 2.0.6
 
+- recognize newly registered PyPI projects, now that we don't watch the
+  PyPI changelog anymore
+
 
 2.3.0 (2015-09-10)
 ------------------

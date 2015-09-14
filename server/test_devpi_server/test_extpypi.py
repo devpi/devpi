@@ -531,3 +531,13 @@ def test_list_packages_with_serial(reqmock):
         </body></html>""")
     result = proxy.list_packages_with_serial()
     assert result == {'ploy-ansible': -1, 'devpi-server': -1, 'django': -1}
+
+
+def test_newly_registered_pypi_project(httpget, pypistage):
+    name = pypistage.get_projectname('foo')
+    assert name is None
+    httpget.mock_simple("foo")
+    assert pypistage.pypimirror.name2serials == {}
+    name = pypistage.get_projectname('foo')
+    assert name == 'foo'
+    assert pypistage.pypimirror.name2serials == {'foo': -1}
