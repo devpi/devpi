@@ -160,9 +160,10 @@ class XOM:
     def get_state_version(self):
         versionfile = self.config.serverdir.join(".serverversion")
         if not versionfile.exists():
-            fatal("serverdir %s is unversioned, you may try use "
-              "depvi-server-1.1 with the --upgrade-state option to "
-              "upgrade from versions prior to 1.1\n" % self.config.serverdir)
+            fatal(
+            "serverdir %s is non-empty and misses devpi-server meta information. "
+            "You need to specify an empty directory or a directory that was "
+            "previously managed by devpi-server>=1.2" % self.config.serverdir)
         return versionfile.read()
 
     def set_state_version(self, version):
