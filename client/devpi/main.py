@@ -654,6 +654,9 @@ def upload(parser):
              "directly using their dirname as current dir. By default "
              "git/hg/svn/bazaar are auto-detected and packaging is run from "
              "a fresh directory with all versioned files exported.")
+    build.add_argument("--setupdir-only", action="store_true",
+        dest="setupdironly",
+        help="VCS-export only the directory containing setup.py")
 
     build.add_argument("--formats", default="", action="store",
         help="comma separated list of build formats (passed to setup.py). "
