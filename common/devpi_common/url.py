@@ -13,7 +13,7 @@ else:
 def _joinpath(url, args, asdir=False):
     new = url
     for arg in args[:-1]:
-        new = urljoin(new, arg) + "/"
+        new = urljoin(new, arg.rstrip("/")) + "/"
     new = urljoin(new, args[-1])
     if asdir:
         new = new.rstrip("/") + "/"

@@ -55,6 +55,10 @@ class TestURL:
         ("http://root/dir1/", "dir2/", "http://root/dir1/dir2/"),
         ("http://root/dir1/", "/dir2", "http://root/dir2"),
         ("http://root/dir1/", "/dir2/", "http://root/dir2/"),
+        ("http://root/dir1/dir3", "dir2", "http://root/dir1/dir2"),
+        ("http://root/dir1/dir3/", "dir2/", "http://root/dir1/dir3/dir2/"),
+        ("http://root/dir1/dir3/", "/dir2", "http://root/dir2"),
+        ("http://root/dir1/dir3/", "/dir2/", "http://root/dir2/"),
     ])
     def test_joinpath(self, url, path, expected):
         d_url = URL(url)
@@ -62,11 +66,11 @@ class TestURL:
         assert url_joined == expected
         assert URL(url, path).url == expected
 
-        assert d_url.joinpath(path, "end").url == expected + "/end"
-        assert URL(url, path, "end").url == expected + "/end"
+        assert d_url.joinpath(path, "end").url == expected.rstrip('/') + "/end"
+        assert URL(url, path, "end").url == expected.rstrip('/') + "/end"
 
-        assert d_url.joinpath(path, "end", asdir=1).url == expected + "/end/"
-        assert URL(url, path, "end", asdir=1).url == expected + "/end/"
+        assert d_url.joinpath(path, "end", asdir=1).url == expected.rstrip('/') + "/end/"
+        assert URL(url, path, "end", asdir=1).url == expected.rstrip('/') + "/end/"
 
     def test_addpath(self):
         url = URL("http://root.com/path")
