@@ -595,7 +595,7 @@ class TypedKey:
         return "<TypedKey %r type %r>" %(self.relpath, self.type.__name__)
 
     def get(self):
-        return copy_if_mutable(self.keyfs.tx.get(self))
+        return self.keyfs.tx.get(self)
 
     def is_dirty(self):
         return self.keyfs.tx.is_dirty(self)
@@ -777,7 +777,7 @@ def copy_if_mutable(val, _immutable=(py.builtin.text, type(None), int, tuple,
     elif isinstance(val, list):
         return [copy_if_mutable(item) for item in val]
     elif isinstance(val, set):
-        return set(copy_if_mutable(item) for item in val)
+        return set(item for item in val)
     raise ValueError("don't know how to handle type %r" % type(val))
 
 
