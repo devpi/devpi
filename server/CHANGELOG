@@ -1,8 +1,11 @@
 2.3.2.dev 
 ------------------
 
+- add timeout to replica requests
+
 - fix issue275: improve error message when a serverdir exists but has no
   version
+
 
 2.3.1 (2015-09-14)
 ------------------
