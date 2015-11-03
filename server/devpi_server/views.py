@@ -9,7 +9,7 @@ from devpi_common.url import URL
 from devpi_common.metadata import get_pyversion_filetype
 import devpi_server
 from pyramid.compat import urlparse
-from pyramid.httpexceptions import HTTPException, HTTPFound, HTTPSuccessful
+from pyramid.httpexceptions import HTTPException, HTTPFound, HTTPSuccessful, HTTPNotFound
 from pyramid.httpexceptions import HTTPUnauthorized
 from pyramid.httpexceptions import exception_response
 from pyramid.response import Response
@@ -358,13 +358,13 @@ class PyPIView:
         # we only serve absolute links so we don't care about the route's slash
         abort_if_invalid_projectname(request, name)
         stage = self.context.stage
-        if stage.get_projectname(name) is None:
+        try:
+            projectname = self.context.projectname
+        except HTTPNotFound:
             # we return 200 instead of !=200 so that pip/easy_install don't
             # ask for the full simple page although we know it doesn't exist
-            # XXX change that when pip-6.0 is released?
+            # This is no longer necessary for pip >= 8.0
             abort(request, 200, "no such project %r" % name)
-
-        projectname = self.context.projectname
         try:
             result = stage.get_releaselinks(projectname)
         except stage.UpstreamError as e:
