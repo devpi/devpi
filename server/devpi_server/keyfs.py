@@ -675,7 +675,7 @@ class Transaction(object):
 
     def exists_typed_state(self, typedkey):
         try:
-            self.keyfs.get_value_at(typedkey, self.at_serial)
+            self.keyfs.get_value_at(typedkey, self.at_serial, conn=self.sqlconn)
         except KeyError:
             return False
         return True
