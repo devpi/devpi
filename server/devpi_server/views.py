@@ -371,14 +371,14 @@ class PyPIView:
             threadlog.error(e.msg)
             abort(request, 502, e.msg)
         links = []
+        url = URL(request.path_info)
         for link in result:
             relpath = link.entrypath
-            href = "/" + relpath
-            href = URL(request.path_info).relpath(href)
-            if link.eggfragment:
-                href += "#egg=%s" % link.eggfragment
-            elif link.hash_spec:
+            href = url.relpath("/" + relpath)
+            if link.hash_spec:
                 href += "#" + link.hash_spec
+            elif link.eggfragment:
+                href += "#egg=%s" % link.eggfragment
             links.extend([
                  "/".join(relpath.split("/", 2)[:2]) + " ",
                  html.a(link.basename, href=href),
