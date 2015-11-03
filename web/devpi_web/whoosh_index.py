@@ -294,7 +294,7 @@ class Index(object):
         try:
             count = self._update_projects(writer, projects, clear=clear)
         except:
-            log.info("Aborted write to search index after exception.")
+            log.exception("Aborted write to search index after exception.")
             writer.cancel()
         else:
             log.info("Committing %s new documents to search index." % count)

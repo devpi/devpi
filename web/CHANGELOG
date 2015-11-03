@@ -1,3 +1,9 @@
+2.4.2 (unreleased)
+------------------
+
+- log exceptions during search index updates.
+
+
 2.4.1 (2015-10-09)
 ------------------
 
