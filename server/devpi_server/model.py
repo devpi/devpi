@@ -328,10 +328,8 @@ class BaseStage:
     def get_releaselinks(self, projectname, sorted_links=True):
         all_links = []
         basenames = set()
-        stagename2res = {}
         for stage, res in self.op_sro_check_pypi_whitelist(
             "get_releaselinks_perstage", projectname=projectname):
-            stagename2res[stage.name] = res
             for link in res:
                 if link.eggfragment:
                     key = link.eggfragment
