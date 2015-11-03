@@ -365,8 +365,9 @@ class PyPIView:
             # ask for the full simple page although we know it doesn't exist
             # This is no longer necessary for pip >= 8.0
             abort(request, 200, "no such project %r" % name)
+        requested_by_pip = request.user_agent and request.user_agent.startswith('pip')
         try:
-            result = stage.get_releaselinks(projectname)
+            result = stage.get_releaselinks(projectname, sorted_links=not requested_by_pip)
         except stage.UpstreamError as e:
             threadlog.error(e.msg)
             abort(request, 502, e.msg)
@@ -385,7 +386,7 @@ class PyPIView:
                  html.br(), "\n",
             ])
         title = "%s: links for %s" % (stage.name, projectname)
-        if stage.has_pypi_base(projectname):
+        if not requested_by_pip and stage.has_pypi_base(projectname):
             refresh_title = "Refresh" if stage.ixconfig["type"] == "mirror" else \
                             "Refresh PyPI links"
             refresh_url = request.route_url(
