@@ -3,7 +3,6 @@ from __future__ import unicode_literals
 import os
 import py
 from time import time
-from py.xml import html
 from devpi_common.types import ensure_unicode
 from devpi_common.url import URL
 from devpi_common.metadata import get_pyversion_filetype
@@ -371,8 +370,23 @@ class PyPIView:
         except stage.UpstreamError as e:
             threadlog.error(e.msg)
             abort(request, 502, e.msg)
-        links = []
-        url = URL(request.path_info)
+
+        embed_form = not requested_by_pip and stage.has_pypi_base(projectname)
+        return Response(app_iter=self._simple_list_project(stage, projectname, result, embed_form))
+
+    def _simple_list_project(self, stage, projectname, result, embed_form):
+        encoding = "utf-8"
+        response = self.request.response
+        response.content_type = "text/html ; charset=%s" % encoding
+
+        title = "%s: links for %s" % (stage.name, projectname)
+        yield ("<html><head><title>%s</title></head><body><h1>%s</h1>\n" %
+               (title, title)).encode(encoding)
+
+        if embed_form:
+            yield self._index_refresh_form(stage, projectname).encode(encoding)
+
+        url = URL(self.request.path_info)
         for link in result:
             relpath = link.entrypath
             href = url.relpath("/" + relpath)
@@ -380,35 +394,21 @@ class PyPIView:
                 href += "#" + link.hash_spec
             elif link.eggfragment:
                 href += "#egg=%s" % link.eggfragment
-            links.extend([
-                 "/".join(relpath.split("/", 2)[:2]) + " ",
-                 html.a(link.basename, href=href),
-                 html.br(), "\n",
-            ])
-        title = "%s: links for %s" % (stage.name, projectname)
-        if not requested_by_pip and stage.has_pypi_base(projectname):
-            refresh_title = "Refresh" if stage.ixconfig["type"] == "mirror" else \
-                            "Refresh PyPI links"
-            refresh_url = request.route_url(
-                "/{user}/{index}/+simple/{name}/refresh",
-                user=self.context.username, index=self.context.index,
-                name=projectname)
-            refresh_form = [
-                html.form(
-                    html.input(
-                        type="submit", value=refresh_title, name="refresh"),
-                    action=refresh_url,
-                    method="post"),
-                "\n"]
-        else:
-            refresh_form = []
-        return Response(html.html(
-            html.head(
-                html.title(title)),
-            html.body(
-                html.h1(title), "\n",
-                refresh_form,
-                links)).unicode(indent=2))
+
+            index = "/".join(relpath.split("/", 2)[:2])
+            yield ('%s <a href="%s">%s</a><br/>\n' %
+                   (index, href, link.basename)).encode(encoding)
+
+        yield "</body></html>".encode(encoding)
+
+    def _index_refresh_form(self, stage, projectname):
+        url = self.request.route_url(
+            "/{user}/{index}/+simple/{name}/refresh",
+            user=self.context.username, index=self.context.index,
+            name=projectname)
+        title = "Refresh" if stage.ixconfig["type"] == "mirror" else "Refresh PyPI links"
+        submit = '<input name="refresh" type="submit" value="%s"/>' % title
+        return '<form action="%s" method="post">%s</form>' % (url, submit)
 
     @view_config(route_name="/{user}/{index}/+simple/")
     def simple_list_all(self):
