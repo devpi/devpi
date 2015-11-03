@@ -19,8 +19,11 @@ H_REPLICA_OUTSIDE_URL = str("X-DEVPI-REPLICA-OUTSIDE-URL")
 H_REPLICA_FILEREPL = str("X-DEVPI-REPLICA-FILEREPL")
 H_EXPECTED_MASTER_ID = str("X-DEVPI-EXPECTED-MASTER-ID")
 
+MAX_REPLICA_BLOCK_TIME = 30.0
+
+
 class MasterChangelogRequest:
-    MAX_REPLICA_BLOCK_TIME = 30.0
+    MAX_REPLICA_BLOCK_TIME = MAX_REPLICA_BLOCK_TIME
     WAKEUP_INTERVAL = 2.0
 
     def __init__(self, request):
@@ -131,6 +134,7 @@ class MasterChangelogRequest:
 
 
 class ReplicaThread:
+    REPLICA_REQUEST_TIMEOUT = MAX_REPLICA_BLOCK_TIME * 1.25
     ERROR_SLEEP = 50
 
     def __init__(self, xom):
@@ -194,7 +198,7 @@ class ReplicaThread:
                     H_REPLICA_UUID: uuid,
                     H_EXPECTED_MASTER_ID: master_uuid,
                     H_REPLICA_OUTSIDE_URL: config.args.outside_url,
-                })
+                }, timeout=self.REPLICA_REQUEST_TIMEOUT)
                 remote_serial = int(r.headers["X-DEVPI-SERIAL"])
             except Exception as e:
                 log.error("error fetching %s: %s", url, str(e))
