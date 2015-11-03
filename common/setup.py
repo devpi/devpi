@@ -25,7 +25,7 @@ if __name__ == "__main__":
       name="devpi-common",
       description="utilities jointly used by devpi-server and devpi-client",
       long_description="\n\n".join([README, CHANGELOG]),
-      version='2.0.7',
+      version='2.0.8.dev0',
       packages=find_packages(),
       install_requires=["requests>=2.3.0", "py>=1.4.20"],
       url="https://bitbucket.org/hpk42/devpi",
