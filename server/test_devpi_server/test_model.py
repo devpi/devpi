@@ -463,6 +463,55 @@ class TestStage:
         assert tmpdir.join("_static").check(dir=1)
         assert tmpdir.join("_templ", "x.css").check(file=1)
 
+    def test_multiple_store_doczip_uses_projectname(self, stage, bases, tmpdir):
+        # check that two store_doczip calls with slightly
+        # different names will not lead to two doczip entries
+        stage.set_versiondata(udict(name="pkg1", version="1.0"))
+        stage.store_doczip("pkg1", "1.0", zip_dict({}))
+        content2 = zip_dict({"index.html": "<html/>"})
+        stage.store_doczip("Pkg1", "1.0", content2)
+
+        # check we have only have one doczip link
+        linkstore = stage.get_linkstore_perstage("pkg1", "1.0")
+        links = linkstore.get_links(rel="doczip")
+        assert len(links) == 1
+
+        # get doczip and check it's really the latest one
+        doczip2 = stage.get_doczip("pkg1", "1.0")
+        with Archive(BytesIO(doczip2)) as archive:
+            archive.extract(tmpdir)
+        assert tmpdir.join("index.html").read() == "<html/>"
+
+
+    def test_simulate_multiple_doczip_entries(self, stage, bases, tmpdir):
+        stage.set_versiondata(udict(name="pkg1", version="1.0"))
+        stage.store_doczip("pkg1", "1.0", zip_dict({}))
+
+        # simulate a second entry with a slightly different name
+        # (XXX not clear if this test is really neccessary. hpk thinks for
+        # exporting state from server<2.1.5 with such a double-entry one
+        # needs to install 2.1.5 and export from there anyway, clearing
+        # the problem. Then again server<2.3.2 allowed the store_doczip
+        # method to construct doczip filenames which differ only in
+        # casing)
+        linkstore = stage.get_linkstore_perstage("Pkg1", "1.0")
+        content = zip_dict({"index.html": "<html/>"})
+        link = linkstore.create_linked_entry(
+                rel="doczip",
+                basename="Pkg1-1.0.doc.zip",
+                file_content=content,
+        )
+
+        # check we have two doczip links
+        linkstore = stage.get_linkstore_perstage("pkg1", "1.0")
+        links = linkstore.get_links(rel="doczip")
+        assert len(links) == 2
+
+        # get doczip and check it's really the latest one
+        doczip = stage.get_doczip("pkg1", "1.0")
+        assert doczip == content
+
+
     def test_storedoczipfile(self, stage, bases):
         from devpi_common.archive import Archive
         stage.set_versiondata(udict(name="pkg1", version="1.0"))
