@@ -597,8 +597,9 @@ class PrivateStage(BaseStage):
             version = self.get_latest_version_perstage(name)
             threadlog.info("store_doczip: derived version of %s is %s",
                            name, version)
-        basename = "%s-%s.doc.zip" % (name, version)
-        linkstore = self.get_linkstore_perstage(name, version)
+        projectname = self.get_projectname(name)
+        basename = "%s-%s.doc.zip" % (projectname, version)
+        linkstore = self.get_linkstore_perstage(projectname, version)
         link = linkstore.create_linked_entry(
                 rel="doczip",
                 basename=basename,

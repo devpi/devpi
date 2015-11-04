@@ -6,6 +6,9 @@
 - fix issue275: improve error message when a serverdir exists but has no
   version
 
+- slightly improve testing mechanics and name normalization related to storing
+  doczips
+
 
 2.3.1 (2015-09-14)
 ------------------

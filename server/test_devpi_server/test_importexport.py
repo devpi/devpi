@@ -433,13 +433,14 @@ class TestImportExport:
                 content=zip_dict({
                     "index.html": "<html><body>Hello"}))
             link.add_log('upload', stage.user.name, dst=stage.name)
-            time.sleep(1.1)  # force different times in log entry
             link = stage.store_doczip(
                 "hello", "1.0",
                 content=zip_dict({
                     "index.html": "<html><body>hello"}))
             link.add_log('upload', stage.user.name, dst=stage.name)
+
         impexp.export()
+
         mapp2 = impexp.new_import()
         with mapp2.xom.keyfs.transaction(write=False):
             stage = mapp2.xom.model.getstage(api.stagename)
