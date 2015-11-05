@@ -409,7 +409,7 @@ def set_default_indexes(model):
     if not root_user:
         root_user = model.create_user("root", "")
         threadlog.info("created root user")
-    userconfig = root_user.key.get()
+    userconfig = root_user.key.get(readonly=False)
     indexes = userconfig["indexes"]
     if "pypi" not in indexes:
         indexes["pypi"] = {"bases": (), "type": "mirror", "volatile": False}

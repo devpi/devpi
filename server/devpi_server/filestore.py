@@ -54,7 +54,7 @@ class FileStore:
             key = self.keyfs.PYPIFILE_NOMD5(user="root", index="pypi",
                    dirname=dirname,
                    basename=parts[-1])
-        entry = FileEntry(self.xom, key)
+        entry = FileEntry(self.xom, key, readonly=False)
         entry.url = link.geturl_nofragment().url
         entry.eggfragment = link.eggfragment
         # verify checksum if the entry is fresh, a file exists
@@ -70,12 +70,12 @@ class FileStore:
         entry.hash_spec = unicode_if_bytes(link.hash_spec)
         return entry
 
-    def get_file_entry(self, relpath):
+    def get_file_entry(self, relpath, readonly=True):
         try:
             key = self.keyfs.derive_key(relpath)
         except KeyError:
             return None
-        return FileEntry(self.xom, key)
+        return FileEntry(self.xom, key, readonly=readonly)
 
     def get_file_entry_raw(self, key, meta):
         return FileEntry(self.xom, key, meta=meta)
@@ -86,7 +86,7 @@ class FileStore:
         hashdir_a, hashdir_b = make_splitdir(dir_hash_spec)
         key = self.keyfs.STAGEFILE(user=user, index=index,
                    hashdir_a=hashdir_a, hashdir_b=hashdir_b, filename=basename)
-        entry = FileEntry(self.xom, key)
+        entry = FileEntry(self.xom, key, readonly=False)
         entry.file_set_content(file_content)
         return entry
 
@@ -112,11 +112,12 @@ class FileEntry(object):
     projectname = metaprop("projectname")
     version = metaprop("version")
 
-    def __init__(self, xom, key, meta=_nodefault):
+    def __init__(self, xom, key, meta=_nodefault, readonly=True):
         self.xom = xom
         self.key = key
         self.relpath = key.relpath
         self.basename = self.relpath.split("/")[-1]
+        self.readonly = readonly
         self._filepath = str(self.xom.filestore.storedir.join(self.relpath))
         if meta is not _nodefault:
             self.meta = meta or {}
@@ -147,7 +148,7 @@ class FileEntry(object):
 
     @cached_property
     def meta(self):
-        return self.key.get()
+        return self.key.get(readonly=self.readonly)
 
     def file_exists(self):
         return self.tx.io_file_exists(self._filepath)

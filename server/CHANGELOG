@@ -1,4 +1,4 @@
-2.3.2.dev 
+2.4.0.dev 
 ------------------
 
 - add timeout to replica requests
@@ -7,6 +7,13 @@
   version
 
 - improve testing mechanics and name normalization related to storing doczips
+
+- refine keyfs to provide lazy deep readonly-views for
+  dict/set/list/tuple types by default.  This introduces safety because
+  users (including plugins) of keyfs-values can only write/modify a value
+  by explicitely getting it with readonly=False (thereby deep copying it)
+  and setting it with the transaction.  It also allows to avoid unneccessary 
+  copy-operations when just reading values.
 
 
 2.3.1 (2015-09-14)

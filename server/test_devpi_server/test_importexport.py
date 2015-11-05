@@ -250,7 +250,7 @@ class TestImportExport:
         with mapp1.xom.keyfs.transaction(write=True):
             stage = mapp1.xom.model.getstage(api.stagename)
             key_projversion = stage.key_projversion("hello", "1.0")
-            verdata = key_projversion.get()
+            verdata = key_projversion.get(readonly=False)
             del verdata["version"]
             key_projversion.set(verdata)
         impexp.export()

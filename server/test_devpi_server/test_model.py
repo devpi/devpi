@@ -494,7 +494,7 @@ class TestStage:
         # the problem. Then again server<2.3.2 allowed the store_doczip
         # method to construct doczip filenames which differ only in
         # casing)
-        linkstore = stage.get_linkstore_perstage("Pkg1", "1.0")
+        linkstore = stage.get_linkstore_perstage("Pkg1", "1.0", readonly=False)
         content = zip_dict({"index.html": "<html/>"})
         linkstore.create_linked_entry(
                 rel="doczip",
@@ -668,7 +668,7 @@ class TestStage:
             assert link.entry.file_get_content() == content
         # delete, which shouldnt trigger devpiserver_on_upload
         with stage.xom.keyfs.transaction(write=True):
-            linkstore = stage.get_linkstore_perstage("pkg1", "1.0")
+            linkstore = stage.get_linkstore_perstage("pkg1", "1.0", readonly=False)
             linkstore.remove_links()
 
         # now write again and check that we get something from the queue
@@ -691,7 +691,7 @@ class TestLinkStore:
     @pytest.fixture
     def linkstore(self, stage):
         stage.set_versiondata(udict(name="proj1", version="1.0"))
-        return stage.get_linkstore_perstage("proj1", "1.0")
+        return stage.get_linkstore_perstage("proj1", "1.0", readonly=False)
 
     def test_store_file(self, linkstore):
         linkstore.create_linked_entry(
