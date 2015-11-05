@@ -379,16 +379,15 @@ class PyPIView:
         return Response(app_iter=self._simple_list_project(stage, projectname, result, embed_form))
 
     def _simple_list_project(self, stage, projectname, result, embed_form):
-        encoding = "utf-8"
         response = self.request.response
-        response.content_type = "text/html ; charset=%s" % encoding
+        response.content_type = "text/html ; charset=utf-8"
 
         title = "%s: links for %s" % (stage.name, projectname)
         yield ("<html><head><title>%s</title></head><body><h1>%s</h1>\n" %
-               (title, title)).encode(encoding)
+               (title, title)).encode("utf-8")
 
         if embed_form:
-            yield self._index_refresh_form(stage, projectname).encode(encoding)
+            yield self._index_refresh_form(stage, projectname).encode("utf-8")
 
         url = URL(self.request.path_info)
         for link in result:
@@ -401,9 +400,9 @@ class PyPIView:
 
             index = "/".join(relpath.split("/", 2)[:2])
             yield ('%s <a href="%s">%s</a><br/>\n' %
-                   (index, href, link.basename)).encode(encoding)
+                   (index, href, link.basename)).encode("utf-8")
 
-        yield "</body></html>".encode(encoding)
+        yield "</body></html>".encode("utf-8")
 
     def _index_refresh_form(self, stage, projectname):
         url = self.request.route_url(
@@ -428,26 +427,25 @@ class PyPIView:
         return Response(app_iter=self._simple_list_all(stage, stage_results))
 
     def _simple_list_all(self, stage, stage_results):
-        encoding = "utf-8"
         response = self.request.response
-        response.content_type = "text/html ; charset=%s" % encoding
+        response.content_type = "text/html ; charset=utf-8"
         title =  "%s: simple list (including inherited indices)" %(
                  stage.name)
         yield ("<html><head><title>%s</title></head><body><h1>%s</h1>" %(
-              title, title)).encode(encoding)
+              title, title)).encode("utf-8")
         all_names = set()
         for stage, names in stage_results:
             h2 = stage.name
             bases = getattr(stage, "ixconfig", {}).get("bases")
             if bases:
                 h2 += " (bases: %s)" % ",".join(bases)
-            yield ("<h2>" + h2 + "</h2>").encode(encoding)
+            yield ("<h2>" + h2 + "</h2>").encode("utf-8")
             for name in sorted(names):
                 if name not in all_names:
                     anchor = '<a href="%s">%s</a><br/>\n' % (name, name)
-                    yield anchor.encode(encoding)
+                    yield anchor.encode("utf-8")
                     all_names.add(name)
-        yield "</body>".encode(encoding)
+        yield "</body>".encode("utf-8")
 
     @view_config(
         route_name="/{user}/{index}/+simple/{name}/refresh", request_method="POST")
