@@ -597,8 +597,9 @@ class PrivateStage(BaseStage):
             version = self.get_latest_version_perstage(name)
             threadlog.info("store_doczip: derived version of %s is %s",
                            name, version)
-        basename = "%s-%s.doc.zip" % (name, version)
-        linkstore = self.get_linkstore_perstage(name, version)
+        projectname = self.get_projectname(name)
+        basename = "%s-%s.doc.zip" % (projectname, version)
+        linkstore = self.get_linkstore_perstage(projectname, version)
         link = linkstore.create_linked_entry(
                 rel="doczip",
                 basename=basename,
@@ -612,17 +613,9 @@ class PrivateStage(BaseStage):
         links = linkstore.get_links(rel="doczip")
         if links:
             if len(links) > 1:
-                def key(link):
-                    when = None
-                    for log in link.get_logs():
-                        when = log.get('when')
-                        if when is not None:
-                            break
-                    return when
-                link = max(links, key=key)
-                threadlog.warn("Multiple documentation files for %s-%s, returning newest", name, version)
-            else:
-                link = links[0]
+                threadlog.warn("Multiple documentation files for %s-%s, returning newest",
+                               name, version)
+            link = links[-1]
             return link.entry
 
     def get_doczip(self, name, version):
