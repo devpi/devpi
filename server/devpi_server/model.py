@@ -327,13 +327,11 @@ class BaseStage:
                     l.append(res)
         return result
 
-    def get_releaselinks(self, projectname):
+    def get_releaselinks(self, projectname, sorted_links=True):
         all_links = []
         basenames = set()
-        stagename2res = {}
         for stage, res in self.op_sro_check_pypi_whitelist(
             "get_releaselinks_perstage", projectname=projectname):
-            stagename2res[stage.name] = res
             for link in res:
                 if link.eggfragment:
                     key = link.eggfragment
@@ -342,7 +340,7 @@ class BaseStage:
                 if key not in basenames:
                     basenames.add(key)
                     all_links.append(link)
-        return sorted_sameproject_links(all_links)
+        return sorted_sameproject_links(all_links) if sorted_links else all_links
 
     def get_projectname(self, name):
         for stage, res in self.op_sro("get_projectname_perstage", name=name):

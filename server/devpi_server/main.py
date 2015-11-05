@@ -287,7 +287,7 @@ class XOM:
     def create_app(self):
         from devpi_server.view_auth import DevpiAuthenticationPolicy
         from devpi_server.views import OutsideURLMiddleware
-        from devpi_server.views import route_url
+        from devpi_server.views import route_url, PIP_USER_AGENT
         from pkg_resources import get_distribution
         from pyramid.authorization import ACLAuthorizationPolicy
         from pyramid.config import Configurator
@@ -327,7 +327,7 @@ class XOM:
         pyramid_config.add_route("/{user}/{index}/{name}/{version}", "/{user}/{index}/{name}/{version:[^/]+/?}")
         pyramid_config.add_route(
             "simple_redirect", "/{user}/{index}/{name:[^/]+/?}",
-            header="User-Agent:(distribute|setuptools|pip)/.*",
+            header="User-Agent:" + PIP_USER_AGENT,
             accept="text/html",
         )
         pyramid_config.add_route("/{user}/{index}/{name}", "/{user}/{index}/{name:[^/]+/?}")
