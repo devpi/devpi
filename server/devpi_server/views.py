@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import os
 import py
+import re
 from time import time
 from devpi_common.types import ensure_unicode
 from devpi_common.url import URL
@@ -38,6 +39,9 @@ API_VERSION = "2"
 
 meta_headers = {str("X-DEVPI-API-VERSION"): str(API_VERSION),
                 str("X-DEVPI-SERVER-VERSION"): server_version}
+
+
+PIP_USER_AGENT = r"(distribute|setuptools|pip)/.*"
 
 
 def abort(request, code, body):
@@ -364,7 +368,7 @@ class PyPIView:
             # ask for the full simple page although we know it doesn't exist
             # This is no longer necessary for pip >= 8.0
             abort(request, 200, "no such project %r" % name)
-        requested_by_pip = request.user_agent and request.user_agent.startswith('pip')
+        requested_by_pip = re.match(PIP_USER_AGENT, request.user_agent or "")
         try:
             result = stage.get_releaselinks(projectname, sorted_links=not requested_by_pip)
         except stage.UpstreamError as e:
