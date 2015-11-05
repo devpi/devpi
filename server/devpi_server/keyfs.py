@@ -696,14 +696,14 @@ class Transaction(object):
         try:
             val = self.cache[typedkey]
         except KeyError:
-            not_exists = typedkey in self.dirty
-            if not not_exists:
+            absent = typedkey in self.dirty
+            if not absent:
                 try:
                     val = self.keyfs.get_value_at(typedkey, self.at_serial,
                                                   conn=self.sqlconn)
                 except KeyError:
-                    not_exists = True
-            if not_exists:
+                    absent = True
+            if absent:
                 # for convenience we return an empty instance
                 # but below we still respect the readonly property
                 val = typedkey.type()
