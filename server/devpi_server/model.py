@@ -11,6 +11,7 @@ from time import gmtime
 from .auth import crypt_password, verify_password
 from .filestore import FileEntry
 from .log import threadlog, thread_current_log
+from .readonly import get_mutable_deepcopy
 
 
 def run_passwd(root, username):
@@ -114,7 +115,7 @@ class RootModel:
             return user.getstage(index)
 
     def is_empty(self):
-        userlist = list(self.get_userlist())
+        userlist = self.get_userlist()
         if len(userlist) == 1:
             user, = userlist
             if user.name == "root":
@@ -139,7 +140,7 @@ class User:
 
     @classmethod
     def create(cls, model, username, password, email):
-        userlist = model.keyfs.USERLIST.get()
+        userlist = model.keyfs.USERLIST.get(readonly=False)
         if username in userlist:
             raise InvalidUser("username already exists")
         if not cls.name_regexp.match(username):
@@ -182,7 +183,8 @@ class User:
 
     def delete(self):
         # delete all projects on the index
-        for name in self.get().get("indexes", {}):
+        userconfig = self.get()
+        for name in list(userconfig.get("indexes", {})):
             self.getstage(name).delete()
         # delete the user information itself
         self.key.delete()
@@ -200,7 +202,7 @@ class User:
         return None
 
     def get(self, credentials=False):
-        d = self.key.get().copy()
+        d = get_mutable_deepcopy(self.key.get())
         if not d:
             return d
         if not credentials:
@@ -268,8 +270,8 @@ class BaseStage:
     MissesRegistration = MissesRegistration
     NonVolatile = NonVolatile
 
-    def get_linkstore_perstage(self, name, version):
-        return LinkStore(self, name, version)
+    def get_linkstore_perstage(self, name, version, readonly=True):
+        return LinkStore(self, name, version, readonly=readonly)
 
     def get_link_from_entrypath(self, entrypath):
         entry = self.xom.filestore.get_file_entry(entrypath)
@@ -283,7 +285,7 @@ class BaseStage:
 
     def store_toxresult(self, link, toxresultdata):
         assert isinstance(toxresultdata, dict), toxresultdata
-        linkstore = self.get_linkstore_perstage(link.projectname, link.version)
+        linkstore = self.get_linkstore_perstage(link.projectname, link.version, readonly=False)
         return linkstore.new_reflink(
                 rel="toxresult",
                 file_content=json.dumps(toxresultdata).encode("utf-8"),
@@ -451,7 +453,7 @@ class PrivateStage(BaseStage):
 
     def delete(self):
         # delete all projects on this index
-        for name in self.list_projectnames_perstage().copy():
+        for name in self.list_projectnames_perstage():
             self.del_project(name)
         with self.user.key.update() as userconfig:
             indexes = userconfig.get("indexes", {})
@@ -507,7 +509,7 @@ class PrivateStage(BaseStage):
         name = metadata["name"]
         version = metadata["version"]
         key_projversion = self.key_projversion(name, version)
-        versiondata = key_projversion.get()
+        versiondata = key_projversion.get(readonly=False)
         if not key_projversion.is_dirty():
             # check if something really changed to prevent
             # unneccessary changes on db/replica level
@@ -521,17 +523,17 @@ class PrivateStage(BaseStage):
         versiondata.update(metadata)
         key_projversion.set(versiondata)
         threadlog.info("set_metadata %s-%s", name, version)
-        versions = self.key_projversions(name).get()
+        versions = self.key_projversions(name).get(readonly=False)
         if version not in versions:
             versions.add(version)
             self.key_projversions(name).set(versions)
-        projectnames = self.key_projectnames.get()
+        projectnames = self.key_projectnames.get(readonly=False)
         if name not in projectnames:
             projectnames.add(name)
             self.key_projectnames.set(projectnames)
 
     def del_project(self, name):
-        for version in self.key_projversions(name).get():
+        for version in list(self.key_projversions(name).get()):
             self.del_versiondata(name, version, cleanup=False)
         with self.key_projectnames.update() as projectnames:
             projectnames.remove(name)
@@ -543,11 +545,11 @@ class PrivateStage(BaseStage):
         if projectname is None:
             raise self.NotFound("project %r not found on stage %r" %
                                 (name, self.name))
-        versions = self.key_projversions(projectname).get()
+        versions = self.key_projversions(projectname).get(readonly=False)
         if version not in versions:
             raise self.NotFound("version %r of project %r not found on stage %r" %
                                 (version, projectname, self.name))
-        linkstore = self.get_linkstore_perstage(projectname, version)
+        linkstore = self.get_linkstore_perstage(projectname, version, readonly=False)
         linkstore.remove_links()
         versions.remove(version)
         self.key_projversion(projectname, version).delete()
@@ -558,8 +560,8 @@ class PrivateStage(BaseStage):
     def list_versions_perstage(self, projectname):
         return self.key_projversions(projectname).get()
 
-    def get_versiondata_perstage(self, projectname, version):
-        return self.key_projversion(projectname, version).get()
+    def get_versiondata_perstage(self, projectname, version, readonly=True):
+        return self.key_projversion(projectname, version).get(readonly=readonly)
 
     def get_releaselinks_perstage(self, projectname):
         links = []
@@ -584,7 +586,7 @@ class PrivateStage(BaseStage):
             else:
                 raise MissesRegistration("%s-%s", name, version)
         threadlog.debug("project name of %r is %r", filename, name)
-        linkstore = self.get_linkstore_perstage(name, version)
+        linkstore = self.get_linkstore_perstage(name, version, readonly=False)
         link = linkstore.create_linked_entry(
                 rel="releasefile",
                 basename=filename,
@@ -599,7 +601,7 @@ class PrivateStage(BaseStage):
                            name, version)
         projectname = self.get_projectname(name)
         basename = "%s-%s.doc.zip" % (projectname, version)
-        linkstore = self.get_linkstore_perstage(projectname, version)
+        linkstore = self.get_linkstore_perstage(projectname, version, readonly=False)
         link = linkstore.create_linked_entry(
                 rel="doczip",
                 basename=basename,
@@ -682,12 +684,12 @@ class ELink:
 
 
 class LinkStore:
-    def __init__(self, stage, projectname, version):
+    def __init__(self, stage, projectname, version, readonly=True):
         self.stage = stage
         self.filestore = stage.xom.filestore
         self.projectname = projectname
         self.version = version
-        self.verdata = stage.get_versiondata_perstage(projectname, version)
+        self.verdata = stage.get_versiondata_perstage(projectname, version, readonly=readonly)
         if not self.verdata:
             raise MissesRegistration("%s-%s on stage %s",
                                      projectname, version, stage.name)

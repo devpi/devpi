@@ -22,6 +22,7 @@ from devpi_common.request import new_requests_session
 from . import __version__ as server_version
 from .model import BaseStage
 from .keyfs import load_from_file, dump_to_file
+from .readonly import ensure_deeply_readonly
 from .log import threadlog
 
 
@@ -349,7 +350,7 @@ class PyPIStage(BaseStage):
             versions.add(version)
         return versions
 
-    def get_versiondata_perstage(self, projectname, version):
+    def get_versiondata_perstage(self, projectname, version, readonly=True):
         links = self.get_releaselinks_perstage(projectname)
         verdata = {}
         for link in links:
@@ -365,6 +366,8 @@ class PyPIStage(BaseStage):
                 verdata['version'] = version
             links = verdata.setdefault("+elinks", [])
             links.append({"rel": "releasefile", "entrypath": link.entrypath})
+        if readonly:
+            return ensure_deeply_readonly(verdata)
         return verdata
 
 

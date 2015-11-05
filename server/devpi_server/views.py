@@ -21,7 +21,7 @@ from devpi_common.request import new_requests_session
 from devpi_common.validation import normalize_name, is_valid_archive_name
 
 from .model import InvalidIndexconfig, InvalidUser, get_ixconfigattrs
-from .keyfs import copy_if_mutable
+from .readonly import get_mutable_deepcopy
 from .log import thread_push_log, thread_pop_log, threadlog
 
 from .auth import Auth
@@ -800,12 +800,11 @@ class PyPIView:
         apireturn(200, type="versiondata", result=view_verdata)
 
     def _make_view_verdata(self, verdata):
-        view_verdata = copy_if_mutable(verdata)
+        view_verdata = get_mutable_deepcopy(verdata)
         elinks = view_verdata.pop("+elinks", None)
         if elinks is not None:
             view_verdata["+links"] = links = []
-            for elinkdict in elinks:
-                linkdict = copy_if_mutable(elinkdict)
+            for linkdict in elinks:
                 entrypath = linkdict.pop("entrypath")
                 linkdict["href"] = url_for_entrypath(self.request, entrypath)
                 for_entrypath = linkdict.pop("for_entrypath", None)
@@ -849,7 +848,8 @@ class PyPIView:
         if json_preferred(request):
             if not entry or not entry.meta:
                 apireturn(404, "no such release file")
-            apireturn(200, type="releasefilemeta", result=entry.meta)
+            entry_data = get_mutable_deepcopy(entry.meta)
+            apireturn(200, type="releasefilemeta", result=entry_data)
         if not entry or not entry.meta:
             if entry is None:
                 abort(request, 404, "no such file")
@@ -861,7 +861,7 @@ class PyPIView:
             try:
                 if not self.xom.is_replica():
                     keyfs.restart_as_write_transaction()
-                    entry = filestore.get_file_entry(relpath)
+                    entry = filestore.get_file_entry(relpath, readonly=False)
                     entry.cache_remote_file()
                 else:
                     entry = entry.cache_remote_file_replica()
