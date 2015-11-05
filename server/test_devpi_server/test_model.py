@@ -496,7 +496,7 @@ class TestStage:
         # casing)
         linkstore = stage.get_linkstore_perstage("Pkg1", "1.0")
         content = zip_dict({"index.html": "<html/>"})
-        link = linkstore.create_linked_entry(
+        linkstore.create_linked_entry(
                 rel="doczip",
                 basename="Pkg1-1.0.doc.zip",
                 file_content=content,

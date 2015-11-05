@@ -3,7 +3,6 @@ from __future__ import unicode_literals
 import sys
 import pytest
 import json
-import time
 from devpi_server.importexport import *
 from devpi_server.main import Fatal
 from devpi_common.archive import Archive, zip_dict

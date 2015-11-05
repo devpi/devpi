@@ -614,7 +614,7 @@ class PrivateStage(BaseStage):
         if links:
             if len(links) > 1:
                 threadlog.warn("Multiple documentation files for %s-%s, returning newest",
-                                name, version)
+                               name, version)
             link = links[-1]
             return link.entry
 
