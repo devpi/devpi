@@ -639,8 +639,8 @@ def upload(parser):
     and will be used to perform build and upload commands.
 
     If you have a ``setup.cfg`` file you can have a "[devpi:upload]" section
-    with a ``formats`` and a ``no-vcs = 1`` setting providing defaults for
-    the respective command line options.
+    with ``formats``, ``no-vcs = 1``, and ``setupdir-only = 1`` settings
+    providing defaults for the respective command line options.
     """
     #parser.add_argument("--ver", dest="setversion",
     #    action="store", default=None,
