@@ -244,7 +244,7 @@ class Checkout:
                         self.rootpath = setupdir
                     else:
                         for p in setupdir.parts(reverse=True):
-                            if p.join(hasvcs).isdir():
+                            if p.join(hasvcs).exists():
                                 self.rootpath = p
                                 break
                         else:
