@@ -1,3 +1,11 @@
+2.3.2 (Unreleased)
+------------------
+
+- fix git submodules for devpi upload. ``.git`` is a file not a folder for
+  submodules. Before this fix the repository which contains the submodule was
+  found instead, which caused a failure, because the files aren't tracked there.
+
+
 2.3.1 (2015-09-10)
 ------------------
 
