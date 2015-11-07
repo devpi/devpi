@@ -161,10 +161,12 @@ def test_setup_build_formats_setupcfg(uploadhub, tmpdir):
         [devpi:upload]
         formats=bdist_wheel,sdist.zip
         no-vcs=1
+        setupdir-only=1
     """))
     cfg = read_setupcfg(uploadhub, tmpdir)
     assert cfg.get("formats") == "bdist_wheel,sdist.zip"
     assert cfg.get("no-vcs") == "1"
+    assert cfg.get("setupdir-only") == "1"
 
 def test_setup_build_formats_setupcfg_nosection(uploadhub, tmpdir):
     tmpdir.join("setup.cfg").write(dedent("""
@@ -174,6 +176,7 @@ def test_setup_build_formats_setupcfg_nosection(uploadhub, tmpdir):
     cfg = read_setupcfg(uploadhub, tmpdir)
     assert not cfg.get("formats")
     assert not cfg.get("no-vcs")
+    assert not cfg.get("setupdir-only")
 
 
 def test_parent_subpath(tmpdir):
