@@ -100,6 +100,16 @@ class TestCheckout:
         else:
             assert newrepo.join(repo.basename).join(".git").listdir()
 
+    def test_vcs_export_setupdironly(self, uploadhub, setupdir,
+                                          tmpdir, monkeypatch):
+        monkeypatch.setattr(uploadhub.args, "setupdironly", True)
+        checkout = Checkout(uploadhub, setupdir)
+        assert checkout.rootpath == setupdir
+        newrepo = tmpdir.mkdir("newrepo")
+        result = checkout.export(newrepo)
+        assert result.rootpath.join("file").check()
+        assert result.rootpath == newrepo.join(setupdir.basename)
+
     def test_vcs_export_disabled(self, uploadhub, setupdir,
                                       tmpdir, monkeypatch):
         monkeypatch.setattr(uploadhub.args, "novcs", True)
