@@ -391,17 +391,12 @@ class PyPIView:
             yield self._index_refresh_form(stage, projectname).encode("utf-8")
 
         url = URL(self.request.path_info)
-        for link in result:
-            relpath = link.entrypath
-            href = url.relpath("/" + relpath)
-            if link.hash_spec:
-                href += "#" + link.hash_spec
-            elif link.eggfragment:
-                href += "#egg=%s" % link.eggfragment
+        for basename, rpath in result:
+            href = url.relpath("/" + rpath)
 
-            index = "/".join(relpath.split("/", 2)[:2])
+            index = "/".join(rpath.split("/", 2)[:2])
             yield ('%s <a href="%s">%s</a><br/>\n' %
-                   (index, href, link.basename)).encode("utf-8")
+                   (index, href, basename)).encode("utf-8")
 
         yield "</body></html>".encode("utf-8")
 

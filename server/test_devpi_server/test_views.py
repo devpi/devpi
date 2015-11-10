@@ -20,6 +20,7 @@ from devpi_server.views import tween_keyfs_transaction, make_uuid_headers
 from .functional import TestUserThings, TestIndexThings  # noqa
 
 from devpi_server.filestore import get_default_hash_spec, make_splitdir
+from test_devpi_server.test_model import get_releaselinks_as_elinks
 
 proj = pytest.mark.parametrize("proj", [True, False])
 pytestmark = [pytest.mark.notransaction]
@@ -185,7 +186,7 @@ def test_simple_refresh(mapp, model, pypistage, testapp):
     assert r.location.endswith("/root/pypi/+simple/hello")
     with model.keyfs.transaction(write=False):
         info = pypistage._load_project_cache("hello")
-    assert info["entrylist"] == []
+    assert info["dumplist"] == []
 
 def test_inheritance_versiondata(mapp, model):
     api1 = mapp.create_and_use()
@@ -224,7 +225,7 @@ def test_simple_refresh_inherited(mapp, model, pypistage, testapp, projectname,
     with model.keyfs.transaction(write=False):
         info = pypistage._load_project_cache(projectname)
     assert info["projectname"] == projectname
-    elist = info["entrylist"]
+    elist = info["dumplist"]
     assert len(elist) == 1
     assert elist[0][0].endswith("-2.0.zip")
 
@@ -749,8 +750,8 @@ class TestSubmitValidation:
         with mapp.xom.model.keyfs.transaction(write=False):
             old_stage = mapp.xom.model.getstage(old_stagename)
             new_stage = mapp.xom.model.getstage(new_stagename)
-            old_entry = old_stage.get_releaselinks('Pkg5')[0].entry
-            new_entry = new_stage.get_releaselinks('Pkg5')[0].entry
+            old_entry = get_releaselinks_as_elinks(old_stage, 'Pkg5')[0].entry
+            new_entry = get_releaselinks_as_elinks(new_stage, 'Pkg5')[0].entry
             assert old_entry.last_modified == new_entry.last_modified
 
     def test_pypiaction_not_in_verdata_after_push(self, submit, testapp, mapp):

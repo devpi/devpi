@@ -6,6 +6,7 @@ import json
 from devpi_server.importexport import *
 from devpi_server.main import Fatal
 from devpi_common.archive import Archive, zip_dict
+from test_devpi_server.test_model import get_releaselinks_as_elinks
 
 import devpi_server
 
@@ -134,7 +135,7 @@ class TestImportExport:
         mapp2 = impexp.new_import()
         with mapp2.xom.keyfs.transaction(write=False):
             stage = mapp2.xom.model.getstage(api.stagename)
-            links = stage.get_releaselinks("hello")
+            links = get_releaselinks_as_elinks(stage, "hello")
             assert len(links) == 1
             assert links[0].entry.file_get_content() == b"content"
             link = stage.get_link_from_entrypath(links[0].entrypath)
@@ -219,7 +220,7 @@ class TestImportExport:
         mapp2 = impexp.new_import()
         with mapp2.xom.keyfs.transaction(write=False):
             stage = mapp2.xom.model.getstage('user1/dev')
-            links = stage.get_releaselinks("hello")
+            links = get_releaselinks_as_elinks(stage, "hello")
             assert len(links) == 1
             assert links[0].entry.file_get_content() == b"content"
             link = stage.get_link_from_entrypath(links[0].entrypath)
@@ -262,7 +263,7 @@ class TestImportExport:
             stage = mapp2.xom.model.getstage(api.stagename)
             verdata = stage.get_versiondata_perstage("hello", "1.0")
             assert verdata["version"] == "1.0"
-            links = stage.get_releaselinks("hello")
+            links = get_releaselinks_as_elinks(stage, "hello")
             assert len(links) == 1
             assert links[0].entry.file_get_content() == b"content"
 
@@ -470,7 +471,7 @@ class TestImportExport:
             stage = mapp2.xom.model.getstage(api.stagename)
             verdata = stage.get_versiondata_perstage("he_llo", "1.0")
             assert verdata["version"] == "1.0"
-            links = stage.get_releaselinks("he_llo")
+            links = get_releaselinks_as_elinks(stage, "he_llo")
             assert len(links) == 1
             assert links[0].entry.file_get_content() == b'content'
             doczip = stage.get_doczip("he_llo", "1.0")

@@ -14,13 +14,13 @@ from devpi_common.vendor._pip import HTMLPage
 
 from devpi_common.url import URL
 from devpi_common.metadata import BasenameMeta
-from devpi_common.metadata import is_archive_of_project, splitbasename
+from devpi_common.metadata import is_archive_of_project
 from devpi_common.types import ensure_unicode_keys
 from devpi_common.validation import normalize_name
 from devpi_common.request import new_requests_session
 
 from . import __version__ as server_version
-from .model import BaseStage
+from .model import BaseStage, make_key_and_href, RpathMeta
 from .keyfs import load_from_file, dump_to_file
 from .readonly import ensure_deeply_readonly
 from .log import threadlog
@@ -175,17 +175,17 @@ class PyPIStage(BaseStage):
 
     def _dump_project_cache(self, projectname, entries, serial):
         normname = normalize_name(projectname)
-        dumplist = [(entry.relpath, entry.hash_spec, entry.eggfragment)
-                            for entry in entries]
+        dumplist = [make_key_and_href(entry) for entry in entries]
+
         data = {"serial": serial,
-                "entrylist": dumplist,
+                "dumplist": dumplist,
                 "projectname": projectname}
         self.xom.set_updated_at(self.name, projectname, time.time())
         threadlog.debug("saving data for %s: %s", projectname, data)
         old = self.keyfs.PYPILINKS(name=normname).get()
         if old != data:
             self.keyfs.PYPILINKS(name=normname).set(data)
-        return list(self._make_elinks(projectname, data["entrylist"]))
+        return dumplist
 
     def _load_project_cache(self, projectname):
         normname = normalize_name(projectname)
@@ -195,27 +195,14 @@ class PyPIStage(BaseStage):
 
     def _load_cache_links(self, projectname):
         cache = self._load_project_cache(projectname)
-        if cache:
+        if cache and "dumplist" in cache:  # prior to 2.4 there was no "dumplist"
             serial = self.pypimirror.get_project_serial(projectname)
             is_fresh = (cache["serial"] >= serial)
             if is_fresh:
                 updated_at = self.xom.get_updated_at(self.name, projectname)
                 is_fresh = (time.time() - updated_at) <= self.cache_expiry
-            return (is_fresh,
-                    list(self._make_elinks(projectname, cache["entrylist"])))
+            return (is_fresh, cache["dumplist"])
         return True, None
-
-    def _make_elinks(self, projectname, data):
-        from .model import ELink
-        for relpath, hash_spec, eggfragment in data:
-            linkdict = {"entrypath": relpath, "hash_spec": hash_spec,
-                        "eggfragment": eggfragment}
-            version = "XXX"
-            try:
-                name, version = splitbasename(relpath)[:2]
-            except ValueError:
-                pass
-            yield ELink(self.filestore, linkdict, projectname, version)
 
     def clear_cache(self, projectname):
         normname = normalize_name(projectname)
@@ -341,31 +328,23 @@ class PyPIStage(BaseStage):
 
     def list_versions_perstage(self, projectname):
         versions = set()
-        for link in self.get_releaselinks_perstage(projectname):
-            basename = link.basename
-            if link.eggfragment:
-                version = "egg=" + link.eggfragment
-            else:
-                version = BasenameMeta(basename).version
-            versions.add(version)
+        for basename, rpath in self.get_releaselinks_perstage(projectname):
+            rm = RpathMeta(rpath, basename)
+            versions.add(rm.get_eggfragment_or_version())
         return versions
 
     def get_versiondata_perstage(self, projectname, version, readonly=True):
         links = self.get_releaselinks_perstage(projectname)
         verdata = {}
-        for link in links:
-            basename = link.basename
-            if link.eggfragment:
-                link_version = "egg=" + link.eggfragment
-            else:
-                link_version = BasenameMeta(basename).version
-            if version != link_version:
-                continue
-            if not verdata:
-                verdata['name'] = projectname
-                verdata['version'] = version
-            links = verdata.setdefault("+elinks", [])
-            links.append({"rel": "releasefile", "entrypath": link.entrypath})
+        for basename, rpath in links:
+            link_version = RpathMeta(rpath, basename).get_eggfragment_or_version()
+            if version == link_version:
+                if not verdata:
+                    verdata['name'] = projectname
+                    verdata['version'] = version
+                elinks = verdata.setdefault("+elinks", [])
+                entrypath = rpath.split("#", 1)[0]
+                elinks.append({"rel": "releasefile", "entrypath": entrypath})
         if readonly:
             return ensure_deeply_readonly(verdata)
         return verdata

@@ -5,6 +5,8 @@ import py
 import re
 import json
 from devpi_common.metadata import sorted_sameproject_links, get_latest_version
+from devpi_common.metadata import BasenameMeta
+from devpi_common.url import URL
 from devpi_common.validation import validate_metadata, normalize_name
 from devpi_common.types import ensure_unicode, cached_property, parse_hash_spec
 from time import gmtime
@@ -12,6 +14,31 @@ from .auth import crypt_password, verify_password
 from .filestore import FileEntry
 from .log import threadlog, thread_current_log
 from .readonly import get_mutable_deepcopy
+
+
+class RpathMeta:
+    """ helper class to deal with relative entrypaths. """
+    def __init__(self, rpath, basename):
+        self.rpath = rpath
+        self.basename = basename
+
+    @cached_property
+    def _url(self):
+        return URL(self.rpath)
+
+    @cached_property
+    def eggfragment(self):
+        return self._url.eggfragment
+
+    @cached_property
+    def version(self):
+        return BasenameMeta(self.basename, sameproject=True).version
+
+    def get_eggfragment_or_version(self):
+        if self.eggfragment:
+            return "egg=" + self.eggfragment
+        else:
+            return self.version
 
 
 def run_passwd(root, username):
@@ -332,15 +359,22 @@ class BaseStage:
         basenames = set()
         for stage, res in self.op_sro_check_pypi_whitelist(
             "get_releaselinks_perstage", projectname=projectname):
-            for link in res:
-                if link.eggfragment:
-                    key = link.eggfragment
-                else:
-                    key = link.basename
+            for key, rpath in res:
                 if key not in basenames:
                     basenames.add(key)
-                    all_links.append(link)
-        return sorted_sameproject_links(all_links) if sorted_links else all_links
+                    all_links.append((key, rpath))
+        if not sorted_links:
+            return all_links
+        vlinks = []
+        egglinks = []
+        for basename, rpath in all_links:
+            r = RpathMeta(rpath, basename)
+            if r.eggfragment:
+                egglinks.append((basename, rpath))
+            else:
+                vlinks.append(r)
+
+        return egglinks + [(v.basename, v.rpath) for v in sorted_sameproject_links(vlinks)]
 
     def get_projectname(self, name):
         for stage, res in self.op_sro("get_projectname_perstage", name=name):
@@ -565,7 +599,8 @@ class PrivateStage(BaseStage):
         links = []
         for version in self.list_versions_perstage(projectname):
             linkstore = self.get_linkstore_perstage(projectname, version)
-            links.extend(linkstore.get_links("releasefile"))
+            for link in linkstore.get_links("releasefile"):
+                links.append(make_key_and_href(link))
         return links
 
     def list_projectnames_perstage(self):
@@ -636,6 +671,10 @@ class ELink:
         if sys.version_info < (3,0):
             for key in linkdict:
                 assert py.builtin._istext(key)
+
+    @property
+    def relpath(self):
+        return self.linkdict["entrypath"]
 
     @property
     def hash_spec(self):
@@ -784,6 +823,16 @@ class LinkStore:
         self._mark_dirty()
         return ELink(self.filestore, new_linkdict, self.projectname,
                      self.version)
+
+
+def make_key_and_href(entry):
+    path = entry.relpath
+    if entry.hash_spec:
+        path += "#" + entry.hash_spec
+    elif entry.eggfragment:
+        path += "#egg=%s" % entry.eggfragment
+        return entry.eggfragment, path
+    return entry.basename, path
 
 
 def normalize_bases(model, bases):
