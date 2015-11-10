@@ -371,7 +371,7 @@ class PyPIView:
             abort(request, 200, "no such project %r" % name)
         requested_by_pip = re.match(PIP_USER_AGENT, request.user_agent or "")
         try:
-            result = stage.get_releaselinks(projectname, sorted_links=not requested_by_pip)
+            result = stage.get_simplelinks(projectname, sorted_links=not requested_by_pip)
         except stage.UpstreamError as e:
             threadlog.error(e.msg)
             abort(request, 502, e.msg)
@@ -451,7 +451,7 @@ class PyPIView:
         stage = context.model.getstage('root', 'pypi')
         assert stage.ixconfig["type"] == "mirror", stage.ixconfig
         stage.clear_cache(context.name)
-        stage.get_releaselinks_perstage(context.name)
+        stage.get_simplelinks_perstage(context.name)
         redirect(self.request.route_url(
             "/{user}/{index}/+simple/{name}",
             user=context.username, index=context.index, name=context.name))

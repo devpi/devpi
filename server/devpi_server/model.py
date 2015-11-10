@@ -297,6 +297,15 @@ class BaseStage:
     MissesRegistration = MissesRegistration
     NonVolatile = NonVolatile
 
+    def get_releaselinks(self, name):
+        l = []
+        for key, rpath in self.get_simplelinks(name):
+            rp = RpathMeta(rpath, key)
+            linkdict = {"entrypath": rp._url.path, "hash_spec": rp._url.hash_spec,
+                        "eggfragment": rp.eggfragment}
+            l.append(ELink(self.xom.filestore, linkdict, name, rp.version))
+        return l
+
     def get_linkstore_perstage(self, name, version, readonly=True):
         return LinkStore(self, name, version, readonly=readonly)
 
@@ -354,11 +363,11 @@ class BaseStage:
                     l.append(res)
         return result
 
-    def get_releaselinks(self, projectname, sorted_links=True):
+    def get_simplelinks(self, projectname, sorted_links=True):
         all_links = []
         basenames = set()
         for stage, res in self.op_sro_check_pypi_whitelist(
-            "get_releaselinks_perstage", projectname=projectname):
+            "get_simplelinks_perstage", projectname=projectname):
             for key, rpath in res:
                 if key not in basenames:
                     basenames.add(key)
@@ -595,7 +604,7 @@ class PrivateStage(BaseStage):
     def get_versiondata_perstage(self, projectname, version, readonly=True):
         return self.key_projversion(projectname, version).get(readonly=readonly)
 
-    def get_releaselinks_perstage(self, projectname):
+    def get_simplelinks_perstage(self, projectname):
         links = []
         for version in self.list_versions_perstage(projectname):
             linkstore = self.get_linkstore_perstage(projectname, version)

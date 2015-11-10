@@ -8,7 +8,6 @@ from devpi_server.extpypi import URL, PyPISimpleProxy
 from devpi_server.extpypi import parse_index
 from devpi_server.main import Fatal
 from test_devpi_server.conftest import getmd5
-from test_devpi_server.test_model import get_releaselinks_as_elinks
 
 
 class TestIndexParsing:
@@ -266,7 +265,7 @@ class TestIndexParsing:
 class TestExtPYPIDB:
     def test_parse_project_nomd5(self, pypistage):
         pypistage.mock_simple("pytest", pkgver="pytest-1.0.zip")
-        links = get_releaselinks_as_elinks(pypistage, "pytest")
+        links = pypistage.get_releaselinks("pytest")
         link, = links
         assert link.entry.url == "https://pypi.python.org/pkg/pytest-1.0.zip"
         assert not link.hash_spec
@@ -276,22 +275,22 @@ class TestExtPYPIDB:
     def test_parse_project_replaced_eggfragment(self, pypistage):
         pypistage.mock_simple("pytest", pypiserial=10,
             pkgver="pytest-1.0.zip#egg=pytest-dev1")
-        links = get_releaselinks_as_elinks(pypistage, "pytest")
+        links = pypistage.get_releaselinks("pytest")
         assert links[0].eggfragment == "pytest-dev1"
         pypistage.mock_simple("pytest", pypiserial=11,
             pkgver="pytest-1.0.zip#egg=pytest-dev2")
-        links = get_releaselinks_as_elinks(pypistage, "pytest")
+        links = pypistage.get_releaselinks("pytest")
         assert links[0].eggfragment == "pytest-dev2"
 
     @pytest.mark.parametrize("hash_type", ["md5", "sha256"])
     def test_parse_project_replaced_md5(self, pypistage, hash_type):
         x = pypistage.mock_simple("pytest", pypiserial=10, hash_type=hash_type,
                                    pkgver="pytest-1.0.zip")
-        links = get_releaselinks_as_elinks(pypistage, "pytest")
+        links = pypistage.get_releaselinks("pytest")
         assert links[0].hash_spec == x.hash_spec
         y = pypistage.mock_simple("pytest", pypiserial=11, hash_type=hash_type,
                                    pkgver="pytest-1.0.zip")
-        links = get_releaselinks_as_elinks(pypistage, "pytest")
+        links = pypistage.get_releaselinks("pytest")
         assert links[0].hash_spec == y.hash_spec
         assert x.hash_spec != y.hash_spec
 
@@ -324,7 +323,7 @@ class TestExtPYPIDB:
             status_code=200, text = '''
                 <a href="pytest-1.1.tar.gz" /> ''',
             headers = {"content-type": "text/html"})
-        links = get_releaselinks_as_elinks(pypistage, "pytest")
+        links = pypistage.get_releaselinks("pytest")
         assert len(links) == 2
         assert links[0].entry.url == "https://download.com/pytest-1.1.tar.gz"
         assert links[0].entrypath.endswith("/pytest-1.1.tar.gz")
@@ -342,7 +341,7 @@ class TestExtPYPIDB:
                 <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
                 <a rel="download" href="https://download.com/index.html" />
             '''.format(md5=md5, hashdir_b=hashdir_b), pypiserial=25)
-        links = get_releaselinks_as_elinks(pypistage, "pytest")
+        links = pypistage.get_releaselinks("pytest")
         assert len(links) == 3
         assert links[1].entry.url == "https://pypi.python.org/pkg/pytest-1.0.1.zip"
         assert links[1].entrypath.endswith("/pytest-1.0.1.zip")
@@ -381,7 +380,7 @@ class TestExtPYPIDB:
             ''')
         pypistage.url2response["https://download.com/index.html"] = dict(
             status_code=errorcode, text = 'not found')
-        links = get_releaselinks_as_elinks(pypistage, "pytest")
+        links = pypistage.get_releaselinks("pytest")
         assert len(links) == 1
         assert links[0].entry.url == \
                 "https://pypi.python.org/pkg/pytest-1.0.zip"
@@ -427,14 +426,14 @@ class TestExtPYPIDB:
 
     def test_parse_with_outdated_links_issue165(self, pypistage, caplog):
         pypistage.mock_simple("pytest", pypiserial=10, pkgver="pytest-1.0.zip")
-        links = get_releaselinks_as_elinks(pypistage, "pytest")
+        links = pypistage.get_releaselinks("pytest")
         assert len(links) == 1
         # update the links just as the PyPIMirror thread would
         with pypistage.keyfs.PYPILINKS(name="pytest").update() as cache:
             cache["latest_serial"] = 11
         # make pypi.python.org unreachable
         pypistage.mock_simple("pytest", status_code=-1)
-        links2 = get_releaselinks_as_elinks(pypistage, "pytest")
+        links2 = pypistage.get_releaselinks("pytest")
         assert links2[0].linkdict == links[0].linkdict and len(links2) == 1
         recs = caplog.getrecords("serving stale.*pytest.*")
         assert len(recs) == 1

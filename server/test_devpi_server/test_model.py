@@ -18,18 +18,6 @@ def udict(**kw):
         d[py.builtin._totext(name)] = val
     return d
 
-
-def get_releaselinks_as_elinks(stage, name):
-    from devpi_server.model import ELink
-    l = []
-    for key, rpath in stage.get_releaselinks(name):
-        rp = RpathMeta(rpath, key)
-        linkdict = {"entrypath": rp._url.path, "hash_spec": rp._url.hash_spec,
-                    "eggfragment": rp.eggfragment}
-        l.append(ELink(stage.xom.filestore, linkdict, name, rp.version))
-    return l
-
-
 @pytest.fixture(params=[(), ("root/pypi",)])
 def bases(request):
     return request.param
@@ -158,7 +146,7 @@ class TestStage:
                               "<a href='someproject-1.0.zip' /a>")
         register_and_store(stage_dev2, "someproject-1.1.tar.gz")
         register_and_store(stage_dev2, "someproject-1.2.tar.gz")
-        links = get_releaselinks_as_elinks(stage, "someproject")
+        links = stage.get_releaselinks("someproject")
         assert len(links) == 3
         assert links[0].basename == "someproject-1.2.tar.gz"
         assert links[1].basename == "someproject-1.1.tar.gz"
@@ -202,7 +190,7 @@ class TestStage:
                            name="some-project")
         register_and_store(stage, "some_project-1.2.tar.gz",
                            name="some-project")
-        links = get_releaselinks_as_elinks(stage, "some-project")
+        links = stage.get_releaselinks("some-project")
         assert len(links) == 3
         assert links[0].basename == "some_project-1.2.tar.gz"
         assert links[1].basename == "some_project-1.0.zip"
@@ -230,7 +218,7 @@ class TestStage:
         register_and_store(stage, "someproject-1.0.zip", b"123")
         stage.store_releasefile("someproject", "1.0",
                                 "someproject-1.0.zip", b"123")
-        links = get_releaselinks_as_elinks(stage, "someproject")
+        links = stage.get_releaselinks("someproject")
         assert len(links) == 1
         assert links[0].entrypath.endswith("someproject-1.0.zip")
 
@@ -241,7 +229,7 @@ class TestStage:
            <a href="http://bb.org/download/master#egg=py-dev2" />
         """)
         register_and_store(stage, "py-1.0.tar.gz", b"123")
-        links = stage.get_releaselinks("py")
+        links = stage.get_simplelinks("py")
         assert len(links) == 3
         assert links[0][0] == "py-dev2"
         assert links[1][0] == "py-dev"
@@ -275,7 +263,7 @@ class TestStage:
         entry = link.entry
         assert entry.hash_spec
         assert entry.last_modified != None
-        entries = get_releaselinks_as_elinks(stage, "some")
+        entries = stage.get_releaselinks("some")
         assert len(entries) == 1
         assert entries[0].hash_spec == entry.hash_spec
         assert stage.list_projectnames_perstage() == set(["some"])
@@ -315,7 +303,7 @@ class TestStage:
         register_and_store(stage, "someproject-1.0.zip", b"123")
         stage.store_releasefile("someproject", "1.0",
                                 "someproject-1.0.zip", b"123")
-        links = get_releaselinks_as_elinks(stage, "someproject")
+        links = stage.get_releaselinks("someproject")
         # because the whitelist doesn't include "someproject" we only get
         # our upload
         assert len(links) == 1
@@ -323,7 +311,7 @@ class TestStage:
         # if we add the project to the whitelist, we also get the release
         # from pypi
         stage.modify(pypi_whitelist=['someproject'])
-        links = get_releaselinks_as_elinks(stage, "someproject")
+        links = stage.get_releaselinks("someproject")
         assert len(links) == 2
         assert links[0].entrypath.endswith("someproject-1.1.zip")
         assert links[1].entrypath.endswith("someproject-1.0.zip")
@@ -337,7 +325,7 @@ class TestStage:
         register_and_store(stage, "someproject-1.0.zip", b"123")
         stage.store_releasefile("someproject", "1.0",
                                 "someproject-1.0.zip", b"123")
-        links = get_releaselinks_as_elinks(stage, "someproject")
+        links = stage.get_releaselinks("someproject")
         # because the whitelist doesn't include "someproject" we only get
         # our upload
         assert len(links) == 1
@@ -345,7 +333,7 @@ class TestStage:
         # if we add the project to the whitelist of the inherited index, we
         # also get the release from pypi
         stage_dev2.modify(pypi_whitelist=['someproject'])
-        links = get_releaselinks_as_elinks(stage, "someproject")
+        links = stage.get_releaselinks("someproject")
         assert len(links) == 2
         assert links[0].entrypath.endswith("someproject-1.1.zip")
         assert links[1].entrypath.endswith("someproject-1.0.zip")
@@ -357,7 +345,7 @@ class TestStage:
         register_and_store(stage, "someproject-1.0.zip", b"123")
         stage.store_releasefile("someproject", "1.0",
                                 "someproject-1.0.zip", b"123")
-        links = get_releaselinks_as_elinks(stage, "someproject")
+        links = stage.get_releaselinks("someproject")
         # because the whitelist doesn't include "someproject" we only get
         # our upload
         assert len(links) == 1
@@ -365,7 +353,7 @@ class TestStage:
         # if we allow all projects in the whitelist, we also get the release
         # from pypi
         stage.modify(pypi_whitelist=['*'])
-        links = get_releaselinks_as_elinks(stage, "someproject")
+        links = stage.get_releaselinks("someproject")
         assert len(links) == 2
         assert links[0].entrypath.endswith("someproject-1.1.zip")
         assert links[1].entrypath.endswith("someproject-1.0.zip")
@@ -379,7 +367,7 @@ class TestStage:
         register_and_store(stage, "someproject-1.0.zip", b"123")
         stage.store_releasefile("someproject", "1.0",
                                 "someproject-1.0.zip", b"123")
-        links = get_releaselinks_as_elinks(stage, "someproject")
+        links = stage.get_releaselinks("someproject")
         # because the whitelist doesn't include "someproject" we only get
         # our upload
         assert len(links) == 1
@@ -387,7 +375,7 @@ class TestStage:
         # if we add all projects to the whitelist of the inherited index, we
         # also get the release from pypi
         stage_dev2.modify(pypi_whitelist=['*'])
-        links = get_releaselinks_as_elinks(stage, "someproject")
+        links = stage.get_releaselinks("someproject")
         assert len(links) == 2
         assert links[0].entrypath.endswith("someproject-1.1.zip")
         assert links[1].entrypath.endswith("someproject-1.0.zip")
@@ -401,7 +389,7 @@ class TestStage:
         register_and_store(stage, "someproject-1.0.zip", b"123")
         stage.store_releasefile("someproject", "1.0",
                                 "someproject-1.0.zip", b"123")
-        links = get_releaselinks_as_elinks(stage, "someproject")
+        links = stage.get_releaselinks("someproject")
         # because the whitelist doesn't include "someproject" we only get
         # our upload
         assert len(links) == 1
@@ -409,7 +397,7 @@ class TestStage:
         # if we add all projects to the whitelist of the inheriting index, we
         # also get the release from pypi
         stage.modify(pypi_whitelist=['*'])
-        links = get_releaselinks_as_elinks(stage, "someproject")
+        links = stage.get_releaselinks("someproject")
         assert len(links) == 2
         assert links[0].entrypath.endswith("someproject-1.1.zip")
         assert links[1].entrypath.endswith("someproject-1.0.zip")
@@ -447,7 +435,7 @@ class TestStage:
     def test_releasefile_sorting(self, stage, bases):
         register_and_store(stage, "some-1.1.zip")
         register_and_store(stage, "some-1.0.zip")
-        entries = get_releaselinks_as_elinks(stage, "some")
+        entries = stage.get_releaselinks("some")
         assert len(entries) == 2
         assert entries[0].basename == "some-1.1.zip"
 
@@ -583,7 +571,7 @@ class TestStage:
         entry = stage.store_releasefile("some", "1.0",
                                         "some-1.0.zip", content2)
         assert not isinstance(entry, int), entry
-        links = get_releaselinks_as_elinks(stage, "some")
+        links = stage.get_releaselinks("some")
         assert len(links) == 1
         assert links[0].entry.file_get_content() == content2
 

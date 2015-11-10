@@ -211,7 +211,7 @@ class PyPIStage(BaseStage):
         self.keyfs.PYPILINKS(name=normname).set({})
         threadlog.debug("cleared cache for %s", projectname)
 
-    def get_releaselinks_perstage(self, projectname):
+    def get_simplelinks_perstage(self, projectname):
         """ return all releaselinks from the index and referenced scrape
         pages, returning cached entries if we have a recent enough
         request stored locally.
@@ -328,13 +328,13 @@ class PyPIStage(BaseStage):
 
     def list_versions_perstage(self, projectname):
         versions = set()
-        for basename, rpath in self.get_releaselinks_perstage(projectname):
+        for basename, rpath in self.get_simplelinks_perstage(projectname):
             rm = RpathMeta(rpath, basename)
             versions.add(rm.get_eggfragment_or_version())
         return versions
 
     def get_versiondata_perstage(self, projectname, version, readonly=True):
-        links = self.get_releaselinks_perstage(projectname)
+        links = self.get_simplelinks_perstage(projectname)
         verdata = {}
         for basename, rpath in links:
             link_version = RpathMeta(rpath, basename).get_eggfragment_or_version()
