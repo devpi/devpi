@@ -407,7 +407,7 @@ def project_get(context, request):
     for release in releaselinks:
         user, index = release.entrypath.split("/", 2)[:2]
         name, version = release.projectname, release.version
-        if version == 'XXX':
+        if not version or version == 'XXX':
             continue
         seen_key = (user, index, name, version)
         if seen_key in seen:
