@@ -19,6 +19,8 @@
   and setting it with the transaction.  It also allows to avoid unneccessary 
   copy-operations when just reading values.
 
+- fix issue283: pypi cache didn't work for replicas.
+
 - performance improvements for simple pages with lots of releases.
   this changed also the layout of the caching from pypi.python.org mirrors
   but will seemlessly work on older data.
