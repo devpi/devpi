@@ -267,6 +267,7 @@ class TestExtPYPIDB:
         pypistage.mock_simple("pytest", pkgver="pytest-1.0.zip")
         links = pypistage.get_releaselinks("pytest")
         link, = links
+        assert link.version == "1.0"
         assert link.entry.url == "https://pypi.python.org/pkg/pytest-1.0.zip"
         assert not link.hash_spec
         assert link.entrypath.endswith("/pytest-1.0.zip")
@@ -277,6 +278,7 @@ class TestExtPYPIDB:
             pkgver="pytest-1.0.zip#egg=pytest-dev1")
         links = pypistage.get_releaselinks("pytest")
         assert links[0].eggfragment == "pytest-dev1"
+        #assert links[0].version == "egg=pytest-dev1"
         pypistage.mock_simple("pytest", pypiserial=11,
             pkgver="pytest-1.0.zip#egg=pytest-dev2")
         links = pypistage.get_releaselinks("pytest")

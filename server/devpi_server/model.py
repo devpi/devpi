@@ -4,8 +4,9 @@ import sys
 import py
 import re
 import json
-from devpi_common.metadata import sorted_sameproject_links, get_latest_version
-from devpi_common.metadata import BasenameMeta
+from devpi_common.metadata import get_latest_version
+from devpi_common.metadata import CompareMixin
+from devpi_common.metadata import splitbasename, parse_version
 from devpi_common.url import URL
 from devpi_common.validation import validate_metadata, normalize_name
 from devpi_common.types import ensure_unicode, cached_property, parse_hash_spec
@@ -16,25 +17,23 @@ from .log import threadlog, thread_current_log
 from .readonly import get_mutable_deepcopy
 
 
-class RpathMeta:
+class RpathMeta(CompareMixin):
     """ helper class to deal with relative entrypaths. """
     def __init__(self, rpath, basename):
         self.rpath = rpath
         self.basename = basename
+        self._url = URL(rpath)
+        self.name, self.version, self.ext = splitbasename(self._url.basename, checkarch=False)
+        self.eggfragment = self._url.eggfragment
 
     @cached_property
-    def _url(self):
-        return URL(self.rpath)
-
-    @cached_property
-    def eggfragment(self):
-        return self._url.eggfragment
-
-    @cached_property
-    def version(self):
-        return BasenameMeta(self.basename, sameproject=True).version
+    def cmpval(self):
+        return parse_version(self.version), normalize_name(self.name), self.ext
 
     def get_eggfragment_or_version(self):
+        """ return the egg-identifier (link ending in #egg=ID)
+        or the version of the basename
+        """
         if self.eggfragment:
             return "egg=" + self.eggfragment
         else:
@@ -298,13 +297,20 @@ class BaseStage:
     NonVolatile = NonVolatile
 
     def get_releaselinks(self, name):
-        l = []
-        for key, rpath in self.get_simplelinks(name):
-            rp = RpathMeta(rpath, key)
-            linkdict = {"entrypath": rp._url.path, "hash_spec": rp._url.hash_spec,
-                        "eggfragment": rp.eggfragment}
-            l.append(ELink(self.xom.filestore, linkdict, name, rp.version))
-        return l
+        # compatibility access method used by devpi-web and tests
+        return [self._make_elink(name, key, rpath)
+                for key, rpath in self.get_simplelinks(name)]
+
+    def get_releaselinks_perstage(self, name):
+        # compatibility access method for devpi-findlinks and possibly other plugins
+        return [self._make_elink(name, key, rpath)
+                for key, rpath in self.get_simplelinks_perstage(name)]
+
+    def _make_elink(self, name, key, rpath):
+        rp = RpathMeta(rpath, key)
+        linkdict = {"entrypath": rp._url.path, "hash_spec": rp._url.hash_spec,
+                    "eggfragment": rp.eggfragment}
+        return ELink(self.xom.filestore, linkdict, name, rp.version)
 
     def get_linkstore_perstage(self, name, version, readonly=True):
         return LinkStore(self, name, version, readonly=readonly)
@@ -372,18 +378,10 @@ class BaseStage:
                 if key not in basenames:
                     basenames.add(key)
                     all_links.append((key, rpath))
-        if not sorted_links:
-            return all_links
-        vlinks = []
-        egglinks = []
-        for basename, rpath in all_links:
-            r = RpathMeta(rpath, basename)
-            if r.eggfragment:
-                egglinks.append((basename, rpath))
-            else:
-                vlinks.append(r)
-
-        return egglinks + [(v.basename, v.rpath) for v in sorted_sameproject_links(vlinks)]
+        if sorted_links:
+           all_links = [(v.basename, v.rpath)  for v in sorted((RpathMeta(rpath, basename)
+                            for basename, rpath in all_links), reverse=True)]
+        return all_links
 
     def get_projectname(self, name):
         for stage, res in self.op_sro("get_projectname_perstage", name=name):
