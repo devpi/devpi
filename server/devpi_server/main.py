@@ -347,6 +347,8 @@ class XOM:
         pyramid_config.add_tween("devpi_server.views.tween_keyfs_transaction",
             under="devpi_server.views.tween_request_logging"
         )
+        if self.config.args.profile_requests:
+            pyramid_config.add_tween("devpi_server.main.tween_request_profiling")
         pyramid_config.add_request_method(get_remote_ip)
         pyramid_config.add_request_method(stage_url)
         pyramid_config.add_request_method(simpleindex_url)
@@ -415,3 +417,23 @@ def set_default_indexes(model):
         indexes["pypi"] = {"bases": (), "type": "mirror", "volatile": False}
         root_user.key.set(userconfig)
         threadlog.info("created root/pypi index")
+
+
+def tween_request_profiling(handler, registry):
+    from cProfile import Profile
+    req = [0]
+    num_profile = registry["xom"].config.args.profile_requests
+    profile = Profile()
+
+    def request_profiling_handler(request):
+        profile.enable()
+        try:
+            return handler(request)
+        finally:
+            profile.disable()
+            req[0] += 1
+            if req[0] >= num_profile:
+                profile.print_stats("cumulative")
+                req[0] = 0
+                profile.clear()
+    return request_profiling_handler

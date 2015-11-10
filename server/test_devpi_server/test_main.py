@@ -109,3 +109,16 @@ def test_version_info(xom):
     for name, version in app.app.registry['devpi_version_info']:
         counts[name] = counts.get(name, 0) + 1
     assert counts['devpi-server'] == 1
+
+
+def test_profiling_tween(capsys):
+    class xom:
+        class config:
+            class args:
+                profile_requests = 10
+    registry = dict(xom=xom)
+    handler = tween_request_profiling(lambda req: None, registry)
+    for i in range(10):
+        handler(None)
+    out, err = capsys.readouterr()
+    assert "ncalls" in out
