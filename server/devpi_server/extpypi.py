@@ -20,7 +20,7 @@ from devpi_common.validation import normalize_name
 from devpi_common.request import new_requests_session
 
 from . import __version__ as server_version
-from .model import BaseStage, make_key_and_href, RpathMeta
+from .model import BaseStage, make_key_and_href, SimplelinkMeta
 from .keyfs import load_from_file, dump_to_file
 from .readonly import ensure_deeply_readonly
 from .log import threadlog
@@ -330,23 +330,19 @@ class PyPIStage(BaseStage):
         return result
 
     def list_versions_perstage(self, projectname):
-        versions = set()
-        for basename, rpath in self.get_simplelinks_perstage(projectname):
-            rm = RpathMeta(rpath, basename)
-            versions.add(rm.get_eggfragment_or_version())
-        return versions
+        return set(x.get_eggfragment_or_version()
+                   for x in map(SimplelinkMeta, self.get_simplelinks_perstage(projectname)))
 
     def get_versiondata_perstage(self, projectname, version, readonly=True):
-        links = self.get_simplelinks_perstage(projectname)
         verdata = {}
-        for basename, rpath in links:
-            link_version = RpathMeta(rpath, basename).get_eggfragment_or_version()
+        for sm in map(SimplelinkMeta, self.get_simplelinks_perstage(projectname)):
+            link_version = sm.get_eggfragment_or_version()
             if version == link_version:
                 if not verdata:
                     verdata['name'] = projectname
                     verdata['version'] = version
                 elinks = verdata.setdefault("+elinks", [])
-                entrypath = rpath.split("#", 1)[0]
+                entrypath = sm._url.path
                 elinks.append({"rel": "releasefile", "entrypath": entrypath})
         if readonly:
             return ensure_deeply_readonly(verdata)

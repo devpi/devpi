@@ -17,29 +17,6 @@ from .log import threadlog, thread_current_log
 from .readonly import get_mutable_deepcopy
 
 
-class RpathMeta(CompareMixin):
-    """ helper class to deal with relative entrypaths. """
-    def __init__(self, rpath, basename):
-        self.rpath = rpath
-        self.basename = basename
-        self._url = URL(rpath)
-        self.name, self.version, self.ext = splitbasename(self._url.basename, checkarch=False)
-        self.eggfragment = self._url.eggfragment
-
-    @cached_property
-    def cmpval(self):
-        return parse_version(self.version), normalize_name(self.name), self.ext
-
-    def get_eggfragment_or_version(self):
-        """ return the egg-identifier (link ending in #egg=ID)
-        or the version of the basename
-        """
-        if self.eggfragment:
-            return "egg=" + self.eggfragment
-        else:
-            return self.version
-
-
 def run_passwd(root, username):
     user = root.get_user(username)
     log = thread_current_log()
@@ -298,16 +275,16 @@ class BaseStage:
 
     def get_releaselinks(self, projectname):
         # compatibility access method used by devpi-web and tests
-        return [self._make_elink(projectname, key, rpath)
-                for key, rpath in self.get_simplelinks(projectname)]
+        return [self._make_elink(projectname, key, href)
+                for key, href in self.get_simplelinks(projectname)]
 
     def get_releaselinks_perstage(self, projectname):
         # compatibility access method for devpi-findlinks and possibly other plugins
-        return [self._make_elink(projectname, key, rpath)
-                for key, rpath in self.get_simplelinks_perstage(projectname)]
+        return [self._make_elink(projectname, key, href)
+                for key, href in self.get_simplelinks_perstage(projectname)]
 
-    def _make_elink(self, name, key, rpath):
-        rp = RpathMeta(rpath, key)
+    def _make_elink(self, name, key, href):
+        rp = SimplelinkMeta((key, href))
         linkdict = {"entrypath": rp._url.path, "hash_spec": rp._url.hash_spec,
                     "eggfragment": rp.eggfragment}
         return ELink(self.xom.filestore, linkdict, name, rp.version)
@@ -370,17 +347,22 @@ class BaseStage:
         return result
 
     def get_simplelinks(self, projectname, sorted_links=True):
+        """ Return list of (key, href) tuples where "href" is a path
+        to a file entry with "#" appended hash-specs or egg-ids
+        and "key" is usually the basename of the link or else
+        the egg-ID if the link points to an egg.
+        """
         all_links = []
-        basenames = set()
+        seen = set()
         for stage, res in self.op_sro_check_pypi_whitelist(
             "get_simplelinks_perstage", projectname=projectname):
-            for key, rpath in res:
-                if key not in basenames:
-                    basenames.add(key)
-                    all_links.append((key, rpath))
+            for key, href in res:
+                if key not in seen:
+                    seen.add(key)
+                    all_links.append((key, href))
         if sorted_links:
-           all_links = [(v.basename, v.rpath)  for v in sorted((RpathMeta(rpath, basename)
-                            for basename, rpath in all_links), reverse=True)]
+           all_links = [(v.key, v.href)
+                        for v in sorted(map(SimplelinkMeta, all_links), reverse=True)]
         return all_links
 
     def get_projectname(self, name):
@@ -606,8 +588,7 @@ class PrivateStage(BaseStage):
         links = []
         for version in self.list_versions_perstage(projectname):
             linkstore = self.get_linkstore_perstage(projectname, version)
-            for link in linkstore.get_links("releasefile"):
-                links.append(make_key_and_href(link))
+            links.extend(map(make_key_and_href, linkstore.get_links("releasefile")))
         return links
 
     def list_projectnames_perstage(self):
@@ -832,14 +813,38 @@ class LinkStore:
                      self.version)
 
 
+class SimplelinkMeta(CompareMixin):
+    """ helper class to provide information for items from get_simplelinks() """
+    def __init__(self, key_href):
+        self.key, self.href = key_href
+        self._url = URL(self.href)
+        self.name, self.version, self.ext = splitbasename(self._url.basename, checkarch=False)
+        self.eggfragment = self._url.eggfragment
+
+    @cached_property
+    def cmpval(self):
+        return parse_version(self.version), normalize_name(self.name), self.ext
+
+    def get_eggfragment_or_version(self):
+        """ return the egg-identifier (link ending in #egg=ID)
+        or the version of the basename
+        """
+        if self.eggfragment:
+            return "egg=" + self.eggfragment
+        else:
+            return self.version
+
+
 def make_key_and_href(entry):
-    path = entry.relpath
+    # entry is either an ELink or a filestore.FileEntry instance.
+    # both provide a "relpath" attribute which points to a file entry.
+    href = entry.relpath
     if entry.hash_spec:
-        path += "#" + entry.hash_spec
+        href += "#" + entry.hash_spec
     elif entry.eggfragment:
-        path += "#egg=%s" % entry.eggfragment
-        return entry.eggfragment, path
-    return entry.basename, path
+        href += "#egg=%s" % entry.eggfragment
+        return entry.eggfragment, href
+    return entry.basename, href
 
 
 def normalize_bases(model, bases):
