@@ -296,15 +296,15 @@ class BaseStage:
     MissesRegistration = MissesRegistration
     NonVolatile = NonVolatile
 
-    def get_releaselinks(self, name):
+    def get_releaselinks(self, projectname):
         # compatibility access method used by devpi-web and tests
-        return [self._make_elink(name, key, rpath)
-                for key, rpath in self.get_simplelinks(name)]
+        return [self._make_elink(projectname, key, rpath)
+                for key, rpath in self.get_simplelinks(projectname)]
 
-    def get_releaselinks_perstage(self, name):
+    def get_releaselinks_perstage(self, projectname):
         # compatibility access method for devpi-findlinks and possibly other plugins
-        return [self._make_elink(name, key, rpath)
-                for key, rpath in self.get_simplelinks_perstage(name)]
+        return [self._make_elink(projectname, key, rpath)
+                for key, rpath in self.get_simplelinks_perstage(projectname)]
 
     def _make_elink(self, name, key, rpath):
         rp = RpathMeta(rpath, key)
