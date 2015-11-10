@@ -181,10 +181,12 @@ class PyPIStage(BaseStage):
                 "entrylist": dumplist,
                 "projectname": projectname}
         self.xom.set_updated_at(self.name, projectname, time.time())
-        threadlog.debug("saving data for %s: %s", projectname, data)
         old = self.keyfs.PYPILINKS(name=normname).get()
         if old != data:
+            threadlog.debug("saving data for %s: %s", projectname, data)
             self.keyfs.PYPILINKS(name=normname).set(data)
+        else:
+            threadlog.debug("data unchanged for %s: %s", projectname, data)
         return list(self._make_elinks(projectname, data["entrylist"]))
 
     def _load_project_cache(self, projectname):
@@ -276,6 +278,7 @@ class PyPIStage(BaseStage):
             self.keyfs.begin_transaction_in_thread()
             is_fresh, links = self._load_cache_links(projectname)
             if links is not None:
+                self.xom.set_updated_at(self.name, projectname, time.time())
                 return links
             raise self.UpstreamError("no cache links from master for %s" %
                                      projectname)
