@@ -49,6 +49,11 @@ def addoptions(parser):
     web.addoption("--debug", action="store_true",
             help="run wsgi application with debug logging")
 
+    web.addoption("--profile-requests", type=int, metavar="NUM", default=0,
+            help="profile NUM requests and print out cumulative stats. "
+                 "After print profiling is restarted. "
+                 "By default no profiling is performed.")
+
     web.addoption("--logger-cfg", action="store", dest="logger_cfg",
             help="path to yaml/json logger configuration file,"
                  " requires python2.7 or higher.",

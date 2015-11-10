@@ -17,6 +17,10 @@
 
 - performance improvements for simple pages with lots of releases.
 
+- add "--profile-requests=NUM" option which turns on per-request
+  profiling and will print out after NUM requests are executed
+  and then restart profiling.
+
 
 2.3.1 (2015-09-14)
 ------------------
