@@ -79,30 +79,13 @@ def get_write_file_ensure_dir(path):
         return open(path, "wb")
 
 
-class SQLConnection:
-    def __init__(self, conn):
-        self.conn = conn
-        self.close = conn.close
-        self.commit = conn.commit
-        self.cursor = conn.cursor
-        self.execute = conn.execute
-        self.rollback = conn.rollback
-
-    def __enter__(self):
-        return self.conn.__enter__()
-
-    def __exit__(self, exc_type, exc_value, exc_tb):
-        self.conn.__exit__(exc_type, exc_value, exc_tb)
-        self.conn.close()
-
-
 class Filesystem:
     def __init__(self, basedir, notify_on_commit, cache_size):
         self.basedir = basedir
         self._notify_on_commit = notify_on_commit
         self._changelog_cache = LRUCache(cache_size)  # is thread safe
         self.last_commit_timestamp = time.time()
-        with self.get_sqlconn() as conn:
+        with contextlib.closing(self.get_sqlconn()) as conn:
             row = conn.execute("select max(serial) from changelog").fetchone()
             serial = row[0]
             if serial is None:
@@ -119,7 +102,7 @@ class Filesystem:
 
     def get_raw_changelog_entry(self, serial):
         q = "SELECT data FROM changelog WHERE serial = ?"
-        with self.get_sqlconn() as conn:
+        with contextlib.closing(self.get_sqlconn()) as conn:
             conn.text_factory = bytes
             row = conn.execute(q, (serial,)).fetchone()
             if row is not None:
@@ -162,7 +145,7 @@ class Filesystem:
                 """)
             conn.close()
         conn = sqlite3.connect(str(path), timeout=60)
-        return SQLConnection(conn)
+        return conn
 
     def db_read_typedkey(self, relpath, conn=None):
         new_conn = conn is None
@@ -451,7 +434,7 @@ class KeyFS(object):
 
     def import_changes(self, serial, changes):
         with self._write_lock:
-            with self._fs.get_sqlconn() as sqlconn:
+            with contextlib.closing(self._fs.get_sqlconn()) as sqlconn:
                 with self._fs.write_transaction(sqlconn) as fswriter:
                     next_serial = self.get_next_serial()
                     assert next_serial == serial, (next_serial, serial)
