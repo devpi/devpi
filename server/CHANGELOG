@@ -15,15 +15,15 @@
 - refine keyfs to provide lazy deep readonly-views for
   dict/set/list/tuple types by default.  This introduces safety because
   users (including plugins) of keyfs-values can only write/modify a value
-  by explicitely getting it with readonly=False (thereby deep copying it)
-  and setting it with the transaction.  It also allows to avoid unneccessary 
+  by explicitly getting it with readonly=False (thereby deep copying it)
+  and setting it with the transaction.  It also allows to avoid unnecessary
   copy-operations when just reading values.
 
 - fix issue283: pypi cache didn't work for replicas.
 
 - performance improvements for simple pages with lots of releases.
-  this changed also the layout of the caching from pypi.python.org mirrors
-  but will seemlessly work on older data.
+  this also changed the db layout of the caching from pypi.python.org mirrors
+  but will seamlessly work on older data, see NOTE at top.
 
 - add "--profile-requests=NUM" option which turns on per-request
   profiling and will print out after NUM requests are executed
