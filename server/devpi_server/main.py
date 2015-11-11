@@ -435,7 +435,7 @@ def tween_request_profiling(handler, registry):
             profile[0].disable()
             req[0] += 1
             if req[0] >= num_profile:
-                profile[0].print_stats("tottime")
+                profile[0].print_stats("cumulative")
                 req[0] = 0
                 profile[:] = [Profile()]
     return request_profiling_handler
