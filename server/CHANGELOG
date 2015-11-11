@@ -1,6 +1,10 @@
 2.4.0.dev 
 ------------------
 
+- NOTE: devpi-server-2.4 is compatible to data from devpi-server-2.3 but
+  not the other way round.  Once you run devpi-server-2.4 you can not go
+  back. It's always a good idea to make a backup before trying a new version :)
+
 - add timeout to replica requests
 
 - fix issue275: improve error message when a serverdir exists but has no
@@ -18,6 +22,8 @@
 - fix issue283: pypi cache didn't work for replicas.
 
 - performance improvements for simple pages with lots of releases.
+  this changed also the layout of the caching from pypi.python.org mirrors
+  but will seemlessly work on older data.
 
 - add "--profile-requests=NUM" option which turns on per-request
   profiling and will print out after NUM requests are executed

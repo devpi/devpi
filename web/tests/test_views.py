@@ -412,7 +412,7 @@ def test_project_projectname_redirect(mapp, testapp):
     mapp.set_versiondata({
         "name": "pkg_hello", "version": "1.0"})
     mapp.upload_file_pypi(
-        "pkg-hello-1.0.whl", b"123", "pkg-hello", "1.0")
+        "pkg-hello-1.0.zip", b"123", "pkg-hello", "1.0")
     r = testapp.xget(302, api.index + '/pkg-hello', headers=dict(accept="text/html"))
     assert r.location == '%s/pkg_hello' % api.index
     r = testapp.xget(200, r.location, headers=dict(accept="text/html"))

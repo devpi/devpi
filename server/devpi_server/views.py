@@ -371,7 +371,7 @@ class PyPIView:
             abort(request, 200, "no such project %r" % name)
         requested_by_pip = re.match(PIP_USER_AGENT, request.user_agent or "")
         try:
-            result = stage.get_releaselinks(projectname, sorted_links=not requested_by_pip)
+            result = stage.get_simplelinks(projectname, sorted_links=not requested_by_pip)
         except stage.UpstreamError as e:
             threadlog.error(e.msg)
             abort(request, 502, e.msg)
@@ -391,17 +391,11 @@ class PyPIView:
             yield self._index_refresh_form(stage, projectname).encode("utf-8")
 
         url = URL(self.request.path_info)
-        for link in result:
-            relpath = link.entrypath
-            href = url.relpath("/" + relpath)
-            if link.hash_spec:
-                href += "#" + link.hash_spec
-            elif link.eggfragment:
-                href += "#egg=%s" % link.eggfragment
-
-            index = "/".join(relpath.split("/", 2)[:2])
+        for key, href in result:
             yield ('%s <a href="%s">%s</a><br/>\n' %
-                   (index, href, link.basename)).encode("utf-8")
+                   ("/".join(href.split("/", 2)[:2]),
+                    url.relpath("/" + href),
+                    key)).encode("utf-8")
 
         yield "</body></html>".encode("utf-8")
 
@@ -456,7 +450,7 @@ class PyPIView:
         stage = context.model.getstage('root', 'pypi')
         assert stage.ixconfig["type"] == "mirror", stage.ixconfig
         stage.clear_cache(context.name)
-        stage.get_releaselinks_perstage(context.name)
+        stage.get_simplelinks_perstage(context.name)
         redirect(self.request.route_url(
             "/{user}/{index}/+simple/{name}",
             user=context.username, index=context.index, name=context.name))

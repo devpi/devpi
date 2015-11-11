@@ -4,7 +4,10 @@ import sys
 import py
 import re
 import json
-from devpi_common.metadata import sorted_sameproject_links, get_latest_version
+from devpi_common.metadata import get_latest_version
+from devpi_common.metadata import CompareMixin
+from devpi_common.metadata import splitbasename, parse_version
+from devpi_common.url import URL
 from devpi_common.validation import validate_metadata, normalize_name
 from devpi_common.types import ensure_unicode, cached_property, parse_hash_spec
 from time import gmtime
@@ -270,6 +273,22 @@ class BaseStage:
     MissesRegistration = MissesRegistration
     NonVolatile = NonVolatile
 
+    def get_releaselinks(self, projectname):
+        # compatibility access method used by devpi-web and tests
+        return [self._make_elink(projectname, key, href)
+                for key, href in self.get_simplelinks(projectname)]
+
+    def get_releaselinks_perstage(self, projectname):
+        # compatibility access method for devpi-findlinks and possibly other plugins
+        return [self._make_elink(projectname, key, href)
+                for key, href in self.get_simplelinks_perstage(projectname)]
+
+    def _make_elink(self, name, key, href):
+        rp = SimplelinkMeta((key, href))
+        linkdict = {"entrypath": rp._url.path, "hash_spec": rp._url.hash_spec,
+                    "eggfragment": rp.eggfragment}
+        return ELink(self.xom.filestore, linkdict, name, rp.version)
+
     def get_linkstore_perstage(self, name, version, readonly=True):
         return LinkStore(self, name, version, readonly=readonly)
 
@@ -327,20 +346,24 @@ class BaseStage:
                     l.append(res)
         return result
 
-    def get_releaselinks(self, projectname, sorted_links=True):
+    def get_simplelinks(self, projectname, sorted_links=True):
+        """ Return list of (key, href) tuples where "href" is a path
+        to a file entry with "#" appended hash-specs or egg-ids
+        and "key" is usually the basename of the link or else
+        the egg-ID if the link points to an egg.
+        """
         all_links = []
-        basenames = set()
+        seen = set()
         for stage, res in self.op_sro_check_pypi_whitelist(
-            "get_releaselinks_perstage", projectname=projectname):
-            for link in res:
-                if link.eggfragment:
-                    key = link.eggfragment
-                else:
-                    key = link.basename
-                if key not in basenames:
-                    basenames.add(key)
-                    all_links.append(link)
-        return sorted_sameproject_links(all_links) if sorted_links else all_links
+            "get_simplelinks_perstage", projectname=projectname):
+            for key, href in res:
+                if key not in seen:
+                    seen.add(key)
+                    all_links.append((key, href))
+        if sorted_links:
+           all_links = [(v.key, v.href)
+                        for v in sorted(map(SimplelinkMeta, all_links), reverse=True)]
+        return all_links
 
     def get_projectname(self, name):
         for stage, res in self.op_sro("get_projectname_perstage", name=name):
@@ -561,11 +584,11 @@ class PrivateStage(BaseStage):
     def get_versiondata_perstage(self, projectname, version, readonly=True):
         return self.key_projversion(projectname, version).get(readonly=readonly)
 
-    def get_releaselinks_perstage(self, projectname):
+    def get_simplelinks_perstage(self, projectname):
         links = []
         for version in self.list_versions_perstage(projectname):
             linkstore = self.get_linkstore_perstage(projectname, version)
-            links.extend(linkstore.get_links("releasefile"))
+            links.extend(map(make_key_and_href, linkstore.get_links("releasefile")))
         return links
 
     def list_projectnames_perstage(self):
@@ -636,6 +659,10 @@ class ELink:
         if sys.version_info < (3,0):
             for key in linkdict:
                 assert py.builtin._istext(key)
+
+    @property
+    def relpath(self):
+        return self.linkdict["entrypath"]
 
     @property
     def hash_spec(self):
@@ -784,6 +811,40 @@ class LinkStore:
         self._mark_dirty()
         return ELink(self.filestore, new_linkdict, self.projectname,
                      self.version)
+
+
+class SimplelinkMeta(CompareMixin):
+    """ helper class to provide information for items from get_simplelinks() """
+    def __init__(self, key_href):
+        self.key, self.href = key_href
+        self._url = URL(self.href)
+        self.name, self.version, self.ext = splitbasename(self._url.basename, checkarch=False)
+        self.eggfragment = self._url.eggfragment
+
+    @cached_property
+    def cmpval(self):
+        return parse_version(self.version), normalize_name(self.name), self.ext
+
+    def get_eggfragment_or_version(self):
+        """ return the egg-identifier (link ending in #egg=ID)
+        or the version of the basename
+        """
+        if self.eggfragment:
+            return "egg=" + self.eggfragment
+        else:
+            return self.version
+
+
+def make_key_and_href(entry):
+    # entry is either an ELink or a filestore.FileEntry instance.
+    # both provide a "relpath" attribute which points to a file entry.
+    href = entry.relpath
+    if entry.hash_spec:
+        href += "#" + entry.hash_spec
+    elif entry.eggfragment:
+        href += "#egg=%s" % entry.eggfragment
+        return entry.eggfragment, href
+    return entry.basename, href
 
 
 def normalize_bases(model, bases):

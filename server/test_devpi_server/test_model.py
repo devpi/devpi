@@ -18,7 +18,6 @@ def udict(**kw):
         d[py.builtin._totext(name)] = val
     return d
 
-
 @pytest.fixture(params=[(), ("root/pypi",)])
 def bases(request):
     return request.param

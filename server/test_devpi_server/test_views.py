@@ -185,7 +185,7 @@ def test_simple_refresh(mapp, model, pypistage, testapp):
     assert r.location.endswith("/root/pypi/+simple/hello")
     with model.keyfs.transaction(write=False):
         info = pypistage._load_project_cache("hello")
-    assert info["entrylist"] == []
+    assert info["dumplist"] == []
 
 def test_inheritance_versiondata(mapp, model):
     api1 = mapp.create_and_use()
@@ -224,7 +224,7 @@ def test_simple_refresh_inherited(mapp, model, pypistage, testapp, projectname,
     with model.keyfs.transaction(write=False):
         info = pypistage._load_project_cache(projectname)
     assert info["projectname"] == projectname
-    elist = info["entrylist"]
+    elist = info["dumplist"]
     assert len(elist) == 1
     assert elist[0][0].endswith("-2.0.zip")
 
