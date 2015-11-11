@@ -423,17 +423,19 @@ def tween_request_profiling(handler, registry):
     from cProfile import Profile
     req = [0]
     num_profile = registry["xom"].config.args.profile_requests
-    profile = Profile()
+    # we need to use a list, so we can create a new Profile instance without
+    # getting variable scope issues
+    profile = [Profile()]
 
     def request_profiling_handler(request):
-        profile.enable()
+        profile[0].enable()
         try:
             return handler(request)
         finally:
-            profile.disable()
+            profile[0].disable()
             req[0] += 1
             if req[0] >= num_profile:
-                profile.print_stats("cumulative")
+                profile[0].print_stats("cumulative")
                 req[0] = 0
-                profile.clear()
+                profile[:] = [Profile()]
     return request_profiling_handler

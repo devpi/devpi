@@ -29,6 +29,8 @@
   profiling and will print out after NUM requests are executed
   and then restart profiling.
 
+- fix tests for pypy. We officially support pypy now.
+
 
 2.3.1 (2015-09-14)
 ------------------

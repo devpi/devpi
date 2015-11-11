@@ -85,7 +85,7 @@ class Filesystem:
         self._notify_on_commit = notify_on_commit
         self._changelog_cache = LRUCache(cache_size)  # is thread safe
         self.last_commit_timestamp = time.time()
-        with self.get_sqlconn() as conn:
+        with contextlib.closing(self.get_sqlconn()) as conn:
             row = conn.execute("select max(serial) from changelog").fetchone()
             serial = row[0]
             if serial is None:
@@ -102,7 +102,7 @@ class Filesystem:
 
     def get_raw_changelog_entry(self, serial):
         q = "SELECT data FROM changelog WHERE serial = ?"
-        with self.get_sqlconn() as conn:
+        with contextlib.closing(self.get_sqlconn()) as conn:
             conn.text_factory = bytes
             row = conn.execute(q, (serial,)).fetchone()
             if row is not None:
@@ -143,6 +143,7 @@ class Filesystem:
                         data BLOB NOT NULL
                     )
                 """)
+            conn.close()
         conn = sqlite3.connect(str(path), timeout=60)
         return conn
 
@@ -433,7 +434,7 @@ class KeyFS(object):
 
     def import_changes(self, serial, changes):
         with self._write_lock:
-            with self._fs.get_sqlconn() as sqlconn:
+            with contextlib.closing(self._fs.get_sqlconn()) as sqlconn:
                 with self._fs.write_transaction(sqlconn) as fswriter:
                     next_serial = self.get_next_serial()
                     assert next_serial == serial, (next_serial, serial)
