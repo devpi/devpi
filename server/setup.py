@@ -79,7 +79,7 @@ if __name__ == "__main__":
         "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
         ] + [
             ("Programming Language :: Python :: %s" % x) for x in
-                "2.7 3.4".split()],
+                "2.7 3.4 PyPy".split()],
       install_requires=install_requires,
       extras_require=extras_require,
       entry_points = {

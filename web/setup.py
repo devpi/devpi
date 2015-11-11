@@ -37,7 +37,7 @@ setup(
         "Topic :: Internet :: WWW/HTTP",
         "Topic :: Internet :: WWW/HTTP :: WSGI :: Application"] + [
             "Programming Language :: Python :: %s" % x
-            for x in "2.7 3.3".split()],
+            for x in "2.7 3.3 PyPy".split()],
     entry_points={
         'devpi_server': [
             "devpi-web = devpi_web.main"]},
