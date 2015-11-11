@@ -29,7 +29,8 @@ def main(hub, args):
         hub.fatal("no setup.py found in", hub.cwd)
 
     setupcfg = read_setupcfg(hub, hub.cwd)
-    checkout = Checkout(hub, hub.cwd, hasvcs=setupcfg.get("no-vcs"))
+    checkout = Checkout(hub, hub.cwd, hasvcs=setupcfg.get("no-vcs"),
+                        setupdir_only=setupcfg.get("setupdir-only"))
     uploadbase = hub.getdir("upload")
     exported = checkout.export(uploadbase)
 
@@ -228,10 +229,11 @@ def find_parent_subpath(startpath, relpath, raising=True):
 
 
 class Checkout:
-    def __init__(self, hub, setupdir, hasvcs=None):
+    def __init__(self, hub, setupdir, hasvcs=None, setupdir_only=None):
         self.hub = hub
         assert setupdir.join("setup.py").check(), setupdir
         hasvcs = not hasvcs and not hub.args.novcs
+        setupdir_only = bool(setupdir_only or hub.args.setupdironly)
         if hasvcs:
             with setupdir.as_cwd():
                 try:
@@ -239,7 +241,7 @@ class Checkout:
                 except check_manifest.Failure:
                     hasvcs = None
                 else:
-                    if hasvcs not in (".hg", ".git"):
+                    if hasvcs not in (".hg", ".git") or setupdir_only:
                         # XXX for e.g. svn we don't do copying
                         self.rootpath = setupdir
                     else:
@@ -251,6 +253,7 @@ class Checkout:
                             hasvcs = None
         self.hasvcs = hasvcs
         self.setupdir = setupdir
+        self.setupdir_only = setupdir_only
 
     def export(self, basetemp):
         if not self.hasvcs:
@@ -266,7 +269,7 @@ class Checkout:
                 source.copy(dest)
         self.hub.debug("copied", len(files), "files to", newrepo)
 
-        if self.hasvcs not in (".git", ".hg"):
+        if self.hasvcs not in (".git", ".hg") or self.setupdir_only:
             self.hub.warn("not copying vcs repository metadata for", self.hasvcs)
         else:
             srcrepo = self.rootpath.join(self.hasvcs)

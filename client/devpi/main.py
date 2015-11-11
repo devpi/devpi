@@ -639,8 +639,8 @@ def upload(parser):
     and will be used to perform build and upload commands.
 
     If you have a ``setup.cfg`` file you can have a "[devpi:upload]" section
-    with a ``formats`` and a ``no-vcs = 1`` setting providing defaults for
-    the respective command line options.
+    with ``formats``, ``no-vcs = 1``, and ``setupdir-only = 1`` settings
+    providing defaults for the respective command line options.
     """
     #parser.add_argument("--ver", dest="setversion",
     #    action="store", default=None,
@@ -654,6 +654,9 @@ def upload(parser):
              "directly using their dirname as current dir. By default "
              "git/hg/svn/bazaar are auto-detected and packaging is run from "
              "a fresh directory with all versioned files exported.")
+    build.add_argument("--setupdir-only", action="store_true",
+        dest="setupdironly",
+        help="VCS-export only the directory containing setup.py")
 
     build.add_argument("--formats", default="", action="store",
         help="comma separated list of build formats (passed to setup.py). "
