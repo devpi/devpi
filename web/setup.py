@@ -23,7 +23,7 @@ setup(
     description="devpi-web: a web view for devpi-server",
     long_description="\n\n".join([README, CHANGELOG]),
     url="http://doc.devpi.net",
-    version='2.4.2.dev0',
+    version='2.4.2',
     maintainer="Holger Krekel, Florian Schulze",
     maintainer_email="holger@merlinux.eu",
     license="MIT",
@@ -35,9 +35,10 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python",
         "Topic :: Internet :: WWW/HTTP",
+        "Programming Language :: Python :: Implementation :: PyPy",
         "Topic :: Internet :: WWW/HTTP :: WSGI :: Application"] + [
             "Programming Language :: Python :: %s" % x
-            for x in "2.7 3.3 PyPy".split()],
+            for x in "2.7 3.3".split()],
     entry_points={
         'devpi_server': [
             "devpi-web = devpi_web.main"]},

@@ -1,4 +1,4 @@
-2.0.8 (Unreleased)
+2.0.8 (2015-11-11)
 ------------------
 
 - fix URL.joinpath to not add double slashes

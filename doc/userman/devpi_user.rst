@@ -61,7 +61,6 @@ If the do not already have a user ID he or she must create one::
 The user can then be listed::
 
    $ devpi user -l 
-   test
    sophie
    root
    emilie

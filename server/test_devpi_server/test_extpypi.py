@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+import time
 import hashlib
 import pytest
 import py
@@ -570,6 +571,7 @@ def test_404_on_pypi_cached(httpget, pypistage):
     pypistage.xom.set_updated_at(pypistage.name, 'foo', 0)
     name = pypistage.get_projectname('foo')
     assert name == 'foo'
+    time.sleep(0.01)  # to make sure we get a new timestamp
     assert pypistage.pypimirror.name2serials == {'foo': -1}
     assert pypistage.get_releaselinks('foo') == []
     assert pypistage.xom.get_updated_at(pypistage.name, 'foo') > updated_at

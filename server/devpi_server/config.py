@@ -55,8 +55,9 @@ def addoptions(parser):
                  "By default no profiling is performed.")
 
     web.addoption("--logger-cfg", action="store", dest="logger_cfg",
-            help="path to yaml/json logger configuration file,"
-                 " requires python2.7 or higher.",
+            help="path to .json or .yaml logger configuration file, "
+                 "requires at least python2.7. If you specify a yaml "
+                 "file you need to have the pyyaml package installed.",
             default=None)
 
     mirror = parser.addgroup("pypi mirroring options (root/pypi)")

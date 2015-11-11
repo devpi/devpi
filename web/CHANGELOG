@@ -1,7 +1,9 @@
-2.4.2 (unreleased)
+2.4.2 (2015-11-11)
 ------------------
 
 - log exceptions during search index updates.
+
+- adapted tests/code to work with devpi-server-2.4
 
 
 2.4.1 (2015-10-09)

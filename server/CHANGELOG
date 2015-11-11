@@ -1,9 +1,15 @@
-2.4.0.dev 
+2.4.0 (2015-11-11)
 ------------------
 
 - NOTE: devpi-server-2.4 is compatible to data from devpi-server-2.3 but
   not the other way round.  Once you run devpi-server-2.4 you can not go
   back. It's always a good idea to make a backup before trying a new version :)
+
+- NOTE: if you use "--logger-cfg" with .yaml files you will need to
+  install pyyaml yourself as devpi-server-2.4 dropped it as a direct
+  dependency as it does not install for win32/python3.5 and is 
+  not needed for devpi-server operations except for logging configuration.
+  Specifying a *.json file always works.
 
 - add timeout to replica requests
 

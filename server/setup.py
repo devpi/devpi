@@ -46,8 +46,7 @@ if __name__ == "__main__":
                         "pyramid>=1.5.1",
                         "waitress>=0.8.9",
                         "repoze.lru>=0.6",
-                        "pluggy>=0.2.0,<1.0",
-                        "pyyaml>=3.0",
+                        "pluggy>=0.3.0,<1.0",
                         ]
     extras_require = {}
     if has_environment_marker_support():
@@ -61,7 +60,7 @@ if __name__ == "__main__":
       keywords="pypi realtime cache server",
       long_description="\n\n".join([README, CHANGELOG]),
       url="http://doc.devpi.net",
-      version='2.4.0.dev1',
+      version='2.4.0',
       maintainer="Holger Krekel, Florian Schulze",
       maintainer_email="holger@merlinux.eu",
       packages=find_packages(),
@@ -79,7 +78,9 @@ if __name__ == "__main__":
         "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
         ] + [
             ("Programming Language :: Python :: %s" % x) for x in
-                "2.7 3.4 PyPy".split()],
+                "2.7 3.4".split()] + [
+            ("Programming Language :: Python :: Implementation :: PyPy")
+        ],
       install_requires=install_requires,
       extras_require=extras_require,
       entry_points = {

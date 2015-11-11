@@ -1,10 +1,14 @@
-2.3.2 (Unreleased)
+2.3.2 (2015-11-11)
 ------------------
 
 - fix git submodules for devpi upload. ``.git`` is a file not a folder for
   submodules. Before this fix the repository which contains the submodule was
   found instead, which caused a failure, because the files aren't tracked there.
 
+- new option "devpi upload --setupdir-only" which will only
+  vcs-export the directory containing setup.py. You can also
+  set "setupdirs-only = 1" in the "[devpi:upload]" section
+  of setup.cfg for the same effect.  Thanks Chad Wagner for the PR.
 
 2.3.1 (2015-09-10)
 ------------------
