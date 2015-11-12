@@ -9,6 +9,11 @@
         <div id="content">
         <h1>${title}</h1>
 
+        <p class="infonote" tal:condition="blocked_by_pypi_whitelist">
+            Because this project isn't in the <code>pypi_whitelist</code>,
+            no releases from <strong>${blocked_index}</strong> are included.
+        </p>
+
         <table class="versions" tal:condition="versions">
             <thead>
                 <tr>

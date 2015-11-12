@@ -371,16 +371,28 @@ class BaseStage:
                 assert py.builtin._istext(res), (repr(res), stage.name)
                 return res
 
-    def has_pypi_base(self, name):
+    def get_pypi_whitelist_info(self, name):
         name = ensure_unicode(name)
         private_hit = whitelisted = False
         for stage in self._sro():
             if stage.ixconfig["type"] == "mirror":
-                return stage.get_projectname_perstage(name) and \
-                       (not private_hit or whitelisted)
+                in_index = bool(stage.get_projectname_perstage(name))
+                has_pypi_base = in_index and (not private_hit or whitelisted)
+                blocked_by_pypi_whitelist = in_index and private_hit and not whitelisted
+                return dict(
+                    has_pypi_base=has_pypi_base,
+                    blocked_index=stage.name,
+                    blocked_by_pypi_whitelist=blocked_by_pypi_whitelist)
             private_hit = private_hit or bool(self.get_projectname_perstage(name))
             whitelist = set(stage.ixconfig["pypi_whitelist"])
             whitelisted = whitelisted or '*' in whitelist or name in whitelist
+        return dict(
+            has_pypi_base=False,
+            blocked_index=None,
+            blocked_by_pypi_whitelist=False)
+
+    def has_pypi_base(self, name):
+        return self.get_pypi_whitelist_info(name)['has_pypi_base']
 
     def op_sro(self, opname, **kw):
         for stage in self._sro():

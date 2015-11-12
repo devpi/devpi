@@ -299,6 +299,26 @@ table.files dd {
     color: #202020;
 }
 
+.whitelist {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.whitelist li {
+    display: inline;
+    margin: 0;
+    padding: 0;
+}
+
+.whitelist li:after {
+    content: ', ';
+}
+
+.whitelist li:last-child:after {
+    content: '';
+}
+
 .batch_links {
     list-style: none;
     margin: 0;

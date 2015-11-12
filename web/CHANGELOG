@@ -1,3 +1,10 @@
+2.4.3 (Unreleased)
+------------------
+
+- index.pt, project.pt, version.pt: added info about pypi_whitelist. This
+  requires devpi-server > 2.4.0 to work.
+
+
 2.4.2 (2015-11-11)
 ------------------
 

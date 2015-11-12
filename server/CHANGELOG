@@ -1,3 +1,10 @@
+2.4.1 (unreleased)
+------------------
+
+- add info about pypi_whitelist on simple page when root/pypi is blocked for
+  a project
+
+
 2.4.0 (2015-11-11)
 ------------------
 
