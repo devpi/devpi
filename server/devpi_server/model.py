@@ -556,6 +556,7 @@ class PrivateStage(BaseStage):
     def del_project(self, name):
         for version in list(self.key_projversions(name).get()):
             self.del_versiondata(name, version, cleanup=False)
+        self._regen_simplelinks(name)
         with self.key_projectnames.update() as projectnames:
             projectnames.remove(name)
         threadlog.info("deleting project %s", name)
@@ -575,8 +576,10 @@ class PrivateStage(BaseStage):
         versions.remove(version)
         self.key_projversion(projectname, version).delete()
         self.key_projversions(projectname).set(versions)
-        if cleanup and not versions:
-            self.del_project(projectname)
+        if cleanup:
+            if not versions:
+                self.del_project(projectname)
+            self._regen_simplelinks(projectname)
 
     def list_versions_perstage(self, projectname):
         return self.key_projversions(projectname).get()
@@ -585,11 +588,23 @@ class PrivateStage(BaseStage):
         return self.key_projversion(projectname, version).get(readonly=readonly)
 
     def get_simplelinks_perstage(self, projectname):
+        normname = normalize_name(projectname)
+        return self.keyfs.PROJSIMPLELINKS(
+                    user=self.user.name, index=self.index, name=normname).get()
+
+    def _regen_simplelinks(self, name):
+        normname = normalize_name(name)
+        k = self.keyfs.PROJSIMPLELINKS(user=self.user.name, index=self.index, name=normname)
+        projectname = self.get_projectname(name)
+        if not projectname:
+            # was deleted
+            k.delete()
+            return
         links = []
         for version in self.list_versions_perstage(projectname):
             linkstore = self.get_linkstore_perstage(projectname, version)
             links.extend(map(make_key_and_href, linkstore.get_links("releasefile")))
-        return links
+        k.set(links)
 
     def list_projectnames_perstage(self):
         return self.key_projectnames.get()
@@ -613,6 +628,7 @@ class PrivateStage(BaseStage):
                 basename=filename,
                 file_content=content,
                 last_modified=last_modified)
+        self._regen_simplelinks(name)
         return link
 
     def store_doczip(self, name, version, content):
@@ -878,6 +894,7 @@ def add_keys(xom, keyfs):
                  "{user}/{index}/+e/{dirname}/{basename}", dict)
 
     # type "stage" related
+    keyfs.add_key("PROJSIMPLELINKS", "{user}/{index}/{name}/.simple", list)
     keyfs.add_key("PROJVERSIONS", "{user}/{index}/{name}/.versions", set)
     keyfs.add_key("PROJVERSION", "{user}/{index}/{name}/{version}/.config", dict)
     keyfs.add_key("PROJNAMES", "{user}/{index}/.projectnames", set)
