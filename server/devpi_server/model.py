@@ -381,15 +381,13 @@ class BaseStage:
                 blocked_by_pypi_whitelist = in_index and private_hit and not whitelisted
                 return dict(
                     has_pypi_base=has_pypi_base,
-                    blocked_index=stage.name,
-                    blocked_by_pypi_whitelist=blocked_by_pypi_whitelist)
+                    blocked_by_pypi_whitelist=stage.name if blocked_by_pypi_whitelist else None)
             private_hit = private_hit or bool(self.get_projectname_perstage(name))
             whitelist = set(stage.ixconfig["pypi_whitelist"])
             whitelisted = whitelisted or '*' in whitelist or name in whitelist
         return dict(
             has_pypi_base=False,
-            blocked_index=None,
-            blocked_by_pypi_whitelist=False)
+            blocked_by_pypi_whitelist=None)
 
     def has_pypi_base(self, name):
         return self.get_pypi_whitelist_info(name)['has_pypi_base']

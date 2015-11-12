@@ -11,7 +11,7 @@
 
         <p class="infonote" tal:condition="blocked_by_pypi_whitelist">
             Because this project isn't in the <code>pypi_whitelist</code>,
-            no releases from <strong>${blocked_index}</strong> are included.
+            no releases from <strong>${blocked_by_pypi_whitelist}</strong> are included.
         </p>
 
         <table class="versions" tal:condition="versions">

@@ -424,15 +424,13 @@ def project_get(context, request):
                 user=user, index=index, name=name, version=version)))
         seen.add(seen_key)
     if hasattr(context.stage, 'get_pypi_whitelist_info'):
-        whitelist_info = context.stage.get_pypi_whitelist_info(name)
+        whitelist_info = context.stage.get_pypi_whitelist_info(context.name)
     else:
         whitelist_info = dict(
-            has_pypi_base=context.stage.has_pypi_base(name),
-            blocked_index=None,
-            blocked_by_pypi_whitelist=False)
+            has_pypi_base=context.stage.has_pypi_base(context.name),
+            blocked_by_pypi_whitelist=None)
     return dict(
         title="%s/: %s versions" % (context.stage.name, context.name),
-        blocked_index=whitelist_info['blocked_index'],
         blocked_by_pypi_whitelist=whitelist_info['blocked_by_pypi_whitelist'],
         versions=versions)
 
@@ -491,7 +489,6 @@ def version_get(context, request):
     else:
         whitelist_info = dict(
             has_pypi_base=stage.has_pypi_base(name),
-            blocked_index=None,
             blocked_by_pypi_whitelist=False)
     if whitelist_info['has_pypi_base']:
         nav_links.append(dict(
@@ -504,7 +501,6 @@ def version_get(context, request):
         nav_links=nav_links,
         infos=infos,
         files=files,
-        blocked_index=whitelist_info['blocked_index'],
         blocked_by_pypi_whitelist=whitelist_info['blocked_by_pypi_whitelist'],
         show_toxresults=show_toxresults,
         make_toxresults_url=functools.partial(

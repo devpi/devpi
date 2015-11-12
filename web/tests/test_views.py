@@ -637,6 +637,47 @@ def test_error_html_only(mapp, testapp, monkeypatch):
 
 
 @pytest.mark.with_notifier
+def test_whitelist(mapp, pypistage, testapp):
+    pypistage.mock_simple(
+        "pkg1", '<a href="http://example.com/releases/pkg1-2.7.zip" /a>)')
+    api = mapp.create_and_use()
+    mapp.set_versiondata(
+        {"name": "pkg1", "version": "2.6", "description": "foo"},
+        set_whitelist=False)
+    mapp.upload_file_pypi(
+        "pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200,
+        waithooks=True, set_whitelist=False)
+    # version view
+    r = testapp.get('%s/pkg1/2.6' % api.index, accept="text/html")
+    (infonote,) = r.html.select('.infonote')
+    text = compareable_text(infonote.text)
+    assert text == "Because this project isn't in the pypi_whitelist, no releases from root/pypi are included."
+    # project view
+    r = testapp.get('%s/pkg1' % api.index, accept="text/html")
+    (infonote,) = r.html.select('.infonote')
+    text = compareable_text(infonote.text)
+    assert text == "Because this project isn't in the pypi_whitelist, no releases from root/pypi are included."
+    # index view
+    r = testapp.get(api.index, accept="text/html")
+    assert "No packages whitelisted." in r.unicode_body
+    # now set the whitelist
+    mapp.upload_file_pypi(
+        "pkg1-2.8.tgz", b"123", "pkg1", "2.8", code=200,
+        waithooks=True, set_whitelist=True)
+    # version view
+    r = testapp.get('%s/pkg1/2.8' % api.index, accept="text/html")
+    assert r.html.select('.infonote') == []
+    # project view
+    r = testapp.get('%s/pkg1' % api.index, accept="text/html")
+    assert r.html.select('.infonote') == []
+    # index view
+    r = testapp.get(api.index, accept="text/html")
+    (whitelist,) = r.html.select('.whitelist')
+    text = compareable_text(whitelist.text)
+    assert text == "pkg1"
+
+
+@pytest.mark.with_notifier
 def test_testdata(mapp, testapp):
     from test_devpi_server.example import tox_result_data
     api = mapp.create_and_use()
