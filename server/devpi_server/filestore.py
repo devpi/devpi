@@ -96,8 +96,10 @@ def metaprop(name):
         if self.meta is not None:
             return self.meta.get(name)
     def fset(self, val):
-        self.meta[name] = unicode_if_bytes(val)
-        self.key.set(self.meta)
+        val = unicode_if_bytes(val)
+        if self.meta.get(name) != val:
+            self.meta[name] = val
+            self.key.set(self.meta)
     return property(fget, fset)
 
 
@@ -183,6 +185,11 @@ class FileEntry(object):
             hash_spec = get_default_hash_spec(content)
         self.hash_spec = hash_spec
         self.tx.io_file_set(self._filepath, content)
+        # we make sure we always refresh the meta information
+        # when we set the file content. Otherwise we might
+        # end up only committing file content without any keys
+        # changed which will not replay correctly at a replica.
+        self.key.set(self.meta)
 
     def gethttpheaders(self):
         assert self.file_exists()

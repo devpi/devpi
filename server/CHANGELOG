@@ -1,3 +1,13 @@
+2.4.1 (unreleased)
+------------------
+
+- fix a regression of 2.4.0 which would cause many write-transactions
+  for mirrored simple-page entries that didn't change.  Previous to the fix,
+  accesses to mirrored simple pages will result in a new
+  write-transaction every 30 minutes if the page is accessed which
+  is likely on a somewhat busy site.
+
+
 2.4.0 (2015-11-11)
 ------------------
 
