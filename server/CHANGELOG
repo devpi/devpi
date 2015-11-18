@@ -7,6 +7,12 @@
   write-transaction every 30 minutes if the page is accessed which
   is likely on a somewhat busy site.
 
+- replica simple-page serving will not unneccessarily wait for new 
+  simple-page entries to arrive at the replication side if the master 
+  does not return any changes in the initial simple-page request.
+  Previously a replica would wait for the replication-thread to catch
+  up even if no links changed.
+
 - fix setup.py to work on py34 and with LANG="C" environments.
   Thanks Jason R. Coombs.
 
