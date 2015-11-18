@@ -7,6 +7,9 @@
   write-transaction every 30 minutes if the page is accessed which
   is likely on a somewhat busy site.
 
+- fix setup.py to work on py34 and with LANG="C" environments.
+  Thanks Jason R. Coombs.
+
 
 2.4.0 (2015-11-11)
 ------------------
