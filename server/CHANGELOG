@@ -1,11 +1,14 @@
 2.4.1 (unreleased)
 ------------------
 
-- fix a regression of 2.4.0 which would cause many write-transactions
+- fix a regression of 2.3.0 which would cause many write-transactions
   for mirrored simple-page entries that didn't change.  Previous to the fix,
   accesses to mirrored simple pages will result in a new
   write-transaction every 30 minutes if the page is accessed which
-  is likely on a somewhat busy site.
+  is likely on a somewhat busy site.  If you running with replicas
+  it is recommended to do an an export/import cycle to remove all 
+  the unneccessary writes that were produced since devpi-server-2.3.0.
+  They delay the setup of new replicas considerably.
 
 - replica simple-page serving will not unneccessarily wait for new 
   simple-page entries to arrive at the replication side if the master 
