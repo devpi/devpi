@@ -77,6 +77,12 @@
             </li>
         </ul>
         </tal:bases>
+
+        <h2>whitelisted packages</h2>
+        <ul class="whitelist" tal:condition="whitelist">
+            <li tal:repeat="name whitelist">${name}</li>
+        </ul>
+        <p tal:condition="not whitelist">No packages whitelisted.</p>
         </div>
         <metal:footer use-macro="request.macros['footer']" />
     </body>

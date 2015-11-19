@@ -3,8 +3,10 @@
 
 - fix issue288: classifiers rendering wrong with read only data views
 
-- fix issue286: indexing of most data failed due to new read only views
+- index.pt, project.pt, version.pt: added info about pypi_whitelist. This
+  requires devpi-server > 2.4.0 to work.
 
+- fix issue286: indexing of most data failed due to new read only views
 
 2.4.2 (2015-11-11)
 ------------------

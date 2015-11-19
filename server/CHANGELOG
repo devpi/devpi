@@ -10,6 +10,9 @@
   the unneccessary writes that were produced since devpi-server-2.3.0.
   They delay the setup of new replicas considerably.
 
+- add info about pypi_whitelist on simple page when root/pypi is blocked for
+  a project.
+
 - replica simple-page serving will not unneccessarily wait for new 
   simple-page entries to arrive at the replication side if the master 
   does not return any changes in the initial simple-page request.

@@ -235,6 +235,19 @@ def test_simple_refresh_inherited_not_whitelisted(mapp, testapp):
     r = testapp.xget(200, "/%s/+simple/pkg" % api.stagename)
     assert len(r.html.select('form')) == 0
 
+
+def test_simple_blocked_warning(mapp, pypistage, testapp):
+    pypistage.mock_simple('pkg', '<a href="/pkg-1.0.zip" />', serial=100)
+    api = mapp.create_and_use()
+    mapp.set_versiondata(dict(name="pkg", version="1.0"), set_whitelist=False)
+    r = testapp.xget(200, "/%s/+simple/pkg" % api.stagename)
+    (paragraph,) = r.html.select('p')
+    assert paragraph.text == "INFO: Because this project isn't in the pypi_whitelist, no releases from root/pypi are included."
+    mapp.set_versiondata(dict(name="pkg", version="1.1"), set_whitelist=True)
+    r = testapp.xget(200, "/%s/+simple/pkg" % api.stagename)
+    assert r.html.select('p') == []
+
+
 def test_indexroot(testapp, model):
     with model.keyfs.transaction(write=True):
         user = model.create_user("user", "123")
