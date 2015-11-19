@@ -18,6 +18,8 @@ class StageACL(object):
             if principal == ':ANONYMOUS:':
                 principal = Everyone
             acl.append((Allow, principal, 'pypi_submit'))
+            acl.append((Allow, principal, 'del_verdata'))
+            acl.append((Allow, principal, 'del_project'))
         if self.restrict_modify is None:
             acl.extend([
                 (Allow, self.stage.username, 'index_modify'),

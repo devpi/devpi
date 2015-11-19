@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 
 import os, re, sys
+import io
 import setuptools
 from setuptools import setup, find_packages
 
@@ -25,7 +26,8 @@ def has_environment_marker_support():
 
 
 def get_changelog():
-    text = open(os.path.join(here, 'CHANGELOG')).read()
+    with io.open(os.path.join(here, 'CHANGELOG'), encoding="utf-8") as f:
+        text = f.read()
     header_matches = list(re.finditer('^-+$', text, re.MULTILINE))
     # until fifth header
     text = text[:header_matches[5].start()]

@@ -3,7 +3,6 @@ import pytest
 import py
 from devpi_server.filestore import *
 
-pytestmark = [pytest.mark.writetransaction]
 
 zip_types = ("application/zip", "application/x-zip-compressed")
 
@@ -13,13 +12,14 @@ def getdigest(content, hash_type):
     return getattr(hashlib, hash_type)(content).hexdigest()
 
 
+@pytest.mark.writetransaction
 class TestFileStore:
     def test_maplink_deterministic(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.2.zip")
         entry1 = filestore.maplink(link)
         entry2 = filestore.maplink(link)
         assert entry1.relpath == entry2.relpath
-        assert entry1.basename == "pytest-1.2.zip"
+        assert entry1.basename == entry2.basename == "pytest-1.2.zip"
         assert py.builtin._istext(entry1.hash_spec)
 
     @pytest.mark.parametrize("hash_spec", [
@@ -268,3 +268,19 @@ class TestFileStore:
         assert entry2.hash_spec == entry.hash_spec
         assert entry2.last_modified
         assert entry2.file_get_content() == content
+
+def test_maplink_nochange(filestore, gen):
+    filestore.keyfs.restart_as_write_transaction()
+    link = gen.pypi_package_link("pytest-1.2.zip")
+    entry1 = filestore.maplink(link)
+    filestore.keyfs.commit_transaction_in_thread()
+    last_serial = filestore.keyfs.get_current_serial()
+
+    # start a new write transaction
+    filestore.keyfs.begin_transaction_in_thread(write=True)
+    entry2 = filestore.maplink(link)
+    assert entry1.relpath == entry2.relpath
+    assert entry1.basename == entry2.basename == "pytest-1.2.zip"
+    assert py.builtin._istext(entry1.hash_spec)
+    filestore.keyfs.commit_transaction_in_thread()
+    assert filestore.keyfs.get_current_serial() == last_serial

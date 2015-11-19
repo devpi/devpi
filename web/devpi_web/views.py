@@ -4,6 +4,7 @@ from devpi_common.metadata import get_pyversion_filetype
 from devpi_common.metadata import get_sorted_versions
 from devpi_common.viewhelp import iter_toxresults
 from devpi_server.log import threadlog as log
+from devpi_server.readonly import SeqViewReadonly
 from devpi_server.views import StatusView, url_for_entrypath
 from devpi_web.description import get_description
 from devpi_web.doczip import Docs, get_unpack_path
@@ -24,6 +25,9 @@ from time import gmtime
 import functools
 import json
 import py
+
+
+seq_types = (list, tuple, SeqViewReadonly)
 
 
 class ContextWrapper(object):
@@ -325,16 +329,19 @@ def index_get(context, request):
     permissions = []
     bases = []
     packages = []
+    whitelist = []
     result = dict(
         title="%s index" % stage.name,
         simple_index_url=request.simpleindex_url(stage),
         permissions=permissions,
         bases=bases,
-        packages=packages)
+        packages=packages,
+        whitelist=whitelist)
     if stage.name == "root/pypi":
         return result
 
     if hasattr(stage, "ixconfig"):
+        whitelist.extend(sorted(stage.ixconfig['pypi_whitelist']))
         for base in stage.ixconfig["bases"]:
             bases.append(dict(
                 title=base,
@@ -420,8 +427,15 @@ def project_get(context, request):
                 "/{user}/{index}/{name}/{version}",
                 user=user, index=index, name=name, version=version)))
         seen.add(seen_key)
+    if hasattr(context.stage, 'get_pypi_whitelist_info'):
+        whitelist_info = context.stage.get_pypi_whitelist_info(context.name)
+    else:
+        whitelist_info = dict(
+            has_pypi_base=context.stage.has_pypi_base(context.name),
+            blocked_by_pypi_whitelist=None)
     return dict(
         title="%s/: %s versions" % (context.stage.name, context.name),
+        blocked_by_pypi_whitelist=whitelist_info['blocked_by_pypi_whitelist'],
         versions=versions)
 
 
@@ -446,7 +460,7 @@ def version_get(context, request):
     for key, value in sorted(verdata.items()):
         if key in skipped_keys or key.startswith('+'):
             continue
-        if isinstance(value, list):
+        if isinstance(value, seq_types):
             if not len(value):
                 continue
             value = html.ul([html.li(x) for x in value]).unicode()
@@ -474,7 +488,13 @@ def version_get(context, request):
         url=request.route_url(
             "/{user}/{index}/+simple/{name}",
             user=context.username, index=context.index, name=context.name)))
-    if stage.has_pypi_base(name):
+    if hasattr(stage, 'get_pypi_whitelist_info'):
+        whitelist_info = stage.get_pypi_whitelist_info(name)
+    else:
+        whitelist_info = dict(
+            has_pypi_base=stage.has_pypi_base(name),
+            blocked_by_pypi_whitelist=False)
+    if whitelist_info['has_pypi_base']:
         nav_links.append(dict(
             title="PyPI page",
             url="https://pypi.python.org/pypi/%s" % name))
@@ -485,6 +505,7 @@ def version_get(context, request):
         nav_links=nav_links,
         infos=infos,
         files=files,
+        blocked_by_pypi_whitelist=whitelist_info['blocked_by_pypi_whitelist'],
         show_toxresults=show_toxresults,
         make_toxresults_url=functools.partial(
             request.route_url, "toxresults",

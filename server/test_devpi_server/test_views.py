@@ -235,6 +235,19 @@ def test_simple_refresh_inherited_not_whitelisted(mapp, testapp):
     r = testapp.xget(200, "/%s/+simple/pkg" % api.stagename)
     assert len(r.html.select('form')) == 0
 
+
+def test_simple_blocked_warning(mapp, pypistage, testapp):
+    pypistage.mock_simple('pkg', '<a href="/pkg-1.0.zip" />', serial=100)
+    api = mapp.create_and_use()
+    mapp.set_versiondata(dict(name="pkg", version="1.0"), set_whitelist=False)
+    r = testapp.xget(200, "/%s/+simple/pkg" % api.stagename)
+    (paragraph,) = r.html.select('p')
+    assert paragraph.text == "INFO: Because this project isn't in the pypi_whitelist, no releases from root/pypi are included."
+    mapp.set_versiondata(dict(name="pkg", version="1.1"), set_whitelist=True)
+    r = testapp.xget(200, "/%s/+simple/pkg" % api.stagename)
+    assert r.html.select('p') == []
+
+
 def test_indexroot(testapp, model):
     with model.keyfs.transaction(write=True):
         user = model.create_user("user", "123")
@@ -1183,6 +1196,27 @@ def test_delete_volatile_fails(mapp):
     mapp.use("root/test")
     mapp.upload_file_pypi("pkg5-2.6.tgz", b"123", "pkg5", "2.6")
     mapp.delete_project("pkg5", code=403)
+
+
+@pytest.mark.parametrize("volatile", [True, False])
+@pytest.mark.parametrize("restrict_modify", [None, "root"])
+def test_delete_with_acl_upload(mapp, restrict_modify, volatile, xom):
+    xom.config.args.restrict_modify = restrict_modify
+    mapp.login_root()
+    mapp.create_user("user1", "1")
+    mapp.create_index("user1/dev", indexconfig=dict(
+        acl_upload=["user2"],
+        volatile=volatile))
+    mapp.create_and_login_user("user2")
+    mapp.use("user1/dev")
+    mapp.upload_file_pypi(
+        "pkg5-2.6.tgz", b"123", "pkg5", "2.6", set_whitelist=False)
+    mapp.upload_file_pypi(
+        "pkg5-2.7.tgz", b"123", "pkg5", "2.7", set_whitelist=False)
+    result_code = 200 if volatile else 403
+    mapp.delete_project('pkg5/2.6', code=result_code)
+    mapp.delete_project('pkg5', code=result_code)
+
 
 @proj
 def test_upload_docs_no_version(mapp, testapp, proj):

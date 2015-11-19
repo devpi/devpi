@@ -73,6 +73,51 @@ def test_has_pypi_base(model, pypistage):
     assert stage2.has_pypi_base("pytest")
 
 
+def test_get_pypi_whitelist_info(model, pypistage):
+    pypistage.mock_simple("pytest", "<a href='pytest-1.0.zip' /a>")
+    assert pypistage.get_pypi_whitelist_info("pytest") == dict(
+        has_pypi_base=True,
+        blocked_by_pypi_whitelist=None)
+    user = model.create_user("user1", "pass")
+    stage1 = user.create_stage("stage1", bases=())
+    assert stage1.get_pypi_whitelist_info("pytest") == dict(
+        has_pypi_base=False,
+        blocked_by_pypi_whitelist=None)
+    register_and_store(stage1, "pytest-1.1.tar.gz")
+    assert stage1.get_pypi_whitelist_info("pytest") == dict(
+        has_pypi_base=False,
+        blocked_by_pypi_whitelist=None)
+    stage2 = user.create_stage("stage2", bases=("root/pypi",))
+    assert stage2.get_pypi_whitelist_info("pytest") == dict(
+        has_pypi_base=True,
+        blocked_by_pypi_whitelist=None)
+    register_and_store(stage2, "pytest-1.1.tar.gz")
+    assert stage2.get_pypi_whitelist_info("pytest") == dict(
+        has_pypi_base=False,
+        blocked_by_pypi_whitelist='root/pypi')
+    # now add to whitelist
+    ixconfig = stage2.ixconfig.copy()
+    ixconfig["pypi_whitelist"] = ["pytest"]
+    stage2.modify(**ixconfig)
+    assert stage2.get_pypi_whitelist_info("pytest") == dict(
+        has_pypi_base=True,
+        blocked_by_pypi_whitelist=None)
+    # now remove from whitelist
+    ixconfig = stage2.ixconfig.copy()
+    ixconfig["pypi_whitelist"] = []
+    stage2.modify(**ixconfig)
+    assert stage2.get_pypi_whitelist_info("pytest") == dict(
+        has_pypi_base=False,
+        blocked_by_pypi_whitelist='root/pypi')
+    # and try "*"
+    ixconfig = stage2.ixconfig.copy()
+    ixconfig["pypi_whitelist"] = ["*"]
+    stage2.modify(**ixconfig)
+    assert stage2.get_pypi_whitelist_info("pytest") == dict(
+        has_pypi_base=True,
+        blocked_by_pypi_whitelist=None)
+
+
 class TestStage:
     def test_create_and_delete(self, model):
         user = model.create_user("hello", password="123")

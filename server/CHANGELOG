@@ -4,6 +4,32 @@
 - speed up simple-page serving for private indexes.  a private index 
   with 200 release files should now be some 5 times faster.
 
+2.5.0 (2015-11-19)
+------------------
+
+- fix a regression of 2.3.0 which would cause many write-transactions
+  for mirrored simple-page entries that didn't change.  Previous to the fix,
+  accesses to mirrored simple pages will result in a new
+  write-transaction every 30 minutes if the page is accessed which
+  is likely on a somewhat busy site.  If you running with replicas
+  it is recommended to do an an export/import cycle to remove all 
+  the unneccessary writes that were produced since devpi-server-2.3.0.
+  They delay the setup of new replicas considerably.
+
+- add info about pypi_whitelist on simple page when root/pypi is blocked for
+  a project.
+
+- replica simple-page serving will not unneccessarily wait for new 
+  simple-page entries to arrive at the replication side if the master 
+  does not return any changes in the initial simple-page request.
+  Previously a replica would wait for the replication-thread to catch
+  up even if no links changed.
+
+- fix setup.py to work on py34 and with LANG="C" environments.
+  Thanks Jason R. Coombs.
+
+- fix issue284: allow users who are listed in acl_upload to delete packages
+
 
 2.4.0 (2015-11-11)
 ------------------

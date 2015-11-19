@@ -368,12 +368,13 @@ class TestTweenReplica:
         assert 'keep-alive' not in response.headers
 
 def replay(xom, replica_xom):
+    threadlog.info("test: replaying replica")
     for serial in range(replica_xom.keyfs.get_next_serial(),
                         xom.keyfs.get_next_serial()):
         if serial == -1:
             continue
         change_entry = xom.keyfs._fs.get_changes(serial)
-        threadlog.info("importing to replica %s", serial)
+        threadlog.info("test: importing to replica %s", serial)
         replica_xom.keyfs.import_changes(serial, change_entry)
 
 class TestFileReplication:

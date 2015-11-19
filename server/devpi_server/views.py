@@ -376,10 +376,19 @@ class PyPIView:
             threadlog.error(e.msg)
             abort(request, 502, e.msg)
 
-        embed_form = not requested_by_pip and stage.has_pypi_base(projectname)
-        return Response(app_iter=self._simple_list_project(stage, projectname, result, embed_form))
+        if requested_by_pip:
+            # we don't need the extra stuff on the simple page for pip
+            embed_form = False
+            blocked_index = None
+        else:
+            # only mere humans need to know and do more
+            whitelist_info = stage.get_pypi_whitelist_info(projectname)
+            embed_form = whitelist_info['has_pypi_base']
+            blocked_index = whitelist_info['blocked_by_pypi_whitelist']
+        return Response(app_iter=self._simple_list_project(
+            stage, projectname, result, embed_form, blocked_index))
 
-    def _simple_list_project(self, stage, projectname, result, embed_form):
+    def _simple_list_project(self, stage, projectname, result, embed_form, blocked_index):
         response = self.request.response
         response.content_type = "text/html ; charset=utf-8"
 
@@ -389,6 +398,12 @@ class PyPIView:
 
         if embed_form:
             yield self._index_refresh_form(stage, projectname).encode("utf-8")
+
+        if blocked_index:
+            yield ("<p><strong>INFO:</strong> Because this project isn't in "
+                   "the <code>pypi_whitelist</code>, no releases from "
+                   "<strong>%s</strong> are included.</p>"
+                   % blocked_index).encode('utf-8')
 
         url = URL(self.request.path_info)
         for key, href in result:
