@@ -1197,6 +1197,27 @@ def test_delete_volatile_fails(mapp):
     mapp.upload_file_pypi("pkg5-2.6.tgz", b"123", "pkg5", "2.6")
     mapp.delete_project("pkg5", code=403)
 
+
+@pytest.mark.parametrize("volatile", [True, False])
+@pytest.mark.parametrize("restrict_modify", [None, "root"])
+def test_delete_with_acl_upload(mapp, restrict_modify, volatile, xom):
+    xom.config.args.restrict_modify = restrict_modify
+    mapp.login_root()
+    mapp.create_user("user1", "1")
+    mapp.create_index("user1/dev", indexconfig=dict(
+        acl_upload=["user2"],
+        volatile=volatile))
+    mapp.create_and_login_user("user2")
+    mapp.use("user1/dev")
+    mapp.upload_file_pypi(
+        "pkg5-2.6.tgz", b"123", "pkg5", "2.6", set_whitelist=False)
+    mapp.upload_file_pypi(
+        "pkg5-2.7.tgz", b"123", "pkg5", "2.7", set_whitelist=False)
+    result_code = 200 if volatile else 403
+    mapp.delete_project('pkg5/2.6', code=result_code)
+    mapp.delete_project('pkg5', code=result_code)
+
+
 @proj
 def test_upload_docs_no_version(mapp, testapp, proj):
     api = mapp.create_and_use()
