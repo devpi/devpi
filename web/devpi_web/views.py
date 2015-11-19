@@ -4,6 +4,7 @@ from devpi_common.metadata import get_pyversion_filetype
 from devpi_common.metadata import get_sorted_versions
 from devpi_common.viewhelp import iter_toxresults
 from devpi_server.log import threadlog as log
+from devpi_server.readonly import SeqViewReadonly
 from devpi_server.views import StatusView, url_for_entrypath
 from devpi_web.description import get_description
 from devpi_web.doczip import Docs, get_unpack_path
@@ -26,11 +27,7 @@ import json
 import py
 
 
-try:
-    from devpi_server import readonly
-    seq_types = (list, tuple, readonly.SeqViewReadonly)
-except ImportError:
-    seq_types = (list, tuple)
+seq_types = (list, tuple, SeqViewReadonly)
 
 
 class ContextWrapper(object):
