@@ -1,6 +1,9 @@
 3.0.0 (unreleased)
 ------------------
 
+- speed up simple-page serving for private indexes.  a private index 
+  with 200 release files should now be some 5 times faster.
+
 2.5.0 (2015-11-19)
 ------------------
 
