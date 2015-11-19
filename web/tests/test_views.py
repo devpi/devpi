@@ -233,18 +233,22 @@ def test_version_view(mapp, testapp, monkeypatch):
         "pkg1-2.6.zip", b"contentzip", "pkg1", "2.6").file_url
     content = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200)
+    classifiers = ["Intended Audience :: Developers",
+                   "License :: OSI Approved :: MIT License"]
     mapp.set_versiondata({
         "name": "pkg1",
         "version": "2.6",
         "author": "Foo Bear",
+        "classifiers": classifiers,
         "description": u"föö".encode('utf-8')},
         waithooks=True)
     r = testapp.get(api.index + '/pkg1/2.6', headers=dict(accept="text/html"))
     assert r.status_code == 200
     assert r.html.find('title').text == "user1/dev/: pkg1-2.6 metadata and description"
-    info = dict((t.text for t in x.findAll('td')) for x in r.html.select('.projectinfos tr'))
-    assert sorted(info.keys()) == ['author']
+    info = dict((compareable_text(t.text) for t in x.findAll('td')) for x in r.html.select('.projectinfos tr'))
+    assert sorted(info.keys()) == ['author', 'classifiers']
     assert info['author'] == 'Foo Bear'
+    assert info['classifiers'] == 'Intended Audience :: Developers License :: OSI Approved :: MIT License'
     description = r.html.select('#description')
     assert len(description) == 1
     description = description[0]

@@ -1,3 +1,9 @@
+2.4.3 (unreleased)
+------------------
+
+- fix issue288: classifiers rendering wrong with read only data views
+
+
 2.4.2 (2015-11-11)
 ------------------
 

@@ -26,6 +26,13 @@ import json
 import py
 
 
+try:
+    from devpi_server import readonly
+    seq_types = (list, tuple, readonly.SeqViewReadonly)
+except ImportError:
+    seq_types = (list, tuple)
+
+
 class ContextWrapper(object):
     def __init__(self, context):
         self.context = context
@@ -446,7 +453,7 @@ def version_get(context, request):
     for key, value in sorted(verdata.items()):
         if key in skipped_keys or key.startswith('+'):
             continue
-        if isinstance(value, list):
+        if isinstance(value, seq_types):
             if not len(value):
                 continue
             value = html.ul([html.li(x) for x in value]).unicode()
