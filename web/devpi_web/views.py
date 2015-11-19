@@ -4,6 +4,7 @@ from devpi_common.metadata import get_pyversion_filetype
 from devpi_common.metadata import get_sorted_versions
 from devpi_common.viewhelp import iter_toxresults
 from devpi_server.log import threadlog as log
+from devpi_server.readonly import SeqViewReadonly
 from devpi_server.views import StatusView, url_for_entrypath
 from devpi_web.description import get_description
 from devpi_web.doczip import Docs, get_unpack_path
@@ -24,6 +25,9 @@ from time import gmtime
 import functools
 import json
 import py
+
+
+seq_types = (list, tuple, SeqViewReadonly)
 
 
 class ContextWrapper(object):
@@ -446,7 +450,7 @@ def version_get(context, request):
     for key, value in sorted(verdata.items()):
         if key in skipped_keys or key.startswith('+'):
             continue
-        if isinstance(value, list):
+        if isinstance(value, seq_types):
             if not len(value):
                 continue
             value = html.ul([html.li(x) for x in value]).unicode()

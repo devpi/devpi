@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 from collections import defaultdict
 from devpi_common.types import cached_property
 from devpi_server.log import threadlog as log
+from devpi_server.readonly import get_mutable_deepcopy
 from functools import partial
 from whoosh import fields
 from whoosh.analysis import Filter, LowercaseFilter, RegexTokenizer
@@ -252,7 +253,7 @@ class Index(object):
             ('summary', 1.75),
             ('keywords', 1.75))
         for project in projects:
-            data = dict((u(x), project[x]) for x in main_keys if x in project)
+            data = dict((u(x), get_mutable_deepcopy(project[x])) for x in main_keys if x in project)
             data['path'] = u"/{user}/{index}/{name}".format(**data)
             if not clear:
                 writer.delete_by_term('path', data['path'])
