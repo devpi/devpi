@@ -22,6 +22,8 @@
 - fix setup.py to work on py34 and with LANG="C" environments.
   Thanks Jason R. Coombs.
 
+- fix issue284: allow users who are listed in acl_upload to delete packages
+
 
 2.4.0 (2015-11-11)
 ------------------
