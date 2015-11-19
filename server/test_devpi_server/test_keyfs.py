@@ -227,9 +227,9 @@ class TestTransactionIsolation:
     def test_cannot_write_on_read_trans(self, keyfs):
         key = keyfs.add_key("hello", "hello", dict)
         tx_1 = Transaction(keyfs)
-        with pytest.raises(AssertionError):
+        with pytest.raises(keyfs.ReadOnly):
             tx_1.set(key, {})
-        with pytest.raises(AssertionError):
+        with pytest.raises(keyfs.ReadOnly):
             tx_1.delete(key)
 
     def test_serialized_writing(self, keyfs, monkeypatch):

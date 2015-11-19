@@ -6,7 +6,7 @@ import py
 
 from devpi_server.extpypi import PyPIMirror, PyPIStage
 from devpi_server.extpypi import URL, PyPISimpleProxy
-from devpi_server.extpypi import parse_index
+from devpi_server.extpypi import parse_index, threadlog
 from devpi_server.main import Fatal
 from test_devpi_server.conftest import getmd5
 
@@ -281,6 +281,7 @@ class TestExtPYPIDB:
         assert links[0].eggfragment == "pytest-dev1"
         pypistage.mock_simple("pytest", pypiserial=11,
             pkgver="pytest-1.0.zip#egg=pytest-dev2")
+        threadlog.info("hello")
         links = pypistage.get_releaselinks("pytest")
         assert links[0].eggfragment == "pytest-dev2"
 
@@ -290,6 +291,7 @@ class TestExtPYPIDB:
                                    pkgver="pytest-1.0.zip")
         links = pypistage.get_releaselinks("pytest")
         assert links[0].hash_spec == x.hash_spec
+
         y = pypistage.mock_simple("pytest", pypiserial=11, hash_type=hash_type,
                                    pkgver="pytest-1.0.zip")
         links = pypistage.get_releaselinks("pytest")
@@ -360,7 +362,7 @@ class TestExtPYPIDB:
         links = pypistage.get_releaselinks("pytest")
         assert len(links) == 1
 
-    def test_get_releaselinks_cache_refresh_semantics(self, pypistage):
+    def test_get_releaselinks_cache_refresh_on_lower_serial(self, pypistage):
         pypistage.mock_simple("pytest", text='''
                 <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
                 <a rel="download" href="https://download.com/index.html" />
@@ -373,6 +375,26 @@ class TestExtPYPIDB:
         with pytest.raises(pypistage.UpstreamError) as excinfo:
             pypistage.get_releaselinks("pytest")
         assert "expected at least 11" in excinfo.value.msg
+
+    def test_get_releaselinks_cache_no_fresh_write(self, pypistage):
+        pypistage.mock_simple("pytest", text='''
+                <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
+                <a rel="download" href="https://download.com/index.html" />
+            ''', pypiserial=10)
+
+        ret = pypistage.get_simplelinks("pytest")
+        assert len(ret) == 1
+
+        pypistage.keyfs.commit_transaction_in_thread()
+        pypistage.keyfs.begin_transaction_in_thread()
+        # pretend the last mirror check is very old
+        pypistage.xom.set_updated_at(pypistage.name, "pytest", 0)
+
+        # now make sure that we don't cause writes
+        commit_serial = pypistage.keyfs.get_current_serial()
+        ret2 = pypistage.get_simplelinks("pytest")
+        assert ret == ret2
+        assert commit_serial == pypistage.keyfs.get_current_serial()
 
     @pytest.mark.parametrize("errorcode", [404, -1, -2])
     def test_parse_and_scrape_error(self, pypistage, errorcode):

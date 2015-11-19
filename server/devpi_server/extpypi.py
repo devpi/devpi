@@ -38,9 +38,9 @@ class IndexParser:
         entry = self.basename2link.get(newurl.basename)
         if entry is None or (not entry.hash_spec and newurl.hash_spec):
             self.basename2link[newurl.basename] = newurl
-            threadlog.debug("adding link %s", newurl)
+            threadlog.debug("indexparser: adding link %s", newurl)
         else:
-            threadlog.debug("ignoring candidate link %s", newurl)
+            threadlog.debug("indexparser: ignoring candidate link %s", newurl)
 
     @property
     def releaselinks(self):
@@ -253,13 +253,62 @@ class PyPIStage(BaseStage):
             raise self.UpstreamError("%s status on GET %s" %
                                      (response.status_code, url))
 
+        if not self.xom.is_replica():  # we are a master
+            # check that we got a fresh enough page
+            serial = int(response.headers["X-PYPI-LAST-SERIAL"])
+            newest_serial = self.pypimirror.get_project_serial(projectname)
+            if serial < newest_serial:
+                raise self.UpstreamError(
+                            "%s: pypi returned serial %s, expected at least %s",
+                            projectname, serial, newest_serial)
+            elif serial > newest_serial:
+                self.pypimirror.set_project_serial(projectname, serial)
+
+            threadlog.debug("%s: got response with serial %s", projectname, serial)
+
+            # check returned url has the same normalized name
+            ret_projectname = response.url.strip("/").split("/")[-1]
+            assert normalize_name(projectname) == normalize_name(ret_projectname)
+
+
+        # parse simple index's link and perform crawling
+        assert response.text is not None, response.text
+        result = parse_index(response.url, response.text)
+        perform_crawling(self, result)
+        releaselinks = list(result.releaselinks)
+
+        # first we try to process mirror links without an explicit write transaction.
+        # if all links already exist in storage we might then return our already
+        # cached information about them.  Note that _dump_project_cache() will
+        # implicitely update cache timestamps.
+        def map_and_dump():
+            # both maplink() and _dump_project_cache() will not modify
+            # storage if there are no changes so they operate fine within a
+            # read-transaction if nothing changed.
+            entries = [self.filestore.maplink(link) for link in releaselinks]
+            return self._dump_project_cache(projectname, entries, serial)
+
+        try:
+            return map_and_dump()
+        except self.keyfs.ReadOnly:
+            pass
+
+        # we know that some links changed in this simple page.
+        # On the master we need to write-update, on the replica
+        # we wait for the changes to arrive (changes were triggered
+        # by our http request above) because have no direct write
+        # access to the db other than through the replication thread.
         if self.xom.is_replica():
             # XXX this code path is not currently tested, handle with care!
             # we have already triggered the master above
             # and now need to wait until the parsed new links are
             # transferred back to the replica
             devpi_serial = int(response.headers["X-DEVPI-SERIAL"])
+            threadlog.debug("get_simplelinks pypi: waiting for devpi_serial %r",
+                            devpi_serial)
             self.keyfs.notifier.wait_tx_serial(devpi_serial)
+            threadlog.debug("get_simplelinks pypi: finished waiting for devpi_serial %r",
+                            devpi_serial)
             # XXX raise TransactionRestart to get a consistent clean view
             self.keyfs.commit_transaction_in_thread()
             self.keyfs.begin_transaction_in_thread()
@@ -269,37 +318,12 @@ class PyPIStage(BaseStage):
                 return links
             raise self.UpstreamError("no cache links from master for %s" %
                                      projectname)
-
-        # check that we got a fresh enough page
-        serial = int(response.headers["X-PYPI-LAST-SERIAL"])
-        newest_serial = self.pypimirror.get_project_serial(projectname)
-        if serial < newest_serial:
-            raise self.UpstreamError(
-                        "%s: pypi returned serial %s, expected at least %s",
-                        projectname, serial, newest_serial)
         else:
-            self.pypimirror.set_project_serial(projectname, serial)
-
-        threadlog.debug("%s: got response with serial %s" %
-                  (projectname, serial))
-
-
-        # check returned url has the same normalized name
-        ret_projectname = response.url.strip("/").split("/")[-1]
-        assert normalize_name(projectname) == normalize_name(ret_projectname)
-
-
-        # parse simple index's link and perform crawling
-        assert response.text is not None, response.text
-        result = parse_index(response.url, response.text)
-        perform_crawling(self, result)
-        releaselinks = list(result.releaselinks)
-
-        self.keyfs.restart_as_write_transaction()
-
-        # compute release link entries and cache according to serial
-        entries = [self.filestore.maplink(link) for link in releaselinks]
-        return self._dump_project_cache(projectname, entries, serial)
+            # we are on the master and something changed and we are
+            # in a readonly-transaction so we need to start a write
+            # transaction and perform map_and_dump.
+            self.keyfs.restart_as_write_transaction()
+            return map_and_dump()
 
     def get_projectname_perstage(self, name):
         result = self.pypimirror.get_registered_name(name)

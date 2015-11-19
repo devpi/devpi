@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 
 import os, re, sys
+import io
 import setuptools
 from setuptools import setup, find_packages
 
@@ -25,7 +26,8 @@ def has_environment_marker_support():
 
 
 def get_changelog():
-    text = open(os.path.join(here, 'CHANGELOG')).read()
+    with io.open(os.path.join(here, 'CHANGELOG'), encoding="utf-8") as f:
+        text = f.read()
     header_matches = list(re.finditer('^-+$', text, re.MULTILINE))
     # until fifth header
     text = text[:header_matches[5].start()]
@@ -60,7 +62,7 @@ if __name__ == "__main__":
       keywords="pypi realtime cache server",
       long_description="\n\n".join([README, CHANGELOG]),
       url="http://doc.devpi.net",
-      version='2.4.0',
+      version='2.5.0.dev1',
       maintainer="Holger Krekel, Florian Schulze",
       maintainer_email="holger@merlinux.eu",
       packages=find_packages(),

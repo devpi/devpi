@@ -444,6 +444,7 @@ class KeyFS(object):
                         fswriter.record_set(typedkey, get_mutable_deepcopy(val))
                         meth = self._import_subscriber.get(typedkey.name)
                         if meth is not None:
+                            threadlog.debug("calling import subscriber %r", meth)
                             meth(fswriter, typedkey, val, back_serial)
 
     def subscribe_on_import(self, key, subscriber):
@@ -731,12 +732,14 @@ class Transaction(object):
 
 
     def delete(self, typedkey):
-        assert self.write, "not in write-transaction"
+        if not self.write:
+            raise self.keyfs.ReadOnly()
         self.cache.pop(typedkey, None)
         self.dirty.add(typedkey)
 
     def set(self, typedkey, val):
-        assert self.write, "not in write-transaction"
+        if not self.write:
+            raise self.keyfs.ReadOnly()
         # sanity check for dictionaries: we always want to have unicode
         # keys, not bytes
         if typedkey.type == dict:
