@@ -1,4 +1,4 @@
-2.4.1 (unreleased)
+2.5.0 (2015-11-19)
 ------------------
 
 - fix a regression of 2.3.0 which would cause many write-transactions

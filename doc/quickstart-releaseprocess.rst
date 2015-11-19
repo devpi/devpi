@@ -40,26 +40,26 @@ a series of other devpi commands::
 
     $ devpi quickstart
     -->  /home/hpk/p/devpi/doc$ devpi-server --start 
-    2015-11-11 14:43:04,877 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2015-11-11 14:43:04,877 INFO  NOCTX generated uuid: ac25f2228d464f88a53aea43195a91db
-    2015-11-11 14:43:04,878 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2015-11-11 14:43:04,878 INFO  NOCTX DB: Creating schema
-    2015-11-11 14:43:04,898 INFO  [Wtx-1] setting password for user u'root'
-    2015-11-11 14:43:04,898 INFO  [Wtx-1] created user u'root' with email None
-    2015-11-11 14:43:04,898 INFO  [Wtx-1] created root user
-    2015-11-11 14:43:04,898 INFO  [Wtx-1] created root/pypi index
-    2015-11-11 14:43:04,916 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
+    2015-11-19 16:25:12,748 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2015-11-19 16:25:12,748 INFO  NOCTX generated uuid: 5d35b0a37e4d48a79e74ffb0745a82c5
+    2015-11-19 16:25:12,749 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    2015-11-19 16:25:12,749 INFO  NOCTX DB: Creating schema
+    2015-11-19 16:25:12,768 INFO  [Wtx-1] setting password for user u'root'
+    2015-11-19 16:25:12,768 INFO  [Wtx-1] created user u'root' with email None
+    2015-11-19 16:25:12,768 INFO  [Wtx-1] created root user
+    2015-11-19 16:25:12,768 INFO  [Wtx-1] created root/pypi index
+    2015-11-19 16:25:12,787 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
     starting background devpi-server at http://localhost:3141
     /tmp/home/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server
-    process u'devpi-server' started pid=12830
+    process u'devpi-server' started pid=11387
     devpi-server process startup detected
     logfile is at /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
     -->  /home/hpk/p/devpi/doc$ devpi use http://localhost:3141 
     using server: http://localhost:3141/ (not logged in)
     no current index: type 'devpi use -l' to discover indices
-    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
+    ~/.pydistutils.cfg     : no config file exists
+    ~/.pip/pip.conf        : no config file exists
+    ~/.buildout/default.cfg: no config file exists
     always-set-cfg: no
     
     -->  /home/hpk/p/devpi/doc$ devpi user -c testuser password= 
@@ -78,9 +78,9 @@ a series of other devpi commands::
     
     -->  /home/hpk/p/devpi/doc$ devpi use dev 
     current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
-    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
+    ~/.pydistutils.cfg     : no config file exists
+    ~/.pip/pip.conf        : no config file exists
+    ~/.buildout/default.cfg: no config file exists
     always-set-cfg: no
     COMPLETED!  you can now work with your 'dev' index
       devpi install PKG   # install a pkg from pypi
@@ -141,9 +141,9 @@ Let's verify we are logged in to the correct index::
 
     $ devpi use
     current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
-    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
+    ~/.pydistutils.cfg     : no config file exists
+    ~/.pip/pip.conf        : no config file exists
+    ~/.buildout/default.cfg: no config file exists
     always-set-cfg: no
 
 Now go to the directory of a ``setup.py`` file of one of your projects  
@@ -153,7 +153,6 @@ to our ``testuser/dev`` index::
     example $ devpi upload
     using workdir /tmp/devpi0
     copied repo /home/hpk/p/devpi/.hg to /tmp/devpi0/upload/devpi/.hg
-    pre-build: cleaning /home/hpk/p/devpi/doc/example/dist
     -->  /tmp/devpi0/upload/devpi/doc/example$ /tmp/docenv/bin/python setup.py sdist --formats gztar 
     built: /home/hpk/p/devpi/doc/example/dist/example-1.0.tar.gz [SDIST.TGZ] 0kb
     register example-1.0 to http://localhost:3141/testuser/dev/
@@ -178,10 +177,10 @@ We can now install the freshly uploaded package::
     $ devpi install example
     -->  /home/hpk/p/devpi/doc$ /tmp/docenv/bin/pip install -U -i http://localhost:3141/testuser/dev/+simple/ example  [PIP_USE_WHEEL=1,PIP_PRE=1]
     Collecting example
-      Downloading http://localhost:3141/testuser/dev/+f/b5f/237f371f39108/example-1.0.tar.gz
+      Downloading http://localhost:3141/testuser/dev/+f/c17/1d7def6e7a8d5/example-1.0.tar.gz
     Building wheels for collected packages: example
       Running setup.py bdist_wheel for example
-      Stored in directory: /tmp/home/.cache/pip/wheels/5e/d2/8b/e681c48d694888af4453fa1b8d4c9145198377de0f3f171208
+      Stored in directory: /tmp/home/.cache/pip/wheels/51/82/9a/681e0e0ba9c7db1a892c3d5e99a1bd9a5f6c13c1ca7ff781f8
     Successfully built example
     Installing collected packages: example
     Successfully installed example-1.0
@@ -203,41 +202,29 @@ devpi test: testing an uploaded package
 If you have a package which uses tox_ for testing you may now invoke::
 
     $ devpi test example  # package needs to contain tox.ini
-    received http://localhost:3141/testuser/dev/+f/b5f/237f371f39108/example-1.0.tar.gz
+    received http://localhost:3141/testuser/dev/+f/c17/1d7def6e7a8d5/example-1.0.tar.gz
     unpacking /tmp/devpi-test0/downloads/example-1.0.tar.gz to /tmp/devpi-test0/targz
     /tmp/devpi-test0/targz/example-1.0$ tox --installpkg /tmp/devpi-test0/downloads/example-1.0.tar.gz -i ALL=http://localhost:3141/testuser/dev/+simple/ --recreate --result-json /tmp/devpi-test0/targz/toxreport.json -c /tmp/devpi-test0/targz/example-1.0/tox.ini
     python create: /tmp/devpi-test0/targz/example-1.0/.tox/python
     python installdeps: pytest
     python inst: /tmp/devpi-test0/downloads/example-1.0.tar.gz
     python installed: example==1.0,py==1.4.30,pytest==2.8.2,wheel==0.24.0
-    python runtests: PYTHONHASHSEED='3374777198'
+    python runtests: PYTHONHASHSEED='270531260'
     python runtests: commands[0] | py.test
     ============================= test session starts ==============================
     platform linux2 -- Python 2.7.6, pytest-2.8.2, py-1.4.30, pluggy-0.3.1
     rootdir: /tmp/devpi-test0/targz/example-1.0, inifile: 
-    collected 0 items
+    collected 1 items
     
-    ===============================  in 0.00 seconds ===============================
-    ERROR: invocation failed (exit code 5), logfile: /tmp/devpi-test0/targz/example-1.0/.tox/python/log/python-3.log
-    ERROR: actionid: python
-    msg: runtests
-    cmdargs: [local('/tmp/devpi-test0/targz/example-1.0/.tox/python/bin/py.test')]
-    env: {'LANG': 'en_US.UTF-8', 'PIP_INDEX_URL': 'https://pypi.python.org/simple', 'VIRTUAL_ENV': '/tmp/devpi-test0/targz/example-1.0/.tox/python', 'PYTHONHASHSEED': '3374777198', 'PATH': '/tmp/devpi-test0/targz/example-1.0/.tox/python/bin:/tmp/docenv/bin:/home/hpk/bin:/home/hpk/venv/0/bin:/usr/local/bin:/home/hpk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games', 'TMPDIR': '/tmp'}
+    test_example.py .
     
-    ============================= test session starts ==============================
-    platform linux2 -- Python 2.7.6, pytest-2.8.2, py-1.4.30, pluggy-0.3.1
-    rootdir: /tmp/devpi-test0/targz/example-1.0, inifile: 
-    collected 0 items
-    
-    ===============================  in 0.00 seconds ===============================
-    
-    ERROR: InvocationError: /tmp/devpi-test0/targz/example-1.0/.tox/python/bin/py.test (see /tmp/devpi-test0/targz/example-1.0/.tox/python/log/python-3.log)
+    =========================== 1 passed in 0.01 seconds ===========================
     ___________________________________ summary ____________________________________
-    ERROR:   python: commands failed
+      python: commands succeeded
+      congratulations :)
     wrote json report at: /tmp/devpi-test0/targz/toxreport.json
-    posting tox result data to http://localhost:3141/testuser/dev/+f/b5f/237f371f39108/example-1.0.tar.gz
+    posting tox result data to http://localhost:3141/testuser/dev/+f/c17/1d7def6e7a8d5/example-1.0.tar.gz
     successfully posted tox result data
-    tox command failed 1
 
 Here is what happened:
 
@@ -255,8 +242,8 @@ Here is what happened:
 We can verify that the test status was recorded via::
 
     $ devpi list example
-    http://localhost:3141/testuser/dev/+f/b5f/237f371f39108/example-1.0.tar.gz
-    uwanda     linux2  python     2.7.6 tests failed
+    http://localhost:3141/testuser/dev/+f/c17/1d7def6e7a8d5/example-1.0.tar.gz
+    uwanda     linux2  python     2.7.6 tests passed
 
 .. note::
 
@@ -290,8 +277,8 @@ our ``staging`` index::
 
     $ devpi push example==1.0 testuser/staging
        200 register example 1.0 -> testuser/staging
-       200 store_releasefile testuser/staging/+f/b5f/237f371f39108/example-1.0.tar.gz
-       200 store_toxresult testuser/staging/+f/b5f/237f371f39108/example-1.0.tar.gz.toxresult0
+       200 store_releasefile testuser/staging/+f/c17/1d7def6e7a8d5/example-1.0.tar.gz
+       200 store_toxresult testuser/staging/+f/c17/1d7def6e7a8d5/example-1.0.tar.gz.toxresult0
 
 This will determine all files on our ``testuser/dev`` index belonging to
 the specified ``example==1.0`` release and copy them to the
@@ -304,25 +291,25 @@ Let's check again our current index::
 
     $ devpi use
     current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
-    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
+    ~/.pydistutils.cfg     : no config file exists
+    ~/.pip/pip.conf        : no config file exists
+    ~/.buildout/default.cfg: no config file exists
     always-set-cfg: no
 
 Let's now use our ``testuser/staging`` index::
 
     $ devpi use testuser/staging
     current devpi index: http://localhost:3141/testuser/staging (logged in as testuser)
-    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
+    ~/.pydistutils.cfg     : no config file exists
+    ~/.pip/pip.conf        : no config file exists
+    ~/.buildout/default.cfg: no config file exists
     always-set-cfg: no
 
 and check the test result status again::
 
     $ devpi list example
-    http://localhost:3141/testuser/staging/+f/b5f/237f371f39108/example-1.0.tar.gz
-    uwanda     linux2  python     2.7.6 tests failed
+    http://localhost:3141/testuser/staging/+f/c17/1d7def6e7a8d5/example-1.0.tar.gz
+    uwanda     linux2  python     2.7.6 tests passed
 
 Good, the test result status is still available after the push
 from the last step.
@@ -360,18 +347,18 @@ If we now switch back to using ``testuser/dev``::
 
     $ devpi use testuser/dev
     current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
-    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
+    ~/.pydistutils.cfg     : no config file exists
+    ~/.pip/pip.conf        : no config file exists
+    ~/.buildout/default.cfg: no config file exists
     always-set-cfg: no
 
 and look at our example release files::
 
     $ devpi list example
-    http://localhost:3141/testuser/dev/+f/b5f/237f371f39108/example-1.0.tar.gz
-    uwanda     linux2  python     2.7.6 tests failed
-    http://localhost:3141/testuser/staging/+f/b5f/237f371f39108/example-1.0.tar.gz
-    uwanda     linux2  python     2.7.6 tests failed
+    http://localhost:3141/testuser/dev/+f/c17/1d7def6e7a8d5/example-1.0.tar.gz
+    uwanda     linux2  python     2.7.6 tests passed
+    http://localhost:3141/testuser/staging/+f/c17/1d7def6e7a8d5/example-1.0.tar.gz
+    uwanda     linux2  python     2.7.6 tests passed
 
 we'll see that ``example-1.0.tar.gz`` is contained in both
 indices.  Let's remove the ``testuser/dev`` ``example`` release::
@@ -379,8 +366,8 @@ indices.  Let's remove the ``testuser/dev`` ``example`` release::
     $ devpi remove -y example
     About to remove the following releases and distributions
     version: 1.0
-      - http://localhost:3141/testuser/dev/+f/b5f/237f371f39108/example-1.0.tar.gz
-      - http://localhost:3141/testuser/dev/+f/b5f/237f371f39108/example-1.0.tar.gz.toxresult0
+      - http://localhost:3141/testuser/dev/+f/c17/1d7def6e7a8d5/example-1.0.tar.gz
+      - http://localhost:3141/testuser/dev/+f/c17/1d7def6e7a8d5/example-1.0.tar.gz.toxresult0
     Are you sure (yes/no)? yes (autoset from -y option)
     deleting release 1.0 of example
 
@@ -391,15 +378,15 @@ The ``example-1.0`` release remains accessible through ``testuser/dev``
 because it inherits all releases from its ``testuser/staging`` base::
 
     $ devpi list example
-    http://localhost:3141/testuser/staging/+f/b5f/237f371f39108/example-1.0.tar.gz
-    uwanda     linux2  python     2.7.6 tests failed
+    http://localhost:3141/testuser/staging/+f/c17/1d7def6e7a8d5/example-1.0.tar.gz
+    uwanda     linux2  python     2.7.6 tests passed
 
 ::
 
     $ devpi-server --stop
-    2015-11-11 14:43:25,877 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2015-11-11 14:43:25,877 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    killed server pid=12830
+    2015-11-19 16:25:34,530 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2015-11-19 16:25:34,530 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    killed server pid=11387
 
 running devpi-server permanently
 +++++++++++++++++++++++++++++++++

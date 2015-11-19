@@ -557,7 +557,7 @@ devpi command reference (server)
                             checked for new releases. [1800]
     
     deployment and data options:
-      --version             show devpi_version (2.4.0)
+      --version             show devpi_version (2.5.0)
       --role {master,replica,auto}
                             set role of this instance. [auto]
       --master-url MASTER_URL
