@@ -390,7 +390,7 @@ class PyPIView:
         if stage.ixconfig['type'] == 'mirror':
             serial = stage.pypimirror.get_project_serial(name)
             if serial > 0:
-                response.headers["X-PYPI-LAST-SERIAL"] = str(serial)
+                response.headers[str("X-PYPI-LAST-SERIAL")] = str(serial)
         return response
 
     def _simple_list_project(self, stage, projectname, result, embed_form, blocked_index):

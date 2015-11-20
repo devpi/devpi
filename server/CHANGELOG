@@ -1,8 +1,11 @@
-2.5.2 (unreleased)
+2.5.2 (2015-11-20)
 ------------------
 
 - recognize "pex" for redirections of user/index/NAME to
   user/index/+simple/NAME just like we do with pip/setuptools.
+
+- fix py2 incompatibility introduced with 2.5.1 where we used
+  a unicode header and pyramid only likes str-headers.
 
 2.5.1 (2015-11-20)
 ------------------
