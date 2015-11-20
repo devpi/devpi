@@ -253,7 +253,7 @@ def httpget(pypiurls):
             log.debug("set mocking response %s %s", mockurl, kw)
             self.url2response[mockurl] = kw
 
-        def mock_simple(self, name, text=None, pkgver=None, hash_type=None,
+        def mock_simple(self, name, text="", pkgver=None, hash_type=None,
             pypiserial=10000, **kw):
             class ret:
                 hash_spec = ""

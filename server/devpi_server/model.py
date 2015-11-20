@@ -73,7 +73,7 @@ class UpstreamError(ModelException):
 
 
 class MissesRegistration(ModelException):
-    """ A prior registration or release metadata is required. """
+    """ A prior registration of release metadata is required. """
 
 
 class NonVolatile(ModelException):
@@ -273,15 +273,17 @@ class BaseStage:
     MissesRegistration = MissesRegistration
     NonVolatile = NonVolatile
 
-    def get_releaselinks(self, projectname):
+    def get_releaselinks(self, name_input):
         # compatibility access method used by devpi-web and tests
-        return [self._make_elink(projectname, key, href)
-                for key, href in self.get_simplelinks(projectname)]
+        name = normalize_name(name_input)
+        return [self._make_elink(name, key, href)
+                for key, href in self.get_simplelinks(name)]
 
-    def get_releaselinks_perstage(self, projectname):
+    def get_releaselinks_perstage(self, name_input):
         # compatibility access method for devpi-findlinks and possibly other plugins
-        return [self._make_elink(projectname, key, href)
-                for key, href in self.get_simplelinks_perstage(projectname)]
+        name = normalize_name(name_input)
+        return [self._make_elink(name, key, href)
+                for key, href in self.get_simplelinks_perstage(name)]
 
     def _make_elink(self, name, key, href):
         rp = SimplelinkMeta((key, href))
@@ -365,24 +367,18 @@ class BaseStage:
                         for v in sorted(map(SimplelinkMeta, all_links), reverse=True)]
         return all_links
 
-    def get_projectname(self, name):
-        for stage, res in self.op_sro("get_projectname_perstage", name=name):
-            if res is not None:
-                assert py.builtin._istext(res), (repr(res), stage.name)
-                return res
-
     def get_pypi_whitelist_info(self, name):
         name = ensure_unicode(name)
         private_hit = whitelisted = False
         for stage in self._sro():
+            in_index = stage.has_project_perstage(name)
             if stage.ixconfig["type"] == "mirror":
-                in_index = bool(stage.get_projectname_perstage(name))
                 has_pypi_base = in_index and (not private_hit or whitelisted)
                 blocked_by_pypi_whitelist = in_index and private_hit and not whitelisted
                 return dict(
                     has_pypi_base=has_pypi_base,
                     blocked_by_pypi_whitelist=stage.name if blocked_by_pypi_whitelist else None)
-            private_hit = private_hit or bool(self.get_projectname_perstage(name))
+            private_hit = private_hit or in_index
             whitelist = set(stage.ixconfig["pypi_whitelist"])
             whitelisted = whitelisted or '*' in whitelist or name in whitelist
         return dict(
@@ -392,12 +388,18 @@ class BaseStage:
     def has_pypi_base(self, name):
         return self.get_pypi_whitelist_info(name)['has_pypi_base']
 
+    def has_project(self, name):
+        for stage, res in self.op_sro("has_project_perstage", name=name):
+            if res:
+                return True
+        return False
+
     def op_sro(self, opname, **kw):
         for stage in self._sro():
             yield stage, getattr(stage, opname)(**kw)
 
     def op_sro_check_pypi_whitelist(self, opname, **kw):
-        projectname = kw["projectname"]
+        projectname = normalize_name(kw["projectname"])
         whitelisted = private_hit = False
         for stage in self._sro():
             if stage.ixconfig["type"] == "mirror":
@@ -499,31 +501,10 @@ class PrivateStage(BaseStage):
     #class MetadataExists(Exception):
     #    """ metadata exists on a given non-volatile index. """
 
-    def get_projectname_perstage(self, name):
-        """ return existing projectname for the given name which may
-        be in a non-canonical form. """
-        assert py.builtin._istext(name), "name %r not text" % name
-        names = self.list_projectnames_perstage()
-        if name in names:
-            return name
-        normname = normalize_name(name)
-        for projectname in names:
-            if normalize_name(projectname) == normname:
-                return projectname
-
     def set_versiondata(self, metadata):
         """ register metadata.  Raises ValueError in case of metadata
         errors. """
         validate_metadata(metadata)
-        name = metadata["name"]
-        # check if the project exists already under its normalized
-        projectname = self.get_projectname(name)
-        log = thread_current_log()
-        if projectname is not None and projectname != name:
-            log.warn("using already registered name %r for submitted %r "
-                     "in stage %r" %(
-                      projectname, name, self.name))
-            metadata["name"] = projectname
         self._set_versiondata(metadata)
 
     def key_projversions(self, name):
@@ -537,7 +518,7 @@ class PrivateStage(BaseStage):
             user=self.user.name, index=self.index, name=name, version=version)
 
     def _set_versiondata(self, metadata):
-        name = metadata["name"]
+        name = normalize_name(metadata["name"])
         version = metadata["version"]
         key_projversion = self.key_projversion(name, version)
         versiondata = key_projversion.get(readonly=False)
@@ -563,7 +544,8 @@ class PrivateStage(BaseStage):
             projectnames.add(name)
             self.key_projectnames.set(projectnames)
 
-    def del_project(self, name):
+    def del_project(self, name_input):
+        name = normalize_name(name_input)
         for version in list(self.key_projversions(name).get()):
             self.del_versiondata(name, version, cleanup=False)
         self._regen_simplelinks(name)
@@ -572,55 +554,56 @@ class PrivateStage(BaseStage):
         threadlog.info("deleting project %s", name)
         self.key_projversions(name).delete()
 
-    def del_versiondata(self, name, version, cleanup=True):
-        projectname = self.get_projectname_perstage(name)
-        if projectname is None:
+    def del_versiondata(self, name_input, version, cleanup=True):
+        name = normalize_name(name_input)
+        if not self.has_project_perstage(name):
             raise self.NotFound("project %r not found on stage %r" %
                                 (name, self.name))
-        versions = self.key_projversions(projectname).get(readonly=False)
+        versions = self.key_projversions(name).get(readonly=False)
         if version not in versions:
             raise self.NotFound("version %r of project %r not found on stage %r" %
-                                (version, projectname, self.name))
-        linkstore = self.get_linkstore_perstage(projectname, version, readonly=False)
+                                (version, name, self.name))
+        linkstore = self.get_linkstore_perstage(name, version, readonly=False)
         linkstore.remove_links()
         versions.remove(version)
-        self.key_projversion(projectname, version).delete()
-        self.key_projversions(projectname).set(versions)
+        self.key_projversion(name, version).delete()
+        self.key_projversions(name).set(versions)
         if cleanup:
             if not versions:
-                self.del_project(projectname)
-            self._regen_simplelinks(projectname)
+                self.del_project(name)
+            self._regen_simplelinks(name)
 
     def list_versions_perstage(self, projectname):
         return self.key_projversions(projectname).get()
 
     def get_versiondata_perstage(self, projectname, version, readonly=True):
+        projectname = normalize_name(projectname)
         return self.key_projversion(projectname, version).get(readonly=readonly)
 
     def get_simplelinks_perstage(self, projectname):
-        normname = normalize_name(projectname)
-        return self.keyfs.PROJSIMPLELINKS(
-                    user=self.user.name, index=self.index, name=normname).get()
+        name = normalize_name(projectname)
+        res = self.keyfs.PROJSIMPLELINKS(
+                    user=self.user.name, index=self.index, name=name).get()
+        return res
 
-    def _regen_simplelinks(self, name):
-        normname = normalize_name(name)
-        k = self.keyfs.PROJSIMPLELINKS(user=self.user.name, index=self.index, name=normname)
-        projectname = self.get_projectname(name)
-        if not projectname:
-            # was deleted
-            k.delete()
-            return
+    def _regen_simplelinks(self, name_input):
+        name = normalize_name(name_input)
+        k = self.keyfs.PROJSIMPLELINKS(user=self.user.name, index=self.index, name=name)
         links = []
-        for version in self.list_versions_perstage(projectname):
-            linkstore = self.get_linkstore_perstage(projectname, version)
+        for version in self.list_versions_perstage(name):
+            linkstore = self.get_linkstore_perstage(name, version)
             links.extend(map(make_key_and_href, linkstore.get_links("releasefile")))
         k.set(links)
 
     def list_projectnames_perstage(self):
         return self.key_projectnames.get()
 
-    def store_releasefile(self, name, version, filename, content,
+    def has_project_perstage(self, name):
+        return normalize_name(name) in self.list_projectnames_perstage()
+
+    def store_releasefile(self, name_input, version, filename, content,
                           last_modified=None):
+        name = normalize_name(name_input)
         filename = ensure_unicode(filename)
         if not self.get_versiondata(name, version):
             # There's a chance the version was guessed from the
@@ -631,7 +614,6 @@ class PrivateStage(BaseStage):
                     raise MissesRegistration("%s-%s", name, version)
             else:
                 raise MissesRegistration("%s-%s", name, version)
-        threadlog.debug("project name of %r is %r", filename, name)
         linkstore = self.get_linkstore_perstage(name, version, readonly=False)
         link = linkstore.create_linked_entry(
                 rel="releasefile",
@@ -641,14 +623,14 @@ class PrivateStage(BaseStage):
         self._regen_simplelinks(name)
         return link
 
-    def store_doczip(self, name, version, content):
+    def store_doczip(self, name_input, version, content):
+        name = normalize_name(name_input)
         if not version:
             version = self.get_latest_version_perstage(name)
             threadlog.info("store_doczip: derived version of %s is %s",
                            name, version)
-        projectname = self.get_projectname(name)
-        basename = "%s-%s.doc.zip" % (projectname, version)
-        linkstore = self.get_linkstore_perstage(projectname, version, readonly=False)
+        basename = "%s-%s.doc.zip" % (name, version)
+        linkstore = self.get_linkstore_perstage(name, version, readonly=False)
         link = linkstore.create_linked_entry(
                 rel="doczip",
                 basename=basename,
@@ -738,9 +720,9 @@ class LinkStore:
     def __init__(self, stage, projectname, version, readonly=True):
         self.stage = stage
         self.filestore = stage.xom.filestore
-        self.projectname = projectname
+        self.projectname = normalize_name(projectname)
         self.version = version
-        self.verdata = stage.get_versiondata_perstage(projectname, version, readonly=readonly)
+        self.verdata = stage.get_versiondata_perstage(self.projectname, version, readonly=readonly)
         if not self.verdata:
             raise MissesRegistration("%s-%s on stage %s",
                                      projectname, version, stage.name)
@@ -972,13 +954,12 @@ class EventSubscribers:
             if not entry.projectname or not entry.version:
                 # the entry was deleted
                 return
-            projectname = stage.get_projectname(entry.projectname)
-            linkstore = stage.get_linkstore_perstage(
-                                                projectname, entry.version)
+            name = normalize_name(entry.projectname)
+            linkstore = stage.get_linkstore_perstage(name, entry.version)
             links = linkstore.get_links(basename=entry.basename)
             if len(links) == 1:
                 self.xom.config.hook.devpiserver_on_upload(
-                    stage=stage, projectname=projectname,
+                    stage=stage, projectname=name,
                     version=entry.version,
                     link=links[0])
 

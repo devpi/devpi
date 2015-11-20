@@ -16,6 +16,7 @@ from devpi_common.viewhelp import ViewLinkStore
 
 import devpi_server.views
 from devpi_server.views import tween_keyfs_transaction, make_uuid_headers
+from devpi_server.extpypi import parse_index
 
 from .functional import TestUserThings, TestIndexThings  # noqa
 
@@ -70,11 +71,12 @@ def test_make_uuid_headers(nodeinfo, expected):
 def test_simple_project(pypistage, testapp):
     name = "qpwoei"
     r = testapp.get("/root/pypi/+simple/" + name)
-    assert r.status_code == 200
+    assert r.status_code == 404
     assert r.headers["X-DEVPI-SERIAL"]
     # easy_install fails if the result isn't html
     assert "html" in r.headers['content-type']
-    assert not BeautifulSoup(r.text).findAll("a")
+    assert not parse_index("http://localhost", r.text, scrape=False).releaselinks
+
     path = "/%s-1.0.zip" % name
     pypistage.mock_simple(name, text='<a href="%s"/>' % path)
     r = testapp.get("/root/pypi/+simple/%s" % name)
@@ -160,8 +162,7 @@ def test_simple_list(pypistage, testapp):
     assert int(r2.headers["X-DEVPI-SERIAL"]) == serial + 1
 
     r = testapp.get("/root/pypi/+simple/hello3")
-    assert r.status_code == 200
-    assert "no such project" in r.text
+    assert r.status_code == 404
     # easy_install fails if the result isn't html
     assert "html" in r.headers['content-type']
     r = testapp.get("/root/pypi/+simple/")
@@ -207,7 +208,7 @@ def test_inheritance_versiondata(mapp, model):
     assert len(r["result"]) == 1
 
 
-@pytest.mark.parametrize("projectname", ["pkg", "pkg_some"])
+@pytest.mark.parametrize("projectname", ["pkg", "pkg-some"])
 @pytest.mark.parametrize("stagename", [None, "root/pypi"])
 def test_simple_refresh_inherited(mapp, model, pypistage, testapp, projectname,
                                   stagename):
@@ -617,8 +618,10 @@ class TestSubmitValidation:
         metadata = {"name": "Pkg5", "version": "2.6", ":action": "submit"}
         submit.metadata(metadata, code=200)
         submit.file("pkg5-2.6.tgz", b"123", {"name": "Pkg5"}, code=200)
+        r = testapp.get("/%s/+simple/Pkg5" % submit.stagename)
+        assert r.status_code == 200  # XXX do we want a redirect?
         r = testapp.get("/%s/+simple/pkg5" % submit.stagename)
-        assert r.status_code == 302
+        assert r.status_code == 200
 
     def test_upload_and_delete_index(self, submit, testapp, mapp):
         metadata = {"name": "Pkg5", "version": "2.6", ":action": "submit"}
@@ -655,7 +658,7 @@ class TestSubmitValidation:
         mapp.delete_user(submit.username)
         # recreate user and index
         submit = submit.__class__(submit.stagename)
-        assert not mapp.get_release_paths("pkg5")
+        mapp.get_simple("pkg5", code=404)
 
     def test_upload_twice_to_nonvolatile(self, submit, testapp, mapp):
         mapp.modify_index(submit.stagename, indexconfig=dict(volatile=False))
@@ -804,8 +807,8 @@ class TestSubmitValidation:
         metadata = {"name": "Pkg1", "version": "1.0", ":action": "submit",
                     "description": "hello world"}
         submit.metadata(metadata, code=200)
-        location = mapp.getjson("/%s/pkg1" % submit.stagename, code=302)
-        assert location.endswith("/Pkg1")
+        mapp.getjson("/%s/pkg1" % submit.stagename, code=200)
+        #assert location.endswith("/Pkg1")
 
 
 def test_submit_authorization(mapp, testapp):
@@ -1237,7 +1240,7 @@ def test_upload_docs_no_version(mapp, testapp, proj):
     mapp.upload_doc("pkg1.zip", content, "Pkg1", "")
     vv = get_view_version_links(testapp, api.index, "Pkg1", "1.0", proj=proj)
     link = vv.get_link("doczip")
-    assert link.href.endswith("/Pkg1-1.0.doc.zip")
+    assert link.href.endswith("/pkg1-1.0.doc.zip")
     r = testapp.get(link.href)
     archive = Archive(py.io.BytesIO(r.body))
     assert 'index.html' in archive.namelist()

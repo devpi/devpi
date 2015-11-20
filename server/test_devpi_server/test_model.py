@@ -58,7 +58,7 @@ def user(model):
 def test_has_pypi_base(model, pypistage):
     pypistage.mock_simple("pytest", "<a href='pytest-1.0.zip' /a>")
     assert pypistage.has_pypi_base("pytest")
-    assert pypistage.get_projectname_perstage("pytest")
+    assert pypistage.has_project_perstage("pytest")
     user = model.create_user("user1", "pass")
     stage1 = user.create_stage("stage1", bases=())
     assert not stage1.has_pypi_base("pytest")
@@ -128,6 +128,11 @@ class TestStage:
         assert model.getstage("hello", "world2") is None
         assert model.getstage("hello", "world") is not None
 
+    def test_store_and_retrieve_simple(self, stage):
+        register_and_store(stage, "someproject-1.1.tar.gz")
+        assert len(stage.get_simplelinks_perstage("someproject")) == 1
+        assert len(stage.get_releaselinks_perstage("someproject")) == 1
+
     @pytest.mark.with_notifier
     def test_delete_user_hooks_issue228(self, model, caplog):
         keyfs = model.xom.keyfs
@@ -171,7 +176,7 @@ class TestStage:
         assert stage.ixconfig["bases"] == ("root/pypi",)
 
     def test_empty(self, stage, bases):
-        assert not stage.get_releaselinks("someproject")
+        assert not stage.has_project("someproject")
         assert not stage.list_projectnames_perstage()
 
     def test_inheritance_simple(self, pypistage, stage):
@@ -191,6 +196,7 @@ class TestStage:
                               "<a href='someproject-1.0.zip' /a>")
         register_and_store(stage_dev2, "someproject-1.1.tar.gz")
         register_and_store(stage_dev2, "someproject-1.2.tar.gz")
+        assert len(stage.get_simplelinks("someproject")) == 3
         links = stage.get_releaselinks("someproject")
         assert len(links) == 3
         assert links[0].basename == "someproject-1.2.tar.gz"
@@ -448,23 +454,27 @@ class TestStage:
         assert links[0].entrypath.endswith("someproject-1.1.zip")
         assert links[1].entrypath.endswith("someproject-1.0.zip")
 
-    def test_store_and_delete_project(self, stage, bases):
+    @pytest.mark.parametrize("name", ["some", "Some"])
+    def test_store_and_delete_project(self, stage, bases, name):
         content = b"123"
-        register_and_store(stage, "some-1.0.zip", content)
-        assert stage.get_versiondata_perstage("some", "1.0")
-        stage.del_project("some")
-        assert not stage.list_versions_perstage("some")
+        register_and_store(stage, "%s-1.0.zip" % name, content)
+        assert stage.get_versiondata_perstage(name, "1.0")
+        assert stage.get_versiondata_perstage(name.upper(), "1.0")
+        stage.del_project(name.upper())
+        assert not stage.list_versions_perstage(name)
 
-    def test_store_and_delete_release(self, stage, bases):
-        register_and_store(stage, "some-1.0.zip")
-        register_and_store(stage, "some-1.1.zip")
-        assert stage.get_versiondata_perstage("some", "1.0")
-        assert stage.get_versiondata_perstage("some", "1.1")
-        stage.del_versiondata("some", "1.0")
-        assert not stage.get_versiondata_perstage("some", "1.0")
-        assert stage.get_versiondata_perstage("some", "1.1")
-        stage.del_versiondata("some", "1.1")
-        assert stage.get_projectname("some") is None
+    @pytest.mark.parametrize("name", ["some", "Some"])
+    def test_store_and_delete_release(self, stage, bases, name):
+        register_and_store(stage, "%s-1.0.zip" % name)
+        register_and_store(stage, "%s-1.1.zip" % name)
+        assert stage.get_versiondata_perstage(name.upper(), "1.0")
+        assert stage.get_versiondata_perstage(name.lower(), "1.1")
+        stage.del_versiondata(name.lower(), "1.0")
+        assert not stage.get_versiondata_perstage(name, "1.0")
+        assert stage.get_versiondata_perstage(name.upper(), "1.1")
+        assert stage.get_versiondata_perstage(name.lower(), "1.1")
+        stage.del_versiondata(name.upper(), "1.1")
+        assert not stage.has_project_perstage(name)
 
     def test_delete_not_existing(self, stage, bases):
         with pytest.raises(stage.NotFound) as excinfo:
@@ -672,8 +682,7 @@ class TestStage:
             caplog.setLevel(logging.WARNING)
             stage.set_versiondata(udict(name=name, version="1.0"))
             rec = caplog.getrecords()
-            assert len(rec) == 1, [str(x) for x in rec]
-            assert "using" in rec[0].msg and name in rec[0].msg
+            assert not rec
 
     @pytest.mark.start_threads
     def test_set_versiondata_hook(self, stage, queue):
@@ -725,10 +734,12 @@ class TestStage:
 
 
     def test_get_existing_project(self, stage):
+        assert not stage.get_versiondata("hello", "1.0")
+        assert not stage.get_versiondata("This", "1.0")
         stage.set_versiondata(udict(name="Hello", version="1.0"))
         stage.set_versiondata(udict(name="this", version="1.0"))
-        name = stage.get_projectname("hello")
-        assert name == "Hello"
+        assert stage.get_versiondata("hello", "1.0")
+        assert stage.get_versiondata("This", "1.0")
 
 
 class TestLinkStore:

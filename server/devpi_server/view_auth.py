@@ -1,6 +1,7 @@
 from devpi_common.types import ensure_unicode
+from devpi_common.validation import normalize_name
 from devpi_server.auth import Auth
-from devpi_server.views import abort, abort_authenticate, redirect
+from devpi_server.views import abort, abort_authenticate
 from devpi_server.model import UpstreamError
 from pyramid.authentication import CallbackAuthenticationPolicy
 from pyramid.decorator import reify
@@ -98,7 +99,8 @@ class RootFactory(object):
 
     def get_versiondata(self, projectname=None, version=None, perstage=False):
         if projectname is None:
-            projectname = self.projectname  # raises 404 if not found
+            projectname = self.name
+            # XXX raise 404 if project does not exist?
         if version is None:
             version = self.version
         if perstage:
@@ -119,25 +121,14 @@ class RootFactory(object):
 
     def list_versions(self, projectname=None):
         if projectname is None:
-            projectname = self.projectname
+            projectname = self.name
         try:
-            return self.stage.list_versions(projectname)
+            res = self.stage.list_versions(projectname)
         except UpstreamError as e:
             abort(self.request, 502, str(e))
-
-    @reify
-    def projectname(self):
-        name = self.stage.get_projectname(self.name)
-        if name is None:
-            raise abort(self.request, 404,
-                        "The project %s does not exist." % self.name)
-        if self.request.method == 'GET' and name != self.name:
-            new_matchdict = dict(self.request.matchdict)
-            new_matchdict['name'] = name
-            route_name = self.request.matched_route.name
-            url = self.request.route_url(route_name, **new_matchdict)
-            redirect(url)
-        return name
+        if not res and not self.stage.has_project(projectname):
+            abort(self.request, 404, "no project %r" %(projectname))
+        return res
 
     @reify
     def index(self):
@@ -148,7 +139,15 @@ class RootFactory(object):
         name = self.matchdict.get('name')
         if name is None:
             return
-        return ensure_unicode(name)
+        n_name = normalize_name(name)
+        # XXX not clear if we want to redirect, certainly breaks some tests
+        #if n_name != name and self.request.method == 'GET':
+        #    new_matchdict = dict(self.request.matchdict)
+        #    new_matchdict['name'] = name
+        #    route_name = self.request.matched_route.name
+        #    url = self.request.route_url(route_name, **new_matchdict)
+        #    redirect(url)
+        return n_name
 
     @reify
     def version(self):

@@ -9,7 +9,8 @@ from devpi_common.url import URL
 from devpi_common.metadata import get_pyversion_filetype
 import devpi_server
 from pyramid.compat import urlparse
-from pyramid.httpexceptions import HTTPException, HTTPFound, HTTPSuccessful, HTTPNotFound
+from pyramid.httpexceptions import HTTPException, HTTPFound, HTTPSuccessful
+#, HTTPNotFound
 from pyramid.httpexceptions import HTTPUnauthorized
 from pyramid.httpexceptions import exception_response
 from pyramid.response import Response
@@ -358,23 +359,19 @@ class PyPIView:
     @view_config(route_name="/{user}/{index}/+simple/{name}")
     def simple_list_project(self):
         request = self.request
-        name = self.context.name
+        abort_if_invalid_projectname(request, request.matchdict["name"])
+        projectname = self.context.name
         # we only serve absolute links so we don't care about the route's slash
-        abort_if_invalid_projectname(request, name)
         stage = self.context.stage
-        try:
-            projectname = self.context.projectname
-        except HTTPNotFound:
-            # we return 200 instead of !=200 so that pip/easy_install don't
-            # ask for the full simple page although we know it doesn't exist
-            # This is no longer necessary for pip >= 8.0
-            abort(request, 200, "no such project %r" % name)
         requested_by_pip = re.match(PIP_USER_AGENT, request.user_agent or "")
         try:
             result = stage.get_simplelinks(projectname, sorted_links=not requested_by_pip)
         except stage.UpstreamError as e:
             threadlog.error(e.msg)
             abort(request, 502, e.msg)
+
+        if not result and not stage.has_project(projectname):
+            abort(request, 404, "project not found")
 
         if requested_by_pip:
             # we don't need the extra stuff on the simple page for pip
@@ -388,7 +385,7 @@ class PyPIView:
         response = Response(app_iter=self._simple_list_project(
             stage, projectname, result, embed_form, blocked_index))
         if stage.ixconfig['type'] == 'mirror':
-            serial = stage.pypimirror.get_project_serial(name)
+            serial = stage.pypimirror.get_project_serial(projectname)
             if serial > 0:
                 response.headers["X-PYPI-LAST-SERIAL"] = str(serial)
         return response
@@ -419,11 +416,11 @@ class PyPIView:
 
         yield "</body></html>".encode("utf-8")
 
-    def _index_refresh_form(self, stage, projectname):
+    def _index_refresh_form(self, stage, name):
         url = self.request.route_url(
             "/{user}/{index}/+simple/{name}/refresh",
             user=self.context.username, index=self.context.index,
-            name=projectname)
+            name=name)
         title = "Refresh" if stage.ixconfig["type"] == "mirror" else "Refresh PyPI links"
         submit = '<input name="refresh" type="submit" value="%s"/>' % title
         return '<form action="%s" method="post">%s</form>' % (url, submit)
@@ -687,8 +684,8 @@ class PyPIView:
             name = ensure_unicode(request.POST.get("name"))
             # version may be empty on plain doczip uploads
             version = ensure_unicode(request.POST.get("version") or "")
-            projectname = stage.get_projectname(name)
-            if projectname is None:
+            projectname = normalize_name(name)
+            if not stage.has_project(name):
                 abort_submit(400, "no project named %r was ever registered" % (name))
 
             if action == "file_upload":
@@ -779,9 +776,7 @@ class PyPIView:
     @view_config(route_name="simple_redirect")
     def simple_redirect(self):
         stage, name = self.context.stage, self.context.name
-        projectname = stage.get_projectname(name)
-        real_name = projectname if projectname else name
-        redirect("/%s/+simple/%s" % (stage.name, real_name))
+        redirect("/%s/+simple/%s" % (stage.name, name))
 
     @view_config(route_name="/{user}/{index}/{name}",
                  accept="application/json", request_method="GET")
@@ -803,11 +798,14 @@ class PyPIView:
         stage = self.context.stage
         if stage.name == "root/pypi":
             abort(self.request, 405, "cannot delete root/pypi index")
-        projectname = self.context.projectname
+        projectname = self.context.name
         if not stage.ixconfig["volatile"]:
             apireturn(403, "project %r is on non-volatile index %s" %(
                       projectname, stage.name))
-        stage.del_project(projectname)
+        try:
+            stage.del_project(projectname)
+        except KeyError:
+            apireturn(404, "project not found")
         apireturn(200, "project {name} deleted from stage {sname}".format(
                   name=projectname, sname=stage.name))
 

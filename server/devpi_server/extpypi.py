@@ -174,17 +174,21 @@ class PyPIStage(BaseStage):
         return set(self.pypimirror.name2serials)
 
     def _dump_project_cache(self, projectname, entries, serial):
-        normname = normalize_name(projectname)
-        dumplist = [make_key_and_href(entry) for entry in entries]
+        assert projectname == normalize_name(projectname), projectname
+        if isinstance(entries, list):
+            dumplist = [make_key_and_href(entry) for entry in entries]
+        else:
+            dumplist = entries
 
         data = {"serial": serial,
                 "dumplist": dumplist,
                 "projectname": projectname}
         self.xom.set_updated_at(self.name, projectname, time.time())
-        old = self.keyfs.PYPILINKS(name=normname).get()
+        old = self.keyfs.PYPILINKS(name=projectname).get()
         if old != data:
             threadlog.debug("saving data for %s: %s", projectname, data)
-            self.keyfs.PYPILINKS(name=normname).set(data)
+            threadlog.debug("old data    for %s: %s", projectname, old)
+            self.keyfs.PYPILINKS(name=projectname).set(data)
         else:
             threadlog.debug("data unchanged for %s: %s", projectname, data)
         return dumplist
@@ -197,14 +201,14 @@ class PyPIStage(BaseStage):
 
     def _load_cache_links(self, projectname):
         cache = self._load_project_cache(projectname)
-        if cache and "dumplist" in cache:  # prior to 2.4 there was no "dumplist"
+        if cache and cache.get("dumplist") is not None:  # prior to 2.4 there was no "dumplist"
             serial = self.pypimirror.get_project_serial(projectname)
             is_fresh = (cache["serial"] >= serial)
             if is_fresh:
                 updated_at = self.xom.get_updated_at(self.name, projectname)
                 is_fresh = (time.time() - updated_at) <= self.cache_expiry
             return (is_fresh, cache["dumplist"])
-        return True, None
+        return False, None
 
     def clear_cache(self, projectname):
         normname = normalize_name(projectname)
@@ -222,34 +226,37 @@ class PyPIStage(BaseStage):
         does not return a fresh enough page although we know it must
         exist.
         """
-        projectname = self.get_projectname_perstage(projectname)
-        if projectname is None:
-            return []
+        projectname = normalize_name(projectname)
         is_fresh, links = self._load_cache_links(projectname)
-        if links is not None and is_fresh:
+        if is_fresh:
             return links
 
         # get the simple page for the project
         url = self.PYPIURL_SIMPLE + projectname + "/"
-        threadlog.debug("visiting index %s", url)
+        threadlog.debug("reading index %s", url)
         response = self.httpget(url, allow_redirects=True)
         if response.status_code != 200:
-            # if we have an old version, return it instead of erroring out
-            # in case that a project was deleted or all releases removed, links
-            # will be served until the cache expires
-            if links is not None:
-                threadlog.error("serving stale links for %r, upstream not reachable",
-                                projectname)
+            # if we have and old result, return it. While this will
+            # miss the rare event of actual project deletions it allows
+            # to stay resilient against server misconfigurations.
+            if links is not None and links != ():
+                threadlog.error("serving stale links for %r, url %r responded %r",
+                                projectname, url, response.status_code)
                 return links
             if response.status_code == 404:
-                # we get a 404 if a project has no releases or when it's deleted
-                # the empty list must be persisted, so replicas see the same
-                # result. If a release is made, the changelog triggers an update
-                # and when the expiry time is reached pypi is also checked again
+                # we get a 404 if a project does not exist. We persist
+                # this result so replicas see it as well.  After the
+                # dump cache expires new requets will retry and thus
+                # detect new projects and their releases.
+                # Note that we use an empty tuple (instead of the usual
+                # list) so has_project_per_stage() can determine it as a
+                # non-existing project.
                 self.keyfs.restart_as_write_transaction()
                 return self._dump_project_cache(
-                    projectname, [],
+                    projectname, (),
                     self.pypimirror.get_project_serial(projectname))
+
+            # we don't have an old result and got a non-404 code.
             raise self.UpstreamError("%s status on GET %s" %
                                      (response.status_code, url))
 
@@ -269,7 +276,7 @@ class PyPIStage(BaseStage):
 
             # check returned url has the same normalized name
             ret_projectname = response.url.strip("/").split("/")[-1]
-            assert normalize_name(projectname) == normalize_name(ret_projectname)
+            assert projectname == normalize_name(ret_projectname)
 
 
         # parse simple index's link and perform crawling
@@ -325,39 +332,18 @@ class PyPIStage(BaseStage):
             self.keyfs.restart_as_write_transaction()
             return map_and_dump()
 
-    def get_projectname_perstage(self, name):
-        result = self.pypimirror.get_registered_name(name)
-        if result is None:
-            # we don't know about the project
-            projectname = normalize_name(name)
-            is_fresh, links = self._load_cache_links(projectname)
-            serial = self.pypimirror.get_project_serial(projectname)
-            if links is not None and serial == -1 and is_fresh:
-                # since the serial is -1, this is a cached 404
-                return
-            if links is None or not is_fresh:
-                # get the simple page for the project
-                url = self.PYPIURL_SIMPLE + projectname + "/"
-                threadlog.debug("visiting index %s", url)
-                response = self.httpget(url, allow_redirects=True)
-                if response.status_code == 404:
-                    # the project isn't found, cache that fact
-                    self.keyfs.restart_as_write_transaction()
-                    self._dump_project_cache(projectname, [], -1)
-                    return
-                if response.status_code != 200:
-                    # we can't say if the project exists
-                    return
-                # the project exists, so register it
-                self.pypimirror.set_project_serial(projectname, -1)
-                return projectname
-        return result
+    def has_project_perstage(self, name):
+        links = self.get_simplelinks_perstage(name)
+        if links == ():  # marker for non-existing project, see get_simplelinks_perstage
+            return False
+        return True
 
     def list_versions_perstage(self, projectname):
         return set(x.get_eggfragment_or_version()
                    for x in map(SimplelinkMeta, self.get_simplelinks_perstage(projectname)))
 
     def get_versiondata_perstage(self, projectname, version, readonly=True):
+        projectname = normalize_name(projectname)
         verdata = {}
         for sm in map(SimplelinkMeta, self.get_simplelinks_perstage(projectname)):
             link_version = sm.get_eggfragment_or_version()

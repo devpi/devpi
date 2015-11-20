@@ -440,8 +440,7 @@ class TestImportExport:
 
             links = stage.get_releaselinks("he_llo")
             assert len(links) == 2
-            projectname = stage.get_projectname("he-llo")
-            links = stage.get_releaselinks(projectname)
+            links = stage.get_releaselinks("he-llo")
             assert len(links) == 2
 
     @pytest.mark.skipif(not hasattr(os, 'link'),
@@ -462,7 +461,7 @@ class TestImportExport:
         assert impexp.exportdir.join(
           'user1', 'dev', 'he_llo-1.0.doc.zip').stat().nlink == 2
         assert impexp.exportdir.join(
-          'user1', 'dev', 'he_llo', 'he-llo-1.0.tar.gz').stat().nlink == 2
+          'user1', 'dev', 'he-llo', 'he-llo-1.0.tar.gz').stat().nlink == 2
 
         mapp2 = impexp.new_import()
 
