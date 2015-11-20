@@ -310,6 +310,10 @@ def model(xom):
 def pypistage(xom):
     return PyPIStage(xom)
 
+@pytest.fixture
+def pypireplicastage(replica_xom):
+    return PyPIStage(replica_xom)
+
 def add_pypistage_mocks(monkeypatch, httpget, proxymock):
     # add some mocking helpers
     PyPIStage.url2response = httpget.url2response

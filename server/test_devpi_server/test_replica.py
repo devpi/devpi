@@ -579,3 +579,56 @@ def test_should_fetch_remote_file():
            should_fetch_remote_file(Entry(), {H_REPLICA_FILEREPL: str("YES")})
 
 
+def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, pypireplicastage, pypiurls, replica_xom, xom):
+    orig_simple = pypiurls.simple
+
+    # prepare the data on master
+    pypistage.mock_simple("pytest", pkgver="pytest-1.0.zip")
+    with xom.keyfs.transaction(write=True):
+        pypistage.get_releaselinks("pytest")
+
+    # replicate the state
+    replay(xom, replica_xom)
+    replica_xom.pypimirror.name2serials = dict(xom.pypimirror.name2serials)
+
+    # now check
+    pypiurls.simple = 'http://localhost:3111/root/pypi/+simple/'
+    serial = xom.keyfs.get_current_serial()
+    httpget.mock_simple(
+        'pytest',
+        text='<a href="https://pypi.python.org/pkg/pytest-1.0.zip">pytest-1.0.zip</a>',
+        headers={'X-DEVPI-SERIAL': str(serial)})
+    with replica_xom.keyfs.transaction():
+        ret = pypireplicastage.get_releaselinks("pytest")
+    assert len(ret) == 1
+    assert ret[0].relpath == 'root/pypi/+e/https_pypi.python.org_pkg/pytest-1.0.zip'
+
+    # now we change the links and expire the cache
+    pypiurls.simple = orig_simple
+    pypistage.mock_simple("pytest", pkgver="pytest-1.1.zip", pypiserial=10001)
+    xom.set_updated_at('root/pypi', 'pytest', time.time() - 3600)
+    with xom.keyfs.transaction(write=True):
+        pypistage.get_releaselinks("pytest")
+    assert xom.keyfs.get_current_serial() > serial
+
+    # we patch wait_tx_serial so we can check and replay
+    called = []
+    def wait_tx_serial(serial):
+        called.append(True)
+        assert xom.keyfs.get_current_serial() == serial
+        assert replica_xom.keyfs.get_current_serial() < serial
+        replay(xom, replica_xom)
+        assert replica_xom.keyfs.get_current_serial() == serial
+    monkeypatch.setattr(replica_xom.keyfs.notifier, 'wait_tx_serial', wait_tx_serial)
+    replica_xom.set_updated_at('root/pypi', 'pytest', time.time() - 3600)
+    pypiurls.simple = 'http://localhost:3111/root/pypi/+simple/'
+    httpget.mock_simple(
+        'pytest',
+        text='<a href="https://pypi.python.org/pkg/pytest-1.1.zip">pytest-1.1.zip</a>',
+        pypiserial=10001,
+        headers={'X-DEVPI-SERIAL': str(xom.keyfs.get_current_serial())})
+    with replica_xom.keyfs.transaction():
+        ret = pypireplicastage.get_releaselinks("pytest")
+    assert called == [True]
+    assert len(ret) == 1
+    assert ret[0].relpath == 'root/pypi/+e/https_pypi.python.org_pkg/pytest-1.1.zip'

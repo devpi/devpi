@@ -253,9 +253,10 @@ class PyPIStage(BaseStage):
             raise self.UpstreamError("%s status on GET %s" %
                                      (response.status_code, url))
 
+        serial = int(response.headers["X-PYPI-LAST-SERIAL"])
+
         if not self.xom.is_replica():  # we are a master
             # check that we got a fresh enough page
-            serial = int(response.headers["X-PYPI-LAST-SERIAL"])
             newest_serial = self.pypimirror.get_project_serial(projectname)
             if serial < newest_serial:
                 raise self.UpstreamError(
@@ -299,7 +300,6 @@ class PyPIStage(BaseStage):
         # by our http request above) because have no direct write
         # access to the db other than through the replication thread.
         if self.xom.is_replica():
-            # XXX this code path is not currently tested, handle with care!
             # we have already triggered the master above
             # and now need to wait until the parsed new links are
             # transferred back to the replica
