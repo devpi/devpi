@@ -41,7 +41,7 @@ meta_headers = {str("X-DEVPI-API-VERSION"): str(API_VERSION),
                 str("X-DEVPI-SERVER-VERSION"): server_version}
 
 
-PIP_USER_AGENT = r"(distribute|setuptools|pip)/.*"
+PIP_USER_AGENT = r"(distribute|setuptools|pip|pex)/.*"
 
 
 def abort(request, code, body):
