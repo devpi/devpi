@@ -1,3 +1,9 @@
+2.5.1 (unreleased)
+------------------
+
+- fix issue289: fix simple page serving on replicas
+
+
 2.5.0 (2015-11-19)
 ------------------
 
