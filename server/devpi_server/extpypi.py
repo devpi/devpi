@@ -260,7 +260,7 @@ class PyPIStage(BaseStage):
             raise self.UpstreamError("%s status on GET %s" %
                                      (response.status_code, url))
 
-        serial = int(response.headers["X-PYPI-LAST-SERIAL"])
+        serial = int(response.headers[str("X-PYPI-LAST-SERIAL")])
 
         if not self.xom.is_replica():  # we are a master
             # check that we got a fresh enough page
