@@ -170,6 +170,16 @@ def test_simple_list(pypistage, testapp):
     hrefs = [a.get("href") for a in links]
     assert hrefs == ["hello1", "hello2"]
 
+def test_simple_page_contains_pypi_serial(pypistage, testapp):
+    pypistage.mock_simple("hello1", pkgver="hello1-1.0.zip", pypiserial=0)
+    r = testapp.get("/root/pypi/+simple/hello1", expect_errors=False)
+    assert "X-PYPI-LAST-SERIAL" not in r.headers
+    assert '/hello1-1.0.zip">hello1-1.0.zip</a>' in r.unicode_body
+    pypistage.mock_simple("hello2", pkgver="hello2-1.0.zip")
+    r = testapp.get("/root/pypi/+simple/hello2", expect_errors=False)
+    assert r.headers.get("X-PYPI-LAST-SERIAL") == '10000'
+    assert '/hello2-1.0.zip">hello2-1.0.zip</a>' in r.unicode_body
+
 def test_simple_refresh(mapp, model, pypistage, testapp):
     pypistage.mock_simple("hello", "<html/>")
     r = testapp.xget(200, "/root/pypi/+simple/hello")

@@ -385,8 +385,13 @@ class PyPIView:
             whitelist_info = stage.get_pypi_whitelist_info(projectname)
             embed_form = whitelist_info['has_pypi_base']
             blocked_index = whitelist_info['blocked_by_pypi_whitelist']
-        return Response(app_iter=self._simple_list_project(
+        response = Response(app_iter=self._simple_list_project(
             stage, projectname, result, embed_form, blocked_index))
+        if stage.ixconfig['type'] == 'mirror':
+            serial = stage.pypimirror.get_project_serial(name)
+            if serial > 0:
+                response.headers["X-PYPI-LAST-SERIAL"] = str(serial)
+        return response
 
     def _simple_list_project(self, stage, projectname, result, embed_form, blocked_index):
         response = self.request.response
