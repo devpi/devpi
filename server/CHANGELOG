@@ -1,3 +1,9 @@
+2.5.2 (unreleased)
+------------------
+
+- recognize "pex" for redirections of user/index/NAME to
+  user/index/+simple/NAME just like we do with pip/setuptools.
+
 2.5.1 (2015-11-20)
 ------------------
 
