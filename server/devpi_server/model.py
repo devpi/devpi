@@ -954,7 +954,8 @@ class EventSubscribers:
             if not entry.projectname or not entry.version:
                 # the entry was deleted
                 return
-            name = normalize_name(entry.projectname)
+            name = entry.projectname
+            assert name == normalize_name(name)
             linkstore = stage.get_linkstore_perstage(name, entry.version)
             links = linkstore.get_links(basename=entry.basename)
             if len(links) == 1:

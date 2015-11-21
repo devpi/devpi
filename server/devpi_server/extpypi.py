@@ -259,21 +259,21 @@ class PyPIStage(BaseStage):
 
         serial = int(response.headers[str("X-PYPI-LAST-SERIAL")])
 
-        if not self.xom.is_replica():  # we are a master
-            # check that we got a fresh enough page
-            newest_serial = self.pypimirror.get_project_serial(projectname)
-            if serial < newest_serial:
-                raise self.UpstreamError(
-                            "%s: pypi returned serial %s, expected at least %s",
-                            projectname, serial, newest_serial)
-            elif serial > newest_serial:
-                self.pypimirror.set_project_serial(projectname, serial)
+        # check that we got a fresh enough page
+        # this code is executed on master and replica sides.
+        newest_serial = self.pypimirror.get_project_serial(projectname)
+        if serial < newest_serial:
+            raise self.UpstreamError(
+                        "%s: pypi returned serial %s, expected at least %s",
+                        projectname, serial, newest_serial)
+        elif serial > newest_serial:
+            self.pypimirror.set_project_serial(projectname, serial)
 
-            threadlog.debug("%s: got response with serial %s", projectname, serial)
+        threadlog.debug("%s: got response with serial %s", projectname, serial)
 
-            # check returned url has the same normalized name
-            ret_projectname = response.url.strip("/").split("/")[-1]
-            assert projectname == normalize_name(ret_projectname)
+        # check returned url has the same normalized name
+        ret_projectname = response.url.strip("/").split("/")[-1]
+        assert projectname == normalize_name(ret_projectname)
 
 
         # parse simple index's link and perform crawling
@@ -285,7 +285,7 @@ class PyPIStage(BaseStage):
         # first we try to process mirror links without an explicit write transaction.
         # if all links already exist in storage we might then return our already
         # cached information about them.  Note that _dump_project_cache() will
-        # implicitely update cache timestamps.
+        # implicitely update non-persisted cache timestamps.
         def map_and_dump():
             # both maplink() and _dump_project_cache() will not modify
             # storage if there are no changes so they operate fine within a
