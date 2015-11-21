@@ -507,20 +507,19 @@ class PrivateStage(BaseStage):
         validate_metadata(metadata)
         self._set_versiondata(metadata)
 
-    def key_projversions(self, name):
-        name = normalize_name(name)
-        return self.keyfs.PROJVERSIONS(
-            user=self.user.name, index=self.index, name=name)
+    def key_projversions(self, projectname):
+        return self.keyfs.PROJVERSIONS(user=self.user.name,
+            index=self.index, projectname=normalize_name(projectname))
 
-    def key_projversion(self, name, version):
-        name = normalize_name(name)
+    def key_projversion(self, projectname, version):
         return self.keyfs.PROJVERSION(
-            user=self.user.name, index=self.index, name=name, version=version)
+            user=self.user.name, index=self.index,
+            projectname=normalize_name(projectname), version=version)
 
     def _set_versiondata(self, metadata):
-        name = normalize_name(metadata["name"])
+        projectname = normalize_name(metadata["name"])
         version = metadata["version"]
-        key_projversion = self.key_projversion(name, version)
+        key_projversion = self.key_projversion(projectname, version)
         versiondata = key_projversion.get(readonly=False)
         if not key_projversion.is_dirty():
             # check if something really changed to prevent
@@ -530,18 +529,18 @@ class PrivateStage(BaseStage):
                     break
             else:
                 threadlog.info("not re-registering same metadata for %s-%s",
-                               name, version)
+                               projectname, version)
                 return
         versiondata.update(metadata)
         key_projversion.set(versiondata)
-        threadlog.info("set_metadata %s-%s", name, version)
-        versions = self.key_projversions(name).get(readonly=False)
+        threadlog.info("set_metadata %s-%s", projectname, version)
+        versions = self.key_projversions(projectname).get(readonly=False)
         if version not in versions:
             versions.add(version)
-            self.key_projversions(name).set(versions)
+            self.key_projversions(projectname).set(versions)
         projectnames = self.key_projectnames.get(readonly=False)
-        if name not in projectnames:
-            projectnames.add(name)
+        if projectname not in projectnames:
+            projectnames.add(projectname)
             self.key_projectnames.set(projectnames)
 
     def del_project(self, name_input):
@@ -580,20 +579,20 @@ class PrivateStage(BaseStage):
         projectname = normalize_name(projectname)
         return self.key_projversion(projectname, version).get(readonly=readonly)
 
-    def get_simplelinks_perstage(self, projectname):
-        name = normalize_name(projectname)
-        res = self.keyfs.PROJSIMPLELINKS(
-                    user=self.user.name, index=self.index, name=name).get()
-        return res
+    def key_projsimplelinks(self, projectname):
+        return self.keyfs.PROJSIMPLELINKS(user=self.user.name,
+            index=self.index, projectname=normalize_name(projectname))
 
-    def _regen_simplelinks(self, name_input):
-        name = normalize_name(name_input)
-        k = self.keyfs.PROJSIMPLELINKS(user=self.user.name, index=self.index, name=name)
+    def get_simplelinks_perstage(self, projectname):
+        return self.key_projsimplelinks(projectname).get()
+
+    def _regen_simplelinks(self, projectname_input):
+        projectname = normalize_name(projectname_input)
         links = []
-        for version in self.list_versions_perstage(name):
-            linkstore = self.get_linkstore_perstage(name, version)
+        for version in self.list_versions_perstage(projectname):
+            linkstore = self.get_linkstore_perstage(projectname, version)
             links.extend(map(make_key_and_href, linkstore.get_links("releasefile")))
-        k.set(links)
+        self.key_projsimplelinks(projectname).set(links)
 
     def list_projectnames_perstage(self):
         return self.key_projectnames.get()
@@ -881,14 +880,14 @@ def add_keys(xom, keyfs):
 
     # type pypimirror related data
     keyfs.add_key("PYPI_SERIALS_LOADED", "root/pypi/initiallinks", dict)
-    keyfs.add_key("PYPILINKS", "root/pypi/+links/{name}", dict)
+    keyfs.add_key("PYPILINKS", "root/pypi/+links/{projectname}", dict)
     keyfs.add_key("PYPIFILE_NOMD5",
                  "{user}/{index}/+e/{dirname}/{basename}", dict)
 
     # type "stage" related
-    keyfs.add_key("PROJSIMPLELINKS", "{user}/{index}/{name}/.simple", list)
-    keyfs.add_key("PROJVERSIONS", "{user}/{index}/{name}/.versions", set)
-    keyfs.add_key("PROJVERSION", "{user}/{index}/{name}/{version}/.config", dict)
+    keyfs.add_key("PROJSIMPLELINKS", "{user}/{index}/{projectname}/.simple", list)
+    keyfs.add_key("PROJVERSIONS", "{user}/{index}/{projectname}/.versions", set)
+    keyfs.add_key("PROJVERSION", "{user}/{index}/{projectname}/{version}/.config", dict)
     keyfs.add_key("PROJNAMES", "{user}/{index}/.projectnames", set)
     keyfs.add_key("STAGEFILE",
                   "{user}/{index}/+f/{hashdir_a}/{hashdir_b}/{filename}", dict)

@@ -360,7 +360,7 @@ class PyPIView:
     def simple_list_project(self):
         request = self.request
         abort_if_invalid_projectname(request, request.matchdict["name"])
-        projectname = self.context.name
+        projectname = self.context.projectname
         # we only serve absolute links so we don't care about the route's slash
         stage = self.context.stage
         requested_by_pip = re.match(PIP_USER_AGENT, request.user_agent or "")
@@ -371,7 +371,7 @@ class PyPIView:
             abort(request, 502, e.msg)
 
         if not result:
-            self.request.context.verified_name  # access will trigger 404 if not found
+            self.request.context.verified_projectname  # access will trigger 404 if not found
 
         if requested_by_pip:
             # we don't need the extra stuff on the simple page for pip
@@ -466,11 +466,11 @@ class PyPIView:
         # XXX we might want to check if user/index has root/pypi as a base
         stage = context.model.getstage('root', 'pypi')
         assert stage.ixconfig["type"] == "mirror", stage.ixconfig
-        stage.clear_cache(context.name)
-        stage.get_simplelinks_perstage(context.name)
+        stage.clear_cache(context.projectname)
+        stage.get_simplelinks_perstage(context.projectname)
         redirect(self.request.route_url(
             "/{user}/{index}/+simple/{name}",
-            user=context.username, index=context.index, name=context.name))
+            user=context.username, index=context.index, name=context.projectname))
 
     @view_config(
         route_name="/{user}/{index}", request_method="PUT")
@@ -775,7 +775,7 @@ class PyPIView:
 
     @view_config(route_name="simple_redirect")
     def simple_redirect(self):
-        stage, name = self.context.stage, self.context.name
+        stage, name = self.context.stage, self.context.projectname
         redirect("/%s/+simple/%s" % (stage.name, name))
 
     @view_config(route_name="/{user}/{index}/{name}",
@@ -798,7 +798,7 @@ class PyPIView:
         stage = self.context.stage
         if stage.name == "root/pypi":
             abort(self.request, 405, "cannot delete root/pypi index")
-        projectname = self.context.name
+        projectname = self.context.projectname
         if not stage.ixconfig["volatile"]:
             apireturn(403, "project %r is on non-volatile index %s" %(
                       projectname, stage.name))
@@ -841,7 +841,7 @@ class PyPIView:
                  request_method="DELETE")
     def del_versiondata(self):
         stage = self.context.stage
-        name, version = self.context.name, self.context.version
+        name, version = self.context.projectname, self.context.version
         if stage.name == "root/pypi":
             abort(self.request, 405, "cannot delete on root/pypi index")
         if not stage.ixconfig["volatile"]:

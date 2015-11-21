@@ -99,7 +99,7 @@ class RootFactory(object):
 
     def get_versiondata(self, projectname=None, version=None, perstage=False):
         if projectname is None:
-            projectname = self.name
+            projectname = self.projectname
             # XXX raise 404 if project does not exist?
         if version is None:
             version = self.version
@@ -121,7 +121,7 @@ class RootFactory(object):
 
     def list_versions(self, projectname=None):
         if projectname is None:
-            projectname = self.name
+            projectname = self.projectname
         try:
             res = self.stage.list_versions(projectname)
         except UpstreamError as e:
@@ -135,15 +135,15 @@ class RootFactory(object):
         return self.matchdict.get('index')
 
     @reify
-    def name(self):
+    def projectname(self):
         name = self.matchdict.get('name')
         if name is None:
             return
         return normalize_name(name)
 
     @reify
-    def verified_name(self):
-        name = self.name
+    def verified_projectname(self):
+        name = self.projectname
         try:
             if not self.stage.has_project(name):
                 abort(self.request, 404, "The project %s does not exist." %(name))

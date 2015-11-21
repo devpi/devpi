@@ -41,10 +41,10 @@ def navigation_version(context):
     version = context.version
     if version == 'latest':
         stage = context.model.getstage(context.username, context.index)
-        version = stage.get_latest_version(context.name)
+        version = stage.get_latest_version(context.projectname)
     elif version == 'stable':
         stage = context.model.getstage(context.username, context.index)
-        version = stage.get_latest_version(context.name, stable=True)
+        version = stage.get_latest_version(context.projectname, stable=True)
     return version
 
 
@@ -66,7 +66,7 @@ def navigation_info(request):
     else:
         return result
     if 'name' in context.matchdict:
-        name = context.name
+        name = context.projectname
         path.append(dict(
             url=request.route_url(
                 "/{user}/{index}/{name}", user=user, index=index, name=name),

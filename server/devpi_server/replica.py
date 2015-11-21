@@ -279,13 +279,12 @@ class PypiProjectChanged:
         cache = ev.value
 
         # get the normalized projectname (PYPILINKS uses it)
-        nname = ev.typedkey.params["name"]
-        if not nname:
-            threadlog.error("project %r missing", nname)
+        projectname = ev.typedkey.params["projectname"]
+        if not projectname:
+            threadlog.error("project %r missing", projectname)
             return
-        assert normalize_name(nname) == nname
+        assert normalize_name(projectname) == projectname
 
-        projectname = ev.value["projectname"] if cache else nname
         if cache is None:  # deleted
             pypimirror.set_project_serial(projectname, None)
         else:

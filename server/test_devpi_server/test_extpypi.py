@@ -443,7 +443,7 @@ class TestExtPYPIDB:
         links = pypistage.get_releaselinks("pytest")
         assert len(links) == 1
         # update the links just as the PyPIMirror thread would
-        with pypistage.keyfs.PYPILINKS(name="pytest").update() as cache:
+        with pypistage.keyfs.PYPILINKS(projectname="pytest").update() as cache:
             cache["latest_serial"] = 11
         # make pypi.python.org unreachable
         pypistage.mock_simple("pytest", status_code=-1)
