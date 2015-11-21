@@ -109,29 +109,25 @@ def test_pypi_project_changed(replica_xom, normname, realname):
         value = dict(projectname=realname, serial=12)
         typedkey = replica_xom.keyfs.get_key("PYPILINKS")(name=normname)
     handler(Ev())
-    assert replica_xom.pypimirror.name2serials[realname] == 12
-    if normname != realname:
-        assert replica_xom.pypimirror.normname2name[normname] == realname
+    assert replica_xom.pypimirror.name2serials[normname] == 12
 
     class Ev2:
         value = dict(projectname=realname, serial=15)
         typedkey = replica_xom.keyfs.get_key("PYPILINKS")(name=normname)
     handler(Ev2())
-    assert replica_xom.pypimirror.name2serials[realname] == 15
+    assert replica_xom.pypimirror.name2serials[normname] == 15
 
     class Ev3:
         value = dict(projectname=realname, serial=12)
         typedkey = replica_xom.keyfs.get_key("PYPILINKS")(name=normname)
     handler(Ev3())
-    assert replica_xom.pypimirror.name2serials[realname] == 15
+    assert replica_xom.pypimirror.name2serials[normname] == 15
 
     class Ev4:
         typedkey = replica_xom.keyfs.get_key("PYPILINKS")(name=normname)
         value = None
     handler(Ev4())
     assert realname not in replica_xom.pypimirror.name2serials
-    if normname != realname:
-        assert normname not in replica_xom.pypimirror.normname2name
 
 
 class TestReplicaThread:

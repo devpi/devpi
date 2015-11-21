@@ -7,7 +7,6 @@ toxresult storage.
 
 from __future__ import unicode_literals
 
-import py
 import time
 
 from devpi_common.vendor._pip import HTMLPage
@@ -366,23 +365,9 @@ class PyPIMirror:
         self.path_name2serials = str(
             keyfs.basedir.join(PyPIStage.name, ".name2serials"))
 
-    def get_registered_name(self, name):
-        norm_name = normalize_name(name)
-        name = self.normname2name.get(norm_name, norm_name)
-        if name in self.name2serials:
-            return name
-
     def init_pypi_mirror(self, proxy):
         """ initialize pypi mirror if no mirror state exists. """
         self.name2serials = self.load_name2serials(proxy)
-        # create a mapping of normalized name to real name
-        self.normname2name = d = dict()
-        for name in self.name2serials:
-            norm = normalize_name(name)
-            assert py.builtin._istext(norm)
-            assert py.builtin._istext(name)
-            if norm != name:
-                d[norm] = name
 
     def load_name2serials(self, proxy):
         name2serials = load_from_file(self.path_name2serials, {})
@@ -410,32 +395,18 @@ class PyPIMirror:
     def get_project_serial(self, projectname):
         """ get serial for project.
 
-        Will use the normalization table to look up the correct name.
         Returns -1 if the project isn't known.
         """
-        name = self.get_registered_name(projectname)
+        name = normalize_name(projectname)
         return self.name2serials.get(name, -1)
 
-    def set_project_serial(self, name, serial):
-        """ set the current serial and update projectname normalization table.
-
-        Usually ``name`` is a "realname" not a normalized name.
-        But you can pass in a normalized name if the project
-        is already known in which case we derive the real name
-        automatically.
-        """
-        n = normalize_name(name)
-        if n in self.normname2name:
-            name = self.normname2name[n]
-
+    def set_project_serial(self, name_input, serial):
+        """ set the current serial. """
+        name = normalize_name(name_input)
         if serial is None:
             del self.name2serials[name]
-            self.normname2name.pop(n, None)
         else:
             self.name2serials[name] = serial
-            if n != name:
-                self.normname2name[n] = name
-        return n
 
 
 PYPIURL_SIMPLE = "https://pypi.python.org/simple/"

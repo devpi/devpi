@@ -276,7 +276,6 @@ class PypiProjectChanged:
     def __call__(self, ev):
         threadlog.info("PypiProjectChanged %s", ev.typedkey)
         pypimirror = self.xom.pypimirror
-        name2serials = pypimirror.name2serials
         cache = ev.value
 
         # get the normalized projectname (PYPILINKS uses it)
@@ -290,7 +289,7 @@ class PypiProjectChanged:
         if cache is None:  # deleted
             pypimirror.set_project_serial(projectname, None)
         else:
-            cur_serial = name2serials.get(projectname, -1)
+            cur_serial = pypimirror.get_project_serial(projectname)
             if cache and cache["serial"] > cur_serial:
                 pypimirror.set_project_serial(projectname, cache["serial"])
 
