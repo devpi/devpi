@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 from chameleon.config import AUTO_RELOAD
 from devpi_common.metadata import get_latest_version
+from devpi_common.validation import normalize_name
 from devpi_web import hookspecs
 from devpi_web.description import render_description
 from devpi_web.doczip import unpack_docs
@@ -259,9 +260,10 @@ def delete_project(stage, name):
     ix.delete_projects([preprocess_project(stage, name)])
 
 
-def index_project(stage, name):
+def index_project(stage, name_input):
     if stage is None:
         return
+    name = normalize_name(name_input)
     ix = get_indexer(stage.xom.config)
     ix.update_projects([preprocess_project(stage, name)])
 
@@ -281,7 +283,7 @@ def devpiserver_on_changed_versiondata(stage, projectname, version, metadata):
         # TODO we don't have enough info to delete the project
         return
     if not metadata:
-        if stage.get_projectname(projectname) is None:
+        if not stage.has_project_perstage(projectname):
             delete_project(stage, projectname)
             return
         versions = stage.list_versions(projectname)

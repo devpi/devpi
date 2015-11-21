@@ -63,7 +63,7 @@ def get_doc_info(context, request):
     relpath = request.matchdict['relpath']
     if not relpath:
         raise HTTPFound(location="index.html")
-    name = context.projectname
+    name = context.name
     version = context.version
     if version == 'latest':
         versions = context.versions
@@ -105,7 +105,7 @@ def doc_show(context, request):
     """ Shows the documentation wrapped in an iframe """
     context = ContextWrapper(context)
     stage = context.stage
-    name, version = context.projectname, context.version
+    name, version = context.name, context.version
     doc_info = get_doc_info(context, request)
     return dict(
         title="%s-%s Documentation" % (name, version),
@@ -405,7 +405,7 @@ def index_get(context, request):
 def project_get(context, request):
     context = ContextWrapper(context)
     try:
-        releaselinks = context.stage.get_releaselinks(context.projectname)
+        releaselinks = context.stage.get_releaselinks(context.verified_name)
     except context.stage.UpstreamError as e:
         log.error(e.msg)
         raise HTTPBadGateway(e.msg)
@@ -447,7 +447,7 @@ def version_get(context, request):
     """ Show version for the precise stage, ignores inheritance. """
     context = ContextWrapper(context)
     user, index = context.username, context.index
-    name, version = context.name, context.version
+    name, version = context.verified_name, context.version
     stage = context.stage
     try:
         verdata = context.get_versiondata(perstage=True)

@@ -370,8 +370,8 @@ class PyPIView:
             threadlog.error(e.msg)
             abort(request, 502, e.msg)
 
-        if not result and not stage.has_project(projectname):
-            abort(request, 404, "project not found")
+        if not result:
+            self.request.context.verified_name  # access will trigger 404 if not found
 
         if requested_by_pip:
             # we don't need the extra stuff on the simple page for pip

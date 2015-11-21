@@ -139,7 +139,17 @@ class RootFactory(object):
         name = self.matchdict.get('name')
         if name is None:
             return
-        n_name = normalize_name(name)
+        return normalize_name(name)
+
+    @reify
+    def verified_name(self):
+        name = self.name
+        try:
+            if not self.stage.has_project(name):
+                abort(self.request, 404, "The project %s does not exist." %(name))
+        except UpstreamError as e:
+            abort(self.request, 502, str(e))
+        return name
         # XXX not clear if we want to redirect, certainly breaks some tests
         #if n_name != name and self.request.method == 'GET':
         #    new_matchdict = dict(self.request.matchdict)
@@ -147,7 +157,7 @@ class RootFactory(object):
         #    route_name = self.request.matched_route.name
         #    url = self.request.route_url(route_name, **new_matchdict)
         #    redirect(url)
-        return n_name
+        #return n_name
 
     @reify
     def version(self):

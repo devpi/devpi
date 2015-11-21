@@ -153,13 +153,11 @@ def test_project_projectname_redirect(mapp, testapp):
         "name": "pkg_hello", "version": "1.0"})
     mapp.upload_file_pypi(
         "pkg-hello-1.0.zip", b"123", "pkg-hello", "1.0")
-    r = testapp.xget(302, api.index + '/pkg-hello', headers=dict(accept="text/html"))
-    assert r.location == '%s/pkg_hello' % api.index
-    r = testapp.xget(200, r.location, headers=dict(accept="text/html"))
+    r = testapp.xget(200, api.index + '/pkg_hello', headers=dict(accept="text/html"))
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
         (api.stagename, "http://localhost/%s" % api.stagename),
-        ("1.0", "http://localhost/%s/pkg_hello/1.0" % api.stagename)]
+        ("1.0", "http://localhost/%s/pkg-hello/1.0" % api.stagename)]
 
 
 def test_project_not_found(mapp, testapp):
@@ -288,9 +286,7 @@ def test_version_projectname_redirect(mapp, testapp):
     mapp.upload_file_pypi(
         "pkg-hello-1.0.whl", b"123", "pkg-hello", "1.0",
         register=False, waithooks=True)
-    r = testapp.xget(302, api.index + '/pkg-hello/1.0', headers=dict(accept="text/html"))
-    assert r.location == '%s/pkg_hello/1.0' % api.index
-    r = testapp.xget(200, r.location, headers=dict(accept="text/html"))
+    r = testapp.xget(200, api.index + "/pkg-hello/1.0", headers=dict(accept="text/html"))
     description, = r.html.select('#description')
     assert '<p>foo</p>' == py.builtin._totext(description.renderContents().strip(), 'utf-8')
 

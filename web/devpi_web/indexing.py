@@ -67,6 +67,6 @@ def iter_projects(xom):
                 if current_time - timestamp > 3:
                     log.debug("currently search-indexed %s", count)
                     timestamp = current_time
-                if stage.get_projectname(name) is None:
+                if not stage.has_project(name):
                     continue
                 yield preprocess_project(stage, name)
