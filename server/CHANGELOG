@@ -4,6 +4,10 @@
 - speed up simple-page serving for private indexes.  a private index 
   with 200 release files should now be some 5 times faster.
 
+- internally use normalized project names everywhere, simplifying
+  code and slightly speeding up some operations.
+
+
 2.5.2 (2015-11-20)
 ------------------
 
