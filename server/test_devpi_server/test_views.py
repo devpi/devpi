@@ -191,7 +191,6 @@ def test_simple_refresh(mapp, model, pypistage, testapp):
     with model.keyfs.transaction(write=False):
         info = pypistage._load_project_cache("hello")
     assert info != {}
-    assert info['projectname'] == 'hello'
     r = testapp.post("/root/pypi/+simple/hello/refresh")
     assert r.status_code == 302
     assert r.location.endswith("/root/pypi/+simple/hello")
@@ -227,7 +226,6 @@ def test_simple_refresh_inherited(mapp, model, pypistage, testapp, projectname,
     with model.keyfs.transaction(write=False):
         info = pypistage._load_project_cache(projectname)
     assert info != {}
-    assert info['projectname'] == projectname
     pypistage.mock_simple(projectname, '<a href="/%s-2.0.zip" />' % projectname,
                           serial=200)
     r = testapp.post("/%s/+simple/%s/refresh" % (stagename, projectname))
@@ -235,7 +233,6 @@ def test_simple_refresh_inherited(mapp, model, pypistage, testapp, projectname,
     assert r.location.endswith("/%s/+simple/%s" % (stagename, projectname))
     with model.keyfs.transaction(write=False):
         info = pypistage._load_project_cache(projectname)
-    assert info["projectname"] == projectname
     elist = info["dumplist"]
     assert len(elist) == 1
     assert elist[0][0].endswith("-2.0.zip")

@@ -179,9 +179,7 @@ class PyPIStage(BaseStage):
         else:
             dumplist = entries
 
-        data = {"serial": serial,
-                "dumplist": dumplist,
-                "projectname": projectname}
+        data = {"serial": serial, "dumplist": dumplist}
         self.xom.set_updated_at(self.name, projectname, time.time())
         old = self.keyfs.PYPILINKS(name=projectname).get()
         if old != data:
