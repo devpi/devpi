@@ -318,13 +318,14 @@ def add_pypistage_mocks(monkeypatch, httpget, proxymock):
     # add some mocking helpers
     PyPIStage.url2response = httpget.url2response
     def mock_simple(self, name, text=None, pypiserial=10000, **kw):
-        call = lambda: \
-                 self.pypimirror.set_project_serial(name, pypiserial)
-        if not hasattr(self.keyfs, "tx"):
-            with self.keyfs.transaction(write=True):
+        if pypiserial is not None:
+            call = lambda: \
+                     self.pypimirror.set_project_serial(name, pypiserial)
+            if not hasattr(self.keyfs, "tx"):
+                with self.keyfs.transaction(write=True):
+                    call()
+            else:
                 call()
-        else:
-            call()
         return self.httpget.mock_simple(name,
                 text=text, pypiserial=pypiserial, **kw)
     monkeypatch.setattr(PyPIStage, "mock_simple", mock_simple, raising=False)
