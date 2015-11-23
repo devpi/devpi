@@ -253,7 +253,15 @@ class PyPIStage(BaseStage):
             raise self.UpstreamError("%s status on GET %s" %
                                      (response.status_code, url))
 
-        serial = int(response.headers[str("X-PYPI-LAST-SERIAL")])
+        # pypi.python.org provides X-PYPI-LAST-SERIAL header in case of 200 returns.
+        # devpi-master may provide a 200 but not supply the header
+        # (it's really a 404 in disguise and we should change
+        # devpi-server behaviour since pypi.python.org serves 404
+        # on non-existing projects for a longer time now).
+        # Returning a 200 with "no such project" was originally meant to
+        # provide earlier versions of easy_install/pip to request the full
+        # simple page.
+        serial = int(response.headers.get(str("X-PYPI-LAST-SERIAL"), "-1"))
 
         if not self.xom.is_replica():  # we are a master
             # check that we got a fresh enough page
