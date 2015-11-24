@@ -367,11 +367,11 @@ class BaseStage:
                         for v in sorted(map(SimplelinkMeta, all_links), reverse=True)]
         return all_links
 
-    def get_pypi_whitelist_info(self, name):
-        name = ensure_unicode(name)
+    def get_pypi_whitelist_info(self, project):
+        project = ensure_unicode(project)
         private_hit = whitelisted = False
         for stage in self._sro():
-            in_index = stage.has_project_perstage(name)
+            in_index = stage.has_project_perstage(project)
             if stage.ixconfig["type"] == "mirror":
                 has_pypi_base = in_index and (not private_hit or whitelisted)
                 blocked_by_pypi_whitelist = in_index and private_hit and not whitelisted
@@ -380,16 +380,16 @@ class BaseStage:
                     blocked_by_pypi_whitelist=stage.name if blocked_by_pypi_whitelist else None)
             private_hit = private_hit or in_index
             whitelist = set(stage.ixconfig["pypi_whitelist"])
-            whitelisted = whitelisted or '*' in whitelist or name in whitelist
+            whitelisted = whitelisted or '*' in whitelist or project in whitelist
         return dict(
             has_pypi_base=False,
             blocked_by_pypi_whitelist=None)
 
-    def has_pypi_base(self, name):
-        return self.get_pypi_whitelist_info(name)['has_pypi_base']
+    def has_pypi_base(self, project):
+        return self.get_pypi_whitelist_info(project)['has_pypi_base']
 
-    def has_project(self, name):
-        for stage, res in self.op_sro("has_project_perstage", name=name):
+    def has_project(self, project):
+        for stage, res in self.op_sro("has_project_perstage", project=project):
             if res:
                 return True
         return False
@@ -597,8 +597,8 @@ class PrivateStage(BaseStage):
     def list_projects_perstage(self):
         return self.key_projects.get()
 
-    def has_project_perstage(self, name):
-        return normalize_name(name) in self.list_projects_perstage()
+    def has_project_perstage(self, project):
+        return normalize_name(project) in self.list_projects_perstage()
 
     def store_releasefile(self, project, version, filename, content,
                           last_modified=None):

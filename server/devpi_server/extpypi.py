@@ -337,8 +337,8 @@ class PyPIStage(BaseStage):
             self.keyfs.restart_as_write_transaction()
             return map_and_dump()
 
-    def has_project_perstage(self, name):
-        links = self.get_simplelinks_perstage(name)
+    def has_project_perstage(self, project):
+        links = self.get_simplelinks_perstage(project)
         if links == ():  # marker for non-existing project, see get_simplelinks_perstage
             return False
         return True
