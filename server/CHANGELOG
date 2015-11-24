@@ -7,6 +7,10 @@
 - internally use normalized project names everywhere, simplifying
   code and slightly speeding up some operations.
 
+- change {name} in route_urls to {project} to disambiguate.
+  This is potentially incompatible for plugins which have registered
+  on existing route_urls.
+
 2.5.3 (2015-11-23)
 ------------------
 
