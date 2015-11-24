@@ -1,2 +1,0 @@
-
-XXX PyPIStage.has_projectname_perstage() should return True on registered projects with no links.
