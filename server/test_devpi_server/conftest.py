@@ -714,7 +714,12 @@ class MyTestApp(TApp):
         if accept is not None:
             headers = kwargs.setdefault("headers", {})
             headers[str("Accept")] = str(accept)
-        return self._gen_request("GET", *args, **kwargs)
+        follow = kwargs.pop("follow", True)
+        response = self._gen_request("GET", *args, **kwargs)
+        if follow and response.status_code == 302:
+            assert response.location != args[0]
+            return self.get(response.location, *args[1:], **kwargs)
+        return response
 
     def xget(self, code, *args, **kwargs):
         r = self.get(*args, **kwargs)
@@ -732,7 +737,7 @@ class MyTestApp(TApp):
         headers = kwargs.setdefault("headers", {})
         headers["Accept"] = "application/json"
         self.x = 1
-        return super(MyTestApp, self).get(*args, **kwargs)
+        return self.get(*args, **kwargs)
 
 
 

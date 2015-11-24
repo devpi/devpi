@@ -118,11 +118,11 @@ def test_project_redirect(pypistage, testapp, user_agent):
     name = "qpwoei"
     headers = {'User-Agent': str(user_agent), "Accept": str("text/html")}
 
-    r = testapp.get("/root/pypi/%s" % name, headers=headers)
+    r = testapp.get("/root/pypi/%s" % name, headers=headers, follow=False)
     assert r.status_code == 302
     assert r.headers["location"].endswith("/root/pypi/+simple/%s" % name)
     # trailing slash will redirect to non trailing slash first
-    r = testapp.get("/root/pypi/%s/" % name, headers=headers)
+    r = testapp.get("/root/pypi/%s/" % name, headers=headers, follow=False)
     assert r.status_code == 302
     assert r.headers["location"].endswith("/root/pypi/+simple/%s" % name)
 
@@ -610,13 +610,14 @@ class TestSubmitValidation:
         r = testapp.delete(submit.api.index + "/pkg-hello")
         assert r.status_code == 200
 
-    def test_upload_and_simple_index(self, submit, testapp):
+    def test_upload_and_simple_index_with_redirect(self, submit, testapp):
         metadata = {"name": "Pkg5", "version": "2.6", ":action": "submit"}
         submit.metadata(metadata, code=200)
         submit.file("pkg5-2.6.tgz", b"123", {"name": "Pkg5"}, code=200)
-        r = testapp.get("/%s/+simple/Pkg5" % submit.stagename)
-        assert r.status_code == 200  # XXX do we want a redirect?
-        r = testapp.get("/%s/+simple/pkg5" % submit.stagename)
+        r = testapp.get("/%s/+simple/Pkg5" % submit.stagename, follow=False)
+        assert r.status_code == 302
+        assert r.location.endswith("pkg5")
+        r = testapp.get(r.location)
         assert r.status_code == 200
 
     def test_upload_and_delete_index(self, submit, testapp, mapp):

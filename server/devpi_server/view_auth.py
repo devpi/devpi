@@ -1,3 +1,4 @@
+from pyramid.httpexceptions import HTTPFound
 from devpi_common.types import ensure_unicode
 from devpi_common.validation import normalize_name
 from devpi_server.auth import Auth
@@ -136,10 +137,19 @@ class RootFactory(object):
 
     @reify
     def projectname(self):
-        name = self.matchdict.get('name')
-        if name is None:
+        projectname = self.matchdict.get('name')
+        if projectname is None:
             return
-        return normalize_name(name)
+
+        # redirect GETs to non-normalized projectnames
+        n_projectname = normalize_name(projectname)
+        if n_projectname != projectname and self.request.method == 'GET':
+            new_matchdict = dict(self.request.matchdict)
+            new_matchdict['name'] = n_projectname
+            route_name = self.request.matched_route.name
+            url = self.request.route_url(route_name, **new_matchdict)
+            raise HTTPFound(location=url)
+        return n_projectname
 
     @reify
     def verified_projectname(self):
@@ -150,14 +160,6 @@ class RootFactory(object):
         except UpstreamError as e:
             abort(self.request, 502, str(e))
         return name
-        # XXX not clear if we want to redirect, certainly breaks some tests
-        #if n_name != name and self.request.method == 'GET':
-        #    new_matchdict = dict(self.request.matchdict)
-        #    new_matchdict['name'] = name
-        #    route_name = self.request.matched_route.name
-        #    url = self.request.route_url(route_name, **new_matchdict)
-        #    redirect(url)
-        #return n_name
 
     @reify
     def version(self):
