@@ -543,34 +543,34 @@ class PrivateStage(BaseStage):
             projectnames.add(projectname)
             self.key_projectnames.set(projectnames)
 
-    def del_project(self, name_input):
-        name = normalize_name(name_input)
-        for version in list(self.key_projversions(name).get()):
-            self.del_versiondata(name, version, cleanup=False)
-        self._regen_simplelinks(name)
+    def del_project(self, projectname):
+        projectname = normalize_name(projectname)
+        for version in list(self.key_projversions(projectname).get()):
+            self.del_versiondata(projectname, version, cleanup=False)
+        self._regen_simplelinks(projectname)
         with self.key_projectnames.update() as projectnames:
-            projectnames.remove(name)
-        threadlog.info("deleting project %s", name)
-        self.key_projversions(name).delete()
+            projectnames.remove(projectname)
+        threadlog.info("deleting project %s", projectname)
+        self.key_projversions(projectname).delete()
 
-    def del_versiondata(self, name_input, version, cleanup=True):
-        name = normalize_name(name_input)
-        if not self.has_project_perstage(name):
+    def del_versiondata(self, projectname, version, cleanup=True):
+        projectname = normalize_name(projectname)
+        if not self.has_project_perstage(projectname):
             raise self.NotFound("project %r not found on stage %r" %
-                                (name, self.name))
-        versions = self.key_projversions(name).get(readonly=False)
+                                (projectname, self.name))
+        versions = self.key_projversions(projectname).get(readonly=False)
         if version not in versions:
             raise self.NotFound("version %r of project %r not found on stage %r" %
-                                (version, name, self.name))
-        linkstore = self.get_linkstore_perstage(name, version, readonly=False)
+                                (version, projectname, self.name))
+        linkstore = self.get_linkstore_perstage(projectname, version, readonly=False)
         linkstore.remove_links()
         versions.remove(version)
-        self.key_projversion(name, version).delete()
-        self.key_projversions(name).set(versions)
+        self.key_projversion(projectname, version).delete()
+        self.key_projversions(projectname).set(versions)
         if cleanup:
             if not versions:
-                self.del_project(name)
-            self._regen_simplelinks(name)
+                self.del_project(projectname)
+            self._regen_simplelinks(projectname)
 
     def list_versions_perstage(self, projectname):
         return self.key_projversions(projectname).get()
@@ -600,36 +600,36 @@ class PrivateStage(BaseStage):
     def has_project_perstage(self, name):
         return normalize_name(name) in self.list_projectnames_perstage()
 
-    def store_releasefile(self, name_input, version, filename, content,
+    def store_releasefile(self, projectname, version, filename, content,
                           last_modified=None):
-        name = normalize_name(name_input)
+        projectname = normalize_name(projectname)
         filename = ensure_unicode(filename)
-        if not self.get_versiondata(name, version):
+        if not self.get_versiondata(projectname, version):
             # There's a chance the version was guessed from the
             # filename, which might have swapped dashes to underscores
             if '_' in version:
                 version = version.replace('_', '-')
-                if not self.get_versiondata(name, version):
-                    raise MissesRegistration("%s-%s", name, version)
+                if not self.get_versiondata(projectname, version):
+                    raise MissesRegistration("%s-%s", projectname, version)
             else:
-                raise MissesRegistration("%s-%s", name, version)
-        linkstore = self.get_linkstore_perstage(name, version, readonly=False)
+                raise MissesRegistration("%s-%s", projectname, version)
+        linkstore = self.get_linkstore_perstage(projectname, version, readonly=False)
         link = linkstore.create_linked_entry(
                 rel="releasefile",
                 basename=filename,
                 file_content=content,
                 last_modified=last_modified)
-        self._regen_simplelinks(name)
+        self._regen_simplelinks(projectname)
         return link
 
-    def store_doczip(self, name_input, version, content):
-        name = normalize_name(name_input)
+    def store_doczip(self, projectname, version, content):
+        projectname = normalize_name(projectname)
         if not version:
-            version = self.get_latest_version_perstage(name)
+            version = self.get_latest_version_perstage(projectname)
             threadlog.info("store_doczip: derived version of %s is %s",
-                           name, version)
-        basename = "%s-%s.doc.zip" % (name, version)
-        linkstore = self.get_linkstore_perstage(name, version, readonly=False)
+                           projectname, version)
+        basename = "%s-%s.doc.zip" % (projectname, version)
+        linkstore = self.get_linkstore_perstage(projectname, version, readonly=False)
         link = linkstore.create_linked_entry(
                 rel="doczip",
                 basename=basename,
@@ -637,20 +637,20 @@ class PrivateStage(BaseStage):
         )
         return link
 
-    def get_doczip_entry(self, name, version):
+    def get_doczip_entry(self, projectname, version):
         """ get entry of documentation zip or None if no docs exists. """
-        linkstore = self.get_linkstore_perstage(name, version)
+        linkstore = self.get_linkstore_perstage(projectname, version)
         links = linkstore.get_links(rel="doczip")
         if links:
             if len(links) > 1:
                 threadlog.warn("Multiple documentation files for %s-%s, returning newest",
-                               name, version)
+                               projectname, version)
             link = links[-1]
             return link.entry
 
-    def get_doczip(self, name, version):
+    def get_doczip(self, projectname, version):
         """ get documentation zip content or None if no docs exists. """
-        entry = self.get_doczip_entry(name, version)
+        entry = self.get_doczip_entry(projectname, version)
         if entry is not None:
             return entry.file_get_content()
 
