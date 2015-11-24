@@ -56,10 +56,10 @@ def iter_projects(xom):
         user_info = user.get(user)
         for index, index_info in user_info.get('indexes', {}).items():
             index = ensure_unicode(index)
-            stage = xom.model.getstage('%s/%s' % (username, index))
+            stage = xom.model.getstage(username, index)
             if stage is None:  # this is async, so the stage may be gone
                 continue
-            log.info("Search-Indexing %s/%s:" % (username, index))
+            log.info("Search-Indexing %s:", stage.name)
             names = stage.list_projects_perstage()
             for count, name in enumerate(names, start=1):
                 name = ensure_unicode(name)
@@ -67,6 +67,4 @@ def iter_projects(xom):
                 if current_time - timestamp > 3:
                     log.debug("currently search-indexed %s", count)
                     timestamp = current_time
-                if not stage.has_project(name):
-                    continue
                 yield preprocess_project(stage, name)
