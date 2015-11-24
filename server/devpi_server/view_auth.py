@@ -137,7 +137,7 @@ class RootFactory(object):
 
     @reify
     def projectname(self):
-        projectname = self.matchdict.get('name')
+        projectname = self.matchdict.get('project')
         if projectname is None:
             return
 
@@ -145,7 +145,7 @@ class RootFactory(object):
         n_projectname = normalize_name(projectname)
         if n_projectname != projectname and self.request.method == 'GET':
             new_matchdict = dict(self.request.matchdict)
-            new_matchdict['name'] = n_projectname
+            new_matchdict['project'] = n_projectname
             route_name = self.request.matched_route.name
             url = self.request.route_url(route_name, **new_matchdict)
             raise HTTPFound(location=url)

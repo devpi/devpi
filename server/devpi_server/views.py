@@ -356,10 +356,10 @@ class PyPIView:
     # index serving and upload
     #
 
-    @view_config(route_name="/{user}/{index}/+simple/{name}")
+    @view_config(route_name="/{user}/{index}/+simple/{project}")
     def simple_list_project(self):
         request = self.request
-        abort_if_invalid_projectname(request, request.matchdict["name"])
+        abort_if_invalid_projectname(request, request.matchdict["project"])
         projectname = self.context.projectname
         # we only serve absolute links so we don't care about the route's slash
         stage = self.context.stage
@@ -416,11 +416,11 @@ class PyPIView:
 
         yield "</body></html>".encode("utf-8")
 
-    def _index_refresh_form(self, stage, name):
+    def _index_refresh_form(self, stage, projectname):
         url = self.request.route_url(
-            "/{user}/{index}/+simple/{name}/refresh",
+            "/{user}/{index}/+simple/{project}/refresh",
             user=self.context.username, index=self.context.index,
-            name=name)
+            project=projectname)
         title = "Refresh" if stage.ixconfig["type"] == "mirror" else "Refresh PyPI links"
         submit = '<input name="refresh" type="submit" value="%s"/>' % title
         return '<form action="%s" method="post">%s</form>' % (url, submit)
@@ -460,7 +460,7 @@ class PyPIView:
         yield "</body>".encode("utf-8")
 
     @view_config(
-        route_name="/{user}/{index}/+simple/{name}/refresh", request_method="POST")
+        route_name="/{user}/{index}/+simple/{project}/refresh", request_method="POST")
     def simple_refresh(self):
         context = self.context
         # XXX we might want to check if user/index has root/pypi as a base
@@ -469,8 +469,8 @@ class PyPIView:
         stage.clear_cache(context.projectname)
         stage.get_simplelinks_perstage(context.projectname)
         redirect(self.request.route_url(
-            "/{user}/{index}/+simple/{name}",
-            user=context.username, index=context.index, name=context.projectname))
+            "/{user}/{index}/+simple/{project}",
+            user=context.username, index=context.index, project=context.projectname))
 
     @view_config(
         route_name="/{user}/{index}", request_method="PUT")
@@ -778,7 +778,7 @@ class PyPIView:
         stage, name = self.context.stage, self.context.projectname
         redirect("/%s/+simple/%s" % (stage.name, name))
 
-    @view_config(route_name="/{user}/{index}/{name}",
+    @view_config(route_name="/{user}/{index}/{project}",
                  accept="application/json", request_method="GET")
     def project_get(self):
         if not json_preferred(self.request):
@@ -792,7 +792,7 @@ class PyPIView:
         apireturn(200, type="projectconfig", result=view_metadata)
 
     @view_config(
-        route_name="/{user}/{index}/{name}", request_method="DELETE",
+        route_name="/{user}/{index}/{project}", request_method="DELETE",
         permission="del_project")
     def del_project(self):
         stage = self.context.stage
@@ -806,10 +806,10 @@ class PyPIView:
             stage.del_project(projectname)
         except KeyError:
             apireturn(404, "project not found")
-        apireturn(200, "project {name} deleted from stage {sname}".format(
-                  name=projectname, sname=stage.name))
+        apireturn(200, "project {project} deleted from stage {sname}".format(
+                  project=projectname, sname=stage.name))
 
-    @view_config(route_name="/{user}/{index}/{name}/{version}", accept="application/json", request_method="GET")
+    @view_config(route_name="/{user}/{index}/{project}/{version}", accept="application/json", request_method="GET")
     def version_get(self):
         verdata = self.context.get_versiondata(perstage=False)
         view_verdata = self._make_view_verdata(verdata)
@@ -836,7 +836,7 @@ class PyPIView:
                     [self._make_view_verdata(x) for x in shadowing]
         return view_verdata
 
-    @view_config(route_name="/{user}/{index}/{name}/{version}",
+    @view_config(route_name="/{user}/{index}/{project}/{version}",
                  permission="del_verdata",
                  request_method="DELETE")
     def del_versiondata(self):

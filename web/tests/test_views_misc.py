@@ -54,11 +54,9 @@ def test_sizeof_fmt(input, expected):
     ('', ''),
     ('http://localhost/devpi', '/devpi')])
 def test_not_found_redirect(testapp, outside_url, subpath):
-    r = testapp.get(
-        '/root/pypi/?foo=bar', headers={
-            'accept': "text/html",
-            'X-outside-url': outside_url})
-    assert r.status_code == 302
+    r = testapp.xget(302, '/root/pypi/?foo=bar', headers={
+                     'accept': "text/html",
+                     'X-outside-url': outside_url})
     assert r.location == 'http://localhost%s/root/pypi?foo=bar' % subpath
 
 

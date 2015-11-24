@@ -111,13 +111,13 @@ def doc_show(context, request):
         title="%s-%s Documentation" % (name, version),
         base_url=request.route_url(
             "docroot", user=stage.user.name, index=stage.index,
-            name=name, version=version, relpath=''),
+            project=name, version=version, relpath=''),
         baseview_url=request.route_url(
             "docviewroot", user=stage.user.name, index=stage.index,
-            name=name, version=version, relpath=''),
+            project=name, version=version, relpath=''),
         url=request.route_url(
             "docroot", user=stage.user.name, index=stage.index,
-            name=name, version=version, relpath=doc_info['relpath']),
+            project=name, version=version, relpath=doc_info['relpath']),
         version_mismatch=doc_info['version_mismatch'],
         doc_version=doc_info['doc_version'])
 
@@ -295,7 +295,7 @@ def get_docs_info(request, stage, metadata):
             title="%s-%s" % (name, ver),
             url=request.route_url(
                 "docviewroot", user=stage.user.name, index=stage.index,
-                name=name, version=ver, relpath="index.html"))
+                project=name, version=ver, relpath="index.html"))
 
 
 @view_config(
@@ -384,13 +384,13 @@ def index_get(context, request):
             info=dict(
                 title="%s-%s" % (name, ver),
                 url=request.route_url(
-                    "/{user}/{index}/{name}/{version}",
+                    "/{user}/{index}/{project}/{version}",
                     user=stage.user.name, index=stage.index,
-                    name=name, version=ver)),
+                    project=name, version=ver)),
             make_toxresults_url=functools.partial(
                 request.route_url, "toxresults",
                 user=stage.user.name, index=stage.index,
-                name=name, version=ver),
+                project=name, version=ver),
             files=get_files_info(request, linkstore, show_toxresults),
             docs=get_docs_info(request, stage, verdata)))
     packages.sort(key=lambda x: x["info"]["title"])
@@ -399,7 +399,7 @@ def index_get(context, request):
 
 
 @view_config(
-    route_name="/{user}/{index}/{name}",
+    route_name="/{user}/{index}/{project}",
     accept="text/html", request_method="GET",
     renderer="templates/project.pt")
 def project_get(context, request):
@@ -424,8 +424,8 @@ def project_get(context, request):
             index_url=request.stage_url(user, index),
             title=version,
             url=request.route_url(
-                "/{user}/{index}/{name}/{version}",
-                user=user, index=index, name=name, version=version)))
+                "/{user}/{index}/{project}/{version}",
+                user=user, index=index, project=name, version=version)))
         seen.add(seen_key)
     if hasattr(context.stage, 'get_pypi_whitelist_info'):
         whitelist_info = context.stage.get_pypi_whitelist_info(context.projectname)
@@ -440,7 +440,7 @@ def project_get(context, request):
 
 
 @view_config(
-    route_name="/{user}/{index}/{name}/{version}",
+    route_name="/{user}/{index}/{project}/{version}",
     accept="text/html", request_method="GET",
     renderer="templates/version.pt")
 def version_get(context, request):
@@ -486,8 +486,8 @@ def version_get(context, request):
     nav_links.append(dict(
         title="Simple index",
         url=request.route_url(
-            "/{user}/{index}/+simple/{name}",
-            user=context.username, index=context.index, name=context.projectname)))
+            "/{user}/{index}/+simple/{project}",
+            user=context.username, index=context.index, project=context.projectname)))
     if hasattr(stage, 'get_pypi_whitelist_info'):
         whitelist_info = stage.get_pypi_whitelist_info(name)
     else:
@@ -510,11 +510,11 @@ def version_get(context, request):
         make_toxresults_url=functools.partial(
             request.route_url, "toxresults",
             user=context.username, index=context.index,
-            name=context.projectname, version=context.version),
+            project=context.projectname, version=context.version),
         make_toxresult_url=functools.partial(
             request.route_url, "toxresult",
             user=context.username, index=context.index,
-            name=context.projectname, version=context.version))
+            project=context.projectname, version=context.version))
 
 
 @view_config(
@@ -534,7 +534,7 @@ def toxresults(context, request):
         make_toxresult_url=functools.partial(
             request.route_url, "toxresult",
             user=context.username, index=context.index,
-            name=context.projectname, version=context.version, basename=basename))
+            project=context.projectname, version=context.version, basename=basename))
 
 
 @view_config(
@@ -746,7 +746,7 @@ class SearchView:
                 if text_path:
                     sub_hit['url'] = self.request.route_url(
                         "docviewroot", user=data['user'], index=data['index'],
-                        name=data['name'], version=data['doc_version'],
+                        project=data['name'], version=data['doc_version'],
                         relpath="%s.html" % text_path)
             elif text_type in ('keywords', 'description', 'summary'):
                 metadata = self.get_versiondata(stage, data)
@@ -758,9 +758,9 @@ class SearchView:
                 highlight = search_index.highlight(text, sub_hit.get('words'))
                 if 'version' in data:
                     sub_hit['url'] = self.request.route_url(
-                        "/{user}/{index}/{name}/{version}",
+                        "/{user}/{index}/{project}/{version}",
                         user=data['user'], index=data['index'],
-                        name=data['name'], version=data['version'],
+                        project=data['name'], version=data['version'],
                         _anchor=text_type)
             else:
                 log.error("Unknown type %s" % text_type)
@@ -783,14 +783,14 @@ class SearchView:
                 continue
             if 'version' in data:
                 item['url'] = self.request.route_url(
-                    "/{user}/{index}/{name}/{version}",
+                    "/{user}/{index}/{project}/{version}",
                     user=data['user'], index=data['index'],
-                    name=data['name'], version=data['version'])
+                    project=data['name'], version=data['version'])
                 item['title'] = "%s-%s" % (data['name'], data['version'])
             else:
                 item['url'] = self.request.route_url(
-                    "/{user}/{index}/{name}",
-                    user=data['user'], index=data['index'], name=data['name'])
+                    "/{user}/{index}/{project}",
+                    user=data['user'], index=data['index'], project=data['name'])
                 item['title'] = data['name']
             item['sub_hits'] = self.process_sub_hits(
                 stage, item['sub_hits'], data)

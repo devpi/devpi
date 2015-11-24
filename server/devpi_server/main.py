@@ -322,15 +322,19 @@ class XOM:
         pyramid_config.add_route("/{user}/{index}/+e/{relpath:.*}", "/{user}/{index}/+e/{relpath:.*}")
         pyramid_config.add_route("/{user}/{index}/+f/{relpath:.*}", "/{user}/{index}/+f/{relpath:.*}")
         pyramid_config.add_route("/{user}/{index}/+simple/", "/{user}/{index}/+simple/")
-        pyramid_config.add_route("/{user}/{index}/+simple/{name}", "/{user}/{index}/+simple/{name:[^/]+/?}")
-        pyramid_config.add_route("/{user}/{index}/+simple/{name}/refresh", "/{user}/{index}/+simple/{name}/refresh")
-        pyramid_config.add_route("/{user}/{index}/{name}/{version}", "/{user}/{index}/{name}/{version:[^/]+/?}")
+        pyramid_config.add_route("/{user}/{index}/+simple/{project}",
+                                 "/{user}/{index}/+simple/{project:[^/]+/?}")
+        pyramid_config.add_route("/{user}/{index}/+simple/{project}/refresh",
+                                 "/{user}/{index}/+simple/{project}/refresh")
+        pyramid_config.add_route("/{user}/{index}/{project}/{version}",
+                                 "/{user}/{index}/{project}/{version:[^/]+/?}")
         pyramid_config.add_route(
-            "simple_redirect", "/{user}/{index}/{name:[^/]+/?}",
+            "simple_redirect", "/{user}/{index}/{project:[^/]+/?}",
             header="User-Agent:" + PIP_USER_AGENT,
             accept="text/html",
         )
-        pyramid_config.add_route("/{user}/{index}/{name}", "/{user}/{index}/{name:[^/]+/?}")
+        pyramid_config.add_route("/{user}/{index}/{project}",
+                                 "/{user}/{index}/{project:[^/]+/?}")
         pyramid_config.add_route("/{user}/{index}/", "/{user}/{index}/")
         pyramid_config.add_route("/{user}/{index}", "/{user}/{index}")
         pyramid_config.add_route("/{user}", "/{user}")

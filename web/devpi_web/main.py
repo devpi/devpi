@@ -65,11 +65,11 @@ def navigation_info(request):
             title="%s/%s" % (user, index)))
     else:
         return result
-    if 'name' in context.matchdict:
+    if 'project' in context.matchdict:
         name = context.projectname
         path.append(dict(
             url=request.route_url(
-                "/{user}/{index}/{name}", user=user, index=index, name=name),
+                "/{user}/{index}/{project}", user=user, index=index, project=name),
             title=name))
     else:
         return result
@@ -77,8 +77,8 @@ def navigation_info(request):
         version = navigation_version(context)
         path.append(dict(
             url=request.route_url(
-                "/{user}/{index}/{name}/{version}",
-                user=user, index=index, name=name, version=version),
+                "/{user}/{index}/{project}/{version}",
+                user=user, index=index, project=name, version=version),
             title=version))
     else:
         return result
@@ -156,16 +156,16 @@ def includeme(config):
     config.add_route('search_help', '/+searchhelp', accept='text/html')
     config.add_route(
         "docroot",
-        "/{user}/{index}/{name}/{version}/+doc/{relpath:.*}")
+        "/{user}/{index}/{project}/{version}/+doc/{relpath:.*}")
     config.add_route(
         "docviewroot",
-        "/{user}/{index}/{name}/{version}/+d/{relpath:.*}")
+        "/{user}/{index}/{project}/{version}/+d/{relpath:.*}")
     config.add_route(
         "toxresults",
-        "/{user}/{index}/{name}/{version}/+toxresults/{basename}")
+        "/{user}/{index}/{project}/{version}/+toxresults/{basename}")
     config.add_route(
         "toxresult",
-        "/{user}/{index}/{name}/{version}/+toxresults/{basename}/{toxresult}")
+        "/{user}/{index}/{project}/{version}/+toxresults/{basename}/{toxresult}")
     config.add_request_method(macros, reify=True)
     config.add_request_method(navigation_info, reify=True)
     config.add_request_method(status_info, reify=True)

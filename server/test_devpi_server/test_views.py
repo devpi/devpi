@@ -134,8 +134,8 @@ def test_simple_project_unicode_rejected(pypistage, testapp, dummyrequest):
     dummyrequest.log = pypistage.xom.log
     dummyrequest.context = RootFactory(dummyrequest)
     view = PyPIView(dummyrequest)
-    name = py.builtin._totext(b"qpw\xc3\xb6", "utf-8")
-    dummyrequest.matchdict.update(user="x", index="y", name=name)
+    projectname = py.builtin._totext(b"qpw\xc3\xb6", "utf-8")
+    dummyrequest.matchdict.update(user="x", index="y", project=projectname)
     with pytest.raises(HTTPClientError):
         view.simple_list_project()
 

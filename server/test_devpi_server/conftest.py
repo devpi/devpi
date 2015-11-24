@@ -722,6 +722,8 @@ class MyTestApp(TApp):
         return response
 
     def xget(self, code, *args, **kwargs):
+        if code == 302:
+            kwargs["follow"] = False
         r = self.get(*args, **kwargs)
         assert r.status_code == code
         return r
