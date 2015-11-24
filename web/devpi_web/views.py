@@ -39,31 +39,31 @@ class ContextWrapper(object):
 
     @reify
     def versions(self):
-        versions = self.stage.list_versions(self.projectname)
+        versions = self.stage.list_versions(self.project)
         if not versions:
-            raise HTTPNotFound("The project %s does not exist." % self.projectname)
+            raise HTTPNotFound("The project %s does not exist." % self.project)
         return get_sorted_versions(versions)
 
     @reify
     def stable_versions(self):
-        versions = self.stage.list_versions(self.projectname)
+        versions = self.stage.list_versions(self.project)
         if not versions:
-            raise HTTPNotFound("The project %s does not exist." % self.projectname)
+            raise HTTPNotFound("The project %s does not exist." % self.project)
         versions = get_sorted_versions(versions, stable=True)
         if not versions:
-            raise HTTPNotFound("The project %s has no stable release." % self.projectname)
+            raise HTTPNotFound("The project %s has no stable release." % self.project)
         return versions
 
     @reify
     def linkstore(self):
-        return self.stage.get_linkstore_perstage(self.projectname, self.version)
+        return self.stage.get_linkstore_perstage(self.project, self.version)
 
 
 def get_doc_info(context, request):
     relpath = request.matchdict['relpath']
     if not relpath:
         raise HTTPFound(location="index.html")
-    name = context.projectname
+    name = context.project
     version = context.version
     if version == 'latest':
         versions = context.versions
@@ -105,7 +105,7 @@ def doc_show(context, request):
     """ Shows the documentation wrapped in an iframe """
     context = ContextWrapper(context)
     stage = context.stage
-    name, version = context.projectname, context.version
+    name, version = context.project, context.version
     doc_info = get_doc_info(context, request)
     return dict(
         title="%s-%s Documentation" % (name, version),
@@ -218,7 +218,7 @@ def get_files_info(request, linkstore, show_toxresults=False):
     filedata = linkstore.get_links(rel='releasefile')
     if not filedata:
         log.warn("project %r version %r has no files",
-                 linkstore.projectname, linkstore.version)
+                 linkstore.project, linkstore.version)
     for link in sorted(filedata, key=attrgetter('basename')):
         url = url_for_entrypath(request, link.entrypath)
         entry = link.entry
@@ -369,14 +369,14 @@ def index_get(context, request):
                 special=special,
                 users=users))
 
-    for projectname in stage.list_projectnames_perstage():
-        version = stage.get_latest_version_perstage(projectname)
-        verdata = stage.get_versiondata_perstage(projectname, version)
+    for project in stage.list_projects_perstage():
+        version = stage.get_latest_version_perstage(project)
+        verdata = stage.get_versiondata_perstage(project, version)
         try:
             name, ver = verdata["name"], verdata["version"]
         except KeyError:
             log.error("metadata for project %r empty: %s, skipping",
-                      projectname, verdata)
+                      project, verdata)
             continue
         show_toxresults = not (stage.user.name == 'root' and stage.index == 'pypi')
         linkstore = stage.get_linkstore_perstage(name, ver)
@@ -405,7 +405,7 @@ def index_get(context, request):
 def project_get(context, request):
     context = ContextWrapper(context)
     try:
-        releaselinks = context.stage.get_releaselinks(context.verified_projectname)
+        releaselinks = context.stage.get_releaselinks(context.verified_project)
     except context.stage.UpstreamError as e:
         log.error(e.msg)
         raise HTTPBadGateway(e.msg)
@@ -413,7 +413,7 @@ def project_get(context, request):
     seen = set()
     for release in releaselinks:
         user, index = release.entrypath.split("/", 2)[:2]
-        name, version = release.projectname, release.version
+        name, version = release.project, release.version
         if not version or version == 'XXX':
             continue
         seen_key = (user, index, name, version)
@@ -428,13 +428,13 @@ def project_get(context, request):
                 user=user, index=index, project=name, version=version)))
         seen.add(seen_key)
     if hasattr(context.stage, 'get_pypi_whitelist_info'):
-        whitelist_info = context.stage.get_pypi_whitelist_info(context.projectname)
+        whitelist_info = context.stage.get_pypi_whitelist_info(context.project)
     else:
         whitelist_info = dict(
-            has_pypi_base=context.stage.has_pypi_base(context.projectname),
+            has_pypi_base=context.stage.has_pypi_base(context.project),
             blocked_by_pypi_whitelist=None)
     return dict(
-        title="%s/: %s versions" % (context.stage.name, context.projectname),
+        title="%s/: %s versions" % (context.stage.name, context.project),
         blocked_by_pypi_whitelist=whitelist_info['blocked_by_pypi_whitelist'],
         versions=versions)
 
@@ -447,7 +447,7 @@ def version_get(context, request):
     """ Show version for the precise stage, ignores inheritance. """
     context = ContextWrapper(context)
     user, index = context.username, context.index
-    name, version = context.verified_projectname, context.version
+    name, version = context.verified_project, context.version
     stage = context.stage
     try:
         verdata = context.get_versiondata(perstage=True)
@@ -487,7 +487,7 @@ def version_get(context, request):
         title="Simple index",
         url=request.route_url(
             "/{user}/{index}/+simple/{project}",
-            user=context.username, index=context.index, project=context.projectname)))
+            user=context.username, index=context.index, project=context.project)))
     if hasattr(stage, 'get_pypi_whitelist_info'):
         whitelist_info = stage.get_pypi_whitelist_info(name)
     else:
@@ -510,11 +510,11 @@ def version_get(context, request):
         make_toxresults_url=functools.partial(
             request.route_url, "toxresults",
             user=context.username, index=context.index,
-            project=context.projectname, version=context.version),
+            project=context.project, version=context.version),
         make_toxresult_url=functools.partial(
             request.route_url, "toxresult",
             user=context.username, index=context.index,
-            project=context.projectname, version=context.version))
+            project=context.project, version=context.version))
 
 
 @view_config(
@@ -529,12 +529,12 @@ def toxresults(context, request):
         linkstore, linkstore.get_links(basename=basename)[0], newest=False)
     return dict(
         title="%s/: %s-%s toxresults" % (
-            context.stage.name, context.projectname, context.version),
+            context.stage.name, context.project, context.version),
         toxresults=toxresults,
         make_toxresult_url=functools.partial(
             request.route_url, "toxresult",
             user=context.username, index=context.index,
-            project=context.projectname, version=context.version, basename=basename))
+            project=context.project, version=context.version, basename=basename))
 
 
 @view_config(
@@ -553,7 +553,7 @@ def toxresult(context, request):
         if x['basename'] == toxresult]
     return dict(
         title="%s/: %s-%s toxresult %s" % (
-            context.stage.name, context.projectname, context.version, toxresult),
+            context.stage.name, context.project, context.version, toxresult),
         toxresults=toxresults)
 
 

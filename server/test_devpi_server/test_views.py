@@ -134,8 +134,8 @@ def test_simple_project_unicode_rejected(pypistage, testapp, dummyrequest):
     dummyrequest.log = pypistage.xom.log
     dummyrequest.context = RootFactory(dummyrequest)
     view = PyPIView(dummyrequest)
-    projectname = py.builtin._totext(b"qpw\xc3\xb6", "utf-8")
-    dummyrequest.matchdict.update(user="x", index="y", project=projectname)
+    project = py.builtin._totext(b"qpw\xc3\xb6", "utf-8")
+    dummyrequest.matchdict.update(user="x", index="y", project=project)
     with pytest.raises(HTTPClientError):
         view.simple_list_project()
 
@@ -206,11 +206,11 @@ def test_inheritance_versiondata(mapp, model):
     assert len(r["result"]) == 1
 
 
-@pytest.mark.parametrize("projectname", ["pkg", "pkg-some"])
+@pytest.mark.parametrize("project", ["pkg", "pkg-some"])
 @pytest.mark.parametrize("stagename", [None, "root/pypi"])
-def test_simple_refresh_inherited(mapp, model, pypistage, testapp, projectname,
+def test_simple_refresh_inherited(mapp, model, pypistage, testapp, project,
                                   stagename):
-    pypistage.mock_simple(projectname, '<a href="/%s-1.0.zip" />' % projectname,
+    pypistage.mock_simple(project, '<a href="/%s-1.0.zip" />' % project,
                           serial=100)
     if stagename is None:
         api = mapp.create_and_use()
@@ -218,20 +218,20 @@ def test_simple_refresh_inherited(mapp, model, pypistage, testapp, projectname,
         api = mapp.use(stagename)
     stagename = api.stagename
 
-    r = testapp.xget(200, "/%s/+simple/%s" % (stagename, projectname))
+    r = testapp.xget(200, "/%s/+simple/%s" % (stagename, project))
     input, = r.html.select('form input')
     assert input.attrs['name'] == 'refresh'
     #assert input.attrs['value'] == 'Refresh PyPI links'
     with model.keyfs.transaction(write=False):
-        info = pypistage._load_project_cache(projectname)
+        info = pypistage._load_project_cache(project)
     assert info != {}
-    pypistage.mock_simple(projectname, '<a href="/%s-2.0.zip" />' % projectname,
+    pypistage.mock_simple(project, '<a href="/%s-2.0.zip" />' % project,
                           serial=200)
-    r = testapp.post("/%s/+simple/%s/refresh" % (stagename, projectname))
+    r = testapp.post("/%s/+simple/%s/refresh" % (stagename, project))
     assert r.status_code == 302
-    assert r.location.endswith("/%s/+simple/%s" % (stagename, projectname))
+    assert r.location.endswith("/%s/+simple/%s" % (stagename, project))
     with model.keyfs.transaction(write=False):
-        info = pypistage._load_project_cache(projectname)
+        info = pypistage._load_project_cache(project)
     elist = info["dumplist"]
     assert len(elist) == 1
     assert elist[0][0].endswith("-2.0.zip")
@@ -1131,9 +1131,9 @@ class TestPluginPermissions:
 def test_upload_trigger(mapp):
     class Plugin:
         def devpiserver_on_upload_sync(self, log, application_url,
-                                       stage, projectname, version):
+                                       stage, project, version):
             self.results.append(
-                (application_url, stage.name, projectname, version))
+                (application_url, stage.name, project, version))
     plugin = Plugin()
     plugin.results = []
     mapp.xom.config.pluginmanager.register(plugin)

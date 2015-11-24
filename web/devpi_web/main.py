@@ -41,10 +41,10 @@ def navigation_version(context):
     version = context.version
     if version == 'latest':
         stage = context.model.getstage(context.username, context.index)
-        version = stage.get_latest_version(context.projectname)
+        version = stage.get_latest_version(context.project)
     elif version == 'stable':
         stage = context.model.getstage(context.username, context.index)
-        version = stage.get_latest_version(context.projectname, stable=True)
+        version = stage.get_latest_version(context.project, stable=True)
     return version
 
 
@@ -66,7 +66,7 @@ def navigation_info(request):
     else:
         return result
     if 'project' in context.matchdict:
-        name = context.projectname
+        name = context.project
         path.append(dict(
             url=request.route_url(
                 "/{user}/{index}/{project}", user=user, index=index, project=name),
@@ -268,31 +268,31 @@ def index_project(stage, name_input):
     ix.update_projects([preprocess_project(stage, name)])
 
 
-def devpiserver_on_upload(stage, projectname, version, link):
+def devpiserver_on_upload(stage, project, version, link):
     if not link.entry.file_exists():
         # on replication or import we might be at a lower than
         # current revision and the file might have been deleted already
         threadlog.debug("igoring lost upload: %s", link)
     elif link.rel == "doczip":
-        unpack_docs(stage, projectname, version, link.entry)
-        index_project(stage, projectname)
+        unpack_docs(stage, project, version, link.entry)
+        index_project(stage, project)
 
 
-def devpiserver_on_changed_versiondata(stage, projectname, version, metadata):
+def devpiserver_on_changed_versiondata(stage, project, version, metadata):
     if stage is None:
         # TODO we don't have enough info to delete the project
         return
     if not metadata:
-        if not stage.has_project_perstage(projectname):
-            delete_project(stage, projectname)
+        if not stage.has_project_perstage(project):
+            delete_project(stage, project)
             return
-        versions = stage.list_versions(projectname)
+        versions = stage.list_versions(project)
         if versions:
             version = get_latest_version(versions)
             if version:
                 threadlog.debug("A version of %s was deleted, using latest version %s for indexing" % (
-                    projectname, version))
-                metadata = stage.get_versiondata(projectname, version)
+                    project, version))
+                metadata = stage.get_versiondata(project, version)
     if metadata:
         render_description(stage, metadata)
         index_project(stage, metadata['name'])

@@ -171,13 +171,13 @@ class XOM:
         versionfile.dirpath().ensure(dir=1)
         versionfile.write(version)
 
-    def get_updated_at(self, stagename, projectname):
+    def get_updated_at(self, stagename, project):
         name2updated = self.stage2name2updated.setdefault(stagename, {})
-        return name2updated.setdefault(projectname, 0)
+        return name2updated.setdefault(project, 0)
 
-    def set_updated_at(self, stagename, projectname, ts):
+    def set_updated_at(self, stagename, project, ts):
         name2updated = self.stage2name2updated.setdefault(stagename, {})
-        name2updated[projectname] = ts
+        name2updated[project] = ts
 
     @property
     def model(self):

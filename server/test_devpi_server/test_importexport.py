@@ -147,7 +147,7 @@ class TestImportExport:
             assert len(results) == 1
             assert results[0] == tox_result_data
             linkstore = stage.get_linkstore_perstage(
-                link.projectname, link.version)
+                link.project, link.version)
             tox_link, = linkstore.get_links(rel="toxresult", for_entrypath=link)
             history_log = tox_link.get_logs()
             assert len(history_log) == 1
@@ -177,14 +177,14 @@ class TestImportExport:
             "user1/dev": {
               "files": [
                 {
-                  "projectname": "hello", "version": "1.0",
+                  "project": "hello", "version": "1.0",
                   "entrymapping": {
-                    "projectname": "hello", "version": "1.0",
+                    "project": "hello", "version": "1.0",
                     "last_modified": "Fri, 12 Sep 2014 13:18:55 GMT",
                     "md5": "9a0364b9e99bb480dd25e1f0284c8555"},
                   "type": "releasefile", "relpath": "user1/dev/hello/hello-1.0.tar.gz"},
                 {
-                  "projectname": "hello", "version": "1.0", "type": "toxresult",
+                  "project": "hello", "version": "1.0", "type": "toxresult",
                   "for_entrypath": "user1/dev/+f/9a0/364b9e99bb480/hello-1.0.tar.gz",
                   "relpath": "user1/dev/hello/9a0364b9e99bb480dd25e1f0284c8555/hello-1.0.tar.gz.toxresult0"}
               ],
@@ -232,7 +232,7 @@ class TestImportExport:
             assert len(results) == 1
             assert results[0] == tox_result_data
             linkstore = stage.get_linkstore_perstage(
-                link.projectname, link.version)
+                link.project, link.version)
             tox_link, = linkstore.get_links(rel="toxresult", for_entrypath=link)
             history_log = tox_link.get_logs()
             assert len(history_log) == 1
@@ -335,7 +335,7 @@ class TestImportExport:
                             "md5": "9a0364b9e99bb480dd25e1f0284c8555",
                             "size": "7"
                           },
-                          "projectname": "hello",
+                          "project": "hello",
                           "type": "releasefile",
                           "relpath": "user1/dev/hello/hello-1.2_3.tar.gz"
                       },

@@ -177,16 +177,16 @@ class TestStage:
 
     def test_empty(self, stage, bases):
         assert not stage.has_project("someproject")
-        assert not stage.list_projectnames_perstage()
+        assert not stage.list_projects_perstage()
 
     def test_inheritance_simple(self, pypistage, stage):
         stage.modify(bases=("root/pypi",), pypi_whitelist=['someproject'])
         pypistage.mock_simple("someproject", "<a href='someproject-1.0.zip' /a>")
-        assert stage.list_projectnames_perstage() == set()
+        assert stage.list_projects_perstage() == set()
         links = stage.get_releaselinks("someproject")
         assert len(links) == 1
         stage.set_versiondata(udict(name="someproject", version="1.1"))
-        assert stage.list_projectnames_perstage() == set(["someproject"])
+        assert stage.list_projects_perstage() == set(["someproject"])
 
     def test_inheritance_twice(self, pypistage, stage, user):
         user.create_stage(index="dev2", bases=("root/pypi",))
@@ -202,8 +202,8 @@ class TestStage:
         assert links[0].basename == "someproject-1.2.tar.gz"
         assert links[1].basename == "someproject-1.1.tar.gz"
         assert links[2].basename == "someproject-1.0.zip"
-        assert stage.list_projectnames_perstage() == set()
-        assert stage_dev2.list_projectnames_perstage() == set(["someproject"])
+        assert stage.list_projects_perstage() == set()
+        assert stage_dev2.list_projects_perstage() == set(["someproject"])
 
     def test_inheritance_complex_issue_214(self, pypistage, model):
         prov_user = model.create_user('provider', password="123")
@@ -246,7 +246,7 @@ class TestStage:
         assert links[0].basename == "some_project-1.2.tar.gz"
         assert links[1].basename == "some_project-1.0.zip"
         assert links[2].basename == "some_project-1.0.tar.gz"
-        assert stage.list_projectnames_perstage() == set(["some-project"])
+        assert stage.list_projects_perstage() == set(["some-project"])
 
     def test_inheritance_tolerance_on_different_names(self, stage, user):
         register_and_store(stage, "some_project-1.2.tar.gz",
@@ -318,7 +318,7 @@ class TestStage:
         entries = stage.get_releaselinks("some")
         assert len(entries) == 1
         assert entries[0].hash_spec == entry.hash_spec
-        assert stage.list_projectnames_perstage() == set(["some"])
+        assert stage.list_projects_perstage() == set(["some"])
         verdata = stage.get_versiondata("some", "1.0")
         links = verdata["+elinks"]
         assert len(links) == 1
@@ -517,7 +517,7 @@ class TestStage:
         assert tmpdir.join("_static").check(dir=1)
         assert tmpdir.join("_templ", "x.css").check(file=1)
 
-    def test_multiple_store_doczip_uses_projectname(self, stage, bases, tmpdir):
+    def test_multiple_store_doczip_uses_project(self, stage, bases, tmpdir):
         # check that two store_doczip calls with slightly
         # different names will not lead to two doczip entries
         stage.set_versiondata(udict(name="pkg1", version="1.0"))
@@ -588,7 +588,7 @@ class TestStage:
         content = b'123'
         link = register_and_store(stage, "pkg1-1.0.tar.gz", content=content)
         entry = link.entry
-        assert entry.projectname == "pkg1"
+        assert entry.project == "pkg1"
         assert entry.version == "1.0"
         toxresultdata = {'hello': 'world'}
         tlink = stage.store_toxresult(link, toxresultdata)
@@ -604,7 +604,7 @@ class TestStage:
         back_data = json.loads(tentry.file_get_content().decode("utf8"))
         assert back_data == toxresultdata
 
-        assert tentry.projectname == entry.projectname
+        assert tentry.project == entry.project
         assert tentry.version == entry.version
 
         results = stage.get_toxresults(link)
@@ -688,7 +688,7 @@ class TestStage:
     def test_set_versiondata_hook(self, stage, queue):
         class Plugin:
             def devpiserver_on_changed_versiondata(self,
-                    stage, projectname, version, metadata):
+                    stage, project, version, metadata):
                 queue.put((stage, metadata))
         stage.xom.config.pluginmanager.register(Plugin())
         orig_metadata = udict(name="hello", version="1.0")
@@ -706,8 +706,8 @@ class TestStage:
     @pytest.mark.start_threads
     def test_doczip_uploaded_hook(self, stage, queue):
         class Plugin:
-            def devpiserver_on_upload(self, stage, projectname, version, link):
-                queue.put((stage, projectname, version, link))
+            def devpiserver_on_upload(self, stage, project, version, link):
+                queue.put((stage, project, version, link))
         stage.xom.config.pluginmanager.register(Plugin())
         stage.set_versiondata(udict(name="pkg1", version="1.0"))
         content = zip_dict({"index.html": "<html/>",

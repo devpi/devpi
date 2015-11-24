@@ -157,7 +157,7 @@ class TestIndexParsing:
         link, = result.releaselinks
         assert link.basename == basename
 
-    def test_parse_index_with_num_in_projectname(self):
+    def test_parse_index_with_num_in_project(self):
         simple = URL("http://pypi.python.org/simple/py-4chan/")
         result = parse_index(simple, '<a href="pkg/py-4chan-1.0.zip"/>')
         assert len(result.releaselinks) == 1
@@ -195,7 +195,7 @@ class TestIndexParsing:
         assert link2.basename == "py.zip"
         assert link2.eggfragment == "py-dev"
 
-    def test_parse_index_with_matchingprojectname_no_version(self):
+    def test_parse_index_with_matchingproject_no_version(self):
         result = parse_index(self.simplepy,
             """<a href="http://bb.org/download/p.zip" />
             <a href="http://bb.org/download/py-1.0.zip" />""")
@@ -427,7 +427,7 @@ class TestExtPYPIDB:
         links = pypistage.get_releaselinks("pytest")
         assert len(links) == 1
 
-    def test_list_projectnames_perstage(self, pypistage):
+    def test_list_projects_perstage(self, pypistage):
         pypistage.mock_simple("proj1", pkgver="proj1-1.0.zip")
         pypistage.mock_simple("proj2", pkgver="proj2-1.0.zip")
         pypistage.url2response["https://pypi.python.org/simple/proj3/"] = dict(
@@ -436,7 +436,7 @@ class TestExtPYPIDB:
         assert len(pypistage.get_releaselinks("proj2")) == 1
         assert not pypistage.has_project_perstage("proj3")
         assert not pypistage.get_releaselinks("proj3")
-        assert pypistage.list_projectnames_perstage() == set(["proj1", "proj2"])
+        assert pypistage.list_projects_perstage() == set(["proj1", "proj2"])
 
     def test_parse_with_outdated_links_issue165(self, pypistage, caplog):
         pypistage.mock_simple("pytest", pypiserial=10, pkgver="pytest-1.0.zip")

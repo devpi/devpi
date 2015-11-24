@@ -1,7 +1,7 @@
 3.0.0 (unreleased)
 ------------------
 
-- use devpi-server-3.0.0 which simplified projectname normalization
+- use devpi-server-3.0.0 which simplified project normalization
 
 
 2.5.0 (2015-11-19)

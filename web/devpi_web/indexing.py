@@ -60,7 +60,7 @@ def iter_projects(xom):
             if stage is None:  # this is async, so the stage may be gone
                 continue
             log.info("Search-Indexing %s/%s:" % (username, index))
-            names = stage.list_projectnames_perstage()
+            names = stage.list_projects_perstage()
             for count, name in enumerate(names, start=1):
                 name = ensure_unicode(name)
                 current_time = time.time()

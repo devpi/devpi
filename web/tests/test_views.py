@@ -463,7 +463,7 @@ def test_testdata_missing(mapp, testapp):
     with mapp.xom.model.keyfs.transaction(write=False):
         stage = mapp.xom.model.getstage(api.stagename)
         link, = stage.get_releaselinks('pkg1')
-        linkstore = stage.get_linkstore_perstage(link.projectname, link.version)
+        linkstore = stage.get_linkstore_perstage(link.project, link.version)
         toxresult_link, = linkstore.get_links(rel="toxresult", for_entrypath=link)
         # delete the tox result file
         os.remove(toxresult_link.entry._filepath)

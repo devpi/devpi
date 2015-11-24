@@ -98,9 +98,9 @@ class RootFactory(object):
         stage.__acl__ = StageACL(stage, self.restrict_modify).__acl__
         return stage
 
-    def get_versiondata(self, projectname=None, version=None, perstage=False):
-        if projectname is None:
-            projectname = self.projectname
+    def get_versiondata(self, project=None, version=None, perstage=False):
+        if project is None:
+            project = self.project
             # XXX raise 404 if project does not exist?
         if version is None:
             version = self.version
@@ -111,24 +111,24 @@ class RootFactory(object):
             get = self.stage.get_versiondata
             msg = ""
         try:
-            verdata = get(projectname, version)
+            verdata = get(project, version)
         except UpstreamError as e:
             abort(self.request, 502, str(e))
         if not verdata:
             abort(self.request, 404,
                   "The version %s of project %s does not exist%s." %
-                               (self.version, projectname, msg))
+                               (self.version, project, msg))
         return verdata
 
-    def list_versions(self, projectname=None):
-        if projectname is None:
-            projectname = self.projectname
+    def list_versions(self, project=None):
+        if project is None:
+            project = self.project
         try:
-            res = self.stage.list_versions(projectname)
+            res = self.stage.list_versions(project)
         except UpstreamError as e:
             abort(self.request, 502, str(e))
-        if not res and not self.stage.has_project(projectname):
-            abort(self.request, 404, "no project %r" %(projectname))
+        if not res and not self.stage.has_project(project):
+            abort(self.request, 404, "no project %r" %(project))
         return res
 
     @reify
@@ -136,24 +136,24 @@ class RootFactory(object):
         return self.matchdict.get('index')
 
     @reify
-    def projectname(self):
-        projectname = self.matchdict.get('project')
-        if projectname is None:
+    def project(self):
+        project = self.matchdict.get('project')
+        if project is None:
             return
 
-        # redirect GETs to non-normalized projectnames
-        n_projectname = normalize_name(projectname)
-        if n_projectname != projectname and self.request.method == 'GET':
+        # redirect GETs to non-normalized projects
+        n_project = normalize_name(project)
+        if n_project != project and self.request.method == 'GET':
             new_matchdict = dict(self.request.matchdict)
-            new_matchdict['project'] = n_projectname
+            new_matchdict['project'] = n_project
             route_name = self.request.matched_route.name
             url = self.request.route_url(route_name, **new_matchdict)
             raise HTTPFound(location=url)
-        return n_projectname
+        return n_project
 
     @reify
-    def verified_projectname(self):
-        name = self.projectname
+    def verified_project(self):
+        name = self.project
         try:
             if not self.stage.has_project(name):
                 abort(self.request, 404, "The project %s does not exist." %(name))

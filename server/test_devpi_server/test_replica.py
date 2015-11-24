@@ -106,7 +106,7 @@ class TestPyPIDevpiProxy:
 def test_pypi_project_changed(replica_xom, normname, realname):
     handler = PypiProjectChanged(replica_xom)
     class Ev:
-        value = dict(projectname=realname, serial=12)
+        value = dict(project=realname, serial=12)
         typedkey = replica_xom.keyfs.get_key("PYPILINKS")(project=normname)
     handler(Ev())
     assert replica_xom.pypimirror.name2serials[normname] == 12

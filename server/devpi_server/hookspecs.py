@@ -33,15 +33,15 @@ def devpiserver_pypi_initial(stage, name2serials):
 
 
 @hookspec
-def devpiserver_on_changed_versiondata(stage, projectname, version, metadata):
-    """ called when versiondata data changes in a stage for a projectname/version.
+def devpiserver_on_changed_versiondata(stage, project, version, metadata):
+    """ called when versiondata data changes in a stage for a project/version.
     If metadata is empty the version was deleted. """
 
 
 @hookspec
-def devpiserver_on_upload(stage, projectname, version, link):
+def devpiserver_on_upload(stage, project, version, link):
     """ called when a file is uploaded to a private stage for
-    a projectname/version.  link.entry.file_exists() may be false because
+    a project/version.  link.entry.file_exists() may be false because
     a more recent revision deleted the file (and files are not revisioned).
     NOTE that this hook is currently NOT called for the implicit "caching"
     uploads to the pypi mirror.
@@ -84,7 +84,7 @@ def devpiserver_indexconfig_defaults(index_type):
 
 
 @hookspec
-def devpiserver_on_upload_sync(log, application_url, stage, projectname, version):
+def devpiserver_on_upload_sync(log, application_url, stage, project, version):
     """Called after release upload.
 
     Mainly to implement plugins which trigger external services like

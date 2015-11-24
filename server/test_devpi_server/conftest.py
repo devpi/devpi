@@ -550,11 +550,11 @@ class Mapp(MappMixin):
         r = self.testapp.get_json("/%s" % indexname)
         return r.json["result"]["pypi_whitelist"]
 
-    def delete_project(self, projectname, code=200, indexname=None,
+    def delete_project(self, project, code=200, indexname=None,
                        waithooks=False):
         indexname = self._getindexname(indexname)
         r = self.testapp.delete_json("/%s/%s" % (indexname,
-                projectname), {}, expect_errors=True)
+                project), {}, expect_errors=True)
         assert r.status_code == code
         if waithooks:
             self._wait_for_serial_in_result(r)
@@ -610,8 +610,8 @@ class Mapp(MappMixin):
         assert r.status_code == code
         return r
 
-    def get_release_paths(self, projectname):
-        r = self.get_simple(projectname)
+    def get_release_paths(self, project):
+        r = self.get_simple(project)
         pkg_url = URL(r.request.url)
         paths = [pkg_url.joinpath(link["href"]).path
                  for link in BeautifulSoup(r.body).findAll("a")]
@@ -637,8 +637,8 @@ class Mapp(MappMixin):
             self._wait_for_serial_in_result(r)
         return r
 
-    def get_simple(self, projectname, code=200):
-        r = self.testapp.get(self.api.simpleindex + projectname,
+    def get_simple(self, project, code=200):
+        r = self.testapp.get(self.api.simpleindex + project,
                              expect_errors=True)
         assert r.status_code == code
         return r
