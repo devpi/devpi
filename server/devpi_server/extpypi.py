@@ -181,18 +181,18 @@ class PyPIStage(BaseStage):
 
         data = {"serial": serial, "dumplist": dumplist}
         self.xom.set_updated_at(self.name, projectname, time.time())
-        old = self.keyfs.PYPILINKS(projectname=projectname).get()
+        old = self.keyfs.PYPILINKS(project=projectname).get()
         if old != data:
             threadlog.debug("saving data for %s: %s", projectname, data)
             threadlog.debug("old data    for %s: %s", projectname, old)
-            self.keyfs.PYPILINKS(projectname=projectname).set(data)
+            self.keyfs.PYPILINKS(project=projectname).set(data)
         else:
             threadlog.debug("data unchanged for %s: %s", projectname, data)
         return dumplist
 
     def _load_project_cache(self, projectname):
         normname = normalize_name(projectname)
-        data = self.keyfs.PYPILINKS(projectname=normname).get()
+        data = self.keyfs.PYPILINKS(project=normname).get()
         #log.debug("load data for %s: %s", projectname, data)
         return data
 
@@ -211,7 +211,7 @@ class PyPIStage(BaseStage):
         normname = normalize_name(projectname)
         # we have to set to an empty dict instead of removing the key, so
         # replicas behave correctly
-        self.keyfs.PYPILINKS(projectname=normname).set({})
+        self.keyfs.PYPILINKS(project=normname).set({})
         threadlog.debug("cleared cache for %s", projectname)
 
     def get_simplelinks_perstage(self, projectname):

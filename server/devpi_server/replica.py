@@ -279,7 +279,7 @@ class PypiProjectChanged:
         cache = ev.value
 
         # get the normalized projectname (PYPILINKS uses it)
-        projectname = ev.typedkey.params["projectname"]
+        projectname = ev.typedkey.params["project"]
         if not projectname:
             threadlog.error("project %r missing", projectname)
             return

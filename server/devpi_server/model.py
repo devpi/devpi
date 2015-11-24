@@ -509,12 +509,12 @@ class PrivateStage(BaseStage):
 
     def key_projversions(self, projectname):
         return self.keyfs.PROJVERSIONS(user=self.user.name,
-            index=self.index, projectname=normalize_name(projectname))
+            index=self.index, project=normalize_name(projectname))
 
     def key_projversion(self, projectname, version):
         return self.keyfs.PROJVERSION(
             user=self.user.name, index=self.index,
-            projectname=normalize_name(projectname), version=version)
+            project=normalize_name(projectname), version=version)
 
     def _set_versiondata(self, metadata):
         projectname = normalize_name(metadata["name"])
@@ -581,7 +581,7 @@ class PrivateStage(BaseStage):
 
     def key_projsimplelinks(self, projectname):
         return self.keyfs.PROJSIMPLELINKS(user=self.user.name,
-            index=self.index, projectname=normalize_name(projectname))
+            index=self.index, project=normalize_name(projectname))
 
     def get_simplelinks_perstage(self, projectname):
         return self.key_projsimplelinks(projectname).get()
@@ -880,14 +880,14 @@ def add_keys(xom, keyfs):
 
     # type pypimirror related data
     keyfs.add_key("PYPI_SERIALS_LOADED", "root/pypi/initiallinks", dict)
-    keyfs.add_key("PYPILINKS", "root/pypi/+links/{projectname}", dict)
+    keyfs.add_key("PYPILINKS", "root/pypi/+links/{project}", dict)
     keyfs.add_key("PYPIFILE_NOMD5",
                  "{user}/{index}/+e/{dirname}/{basename}", dict)
 
     # type "stage" related
-    keyfs.add_key("PROJSIMPLELINKS", "{user}/{index}/{projectname}/.simple", list)
-    keyfs.add_key("PROJVERSIONS", "{user}/{index}/{projectname}/.versions", set)
-    keyfs.add_key("PROJVERSION", "{user}/{index}/{projectname}/{version}/.config", dict)
+    keyfs.add_key("PROJSIMPLELINKS", "{user}/{index}/{project}/.simple", list)
+    keyfs.add_key("PROJVERSIONS", "{user}/{index}/{project}/.versions", set)
+    keyfs.add_key("PROJVERSION", "{user}/{index}/{project}/{version}/.config", dict)
     keyfs.add_key("PROJNAMES", "{user}/{index}/.projectnames", set)
     keyfs.add_key("STAGEFILE",
                   "{user}/{index}/+f/{hashdir_a}/{hashdir_b}/{filename}", dict)

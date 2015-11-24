@@ -107,24 +107,24 @@ def test_pypi_project_changed(replica_xom, normname, realname):
     handler = PypiProjectChanged(replica_xom)
     class Ev:
         value = dict(projectname=realname, serial=12)
-        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(projectname=normname)
+        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(project=normname)
     handler(Ev())
     assert replica_xom.pypimirror.name2serials[normname] == 12
 
     class Ev2:
-        value = dict(projectname=realname, serial=15)
-        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(projectname=normname)
+        value = dict(project=realname, serial=15)
+        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(project=normname)
     handler(Ev2())
     assert replica_xom.pypimirror.name2serials[normname] == 15
 
     class Ev3:
-        value = dict(projectname=realname, serial=12)
-        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(projectname=normname)
+        value = dict(project=realname, serial=12)
+        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(project=normname)
     handler(Ev3())
     assert replica_xom.pypimirror.name2serials[normname] == 15
 
     class Ev4:
-        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(projectname=normname)
+        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(project=normname)
         value = None
     handler(Ev4())
     assert realname not in replica_xom.pypimirror.name2serials
