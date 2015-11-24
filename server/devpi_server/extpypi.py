@@ -57,8 +57,7 @@ class IndexParser:
                 continue
             eggfragment = newurl.eggfragment
             if scrape and eggfragment:
-                if not normalize_name(eggfragment).startswith(
-                    self.project):
+                if not normalize_name(eggfragment).startswith(self.project):
                     threadlog.debug("skip egg link %s (project: %s)",
                               newurl, self.project)
                     continue
@@ -70,8 +69,8 @@ class IndexParser:
                         self.egglinks.insert(0, newurl)
                 else:
                     threadlog.warn("cannot handle egg directory link (svn?) "
-                              "skipping: %s (project: %s)",
-                              newurl, self.project)
+                                   "skipping: %s (project: %s)",
+                                   newurl, self.project)
                 continue
             if is_archive_of_project(newurl, self.project):
                 if not newurl.is_valid_http_url():
@@ -198,7 +197,7 @@ class PyPIStage(BaseStage):
 
     def _load_cache_links(self, project):
         cache = self._load_project_cache(project)
-        if cache and cache.get("dumplist") is not None:  # prior to 2.4 there was no "dumplist"
+        if cache:
             serial = self.pypimirror.get_project_serial(project)
             is_fresh = (cache["serial"] >= serial)
             if is_fresh:
@@ -406,13 +405,13 @@ class PyPIMirror:
         name = normalize_name(project)
         return self.name2serials.get(name, -1)
 
-    def set_project_serial(self, name_input, serial):
+    def set_project_serial(self, project, serial):
         """ set the current serial. """
-        name = normalize_name(name_input)
+        project = normalize_name(project)
         if serial is None:
-            del self.name2serials[name]
+            del self.name2serials[project]
         else:
-            self.name2serials[name] = serial
+            self.name2serials[project] = serial
 
 
 PYPIURL_SIMPLE = "https://pypi.python.org/simple/"

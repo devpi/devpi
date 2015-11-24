@@ -10,7 +10,6 @@ from devpi_common.metadata import get_pyversion_filetype
 import devpi_server
 from pyramid.compat import urlparse
 from pyramid.httpexceptions import HTTPException, HTTPFound, HTTPSuccessful
-#, HTTPNotFound
 from pyramid.httpexceptions import HTTPUnauthorized
 from pyramid.httpexceptions import exception_response
 from pyramid.response import Response

@@ -273,23 +273,23 @@ class BaseStage:
     MissesRegistration = MissesRegistration
     NonVolatile = NonVolatile
 
-    def get_releaselinks(self, name_input):
+    def get_releaselinks(self, project):
         # compatibility access method used by devpi-web and tests
-        name = normalize_name(name_input)
-        return [self._make_elink(name, key, href)
-                for key, href in self.get_simplelinks(name)]
+        project = normalize_name(project)
+        return [self._make_elink(project, key, href)
+                for key, href in self.get_simplelinks(project)]
 
-    def get_releaselinks_perstage(self, name_input):
+    def get_releaselinks_perstage(self, project):
         # compatibility access method for devpi-findlinks and possibly other plugins
-        name = normalize_name(name_input)
-        return [self._make_elink(name, key, href)
-                for key, href in self.get_simplelinks_perstage(name)]
+        project = normalize_name(project)
+        return [self._make_elink(project, key, href)
+                for key, href in self.get_simplelinks_perstage(project)]
 
-    def _make_elink(self, name, key, href):
+    def _make_elink(self, project, key, href):
         rp = SimplelinkMeta((key, href))
         linkdict = {"entrypath": rp._url.path, "hash_spec": rp._url.hash_spec,
                     "eggfragment": rp.eggfragment}
-        return ELink(self.xom.filestore, linkdict, name, rp.version)
+        return ELink(self.xom.filestore, linkdict, project, rp.version)
 
     def get_linkstore_perstage(self, name, version, readonly=True):
         return LinkStore(self, name, version, readonly=readonly)
@@ -496,10 +496,9 @@ class PrivateStage(BaseStage):
             del indexes[self.index]
 
 
+    #
     # registering project and version metadata
     #
-    #class MetadataExists(Exception):
-    #    """ metadata exists on a given non-volatile index. """
 
     def set_versiondata(self, metadata):
         """ register metadata.  Raises ValueError in case of metadata

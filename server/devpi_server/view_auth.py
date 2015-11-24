@@ -101,7 +101,6 @@ class RootFactory(object):
     def get_versiondata(self, project=None, version=None, perstage=False):
         if project is None:
             project = self.project
-            # XXX raise 404 if project does not exist?
         if version is None:
             version = self.version
         if perstage:
