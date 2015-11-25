@@ -200,34 +200,21 @@ class PyPIStage(BaseStage):
 
         return projects
 
-    def _dump_project_cache(self, project, entries, serial):
+    def _save_cache_links(self, project, links, serial):
         assert isinstance(serial, int)
         assert project == normalize_name(project), project
-        if isinstance(entries, list):
-            dumplist = [make_key_and_href(entry) for entry in entries]
-            # make project appear in projects list even
-            # before we next check up the full list with remote
-            threadlog.info("setting projects cache for %r", project)
-            self.cache_projectnames.get_inplace().add(project)
-        else:
-            dumplist = entries
-
-        data = {"serial": serial, "links": dumplist}
+        data = {"serial": serial, "links": links}
         key = self.key_projsimplelinks(project)
         old = key.get()
         if old != data:
-            threadlog.debug("saving data for %s: %s", project, data)
-            threadlog.debug("old data    for %s: %s", project, old)
+            threadlog.debug("saving changed simplelinks for %s: %s", project, data)
             key.set(data)
-        else:
-            threadlog.debug("data unchanged for %s: %s", project, data)
         # XXX if the transaction fails the links are still marked
         # as refreshed but the data was not persisted.  It's a rare
         # enough event (tm) to not worry too much, though.
         # (we can, however, easily add a
         # keyfs.tx.on_commit_success(callback) method.
         self.cache_link_updates.refresh(project)
-        return dumplist
 
     def _load_cache_links(self, project):
         cache = self.key_projsimplelinks(project).get()
@@ -236,7 +223,7 @@ class PyPIStage(BaseStage):
                     cache["links"], cache["serial"])
         return False, None, -1
 
-    def clear_cache(self, project):
+    def clear_simplelinks_cache(self, project):
         # we have to set to an empty dict instead of removing the key, so
         # replicas behave correctly
         self.key_projsimplelinks(project).set({})
@@ -271,13 +258,14 @@ class PyPIStage(BaseStage):
             if response.status_code == 404:
                 # we get a 404 if a project does not exist. We persist
                 # this result so replicas see it as well.  After the
-                # dump cache expires new requets will retry and thus
+                # dump cache expires new requests will retry and thus
                 # detect new projects and their releases.
                 # Note that we use an empty tuple (instead of the usual
                 # list) so has_project_per_stage() can determine it as a
                 # non-existing project.
                 self.keyfs.restart_as_write_transaction()
-                return self._dump_project_cache(project, (), -1)
+                self._save_cache_links(project, (), -1)
+                return ()
 
             # we don't have an old result and got a non-404 code.
             raise self.UpstreamError("%s status on GET %s" %
@@ -293,8 +281,6 @@ class PyPIStage(BaseStage):
         # simple page.
         serial = int(response.headers.get(str("X-PYPI-LAST-SERIAL"), "-1"))
 
-        # we check if we already have a better serial and if so
-        # serve our existing links. (if cache_serial > 0, links are valid)
         if serial < cache_serial:
             threadlog.warn("serving cached links for %s "
                            "because returned serial %s, cache_serial %s is better!",
@@ -316,14 +302,21 @@ class PyPIStage(BaseStage):
 
         # first we try to process mirror links without an explicit write transaction.
         # if all links already exist in storage we might then return our already
-        # cached information about them.  Note that _dump_project_cache() will
+        # cached information about them.  Note that _save_cache_links() will
         # implicitely update non-persisted cache timestamps.
         def map_and_dump():
-            # both maplink() and _dump_project_cache() will not modify
+            # both maplink() and _save_cache_links() will not modify
             # storage if there are no changes so they operate fine within a
             # read-transaction if nothing changed.
             entries = [self.filestore.maplink(link) for link in releaselinks]
-            return self._dump_project_cache(project, entries, serial)
+            links = [make_key_and_href(entry) for entry in entries]
+            self._save_cache_links(project, links, serial)
+
+            # make project appear in projects list even
+            # before we next check up the full list with remote
+            threadlog.info("setting projects cache for %r", project)
+            self.cache_projectnames.get_inplace().add(project)
+            return links
 
         try:
             return map_and_dump()

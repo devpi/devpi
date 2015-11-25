@@ -244,7 +244,8 @@ def register_key_subscribers(xom):
 
 
 class SimpleLinksChanged:
-    """ Event executed in notification thread based on a pypi link change. """
+    """ Event executed in notification thread based on a pypi link change.
+    It allows a replica to sync up the local full projectnames list."""
     def __init__(self, xom):
         self.xom = xom
 
