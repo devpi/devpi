@@ -326,7 +326,7 @@ def add_pypistage_mocks(monkeypatch, httpget, proxymock):
                     call()
             else:
                 call()
-        return self.httpget.mock_simple(name,
+        return self.xom.httpget.mock_simple(name,
                 text=text, pypiserial=pypiserial, **kw)
     monkeypatch.setattr(PyPIStage, "mock_simple", mock_simple, raising=False)
 

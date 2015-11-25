@@ -179,7 +179,7 @@ class XOM:
         name2updated = self.stage2name2updated.setdefault(stagename, {})
         name2updated[project] = ts
 
-    @property
+    @cached_property
     def model(self):
         """ root model object. """
         from devpi_server.model import RootModel

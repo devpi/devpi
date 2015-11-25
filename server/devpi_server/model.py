@@ -82,6 +82,7 @@ class NonVolatile(ModelException):
 
 
 class RootModel:
+    """ per-process root model object. """
     def __init__(self, xom):
         self.xom = xom
         self.keyfs = xom.keyfs
@@ -266,12 +267,19 @@ class InvalidIndexconfig(Exception):
         Exception.__init__(self, messages)
 
 
-class BaseStage:
+class BaseStage(object):
     InvalidUser = InvalidUser
     NotFound = NotFound
     UpstreamError = UpstreamError
     MissesRegistration = MissesRegistration
     NonVolatile = NonVolatile
+
+    def __init__(self, xom):
+        self.xom = xom
+        # the following attributes are per-xom singletons
+        self.model = xom.model
+        self.keyfs = xom.keyfs
+        self.filestore = xom.filestore
 
     def get_releaselinks(self, project):
         # compatibility access method used by devpi-web and tests
@@ -289,7 +297,7 @@ class BaseStage:
         rp = SimplelinkMeta((key, href))
         linkdict = {"entrypath": rp._url.path, "hash_spec": rp._url.hash_spec,
                     "eggfragment": rp.eggfragment}
-        return ELink(self.xom.filestore, linkdict, project, rp.version)
+        return ELink(self.filestore, linkdict, project, rp.version)
 
     def get_linkstore_perstage(self, name, version, readonly=True):
         return LinkStore(self, name, version, readonly=readonly)
@@ -445,17 +453,17 @@ class PrivateStage(BaseStage):
                'project-url', 'supported-platform', 'setup-requires-Dist',
                'provides-extra', 'extension')
 
-    def __init__(self, xom, user, index, ixconfig):
-        self.xom = xom
-        self.model = xom.model
-        self.keyfs = xom.keyfs
-        self.user = self.model.get_user(user)
-        self.username = self.user.name
+    def __init__(self, xom, username, index, ixconfig):
+        super(PrivateStage, self).__init__(xom)
+        self.username = username
         self.index = index
-        self.name = user + "/" + index
+        self.name = username + "/" + index
         self.ixconfig = ixconfig
-        self.key_projects = self.keyfs.PROJNAMES(
-                    user=self.user.name, index=self.index)
+        self.key_projects = self.keyfs.PROJNAMES(user=username, index=index)
+
+    @cached_property
+    def user(self):
+        return self.model.get_user(self.username)
 
     def modify(self, index=None, **kw):
         if 'type' in kw and self.ixconfig["type"] != kw['type']:
@@ -507,12 +515,12 @@ class PrivateStage(BaseStage):
         self._set_versiondata(metadata)
 
     def key_projversions(self, project):
-        return self.keyfs.PROJVERSIONS(user=self.user.name,
+        return self.keyfs.PROJVERSIONS(user=self.username,
             index=self.index, project=normalize_name(project))
 
     def key_projversion(self, project, version):
         return self.keyfs.PROJVERSION(
-            user=self.user.name, index=self.index,
+            user=self.username, index=self.index,
             project=normalize_name(project), version=version)
 
     def _set_versiondata(self, metadata):
@@ -579,7 +587,7 @@ class PrivateStage(BaseStage):
         return self.key_projversion(project, version).get(readonly=readonly)
 
     def key_projsimplelinks(self, project):
-        return self.keyfs.PROJSIMPLELINKS(user=self.user.name,
+        return self.keyfs.PROJSIMPLELINKS(user=self.username,
             index=self.index, project=normalize_name(project))
 
     def get_simplelinks_perstage(self, project):
@@ -717,7 +725,7 @@ class ELink:
 class LinkStore:
     def __init__(self, stage, project, version, readonly=True):
         self.stage = stage
-        self.filestore = stage.xom.filestore
+        self.filestore = stage.filestore
         self.project = normalize_name(project)
         self.version = version
         self.verdata = stage.get_versiondata_perstage(self.project, version, readonly=readonly)
@@ -790,7 +798,7 @@ class LinkStore:
 
     def _create_file_entry(self, basename, file_content, ref_hash_spec=None):
         entry = self.filestore.store(
-                    user=self.stage.user.name, index=self.stage.index,
+                    user=self.stage.username, index=self.stage.index,
                     basename=basename,
                     file_content=file_content,
                     dir_hash_spec=ref_hash_spec)

@@ -155,9 +155,8 @@ class PyPIStage(BaseStage):
                 "acl_upload": ["root"]}
 
     def __init__(self, xom):
-        self.keyfs = xom.keyfs
-        self.httpget = xom.httpget
-        self.filestore = xom.filestore
+        super(PyPIStage, self).__init__(xom)
+        self.httpget = self.xom.httpget  # XXX is requests/httpget multi-thread safe?
         self.pypimirror = xom.pypimirror
         self.cache_expiry = xom.config.args.pypi_cache_expiry
         self.xom = xom

@@ -666,7 +666,7 @@ class TestStage:
     def test_get_versiondata_latest_inheritance(self, user, model, stage):
         stage_base_name = stage.index + "base"
         user.create_stage(index=stage_base_name, bases=(stage.name,))
-        stage_sub = model.getstage(stage.user.name, stage_base_name)
+        stage_sub = model.getstage(stage.username, stage_base_name)
         stage_sub.set_versiondata(udict(name="hello", version="1.0"))
         stage.set_versiondata(udict(name="hello", version="1.1"))
         assert stage_sub.get_latest_version_perstage("hello") == "1.0"
