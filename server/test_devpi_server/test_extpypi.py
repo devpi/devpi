@@ -517,6 +517,16 @@ def test_requests_httpget_timeout(xom_notmocked, monkeypatch):
     assert r.status_code == -1
 
 
+def test_is_project_cached(httpget, pypistage):
+    assert not pypistage.is_project_cached("xyz")
+    assert not pypistage.has_project("xyz")
+    assert pypistage.is_project_cached("xyz")
+
+    httpget.mock_simple("abc", text="")
+    assert not pypistage.is_project_cached("abc")
+    assert pypistage.has_project("abc")
+    assert pypistage.is_project_cached("abc")
+
 
 def test_404_on_pypi_cached(httpget, pypistage):
     retrieve_times = pypistage.cache_link_updates

@@ -706,6 +706,28 @@ class TestStage:
         assert not metadata
 
     @pytest.mark.start_threads
+    @pytest.mark.notransaction
+    def test_stage_created_hook(self, xom, queue):
+        class Plugin:
+            def devpiserver_stage_created(self, stage):
+                queue.put(stage)
+        xom.config.pluginmanager.register(Plugin())
+        with xom.keyfs.transaction(write=True):
+            model = xom.model
+            user = model.create_user("user", "password", email="some@email.com")
+            user.create_stage("hello")
+        while 1:
+            stage = queue.get(timeout=10)
+            if stage.name != "root/pypi":
+                break
+        assert stage.name == "user/hello"
+
+        with xom.keyfs.transaction(write=True):
+            user.create_stage("hello2")
+        assert queue.get(timeout=10).name == "user/hello2"
+
+
+    @pytest.mark.start_threads
     def test_doczip_uploaded_hook(self, stage, queue):
         class Plugin:
             def devpiserver_on_upload(self, stage, project, version, link):

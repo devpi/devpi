@@ -155,7 +155,7 @@ class PyPIStage(BaseStage):
 
     def _get_remote_projects(self):
         headers = {"Accept": "text/html"}
-        response = self.httpget(self.PYPIURL_SIMPLE, extra_headers=headers)
+        response = self.httpget(self.PYPIURL_SIMPLE, allow_redirects=True, extra_headers=headers)
         if response.status_code != 200:
             raise self.UpstreamError("URL %r returned %s",
                                 self.PYPIURL_SIMPLE, response.status_code)
@@ -192,13 +192,18 @@ class PyPIStage(BaseStage):
                 if not self.cache_projectnames.exists() or old != projects:
                     self.cache_projectnames.set(projects)
 
-                    # trigger an initial-load event
-                    k = self.keyfs.MIRRORNAMESINIT(user=self.username, index=self.index)
-                    if k.get() == 0:
-                        self.keyfs.restart_as_write_transaction()
-                        k.set(1)
+                    # trigger an initial-load event on master
+                    if not self.xom.is_replica():
+                        k = self.keyfs.MIRRORNAMESINIT(user=self.username, index=self.index)
+                        if k.get() == 0:
+                            self.keyfs.restart_as_write_transaction()
+                            k.set(1)
 
         return projects
+
+    def is_project_cached(self, project):
+        """ return True if we have some cached simpelinks information. """
+        return self.key_projsimplelinks(project).exists()
 
     def _save_cache_links(self, project, links, serial):
         assert isinstance(serial, int)

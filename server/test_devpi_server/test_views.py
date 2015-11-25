@@ -349,6 +349,10 @@ class TestStatusInfoPlugin:
         request = self._xomrequest(xom)
         serial = xom.keyfs.get_current_serial()
         xom.keyfs.notifier.wait_event_serial(serial)
+        # if devpi-web is installed make sure we look again
+        # at the serial in case a hook created a new serial
+        serial = xom.keyfs.get_current_serial()
+        xom.keyfs.notifier.wait_event_serial(serial)
         result = plugin(request)
         assert not xom.is_replica()
         assert result == []

@@ -241,6 +241,12 @@ def devpiserver_mirror_initialnames(stage, projectnames):
     threadlog.info("finished initial indexing op")
 
 
+def devpiserver_stage_created(stage):
+    if stage.ixconfig["type"] == "mirror":
+        threadlog.info("triggering load of initial projectnames for %s", stage.name)
+        stage.list_projects_perstage()
+
+
 def devpiserver_cmdline_run(xom):
     ix = get_indexer(xom.config)
     if xom.config.args.recreate_search_index:

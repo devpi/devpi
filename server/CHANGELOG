@@ -17,6 +17,9 @@
   the new "devpi_mirror_initialnames(stage, projectnames)" hook
   which is called when a mirror is initialized.
 
+- introduce new "devpi_stage_created(stage)" hook which is
+  called for each index which is created.
+
 - simplify and unify internal mirroring code some more
   with "normal" stage handling.
 

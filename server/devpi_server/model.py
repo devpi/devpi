@@ -905,6 +905,7 @@ def add_keys(xom, keyfs):
     keyfs.PROJVERSION.on_key_change(sub.on_changed_version_config)
     keyfs.STAGEFILE.on_key_change(sub.on_changed_file_entry)
     keyfs.MIRRORNAMESINIT.on_key_change(sub.on_mirror_initialnames)
+    keyfs.USER.on_key_change(sub.on_userchange)
 
 
 class EventSubscribers:
@@ -976,3 +977,26 @@ class EventSubscribers:
                     stage=stage,
                     projectnames=stage.list_projects_perstage()
                 )
+
+    def on_userchange(self, ev):
+        """ when user data changes. """
+        params = ev.typedkey.params
+        username = params.get("user")
+        keyfs = self.xom.keyfs
+        if ev.back_serial > -1:
+            old = keyfs.get_value_at(ev.typedkey, ev.back_serial)
+            old_indexes = set(old.get("indexes", {}))
+        else:
+            old_indexes = set()
+        threadlog.debug("old indexes: %s", old_indexes)
+
+        with keyfs.transaction(at_serial=ev.at_serial):
+            user = self.xom.model.get_user(username)
+            if user is None:
+                # deleted
+                return
+            userconfig = user.key.get()
+            for name in userconfig.get("indexes", {}):
+                if name not in old_indexes:
+                    stage = user.getstage(name)
+                    self.xom.config.hook.devpiserver_stage_created(stage=stage)

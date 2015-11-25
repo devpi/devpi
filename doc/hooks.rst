@@ -48,6 +48,14 @@ There is one hook to enable authentication from external sources::
         """
 
 
+hook semantics for creating of indexes
+--------------------------------------
+
+In order to act on creation of new indexes::
+
+    devpiserver_stage_created(stage)
+
+
 hook semantics for metadata changes and uploads
 ------------------------------------------------
 
