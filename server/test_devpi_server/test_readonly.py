@@ -14,6 +14,8 @@ class TestDictReadonlyView:
         with pytest.raises(KeyError):
             r[2]
         assert len(r) == 1
+        assert r == d
+        assert not (r != d)
 
     def test_recursive(self):
         d = {1:[]}
@@ -105,3 +107,10 @@ class TestTupleReadonlyView:
             r[0].append(2)
         assert r[0] == [1]
 
+
+
+def test_is_sequence():
+    assert is_sequence([])
+    assert is_sequence(())
+    assert is_sequence(ensure_deeply_readonly(()))
+    assert is_sequence(ensure_deeply_readonly([]))

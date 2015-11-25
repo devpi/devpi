@@ -16,6 +16,7 @@ from devpi_common.viewhelp import ViewLinkStore
 
 import devpi_server.views
 from devpi_server.views import tween_keyfs_transaction, make_uuid_headers
+from devpi_server.extpypi import parse_index
 
 from .functional import TestUserThings, TestIndexThings  # noqa
 
@@ -70,11 +71,12 @@ def test_make_uuid_headers(nodeinfo, expected):
 def test_simple_project(pypistage, testapp):
     name = "qpwoei"
     r = testapp.get("/root/pypi/+simple/" + name)
-    assert r.status_code == 200
+    assert r.status_code == 404
     assert r.headers["X-DEVPI-SERIAL"]
     # easy_install fails if the result isn't html
     assert "html" in r.headers['content-type']
-    assert not BeautifulSoup(r.text).findAll("a")
+    assert not parse_index("http://localhost", r.text, scrape=False).releaselinks
+
     path = "/%s-1.0.zip" % name
     pypistage.mock_simple(name, text='<a href="%s"/>' % path)
     r = testapp.get("/root/pypi/+simple/%s" % name)
@@ -116,11 +118,11 @@ def test_project_redirect(pypistage, testapp, user_agent):
     name = "qpwoei"
     headers = {'User-Agent': str(user_agent), "Accept": str("text/html")}
 
-    r = testapp.get("/root/pypi/%s" % name, headers=headers)
+    r = testapp.get("/root/pypi/%s" % name, headers=headers, follow=False)
     assert r.status_code == 302
     assert r.headers["location"].endswith("/root/pypi/+simple/%s" % name)
     # trailing slash will redirect to non trailing slash first
-    r = testapp.get("/root/pypi/%s/" % name, headers=headers)
+    r = testapp.get("/root/pypi/%s/" % name, headers=headers, follow=False)
     assert r.status_code == 302
     assert r.headers["location"].endswith("/root/pypi/+simple/%s" % name)
 
@@ -132,8 +134,8 @@ def test_simple_project_unicode_rejected(pypistage, testapp, dummyrequest):
     dummyrequest.log = pypistage.xom.log
     dummyrequest.context = RootFactory(dummyrequest)
     view = PyPIView(dummyrequest)
-    name = py.builtin._totext(b"qpw\xc3\xb6", "utf-8")
-    dummyrequest.matchdict.update(user="x", index="y", name=name)
+    project = py.builtin._totext(b"qpw\xc3\xb6", "utf-8")
+    dummyrequest.matchdict.update(user="x", index="y", project=project)
     with pytest.raises(HTTPClientError):
         view.simple_list_project()
 
@@ -160,8 +162,7 @@ def test_simple_list(pypistage, testapp):
     assert int(r2.headers["X-DEVPI-SERIAL"]) == serial + 1
 
     r = testapp.get("/root/pypi/+simple/hello3")
-    assert r.status_code == 200
-    assert "no such project" in r.text
+    assert r.status_code == 404
     # easy_install fails if the result isn't html
     assert "html" in r.headers['content-type']
     r = testapp.get("/root/pypi/+simple/")
@@ -189,7 +190,6 @@ def test_simple_refresh(mapp, model, pypistage, testapp):
     with model.keyfs.transaction(write=False):
         info = pypistage._load_project_cache("hello")
     assert info != {}
-    assert info['projectname'] == 'hello'
     r = testapp.post("/root/pypi/+simple/hello/refresh")
     assert r.status_code == 302
     assert r.location.endswith("/root/pypi/+simple/hello")
@@ -206,11 +206,11 @@ def test_inheritance_versiondata(mapp, model):
     assert len(r["result"]) == 1
 
 
-@pytest.mark.parametrize("projectname", ["pkg", "pkg_some"])
+@pytest.mark.parametrize("project", ["pkg", "pkg-some"])
 @pytest.mark.parametrize("stagename", [None, "root/pypi"])
-def test_simple_refresh_inherited(mapp, model, pypistage, testapp, projectname,
+def test_simple_refresh_inherited(mapp, model, pypistage, testapp, project,
                                   stagename):
-    pypistage.mock_simple(projectname, '<a href="/%s-1.0.zip" />' % projectname,
+    pypistage.mock_simple(project, '<a href="/%s-1.0.zip" />' % project,
                           serial=100)
     if stagename is None:
         api = mapp.create_and_use()
@@ -218,22 +218,20 @@ def test_simple_refresh_inherited(mapp, model, pypistage, testapp, projectname,
         api = mapp.use(stagename)
     stagename = api.stagename
 
-    r = testapp.xget(200, "/%s/+simple/%s" % (stagename, projectname))
+    r = testapp.xget(200, "/%s/+simple/%s" % (stagename, project))
     input, = r.html.select('form input')
     assert input.attrs['name'] == 'refresh'
     #assert input.attrs['value'] == 'Refresh PyPI links'
     with model.keyfs.transaction(write=False):
-        info = pypistage._load_project_cache(projectname)
+        info = pypistage._load_project_cache(project)
     assert info != {}
-    assert info['projectname'] == projectname
-    pypistage.mock_simple(projectname, '<a href="/%s-2.0.zip" />' % projectname,
+    pypistage.mock_simple(project, '<a href="/%s-2.0.zip" />' % project,
                           serial=200)
-    r = testapp.post("/%s/+simple/%s/refresh" % (stagename, projectname))
+    r = testapp.post("/%s/+simple/%s/refresh" % (stagename, project))
     assert r.status_code == 302
-    assert r.location.endswith("/%s/+simple/%s" % (stagename, projectname))
+    assert r.location.endswith("/%s/+simple/%s" % (stagename, project))
     with model.keyfs.transaction(write=False):
-        info = pypistage._load_project_cache(projectname)
-    assert info["projectname"] == projectname
+        info = pypistage._load_project_cache(project)
     elist = info["dumplist"]
     assert len(elist) == 1
     assert elist[0][0].endswith("-2.0.zip")
@@ -612,12 +610,15 @@ class TestSubmitValidation:
         r = testapp.delete(submit.api.index + "/pkg-hello")
         assert r.status_code == 200
 
-    def test_upload_and_simple_index(self, submit, testapp):
+    def test_upload_and_simple_index_with_redirect(self, submit, testapp):
         metadata = {"name": "Pkg5", "version": "2.6", ":action": "submit"}
         submit.metadata(metadata, code=200)
         submit.file("pkg5-2.6.tgz", b"123", {"name": "Pkg5"}, code=200)
-        r = testapp.get("/%s/+simple/pkg5" % submit.stagename)
+        r = testapp.get("/%s/+simple/Pkg5" % submit.stagename, follow=False)
         assert r.status_code == 302
+        assert r.location.endswith("pkg5")
+        r = testapp.get(r.location)
+        assert r.status_code == 200
 
     def test_upload_and_delete_index(self, submit, testapp, mapp):
         metadata = {"name": "Pkg5", "version": "2.6", ":action": "submit"}
@@ -654,7 +655,7 @@ class TestSubmitValidation:
         mapp.delete_user(submit.username)
         # recreate user and index
         submit = submit.__class__(submit.stagename)
-        assert not mapp.get_release_paths("pkg5")
+        mapp.get_simple("pkg5", code=404)
 
     def test_upload_twice_to_nonvolatile(self, submit, testapp, mapp):
         mapp.modify_index(submit.stagename, indexconfig=dict(volatile=False))
@@ -803,8 +804,8 @@ class TestSubmitValidation:
         metadata = {"name": "Pkg1", "version": "1.0", ":action": "submit",
                     "description": "hello world"}
         submit.metadata(metadata, code=200)
-        location = mapp.getjson("/%s/pkg1" % submit.stagename, code=302)
-        assert location.endswith("/Pkg1")
+        mapp.getjson("/%s/pkg1" % submit.stagename, code=200)
+        #assert location.endswith("/Pkg1")
 
 
 def test_submit_authorization(mapp, testapp):
@@ -1130,9 +1131,9 @@ class TestPluginPermissions:
 def test_upload_trigger(mapp):
     class Plugin:
         def devpiserver_on_upload_sync(self, log, application_url,
-                                       stage, projectname, version):
+                                       stage, project, version):
             self.results.append(
-                (application_url, stage.name, projectname, version))
+                (application_url, stage.name, project, version))
     plugin = Plugin()
     plugin.results = []
     mapp.xom.config.pluginmanager.register(plugin)
@@ -1236,7 +1237,7 @@ def test_upload_docs_no_version(mapp, testapp, proj):
     mapp.upload_doc("pkg1.zip", content, "Pkg1", "")
     vv = get_view_version_links(testapp, api.index, "Pkg1", "1.0", proj=proj)
     link = vv.get_link("doczip")
-    assert link.href.endswith("/Pkg1-1.0.doc.zip")
+    assert link.href.endswith("/pkg1-1.0.doc.zip")
     r = testapp.get(link.href)
     archive = Archive(py.io.BytesIO(r.body))
     assert 'index.html' in archive.namelist()

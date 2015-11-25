@@ -4,13 +4,21 @@
 - speed up simple-page serving for private indexes.  a private index 
   with 200 release files should now be some 5 times faster.
 
+- internally use normalized project names everywhere, simplifying
+  code and slightly speeding up some operations.
+
+- change {name} in route_urls to {project} to disambiguate.
+  This is potentially incompatible for plugins which have registered
+  on existing route_urls.
+
+- use "project" variable naming consistently in APIs
+
 2.5.3 (2015-11-23)
 ------------------
 
 - fix a bug that resulted from accessing a non-existing project on 
   root/pypi where upstream does not contain the X-PYPI-LAST-SERIAL
   header usually.  Thanks Matthias Bach.
-
 
 2.5.2 (2015-11-20)
 ------------------

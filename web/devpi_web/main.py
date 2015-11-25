@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 from chameleon.config import AUTO_RELOAD
 from devpi_common.metadata import get_latest_version
+from devpi_common.validation import normalize_name
 from devpi_web import hookspecs
 from devpi_web.description import render_description
 from devpi_web.doczip import unpack_docs
@@ -40,10 +41,10 @@ def navigation_version(context):
     version = context.version
     if version == 'latest':
         stage = context.model.getstage(context.username, context.index)
-        version = stage.get_latest_version(context.name)
+        version = stage.get_latest_version(context.project)
     elif version == 'stable':
         stage = context.model.getstage(context.username, context.index)
-        version = stage.get_latest_version(context.name, stable=True)
+        version = stage.get_latest_version(context.project, stable=True)
     return version
 
 
@@ -64,11 +65,11 @@ def navigation_info(request):
             title="%s/%s" % (user, index)))
     else:
         return result
-    if 'name' in context.matchdict:
-        name = context.name
+    if 'project' in context.matchdict:
+        name = context.project
         path.append(dict(
             url=request.route_url(
-                "/{user}/{index}/{name}", user=user, index=index, name=name),
+                "/{user}/{index}/{project}", user=user, index=index, project=name),
             title=name))
     else:
         return result
@@ -76,8 +77,8 @@ def navigation_info(request):
         version = navigation_version(context)
         path.append(dict(
             url=request.route_url(
-                "/{user}/{index}/{name}/{version}",
-                user=user, index=index, name=name, version=version),
+                "/{user}/{index}/{project}/{version}",
+                user=user, index=index, project=name, version=version),
             title=version))
     else:
         return result
@@ -155,16 +156,16 @@ def includeme(config):
     config.add_route('search_help', '/+searchhelp', accept='text/html')
     config.add_route(
         "docroot",
-        "/{user}/{index}/{name}/{version}/+doc/{relpath:.*}")
+        "/{user}/{index}/{project}/{version}/+doc/{relpath:.*}")
     config.add_route(
         "docviewroot",
-        "/{user}/{index}/{name}/{version}/+d/{relpath:.*}")
+        "/{user}/{index}/{project}/{version}/+d/{relpath:.*}")
     config.add_route(
         "toxresults",
-        "/{user}/{index}/{name}/{version}/+toxresults/{basename}")
+        "/{user}/{index}/{project}/{version}/+toxresults/{basename}")
     config.add_route(
         "toxresult",
-        "/{user}/{index}/{name}/{version}/+toxresults/{basename}/{toxresult}")
+        "/{user}/{index}/{project}/{version}/+toxresults/{basename}/{toxresult}")
     config.add_request_method(macros, reify=True)
     config.add_request_method(navigation_info, reify=True)
     config.add_request_method(status_info, reify=True)
@@ -259,38 +260,39 @@ def delete_project(stage, name):
     ix.delete_projects([preprocess_project(stage, name)])
 
 
-def index_project(stage, name):
+def index_project(stage, name_input):
     if stage is None:
         return
+    name = normalize_name(name_input)
     ix = get_indexer(stage.xom.config)
     ix.update_projects([preprocess_project(stage, name)])
 
 
-def devpiserver_on_upload(stage, projectname, version, link):
+def devpiserver_on_upload(stage, project, version, link):
     if not link.entry.file_exists():
         # on replication or import we might be at a lower than
         # current revision and the file might have been deleted already
         threadlog.debug("igoring lost upload: %s", link)
     elif link.rel == "doczip":
-        unpack_docs(stage, projectname, version, link.entry)
-        index_project(stage, projectname)
+        unpack_docs(stage, project, version, link.entry)
+        index_project(stage, project)
 
 
-def devpiserver_on_changed_versiondata(stage, projectname, version, metadata):
+def devpiserver_on_changed_versiondata(stage, project, version, metadata):
     if stage is None:
         # TODO we don't have enough info to delete the project
         return
     if not metadata:
-        if stage.get_projectname(projectname) is None:
-            delete_project(stage, projectname)
+        if not stage.has_project_perstage(project):
+            delete_project(stage, project)
             return
-        versions = stage.list_versions(projectname)
+        versions = stage.list_versions(project)
         if versions:
             version = get_latest_version(versions)
             if version:
                 threadlog.debug("A version of %s was deleted, using latest version %s for indexing" % (
-                    projectname, version))
-                metadata = stage.get_versiondata(projectname, version)
+                    project, version))
+                metadata = stage.get_versiondata(project, version)
     if metadata:
         render_description(stage, metadata)
         index_project(stage, metadata['name'])

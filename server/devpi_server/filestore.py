@@ -111,7 +111,7 @@ class FileEntry(object):
     eggfragment = metaprop("eggfragment")
     last_modified = metaprop("last_modified")
     url = metaprop("url")
-    projectname = metaprop("projectname")
+    project = metaprop("project")
     version = metaprop("version")
 
     def __init__(self, xom, key, meta=_nodefault, readonly=True):

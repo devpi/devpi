@@ -52,6 +52,10 @@ def is_deeply_readonly(val):
     (which ensures only reading of data is possible). """
     return isinstance(val, ReadonlyView) or isinstance(val, _immutable)
 
+def is_sequence(val):
+    """ Return True if the value is a readonly or normal sequence (list, tuple)"""
+    return isinstance(val, (ReadonlyView, list, tuple))
+
 
 class ReadonlyView(object):
     def __init__(self, data):
@@ -59,6 +63,9 @@ class ReadonlyView(object):
 
     def __eq__(self, other):
         return self._data == other
+
+    def __ne__(self, other):
+        return self._data != other
 
     def __contains__(self, key):
         return key in self._data

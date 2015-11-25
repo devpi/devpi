@@ -53,33 +53,31 @@ def test_docs_view(mapp, testapp):
 
 
 @pytest.mark.with_notifier
-def test_docs_raw_projectname_redirect(mapp, testapp):
+def test_docs_raw_projectname(mapp, testapp):
     api = mapp.create_and_use()
     content = zip_dict({"index.html": "<html><body>foo</body></"})
     mapp.set_versiondata({
         "name": "pkg_hello", "version": "1.0"})
     mapp.upload_doc(
         "pkg-hello.zip", content, "pkg-hello", "1.0", code=200, waithooks=True)
-    r = testapp.xget(302, api.index + "/pkg-hello/1.0/+doc/index.html")
-    assert r.location == '%s/pkg_hello/1.0/+doc/index.html' % api.index
-    r = testapp.xget(200, r.location, headers=dict(accept="text/html"))
+    location = '%s/pkg_hello/1.0/+doc/index.html' % api.index
+    r = testapp.xget(200, location, headers=dict(accept="text/html"))
     html = py.builtin._totext(r.html.renderContents().strip(), 'utf-8')
     assert '<html><body>foo</body></html>' == html
 
 
 @pytest.mark.with_notifier
-def test_docs_show_projectname_redirect(mapp, testapp):
+def test_docs_show_projectname(mapp, testapp):
     api = mapp.create_and_use()
     content = zip_dict({"index.html": "<html><body>foo</body></"})
     mapp.set_versiondata({
         "name": "pkg_hello", "version": "1.0"})
     mapp.upload_doc(
         "pkg-hello.zip", content, "pkg-hello", "1.0", code=200, waithooks=True)
-    r = testapp.xget(302, api.index + "/pkg-hello/1.0/+d/index.html")
-    assert r.location == '%s/pkg_hello/1.0/+d/index.html' % api.index
-    r = testapp.xget(200, r.location, headers=dict(accept="text/html"))
+    location = '%s/pkg-hello/1.0/+d/index.html' % api.index
+    r = testapp.xget(200, location, headers=dict(accept="text/html"))
     iframe, = r.html.findAll('iframe')
-    assert iframe.attrs['src'] == api.index + "/pkg_hello/1.0/+doc/index.html"
+    assert iframe.attrs['src'] == api.index + "/pkg-hello/1.0/+doc/index.html"
 
 
 @pytest.mark.with_notifier

@@ -9,7 +9,7 @@ from devpi_common.url import URL
 from devpi_common.metadata import get_pyversion_filetype
 import devpi_server
 from pyramid.compat import urlparse
-from pyramid.httpexceptions import HTTPException, HTTPFound, HTTPSuccessful, HTTPNotFound
+from pyramid.httpexceptions import HTTPException, HTTPFound, HTTPSuccessful
 from pyramid.httpexceptions import HTTPUnauthorized
 from pyramid.httpexceptions import exception_response
 from pyramid.response import Response
@@ -355,26 +355,22 @@ class PyPIView:
     # index serving and upload
     #
 
-    @view_config(route_name="/{user}/{index}/+simple/{name}")
+    @view_config(route_name="/{user}/{index}/+simple/{project}")
     def simple_list_project(self):
         request = self.request
-        name = self.context.name
+        abort_if_invalid_project(request, request.matchdict["project"])
+        project = self.context.project
         # we only serve absolute links so we don't care about the route's slash
-        abort_if_invalid_projectname(request, name)
         stage = self.context.stage
-        try:
-            projectname = self.context.projectname
-        except HTTPNotFound:
-            # we return 200 instead of !=200 so that pip/easy_install don't
-            # ask for the full simple page although we know it doesn't exist
-            # This is no longer necessary for pip >= 8.0
-            abort(request, 200, "no such project %r" % name)
         requested_by_pip = re.match(PIP_USER_AGENT, request.user_agent or "")
         try:
-            result = stage.get_simplelinks(projectname, sorted_links=not requested_by_pip)
+            result = stage.get_simplelinks(project, sorted_links=not requested_by_pip)
         except stage.UpstreamError as e:
             threadlog.error(e.msg)
             abort(request, 502, e.msg)
+
+        if not result:
+            self.request.context.verified_project  # access will trigger 404 if not found
 
         if requested_by_pip:
             # we don't need the extra stuff on the simple page for pip
@@ -382,27 +378,27 @@ class PyPIView:
             blocked_index = None
         else:
             # only mere humans need to know and do more
-            whitelist_info = stage.get_pypi_whitelist_info(projectname)
+            whitelist_info = stage.get_pypi_whitelist_info(project)
             embed_form = whitelist_info['has_pypi_base']
             blocked_index = whitelist_info['blocked_by_pypi_whitelist']
         response = Response(app_iter=self._simple_list_project(
-            stage, projectname, result, embed_form, blocked_index))
+            stage, project, result, embed_form, blocked_index))
         if stage.ixconfig['type'] == 'mirror':
-            serial = stage.pypimirror.get_project_serial(name)
+            serial = stage.pypimirror.get_project_serial(project)
             if serial > 0:
                 response.headers[str("X-PYPI-LAST-SERIAL")] = str(serial)
         return response
 
-    def _simple_list_project(self, stage, projectname, result, embed_form, blocked_index):
+    def _simple_list_project(self, stage, project, result, embed_form, blocked_index):
         response = self.request.response
         response.content_type = "text/html ; charset=utf-8"
 
-        title = "%s: links for %s" % (stage.name, projectname)
+        title = "%s: links for %s" % (stage.name, project)
         yield ("<html><head><title>%s</title></head><body><h1>%s</h1>\n" %
                (title, title)).encode("utf-8")
 
         if embed_form:
-            yield self._index_refresh_form(stage, projectname).encode("utf-8")
+            yield self._index_refresh_form(stage, project).encode("utf-8")
 
         if blocked_index:
             yield ("<p><strong>INFO:</strong> Because this project isn't in "
@@ -419,11 +415,11 @@ class PyPIView:
 
         yield "</body></html>".encode("utf-8")
 
-    def _index_refresh_form(self, stage, projectname):
+    def _index_refresh_form(self, stage, project):
         url = self.request.route_url(
-            "/{user}/{index}/+simple/{name}/refresh",
+            "/{user}/{index}/+simple/{project}/refresh",
             user=self.context.username, index=self.context.index,
-            name=projectname)
+            project=project)
         title = "Refresh" if stage.ixconfig["type"] == "mirror" else "Refresh PyPI links"
         submit = '<input name="refresh" type="submit" value="%s"/>' % title
         return '<form action="%s" method="post">%s</form>' % (url, submit)
@@ -433,7 +429,7 @@ class PyPIView:
         self.log.info("starting +simple")
         stage = self.context.stage
         try:
-            stage_results = list(stage.op_sro("list_projectnames_perstage"))
+            stage_results = list(stage.op_sro("list_projects_perstage"))
         except stage.UpstreamError as e:
             threadlog.error(e.msg)
             abort(self.request, 502, e.msg)
@@ -463,17 +459,17 @@ class PyPIView:
         yield "</body>".encode("utf-8")
 
     @view_config(
-        route_name="/{user}/{index}/+simple/{name}/refresh", request_method="POST")
+        route_name="/{user}/{index}/+simple/{project}/refresh", request_method="POST")
     def simple_refresh(self):
         context = self.context
         # XXX we might want to check if user/index has root/pypi as a base
         stage = context.model.getstage('root', 'pypi')
         assert stage.ixconfig["type"] == "mirror", stage.ixconfig
-        stage.clear_cache(context.name)
-        stage.get_simplelinks_perstage(context.name)
+        stage.clear_cache(context.project)
+        stage.get_simplelinks_perstage(context.project)
         redirect(self.request.route_url(
-            "/{user}/{index}/+simple/{name}",
-            user=context.username, index=context.index, name=context.name))
+            "/{user}/{index}/+simple/{project}",
+            user=context.username, index=context.index, project=context.project))
 
     @view_config(
         route_name="/{user}/{index}", request_method="PUT")
@@ -687,8 +683,8 @@ class PyPIView:
             name = ensure_unicode(request.POST.get("name"))
             # version may be empty on plain doczip uploads
             version = ensure_unicode(request.POST.get("version") or "")
-            projectname = stage.get_projectname(name)
-            if projectname is None:
+            project = normalize_name(name)
+            if not stage.has_project(name):
                 abort_submit(400, "no project named %r was ever registered" % (name))
 
             if action == "file_upload":
@@ -703,16 +699,16 @@ class PyPIView:
                                  content.filename, version))
 
                 abort_if_invalid_filename(name, content.filename)
-                metadata = stage.get_versiondata_perstage(projectname, version)
+                metadata = stage.get_versiondata_perstage(project, version)
                 if not metadata:
                     self._set_versiondata_form(stage, request.POST)
-                    metadata = stage.get_versiondata(projectname, version)
+                    metadata = stage.get_versiondata(project, version)
                     if not metadata:
                         abort_submit(400, "could not process form metadata")
                 file_content = content.file.read()
                 try:
                     link = stage.store_releasefile(
-                        projectname, version,
+                        project, version,
                         content.filename, file_content)
                 except stage.NonVolatile as e:
                     if e.link.matches_checksum(file_content):
@@ -726,14 +722,14 @@ class PyPIView:
                 try:
                     self.xom.config.hook.devpiserver_on_upload_sync(
                         log=request.log, application_url=request.application_url,
-                        stage=stage, projectname=projectname, version=version)
+                        stage=stage, project=project, version=version)
                 except Exception as e:
                     abort_submit(200,
                         "OK, but a trigger plugin failed: %s" % e, level="warn")
             else:
                 doczip = content.file.read()
                 try:
-                    link = stage.store_doczip(projectname, version, doczip)
+                    link = stage.store_doczip(project, version, doczip)
                 except stage.MissesRegistration:
                     apireturn(400, "%s-%s is not registered" %(name, version))
                 except stage.NonVolatile as e:
@@ -778,12 +774,10 @@ class PyPIView:
 
     @view_config(route_name="simple_redirect")
     def simple_redirect(self):
-        stage, name = self.context.stage, self.context.name
-        projectname = stage.get_projectname(name)
-        real_name = projectname if projectname else name
-        redirect("/%s/+simple/%s" % (stage.name, real_name))
+        stage, name = self.context.stage, self.context.project
+        redirect("/%s/+simple/%s" % (stage.name, name))
 
-    @view_config(route_name="/{user}/{index}/{name}",
+    @view_config(route_name="/{user}/{index}/{project}",
                  accept="application/json", request_method="GET")
     def project_get(self):
         if not json_preferred(self.request):
@@ -797,21 +791,24 @@ class PyPIView:
         apireturn(200, type="projectconfig", result=view_metadata)
 
     @view_config(
-        route_name="/{user}/{index}/{name}", request_method="DELETE",
+        route_name="/{user}/{index}/{project}", request_method="DELETE",
         permission="del_project")
     def del_project(self):
         stage = self.context.stage
         if stage.name == "root/pypi":
             abort(self.request, 405, "cannot delete root/pypi index")
-        projectname = self.context.projectname
+        project = self.context.project
         if not stage.ixconfig["volatile"]:
             apireturn(403, "project %r is on non-volatile index %s" %(
-                      projectname, stage.name))
-        stage.del_project(projectname)
-        apireturn(200, "project {name} deleted from stage {sname}".format(
-                  name=projectname, sname=stage.name))
+                      project, stage.name))
+        try:
+            stage.del_project(project)
+        except KeyError:
+            apireturn(404, "project not found")
+        apireturn(200, "project {project} deleted from stage {sname}".format(
+                  project=project, sname=stage.name))
 
-    @view_config(route_name="/{user}/{index}/{name}/{version}", accept="application/json", request_method="GET")
+    @view_config(route_name="/{user}/{index}/{project}/{version}", accept="application/json", request_method="GET")
     def version_get(self):
         verdata = self.context.get_versiondata(perstage=False)
         view_verdata = self._make_view_verdata(verdata)
@@ -838,12 +835,12 @@ class PyPIView:
                     [self._make_view_verdata(x) for x in shadowing]
         return view_verdata
 
-    @view_config(route_name="/{user}/{index}/{name}/{version}",
+    @view_config(route_name="/{user}/{index}/{project}/{version}",
                  permission="del_verdata",
                  request_method="DELETE")
     def del_versiondata(self):
         stage = self.context.stage
-        name, version = self.context.name, self.context.version
+        name, version = self.context.project, self.context.version
         if stage.name == "root/pypi":
             abort(self.request, 405, "cannot delete on root/pypi index")
         if not stage.ixconfig["volatile"]:
@@ -897,7 +894,7 @@ class PyPIView:
     def index_get(self):
         stage = self.context.stage
         result = dict(stage.ixconfig)
-        result['projects'] = sorted(stage.list_projectnames_perstage())
+        result['projects'] = sorted(stage.list_projects_perstage())
         apireturn(200, type="indexconfig", result=result)
 
     #
@@ -1028,12 +1025,12 @@ def abort_if_invalid_filename(name, filename):
     abort_submit(400, "filename %r does not match project name %r"
                       %(filename, name))
 
-def abort_if_invalid_projectname(request, projectname):
+def abort_if_invalid_project(request, project):
     try:
-        if isinstance(projectname, bytes):
-            projectname.decode("ascii")
+        if isinstance(project, bytes):
+            project.decode("ascii")
         else:
-            projectname.encode("ascii")
+            project.encode("ascii")
     except (UnicodeEncodeError, UnicodeDecodeError):
         abort(request, 400, "unicode project names not allowed")
 

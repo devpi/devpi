@@ -276,23 +276,21 @@ class PypiProjectChanged:
     def __call__(self, ev):
         threadlog.info("PypiProjectChanged %s", ev.typedkey)
         pypimirror = self.xom.pypimirror
-        name2serials = pypimirror.name2serials
         cache = ev.value
 
-        # get the normalized projectname (PYPILINKS uses it)
-        nname = ev.typedkey.params["name"]
-        if not nname:
-            threadlog.error("project %r missing", nname)
+        # get the normalized project (PYPILINKS uses it)
+        project = ev.typedkey.params["project"]
+        if not project:
+            threadlog.error("project %r missing", project)
             return
-        assert normalize_name(nname) == nname
+        assert normalize_name(project) == project
 
-        projectname = ev.value["projectname"] if cache else nname
         if cache is None:  # deleted
-            pypimirror.set_project_serial(projectname, None)
+            pypimirror.set_project_serial(project, None)
         else:
-            cur_serial = name2serials.get(projectname, -1)
+            cur_serial = pypimirror.get_project_serial(project)
             if cache and cache["serial"] > cur_serial:
-                pypimirror.set_project_serial(projectname, cache["serial"])
+                pypimirror.set_project_serial(project, cache["serial"])
 
 
 def tween_replica_proxy(handler, registry):

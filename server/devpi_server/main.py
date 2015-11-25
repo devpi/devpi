@@ -171,13 +171,13 @@ class XOM:
         versionfile.dirpath().ensure(dir=1)
         versionfile.write(version)
 
-    def get_updated_at(self, stagename, projectname):
+    def get_updated_at(self, stagename, project):
         name2updated = self.stage2name2updated.setdefault(stagename, {})
-        return name2updated.setdefault(projectname, 0)
+        return name2updated.setdefault(project, 0)
 
-    def set_updated_at(self, stagename, projectname, ts):
+    def set_updated_at(self, stagename, project, ts):
         name2updated = self.stage2name2updated.setdefault(stagename, {})
-        name2updated[projectname] = ts
+        name2updated[project] = ts
 
     @property
     def model(self):
@@ -322,15 +322,19 @@ class XOM:
         pyramid_config.add_route("/{user}/{index}/+e/{relpath:.*}", "/{user}/{index}/+e/{relpath:.*}")
         pyramid_config.add_route("/{user}/{index}/+f/{relpath:.*}", "/{user}/{index}/+f/{relpath:.*}")
         pyramid_config.add_route("/{user}/{index}/+simple/", "/{user}/{index}/+simple/")
-        pyramid_config.add_route("/{user}/{index}/+simple/{name}", "/{user}/{index}/+simple/{name:[^/]+/?}")
-        pyramid_config.add_route("/{user}/{index}/+simple/{name}/refresh", "/{user}/{index}/+simple/{name}/refresh")
-        pyramid_config.add_route("/{user}/{index}/{name}/{version}", "/{user}/{index}/{name}/{version:[^/]+/?}")
+        pyramid_config.add_route("/{user}/{index}/+simple/{project}",
+                                 "/{user}/{index}/+simple/{project:[^/]+/?}")
+        pyramid_config.add_route("/{user}/{index}/+simple/{project}/refresh",
+                                 "/{user}/{index}/+simple/{project}/refresh")
+        pyramid_config.add_route("/{user}/{index}/{project}/{version}",
+                                 "/{user}/{index}/{project}/{version:[^/]+/?}")
         pyramid_config.add_route(
-            "simple_redirect", "/{user}/{index}/{name:[^/]+/?}",
+            "simple_redirect", "/{user}/{index}/{project:[^/]+/?}",
             header="User-Agent:" + PIP_USER_AGENT,
             accept="text/html",
         )
-        pyramid_config.add_route("/{user}/{index}/{name}", "/{user}/{index}/{name:[^/]+/?}")
+        pyramid_config.add_route("/{user}/{index}/{project}",
+                                 "/{user}/{index}/{project:[^/]+/?}")
         pyramid_config.add_route("/{user}/{index}/", "/{user}/{index}/")
         pyramid_config.add_route("/{user}/{index}", "/{user}/{index}")
         pyramid_config.add_route("/{user}", "/{user}")
