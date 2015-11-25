@@ -454,27 +454,29 @@ class TestStage:
         assert links[0].entrypath.endswith("someproject-1.1.zip")
         assert links[1].entrypath.endswith("someproject-1.0.zip")
 
-    @pytest.mark.parametrize("name", ["some", "Some"])
-    def test_store_and_delete_project(self, stage, bases, name):
-        content = b"123"
-        register_and_store(stage, "%s-1.0.zip" % name, content)
-        assert stage.get_versiondata_perstage(name, "1.0")
-        assert stage.get_versiondata_perstage(name.upper(), "1.0")
-        stage.del_project(name.upper())
-        assert not stage.list_versions_perstage(name)
+    def test_store_and_delete_project(self, stage):
+        register_and_store(stage, "some_xyz-1.0.zip", b"123")
+        assert stage.get_versiondata_perstage("Some_xyz", "1.0")
+        assert stage.get_versiondata_perstage("SOME_XYZ", "1.0")
+        assert stage.get_versiondata_perstage("some-xyz", "1.0")
+        stage.del_project("SoMe-XYZ")
+        assert not stage.list_versions_perstage("Some-xyz")
+        assert not stage.list_versions_perstage("Some_xyz")
 
-    @pytest.mark.parametrize("name", ["some", "Some"])
-    def test_store_and_delete_release(self, stage, bases, name):
-        register_and_store(stage, "%s-1.0.zip" % name)
-        register_and_store(stage, "%s-1.1.zip" % name)
-        assert stage.get_versiondata_perstage(name.upper(), "1.0")
-        assert stage.get_versiondata_perstage(name.lower(), "1.1")
-        stage.del_versiondata(name.lower(), "1.0")
-        assert not stage.get_versiondata_perstage(name, "1.0")
-        assert stage.get_versiondata_perstage(name.upper(), "1.1")
-        assert stage.get_versiondata_perstage(name.lower(), "1.1")
-        stage.del_versiondata(name.upper(), "1.1")
-        assert not stage.has_project_perstage(name)
+    def test_store_and_delete_release(self, stage):
+        register_and_store(stage, "Some_xyz-1.0.zip")
+        register_and_store(stage, "Some_xyz-1.1.zip")
+        # the name in versiondata is the "display" name, the originally
+        # registered name.
+        assert stage.get_versiondata_perstage("SOME_xYz", "1.0")["name"] == "Some_xyz"
+        assert stage.get_versiondata_perstage("some-xyz", "1.1")["name"] == "Some_xyz"
+        stage.del_versiondata("SOME-XYZ", "1.0")
+        assert not stage.get_versiondata_perstage("SOME_xyz", "1.0")
+        assert stage.get_versiondata_perstage("SOME-xyz", "1.1") == \
+               stage.get_versiondata_perstage("some-xyz", "1.1")
+        stage.del_versiondata("SomE_xyz", "1.1")
+        assert not stage.has_project_perstage("SOME-xyz")
+        assert not stage.has_project_perstage("some-xyz")
 
     def test_delete_not_existing(self, stage, bases):
         with pytest.raises(stage.NotFound) as excinfo:
