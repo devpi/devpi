@@ -192,14 +192,14 @@ def test_simple_refresh(mapp, model, pypistage, testapp):
     assert input.attrs['name'] == 'refresh'
     assert input.attrs['value'] == 'Refresh'
     with model.keyfs.transaction(write=False):
-        info = pypistage._load_project_cache("hello")
+        info = pypistage.key_projsimplelinks("hello").get()
     assert info != {}
     r = testapp.post("/root/pypi/+simple/hello/refresh")
     assert r.status_code == 302
     assert r.location.endswith("/root/pypi/+simple/hello")
     with model.keyfs.transaction(write=False):
-        info = pypistage._load_project_cache("hello")
-    assert info["dumplist"] == []
+        info = pypistage.key_projsimplelinks("hello").get()
+    assert info["links"] == []
 
 def test_inheritance_versiondata(mapp, model):
     api1 = mapp.create_and_use()
@@ -227,7 +227,7 @@ def test_simple_refresh_inherited(mapp, model, pypistage, testapp, project,
     assert input.attrs['name'] == 'refresh'
     #assert input.attrs['value'] == 'Refresh PyPI links'
     with model.keyfs.transaction(write=False):
-        info = pypistage._load_project_cache(project)
+        info = pypistage.key_projsimplelinks(project).get()
     assert info != {}
     pypistage.mock_simple(project, '<a href="/%s-2.0.zip" />' % project,
                           serial=200)
@@ -235,8 +235,8 @@ def test_simple_refresh_inherited(mapp, model, pypistage, testapp, project,
     assert r.status_code == 302
     assert r.location.endswith("/%s/+simple/%s" % (stagename, project))
     with model.keyfs.transaction(write=False):
-        info = pypistage._load_project_cache(project)
-    elist = info["dumplist"]
+        info = pypistage.key_projsimplelinks(project).get()
+    elist = info["links"]
     assert len(elist) == 1
     assert elist[0][0].endswith("-2.0.zip")
 

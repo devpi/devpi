@@ -282,6 +282,10 @@ class BaseStage(object):
         self.keyfs = xom.keyfs
         self.filestore = xom.filestore
 
+    def key_projsimplelinks(self, project):
+        return self.keyfs.PROJSIMPLELINKS(user=self.username,
+            index=self.index, project=normalize_name(project))
+
     def get_cache_perprocess(self, cache_name, default=_nodefault):
         """ Return a per-process-cached dictionary
         identified by the cache_name"""
@@ -599,12 +603,8 @@ class PrivateStage(BaseStage):
         project = normalize_name(project)
         return self.key_projversion(project, version).get(readonly=readonly)
 
-    def key_projsimplelinks(self, project):
-        return self.keyfs.PROJSIMPLELINKS(user=self.username,
-            index=self.index, project=normalize_name(project))
-
     def get_simplelinks_perstage(self, project):
-        return self.key_projsimplelinks(project).get()
+        return self.key_projsimplelinks(project).get().get("links", [])
 
     def _regen_simplelinks(self, project_input):
         project = normalize_name(project_input)
@@ -612,7 +612,7 @@ class PrivateStage(BaseStage):
         for version in self.list_versions_perstage(project):
             linkstore = self.get_linkstore_perstage(project, version)
             links.extend(map(make_key_and_href, linkstore.get_links("releasefile")))
-        self.key_projsimplelinks(project).set(links)
+        self.key_projsimplelinks(project).set({"links": links})
 
     def list_projects_perstage(self):
         return self.key_projects.get()
@@ -898,13 +898,11 @@ def add_keys(xom, keyfs):
     keyfs.add_key("USER", "{user}/.config", dict)
     keyfs.add_key("USERLIST", ".config", set)
 
-    # type pypimirror related data
-    keyfs.add_key("PYPILINKS", "root/pypi/+links/{project}", dict)
-    keyfs.add_key("PYPIFILE_NOMD5",
-                 "{user}/{index}/+e/{dirname}/{basename}", dict)
+    # type mirror related data
+    keyfs.add_key("PYPIFILE_NOMD5", "{user}/{index}/+e/{dirname}/{basename}", dict)
 
     # type "stage" related
-    keyfs.add_key("PROJSIMPLELINKS", "{user}/{index}/{project}/.simple", list)
+    keyfs.add_key("PROJSIMPLELINKS", "{user}/{index}/{project}/.simple", dict)
     keyfs.add_key("PROJVERSIONS", "{user}/{index}/{project}/.versions", set)
     keyfs.add_key("PROJVERSION", "{user}/{index}/{project}/{version}/.config", dict)
     keyfs.add_key("PROJNAMES", "{user}/{index}/.projects", set)

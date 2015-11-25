@@ -133,8 +133,8 @@ class ReplicaThread:
         self.xom = xom
         self.master_url = xom.config.master_url
         if xom.is_replica():
-            xom.keyfs.notifier.on_key_change("PYPILINKS",
-                                             PypiProjectChanged(xom))
+            xom.keyfs.notifier.on_key_change("PROJSIMPLELINKS",
+                                             SimpleLinksChanged(xom))
         self._master_serial = None
         self._master_serial_timestamp = None
         self.started_at = None
@@ -243,16 +243,18 @@ class ReplicaThread:
             self.thread.sleep(5.0)
 
 
-class PypiProjectChanged:
+class SimpleLinksChanged:
     """ Event executed in notification thread based on a pypi link change. """
     def __init__(self, xom):
         self.xom = xom
 
     def __call__(self, ev):
-        threadlog.info("PypiProjectChanged %s", ev.typedkey)
+        threadlog.info("SimpleLinksChanged %s", ev.typedkey)
         cache = ev.value
 
         # get the normalized project (PYPILINKS uses it)
+        username = ev.typedkey.params["user"]
+        index = ev.typedkey.params["index"]
         project = ev.typedkey.params["project"]
         if not project:
             threadlog.error("project %r missing", project)
@@ -260,12 +262,13 @@ class PypiProjectChanged:
         assert normalize_name(project) == project
 
         with self.xom.keyfs.transaction(write=False):
-            pypistage = self.xom.model.getstage("root", "pypi")
-            cache_projectnames = pypistage.cache_projectnames.get_inplace()
-            if cache is None:  # deleted
-                cache_projectnames.discard(project)
-            else:
-                cache_projectnames.add(project)
+            mirror_stage = self.xom.model.getstage(username, index)
+            if mirror_stage.ixconfig["type"] == "mirror":
+                cache_projectnames = mirror_stage.cache_projectnames.get_inplace()
+                if cache is None:  # deleted
+                    cache_projectnames.discard(project)
+                else:
+                    cache_projectnames.add(project)
 
 
 def tween_replica_proxy(handler, registry):

@@ -155,6 +155,7 @@ class PyPIStage(BaseStage):
 
     def set_updated_at(self, key, ts):
         self._key2timestamp[key] = ts
+        threadlog.debug("updating key %r to %r", key, ts)
 
     def is_fresh(self, key):
         updated_at = self.get_updated_at(key)
@@ -204,38 +205,34 @@ class PyPIStage(BaseStage):
         if isinstance(entries, list):
             dumplist = [make_key_and_href(entry) for entry in entries]
             # make project appear in projects list even
-            # before we next check up with remote
+            # before we next check up the full list with remote
             threadlog.info("setting projects cache for %r", project)
             self.cache_projectnames.get_inplace().add(project)
         else:
             dumplist = entries
 
-        data = {"serial": serial, "dumplist": dumplist}
+        data = {"serial": serial, "links": dumplist}
         self.set_updated_at(project, time.time())
-        old = self.keyfs.PYPILINKS(project=project).get()
+        key = self.key_projsimplelinks(project)
+        old = key.get()
         if old != data:
             threadlog.debug("saving data for %s: %s", project, data)
             threadlog.debug("old data    for %s: %s", project, old)
-            self.keyfs.PYPILINKS(project=project).set(data)
+            key.set(data)
         else:
             threadlog.debug("data unchanged for %s: %s", project, data)
         return dumplist
 
-    def _load_project_cache(self, project):
-        normname = normalize_name(project)
-        return self.keyfs.PYPILINKS(project=normname).get()
-
     def _load_cache_links(self, project):
-        cache = self._load_project_cache(project)
+        cache = self.key_projsimplelinks(project).get()
         if cache:
-            return (self.is_fresh(project), cache["dumplist"], cache["serial"])
+            return (self.is_fresh(project), cache["links"], cache["serial"])
         return False, None, -1
 
     def clear_cache(self, project):
-        normname = normalize_name(project)
         # we have to set to an empty dict instead of removing the key, so
         # replicas behave correctly
-        self.keyfs.PYPILINKS(project=normname).set({})
+        self.key_projsimplelinks(project).set({})
         threadlog.debug("cleared cache for %s", project)
 
     def get_simplelinks_perstage(self, project):
@@ -391,7 +388,7 @@ def iteritems(d):
 
 
 class ProjectNamesCache:
-    """ Helper class for maintaining projects cache for a mirror. """
+    """ Helper class for maintaining project names from a mirror. """
     def __init__(self, expiry_time, filepath):
         self._timestamp = -1
         self._expiry_time = expiry_time
