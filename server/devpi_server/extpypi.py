@@ -15,11 +15,9 @@ from devpi_common.vendor._pip import HTMLPage
 from devpi_common.url import URL
 from devpi_common.metadata import BasenameMeta
 from devpi_common.metadata import is_archive_of_project
-from devpi_common.types import ensure_unicode_keys, cached_property
+from devpi_common.types import cached_property
 from devpi_common.validation import normalize_name
-from devpi_common.request import new_requests_session
 
-from . import __version__ as server_version
 from .model import BaseStage, make_key_and_href, SimplelinkMeta
 from .keyfs import load_from_file, dump_to_file
 from .readonly import ensure_deeply_readonly
@@ -196,11 +194,20 @@ class PyPIStage(BaseStage):
                 threadlog.warn("using stale projects list")
                 projects = self.cache_projectnames.get()
             else:
-                self.cache_projectnames.set(projects)
+                old = self.cache_projectnames.get()
+                if not self.cache_projectnames.exists() or old != projects:
+                    self.cache_projectnames.set(projects)
+
+                    # trigger an initial-load event
+                    k = self.keyfs.MIRRORNAMESINIT(user=self.username, index=self.index)
+                    if k.get() == 0:
+                        self.keyfs.restart_as_write_transaction()
+                        k.set(1)
 
         return projects
 
     def _dump_project_cache(self, project, entries, serial):
+        assert isinstance(serial, int)
         assert project == normalize_name(project), project
         if isinstance(entries, list):
             dumplist = [make_key_and_href(entry) for entry in entries]
@@ -270,7 +277,7 @@ class PyPIStage(BaseStage):
                 # list) so has_project_per_stage() can determine it as a
                 # non-existing project.
                 self.keyfs.restart_as_write_transaction()
-                return self._dump_project_cache(project, (), None)
+                return self._dump_project_cache(project, (), -1)
 
             # we don't have an old result and got a non-404 code.
             raise self.UpstreamError("%s status on GET %s" %

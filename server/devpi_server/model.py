@@ -900,6 +900,7 @@ def add_keys(xom, keyfs):
 
     # type mirror related data
     keyfs.add_key("PYPIFILE_NOMD5", "{user}/{index}/+e/{dirname}/{basename}", dict)
+    keyfs.add_key("MIRRORNAMESINIT", "{user}/{index}/.mirrornameschange", int)
 
     # type "stage" related
     keyfs.add_key("PROJSIMPLELINKS", "{user}/{index}/{project}/.simple", dict)
@@ -910,8 +911,9 @@ def add_keys(xom, keyfs):
                   "{user}/{index}/+f/{hashdir_a}/{hashdir_b}/{filename}", dict)
 
     sub = EventSubscribers(xom)
-    keyfs.notifier.on_key_change("PROJVERSION", sub.on_changed_version_config)
-    keyfs.notifier.on_key_change("STAGEFILE", sub.on_changed_file_entry)
+    keyfs.PROJVERSION.on_key_change(sub.on_changed_version_config)
+    keyfs.STAGEFILE.on_key_change(sub.on_changed_file_entry)
+    keyfs.MIRRORNAMESINIT.on_key_change(sub.on_mirror_initialnames)
 
 
 class EventSubscribers:
@@ -970,3 +972,16 @@ class EventSubscribers:
                     version=entry.version,
                     link=links[0])
 
+    def on_mirror_initialnames(self, ev):
+        """ when projectnames are first loaded into a mirror. """
+        params = ev.typedkey.params
+        user = params.get("user")
+        index = params.get("index")
+        keyfs = self.xom.keyfs
+        with keyfs.transaction(at_serial=ev.at_serial):
+            stage = self.xom.model.getstage(user, index)
+            if stage is not None and stage.ixconfig["type"] == "mirror":
+                self.xom.config.hook.devpiserver_mirror_initialnames(
+                    stage=stage,
+                    projectnames=stage.list_projects_perstage()
+                )

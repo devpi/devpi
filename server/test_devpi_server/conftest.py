@@ -191,8 +191,11 @@ def makexom(request, gentmp, httpget, monkeypatch):
 
 @pytest.fixture
 def replica_xom(request, makexom):
+    from devpi_server.replica import register_key_subscribers
     master_url = "http://localhost:3111"
-    return makexom(["--master", master_url])
+    xom = makexom(["--master", master_url])
+    register_key_subscribers(xom)
+    return xom
 
 
 @pytest.fixture
@@ -290,7 +293,7 @@ def pypistage(xom):
     return PyPIStage(xom)
 
 @pytest.fixture
-def pypireplicastage(replica_xom):
+def replica_pypistage(replica_xom):
     return PyPIStage(replica_xom)
 
 def add_pypistage_mocks(monkeypatch, httpget):

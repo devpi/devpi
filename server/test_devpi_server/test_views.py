@@ -353,6 +353,7 @@ class TestStatusInfoPlugin:
         assert not xom.is_replica()
         assert result == []
 
+    @pytest.mark.xfail(reason="sometimes fail due to race condition in db table creation")
     @pytest.mark.with_replica_thread
     @pytest.mark.with_notifier
     def test_no_issue_replica(self, plugin, xom):

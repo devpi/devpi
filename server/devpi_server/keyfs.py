@@ -379,7 +379,7 @@ class TxNotificationThread:
                     self.cv_new_transaction.wait()
                     self.thread.exit_if_shutdown()
 
-    def _execute_hooks(self, event_serial, log):
+    def _execute_hooks(self, event_serial, log, raising=False):
         log.debug("calling hooks for tx%s", event_serial)
         changes = self.keyfs._fs.get_changes(event_serial)
         for relpath, (keyname, back_serial, val) in changes.items():
@@ -393,6 +393,8 @@ class TxNotificationThread:
                 try:
                     sub(ev)
                 except Exception:
+                    if raising:
+                        raise
                     log.exception("calling %s failed, serial=%s", sub, event_serial)
 
         log.debug("finished calling all hooks for tx%s", event_serial)
@@ -567,6 +569,9 @@ class PTypedKey:
     def extract_params(self, relpath):
         m = self.rex_reverse.match(relpath)
         return m.groupdict() if m is not None else {}
+
+    def on_key_change(self, callback):
+        self.keyfs.notifier.on_key_change(self.name, callback)
 
     def __repr__(self):
         return "<PTypedKey %r type %r>" %(self.pattern, self.type.__name__)

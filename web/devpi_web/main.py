@@ -231,12 +231,12 @@ def devpiserver_add_parser_options(parser):
              "without a full devpi-server import/export.")
 
 
-def devpiserver_pypi_initial(stage, name2serials):
+def devpiserver_mirror_initialnames(stage, projectnames):
     xom = stage.xom
     ix = get_indexer(xom.config)
     ix.delete_index()
     indexer = get_indexer(xom.config)
-    # directly use name2serials?
+    # directly use projectnames?
     indexer.update_projects(iter_projects(xom), clear=True)
     threadlog.info("finished initial indexing op")
 

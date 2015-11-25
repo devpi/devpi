@@ -13,7 +13,7 @@ from devpi_common.request import new_requests_session
 from .config import parseoptions, get_pluginmanager
 from .log import configure_logging, threadlog
 from .model import BaseStage
-from . import extpypi, replica, mythread
+from . import mythread
 from . import __version__ as server_version
 
 
@@ -341,7 +341,8 @@ class XOM:
         pyramid_config.registry['xom'] = self
         app = pyramid_config.make_wsgi_app()
         if self.is_replica():
-            from devpi_server.replica import ReplicaThread
+            from devpi_server.replica import ReplicaThread, register_key_subscribers
+            register_key_subscribers(self)
             self.replica_thread = ReplicaThread(self)
             # the replica thread replays keyfs changes
             # and project-specific changes are discovered

@@ -1,5 +1,4 @@
 import os
-import py
 import json
 import contextlib
 import time
@@ -9,7 +8,7 @@ from pyramid.response import Response
 from devpi_common.validation import normalize_name
 from webob.headers import EnvironHeaders, ResponseHeaders
 
-from .keyfs import load, loads, dump, get_write_file_ensure_dir, rename
+from .keyfs import loads, get_write_file_ensure_dir, rename
 from .log import thread_push_log, threadlog
 from .views import is_mutating_http_method, H_MASTER_UUID, make_uuid_headers
 from .model import UpstreamError
@@ -132,9 +131,6 @@ class ReplicaThread:
     def __init__(self, xom):
         self.xom = xom
         self.master_url = xom.config.master_url
-        if xom.is_replica():
-            xom.keyfs.notifier.on_key_change("PROJSIMPLELINKS",
-                                             SimpleLinksChanged(xom))
         self._master_serial = None
         self._master_serial_timestamp = None
         self.started_at = None
@@ -243,6 +239,10 @@ class ReplicaThread:
             self.thread.sleep(5.0)
 
 
+def register_key_subscribers(xom):
+    xom.keyfs.PROJSIMPLELINKS.on_key_change(SimpleLinksChanged(xom))
+
+
 class SimpleLinksChanged:
     """ Event executed in notification thread based on a pypi link change. """
     def __init__(self, xom):
@@ -251,7 +251,6 @@ class SimpleLinksChanged:
     def __call__(self, ev):
         threadlog.info("SimpleLinksChanged %s", ev.typedkey)
         cache = ev.value
-
         # get the normalized project (PYPILINKS uses it)
         username = ev.typedkey.params["user"]
         index = ev.typedkey.params["index"]

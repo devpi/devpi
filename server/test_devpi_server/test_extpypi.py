@@ -2,11 +2,9 @@ from __future__ import unicode_literals
 import time
 import hashlib
 import pytest
-import py
 
-from devpi_server.extpypi import PyPIStage, URL, parse_index, threadlog
+from devpi_server.extpypi import URL, parse_index, threadlog
 from devpi_server.extpypi import ProjectNamesCache
-from devpi_server.main import Fatal
 from test_devpi_server.conftest import getmd5
 
 

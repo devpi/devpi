@@ -3,8 +3,8 @@
 devpi-server plugin hooks (experimental)
 ============================================
 
-``devpi-server-2.0`` introduced an experimental Plugin system in order
-to decouple ``devpi-web`` from core operations.  As the 2.0 series becomes more
+``devpi-server-3.0`` provides a reasonably but not completely stable Plugin system 
+in order to decouple ``devpi-web`` from core operations.  As the 3.0 series becomes more
 battle tested we expect the plugin API to stabilize and be useable from
 other prospective extensions.
 
@@ -117,6 +117,17 @@ Plugins can add key names and default values to the index configuration::
 
         It's best to use the plugin name as prefix to avoid clashes between
         key names in different plugins."""
+
+
+hook semantics for mirror indexes
+---------------------------------
+
+Plugins can process the initial list of projectnames when a mirror loads it::
+
+    def devpiserver_mirror_initialnames(stage, projectnames):
+        """called with a mirror stage and a list of projectnames, initially
+        retrieved from the mirrored remote site. """
+
 
 
 devpi-web plugin hooks (experimental)
