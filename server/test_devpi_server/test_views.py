@@ -451,6 +451,7 @@ class TestStatusInfoPlugin:
             status='fatal',
             msg='No contact to master for more than 5 minutes')]
 
+    @pytest.mark.xfail(reason="sometimes fail due to race condition in db table creation")
     @pytest.mark.with_replica_thread
     @pytest.mark.with_notifier
     def test_no_master_update(self, plugin, xom, monkeypatch):

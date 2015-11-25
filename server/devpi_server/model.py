@@ -254,12 +254,14 @@ class User:
         if not ixconfig:
             return None
         if ixconfig["type"] == "stage":
-            return PrivateStage(self.xom, self.name, indexname, ixconfig)
+            Stage = PrivateStage
         elif ixconfig["type"] == "mirror":
             from .extpypi import PyPIStage
-            return PyPIStage(self.xom)
+            Stage = PyPIStage
         else:
             raise ValueError("unknown index type %r" % ixconfig["type"])
+        return Stage(self.xom, username=self.name, index=indexname,
+                     ixconfig=ixconfig)
 
 
 class InvalidIndexconfig(Exception):
@@ -275,8 +277,12 @@ class BaseStage(object):
     MissesRegistration = MissesRegistration
     NonVolatile = NonVolatile
 
-    def __init__(self, xom):
+    def __init__(self, xom, username, index, ixconfig):
         self.xom = xom
+        self.username = username
+        self.index = index
+        self.name = username + "/" + index
+        self.ixconfig = ixconfig
         # the following attributes are per-xom singletons
         self.model = xom.model
         self.keyfs = xom.keyfs
@@ -471,15 +477,12 @@ class PrivateStage(BaseStage):
                'provides-extra', 'extension')
 
     def __init__(self, xom, username, index, ixconfig):
-        super(PrivateStage, self).__init__(xom)
-        self.username = username
-        self.index = index
-        self.name = username + "/" + index
-        self.ixconfig = ixconfig
+        super(PrivateStage, self).__init__(xom, username, index, ixconfig)
         self.key_projects = self.keyfs.PROJNAMES(user=username, index=index)
 
     @cached_property
     def user(self):
+        # only few methods need the user object.
         return self.model.get_user(self.username)
 
     def modify(self, index=None, **kw):

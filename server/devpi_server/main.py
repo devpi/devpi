@@ -396,9 +396,13 @@ def set_default_indexes(model):
     userconfig = root_user.key.get(readonly=False)
     indexes = userconfig["indexes"]
     if "pypi" not in indexes:
-        indexes["pypi"] = {"bases": (), "type": "mirror", "volatile": False}
+        indexes["pypi"] = _pypi_ixconfig_default.copy()
         root_user.key.set(userconfig)
         threadlog.info("created root/pypi index")
+
+_pypi_ixconfig_default = {"bases": (), "pypi_whitelist": [],
+                          "acl_upload": ["root"],
+                          "type": "mirror", "volatile": False}
 
 
 def tween_request_profiling(handler, registry):

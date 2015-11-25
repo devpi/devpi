@@ -116,15 +116,8 @@ def perform_crawling(pypistage, result, numthreads=10):
 PYPIURL_SIMPLE = "https://pypi.python.org/simple/"
 
 class PyPIStage(BaseStage):
-    username = "root"
-    index = "pypi"
-    name = "root/pypi"
-    ixconfig = {"bases": (), "volatile": False, "type": "mirror",
-                "pypi_whitelist": (), "custom_data": "",
-                "acl_upload": ["root"]}
-
-    def __init__(self, xom):
-        super(PyPIStage, self).__init__(xom)
+    def __init__(self, xom, username, index, ixconfig):
+        super(PyPIStage, self).__init__(xom, username, index, ixconfig)
         self.httpget = self.xom.httpget  # XXX is requests/httpget multi-thread safe?
         self.cache_expiry = xom.config.args.pypi_cache_expiry
         self.xom = xom

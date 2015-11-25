@@ -290,11 +290,13 @@ def model(xom):
 
 @pytest.fixture
 def pypistage(xom):
-    return PyPIStage(xom)
+    from devpi_server.main import _pypi_ixconfig_default
+    return PyPIStage(xom, username="root", index="pypi",
+                     ixconfig=_pypi_ixconfig_default)
 
 @pytest.fixture
 def replica_pypistage(replica_xom):
-    return PyPIStage(replica_xom)
+    return pypistage(replica_xom)
 
 def add_pypistage_mocks(monkeypatch, httpget):
     # add some mocking helpers
