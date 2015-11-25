@@ -153,7 +153,9 @@ def test_simple_project_pypi_egg(pypistage, testapp):
     r = testapp.get("/root/pypi")
     assert r.status_code == 200
 
+@pytest.mark.nomockprojectsremote
 def test_simple_list(pypistage, testapp):
+    pypistage.mock_simple_projects(["hello1", "hello2"])
     pypistage.mock_simple("hello1", "<html/>")
     pypistage.mock_simple("hello2", "<html/>")
     r = testapp.get("/root/pypi/+simple/hello1", expect_errors=False)
@@ -165,9 +167,11 @@ def test_simple_list(pypistage, testapp):
     assert r.status_code == 404
     # easy_install fails if the result isn't html
     assert "html" in r.headers['content-type']
+
+    # get the full projects page and see what is in
     r = testapp.get("/root/pypi/+simple/")
     assert r.status_code == 200
-    links = BeautifulSoup(r.text).findAll("a")
+    links = BeautifulSoup(r.text, "html.parser").findAll("a")
     assert len(links) == 2
     hrefs = [a.get("href") for a in links]
     assert hrefs == ["hello1", "hello2"]
@@ -283,7 +287,7 @@ def test_upstream_not_reachable(reqmock, pypistage, testapp, code, url):
 
 def test_pkgserv(httpget, pypistage, testapp):
     pypistage.mock_simple("package", '<a href="/package-1.0.zip" />')
-    httpget.setextfile("/package-1.0.zip", b"123")
+    pypistage.mock_extfile("/package-1.0.zip", b"123")
     r = testapp.get("/root/pypi/+simple/package")
     assert r.status_code == 200
     href = getfirstlink(r.text).get("href")
@@ -298,7 +302,7 @@ def test_pkgserv_remote_failure(httpget, pypistage, testapp):
     assert r.status_code == 200
     href = getfirstlink(r.text).get("href")
     url = URL(r.request.url).joinpath(href).url
-    httpget.setextfile("/package-1.0.zip", b"123", status_code=500)
+    pypistage.mock_extfile("/package-1.0.zip", b"123", status_code=500)
     r = testapp.get(url)
     assert r.status_code == 502
 
@@ -361,6 +365,10 @@ class TestStatusInfoPlugin:
         assert result == []
 
     def test_events_lagging(self, plugin, xom, monkeypatch):
+        # write transaction so event processing can lag behind
+        with xom.keyfs.transaction(write=True):
+            xom.model.create_user("hello", "pass")
+
         import time
         now = time.time()
         request = self._xomrequest(xom)

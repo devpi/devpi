@@ -9,14 +9,6 @@ def loads(bytestring):
 
 pytestmark = [pytest.mark.notransaction]
 
-def test_view_name2serials(pypistage, testapp):
-    pypistage.mock_simple("package", '<a href="/package-1.0.zip" />',
-                          pypiserial=15)
-    r = testapp.get("/root/pypi/+name2serials", expect_errors=False)
-    io = py.io.BytesIO(r.body)
-    entries = load(io)
-    assert entries["package"] == 15
-
 @pytest.fixture
 def testapp(testapp):
     master_uuid = testapp.xom.config.get_master_uuid()
@@ -82,52 +74,6 @@ class TestChangelog:
         assert r.headers[H_MASTER_UUID]
         del testapp.headers[H_EXPECTED_MASTER_ID]
         testapp.xget(400, "/+changelog/0")
-
-
-class TestPyPIDevpiProxy:
-    def test_pypi_proxy(self, xom, reqmock):
-        from devpi_server.keyfs import dump
-        url = "http://localhost:3141/root/pypi/+name2serials"
-        master_url = URL("http://localhost:3141")
-        proxy = PyPIDevpiProxy(xom._httpsession, master_url)
-        io = py.io.BytesIO()
-        dump({"hello": 42}, io)
-        data = io.getvalue()
-        reqmock.mockresponse(url=url, code=200, method="GET", data=data)
-        name2serials = proxy.list_packages_with_serial()
-        assert name2serials == {"hello": 42}
-
-    def test_replica_startup(self, replica_xom):
-        assert isinstance(replica_xom.proxy, PyPIDevpiProxy)
-
-
-@pytest.mark.parametrize("normname,realname",
-                         [("proj", "proj"), ("proj-x", "proj_x")])
-def test_pypi_project_changed(replica_xom, normname, realname):
-    handler = PypiProjectChanged(replica_xom)
-    class Ev:
-        value = dict(project=realname, serial=12)
-        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(project=normname)
-    handler(Ev())
-    assert replica_xom.pypimirror.name2serials[normname] == 12
-
-    class Ev2:
-        value = dict(project=realname, serial=15)
-        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(project=normname)
-    handler(Ev2())
-    assert replica_xom.pypimirror.name2serials[normname] == 15
-
-    class Ev3:
-        value = dict(project=realname, serial=12)
-        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(project=normname)
-    handler(Ev3())
-    assert replica_xom.pypimirror.name2serials[normname] == 15
-
-    class Ev4:
-        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(project=normname)
-        value = None
-    handler(Ev4())
-    assert realname not in replica_xom.pypimirror.name2serials
 
 
 class TestReplicaThread:
@@ -222,10 +168,16 @@ class TestReplicaThread:
     def test_thread_run_serial_mismatch(self, rt, mockchangelog, caplog, xom, monkeypatch):
         monkeypatch.setattr("os._exit", lambda n: 0/0)
         rt.thread.sleep = lambda *x: 0/0
+
+        # we need to have at least two commits
+        with xom.keyfs.transaction(write=True):
+            xom.model.create_user("qlwkej", "qwe")
+
         data = xom.keyfs._fs.get_raw_changelog_entry(0)
         assert data
         mockchangelog(0, code=200, data=data)
         data = xom.keyfs._fs.get_raw_changelog_entry(1)
+        assert data
         mockchangelog(1, code=200, data=data,
                       headers={"x-devpi-serial": "0"})
         with pytest.raises(ZeroDivisionError):
@@ -585,7 +537,6 @@ def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, pypireplicast
 
     # replicate the state
     replay(xom, replica_xom)
-    replica_xom.pypimirror.name2serials = dict(xom.pypimirror.name2serials)
 
     # now check
     pypiurls.simple = 'http://localhost:3111/root/pypi/+simple/'
@@ -630,3 +581,4 @@ def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, pypireplicast
     assert called == [True]
     assert len(ret) == 1
     assert ret[0].relpath == 'root/pypi/+e/https_pypi.python.org_pkg/pytest-1.1.zip'
+

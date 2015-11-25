@@ -4,9 +4,8 @@ import hashlib
 import pytest
 import py
 
-from devpi_server.extpypi import PyPIMirror, PyPIStage
-from devpi_server.extpypi import URL, PyPISimpleProxy
-from devpi_server.extpypi import parse_index, threadlog
+from devpi_server.extpypi import PyPIStage, URL, parse_index, threadlog
+from devpi_server.extpypi import ProjectNamesCache
 from devpi_server.main import Fatal
 from test_devpi_server.conftest import getmd5
 
@@ -290,6 +289,8 @@ class TestExtPYPIDB:
             pkgver="pytest-1.0.zip#egg=pytest-dev1")
         links = pypistage.get_releaselinks("pytest")
         assert links[0].eggfragment == "pytest-dev1"
+
+        pypistage.set_updated_at("pytest", 0)
         pypistage.mock_simple("pytest", pypiserial=11,
             pkgver="pytest-1.0.zip#egg=pytest-dev2")
         threadlog.info("hello")
@@ -373,19 +374,18 @@ class TestExtPYPIDB:
         links = pypistage.get_releaselinks("pytest")
         assert len(links) == 1
 
-    def test_get_releaselinks_cache_refresh_on_lower_serial(self, pypistage):
+    def test_get_releaselinks_cache_refresh_on_lower_serial(self, pypistage, caplog):
         pypistage.mock_simple("pytest", text='''
                 <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
                 <a rel="download" href="https://download.com/index.html" />
             ''', pypiserial=10)
 
-        # check get_releaselinks properly returns -2 on stale cache returns
         ret = pypistage.get_releaselinks("pytest")
         assert len(ret) == 1
-        pypistage.pypimirror.set_project_serial("pytest", 11)
-        with pytest.raises(pypistage.UpstreamError) as excinfo:
-            pypistage.get_releaselinks("pytest")
-        assert "expected at least 11" in excinfo.value.msg
+        pypistage.mock_simple("pytest", text="", pypiserial=9)
+        assert len(pypistage.get_releaselinks("pytest")) == 1
+        recs = caplog.getrecords(".*serving cached links.*")
+        assert len(recs) == 1
 
     def test_get_releaselinks_cache_no_fresh_write(self, pypistage):
         pypistage.mock_simple("pytest", text='''
@@ -438,17 +438,6 @@ class TestExtPYPIDB:
         links = pypistage.get_releaselinks("pytest")
         assert len(links) == 1
 
-    def test_list_projects_perstage(self, pypistage):
-        pypistage.mock_simple("proj1", pkgver="proj1-1.0.zip")
-        pypistage.mock_simple("proj2", pkgver="proj2-1.0.zip")
-        pypistage.url2response["https://pypi.python.org/simple/proj3/"] = dict(
-            status_code=404)
-        assert len(pypistage.get_releaselinks("proj1")) == 1
-        assert len(pypistage.get_releaselinks("proj2")) == 1
-        assert not pypistage.has_project_perstage("proj3")
-        assert not pypistage.get_releaselinks("proj3")
-        assert pypistage.list_projects_perstage() == set(["proj1", "proj2"])
-
     def test_parse_with_outdated_links_issue165(self, pypistage, caplog):
         pypistage.mock_simple("pytest", pypiserial=10, pkgver="pytest-1.0.zip")
         links = pypistage.get_releaselinks("pytest")
@@ -463,19 +452,7 @@ class TestExtPYPIDB:
         recs = caplog.getrecords("serving stale.*pytest.*")
         assert len(recs) == 1
 
-
-@pytest.mark.notransaction
-@pytest.mark.xfail(reason="not clear the test is needed now that we normalize ourselves")
-def test_pypi_mirror_redirect_to_canonical_issue139(xom, keyfs, mock):
-    proxy = mock.create_autospec(PyPISimpleProxy)
-    d = {"Hello-World": 10}
-    proxy.list_packages_with_serial.return_value = d
-    mirror = PyPIMirror(xom)
-    mirror.init_pypi_mirror(proxy)
-    assert mirror.name2serials == d
-    xom.pypimirror = mirror
-    pypistage = PyPIStage(xom)
-    with keyfs.transaction(write=False):
+    def test_pypi_mirror_redirect_to_canonical_issue139(self, pypistage):
         # GET http://pypi.python.org/simple/Hello_World
         # will result in the request response to have a "real" URL of
         # http://pypi.python.org/simple/hello-world because of the
@@ -484,46 +461,50 @@ def test_pypi_mirror_redirect_to_canonical_issue139(xom, keyfs, mock):
                 '<a href="Hello_World-1.0.tar.gz" /a>',
                 code=200,
                 url="http://pypi.python.org/simple/hello-world",)
-        rootpypi = xom.model.getstage("root", "pypi")
-        l = rootpypi.get_releaselinks("Hello_World")
+        l = pypistage.get_releaselinks("Hello_World")
         assert len(l) == 1
+
+    def test_newly_registered_pypi_project(self, pypistage):
+        assert not pypistage.has_project_perstage("foo")
+        pypistage.mock_simple("foo", text='<a href="foo-1.0.tar.gz"</a>')
+        assert pypistage.has_project_perstage("foo")
+
+
+@pytest.mark.nomockprojectsremote
+class TestPyPIStageprojects:
+    def test_get_remote_projects(self, pypistage):
+        pypistage.httpget.mockresponse(pypistage.PYPIURL_SIMPLE, code=200, text="""
+            <html><head><title>Simple Index</title>
+            <meta name="api-version" value="2" /></head>
+            <body>
+                <a href='devpi-server'>devpi-server</a><br/>
+                <a href='django'>Django</a><br/>
+                <a href='ploy-ansible'>ploy_ansible</a><br/>
+            </body></html>""")
+        x = pypistage._get_remote_projects()
+        assert x == set(["ploy-ansible", "devpi-server", "django"])
+        s = pypistage.list_projects_perstage()
+        assert s == set(["ploy-ansible", "devpi-server", "django"])
+
+    def test_single_project_access_updates_projects(self, pypistage):
+        pypistage.httpget.mockresponse(pypistage.PYPIURL_SIMPLE, code=200, text="""
+            <body>
+                <a href='django'>Django</a><br/>
+            </body>""")
+        assert pypistage.list_projects_perstage() == set(["django"])
+        pypistage.mock_simple("proj1", pkgver="proj1-1.0.zip")
+        pypistage.mock_simple("proj2", pkgver="proj2-1.0.zip")
+        pypistage.url2response["https://pypi.python.org/simple/proj3/"] = dict(
+            status_code=404)
+        assert len(pypistage.get_releaselinks("proj1")) == 1
+        assert len(pypistage.get_releaselinks("proj2")) == 1
+        assert not pypistage.has_project_perstage("proj3")
+        assert not pypistage.get_releaselinks("proj3")
+        assert pypistage.list_projects_perstage() == set(["proj1", "proj2", "django"])
 
 
 def raise_ValueError():
     raise ValueError(42)
-
-class TestRefreshManager:
-
-    @pytest.mark.notransaction
-    def test_init_pypi_mirror(self, xom, keyfs, mock):
-        proxy = mock.create_autospec(PyPISimpleProxy)
-        d = {"hello": 10, "abc": 42}
-        proxy.list_packages_with_serial.return_value = d
-        mirror = PyPIMirror(xom)
-        mirror.init_pypi_mirror(proxy)
-        assert mirror.name2serials == d
-
-    @pytest.mark.notransaction
-    def test_pypi_initial(self, makexom, queue, mock):
-        proxy = mock.create_autospec(PyPISimpleProxy)
-        d = {"hello": 10, "abc": 42}
-        proxy.list_packages_with_serial.return_value = d
-        class Plugin:
-            def devpiserver_pypi_initial(self, stage, name2serials):
-                queue.put((stage, name2serials))
-        xom = makexom(plugins=[Plugin()])
-        xom.pypimirror.init_pypi_mirror(proxy)
-        xom.thread_pool.start()
-        stage, name2serials = queue.get()
-        assert name2serials == d
-        for name in name2serials:
-            assert py.builtin._istext(name)
-
-    def test_changelog_list_packages_no_network(self, makexom, proxymock):
-        proxymock.list_packages_with_serial.return_value = None
-        with pytest.raises(Fatal):
-            makexom()
-        #assert not xom.keyfs.PYPISERIALS.exists()
 
 
 def test_requests_httpget_negative_status_code(xom_notmocked, monkeypatch):
@@ -547,39 +528,15 @@ def test_requests_httpget_timeout(xom_notmocked, monkeypatch):
     assert r.status_code == -1
 
 
-def test_list_packages_with_serial(reqmock):
-    proxy = PyPISimpleProxy()
-    reqmock.mockresponse(proxy._simple_url, code=200, data="""
-        <html><head><title>Simple Index</title><meta name="api-version" value="2" /></head><body>
-            <a href='devpi-server'>devpi-server</a><br/>
-            <a href='django'>Django</a><br/>
-            <a href='ploy-ansible'>ploy_ansible</a><br/>
-        </body></html>""")
-    result = proxy.list_packages_with_serial()
-    assert result == {'ploy-ansible': -1, 'devpi-server': -1, 'django': -1}
-
-
-def test_newly_registered_pypi_project(httpget, pypistage):
-    assert not pypistage.has_project_perstage("foo")
-    # we need to reset the cache time
-    pypistage.set_updated_at('foo', 0)
-    # now we can check for the new project
-    httpget.mock_simple("foo", text='<a href="foo-1.0.tar.gz"</a>')
-    assert pypistage.pypimirror.name2serials == {}
-    assert pypistage.has_project_perstage("foo")
-    #XXX assert pypistage.pypimirror.name2serials == {'foo': -1}
-
 
 def test_404_on_pypi_cached(httpget, pypistage):
     assert pypistage.get_updated_at('foo') == 0
     assert not pypistage.has_project_perstage("foo")
-    assert pypistage.pypimirror.name2serials == {}
     updated_at = pypistage.get_updated_at('foo')
     assert updated_at > 0
     # if we check again, we should get a cached result and no change in the
     # updated_at time
     assert not pypistage.has_project_perstage("foo")
-    assert pypistage.pypimirror.name2serials == {}
     assert pypistage.get_updated_at('foo') == updated_at
 
     pypistage.keyfs.commit_transaction_in_thread()
@@ -596,7 +553,6 @@ def test_404_on_pypi_cached(httpget, pypistage):
     # make the project exist on pypi, and verify we still get cached result
     httpget.mock_simple("foo", text="", pypiserial=2)
     assert not pypistage.has_project_perstage("foo")
-    assert pypistage.pypimirror.name2serials == {}
     assert pypistage.get_updated_at('foo') == updated_at
 
     # check that no writes were triggered
@@ -608,7 +564,39 @@ def test_404_on_pypi_cached(httpget, pypistage):
     pypistage.set_updated_at('foo', 0)
     assert pypistage.has_project_perstage("foo")
     time.sleep(0.01)  # to make sure we get a new timestamp
-    assert pypistage.pypimirror.name2serials == {'foo': 2}
     assert len(pypistage.get_releaselinks('foo')) == 0
     assert pypistage.get_updated_at('foo') > updated_at
 
+
+class TestProjectNamesCache:
+    @pytest.fixture
+    def cache(self, tmpdir):
+        p = tmpdir.join("cachefile")
+        return ProjectNamesCache(expiry_time=100, filepath=p)
+
+    def test_get_set(self, cache):
+        assert cache.get() == set()
+        s = set([1,2,3])
+        cache.set(s)
+        s.add(4)
+        assert cache.get() != s
+        s2 = cache.get_inplace()
+        s2.add(5)
+        assert 5 in cache.get()
+
+    def test_is_fresh(self, cache, monkeypatch):
+        s = set([1,2,3])
+        cache.set(s)
+        assert cache.is_fresh()
+        t = time.time() + 101
+        monkeypatch.setattr("time.time", lambda: t)
+        assert not cache.is_fresh()
+        assert cache.get() == s
+
+    def test_persistence(self, cache, monkeypatch):
+        s = set([1,2,3])
+        cache.set(s)
+
+        c = ProjectNamesCache(expiry_time=100, filepath=cache.filepath)
+        assert c.is_fresh()
+        assert c.get() == s

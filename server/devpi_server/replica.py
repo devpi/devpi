@@ -125,14 +125,6 @@ class MasterChangelogRequest:
         return keyfs._fs.get_raw_changelog_entry(serial)
 
 
-    @view_config(route_name="/root/pypi/+name2serials")
-    def get_name2serials(self):
-        io = py.io.BytesIO()
-        dump(self.xom.pypimirror.name2serials, io)
-        headers = {str("Content-Type"): str("application/octet-stream")}
-        return Response(body=io.getvalue(), status=200, headers=headers)
-
-
 class ReplicaThread:
     REPLICA_REQUEST_TIMEOUT = MAX_REPLICA_BLOCK_TIME * 1.25
     ERROR_SLEEP = 50
@@ -251,23 +243,6 @@ class ReplicaThread:
             self.thread.sleep(5.0)
 
 
-class PyPIDevpiProxy(object):
-    def __init__(self, http, master_url):
-        self._url = master_url.joinpath("root/pypi/+name2serials").url
-        self._http = http
-
-    def list_packages_with_serial(self):
-        try:
-            r = self._http.get(self._url, stream=True)
-        except self._http.Errors:
-            threadlog.exception("proxy request failed, no connection?")
-        else:
-            if r.status_code == 200:
-                return load(r.raw)
-        from devpi_server.main import fatal
-        fatal("replica: could not get serials from remote")
-
-
 class PypiProjectChanged:
     """ Event executed in notification thread based on a pypi link change. """
     def __init__(self, xom):
@@ -275,7 +250,6 @@ class PypiProjectChanged:
 
     def __call__(self, ev):
         threadlog.info("PypiProjectChanged %s", ev.typedkey)
-        pypimirror = self.xom.pypimirror
         cache = ev.value
 
         # get the normalized project (PYPILINKS uses it)
@@ -285,12 +259,13 @@ class PypiProjectChanged:
             return
         assert normalize_name(project) == project
 
-        if cache is None:  # deleted
-            pypimirror.set_project_serial(project, None)
-        else:
-            cur_serial = pypimirror.get_project_serial(project)
-            if cache and cache["serial"] > cur_serial:
-                pypimirror.set_project_serial(project, cache["serial"])
+        with self.xom.keyfs.transaction(write=False):
+            pypistage = self.xom.model.getstage("root", "pypi")
+            cache_projectnames = pypistage.cache_projectnames.get_inplace()
+            if cache is None:  # deleted
+                cache_projectnames.discard(project)
+            else:
+                cache_projectnames.add(project)
 
 
 def tween_replica_proxy(handler, registry):

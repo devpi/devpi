@@ -8,13 +8,14 @@ toxresult storage.
 from __future__ import unicode_literals
 
 import time
+import os.path
 
 from devpi_common.vendor._pip import HTMLPage
 
 from devpi_common.url import URL
 from devpi_common.metadata import BasenameMeta
 from devpi_common.metadata import is_archive_of_project
-from devpi_common.types import ensure_unicode_keys
+from devpi_common.types import ensure_unicode_keys, cached_property
 from devpi_common.validation import normalize_name
 from devpi_common.request import new_requests_session
 
@@ -95,37 +96,6 @@ def parse_index(disturl, html, scrape=True):
     return parser
 
 
-class PyPISimpleProxy(object):
-    def __init__(self, simple_url=None):
-        if simple_url is None:
-            self._simple_url = PYPIURL_SIMPLE
-        else:
-            self._simple_url = simple_url
-        self._session = new_requests_session(agent=("server", server_version))
-
-    def list_packages_with_serial(self):
-        headers = {"Accept": "text/html"}
-        try:
-            response = self._session.get(self._simple_url, headers=headers)
-        except Exception as exc:
-            threadlog.warn("error %s with remote %s", exc, self._simple_url)
-            return None
-        page = HTMLPage(response.text, response.url)
-        name2serials = {}
-        baseurl = URL(self._simple_url)
-        basehost = baseurl.replace(path='')
-        for link in page.links:
-            newurl = URL(link.url)
-            if not newurl.is_valid_http_url():
-                continue
-            if not newurl.path.startswith(baseurl.path):
-                continue
-            if basehost != newurl.replace(path=''):
-                continue
-            name2serials[newurl.basename] = -1
-        return name2serials
-
-
 def perform_crawling(pypistage, result, numthreads=10):
     pending = set(result.crawllinks)
     while pending:
@@ -145,6 +115,7 @@ def perform_crawling(pypistage, result, numthreads=10):
                 continue
         threadlog.warn("crawlurl %s status %s", crawlurl, response)
 
+PYPIURL_SIMPLE = "https://pypi.python.org/simple/"
 
 class PyPIStage(BaseStage):
     username = "root"
@@ -157,7 +128,6 @@ class PyPIStage(BaseStage):
     def __init__(self, xom):
         super(PyPIStage, self).__init__(xom)
         self.httpget = self.xom.httpget  # XXX is requests/httpget multi-thread safe?
-        self.pypimirror = xom.pypimirror
         self.cache_expiry = xom.config.args.pypi_cache_expiry
         self.xom = xom
         if xom.is_replica():
@@ -166,23 +136,77 @@ class PyPIStage(BaseStage):
         else:
             self.PYPIURL_SIMPLE = PYPIURL_SIMPLE
 
+    @cached_property
+    def cache_projectnames(self):
+        cache_projectnames = self.get_cache_perprocess("cache_projectnames", None)
+        if cache_projectnames is None:
+            cache_projectnames = ProjectNamesCache(
+                expiry_time=self.cache_expiry,
+                filepath=self.keyfs.basedir.join(self.name, ".projects"))
+            self.set_cache_perprocess("cache_projectnames", cache_projectnames)
+        return cache_projectnames
 
-    def get_updated_at(self, project):
-        p2u = self.get_cache_perprocess("project2updatetime")
-        return p2u.setdefault(project, 0)
+    @cached_property
+    def _key2timestamp(self):
+        return self.get_cache_perprocess("project2updatetime")
 
-    def set_updated_at(self, project, ts):
-        p2u = self.get_cache_perprocess("project2updatetime")
-        p2u[project] = ts
+    def get_updated_at(self, key):
+        return self._key2timestamp.get(key, 0)
+
+    def set_updated_at(self, key, ts):
+        self._key2timestamp[key] = ts
+
+    def is_fresh(self, key):
+        updated_at = self.get_updated_at(key)
+        return (time.time() - updated_at) <= self.cache_expiry
+
+    def _get_remote_projects(self):
+        headers = {"Accept": "text/html"}
+        response = self.httpget(self.PYPIURL_SIMPLE, extra_headers=headers)
+        if response.status_code != 200:
+            raise self.UpstreamError("URL %r returned %s",
+                                self.PYPIURL_SIMPLE, response.status_code)
+        page = HTMLPage(response.text, response.url)
+        projects = set()
+        baseurl = URL(response.url)
+        basehost = baseurl.replace(path='')
+        for link in page.links:
+            newurl = URL(link.url)
+            if not newurl.is_valid_http_url():
+                continue
+            if not newurl.path.startswith(baseurl.path):
+                continue
+            if basehost != newurl.replace(path=''):
+                continue
+            projects.add(newurl.basename)
+        return projects
 
     def list_projects_perstage(self):
-        """ return list of all projects served through the mirror. """
-        return set(self.pypimirror.name2serials)
+        """ return set of all projects served through the mirror. """
+        if self.cache_projectnames.is_fresh():
+            projects = self.cache_projectnames.get()
+        else:
+            # no fresh projects or None at all, let's go remote
+            try:
+                projects = self._get_remote_projects()
+            except self.UpstreamError:
+                if not self.cache_projectnames.exists():
+                    raise
+                threadlog.warn("using stale projects list")
+                projects = self.cache_projectnames.get()
+            else:
+                self.cache_projectnames.set(projects)
+
+        return projects
 
     def _dump_project_cache(self, project, entries, serial):
         assert project == normalize_name(project), project
         if isinstance(entries, list):
             dumplist = [make_key_and_href(entry) for entry in entries]
+            # make project appear in projects list even
+            # before we next check up with remote
+            threadlog.info("setting projects cache for %r", project)
+            self.cache_projectnames.get_inplace().add(project)
         else:
             dumplist = entries
 
@@ -199,20 +223,13 @@ class PyPIStage(BaseStage):
 
     def _load_project_cache(self, project):
         normname = normalize_name(project)
-        data = self.keyfs.PYPILINKS(project=normname).get()
-        #log.debug("load data for %s: %s", project, data)
-        return data
+        return self.keyfs.PYPILINKS(project=normname).get()
 
     def _load_cache_links(self, project):
         cache = self._load_project_cache(project)
         if cache:
-            serial = self.pypimirror.get_project_serial(project)
-            is_fresh = (cache["serial"] >= serial)
-            if is_fresh:
-                updated_at = self.get_updated_at(project)
-                is_fresh = (time.time() - updated_at) <= self.cache_expiry
-            return (is_fresh, cache["dumplist"])
-        return False, None
+            return (self.is_fresh(project), cache["dumplist"], cache["serial"])
+        return False, None, -1
 
     def clear_cache(self, project):
         normname = normalize_name(project)
@@ -231,7 +248,7 @@ class PyPIStage(BaseStage):
         exist.
         """
         project = normalize_name(project)
-        is_fresh, links = self._load_cache_links(project)
+        is_fresh, links, cache_serial = self._load_cache_links(project)
         if is_fresh:
             return links
 
@@ -256,9 +273,7 @@ class PyPIStage(BaseStage):
                 # list) so has_project_per_stage() can determine it as a
                 # non-existing project.
                 self.keyfs.restart_as_write_transaction()
-                return self._dump_project_cache(
-                    project, (),
-                    self.pypimirror.get_project_serial(project))
+                return self._dump_project_cache(project, (), None)
 
             # we don't have an old result and got a non-404 code.
             raise self.UpstreamError("%s status on GET %s" %
@@ -274,15 +289,13 @@ class PyPIStage(BaseStage):
         # simple page.
         serial = int(response.headers.get(str("X-PYPI-LAST-SERIAL"), "-1"))
 
-        # check that we got a fresh enough page
-        # this code is executed on master and replica sides.
-        newest_serial = self.pypimirror.get_project_serial(project)
-        if serial < newest_serial:
-            raise self.UpstreamError(
-                        "%s: pypi returned serial %s, expected at least %s",
-                        project, serial, newest_serial)
-        elif serial > newest_serial:
-            self.pypimirror.set_project_serial(project, serial)
+        # we check if we already have a better serial and if so
+        # serve our existing links. (if cache_serial > 0, links are valid)
+        if serial < cache_serial:
+            threadlog.warn("serving cached links for %s "
+                           "because returned serial %s, cache_serial %s is better!",
+                           response.url, serial, cache_serial)
+            return links
 
         threadlog.debug("%s: got response with serial %s", project, serial)
 
@@ -331,7 +344,7 @@ class PyPIStage(BaseStage):
             # XXX raise TransactionRestart to get a consistent clean view
             self.keyfs.commit_transaction_in_thread()
             self.keyfs.begin_transaction_in_thread()
-            is_fresh, links = self._load_cache_links(project)
+            is_fresh, links, cache_serial = self._load_cache_links(project)
             if links is not None:
                 self.set_updated_at(project, time.time())
                 return links
@@ -371,62 +384,43 @@ class PyPIStage(BaseStage):
         return verdata
 
 
-class PyPIMirror:
-    def __init__(self, xom):
-        self.xom = xom
-        self.keyfs = keyfs = xom.keyfs
-        self.path_name2serials = str(
-            keyfs.basedir.join(PyPIStage.name, ".name2serials"))
-
-    def init_pypi_mirror(self, proxy):
-        """ initialize pypi mirror if no mirror state exists. """
-        self.name2serials = self.load_name2serials(proxy)
-
-    def load_name2serials(self, proxy):
-        name2serials = load_from_file(self.path_name2serials, {})
-        if name2serials:
-            threadlog.info("reusing already cached name/serial list")
-            ensure_unicode_keys(name2serials)
-        else:
-            threadlog.info("retrieving initial name/serial list")
-            name2serials = proxy.list_packages_with_serial()
-            if name2serials is None:
-                from devpi_server.main import fatal
-                fatal("mirror initialization failed: "
-                      "pypi.python.org not reachable")
-            ensure_unicode_keys(name2serials)
-
-            dump_to_file(name2serials, self.path_name2serials)
-            # trigger anything (e.g. web-search indexing) that wants to
-            # look at the initially loaded serials
-            if not self.xom.is_replica():
-                with self.xom.keyfs.transaction(write=True):
-                    with self.xom.keyfs.PYPI_SERIALS_LOADED.update():
-                        pass
-        return name2serials
-
-    def get_project_serial(self, project):
-        """ get serial for project.
-
-        Returns -1 if the project isn't known.
-        """
-        name = normalize_name(project)
-        return self.name2serials.get(name, -1)
-
-    def set_project_serial(self, project, serial):
-        """ set the current serial. """
-        project = normalize_name(project)
-        if serial is None:
-            del self.name2serials[project]
-        else:
-            self.name2serials[project] = serial
-
-
-PYPIURL_SIMPLE = "https://pypi.python.org/simple/"
-PYPIURL = "https://pypi.python.org/"
-
-
 def itervalues(d):
     return getattr(d, "itervalues", d.values)()
 def iteritems(d):
     return getattr(d, "iteritems", d.items)()
+
+
+class ProjectNamesCache:
+    """ Helper class for maintaining projects cache for a mirror. """
+    def __init__(self, expiry_time, filepath):
+        self._timestamp = -1
+        self._expiry_time = expiry_time
+        self.filepath = str(filepath)
+        self._data = set()
+
+    def exists(self):
+        if self._timestamp != -1:
+            return True
+        if self.filepath is not None and os.path.exists(self.filepath):
+            self._timestamp, self._data = load_from_file(self.filepath)
+            return True
+        return False
+
+    def is_fresh(self):
+        return self.exists() and (time.time() - self._timestamp) < self._expiry_time
+
+    def get(self):
+        """ Get a copy of the cached data. """
+        return set(self._data)
+
+    def get_inplace(self):
+        """ Get cached data in-place. """
+        return self._data
+
+    def set(self, data):
+        """ Set data, updating timestamp and writing to local file"""
+        if data is not self._data:
+            self._data = data.copy()
+        self._timestamp = time.time()
+        if self.filepath is not None:
+            dump_to_file((self._timestamp, self._data), self.filepath)

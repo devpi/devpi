@@ -183,13 +183,6 @@ class XOM:
     def main(self):
         xom = self
         args = xom.config.args
-        # need to initialize the pypi mirror state before importing
-        # because importing may need pypi mirroring state
-        if xom.is_replica():
-            proxy = replica.PyPIDevpiProxy(xom._httpsession, xom.config.master_url)
-        else:
-            proxy = self.proxy
-        xom.pypimirror.init_pypi_mirror(proxy)
         if args.export:
             from devpi_server.importexport import do_export
             #xom.thread_pool.start_one(xom.keyfs.notifier)
@@ -237,15 +230,6 @@ class XOM:
         add_keys(self, keyfs)
         self.thread_pool.register(keyfs.notifier)
         return keyfs
-
-    @cached_property
-    def pypimirror(self):
-        from devpi_server.extpypi import PyPIMirror
-        return PyPIMirror(self)
-
-    @cached_property
-    def proxy(self):
-        return extpypi.PyPISimpleProxy()
 
     def new_http_session(self, component_name):
         session = new_requests_session(agent=(component_name, server_version))
@@ -309,8 +293,6 @@ class XOM:
         pyramid_config.add_route("/+changelog/{serial}",
                                  "/+changelog/{serial}")
         pyramid_config.add_route("/+status", "/+status")
-        pyramid_config.add_route("/root/pypi/+name2serials",
-                                 "/root/pypi/+name2serials")
         pyramid_config.add_route("/+api", "/+api", accept="application/json")
         pyramid_config.add_route("{path:.*}/+api", "{path:.*}/+api", accept="application/json")
         pyramid_config.add_route("/+login", "/+login", accept="application/json")
@@ -362,7 +344,7 @@ class XOM:
             from devpi_server.replica import ReplicaThread
             self.replica_thread = ReplicaThread(self)
             # the replica thread replays keyfs changes
-            # and pypimirror.name2serials changes are discovered
+            # and project-specific changes are discovered
             # and replayed through the PypiProjectChange event
             self.thread_pool.register(self.replica_thread)
         return OutsideURLMiddleware(app, self)

@@ -139,6 +139,13 @@ class TestStage:
         d4 = stage.get_cache_perprocess("world")
         assert not d4
 
+    def test_stagecache_set(self, stage):
+        l = []
+        stage.set_cache_perprocess("hello", l)
+        l.append(1)
+        l2 = stage.get_cache_perprocess("hello")
+        assert l2 == l
+
     def test_store_and_retrieve_simple(self, stage):
         register_and_store(stage, "someproject-1.1.tar.gz")
         assert len(stage.get_simplelinks_perstage("someproject")) == 1

@@ -16,6 +16,7 @@ from .filestore import FileEntry
 from .log import threadlog, thread_current_log
 from .readonly import get_mutable_deepcopy
 
+_nodefault = object()
 
 def run_passwd(root, username):
     user = root.get_user(username)
@@ -281,11 +282,17 @@ class BaseStage(object):
         self.keyfs = xom.keyfs
         self.filestore = xom.filestore
 
-    def get_cache_perprocess(self, cache_name):
+    def get_cache_perprocess(self, cache_name, default=_nodefault):
         """ Return a per-process-cached dictionary
         identified by the cache_name"""
+        if default is _nodefault:
+            default = {}
         cache = self.xom.get_stagecache_perprocess(self.name)
-        return cache.setdefault(cache_name, {})
+        return cache.setdefault(cache_name, default)
+
+    def set_cache_perprocess(self, cache_name, value):
+        cache = self.xom.get_stagecache_perprocess(self.name)
+        cache[cache_name] = value
 
     def get_releaselinks(self, project):
         # compatibility access method used by devpi-web and tests
@@ -892,7 +899,6 @@ def add_keys(xom, keyfs):
     keyfs.add_key("USERLIST", ".config", set)
 
     # type pypimirror related data
-    keyfs.add_key("PYPI_SERIALS_LOADED", "root/pypi/initiallinks", dict)
     keyfs.add_key("PYPILINKS", "root/pypi/+links/{project}", dict)
     keyfs.add_key("PYPIFILE_NOMD5",
                  "{user}/{index}/+e/{dirname}/{basename}", dict)
@@ -908,22 +914,12 @@ def add_keys(xom, keyfs):
     sub = EventSubscribers(xom)
     keyfs.notifier.on_key_change("PROJVERSION", sub.on_changed_version_config)
     keyfs.notifier.on_key_change("STAGEFILE", sub.on_changed_file_entry)
-    keyfs.notifier.on_key_change("PYPI_SERIALS_LOADED", sub.on_init_pypiserials)
 
 
 class EventSubscribers:
     """ the 'on_' functions are called within in the notifier thread. """
     def __init__(self, xom):
         self.xom = xom
-
-    def on_init_pypiserials(self, ev):
-        xom = self.xom
-        hook = xom.config.hook
-        with xom.keyfs.transaction(write=False, at_serial=ev.at_serial):
-            stage = xom.model.getstage("root", "pypi")
-            name2serials = stage.pypimirror.name2serials
-            hook.devpiserver_pypi_initial(
-                stage=stage, name2serials=name2serials)
 
     def on_changed_version_config(self, ev):
         """ when version config is changed for a project in a stage"""
