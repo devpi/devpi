@@ -171,8 +171,20 @@ class XOM:
         versionfile.dirpath().ensure(dir=1)
         versionfile.write(version)
 
-    def get_stagecache_perprocess(self, index):
-        return self._stagecache.setdefault(index, {})
+    def get_singleton(self, indexpath, key):
+        """ return a per-xom singleton for the given indexpath and key
+        or raise KeyError if no such singleton was set yet.
+        """
+        return self._stagecache[indexpath][key]
+
+    def set_singleton(self, indexpath, key, obj):
+        """ set the singleton for indexpath/key to obj. """
+        s = self._stagecache.setdefault(indexpath, {})
+        s[key] = obj
+
+    def del_singletons(self, indexpath):
+        """ delete all singletones for the given indexpath """
+        self._stagecache.pop(indexpath, None)
 
     @cached_property
     def model(self):
@@ -352,6 +364,7 @@ class XOM:
 
     def is_replica(self):
         return bool(self.config.args.master_url)
+
 
 class FatalResponse:
     status_code = -1

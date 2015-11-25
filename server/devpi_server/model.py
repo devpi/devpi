@@ -292,18 +292,6 @@ class BaseStage(object):
         return self.keyfs.PROJSIMPLELINKS(user=self.username,
             index=self.index, project=normalize_name(project))
 
-    def get_cache_perprocess(self, cache_name, default=_nodefault):
-        """ Return a per-process-cached dictionary
-        identified by the cache_name"""
-        if default is _nodefault:
-            default = {}
-        cache = self.xom.get_stagecache_perprocess(self.name)
-        return cache.setdefault(cache_name, default)
-
-    def set_cache_perprocess(self, cache_name, value):
-        cache = self.xom.get_stagecache_perprocess(self.name)
-        cache[cache_name] = value
-
     def get_releaselinks(self, project):
         # compatibility access method used by devpi-web and tests
         project = normalize_name(project)

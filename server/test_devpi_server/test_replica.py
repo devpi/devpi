@@ -586,7 +586,7 @@ def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, replica_pypis
     # now we change the links and expire the cache
     pypiurls.simple = orig_simple
     pypistage.mock_simple("pytest", pkgver="pytest-1.1.zip", pypiserial=10001)
-    pypistage.set_updated_at('pytest', 0)
+    pypistage.cache_link_updates.expire('pytest')
     with xom.keyfs.transaction(write=True):
         pypistage.get_releaselinks("pytest")
     assert xom.keyfs.get_current_serial() > serial
@@ -610,7 +610,7 @@ def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, replica_pypis
     with replica_xom.keyfs.transaction():
         # make the replica believe it hasn't updated for a longer time
         r_pypistage = replica_xom.model.getstage("root/pypi")
-        r_pypistage.set_updated_at("pytest", time.time() - (r_pypistage.cache_expiry + 1))
+        r_pypistage.cache_link_updates.expire("pytest")
         ret = replica_pypistage.get_releaselinks("pytest")
     assert called == [True]
     replay(xom, replica_xom)

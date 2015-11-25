@@ -4,7 +4,7 @@ import hashlib
 import pytest
 
 from devpi_server.extpypi import URL, parse_index, threadlog
-from devpi_server.extpypi import ProjectNamesCache
+from devpi_server.extpypi import ProjectNamesCache, ProjectUpdateCache
 from test_devpi_server.conftest import getmd5
 
 
@@ -260,16 +260,9 @@ class TestIndexParsing:
                 "http://pypi.python.org/pkg/py-1.4.10.zip#md5=2222"
 
 def test_get_updated(pypistage):
-    assert pypistage.get_updated_at("hello") == 0
-    assert pypistage.get_updated_at("world") == 0
-    pypistage.set_updated_at("hello", 1)
-    pypistage.set_updated_at("world", 2)
-    assert pypistage.get_updated_at("hello") == 1
-    assert pypistage.get_updated_at("world") == 2
-    pypistage.set_updated_at("hello", 10)
-    pypistage.set_updated_at("world", 20)
-    assert pypistage.get_updated_at("hello") == 10
-    assert pypistage.get_updated_at("world") == 20
+    c = pypistage.cache_link_updates
+    c2 = pypistage.cache_link_updates
+    return c == c2
 
 class TestExtPYPIDB:
     def test_parse_project_nomd5(self, pypistage):
@@ -288,7 +281,7 @@ class TestExtPYPIDB:
         links = pypistage.get_releaselinks("pytest")
         assert links[0].eggfragment == "pytest-dev1"
 
-        pypistage.set_updated_at("pytest", 0)
+        pypistage.cache_link_updates.expire("pytest")
         pypistage.mock_simple("pytest", pypiserial=11,
             pkgver="pytest-1.0.zip#egg=pytest-dev2")
         threadlog.info("hello")
@@ -397,7 +390,7 @@ class TestExtPYPIDB:
         pypistage.keyfs.commit_transaction_in_thread()
         pypistage.keyfs.begin_transaction_in_thread()
         # pretend the last mirror check is very old
-        pypistage.set_updated_at("pytest", 0)
+        pypistage.cache_link_updates.expire("pytest")
 
         # now make sure that we don't cause writes
         commit_serial = pypistage.keyfs.get_current_serial()
@@ -526,30 +519,31 @@ def test_requests_httpget_timeout(xom_notmocked, monkeypatch):
 
 
 def test_404_on_pypi_cached(httpget, pypistage):
-    assert pypistage.get_updated_at('foo') == 0
+    retrieve_times = pypistage.cache_link_updates
+    retrieve_times.expire('foo')
     assert not pypistage.has_project_perstage("foo")
-    updated_at = pypistage.get_updated_at('foo')
+    updated_at = retrieve_times.get_timestamp("foo")
     assert updated_at > 0
     # if we check again, we should get a cached result and no change in the
     # updated_at time
     assert not pypistage.has_project_perstage("foo")
-    assert pypistage.get_updated_at('foo') == updated_at
+    assert retrieve_times.get_timestamp('foo') == updated_at
 
     pypistage.keyfs.commit_transaction_in_thread()
     pypistage.keyfs.begin_transaction_in_thread()
 
     # we trigger a fresh check and verify that no new commit takes place
     serial = pypistage.keyfs.get_current_serial()
-    pypistage.set_updated_at('foo', 0)
+    retrieve_times.expire('foo')
     assert not pypistage.has_project_perstage("foo")
     assert serial == pypistage.keyfs.get_current_serial()
-    updated_at = pypistage.get_updated_at('foo')
+    updated_at = retrieve_times.get_timestamp('foo')
     assert updated_at > 0
 
     # make the project exist on pypi, and verify we still get cached result
     httpget.mock_simple("foo", text="", pypiserial=2)
     assert not pypistage.has_project_perstage("foo")
-    assert pypistage.get_updated_at('foo') == updated_at
+    assert retrieve_times.get_timestamp('foo') == updated_at
 
     # check that no writes were triggered
     pypistage.keyfs.commit_transaction_in_thread()
@@ -557,11 +551,11 @@ def test_404_on_pypi_cached(httpget, pypistage):
     assert serial == pypistage.keyfs.get_current_serial()
 
     # if we reset the cache time, we should get a result
-    pypistage.set_updated_at('foo', 0)
+    retrieve_times.expire('foo')
     assert pypistage.has_project_perstage("foo")
     time.sleep(0.01)  # to make sure we get a new timestamp
     assert len(pypistage.get_releaselinks('foo')) == 0
-    assert pypistage.get_updated_at('foo') > updated_at
+    assert retrieve_times.get_timestamp('foo') > updated_at
 
 
 class TestProjectNamesCache:
@@ -596,3 +590,21 @@ class TestProjectNamesCache:
         c = ProjectNamesCache(expiry_time=100, filepath=cache.filepath)
         assert c.is_fresh()
         assert c.get() == s
+
+
+def test_ProjectUpdateCache(monkeypatch):
+    x = ProjectUpdateCache(30)
+    assert not x.is_fresh("x")
+    x.refresh("x")
+    assert x.is_fresh("x")
+    t = time.time() + 35
+    monkeypatch.setattr("time.time", lambda: t)
+    assert not x.is_fresh("x")
+    x.refresh("x")
+    assert x.is_fresh("x")
+    x.expire("x")
+    assert not x.is_fresh("x")
+
+    x.refresh("y")
+    assert x.get_timestamp("y") == t
+

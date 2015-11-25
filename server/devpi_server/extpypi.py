@@ -15,7 +15,6 @@ from devpi_common.vendor._pip import HTMLPage
 from devpi_common.url import URL
 from devpi_common.metadata import BasenameMeta
 from devpi_common.metadata import is_archive_of_project
-from devpi_common.types import cached_property
 from devpi_common.validation import normalize_name
 
 from .model import BaseStage, make_key_and_href, SimplelinkMeta
@@ -127,30 +126,32 @@ class PyPIStage(BaseStage):
         else:
             self.PYPIURL_SIMPLE = PYPIURL_SIMPLE
 
-    @cached_property
+    @property
     def cache_projectnames(self):
-        cache_projectnames = self.get_cache_perprocess("cache_projectnames", None)
-        if cache_projectnames is None:
+        """ filesystem-persistent cache for full list of projectnames. """
+        # we could keep this info inside keyfs but pypi.python.org
+        # produces a 3MB list of names and it changes often which
+        # would spam the database.
+        try:
+            return self.xom.get_singleton(self.name, "projectnames")
+        except KeyError:
             cache_projectnames = ProjectNamesCache(
                 expiry_time=self.cache_expiry,
                 filepath=self.keyfs.basedir.join(self.name, ".projects"))
-            self.set_cache_perprocess("cache_projectnames", cache_projectnames)
-        return cache_projectnames
+            self.xom.set_singleton(self.name, "projectnames", cache_projectnames)
+            return cache_projectnames
 
-    @cached_property
-    def _key2timestamp(self):
-        return self.get_cache_perprocess("project2updatetime")
-
-    def get_updated_at(self, key):
-        return self._key2timestamp.get(key, 0)
-
-    def set_updated_at(self, key, ts):
-        self._key2timestamp[key] = ts
-        threadlog.debug("updating key %r to %r", key, ts)
-
-    def is_fresh(self, key):
-        updated_at = self.get_updated_at(key)
-        return (time.time() - updated_at) <= self.cache_expiry
+    @property
+    def cache_link_updates(self):
+        """ per-xom RAM cache for keeping track when we last updated simplelinks. """
+        # we could keep this info in keyfs but it would lead to a write
+        # for each remote check.
+        try:
+            return self.xom.get_singleton(self.name, "project_retrieve_times")
+        except KeyError:
+            c = ProjectUpdateCache(expiry_time=self.cache_expiry)
+            self.xom.set_singleton(self.name, "project_retrieve_times", c)
+            return c
 
     def _get_remote_projects(self):
         headers = {"Accept": "text/html"}
@@ -212,7 +213,6 @@ class PyPIStage(BaseStage):
             dumplist = entries
 
         data = {"serial": serial, "links": dumplist}
-        self.set_updated_at(project, time.time())
         key = self.key_projsimplelinks(project)
         old = key.get()
         if old != data:
@@ -221,12 +221,19 @@ class PyPIStage(BaseStage):
             key.set(data)
         else:
             threadlog.debug("data unchanged for %s: %s", project, data)
+        # XXX if the transaction fails the links are still marked
+        # as refreshed but the data was not persisted.  It's a rare
+        # enough event (tm) to not worry too much, though.
+        # (we can, however, easily add a
+        # keyfs.tx.on_commit_success(callback) method.
+        self.cache_link_updates.refresh(project)
         return dumplist
 
     def _load_cache_links(self, project):
         cache = self.key_projsimplelinks(project).get()
         if cache:
-            return (self.is_fresh(project), cache["links"], cache["serial"])
+            return (self.cache_link_updates.is_fresh(project),
+                    cache["links"], cache["serial"])
         return False, None, -1
 
     def clear_cache(self, project):
@@ -343,7 +350,7 @@ class PyPIStage(BaseStage):
             self.keyfs.begin_transaction_in_thread()
             is_fresh, links, cache_serial = self._load_cache_links(project)
             if links is not None:
-                self.set_updated_at(project, time.time())
+                self.cache_link_updates.refresh(project)
                 return links
             raise self.UpstreamError("no cache links from master for %s" %
                                      project)
@@ -421,3 +428,26 @@ class ProjectNamesCache:
         self._timestamp = time.time()
         if self.filepath is not None:
             dump_to_file((self._timestamp, self._data), self.filepath)
+
+
+class ProjectUpdateCache:
+    """ Helper class to manage when we last updated something project specific. """
+    def __init__(self, expiry_time):
+        self.expiry_time = expiry_time
+        self._project2time = {}
+
+    def is_fresh(self, project):
+        t = self._project2time.get(project)
+        if t is not None:
+            if (time.time() - t) < self.expiry_time:
+                return True
+        return False
+
+    def get_timestamp(self, project):
+        return self._project2time.get(project, 0)
+
+    def refresh(self, project):
+        self._project2time[project] = time.time()
+
+    def expire(self, project):
+        self._project2time.pop(project, None)

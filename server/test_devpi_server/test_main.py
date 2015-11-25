@@ -110,3 +110,15 @@ def test_profiling_tween(capsys):
         handler(None)
     out, err = capsys.readouterr()
     assert "ncalls" in out
+
+def test_xom_singleton(xom):
+    with pytest.raises(KeyError):
+        xom.get_singleton("x/y", "hello")
+    xom.set_singleton("x/y", "hello", {})
+    d = {1:2}
+    xom.set_singleton("x/y", "hello", d)
+    d[2] = 3
+    assert xom.get_singleton("x/y", "hello") == d
+    xom.del_singletons("x/y")
+    with pytest.raises(KeyError):
+        assert xom.get_singleton("x/y", "hello") is None
