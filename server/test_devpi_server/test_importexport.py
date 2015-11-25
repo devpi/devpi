@@ -177,14 +177,14 @@ class TestImportExport:
             "user1/dev": {
               "files": [
                 {
-                  "project": "hello", "version": "1.0",
+                  "projectname": "hello", "version": "1.0",
                   "entrymapping": {
-                    "project": "hello", "version": "1.0",
+                    "projectname": "hello", "version": "1.0",
                     "last_modified": "Fri, 12 Sep 2014 13:18:55 GMT",
                     "md5": "9a0364b9e99bb480dd25e1f0284c8555"},
                   "type": "releasefile", "relpath": "user1/dev/hello/hello-1.0.tar.gz"},
                 {
-                  "project": "hello", "version": "1.0", "type": "toxresult",
+                  "projectname": "hello", "version": "1.0", "type": "toxresult",
                   "for_entrypath": "user1/dev/+f/9a0/364b9e99bb480/hello-1.0.tar.gz",
                   "relpath": "user1/dev/hello/9a0364b9e99bb480dd25e1f0284c8555/hello-1.0.tar.gz.toxresult0"}
               ],
@@ -335,7 +335,7 @@ class TestImportExport:
                             "md5": "9a0364b9e99bb480dd25e1f0284c8555",
                             "size": "7"
                           },
-                          "project": "hello",
+                          "projectname": "hello",
                           "type": "releasefile",
                           "relpath": "user1/dev/hello/hello-1.2_3.tar.gz"
                       },

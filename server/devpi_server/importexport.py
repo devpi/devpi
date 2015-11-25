@@ -179,7 +179,7 @@ class IndexDump:
         assert self.exporter.basepath.join(relpath).check()
         d = kw.copy()
         d["type"] = type
-        d["project"] = project
+        d["projectname"] = project
         d["relpath"] = relpath
         self.indexmeta["files"].append(d)
         self.exporter.completed("%s: %s " %(type, relpath))
@@ -291,7 +291,7 @@ class Importer:
     def import_filedesc(self, stage, filedesc):
         assert stage.ixconfig["type"] != "mirror"
         rel = filedesc["relpath"]
-        project = filedesc["project"]
+        project = filedesc["projectname"]
         p = self.import_rootdir.join(rel)
         assert p.check(), p
         if filedesc["type"] == "releasefile":
@@ -318,7 +318,7 @@ class Importer:
             version = filedesc["version"]
             link = stage.store_doczip(project, version, p.read("rb"))
         elif filedesc["type"] == "toxresult":
-            linkstore = stage.get_linkstore_perstage(filedesc["project"],
+            linkstore = stage.get_linkstore_perstage(filedesc["projectname"],
                                            filedesc["version"])
             # we can not search for the full relative path because
             # it might use a different checksum
