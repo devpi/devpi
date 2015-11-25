@@ -166,6 +166,15 @@ class PyPIStage(BaseStage):
         else:
             self.PYPIURL_SIMPLE = PYPIURL_SIMPLE
 
+
+    def get_updated_at(self, project):
+        p2u = self.get_cache_perprocess("project2updatetime")
+        return p2u.setdefault(project, 0)
+
+    def set_updated_at(self, project, ts):
+        p2u = self.get_cache_perprocess("project2updatetime")
+        p2u[project] = ts
+
     def list_projects_perstage(self):
         """ return list of all projects served through the mirror. """
         return set(self.pypimirror.name2serials)
@@ -178,7 +187,7 @@ class PyPIStage(BaseStage):
             dumplist = entries
 
         data = {"serial": serial, "dumplist": dumplist}
-        self.xom.set_updated_at(self.name, project, time.time())
+        self.set_updated_at(project, time.time())
         old = self.keyfs.PYPILINKS(project=project).get()
         if old != data:
             threadlog.debug("saving data for %s: %s", project, data)
@@ -200,7 +209,7 @@ class PyPIStage(BaseStage):
             serial = self.pypimirror.get_project_serial(project)
             is_fresh = (cache["serial"] >= serial)
             if is_fresh:
-                updated_at = self.xom.get_updated_at(self.name, project)
+                updated_at = self.get_updated_at(project)
                 is_fresh = (time.time() - updated_at) <= self.cache_expiry
             return (is_fresh, cache["dumplist"])
         return False, None
@@ -324,7 +333,7 @@ class PyPIStage(BaseStage):
             self.keyfs.begin_transaction_in_thread()
             is_fresh, links = self._load_cache_links(project)
             if links is not None:
-                self.xom.set_updated_at(self.name, project, time.time())
+                self.set_updated_at(project, time.time())
                 return links
             raise self.UpstreamError("no cache links from master for %s" %
                                      project)

@@ -281,6 +281,12 @@ class BaseStage(object):
         self.keyfs = xom.keyfs
         self.filestore = xom.filestore
 
+    def get_cache_perprocess(self, cache_name):
+        """ Return a per-process-cached dictionary
+        identified by the cache_name"""
+        cache = self.xom.get_stagecache_perprocess(self.name)
+        return cache.setdefault(cache_name, {})
+
     def get_releaselinks(self, project):
         # compatibility access method used by devpi-web and tests
         project = normalize_name(project)

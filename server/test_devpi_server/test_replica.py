@@ -602,7 +602,7 @@ def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, pypireplicast
     # now we change the links and expire the cache
     pypiurls.simple = orig_simple
     pypistage.mock_simple("pytest", pkgver="pytest-1.1.zip", pypiserial=10001)
-    xom.set_updated_at('root/pypi', 'pytest', time.time() - 3600)
+    pypistage.set_updated_at('pytest', time.time() - 3600)
     with xom.keyfs.transaction(write=True):
         pypistage.get_releaselinks("pytest")
     assert xom.keyfs.get_current_serial() > serial
@@ -616,7 +616,6 @@ def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, pypireplicast
         replay(xom, replica_xom)
         assert replica_xom.keyfs.get_current_serial() == serial
     monkeypatch.setattr(replica_xom.keyfs.notifier, 'wait_tx_serial', wait_tx_serial)
-    replica_xom.set_updated_at('root/pypi', 'pytest', time.time() - 3600)
     pypiurls.simple = 'http://localhost:3111/root/pypi/+simple/'
     httpget.mock_simple(
         'pytest',
@@ -624,6 +623,9 @@ def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, pypireplicast
         pypiserial=10001,
         headers={'X-DEVPI-SERIAL': str(xom.keyfs.get_current_serial())})
     with replica_xom.keyfs.transaction():
+        # make the replica believe it hasn't updated for a longer time
+        r_pypistage = replica_xom.model.getstage("root/pypi")
+        r_pypistage.set_updated_at("pytest", time.time() - (r_pypistage.cache_expiry + 1))
         ret = pypireplicastage.get_releaselinks("pytest")
     assert called == [True]
     assert len(ret) == 1

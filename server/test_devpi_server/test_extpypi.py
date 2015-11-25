@@ -262,6 +262,17 @@ class TestIndexParsing:
         assert link3.url == \
                 "http://pypi.python.org/pkg/py-1.4.10.zip#md5=2222"
 
+def test_get_updated(pypistage):
+    assert pypistage.get_updated_at("hello") == 0
+    assert pypistage.get_updated_at("world") == 0
+    pypistage.set_updated_at("hello", 1)
+    pypistage.set_updated_at("world", 2)
+    assert pypistage.get_updated_at("hello") == 1
+    assert pypistage.get_updated_at("world") == 2
+    pypistage.set_updated_at("hello", 10)
+    pypistage.set_updated_at("world", 20)
+    assert pypistage.get_updated_at("hello") == 10
+    assert pypistage.get_updated_at("world") == 20
 
 class TestExtPYPIDB:
     def test_parse_project_nomd5(self, pypistage):
@@ -388,7 +399,7 @@ class TestExtPYPIDB:
         pypistage.keyfs.commit_transaction_in_thread()
         pypistage.keyfs.begin_transaction_in_thread()
         # pretend the last mirror check is very old
-        pypistage.xom.set_updated_at(pypistage.name, "pytest", 0)
+        pypistage.set_updated_at("pytest", 0)
 
         # now make sure that we don't cause writes
         commit_serial = pypistage.keyfs.get_current_serial()
@@ -551,7 +562,7 @@ def test_list_packages_with_serial(reqmock):
 def test_newly_registered_pypi_project(httpget, pypistage):
     assert not pypistage.has_project_perstage("foo")
     # we need to reset the cache time
-    pypistage.xom.set_updated_at(pypistage.name, 'foo', 0)
+    pypistage.set_updated_at('foo', 0)
     # now we can check for the new project
     httpget.mock_simple("foo", text='<a href="foo-1.0.tar.gz"</a>')
     assert pypistage.pypimirror.name2serials == {}
@@ -560,33 +571,33 @@ def test_newly_registered_pypi_project(httpget, pypistage):
 
 
 def test_404_on_pypi_cached(httpget, pypistage):
-    assert pypistage.xom.get_updated_at(pypistage.name, 'foo') == 0
+    assert pypistage.get_updated_at('foo') == 0
     assert not pypistage.has_project_perstage("foo")
     assert pypistage.pypimirror.name2serials == {}
-    updated_at = pypistage.xom.get_updated_at(pypistage.name, 'foo')
+    updated_at = pypistage.get_updated_at('foo')
     assert updated_at > 0
     # if we check again, we should get a cached result and no change in the
     # updated_at time
     assert not pypistage.has_project_perstage("foo")
     assert pypistage.pypimirror.name2serials == {}
-    assert pypistage.xom.get_updated_at(pypistage.name, 'foo') == updated_at
+    assert pypistage.get_updated_at('foo') == updated_at
 
     pypistage.keyfs.commit_transaction_in_thread()
     pypistage.keyfs.begin_transaction_in_thread()
 
     # we trigger a fresh check and verify that no new commit takes place
     serial = pypistage.keyfs.get_current_serial()
-    pypistage.xom.set_updated_at(pypistage.name, 'foo', 0)
+    pypistage.set_updated_at('foo', 0)
     assert not pypistage.has_project_perstage("foo")
     assert serial == pypistage.keyfs.get_current_serial()
-    updated_at = pypistage.xom.get_updated_at(pypistage.name, 'foo')
+    updated_at = pypistage.get_updated_at('foo')
     assert updated_at > 0
 
     # make the project exist on pypi, and verify we still get cached result
     httpget.mock_simple("foo", text="", pypiserial=2)
     assert not pypistage.has_project_perstage("foo")
     assert pypistage.pypimirror.name2serials == {}
-    assert pypistage.xom.get_updated_at(pypistage.name, 'foo') == updated_at
+    assert pypistage.get_updated_at('foo') == updated_at
 
     # check that no writes were triggered
     pypistage.keyfs.commit_transaction_in_thread()
@@ -594,10 +605,10 @@ def test_404_on_pypi_cached(httpget, pypistage):
     assert serial == pypistage.keyfs.get_current_serial()
 
     # if we reset the cache time, we should get a result
-    pypistage.xom.set_updated_at(pypistage.name, 'foo', 0)
+    pypistage.set_updated_at('foo', 0)
     assert pypistage.has_project_perstage("foo")
     time.sleep(0.01)  # to make sure we get a new timestamp
     assert pypistage.pypimirror.name2serials == {'foo': 2}
     assert len(pypistage.get_releaselinks('foo')) == 0
-    assert pypistage.xom.get_updated_at(pypistage.name, 'foo') > updated_at
+    assert pypistage.get_updated_at('foo') > updated_at
 

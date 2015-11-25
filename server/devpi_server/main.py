@@ -155,7 +155,7 @@ class XOM:
             self.set_state_version(server_version)
         self.log = threadlog
         self.polling_replicas = {}
-        self.stage2name2updated = {}
+        self._stagecache = {}
 
     def get_state_version(self):
         versionfile = self.config.serverdir.join(".serverversion")
@@ -171,13 +171,8 @@ class XOM:
         versionfile.dirpath().ensure(dir=1)
         versionfile.write(version)
 
-    def get_updated_at(self, stagename, project):
-        name2updated = self.stage2name2updated.setdefault(stagename, {})
-        return name2updated.setdefault(project, 0)
-
-    def set_updated_at(self, stagename, project, ts):
-        name2updated = self.stage2name2updated.setdefault(stagename, {})
-        name2updated[project] = ts
+    def get_stagecache_perprocess(self, index):
+        return self._stagecache.setdefault(index, {})
 
     @cached_property
     def model(self):

@@ -128,6 +128,17 @@ class TestStage:
         assert model.getstage("hello", "world2") is None
         assert model.getstage("hello", "world") is not None
 
+    def test_stagecache(self, stage):
+        d = stage.get_cache_perprocess("hello")
+        d2 = stage.get_cache_perprocess("hello")
+        assert d is d2
+        d[1] = 2
+        stage2 = stage.model.getstage(stage.username, stage.index)
+        d3 = stage2.get_cache_perprocess("hello")
+        assert d3[1] == 2
+        d4 = stage.get_cache_perprocess("world")
+        assert not d4
+
     def test_store_and_retrieve_simple(self, stage):
         register_and_store(stage, "someproject-1.1.tar.gz")
         assert len(stage.get_simplelinks_perstage("someproject")) == 1
