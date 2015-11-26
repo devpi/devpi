@@ -8,7 +8,6 @@ toxresult storage.
 from __future__ import unicode_literals
 
 import time
-import os.path
 
 from devpi_common.vendor._pip import HTMLPage
 
@@ -18,7 +17,6 @@ from devpi_common.metadata import is_archive_of_project
 from devpi_common.validation import normalize_name
 
 from .model import BaseStage, make_key_and_href, SimplelinkMeta
-from .keyfs import load_from_file, dump_to_file
 from .readonly import ensure_deeply_readonly
 from .log import threadlog
 
@@ -135,9 +133,7 @@ class PyPIStage(BaseStage):
         try:
             return self.xom.get_singleton(self.name, "projectnames")
         except KeyError:
-            cache_projectnames = ProjectNamesCache(
-                expiry_time=self.cache_expiry,
-                filepath=self.keyfs.basedir.join(self.name, ".projects"))
+            cache_projectnames = ProjectNamesCache(expiry_time=self.cache_expiry)
             self.xom.set_singleton(self.name, "projectnames", cache_projectnames)
             return cache_projectnames
 
@@ -388,22 +384,16 @@ class PyPIStage(BaseStage):
 
 class ProjectNamesCache:
     """ Helper class for maintaining project names from a mirror. """
-    def __init__(self, expiry_time, filepath):
+    def __init__(self, expiry_time):
         self._timestamp = -1
         self._expiry_time = expiry_time
-        self.filepath = str(filepath)
         self._data = set()
 
     def exists(self):
-        if self._timestamp != -1:
-            return True
-        if self.filepath is not None and os.path.exists(self.filepath):
-            self._timestamp, self._data = load_from_file(self.filepath)
-            return True
-        return False
+        return self._timestamp != -1
 
     def is_fresh(self):
-        return self.exists() and (time.time() - self._timestamp) < self._expiry_time
+        return (time.time() - self._timestamp) < self._expiry_time
 
     def get(self):
         """ Get a copy of the cached data. """
@@ -418,8 +408,6 @@ class ProjectNamesCache:
         if data is not self._data:
             self._data = data.copy()
         self._timestamp = time.time()
-        if self.filepath is not None:
-            dump_to_file((self._timestamp, self._data), self.filepath)
 
 
 class ProjectUpdateCache:
