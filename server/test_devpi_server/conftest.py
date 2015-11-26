@@ -164,7 +164,7 @@ def mock():
     return mock
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def storage_plugin(request):
     from pydoc import locate
     backend = getattr(request.config.option, 'backend', None)
@@ -173,7 +173,7 @@ def storage_plugin(request):
     return locate(backend)
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def storage(storage_plugin):
     return storage_plugin.devpiserver_storage_backend()['storage']
 

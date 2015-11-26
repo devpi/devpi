@@ -341,8 +341,8 @@ class KeyFS(object):
             except (AttributeError, KeyError):
                 if conn is None:
                     conn = self._storage.get_connection()
-                with conn as conn:
-                    keyname, serial = conn.db_read_typedkey(relpath)
+                with conn as c:
+                    keyname, serial = c.db_read_typedkey(relpath)
         key = self.get_key(keyname)
         if isinstance(key, PTypedKey):
             key = key(**key.extract_params(relpath))
@@ -384,8 +384,8 @@ class KeyFS(object):
         relpath = typedkey.relpath
         if conn is None:
             conn = self._storage.get_connection()
-        with conn as conn:
-            keyname, last_serial = conn.db_read_typedkey(relpath)
+        with conn as c:
+            keyname, last_serial = c.db_read_typedkey(relpath)
         while last_serial >= 0:
             tup = self._storage.get_changes(last_serial).get(relpath)
             assert tup, "no transaction entry at %s" %(last_serial)
