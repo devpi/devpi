@@ -570,9 +570,8 @@ def test_404_on_pypi_cached(httpget, pypistage):
 
 class TestProjectNamesCache:
     @pytest.fixture
-    def cache(self, tmpdir):
-        p = tmpdir.join("cachefile")
-        return ProjectNamesCache(expiry_time=100, filepath=p)
+    def cache(self):
+        return ProjectNamesCache(expiry_time=100)
 
     def test_get_set(self, cache):
         assert cache.get() == set()
@@ -592,14 +591,6 @@ class TestProjectNamesCache:
         monkeypatch.setattr("time.time", lambda: t)
         assert not cache.is_fresh()
         assert cache.get() == s
-
-    def test_persistence(self, cache, monkeypatch):
-        s = set([1,2,3])
-        cache.set(s)
-
-        c = ProjectNamesCache(expiry_time=100, filepath=cache.filepath)
-        assert c.is_fresh()
-        assert c.get() == s
 
 
 def test_ProjectUpdateCache(monkeypatch):

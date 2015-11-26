@@ -23,6 +23,12 @@
 - simplify and unify internal mirroring code some more
   with "normal" stage handling.
 
+- don't persist the list of mirrored project names anymore
+  but rely on a per-process RAM cache and the fact
+  that neither the UI nor pip/easy_install typically
+  need the projectnames list, anyway.
+
+
 2.5.3 (2015-11-23)
 ------------------
 
