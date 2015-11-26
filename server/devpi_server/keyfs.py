@@ -97,9 +97,6 @@ class Storage:
                 changes, rel_renames = loads(data)
                 check_pending_renames(str(self.basedir), rel_renames)
 
-    def write_transaction(self, sqlconn):
-        return FSWriter(self, sqlconn)
-
     def get_raw_changelog_entry(self, serial):
         q = "SELECT data FROM changelog WHERE serial = ?"
         with contextlib.closing(self.get_sqlconn()) as conn:
@@ -437,7 +434,7 @@ class KeyFS(object):
     def import_changes(self, serial, changes):
         with self._write_lock:
             with contextlib.closing(self._storage.get_sqlconn()) as sqlconn:
-                with self._storage.write_transaction(sqlconn) as fswriter:
+                with self.write_transaction(sqlconn) as fswriter:
                     next_serial = self.get_next_serial()
                     assert next_serial == serial, (next_serial, serial)
                     for relpath, tup in changes.items():
@@ -542,6 +539,9 @@ class KeyFS(object):
             self.rollback_transaction_in_thread()
             raise
         self.commit_transaction_in_thread()
+
+    def write_transaction(self, conn):
+        return FSWriter(self._storage, conn)
 
 
 class PTypedKey:
@@ -771,7 +771,7 @@ class Transaction(object):
             threadlog.debug("nothing to commit, just closing tx")
             return self._close()
         try:
-            with self.keyfs._storage.write_transaction(self.sqlconn) as fswriter:
+            with self.keyfs.write_transaction(self.sqlconn) as fswriter:
                 for typedkey in self.dirty:
                     val = self.cache.get(typedkey)
                     # None signals deletion
