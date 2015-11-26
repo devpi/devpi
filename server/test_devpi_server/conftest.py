@@ -126,7 +126,7 @@ def xom(request, makexom):
 
 @pytest.yield_fixture(autouse=True, scope="session")
 def speed_up_sql():
-    from devpi_server.keyfs import Storage
+    from devpi_server.keyfs_sqlite_fs import Storage
     old = Storage.get_connection
     def make_unsynchronous(self, old=old, **kw):
         conn = old(self, **kw)
