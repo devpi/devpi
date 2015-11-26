@@ -386,12 +386,6 @@ class PyPIStage(BaseStage):
         return verdata
 
 
-def itervalues(d):
-    return getattr(d, "itervalues", d.values)()
-def iteritems(d):
-    return getattr(d, "iteritems", d.items)()
-
-
 class ProjectNamesCache:
     """ Helper class for maintaining project names from a mirror. """
     def __init__(self, expiry_time, filepath):
