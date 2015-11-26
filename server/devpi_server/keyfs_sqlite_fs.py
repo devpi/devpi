@@ -102,9 +102,11 @@ class Connection:
 class Storage:
     def __init__(self, basedir, notify_on_commit, cache_size):
         self.basedir = basedir
+        self.sqlpath = self.basedir.join(".sqlite")
         self._notify_on_commit = notify_on_commit
         self._changelog_cache = LRUCache(cache_size)  # is thread safe
         self.last_commit_timestamp = time.time()
+        self.ensure_tables_exist()
         with self.get_connection() as conn:
             row = conn._sqlconn.execute("select max(serial) from changelog").fetchone()
             serial = row[0]
@@ -138,27 +140,28 @@ class Storage:
         self._changelog_cache.put(serial, changes)
 
     def get_connection(self, closing=True):
-        path = self.basedir.join(".sqlite")
-        if not path.exists():
-            with sqlite3.connect(str(path)) as sqlconn:
-                threadlog.info("DB: Creating schema")
-                c = sqlconn.cursor()
-                c.execute("""
-                    CREATE TABLE kv (
-                        key TEXT NOT NULL PRIMARY KEY,
-                        keyname TEXT,
-                        serial INTEGER
-                    )
-                """)
-                c.execute("""
-                    CREATE TABLE changelog (
-                        serial INTEGER PRIMARY KEY,
-                        data BLOB NOT NULL
-                    )
-                """)
-            sqlconn.close()
-        sqlconn = sqlite3.connect(str(path), timeout=60)
+        sqlconn = sqlite3.connect(str(self.sqlpath), timeout=60)
         conn = Connection(sqlconn, self.basedir)
         if closing:
             return contextlib.closing(conn)
         return conn
+
+    def ensure_tables_exist(self):
+        if self.sqlpath.exists():
+            return
+        with self.get_connection() as conn:
+            threadlog.info("DB: Creating schema")
+            c = conn._sqlconn.cursor()
+            c.execute("""
+                CREATE TABLE kv (
+                    key TEXT NOT NULL PRIMARY KEY,
+                    keyname TEXT,
+                    serial INTEGER
+                )
+            """)
+            c.execute("""
+                CREATE TABLE changelog (
+                    serial INTEGER PRIMARY KEY,
+                    data BLOB NOT NULL
+                )
+            """)
