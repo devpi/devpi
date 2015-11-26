@@ -406,7 +406,7 @@ class TestFileReplication:
         assert persisted_errors == replica_xom.errors.errors
         with replica_xom.keyfs.transaction():
             assert not r_entry.file_exists()
-            assert not os.path.exists(r_entry._filepath)
+            assert not replica_xom.filestore.storedir.join(r_entry.relpath).exists()
 
         # then we try to return the correct thing
         with xom.keyfs.transaction(write=True):
@@ -448,7 +448,7 @@ class TestFileReplication:
         with xom.keyfs.transaction(write=True):
             entry.file_delete()
             entry.delete()
-        assert not os.path.exists(entry._filepath)
+        assert not xom.filestore.storedir.join(entry.relpath).exists()
 
         # and simulate what the master will respond
         xom.httpget.mockresponse(master_file_path, status_code=410)

@@ -654,6 +654,11 @@ class Transaction(object):
         self.dirty_files = {}
         self.sqlconn = keyfs._fs.get_sqlconn()
 
+    def io_file_os_path(self, path):
+        if path in self.dirty_files:
+            return None
+        return path
+
     def io_file_exists(self, path):
         try:
             return self.dirty_files[path] is not None
@@ -663,6 +668,13 @@ class Transaction(object):
     def io_file_set(self, path, content):
         assert not path.endswith("-tmp")
         self.dirty_files[path] = content
+
+    def io_file_open(self, path):
+        try:
+            f = py.io.BytesIO(self.dirty_files[path])
+        except KeyError:
+            f = open(path, "rb")
+        return f
 
     def io_file_get(self, path):
         try:

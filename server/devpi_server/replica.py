@@ -392,13 +392,14 @@ class ImportFileReplica:
         threadlog.debug("ImportFileReplica for %s, %s", key, val)
         relpath = key.relpath
         entry = self.xom.filestore.get_file_entry_raw(key, val)
-        file_exists = os.path.exists(entry._filepath)
+        filepath = self.xom.filestore.storedir.join(entry.relpath).strpath
+        file_exists = os.path.exists(filepath)
         if val is None:
             if back_serial >= 0:
                 # file was deleted, still might never have been replicated
                 if file_exists:
-                    threadlog.debug("mark for deletion: %s", entry._filepath)
-                    fswriter.record_rename_file(None, entry._filepath)
+                    threadlog.debug("mark for deletion: %s", filepath)
+                    fswriter.record_rename_file(None, filepath)
             return
         if file_exists or entry.last_modified is None:
             # we have a file or there is no remote file
@@ -429,10 +430,10 @@ class ImportFileReplica:
             return
         # in case there were errors before, we can now remove them
         self.errors.remove(entry)
-        tmppath = entry._filepath + "-tmp"
+        tmppath = filepath + "-tmp"
         with get_write_file_ensure_dir(tmppath) as f:
             f.write(r.content)
-        fswriter.record_rename_file(tmppath, entry._filepath)
+        fswriter.record_rename_file(tmppath, filepath)
 
 
 class FileReplicationError(Exception):
