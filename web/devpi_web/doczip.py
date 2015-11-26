@@ -78,11 +78,11 @@ class Docs(DictMixin):
         if entry.basename.endswith('.fjson'):
             info = json.loads(entry.read())
             return dict(
-                title=BeautifulSoup(info.get('title', '')).text,
-                text=BeautifulSoup(info.get('body', '')).text,
+                title=BeautifulSoup(info.get('title', ''), "html.parser").text,
+                text=BeautifulSoup(info.get('body', ''), "html.parser").text,
                 path=info.get('current_page_name', name))
         else:
-            soup = BeautifulSoup(entry.read())
+            soup = BeautifulSoup(entry.read(), "html.parser")
             body = soup.find('body')
             if body is None:
                 return
