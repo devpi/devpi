@@ -115,21 +115,25 @@ class Connection:
         self._sqlconn.commit()
 
     def io_file_os_path(self, path):
+        path = self._basedir.join(path).strpath
         if path in self.dirty_files:
             raise RuntimeError("Can't access file %s directly during transaction" % path)
         return path
 
     def io_file_exists(self, path):
+        path = self._basedir.join(path).strpath
         try:
             return self.dirty_files[path] is not None
         except KeyError:
             return os.path.exists(path)
 
     def io_file_set(self, path, content):
+        path = self._basedir.join(path).strpath
         assert not path.endswith("-tmp")
         self.dirty_files[path] = content
 
     def io_file_open(self, path):
+        path = self._basedir.join(path).strpath
         try:
             f = py.io.BytesIO(self.dirty_files[path])
         except KeyError:
@@ -137,6 +141,7 @@ class Connection:
         return f
 
     def io_file_get(self, path):
+        path = self._basedir.join(path).strpath
         try:
             content = self.dirty_files[path]
         except KeyError:
@@ -147,6 +152,7 @@ class Connection:
         return content
 
     def io_file_size(self, path):
+        path = self._basedir.join(path).strpath
         try:
             content = self.dirty_files[path]
         except KeyError:
@@ -158,6 +164,7 @@ class Connection:
             return len(content)
 
     def io_file_delete(self, path):
+        path = self._basedir.join(path).strpath
         self.dirty_files[path] = None
 
 

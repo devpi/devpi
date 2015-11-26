@@ -7,6 +7,7 @@ from __future__ import unicode_literals
 import hashlib
 import mimetypes
 from wsgiref.handlers import format_date_time
+import os
 import py
 from devpi_common.types import cached_property, parse_hash_spec
 from .keyfs import _nodefault
@@ -121,7 +122,9 @@ class FileEntry(object):
         self.relpath = key.relpath
         self.basename = self.relpath.split("/")[-1]
         self.readonly = readonly
-        self._storepath = str(self.xom.filestore.storedir.join(self.relpath))
+        self._storepath = os.path.join(
+            self.xom.filestore.rel_storedir,
+            str(self.relpath))
         if meta is not _nodefault:
             self.meta = meta or {}
 
