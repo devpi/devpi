@@ -375,7 +375,6 @@ class TestFileReplication:
             assert not replica_xom.model.get_user("world")
             assert replica_xom.model.get_user("hello")
 
-    @pytest.mark.storage_with_filesystem
     def test_fetch(self, gen, reqmock, xom, replica_xom):
         replay(xom, replica_xom)
         content1 = b'hello'
@@ -460,7 +459,6 @@ class TestFileReplication:
             r_entry = replica_xom.filestore.get_file_entry(entry.relpath)
             assert not r_entry.file_exists()
 
-    @pytest.mark.storage_with_filesystem
     def test_fetch_pypi_nomd5(self, gen, reqmock, xom, replica_xom):
         replay(xom, replica_xom)
         content1 = b'hello'

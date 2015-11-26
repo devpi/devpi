@@ -113,6 +113,14 @@ class FSWriter:
 
     def __exit__(self, cls, val, tb):
         thread_pop_log("fswriter%s:" % self.fs.next_serial)
+        for path, content in self.conn.dirty_files.items():
+            if content is None:
+                self.record_rename_file(None, path)
+            else:
+                tmppath = path + "-tmp"
+                with get_write_file_ensure_dir(tmppath) as f:
+                    f.write(content)
+                self.record_rename_file(tmppath, path)
         if cls is None:
             changed_keys, files_commit, files_del = self.commit_to_filesystem()
             commit_serial = self.fs.next_serial - 1
@@ -649,14 +657,6 @@ class Transaction(object):
                     val = self.cache.get(typedkey)
                     # None signals deletion
                     fswriter.record_set(typedkey, val)
-                for path, content in self.conn.dirty_files.items():
-                    if content is None:
-                        fswriter.record_rename_file(None, path)
-                    else:
-                        tmppath = path + "-tmp"
-                        with get_write_file_ensure_dir(tmppath) as f:
-                            f.write(content)
-                        fswriter.record_rename_file(tmppath, path)
                 commit_serial = fswriter.fs.next_serial
         finally:
             self._close()
