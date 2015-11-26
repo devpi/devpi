@@ -127,14 +127,14 @@ def xom(request, makexom):
 @pytest.yield_fixture(autouse=True, scope="session")
 def speed_up_sql():
     from devpi_server.keyfs import Storage
-    old = Storage.get_sqlconn
-    def make_unsynchronous(self, old=old):
-        conn = old(self)
-        conn.execute("PRAGMA synchronous=OFF")
+    old = Storage.get_connection
+    def make_unsynchronous(self, old=old, **kw):
+        conn = old(self, **kw)
+        getattr(conn, 'thing', conn)._sqlconn.execute("PRAGMA synchronous=OFF")
         return conn
-    Storage.get_sqlconn = make_unsynchronous
+    Storage.get_connection = make_unsynchronous
     yield
-    Storage.get_sqlconn = old
+    Storage.get_connection = old
 
 @pytest.fixture(scope="session")
 def mock():
