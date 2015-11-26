@@ -666,7 +666,7 @@ class TestStage:
     def test_get_versiondata_latest_inheritance(self, user, model, stage):
         stage_base_name = stage.index + "base"
         user.create_stage(index=stage_base_name, bases=(stage.name,))
-        stage_sub = model.getstage(stage.user.name, stage_base_name)
+        stage_sub = model.getstage(stage.username, stage_base_name)
         stage_sub.set_versiondata(udict(name="hello", version="1.0"))
         stage.set_versiondata(udict(name="hello", version="1.1"))
         assert stage_sub.get_latest_version_perstage("hello") == "1.0"
@@ -704,6 +704,28 @@ class TestStage:
         stage2, metadata = queue.get()
         assert stage2.name == stage.name
         assert not metadata
+
+    @pytest.mark.start_threads
+    @pytest.mark.notransaction
+    def test_stage_created_hook(self, xom, queue):
+        class Plugin:
+            def devpiserver_stage_created(self, stage):
+                queue.put(stage)
+        xom.config.pluginmanager.register(Plugin())
+        with xom.keyfs.transaction(write=True):
+            model = xom.model
+            user = model.create_user("user", "password", email="some@email.com")
+            user.create_stage("hello")
+        while 1:
+            stage = queue.get(timeout=10)
+            if stage.name != "root/pypi":
+                break
+        assert stage.name == "user/hello"
+
+        with xom.keyfs.transaction(write=True):
+            user.create_stage("hello2")
+        assert queue.get(timeout=10).name == "user/hello2"
+
 
     @pytest.mark.start_threads
     def test_doczip_uploaded_hook(self, stage, queue):

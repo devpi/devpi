@@ -82,6 +82,7 @@ class NonVolatile(ModelException):
 
 
 class RootModel:
+    """ per-process root model object. """
     def __init__(self, xom):
         self.xom = xom
         self.keyfs = xom.keyfs
@@ -252,12 +253,14 @@ class User:
         if not ixconfig:
             return None
         if ixconfig["type"] == "stage":
-            return PrivateStage(self.xom, self.name, indexname, ixconfig)
+            Stage = PrivateStage
         elif ixconfig["type"] == "mirror":
             from .extpypi import PyPIStage
-            return PyPIStage(self.xom)
+            Stage = PyPIStage
         else:
             raise ValueError("unknown index type %r" % ixconfig["type"])
+        return Stage(self.xom, username=self.name, index=indexname,
+                     ixconfig=ixconfig)
 
 
 class InvalidIndexconfig(Exception):
@@ -266,12 +269,27 @@ class InvalidIndexconfig(Exception):
         Exception.__init__(self, messages)
 
 
-class BaseStage:
+class BaseStage(object):
     InvalidUser = InvalidUser
     NotFound = NotFound
     UpstreamError = UpstreamError
     MissesRegistration = MissesRegistration
     NonVolatile = NonVolatile
+
+    def __init__(self, xom, username, index, ixconfig):
+        self.xom = xom
+        self.username = username
+        self.index = index
+        self.name = username + "/" + index
+        self.ixconfig = ixconfig
+        # the following attributes are per-xom singletons
+        self.model = xom.model
+        self.keyfs = xom.keyfs
+        self.filestore = xom.filestore
+
+    def key_projsimplelinks(self, project):
+        return self.keyfs.PROJSIMPLELINKS(user=self.username,
+            index=self.index, project=normalize_name(project))
 
     def get_releaselinks(self, project):
         # compatibility access method used by devpi-web and tests
@@ -289,7 +307,7 @@ class BaseStage:
         rp = SimplelinkMeta((key, href))
         linkdict = {"entrypath": rp._url.path, "hash_spec": rp._url.hash_spec,
                     "eggfragment": rp.eggfragment}
-        return ELink(self.xom.filestore, linkdict, project, rp.version)
+        return ELink(self.filestore, linkdict, project, rp.version)
 
     def get_linkstore_perstage(self, name, version, readonly=True):
         return LinkStore(self, name, version, readonly=readonly)
@@ -445,17 +463,14 @@ class PrivateStage(BaseStage):
                'project-url', 'supported-platform', 'setup-requires-Dist',
                'provides-extra', 'extension')
 
-    def __init__(self, xom, user, index, ixconfig):
-        self.xom = xom
-        self.model = xom.model
-        self.keyfs = xom.keyfs
-        self.user = self.model.get_user(user)
-        self.username = self.user.name
-        self.index = index
-        self.name = user + "/" + index
-        self.ixconfig = ixconfig
-        self.key_projects = self.keyfs.PROJNAMES(
-                    user=self.user.name, index=self.index)
+    def __init__(self, xom, username, index, ixconfig):
+        super(PrivateStage, self).__init__(xom, username, index, ixconfig)
+        self.key_projects = self.keyfs.PROJNAMES(user=username, index=index)
+
+    @cached_property
+    def user(self):
+        # only few methods need the user object.
+        return self.model.get_user(self.username)
 
     def modify(self, index=None, **kw):
         if 'type' in kw and self.ixconfig["type"] != kw['type']:
@@ -507,12 +522,12 @@ class PrivateStage(BaseStage):
         self._set_versiondata(metadata)
 
     def key_projversions(self, project):
-        return self.keyfs.PROJVERSIONS(user=self.user.name,
+        return self.keyfs.PROJVERSIONS(user=self.username,
             index=self.index, project=normalize_name(project))
 
     def key_projversion(self, project, version):
         return self.keyfs.PROJVERSION(
-            user=self.user.name, index=self.index,
+            user=self.username, index=self.index,
             project=normalize_name(project), version=version)
 
     def _set_versiondata(self, metadata):
@@ -578,12 +593,8 @@ class PrivateStage(BaseStage):
         project = normalize_name(project)
         return self.key_projversion(project, version).get(readonly=readonly)
 
-    def key_projsimplelinks(self, project):
-        return self.keyfs.PROJSIMPLELINKS(user=self.user.name,
-            index=self.index, project=normalize_name(project))
-
     def get_simplelinks_perstage(self, project):
-        return self.key_projsimplelinks(project).get()
+        return self.key_projsimplelinks(project).get().get("links", [])
 
     def _regen_simplelinks(self, project_input):
         project = normalize_name(project_input)
@@ -591,7 +602,7 @@ class PrivateStage(BaseStage):
         for version in self.list_versions_perstage(project):
             linkstore = self.get_linkstore_perstage(project, version)
             links.extend(map(make_key_and_href, linkstore.get_links("releasefile")))
-        self.key_projsimplelinks(project).set(links)
+        self.key_projsimplelinks(project).set({"links": links})
 
     def list_projects_perstage(self):
         return self.key_projects.get()
@@ -717,7 +728,7 @@ class ELink:
 class LinkStore:
     def __init__(self, stage, project, version, readonly=True):
         self.stage = stage
-        self.filestore = stage.xom.filestore
+        self.filestore = stage.filestore
         self.project = normalize_name(project)
         self.version = version
         self.verdata = stage.get_versiondata_perstage(self.project, version, readonly=readonly)
@@ -790,7 +801,7 @@ class LinkStore:
 
     def _create_file_entry(self, basename, file_content, ref_hash_spec=None):
         entry = self.filestore.store(
-                    user=self.stage.user.name, index=self.stage.index,
+                    user=self.stage.username, index=self.stage.index,
                     basename=basename,
                     file_content=file_content,
                     dir_hash_spec=ref_hash_spec)
@@ -877,14 +888,12 @@ def add_keys(xom, keyfs):
     keyfs.add_key("USER", "{user}/.config", dict)
     keyfs.add_key("USERLIST", ".config", set)
 
-    # type pypimirror related data
-    keyfs.add_key("PYPI_SERIALS_LOADED", "root/pypi/initiallinks", dict)
-    keyfs.add_key("PYPILINKS", "root/pypi/+links/{project}", dict)
-    keyfs.add_key("PYPIFILE_NOMD5",
-                 "{user}/{index}/+e/{dirname}/{basename}", dict)
+    # type mirror related data
+    keyfs.add_key("PYPIFILE_NOMD5", "{user}/{index}/+e/{dirname}/{basename}", dict)
+    keyfs.add_key("MIRRORNAMESINIT", "{user}/{index}/.mirrornameschange", int)
 
     # type "stage" related
-    keyfs.add_key("PROJSIMPLELINKS", "{user}/{index}/{project}/.simple", list)
+    keyfs.add_key("PROJSIMPLELINKS", "{user}/{index}/{project}/.simple", dict)
     keyfs.add_key("PROJVERSIONS", "{user}/{index}/{project}/.versions", set)
     keyfs.add_key("PROJVERSION", "{user}/{index}/{project}/{version}/.config", dict)
     keyfs.add_key("PROJNAMES", "{user}/{index}/.projects", set)
@@ -892,24 +901,16 @@ def add_keys(xom, keyfs):
                   "{user}/{index}/+f/{hashdir_a}/{hashdir_b}/{filename}", dict)
 
     sub = EventSubscribers(xom)
-    keyfs.notifier.on_key_change("PROJVERSION", sub.on_changed_version_config)
-    keyfs.notifier.on_key_change("STAGEFILE", sub.on_changed_file_entry)
-    keyfs.notifier.on_key_change("PYPI_SERIALS_LOADED", sub.on_init_pypiserials)
+    keyfs.PROJVERSION.on_key_change(sub.on_changed_version_config)
+    keyfs.STAGEFILE.on_key_change(sub.on_changed_file_entry)
+    keyfs.MIRRORNAMESINIT.on_key_change(sub.on_mirror_initialnames)
+    keyfs.USER.on_key_change(sub.on_userchange)
 
 
 class EventSubscribers:
     """ the 'on_' functions are called within in the notifier thread. """
     def __init__(self, xom):
         self.xom = xom
-
-    def on_init_pypiserials(self, ev):
-        xom = self.xom
-        hook = xom.config.hook
-        with xom.keyfs.transaction(write=False, at_serial=ev.at_serial):
-            stage = xom.model.getstage("root", "pypi")
-            name2serials = stage.pypimirror.name2serials
-            hook.devpiserver_pypi_initial(
-                stage=stage, name2serials=name2serials)
 
     def on_changed_version_config(self, ev):
         """ when version config is changed for a project in a stage"""
@@ -962,3 +963,39 @@ class EventSubscribers:
                     version=entry.version,
                     link=links[0])
 
+    def on_mirror_initialnames(self, ev):
+        """ when projectnames are first loaded into a mirror. """
+        params = ev.typedkey.params
+        user = params.get("user")
+        index = params.get("index")
+        keyfs = self.xom.keyfs
+        with keyfs.transaction(at_serial=ev.at_serial):
+            stage = self.xom.model.getstage(user, index)
+            if stage is not None and stage.ixconfig["type"] == "mirror":
+                self.xom.config.hook.devpiserver_mirror_initialnames(
+                    stage=stage,
+                    projectnames=stage.list_projects_perstage()
+                )
+
+    def on_userchange(self, ev):
+        """ when user data changes. """
+        params = ev.typedkey.params
+        username = params.get("user")
+        keyfs = self.xom.keyfs
+        if ev.back_serial > -1:
+            old = keyfs.get_value_at(ev.typedkey, ev.back_serial)
+            old_indexes = set(old.get("indexes", {}))
+        else:
+            old_indexes = set()
+        threadlog.debug("old indexes: %s", old_indexes)
+
+        with keyfs.transaction(at_serial=ev.at_serial):
+            user = self.xom.model.get_user(username)
+            if user is None:
+                # deleted
+                return
+            userconfig = user.key.get()
+            for name in userconfig.get("indexes", {}):
+                if name not in old_indexes:
+                    stage = user.getstage(name)
+                    self.xom.config.hook.devpiserver_stage_created(stage=stage)

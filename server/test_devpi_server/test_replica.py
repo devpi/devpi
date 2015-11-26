@@ -1,21 +1,14 @@
 import hashlib
 import pytest
 import py
+from devpi_server.log import thread_pop_log
+from devpi_server.keyfs import load
 from devpi_server.replica import *  # noqa
-from devpi_common.url import URL
 
 def loads(bytestring):
     return load(py.io.BytesIO(bytestring))
 
 pytestmark = [pytest.mark.notransaction]
-
-def test_view_name2serials(pypistage, testapp):
-    pypistage.mock_simple("package", '<a href="/package-1.0.zip" />',
-                          pypiserial=15)
-    r = testapp.get("/root/pypi/+name2serials", expect_errors=False)
-    io = py.io.BytesIO(r.body)
-    entries = load(io)
-    assert entries["package"] == 15
 
 @pytest.fixture
 def testapp(testapp):
@@ -82,52 +75,6 @@ class TestChangelog:
         assert r.headers[H_MASTER_UUID]
         del testapp.headers[H_EXPECTED_MASTER_ID]
         testapp.xget(400, "/+changelog/0")
-
-
-class TestPyPIDevpiProxy:
-    def test_pypi_proxy(self, xom, reqmock):
-        from devpi_server.keyfs import dump
-        url = "http://localhost:3141/root/pypi/+name2serials"
-        master_url = URL("http://localhost:3141")
-        proxy = PyPIDevpiProxy(xom._httpsession, master_url)
-        io = py.io.BytesIO()
-        dump({"hello": 42}, io)
-        data = io.getvalue()
-        reqmock.mockresponse(url=url, code=200, method="GET", data=data)
-        name2serials = proxy.list_packages_with_serial()
-        assert name2serials == {"hello": 42}
-
-    def test_replica_startup(self, replica_xom):
-        assert isinstance(replica_xom.proxy, PyPIDevpiProxy)
-
-
-@pytest.mark.parametrize("normname,realname",
-                         [("proj", "proj"), ("proj-x", "proj_x")])
-def test_pypi_project_changed(replica_xom, normname, realname):
-    handler = PypiProjectChanged(replica_xom)
-    class Ev:
-        value = dict(project=realname, serial=12)
-        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(project=normname)
-    handler(Ev())
-    assert replica_xom.pypimirror.name2serials[normname] == 12
-
-    class Ev2:
-        value = dict(project=realname, serial=15)
-        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(project=normname)
-    handler(Ev2())
-    assert replica_xom.pypimirror.name2serials[normname] == 15
-
-    class Ev3:
-        value = dict(project=realname, serial=12)
-        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(project=normname)
-    handler(Ev3())
-    assert replica_xom.pypimirror.name2serials[normname] == 15
-
-    class Ev4:
-        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(project=normname)
-        value = None
-    handler(Ev4())
-    assert realname not in replica_xom.pypimirror.name2serials
 
 
 class TestReplicaThread:
@@ -222,10 +169,16 @@ class TestReplicaThread:
     def test_thread_run_serial_mismatch(self, rt, mockchangelog, caplog, xom, monkeypatch):
         monkeypatch.setattr("os._exit", lambda n: 0/0)
         rt.thread.sleep = lambda *x: 0/0
+
+        # we need to have at least two commits
+        with xom.keyfs.transaction(write=True):
+            xom.model.create_user("qlwkej", "qwe")
+
         data = xom.keyfs._fs.get_raw_changelog_entry(0)
         assert data
         mockchangelog(0, code=200, data=data)
         data = xom.keyfs._fs.get_raw_changelog_entry(1)
+        assert data
         mockchangelog(1, code=200, data=data,
                       headers={"x-devpi-serial": "0"})
         with pytest.raises(ZeroDivisionError):
@@ -363,7 +316,7 @@ class TestTweenReplica:
         assert 'foo' not in response.headers
         assert 'keep-alive' not in response.headers
 
-def replay(xom, replica_xom):
+def replay(xom, replica_xom, events=True):
     threadlog.info("test: replaying replica")
     for serial in range(replica_xom.keyfs.get_next_serial(),
                         xom.keyfs.get_next_serial()):
@@ -372,6 +325,18 @@ def replay(xom, replica_xom):
         change_entry = xom.keyfs._fs.get_changes(serial)
         threadlog.info("test: importing to replica %s", serial)
         replica_xom.keyfs.import_changes(serial, change_entry)
+
+    # replay notifications
+    if events:
+        noti_thread = replica_xom.keyfs.notifier
+        event_serial = noti_thread.read_event_serial()
+        thread_push_log("NOTI")
+        while event_serial < replica_xom.keyfs.get_current_serial():
+            event_serial += 1
+            noti_thread._execute_hooks(event_serial, threadlog, raising=True)
+            noti_thread.write_event_serial(event_serial)
+        thread_pop_log("NOTI")
+
 
 class TestFileReplication:
     @pytest.fixture
@@ -575,7 +540,27 @@ def test_should_fetch_remote_file():
            should_fetch_remote_file(Entry(), {H_REPLICA_FILEREPL: str("YES")})
 
 
-def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, pypireplicastage, pypiurls, replica_xom, xom):
+def test_simplelinks_update_updates_projectname(httpget, monkeypatch,
+    pypistage, replica_pypistage, pypiurls, replica_xom, xom):
+
+    pypistage.mock_simple_projects([])
+    pypistage.mock_simple("pytest", pkgver="pytest-1.0.zip")
+    with xom.keyfs.transaction():
+        assert not pypistage.list_projects_perstage()
+
+    with xom.keyfs.transaction():
+        pypistage.get_simplelinks("pytest")
+
+    # replicate including executing events
+    replay(xom, replica_xom)
+
+    with replica_xom.keyfs.transaction():
+        st = replica_xom.model.getstage(pypistage.name)
+        assert st.list_projects_perstage() == set(["pytest"])
+
+
+def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, replica_pypistage,
+                                  pypiurls, replica_xom, xom):
     orig_simple = pypiurls.simple
 
     # prepare the data on master
@@ -585,7 +570,6 @@ def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, pypireplicast
 
     # replicate the state
     replay(xom, replica_xom)
-    replica_xom.pypimirror.name2serials = dict(xom.pypimirror.name2serials)
 
     # now check
     pypiurls.simple = 'http://localhost:3111/root/pypi/+simple/'
@@ -595,14 +579,14 @@ def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, pypireplicast
         text='<a href="https://pypi.python.org/pkg/pytest-1.0.zip">pytest-1.0.zip</a>',
         headers={'X-DEVPI-SERIAL': str(serial)})
     with replica_xom.keyfs.transaction():
-        ret = pypireplicastage.get_releaselinks("pytest")
+        ret = replica_pypistage.get_releaselinks("pytest")
     assert len(ret) == 1
     assert ret[0].relpath == 'root/pypi/+e/https_pypi.python.org_pkg/pytest-1.0.zip'
 
     # now we change the links and expire the cache
     pypiurls.simple = orig_simple
     pypistage.mock_simple("pytest", pkgver="pytest-1.1.zip", pypiserial=10001)
-    xom.set_updated_at('root/pypi', 'pytest', time.time() - 3600)
+    pypistage.cache_link_updates.expire('pytest')
     with xom.keyfs.transaction(write=True):
         pypistage.get_releaselinks("pytest")
     assert xom.keyfs.get_current_serial() > serial
@@ -613,10 +597,10 @@ def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, pypireplicast
         called.append(True)
         assert xom.keyfs.get_current_serial() == serial
         assert replica_xom.keyfs.get_current_serial() < serial
-        replay(xom, replica_xom)
+        replay(xom, replica_xom, events=False)
         assert replica_xom.keyfs.get_current_serial() == serial
+
     monkeypatch.setattr(replica_xom.keyfs.notifier, 'wait_tx_serial', wait_tx_serial)
-    replica_xom.set_updated_at('root/pypi', 'pytest', time.time() - 3600)
     pypiurls.simple = 'http://localhost:3111/root/pypi/+simple/'
     httpget.mock_simple(
         'pytest',
@@ -624,7 +608,11 @@ def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, pypireplicast
         pypiserial=10001,
         headers={'X-DEVPI-SERIAL': str(xom.keyfs.get_current_serial())})
     with replica_xom.keyfs.transaction():
-        ret = pypireplicastage.get_releaselinks("pytest")
+        # make the replica believe it hasn't updated for a longer time
+        r_pypistage = replica_xom.model.getstage("root/pypi")
+        r_pypistage.cache_link_updates.expire("pytest")
+        ret = replica_pypistage.get_releaselinks("pytest")
     assert called == [True]
+    replay(xom, replica_xom)
     assert len(ret) == 1
     assert ret[0].relpath == 'root/pypi/+e/https_pypi.python.org_pkg/pytest-1.1.zip'

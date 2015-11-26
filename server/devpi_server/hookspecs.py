@@ -26,11 +26,15 @@ def devpiserver_pyramid_configure(config, pyramid_config):
 
 
 @hookspec
-def devpiserver_pypi_initial(stage, name2serials):
-    """ called when name2serials are loaded for the first time into the server
-    instance (both for a replica and a master).
+def devpiserver_mirror_initialnames(stage, projectnames):
+    """ called when projectnames are first loaded into a mirror
+    (both for replica and a master)
     """
 
+@hookspec
+def devpiserver_stage_created(stage):
+    """ called when a stage was successfully created. (both for replica and a master)
+    """
 
 @hookspec
 def devpiserver_on_changed_versiondata(stage, project, version, metadata):

@@ -6,9 +6,9 @@ from devpi_web.doczip import iter_doc_contents
 import time
 
 
-def is_project_cached(stage, name):
+def is_project_cached(stage, project):
     if stage.ixconfig['type'] == 'mirror':
-        if not stage._load_project_cache(name):
+        if not stage.is_project_cached(project):
             return False
     return True
 

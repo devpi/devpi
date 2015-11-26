@@ -145,15 +145,8 @@ def mock():
     return mock
 
 
-@pytest.fixture()
-def proxymock(request, mock):
-    proxy = mock.create_autospec(extpypi.PyPISimpleProxy)
-    proxy.list_packages_with_serial.return_value = {}
-    return proxy
-
-
 @pytest.fixture
-def makexom(request, gentmp, httpget, monkeypatch, proxymock):
+def makexom(request, gentmp, httpget, monkeypatch):
     def makexom(opts=(), httpget=httpget, mocking=True, plugins=()):
         from devpi_server import auth_basic
         from devpi_server import auth_devpi
@@ -169,8 +162,11 @@ def makexom(request, gentmp, httpget, monkeypatch, proxymock):
         config = parseoptions(pm, fullopts)
         config.init_nodeinfo()
         if mocking:
-            xom = XOM(config, proxy=proxymock, httpget=httpget)
-            add_pypistage_mocks(monkeypatch, httpget, proxymock)
+            xom = XOM(config, httpget=httpget)
+            if not request.node.get_marker("nomockprojectsremote"):
+                monkeypatch.setattr(extpypi.PyPIStage, "_get_remote_projects",
+                    lambda self: set())
+            add_pypistage_mocks(monkeypatch, httpget)
         else:
             xom = XOM(config)
         # initialize default indexes
@@ -178,8 +174,6 @@ def makexom(request, gentmp, httpget, monkeypatch, proxymock):
         if not xom.config.args.master_url:
             with xom.keyfs.transaction(write=True):
                 set_default_indexes(xom.model)
-        if mocking:
-            xom.pypimirror.init_pypi_mirror(proxymock)
         if request.node.get_marker("with_replica_thread"):
             from devpi_server.replica import ReplicaThread
             rt = ReplicaThread(xom)
@@ -197,10 +191,10 @@ def makexom(request, gentmp, httpget, monkeypatch, proxymock):
 
 @pytest.fixture
 def replica_xom(request, makexom):
-    from devpi_server.replica import PyPIDevpiProxy
+    from devpi_server.replica import register_key_subscribers
     master_url = "http://localhost:3111"
     xom = makexom(["--master", master_url])
-    xom.proxy = PyPIDevpiProxy(xom._httpsession, xom.config.master_url)
+    register_key_subscribers(xom)
     return xom
 
 
@@ -280,18 +274,6 @@ def httpget(pypiurls):
             self._md5.update(s.encode("utf8"))
             return self._md5.hexdigest()
 
-        def setextfile(self, path, content, **kw):
-            headers = {"content-length": len(content),
-                       "content-type": mimetypes.guess_type(path),
-                       "last-modified": "today",}
-            if path.startswith("/") and pypiurls.base.endswith("/"):
-                path = path.lstrip("/")
-            return self.mockresponse(pypiurls.base + path,
-                                     raw=py.io.BytesIO(content),
-                                     headers=headers,
-                                     **kw)
-
-
     return MockHTTPGet()
 
 @pytest.fixture
@@ -308,34 +290,45 @@ def model(xom):
 
 @pytest.fixture
 def pypistage(xom):
-    return PyPIStage(xom)
+    from devpi_server.main import _pypi_ixconfig_default
+    return PyPIStage(xom, username="root", index="pypi",
+                     ixconfig=_pypi_ixconfig_default)
 
 @pytest.fixture
-def pypireplicastage(replica_xom):
-    return PyPIStage(replica_xom)
+def replica_pypistage(replica_xom):
+    return pypistage(replica_xom)
 
-def add_pypistage_mocks(monkeypatch, httpget, proxymock):
+def add_pypistage_mocks(monkeypatch, httpget):
     # add some mocking helpers
     PyPIStage.url2response = httpget.url2response
     def mock_simple(self, name, text=None, pypiserial=10000, **kw):
-        if pypiserial is not None:
-            call = lambda: \
-                     self.pypimirror.set_project_serial(name, pypiserial)
-            if not hasattr(self.keyfs, "tx"):
-                with self.keyfs.transaction(write=True):
-                    call()
-            else:
-                call()
+        self.cache_link_updates.expire(name)
         return self.httpget.mock_simple(name,
-                text=text, pypiserial=pypiserial, **kw)
+                 text=text, pypiserial=pypiserial, **kw)
     monkeypatch.setattr(PyPIStage, "mock_simple", mock_simple, raising=False)
+
+    def mock_simple_projects(self, projectlist):
+        t = "".join('<a href="%s">%s</a>\n' % (name, name) for name in projectlist)
+        threadlog.debug("patching simple page with: %s" %(t))
+        self.httpget.mockresponse(self.PYPIURL_SIMPLE, code=200, text=t)
+
+    monkeypatch.setattr(PyPIStage, "mock_simple_projects",
+                        mock_simple_projects, raising=False)
+
+    def mock_extfile(self, path, content, **kw):
+        headers = {"content-length": len(content),
+                   "content-type": mimetypes.guess_type(path),
+                   "last-modified": "today",}
+        url = URL(self.PYPIURL_SIMPLE).joinpath(path)
+        return self.httpget.mockresponse(url.url, raw=py.io.BytesIO(content),
+                                         headers=headers, **kw)
+    monkeypatch.setattr(PyPIStage, "mock_extfile", mock_extfile, raising=False)
 
 @pytest.fixture
 def pypiurls():
-    from devpi_server.extpypi import PYPIURL, PYPIURL_SIMPLE
+    from devpi_server.extpypi import PYPIURL_SIMPLE
     class PyPIURL:
         def __init__(self):
-            self.base = PYPIURL
             self.simple = PYPIURL_SIMPLE
     return PyPIURL()
 
@@ -614,7 +607,7 @@ class Mapp(MappMixin):
         r = self.get_simple(project)
         pkg_url = URL(r.request.url)
         paths = [pkg_url.joinpath(link["href"]).path
-                 for link in BeautifulSoup(r.body).findAll("a")]
+                 for link in BeautifulSoup(r.body, "html.parser").findAll("a")]
         return paths
 
     def upload_doc(self, basename, content, name, version, indexname=None,

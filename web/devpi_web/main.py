@@ -231,14 +231,20 @@ def devpiserver_add_parser_options(parser):
              "without a full devpi-server import/export.")
 
 
-def devpiserver_pypi_initial(stage, name2serials):
+def devpiserver_mirror_initialnames(stage, projectnames):
     xom = stage.xom
     ix = get_indexer(xom.config)
     ix.delete_index()
     indexer = get_indexer(xom.config)
-    # directly use name2serials?
+    # directly use projectnames?
     indexer.update_projects(iter_projects(xom), clear=True)
     threadlog.info("finished initial indexing op")
+
+
+def devpiserver_stage_created(stage):
+    if stage.ixconfig["type"] == "mirror":
+        threadlog.info("triggering load of initial projectnames for %s", stage.name)
+        stage.list_projects_perstage()
 
 
 def devpiserver_cmdline_run(xom):

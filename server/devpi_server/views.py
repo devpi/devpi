@@ -384,7 +384,7 @@ class PyPIView:
         response = Response(app_iter=self._simple_list_project(
             stage, project, result, embed_form, blocked_index))
         if stage.ixconfig['type'] == 'mirror':
-            serial = stage.pypimirror.get_project_serial(project)
+            serial = stage.key_projsimplelinks(project).get().get("serial")
             if serial > 0:
                 response.headers[str("X-PYPI-LAST-SERIAL")] = str(serial)
         return response
@@ -465,7 +465,7 @@ class PyPIView:
         # XXX we might want to check if user/index has root/pypi as a base
         stage = context.model.getstage('root', 'pypi')
         assert stage.ixconfig["type"] == "mirror", stage.ixconfig
-        stage.clear_cache(context.project)
+        stage.clear_simplelinks_cache(context.project)
         stage.get_simplelinks_perstage(context.project)
         redirect(self.request.route_url(
             "/{user}/{index}/+simple/{project}",

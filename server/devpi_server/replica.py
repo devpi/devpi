@@ -1,5 +1,4 @@
 import os
-import py
 import json
 import contextlib
 import time
@@ -9,7 +8,7 @@ from pyramid.response import Response
 from devpi_common.validation import normalize_name
 from webob.headers import EnvironHeaders, ResponseHeaders
 
-from .keyfs import load, loads, dump, get_write_file_ensure_dir, rename
+from .keyfs import loads, get_write_file_ensure_dir, rename
 from .log import thread_push_log, threadlog
 from .views import is_mutating_http_method, H_MASTER_UUID, make_uuid_headers
 from .model import UpstreamError
@@ -125,14 +124,6 @@ class MasterChangelogRequest:
         return keyfs._fs.get_raw_changelog_entry(serial)
 
 
-    @view_config(route_name="/root/pypi/+name2serials")
-    def get_name2serials(self):
-        io = py.io.BytesIO()
-        dump(self.xom.pypimirror.name2serials, io)
-        headers = {str("Content-Type"): str("application/octet-stream")}
-        return Response(body=io.getvalue(), status=200, headers=headers)
-
-
 class ReplicaThread:
     REPLICA_REQUEST_TIMEOUT = MAX_REPLICA_BLOCK_TIME * 1.25
     ERROR_SLEEP = 50
@@ -140,9 +131,6 @@ class ReplicaThread:
     def __init__(self, xom):
         self.xom = xom
         self.master_url = xom.config.master_url
-        if xom.is_replica():
-            xom.keyfs.notifier.on_key_change("PYPILINKS",
-                                             PypiProjectChanged(xom))
         self._master_serial = None
         self._master_serial_timestamp = None
         self.started_at = None
@@ -251,46 +239,36 @@ class ReplicaThread:
             self.thread.sleep(5.0)
 
 
-class PyPIDevpiProxy(object):
-    def __init__(self, http, master_url):
-        self._url = master_url.joinpath("root/pypi/+name2serials").url
-        self._http = http
-
-    def list_packages_with_serial(self):
-        try:
-            r = self._http.get(self._url, stream=True)
-        except self._http.Errors:
-            threadlog.exception("proxy request failed, no connection?")
-        else:
-            if r.status_code == 200:
-                return load(r.raw)
-        from devpi_server.main import fatal
-        fatal("replica: could not get serials from remote")
+def register_key_subscribers(xom):
+    xom.keyfs.PROJSIMPLELINKS.on_key_change(SimpleLinksChanged(xom))
 
 
-class PypiProjectChanged:
-    """ Event executed in notification thread based on a pypi link change. """
+class SimpleLinksChanged:
+    """ Event executed in notification thread based on a pypi link change.
+    It allows a replica to sync up the local full projectnames list."""
     def __init__(self, xom):
         self.xom = xom
 
     def __call__(self, ev):
-        threadlog.info("PypiProjectChanged %s", ev.typedkey)
-        pypimirror = self.xom.pypimirror
+        threadlog.info("SimpleLinksChanged %s", ev.typedkey)
         cache = ev.value
-
         # get the normalized project (PYPILINKS uses it)
+        username = ev.typedkey.params["user"]
+        index = ev.typedkey.params["index"]
         project = ev.typedkey.params["project"]
         if not project:
             threadlog.error("project %r missing", project)
             return
         assert normalize_name(project) == project
 
-        if cache is None:  # deleted
-            pypimirror.set_project_serial(project, None)
-        else:
-            cur_serial = pypimirror.get_project_serial(project)
-            if cache and cache["serial"] > cur_serial:
-                pypimirror.set_project_serial(project, cache["serial"])
+        with self.xom.keyfs.transaction(write=False):
+            mirror_stage = self.xom.model.getstage(username, index)
+            if mirror_stage.ixconfig["type"] == "mirror":
+                cache_projectnames = mirror_stage.cache_projectnames.get_inplace()
+                if cache is None:  # deleted
+                    cache_projectnames.discard(project)
+                else:
+                    cache_projectnames.add(project)
 
 
 def tween_replica_proxy(handler, registry):

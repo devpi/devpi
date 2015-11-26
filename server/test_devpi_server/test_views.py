@@ -153,7 +153,9 @@ def test_simple_project_pypi_egg(pypistage, testapp):
     r = testapp.get("/root/pypi")
     assert r.status_code == 200
 
+@pytest.mark.nomockprojectsremote
 def test_simple_list(pypistage, testapp):
+    pypistage.mock_simple_projects(["hello1", "hello2"])
     pypistage.mock_simple("hello1", "<html/>")
     pypistage.mock_simple("hello2", "<html/>")
     r = testapp.get("/root/pypi/+simple/hello1", expect_errors=False)
@@ -165,9 +167,11 @@ def test_simple_list(pypistage, testapp):
     assert r.status_code == 404
     # easy_install fails if the result isn't html
     assert "html" in r.headers['content-type']
+
+    # get the full projects page and see what is in
     r = testapp.get("/root/pypi/+simple/")
     assert r.status_code == 200
-    links = BeautifulSoup(r.text).findAll("a")
+    links = BeautifulSoup(r.text, "html.parser").findAll("a")
     assert len(links) == 2
     hrefs = [a.get("href") for a in links]
     assert hrefs == ["hello1", "hello2"]
@@ -188,14 +192,14 @@ def test_simple_refresh(mapp, model, pypistage, testapp):
     assert input.attrs['name'] == 'refresh'
     assert input.attrs['value'] == 'Refresh'
     with model.keyfs.transaction(write=False):
-        info = pypistage._load_project_cache("hello")
+        info = pypistage.key_projsimplelinks("hello").get()
     assert info != {}
     r = testapp.post("/root/pypi/+simple/hello/refresh")
     assert r.status_code == 302
     assert r.location.endswith("/root/pypi/+simple/hello")
     with model.keyfs.transaction(write=False):
-        info = pypistage._load_project_cache("hello")
-    assert info["dumplist"] == []
+        info = pypistage.key_projsimplelinks("hello").get()
+    assert info["links"] == []
 
 def test_inheritance_versiondata(mapp, model):
     api1 = mapp.create_and_use()
@@ -223,7 +227,7 @@ def test_simple_refresh_inherited(mapp, model, pypistage, testapp, project,
     assert input.attrs['name'] == 'refresh'
     #assert input.attrs['value'] == 'Refresh PyPI links'
     with model.keyfs.transaction(write=False):
-        info = pypistage._load_project_cache(project)
+        info = pypistage.key_projsimplelinks(project).get()
     assert info != {}
     pypistage.mock_simple(project, '<a href="/%s-2.0.zip" />' % project,
                           serial=200)
@@ -231,8 +235,8 @@ def test_simple_refresh_inherited(mapp, model, pypistage, testapp, project,
     assert r.status_code == 302
     assert r.location.endswith("/%s/+simple/%s" % (stagename, project))
     with model.keyfs.transaction(write=False):
-        info = pypistage._load_project_cache(project)
-    elist = info["dumplist"]
+        info = pypistage.key_projsimplelinks(project).get()
+    elist = info["links"]
     assert len(elist) == 1
     assert elist[0][0].endswith("-2.0.zip")
 
@@ -283,7 +287,7 @@ def test_upstream_not_reachable(reqmock, pypistage, testapp, code, url):
 
 def test_pkgserv(httpget, pypistage, testapp):
     pypistage.mock_simple("package", '<a href="/package-1.0.zip" />')
-    httpget.setextfile("/package-1.0.zip", b"123")
+    pypistage.mock_extfile("/package-1.0.zip", b"123")
     r = testapp.get("/root/pypi/+simple/package")
     assert r.status_code == 200
     href = getfirstlink(r.text).get("href")
@@ -298,7 +302,7 @@ def test_pkgserv_remote_failure(httpget, pypistage, testapp):
     assert r.status_code == 200
     href = getfirstlink(r.text).get("href")
     url = URL(r.request.url).joinpath(href).url
-    httpget.setextfile("/package-1.0.zip", b"123", status_code=500)
+    pypistage.mock_extfile("/package-1.0.zip", b"123", status_code=500)
     r = testapp.get(url)
     assert r.status_code == 502
 
@@ -345,10 +349,15 @@ class TestStatusInfoPlugin:
         request = self._xomrequest(xom)
         serial = xom.keyfs.get_current_serial()
         xom.keyfs.notifier.wait_event_serial(serial)
+        # if devpi-web is installed make sure we look again
+        # at the serial in case a hook created a new serial
+        serial = xom.keyfs.get_current_serial()
+        xom.keyfs.notifier.wait_event_serial(serial)
         result = plugin(request)
         assert not xom.is_replica()
         assert result == []
 
+    @pytest.mark.xfail(reason="sometimes fail due to race condition in db table creation")
     @pytest.mark.with_replica_thread
     @pytest.mark.with_notifier
     def test_no_issue_replica(self, plugin, xom):
@@ -361,6 +370,10 @@ class TestStatusInfoPlugin:
         assert result == []
 
     def test_events_lagging(self, plugin, xom, monkeypatch):
+        # write transaction so event processing can lag behind
+        with xom.keyfs.transaction(write=True):
+            xom.model.create_user("hello", "pass")
+
         import time
         now = time.time()
         request = self._xomrequest(xom)
@@ -442,6 +455,7 @@ class TestStatusInfoPlugin:
             status='fatal',
             msg='No contact to master for more than 5 minutes')]
 
+    @pytest.mark.xfail(reason="sometimes fail due to race condition in db table creation")
     @pytest.mark.with_replica_thread
     @pytest.mark.with_notifier
     def test_no_master_update(self, plugin, xom, monkeypatch):

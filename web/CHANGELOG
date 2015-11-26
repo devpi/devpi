@@ -2,7 +2,8 @@
 ------------------
 
 - require and adapt to devpi-server-3.0.0 which always uses
-  normalized names internally.
+  normalized project names internally and offers new hooks.
+  devpi-web-3.0.0 is incompatible to devpi-server-2.X.
 
 2.5.0 (2015-11-19)
 ------------------
