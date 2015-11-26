@@ -629,7 +629,9 @@ def test_storage_backend_required_if_more_than_one(capfd, makexom):
     with pytest.raises(SystemExit):
         makexom(plugins=(keyfs_sqlite, keyfs_sqlite_fs))
     out, err = capfd.readouterr()
-    assert "arguments are required: --storage" in err
+    lines = [x for x in err.splitlines() if 'required' in x]
+    assert len(lines) == 1
+    assert '--storage' in lines[0]
 
 
 def test_keyfs_sqlite(gentmp):
