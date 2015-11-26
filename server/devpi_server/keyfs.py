@@ -78,9 +78,9 @@ def get_write_file_ensure_dir(path):
 
 
 class FSWriter:
-    def __init__(self, fs, conn):
+    def __init__(self, storage, conn):
         self.conn = conn
-        self.fs = fs
+        self.storage = storage
         self.pending_renames = []
         self.changes = {}
 
@@ -97,7 +97,7 @@ class FSWriter:
         """ record setting typedkey to value (None means it's deleted) """
         assert not isinstance(value, ReadonlyView), value
         name, back_serial = self.db_get_typedkey_value(typedkey)
-        self.db_set_typedkey_value(typedkey, self.fs.next_serial)
+        self.db_set_typedkey_value(typedkey, self.storage.next_serial)
         # at __exit__ time we write out changes to the _changelog_cache
         # so we protect here against the caller modifying the value later
         value = get_mutable_deepcopy(value)
@@ -108,11 +108,11 @@ class FSWriter:
         self.pending_renames.append((source, dest))
 
     def __enter__(self):
-        self.log = thread_push_log("fswriter%s:" % self.fs.next_serial)
+        self.log = thread_push_log("fswriter%s:" % self.storage.next_serial)
         return self
 
     def __exit__(self, cls, val, tb):
-        thread_pop_log("fswriter%s:" % self.fs.next_serial)
+        thread_pop_log("fswriter%s:" % self.storage.next_serial)
         for path, content in self.conn.dirty_files.items():
             if content is None:
                 self.record_rename_file(None, path)
@@ -123,7 +123,7 @@ class FSWriter:
                 self.record_rename_file(tmppath, path)
         if cls is None:
             changed_keys, files_commit, files_del = self.commit_to_filesystem()
-            commit_serial = self.fs.next_serial - 1
+            commit_serial = self.storage.next_serial - 1
 
             # write out a nice commit entry to logging
             message = "committed: keys: %s"
@@ -136,31 +136,31 @@ class FSWriter:
                 args.append(",".join(files_del))
             self.log.info(message, *args)
 
-            self.fs.cache_commit_changes(commit_serial,
+            self.storage.cache_commit_changes(commit_serial,
                                          ensure_deeply_readonly(self.changes))
-            self.fs._notify_on_commit(commit_serial)
+            self.storage._notify_on_commit(commit_serial)
         else:
             while self.pending_renames:
                 source, dest = self.pending_renames.pop()
                 if source is not None:
                     os.remove(source)
-            self.log.info("roll back at %s" %(self.fs.next_serial))
+            self.log.info("roll back at %s" %(self.storage.next_serial))
 
     def commit_to_filesystem(self):
-        basedir = str(self.fs.basedir)
+        basedir = str(self.storage.basedir)
         rel_renames = list(
             make_rel_renames(basedir, self.pending_renames)
         )
         entry = self.changes, rel_renames
-        self.conn.write_changelog_entry(self.fs.next_serial, entry)
+        self.conn.write_changelog_entry(self.storage.next_serial, entry)
 
         # If we crash in the remainder, the next restart will
         # - call check_pending_renames which will replay any remaining
         #   renames from the changelog entry, and
         # - initialize next_serial from the max committed serial + 1
         files_commit, files_del = commit_renames(basedir, rel_renames)
-        self.fs.next_serial += 1
-        self.fs.last_commit_timestamp = time.time()
+        self.storage.next_serial += 1
+        self.storage.last_commit_timestamp = time.time()
         return list(self.changes), files_commit, files_del
 
 
@@ -657,7 +657,7 @@ class Transaction(object):
                     val = self.cache.get(typedkey)
                     # None signals deletion
                     fswriter.record_set(typedkey, val)
-                commit_serial = fswriter.fs.next_serial
+                commit_serial = fswriter.storage.next_serial
         finally:
             self._close()
         self.commit_serial = commit_serial
