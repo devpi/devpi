@@ -148,4 +148,4 @@ class TestConfig:
         config = make_config(("devpi-server",) + opts)
         assert config.args.keyfs_cache_size == 200
         xom = makexom(opts=opts)
-        assert xom.keyfs._fs._changelog_cache.size == 200
+        assert xom.keyfs._storage._changelog_cache.size == 200

@@ -91,7 +91,7 @@ class MasterChangelogRequest:
                     serial = int(serial)
                 except ValueError:
                     raise HTTPNotFound("serial needs to be int")
-                raw_entry = keyfs._fs.get_raw_changelog_entry(serial)
+                raw_entry = keyfs._storage.get_raw_changelog_entry(serial)
                 if not raw_entry:
                     raw_entry = self._wait_for_entry(serial)
 
@@ -121,7 +121,7 @@ class MasterChangelogRequest:
                     keyfs.notifier.cv_new_transaction.wait(
                         self.WAKEUP_INTERVAL)
                     num_wakeups += 1
-        return keyfs._fs.get_raw_changelog_entry(serial)
+        return keyfs._storage.get_raw_changelog_entry(serial)
 
 
 class ReplicaThread:

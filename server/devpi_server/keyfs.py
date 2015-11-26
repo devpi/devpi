@@ -79,7 +79,7 @@ def get_write_file_ensure_dir(path):
         return open(path, "wb")
 
 
-class Filesystem:
+class Storage:
     def __init__(self, basedir, notify_on_commit, cache_size):
         self.basedir = basedir
         self._notify_on_commit = notify_on_commit
@@ -381,7 +381,7 @@ class TxNotificationThread:
 
     def _execute_hooks(self, event_serial, log, raising=False):
         log.debug("calling hooks for tx%s", event_serial)
-        changes = self.keyfs._fs.get_changes(event_serial)
+        changes = self.keyfs._storage.get_changes(event_serial)
         for relpath, (keyname, back_serial, val) in changes.items():
             key = self.keyfs.derive_key(relpath, keyname)
             ev = KeyChangeEvent(key, val, event_serial, back_serial)
@@ -414,7 +414,7 @@ class KeyFS(object):
         self._threadlocal = mythread.threading.local()
         self._import_subscriber = {}
         self.notifier = t = TxNotificationThread(self)
-        self._fs = Filesystem(
+        self._storage = Storage(
             self.basedir,
             notify_on_commit=t.notify_on_commit,
             cache_size=cache_size)
@@ -428,7 +428,7 @@ class KeyFS(object):
             try:
                 return self.tx.get_key_in_transaction(relpath)
             except (AttributeError, KeyError):
-                keyname, serial = self._fs.db_read_typedkey(relpath, conn)
+                keyname, serial = self._storage.db_read_typedkey(relpath, conn)
         key = self.get_key(keyname)
         if isinstance(key, PTypedKey):
             key = key(**key.extract_params(relpath))
@@ -436,8 +436,8 @@ class KeyFS(object):
 
     def import_changes(self, serial, changes):
         with self._write_lock:
-            with contextlib.closing(self._fs.get_sqlconn()) as sqlconn:
-                with self._fs.write_transaction(sqlconn) as fswriter:
+            with contextlib.closing(self._storage.get_sqlconn()) as sqlconn:
+                with self._storage.write_transaction(sqlconn) as fswriter:
                     next_serial = self.get_next_serial()
                     assert next_serial == serial, (next_serial, serial)
                     for relpath, tup in changes.items():
@@ -454,13 +454,13 @@ class KeyFS(object):
         self._import_subscriber[key.name] = subscriber
 
     def get_next_serial(self):
-        return self._fs.next_serial
+        return self._storage.next_serial
 
     def get_current_serial(self):
-        return self._fs.next_serial - 1
+        return self._storage.next_serial - 1
 
     def get_last_commit_timestamp(self):
-        return self._fs.last_commit_timestamp
+        return self._storage.last_commit_timestamp
 
     @property
     def tx(self):
@@ -468,9 +468,9 @@ class KeyFS(object):
 
     def get_value_at(self, typedkey, at_serial, conn=None):
         relpath = typedkey.relpath
-        keyname, last_serial = self._fs.db_read_typedkey(relpath, conn)
+        keyname, last_serial = self._storage.db_read_typedkey(relpath, conn)
         while last_serial >= 0:
-            tup = self._fs.get_changes(last_serial).get(relpath)
+            tup = self._storage.get_changes(last_serial).get(relpath)
             assert tup, "no transaction entry at %s" %(last_serial)
             keyname, back_serial, val = tup
             if last_serial > at_serial:
@@ -652,7 +652,7 @@ class Transaction(object):
         self.cache = {}
         self.dirty = set()
         self.dirty_files = {}
-        self.sqlconn = keyfs._fs.get_sqlconn()
+        self.sqlconn = keyfs._storage.get_sqlconn()
 
     def io_file_os_path(self, path):
         if path in self.dirty_files:
@@ -771,7 +771,7 @@ class Transaction(object):
             threadlog.debug("nothing to commit, just closing tx")
             return self._close()
         try:
-            with self.keyfs._fs.write_transaction(self.sqlconn) as fswriter:
+            with self.keyfs._storage.write_transaction(self.sqlconn) as fswriter:
                 for typedkey in self.dirty:
                     val = self.cache.get(typedkey)
                     # None signals deletion
