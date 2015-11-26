@@ -443,6 +443,7 @@ class TestImportExport:
             links = stage.get_releaselinks("he-llo")
             assert len(links) == 2
 
+    @pytest.mark.storage_with_filesystem
     @pytest.mark.skipif(not hasattr(os, 'link'),
                         reason="OS doesn't support hard links")
     def test_hard_links(self, makeimpexp):

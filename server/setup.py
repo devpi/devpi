@@ -90,6 +90,7 @@ if __name__ == "__main__":
                     ["devpi-server = devpi_server.main:main"],
         'devpi_server': [
             "devpi-server-auth-basic = devpi_server.auth_basic",
-            "devpi-server-auth-devpi = devpi_server.auth_devpi"],
+            "devpi-server-auth-devpi = devpi_server.auth_devpi",
+            "devpi-server-sqlite = devpi_server.keyfs_sqlite_fs"],
         'devpi_web': [
             "devpi-server-status = devpi_server.views"]})

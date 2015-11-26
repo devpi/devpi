@@ -464,6 +464,8 @@ class TestStatusInfoPlugin:
         request = self._xomrequest(xom)
         serial = xom.keyfs.get_current_serial()
         xom.keyfs.notifier.wait_event_serial(serial)
+        serial = xom.keyfs.get_current_serial()
+        xom.keyfs.notifier.wait_event_serial(serial)
         assert hasattr(xom, 'replica_thread')
         assert xom.is_replica()
         # fake last update

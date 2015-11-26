@@ -39,6 +39,8 @@ log = threadlog
 def pytest_addoption(parser):
     parser.addoption("--slow", action="store_true", default=False,
         help="run slow tests involving remote services (pypi.python.org)")
+    parser.addoption("--backend", action="store",
+        help="run tests with specified dotted name backend")
 
 @pytest.fixture(autouse=True)
 def _clear():
@@ -124,17 +126,34 @@ def xom(request, makexom):
     xom = makexom([])
     return xom
 
+
 @pytest.yield_fixture(autouse=True, scope="session")
-def speed_up_sql():
-    from devpi_server.keyfs_sqlite_fs import Storage
-    old = Storage.get_connection
-    def make_unsynchronous(self, old=old, **kw):
-        conn = old(self, **kw)
-        getattr(conn, 'thing', conn)._sqlconn.execute("PRAGMA synchronous=OFF")
-        return conn
-    Storage.get_connection = make_unsynchronous
+def speed_up_sqlite():
+    from devpi_server.keyfs_sqlite import Storage
+    old = Storage.ensure_tables_exist
+    def make_unsynchronous(self, old=old):
+        conn = old(self)
+        with self.get_connection() as conn:
+            conn._sqlconn.execute("PRAGMA synchronous=OFF")
+        return
+    Storage.ensure_tables_exist = make_unsynchronous
     yield
-    Storage.get_connection = old
+    Storage.ensure_tables_exist = old
+
+
+@pytest.yield_fixture(autouse=True, scope="session")
+def speed_up_sqlite_fs():
+    from devpi_server.keyfs_sqlite_fs import Storage
+    old = Storage.ensure_tables_exist
+    def make_unsynchronous(self, old=old):
+        conn = old(self)
+        with self.get_connection() as conn:
+            conn._sqlconn.execute("PRAGMA synchronous=OFF")
+        return
+    Storage.ensure_tables_exist = make_unsynchronous
+    yield
+    Storage.ensure_tables_exist = old
+
 
 @pytest.fixture(scope="session")
 def mock():
@@ -145,13 +164,32 @@ def mock():
     return mock
 
 
+@pytest.fixture()
+def storage_plugin(request):
+    from pydoc import locate
+    backend = getattr(request.config.option, 'backend', None)
+    if backend is None:
+        backend = 'devpi_server.keyfs_sqlite_fs'
+    return locate(backend)
+
+
+@pytest.fixture()
+def storage(storage_plugin):
+    return storage_plugin.devpiserver_storage_backend()['storage']
+
+
 @pytest.fixture
-def makexom(request, gentmp, httpget, monkeypatch):
+def makexom(request, gentmp, httpget, monkeypatch, storage_plugin):
     def makexom(opts=(), httpget=httpget, mocking=True, plugins=()):
         from devpi_server import auth_basic
         from devpi_server import auth_devpi
-        plugins = list(plugins) + [(auth_basic, None), (auth_devpi, None)]
-        pm = get_pluginmanager()
+        plugins = [
+            plugin[0] if isinstance(plugin, tuple) else plugin
+            for plugin in plugins]
+        for plugin in [auth_basic, auth_devpi, storage_plugin]:
+            if plugin not in plugins:
+                plugins.append(plugin)
+        pm = get_pluginmanager(load_entrypoints=False)
         for plugin in plugins:
             pm.register(plugin)
         serverdir = gentmp()
@@ -186,6 +224,12 @@ def makexom(request, gentmp, httpget, monkeypatch):
             xom.thread_pool.start_one(xom.keyfs.notifier)
         request.addfinalizer(xom.thread_pool.shutdown)
         return xom
+    for marker in ("storage_with_filesystem",):
+        if request.node.get_marker(marker):
+            info = storage_plugin.devpiserver_storage_backend()
+            markers = info.get("_test_markers", [])
+            if marker not in markers:
+                pytest.skip("The storage doesn't have marker '%s'." % marker)
     return makexom
 
 

@@ -15,11 +15,12 @@ from devpi_common.url import URL
 
 log = threadlog
 
-def get_pluginmanager():
+def get_pluginmanager(load_entrypoints=True):
     pm = PluginManager("devpiserver", implprefix="devpiserver_")
     pm.add_hookspecs(hookspecs)
     # XXX load internal plugins here
-    pm.load_setuptools_entrypoints("devpi_server")
+    if load_entrypoints:
+        pm.load_setuptools_entrypoints("devpi_server")
     pm.check_pending()
     return pm
 
@@ -27,7 +28,8 @@ def get_pluginmanager():
 def get_default_serverdir():
     return os.environ.get("DEVPI_SERVERDIR", "~/.devpi/server")
 
-def addoptions(parser):
+
+def addoptions(parser, pluginmanager):
     web = parser.addgroup("web serving options")
     web.addoption("--host",  type=str,
             default="localhost",
@@ -165,6 +167,16 @@ def addoptions(parser):
                  "improve performance. Each entry uses 1kb of memory on "
                  "average. So by default about 10MB are used.")
 
+    backends = pluginmanager.hook.devpiserver_storage_backend()
+    required = len(backends) != 1
+    deploy.addoption("--storage", type=str, metavar="NAME",
+            action="store",
+            default=None if required else backends[0]['name'],
+            required=required,
+            choices=[x['name'] for x in backends],
+            help="the storage backend to use.\n" + "\n".join(
+                "%s - %s" % (x['name'], x['description']) for x in backends))
+
     bg = parser.addgroup("background server")
     bg.addoption("--start", action="store_true",
             help="start the background devpi-server")
@@ -195,7 +207,7 @@ def parseoptions(pluginmanager, argv, addoptions=addoptions):
                     "All indices are suitable for pip or easy_install usage "
                     "and setup.py upload ... invocations."
     )
-    addoptions(parser)
+    addoptions(parser, pluginmanager)
     pluginmanager.hook.devpiserver_add_parser_options(parser=parser)
 
     try_argcomplete(parser)
@@ -257,6 +269,11 @@ class Config:
                     os.path.expanduser(args.secretfile))
 
         self.path_nodeinfo = self.serverdir.join(".nodeinfo")
+        backends = pluginmanager.hook.devpiserver_storage_backend()
+        (self.storage,) = [
+            x['storage']
+            for x in backends
+            if x['name'] == self.args.storage]
 
     def init_nodeinfo(self):
         log.info("Loading node info from %s", self.path_nodeinfo)

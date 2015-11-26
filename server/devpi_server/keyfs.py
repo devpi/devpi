@@ -311,9 +311,7 @@ class KeyFS(object):
     class ReadOnly(Exception):
         """ attempt to open write transaction while in readonly mode. """
 
-    def __init__(self, basedir, readonly=False, cache_size=10000):
-        from .keyfs_sqlite_fs import Storage
-        self.Storage = Storage
+    def __init__(self, basedir, storage, readonly=False, cache_size=10000):
         self.basedir = py.path.local(basedir).ensure(dir=1)
         self._keys = {}
         self._mode = None
@@ -322,7 +320,7 @@ class KeyFS(object):
         self._threadlocal = mythread.threading.local()
         self._import_subscriber = {}
         self.notifier = t = TxNotificationThread(self)
-        self._storage = self.Storage(
+        self._storage = storage(
             self.basedir,
             notify_on_commit=t.notify_on_commit,
             cache_size=cache_size)

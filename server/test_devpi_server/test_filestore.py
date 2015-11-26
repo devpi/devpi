@@ -74,6 +74,7 @@ class TestFileStore:
         assert entry2.hash_spec and entry2.hash_spec == link2.hash_spec
         assert not entry2.file_exists()
 
+    @pytest.mark.storage_with_filesystem
     def test_file_exists_new_hash(self, filestore, gen):
         content1 = b'somedata'
         md5_1 = hashlib.md5(content1).hexdigest()
@@ -161,6 +162,7 @@ class TestFileStore:
         rheaders = entry.gethttpheaders()
         assert entry.file_get_content() == b"123"
 
+    @pytest.mark.storage_with_filesystem
     @pytest.mark.parametrize("mode", ("commit", "rollback"))
     def test_file_tx(self, filestore, gen, mode):
         assert filestore.keyfs.tx

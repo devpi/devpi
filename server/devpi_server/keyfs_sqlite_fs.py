@@ -100,6 +100,8 @@ class Connection:
 
 
 class Storage:
+    Connection = Connection
+
     def __init__(self, basedir, notify_on_commit, cache_size):
         self.basedir = basedir
         self.sqlpath = self.basedir.join(".sqlite")
@@ -141,7 +143,7 @@ class Storage:
 
     def get_connection(self, closing=True):
         sqlconn = sqlite3.connect(str(self.sqlpath), timeout=60)
-        conn = Connection(sqlconn, self.basedir)
+        conn = self.Connection(sqlconn, self.basedir)
         if closing:
             return contextlib.closing(conn)
         return conn
@@ -165,3 +167,11 @@ class Storage:
                     data BLOB NOT NULL
                 )
             """)
+
+
+def devpiserver_storage_backend():
+    return dict(
+        storage=Storage,
+        name="sqlite",
+        description="SQLite backend with files on the filesystem",
+        _test_markers=["storage_with_filesystem"])

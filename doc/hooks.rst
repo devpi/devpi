@@ -137,6 +137,22 @@ Plugins can process the initial list of projectnames when a mirror loads it::
         retrieved from the mirrored remote site. """
 
 
+hook semantics for storage backends
+-----------------------------------
+
+Plugins can provide custom storage backends. The storage API is still experimental::
+
+    def devpiserver_storage_backend():
+        """ return dict containing storage backend info.
+
+        The following keys are defined:
+
+            "storage" - the class implementing the storage API
+            "name" - name for selection from command line
+            "description" - a short description for the commandline help
+        """
+
+
 
 devpi-web plugin hooks (experimental)
 ============================================
