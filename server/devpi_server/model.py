@@ -16,7 +16,6 @@ from .filestore import FileEntry
 from .log import threadlog, thread_current_log
 from .readonly import get_mutable_deepcopy
 
-_nodefault = object()
 
 def run_passwd(root, username):
     user = root.get_user(username)
