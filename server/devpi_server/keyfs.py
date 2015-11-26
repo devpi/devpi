@@ -83,6 +83,7 @@ class Connection:
     def __init__(self, sqlconn, basedir):
         self._sqlconn = sqlconn
         self._basedir = basedir
+        self.dirty_files = {}
 
     def __enter__(self):
         return self
@@ -112,6 +113,52 @@ class Connection:
             "INSERT INTO changelog (serial, data) VALUES (?, ?)",
             (serial, sqlite3.Binary(data)))
         self._sqlconn.commit()
+
+    def io_file_os_path(self, path):
+        if path in self.dirty_files:
+            raise RuntimeError("Can't access file %s directly during transaction" % path)
+        return path
+
+    def io_file_exists(self, path):
+        try:
+            return self.dirty_files[path] is not None
+        except KeyError:
+            return os.path.exists(path)
+
+    def io_file_set(self, path, content):
+        assert not path.endswith("-tmp")
+        self.dirty_files[path] = content
+
+    def io_file_open(self, path):
+        try:
+            f = py.io.BytesIO(self.dirty_files[path])
+        except KeyError:
+            f = open(path, "rb")
+        return f
+
+    def io_file_get(self, path):
+        try:
+            content = self.dirty_files[path]
+        except KeyError:
+            with open(path, "rb") as f:
+                return f.read()
+        if content is None:
+            raise IOError()
+        return content
+
+    def io_file_size(self, path):
+        try:
+            content = self.dirty_files[path]
+        except KeyError:
+            try:
+                return os.path.getsize(path)
+            except OSError:
+                return None
+        if content is not None:
+            return len(content)
+
+    def io_file_delete(self, path):
+        self.dirty_files[path] = None
 
 
 class Storage:
@@ -672,54 +719,7 @@ class Transaction(object):
         self.at_serial = at_serial
         self.cache = {}
         self.dirty = set()
-        self.dirty_files = {}
         self.conn = keyfs._storage.get_connection(closing=False)
-
-    def io_file_os_path(self, path):
-        if path in self.dirty_files:
-            return None
-        return path
-
-    def io_file_exists(self, path):
-        try:
-            return self.dirty_files[path] is not None
-        except KeyError:
-            return os.path.exists(path)
-
-    def io_file_set(self, path, content):
-        assert not path.endswith("-tmp")
-        self.dirty_files[path] = content
-
-    def io_file_open(self, path):
-        try:
-            f = py.io.BytesIO(self.dirty_files[path])
-        except KeyError:
-            f = open(path, "rb")
-        return f
-
-    def io_file_get(self, path):
-        try:
-            content = self.dirty_files[path]
-        except KeyError:
-            with open(path, "rb") as f:
-                return f.read()
-        if content is None:
-            raise IOError()
-        return content
-
-    def io_file_size(self, path):
-        try:
-            content = self.dirty_files[path]
-        except KeyError:
-            try:
-                return os.path.getsize(path)
-            except OSError:
-                return None
-        if content is not None:
-            return len(content)
-
-    def io_file_delete(self, path):
-        self.dirty_files[path] = None
 
     def get_key_in_transaction(self, relpath):
         for key in self.cache:
@@ -788,7 +788,7 @@ class Transaction(object):
     def commit(self):
         if not self.write:
             return self._close()
-        if not self.dirty and not self.dirty_files:
+        if not self.dirty and not self.conn.dirty_files:
             threadlog.debug("nothing to commit, just closing tx")
             return self._close()
         try:
@@ -797,7 +797,7 @@ class Transaction(object):
                     val = self.cache.get(typedkey)
                     # None signals deletion
                     fswriter.record_set(typedkey, val)
-                for path, content in self.dirty_files.items():
+                for path, content in self.conn.dirty_files.items():
                     if content is None:
                         fswriter.record_rename_file(None, path)
                     else:

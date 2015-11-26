@@ -154,25 +154,25 @@ class FileEntry(object):
         return self.key.get(readonly=self.readonly)
 
     def file_exists(self):
-        return self.tx.io_file_exists(self._storepath)
+        return self.tx.conn.io_file_exists(self._storepath)
 
     def file_delete(self):
-        return self.tx.io_file_delete(self._storepath)
+        return self.tx.conn.io_file_delete(self._storepath)
 
     def file_size(self):
-        return self.tx.io_file_size(self._storepath)
+        return self.tx.conn.io_file_size(self._storepath)
 
     def __repr__(self):
         return "<FileEntry %r>" %(self.key)
 
     def file_open_read(self):
-        return self.tx.io_file_open(self._storepath)
+        return self.tx.conn.io_file_open(self._storepath)
 
     def file_get_content(self):
-        return self.tx.io_file_get(self._storepath)
+        return self.tx.conn.io_file_get(self._storepath)
 
     def file_os_path(self):
-        return self.tx.io_file_os_path(self._storepath)
+        return self.tx.conn.io_file_os_path(self._storepath)
 
     def file_set_content(self, content, last_modified=None, hash_spec=None):
         assert isinstance(content, bytes)
@@ -188,7 +188,7 @@ class FileEntry(object):
         else:
             hash_spec = get_default_hash_spec(content)
         self.hash_spec = hash_spec
-        self.tx.io_file_set(self._storepath, content)
+        self.tx.conn.io_file_set(self._storepath, content)
         # we make sure we always refresh the meta information
         # when we set the file content. Otherwise we might
         # end up only committing file content without any keys
