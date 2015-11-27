@@ -56,7 +56,10 @@ class TestCheckout:
         setupdir = repo.ensure_dir(setupdir_rel)
         file = setupdir.join("file")
         file.write("hello")
-        setupdir.ensure("setup.py")
+        setup_path = setupdir.ensure("setup.py")
+        if sys.platform.startswith("linux"):
+            setup_path.chmod(int("0777", 8))
+
         # this is a test for issue154 although we actually don't really
         # need to test the vcs-exporting code much since we started
         # relying on the external check-manifest project to do things.
@@ -108,6 +111,10 @@ class TestCheckout:
         newrepo = tmpdir.mkdir("newrepo")
         result = checkout.export(newrepo)
         assert result.rootpath.join("file").check()
+        p = result.rootpath.join("setup.py")
+        assert p.exists()
+        if sys.platform.startswith("linux"):
+            assert p.stat().mode & int("0777", 8) == int("0777", 8)
         assert result.rootpath == newrepo.join(setupdir.basename)
 
     def test_vcs_export_disabled(self, uploadhub, setupdir,
