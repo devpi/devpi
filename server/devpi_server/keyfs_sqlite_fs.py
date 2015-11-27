@@ -187,7 +187,7 @@ class FSWriter:
     def __init__(self, storage, conn):
         self.conn = conn
         self.storage = storage
-        self.pending_renames = []
+        self._pending_renames = []
         self.changes = {}
 
     def record_set(self, typedkey, value=None):
@@ -204,26 +204,26 @@ class FSWriter:
         value = get_mutable_deepcopy(value)
         self.changes[typedkey.relpath] = (typedkey.name, back_serial, value)
 
-    def record_rename_file(self, source, dest):
-        assert dest
-        self.pending_renames.append((source, dest))
-
     def __enter__(self):
         self.log = thread_push_log("fswriter%s:" % self.storage.next_serial)
         return self
 
     def __exit__(self, cls, val, tb):
         thread_pop_log("fswriter%s:" % self.storage.next_serial)
-        for path, content in self.conn.dirty_files.items():
-            if content is None:
-                self.record_rename_file(None, path)
-            else:
-                tmppath = path + "-tmp"
-                with get_write_file_ensure_dir(tmppath) as f:
-                    f.write(content)
-                self.record_rename_file(tmppath, path)
+        pending_renames = []
         if cls is None:
-            changed_keys, files_commit, files_del = self.commit_to_filesystem()
+            for path, content in self.conn.dirty_files.items():
+                if content is None:
+                    assert path.exists()
+                    pending_renames.append((None, dest))
+                else:
+                    tmppath = path + "-tmp"
+                    with get_write_file_ensure_dir(tmppath) as f:
+                        f.write(content)
+                    pending_renames.append((tmppath, path))
+
+            changed_keys, files_commit, files_del = \
+                self.commit_to_filesystem(pending_renames)
             commit_serial = self.storage.next_serial - 1
 
             # write out a nice commit entry to logging
@@ -239,16 +239,12 @@ class FSWriter:
 
             self.storage._notify_on_commit(commit_serial)
         else:
-            while self.pending_renames:
-                source, dest = self.pending_renames.pop()
-                if source is not None:
-                    os.remove(source)
             self.log.info("roll back at %s" %(self.storage.next_serial))
 
-    def commit_to_filesystem(self):
+    def commit_to_filesystem(self, pending_renames):
         basedir = str(self.storage.basedir)
         rel_renames = list(
-            make_rel_renames(basedir, self.pending_renames)
+            make_rel_renames(basedir, pending_renames)
         )
         entry = self.changes, rel_renames
         self.conn.write_changelog_entry(self.storage.next_serial, entry)
