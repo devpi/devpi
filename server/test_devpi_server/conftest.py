@@ -165,28 +165,29 @@ def mock():
 
 
 @pytest.fixture(scope="session")
-def storage_plugin(request):
+def storage_info(request):
     from pydoc import locate
     backend = getattr(request.config.option, 'backend', None)
     if backend is None:
         backend = 'devpi_server.keyfs_sqlite_fs'
-    return locate(backend)
+    return locate(backend).devpiserver_storage_backend()
 
 
 @pytest.fixture(scope="session")
-def storage(storage_plugin):
-    return storage_plugin.devpiserver_storage_backend()['storage']
+def storage(storage_info):
+    return storage_info['storage']
 
 
 @pytest.fixture
-def makexom(request, gentmp, httpget, monkeypatch, storage_plugin):
+def makexom(request, gentmp, httpget, monkeypatch, storage_info):
     def makexom(opts=(), httpget=httpget, mocking=True, plugins=()):
         from devpi_server import auth_basic
         from devpi_server import auth_devpi
+        from devpi_server import keyfs_sqlite, keyfs_sqlite_fs
         plugins = [
             plugin[0] if isinstance(plugin, tuple) else plugin
             for plugin in plugins]
-        for plugin in [auth_basic, auth_devpi, storage_plugin]:
+        for plugin in [auth_basic, auth_devpi, keyfs_sqlite, keyfs_sqlite_fs]:
             if plugin not in plugins:
                 plugins.append(plugin)
         pm = get_pluginmanager(load_entrypoints=False)
@@ -196,9 +197,20 @@ def makexom(request, gentmp, httpget, monkeypatch, storage_plugin):
         fullopts = ["devpi-server", "--serverdir", serverdir] + list(opts)
         if request.node.get_marker("with_replica_thread"):
             fullopts.append("--master=http://localhost")
+        if not request.node.get_marker("no_storage_option"):
+            if storage_info["name"] != "sqlite":
+                fullopts.append("--storage=%s" % storage_info["name"])
         fullopts = [str(x) for x in fullopts]
         config = parseoptions(pm, fullopts)
         config.init_nodeinfo()
+        for marker in ("storage_with_filesystem",):
+            if request.node.get_marker(marker):
+                info = config._storage_info()
+                markers = info.get("_test_markers", [])
+                if marker not in markers:
+                    pytest.skip("The storage doesn't have marker '%s'." % marker)
+        if not request.node.get_marker("no_storage_option"):
+            assert storage_info["storage"] is config.storage
         if mocking:
             xom = XOM(config, httpget=httpget)
             if not request.node.get_marker("nomockprojectsremote"):
@@ -224,12 +236,6 @@ def makexom(request, gentmp, httpget, monkeypatch, storage_plugin):
             xom.thread_pool.start_one(xom.keyfs.notifier)
         request.addfinalizer(xom.thread_pool.shutdown)
         return xom
-    for marker in ("storage_with_filesystem",):
-        if request.node.get_marker(marker):
-            info = storage_plugin.devpiserver_storage_backend()
-            markers = info.get("_test_markers", [])
-            if marker not in markers:
-                pytest.skip("The storage doesn't have marker '%s'." % marker)
     return makexom
 
 

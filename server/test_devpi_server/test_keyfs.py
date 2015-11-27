@@ -624,16 +624,6 @@ def test_devpiserver_22_event_serial():
         pytest.fail("change event_serial disk representation wrt -1/+1 hack")
 
 
-def test_storage_backend_required_if_more_than_one(capfd, makexom):
-    from devpi_server import keyfs_sqlite, keyfs_sqlite_fs
-    with pytest.raises(SystemExit):
-        makexom(plugins=(keyfs_sqlite, keyfs_sqlite_fs))
-    out, err = capfd.readouterr()
-    lines = [x for x in err.splitlines() if 'required' in x]
-    assert len(lines) == 1
-    assert '--storage' in lines[0]
-
-
 def test_keyfs_sqlite(gentmp):
     from devpi_server import keyfs_sqlite
     tmp = gentmp()

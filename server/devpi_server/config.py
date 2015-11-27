@@ -3,6 +3,7 @@ import base64
 import os.path
 import argparse
 import uuid
+from operator import itemgetter
 
 from pluggy import PluginManager
 import py
@@ -167,15 +168,15 @@ def addoptions(parser, pluginmanager):
                  "improve performance. Each entry uses 1kb of memory on "
                  "average. So by default about 10MB are used.")
 
-    backends = pluginmanager.hook.devpiserver_storage_backend()
-    required = len(backends) != 1
+    backends = sorted(
+        pluginmanager.hook.devpiserver_storage_backend(),
+        key=itemgetter("name"))
     deploy.addoption("--storage", type=str, metavar="NAME",
             action="store",
-            default=None if required else backends[0]['name'],
-            required=required,
             choices=[x['name'] for x in backends],
-            help="the storage backend to use.\n" + "\n".join(
-                "%s - %s" % (x['name'], x['description']) for x in backends))
+            help="the storage backend to use. This choice will be stored in "
+                 "your '--serverdir' upon initialization.\n" + ", ".join(
+                 '"%s": %s' % (x['name'], x['description']) for x in backends))
 
     bg = parser.addgroup("background server")
     bg.addoption("--start", action="store_true",
@@ -269,16 +270,12 @@ class Config:
                     os.path.expanduser(args.secretfile))
 
         self.path_nodeinfo = self.serverdir.join(".nodeinfo")
-        backends = pluginmanager.hook.devpiserver_storage_backend()
-        (self.storage,) = [
-            x['storage']
-            for x in backends
-            if x['name'] == self.args.storage]
 
     def init_nodeinfo(self):
         log.info("Loading node info from %s", self.path_nodeinfo)
         self._determine_roles()
         self._determine_uuid()
+        self._determine_storage()
         self.write_nodeinfo()
 
     def _determine_uuid(self):
@@ -343,6 +340,36 @@ class Config:
                   "as a master")
         self.nodeinfo["role"] = role
         return
+
+    def _storage_info_from_name(self, name):
+        storages = self.pluginmanager.hook.devpiserver_storage_backend()
+        (storage_info,) = [x for x in storages if x['name'] == name]
+        return storage_info
+
+    def _storage_info(self):
+        name = self.nodeinfo["storage"]["name"]
+        return self._storage_info_from_name(name)
+
+    @property
+    def storage(self):
+        return self._storage_info()["storage"]
+
+    def _determine_storage(self):
+        from .main import fatal
+        old_storage_info = self.nodeinfo.get("storage", {})
+        old_name = old_storage_info.get("name")
+        if self.args.storage:
+            storage_info = self._storage_info_from_name(self.args.storage)
+            if old_name is not None and storage_info["name"] != old_name:
+                fatal("cannot change storage type after initialization")
+        else:
+            if old_name is None:
+                name = "sqlite"
+            else:
+                name = old_name
+            storage_info = self._storage_info_from_name(name)
+        self.nodeinfo["storage"] = dict(
+            name=storage_info['name'])
 
     @cached_property
     def secret(self):

@@ -149,3 +149,28 @@ class TestConfig:
         assert config.args.keyfs_cache_size == 200
         xom = makexom(opts=opts)
         assert xom.keyfs._storage._changelog_cache.size == 200
+
+    @pytest.mark.no_storage_option
+    def test_storage_backend_default(self, makexom):
+        from devpi_server import keyfs_sqlite_fs
+        config = make_config(("devpi-server",))
+        assert config.args.storage is None
+        xom = makexom()
+        assert xom.config.storage is keyfs_sqlite_fs.Storage
+
+    def test_storage_backend_persisted(self, tmpdir):
+        from devpi_server import keyfs_sqlite
+        config = make_config(["devpi-server",
+                              "--serverdir", str(tmpdir),
+                              "--storage", "sqlite_db_files"])
+        config.init_nodeinfo()
+        assert config.storage is keyfs_sqlite.Storage
+        config = make_config(["devpi-server",
+                              "--serverdir", str(tmpdir)])
+        config.init_nodeinfo()
+        assert config.storage is keyfs_sqlite.Storage
+        config = make_config(["devpi-server",
+                              "--serverdir", str(tmpdir),
+                              "--storage", "sqlite"])
+        with pytest.raises(Fatal) as e:
+            config.init_nodeinfo()
