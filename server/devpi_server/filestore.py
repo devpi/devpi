@@ -38,7 +38,7 @@ class FileStore:
         self.xom = xom
         self.keyfs = xom.keyfs
         self.rel_storedir = "+files"
-        self.storedir = self.keyfs.basedir.ensure(self.rel_storedir, dir=1)
+        self.storedir = self.keyfs.basedir.join(self.rel_storedir)
 
     def maplink(self, link):
         if link.hash_spec:
