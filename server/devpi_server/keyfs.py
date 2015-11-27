@@ -84,20 +84,15 @@ class FSWriter:
         self.pending_renames = []
         self.changes = {}
 
-    def db_get_typedkey_value(self, typedkey):
-        try:
-            return self.conn.db_read_typedkey(typedkey.relpath)
-        except KeyError:
-            return (typedkey.name, -1)
-
-    def db_set_typedkey_value(self, typedkey, next_serial):
-        self.conn.db_write_typedkey(typedkey.relpath, typedkey.name, next_serial)
-
     def record_set(self, typedkey, value=None):
         """ record setting typedkey to value (None means it's deleted) """
         assert not isinstance(value, ReadonlyView), value
-        name, back_serial = self.db_get_typedkey_value(typedkey)
-        self.db_set_typedkey_value(typedkey, self.storage.next_serial)
+        try:
+            _, back_serial = self.conn.db_read_typedkey(typedkey.relpath)
+        except KeyError:
+            back_serial = -1
+        self.conn.db_write_typedkey(typedkey.relpath, typedkey.name,
+                                    self.storage.next_serial)
         # at __exit__ time we write out changes to the _changelog_cache
         # so we protect here against the caller modifying the value later
         value = get_mutable_deepcopy(value)
