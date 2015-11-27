@@ -2,7 +2,7 @@ import hashlib
 import pytest
 import py
 from devpi_server.log import thread_pop_log
-from devpi_server.keyfs import load
+from devpi_server.fileutil import load
 from devpi_server.replica import *  # noqa
 
 def loads(bytestring):

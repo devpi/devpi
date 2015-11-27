@@ -10,10 +10,10 @@ from wsgiref.handlers import format_date_time
 import os
 import py
 from devpi_common.types import cached_property, parse_hash_spec
-from .keyfs import _nodefault
 from .log import threadlog
 
 log = threadlog
+_nodefault = object()
 
 def get_default_hash_spec(content):
     #return "md5=" + hashlib.md5(content).hexdigest()
