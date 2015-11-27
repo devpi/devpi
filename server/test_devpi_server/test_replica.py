@@ -118,7 +118,7 @@ class TestReplicaThread:
     def test_thread_run_recovers_from_error(self, mock, rt, reqmock, mockchangelog, caplog, xom):
         import socket
         # setup a regular request
-        data = xom.keyfs._fs.get_raw_changelog_entry(0)
+        data = xom.keyfs._storage.get_raw_changelog_entry(0)
         assert data
         mockchangelog(0, code=200, data=data)
         # get the result
@@ -139,7 +139,7 @@ class TestReplicaThread:
 
     def test_thread_run_ok(self, rt, mockchangelog, caplog, xom):
         rt.thread.sleep = lambda *x: 0/0
-        data = xom.keyfs._fs.get_raw_changelog_entry(0)
+        data = xom.keyfs._storage.get_raw_changelog_entry(0)
         assert data
         mockchangelog(0, code=200, data=data)
         mockchangelog(1, code=404, data=data)
@@ -157,7 +157,7 @@ class TestReplicaThread:
     def test_thread_run_ok_uuid_change(self, rt, mockchangelog, caplog, xom, monkeypatch):
         monkeypatch.setattr("os._exit", lambda n: 0/0)
         rt.thread.sleep = lambda *x: 0/0
-        data = xom.keyfs._fs.get_raw_changelog_entry(0)
+        data = xom.keyfs._storage.get_raw_changelog_entry(0)
         assert data
         mockchangelog(0, code=200, data=data)
         mockchangelog(1, code=200, data=data,
@@ -174,10 +174,10 @@ class TestReplicaThread:
         with xom.keyfs.transaction(write=True):
             xom.model.create_user("qlwkej", "qwe")
 
-        data = xom.keyfs._fs.get_raw_changelog_entry(0)
+        data = xom.keyfs._storage.get_raw_changelog_entry(0)
         assert data
         mockchangelog(0, code=200, data=data)
-        data = xom.keyfs._fs.get_raw_changelog_entry(1)
+        data = xom.keyfs._storage.get_raw_changelog_entry(1)
         assert data
         mockchangelog(1, code=200, data=data,
                       headers={"x-devpi-serial": "0"})
@@ -189,10 +189,10 @@ class TestReplicaThread:
     def test_thread_run_invalid_serial(self, rt, mockchangelog, caplog, xom, monkeypatch):
         monkeypatch.setattr("os._exit", lambda n: 0/0)
         rt.thread.sleep = lambda *x: 0/0
-        data = xom.keyfs._fs.get_raw_changelog_entry(0)
+        data = xom.keyfs._storage.get_raw_changelog_entry(0)
         assert data
         mockchangelog(0, code=200, data=data)
-        data = xom.keyfs._fs.get_raw_changelog_entry(1)
+        data = xom.keyfs._storage.get_raw_changelog_entry(1)
         mockchangelog(1, code=200, data=data,
                       headers={"x-devpi-serial": "foo"})
         with pytest.raises(ZeroDivisionError):
@@ -202,10 +202,10 @@ class TestReplicaThread:
     def test_thread_run_missing_serial(self, rt, mockchangelog, caplog, xom, monkeypatch):
         monkeypatch.setattr("os._exit", lambda n: 0/0)
         rt.thread.sleep = lambda *x: 0/0
-        data = xom.keyfs._fs.get_raw_changelog_entry(0)
+        data = xom.keyfs._storage.get_raw_changelog_entry(0)
         assert data
         mockchangelog(0, code=200, data=data)
-        data = xom.keyfs._fs.get_raw_changelog_entry(1)
+        data = xom.keyfs._storage.get_raw_changelog_entry(1)
         mockchangelog(1, code=200, data=data,
                       headers={"x-devpi-serial": None})
         with pytest.raises(ZeroDivisionError):
@@ -322,7 +322,7 @@ def replay(xom, replica_xom, events=True):
                         xom.keyfs.get_next_serial()):
         if serial == -1:
             continue
-        change_entry = xom.keyfs._fs.get_changes(serial)
+        change_entry = xom.keyfs._storage.get_changes(serial)
         threadlog.info("test: importing to replica %s", serial)
         replica_xom.keyfs.import_changes(serial, change_entry)
 
@@ -375,7 +375,6 @@ class TestFileReplication:
             assert not replica_xom.model.get_user("world")
             assert replica_xom.model.get_user("hello")
 
-
     def test_fetch(self, gen, reqmock, xom, replica_xom):
         replay(xom, replica_xom)
         content1 = b'hello'
@@ -406,7 +405,7 @@ class TestFileReplication:
         assert persisted_errors == replica_xom.errors.errors
         with replica_xom.keyfs.transaction():
             assert not r_entry.file_exists()
-            assert not os.path.exists(r_entry._filepath)
+            assert not replica_xom.filestore.storedir.join(r_entry.relpath).exists()
 
         # then we try to return the correct thing
         with xom.keyfs.transaction(write=True):
@@ -448,7 +447,7 @@ class TestFileReplication:
         with xom.keyfs.transaction(write=True):
             entry.file_delete()
             entry.delete()
-        assert not os.path.exists(entry._filepath)
+        assert not xom.filestore.storedir.join(entry.relpath).exists()
 
         # and simulate what the master will respond
         xom.httpget.mockresponse(master_file_path, status_code=410)

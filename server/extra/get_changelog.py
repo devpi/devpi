@@ -6,7 +6,7 @@ import pprint
 def garbage_collect_analysis(keyfs):
     key2revisions = {}
     for serial in range(keyfs.get_next_serial()):
-        changelog = keyfs._fs.get_changes(serial)
+        changelog = keyfs._storage.get_changes(serial)
         for key, (keyname, back_serial, value) in changelog.items():
             l = key2revisions.setdefault(key, [])
             l.append(serial)
@@ -35,7 +35,7 @@ if __name__ == "__main__":
     elif args.changelog:
         for serial in args.changelog:
             tw.sep("-", "serial %s" % serial)
-            pprint.pprint(keyfs._fs.get_changes(int(serial)))
+            pprint.pprint(keyfs._storage.get_changes(int(serial)))
     else:
         tw.line("number of changelogs: %s" % keyfs.get_next_serial())
 

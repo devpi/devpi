@@ -4,14 +4,15 @@ import pytest
 from devpi_server.mythread import ThreadPool
 
 from devpi_server.keyfs import *  # noqa
+from devpi_server.readonly import is_deeply_readonly
 
 notransaction = pytest.mark.notransaction
 
 
 
 @pytest.yield_fixture
-def keyfs(gentmp, pool):
-    keyfs = KeyFS(gentmp())
+def keyfs(gentmp, pool, storage):
+    keyfs = KeyFS(gentmp(), storage)
     pool.register(keyfs.notifier)
     yield keyfs
 
@@ -26,8 +27,8 @@ class TestKeyFS:
         pytest.raises(KeyError, lambda: keyfs.get_value_at(key, 0))
 
     @notransaction
-    def test_keyfs_readonly(self, tmpdir):
-        keyfs = KeyFS(tmpdir, readonly=True)
+    def test_keyfs_readonly(self, storage, tmpdir):
+        keyfs = KeyFS(tmpdir, storage, readonly=True)
         with pytest.raises(keyfs.ReadOnly):
             with keyfs.transaction(write=True):
                 pass
@@ -253,11 +254,11 @@ class TestTransactionIsolation:
         D = keyfs.add_key("NAME", "hello", dict)
         tx_1 = Transaction(keyfs, write=True)
         tx_2 = Transaction(keyfs)
-        ser = keyfs._fs.next_serial
+        ser = keyfs._storage.next_serial
         tx_1.set(D, {1:1})
         tx1_serial = tx_1.commit()
         assert tx1_serial == ser
-        assert keyfs._fs.next_serial == ser + 1
+        assert keyfs._storage.next_serial == ser + 1
         assert tx_2.at_serial == ser - 1
         assert D not in tx_2.cache and D not in tx_2.dirty
         assert tx_2.get(D) == {}
@@ -288,7 +289,7 @@ class TestTransactionIsolation:
             D.delete()
             assert not D.exists()
 
-    def test_import_changes(self, keyfs, tmpdir):
+    def test_import_changes(self, keyfs, storage, tmpdir):
         D = keyfs.add_key("NAME", "hello", dict)
         with keyfs.transaction(write=True):
             D.set({1:1})
@@ -296,13 +297,13 @@ class TestTransactionIsolation:
             D.delete()
         with keyfs.transaction(write=True):
             D.set({2:2})
-        serial = keyfs._fs.next_serial - 1
+        serial = keyfs._storage.next_serial - 1
         assert serial == 2
         # load entries into new keyfs instance
-        new_keyfs = KeyFS(tmpdir.join("newkeyfs"))
+        new_keyfs = KeyFS(tmpdir.join("newkeyfs"), storage)
         D2 = new_keyfs.add_key("NAME", "hello", dict)
         for serial in range(3):
-            changes = keyfs._fs.get_changes(serial)
+            changes = keyfs._storage.get_changes(serial)
             new_keyfs.import_changes(serial, changes)
         assert new_keyfs.get_value_at(D2, 0) == {1:1}
         with pytest.raises(KeyError):
@@ -340,52 +341,52 @@ class TestTransactionIsolation:
     def future_maybe_test_bounded_cache(self, keyfs):  # if we ever introduce it
         import random
         D = keyfs.add_key("NAME", "hello", dict)
-        size = keyfs._fs.CHANGELOG_CACHE_SIZE
+        size = keyfs._storage.CHANGELOG_CACHE_SIZE
         for i in range(size * 3):
             with keyfs.transaction(write=True):
                 D.set({i:i})
             with keyfs.transaction():
                 D.get()
-            assert len(keyfs._fs._changelog_cache) <= \
-                   keyfs._fs.CHANGELOG_CACHE_SIZE + 1
+            assert len(keyfs._storage._changelog_cache) <= \
+                   keyfs._storage.CHANGELOG_CACHE_SIZE + 1
 
         for i in range(size * 2):
             j = random.randrange(0, size * 3)
             keyfs.get_value_at(D, j)
-            assert len(keyfs._fs._changelog_cache) <= \
-                   keyfs._fs.CHANGELOG_CACHE_SIZE + 1
+            assert len(keyfs._storage._changelog_cache) <= \
+                   keyfs._storage.CHANGELOG_CACHE_SIZE + 1
 
-    def test_import_changes_subscriber(self, keyfs, tmpdir):
+    def test_import_changes_subscriber(self, keyfs, storage, tmpdir):
         pkey = keyfs.add_key("NAME", "hello/{name}", dict)
         D = pkey(name="world")
         with keyfs.transaction(write=True):
             D.set({1:1})
         assert keyfs.get_current_serial() == 0
         # load entries into new keyfs instance
-        new_keyfs = KeyFS(tmpdir.join("newkeyfs"))
+        new_keyfs = KeyFS(tmpdir.join("newkeyfs"), storage)
         pkey = new_keyfs.add_key("NAME", "hello/{name}", dict)
         l = []
         new_keyfs.subscribe_on_import(pkey, lambda *args: l.append(args))
-        changes = keyfs._fs.get_changes(0)
+        changes = keyfs._storage.get_changes(0)
         new_keyfs.import_changes(0, changes)
         assert l[0][1:] == (new_keyfs.NAME(name="world"), {1:1}, -1)
 
-    def test_import_changes_subscriber_error(self, keyfs, tmpdir):
+    def test_import_changes_subscriber_error(self, keyfs, storage, tmpdir):
         pkey = keyfs.add_key("NAME", "hello/{name}", dict)
         D = pkey(name="world")
         with keyfs.transaction(write=True):
             D.set({1:1})
-        new_keyfs = KeyFS(tmpdir.join("newkeyfs"))
+        new_keyfs = KeyFS(tmpdir.join("newkeyfs"), storage)
         pkey = new_keyfs.add_key("NAME", "hello/{name}", dict)
         new_keyfs.subscribe_on_import(pkey, lambda *args: 0/0)
         serial = new_keyfs.get_current_serial()
-        changes = keyfs._fs.get_changes(0)
+        changes = keyfs._storage.get_changes(0)
         with pytest.raises(ZeroDivisionError):
             new_keyfs.import_changes(0, changes)
         assert new_keyfs.get_current_serial() == serial
 
     def test_get_raw_changelog_entry_not_exist(self, keyfs):
-        assert keyfs._fs.get_raw_changelog_entry(10000) is None
+        assert keyfs._storage.get_raw_changelog_entry(10000) is None
 
 @notransaction
 class TestDeriveKey:
@@ -459,10 +460,10 @@ class TestSubscriber:
         event = queue.get()
         assert event.typedkey == key1
 
-    def test_persistent(self, tmpdir, queue, monkeypatch):
+    def test_persistent(self, tmpdir, queue, monkeypatch, storage):
         @contextlib.contextmanager
         def make_keyfs():
-            keyfs = KeyFS(tmpdir)
+            keyfs = KeyFS(tmpdir, storage)
             key1 = keyfs.add_key("NAME1", "hello", int)
             keyfs.notifier.on_key_change(key1, queue.put)
             pool = ThreadPool()
@@ -474,7 +475,7 @@ class TestSubscriber:
                 pool.shutdown()
 
         with make_keyfs() as key1:
-            monkeypatch.setattr(key1.keyfs._fs, "_notify_on_commit",
+            monkeypatch.setattr(key1.keyfs._storage, "_notify_on_commit",
                                 lambda x: 0/0)
             # we prevent the hooks from getting called
             with pytest.raises(ZeroDivisionError):
@@ -622,3 +623,31 @@ def test_devpiserver_22_event_serial():
     if devpi_server.__version__ == "2.2.":
         pytest.fail("change event_serial disk representation wrt -1/+1 hack")
 
+
+def test_keyfs_sqlite(gentmp):
+    from devpi_server import keyfs_sqlite
+    tmp = gentmp()
+    keyfs = KeyFS(tmp, keyfs_sqlite.Storage)
+    with keyfs.transaction(write=True) as tx:
+        assert tx.conn.io_file_os_path('foo') is None
+        tx.conn.io_file_set('foo', b'bar')
+        tx.conn._sqlconn.commit()
+    with keyfs.transaction(write=False) as tx:
+        assert tx.conn.io_file_os_path('foo') is None
+        assert tx.conn.io_file_get('foo') == b'bar'
+    assert [x.basename for x in tmp.listdir()] == ['.sqlite']
+
+
+def test_keyfs_sqlite_fs(gentmp):
+    from devpi_server import keyfs_sqlite_fs
+    tmp = gentmp()
+    keyfs = KeyFS(tmp, keyfs_sqlite_fs.Storage)
+    with keyfs.transaction(write=True) as tx:
+        assert tx.conn.io_file_os_path('foo') == tmp.join('foo').strpath
+        tx.conn.io_file_set('foo', b'bar')
+        tx.conn._sqlconn.commit()
+    with keyfs.transaction(write=False) as tx:
+        assert tx.conn.io_file_get('foo') == b'bar'
+        with open(tx.conn.io_file_os_path('foo'), 'rb') as f:
+            assert f.read() == b'bar'
+    assert sorted(x.basename for x in tmp.listdir()) == ['.sqlite', 'foo']

@@ -63,15 +63,20 @@ class Exporter:
         self.export_users = self.export["users"] = {}
         self.export_indexes = self.export["indexes"] = {}
 
-    def copy_file(self, src, dest):
+    def copy_file(self, entry, dest):
         dest.dirpath().ensure(dir=1)
         relpath = dest.relto(self.basepath)
-        if self.config.args.hard_links:
+        src = entry.file_os_path()
+        if self.config.args.hard_links and src is not None:
             self.tw.line("link file at %s" % relpath)
             os.link(src, dest.strpath)
+        elif src is not None:
+            self.tw.line("copy file at %s" % relpath)
+            shutil.copyfile(src, dest.strpath)
         else:
             self.tw.line("write file at %s" % relpath)
-            shutil.copyfile(src, dest.strpath)
+            with open(dest.strpath, 'wb') as f:
+                f.write(entry.file_get_content())
         return relpath
 
     def warn(self, msg):
@@ -153,7 +158,7 @@ class IndexDump:
             entry = self.exporter.filestore.get_file_entry(link.entrypath)
             assert entry.file_exists(), entry.relpath
             relpath = self.exporter.copy_file(
-                entry._filepath,
+                entry,
                 self.basedir.join(linkstore.project, entry.basename))
             self.add_filedesc("releasefile", linkstore.project, relpath,
                                version=linkstore.version,
@@ -164,7 +169,7 @@ class IndexDump:
         for tox_link in linkstore.get_links(rel="toxresult"):
             reflink = linkstore.stage.get_link_from_entrypath(tox_link.for_entrypath)
             relpath = self.exporter.copy_file(
-                tox_link.entry._filepath,
+                tox_link.entry,
                 self.basedir.join(linkstore.project, reflink.hash_spec,
                                   tox_link.basename)
             )
@@ -186,7 +191,7 @@ class IndexDump:
 
     def dump_docfile(self, project, version, entry):
         relpath = self.exporter.copy_file(
-            entry._filepath,
+            entry,
             self.basedir.join("%s-%s.doc.zip" % (project, version)))
         self.add_filedesc("doczip", project, relpath, version=version)
 

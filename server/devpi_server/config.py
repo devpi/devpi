@@ -3,6 +3,7 @@ import base64
 import os.path
 import argparse
 import uuid
+from operator import itemgetter
 
 from pluggy import PluginManager
 import py
@@ -15,11 +16,12 @@ from devpi_common.url import URL
 
 log = threadlog
 
-def get_pluginmanager():
+def get_pluginmanager(load_entrypoints=True):
     pm = PluginManager("devpiserver", implprefix="devpiserver_")
     pm.add_hookspecs(hookspecs)
     # XXX load internal plugins here
-    pm.load_setuptools_entrypoints("devpi_server")
+    if load_entrypoints:
+        pm.load_setuptools_entrypoints("devpi_server")
     pm.check_pending()
     return pm
 
@@ -27,7 +29,8 @@ def get_pluginmanager():
 def get_default_serverdir():
     return os.environ.get("DEVPI_SERVERDIR", "~/.devpi/server")
 
-def addoptions(parser):
+
+def addoptions(parser, pluginmanager):
     web = parser.addgroup("web serving options")
     web.addoption("--host",  type=str,
             default="localhost",
@@ -165,6 +168,16 @@ def addoptions(parser):
                  "improve performance. Each entry uses 1kb of memory on "
                  "average. So by default about 10MB are used.")
 
+    backends = sorted(
+        pluginmanager.hook.devpiserver_storage_backend(),
+        key=itemgetter("name"))
+    deploy.addoption("--storage", type=str, metavar="NAME",
+            action="store",
+            choices=[x['name'] for x in backends],
+            help="the storage backend to use. This choice will be stored in "
+                 "your '--serverdir' upon initialization.\n" + ", ".join(
+                 '"%s": %s' % (x['name'], x['description']) for x in backends))
+
     bg = parser.addgroup("background server")
     bg.addoption("--start", action="store_true",
             help="start the background devpi-server")
@@ -195,7 +208,7 @@ def parseoptions(pluginmanager, argv, addoptions=addoptions):
                     "All indices are suitable for pip or easy_install usage "
                     "and setup.py upload ... invocations."
     )
-    addoptions(parser)
+    addoptions(parser, pluginmanager)
     pluginmanager.hook.devpiserver_add_parser_options(parser=parser)
 
     try_argcomplete(parser)
@@ -262,6 +275,7 @@ class Config:
         log.info("Loading node info from %s", self.path_nodeinfo)
         self._determine_roles()
         self._determine_uuid()
+        self._determine_storage()
         self.write_nodeinfo()
 
     def _determine_uuid(self):
@@ -326,6 +340,36 @@ class Config:
                   "as a master")
         self.nodeinfo["role"] = role
         return
+
+    def _storage_info_from_name(self, name):
+        storages = self.pluginmanager.hook.devpiserver_storage_backend()
+        (storage_info,) = [x for x in storages if x['name'] == name]
+        return storage_info
+
+    def _storage_info(self):
+        name = self.nodeinfo["storage"]["name"]
+        return self._storage_info_from_name(name)
+
+    @property
+    def storage(self):
+        return self._storage_info()["storage"]
+
+    def _determine_storage(self):
+        from .main import fatal
+        old_storage_info = self.nodeinfo.get("storage", {})
+        old_name = old_storage_info.get("name")
+        if self.args.storage:
+            storage_info = self._storage_info_from_name(self.args.storage)
+            if old_name is not None and storage_info["name"] != old_name:
+                fatal("cannot change storage type after initialization")
+        else:
+            if old_name is None:
+                name = "sqlite"
+            else:
+                name = old_name
+            storage_info = self._storage_info_from_name(name)
+        self.nodeinfo["storage"] = dict(
+            name=storage_info['name'])
 
     @cached_property
     def secret(self):

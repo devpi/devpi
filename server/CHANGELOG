@@ -17,7 +17,7 @@
   the new "devpi_mirror_initialnames(stage, projectnames)" hook
   which is called when a mirror is initialized.
 
-- introduce new "devpi_stage_created(stage)" hook which is
+- introduce new "devpiserver_stage_created(stage)" hook which is
   called for each index which is created.
 
 - simplify and unify internal mirroring code some more
@@ -28,6 +28,10 @@
   that neither the UI nor pip/easy_install typically
   need the projectnames list, anyway.
 
+- introduce new "devpiserver_storage_backend" hook which allows plugins to
+  provide custom storage backends. When there is more than one backend
+  available, the "--storage" option becomes required for startup.
+
 
 2.5.3 (2015-11-23)
 ------------------
@@ -35,6 +39,7 @@
 - fix a bug that resulted from accessing a non-existing project on 
   root/pypi where upstream does not contain the X-PYPI-LAST-SERIAL
   header usually.  Thanks Matthias Bach.
+
 
 2.5.2 (2015-11-20)
 ------------------
@@ -45,10 +50,12 @@
 - fix py2 incompatibility introduced with 2.5.1 where we used
   a unicode header and pyramid only likes str-headers.
 
+
 2.5.1 (2015-11-20)
 ------------------
 
 - fix issue289: fix simple page serving on replicas
+
 
 2.5.0 (2015-11-19)
 ------------------

@@ -237,6 +237,7 @@ class XOM:
         from devpi_server.model import add_keys
         keyfs = KeyFS(
             self.config.serverdir,
+            self.config.storage,
             readonly=self.is_replica(),
             cache_size=self.config.args.keyfs_cache_size)
         add_keys(self, keyfs)

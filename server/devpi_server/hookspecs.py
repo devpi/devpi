@@ -20,6 +20,18 @@ def devpiserver_cmdline_run(xom):
 
 
 @hookspec
+def devpiserver_storage_backend():
+    """ return dict containing storage backend info.
+
+    The following keys are defined:
+
+        "storage" - the class implementing the storage API
+        "name" - name for selection from command line
+        "description" - a short description for the commandline help
+    """
+
+
+@hookspec
 def devpiserver_pyramid_configure(config, pyramid_config):
     """ called during initializing with the pyramid_config and the devpi_server
     config object. """
