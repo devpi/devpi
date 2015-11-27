@@ -38,14 +38,6 @@ class Connection:
         q = "INSERT OR REPLACE INTO kv (key, keyname, serial) VALUES (?, ?, ?)"
         self._sqlconn.execute(q, (relpath, name, next_serial))
 
-    def write_changelog_entry(self, serial, entry):
-        threadlog.debug("writing changelog for serial %s", serial)
-        data = dumps(entry)
-        self._sqlconn.execute(
-            "INSERT INTO changelog (serial, data) VALUES (?, ?)",
-            (serial, sqlite3.Binary(data)))
-        self._sqlconn.commit()
-
     def io_file_os_path(self, path):
         path = self._basedir.join(path).strpath
         if path in self.dirty_files:
@@ -98,6 +90,14 @@ class Connection:
     def io_file_delete(self, path):
         path = self._basedir.join(path).strpath
         self.dirty_files[path] = None
+
+    def write_changelog_entry(self, serial, entry):
+        threadlog.debug("writing changelog for serial %s", serial)
+        data = dumps(entry)
+        self._sqlconn.execute(
+            "INSERT INTO changelog (serial, data) VALUES (?, ?)",
+            (serial, sqlite3.Binary(data)))
+        self._sqlconn.commit()
 
     def get_raw_changelog_entry(self, serial):
         q = "SELECT data FROM changelog WHERE serial = ?"
