@@ -573,6 +573,9 @@ class Transaction(object):
         try:
             return self.get_key_in_transaction(relpath)
         except KeyError:
+            # XXX we could avoid asking the database
+            # if the relpath included the keyname
+            # but that's yet another refactoring (tm).
             keyname, serial = self.conn.db_read_typedkey(relpath)
         return self.keyfs.get_key_instance(keyname, relpath)
 

@@ -172,5 +172,5 @@ class TestConfig:
         config = make_config(["devpi-server",
                               "--serverdir", str(tmpdir),
                               "--storage", "sqlite"])
-        with pytest.raises(Fatal) as e:
+        with pytest.raises(Fatal):
             config.init_nodeinfo()
