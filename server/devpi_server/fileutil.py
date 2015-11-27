@@ -1,4 +1,5 @@
 import os.path
+import sys
 import py
 from execnet.gateway_base import Unserializer, _Serializer
 
