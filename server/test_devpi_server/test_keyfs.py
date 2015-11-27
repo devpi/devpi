@@ -24,7 +24,7 @@ def key(request):
 class TestKeyFS:
     def test_get_non_existent(self, keyfs):
         key = keyfs.add_key("NAME", "somekey", dict)
-        pytest.raises(KeyError, lambda: keyfs.get_value_at(key, 0))
+        pytest.raises(KeyError, lambda: keyfs.tx.get_value_at(key, 0))
 
     @notransaction
     def test_keyfs_readonly(self, storage, tmpdir):
@@ -303,12 +303,14 @@ class TestTransactionIsolation:
         new_keyfs = KeyFS(tmpdir.join("newkeyfs"), storage)
         D2 = new_keyfs.add_key("NAME", "hello", dict)
         for serial in range(3):
-            changes = keyfs._storage.get_changes(serial)
+            with keyfs.transaction() as tx:
+                changes = tx.conn.get_changes(serial)
             new_keyfs.import_changes(serial, changes)
-        assert new_keyfs.get_value_at(D2, 0) == {1:1}
-        with pytest.raises(KeyError):
-            assert new_keyfs.get_value_at(D2, 1)
-        assert new_keyfs.get_value_at(D2, 2) == {2:2}
+        with new_keyfs.transaction() as tx:
+            assert tx.get_value_at(D2, 0) == {1:1}
+            with pytest.raises(KeyError):
+                assert tx.get_value_at(D2, 1)
+            assert tx.get_value_at(D2, 2) == {2:2}
 
     def test_get_value_at_modify_inplace_is_safe(self, keyfs):
         from copy import deepcopy
@@ -317,15 +319,16 @@ class TestTransactionIsolation:
         d_orig = deepcopy(d)
         with keyfs.transaction(write=True):
             D.set(d)
-        assert keyfs.get_value_at(D, 0) == d_orig
-        d2 = keyfs.get_value_at(D, 0)
-        with pytest.raises(AttributeError):
-            d2[1].add(4)
-        with pytest.raises(TypeError):
-            d2[2][3] = 5
-        with pytest.raises(AttributeError):
-            d2[3].append(6)
-        assert keyfs.get_value_at(D, 0) == d_orig
+        with keyfs.transaction() as tx:
+            assert tx.get_value_at(D, 0) == d_orig
+            d2 = tx.get_value_at(D, 0)
+            with pytest.raises(AttributeError):
+                d2[1].add(4)
+            with pytest.raises(TypeError):
+                d2[2][3] = 5
+            with pytest.raises(AttributeError):
+                d2[3].append(6)
+            assert tx.get_value_at(D, 0) == d_orig
 
     def test_is_dirty(self, keyfs):
         D = keyfs.add_key("NAME", "hello", dict)
@@ -350,11 +353,12 @@ class TestTransactionIsolation:
             assert len(keyfs._storage._changelog_cache) <= \
                    keyfs._storage.CHANGELOG_CACHE_SIZE + 1
 
-        for i in range(size * 2):
-            j = random.randrange(0, size * 3)
-            keyfs.get_value_at(D, j)
-            assert len(keyfs._storage._changelog_cache) <= \
-                   keyfs._storage.CHANGELOG_CACHE_SIZE + 1
+        with keyfs.transaction() as tx:
+            for i in range(size * 2):
+                j = random.randrange(0, size * 3)
+                tx.get_value_at(D, j)
+                assert len(keyfs._storage._changelog_cache) <= \
+                       keyfs._storage.CHANGELOG_CACHE_SIZE + 1
 
     def test_import_changes_subscriber(self, keyfs, storage, tmpdir):
         pkey = keyfs.add_key("NAME", "hello/{name}", dict)
@@ -367,7 +371,8 @@ class TestTransactionIsolation:
         pkey = new_keyfs.add_key("NAME", "hello/{name}", dict)
         l = []
         new_keyfs.subscribe_on_import(pkey, lambda *args: l.append(args))
-        changes = keyfs._storage.get_changes(0)
+        with keyfs.transaction() as tx:
+            changes = tx.conn.get_changes(0)
         new_keyfs.import_changes(0, changes)
         assert l[0][1:] == (new_keyfs.NAME(name="world"), {1:1}, -1)
 
@@ -380,13 +385,15 @@ class TestTransactionIsolation:
         pkey = new_keyfs.add_key("NAME", "hello/{name}", dict)
         new_keyfs.subscribe_on_import(pkey, lambda *args: 0/0)
         serial = new_keyfs.get_current_serial()
-        changes = keyfs._storage.get_changes(0)
+        with keyfs.transaction() as tx:
+            changes = tx.conn.get_changes(0)
         with pytest.raises(ZeroDivisionError):
             new_keyfs.import_changes(0, changes)
         assert new_keyfs.get_current_serial() == serial
 
     def test_get_raw_changelog_entry_not_exist(self, keyfs):
-        assert keyfs._storage.get_raw_changelog_entry(10000) is None
+        with keyfs.transaction() as tx:
+            assert tx.conn.get_raw_changelog_entry(10000) is None
 
 @notransaction
 class TestDeriveKey:
@@ -394,7 +401,8 @@ class TestDeriveKey:
         D = keyfs.add_key("NAME", "hello", dict)
         with keyfs.transaction(write=True):
             D.set({1:1})
-        key = keyfs.derive_key(D.relpath)
+        with keyfs.transaction() as tx:
+            key = tx.derive_key(D.relpath)
         assert key == D
         assert key.params == {}
 
@@ -405,7 +413,8 @@ class TestDeriveKey:
         with keyfs.transaction(write=True):
             D.set({1:1})
         assert not hasattr(keyfs, "tx")
-        key = keyfs.derive_key(D.relpath)
+        with keyfs.transaction() as tx:
+            key = tx.derive_key(D.relpath)
         assert key == D
         assert key.params == params
 
@@ -413,7 +422,7 @@ class TestDeriveKey:
         D = keyfs.add_key("NAME", "hello", dict)
         with keyfs.transaction(write=True):
             D.set({})
-            key = keyfs.derive_key(D.relpath)
+            key = keyfs.tx.derive_key(D.relpath)
             assert key == D
             assert key.params == {}
 
@@ -421,9 +430,9 @@ class TestDeriveKey:
         pkey = keyfs.add_key("NAME", "{name}/{index}", dict)
         params = dict(name="hello", index="world")
         D = pkey(**params)
-        with keyfs.transaction(write=True):
+        with keyfs.transaction(write=True) as tx:
             D.set({})
-            key = keyfs.derive_key(D.relpath)
+            key = tx.derive_key(D.relpath)
             assert key == D
             assert key.params == params
 

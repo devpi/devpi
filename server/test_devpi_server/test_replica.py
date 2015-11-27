@@ -77,6 +77,10 @@ class TestChangelog:
         testapp.xget(400, "/+changelog/0")
 
 
+def get_raw_changelog_entry(xom, serial):
+    with xom.keyfs._storage.get_connection() as conn:
+        return conn.get_raw_changelog_entry(serial)
+
 class TestReplicaThread:
     @pytest.fixture
     def rt(self, makexom):
@@ -118,8 +122,7 @@ class TestReplicaThread:
     def test_thread_run_recovers_from_error(self, mock, rt, reqmock, mockchangelog, caplog, xom):
         import socket
         # setup a regular request
-        data = xom.keyfs._storage.get_raw_changelog_entry(0)
-        assert data
+        data = get_raw_changelog_entry(xom, 0)
         mockchangelog(0, code=200, data=data)
         # get the result
         orig_req = reqmock.url2reply[("http://localhost/+changelog/0", None)]
@@ -139,8 +142,7 @@ class TestReplicaThread:
 
     def test_thread_run_ok(self, rt, mockchangelog, caplog, xom):
         rt.thread.sleep = lambda *x: 0/0
-        data = xom.keyfs._storage.get_raw_changelog_entry(0)
-        assert data
+        data = get_raw_changelog_entry(xom, 0)
         mockchangelog(0, code=200, data=data)
         mockchangelog(1, code=404, data=data)
         with pytest.raises(ZeroDivisionError):
@@ -157,8 +159,7 @@ class TestReplicaThread:
     def test_thread_run_ok_uuid_change(self, rt, mockchangelog, caplog, xom, monkeypatch):
         monkeypatch.setattr("os._exit", lambda n: 0/0)
         rt.thread.sleep = lambda *x: 0/0
-        data = xom.keyfs._storage.get_raw_changelog_entry(0)
-        assert data
+        data = get_raw_changelog_entry(xom, 0)
         mockchangelog(0, code=200, data=data)
         mockchangelog(1, code=200, data=data,
                       headers={"x-devpi-master-uuid": "001"})
@@ -174,11 +175,9 @@ class TestReplicaThread:
         with xom.keyfs.transaction(write=True):
             xom.model.create_user("qlwkej", "qwe")
 
-        data = xom.keyfs._storage.get_raw_changelog_entry(0)
-        assert data
+        data = get_raw_changelog_entry(xom, 0)
         mockchangelog(0, code=200, data=data)
-        data = xom.keyfs._storage.get_raw_changelog_entry(1)
-        assert data
+        data = get_raw_changelog_entry(xom, 1)
         mockchangelog(1, code=200, data=data,
                       headers={"x-devpi-serial": "0"})
         with pytest.raises(ZeroDivisionError):
@@ -189,10 +188,10 @@ class TestReplicaThread:
     def test_thread_run_invalid_serial(self, rt, mockchangelog, caplog, xom, monkeypatch):
         monkeypatch.setattr("os._exit", lambda n: 0/0)
         rt.thread.sleep = lambda *x: 0/0
-        data = xom.keyfs._storage.get_raw_changelog_entry(0)
+        data = get_raw_changelog_entry(xom, 0)
         assert data
         mockchangelog(0, code=200, data=data)
-        data = xom.keyfs._storage.get_raw_changelog_entry(1)
+        data = get_raw_changelog_entry(xom, 1)
         mockchangelog(1, code=200, data=data,
                       headers={"x-devpi-serial": "foo"})
         with pytest.raises(ZeroDivisionError):
@@ -202,10 +201,9 @@ class TestReplicaThread:
     def test_thread_run_missing_serial(self, rt, mockchangelog, caplog, xom, monkeypatch):
         monkeypatch.setattr("os._exit", lambda n: 0/0)
         rt.thread.sleep = lambda *x: 0/0
-        data = xom.keyfs._storage.get_raw_changelog_entry(0)
-        assert data
+        data = get_raw_changelog_entry(xom, 0)
         mockchangelog(0, code=200, data=data)
-        data = xom.keyfs._storage.get_raw_changelog_entry(1)
+        data = get_raw_changelog_entry(xom, 1)
         mockchangelog(1, code=200, data=data,
                       headers={"x-devpi-serial": None})
         with pytest.raises(ZeroDivisionError):
@@ -322,7 +320,8 @@ def replay(xom, replica_xom, events=True):
                         xom.keyfs.get_next_serial()):
         if serial == -1:
             continue
-        change_entry = xom.keyfs._storage.get_changes(serial)
+        with xom.keyfs._storage.get_connection() as conn:
+            change_entry = conn.get_changes(serial)
         threadlog.info("test: importing to replica %s", serial)
         replica_xom.keyfs.import_changes(serial, change_entry)
 

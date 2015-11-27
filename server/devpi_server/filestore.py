@@ -74,7 +74,7 @@ class FileStore:
 
     def get_file_entry(self, relpath, readonly=True):
         try:
-            key = self.keyfs.derive_key(relpath)
+            key = self.keyfs.tx.derive_key(relpath)
         except KeyError:
             return None
         return FileEntry(self.xom, key, readonly=readonly)

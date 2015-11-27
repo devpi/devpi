@@ -11,10 +11,11 @@ import time
 
 
 class Connection:
-    def __init__(self, sqlconn, basedir):
+    def __init__(self, sqlconn, basedir, changelog_cache):
         self._sqlconn = sqlconn
         self._basedir = basedir
         self.dirty_files = {}
+        self._changelog_cache = changelog_cache
 
     def __enter__(self):
         return self
@@ -98,6 +99,25 @@ class Connection:
         path = self._basedir.join(path).strpath
         self.dirty_files[path] = None
 
+    def get_raw_changelog_entry(self, serial):
+        q = "SELECT data FROM changelog WHERE serial = ?"
+        row = self._sqlconn.execute(q, (serial,)).fetchone()
+        if row is not None:
+            return bytes(row[0])
+        return None
+
+    def get_changes(self, serial):
+        changes = self._changelog_cache.get(serial)
+        if changes is None:
+            data = self.get_raw_changelog_entry(serial)
+            changes, rel_renames = loads(data)
+            # make values in changes read only so no calling site accidentally
+            # modifies data
+            changes = ensure_deeply_readonly(changes)
+            assert isinstance(changes, ReadonlyView)
+            self._changelog_cache.put(serial, changes)
+        return changes
+
 
 class Storage:
     Connection = Connection
@@ -117,33 +137,10 @@ class Storage:
             else:
                 self.next_serial = serial + 1
 
-    def get_raw_changelog_entry(self, serial):
-        q = "SELECT data FROM changelog WHERE serial = ?"
-        with self.get_connection() as conn:
-            conn.text_factory = bytes
-            row = conn._sqlconn.execute(q, (serial,)).fetchone()
-            if row is not None:
-                return bytes(row[0])
-            return None
-
-    def get_changes(self, serial):
-        changes = self._changelog_cache.get(serial)
-        if changes is None:
-            data = self.get_raw_changelog_entry(serial)
-            changes, rel_renames = loads(data)
-            # make values in changes read only so no calling site accidentally
-            # modifies data
-            changes = ensure_deeply_readonly(changes)
-            self.cache_commit_changes(serial, changes)
-        return changes
-
-    def cache_commit_changes(self, serial, changes):
-        assert isinstance(changes, ReadonlyView)
-        self._changelog_cache.put(serial, changes)
-
     def get_connection(self, closing=True):
         sqlconn = sqlite3.connect(str(self.sqlpath), timeout=60)
-        conn = self.Connection(sqlconn, self.basedir)
+        conn = self.Connection(sqlconn, self.basedir, self._changelog_cache)
+        conn.text_factory = bytes
         if closing:
             return contextlib.closing(conn)
         return conn

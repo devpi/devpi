@@ -136,8 +136,6 @@ class FSWriter:
                 args.append(",".join(files_del))
             self.log.info(message, *args)
 
-            self.storage.cache_commit_changes(commit_serial,
-                                         ensure_deeply_readonly(self.changes))
             self.storage._notify_on_commit(commit_serial)
         else:
             while self.pending_renames:
@@ -295,21 +293,24 @@ class TxNotificationThread:
 
     def _execute_hooks(self, event_serial, log, raising=False):
         log.debug("calling hooks for tx%s", event_serial)
-        changes = self.keyfs._storage.get_changes(event_serial)
-        for relpath, (keyname, back_serial, val) in changes.items():
-            key = self.keyfs.derive_key(relpath, keyname)
-            ev = KeyChangeEvent(key, val, event_serial, back_serial)
-            subscribers = self._on_key_change.get(keyname, [])
-            for sub in subscribers:
-                subname = getattr(sub, "__name__", sub)
-                log.debug("%s(key=%r, at_serial=%r, back_serial=%r",
-                          subname, key, event_serial, back_serial)
-                try:
-                    sub(ev)
-                except Exception:
-                    if raising:
-                        raise
-                    log.exception("calling %s failed, serial=%s", sub, event_serial)
+        with self.keyfs._storage.get_connection() as conn:
+            changes = conn.get_changes(event_serial)
+            for relpath, (keyname, back_serial, val) in changes.items():
+                subscribers = self._on_key_change.get(keyname, [])
+                if not subscribers:
+                    continue
+                key = self.keyfs.get_key_instance(keyname, relpath)
+                ev = KeyChangeEvent(key, val, event_serial, back_serial)
+                for sub in subscribers:
+                    subname = getattr(sub, "__name__", sub)
+                    log.debug("%s(key=%r, at_serial=%r, back_serial=%r",
+                              subname, ev.typedkey, event_serial, ev.back_serial)
+                    try:
+                        sub(ev)
+                    except Exception:
+                        if raising:
+                            raise
+                        log.exception("calling %s failed, serial=%s", sub, event_serial)
 
         log.debug("finished calling all hooks for tx%s", event_serial)
 
@@ -334,42 +335,25 @@ class KeyFS(object):
             cache_size=cache_size)
         if self._storage.next_serial > 0:
             # perform some crash recovery
-            data = self._storage.get_raw_changelog_entry(self.get_current_serial())
+            with self._storage.get_connection() as conn:
+                data = conn.get_raw_changelog_entry(self.get_current_serial())
             changes, rel_renames = loads(data)
             check_pending_renames(str(self.basedir), rel_renames)
         self._readonly = readonly
 
-    def derive_key(self, relpath, keyname=None, conn=None):
-        """ return direct key for a given path and keyname.
-        If keyname is not specified, the relpath key must exist
-        to extract its name. """
-        if keyname is None:
-            try:
-                return self.tx.get_key_in_transaction(relpath)
-            except (AttributeError, KeyError):
-                if conn is None:
-                    conn = self._storage.get_connection()
-                with conn as c:
-                    keyname, serial = c.db_read_typedkey(relpath)
-        key = self.get_key(keyname)
-        if isinstance(key, PTypedKey):
-            key = key(**key.extract_params(relpath))
-        return key
-
     def import_changes(self, serial, changes):
-        with self._write_lock:
-            with self._storage.get_connection() as conn:
-                with self.write_transaction(conn) as fswriter:
-                    next_serial = self.get_next_serial()
-                    assert next_serial == serial, (next_serial, serial)
-                    for relpath, tup in changes.items():
-                        name, back_serial, val = tup
-                        typedkey = self.derive_key(relpath, name, conn=conn)
-                        fswriter.record_set(typedkey, get_mutable_deepcopy(val))
-                        meth = self._import_subscriber.get(typedkey.name)
-                        if meth is not None:
-                            threadlog.debug("calling import subscriber %r", meth)
-                            meth(fswriter, typedkey, val, back_serial)
+        with self._storage.get_connection() as conn:
+            with self.write_transaction(conn) as fswriter:
+                next_serial = self.get_next_serial()
+                assert next_serial == serial, (next_serial, serial)
+                for relpath, tup in changes.items():
+                    keyname, back_serial, val = tup
+                    typedkey = self.get_key_instance(keyname, relpath)
+                    fswriter.record_set(typedkey, get_mutable_deepcopy(val))
+                    meth = self._import_subscriber.get(keyname)
+                    if meth is not None:
+                        threadlog.debug("calling import subscriber %r", meth)
+                        meth(fswriter, typedkey, val, back_serial)
 
     def subscribe_on_import(self, key, subscriber):
         assert key.name not in self._import_subscriber
@@ -388,27 +372,6 @@ class KeyFS(object):
     def tx(self):
         return getattr(self._threadlocal, "tx")
 
-    def get_value_at(self, typedkey, at_serial, conn=None):
-        relpath = typedkey.relpath
-        if conn is None:
-            conn = self._storage.get_connection()
-        with conn as c:
-            keyname, last_serial = c.db_read_typedkey(relpath)
-        while last_serial >= 0:
-            tup = self._storage.get_changes(last_serial).get(relpath)
-            assert tup, "no transaction entry at %s" %(last_serial)
-            keyname, back_serial, val = tup
-            if last_serial > at_serial:
-                last_serial = back_serial
-                continue
-            if val is not None:
-                return val
-            raise KeyError(relpath)  # was deleted
-
-        # we could not find any change below at_serial which means
-        # the key didn't exist at that point in time
-        raise KeyError(relpath)
-
     def add_key(self, name, path, type):
         assert isinstance(path, py.builtin._basestring)
         if "{" in path:
@@ -421,6 +384,12 @@ class KeyFS(object):
 
     def get_key(self, name):
         return self._keys.get(name)
+
+    def get_key_instance(self, keyname, relpath):
+        key = self.get_key(keyname)
+        if isinstance(key, PTypedKey):
+            key = key(**key.extract_params(relpath))
+        return key
 
     def begin_transaction_in_thread(self, write=False, at_serial=None):
         if write and self._readonly:
@@ -581,6 +550,32 @@ class Transaction(object):
         self.dirty = set()
         self.conn = keyfs._storage.get_connection(closing=False)
 
+    def get_value_at(self, typedkey, at_serial):
+        relpath = typedkey.relpath
+        keyname, last_serial = self.conn.db_read_typedkey(relpath)
+        while last_serial >= 0:
+            tup = self.conn.get_changes(last_serial).get(relpath)
+            assert tup, "no transaction entry at %s" %(last_serial)
+            keyname, back_serial, val = tup
+            if last_serial > at_serial:
+                last_serial = back_serial
+                continue
+            if val is not None:
+                return val
+            raise KeyError(relpath)  # was deleted
+
+        # we could not find any change below at_serial which means
+        # the key didn't exist at that point in time
+        raise KeyError(relpath)
+
+    def derive_key(self, relpath):
+        """ return key instance for a given key path."""
+        try:
+            return self.get_key_in_transaction(relpath)
+        except KeyError:
+            keyname, serial = self.conn.db_read_typedkey(relpath)
+        return self.keyfs.get_key_instance(keyname, relpath)
+
     def get_key_in_transaction(self, relpath):
         for key in self.cache:
             if key.relpath == relpath:
@@ -599,8 +594,7 @@ class Transaction(object):
             absent = typedkey in self.dirty
             if not absent:
                 try:
-                    val = self.keyfs.get_value_at(typedkey, self.at_serial,
-                                                  conn=self.conn)
+                    val = self.get_value_at(typedkey, self.at_serial)
                 except KeyError:
                     absent = True
             if absent:
@@ -621,8 +615,7 @@ class Transaction(object):
         if typedkey in self.dirty:
             return False
         try:
-            self.keyfs.get_value_at(typedkey, self.at_serial,
-                                    conn=self.conn)
+            self.get_value_at(typedkey, self.at_serial)
         except KeyError:
             return False
         else:
