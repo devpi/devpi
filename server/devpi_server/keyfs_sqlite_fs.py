@@ -214,8 +214,8 @@ class FSWriter:
         if cls is None:
             for path, content in self.conn.dirty_files.items():
                 if content is None:
-                    assert path.exists()
-                    pending_renames.append((None, dest))
+                    assert os.path.exists(path)
+                    pending_renames.append((None, path))
                 else:
                     tmppath = path + "-tmp"
                     with get_write_file_ensure_dir(tmppath) as f:
