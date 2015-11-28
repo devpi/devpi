@@ -57,7 +57,7 @@ class TestCheckout:
         file = setupdir.join("file")
         file.write("hello")
         setup_path = setupdir.ensure("setup.py")
-        if sys.platform.startswith("linux"):
+        if not sys.platform.startswith("win"):
             setup_path.chmod(int("0777", 8))
 
         # this is a test for issue154 although we actually don't really
@@ -113,7 +113,7 @@ class TestCheckout:
         assert result.rootpath.join("file").check()
         p = result.rootpath.join("setup.py")
         assert p.exists()
-        if sys.platform.startswith("linux"):
+        if not sys.platform.startswith("win"):
             assert p.stat().mode & int("0777", 8) == int("0777", 8)
         assert result.rootpath == newrepo.join(setupdir.basename)
 
