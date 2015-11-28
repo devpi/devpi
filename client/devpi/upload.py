@@ -266,7 +266,7 @@ class Checkout:
             if source.isfile():
                 dest = newrepo.join(fn)
                 dest.dirpath().ensure(dir=1)
-                source.copy(dest)
+                source.copy(dest, mode=True)
         self.hub.debug("copied", len(files), "files to", newrepo)
 
         if self.hasvcs not in (".git", ".hg") or self.setupdir_only:
@@ -275,7 +275,7 @@ class Checkout:
             srcrepo = self.rootpath.join(self.hasvcs)
             assert srcrepo.exists(), srcrepo
             destrepo = newrepo.join(self.hasvcs)
-            self.rootpath.join(self.hasvcs).copy(destrepo)
+            self.rootpath.join(self.hasvcs).copy(destrepo, mode=True)
             self.hub.info("copied repo", srcrepo, "to", destrepo)
         self.hub.debug("%s-exported project to %s -> new CWD" %(
                       self.hasvcs, newrepo))

@@ -44,7 +44,7 @@ if __name__ == "__main__":
                       "devpi_common>2.0.2",
                       "pkginfo>=1.2b1",
                       "check-manifest>=0.28",
-                      "py>=1.4.20"]
+                      "py>=1.4.31"]
 
     extras_require = {}
     if has_environment_marker_support():
@@ -57,7 +57,7 @@ if __name__ == "__main__":
       description="devpi upload/install/... workflow commands for Python "
                   "developers",
       long_description="\n\n".join([README, CHANGELOG]),
-      version='2.3.2',
+      version='2.3.3.dev1',
       packages=find_packages(),
       install_requires=install_requires,
       extras_require=extras_require,
