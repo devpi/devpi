@@ -1,9 +1,7 @@
 from .log import threadlog, thread_push_log, thread_pop_log
 from .readonly import ReadonlyView
 from .readonly import ensure_deeply_readonly, get_mutable_deepcopy
-from .fileutil import (
-    get_write_file_ensure_dir, rename, dumps, loads
-)
+from .fileutil import get_write_file_ensure_dir, rename, dumps, loads
 
 from repoze.lru import LRUCache
 import contextlib
@@ -187,7 +185,6 @@ class FSWriter:
     def __init__(self, storage, conn):
         self.conn = conn
         self.storage = storage
-        self._pending_renames = []
         self.changes = {}
 
     def record_set(self, typedkey, value=None):
