@@ -54,8 +54,10 @@ class BackgroundServer:
         devpi_server = sys.argv[0]
         if devpi_server is None:
             self.fatal("cannot find devpi-server binary, no auto-start")
-        if devpi_server.endswith(".py") and sys.platform == "win32":
+        if devpi_server.endswith(".py"):
             devpi_server = str(py.path.local.sysfind("devpi-server"))
+        elif sys.platform == "win32":
+            devpi_server = sys.path[0]
         if not py.path.local(devpi_server).exists():
             self.fatal("not existing devpi-server: %r" % devpi_server)
 
