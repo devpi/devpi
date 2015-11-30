@@ -139,7 +139,7 @@ class KeyFS(object):
     def import_changes(self, serial, changes):
         with self._storage.get_connection() as conn:
             with conn.write_transaction() as fswriter:
-                next_serial = self.get_next_serial()
+                next_serial = conn.last_changelog_serial + 1
                 assert next_serial == serial, (next_serial, serial)
                 for relpath, tup in changes.items():
                     keyname, back_serial, val = tup
@@ -155,10 +155,11 @@ class KeyFS(object):
         self._import_subscriber[key.name] = subscriber
 
     def get_next_serial(self):
-        return self._storage.next_serial
+        return self.get_current_serial() + 1
 
     def get_current_serial(self):
-        return self._storage.next_serial - 1
+        with self._storage.get_connection() as conn:
+            return conn.last_changelog_serial
 
     def get_last_commit_timestamp(self):
         return self._storage.last_commit_timestamp
@@ -331,16 +332,16 @@ class Transaction(object):
 
     def __init__(self, keyfs, at_serial=None, write=False):
         self.keyfs = keyfs
+        self.conn = keyfs._storage.get_connection(closing=False)
         if write:
             assert at_serial is None, "write trans cannot use at_serial"
             keyfs._write_lock.acquire()
             self.write = True
         if at_serial is None:
-            at_serial = keyfs.get_current_serial()
+            at_serial = self.conn.last_changelog_serial
         self.at_serial = at_serial
         self.cache = {}
         self.dirty = set()
-        self.conn = keyfs._storage.get_connection(closing=False)
 
     def get_value_at(self, typedkey, at_serial):
         relpath = typedkey.relpath
@@ -445,7 +446,7 @@ class Transaction(object):
                     val = self.cache.get(typedkey)
                     # None signals deletion
                     fswriter.record_set(typedkey, val)
-                commit_serial = fswriter.storage.next_serial
+                commit_serial = self.conn.last_changelog_serial + 1
         finally:
             self._close()
         self.commit_serial = commit_serial

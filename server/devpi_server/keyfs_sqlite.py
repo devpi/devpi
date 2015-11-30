@@ -1,3 +1,4 @@
+from devpi_common.types import cached_property
 from .fileutil import dumps, loads
 from .log import threadlog, thread_push_log, thread_pop_log
 from .readonly import ReadonlyView
@@ -21,6 +22,15 @@ class BaseConnection:
     def close(self):
         self._sqlconn.close()
 
+    def commit(self):
+        self._sqlconn.commit()
+
+    @cached_property
+    def last_changelog_serial(self):
+        q = 'SELECT MAX(_ROWID_) FROM "changelog" LIMIT 1'
+        res = self._sqlconn.execute(q).fetchone()[0]
+        return -1 if res is None else res
+
     def db_read_typedkey(self, relpath):
         q = "SELECT keyname, serial FROM kv WHERE key = ?"
         c = self._sqlconn.cursor()
@@ -39,7 +49,6 @@ class BaseConnection:
         self._sqlconn.execute(
             "INSERT INTO changelog (serial, data) VALUES (?, ?)",
             (serial, sqlite3.Binary(data)))
-        self._sqlconn.commit()
 
     def get_raw_changelog_entry(self, serial):
         q = "SELECT data FROM changelog WHERE serial = ?"
@@ -125,13 +134,6 @@ class BaseStorage:
         self._changelog_cache = LRUCache(cache_size)  # is thread safe
         self.last_commit_timestamp = time.time()
         self.ensure_tables_exist()
-        with self.get_connection() as conn:
-            row = conn._sqlconn.execute("select max(serial) from changelog").fetchone()
-            serial = row[0]
-            if serial is None:
-                self.next_serial = 0
-            else:
-                self.next_serial = serial + 1
 
     def get_connection(self, closing=True):
         sqlconn = sqlite3.connect(str(self.sqlpath), timeout=60)

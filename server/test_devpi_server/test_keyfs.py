@@ -254,12 +254,13 @@ class TestTransactionIsolation:
         D = keyfs.add_key("NAME", "hello", dict)
         tx_1 = Transaction(keyfs, write=True)
         tx_2 = Transaction(keyfs)
-        ser = keyfs._storage.next_serial
+        ser = tx_1.conn.last_changelog_serial + 1
         tx_1.set(D, {1:1})
         tx1_serial = tx_1.commit()
         assert tx1_serial == ser
-        assert keyfs._storage.next_serial == ser + 1
         assert tx_2.at_serial == ser - 1
+        with keyfs._storage.get_connection() as conn:
+            assert conn.last_changelog_serial == ser
         assert D not in tx_2.cache and D not in tx_2.dirty
         assert tx_2.get(D) == {}
 
@@ -297,7 +298,9 @@ class TestTransactionIsolation:
             D.delete()
         with keyfs.transaction(write=True):
             D.set({2:2})
-        serial = keyfs._storage.next_serial - 1
+        with keyfs._storage.get_connection() as conn:
+            serial = conn.last_changelog_serial
+
         assert serial == 2
         # load entries into new keyfs instance
         new_keyfs = KeyFS(tmpdir.join("newkeyfs"), storage)

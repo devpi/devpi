@@ -71,12 +71,13 @@ class Storage(BaseStorage):
     Connection = Connection
 
     def perform_crash_recovery(self):
-        if self.next_serial > 0:
-            # get last changes and verify all renames took place
-            with self.get_connection() as conn:
-                data = conn.get_raw_changelog_entry(self.next_serial - 1)
-            changes, rel_renames = loads(data)
-            check_pending_renames(str(self.basedir), rel_renames)
+        # get last changes and verify all renames took place
+        with self.get_connection() as conn:
+            if conn.last_changelog_serial == -1:
+                return
+            data = conn.get_raw_changelog_entry(conn.last_changelog_serial)
+        changes, rel_renames = loads(data)
+        check_pending_renames(str(self.basedir), rel_renames)
 
     def ensure_tables_exist(self):
         if self.sqlpath.exists():
@@ -112,6 +113,7 @@ class FSWriter:
         self.conn = conn
         self.storage = storage
         self.changes = {}
+        self.next_serial = conn.last_changelog_serial + 1
 
     def record_set(self, typedkey, value=None):
         """ record setting typedkey to value (None means it's deleted) """
@@ -120,19 +122,18 @@ class FSWriter:
             _, back_serial = self.conn.db_read_typedkey(typedkey.relpath)
         except KeyError:
             back_serial = -1
-        self.conn.db_write_typedkey(typedkey.relpath, typedkey.name,
-                                    self.storage.next_serial)
+        self.conn.db_write_typedkey(typedkey.relpath, typedkey.name, self.next_serial)
         # at __exit__ time we write out changes to the _changelog_cache
         # so we protect here against the caller modifying the value later
         value = get_mutable_deepcopy(value)
         self.changes[typedkey.relpath] = (typedkey.name, back_serial, value)
 
     def __enter__(self):
-        self.log = thread_push_log("fswriter%s:" % self.storage.next_serial)
+        self.log = thread_push_log("fswriter%s:" % self.next_serial)
         return self
 
     def __exit__(self, cls, val, tb):
-        thread_pop_log("fswriter%s:" % self.storage.next_serial)
+        thread_pop_log("fswriter%s:" % self.next_serial)
         pending_renames = []
         if cls is None:
             for path, content in self.conn.dirty_files.items():
@@ -147,7 +148,7 @@ class FSWriter:
 
             changed_keys, files_commit, files_del = \
                 self.commit_to_filesystem(pending_renames)
-            commit_serial = self.storage.next_serial - 1
+            commit_serial = self.next_serial
 
             # write out a nice commit entry to logging
             message = "committed: keys: %s"
@@ -162,7 +163,7 @@ class FSWriter:
 
             self.storage._notify_on_commit(commit_serial)
         else:
-            self.log.info("roll back at %s" %(self.storage.next_serial))
+            self.log.info("roll back at %s" %(self.next_serial))
 
     def commit_to_filesystem(self, pending_renames):
         basedir = str(self.storage.basedir)
@@ -170,14 +171,14 @@ class FSWriter:
             make_rel_renames(basedir, pending_renames)
         )
         entry = self.changes, rel_renames
-        self.conn.write_changelog_entry(self.storage.next_serial, entry)
+        self.conn.write_changelog_entry(self.next_serial, entry)
+        self.conn.commit()
 
         # If we crash in the remainder, the next restart will
         # - call check_pending_renames which will replay any remaining
         #   renames from the changelog entry, and
         # - initialize next_serial from the max committed serial + 1
         files_commit, files_del = commit_renames(basedir, rel_renames)
-        self.storage.next_serial += 1
         self.storage.last_commit_timestamp = time.time()
         return list(self.changes), files_commit, files_del
 
