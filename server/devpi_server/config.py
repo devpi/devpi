@@ -341,14 +341,15 @@ class Config:
         self.nodeinfo["role"] = role
         return
 
-    def _storage_info_from_name(self, name):
-        storages = self.pluginmanager.hook.devpiserver_storage_backend()
+    def _storage_info_from_name(self, name, settings):
+        storages = self.pluginmanager.hook.devpiserver_storage_backend(settings=settings)
         (storage_info,) = [x for x in storages if x['name'] == name]
         return storage_info
 
     def _storage_info(self):
         name = self.nodeinfo["storage"]["name"]
-        return self._storage_info_from_name(name)
+        settings = self.nodeinfo["storage"]["settings"]
+        return self._storage_info_from_name(name, settings)
 
     @property
     def storage(self):
@@ -359,7 +360,8 @@ class Config:
         old_storage_info = self.nodeinfo.get("storage", {})
         old_name = old_storage_info.get("name")
         if self.args.storage:
-            storage_info = self._storage_info_from_name(self.args.storage)
+            name, sep, settings = self.args.storage.partition(':')
+            storage_info = self._storage_info_from_name(name, settings)
             if old_name is not None and storage_info["name"] != old_name:
                 fatal("cannot change storage type after initialization")
         else:
@@ -367,9 +369,11 @@ class Config:
                 name = "sqlite"
             else:
                 name = old_name
-            storage_info = self._storage_info_from_name(name)
+            settings = old_storage_info.get("settings")
+            storage_info = self._storage_info_from_name(name, settings)
         self.nodeinfo["storage"] = dict(
-            name=storage_info['name'])
+            name=storage_info['name'],
+            settings=settings)
 
     @cached_property
     def secret(self):
