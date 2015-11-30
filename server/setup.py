@@ -57,8 +57,8 @@ if __name__ == "__main__":
         install_requires.append("argparse>=1.2.1")
 
     setup(
-      name="devpi-server",
-      description="devpi-server: reliable private and pypi.python.org caching server",
+      name="devpi-server-winfix",
+      description="devpi-server-winfix: reliable private and pypi.python.org caching server",
       keywords="pypi realtime cache server",
       long_description="\n\n".join([README, CHANGELOG]),
       url="http://doc.devpi.net",
