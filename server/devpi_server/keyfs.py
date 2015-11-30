@@ -124,8 +124,6 @@ class KeyFS(object):
     def __init__(self, basedir, storage, readonly=False, cache_size=10000):
         self.basedir = py.path.local(basedir).ensure(dir=1)
         self._keys = {}
-        # a non-recursive lock because we don't support nested transactions
-        self._write_lock = mythread.threading.Lock()
         self._threadlocal = mythread.threading.local()
         self._import_subscriber = {}
         self.notifier = t = TxNotificationThread(self)
@@ -332,11 +330,8 @@ class Transaction(object):
 
     def __init__(self, keyfs, at_serial=None, write=False):
         self.keyfs = keyfs
-        self.conn = keyfs._storage.get_connection(closing=False)
-        if write:
-            assert at_serial is None, "write trans cannot use at_serial"
-            keyfs._write_lock.acquire()
-            self.write = True
+        self.conn = keyfs._storage.get_connection(write=write, closing=False)
+        self.write = write
         if at_serial is None:
             at_serial = self.conn.last_changelog_serial
         self.at_serial = at_serial
@@ -455,8 +450,6 @@ class Transaction(object):
     def _close(self):
         del self.cache
         del self.dirty
-        if self.write:
-            self.keyfs._write_lock.release()
         self.conn.close()
         return self.at_serial
 

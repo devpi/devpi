@@ -135,8 +135,13 @@ class BaseStorage:
         self.last_commit_timestamp = time.time()
         self.ensure_tables_exist()
 
-    def get_connection(self, closing=True):
-        sqlconn = sqlite3.connect(str(self.sqlpath), timeout=60)
+
+    def get_connection(self, closing=True, write=False):
+        # we let the database serialize all writers at connection time
+        # to play it very safe (we don't have massive amounts of writes).
+        sqlconn = sqlite3.connect(str(self.sqlpath), timeout=60, isolation_level="DEFERRED")
+        if write:
+            sqlconn.execute("begin immediate")
         conn = self.Connection(sqlconn, self.basedir, self)
         if closing:
             return contextlib.closing(conn)
