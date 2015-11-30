@@ -342,9 +342,12 @@ class Config:
         return
 
     def _storage_info_from_name(self, name, settings):
+        from .main import fatal
         storages = self.pluginmanager.hook.devpiserver_storage_backend(settings=settings)
-        (storage_info,) = [x for x in storages if x['name'] == name]
-        return storage_info
+        for storage in storages:
+            if storage['name'] == name:
+                return storage
+        fatal("The backend '%s' can't be found, is the plugin not installed?" % name)
 
     def _storage_info(self):
         name = self.nodeinfo["storage"]["name"]

@@ -9,6 +9,10 @@ import tempfile
 import time
 
 
+# we need the --backend option here as well
+pytest_addoption = conftest.pytest_addoption
+
+
 def get_open_port(host):
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
         s.bind((host, 0))
@@ -108,18 +112,11 @@ old_storage_info = conftest.storage_info
 
 @pytest.fixture(scope="session")
 def storage_info(request, devpiserver_storage_backend_mock):
-    result = old_storage_info(request)
-    # result['_test_settings'] = 'host=%s,port=%s' % (
-    return result
+    # we need this to trigger the devpiserver_storage_backend_mock fixture
+    return old_storage_info(request)
 
 
 conftest.db_cleanup = db_cleanup
 conftest.devpiserver_storage_backend_mock = devpiserver_storage_backend_mock
 conftest.postgresql = postgresql
 conftest.storage_info = storage_info
-
-
-def pytest_addoption(parser):
-    parser.addoption(
-        "--backend", action="store",
-        help="run tests with specified dotted name backend")

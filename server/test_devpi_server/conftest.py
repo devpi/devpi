@@ -173,20 +173,12 @@ def storage_info(request):
     plugin = locate(backend)
     result = plugin.devpiserver_storage_backend()
     result["_test_plugin"] = plugin
-    result["_test_settings"] = ''
     return result
 
 
 @pytest.fixture(scope="session")
 def storage(storage_info):
     return storage_info['storage']
-
-
-@pytest.fixture
-def default_plugins():
-    from devpi_server import auth_basic, auth_devpi
-    from devpi_server import keyfs_sqlite, keyfs_sqlite_fs
-    return (auth_basic, auth_devpi, keyfs_sqlite, keyfs_sqlite_fs)
 
 
 @pytest.fixture
