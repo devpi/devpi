@@ -665,7 +665,7 @@ class PrivateStage(BaseStage):
             return entry.file_get_content()
 
 
-class ELink:
+class ELink(object):
     """ model Link using entrypathes for referencing. """
     def __init__(self, filestore, linkdict, project, version):
         self.filestore = filestore
@@ -919,16 +919,17 @@ class EventSubscribers:
         index = params["index"]
         keyfs = self.xom.keyfs
         hook = self.xom.config.hook
-        # find out if metadata changed
-        if ev.back_serial == -1:
-            old = {}
-        else:
-            assert ev.back_serial < ev.at_serial
-            try:
-                old = keyfs.get_value_at(ev.typedkey, ev.back_serial)
-            except KeyError:
+        with keyfs.transaction(write=False, at_serial=ev.at_serial) as tx:
+            # find out if metadata changed
+            if ev.back_serial == -1:
                 old = {}
-        with keyfs.transaction(write=False, at_serial=ev.at_serial):
+            else:
+                assert ev.back_serial < ev.at_serial
+                try:
+                    old = tx.get_value_at(ev.typedkey, ev.back_serial)
+                except KeyError:
+                    old = {}
+
             # XXX slightly flaky logic for detecting metadata changes
             metadata = ev.value
             source = metadata or old
@@ -982,14 +983,15 @@ class EventSubscribers:
         params = ev.typedkey.params
         username = params.get("user")
         keyfs = self.xom.keyfs
-        if ev.back_serial > -1:
-            old = keyfs.get_value_at(ev.typedkey, ev.back_serial)
-            old_indexes = set(old.get("indexes", {}))
-        else:
-            old_indexes = set()
-        threadlog.debug("old indexes: %s", old_indexes)
+        with keyfs.transaction(at_serial=ev.at_serial) as tx:
 
-        with keyfs.transaction(at_serial=ev.at_serial):
+            if ev.back_serial > -1:
+                old = tx.get_value_at(ev.typedkey, ev.back_serial)
+                old_indexes = set(old.get("indexes", {}))
+            else:
+                old_indexes = set()
+            threadlog.debug("old indexes: %s", old_indexes)
+
             user = self.xom.model.get_user(username)
             if user is None:
                 # deleted

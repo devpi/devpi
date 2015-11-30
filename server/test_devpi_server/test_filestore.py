@@ -1,4 +1,3 @@
-import os
 import pytest
 import py
 from devpi_server.filestore import *

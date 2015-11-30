@@ -8,7 +8,7 @@ from pyramid.response import Response
 from devpi_common.validation import normalize_name
 from webob.headers import EnvironHeaders, ResponseHeaders
 
-from .keyfs import loads, get_write_file_ensure_dir, rename
+from .fileutil import loads, rename
 from .log import thread_push_log, threadlog
 from .views import is_mutating_http_method, H_MASTER_UUID, make_uuid_headers
 from .model import UpstreamError
@@ -91,7 +91,7 @@ class MasterChangelogRequest:
                     serial = int(serial)
                 except ValueError:
                     raise HTTPNotFound("serial needs to be int")
-                raw_entry = keyfs._storage.get_raw_changelog_entry(serial)
+                raw_entry = keyfs.tx.conn.get_raw_changelog_entry(serial)
                 if not raw_entry:
                     raw_entry = self._wait_for_entry(serial)
 
