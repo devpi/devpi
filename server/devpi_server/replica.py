@@ -91,7 +91,7 @@ class MasterChangelogRequest:
                     serial = int(serial)
                 except ValueError:
                     raise HTTPNotFound("serial needs to be int")
-                raw_entry = self.xom.keyfs.tx.conn.get_raw_changelog_entry(serial)
+                raw_entry = keyfs.tx.conn.get_raw_changelog_entry(serial)
                 if not raw_entry:
                     raw_entry = self._wait_for_entry(serial)
 
