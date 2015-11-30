@@ -1,39 +1,15 @@
+from .keyfs_sqlite import BaseConnection
+from .keyfs_sqlite import BaseStorage
 from .log import threadlog, thread_push_log, thread_pop_log
 from .readonly import ReadonlyView
-from .readonly import ensure_deeply_readonly, get_mutable_deepcopy
-from .fileutil import get_write_file_ensure_dir, rename, dumps, loads
-
-from repoze.lru import LRUCache
-import contextlib
+from .readonly import get_mutable_deepcopy
+from .fileutil import get_write_file_ensure_dir, rename, loads
 import os
 import py
-import sqlite3
 import time
 
 
-class Connection:
-    def __init__(self, sqlconn, basedir, storage):
-        self._sqlconn = sqlconn
-        self._basedir = basedir
-        self.dirty_files = {}
-        self.storage = storage
-        self._changelog_cache = storage._changelog_cache
-
-    def close(self):
-        self._sqlconn.close()
-
-    def db_read_typedkey(self, relpath):
-        q = "SELECT keyname, serial FROM kv WHERE key = ?"
-        c = self._sqlconn.cursor()
-        row = c.execute(q, (relpath,)).fetchone()
-        if row is None:
-            raise KeyError(relpath)
-        return tuple(row[:2])
-
-    def db_write_typedkey(self, relpath, name, next_serial):
-        q = "INSERT OR REPLACE INTO kv (key, keyname, serial) VALUES (?, ?, ?)"
-        self._sqlconn.execute(q, (relpath, name, next_serial))
-
+class Connection(BaseConnection):
     def io_file_os_path(self, path):
         path = self._basedir.join(path).strpath
         if path in self.dirty_files:
@@ -87,54 +63,12 @@ class Connection:
         path = self._basedir.join(path).strpath
         self.dirty_files[path] = None
 
-    def write_changelog_entry(self, serial, entry):
-        threadlog.debug("writing changelog for serial %s", serial)
-        data = dumps(entry)
-        self._sqlconn.execute(
-            "INSERT INTO changelog (serial, data) VALUES (?, ?)",
-            (serial, sqlite3.Binary(data)))
-        self._sqlconn.commit()
-
-    def get_raw_changelog_entry(self, serial):
-        q = "SELECT data FROM changelog WHERE serial = ?"
-        row = self._sqlconn.execute(q, (serial,)).fetchone()
-        if row is not None:
-            return bytes(row[0])
-        return None
-
-    def get_changes(self, serial):
-        changes = self._changelog_cache.get(serial)
-        if changes is None:
-            data = self.get_raw_changelog_entry(serial)
-            changes, rel_renames = loads(data)
-            # make values in changes read only so no calling site accidentally
-            # modifies data
-            changes = ensure_deeply_readonly(changes)
-            assert isinstance(changes, ReadonlyView)
-            self._changelog_cache.put(serial, changes)
-        return changes
-
     def write_transaction(self):
         return FSWriter(self.storage, self)
 
 
-class Storage:
+class Storage(BaseStorage):
     Connection = Connection
-
-    def __init__(self, basedir, notify_on_commit, cache_size):
-        self.basedir = basedir
-        self.sqlpath = self.basedir.join(".sqlite")
-        self._notify_on_commit = notify_on_commit
-        self._changelog_cache = LRUCache(cache_size)  # is thread safe
-        self.last_commit_timestamp = time.time()
-        self.ensure_tables_exist()
-        with self.get_connection() as conn:
-            row = conn._sqlconn.execute("select max(serial) from changelog").fetchone()
-            serial = row[0]
-            if serial is None:
-                self.next_serial = 0
-            else:
-                self.next_serial = serial + 1
 
     def perform_crash_recovery(self):
         if self.next_serial > 0:
@@ -143,14 +77,6 @@ class Storage:
                 data = conn.get_raw_changelog_entry(self.next_serial - 1)
             changes, rel_renames = loads(data)
             check_pending_renames(str(self.basedir), rel_renames)
-
-    def get_connection(self, closing=True):
-        sqlconn = sqlite3.connect(str(self.sqlpath), timeout=60)
-        conn = self.Connection(sqlconn, self.basedir, self)
-        conn.text_factory = bytes
-        if closing:
-            return contextlib.closing(conn)
-        return conn
 
     def ensure_tables_exist(self):
         if self.sqlpath.exists():

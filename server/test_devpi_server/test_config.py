@@ -152,10 +152,11 @@ class TestConfig:
 
     @pytest.mark.no_storage_option
     def test_storage_backend_default(self, makexom):
+        from devpi_server import keyfs_sqlite
         from devpi_server import keyfs_sqlite_fs
         config = make_config(("devpi-server",))
         assert config.args.storage is None
-        xom = makexom()
+        xom = makexom(plugins=(keyfs_sqlite, keyfs_sqlite_fs))
         assert xom.config.storage is keyfs_sqlite_fs.Storage
 
     def test_storage_backend_persisted(self, tmpdir):

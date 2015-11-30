@@ -170,7 +170,10 @@ def storage_info(request):
     backend = getattr(request.config.option, 'backend', None)
     if backend is None:
         backend = 'devpi_server.keyfs_sqlite_fs'
-    return locate(backend).devpiserver_storage_backend()
+    plugin = locate(backend)
+    result = plugin.devpiserver_storage_backend()
+    result["_test_plugin"] = plugin
+    return result
 
 
 @pytest.fixture(scope="session")
@@ -183,11 +186,10 @@ def makexom(request, gentmp, httpget, monkeypatch, storage_info):
     def makexom(opts=(), httpget=httpget, mocking=True, plugins=()):
         from devpi_server import auth_basic
         from devpi_server import auth_devpi
-        from devpi_server import keyfs_sqlite, keyfs_sqlite_fs
         plugins = [
             plugin[0] if isinstance(plugin, tuple) else plugin
             for plugin in plugins]
-        for plugin in [auth_basic, auth_devpi, keyfs_sqlite, keyfs_sqlite_fs]:
+        for plugin in [auth_basic, auth_devpi, storage_info["_test_plugin"]]:
             if plugin not in plugins:
                 plugins.append(plugin)
         pm = get_pluginmanager(load_entrypoints=False)

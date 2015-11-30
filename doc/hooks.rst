@@ -142,7 +142,7 @@ hook semantics for storage backends
 
 Plugins can provide custom storage backends. The storage API is still experimental::
 
-    def devpiserver_storage_backend():
+    def devpiserver_storage_backend(settings):
         """ return dict containing storage backend info.
 
         The following keys are defined:

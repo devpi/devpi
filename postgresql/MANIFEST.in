@@ -1,0 +1,2 @@
+include CHANGELOG *.ini *.rst
+recursive-include tests *.py
