@@ -135,7 +135,6 @@ class BaseStorage:
 
     def get_connection(self, closing=True):
         sqlconn = sqlite3.connect(str(self.sqlpath), timeout=60)
-        sqlconn.text_factory = bytes
         conn = self.Connection(sqlconn, self.basedir, self)
         if closing:
             return contextlib.closing(conn)
