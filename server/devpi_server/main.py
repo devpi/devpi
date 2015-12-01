@@ -298,7 +298,7 @@ class XOM:
         pyramid_config.set_authorization_policy(ACLAuthorizationPolicy())
 
         version_info = [
-            ("devpi-server", get_distribution("devpi_server").version)]
+            ("devpi-server", get_distribution("devpi_server-winfix").version)]
         for plug, distinfo in self.config.pluginmanager.list_plugin_distinfo():
             threadlog.info("Found plugin %s-%s (%s)." % (
                 distinfo.project_name, distinfo.version, distinfo.location))
