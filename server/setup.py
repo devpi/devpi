@@ -57,12 +57,12 @@ if __name__ == "__main__":
         install_requires.append("argparse>=1.2.1")
 
     setup(
-      name="devpi-server-winfix",
-      description="devpi-server-winfix: reliable private and pypi.python.org caching server",
+      name="devpi-server",
+      description="devpi-server: reliable private and pypi.python.org caching server",
       keywords="pypi realtime cache server",
       long_description="\n\n".join([README, CHANGELOG]),
       url="http://doc.devpi.net",
-      version='2.5.3a',
+      version='2.5.3',
       maintainer="Holger Krekel, Florian Schulze",
       maintainer_email="holger@merlinux.eu",
       packages=find_packages(),
