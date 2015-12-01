@@ -194,6 +194,7 @@ class Writer:
         self.conn = conn
         self.storage = storage
         self.changes = {}
+        self.next_serial = conn.last_changelog_serial + 1
 
     def record_set(self, typedkey, value=None):
         """ record setting typedkey to value (None means it's deleted) """
@@ -202,28 +203,27 @@ class Writer:
             _, back_serial = self.conn.db_read_typedkey(typedkey.relpath)
         except KeyError:
             back_serial = -1
-        self.conn.db_write_typedkey(typedkey.relpath, typedkey.name,
-                                    self.storage.next_serial)
+        self.conn.db_write_typedkey(typedkey.relpath, typedkey.name, self.next_serial)
         # at __exit__ time we write out changes to the _changelog_cache
         # so we protect here against the caller modifying the value later
         value = get_mutable_deepcopy(value)
         self.changes[typedkey.relpath] = (typedkey.name, back_serial, value)
 
     def __enter__(self):
-        self.log = thread_push_log("fswriter%s:" % self.storage.next_serial)
+        self.log = thread_push_log("fswriter%s:" % self.next_serial)
         return self
 
     def __exit__(self, cls, val, tb):
-        thread_pop_log("fswriter%s:" % self.storage.next_serial)
+        thread_pop_log("fswriter%s:" % self.next_serial)
         if cls is None:
             entry = self.changes, []
-            self.conn.write_changelog_entry(self.storage.next_serial, entry)
-            commit_serial = self.storage.next_serial
-            self.storage.next_serial += 1
+            self.conn.write_changelog_entry(self.next_serial, entry)
+            self.conn.commit()
+            commit_serial = self.next_serial
             message = "committed: keys: %s"
             args = [",".join(map(repr, list(self.changes)))]
             self.log.info(message, *args)
 
             self.storage._notify_on_commit(commit_serial)
         else:
-            self.log.info("roll back at %s" %(self.storage.next_serial))
+            self.log.info("roll back at %s" %(self.next_serial))
