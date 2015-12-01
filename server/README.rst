@@ -1,4 +1,4 @@
-devpi-server-winfix: consistent pypi.python.org cache, github-style internal indexes
+devpi-server: consistent pypi.python.org cache, github-style internal indexes
 =============================================================================
 
 * `issue tracker <https://bitbucket.org/hpk42/devpi/issues>`_, `repo
