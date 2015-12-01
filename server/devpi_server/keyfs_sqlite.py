@@ -1,3 +1,4 @@
+from devpi_common.types import cached_property
 from .fileutil import dumps, loads
 from .log import threadlog, thread_push_log, thread_pop_log
 from .readonly import ReadonlyView
@@ -21,6 +22,15 @@ class BaseConnection:
     def close(self):
         self._sqlconn.close()
 
+    def commit(self):
+        self._sqlconn.commit()
+
+    @cached_property
+    def last_changelog_serial(self):
+        q = 'SELECT MAX(_ROWID_) FROM "changelog" LIMIT 1'
+        res = self._sqlconn.execute(q).fetchone()[0]
+        return -1 if res is None else res
+
     def db_read_typedkey(self, relpath):
         q = "SELECT keyname, serial FROM kv WHERE key = ?"
         c = self._sqlconn.cursor()
@@ -39,7 +49,6 @@ class BaseConnection:
         self._sqlconn.execute(
             "INSERT INTO changelog (serial, data) VALUES (?, ?)",
             (serial, sqlite3.Binary(data)))
-        self._sqlconn.commit()
 
     def get_raw_changelog_entry(self, serial):
         q = "SELECT data FROM changelog WHERE serial = ?"
@@ -125,16 +134,14 @@ class BaseStorage:
         self._changelog_cache = LRUCache(cache_size)  # is thread safe
         self.last_commit_timestamp = time.time()
         self.ensure_tables_exist()
-        with self.get_connection() as conn:
-            row = conn._sqlconn.execute("select max(serial) from changelog").fetchone()
-            serial = row[0]
-            if serial is None:
-                self.next_serial = 0
-            else:
-                self.next_serial = serial + 1
 
-    def get_connection(self, closing=True):
-        sqlconn = sqlite3.connect(str(self.sqlpath), timeout=60)
+
+    def get_connection(self, closing=True, write=False):
+        # we let the database serialize all writers at connection time
+        # to play it very safe (we don't have massive amounts of writes).
+        sqlconn = sqlite3.connect(str(self.sqlpath), timeout=60, isolation_level="DEFERRED")
+        if write:
+            sqlconn.execute("begin immediate")
         conn = self.Connection(sqlconn, self.basedir, self)
         if closing:
             return contextlib.closing(conn)
@@ -187,6 +194,7 @@ class Writer:
         self.conn = conn
         self.storage = storage
         self.changes = {}
+        self.next_serial = conn.last_changelog_serial + 1
 
     def record_set(self, typedkey, value=None):
         """ record setting typedkey to value (None means it's deleted) """
@@ -195,28 +203,27 @@ class Writer:
             _, back_serial = self.conn.db_read_typedkey(typedkey.relpath)
         except KeyError:
             back_serial = -1
-        self.conn.db_write_typedkey(typedkey.relpath, typedkey.name,
-                                    self.storage.next_serial)
+        self.conn.db_write_typedkey(typedkey.relpath, typedkey.name, self.next_serial)
         # at __exit__ time we write out changes to the _changelog_cache
         # so we protect here against the caller modifying the value later
         value = get_mutable_deepcopy(value)
         self.changes[typedkey.relpath] = (typedkey.name, back_serial, value)
 
     def __enter__(self):
-        self.log = thread_push_log("fswriter%s:" % self.storage.next_serial)
+        self.log = thread_push_log("fswriter%s:" % self.next_serial)
         return self
 
     def __exit__(self, cls, val, tb):
-        thread_pop_log("fswriter%s:" % self.storage.next_serial)
+        thread_pop_log("fswriter%s:" % self.next_serial)
         if cls is None:
             entry = self.changes, []
-            self.conn.write_changelog_entry(self.storage.next_serial, entry)
-            commit_serial = self.storage.next_serial
-            self.storage.next_serial += 1
+            self.conn.write_changelog_entry(self.next_serial, entry)
+            self.conn.commit()
+            commit_serial = self.next_serial
             message = "committed: keys: %s"
             args = [",".join(map(repr, list(self.changes)))]
             self.log.info(message, *args)
 
             self.storage._notify_on_commit(commit_serial)
         else:
-            self.log.info("roll back at %s" %(self.storage.next_serial))
+            self.log.info("roll back at %s" %(self.next_serial))

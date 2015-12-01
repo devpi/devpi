@@ -233,33 +233,74 @@ class TestTransactionIsolation:
         with pytest.raises(keyfs.ReadOnly):
             tx_1.delete(key)
 
-    def test_serialized_writing(self, keyfs, monkeypatch):
-        D = keyfs.add_key("NAME", "hello", dict)
-        tx_1 = Transaction(keyfs, write=True)
-        class lockity:
-            def acquire(self):
-                raise ValueError()
-        monkeypatch.setattr(keyfs, "_write_lock", lockity())
-        with pytest.raises(ValueError):
-            Transaction(keyfs, write=True)
-        monkeypatch.undo()
-        tx_2 = Transaction(keyfs)
-        tx_1.set(D, {1:1})
-        assert tx_2.get(D) == {}
-        assert tx_1.get(D) == {1:1}
-        tx_1.commit()
-        assert tx_2.get(D) == {}
+    def test_serialized_writing(self, queue, keyfs):
+        import threading
+        from test_devpi_server.conftest import TimeoutQueue
+        q1 = TimeoutQueue()
+        q2 = TimeoutQueue()
+        def trans1():
+            with keyfs.transaction(write=True):
+                q1.put("write1")
+                assert q2.get() == "1"
+                q1.put("write1b")
+
+        def trans2():
+            with keyfs.transaction(write=True):
+                q1.put("write2")
+
+        t1 = threading.Thread(target=trans1)
+        NUM = 3
+        other = [threading.Thread(target=trans2) for i in range(NUM)]
+        t1.start()
+        assert q1.get() == "write1"
+        for x in other:
+            x.start()
+        q2.put("1")
+        assert q1.get() == "write1b"
+        for i in range(NUM):
+            assert q1.get() == "write2"
+
+    def test_reading_while_writing(self, queue, keyfs):
+        import threading
+        from test_devpi_server.conftest import TimeoutQueue
+        q1 = TimeoutQueue()
+        q2 = TimeoutQueue()
+        q3 = TimeoutQueue()
+        def trans1():
+            with keyfs.transaction(write=True):
+                q1.put("write1")
+                assert q2.get() == "1"
+                q1.put("write1b")
+
+        def trans2():
+            with keyfs.transaction(write=False):
+                q3.put("read")
+
+        t1 = threading.Thread(target=trans1)
+        NUM = 3
+        other = [threading.Thread(target=trans2) for i in range(NUM)]
+        t1.start()
+        assert q1.get() == "write1"
+        for x in other:
+            x.start()
+        for i in range(NUM):
+            assert q3.get() == "read"
+
+        q2.put("1")
+        assert q1.get() == "write1b"
+
 
     def test_concurrent_tx_sees_original_value_on_write(self, keyfs):
         D = keyfs.add_key("NAME", "hello", dict)
         tx_1 = Transaction(keyfs, write=True)
         tx_2 = Transaction(keyfs)
-        ser = keyfs._storage.next_serial
+        ser = tx_1.conn.last_changelog_serial + 1
         tx_1.set(D, {1:1})
         tx1_serial = tx_1.commit()
         assert tx1_serial == ser
-        assert keyfs._storage.next_serial == ser + 1
         assert tx_2.at_serial == ser - 1
+        with keyfs._storage.get_connection() as conn:
+            assert conn.last_changelog_serial == ser
         assert D not in tx_2.cache and D not in tx_2.dirty
         assert tx_2.get(D) == {}
 
@@ -297,7 +338,9 @@ class TestTransactionIsolation:
             D.delete()
         with keyfs.transaction(write=True):
             D.set({2:2})
-        serial = keyfs._storage.next_serial - 1
+        with keyfs._storage.get_connection() as conn:
+            serial = conn.last_changelog_serial
+
         assert serial == 2
         # load entries into new keyfs instance
         new_keyfs = KeyFS(tmpdir.join("newkeyfs"), storage)
