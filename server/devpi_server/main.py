@@ -143,10 +143,8 @@ class XOM:
     class Exiting(SystemExit):
         pass
 
-    def __init__(self, config, proxy=None, httpget=None):
+    def __init__(self, config, httpget=None):
         self.config = config
-        if proxy is not None:
-            self.proxy = proxy
         self.thread_pool = mythread.ThreadPool()
         if httpget is not None:
             self.httpget = httpget
