@@ -35,7 +35,7 @@ class MappMixin:
 class TestUserThings:
     def test_root_cannot_modify_unknown_user(self, mapp):
         mapp.login_root()
-        mapp.modify_user("/user", password="123", email="whatever",
+        mapp.modify_user("user", password="123", email="whatever",
                          code=404)
 
     def test_root_is_refused_with_wrong_password(self, mapp):
