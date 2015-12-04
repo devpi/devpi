@@ -32,6 +32,15 @@
   provide custom storage backends. When there is more than one backend
   available, the "--storage" option becomes required for startup.
 
+- introduce new "--requests-only" option to start devpi-server in
+  "worker" mode.  It can be used both for master and replica sites.  It
+  starts devpi-server without event processing and replication threads and
+  thus depends on respective "main" instances (those not using
+  "--request-only") to perform event and hook processing.  Each
+  worker instance needs to share the filesystem with a main instance.
+  Worker instances can not server the "/+status" URL which must
+  always be routed to the main instance.
+
 
 2.5.3 (2015-11-23)
 ------------------

@@ -56,6 +56,16 @@ def test_pyramid_configure_called(makexom):
     assert config == xom.config
 
 
+def test_requests_only(makexom):
+    xom = makexom(opts=["--requests-only"])
+    xom.create_app()
+    assert not xom.thread_pool._objects
+
+    xom = makexom(opts=["--requests-only", "--master=http://localhost:3140"])
+    xom.create_app()
+    assert not xom.thread_pool._objects
+
+
 @wsgi_run_throws
 def test_run_commands_called(tmpdir):
     from devpi_server.main import _main, get_pluginmanager
