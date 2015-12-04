@@ -148,12 +148,30 @@ class KeyFS(object):
         with self._cv_new_transaction:
             self._cv_new_transaction.notify_all()
 
-    def wait_tx_serial(self, serial):
-        """ wait until the transaction with the serial has been commited. """
-        with threadlog.around("info", "waiting for tx-serial %s", serial):
+    def wait_tx_serial(self, serial, timeout=None, recheck=1.0):
+        """ Return True when the transaction with the serial has been commited.
+        Return False if it hasn't happened within a specified timeout.
+        If timeout was not specified, we'll wait indefinitely.  In any case,
+        this method wakes up every "recheck" seconds to query the database
+        in case some other process has produced a commit (in-process commits
+        are recognized immediately).
+        """
+        # we presume that even a few concurrent wait_tx_serial() calls
+        # won't cause much pressure on the database.  If that assumption
+        # is wrong we have to install a thread which does the
+        # db-querying and sets the local condition.
+        time_spent = 0
+        if timeout is not None and recheck < timeout:
+            recheck = timeout
+        with threadlog.around("debug", "waiting for tx-serial %s", serial):
             with self._cv_new_transaction:
-                while serial > self.get_current_serial():
-                    self._cv_new_transaction.wait()
+                with self._storage.get_connection() as conn:
+                    while serial > conn.db_read_last_changelog_serial():
+                        if timeout is not None and time_spent >= timeout:
+                            return False
+                        self._cv_new_transaction.wait(timeout=recheck)
+                        time_spent += recheck
+                    return True
 
     def get_next_serial(self):
         return self.get_current_serial() + 1
