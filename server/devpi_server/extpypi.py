@@ -336,7 +336,7 @@ class PyPIStage(BaseStage):
             devpi_serial = int(response.headers["X-DEVPI-SERIAL"])
             threadlog.debug("get_simplelinks pypi: waiting for devpi_serial %r",
                             devpi_serial)
-            self.keyfs.notifier.wait_tx_serial(devpi_serial)
+            self.keyfs.wait_tx_serial(devpi_serial)
             threadlog.debug("get_simplelinks pypi: finished waiting for devpi_serial %r",
                             devpi_serial)
             # XXX raise TransactionRestart to get a consistent clean view

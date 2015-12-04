@@ -105,7 +105,7 @@ class MasterChangelogRequest:
     def _wait_for_entry(self, serial):
         max_wakeups = self.MAX_REPLICA_BLOCK_TIME / self.WAKEUP_INTERVAL
         keyfs = self.xom.keyfs
-        with keyfs.notifier.cv_new_transaction:
+        with keyfs._cv_new_transaction:
             next_serial = keyfs.get_next_serial()
             if serial > next_serial:
                 raise HTTPNotFound("can only wait for next serial")
@@ -118,7 +118,7 @@ class MasterChangelogRequest:
                             headers={str("X-DEVPI-SERIAL"):
                                      str(keyfs.get_current_serial())})
                     # we loop because we want control-c to get through
-                    keyfs.notifier.cv_new_transaction.wait(
+                    keyfs._cv_new_transaction.wait(
                         self.WAKEUP_INTERVAL)
                     num_wakeups += 1
         return keyfs._storage.get_raw_changelog_entry(serial)
@@ -339,7 +339,7 @@ def proxy_write_to_master(xom, request):
     #threadlog.debug("relay headers: %s", r.headers)
     if r.status_code < 400:
         commit_serial = int(r.headers["X-DEVPI-SERIAL"])
-        xom.keyfs.notifier.wait_tx_serial(commit_serial)
+        xom.keyfs.wait_tx_serial(commit_serial)
     headers = clean_response_headers(r)
     headers[str("X-DEVPI-PROXY")] = str("replica")
     if r.status_code == 302:  # REDIRECT

@@ -221,6 +221,7 @@ class XOM:
             return wsgi_run(xom, app)
 
     def fatal(self, msg):
+        self.keyfs.release_all_wait_tx()
         self.thread_pool.shutdown()
         fatal(msg)
 

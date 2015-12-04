@@ -25,7 +25,6 @@ from devpi_common.types import cached_property
 class TxNotificationThread:
     def __init__(self, keyfs):
         self.keyfs = keyfs
-        self.cv_new_transaction = mythread.threading.Condition()
         self.cv_new_event_serial = mythread.threading.Condition()
         self.event_serial_path = str(self.keyfs.basedir.join(".event_serial"))
         self.event_serial_in_sync_at = None
@@ -44,11 +43,6 @@ class TxNotificationThread:
                 while serial > self.read_event_serial():
                     self.cv_new_event_serial.wait()
 
-    def wait_tx_serial(self, serial):
-        with threadlog.around("info", "waiting for tx-serial %s", serial):
-            with self.cv_new_transaction:
-                while serial > self.keyfs.get_current_serial():
-                    self.cv_new_transaction.wait()
 
     def read_event_serial(self):
         # the disk serial is kept one higher because pre-2.1.2
@@ -65,13 +59,8 @@ class TxNotificationThread:
     def write_event_serial(self, event_serial):
         write_int_to_file(event_serial + 1, self.event_serial_path)
 
-    def notify_on_commit(self, serial):
-        with self.cv_new_transaction:
-            self.cv_new_transaction.notify_all()
-
     def thread_shutdown(self):
-        with self.cv_new_transaction:
-            self.cv_new_transaction.notify_all()
+        pass
 
     def thread_run(self):
         event_serial = self.read_event_serial()
@@ -88,9 +77,7 @@ class TxNotificationThread:
             if event_serial >= serial:
                 if event_serial == serial:
                     self.event_serial_in_sync_at = time.time()
-                with self.cv_new_transaction:
-                    self.cv_new_transaction.wait()
-                    self.thread.exit_if_shutdown()
+                self.keyfs.wait_tx_serial(serial+1)
 
     def _execute_hooks(self, event_serial, log, raising=False):
         log.debug("calling hooks for tx%s", event_serial)
@@ -125,11 +112,12 @@ class KeyFS(object):
         self.basedir = py.path.local(basedir).ensure(dir=1)
         self._keys = {}
         self._threadlocal = mythread.threading.local()
+        self._cv_new_transaction = mythread.threading.Condition()
         self._import_subscriber = {}
-        self.notifier = t = TxNotificationThread(self)
+        self.notifier = TxNotificationThread(self)
         self._storage = storage(
             self.basedir,
-            notify_on_commit=t.notify_on_commit,
+            notify_on_commit=self._notify_on_commit,
             cache_size=cache_size)
         self._readonly = readonly
         self._storage.perform_crash_recovery()
@@ -151,6 +139,21 @@ class KeyFS(object):
     def subscribe_on_import(self, key, subscriber):
         assert key.name not in self._import_subscriber
         self._import_subscriber[key.name] = subscriber
+
+    def _notify_on_commit(self, serial):
+        with self._cv_new_transaction:
+            self._cv_new_transaction.notify_all()
+
+    def release_all_wait_tx(self):
+        with self._cv_new_transaction:
+            self._cv_new_transaction.notify_all()
+
+    def wait_tx_serial(self, serial):
+        """ wait until the transaction with the serial has been commited. """
+        with threadlog.around("info", "waiting for tx-serial %s", serial):
+            with self._cv_new_transaction:
+                while serial > self.get_current_serial():
+                    self._cv_new_transaction.wait()
 
     def get_next_serial(self):
         return self.get_current_serial() + 1

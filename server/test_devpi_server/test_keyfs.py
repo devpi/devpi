@@ -565,7 +565,10 @@ class TestSubscriber:
             def __init__(self, num):
                 self.num = num
             def thread_run(self):
-                getattr(keyfs.notifier, meth)(self.num)
+                if meth == "wait_event_serial":
+                    keyfs.notifier.wait_event_serial(self.num)
+                else:
+                    keyfs.wait_tx_serial(self.num)
                 queue.put(self.num)
 
         for i in range(10):
