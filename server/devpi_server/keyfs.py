@@ -161,7 +161,7 @@ class KeyFS(object):
         # is wrong we have to install a thread which does the
         # db-querying and sets the local condition.
         time_spent = 0
-        if timeout is not None and recheck < timeout:
+        if timeout is not None and recheck > timeout:
             recheck = timeout
         with threadlog.around("debug", "waiting for tx-serial %s", serial):
             with self._cv_new_transaction:

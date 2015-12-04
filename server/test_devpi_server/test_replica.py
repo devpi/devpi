@@ -49,25 +49,25 @@ class TestChangelog:
         data = loads(body)
         assert "this" in str(data)
 
-    def test_get_wait(self, reqchangelog, testapp, mapp, noiter, monkeypatch):
-        mapp.create_user("this", password="p")
-        latest_serial = self.get_latest_serial(testapp)
-        monkeypatch.setattr(testapp.xom.keyfs._cv_new_transaction,
-                            "wait", lambda *x: 0/0)
-        with pytest.raises(ZeroDivisionError):
-            reqchangelog(latest_serial+1)
-
-    def test_get_wait_blocking_ends(self, testapp, mapp, noiter, monkeypatch,
+    def test_wait_entry_fails(self, testapp, mapp, noiter, monkeypatch,
                                     reqchangelog):
         mapp.create_user("this", password="p")
         latest_serial = self.get_latest_serial(testapp)
-        monkeypatch.setattr(MasterChangelogRequest, "MAX_REPLICA_BLOCK_TIME",
-                            0.01)
-        monkeypatch.setattr(MasterChangelogRequest, "WAKEUP_INTERVAL",
-                            0.001)
+        monkeypatch.setattr(MasterChangelogRequest, "MAX_REPLICA_BLOCK_TIME", 0.01)
         r = reqchangelog(latest_serial+1)
         assert r.status_code == 202
         assert int(r.headers["X-DEVPI-SERIAL"]) == latest_serial
+
+    def test_wait_entry_succeeds(self, blank_request, xom, mapp):
+        mapp.create_user("this", password="p")
+        req = blank_request()
+        req.registry = {"xom": xom}
+        mcr = MasterChangelogRequest(req)
+        with xom.keyfs.transaction():
+            with pytest.raises(HTTPNotFound):
+                mcr._wait_for_entry(xom.keyfs.get_current_serial() + 10)
+            entry = mcr._wait_for_entry(xom.keyfs.get_current_serial())
+        assert entry
 
     def test_master_id_mismatch(self, testapp):
         testapp.xget(400, "/+changelog/0", headers={H_EXPECTED_MASTER_ID:str("123")})
