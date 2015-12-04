@@ -38,7 +38,7 @@
   thus depends on respective "main" instances (those not using
   "--request-only") to perform event and hook processing.  Each
   worker instance needs to share the filesystem with a main instance.
-  Worker instances can not server the "/+status" URL which must
+  Worker instances can not serve the "/+status" URL which must
   always be routed to the main instance.
 
 

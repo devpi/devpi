@@ -78,6 +78,7 @@ class TxNotificationThread:
                 if event_serial == serial:
                     self.event_serial_in_sync_at = time.time()
                 self.keyfs.wait_tx_serial(serial+1)
+                self.thread.exit_if_shutdown()
 
     def _execute_hooks(self, event_serial, log, raising=False):
         log.debug("calling hooks for tx%s", event_serial)
@@ -141,8 +142,7 @@ class KeyFS(object):
         self._import_subscriber[key.name] = subscriber
 
     def _notify_on_commit(self, serial):
-        with self._cv_new_transaction:
-            self._cv_new_transaction.notify_all()
+        self.release_all_wait_tx()
 
     def release_all_wait_tx(self):
         with self._cv_new_transaction:
@@ -161,6 +161,8 @@ class KeyFS(object):
         # is wrong we have to install a thread which does the
         # db-querying and sets the local condition.
         time_spent = 0
+
+        # recheck time should never be higher than the timeout
         if timeout is not None and recheck > timeout:
             recheck = timeout
         with threadlog.around("debug", "waiting for tx-serial %s", serial):

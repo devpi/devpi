@@ -586,6 +586,7 @@ class TestSubscriber:
         keyfs.wait_tx_serial(keyfs.get_current_serial())
 
     def test_wait_tx_async(self, keyfs, pool, queue):
+        # start a thread which waits for the next serial
         wait_serial = keyfs.get_next_serial()
         class T:
             def thread_run(self):
@@ -593,9 +594,13 @@ class TestSubscriber:
                 queue.put(ret)
         pool.register(T())
         pool.start()
+
+        # directly  modify the database without keyfs-transaction machinery
         with keyfs._storage.get_connection(write=True) as conn:
             conn.write_changelog_entry(wait_serial, [{}, ()])
             conn.commit()
+
+        # check wait_tx_serial() call from the thread returned True
         assert queue.get() == True
 
     def test_wait_tx_async_timeout(self, keyfs):
