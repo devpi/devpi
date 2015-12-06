@@ -1,7 +1,9 @@
 function updateIFrame(iframe) {
-    // place iframe's parent div below navigation
-    var $nav = $('#navigation');
-    $(iframe).parent().css('top', $nav.offset().top + $nav.outerHeight(true));
+    var $search = $('#search'), $nav = $('#navigation');
+    // create enough space for letting devpi header overlap iframe
+    // without hiding iframe content
+    $('html', iframe.contentWindow.document).css(
+        'margin-top', $search.outerHeight(true) + $nav.outerHeight(true));
 }
 
 function onIFrameLoad(iframe) {
@@ -10,49 +12,37 @@ function onIFrameLoad(iframe) {
         updateIFrame(iframe);
     });
 
-    var $doc = $(iframe.contentWindow.document);
-
     // make the devpi header move away on iframe down scrolling
-    // and reappear on up scrolling
-    var $search = $('#search'), $nav = $('#navigation'), top = 0,
-        oldScroll = $doc.scrollTop();
-    // search form and nav div have position: relative
-    $search.css('top', top);
-    $nav.css('top', top);
+    // and reappear on up scrolling...
+    // header consists of search form and nav div,
+    // both use {position: relative}
+    var $search = $('#search'), $nav = $('#navigation'), headerTop = 0,
+        $doc = $(iframe.contentWindow.document), scroll = $doc.scrollTop();
+
     $doc.scroll(function () {
-        var scroll = $doc.scrollTop(), diff = scroll - oldScroll;
-        top -= diff;
-        if (top > 0) {
+        var newScroll = $doc.scrollTop();
+        // move header along with iframe scrolling...
+        headerTop -= newScroll - scroll;
+        if (headerTop > 0) {
             // don't move header further down than initial state
-            diff += top;
-            top = 0;
+            headerTop = 0;
         }
         else {
             // don't move header further up than its height
-            //TODO: still header space left
+            //TODO: header still visible because of global offset
             var height = $search.outerHeight(true) + $nav.outerHeight(true);
-            if (-top > height) {
-                diff -= -top - height;
-                top = -height;
+            if (-headerTop > height) {
+                headerTop = -height;
             }
         }
-        // reset iframe scroll if moving header
-        scroll -= diff;
-        // make sure that iframe is always up-scrollable
-        // if devpi header not fully shown
-        // by having at least 1px scroll state
-        //TODO: better solution (slow header down moving in 1px steps)
-        if (top && scroll < 1) {
-            scroll = 1;
-        }
-        $doc.scrollTop(scroll);
-        $search.css('top', top);
-        $nav.css('top', top);
+        $search.css('top', headerTop);
+        $nav.css('top', headerTop);
+
         updateIFrame(iframe);
-        oldScroll = scroll;
+        scroll = newScroll;
     });
 
-    // copy title from inner document
+    // copy title from iframe's inner document
     var title = $doc.find('title').text();
     if (title) {
         $('title').text(title);

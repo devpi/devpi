@@ -28,8 +28,10 @@ form, #content, #navigation, .searchresults {
 
 #navigation {
     position: relative;
+    background-color: white;
     border-bottom: 1px solid #ccc;
-    padding: 0.25em 0 0.25em 0;
+    padding: 0.25em 0 0.5em 0;
+    z-index: 1;
 }
 
 #serverstatus {
@@ -138,6 +140,7 @@ form#search h1 a {
 }
 
 form#search {
+    background-color: white;
     text-align: center;
     z-index: 1;
 }
