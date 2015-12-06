@@ -9,5 +9,5 @@ if __name__ == '__main__':
         author='Holger Krekel',
         url="http://example.com",
         author_email='holger at merlinux.eu',
-        py_modules=["example"],
+        py_modules=["example", "test_example"],
     )

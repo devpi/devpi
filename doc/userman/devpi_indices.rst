@@ -99,7 +99,6 @@ example below, we create the **emilie/prod** production index::
      type=stage
      bases=root/pypi
      volatile=False
-     uploadtrigger_jenkins=None
      acl_upload=emilie
      pypi_whitelist=
    
@@ -119,7 +118,6 @@ which leads to the following::
                    ], 
                    "pypi_whitelist": [], 
                    "type": "stage", 
-                   "uploadtrigger_jenkins": null, 
                    "volatile": false
                }
            }, 
@@ -143,7 +141,6 @@ specifying her ``prod`` index as follow::
      type=stage
      bases=emilie/prod
      volatile=True
-     uploadtrigger_jenkins=None
      acl_upload=emilie
      pypi_whitelist=
    
@@ -161,7 +158,6 @@ which has the following definition on the server side::
            "projects": [], 
            "pypi_whitelist": [], 
            "type": "stage", 
-           "uploadtrigger_jenkins": null, 
            "volatile": true
        }, 
        "type": "indexconfig"
@@ -241,7 +237,6 @@ Assuming that Sophie has both index types as well::
      type=stage
      bases=root/pypi
      volatile=False
-     uploadtrigger_jenkins=None
      acl_upload=sophie
      pypi_whitelist=
    
@@ -252,7 +247,6 @@ Assuming that Sophie has both index types as well::
      type=stage
      bases=sophie/prod
      volatile=True
-     uploadtrigger_jenkins=None
      acl_upload=sophie
      pypi_whitelist=
 
@@ -277,7 +271,6 @@ bases::
      type=stage
      bases=emilie/prod,sophie/dev
      volatile=True
-     uploadtrigger_jenkins=None
      acl_upload=emilie
      pypi_whitelist=
    
@@ -295,7 +288,6 @@ When the work is done, this relationship can be revoked by doing::
      type=stage
      bases=emilie/prod
      volatile=True
-     uploadtrigger_jenkins=None
      acl_upload=emilie
      pypi_whitelist=
 
@@ -308,7 +300,6 @@ which now has the ``/emilie/dev`` as a base only::
      type=stage
      bases=emilie/prod
      volatile=True
-     uploadtrigger_jenkins=None
      acl_upload=emilie
      pypi_whitelist=
    
@@ -326,7 +317,6 @@ Emilie may allow sophie to upload to her dev index:
      type=stage
      bases=emilie/prod
      volatile=True
-     uploadtrigger_jenkins=None
      acl_upload=emilie,sophie
      pypi_whitelist=
 
@@ -342,7 +332,6 @@ Suppose you want to allow all users in the "developers" group to upload packages
      type=stage
      bases=emilie/prod
      volatile=True
-     uploadtrigger_jenkins=None
      acl_upload=emilie,:developers
      pypi_whitelist=
 
@@ -356,7 +345,6 @@ It is also possible to allow anonymous uploads if you have a controlled environm
      type=stage
      bases=emilie/prod
      volatile=True
-     uploadtrigger_jenkins=None
      acl_upload=:ANONYMOUS:
      pypi_whitelist=
 
@@ -374,7 +362,6 @@ To allow uploads on PyPI to be visible on your index, you have to add the projec
      type=stage
      bases=root/pypi
      volatile=True
-     uploadtrigger_jenkins=None
      acl_upload=emilie
      pypi_whitelist=mypkg
 
@@ -387,7 +374,6 @@ You can also whitelist all packages on an index by setting pypi_whitelist to an 
      type=stage
      bases=root/pypi
      volatile=True
-     uploadtrigger_jenkins=None
      acl_upload=emilie
      pypi_whitelist=*
 
@@ -442,7 +428,6 @@ In the example below, we create a "bad" index and delete it::
      type=stage
      bases=emilie/prod
      volatile=True
-     uploadtrigger_jenkins=None
      acl_upload=emilie
      pypi_whitelist=
 
@@ -460,7 +445,6 @@ here is the bad index::
            "projects": [], 
            "pypi_whitelist": [], 
            "type": "stage", 
-           "uploadtrigger_jenkins": null, 
            "volatile": true
        }, 
        "type": "indexconfig"
@@ -468,7 +452,9 @@ here is the bad index::
  
 which is now deleted::  
 
-   $ devpi index --delete /emilie/oups
+   $ devpi index -y --delete /emilie/oups
+   About to remove: <URL 'http://localhost:3141/emilie/oups'>
+   Are you sure (yes/no)? yes (autoset from -y option)
    index deleted: <URL 'http://localhost:3141/emilie/oups'>
    
 And to prove it::
@@ -487,9 +473,9 @@ given user::
 
    $ devpi index -l
    emilie/prod
-   emilie/someindex
-   emilie/dev
    emilie/wheelindex
+   emilie/dev
+   emilie/someindex
    
 However, it is sometimes useful to see all indexes present on the server. This 
 can done with the **devpi** :ref:`cmdref_use` ``-l`` command [#f1]_ which 
@@ -501,9 +487,9 @@ information::
    sophie/dev      bases=sophie/prod     volatile=True
    root/pypi       bases=                volatile=False
    emilie/prod     bases=root/pypi       volatile=False
-   emilie/someindex bases=root/pypi       volatile=True
-   emilie/dev      bases=emilie/prod     volatile=True
    emilie/wheelindex bases=root/pypi       volatile=True
+   emilie/dev      bases=emilie/prod     volatile=True
+   emilie/someindex bases=root/pypi       volatile=True
 
 .. rubric:: Footnotes
 

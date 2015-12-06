@@ -3,22 +3,27 @@ import py
 import json
 import contextlib
 import time
-from pyramid.httpexceptions import HTTPNotFound, HTTPAccepted
+from pyramid.httpexceptions import HTTPNotFound, HTTPAccepted, HTTPBadRequest
 from pyramid.view import view_config
 from pyramid.response import Response
+from devpi_common.validation import normalize_name
 from webob.headers import EnvironHeaders, ResponseHeaders
 
 from .keyfs import load, loads, dump, get_write_file_ensure_dir, rename
 from .log import thread_push_log, threadlog
-from .views import is_mutating_http_method, H_MASTER_UUID
+from .views import is_mutating_http_method, H_MASTER_UUID, make_uuid_headers
 from .model import UpstreamError
 
 H_REPLICA_UUID = str("X-DEVPI-REPLICA-UUID")
 H_REPLICA_OUTSIDE_URL = str("X-DEVPI-REPLICA-OUTSIDE-URL")
 H_REPLICA_FILEREPL = str("X-DEVPI-REPLICA-FILEREPL")
+H_EXPECTED_MASTER_ID = str("X-DEVPI-EXPECTED-MASTER-ID")
+
+MAX_REPLICA_BLOCK_TIME = 30.0
+
 
 class MasterChangelogRequest:
-    MAX_REPLICA_BLOCK_TIME = 30.0
+    MAX_REPLICA_BLOCK_TIME = MAX_REPLICA_BLOCK_TIME
     WAKEUP_INTERVAL = 2.0
 
     def __init__(self, request):
@@ -60,6 +65,21 @@ class MasterChangelogRequest:
         # - if the replica is not waiting anymore we would otherwise
         #   never time out here, leading to more and more threads
         # if no commits happen.
+
+        expected_uuid = self.request.headers.get(H_EXPECTED_MASTER_ID, None)
+        master_uuid = self.xom.config.get_master_uuid()
+        # we require the header but it is allowed to be empty
+        # (during initialization)
+        if expected_uuid is None:
+            msg = "replica sent no %s header" % H_EXPECTED_MASTER_ID
+            threadlog.error(msg)
+            raise HTTPBadRequest(msg)
+
+        if expected_uuid and expected_uuid != master_uuid:
+            threadlog.error("expected %r as master_uuid, replica sent %r", master_uuid,
+                      expected_uuid)
+            raise HTTPBadRequest("expected %s as master_uuid, replica sent %s" %
+                                 (master_uuid, expected_uuid))
 
         serial = self.request.matchdict["serial"]
 
@@ -114,6 +134,7 @@ class MasterChangelogRequest:
 
 
 class ReplicaThread:
+    REPLICA_REQUEST_TIMEOUT = MAX_REPLICA_BLOCK_TIME * 1.25
     ERROR_SLEEP = 50
 
     def __init__(self, xom):
@@ -122,28 +143,64 @@ class ReplicaThread:
         if xom.is_replica():
             xom.keyfs.notifier.on_key_change("PYPILINKS",
                                              PypiProjectChanged(xom))
+        self._master_serial = None
+        self._master_serial_timestamp = None
+        self.started_at = None
+        # updated whenever we try to connect to the master
+        self.master_contacted_at = None
+        # updated on valid reply or 202 from master
+        self.update_from_master_at = None
+        # set whenever the master serial and current replication serial match
+        self.replica_in_sync_at = None
+
+    def get_master_serial(self):
+        return self._master_serial
+
+    def get_master_serial_timestamp(self):
+        return self._master_serial_timestamp
+
+    def update_master_serial(self, serial):
+        now = time.time()
+        # record that we got a reply from the master, so we can produce status
+        # information about the connection to master
+        self.update_from_master_at = now
+        if self.xom.keyfs.get_current_serial() == serial:
+            self.replica_in_sync_at = now
+        if self._master_serial is not None and serial <= self._master_serial:
+            if serial < self._master_serial:
+                self.log.error(
+                    "Got serial %s from master which is smaller than last "
+                    "recorded serial %s." % (serial, self._master_serial))
+            return
+        self._master_serial = serial
+        self._master_serial_timestamp = now
 
     def thread_run(self):
         # within a devpi replica server this thread is the only writer
-        log = thread_push_log("[REP]")
+        self.started_at = time.time()
+        self.log = log = thread_push_log("[REP]")
         session = self.xom.new_http_session("replica")
         keyfs = self.xom.keyfs
         errors = ReplicationErrors(self.xom.config.serverdir)
         for key in (keyfs.STAGEFILE, keyfs.PYPIFILE_NOMD5):
             keyfs.subscribe_on_import(key, ImportFileReplica(self.xom, errors))
         config = self.xom.config
-        nodeinfo = config.nodeinfo
         while 1:
             self.thread.exit_if_shutdown()
             serial = keyfs.get_next_serial()
             url = self.master_url.joinpath("+changelog", str(serial)).url
             log.info("fetching %s", url)
+            uuid, master_uuid = make_uuid_headers(config.nodeinfo)
+            assert uuid != master_uuid
             try:
+                self.master_contacted_at = time.time()
                 r = session.get(url, headers={
-                    H_REPLICA_UUID: nodeinfo["uuid"],
+                    H_REPLICA_UUID: uuid,
+                    H_EXPECTED_MASTER_ID: master_uuid,
                     H_REPLICA_OUTSIDE_URL: config.args.outside_url,
-                })
-            except session.Errors as e:
+                }, timeout=self.REPLICA_REQUEST_TIMEOUT)
+                remote_serial = int(r.headers["X-DEVPI-SERIAL"])
+            except Exception as e:
                 log.error("error fetching %s: %s", url, str(e))
             else:
                 # we check that the remote instance
@@ -151,17 +208,24 @@ class ReplicaThread:
                 master_uuid = config.get_master_uuid()
                 remote_master_uuid = r.headers.get(H_MASTER_UUID)
                 if not remote_master_uuid:
+                    # we don't fatally leave the process because
+                    # it might just be a temporary misconfiguration
+                    # for example of a nginx frontend
                     log.error("remote provides no %r header, running "
                               "<devpi-server-2.1?"
                               " headers were: %s", H_MASTER_UUID, r.headers)
                     self.thread.sleep(self.ERROR_SLEEP)
                     continue
                 if master_uuid and remote_master_uuid != master_uuid:
-                    log.error("master UUID %r does not match "
-                              "locally recorded master UUID %r",
+                    # we got a master_uuid and it is not the one we
+                    # expect, we are replicating for -- it's unlikely this heals
+                    # itself.  It's thus better to die and signal we can't operate.
+                    log.error("FATAL: master UUID %r does not match "
+                              "expected master UUID %r. EXITTING.",
                               remote_master_uuid, master_uuid)
-                    self.thread.sleep(self.ERROR_SLEEP)
-                    continue
+                    # force exit of the process
+                    os._exit(3)
+
                 if r.status_code == 200:
                     try:
                         changes, rel_renames = loads(r.content)
@@ -169,22 +233,25 @@ class ReplicaThread:
                     except Exception:
                         log.exception("could not process: %s", r.url)
                     else:
-                        serial += 1
                         # we successfully received data so let's
                         # record the master_uuid for future consistency checks
                         if not master_uuid:
                             self.xom.config.set_master_uuid(remote_master_uuid)
+                        # also record the current master serial for status info
+                        self.update_master_serial(remote_serial)
                         continue
                 elif r.status_code == 202:
                     log.debug("%s: trying again %s\n", r.status_code, url)
+                    # also record the current master serial for status info
+                    self.update_master_serial(remote_serial)
                     continue
                 else:
-                    log.debug("%s: failed fetching %s", r.status_code, url)
+                    log.error("%s: failed fetching %s", r.status_code, url)
             # we got an error, let's wait a bit
             self.thread.sleep(5.0)
 
 
-class PyPIProxy(object):
+class PyPIDevpiProxy(object):
     def __init__(self, http, master_url):
         self._url = master_url.joinpath("root/pypi/+name2serials").url
         self._http = http
@@ -211,19 +278,21 @@ class PypiProjectChanged:
         pypimirror = self.xom.pypimirror
         name2serials = pypimirror.name2serials
         cache = ev.value
+
+        # get the normalized projectname (PYPILINKS uses it)
+        nname = ev.typedkey.params["name"]
+        if not nname:
+            threadlog.error("project %r missing", nname)
+            return
+        assert normalize_name(nname) == nname
+
+        projectname = ev.value["projectname"] if cache else nname
         if cache is None:  # deleted
-            # derive projectname to delete from key
-            name = ev.typedkey.params["name"]
-            projectname = pypimirror.get_registered_name(name)
-            if projectname:
-                del name2serials[projectname]
-            else:
-                threadlog.error("project %r missing", name)
+            pypimirror.set_project_serial(projectname, None)
         else:
-            name = cache["projectname"]
-            cur_serial = name2serials.get(name, -1)
+            cur_serial = name2serials.get(projectname, -1)
             if cache and cache["serial"] > cur_serial:
-                name2serials[cache["projectname"]] = cache["serial"]
+                pypimirror.set_project_serial(projectname, cache["serial"])
 
 
 def tween_replica_proxy(handler, registry):
@@ -372,7 +441,7 @@ class ImportFileReplica:
             return
 
         if r.status_code != 200:
-            raise FileReplicationError(r)
+            raise FileReplicationError(r, relpath)
         err = entry.check_checksum(r.content)
         if err:
             # the file we got is different, it may have changed later.
@@ -392,9 +461,10 @@ class ImportFileReplica:
 
 class FileReplicationError(Exception):
     """ raised when replicating a file from the master failed. """
-    def __init__(self, response, message=None):
+    def __init__(self, response, relpath, message=None):
         self.url = response.url
         self.status_code = response.status_code
+        self.relpath = relpath
         self.message = message or "failed"
 
     def __str__(self):

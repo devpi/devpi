@@ -4,14 +4,25 @@ import os.path
 import argparse
 import uuid
 
+from pluggy import PluginManager
 import py
 from devpi_common.types import cached_property
 from .log import threadlog
+from . import hookspecs
 import json
 import devpi_server
 from devpi_common.url import URL
 
 log = threadlog
+
+def get_pluginmanager():
+    pm = PluginManager("devpiserver", implprefix="devpiserver_")
+    pm.add_hookspecs(hookspecs)
+    # XXX load internal plugins here
+    pm.load_setuptools_entrypoints("devpi_server")
+    pm.check_pending()
+    return pm
+
 
 def get_default_serverdir():
     return os.environ.get("DEVPI_SERVERDIR", "~/.devpi/server")
@@ -38,17 +49,32 @@ def addoptions(parser):
     web.addoption("--debug", action="store_true",
             help="run wsgi application with debug logging")
 
+    web.addoption("--profile-requests", type=int, metavar="NUM", default=0,
+            help="profile NUM requests and print out cumulative stats. "
+                 "After print profiling is restarted. "
+                 "By default no profiling is performed.")
+
+    web.addoption("--logger-cfg", action="store", dest="logger_cfg",
+            help="path to .json or .yaml logger configuration file, "
+                 "requires at least python2.7. If you specify a yaml "
+                 "file you need to have the pyyaml package installed.",
+            default=None)
 
     mirror = parser.addgroup("pypi mirroring options (root/pypi)")
     mirror.addoption("--refresh", type=float, metavar="SECS",
             default=60,
-            help="interval for consulting changelog api of pypi.python.org")
+            help="NO EFFECT: changelog API is not used anymore")
 
     mirror.addoption("--bypass-cdn", action="store_true",
             help="set this if you want to bypass pypi's CDN for access to "
                  "simple pages and packages, in order to rule out cache-"
                  "invalidation issues.  This will only work if you "
                  "are not using a http proxy.")
+
+    mirror.addoption("--pypi-cache-expiry", type=float, metavar="SECS",
+            default=1800,
+            help="(experimental) time after which PyPI projects are "
+                 "checked for new releases.")
 
     deploy = parser.addgroup("deployment and data options")
 
@@ -88,6 +114,11 @@ def addoptions(parser):
                  "This will export all users, indices (except root/pypi),"
                  " release files, test results and documentation. "
     )
+    deploy.addoption("--hard-links", action="store_true",
+            help="use hard links during export instead of copying files. "
+                 "All limitations for hard links on your OS apply. "
+                 "USE AT YOUR OWN RISK"
+    )
     deploy.addoption("--import", type=str, metavar="PATH",
             dest="import_",
             help="import devpi-server database from PATH where PATH "
@@ -96,6 +127,15 @@ def addoptions(parser):
                  "using the same or an earlier devpi-server version. "
                  "Note that you can only import into a fresh server "
                  "state directory (positional argument to devpi-server).")
+
+    deploy.addoption("--no-events", action="store_false",
+            default=True, dest="wait_for_events",
+            help="no events will be run during import, instead they are"
+                 "postponed to run on server start. This allows much faster "
+                 "start of the server after import, when devpi-web is used. "
+                 "When you start the server after the import, the search "
+                 "index and documentation will gradually update until the "
+                 "server has caught up with all events.")
 
     deploy.addoption("--passwd", action="store", metavar="USER",
             help="set password for user USER (interactive)")
@@ -118,6 +158,13 @@ def addoptions(parser):
                  "and modify users and indices. You have to add root "
                  "explicitely if wanted.")
 
+    deploy.addoption("--keyfs-cache-size", type=int, metavar="NUM",
+            action="store", default=10000,
+            help="size of keyfs cache. If your devpi-server installation "
+                 "gets a lot of writes, then increasing this might "
+                 "improve performance. Each entry uses 1kb of memory on "
+                 "average. So by default about 10MB are used.")
+
     bg = parser.addgroup("background server")
     bg.addoption("--start", action="store_true",
             help="start the background devpi-server")
@@ -132,19 +179,6 @@ def addoptions(parser):
     #group.addoption("--logfile", action="store",
     #        help="set log file file location")
 
-def load_setuptools_entrypoints():
-    try:
-        from pkg_resources import iter_entry_points, DistributionNotFound
-    except ImportError:
-        return # XXX issue a warning
-    for ep in iter_entry_points('devpi_server'):
-        try:
-            plugin = ep.load()
-        except DistributionNotFound:
-            continue
-        yield plugin, ep.dist
-
-
 def try_argcomplete(parser):
     try:
         import argcomplete
@@ -153,7 +187,7 @@ def try_argcomplete(parser):
     else:
         argcomplete.autocomplete(parser)
 
-def parseoptions(argv, addoptions=addoptions, hook=None):
+def parseoptions(pluginmanager, argv, addoptions=addoptions):
     parser = MyArgumentParser(
         description="Start a server which serves multiples users and "
                     "indices. The special root/pypi index is a real-time "
@@ -161,15 +195,14 @@ def parseoptions(argv, addoptions=addoptions, hook=None):
                     "All indices are suitable for pip or easy_install usage "
                     "and setup.py upload ... invocations."
     )
-
     addoptions(parser)
-    if hook:
-        hook.devpiserver_add_parser_options(parser)
+    pluginmanager.hook.devpiserver_add_parser_options(parser=parser)
+
     try_argcomplete(parser)
     raw = [str(x) for x in argv[1:]]
     args = parser.parse_args(raw)
     args._raw = raw
-    config = Config(args, hook=hook)
+    config = Config(args, pluginmanager=pluginmanager)
     return config
 
 class MyArgumentParser(argparse.ArgumentParser):
@@ -206,84 +239,12 @@ class MyArgumentParser(argparse.ArgumentParser):
 class ConfigurationError(Exception):
     """ incorrect configuration or environment settings. """
 
-class PluginManager:
-    def __init__(self, plugins):
-        self._plugins = plugins
-
-    def _call_plugins(self, _name, **kwargs):
-        results = []
-        for plug, distinfo in self._plugins:
-            meth = getattr(plug, _name, None)
-            if meth is not None:
-                name = "%s.%s" % (
-                            getattr(plug, "__class__", plug).__name__,
-                            meth.__name__)
-                with threadlog.around("debug", "call: %s ", name):
-                    results.append(meth(**kwargs))
-            #else:
-            #    threadlog.error("no plugin hook %s on %s", _name, plug)
-        return results
-
-    def devpiserver_pyramid_configure(self, config, pyramid_config):
-        return self._call_plugins("devpiserver_pyramid_configure",
-                                  config=config, pyramid_config=pyramid_config)
-
-    def devpiserver_add_parser_options(self, parser):
-        return self._call_plugins("devpiserver_add_parser_options",
-                                  parser=parser)
-
-    def devpiserver_run_commands(self, xom):
-        return self._call_plugins("devpiserver_run_commands",
-                                  xom=xom)
-
-    def devpiserver_on_upload(self, stage, projectname, version, link):
-        return self._call_plugins("devpiserver_on_upload",
-                                  stage=stage, projectname=projectname,
-                                  version=version, link=link)
-
-    def devpiserver_on_changed_versiondata(self, stage, projectname, version,
-                                           metadata):
-        return self._call_plugins("devpiserver_on_changed_versiondata",
-                                  stage=stage, projectname=projectname,
-                                  version=version, metadata=metadata)
-
-    def devpiserver_pypi_initial(self, stage, name2serials):
-        return self._call_plugins("devpiserver_pypi_initial",
-                                  stage=stage,
-                                  name2serials=name2serials)
-
-    def devpiserver_auth_credentials(self, request):
-        """Extracts username and password from request.
-
-        Returns a tuple with (username, password) if credentials could be
-        extracted, or None if no credentials were found.
-
-        The first plugin to return credentials is used, the order of plugin
-        calls is undefined.
-        """
-        return self._call_plugins("devpiserver_auth_credentials",
-                                  request=request)
-
-    def devpiserver_auth_user(self, userdict, username, password):
-        """Needs to validate the username and password.
-
-        A dict must be returned with a key "status" with one of the following
-        values:
-            "ok" - authentication succeeded
-            "unknown" - no matching user, other plugins are tried
-            "reject" - invalid password, authentication stops
-
-        Optionally the plugin can return a list of group names the user is
-        member of using the "groups" key of the result dict.
-        """
-        return self._call_plugins("devpiserver_auth_user",
-                                  userdict=userdict,
-                                  username=username, password=password)
-
 
 class Config:
-    def __init__(self, args, hook):
+    def __init__(self, args, pluginmanager):
         self.args = args
+        self.pluginmanager = pluginmanager
+        self.hook = pluginmanager.hook
         serverdir = args.serverdir
         if serverdir is None:
             serverdir = get_default_serverdir()
@@ -296,11 +257,12 @@ class Config:
                     os.path.expanduser(args.secretfile))
 
         self.path_nodeinfo = self.serverdir.join(".nodeinfo")
+
+    def init_nodeinfo(self):
         log.info("Loading node info from %s", self.path_nodeinfo)
         self._determine_roles()
         self._determine_uuid()
         self.write_nodeinfo()
-        self.hook = hook
 
     def _determine_uuid(self):
         if "uuid" not in self.nodeinfo:

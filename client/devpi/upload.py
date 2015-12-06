@@ -1,10 +1,10 @@
 import os
+import sys
 import py
 import re
 
 import check_manifest
 
-from devpi import log
 from devpi_common.metadata import Version, get_pyversion_filetype
 from devpi_common.archive import zip_dir
 from devpi_common.types import CompareMixin
@@ -27,16 +27,22 @@ def main(hub, args):
     setup = hub.cwd.join("setup.py")
     if not setup.check():
         hub.fatal("no setup.py found in", hub.cwd)
-    checkout = Checkout(hub, hub.cwd)
+
+    setupcfg = read_setupcfg(hub, hub.cwd)
+    checkout = Checkout(hub, hub.cwd, hasvcs=setupcfg.get("no-vcs"),
+                        setupdir_only=setupcfg.get("setupdir-only"))
     uploadbase = hub.getdir("upload")
     exported = checkout.export(uploadbase)
 
     exported.prepare()
     archives = []
     if not args.onlydocs:
-        archives.extend(exported.setup_build())
+        archives.extend(exported.setup_build(
+                            default_formats=setupcfg.get("formats")))
     if args.onlydocs or args.withdocs:
-        archives.append(exported.setup_build_docs())
+        p = exported.setup_build_docs()
+        if p:
+            archives.append(p)
     if not archives:
         hub.fatal("nothing built!")
     name_version = exported.setup_name_and_version()
@@ -152,6 +158,8 @@ class Uploader:
                 if r.type == "actionlog":
                     for x in r.result:
                         hub.error("  " + x)
+                elif r.reason:
+                    hub.error(r.reason)
                 hub.fatal("POST to %s FAILED" % hub.current.pypisubmit)
 
     def upload_release_file(self, path, pkginfo):
@@ -221,22 +229,35 @@ def find_parent_subpath(startpath, relpath, raising=True):
 
 
 class Checkout:
-    def __init__(self, hub, setupdir):
+    def __init__(self, hub, setupdir, hasvcs=None, setupdir_only=None):
         self.hub = hub
-        self.rootpath = setupdir
         assert setupdir.join("setup.py").check(), setupdir
-        hasvcs = not hub.args.novcs
+        hasvcs = not hasvcs and not hub.args.novcs
+        setupdir_only = bool(setupdir_only or hub.args.setupdironly)
         if hasvcs:
-            with self.rootpath.as_cwd():
+            with setupdir.as_cwd():
                 try:
-                    hasvcs = check_manifest.detect_vcs().__name__
+                    hasvcs = check_manifest.detect_vcs().metadata_name
                 except check_manifest.Failure:
-                    hasvcs = False
+                    hasvcs = None
+                else:
+                    if hasvcs not in (".hg", ".git") or setupdir_only:
+                        # XXX for e.g. svn we don't do copying
+                        self.rootpath = setupdir
+                    else:
+                        for p in setupdir.parts(reverse=True):
+                            if p.join(hasvcs).exists():
+                                self.rootpath = p
+                                break
+                        else:
+                            hasvcs = None
         self.hasvcs = hasvcs
+        self.setupdir = setupdir
+        self.setupdir_only = setupdir_only
 
     def export(self, basetemp):
         if not self.hasvcs:
-            return Exported(self.hub, self.rootpath, self.rootpath)
+            return Exported(self.hub, self.setupdir, self.setupdir)
         with self.rootpath.as_cwd():
             files = check_manifest.get_vcs_files()
         newrepo = basetemp.join(self.rootpath.basename)
@@ -245,11 +266,21 @@ class Checkout:
             if source.isfile():
                 dest = newrepo.join(fn)
                 dest.dirpath().ensure(dir=1)
-                source.copy(dest)
-        log.debug("copied %s files to %s", len(files), newrepo)
-        self.hub.info("%s-exported project to %s -> new CWD" %(
+                source.copy(dest, mode=True)
+        self.hub.debug("copied", len(files), "files to", newrepo)
+
+        if self.hasvcs not in (".git", ".hg") or self.setupdir_only:
+            self.hub.warn("not copying vcs repository metadata for", self.hasvcs)
+        else:
+            srcrepo = self.rootpath.join(self.hasvcs)
+            assert srcrepo.exists(), srcrepo
+            destrepo = newrepo.join(self.hasvcs)
+            self.rootpath.join(self.hasvcs).copy(destrepo, mode=True)
+            self.hub.info("copied repo", srcrepo, "to", destrepo)
+        self.hub.debug("%s-exported project to %s -> new CWD" %(
                       self.hasvcs, newrepo))
-        return Exported(self.hub, newrepo, self.rootpath)
+        setupdir_newrepo = newrepo.join(self.setupdir.relto(self.rootpath))
+        return Exported(self.hub, setupdir_newrepo, self.setupdir)
 
 class Exported:
     def __init__(self, hub, rootpath, origrepo):
@@ -295,8 +326,14 @@ class Exported:
             self.target_distdir.remove()
         self.target_distdir.mkdir()
 
-    def setup_build(self):
-        formats = [x.strip() for x in self.hub.args.formats.split(",")]
+    def setup_build(self, default_formats=None):
+        formats = self.hub.args.formats
+        if not formats:
+            formats = default_formats
+            if not formats:
+                formats = "sdist.zip" if sys.platform == "win32" else "sdist.tgz"
+
+        formats = [x.strip() for x in formats.split(",")]
 
         archives = []
         for format in formats:
@@ -332,9 +369,11 @@ class Exported:
         name, version = self.setup_name_and_version()
         cwd = self.rootpath
         build = cwd.join("build")
-        self.hub.popen_output(
+        out = self.hub.popen_output(
             [self.python, "setup.py", "build_sphinx", "-E",
-             "--build-dir", build])
+             "--build-dir", build], cwd=self.rootpath)
+        if out is None:
+            return
         p = self.target_distdir.join("%s-%s.doc.zip" %(name, version))
         html = build.join("html")
         zip_dir(html, p)
@@ -366,3 +405,11 @@ def sdistformat(format):
         res = format
     return res
 
+
+def read_setupcfg(hub, path):
+    setup_cfg = path.join("setup.cfg")
+    if setup_cfg.exists():
+        cfg = py.iniconfig.IniConfig(setup_cfg)
+        hub.line("detected devpi:upload section in %s" % setup_cfg, bold=True)
+        return cfg.sections.get("devpi:upload", {})
+    return {}

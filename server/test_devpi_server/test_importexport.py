@@ -3,12 +3,15 @@ from __future__ import unicode_literals
 import sys
 import pytest
 import json
-import time
 from devpi_server.importexport import *
 from devpi_server.main import Fatal
-from devpi_common.archive import zip_dict
+from devpi_common.archive import Archive, zip_dict
 
 import devpi_server
+
+def make_export(tmpdir, xom):
+    xom.config.init_nodeinfo()
+    return do_export(tmpdir, xom)
 
 pytestmark = [pytest.mark.notransaction]
 
@@ -23,19 +26,20 @@ def test_import_wrong_dumpversion(tmpdir, xom):
         do_import(tmpdir, xom)
 
 def test_empty_export(tmpdir, xom):
-    ret = do_export(tmpdir, xom)
+    xom.config.init_nodeinfo()
+    ret = make_export(tmpdir, xom)
     assert not ret
     data = json.loads(tmpdir.join("dataindex.json").read())
     assert data["dumpversion"] == Exporter.DUMPVERSION
     assert data["pythonversion"] == list(sys.version_info)
     assert data["devpi_server"] == devpi_server.__version__
     with pytest.raises(Fatal):
-        do_export(tmpdir, xom)
+        make_export(tmpdir, xom)
 
 def test_import_on_existing_server_data(tmpdir, xom):
     with xom.keyfs.transaction(write=True):
         xom.model.create_user("someuser", password="qwe")
-    assert not do_export(tmpdir, xom)
+    assert not make_export(tmpdir, xom)
     with pytest.raises(Fatal):
         do_import(tmpdir, xom)
 
@@ -62,22 +66,31 @@ class TestIndexTree:
 
 class TestImportExport:
     @pytest.fixture
-    def impexp(self, makemapp, gentmp):
+    def makeimpexp(self, makemapp, gentmp):
         class ImpExp:
-            def __init__(self):
+            def __init__(self, options=()):
                 self.exportdir = gentmp()
-                self.mapp1 = makemapp(options=[
-                    "--export", self.exportdir]
-                )
+                self.mapp1 = makemapp(
+                    options=("--export", self.exportdir) + options)
 
-            def export(self):
+            def export(self, initnodeinfo=True):
+                if initnodeinfo:
+                    self.mapp1.xom.config.init_nodeinfo()
                 assert self.mapp1.xom.main() == 0
 
-            def new_import(self):
-                mapp2 = makemapp(options=("--import", str(self.exportdir)))
+            def new_import(self, options=(), plugin=None):
+                mapp2 = makemapp(
+                    options=("--import", str(self.exportdir)) + options)
+                if plugin is not None:
+                    mapp2.xom.config.pluginmanager.register(plugin)
+                mapp2.xom.config.init_nodeinfo()
                 assert mapp2.xom.main() == 0
                 return mapp2
-        return ImpExp()
+        return ImpExp
+
+    @pytest.fixture
+    def impexp(self, makeimpexp):
+        return makeimpexp()
 
     def test_uuid(self, impexp):
         impexp.export()
@@ -237,7 +250,7 @@ class TestImportExport:
         with mapp1.xom.keyfs.transaction(write=True):
             stage = mapp1.xom.model.getstage(api.stagename)
             key_projversion = stage.key_projversion("hello", "1.0")
-            verdata = key_projversion.get()
+            verdata = key_projversion.get(readonly=False)
             del verdata["version"]
             key_projversion.set(verdata)
         impexp.export()
@@ -381,17 +394,17 @@ class TestImportExport:
         mapp1 = impexp.mapp1
         mapp1.create_and_login_user("exp", "pass")
         # fake it's a replica
+        mapp1.xom.config.init_nodeinfo()
         mapp1.xom.config.nodeinfo["role"] = "replica"
         mapp1.xom.config.set_master_uuid("mm")
         mapp1.xom.config.set_uuid("1111")
-        impexp.export()
+        impexp.export(initnodeinfo=False)
         mapp2 = impexp.new_import()
         assert mapp2.xom.config.nodeinfo["role"] == "master"
         assert mapp2.xom.config.get_master_uuid() == "mm"
         assert mapp2.xom.config.nodeinfo["uuid"] == "mm"
 
     def test_docs_are_preserved(self, impexp):
-        from devpi_common.archive import Archive
         mapp1 = impexp.mapp1
         api = mapp1.create_and_use()
         mapp1.set_versiondata({"name": "hello", "version": "1.0"})
@@ -406,35 +419,6 @@ class TestImportExport:
             assert 'index.html' in archive.namelist()
             assert py.builtin._totext(
                 archive.read("index.html"), 'utf-8') == "<html/>"
-
-    def test_multiple_docs_on_same_version(self, impexp):
-        from devpi_common.archive import Archive
-        mapp1 = impexp.mapp1
-        api = mapp1.create_and_use()
-        mapp1.set_versiondata({"name": "hello", "version": "1.0"})
-        with mapp1.xom.keyfs.transaction(write=True):
-            # create entries with and without log
-            stage = mapp1.xom.model.getstage(mapp1.current_stage)
-            link = stage.store_doczip(
-                "Hello", "1.0",
-                content=zip_dict({
-                    "index.html": "<html><body>Hello"}))
-            link.add_log('upload', stage.user.name, dst=stage.name)
-            time.sleep(1.1)  # force different times in log entry
-            link = stage.store_doczip(
-                "hello", "1.0",
-                content=zip_dict({
-                    "index.html": "<html><body>hello"}))
-            link.add_log('upload', stage.user.name, dst=stage.name)
-        impexp.export()
-        mapp2 = impexp.new_import()
-        with mapp2.xom.keyfs.transaction(write=False):
-            stage = mapp2.xom.model.getstage(api.stagename)
-            doczip = stage.get_doczip("hello", "1.0")
-            archive = Archive(py.io.BytesIO(doczip))
-            assert 'index.html' in archive.namelist()
-            assert py.builtin._totext(
-                archive.read("index.html"), 'utf-8') == "<html><body>hello"
 
     def test_name_mangling_relates_to_issue132(self, impexp):
         mapp1 = impexp.mapp1
@@ -460,3 +444,104 @@ class TestImportExport:
             links = stage.get_releaselinks(projectname)
             assert len(links) == 2
 
+    @pytest.mark.skipif(not hasattr(os, 'link'),
+                        reason="OS doesn't support hard links")
+    def test_hard_links(self, makeimpexp):
+        impexp = makeimpexp(options=('--hard-links',))
+        mapp1 = impexp.mapp1
+        api = mapp1.create_and_use()
+        content = b'content'
+        mapp1.upload_file_pypi("he-llo-1.0.tar.gz", content, "he_llo", "1.0")
+        content = zip_dict({"index.html": "<html/>"})
+        mapp1.upload_doc("he-llo.zip", content, "he-llo", "")
+
+        impexp.export()
+
+        assert impexp.exportdir.join(
+          'dataindex.json').stat().nlink == 1
+        assert impexp.exportdir.join(
+          'user1', 'dev', 'he_llo-1.0.doc.zip').stat().nlink == 2
+        assert impexp.exportdir.join(
+          'user1', 'dev', 'he_llo', 'he-llo-1.0.tar.gz').stat().nlink == 2
+
+        mapp2 = impexp.new_import()
+
+        with mapp2.xom.keyfs.transaction():
+            stage = mapp2.xom.model.getstage(api.stagename)
+            verdata = stage.get_versiondata_perstage("he_llo", "1.0")
+            assert verdata["version"] == "1.0"
+            links = stage.get_releaselinks("he_llo")
+            assert len(links) == 1
+            assert links[0].entry.file_get_content() == b'content'
+            doczip = stage.get_doczip("he_llo", "1.0")
+            archive = Archive(py.io.BytesIO(doczip))
+            assert 'index.html' in archive.namelist()
+            assert py.builtin._totext(
+                archive.read("index.html"), 'utf-8') == "<html/>"
+
+    def test_uploadtrigger_jenkins_removed_if_not_set(self, impexp):
+        mapp1 = impexp.mapp1
+        api = mapp1.create_and_use()
+        (user, index) = api.stagename.split('/')
+        with mapp1.xom.keyfs.transaction(write=True):
+            stage = mapp1.xom.model.getstage(api.stagename)
+            with stage.user.key.update() as userconfig:
+                ixconfig = userconfig["indexes"][index]
+                ixconfig["uploadtrigger_jenkins"] = None
+        with mapp1.xom.keyfs.transaction():
+            stage = mapp1.xom.model.getstage(api.stagename)
+            assert "uploadtrigger_jenkins" in stage.ixconfig
+            assert stage.ixconfig["uploadtrigger_jenkins"] is None
+
+        impexp.export()
+
+        mapp2 = impexp.new_import()
+        with mapp2.xom.keyfs.transaction():
+            stage = mapp2.xom.model.getstage(api.stagename)
+            assert "uploadtrigger_jenkins" not in stage.ixconfig
+
+    def test_import_fails_if_uploadtrigger_jenkins_set(self, impexp):
+        from devpi_server.model import InvalidIndexconfig
+        mapp1 = impexp.mapp1
+        api = mapp1.create_and_use()
+        (user, index) = api.stagename.split('/')
+        with mapp1.xom.keyfs.transaction(write=True):
+            stage = mapp1.xom.model.getstage(api.stagename)
+            with stage.user.key.update() as userconfig:
+                ixconfig = userconfig["indexes"][index]
+                ixconfig["uploadtrigger_jenkins"] = "foo"
+        with mapp1.xom.keyfs.transaction():
+            stage = mapp1.xom.model.getstage(api.stagename)
+            assert "uploadtrigger_jenkins" in stage.ixconfig
+            assert stage.ixconfig["uploadtrigger_jenkins"] == "foo"
+
+        impexp.export()
+
+        with pytest.raises(InvalidIndexconfig) as excinfo:
+            impexp.new_import()
+        assert "uploadtrigger_jenkins" in excinfo.value.args[0][0]
+
+    def test_plugin_index_config(self, impexp):
+        class Plugin:
+            def devpiserver_indexconfig_defaults(self, index_type):
+                return {"foo_plugin": index_type}
+        mapp1 = impexp.mapp1
+        mapp1.xom.config.pluginmanager.register(Plugin())
+        api = mapp1.create_and_use()
+        with mapp1.xom.keyfs.transaction():
+            stage = mapp1.xom.model.getstage(api.stagename)
+            assert stage.ixconfig["foo_plugin"] == "stage"
+
+        mapp1.set_indexconfig_option("foo_plugin", "foo")
+        with mapp1.xom.keyfs.transaction():
+            stage = mapp1.xom.model.getstage(api.stagename)
+            assert "foo_plugin" in stage.ixconfig
+            assert stage.ixconfig["foo_plugin"] == "foo"
+
+        impexp.export()
+
+        mapp2 = impexp.new_import(plugin=Plugin())
+        with mapp2.xom.keyfs.transaction():
+            stage = mapp2.xom.model.getstage(api.stagename)
+            assert "foo_plugin" in stage.ixconfig
+            assert stage.ixconfig["foo_plugin"] == "foo"

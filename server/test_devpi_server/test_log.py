@@ -1,7 +1,8 @@
-
 import pytest
 import logging
+import textwrap
 from devpi_server.log import *
+from .test_config import make_config
 
 
 @pytest.fixture
@@ -80,4 +81,52 @@ def test_threadlog_around(caplog):
     assert recs[0].msg == "NOCTX hello"
     assert recs[1].msg == "NOCTX inner"
     assert recs[2].msg == "NOCTX FIN: hello"
+
+
+class TestLoggerConfiguration:
+
+    def test_default(self):
+        config = make_config(["devpi-server"])
+        configure_logging(config.args)
+
+        assert logging.getLogger().getEffectiveLevel() == logging.INFO
+        level = logging.getLogger("requests.packages.urllib3").getEffectiveLevel()
+        assert level == logging.ERROR
+
+    @pytest.mark.skipif("sys.version_info < (2,7)")
+    def test_logger_cfg_json(self, tmpdir):
+        logger_cfg = tmpdir.join("logging.json")
+        logger_cfg.write(textwrap.dedent("""
+            {
+                "version": 1,
+                "disable_existing_loggers": false,
+                "root": {
+                    "handlers": [],
+                    "level": "WARNING"
+                }
+            }
+        """))
+        config = make_config(["devpi-server", "--logger-cfg=%s" % logger_cfg])
+        configure_logging(config.args)
+
+        assert logging.getLogger().getEffectiveLevel() == logging.WARNING
+        assert not logging.getLogger().handlers
+
+    @pytest.mark.skipif("sys.version_info < (2,7)")
+    def test_logger_cfg_yaml(self, tmpdir):
+        pytest.importorskip("yaml")
+        logger_cfg = tmpdir.join("logging.yml")
+        logger_cfg.write(textwrap.dedent("""
+            version: 1
+            disable_existing_loggers: False
+
+            root:
+                handlers: []
+                level: WARNING
+        """))
+        config = make_config(["devpi-server", "--logger-cfg=%s" % logger_cfg])
+        configure_logging(config.args)
+
+        assert logging.getLogger().getEffectiveLevel() == logging.WARNING
+        assert not logging.getLogger().handlers
 

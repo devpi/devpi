@@ -109,8 +109,9 @@ def test_simple_project_outside_url_subpath(mapp, outside_url, pypistage, testap
     [
         'pip/1.4.1',
         'setuptools/6.1',
+        'pex/1.0.1',
         'pip/6.0.dev1 {"cpu":"x86_64","distro":{"name":"OS X","version":"10.9.5"},"implementation":{"name":"CPython","version":"2.7.8"},"installer":{"name":"pip","version":"6.0.dev1"},"python":"2.7.8","system":{"name":"Darwin","release":"13.4.0"}}'],
-    ids=['pip', 'setuptools', 'pip6'])
+    ids=['pip', 'setuptools', 'pex', 'pip6'])
 def test_project_redirect(pypistage, testapp, user_agent):
     name = "qpwoei"
     headers = {'User-Agent': str(user_agent), "Accept": str("text/html")}
@@ -170,6 +171,15 @@ def test_simple_list(pypistage, testapp):
     hrefs = [a.get("href") for a in links]
     assert hrefs == ["hello1", "hello2"]
 
+def test_simple_page_pypi_serial(pypistage, testapp):
+    pypistage.mock_simple("hello1", text="qwe", pypiserial=None)
+    r = testapp.get("/root/pypi/+simple/hello1", expect_errors=False)
+    assert "X-PYPI-LAST-SERIAL" not in r.headers
+    pypistage.mock_simple("hello2", pkgver="hello2-1.0.zip")
+    r = testapp.get("/root/pypi/+simple/hello2", expect_errors=False)
+    assert r.headers.get("X-PYPI-LAST-SERIAL") == '10000'
+    assert '/hello2-1.0.zip">hello2-1.0.zip</a>' in r.unicode_body
+
 def test_simple_refresh(mapp, model, pypistage, testapp):
     pypistage.mock_simple("hello", "<html/>")
     r = testapp.xget(200, "/root/pypi/+simple/hello")
@@ -185,7 +195,7 @@ def test_simple_refresh(mapp, model, pypistage, testapp):
     assert r.location.endswith("/root/pypi/+simple/hello")
     with model.keyfs.transaction(write=False):
         info = pypistage._load_project_cache("hello")
-    assert info == {}
+    assert info["dumplist"] == []
 
 def test_inheritance_versiondata(mapp, model):
     api1 = mapp.create_and_use()
@@ -196,30 +206,57 @@ def test_inheritance_versiondata(mapp, model):
     assert len(r["result"]) == 1
 
 
-def test_simple_refresh_inherited(mapp, model, pypistage, testapp):
-    pypistage.mock_simple("pkg", "<html/>")
-    api = mapp.create_and_use()
-    mapp.set_versiondata(dict(name="pkg", version="1.0"))
-    r = testapp.xget(200, "/%s/+simple/pkg" % api.stagename)
+@pytest.mark.parametrize("projectname", ["pkg", "pkg_some"])
+@pytest.mark.parametrize("stagename", [None, "root/pypi"])
+def test_simple_refresh_inherited(mapp, model, pypistage, testapp, projectname,
+                                  stagename):
+    pypistage.mock_simple(projectname, '<a href="/%s-1.0.zip" />' % projectname,
+                          serial=100)
+    if stagename is None:
+        api = mapp.create_and_use()
+    else:
+        api = mapp.use(stagename)
+    stagename = api.stagename
+
+    r = testapp.xget(200, "/%s/+simple/%s" % (stagename, projectname))
     input, = r.html.select('form input')
     assert input.attrs['name'] == 'refresh'
-    assert input.attrs['value'] == 'Refresh PyPI links'
+    #assert input.attrs['value'] == 'Refresh PyPI links'
     with model.keyfs.transaction(write=False):
-        info = pypistage._load_project_cache("pkg")
+        info = pypistage._load_project_cache(projectname)
     assert info != {}
-    assert info['projectname'] == 'pkg'
-    r = testapp.post("/%s/+simple/pkg/refresh" % api.stagename)
+    assert info['projectname'] == projectname
+    pypistage.mock_simple(projectname, '<a href="/%s-2.0.zip" />' % projectname,
+                          serial=200)
+    r = testapp.post("/%s/+simple/%s/refresh" % (stagename, projectname))
     assert r.status_code == 302
-    assert r.location.endswith("/%s/+simple/pkg" % api.stagename)
+    assert r.location.endswith("/%s/+simple/%s" % (stagename, projectname))
     with model.keyfs.transaction(write=False):
-        info = pypistage._load_project_cache("pkg")
-    assert info == {}
+        info = pypistage._load_project_cache(projectname)
+    assert info["projectname"] == projectname
+    elist = info["dumplist"]
+    assert len(elist) == 1
+    assert elist[0][0].endswith("-2.0.zip")
+
 
 def test_simple_refresh_inherited_not_whitelisted(mapp, testapp):
     api = mapp.create_and_use()
     mapp.set_versiondata(dict(name="pkg", version="1.0"), set_whitelist=False)
     r = testapp.xget(200, "/%s/+simple/pkg" % api.stagename)
     assert len(r.html.select('form')) == 0
+
+
+def test_simple_blocked_warning(mapp, pypistage, testapp):
+    pypistage.mock_simple('pkg', '<a href="/pkg-1.0.zip" />', serial=100)
+    api = mapp.create_and_use()
+    mapp.set_versiondata(dict(name="pkg", version="1.0"), set_whitelist=False)
+    r = testapp.xget(200, "/%s/+simple/pkg" % api.stagename)
+    (paragraph,) = r.html.select('p')
+    assert paragraph.text == "INFO: Because this project isn't in the pypi_whitelist, no releases from root/pypi are included."
+    mapp.set_versiondata(dict(name="pkg", version="1.1"), set_whitelist=True)
+    r = testapp.xget(200, "/%s/+simple/pkg" % api.stagename)
+    assert r.html.select('p') == []
+
 
 def test_indexroot(testapp, model):
     with model.keyfs.transaction(write=True):
@@ -238,7 +275,7 @@ def test_indexroot_root_pypi(testapp, xom):
     '/root/pypi/{name}/2.6',
     '/root/pypi/+simple/{name}',
 ])
-@pytest.mark.parametrize("code", [-1, 404, 500, 501, 502, 503])
+@pytest.mark.parametrize("code", [-1, 500, 501, 502, 503])
 def test_upstream_not_reachable(reqmock, pypistage, testapp, code, url):
     name = "whatever{code}".format(code=code+100)
     pypistage.mock_simple(name, '', status_code=code)
@@ -289,6 +326,151 @@ class TestStatus:
         assert data["role"] == "REPLICA"
         assert data["serial"] == replica_xom.keyfs.get_current_serial()
         assert data["replication-errors"] == {}
+
+
+class TestStatusInfoPlugin:
+    @pytest.fixture
+    def plugin(self):
+        from devpi_server.views import devpiweb_get_status_info
+        return devpiweb_get_status_info
+
+    def _xomrequest(self, xom):
+        from pyramid.request import Request
+        request = Request.blank("/blankpath")
+        request.registry = dict(
+            xom=xom,
+            devpi_version_info=[])
+        return request
+
+    @pytest.mark.with_notifier
+    def test_no_issue(self, plugin, xom):
+        request = self._xomrequest(xom)
+        serial = xom.keyfs.get_current_serial()
+        xom.keyfs.notifier.wait_event_serial(serial)
+        result = plugin(request)
+        assert not xom.is_replica()
+        assert result == []
+
+    @pytest.mark.with_replica_thread
+    @pytest.mark.with_notifier
+    def test_no_issue_replica(self, plugin, xom):
+        request = self._xomrequest(xom)
+        serial = xom.keyfs.get_current_serial()
+        xom.keyfs.notifier.wait_event_serial(serial)
+        result = plugin(request)
+        assert hasattr(xom, 'replica_thread')
+        assert xom.is_replica()
+        assert result == []
+
+    def test_events_lagging(self, plugin, xom, monkeypatch):
+        import time
+        now = time.time()
+        request = self._xomrequest(xom)
+        # fatal if events never processed
+        result = plugin(request)
+        assert result == [dict(
+            status='fatal',
+            msg='Not all changes processed by plugins for more than 5 minutes')]
+        # fake first event processed
+        xom.keyfs.notifier.write_event_serial(0)
+        xom.keyfs.notifier.event_serial_in_sync_at = now
+        # no report in the first minute
+        result = plugin(request)
+        assert result == []
+        # warning after one minute
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 70)
+        result = plugin(request)
+        assert result == [dict(
+            status='warn',
+            msg='Not all changes processed by plugins for more than 1 minute')]
+        # fatal after five minutes
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 310)
+        result = plugin(request)
+        assert result == [dict(
+            status='fatal',
+            msg='Not all changes processed by plugins for more than 5 minutes')]
+
+    def test_replica_lagging(self, plugin, makexom, monkeypatch):
+        from devpi_server.replica import ReplicaThread
+        import time
+        now = time.time()
+        xom = makexom(["--master=http://localhost"])
+        request = self._xomrequest(xom)
+        xom.replica_thread = ReplicaThread(xom)
+        assert xom.is_replica()
+        # fake first serial processed
+        xom.replica_thread.update_master_serial(0)
+        xom.replica_thread.replica_in_sync_at = now
+        # no report in the first minute
+        result = plugin(request)
+        assert result == []
+        # warning after one minute
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 70)
+        result = plugin(request)
+        assert result == [dict(
+            status='warn',
+            msg='Replica is behind master for more than 1 minute')]
+        # fatal after five minutes
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 310)
+        result = plugin(request)
+        assert result == [dict(
+            status='fatal',
+            msg='Replica is behind master for more than 5 minutes')]
+
+    def test_initial_master_connection(self, plugin, makexom, monkeypatch):
+        from devpi_server.replica import ReplicaThread
+        import time
+        now = time.time()
+        xom = makexom(["--master=http://localhost"])
+        request = self._xomrequest(xom)
+        xom.replica_thread = ReplicaThread(xom)
+        assert xom.is_replica()
+        assert xom.replica_thread.started_at is None
+        # fake replica start
+        xom.replica_thread.started_at = now
+        # no report in the first minute
+        result = plugin(request)
+        assert result == []
+        # warning after one minute
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 70)
+        result = plugin(request)
+        assert result == [dict(
+            status='warn',
+            msg='No contact to master for more than 1 minute')]
+        # fatal after five minutes
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 310)
+        result = plugin(request)
+        assert result == [dict(
+            status='fatal',
+            msg='No contact to master for more than 5 minutes')]
+
+    @pytest.mark.with_replica_thread
+    @pytest.mark.with_notifier
+    def test_no_master_update(self, plugin, xom, monkeypatch):
+        import time
+        now = time.time()
+        request = self._xomrequest(xom)
+        serial = xom.keyfs.get_current_serial()
+        xom.keyfs.notifier.wait_event_serial(serial)
+        assert hasattr(xom, 'replica_thread')
+        assert xom.is_replica()
+        # fake last update
+        xom.replica_thread.update_from_master_at = now
+        # no report in the first minute
+        result = plugin(request)
+        assert result == []
+        # warning after one minute
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 70)
+        result = plugin(request)
+        assert result == [dict(
+            status='warn',
+            msg='No update from master for more than 1 minute')]
+        # fatal after five minutes
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 310)
+        result = plugin(request)
+        assert result == [dict(
+            status='fatal',
+            msg='No update from master for more than 5 minutes')]
 
 
 def test_apiconfig_with_outside_url(testapp):
@@ -397,8 +579,14 @@ class TestSubmitValidation:
         r = submit.file("pkg5-2.6.qwe", b"123", {"name": "Pkg5"}, code=400)
         assert "not a valid" in r.status
         r = submit.file("pkg5-2.7.tgz", b"123", {"name": "pkg5"}, code=200)
-        paths = mapp.get_release_paths("Pkg5")
-        assert paths[0].endswith("pkg5-2.7.tgz")
+        mapp.get_release_paths("Pkg5")
+
+    def test_upload_file_version_not_in_filename(self, submit, mapp):
+        metadata = {"name": "Pkg5", "version": "1.0", ":action": "submit"}
+        submit.metadata(metadata, code=200)
+        r = submit.file("pkg5-0.0.0.tgz", b"123", {"name": "Pkg5", "version": "1.0"},
+                        code=400)
+        assert "does not contain version" in r.status
 
     def test_upload_use_registered_name_issue84(self, submit, mapp):
         metadata = {"name": "pkg_hello", "version":"1.0", ":action": "submit"}
@@ -492,7 +680,8 @@ class TestSubmitValidation:
         assert path1 == path2
         r = testapp.xget(200, path2)
         assert r.body == b'123'
-        r = testapp.xget(200, "%s/Pkg5/2.6" % mapp.api.index)
+        r = testapp.xget(200, "%s/Pkg5/2.6" % mapp.api.index,
+                         accept="application/json")
         links = r.json['result']['+links']
         assert len(links) == 2
         for link in links:
@@ -514,7 +703,8 @@ class TestSubmitValidation:
         path2, = mapp.get_release_paths("Pkg5")
         testapp.xget(410, path1)  # existed once but deleted during overwrite
         testapp.xget(200, path2)
-        r = testapp.xget(200, "%s/Pkg5/2.6" % mapp.api.index)
+        r = testapp.xget(200, "%s/Pkg5/2.6" % mapp.api.index,
+                         accept="application/json")
         links = r.json['result']['+links']
         assert len(links) == 2
         for link in links:
@@ -534,7 +724,8 @@ class TestSubmitValidation:
         submit.file("pkg5-2.6.tgz", b"123", {"name": "Pkg5"}, code=200)
         submit.file("pkg5-2.6.tgz", b"1234", {"name": "Pkg5"}, code=200)
         submit.file("pkg5-2.6.tgz", b"12345", {"name": "Pkg5"}, code=200)
-        r = testapp.xget(200, "%s/Pkg5/2.6" % mapp.api.index)
+        r = testapp.xget(200, "%s/Pkg5/2.6" % mapp.api.index,
+                         accept="application/json")
         link, = r.json['result']['+links']
         log1, log2 = link['log']
         assert sorted(log1.keys()) == ['count', 'what', 'when', 'who']
@@ -551,7 +742,8 @@ class TestSubmitValidation:
         mapp.use(old_stage)
         req = dict(name="Pkg5", version="2.6", targetindex=new_stage)
         r = testapp.push("/%s" % old_stage, json.dumps(req))
-        r = testapp.xget(200, "/%s/Pkg5/2.6" % new_stage)
+        r = testapp.xget(200, "/%s/Pkg5/2.6" % new_stage,
+                         accept="application/json")
         link, = r.json['result']['+links']
         # the overwrite info should be gone
         log1, log2 = link['log']
@@ -634,27 +826,32 @@ def test_submit_authorization(mapp, testapp):
 
 
 def test_push_non_existent(mapp, testapp, monkeypatch):
-    # check that push from non-existent index results in 404
     req = dict(name="pkg5", version="2.6", targetindex="user2/dev")
+    # check redirection/404 (depending on if devpi-web is installed,
+    # status_code is different)
     r = testapp.push("/user2/dev/", json.dumps(req), expect_errors=True)
+    assert r.status_code in (302, 404)
+
+    # check that push to from non-existent index results in 404
+    r = testapp.push("/user2/dev", json.dumps(req), expect_errors=True)
     assert r.status_code == 404
     mapp.create_and_login_user("user1", "1")
     mapp.create_index("dev")
 
-    # check that push to non-existent target index results in 404
-    r = testapp.push("/user1/dev/", json.dumps(req), expect_errors=True)
-    assert r.status_code == 404
+    # check that push to non-existent target index results in error
+    r = testapp.push("/user1/dev", json.dumps(req), expect_errors=True)
+    assert r.status_code == 400
 
     mapp.create_and_login_user("user2")
     mapp.create_index("dev", indexconfig=dict(acl_upload=["user2"]))
     mapp.login("user1", "1")
-    # check that push of non-existent release results in 404
-    r = testapp.push("/user1/dev/", json.dumps(req), expect_errors=True)
-    assert r.status_code == 404
+    # check push of non-existent release results in error
+    r = testapp.push("/user1/dev", json.dumps(req), expect_errors=True)
+    assert r.status_code == 400
     #
     mapp.use("user1/dev")
     mapp.upload_file_pypi("pkg5-2.6.tgz", b"123", "pkg5", "2.6")
-    # check that push to non-authoried existent target index results in 401
+    # check that push to non-authorized existent target index results in error
     r = testapp.push("/user1/dev", json.dumps(req), expect_errors=True)
     assert r.status_code == 401
 
@@ -899,7 +1096,7 @@ class TestPluginPermissions:
 
     @pytest.fixture
     def xom(self, makexom, plugin):
-        xom = makexom(plugins=[(plugin, None)])
+        xom = makexom(plugins=[plugin])
         return xom
 
     def test_plugin_upload_group(self, mapp, plugin):
@@ -930,15 +1127,20 @@ class TestPluginPermissions:
         mapp.create_index("pluginuser/dev", code=404)
 
 
-def test_upload_with_jenkins(mapp, reqmock):
+def test_upload_trigger(mapp):
+    class Plugin:
+        def devpiserver_on_upload_sync(self, log, application_url,
+                                       stage, projectname, version):
+            self.results.append(
+                (application_url, stage.name, projectname, version))
+    plugin = Plugin()
+    plugin.results = []
+    mapp.xom.config.pluginmanager.register(plugin)
     mapp.create_and_use()
-    mapp.set_uploadtrigger_jenkins("http://x.com/{pkgname}/{pkgversion}")
-    rec = reqmock.mockresponse(code=200, url=None)
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200)
-    assert len(rec.requests) == 1
-    assert rec.requests[0].url == "http://x.com/pkg1/2.6"
-    # XXX properly decode form
-    #assert args[1]["data"]["Submit"] == "Build"
+    assert plugin.results == [
+        ('http://localhost', 'user1/dev', 'pkg1', '2.6')]
+
 
 def test_upload_and_testdata(mapp, testapp):
     from test_devpi_server.example import tox_result_data
@@ -1004,6 +1206,27 @@ def test_delete_volatile_fails(mapp):
     mapp.use("root/test")
     mapp.upload_file_pypi("pkg5-2.6.tgz", b"123", "pkg5", "2.6")
     mapp.delete_project("pkg5", code=403)
+
+
+@pytest.mark.parametrize("volatile", [True, False])
+@pytest.mark.parametrize("restrict_modify", [None, "root"])
+def test_delete_with_acl_upload(mapp, restrict_modify, volatile, xom):
+    xom.config.args.restrict_modify = restrict_modify
+    mapp.login_root()
+    mapp.create_user("user1", "1")
+    mapp.create_index("user1/dev", indexconfig=dict(
+        acl_upload=["user2"],
+        volatile=volatile))
+    mapp.create_and_login_user("user2")
+    mapp.use("user1/dev")
+    mapp.upload_file_pypi(
+        "pkg5-2.6.tgz", b"123", "pkg5", "2.6", set_whitelist=False)
+    mapp.upload_file_pypi(
+        "pkg5-2.7.tgz", b"123", "pkg5", "2.7", set_whitelist=False)
+    result_code = 200 if volatile else 403
+    mapp.delete_project('pkg5/2.6', code=result_code)
+    mapp.delete_project('pkg5', code=result_code)
+
 
 @proj
 def test_upload_docs_no_version(mapp, testapp, proj):
@@ -1075,9 +1298,9 @@ def test_wrong_login_format(testapp, mapp):
       dict(type="stage", volatile=False, bases=["root/pypi"],
            acl_upload=["hello"])),
 ])
-def test_kvdict(input, expected):
+def test_kvdict(xom, input, expected):
     from devpi_server.views import getkvdict_index
-    result = getkvdict_index(input)
+    result = getkvdict_index(xom.config.hook, input)
     assert result == expected
 
 
@@ -1205,7 +1428,7 @@ class TestRestrictModify:
 
     @pytest.fixture
     def xom(self, makexom, plugin, restrict_modify):
-        xom = makexom(plugins=[(plugin, None)])
+        xom = makexom(plugins=[plugin])
         xom.config.args.restrict_modify = restrict_modify
         return xom
 

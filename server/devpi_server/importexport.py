@@ -1,13 +1,16 @@
 from __future__ import unicode_literals
 import sys
 import json
+import os
 import py
 import logging
 import posixpath
+import shutil
 from devpi_common.validation import normalize_name
 from devpi_common.metadata import BasenameMeta
 from devpi_common.types import parse_hash_spec
-from devpi_server.main import fatal
+from .main import fatal
+from .readonly import get_mutable_deepcopy, ReadonlyView
 import devpi_server
 
 
@@ -37,7 +40,14 @@ def do_import(path, xom):
                   xom.config.serverdir)
     importer = Importer(tw, xom)
     importer.import_all(path)
-    importer.wait_for_events()
+    if xom.config.args.wait_for_events:
+        importer.wait_for_events()
+    else:
+        importer.warn(
+            "Update events have not been processed, when you start the server "
+            "they will be processed in order. If you use devpi-web, then the "
+            "search index and documentation will gradually update until all "
+            "events have been processed.")
     return 0
 
 
@@ -53,12 +63,16 @@ class Exporter:
         self.export_users = self.export["users"] = {}
         self.export_indexes = self.export["indexes"] = {}
 
-    def write_file(self, content, dest):
+    def copy_file(self, src, dest):
         dest.dirpath().ensure(dir=1)
-        with dest.open("wb") as f:
-            f.write(content)
-        self.tw.line("write file at %s" %(dest.relto(self.basepath),))
-        return dest.relto(self.basepath)
+        relpath = dest.relto(self.basepath)
+        if self.config.args.hard_links:
+            self.tw.line("link file at %s" % relpath)
+            os.link(src, dest.strpath)
+        else:
+            self.tw.line("write file at %s" % relpath)
+            shutil.copyfile(src, dest.strpath)
+        return relpath
 
     def warn(self, msg):
         self.tw.line(msg, red=True)
@@ -88,7 +102,13 @@ class Exporter:
         self._write_json(path.join("dataindex.json"), self.export)
 
     def _write_json(self, path, data):
-        writedata = json.dumps(data, indent=2)
+        # use a special handler for serializing ReadonlyViews
+        def handle_readonly(val):
+            if isinstance(val, ReadonlyView):
+                return val._data
+            raise TypeError(type(val))
+
+        writedata = json.dumps(data, indent=2, default=handle_readonly)
         path.dirpath().ensure(dir=1)
         self.tw.line("writing %s, length %s" %(path.relto(self.basepath),
                                                len(writedata)))
@@ -106,13 +126,12 @@ class IndexDump:
         self.indexmeta["files"] = []
 
     def dump(self):
-        import copy
         for name in self.stage.list_projectnames_perstage():
             data = {}
             versions = self.stage.list_versions_perstage(name)
             for version in versions:
-                data[version] = copy.deepcopy(
-                    self.stage.get_versiondata_perstage(name, version))
+                v = self.stage.get_versiondata_perstage(name, version)
+                data[version] = get_mutable_deepcopy(v)
             for val in data.values():
                 val.pop("+elinks", None)
             norm_name = normalize_name(name)
@@ -124,31 +143,30 @@ class IndexDump:
                 linkstore = self.stage.get_linkstore_perstage(vername, version)
                 self.dump_releasefiles(linkstore)
                 self.dump_toxresults(linkstore)
-                content = self.stage.get_doczip(vername, version)
-                if content:
-                    self.dump_docfile(vername, version, content)
+                entry = self.stage.get_doczip_entry(vername, version)
+                if entry:
+                    self.dump_docfile(vername, version, entry)
         self.exporter.completed("index %r" % self.stage.name)
 
     def dump_releasefiles(self, linkstore):
         for link in linkstore.get_links(rel="releasefile"):
             entry = self.exporter.filestore.get_file_entry(link.entrypath)
             assert entry.file_exists(), entry.relpath
-            content = entry.file_get_content()
-            relpath = self.exporter.write_file(
-                content,
+            relpath = self.exporter.copy_file(
+                entry._filepath,
                 self.basedir.join(linkstore.projectname, entry.basename))
             self.add_filedesc("releasefile", linkstore.projectname, relpath,
                                version=linkstore.version,
-                               entrymapping=entry.meta.copy(),
+                               entrymapping=entry.meta,
                                log=link.get_logs())
 
     def dump_toxresults(self, linkstore):
         for tox_link in linkstore.get_links(rel="toxresult"):
             reflink = linkstore.stage.get_link_from_entrypath(tox_link.for_entrypath)
-            relpath = self.exporter.write_file(
-                content=tox_link.entry.file_get_content(),
-                dest=self.basedir.join(linkstore.projectname, reflink.hash_spec,
-                                       tox_link.basename)
+            relpath = self.exporter.copy_file(
+                tox_link.entry._filepath,
+                self.basedir.join(linkstore.projectname, reflink.hash_spec,
+                                  tox_link.basename)
             )
             self.add_filedesc(type="toxresult",
                               projectname=linkstore.projectname,
@@ -166,11 +184,10 @@ class IndexDump:
         self.indexmeta["files"].append(d)
         self.exporter.completed("%s: %s " %(type, relpath))
 
-    def dump_docfile(self, projectname, version, content):
-        p = self.basedir.join("%s-%s.doc.zip" %(projectname, version))
-        with p.open("wb") as f:
-            f.write(content)
-        relpath = p.relto(self.exporter.basepath)
+    def dump_docfile(self, projectname, version, entry):
+        relpath = self.exporter.copy_file(
+            entry._filepath,
+            self.basedir.join("%s-%s.doc.zip" % (projectname, version)))
         self.add_filedesc("doczip", projectname, relpath, version=version)
 
 
@@ -227,6 +244,11 @@ class Importer:
                     continue
                 import_index = self.import_indexes[stagename]
                 indexconfig = import_index["indexconfig"]
+                if 'uploadtrigger_jenkins' in indexconfig:
+                    if not indexconfig['uploadtrigger_jenkins']:
+                        # remove if not set, so if the trigger was never
+                        # used, you don't need to install the plugin
+                        del indexconfig['uploadtrigger_jenkins']
                 user, index = stagename.split("/")
                 user = self.xom.model.get_user(user)
                 stage = user.create_stage(index, **indexconfig)

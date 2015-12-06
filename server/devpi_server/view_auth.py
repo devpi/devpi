@@ -18,6 +18,8 @@ class StageACL(object):
             if principal == ':ANONYMOUS:':
                 principal = Everyone
             acl.append((Allow, principal, 'pypi_submit'))
+            acl.append((Allow, principal, 'del_verdata'))
+            acl.append((Allow, principal, 'del_project'))
         if self.restrict_modify is None:
             acl.extend([
                 (Allow, self.stage.username, 'index_modify'),
@@ -175,7 +177,7 @@ class DevpiAuthenticationPolicy(CallbackAuthenticationPolicy):
     def __init__(self, xom):
         self.realm = "pypi"
         self.auth = Auth(xom.model, xom.config.secret)
-        self.hook = xom.config.hook.devpiserver_auth_credentials
+        self.hook = xom.config.hook
 
     def unauthenticated_userid(self, request):
         """ The userid parsed from the ``Authorization`` request header."""
@@ -211,6 +213,4 @@ class DevpiAuthenticationPolicy(CallbackAuthenticationPolicy):
             raise ValueError("Unknown authentication status: %s" % status)
 
     def _get_credentials(self, request):
-        results = list(filter(None, self.hook(request)))
-        if results:
-            return results[0]
+        return self.hook.devpiserver_get_credentials(request=request)

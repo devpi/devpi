@@ -7,10 +7,10 @@ import mimetypes
 import pytest
 import py
 from bs4 import BeautifulSoup
-from devpi_server.config import PluginManager
+from devpi_server import extpypi
+from devpi_server.config import get_pluginmanager
 from devpi_server.main import XOM, parseoptions
 from devpi_common.url import URL
-from devpi_server.extpypi import XMLProxy
 from devpi_server.extpypi import PyPIStage
 from devpi_server.log import threadlog, thread_clear_log
 from pyramid.authentication import b64encode
@@ -64,11 +64,15 @@ def Queue():
 def caplog(caplog):
     """ enrich the pytest-capturelog funcarg. """
     caplog.setLevel(logging.DEBUG)
-    def getrecords(msgrex=None):
+    def getrecords(msgrex=None, minlevel="DEBUG"):
         if msgrex is not None:
             msgrex = re.compile(msgrex)
+        minlevelno = {"DEBUG": 10, "INFO": 20, "WARNING": 30,
+                      "ERROR": 40, "FATAL": 50}.get(minlevel)
         recs = []
         for rec in caplog.records():
+            if rec.levelno < minlevelno:
+                continue
             if msgrex is not None and not msgrex.search(rec.getMessage()):
                 continue
             recs.append(rec)
@@ -140,23 +144,33 @@ def mock():
         import mock
     return mock
 
+
+@pytest.fixture()
+def proxymock(request, mock):
+    proxy = mock.create_autospec(extpypi.PyPISimpleProxy)
+    proxy.list_packages_with_serial.return_value = {}
+    return proxy
+
+
 @pytest.fixture
-def makexom(request, gentmp, httpget, monkeypatch, mock):
-    def makexom(opts=(), httpget=httpget, proxy=None, mocking=True, plugins=()):
+def makexom(request, gentmp, httpget, monkeypatch, proxymock):
+    def makexom(opts=(), httpget=httpget, mocking=True, plugins=()):
         from devpi_server import auth_basic
         from devpi_server import auth_devpi
         plugins = list(plugins) + [(auth_basic, None), (auth_devpi, None)]
-        hook = PluginManager(plugins)
+        pm = get_pluginmanager()
+        for plugin in plugins:
+            pm.register(plugin)
         serverdir = gentmp()
         fullopts = ["devpi-server", "--serverdir", serverdir] + list(opts)
+        if request.node.get_marker("with_replica_thread"):
+            fullopts.append("--master=http://localhost")
         fullopts = [str(x) for x in fullopts]
-        config = parseoptions(fullopts, hook=hook)
+        config = parseoptions(pm, fullopts)
+        config.init_nodeinfo()
         if mocking:
-            if proxy is None:
-                proxy = mock.create_autospec(XMLProxy)
-                proxy.list_packages_with_serial.return_value = {}
-            xom = XOM(config, proxy=proxy, httpget=httpget)
-            add_pypistage_mocks(monkeypatch, httpget)
+            xom = XOM(config, proxy=proxymock, httpget=httpget)
+            add_pypistage_mocks(monkeypatch, httpget, proxymock)
         else:
             xom = XOM(config)
         # initialize default indexes
@@ -165,7 +179,13 @@ def makexom(request, gentmp, httpget, monkeypatch, mock):
             with xom.keyfs.transaction(write=True):
                 set_default_indexes(xom.model)
         if mocking:
-            xom.pypimirror.init_pypi_mirror(proxy)
+            xom.pypimirror.init_pypi_mirror(proxymock)
+        if request.node.get_marker("with_replica_thread"):
+            from devpi_server.replica import ReplicaThread
+            rt = ReplicaThread(xom)
+            xom.replica_thread = rt
+            xom.thread_pool.register(rt)
+            xom.thread_pool.start_one(rt)
         if request.node.get_marker("start_threads"):
             xom.thread_pool.start()
         elif request.node.get_marker("with_notifier"):
@@ -177,10 +197,10 @@ def makexom(request, gentmp, httpget, monkeypatch, mock):
 
 @pytest.fixture
 def replica_xom(request, makexom):
-    from devpi_server.replica import PyPIProxy
+    from devpi_server.replica import PyPIDevpiProxy
     master_url = "http://localhost:3111"
     xom = makexom(["--master", master_url])
-    xom.proxy = PyPIProxy(xom._httpsession, xom.config.master_url)
+    xom.proxy = PyPIDevpiProxy(xom._httpsession, xom.config.master_url)
     return xom
 
 
@@ -250,7 +270,8 @@ def httpget(pypiurls):
             elif text and "{sha256}" in text:
                 text = text.format(sha256=getsha256(text))
             headers = kw.setdefault("headers", {})
-            headers["X-PYPI-LAST-SERIAL"] = pypiserial
+            if pypiserial is not None:
+                headers["X-PYPI-LAST-SERIAL"] = str(pypiserial)
             self.mockresponse(pypiurls.simple + name + "/",
                                       text=text, **kw)
             return ret
@@ -289,17 +310,22 @@ def model(xom):
 def pypistage(xom):
     return PyPIStage(xom)
 
-def add_pypistage_mocks(monkeypatch, httpget):
+@pytest.fixture
+def pypireplicastage(replica_xom):
+    return PyPIStage(replica_xom)
+
+def add_pypistage_mocks(monkeypatch, httpget, proxymock):
     # add some mocking helpers
     PyPIStage.url2response = httpget.url2response
     def mock_simple(self, name, text=None, pypiserial=10000, **kw):
-        call = lambda: \
-                 self.pypimirror.process_changelog([(name, 0,0,0, pypiserial)])
-        if not hasattr(self.keyfs, "tx"):
-            with self.keyfs.transaction(write=True):
+        if pypiserial is not None:
+            call = lambda: \
+                     self.pypimirror.set_project_serial(name, pypiserial)
+            if not hasattr(self.keyfs, "tx"):
+                with self.keyfs.transaction(write=True):
+                    call()
+            else:
                 call()
-        else:
-            call()
         return self.httpget.mock_simple(name,
                 text=text, pypiserial=pypiserial, **kw)
     monkeypatch.setattr(PyPIStage, "mock_simple", mock_simple, raising=False)
@@ -482,14 +508,15 @@ class Mapp(MappMixin):
         r = self.testapp.patch_json(indexurl, result)
         assert r.status_code == 200
 
-    def set_uploadtrigger_jenkins(self, triggerurl, indexname=None):
+    def set_indexconfig_option(self, key, value, indexname=None):
         indexname = self._getindexname(indexname)
         indexurl = "/" + indexname
         r = self.testapp.get_json(indexurl)
         result = r.json["result"]
-        result["uploadtrigger_jenkins"] = triggerurl
+        result[key] = value
         r = self.testapp.patch_json(indexurl, result)
         assert r.status_code == 200
+        assert r.json["result"][key] == value
 
     def set_pypi_whitelist(self, whitelist, indexname=None):
         indexname = self._getindexname(indexname)
@@ -641,27 +668,41 @@ def noiter(monkeypatch, request):
 class MyTestApp(TApp):
     auth = None
 
+    def __init__(self, *args, **kwargs):
+        super(MyTestApp, self).__init__(*args, **kwargs)
+        self.headers = {}
+
     def set_auth(self, user, password):
         self.auth = (user, password)
 
-    def _gen_request(self, method, url, **kw):
+    def set_header_default(self, name, value):
+        self.headers[str(name)] = str(value)
+
+    def _gen_request(self, method, url, params=None, headers=None, **kw):
+        headers = {} if headers is None else headers.copy()
         if self.auth:
-            headers = kw.get("headers")
             if not headers:
                 headers = kw["headers"] = {}
             headers["X-Devpi-Auth"] = b64encode("%s:%s" % self.auth)
             #print ("setting auth header %r %s %s" % (auth, method, url))
+
+        # fill headers with defaults
+        for name, val in self.headers.items():
+            headers.setdefault(name, val)
+
+        kw["headers"] = headers
+        if params is not None:
+            kw["params"] = params
         return super(MyTestApp, self)._gen_request(method, url, **kw)
 
     def post(self, *args, **kwargs):
         code = kwargs.pop("code", None)
         if code is not None and code >= 300:
             kwargs.setdefault("expect_errors", True)
-        r = super(MyTestApp, self).post(*args, **kwargs)
+        r = self._gen_request("POST", *args, **kwargs)
         if code is not None:
             assert r.status_code == code
         return r
-
 
     def push(self, url, params=None, **kw):
         kw.setdefault("expect_errors", True)
@@ -673,7 +714,7 @@ class MyTestApp(TApp):
         if accept is not None:
             headers = kwargs.setdefault("headers", {})
             headers[str("Accept")] = str(accept)
-        return super(MyTestApp, self).get(*args, **kwargs)
+        return self._gen_request("GET", *args, **kwargs)
 
     def xget(self, code, *args, **kwargs):
         r = self.get(*args, **kwargs)
@@ -682,7 +723,7 @@ class MyTestApp(TApp):
 
     def xdel(self, code, *args, **kwargs):
         kwargs.setdefault("expect_errors", True)
-        r = self.delete(*args, **kwargs)
+        r = self._gen_request("DELETE", *args, **kwargs)
         assert r.status_code == code
         return r
 
@@ -818,12 +859,20 @@ def getsha256(s):
 
 
 @pytest.yield_fixture
-def dummyrequest():
-    from pyramid.testing import DummyRequest, setUp, tearDown
-    request = DummyRequest()
-    setUp(request=request)
-    yield request
+def pyramidconfig():
+    from pyramid.testing import setUp, tearDown
+    config = setUp()
+    yield config
     tearDown()
+
+
+@pytest.yield_fixture
+def dummyrequest(pyramidconfig):
+    from pyramid.testing import DummyRequest
+    request = DummyRequest()
+    pyramidconfig.begin(request=request)
+    yield request
+
 
 @pytest.fixture
 def blank_request():

@@ -32,15 +32,15 @@ def index_show(hub, url):
     reply = hub.http_api("get", url, None, quiet=True, type="indexconfig")
     ixconfig = reply.result
     hub.info(url.url + ":")
-    hub.line("  type=%s" % ixconfig["type"])
-    hub.line("  bases=%s" % ",".join(ixconfig["bases"]))
-    hub.line("  volatile=%s" % (ixconfig["volatile"],))
-    hub.line("  uploadtrigger_jenkins=%s" %(
-                ixconfig["uploadtrigger_jenkins"],))
-    hub.line("  acl_upload=%s" % ",".join(ixconfig["acl_upload"]))
-    hub.line("  pypi_whitelist=%s" % ",".join(ixconfig["pypi_whitelist"]))
-    if "custom_data" in ixconfig:
-        hub.line("  custom_data=%s" % ixconfig["custom_data"])
+    key_order = ["type", "bases", "volatile", "acl_upload", "pypi_whitelist"]
+    additional_keys = set(ixconfig) - set(key_order)
+    additional_keys = additional_keys - set(('projects',))
+    key_order.extend(sorted(additional_keys))
+    for key in key_order:
+        value = ixconfig[key]
+        if isinstance(value, list):
+            value = ",".join(value)
+        hub.line("  %s=%s" % (key, value))
 
 def parse_posargs(hub, args):
     indexname = args.indexname

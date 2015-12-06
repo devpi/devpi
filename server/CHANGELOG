@@ -1,7 +1,167 @@
-2.2.0.DEV
-----------------
+2.5.3 (2015-11-23)
+------------------
 
-- add new ``devpiserver_auth_credentials`` plugin hook to extract credentials
+- fix a bug that resulted from accessing a non-existing project on 
+  root/pypi where upstream does not contain the X-PYPI-LAST-SERIAL
+  header usually.  Thanks Matthias Bach.
+
+2.5.2 (2015-11-20)
+------------------
+
+- recognize "pex" for redirections of user/index/NAME to
+  user/index/+simple/NAME just like we do with pip/setuptools.
+
+- fix py2 incompatibility introduced with 2.5.1 where we used
+  a unicode header and pyramid only likes str-headers.
+
+2.5.1 (2015-11-20)
+------------------
+
+- fix issue289: fix simple page serving on replicas
+
+
+2.5.0 (2015-11-19)
+------------------
+
+- fix a regression of 2.3.0 which would cause many write-transactions
+  for mirrored simple-page entries that didn't change.  Previous to the fix,
+  accesses to mirrored simple pages will result in a new
+  write-transaction every 30 minutes if the page is accessed which
+  is likely on a somewhat busy site.  If you running with replicas
+  it is recommended to do an an export/import cycle to remove all 
+  the unneccessary writes that were produced since devpi-server-2.3.0.
+  They delay the setup of new replicas considerably.
+
+- add info about pypi_whitelist on simple page when root/pypi is blocked for
+  a project.
+
+- replica simple-page serving will not unneccessarily wait for new 
+  simple-page entries to arrive at the replication side if the master 
+  does not return any changes in the initial simple-page request.
+  Previously a replica would wait for the replication-thread to catch
+  up even if no links changed.
+
+- fix setup.py to work on py34 and with LANG="C" environments.
+  Thanks Jason R. Coombs.
+
+- fix issue284: allow users who are listed in acl_upload to delete packages
+
+
+2.4.0 (2015-11-11)
+------------------
+
+- NOTE: devpi-server-2.4 is compatible to data from devpi-server-2.3 but
+  not the other way round.  Once you run devpi-server-2.4 you can not go
+  back. It's always a good idea to make a backup before trying a new version :)
+
+- NOTE: if you use ``--logger-cfg`` with .yaml files you will need to
+  install pyyaml yourself as devpi-server-2.4 dropped it as a direct
+  dependency as it does not install for win32/python3.5 and is 
+  not needed for devpi-server operations except for logging configuration.
+  Specifying a ``*.json`` file always works.
+
+- add timeout to replica requests
+
+- fix issue275: improve error message when a serverdir exists but has no
+  version
+
+- improve testing mechanics and name normalization related to storing doczips
+
+- refine keyfs to provide lazy deep readonly-views for
+  dict/set/list/tuple types by default.  This introduces safety because
+  users (including plugins) of keyfs-values can only write/modify a value
+  by explicitly getting it with readonly=False (thereby deep copying it)
+  and setting it with the transaction.  It also allows to avoid unnecessary
+  copy-operations when just reading values.
+
+- fix issue283: pypi cache didn't work for replicas.
+
+- performance improvements for simple pages with lots of releases.
+  this also changed the db layout of the caching from pypi.python.org mirrors
+  but will seamlessly work on older data, see NOTE at top.
+
+- add "--profile-requests=NUM" option which turns on per-request
+  profiling and will print out after NUM requests are executed
+  and then restart profiling.
+
+- fix tests for pypy. We officially support pypy now.
+
+
+2.3.1 (2015-09-14)
+------------------
+
+- fix issue272: require devpi-common >= 2.0.6
+
+- recognize newly registered PyPI projects, now that we don't watch the
+  PyPI changelog anymore
+
+
+2.3.0 (2015-09-10)
+------------------
+
+- switched to semantic versioning. Only major revisions will ever require an
+  export/import cycle.
+
+- fix issue260: Log identical upload message on level "info"
+
+- Log upload trigger message on level "warn"
+
+- The PyPI changelog isn't watched for changes anymore.
+  Instead we cache release data for 30 minutes, this can be adjusted with the
+  ``--mirror-cache-expiry`` option.
+
+- fix issue251: Require and validate the "X-DEVPI-SERIAL" from master in
+  replica thread
+
+- fix issue258: fix FileReplicationError representation for proper logging
+
+- fix issue256: if a project removes all releases from pypi or the project is
+  deleted on pypi, we get a 404 back. In that case we now return an empty list
+  of releases instead of returning an UpstreamError.
+
+- Change nginx template to serve HEAD in addition to GET requests of files
+  directly instead of proxying to devpi-server
+
+- make keyfs cache size configurable via "--keyfs-cache-size" option and
+  increase the default size to improve performance for installations with many
+  writes
+
+
+2.2.2 (2015-07-09)
+------------------
+
+- make replica thread more robust by catching more exceptions
+
+- Remove duplicates in plugin version info
+
+- track timestamps for event processing and replication and expose in /+status
+
+- implement devpiweb_get_status_info hook for devpi-web >= 2.4.0 status messages
+
+- UPGRADE NOTE: if devpi-web is installed, you have to request
+  ``application/json`` for ``/+status``, or you might get a html page.
+
+- address issue246: refuse uploading release files if they do not
+  contain the version that was transferred with the metadata of
+  the upload request.
+
+- fix issue248: prevent change of index type after creation
+
+
+2.2.1 (2015-05-20)
+------------------
+
+- fix issue237: fix wrong initial replica setup which would prevent
+  initialization.  Thanks Stephan Erb.
+
+
+2.2.0 (2015-05-13)
+------------------
+
+- add "--no-events" option to postpone running events after import
+  to server start
+
+- add new ``devpiserver_get_credentials`` plugin hook to extract credentials
   from request
 
 - fix issue216: use sha256 instead of md5 checksums for serving own files
@@ -13,6 +173,9 @@
 
 - fix debug logging to actually show debug logs
   (logging was not properly reconfigured)
+
+- make logging fully configurable via a config yaml/json
+  (e.g., log to an external syslog server)
 
 - fix issue221: avoid looking at file entries who are not part of a project
   (because they got deleted)
@@ -33,9 +196,32 @@
 - fix importing of indexes with custom_data and importing of
   documentation which follows uncommon package naming
 
+- fix issue228: when a stage is deleted don't veriy if it was root/pypi
+  because you cannot delete root/pypi anyway.
 
-2.1.5
-----------------
+- fix issue232: pypi-refresh now works better for projects which have  
+  have a non-nomalized projectname, and also works better across replication.
+
+- add new ``devpiserver_indexconfig_defaults`` plugin hook to add key names for
+  settings in the index configuration.
+
+- add new ``devpiserver_on_upload_sync`` plugin hook and use it to move the
+  Jenkins triggering to the ``devpi-jenkins`` plugin.
+
+- rename hooks: ``devpiserver_auth_credentials`` to
+  ``devpiserver_get_credentials`` and ``devpiserver_run_commands`` to
+  ``devpiserver_cmdline_run``.
+
+- add ``--hard-links`` option to use hard links for releases and doc zips
+  during export.
+
+- speed up detecting replica/master mismatches and let a replica
+  instantly die if it talks to a master that doesn't match the
+  master id the replica is operating for.
+
+
+2.1.5 (2015-03-16)
+------------------
 
 - fix devpi-ldap issue17: the push command directly used the username instead
   of using a general permission check, that caused groups in acl_upload to not

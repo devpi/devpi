@@ -42,26 +42,39 @@ class TestCheckout:
         """ make sure sys.executable is not used accidentally. """
         monkeypatch.setattr(sys, "executable", None)
 
+    @pytest.fixture(scope="class", params=[".", "setupdir"])
+    def setupdir_rel(self, request):
+        return request.param
+
+    @pytest.fixture(scope="class")
+    def setupdir(self, repo, setupdir_rel):
+        return repo.join(setupdir_rel)
+
     @pytest.fixture(scope="class", params=["hg", "git"])
-    def repo(self, request):
+    def repo(self, request, setupdir_rel):
         repo = request.config._tmpdirhandler.mktemp("repo", numbered=True)
-        file = repo.join("file")
+        setupdir = repo.ensure_dir(setupdir_rel)
+        file = setupdir.join("file")
         file.write("hello")
-        repo.ensure("setup.py")
+        setup_path = setupdir.ensure("setup.py")
+        if not sys.platform.startswith("win"):
+            setup_path.chmod(int("0777", 8))
+
         # this is a test for issue154 although we actually don't really
         # need to test the vcs-exporting code much since we started
         # relying on the external check-manifest project to do things.
         unicode_fn = b"something-\342\200\223.txt"
         if sys.version_info >= (3,0):
             unicode_fn = str(unicode_fn, "utf8")
-        repo.ensure(unicode_fn)
+        setupdir.ensure(unicode_fn)
         if request.param == "hg":
             if not py.path.local.sysfind("hg"):
                 pytest.skip("'hg' command not found")
             with repo.as_cwd():
                 runproc("hg init")
-                runproc("hg add file setup.py")
-                runproc("hg add file %s" % unicode_fn)
+                runproc("hg add {0}/file {0}/setup.py".format(setupdir_rel))
+                runproc("hg add {0}/file {0}/{1}".format(setupdir_rel,
+                                                         unicode_fn))
                 runproc("hg commit --config ui.username=whatever -m message")
             return repo
         if not py.path.local.sysfind("git"):
@@ -70,29 +83,51 @@ class TestCheckout:
             runproc("git init")
             runproc("git config user.email 'you@example.com'")
             runproc("git config user.name 'you'")
-            runproc("git add file setup.py")
-            runproc("git add file %s" % unicode_fn)
+            runproc("git add {0}/file {0}/setup.py".format(setupdir_rel))
+            runproc("git add {0}/file {0}/{1}".format(setupdir_rel,
+                                                      unicode_fn))
             runproc("git commit -m message")
         return repo
 
-    def test_vcs_export(self, uploadhub, repo, tmpdir, monkeypatch):
-        checkout = Checkout(uploadhub, repo)
+    def test_vcs_export(self, uploadhub, repo, setupdir, tmpdir, monkeypatch):
+        checkout = Checkout(uploadhub, setupdir)
         assert checkout.rootpath == repo
         newrepo = tmpdir.mkdir("newrepo")
         result = checkout.export(newrepo)
         assert result.rootpath.join("file").check()
-        assert result.rootpath == newrepo.join(repo.basename)
+        assert result.rootpath == newrepo.join(repo.basename).join(
+            repo.bestrelpath(setupdir))
+        # ensure we also copied repo meta info
+        if repo.join(".hg").exists():
+            assert newrepo.join(repo.basename).join(".hg").listdir()
+        else:
+            assert newrepo.join(repo.basename).join(".git").listdir()
 
-    def test_vcs_export_disabled(self, uploadhub, repo, tmpdir, monkeypatch):
+    def test_vcs_export_setupdironly(self, uploadhub, setupdir,
+                                          tmpdir, monkeypatch):
+        monkeypatch.setattr(uploadhub.args, "setupdironly", True)
+        checkout = Checkout(uploadhub, setupdir)
+        assert checkout.rootpath == setupdir
+        newrepo = tmpdir.mkdir("newrepo")
+        result = checkout.export(newrepo)
+        assert result.rootpath.join("file").check()
+        p = result.rootpath.join("setup.py")
+        assert p.exists()
+        if not sys.platform.startswith("win"):
+            assert p.stat().mode & int("0777", 8) == int("0777", 8)
+        assert result.rootpath == newrepo.join(setupdir.basename)
+
+    def test_vcs_export_disabled(self, uploadhub, setupdir,
+                                      tmpdir, monkeypatch):
         monkeypatch.setattr(uploadhub.args, "novcs", True)
-        checkout = Checkout(uploadhub, repo)
+        checkout = Checkout(uploadhub, setupdir)
         assert not checkout.hasvcs
         exported = checkout.export(tmpdir)
-        assert exported.rootpath == checkout.rootpath
+        assert exported.rootpath == checkout.setupdir
 
-    def test_vcs_export_verify_setup(self, uploadhub, repo,
+    def test_vcs_export_verify_setup(self, uploadhub, setupdir,
                                           tmpdir, monkeypatch):
-        subdir = repo.mkdir("subdir")
+        subdir = setupdir.mkdir("subdir")
         subdir.ensure("setup.py")
         checkout = Checkout(uploadhub, subdir)
         wc = tmpdir.mkdir("wc")
@@ -100,9 +135,9 @@ class TestCheckout:
         with pytest.raises(SystemExit):
             exported.check_setup()
 
-    def test_export_attributes(self, uploadhub, repo, tmpdir, monkeypatch):
-        checkout = Checkout(uploadhub, repo)
-        repo.join("setup.py").write(dedent("""
+    def test_export_attributes(self, uploadhub, setupdir, tmpdir, monkeypatch):
+        checkout = Checkout(uploadhub, setupdir)
+        setupdir.join("setup.py").write(dedent("""
             from setuptools import setup
             setup(name="xyz", version="1.2.3")
         """))
@@ -110,6 +145,55 @@ class TestCheckout:
         name, version = exported.setup_name_and_version()
         assert name == "xyz"
         assert version == "1.2.3"
+
+    def test_setup_build_docs(self, uploadhub, setupdir, tmpdir, monkeypatch):
+        checkout = Checkout(uploadhub, setupdir)
+        setupdir.join("setup.py").write(dedent("""
+            from setuptools import setup
+            setup(name="xyz", version="1.2.3")
+        """))
+        exported = checkout.export(tmpdir)
+        assert exported.rootpath != exported.origrepo
+        # we have to mock a bit unfortunately
+        # to find out if the sphinx building popen command
+        # is called with the exported directory instead of he original
+        l = []
+        old_popen_output = exported.hub.popen_output
+        def mock_popen_output(args, **kwargs):
+            if "build_sphinx" in args:
+                l.append(kwargs)
+            else:
+                return old_popen_output(args, **kwargs)
+        exported.hub.popen_output = mock_popen_output
+        # now we can make the call
+        exported.setup_build_docs()
+        assert l[0]["cwd"] == exported.rootpath
+
+
+def test_setup_build_formats_setupcfg(uploadhub, tmpdir):
+    tmpdir.join("setup.cfg").write(dedent("""
+        [bdist_wheel]
+        universal = 1
+
+        [devpi:upload]
+        formats=bdist_wheel,sdist.zip
+        no-vcs=1
+        setupdir-only=1
+    """))
+    cfg = read_setupcfg(uploadhub, tmpdir)
+    assert cfg.get("formats") == "bdist_wheel,sdist.zip"
+    assert cfg.get("no-vcs") == "1"
+    assert cfg.get("setupdir-only") == "1"
+
+def test_setup_build_formats_setupcfg_nosection(uploadhub, tmpdir):
+    tmpdir.join("setup.cfg").write(dedent("""
+        [bdist_wheel]
+        universal = 1
+    """))
+    cfg = read_setupcfg(uploadhub, tmpdir)
+    assert not cfg.get("formats")
+    assert not cfg.get("no-vcs")
+    assert not cfg.get("setupdir-only")
 
 
 def test_parent_subpath(tmpdir):
@@ -160,12 +244,16 @@ class TestUploadFunctional:
             built:*
             file_upload of {projname_version}.zip*
             """.format(projname_version=projname_version))
-        out = out_devpi("upload", "--formats", "sdist.zip,bdist_dumb",
+
+        print ("*"*80)
+        out = out_devpi("upload", "--formats", "sdist.zip,bdist_wheel",
                         code=[200, 200, 200, 200])
         out.stdout.fnmatch_lines_random("""
             file_upload of {projname_version}.*
-            file_upload of {projname_version}.zip*
-            """.format(projname_version=projname_version))
+            file_upload of {projname_version_norm}*.whl*
+            """.format(projname_version=projname_version,
+                       projname_version_norm=projname_version.replace("-", "*")
+                       ))
 
         # logoff then upload
         devpi("logoff")

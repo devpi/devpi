@@ -11,13 +11,13 @@ class TestCredentialPlugin:
     @pytest.fixture
     def plugin(self):
         class Plugin:
-            def devpiserver_auth_credentials(self, request):
+            def devpiserver_get_credentials(self, request):
                 return self.results.pop()
         return Plugin()
 
     @pytest.fixture
     def xom(self, makexom, plugin):
-        xom = makexom(plugins=[(plugin, None)])
+        xom = makexom(plugins=[plugin])
         return xom
 
     def test_credential_plugin_no_credentials(self, blank_request, dap, plugin):
@@ -35,21 +35,21 @@ class TestCredentialPlugins:
     @pytest.fixture
     def plugin1(self):
         class Plugin:
-            def devpiserver_auth_credentials(self, request):
+            def devpiserver_get_credentials(self, request):
                 return self.results.pop()
         return Plugin()
 
     @pytest.fixture
     def plugin2(self):
         class Plugin:
-            def devpiserver_auth_credentials(self, request):
+            def devpiserver_get_credentials(self, request):
                 return self.results.pop()
         return Plugin()
 
     @pytest.fixture
     def xom(self, makexom, plugin1, plugin2):
         import random
-        plugins = [(plugin1, None), (plugin2, None)]
+        plugins = [plugin1, plugin2]
         random.shuffle(plugins)
         xom = makexom(plugins=plugins)
         return xom
@@ -84,15 +84,14 @@ class TestHeaderCredentialPlugin:
     @pytest.fixture
     def plugin(self):
         class Plugin:
-            def devpiserver_auth_credentials(self, request):
+            def devpiserver_get_credentials(self, request):
                 if 'X-Devpi-User' in request.headers:
                     return (request.headers['X-Devpi-User'], '')
         return Plugin()
 
     @pytest.fixture
     def xom(self, makexom, plugin):
-        xom = makexom(plugins=[(plugin, None)])
-        return xom
+        return makexom(plugins=[plugin])
 
     def test_credential_plugin_no_credentials(self, blank_request, dap, plugin):
         request = blank_request()

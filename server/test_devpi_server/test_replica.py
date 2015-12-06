@@ -17,6 +17,13 @@ def test_view_name2serials(pypistage, testapp):
     entries = load(io)
     assert entries["package"] == 15
 
+@pytest.fixture
+def testapp(testapp):
+    master_uuid = testapp.xom.config.get_master_uuid()
+    assert master_uuid
+    testapp.set_header_default(H_EXPECTED_MASTER_ID, master_uuid)
+    return testapp
+
 
 class TestChangelog:
     replica_uuid = "111"
@@ -69,13 +76,20 @@ class TestChangelog:
         assert r.status_code == 202
         assert int(r.headers["X-DEVPI-SERIAL"]) == latest_serial
 
+    def test_master_id_mismatch(self, testapp):
+        testapp.xget(400, "/+changelog/0", headers={H_EXPECTED_MASTER_ID:str("123")})
+        r = testapp.xget(200, "/+changelog/0", headers={H_EXPECTED_MASTER_ID: ''})
+        assert r.headers[H_MASTER_UUID]
+        del testapp.headers[H_EXPECTED_MASTER_ID]
+        testapp.xget(400, "/+changelog/0")
 
-class TestPyPIProxy:
+
+class TestPyPIDevpiProxy:
     def test_pypi_proxy(self, xom, reqmock):
         from devpi_server.keyfs import dump
         url = "http://localhost:3141/root/pypi/+name2serials"
         master_url = URL("http://localhost:3141")
-        proxy = PyPIProxy(xom._httpsession, master_url)
+        proxy = PyPIDevpiProxy(xom._httpsession, master_url)
         io = py.io.BytesIO()
         dump({"hello": 42}, io)
         data = io.getvalue()
@@ -84,27 +98,40 @@ class TestPyPIProxy:
         assert name2serials == {"hello": 42}
 
     def test_replica_startup(self, replica_xom):
-        assert isinstance(replica_xom.proxy, PyPIProxy)
+        assert isinstance(replica_xom.proxy, PyPIDevpiProxy)
 
 
-def test_pypi_project_changed(replica_xom):
+@pytest.mark.parametrize("normname,realname",
+                         [("proj", "proj"), ("proj-x", "proj_x")])
+def test_pypi_project_changed(replica_xom, normname, realname):
     handler = PypiProjectChanged(replica_xom)
     class Ev:
-        value = dict(projectname="newproject", serial=12)
-        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(name="newproject")
+        value = dict(projectname=realname, serial=12)
+        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(name=normname)
     handler(Ev())
-    assert replica_xom.pypimirror.name2serials["newproject"] == 12
+    assert replica_xom.pypimirror.name2serials[realname] == 12
+    if normname != realname:
+        assert replica_xom.pypimirror.normname2name[normname] == realname
+
     class Ev2:
-        value = dict(projectname="newproject", serial=15)
-        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(name="newproject")
+        value = dict(projectname=realname, serial=15)
+        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(name=normname)
     handler(Ev2())
-    assert replica_xom.pypimirror.name2serials["newproject"] == 15
+    assert replica_xom.pypimirror.name2serials[realname] == 15
 
     class Ev3:
-        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(name="newproject")
-        value = None
+        value = dict(projectname=realname, serial=12)
+        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(name=normname)
     handler(Ev3())
-    assert "newproject" not in replica_xom.pypimirror.name2serials
+    assert replica_xom.pypimirror.name2serials[realname] == 15
+
+    class Ev4:
+        typedkey = replica_xom.keyfs.get_key("PYPILINKS")(name=normname)
+        value = None
+    handler(Ev4())
+    assert realname not in replica_xom.pypimirror.name2serials
+    if normname != realname:
+        assert normname not in replica_xom.pypimirror.normname2name
 
 
 class TestReplicaThread:
@@ -118,7 +145,15 @@ class TestReplicaThread:
     @pytest.fixture
     def mockchangelog(self, reqmock):
         def mockchangelog(num, code, data=b'',
-                          headers={H_MASTER_UUID: "123"}):
+                          uuid="123", headers=None):
+            if headers is None:
+                headers = {}
+            headers = dict((k.lower(), v) for k, v in headers.items())
+            if uuid is not None:
+                headers.setdefault(H_MASTER_UUID.lower(), "123")
+            headers.setdefault("x-devpi-serial", str(2))
+            if headers["x-devpi-serial"] is None:
+                del headers["x-devpi-serial"]
             reqmock.mockresponse("http://localhost/+changelog/%s" % num,
                                  code=code, data=data, headers=headers)
         return mockchangelog
@@ -137,6 +172,28 @@ class TestReplicaThread:
             rt.thread_run()
         assert caplog.getrecords("could not process")
 
+    def test_thread_run_recovers_from_error(self, mock, rt, reqmock, mockchangelog, caplog, xom):
+        import socket
+        # setup a regular request
+        data = xom.keyfs._fs.get_raw_changelog_entry(0)
+        assert data
+        mockchangelog(0, code=200, data=data)
+        # get the result
+        orig_req = reqmock.url2reply[("http://localhost/+changelog/0", None)]
+        # setup so the first attempt fails, then the second succeeds
+        reqmock.url2reply = mock.Mock()
+        reqmock.url2reply.get.side_effect = [socket.error(), orig_req]
+        rt.thread.sleep = mock.Mock()
+        rt.thread.sleep.side_effect = [0, ZeroDivisionError()]
+        # run
+        with pytest.raises(ZeroDivisionError):
+            rt.thread_run()
+        msgs = [x.msg for x in caplog.getrecords(".*http://localhost/\+changelog/0")]
+        assert msgs == [
+            '[REP] fetching %s',
+            '[REP] error fetching %s: %s',
+            '[REP] fetching %s']
+
     def test_thread_run_ok(self, rt, mockchangelog, caplog, xom):
         rt.thread.sleep = lambda *x: 0/0
         data = xom.keyfs._fs.get_raw_changelog_entry(0)
@@ -149,12 +206,13 @@ class TestReplicaThread:
 
     def test_thread_run_no_uuid(self, rt, mockchangelog, caplog, xom):
         rt.thread.sleep = lambda x: 0/0
-        mockchangelog(0, code=200, data=b'123', headers={})
+        mockchangelog(0, code=200, data=b'123', uuid=None)
         with pytest.raises(ZeroDivisionError):
             rt.thread_run()
         assert caplog.getrecords("remote.*no.*UUID")
 
-    def test_thread_run_ok_uuid_change(self, rt, mockchangelog, caplog, xom):
+    def test_thread_run_ok_uuid_change(self, rt, mockchangelog, caplog, xom, monkeypatch):
+        monkeypatch.setattr("os._exit", lambda n: 0/0)
         rt.thread.sleep = lambda *x: 0/0
         data = xom.keyfs._fs.get_raw_changelog_entry(0)
         assert data
@@ -164,6 +222,46 @@ class TestReplicaThread:
         with pytest.raises(ZeroDivisionError):
             rt.thread_run()
         assert caplog.getrecords("master UUID.*001.*does not match")
+
+    def test_thread_run_serial_mismatch(self, rt, mockchangelog, caplog, xom, monkeypatch):
+        monkeypatch.setattr("os._exit", lambda n: 0/0)
+        rt.thread.sleep = lambda *x: 0/0
+        data = xom.keyfs._fs.get_raw_changelog_entry(0)
+        assert data
+        mockchangelog(0, code=200, data=data)
+        data = xom.keyfs._fs.get_raw_changelog_entry(1)
+        mockchangelog(1, code=200, data=data,
+                      headers={"x-devpi-serial": "0"})
+        with pytest.raises(ZeroDivisionError):
+            rt.thread_run()
+        assert caplog.getrecords("Got serial 0 from master which is smaller than last "
+                    "recorded serial")
+
+    def test_thread_run_invalid_serial(self, rt, mockchangelog, caplog, xom, monkeypatch):
+        monkeypatch.setattr("os._exit", lambda n: 0/0)
+        rt.thread.sleep = lambda *x: 0/0
+        data = xom.keyfs._fs.get_raw_changelog_entry(0)
+        assert data
+        mockchangelog(0, code=200, data=data)
+        data = xom.keyfs._fs.get_raw_changelog_entry(1)
+        mockchangelog(1, code=200, data=data,
+                      headers={"x-devpi-serial": "foo"})
+        with pytest.raises(ZeroDivisionError):
+            rt.thread_run()
+        assert caplog.getrecords("error fetching.*invalid literal for int")
+
+    def test_thread_run_missing_serial(self, rt, mockchangelog, caplog, xom, monkeypatch):
+        monkeypatch.setattr("os._exit", lambda n: 0/0)
+        rt.thread.sleep = lambda *x: 0/0
+        data = xom.keyfs._fs.get_raw_changelog_entry(0)
+        assert data
+        mockchangelog(0, code=200, data=data)
+        data = xom.keyfs._fs.get_raw_changelog_entry(1)
+        mockchangelog(1, code=200, data=data,
+                      headers={"x-devpi-serial": None})
+        with pytest.raises(ZeroDivisionError):
+            rt.thread_run()
+        assert caplog.getrecords("error fetching.*x-devpi-serial")
 
     def test_thread_run_try_again(self, rt, mockchangelog, caplog):
         l = [1]
@@ -270,12 +368,13 @@ class TestTweenReplica:
         assert 'keep-alive' not in response.headers
 
 def replay(xom, replica_xom):
+    threadlog.info("test: replaying replica")
     for serial in range(replica_xom.keyfs.get_next_serial(),
                         xom.keyfs.get_next_serial()):
         if serial == -1:
             continue
         change_entry = xom.keyfs._fs.get_changes(serial)
-        threadlog.info("importing to replica %s", serial)
+        threadlog.info("test: importing to replica %s", serial)
         replica_xom.keyfs.import_changes(serial, change_entry)
 
 class TestFileReplication:
@@ -424,8 +523,9 @@ class TestFileReplication:
         # simulate some 500 master server error
         replica_xom.httpget.mockresponse(master_file_path, status_code=500,
                                          content=b'')
-        with pytest.raises(FileReplicationError):
+        with pytest.raises(FileReplicationError) as e:
             replay(xom, replica_xom)
+        assert str(e.value) == 'FileReplicationError with http://localhost/root/pypi/+e/https_pypi.python.org_package_some/some-1.8.zip, code=500, relpath=root/pypi/+e/https_pypi.python.org_package_some/some-1.8.zip, message=failed'
 
         # now get the real thing
         replica_xom.httpget.mockresponse(master_file_path, status_code=200,
@@ -479,3 +579,56 @@ def test_should_fetch_remote_file():
            should_fetch_remote_file(Entry(), {H_REPLICA_FILEREPL: str("YES")})
 
 
+def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, pypireplicastage, pypiurls, replica_xom, xom):
+    orig_simple = pypiurls.simple
+
+    # prepare the data on master
+    pypistage.mock_simple("pytest", pkgver="pytest-1.0.zip")
+    with xom.keyfs.transaction(write=True):
+        pypistage.get_releaselinks("pytest")
+
+    # replicate the state
+    replay(xom, replica_xom)
+    replica_xom.pypimirror.name2serials = dict(xom.pypimirror.name2serials)
+
+    # now check
+    pypiurls.simple = 'http://localhost:3111/root/pypi/+simple/'
+    serial = xom.keyfs.get_current_serial()
+    httpget.mock_simple(
+        'pytest',
+        text='<a href="https://pypi.python.org/pkg/pytest-1.0.zip">pytest-1.0.zip</a>',
+        headers={'X-DEVPI-SERIAL': str(serial)})
+    with replica_xom.keyfs.transaction():
+        ret = pypireplicastage.get_releaselinks("pytest")
+    assert len(ret) == 1
+    assert ret[0].relpath == 'root/pypi/+e/https_pypi.python.org_pkg/pytest-1.0.zip'
+
+    # now we change the links and expire the cache
+    pypiurls.simple = orig_simple
+    pypistage.mock_simple("pytest", pkgver="pytest-1.1.zip", pypiserial=10001)
+    xom.set_updated_at('root/pypi', 'pytest', time.time() - 3600)
+    with xom.keyfs.transaction(write=True):
+        pypistage.get_releaselinks("pytest")
+    assert xom.keyfs.get_current_serial() > serial
+
+    # we patch wait_tx_serial so we can check and replay
+    called = []
+    def wait_tx_serial(serial):
+        called.append(True)
+        assert xom.keyfs.get_current_serial() == serial
+        assert replica_xom.keyfs.get_current_serial() < serial
+        replay(xom, replica_xom)
+        assert replica_xom.keyfs.get_current_serial() == serial
+    monkeypatch.setattr(replica_xom.keyfs.notifier, 'wait_tx_serial', wait_tx_serial)
+    replica_xom.set_updated_at('root/pypi', 'pytest', time.time() - 3600)
+    pypiurls.simple = 'http://localhost:3111/root/pypi/+simple/'
+    httpget.mock_simple(
+        'pytest',
+        text='<a href="https://pypi.python.org/pkg/pytest-1.1.zip">pytest-1.1.zip</a>',
+        pypiserial=10001,
+        headers={'X-DEVPI-SERIAL': str(xom.keyfs.get_current_serial())})
+    with replica_xom.keyfs.transaction():
+        ret = pypireplicastage.get_releaselinks("pytest")
+    assert called == [True]
+    assert len(ret) == 1
+    assert ret[0].relpath == 'root/pypi/+e/https_pypi.python.org_pkg/pytest-1.1.zip'

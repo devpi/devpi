@@ -10,15 +10,12 @@ import py
 
 from devpi_common.types import cached_property
 from devpi_common.request import new_requests_session
-from .config import PluginManager
-from .config import parseoptions, load_setuptools_entrypoints
+from .config import parseoptions, get_pluginmanager
 from .log import configure_logging, threadlog
 from .model import BaseStage
 from . import extpypi, replica, mythread
 from . import __version__ as server_version
 
-
-PYPIURL_XMLRPC = "https://pypi.python.org/pypi/"
 
 class Fatal(Exception):
     pass
@@ -34,7 +31,7 @@ def check_compatible_version(xom):
     if server_version != state_version:
         state_ver = state_version.split(".")
         server_ver = server_version.split(".")
-        if state_ver[:2] != server_ver[:2]:
+        if state_ver[:1] != server_ver[:1]:
             fatal("Incompatible state: server %s cannot run serverdir "
                   "%s created by %s.\n"
                   "Use --export from older version, then --import with newer "
@@ -47,29 +44,24 @@ def check_compatible_version(xom):
                 server_version, state_version), bold=True)
 
 
-def main(argv=None, plugins=None):
+def main(argv=None):
     """ devpi-server command line entry point. """
-    if plugins is None:
-        plugins = []
-    plugins.extend(load_setuptools_entrypoints())
-    hook = PluginManager(plugins)
+    pluginmanager = get_pluginmanager()
     try:
-        return _main(argv, hook=hook)
+        return _main(pluginmanager, argv=argv)
     except Fatal as e:
         tw = py.io.TerminalWriter(sys.stderr)
         tw.line("fatal: %s" %  e.args[0], red=True)
         return 1
 
-def _main(argv=None, hook=None):
-    # Set up logging with no config just so we can log while parsing options
-    # Later when we get the config, we will call this again with the config.
-    configure_logging()
+def _main(pluginmanager, argv=None):
+    # During parsing of options logging should not be used
 
     if argv is None:
         argv = sys.argv
 
     argv = [str(x) for x in argv]
-    config = parseoptions(argv, hook=hook)
+    config = parseoptions(pluginmanager, argv)
     args = config.args
 
     # meta commmands
@@ -81,7 +73,11 @@ def _main(argv=None, hook=None):
         from devpi_server.genconfig import genconfig
         return genconfig(config)
 
-    configure_logging(config)
+    configure_logging(config.args)
+
+    # read/create node UUID and role of this server
+    config.init_nodeinfo()
+
     xom = XOM(config)
     if not xom.is_replica():
         with xom.keyfs.transaction(write=True):
@@ -117,7 +113,7 @@ def _main(argv=None, hook=None):
 
 def make_application():
     """ entry point for making an application object with defaults. """
-    config = parseoptions([])
+    config = parseoptions(get_pluginmanager(), [])
     return XOM(config).create_app()
 
 def wsgi_run(xom, app):
@@ -142,6 +138,7 @@ def wsgi_run(xom, app):
         pass
     return 0
 
+
 class XOM:
     class Exiting(SystemExit):
         pass
@@ -158,19 +155,29 @@ class XOM:
             self.set_state_version(server_version)
         self.log = threadlog
         self.polling_replicas = {}
+        self.stage2name2updated = {}
 
     def get_state_version(self):
         versionfile = self.config.serverdir.join(".serverversion")
         if not versionfile.exists():
-            fatal("serverdir %s is unversioned, you may try use "
-              "depvi-server-1.1 with the --upgrade-state option to "
-              "upgrade from versions prior to 1.1\n" % self.config.serverdir)
+            fatal(
+            "serverdir %s is non-empty and misses devpi-server meta information. "
+            "You need to specify an empty directory or a directory that was "
+            "previously managed by devpi-server>=1.2" % self.config.serverdir)
         return versionfile.read()
 
     def set_state_version(self, version):
         versionfile = self.config.serverdir.join(".serverversion")
         versionfile.dirpath().ensure(dir=1)
         versionfile.write(version)
+
+    def get_updated_at(self, stagename, projectname):
+        name2updated = self.stage2name2updated.setdefault(stagename, {})
+        return name2updated.setdefault(projectname, 0)
+
+    def set_updated_at(self, stagename, projectname, ts):
+        name2updated = self.stage2name2updated.setdefault(stagename, {})
+        name2updated[projectname] = ts
 
     @property
     def model(self):
@@ -184,7 +191,7 @@ class XOM:
         # need to initialize the pypi mirror state before importing
         # because importing may need pypi mirroring state
         if xom.is_replica():
-            proxy = replica.PyPIProxy(xom._httpsession, xom.config.master_url)
+            proxy = replica.PyPIDevpiProxy(xom._httpsession, xom.config.master_url)
         else:
             proxy = self.proxy
         xom.pypimirror.init_pypi_mirror(proxy)
@@ -197,18 +204,16 @@ class XOM:
             from devpi_server.importexport import do_import
             # we need to start the keyfs notifier so that import
             # can wait on completion of events
-            xom.thread_pool.start_one(xom.keyfs.notifier)
+            if args.wait_for_events:
+                xom.thread_pool.start_one(xom.keyfs.notifier)
             return do_import(args.import_, xom)
 
         # creation of app will register handlers of key change events
         # which cannot happen anymore after the tx notifier has started
         with xom.keyfs.transaction():
-            results = xom.config.hook.devpiserver_run_commands(xom)
-            if [x for x in results if x is not None]:
-                errors = list(filter(None, results))
-                if errors:
-                    return errors[0]
-                return 0
+            res = xom.config.hook.devpiserver_cmdline_run(xom=xom)
+            if res is not None:
+                return res
 
         app = xom.create_app()
         with xom.thread_pool.live():
@@ -230,7 +235,10 @@ class XOM:
     def keyfs(self):
         from devpi_server.keyfs import KeyFS
         from devpi_server.model import add_keys
-        keyfs = KeyFS(self.config.serverdir, readonly=self.is_replica())
+        keyfs = KeyFS(
+            self.config.serverdir,
+            readonly=self.is_replica(),
+            cache_size=self.config.args.keyfs_cache_size)
         add_keys(self, keyfs)
         self.thread_pool.register(keyfs.notifier)
         return keyfs
@@ -242,7 +250,7 @@ class XOM:
 
     @cached_property
     def proxy(self):
-        return extpypi.XMLProxy(PYPIURL_XMLRPC)
+        return extpypi.PyPISimpleProxy()
 
     def new_http_session(self, component_name):
         session = new_requests_session(agent=(component_name, server_version))
@@ -279,7 +287,7 @@ class XOM:
     def create_app(self):
         from devpi_server.view_auth import DevpiAuthenticationPolicy
         from devpi_server.views import OutsideURLMiddleware
-        from devpi_server.views import route_url
+        from devpi_server.views import route_url, PIP_USER_AGENT
         from pkg_resources import get_distribution
         from pyramid.authorization import ACLAuthorizationPolicy
         from pyramid.config import Configurator
@@ -291,12 +299,12 @@ class XOM:
 
         version_info = [
             ("devpi-server", get_distribution("devpi_server").version)]
-        for plug, distinfo in self.config.hook._plugins:
-            if distinfo is None:
-                continue
+        for plug, distinfo in self.config.pluginmanager.list_plugin_distinfo():
             threadlog.info("Found plugin %s-%s (%s)." % (
                 distinfo.project_name, distinfo.version, distinfo.location))
-            version_info.append((distinfo.project_name, distinfo.version))
+            key = (distinfo.project_name, distinfo.version)
+            if key not in version_info:
+                version_info.append(key)
         version_info.sort()
         pyramid_config.registry['devpi_version_info'] = version_info
         self.config.hook.devpiserver_pyramid_configure(
@@ -319,7 +327,7 @@ class XOM:
         pyramid_config.add_route("/{user}/{index}/{name}/{version}", "/{user}/{index}/{name}/{version:[^/]+/?}")
         pyramid_config.add_route(
             "simple_redirect", "/{user}/{index}/{name:[^/]+/?}",
-            header="User-Agent:(distribute|setuptools|pip)/.*",
+            header="User-Agent:" + PIP_USER_AGENT,
             accept="text/html",
         )
         pyramid_config.add_route("/{user}/{index}/{name}", "/{user}/{index}/{name:[^/]+/?}")
@@ -339,6 +347,8 @@ class XOM:
         pyramid_config.add_tween("devpi_server.views.tween_keyfs_transaction",
             under="devpi_server.views.tween_request_logging"
         )
+        if self.config.args.profile_requests:
+            pyramid_config.add_tween("devpi_server.main.tween_request_profiling")
         pyramid_config.add_request_method(get_remote_ip)
         pyramid_config.add_request_method(stage_url)
         pyramid_config.add_request_method(simpleindex_url)
@@ -351,16 +361,11 @@ class XOM:
         app = pyramid_config.make_wsgi_app()
         if self.is_replica():
             from devpi_server.replica import ReplicaThread
-            replica_thread = ReplicaThread(self)
+            self.replica_thread = ReplicaThread(self)
             # the replica thread replays keyfs changes
             # and pypimirror.name2serials changes are discovered
             # and replayed through the PypiProjectChange event
-            self.thread_pool.register(replica_thread)
-        else:
-            # the master thread directly syncs using the
-            # pypi changelog protocol
-            self.thread_pool.register(self.pypimirror,
-                                      dict(proxy=self.proxy))
+            self.thread_pool.register(self.replica_thread)
         return OutsideURLMiddleware(app, self)
 
     def is_replica(self):
@@ -406,9 +411,31 @@ def set_default_indexes(model):
     if not root_user:
         root_user = model.create_user("root", "")
         threadlog.info("created root user")
-    userconfig = root_user.key.get()
+    userconfig = root_user.key.get(readonly=False)
     indexes = userconfig["indexes"]
     if "pypi" not in indexes:
         indexes["pypi"] = {"bases": (), "type": "mirror", "volatile": False}
         root_user.key.set(userconfig)
         threadlog.info("created root/pypi index")
+
+
+def tween_request_profiling(handler, registry):
+    from cProfile import Profile
+    req = [0]
+    num_profile = registry["xom"].config.args.profile_requests
+    # we need to use a list, so we can create a new Profile instance without
+    # getting variable scope issues
+    profile = [Profile()]
+
+    def request_profiling_handler(request):
+        profile[0].enable()
+        try:
+            return handler(request)
+        finally:
+            profile[0].disable()
+            req[0] += 1
+            if req[0] >= num_profile:
+                profile[0].print_stats("cumulative")
+                req[0] = 0
+                profile[:] = [Profile()]
+    return request_profiling_handler

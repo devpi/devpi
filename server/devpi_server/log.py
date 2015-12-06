@@ -1,17 +1,19 @@
-
 import threading
 import logging
+import logging.config
 import contextlib
+import json
 
 
 threadlocal = threading.local()
 
 
-def configure_logging(config=None):
+def configure_logging(config_args):
     # clear handlers so that a second call to configure_logging
     # reconfigures properly
     logging.getLogger('').handlers = []
-    if config and config.args.debug:
+
+    if config_args.debug:
         loglevel = logging.DEBUG
     else:
         loglevel = logging.INFO
@@ -19,6 +21,15 @@ def configure_logging(config=None):
          format='%(asctime)s %(levelname)-5.5s %(message)s')
     requests_log = logging.getLogger("requests.packages.urllib3")
     requests_log.setLevel(logging.ERROR)
+
+    if config_args.logger_cfg:
+        with open(config_args.logger_cfg, 'rt') as f:
+            if config_args.logger_cfg.endswith(".json"):
+                logger_cfg = json.loads(f.read())
+            else:
+                import yaml
+                logger_cfg = yaml.load(f.read())
+        logging.config.dictConfig(logger_cfg)
 
 
 class TagLogger:

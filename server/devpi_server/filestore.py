@@ -54,7 +54,7 @@ class FileStore:
             key = self.keyfs.PYPIFILE_NOMD5(user="root", index="pypi",
                    dirname=dirname,
                    basename=parts[-1])
-        entry = FileEntry(self.xom, key)
+        entry = FileEntry(self.xom, key, readonly=False)
         entry.url = link.geturl_nofragment().url
         entry.eggfragment = link.eggfragment
         # verify checksum if the entry is fresh, a file exists
@@ -70,12 +70,12 @@ class FileStore:
         entry.hash_spec = unicode_if_bytes(link.hash_spec)
         return entry
 
-    def get_file_entry(self, relpath):
+    def get_file_entry(self, relpath, readonly=True):
         try:
             key = self.keyfs.derive_key(relpath)
         except KeyError:
             return None
-        return FileEntry(self.xom, key)
+        return FileEntry(self.xom, key, readonly=readonly)
 
     def get_file_entry_raw(self, key, meta):
         return FileEntry(self.xom, key, meta=meta)
@@ -86,7 +86,7 @@ class FileStore:
         hashdir_a, hashdir_b = make_splitdir(dir_hash_spec)
         key = self.keyfs.STAGEFILE(user=user, index=index,
                    hashdir_a=hashdir_a, hashdir_b=hashdir_b, filename=basename)
-        entry = FileEntry(self.xom, key)
+        entry = FileEntry(self.xom, key, readonly=False)
         entry.file_set_content(file_content)
         return entry
 
@@ -96,8 +96,10 @@ def metaprop(name):
         if self.meta is not None:
             return self.meta.get(name)
     def fset(self, val):
-        self.meta[name] = unicode_if_bytes(val)
-        self.key.set(self.meta)
+        val = unicode_if_bytes(val)
+        if self.meta.get(name) != val:
+            self.meta[name] = val
+            self.key.set(self.meta)
     return property(fget, fset)
 
 
@@ -112,11 +114,12 @@ class FileEntry(object):
     projectname = metaprop("projectname")
     version = metaprop("version")
 
-    def __init__(self, xom, key, meta=_nodefault):
+    def __init__(self, xom, key, meta=_nodefault, readonly=True):
         self.xom = xom
         self.key = key
         self.relpath = key.relpath
         self.basename = self.relpath.split("/")[-1]
+        self.readonly = readonly
         self._filepath = str(self.xom.filestore.storedir.join(self.relpath))
         if meta is not _nodefault:
             self.meta = meta or {}
@@ -147,7 +150,7 @@ class FileEntry(object):
 
     @cached_property
     def meta(self):
-        return self.key.get()
+        return self.key.get(readonly=self.readonly)
 
     def file_exists(self):
         return self.tx.io_file_exists(self._filepath)
@@ -182,6 +185,11 @@ class FileEntry(object):
             hash_spec = get_default_hash_spec(content)
         self.hash_spec = hash_spec
         self.tx.io_file_set(self._filepath, content)
+        # we make sure we always refresh the meta information
+        # when we set the file content. Otherwise we might
+        # end up only committing file content without any keys
+        # changed which will not replay correctly at a replica.
+        self.key.set(self.meta)
 
     def gethttpheaders(self):
         assert self.file_exists()

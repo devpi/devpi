@@ -39,49 +39,48 @@ Let's run the quickstart command which will trigger
 a series of other devpi commands::
 
     $ devpi quickstart
-    --> $ devpi-server --start 
-    2015-03-16 12:29:58,633 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2015-03-16 12:29:58,633 INFO  NOCTX generated uuid: daa0b758cff44155b5ef34dbc8eb53c8
-    2015-03-16 12:29:58,633 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2015-03-16 12:29:58,634 INFO  NOCTX DB: Creating schema
-    2015-03-16 12:29:58,671 INFO  [Wtx-1] setting password for user u'root'
-    2015-03-16 12:29:58,671 INFO  [Wtx-1] created user u'root' with email None
-    2015-03-16 12:29:58,671 INFO  [Wtx-1] created root user
-    2015-03-16 12:29:58,671 INFO  [Wtx-1] created root/pypi index
-    2015-03-16 12:29:58,684 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
+    -->  /home/hpk/p/devpi/doc$ devpi-server --start 
+    2015-11-20 22:12:49,485 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2015-11-20 22:12:49,486 INFO  NOCTX generated uuid: fc251d6303464b9892fed007e56ba320
+    2015-11-20 22:12:49,486 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    2015-11-20 22:12:49,487 INFO  NOCTX DB: Creating schema
+    2015-11-20 22:12:49,527 INFO  [Wtx-1] setting password for user u'root'
+    2015-11-20 22:12:49,527 INFO  [Wtx-1] created user u'root' with email None
+    2015-11-20 22:12:49,527 INFO  [Wtx-1] created root user
+    2015-11-20 22:12:49,527 INFO  [Wtx-1] created root/pypi index
+    2015-11-20 22:12:49,544 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
     starting background devpi-server at http://localhost:3141
     /tmp/home/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server
-    process u'devpi-server' started pid=13034
+    process u'devpi-server' started pid=31435
     devpi-server process startup detected
     logfile is at /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
-    --> $ devpi use http://localhost:3141 
+    -->  /home/hpk/p/devpi/doc$ devpi use http://localhost:3141 
     using server: http://localhost:3141/ (not logged in)
     no current index: type 'devpi use -l' to discover indices
-    ~/.pydistutils.cfg     : no config file exists
-    ~/.pip/pip.conf        : no config file exists
-    ~/.buildout/default.cfg: no config file exists
+    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
     always-set-cfg: no
     
-    --> $ devpi user -c testuser password= 
+    -->  /home/hpk/p/devpi/doc$ devpi user -c testuser password= 
     user created: testuser
     
-    --> $ devpi login testuser --password= 
+    -->  /home/hpk/p/devpi/doc$ devpi login testuser --password= 
     logged in 'testuser', credentials valid for 10.00 hours
     
-    --> $ devpi index -c dev 
+    -->  /home/hpk/p/devpi/doc$ devpi index -c dev 
     http://localhost:3141/testuser/dev:
       type=stage
       bases=root/pypi
       volatile=True
-      uploadtrigger_jenkins=None
       acl_upload=testuser
       pypi_whitelist=
     
-    --> $ devpi use dev 
+    -->  /home/hpk/p/devpi/doc$ devpi use dev 
     current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
-    ~/.pydistutils.cfg     : no config file exists
-    ~/.pip/pip.conf        : no config file exists
-    ~/.buildout/default.cfg: no config file exists
+    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
     always-set-cfg: no
     COMPLETED!  you can now work with your 'dev' index
       devpi install PKG   # install a pkg from pypi
@@ -98,7 +97,7 @@ a series of other devpi commands::
 Show the version::
 
     $ devpi --version
-    2.1.0
+    2.3.2
 
 .. _`quickstart_release_steps`:
 
@@ -109,15 +108,12 @@ We can now use the ``devpi`` command line client to trigger a ``pip
 install`` of a pypi package using the index from our already running server::
 
     $ devpi install pytest
-    --> $ /tmp/docenv/bin/pip install -U -i http://localhost:3141/testuser/dev/+simple/ pytest  [PIP_USE_WHEEL=1,PIP_PRE=1]
+    -->  /home/hpk/p/devpi/doc$ /tmp/docenv/bin/pip install -U -i http://localhost:3141/testuser/dev/+simple/ pytest  [PIP_USE_WHEEL=1,PIP_PRE=1]
     Collecting pytest
-      Downloading http://localhost:3141/root/pypi/+f/143/41e122f7e9031/pytest-2.6.4.tar.gz (512kB)
-    Requirement already up-to-date: py>=1.4.25 in /tmp/docenv/lib/python2.7/site-packages (from pytest)
+      Downloading http://localhost:3141/root/pypi/+f/a19/ade05f74d114c/pytest-2.8.3-py2.py3-none-any.whl (149kB)
+    Requirement already up-to-date: py>=1.4.29 in /tmp/docenv/lib/python2.7/site-packages (from pytest)
     Installing collected packages: pytest
-      Running setup.py install for pytest
-        Installing py.test-2.7 script to /tmp/docenv/bin
-        Installing py.test script to /tmp/docenv/bin
-    Successfully installed pytest-2.6.4
+    Successfully installed pytest-2.8.3
 
 The ``devpi install`` command configured a pip call, using the
 pypi-compatible ``+simple/`` page on our ``testuser/dev`` index for
@@ -127,7 +123,7 @@ in the ``PATH`` and found in ``docenv/bin/pip``.
 Let's check that ``pytest`` was installed correctly::
 
     $ py.test --version
-    This is pytest version 2.6.4, imported from /tmp/docenv/local/lib/python2.7/site-packages/pytest.pyc
+    This is pytest version 2.8.3, imported from /tmp/docenv/local/lib/python2.7/site-packages/pytest.pyc
 
 You may invoke the ``devpi install`` command a second time which will
 even work when you have no network.
@@ -145,9 +141,9 @@ Let's verify we are logged in to the correct index::
 
     $ devpi use
     current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
-    ~/.pydistutils.cfg     : no config file exists
-    ~/.pip/pip.conf        : no config file exists
-    ~/.buildout/default.cfg: no config file exists
+    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
     always-set-cfg: no
 
 Now go to the directory of a ``setup.py`` file of one of your projects  
@@ -156,9 +152,9 @@ to our ``testuser/dev`` index::
 
     example $ devpi upload
     using workdir /tmp/devpi0
-    Mercurial-exported project to /tmp/devpi0/upload/example -> new CWD
+    copied repo /home/hpk/p/devpi/.hg to /tmp/devpi0/upload/devpi/.hg
     pre-build: cleaning /home/hpk/p/devpi/doc/example/dist
-    --> $ /tmp/docenv/bin/python setup.py sdist --formats gztar 
+    -->  /tmp/devpi0/upload/devpi/doc/example$ /tmp/docenv/bin/python setup.py sdist --formats gztar 
     built: /home/hpk/p/devpi/doc/example/dist/example-1.0.tar.gz [SDIST.TGZ] 0kb
     register example-1.0 to http://localhost:3141/testuser/dev/
     file_upload of example-1.0.tar.gz to http://localhost:3141/testuser/dev/
@@ -180,11 +176,14 @@ There are three triggered actions:
 We can now install the freshly uploaded package::
 
     $ devpi install example
-    --> $ /tmp/docenv/bin/pip install -U -i http://localhost:3141/testuser/dev/+simple/ example  [PIP_USE_WHEEL=1,PIP_PRE=1]
+    -->  /home/hpk/p/devpi/doc$ /tmp/docenv/bin/pip install -U -i http://localhost:3141/testuser/dev/+simple/ example  [PIP_USE_WHEEL=1,PIP_PRE=1]
     Collecting example
-      Downloading http://localhost:3141/testuser/dev/+f/5e8/3ca1ec707a391/example-1.0.tar.gz
+      Downloading http://localhost:3141/testuser/dev/+f/687/fe8464bec283e/example-1.0.tar.gz
+    Building wheels for collected packages: example
+      Running setup.py bdist_wheel for example
+      Stored in directory: /tmp/home/.cache/pip/wheels/c5/bc/a0/d0b782043eae4c7cb254e8713820ae459e6400e27a948107cc
+    Successfully built example
     Installing collected packages: example
-      Running setup.py install for example
     Successfully installed example-1.0
 
 This installed your just uploaded package from the ``testuser/dev``
@@ -204,24 +203,28 @@ devpi test: testing an uploaded package
 If you have a package which uses tox_ for testing you may now invoke::
 
     $ devpi test example  # package needs to contain tox.ini
-    received http://localhost:3141/testuser/dev/+f/5e8/3ca1ec707a391/example-1.0.tar.gz
-    unpacking /tmp/devpi-test0/downloads/example-1.0.tar.gz to /tmp/devpi-test0
-    /tmp/devpi-test0/example-1.0$ tox --installpkg /tmp/devpi-test0/downloads/example-1.0.tar.gz -i ALL=http://localhost:3141/testuser/dev/+simple/ --result-json /tmp/devpi-test0/toxreport.json -c /tmp/devpi-test0/example-1.0/tox.ini
-    python create: /tmp/devpi-test0/example-1.0/.tox/python
+    received http://localhost:3141/testuser/dev/+f/687/fe8464bec283e/example-1.0.tar.gz
+    unpacking /tmp/devpi-test0/downloads/example-1.0.tar.gz to /tmp/devpi-test0/targz
+    /tmp/devpi-test0/targz/example-1.0$ tox --installpkg /tmp/devpi-test0/downloads/example-1.0.tar.gz -i ALL=http://localhost:3141/testuser/dev/+simple/ --recreate --result-json /tmp/devpi-test0/targz/toxreport.json -c /tmp/devpi-test0/targz/example-1.0/tox.ini
+    python create: /tmp/devpi-test0/targz/example-1.0/.tox/python
     python installdeps: pytest
     python inst: /tmp/devpi-test0/downloads/example-1.0.tar.gz
-    python runtests: PYTHONHASHSEED='326844602'
+    python installed: example==1.0,py==1.4.30,pytest==2.8.3,wheel==0.24.0
+    python runtests: PYTHONHASHSEED='2000042321'
     python runtests: commands[0] | py.test
     ============================= test session starts ==============================
-    platform linux2 -- Python 2.7.6 -- py-1.4.26 -- pytest-2.6.4
-    collected 0 items
+    platform linux2 -- Python 2.7.6, pytest-2.8.3, py-1.4.30, pluggy-0.3.1
+    rootdir: /tmp/devpi-test0/targz/example-1.0, inifile: 
+    collected 1 items
     
-    ===============================  in 0.00 seconds ===============================
+    test_example.py .
+    
+    =========================== 1 passed in 0.01 seconds ===========================
     ___________________________________ summary ____________________________________
       python: commands succeeded
       congratulations :)
-    wrote json report at: /tmp/devpi-test0/toxreport.json
-    posting tox result data to http://localhost:3141/testuser/dev/+f/5e8/3ca1ec707a391/example-1.0.tar.gz
+    wrote json report at: /tmp/devpi-test0/targz/toxreport.json
+    posting tox result data to http://localhost:3141/testuser/dev/+f/687/fe8464bec283e/example-1.0.tar.gz
     successfully posted tox result data
 
 Here is what happened:
@@ -240,8 +243,15 @@ Here is what happened:
 We can verify that the test status was recorded via::
 
     $ devpi list example
-    http://localhost:3141/testuser/dev/+f/5e8/3ca1ec707a391/example-1.0.tar.gz
-      cobra linux2 python 2.7.6 tests passed
+    http://localhost:3141/testuser/dev/+f/687/fe8464bec283e/example-1.0.tar.gz
+    uwanda     linux2  python     2.7.6 tests passed
+
+.. note::
+
+    Since version 2.2.0 testing of universal wheels is supported if there
+    also is an sdist which contains the neccessary tox.ini and tests files.
+    Wheels typically don't contain them as they are a pure installation
+    package.
 
 devpi push: staging a release to another index
 ++++++++++++++++++++++++++++++++++++++++++++++
@@ -256,7 +266,6 @@ Let's create another ``staging`` index::
       type=stage
       bases=root/pypi
       volatile=False
-      uploadtrigger_jenkins=None
       acl_upload=testuser
       pypi_whitelist=
 
@@ -269,8 +278,8 @@ our ``staging`` index::
 
     $ devpi push example==1.0 testuser/staging
        200 register example 1.0 -> testuser/staging
-       200 store_releasefile testuser/staging/+f/5e8/3ca1ec707a391/example-1.0.tar.gz
-       200 store_toxresult testuser/staging/+f/5e8/3ca1ec707a391/example-1.0.tar.gz.toxresult0
+       200 store_releasefile testuser/staging/+f/687/fe8464bec283e/example-1.0.tar.gz
+       200 store_toxresult testuser/staging/+f/687/fe8464bec283e/example-1.0.tar.gz.toxresult0
 
 This will determine all files on our ``testuser/dev`` index belonging to
 the specified ``example==1.0`` release and copy them to the
@@ -283,25 +292,25 @@ Let's check again our current index::
 
     $ devpi use
     current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
-    ~/.pydistutils.cfg     : no config file exists
-    ~/.pip/pip.conf        : no config file exists
-    ~/.buildout/default.cfg: no config file exists
+    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
     always-set-cfg: no
 
 Let's now use our ``testuser/staging`` index::
 
     $ devpi use testuser/staging
     current devpi index: http://localhost:3141/testuser/staging (logged in as testuser)
-    ~/.pydistutils.cfg     : no config file exists
-    ~/.pip/pip.conf        : no config file exists
-    ~/.buildout/default.cfg: no config file exists
+    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
     always-set-cfg: no
 
 and check the test result status again::
 
     $ devpi list example
-    http://localhost:3141/testuser/staging/+f/5e8/3ca1ec707a391/example-1.0.tar.gz
-      cobra linux2 python 2.7.6 tests passed
+    http://localhost:3141/testuser/staging/+f/687/fe8464bec283e/example-1.0.tar.gz
+    uwanda     linux2  python     2.7.6 tests passed
 
 Good, the test result status is still available after the push
 from the last step.
@@ -332,7 +341,6 @@ index, we can reconfigure the inheritance
       type=stage
       bases=testuser/staging
       volatile=True
-      uploadtrigger_jenkins=None
       acl_upload=testuser
       pypi_whitelist=
 
@@ -340,18 +348,18 @@ If we now switch back to using ``testuser/dev``::
 
     $ devpi use testuser/dev
     current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
-    ~/.pydistutils.cfg     : no config file exists
-    ~/.pip/pip.conf        : no config file exists
-    ~/.buildout/default.cfg: no config file exists
+    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
+    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
+    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
     always-set-cfg: no
 
 and look at our example release files::
 
     $ devpi list example
-    http://localhost:3141/testuser/dev/+f/5e8/3ca1ec707a391/example-1.0.tar.gz
-      cobra linux2 python 2.7.6 tests passed
-    http://localhost:3141/testuser/staging/+f/5e8/3ca1ec707a391/example-1.0.tar.gz
-      cobra linux2 python 2.7.6 tests passed
+    http://localhost:3141/testuser/dev/+f/687/fe8464bec283e/example-1.0.tar.gz
+    uwanda     linux2  python     2.7.6 tests passed
+    http://localhost:3141/testuser/staging/+f/687/fe8464bec283e/example-1.0.tar.gz
+    uwanda     linux2  python     2.7.6 tests passed
 
 we'll see that ``example-1.0.tar.gz`` is contained in both
 indices.  Let's remove the ``testuser/dev`` ``example`` release::
@@ -359,8 +367,8 @@ indices.  Let's remove the ``testuser/dev`` ``example`` release::
     $ devpi remove -y example
     About to remove the following releases and distributions
     version: 1.0
-      - http://localhost:3141/testuser/dev/+f/5e8/3ca1ec707a391/example-1.0.tar.gz
-      - http://localhost:3141/testuser/dev/+f/5e8/3ca1ec707a391/example-1.0.tar.gz.toxresult0
+      - http://localhost:3141/testuser/dev/+f/687/fe8464bec283e/example-1.0.tar.gz
+      - http://localhost:3141/testuser/dev/+f/687/fe8464bec283e/example-1.0.tar.gz.toxresult0
     Are you sure (yes/no)? yes (autoset from -y option)
     deleting release 1.0 of example
 
@@ -371,15 +379,15 @@ The ``example-1.0`` release remains accessible through ``testuser/dev``
 because it inherits all releases from its ``testuser/staging`` base::
 
     $ devpi list example
-    http://localhost:3141/testuser/staging/+f/5e8/3ca1ec707a391/example-1.0.tar.gz
-      cobra linux2 python 2.7.6 tests passed
+    http://localhost:3141/testuser/staging/+f/687/fe8464bec283e/example-1.0.tar.gz
+    uwanda     linux2  python     2.7.6 tests passed
 
 ::
 
     $ devpi-server --stop
-    2015-03-16 12:30:23,828 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2015-03-16 12:30:23,829 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    killed server pid=13034
+    2015-11-20 22:13:13,505 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2015-11-20 22:13:13,505 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    killed server pid=31435
 
 running devpi-server permanently
 +++++++++++++++++++++++++++++++++

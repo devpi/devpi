@@ -42,7 +42,9 @@ class Auth:
             userinfo = user.get() if user is not None else None
             try:
                 results = [
-                    x for x in self.hook(userinfo, authuser, authpassword)
+                    x for x in self.hook(userdict=userinfo,
+                                         username=authuser,
+                                         password=authpassword)
                     if x["status"] != "unknown"]
             except AuthException:
                 threadlog.exception("Error in authentication plugin.")

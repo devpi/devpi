@@ -114,8 +114,10 @@ class Mapp(MappMixin):
             for name, val in indexconfig.items():
                 if name == "bases":
                     params.append("%s=%s" % (name, ",".join(val)))
-                if name == "volatile":
+                elif name == "volatile":
                     params.append("%s=%s" % (name, bool(val)))
+                else:
+                    params.append("%s=%s" % (name, val))
         return params
 
     def create_index(self, indexname, indexconfig=None, code=200):
@@ -146,12 +148,16 @@ class Mapp(MappMixin):
             self.devpi("index", indexname,
                        "custom_data=%s" % data, code=200)
 
-    def set_uploadtrigger_jenkins(self, url, indexname=None):
+    def set_uploadtrigger_jenkins(self, *args, **kwargs):
+        # called when we run client tests against server-2.1
+        pytest.skip("jenkins functionality moved out to pytest-jenkins")
+
+    def set_indexconfig_option(self, key, value, indexname=None):
         if indexname is None:
-            self.devpi("index", "uploadtrigger_jenkins=%s" % url, code=200)
+            self.devpi("index", "%s=%s" % (key, value), code=200)
         else:
             self.devpi("index", indexname,
-                       "uploadtrigger_jenkins=%s" % url, code=200)
+                       "%s=%s" % (key, value), code=200)
 
     def set_pypi_whitelist(self, whitelist, indexname=None):
         if indexname is None:
