@@ -27,6 +27,9 @@ class BaseConnection:
 
     @cached_property
     def last_changelog_serial(self):
+        return self.db_read_last_changelog_serial()
+
+    def db_read_last_changelog_serial(self):
         q = 'SELECT MAX(_ROWID_) FROM "changelog" LIMIT 1'
         res = self._sqlconn.execute(q).fetchone()[0]
         return -1 if res is None else res

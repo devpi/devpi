@@ -118,6 +118,31 @@ because it might otherwise assume it is exposed at ``http://localhost:4040``
 and generate URLs accordingly.
 
 
+multi-process high-performance setups
++++++++++++++++++++++++++++++++++++++
+
+.. versionadded: 3.0
+
+You can run multiple processes both on master and replica sites if you want
+to improve throughput.  On the master and each replica site you need to
+run a single "main" instance which will care for event and hook processing 
+(needed e.g. for running devpi-web) and you can then start one or more
+workers like this::
+
+    devpi-server --requests-only  --port NUM # add other options as needed
+
+This "worker" startup will only process web requests (both read and write)
+but it will not run event based hooks but rather rely on the respective main instance
+to do that.  Therefore workers accept uploads, satisfy "pip install" requests
+and can serve documentation (which is generated from the main instance) but a worker
+will not function well if the main instance is absent.
+
+Typically you will need to have a web-server like nginx which distributes load
+to the main instance and the workers evenly.  Note that you need to make sure
+that the ``/+status`` url is routed to a main instance because workers
+will not be able to represent the status.
+
+
 supervisor site configuration
 +++++++++++++++++++++++++++++++++++++++++++++++
 

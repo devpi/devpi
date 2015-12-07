@@ -23,7 +23,6 @@ MAX_REPLICA_BLOCK_TIME = 30.0
 
 class MasterChangelogRequest:
     MAX_REPLICA_BLOCK_TIME = MAX_REPLICA_BLOCK_TIME
-    WAKEUP_INTERVAL = 2.0
 
     def __init__(self, request):
         self.request = request
@@ -91,9 +90,7 @@ class MasterChangelogRequest:
                     serial = int(serial)
                 except ValueError:
                     raise HTTPNotFound("serial needs to be int")
-                raw_entry = keyfs.tx.conn.get_raw_changelog_entry(serial)
-                if not raw_entry:
-                    raw_entry = self._wait_for_entry(serial)
+                raw_entry = self._wait_for_entry(serial)
 
             devpi_serial = keyfs.get_current_serial()
             r = Response(body=raw_entry, status=200, headers={
@@ -103,25 +100,17 @@ class MasterChangelogRequest:
             return r
 
     def _wait_for_entry(self, serial):
-        max_wakeups = self.MAX_REPLICA_BLOCK_TIME / self.WAKEUP_INTERVAL
         keyfs = self.xom.keyfs
-        with keyfs.notifier.cv_new_transaction:
-            next_serial = keyfs.get_next_serial()
-            if serial > next_serial:
-                raise HTTPNotFound("can only wait for next serial")
-            with threadlog.around("debug",
-                                  "waiting for tx%s", serial):
-                num_wakeups = 0
-                while serial >= keyfs.get_next_serial():
-                    if num_wakeups >= max_wakeups:
-                        raise HTTPAccepted("no new transaction yet",
-                            headers={str("X-DEVPI-SERIAL"):
-                                     str(keyfs.get_current_serial())})
-                    # we loop because we want control-c to get through
-                    keyfs.notifier.cv_new_transaction.wait(
-                        self.WAKEUP_INTERVAL)
-                    num_wakeups += 1
-        return keyfs._storage.get_raw_changelog_entry(serial)
+        next_serial = keyfs.get_next_serial()
+        if serial > next_serial:
+            raise HTTPNotFound("can only wait for next serial")
+        elif serial == next_serial:
+            arrived = keyfs.wait_tx_serial(serial, timeout=self.MAX_REPLICA_BLOCK_TIME)
+            if not arrived:
+                raise HTTPAccepted("no new transaction yet",
+                    headers={str("X-DEVPI-SERIAL"):
+                             str(keyfs.get_current_serial())})
+        return keyfs.tx.conn.get_raw_changelog_entry(serial)
 
 
 class ReplicaThread:
@@ -339,7 +328,7 @@ def proxy_write_to_master(xom, request):
     #threadlog.debug("relay headers: %s", r.headers)
     if r.status_code < 400:
         commit_serial = int(r.headers["X-DEVPI-SERIAL"])
-        xom.keyfs.notifier.wait_tx_serial(commit_serial)
+        xom.keyfs.wait_tx_serial(commit_serial)
     headers = clean_response_headers(r)
     headers[str("X-DEVPI-PROXY")] = str("replica")
     if r.status_code == 302:  # REDIRECT

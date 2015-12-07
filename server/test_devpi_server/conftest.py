@@ -124,6 +124,7 @@ def auto_transact(request):
 @pytest.fixture
 def xom(request, makexom):
     xom = makexom([])
+    request.addfinalizer(xom.keyfs.release_all_wait_tx)
     return xom
 
 

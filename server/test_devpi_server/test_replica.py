@@ -49,25 +49,25 @@ class TestChangelog:
         data = loads(body)
         assert "this" in str(data)
 
-    def test_get_wait(self, reqchangelog, testapp, mapp, noiter, monkeypatch):
-        mapp.create_user("this", password="p")
-        latest_serial = self.get_latest_serial(testapp)
-        monkeypatch.setattr(testapp.xom.keyfs.notifier.cv_new_transaction,
-                            "wait", lambda *x: 0/0)
-        with pytest.raises(ZeroDivisionError):
-            reqchangelog(latest_serial+1)
-
-    def test_get_wait_blocking_ends(self, testapp, mapp, noiter, monkeypatch,
+    def test_wait_entry_fails(self, testapp, mapp, noiter, monkeypatch,
                                     reqchangelog):
         mapp.create_user("this", password="p")
         latest_serial = self.get_latest_serial(testapp)
-        monkeypatch.setattr(MasterChangelogRequest, "MAX_REPLICA_BLOCK_TIME",
-                            0.01)
-        monkeypatch.setattr(MasterChangelogRequest, "WAKEUP_INTERVAL",
-                            0.001)
+        monkeypatch.setattr(MasterChangelogRequest, "MAX_REPLICA_BLOCK_TIME", 0.01)
         r = reqchangelog(latest_serial+1)
         assert r.status_code == 202
         assert int(r.headers["X-DEVPI-SERIAL"]) == latest_serial
+
+    def test_wait_entry_succeeds(self, blank_request, xom, mapp):
+        mapp.create_user("this", password="p")
+        req = blank_request()
+        req.registry = {"xom": xom}
+        mcr = MasterChangelogRequest(req)
+        with xom.keyfs.transaction():
+            with pytest.raises(HTTPNotFound):
+                mcr._wait_for_entry(xom.keyfs.get_current_serial() + 10)
+            entry = mcr._wait_for_entry(xom.keyfs.get_current_serial())
+        assert entry
 
     def test_master_id_mismatch(self, testapp):
         testapp.xget(400, "/+changelog/0", headers={H_EXPECTED_MASTER_ID:str("123")})
@@ -261,7 +261,7 @@ class TestTweenReplica:
         reqmock.mock("http://localhost/blankpath",
                      code=200, headers={"X-DEVPI-SERIAL": "10"})
         l = []
-        monkeypatch.setattr(xom.keyfs.notifier, "wait_tx_serial",
+        monkeypatch.setattr(xom.keyfs, "wait_tx_serial",
                             lambda x: l.append(x))
         handler = tween_replica_proxy(None, {"xom": xom})
         response = handler(blank_request(method="PUT"))
@@ -273,7 +273,7 @@ class TestTweenReplica:
         reqmock.mock("http://localhost/blankpath",
                      code=200, reason="GOOD", headers={"X-DEVPI-SERIAL": "10"})
         l = []
-        monkeypatch.setattr(xom.keyfs.notifier, "wait_tx_serial",
+        monkeypatch.setattr(xom.keyfs, "wait_tx_serial",
                             lambda x: l.append(x))
         handler = tween_replica_proxy(None, {"xom": xom})
         response = handler(blank_request(method="PUT"))
@@ -287,7 +287,7 @@ class TestTweenReplica:
                                         "location": "http://localhost/hello"}
         )
         l = []
-        monkeypatch.setattr(xom.keyfs.notifier, "wait_tx_serial",
+        monkeypatch.setattr(xom.keyfs, "wait_tx_serial",
                             lambda x: l.append(x))
         handler = tween_replica_proxy(None, {"xom": xom})
         # normally the app is wrapped by OutsideURLMiddleware, since this is
@@ -306,7 +306,7 @@ class TestTweenReplica:
                         "Foo": "abc",
                         "Keep-Alive": "timeout=30",
                         "X-DEVPI-SERIAL": "0"})
-        monkeypatch.setattr(xom.keyfs.notifier, "wait_tx_serial",
+        monkeypatch.setattr(xom.keyfs, "wait_tx_serial",
                             lambda x: x)
         handler = tween_replica_proxy(None, {"xom": xom})
         response = handler(blank_request(method="PUT"))
@@ -499,7 +499,7 @@ class TestFileReplication:
     def test_cache_remote_file_fails(self, xom, replica_xom, gen,
                                      monkeypatch, reqmock, code):
         l = []
-        monkeypatch.setattr(xom.keyfs.notifier, "wait_tx_serial",
+        monkeypatch.setattr(xom.keyfs, "wait_tx_serial",
                             lambda x: l.append(x))
         with xom.keyfs.transaction(write=True):
             link = gen.pypi_package_link("pytest-1.8.zip", md5=True)
@@ -517,7 +517,7 @@ class TestFileReplication:
                                  headers=headers, data=b'123')
             if code == 200:
                 l = []
-                monkeypatch.setattr(replica_xom.keyfs.notifier, "wait_tx_serial",
+                monkeypatch.setattr(replica_xom.keyfs, "wait_tx_serial",
                     lambda serial: l.append(serial))
             with pytest.raises(entry.BadGateway):
                 entry.cache_remote_file_replica()
@@ -598,7 +598,7 @@ def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, replica_pypis
         replay(xom, replica_xom, events=False)
         assert replica_xom.keyfs.get_current_serial() == serial
 
-    monkeypatch.setattr(replica_xom.keyfs.notifier, 'wait_tx_serial', wait_tx_serial)
+    monkeypatch.setattr(replica_xom.keyfs, 'wait_tx_serial', wait_tx_serial)
     pypiurls.simple = 'http://localhost:3111/root/pypi/+simple/'
     httpget.mock_simple(
         'pytest',

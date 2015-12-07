@@ -112,33 +112,9 @@ def addoptions(parser, pluginmanager):
                  "validation. If it does not exist, a random secret "
                  "is generated on start up and used subsequently. ")
 
-    deploy.addoption("--export", type=str, metavar="PATH",
-            help="export devpi-server database state into PATH. "
-                 "This will export all users, indices (except root/pypi),"
-                 " release files, test results and documentation. "
-    )
-    deploy.addoption("--hard-links", action="store_true",
-            help="use hard links during export instead of copying files. "
-                 "All limitations for hard links on your OS apply. "
-                 "USE AT YOUR OWN RISK"
-    )
-    deploy.addoption("--import", type=str, metavar="PATH",
-            dest="import_",
-            help="import devpi-server database from PATH where PATH "
-                 "is a directory which was created by a "
-                 "'devpi-server --export PATH' operation, "
-                 "using the same or an earlier devpi-server version. "
-                 "Note that you can only import into a fresh server "
-                 "state directory (positional argument to devpi-server).")
-
-    deploy.addoption("--no-events", action="store_false",
-            default=True, dest="wait_for_events",
-            help="no events will be run during import, instead they are"
-                 "postponed to run on server start. This allows much faster "
-                 "start of the server after import, when devpi-web is used. "
-                 "When you start the server after the import, the search "
-                 "index and documentation will gradually update until the "
-                 "server has caught up with all events.")
+    deploy.addoption("--requests-only", action="store_true",
+            help="only start as a worker which handles read/write web requests "
+                 "but does not run an event processing or replication thread.")
 
     deploy.addoption("--passwd", action="store", metavar="USER",
             help="set password for user USER (interactive)")
@@ -177,6 +153,35 @@ def addoptions(parser, pluginmanager):
             help="the storage backend to use. This choice will be stored in "
                  "your '--serverdir' upon initialization.\n" + ", ".join(
                  '"%s": %s' % (x['name'], x['description']) for x in backends))
+
+    expimp = parser.addgroup("serverstate export / import options")
+    expimp.addoption("--export", type=str, metavar="PATH",
+            help="export devpi-server database state into PATH. "
+                 "This will export all users, indices (except root/pypi),"
+                 " release files, test results and documentation. "
+    )
+    expimp.addoption("--hard-links", action="store_true",
+            help="use hard links during export instead of copying files. "
+                 "All limitations for hard links on your OS apply. "
+                 "USE AT YOUR OWN RISK"
+    )
+    expimp.addoption("--import", type=str, metavar="PATH",
+            dest="import_",
+            help="import devpi-server database from PATH where PATH "
+                 "is a directory which was created by a "
+                 "'devpi-server --export PATH' operation, "
+                 "using the same or an earlier devpi-server version. "
+                 "Note that you can only import into a fresh server "
+                 "state directory (positional argument to devpi-server).")
+
+    expimp.addoption("--no-events", action="store_false",
+            default=True, dest="wait_for_events",
+            help="no events will be run during import, instead they are"
+                 "postponed to run on server start. This allows much faster "
+                 "start of the server after import, when devpi-web is used. "
+                 "When you start the server after the import, the search "
+                 "index and documentation will gradually update until the "
+                 "server has caught up with all events.")
 
     bg = parser.addgroup("background server")
     bg.addoption("--start", action="store_true",

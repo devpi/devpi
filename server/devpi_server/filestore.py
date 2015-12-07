@@ -265,7 +265,7 @@ class FileEntry(object):
             raise self.BadGateway(msg)
         serial = int(r.headers["X-DEVPI-SERIAL"])
         keyfs = self.key.keyfs
-        keyfs.notifier.wait_tx_serial(serial)
+        keyfs.wait_tx_serial(serial)
         keyfs.restart_read_transaction()  # use latest serial
         entry = self.xom.filestore.get_file_entry(self.relpath)
         if not entry.file_exists():

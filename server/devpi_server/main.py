@@ -221,6 +221,7 @@ class XOM:
             return wsgi_run(xom, app)
 
     def fatal(self, msg):
+        self.keyfs.release_all_wait_tx()
         self.thread_pool.shutdown()
         fatal(msg)
 
@@ -239,7 +240,8 @@ class XOM:
             readonly=self.is_replica(),
             cache_size=self.config.args.keyfs_cache_size)
         add_keys(self, keyfs)
-        self.thread_pool.register(keyfs.notifier)
+        if not self.config.args.requests_only:
+            self.thread_pool.register(keyfs.notifier)
         return keyfs
 
     def new_http_session(self, component_name):
@@ -358,7 +360,8 @@ class XOM:
             # the replica thread replays keyfs changes
             # and project-specific changes are discovered
             # and replayed through the PypiProjectChange event
-            self.thread_pool.register(self.replica_thread)
+            if not self.config.args.requests_only:
+                self.thread_pool.register(self.replica_thread)
         return OutsideURLMiddleware(app, self)
 
     def is_replica(self):

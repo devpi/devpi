@@ -565,7 +565,10 @@ class TestSubscriber:
             def __init__(self, num):
                 self.num = num
             def thread_run(self):
-                getattr(keyfs.notifier, meth)(self.num)
+                if meth == "wait_event_serial":
+                    keyfs.notifier.wait_event_serial(self.num)
+                else:
+                    keyfs.wait_tx_serial(self.num)
                 queue.put(self.num)
 
         for i in range(10):
@@ -577,6 +580,32 @@ class TestSubscriber:
 
         l = [queue.get() for i in range(10)]
         assert sorted(l) == list(range(10))
+
+    def test_wait_tx_same(self, keyfs):
+        keyfs.wait_tx_serial(keyfs.get_current_serial())
+        keyfs.wait_tx_serial(keyfs.get_current_serial())
+
+    def test_wait_tx_async(self, keyfs, pool, queue):
+        # start a thread which waits for the next serial
+        wait_serial = keyfs.get_next_serial()
+        class T:
+            def thread_run(self):
+                ret = keyfs.wait_tx_serial(wait_serial, recheck=0.01)
+                queue.put(ret)
+        pool.register(T())
+        pool.start()
+
+        # directly  modify the database without keyfs-transaction machinery
+        with keyfs._storage.get_connection(write=True) as conn:
+            conn.write_changelog_entry(wait_serial, [{}, ()])
+            conn.commit()
+
+        # check wait_tx_serial() call from the thread returned True
+        assert queue.get() == True
+
+    def test_wait_tx_async_timeout(self, keyfs):
+        wait_serial = keyfs.get_next_serial()
+        assert not keyfs.wait_tx_serial(wait_serial, timeout=0.001, recheck=0.0001)
 
     def test_commit_serial(self, keyfs):
         with keyfs.transaction() as tx:
