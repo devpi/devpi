@@ -74,23 +74,20 @@ def mapp(makemapp, master_host_port):
     return app
 
 
+@pytest.fixture(autouse=True)
+def xfail_hanging_tests(request):
+    hanging_tests = set([
+        'test_push_existing_to_nonvolatile',
+        'test_push_existing_to_volatile'])
+    if request.function.__name__  in hanging_tests:
+        pytest.xfail(reason="test hanging with replica-setup")
+
+
 @pytest.mark.skipif("not config.option.slow")
 class TestUserThings(BaseTestUserThings):
-    # modifies root password, which breaks following tests
-    def test_password_setting_admin(self):
-        pass
+    pass
 
 
 @pytest.mark.skipif("not config.option.slow")
 class TestIndexThings(BaseTestIndexThings):
-    # modifies root password, which breaks following tests
-    def test_create_index_default_allowed(self):
-        pass
-
-    # hangs
-    def test_push_existing_to_nonvolatile(self):
-        pass
-
-    # hangs
-    def test_push_existing_to_volatile(self):
-        pass
+    pass

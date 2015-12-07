@@ -75,9 +75,13 @@ class TestUserThings:
         mapp.delete_user("qlwkje", code=404)
 
     def test_password_setting_admin(self, mapp):
+        # if this test fails after the first change_password, subsequent tests
+        # might fail as well with an unauthorized error
         mapp.login("root", "")
         mapp.change_password("root", "p1oi2p3i")
         mapp.login("root", "p1oi2p3i")
+        mapp.change_password("root", "")
+
 
 class TestIndexThings:
 
@@ -145,7 +149,6 @@ class TestIndexThings:
         mapp.login_root()
         mapp.create_index("root/test1")
         mapp.login("root", "")
-        mapp.change_password("root", "asd")
         mapp.create_and_login_user("newuser1")
         mapp.create_index("root/test2", code=403)
 
