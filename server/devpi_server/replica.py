@@ -308,6 +308,7 @@ def clean_response_headers(response):
 def proxy_request_to_master(xom, request):
     master_url = xom.config.master_url
     url = master_url.joinpath(request.path).url
+    assert url.startswith(master_url.url)
     http = xom._httpsession
     with threadlog.around("info", "relaying: %s %s", request.method, url):
         try:
