@@ -1,3 +1,9 @@
+2.3.3 (unreleased)
+------------------
+
+- fix issue291: transfer file modes with vcs exports.  Thanks Sergey
+  Vasilyev for the report.
+
 2.3.2 (2015-11-11)
 ------------------
 

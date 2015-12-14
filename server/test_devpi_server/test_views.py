@@ -882,6 +882,36 @@ def test_push_from_base_error(mapp, testapp, monkeypatch, pypistage):
     assert r.status_code == 400
     assert "no files for" in r.json["message"]
 
+
+def test_push_from_pypi(httpget, mapp, pypistage, testapp):
+    pypistage.mock_simple("hello", text='<a href="hello-1.0.tar.gz"/>')
+    pypistage.mock_extfile("/simple/hello/hello-1.0.tar.gz", b"123")
+    mapp.create_and_login_user("foo")
+    mapp.create_index("newindex1", indexconfig=dict(bases=["root/pypi"]))
+    mapp.use("root/pypi")
+    req = dict(name="hello", version="1.0", targetindex="foo/newindex1")
+    r = testapp.push("/root/pypi", json.dumps(req))
+    assert r.status_code == 200
+    assert r.json == {
+        'result': [
+            [200, 'register', 'hello', '1.0', '->', 'foo/newindex1'],
+            [200, 'store_releasefile',
+             'foo/newindex1/+f/a66/5a45920422f9d/hello-1.0.tar.gz']],
+        'type': 'actionlog'}
+
+
+def test_push_from_pypi_fail(httpget, mapp, pypistage, testapp):
+    pypistage.mock_simple("hello", text='<a href="hello-1.0.tar.gz"/>')
+    pypistage.mock_extfile("/simple/hello/hello-1.0.tar.gz", b"123", status_code=502)
+    mapp.create_and_login_user("foo")
+    mapp.create_index("newindex1", indexconfig=dict(bases=["root/pypi"]))
+    mapp.use("root/pypi")
+    req = dict(name="hello", version="1.0", targetindex="foo/newindex1")
+    r = testapp.push("/root/pypi", json.dumps(req))
+    assert r.status_code == 502
+    assert r.json["message"] == "error 502 getting https://pypi.python.org/simple/hello/hello-1.0.tar.gz"
+
+
 def test_upload_docs_without_registration(mapp, testapp, monkeypatch):
     mapp.create_and_use()
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")

@@ -105,10 +105,12 @@ def metaprop(name):
     return property(fget, fset)
 
 
-class FileEntry(object):
-    class BadGateway(Exception):
-        pass
+class BadGateway(Exception):
+    pass
 
+
+class FileEntry(object):
+    BadGateway = BadGateway
     hash_spec = metaprop("hash_spec")  # e.g. "md5=120938012"
     eggfragment = metaprop("eggfragment")
     last_modified = metaprop("last_modified")
