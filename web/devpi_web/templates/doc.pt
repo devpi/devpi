@@ -6,10 +6,11 @@
         <script src="${request.static_url('devpi_web:static/docview.js')}"></script>
     </head>
     <body>
-        <metal:search use-macro="request.macros['navigation']" />
-        <div class="infonote" tal:condition="version_mismatch">
-            The latest available documentation (version ${doc_version}) isn't for the latest available package version.
-        </div>
+        <metal:search use-macro="request.macros['navigation']">
+            <div metal:fill-slot="endofheader" class="infonote" tal:condition="version_mismatch">
+                The latest available documentation (version ${doc_version}) isn't for the latest available package version.
+            </div>
+        </metal:search>
         <div class="iframe">
             <iframe
                 src="${url}" data-base_url="${base_url}" data-baseview_url="${baseview_url}"

@@ -1,9 +1,13 @@
 function updateIFrame(iframe) {
-    var $search = $('#search'), $nav = $('#navigation');
+    var $header = $('.header'),
+        $doc = $(iframe.contentWindow.document);
     // create enough space for letting devpi header overlap iframe
     // without hiding iframe content
     $('html', iframe.contentWindow.document).css(
-        'margin-top', $search.outerHeight(true) + $nav.outerHeight(true));
+        'margin-top', $header.outerHeight(true));
+    // make scrollbar visible by adding a margin to the header
+    $(".header").css(
+        "margin-right", $("body").width() - $doc.width());
 }
 
 function onIFrameLoad(iframe) {
@@ -14,32 +18,20 @@ function onIFrameLoad(iframe) {
 
     // make the devpi header move away on iframe down scrolling
     // and reappear on up scrolling...
-    // header consists of search form and nav div,
-    // both use {position: relative}
-    var $search = $('#search'), $nav = $('#navigation'), headerTop = 0,
-        $doc = $(iframe.contentWindow.document), scroll = $doc.scrollTop();
+    // it uses {position: relative}
+    var $header = $('.header'),
+        $doc = $(iframe.contentWindow.document);
 
     $doc.scroll(function () {
-        var newScroll = $doc.scrollTop();
+        var headerTop = -$doc.scrollTop(),
+            headerHeight = $header.outerHeight(true);
         // move header along with iframe scrolling...
-        headerTop -= newScroll - scroll;
-        if (headerTop > 0) {
+        if (headerTop < -headerHeight) {
             // don't move header further down than initial state
-            headerTop = 0;
+            headerTop = -headerHeight;
         }
-        else {
-            // don't move header further up than its height
-            //TODO: header still visible because of global offset
-            var height = $search.outerHeight(true) + $nav.outerHeight(true);
-            if (-headerTop > height) {
-                headerTop = -height;
-            }
-        }
-        $search.css('top', headerTop);
-        $nav.css('top', headerTop);
-
+        $header.css('top', headerTop);
         updateIFrame(iframe);
-        scroll = newScroll;
     });
 
     // copy title from iframe's inner document

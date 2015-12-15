@@ -72,15 +72,18 @@
     //--></script>
 </metal:search>
 <metal:search define-macro="navigation">
-    <metal:search use-macro="request.macros['search']" />
-    <div id="navigation">
-        <span tal:repeat="part request.navigation_info.path">
-            <tal:separator condition="not repeat.part.start">»</tal:separator>
-            <a href="${part.url}">${part.title}</a>
-        </span>
-        <metal:statusbadge use-macro="request.macros['statusbadge']" />
+    <div class="header">
+        <metal:search use-macro="request.macros['search']" />
+        <div id="navigation">
+            <span tal:repeat="part request.navigation_info.path">
+                <tal:separator condition="not repeat.part.start">»</tal:separator>
+                <a href="${part.url}">${part.title}</a>
+            </span>
+            <metal:statusbadge use-macro="request.macros['statusbadge']" />
+        </div>
+        <metal:status use-macro="request.macros['status']" />
+        <metal:endofheader define-slot="endofheader" />
     </div>
-    <metal:status use-macro="request.macros['status']" />
 </metal:search>
 <metal:query_doc define-macro="query_doc">
     <p tal:repeat="html request.query_docs_html" tal:content="structure html"></p>
