@@ -39,6 +39,8 @@ log = threadlog
 def pytest_addoption(parser):
     parser.addoption("--slow", action="store_true", default=False,
         help="run slow tests involving remote services (pypi.python.org)")
+    parser.addoption("--backend", action="store",
+        help="run tests with specified dotted name backend")
 
 @pytest.fixture(autouse=True)
 def _clear():
@@ -122,19 +124,37 @@ def auto_transact(request):
 @pytest.fixture
 def xom(request, makexom):
     xom = makexom([])
+    request.addfinalizer(xom.keyfs.release_all_wait_tx)
     return xom
 
+
 @pytest.yield_fixture(autouse=True, scope="session")
-def speed_up_sql():
-    from devpi_server.keyfs import Filesystem
-    old = Filesystem.get_sqlconn
+def speed_up_sqlite():
+    from devpi_server.keyfs_sqlite import Storage
+    old = Storage.ensure_tables_exist
     def make_unsynchronous(self, old=old):
         conn = old(self)
-        conn.execute("PRAGMA synchronous=OFF")
-        return conn
-    Filesystem.get_sqlconn = make_unsynchronous
+        with self.get_connection() as conn:
+            conn._sqlconn.execute("PRAGMA synchronous=OFF")
+        return
+    Storage.ensure_tables_exist = make_unsynchronous
     yield
-    Filesystem.get_sqlconn = old
+    Storage.ensure_tables_exist = old
+
+
+@pytest.yield_fixture(autouse=True, scope="session")
+def speed_up_sqlite_fs():
+    from devpi_server.keyfs_sqlite_fs import Storage
+    old = Storage.ensure_tables_exist
+    def make_unsynchronous(self, old=old):
+        conn = old(self)
+        with self.get_connection() as conn:
+            conn._sqlconn.execute("PRAGMA synchronous=OFF")
+        return
+    Storage.ensure_tables_exist = make_unsynchronous
+    yield
+    Storage.ensure_tables_exist = old
+
 
 @pytest.fixture(scope="session")
 def mock():
@@ -145,32 +165,61 @@ def mock():
     return mock
 
 
-@pytest.fixture()
-def proxymock(request, mock):
-    proxy = mock.create_autospec(extpypi.PyPISimpleProxy)
-    proxy.list_packages_with_serial.return_value = {}
-    return proxy
+@pytest.fixture(scope="session")
+def storage_info(request):
+    from pydoc import locate
+    backend = getattr(request.config.option, 'backend', None)
+    if backend is None:
+        backend = 'devpi_server.keyfs_sqlite_fs'
+    plugin = locate(backend)
+    result = plugin.devpiserver_storage_backend()
+    result["_test_plugin"] = plugin
+    return result
+
+
+@pytest.fixture(scope="session")
+def storage(storage_info):
+    return storage_info['storage']
 
 
 @pytest.fixture
-def makexom(request, gentmp, httpget, monkeypatch, proxymock):
+def makexom(request, gentmp, httpget, monkeypatch, storage_info):
     def makexom(opts=(), httpget=httpget, mocking=True, plugins=()):
         from devpi_server import auth_basic
         from devpi_server import auth_devpi
-        plugins = list(plugins) + [(auth_basic, None), (auth_devpi, None)]
-        pm = get_pluginmanager()
+        plugins = [
+            plugin[0] if isinstance(plugin, tuple) else plugin
+            for plugin in plugins]
+        for plugin in [auth_basic, auth_devpi, storage_info["_test_plugin"]]:
+            if plugin not in plugins:
+                plugins.append(plugin)
+        pm = get_pluginmanager(load_entrypoints=False)
         for plugin in plugins:
             pm.register(plugin)
         serverdir = gentmp()
         fullopts = ["devpi-server", "--serverdir", serverdir] + list(opts)
         if request.node.get_marker("with_replica_thread"):
             fullopts.append("--master=http://localhost")
+        if not request.node.get_marker("no_storage_option"):
+            if storage_info["name"] != "sqlite":
+                fullopts.append("--storage=%s" % storage_info["name"])
         fullopts = [str(x) for x in fullopts]
         config = parseoptions(pm, fullopts)
         config.init_nodeinfo()
+        for marker in ("storage_with_filesystem",):
+            if request.node.get_marker(marker):
+                info = config._storage_info()
+                markers = info.get("_test_markers", [])
+                if marker not in markers:
+                    pytest.skip("The storage doesn't have marker '%s'." % marker)
+        if not request.node.get_marker("no_storage_option"):
+            assert storage_info["storage"] is config.storage
         if mocking:
-            xom = XOM(config, proxy=proxymock, httpget=httpget)
-            add_pypistage_mocks(monkeypatch, httpget, proxymock)
+            xom = XOM(config, httpget=httpget)
+            if not request.node.get_marker("nomockprojectsremote"):
+                monkeypatch.setattr(extpypi.PyPIStage, "_get_remote_projects",
+                    lambda self: set())
+            add_pypistage_mocks(monkeypatch, httpget)
         else:
             xom = XOM(config)
         # initialize default indexes
@@ -178,8 +227,6 @@ def makexom(request, gentmp, httpget, monkeypatch, proxymock):
         if not xom.config.args.master_url:
             with xom.keyfs.transaction(write=True):
                 set_default_indexes(xom.model)
-        if mocking:
-            xom.pypimirror.init_pypi_mirror(proxymock)
         if request.node.get_marker("with_replica_thread"):
             from devpi_server.replica import ReplicaThread
             rt = ReplicaThread(xom)
@@ -197,10 +244,10 @@ def makexom(request, gentmp, httpget, monkeypatch, proxymock):
 
 @pytest.fixture
 def replica_xom(request, makexom):
-    from devpi_server.replica import PyPIDevpiProxy
+    from devpi_server.replica import register_key_subscribers
     master_url = "http://localhost:3111"
     xom = makexom(["--master", master_url])
-    xom.proxy = PyPIDevpiProxy(xom._httpsession, xom.config.master_url)
+    register_key_subscribers(xom)
     return xom
 
 
@@ -253,7 +300,7 @@ def httpget(pypiurls):
             log.debug("set mocking response %s %s", mockurl, kw)
             self.url2response[mockurl] = kw
 
-        def mock_simple(self, name, text=None, pkgver=None, hash_type=None,
+        def mock_simple(self, name, text="", pkgver=None, hash_type=None,
             pypiserial=10000, **kw):
             class ret:
                 hash_spec = ""
@@ -280,18 +327,6 @@ def httpget(pypiurls):
             self._md5.update(s.encode("utf8"))
             return self._md5.hexdigest()
 
-        def setextfile(self, path, content, **kw):
-            headers = {"content-length": len(content),
-                       "content-type": mimetypes.guess_type(path),
-                       "last-modified": "today",}
-            if path.startswith("/") and pypiurls.base.endswith("/"):
-                path = path.lstrip("/")
-            return self.mockresponse(pypiurls.base + path,
-                                     raw=py.io.BytesIO(content),
-                                     headers=headers,
-                                     **kw)
-
-
     return MockHTTPGet()
 
 @pytest.fixture
@@ -308,34 +343,45 @@ def model(xom):
 
 @pytest.fixture
 def pypistage(xom):
-    return PyPIStage(xom)
+    from devpi_server.main import _pypi_ixconfig_default
+    return PyPIStage(xom, username="root", index="pypi",
+                     ixconfig=_pypi_ixconfig_default)
 
 @pytest.fixture
-def pypireplicastage(replica_xom):
-    return PyPIStage(replica_xom)
+def replica_pypistage(replica_xom):
+    return pypistage(replica_xom)
 
-def add_pypistage_mocks(monkeypatch, httpget, proxymock):
+def add_pypistage_mocks(monkeypatch, httpget):
     # add some mocking helpers
     PyPIStage.url2response = httpget.url2response
     def mock_simple(self, name, text=None, pypiserial=10000, **kw):
-        if pypiserial is not None:
-            call = lambda: \
-                     self.pypimirror.set_project_serial(name, pypiserial)
-            if not hasattr(self.keyfs, "tx"):
-                with self.keyfs.transaction(write=True):
-                    call()
-            else:
-                call()
+        self.cache_link_updates.expire(name)
         return self.httpget.mock_simple(name,
-                text=text, pypiserial=pypiserial, **kw)
+                 text=text, pypiserial=pypiserial, **kw)
     monkeypatch.setattr(PyPIStage, "mock_simple", mock_simple, raising=False)
+
+    def mock_simple_projects(self, projectlist):
+        t = "".join('<a href="%s">%s</a>\n' % (name, name) for name in projectlist)
+        threadlog.debug("patching simple page with: %s" %(t))
+        self.httpget.mockresponse(self.PYPIURL_SIMPLE, code=200, text=t)
+
+    monkeypatch.setattr(PyPIStage, "mock_simple_projects",
+                        mock_simple_projects, raising=False)
+
+    def mock_extfile(self, path, content, **kw):
+        headers = {"content-length": len(content),
+                   "content-type": mimetypes.guess_type(path),
+                   "last-modified": "today",}
+        url = URL(self.PYPIURL_SIMPLE).joinpath(path)
+        return self.httpget.mockresponse(url.url, raw=py.io.BytesIO(content),
+                                         headers=headers, **kw)
+    monkeypatch.setattr(PyPIStage, "mock_extfile", mock_extfile, raising=False)
 
 @pytest.fixture
 def pypiurls():
-    from devpi_server.extpypi import PYPIURL, PYPIURL_SIMPLE
+    from devpi_server.extpypi import PYPIURL_SIMPLE
     class PyPIURL:
         def __init__(self):
-            self.base = PYPIURL
             self.simple = PYPIURL_SIMPLE
     return PyPIURL()
 
@@ -550,11 +596,11 @@ class Mapp(MappMixin):
         r = self.testapp.get_json("/%s" % indexname)
         return r.json["result"]["pypi_whitelist"]
 
-    def delete_project(self, projectname, code=200, indexname=None,
+    def delete_project(self, project, code=200, indexname=None,
                        waithooks=False):
         indexname = self._getindexname(indexname)
         r = self.testapp.delete_json("/%s/%s" % (indexname,
-                projectname), {}, expect_errors=True)
+                project), {}, expect_errors=True)
         assert r.status_code == code
         if waithooks:
             self._wait_for_serial_in_result(r)
@@ -610,11 +656,11 @@ class Mapp(MappMixin):
         assert r.status_code == code
         return r
 
-    def get_release_paths(self, projectname):
-        r = self.get_simple(projectname)
+    def get_release_paths(self, project):
+        r = self.get_simple(project)
         pkg_url = URL(r.request.url)
         paths = [pkg_url.joinpath(link["href"]).path
-                 for link in BeautifulSoup(r.body).findAll("a")]
+                 for link in BeautifulSoup(r.body, "html.parser").findAll("a")]
         return paths
 
     def upload_doc(self, basename, content, name, version, indexname=None,
@@ -637,8 +683,8 @@ class Mapp(MappMixin):
             self._wait_for_serial_in_result(r)
         return r
 
-    def get_simple(self, projectname, code=200):
-        r = self.testapp.get(self.api.simpleindex + projectname,
+    def get_simple(self, project, code=200):
+        r = self.testapp.get(self.api.simpleindex + project,
                              expect_errors=True)
         assert r.status_code == code
         return r
@@ -714,9 +760,16 @@ class MyTestApp(TApp):
         if accept is not None:
             headers = kwargs.setdefault("headers", {})
             headers[str("Accept")] = str(accept)
-        return self._gen_request("GET", *args, **kwargs)
+        follow = kwargs.pop("follow", True)
+        response = self._gen_request("GET", *args, **kwargs)
+        if follow and response.status_code == 302:
+            assert response.location != args[0]
+            return self.get(response.location, *args[1:], **kwargs)
+        return response
 
     def xget(self, code, *args, **kwargs):
+        if code == 302:
+            kwargs["follow"] = False
         r = self.get(*args, **kwargs)
         assert r.status_code == code
         return r
@@ -732,7 +785,7 @@ class MyTestApp(TApp):
         headers = kwargs.setdefault("headers", {})
         headers["Accept"] = "application/json"
         self.x = 1
-        return super(MyTestApp, self).get(*args, **kwargs)
+        return self.get(*args, **kwargs)
 
 
 

@@ -147,7 +147,7 @@ class TestImportExport:
             assert len(results) == 1
             assert results[0] == tox_result_data
             linkstore = stage.get_linkstore_perstage(
-                link.projectname, link.version)
+                link.project, link.version)
             tox_link, = linkstore.get_links(rel="toxresult", for_entrypath=link)
             history_log = tox_link.get_logs()
             assert len(history_log) == 1
@@ -232,7 +232,7 @@ class TestImportExport:
             assert len(results) == 1
             assert results[0] == tox_result_data
             linkstore = stage.get_linkstore_perstage(
-                link.projectname, link.version)
+                link.project, link.version)
             tox_link, = linkstore.get_links(rel="toxresult", for_entrypath=link)
             history_log = tox_link.get_logs()
             assert len(history_log) == 1
@@ -440,10 +440,10 @@ class TestImportExport:
 
             links = stage.get_releaselinks("he_llo")
             assert len(links) == 2
-            projectname = stage.get_projectname("he-llo")
-            links = stage.get_releaselinks(projectname)
+            links = stage.get_releaselinks("he-llo")
             assert len(links) == 2
 
+    @pytest.mark.storage_with_filesystem
     @pytest.mark.skipif(not hasattr(os, 'link'),
                         reason="OS doesn't support hard links")
     def test_hard_links(self, makeimpexp):
@@ -462,7 +462,7 @@ class TestImportExport:
         assert impexp.exportdir.join(
           'user1', 'dev', 'he_llo-1.0.doc.zip').stat().nlink == 2
         assert impexp.exportdir.join(
-          'user1', 'dev', 'he_llo', 'he-llo-1.0.tar.gz').stat().nlink == 2
+          'user1', 'dev', 'he-llo', 'he-llo-1.0.tar.gz').stat().nlink == 2
 
         mapp2 = impexp.new_import()
 

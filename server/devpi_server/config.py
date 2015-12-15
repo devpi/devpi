@@ -3,6 +3,7 @@ import base64
 import os.path
 import argparse
 import uuid
+from operator import itemgetter
 
 from pluggy import PluginManager
 import py
@@ -15,11 +16,12 @@ from devpi_common.url import URL
 
 log = threadlog
 
-def get_pluginmanager():
+def get_pluginmanager(load_entrypoints=True):
     pm = PluginManager("devpiserver", implprefix="devpiserver_")
     pm.add_hookspecs(hookspecs)
     # XXX load internal plugins here
-    pm.load_setuptools_entrypoints("devpi_server")
+    if load_entrypoints:
+        pm.load_setuptools_entrypoints("devpi_server")
     pm.check_pending()
     return pm
 
@@ -27,7 +29,8 @@ def get_pluginmanager():
 def get_default_serverdir():
     return os.environ.get("DEVPI_SERVERDIR", "~/.devpi/server")
 
-def addoptions(parser):
+
+def addoptions(parser, pluginmanager):
     web = parser.addgroup("web serving options")
     web.addoption("--host",  type=str,
             default="localhost",
@@ -109,33 +112,9 @@ def addoptions(parser):
                  "validation. If it does not exist, a random secret "
                  "is generated on start up and used subsequently. ")
 
-    deploy.addoption("--export", type=str, metavar="PATH",
-            help="export devpi-server database state into PATH. "
-                 "This will export all users, indices (except root/pypi),"
-                 " release files, test results and documentation. "
-    )
-    deploy.addoption("--hard-links", action="store_true",
-            help="use hard links during export instead of copying files. "
-                 "All limitations for hard links on your OS apply. "
-                 "USE AT YOUR OWN RISK"
-    )
-    deploy.addoption("--import", type=str, metavar="PATH",
-            dest="import_",
-            help="import devpi-server database from PATH where PATH "
-                 "is a directory which was created by a "
-                 "'devpi-server --export PATH' operation, "
-                 "using the same or an earlier devpi-server version. "
-                 "Note that you can only import into a fresh server "
-                 "state directory (positional argument to devpi-server).")
-
-    deploy.addoption("--no-events", action="store_false",
-            default=True, dest="wait_for_events",
-            help="no events will be run during import, instead they are"
-                 "postponed to run on server start. This allows much faster "
-                 "start of the server after import, when devpi-web is used. "
-                 "When you start the server after the import, the search "
-                 "index and documentation will gradually update until the "
-                 "server has caught up with all events.")
+    deploy.addoption("--requests-only", action="store_true",
+            help="only start as a worker which handles read/write web requests "
+                 "but does not run an event processing or replication thread.")
 
     deploy.addoption("--passwd", action="store", metavar="USER",
             help="set password for user USER (interactive)")
@@ -164,6 +143,45 @@ def addoptions(parser):
                  "gets a lot of writes, then increasing this might "
                  "improve performance. Each entry uses 1kb of memory on "
                  "average. So by default about 10MB are used.")
+
+    backends = sorted(
+        pluginmanager.hook.devpiserver_storage_backend(),
+        key=itemgetter("name"))
+    deploy.addoption("--storage", type=str, metavar="NAME",
+            action="store",
+            choices=[x['name'] for x in backends],
+            help="the storage backend to use. This choice will be stored in "
+                 "your '--serverdir' upon initialization.\n" + ", ".join(
+                 '"%s": %s' % (x['name'], x['description']) for x in backends))
+
+    expimp = parser.addgroup("serverstate export / import options")
+    expimp.addoption("--export", type=str, metavar="PATH",
+            help="export devpi-server database state into PATH. "
+                 "This will export all users, indices (except root/pypi),"
+                 " release files, test results and documentation. "
+    )
+    expimp.addoption("--hard-links", action="store_true",
+            help="use hard links during export instead of copying files. "
+                 "All limitations for hard links on your OS apply. "
+                 "USE AT YOUR OWN RISK"
+    )
+    expimp.addoption("--import", type=str, metavar="PATH",
+            dest="import_",
+            help="import devpi-server database from PATH where PATH "
+                 "is a directory which was created by a "
+                 "'devpi-server --export PATH' operation, "
+                 "using the same or an earlier devpi-server version. "
+                 "Note that you can only import into a fresh server "
+                 "state directory (positional argument to devpi-server).")
+
+    expimp.addoption("--no-events", action="store_false",
+            default=True, dest="wait_for_events",
+            help="no events will be run during import, instead they are"
+                 "postponed to run on server start. This allows much faster "
+                 "start of the server after import, when devpi-web is used. "
+                 "When you start the server after the import, the search "
+                 "index and documentation will gradually update until the "
+                 "server has caught up with all events.")
 
     bg = parser.addgroup("background server")
     bg.addoption("--start", action="store_true",
@@ -195,7 +213,7 @@ def parseoptions(pluginmanager, argv, addoptions=addoptions):
                     "All indices are suitable for pip or easy_install usage "
                     "and setup.py upload ... invocations."
     )
-    addoptions(parser)
+    addoptions(parser, pluginmanager)
     pluginmanager.hook.devpiserver_add_parser_options(parser=parser)
 
     try_argcomplete(parser)
@@ -262,6 +280,7 @@ class Config:
         log.info("Loading node info from %s", self.path_nodeinfo)
         self._determine_roles()
         self._determine_uuid()
+        self._determine_storage()
         self.write_nodeinfo()
 
     def _determine_uuid(self):
@@ -326,6 +345,43 @@ class Config:
                   "as a master")
         self.nodeinfo["role"] = role
         return
+
+    def _storage_info_from_name(self, name, settings):
+        from .main import fatal
+        storages = self.pluginmanager.hook.devpiserver_storage_backend(settings=settings)
+        for storage in storages:
+            if storage['name'] == name:
+                return storage
+        fatal("The backend '%s' can't be found, is the plugin not installed?" % name)
+
+    def _storage_info(self):
+        name = self.nodeinfo["storage"]["name"]
+        settings = self.nodeinfo["storage"]["settings"]
+        return self._storage_info_from_name(name, settings)
+
+    @property
+    def storage(self):
+        return self._storage_info()["storage"]
+
+    def _determine_storage(self):
+        from .main import fatal
+        old_storage_info = self.nodeinfo.get("storage", {})
+        old_name = old_storage_info.get("name")
+        if self.args.storage:
+            name, sep, settings = self.args.storage.partition(':')
+            storage_info = self._storage_info_from_name(name, settings)
+            if old_name is not None and storage_info["name"] != old_name:
+                fatal("cannot change storage type after initialization")
+        else:
+            if old_name is None:
+                name = "sqlite"
+            else:
+                name = old_name
+            settings = old_storage_info.get("settings")
+            storage_info = self._storage_info_from_name(name, settings)
+        self.nodeinfo["storage"] = dict(
+            name=storage_info['name'],
+            settings=settings)
 
     @cached_property
     def secret(self):

@@ -1,9 +1,58 @@
+3.0.0 (unreleased)
+------------------
+
+- speed up simple-page serving for private indexes.  a private index 
+  with 200 release files should now be some 5 times faster.
+
+- internally use normalized project names everywhere, simplifying
+  code and slightly speeding up some operations.
+
+- change {name} in route_urls to {project} to disambiguate.
+  This is potentially incompatible for plugins which have registered
+  on existing route_urls.
+
+- use "project" variable naming consistently in APIs
+
+- drop calling of devpi_pypi_initial hook in favor of
+  the new "devpi_mirror_initialnames(stage, projectnames)" hook
+  which is called when a mirror is initialized.
+
+- introduce new "devpiserver_stage_created(stage)" hook which is
+  called for each index which is created.
+
+- simplify and unify internal mirroring code some more
+  with "normal" stage handling.
+
+- don't persist the list of mirrored project names anymore
+  but rely on a per-process RAM cache and the fact
+  that neither the UI nor pip/easy_install typically
+  need the projectnames list, anyway.
+
+- introduce new "devpiserver_storage_backend" hook which allows plugins to
+  provide custom storage backends. When there is more than one backend
+  available, the "--storage" option becomes required for startup.
+
+- introduce new "--requests-only" option to start devpi-server in
+  "worker" mode.  It can be used both for master and replica sites.  It
+  starts devpi-server without event processing and replication threads and
+  thus depends on respective "main" instances (those not using
+  "--request-only") to perform event and hook processing.  Each
+  worker instance needs to share the filesystem with a main instance.
+  Worker instances can not serve the "/+status" URL which must
+  always be routed to the main instance.
+
+2.5.4 (Unreleased)
+------------------
+
+- fix issue293: push from root/pypi to another index is now supported
+
 2.5.3 (2015-11-23)
 ------------------
 
 - fix a bug that resulted from accessing a non-existing project on 
   root/pypi where upstream does not contain the X-PYPI-LAST-SERIAL
   header usually.  Thanks Matthias Bach.
+
 
 2.5.2 (2015-11-20)
 ------------------
@@ -13,6 +62,7 @@
 
 - fix py2 incompatibility introduced with 2.5.1 where we used
   a unicode header and pyramid only likes str-headers.
+
 
 2.5.1 (2015-11-20)
 ------------------

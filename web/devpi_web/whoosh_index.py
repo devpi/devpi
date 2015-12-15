@@ -90,7 +90,11 @@ class ProjectNameTokenizer(Tokenizer):
 
 
 def project_name(name, tokenizer=ProjectNameTokenizer()):
-    return ' '.join(x[2] for x in tokenizer.iter_value(name))
+    result = []
+    if "-" in name:
+        result.append(name.replace("-", "_"))
+    result.extend(x[2] for x in tokenizer.iter_value(name))
+    return ' '.join(result)
 
 
 class NgramFilter(Filter):

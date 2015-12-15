@@ -63,15 +63,20 @@ class Exporter:
         self.export_users = self.export["users"] = {}
         self.export_indexes = self.export["indexes"] = {}
 
-    def copy_file(self, src, dest):
+    def copy_file(self, entry, dest):
         dest.dirpath().ensure(dir=1)
         relpath = dest.relto(self.basepath)
-        if self.config.args.hard_links:
+        src = entry.file_os_path()
+        if self.config.args.hard_links and src is not None:
             self.tw.line("link file at %s" % relpath)
             os.link(src, dest.strpath)
+        elif src is not None:
+            self.tw.line("copy file at %s" % relpath)
+            shutil.copyfile(src, dest.strpath)
         else:
             self.tw.line("write file at %s" % relpath)
-            shutil.copyfile(src, dest.strpath)
+            with open(dest.strpath, 'wb') as f:
+                f.write(entry.file_get_content())
         return relpath
 
     def warn(self, msg):
@@ -126,7 +131,7 @@ class IndexDump:
         self.indexmeta["files"] = []
 
     def dump(self):
-        for name in self.stage.list_projectnames_perstage():
+        for name in self.stage.list_projects_perstage():
             data = {}
             versions = self.stage.list_versions_perstage(name)
             for version in versions:
@@ -153,9 +158,9 @@ class IndexDump:
             entry = self.exporter.filestore.get_file_entry(link.entrypath)
             assert entry.file_exists(), entry.relpath
             relpath = self.exporter.copy_file(
-                entry._filepath,
-                self.basedir.join(linkstore.projectname, entry.basename))
-            self.add_filedesc("releasefile", linkstore.projectname, relpath,
+                entry,
+                self.basedir.join(linkstore.project, entry.basename))
+            self.add_filedesc("releasefile", linkstore.project, relpath,
                                version=linkstore.version,
                                entrymapping=entry.meta,
                                log=link.get_logs())
@@ -164,31 +169,31 @@ class IndexDump:
         for tox_link in linkstore.get_links(rel="toxresult"):
             reflink = linkstore.stage.get_link_from_entrypath(tox_link.for_entrypath)
             relpath = self.exporter.copy_file(
-                tox_link.entry._filepath,
-                self.basedir.join(linkstore.projectname, reflink.hash_spec,
+                tox_link.entry,
+                self.basedir.join(linkstore.project, reflink.hash_spec,
                                   tox_link.basename)
             )
             self.add_filedesc(type="toxresult",
-                              projectname=linkstore.projectname,
+                              project=linkstore.project,
                               relpath=relpath,
                               version=linkstore.version,
                               for_entrypath=reflink.entrypath,
                               log=tox_link.get_logs())
 
-    def add_filedesc(self, type, projectname, relpath, **kw):
+    def add_filedesc(self, type, project, relpath, **kw):
         assert self.exporter.basepath.join(relpath).check()
         d = kw.copy()
         d["type"] = type
-        d["projectname"] = projectname
+        d["projectname"] = project
         d["relpath"] = relpath
         self.indexmeta["files"].append(d)
         self.exporter.completed("%s: %s " %(type, relpath))
 
-    def dump_docfile(self, projectname, version, entry):
+    def dump_docfile(self, project, version, entry):
         relpath = self.exporter.copy_file(
-            entry._filepath,
-            self.basedir.join("%s-%s.doc.zip" % (projectname, version)))
-        self.add_filedesc("doczip", projectname, relpath, version=version)
+            entry,
+            self.basedir.join("%s-%s.doc.zip" % (project, version)))
+        self.add_filedesc("doczip", project, relpath, version=version)
 
 
 class Importer:
@@ -291,7 +296,7 @@ class Importer:
     def import_filedesc(self, stage, filedesc):
         assert stage.ixconfig["type"] != "mirror"
         rel = filedesc["relpath"]
-        projectname = filedesc["projectname"]
+        project = filedesc["projectname"]
         p = self.import_rootdir.join(rel)
         assert p.check(), p
         if filedesc["type"] == "releasefile":
@@ -302,7 +307,7 @@ class Importer:
             else:
                 version = filedesc["version"]
 
-            link = stage.store_releasefile(projectname, version,
+            link = stage.store_releasefile(project, version,
                                            p.basename, p.read("rb"),
                                            last_modified=mapping["last_modified"])
             # devpi-server-2.1 exported with md5 checksums
@@ -316,7 +321,7 @@ class Importer:
             # determined here but in store_releasefile/store_doczip/store_toxresult etc
         elif filedesc["type"] == "doczip":
             version = filedesc["version"]
-            link = stage.store_doczip(projectname, version, p.read("rb"))
+            link = stage.store_doczip(project, version, p.read("rb"))
         elif filedesc["type"] == "toxresult":
             linkstore = stage.get_linkstore_perstage(filedesc["projectname"],
                                            filedesc["version"])

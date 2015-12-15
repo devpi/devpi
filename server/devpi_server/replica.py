@@ -1,5 +1,4 @@
 import os
-import py
 import json
 import contextlib
 import time
@@ -9,7 +8,7 @@ from pyramid.response import Response
 from devpi_common.validation import normalize_name
 from webob.headers import EnvironHeaders, ResponseHeaders
 
-from .keyfs import load, loads, dump, get_write_file_ensure_dir, rename
+from .fileutil import loads, rename
 from .log import thread_push_log, threadlog
 from .views import is_mutating_http_method, H_MASTER_UUID, make_uuid_headers
 from .model import UpstreamError
@@ -24,7 +23,6 @@ MAX_REPLICA_BLOCK_TIME = 30.0
 
 class MasterChangelogRequest:
     MAX_REPLICA_BLOCK_TIME = MAX_REPLICA_BLOCK_TIME
-    WAKEUP_INTERVAL = 2.0
 
     def __init__(self, request):
         self.request = request
@@ -92,9 +90,7 @@ class MasterChangelogRequest:
                     serial = int(serial)
                 except ValueError:
                     raise HTTPNotFound("serial needs to be int")
-                raw_entry = keyfs._fs.get_raw_changelog_entry(serial)
-                if not raw_entry:
-                    raw_entry = self._wait_for_entry(serial)
+                raw_entry = self._wait_for_entry(serial)
 
             devpi_serial = keyfs.get_current_serial()
             r = Response(body=raw_entry, status=200, headers={
@@ -104,33 +100,17 @@ class MasterChangelogRequest:
             return r
 
     def _wait_for_entry(self, serial):
-        max_wakeups = self.MAX_REPLICA_BLOCK_TIME / self.WAKEUP_INTERVAL
         keyfs = self.xom.keyfs
-        with keyfs.notifier.cv_new_transaction:
-            next_serial = keyfs.get_next_serial()
-            if serial > next_serial:
-                raise HTTPNotFound("can only wait for next serial")
-            with threadlog.around("debug",
-                                  "waiting for tx%s", serial):
-                num_wakeups = 0
-                while serial >= keyfs.get_next_serial():
-                    if num_wakeups >= max_wakeups:
-                        raise HTTPAccepted("no new transaction yet",
-                            headers={str("X-DEVPI-SERIAL"):
-                                     str(keyfs.get_current_serial())})
-                    # we loop because we want control-c to get through
-                    keyfs.notifier.cv_new_transaction.wait(
-                        self.WAKEUP_INTERVAL)
-                    num_wakeups += 1
-        return keyfs._fs.get_raw_changelog_entry(serial)
-
-
-    @view_config(route_name="/root/pypi/+name2serials")
-    def get_name2serials(self):
-        io = py.io.BytesIO()
-        dump(self.xom.pypimirror.name2serials, io)
-        headers = {str("Content-Type"): str("application/octet-stream")}
-        return Response(body=io.getvalue(), status=200, headers=headers)
+        next_serial = keyfs.get_next_serial()
+        if serial > next_serial:
+            raise HTTPNotFound("can only wait for next serial")
+        elif serial == next_serial:
+            arrived = keyfs.wait_tx_serial(serial, timeout=self.MAX_REPLICA_BLOCK_TIME)
+            if not arrived:
+                raise HTTPAccepted("no new transaction yet",
+                    headers={str("X-DEVPI-SERIAL"):
+                             str(keyfs.get_current_serial())})
+        return keyfs.tx.conn.get_raw_changelog_entry(serial)
 
 
 class ReplicaThread:
@@ -140,9 +120,6 @@ class ReplicaThread:
     def __init__(self, xom):
         self.xom = xom
         self.master_url = xom.config.master_url
-        if xom.is_replica():
-            xom.keyfs.notifier.on_key_change("PYPILINKS",
-                                             PypiProjectChanged(xom))
         self._master_serial = None
         self._master_serial_timestamp = None
         self.started_at = None
@@ -251,48 +228,36 @@ class ReplicaThread:
             self.thread.sleep(5.0)
 
 
-class PyPIDevpiProxy(object):
-    def __init__(self, http, master_url):
-        self._url = master_url.joinpath("root/pypi/+name2serials").url
-        self._http = http
-
-    def list_packages_with_serial(self):
-        try:
-            r = self._http.get(self._url, stream=True)
-        except self._http.Errors:
-            threadlog.exception("proxy request failed, no connection?")
-        else:
-            if r.status_code == 200:
-                return load(r.raw)
-        from devpi_server.main import fatal
-        fatal("replica: could not get serials from remote")
+def register_key_subscribers(xom):
+    xom.keyfs.PROJSIMPLELINKS.on_key_change(SimpleLinksChanged(xom))
 
 
-class PypiProjectChanged:
-    """ Event executed in notification thread based on a pypi link change. """
+class SimpleLinksChanged:
+    """ Event executed in notification thread based on a pypi link change.
+    It allows a replica to sync up the local full projectnames list."""
     def __init__(self, xom):
         self.xom = xom
 
     def __call__(self, ev):
-        threadlog.info("PypiProjectChanged %s", ev.typedkey)
-        pypimirror = self.xom.pypimirror
-        name2serials = pypimirror.name2serials
+        threadlog.info("SimpleLinksChanged %s", ev.typedkey)
         cache = ev.value
-
-        # get the normalized projectname (PYPILINKS uses it)
-        nname = ev.typedkey.params["name"]
-        if not nname:
-            threadlog.error("project %r missing", nname)
+        # get the normalized project (PYPILINKS uses it)
+        username = ev.typedkey.params["user"]
+        index = ev.typedkey.params["index"]
+        project = ev.typedkey.params["project"]
+        if not project:
+            threadlog.error("project %r missing", project)
             return
-        assert normalize_name(nname) == nname
+        assert normalize_name(project) == project
 
-        projectname = ev.value["projectname"] if cache else nname
-        if cache is None:  # deleted
-            pypimirror.set_project_serial(projectname, None)
-        else:
-            cur_serial = name2serials.get(projectname, -1)
-            if cache and cache["serial"] > cur_serial:
-                pypimirror.set_project_serial(projectname, cache["serial"])
+        with self.xom.keyfs.transaction(write=False):
+            mirror_stage = self.xom.model.getstage(username, index)
+            if mirror_stage.ixconfig["type"] == "mirror":
+                cache_projectnames = mirror_stage.cache_projectnames.get_inplace()
+                if cache is None:  # deleted
+                    cache_projectnames.discard(project)
+                else:
+                    cache_projectnames.add(project)
 
 
 def tween_replica_proxy(handler, registry):
@@ -343,6 +308,7 @@ def clean_response_headers(response):
 def proxy_request_to_master(xom, request):
     master_url = xom.config.master_url
     url = master_url.joinpath(request.path).url
+    assert url.startswith(master_url.url)
     http = xom._httpsession
     with threadlog.around("info", "relaying: %s %s", request.method, url):
         try:
@@ -363,7 +329,7 @@ def proxy_write_to_master(xom, request):
     #threadlog.debug("relay headers: %s", r.headers)
     if r.status_code < 400:
         commit_serial = int(r.headers["X-DEVPI-SERIAL"])
-        xom.keyfs.notifier.wait_tx_serial(commit_serial)
+        xom.keyfs.wait_tx_serial(commit_serial)
     headers = clean_response_headers(r)
     headers[str("X-DEVPI-PROXY")] = str("replica")
     if r.status_code == 302:  # REDIRECT
@@ -416,13 +382,13 @@ class ImportFileReplica:
         threadlog.debug("ImportFileReplica for %s, %s", key, val)
         relpath = key.relpath
         entry = self.xom.filestore.get_file_entry_raw(key, val)
-        file_exists = os.path.exists(entry._filepath)
+        file_exists = fswriter.conn.io_file_exists(entry._storepath)
         if val is None:
             if back_serial >= 0:
                 # file was deleted, still might never have been replicated
                 if file_exists:
-                    threadlog.debug("mark for deletion: %s", entry._filepath)
-                    fswriter.record_rename_file(None, entry._filepath)
+                    threadlog.debug("mark for deletion: %s", entry._storepath)
+                    fswriter.conn.io_file_delete(entry._storepath)
             return
         if file_exists or entry.last_modified is None:
             # we have a file or there is no remote file
@@ -453,10 +419,7 @@ class ImportFileReplica:
             return
         # in case there were errors before, we can now remove them
         self.errors.remove(entry)
-        tmppath = entry._filepath + "-tmp"
-        with get_write_file_ensure_dir(tmppath) as f:
-            f.write(r.content)
-        fswriter.record_rename_file(tmppath, entry._filepath)
+        fswriter.conn.io_file_set(entry._storepath, r.content)
 
 
 class FileReplicationError(Exception):
