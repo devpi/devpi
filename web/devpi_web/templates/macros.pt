@@ -43,7 +43,8 @@
             <metal:query_doc use-macro="request.macros['query_doc']" />
         </div>
     </form>
-    <script type="text/javascript"><!--
+    <script type="text/javascript">
+    //<![CDATA[
         $(function() {
             $('.help a').click(function() {
                 var $help = $('.query_doc.inline');
@@ -69,7 +70,8 @@
                 return false;
             });
         });
-    //--></script>
+    //]]>
+    </script>
 </metal:search>
 <metal:search define-macro="navigation">
     <div class="header">
