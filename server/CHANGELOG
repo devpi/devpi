@@ -1,3 +1,9 @@
+2.5.4 (Unreleased)
+------------------
+
+- fix issue293: push from root/pypi to another index is now supported
+
+
 2.5.3 (2015-11-23)
 ------------------
 
