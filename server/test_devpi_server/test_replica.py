@@ -567,6 +567,44 @@ class TestFileReplication:
                 assert l[0] == 10
 
 
+    def test_checksum_mismatch(self, xom, replica_xom, gen, maketestapp,
+                               makemapp, reqmock):
+        # this test might seem to be doing the same as test_fetch above, but
+        # test_fetch creates a new transaction for the same file, which doesn't
+        # happen 'in real life'™
+        from devpi_server.replica import ReplicationErrors
+        app = maketestapp(xom)
+        mapp = makemapp(app)
+        api = mapp.create_and_use()
+        content1 = mapp.makepkg("hello-1.0.zip", b"content1", "hello", "1.0")
+        mapp.upload_file_pypi("hello-1.0.zip", content1, "hello", "1.0")
+        r_app = maketestapp(replica_xom)
+        r_mapp = makemapp(r_app)
+        # first we try to return something wrong
+        master_url = replica_xom.config.master_url
+        (path,) = mapp.get_release_paths('hello')
+        master_file_url = master_url.joinpath(path).url
+        replica_xom.httpget.mockresponse(master_file_url, code=200, content=b'13')
+        replay(xom, replica_xom)
+        assert xom.keyfs.get_current_serial() == replica_xom.keyfs.get_current_serial()
+        replication_errors = ReplicationErrors(replica_xom.config.serverdir)
+        assert list(replication_errors.errors.keys()) == [
+            '%s/+f/d0b/425e00e15a0d3/hello-1.0.zip' % api.stagename]
+        # the master and replica are in sync, so getting the file on the
+        # replica needs to fetch it again
+        headers = {"content-length": "3",
+                   "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
+                   "content-type": "application/zip",
+                   "X-DEVPI-SERIAL": str(xom.keyfs.get_current_serial())}
+        reqmock.mockresponse(master_file_url, code=200, headers=headers)
+        replica_xom.httpget.mockresponse(master_file_url, code=200, content=content1)
+        r = r_app.get(path)
+        assert r.status_code == 200
+        assert r.body == content1
+        replication_errors = ReplicationErrors(replica_xom.config.serverdir)
+        assert list(replication_errors.errors.keys()) == []
+
+
 def test_should_fetch_remote_file():
     from devpi_server.views import should_fetch_remote_file
     from devpi_server.replica import H_REPLICA_FILEREPL

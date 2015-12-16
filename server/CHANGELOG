@@ -1,6 +1,9 @@
 2.5.4 (Unreleased)
 ------------------
 
+- fix issue296: try to fetch files from master again when requested, if there
+  were checksum errors during replication
+
 - fix issue293: push from root/pypi to another index is now supported
 
 
