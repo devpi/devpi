@@ -580,7 +580,6 @@ class TestFileReplication:
         content1 = mapp.makepkg("hello-1.0.zip", b"content1", "hello", "1.0")
         mapp.upload_file_pypi("hello-1.0.zip", content1, "hello", "1.0")
         r_app = maketestapp(replica_xom)
-        r_mapp = makemapp(r_app)
         # first we try to return something wrong
         master_url = replica_xom.config.master_url
         (path,) = mapp.get_release_paths('hello')
