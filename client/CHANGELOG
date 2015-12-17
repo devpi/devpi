@@ -4,6 +4,10 @@
 - fix issue291: transfer file modes with vcs exports.  Thanks Sergey
   Vasilyev for the report.
 
+- new option "devpi upload --index" which allows to upload to a different
+  index without first using "devpi use"
+
+
 2.3.2 (2015-11-11)
 ------------------
 
@@ -15,6 +19,7 @@
   vcs-export the directory containing setup.py. You can also
   set "setupdirs-only = 1" in the "[devpi:upload]" section
   of setup.cfg for the same effect.  Thanks Chad Wagner for the PR.
+
 
 2.3.1 (2015-09-10)
 ------------------
