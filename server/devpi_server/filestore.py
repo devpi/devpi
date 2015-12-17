@@ -246,10 +246,8 @@ class FileEntry(object):
         self.file_set_content(content, r.headers.get("last-modified", None))
 
     def cache_remote_file_replica(self):
-        is_replica = self.xom.is_replica()
-        if is_replica:
-            from .replica import ReplicationErrors
-            replication_errors = ReplicationErrors(self.xom.config.serverdir)
+        from .replica import H_REPLICA_FILEREPL, ReplicationErrors
+        replication_errors = ReplicationErrors(self.xom.config.serverdir)
         # construct master URL with param
         url = self.xom.config.master_url.joinpath(self.relpath).url
         entry = self.xom.filestore.get_file_entry(self.relpath)
@@ -269,14 +267,12 @@ class FileEntry(object):
         keyfs.restart_read_transaction()  # use latest serial
         if not entry.file_exists():
             # the file should have arrived through the replication machinery
-            if not is_replica or entry.relpath not in replication_errors.errors:
+            if entry.relpath not in replication_errors.errors:
                 msg = "%s: did not get file after waiting" % url
                 threadlog.error(msg)
                 raise self.BadGateway(msg)
         else:
             return entry
-        assert is_replica, "shouldn't be reached if this isn't a replica"
-        from .replica import H_REPLICA_FILEREPL, ReplicationErrors
         # there was an error during file replication, so we try to fetch again
         r = self.xom.httpget(
             url, allow_redirects=True,
