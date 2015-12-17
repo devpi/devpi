@@ -12,8 +12,11 @@ import contextlib
 import py
 from . import mythread
 from .log import threadlog, thread_push_log, thread_pop_log
+from .readonly import get_mutable_deepcopy, ensure_deeply_readonly, \
+                      ReadonlyView, is_deeply_readonly
 import os
 import sys
+import time
 from repoze.lru import LRUCache
 import sqlite3
 
@@ -77,11 +80,12 @@ def get_write_file_ensure_dir(path):
 
 
 class Filesystem:
-    def __init__(self, basedir, notify_on_commit):
+    def __init__(self, basedir, notify_on_commit, cache_size):
         self.basedir = basedir
         self._notify_on_commit = notify_on_commit
-        self._changelog_cache = LRUCache(1000)  # is thread safe
-        with self.get_sqlconn() as conn:
+        self._changelog_cache = LRUCache(cache_size)  # is thread safe
+        self.last_commit_timestamp = time.time()
+        with contextlib.closing(self.get_sqlconn()) as conn:
             row = conn.execute("select max(serial) from changelog").fetchone()
             serial = row[0]
             if serial is None:
@@ -98,7 +102,7 @@ class Filesystem:
 
     def get_raw_changelog_entry(self, serial):
         q = "SELECT data FROM changelog WHERE serial = ?"
-        with self.get_sqlconn() as conn:
+        with contextlib.closing(self.get_sqlconn()) as conn:
             conn.text_factory = bytes
             row = conn.execute(q, (serial,)).fetchone()
             if row is not None:
@@ -110,10 +114,14 @@ class Filesystem:
         if changes is None:
             data = self.get_raw_changelog_entry(serial)
             changes, rel_renames = loads(data)
-            self._changelog_cache.put(serial, changes)
+            # make values in changes read only so no calling site accidentally
+            # modifies data
+            changes = ensure_deeply_readonly(changes)
+            self.cache_commit_changes(serial, changes)
         return changes
 
     def cache_commit_changes(self, serial, changes):
+        assert isinstance(changes, ReadonlyView)
         self._changelog_cache.put(serial, changes)
 
     def get_sqlconn(self):
@@ -135,6 +143,7 @@ class Filesystem:
                         data BLOB NOT NULL
                     )
                 """)
+            conn.close()
         conn = sqlite3.connect(str(path), timeout=60)
         return conn
 
@@ -179,11 +188,12 @@ class FSWriter:
 
     def record_set(self, typedkey, value=None):
         """ record setting typedkey to value (None means it's deleted) """
+        assert not isinstance(value, ReadonlyView), value
         name, back_serial = self.db_get_typedkey_value(typedkey)
         self.db_set_typedkey_value(typedkey, self.fs.next_serial)
         # at __exit__ time we write out changes to the _changelog_cache
         # so we protect here against the caller modifying the value later
-        value = copy_if_mutable(value)
+        value = get_mutable_deepcopy(value)
         self.changes[typedkey.relpath] = (typedkey.name, back_serial, value)
 
     def record_rename_file(self, source, dest):
@@ -211,7 +221,8 @@ class FSWriter:
                 args.append(",".join(files_del))
             self.log.info(message, *args)
 
-            self.fs.cache_commit_changes(commit_serial, self.changes)
+            self.fs.cache_commit_changes(commit_serial,
+                                         ensure_deeply_readonly(self.changes))
             self.fs._notify_on_commit(commit_serial)
         else:
             while self.pending_renames:
@@ -235,6 +246,7 @@ class FSWriter:
         # - initialize next_serial from the max committed serial + 1
         files_commit, files_del = commit_renames(basedir, rel_renames)
         self.fs.next_serial += 1
+        self.fs.last_commit_timestamp = time.time()
         return list(self.changes), files_commit, files_del
 
 
@@ -303,6 +315,7 @@ class TxNotificationThread:
         self.cv_new_transaction = mythread.threading.Condition()
         self.cv_new_event_serial = mythread.threading.Condition()
         self.event_serial_path = str(self.keyfs.basedir.join(".event_serial"))
+        self.event_serial_in_sync_at = None
         self._on_key_change = {}
 
     def on_key_change(self, key, subscriber):
@@ -330,6 +343,12 @@ class TxNotificationThread:
         # processed" instead of the now "last processed event serial"
         return read_int_from_file(self.event_serial_path, 0) - 1
 
+    def get_event_serial_timestamp(self):
+        f = py.path.local(self.event_serial_path)
+        if not f.exists():
+            return
+        return f.stat().mtime
+
     def write_event_serial(self, event_serial):
         write_int_to_file(event_serial + 1, self.event_serial_path)
 
@@ -352,7 +371,10 @@ class TxNotificationThread:
                 with self.cv_new_event_serial:
                     self.write_event_serial(event_serial)
                     self.cv_new_event_serial.notify_all()
-            if event_serial >= self.keyfs.get_current_serial():
+            serial = self.keyfs.get_current_serial()
+            if event_serial >= serial:
+                if event_serial == serial:
+                    self.event_serial_in_sync_at = time.time()
                 with self.cv_new_transaction:
                     self.cv_new_transaction.wait()
                     self.thread.exit_if_shutdown()
@@ -381,7 +403,7 @@ class KeyFS(object):
     class ReadOnly(Exception):
         """ attempt to open write transaction while in readonly mode. """
 
-    def __init__(self, basedir, readonly=False):
+    def __init__(self, basedir, readonly=False, cache_size=10000):
         self.basedir = py.path.local(basedir).ensure(dir=1)
         self._keys = {}
         self._mode = None
@@ -390,7 +412,10 @@ class KeyFS(object):
         self._threadlocal = mythread.threading.local()
         self._import_subscriber = {}
         self.notifier = t = TxNotificationThread(self)
-        self._fs = Filesystem(self.basedir, notify_on_commit=t.notify_on_commit)
+        self._fs = Filesystem(
+            self.basedir,
+            notify_on_commit=t.notify_on_commit,
+            cache_size=cache_size)
         self._readonly = readonly
 
     def derive_key(self, relpath, keyname=None, conn=None):
@@ -409,16 +434,17 @@ class KeyFS(object):
 
     def import_changes(self, serial, changes):
         with self._write_lock:
-            with self._fs.get_sqlconn() as sqlconn:
+            with contextlib.closing(self._fs.get_sqlconn()) as sqlconn:
                 with self._fs.write_transaction(sqlconn) as fswriter:
                     next_serial = self.get_next_serial()
                     assert next_serial == serial, (next_serial, serial)
                     for relpath, tup in changes.items():
                         name, back_serial, val = tup
                         typedkey = self.derive_key(relpath, name, conn=sqlconn)
-                        fswriter.record_set(typedkey, val)
+                        fswriter.record_set(typedkey, get_mutable_deepcopy(val))
                         meth = self._import_subscriber.get(typedkey.name)
                         if meth is not None:
+                            threadlog.debug("calling import subscriber %r", meth)
                             meth(fswriter, typedkey, val, back_serial)
 
     def subscribe_on_import(self, key, subscriber):
@@ -430,6 +456,9 @@ class KeyFS(object):
 
     def get_current_serial(self):
         return self._fs.next_serial - 1
+
+    def get_last_commit_timestamp(self):
+        return self._fs.last_commit_timestamp
 
     @property
     def tx(self):
@@ -446,7 +475,7 @@ class KeyFS(object):
                 last_serial = back_serial
                 continue
             if val is not None:
-                return copy_if_mutable(val)
+                return val
             raise KeyError(relpath)  # was deleted
 
         # we could not find any change below at_serial which means
@@ -575,15 +604,15 @@ class TypedKey:
     def __repr__(self):
         return "<TypedKey %r type %r>" %(self.relpath, self.type.__name__)
 
-    def get(self):
-        return copy_if_mutable(self.keyfs.tx.get(self))
+    def get(self, readonly=True):
+        return self.keyfs.tx.get(self, readonly=readonly)
 
     def is_dirty(self):
         return self.keyfs.tx.is_dirty(self)
 
     @contextlib.contextmanager
     def update(self):
-        val = self.keyfs.tx.get(self)
+        val = self.keyfs.tx.get(self, readonly=False)
         yield val
         # no exception, so we can set and thus mark dirty the object
         self.set(val)
@@ -654,13 +683,6 @@ class Transaction(object):
     def io_file_delete(self, path):
         self.dirty_files[path] = None
 
-    def exists_typed_state(self, typedkey):
-        try:
-            self.keyfs.get_value_at(typedkey, self.at_serial)
-        except KeyError:
-            return False
-        return True
-
     def get_key_in_transaction(self, relpath):
         for key in self.cache:
             if key.relpath == relpath:
@@ -670,34 +692,54 @@ class Transaction(object):
     def is_dirty(self, typedkey):
         return typedkey in self.dirty
 
-    def get(self, typedkey):
+    def get(self, typedkey, readonly=True):
+        """ Return value referenced by typedkey, either as a readonly-view
+        or as a mutable deep copy. """
         try:
-            return copy_if_mutable(self.cache[typedkey])
+            val = self.cache[typedkey]
         except KeyError:
-            if typedkey in self.dirty:
-                return typedkey.type()
-            try:
-                val = self.keyfs.get_value_at(typedkey, self.at_serial,
-                                              conn=self.sqlconn)
-            except KeyError:
-                return typedkey.type()
-            self.cache[typedkey] = val
-            return copy_if_mutable(val)
+            absent = typedkey in self.dirty
+            if not absent:
+                try:
+                    val = self.keyfs.get_value_at(typedkey, self.at_serial,
+                                                  conn=self.sqlconn)
+                except KeyError:
+                    absent = True
+            if absent:
+                # for convenience we return an empty instance
+                # but below we still respect the readonly property
+                val = typedkey.type()
+            else:
+                assert is_deeply_readonly(val)
+                self.cache[typedkey] = val
+        if readonly:
+            return ensure_deeply_readonly(val)
+        else:
+            return get_mutable_deepcopy(val)
 
     def exists(self, typedkey):
         if typedkey in self.cache:
             return True
         if typedkey in self.dirty:
             return False
-        return self.exists_typed_state(typedkey)
+        try:
+            self.keyfs.get_value_at(typedkey, self.at_serial,
+                                    conn=self.sqlconn)
+        except KeyError:
+            return False
+        else:
+            return True
+
 
     def delete(self, typedkey):
-        assert self.write, "not in write-transaction"
+        if not self.write:
+            raise self.keyfs.ReadOnly()
         self.cache.pop(typedkey, None)
         self.dirty.add(typedkey)
 
     def set(self, typedkey, val):
-        assert self.write, "not in write-transaction"
+        if not self.write:
+            raise self.keyfs.ReadOnly()
         # sanity check for dictionaries: we always want to have unicode
         # keys, not bytes
         if typedkey.type == dict:
@@ -715,6 +757,7 @@ class Transaction(object):
             with self.keyfs._fs.write_transaction(self.sqlconn) as fswriter:
                 for typedkey in self.dirty:
                     val = self.cache.get(typedkey)
+                    # None signals deletion
                     fswriter.record_set(typedkey, val)
                 for path, content in self.dirty_files.items():
                     if content is None:
@@ -749,19 +792,6 @@ class Transaction(object):
         self.__dict__ = newtx.__dict__
 
 
-def copy_if_mutable(val, _immutable=(py.builtin.text, type(None), int, tuple,
-                                     py.builtin.bytes, float)):
-    if isinstance(val, _immutable):
-        return val
-    if isinstance(val, dict):
-        return dict((k, copy_if_mutable(v)) for k, v in val.items())
-    elif isinstance(val, list):
-        return [copy_if_mutable(item) for item in val]
-    elif isinstance(val, set):
-        return set(copy_if_mutable(item) for item in val)
-    raise ValueError("don't know how to handle type %r" % type(val))
-
-
 def check_unicode_keys(d):
     for key, val in d.items():
         assert not isinstance(key, py.builtin.bytes), repr(key)
@@ -770,4 +800,3 @@ def check_unicode_keys(d):
         assert not isinstance(val, py.builtin.bytes), repr(key) + "=" + repr(val)
         if isinstance(val, dict):
             check_unicode_keys(val)
-

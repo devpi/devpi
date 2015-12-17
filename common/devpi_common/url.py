@@ -13,7 +13,7 @@ else:
 def _joinpath(url, args, asdir=False):
     new = url
     for arg in args[:-1]:
-        new = urljoin(new, arg) + "/"
+        new = urljoin(new, arg.rstrip("/")) + "/"
     new = urljoin(new, args[-1])
     if asdir:
         new = new.rstrip("/") + "/"
@@ -42,6 +42,9 @@ class URL:
 
     def __eq__(self, other):
         return self.url == getattr(other, "url", other)
+
+    def __ne__(self, other):
+        return not (self == other)
 
     def geturl_nofragment(self):
         """ return url without fragment """

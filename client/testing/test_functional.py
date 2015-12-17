@@ -114,8 +114,10 @@ class Mapp(MappMixin):
             for name, val in indexconfig.items():
                 if name == "bases":
                     params.append("%s=%s" % (name, ",".join(val)))
-                if name == "volatile":
+                elif name == "volatile":
                     params.append("%s=%s" % (name, bool(val)))
+                else:
+                    params.append("%s=%s" % (name, val))
         return params
 
     def create_index(self, indexname, indexconfig=None, code=200):

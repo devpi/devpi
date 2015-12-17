@@ -235,7 +235,7 @@ class Hub:
                 ["%s=%s" % item for item in extraenv.items()])
         else:
             envadd = ""
-        self.line("--> $", rel, " ".join(args[1:]), envadd)
+        self.line("--> ", base + "$", rel, " ".join(args[1:]), envadd)
 
     def popen_check(self, args, extraenv=None):
         assert args[0], args
@@ -299,6 +299,10 @@ class HTTPReply(object):
 
     def __getattr__(self, name):
         return getattr(self._response, name)
+
+    @property
+    def reason(self):
+        return self._response.reason
 
     @property
     def type(self):
@@ -622,11 +626,6 @@ def index(parser):
         help="key=value configuration item. Possible key=value are "
              "bases=CSV, volatile=True|False, acl_upload=CSV)")
 
-if sys.platform == "win32":
-    default_format = "sdist.zip"
-else:
-    default_format = "sdist.tgz"
-
 @subcommand("devpi.upload")
 def upload(parser):
     """ (build and) upload packages to the current devpi-server index.
@@ -638,6 +637,10 @@ def upload(parser):
 
     Or, if you don't specify any path, a setup.py file must exist
     and will be used to perform build and upload commands.
+
+    If you have a ``setup.cfg`` file you can have a "[devpi:upload]" section
+    with ``formats``, ``no-vcs = 1``, and ``setupdir-only = 1`` settings
+    providing defaults for the respective command line options.
     """
     #parser.add_argument("--ver", dest="setversion",
     #    action="store", default=None,
@@ -651,8 +654,11 @@ def upload(parser):
              "directly using their dirname as current dir. By default "
              "git/hg/svn/bazaar are auto-detected and packaging is run from "
              "a fresh directory with all versioned files exported.")
+    build.add_argument("--setupdir-only", action="store_true",
+        dest="setupdironly",
+        help="VCS-export only the directory containing setup.py")
 
-    build.add_argument("--formats", default=default_format, action="store",
+    build.add_argument("--formats", default="", action="store",
         help="comma separated list of build formats (passed to setup.py). "
              "Examples sdist.zip,bdist_egg,bdist_wheel,bdist_dumb.")
     build.add_argument("--with-docs", action="store_true", default=None,
@@ -706,6 +712,11 @@ def test(parser):
         dest="toxargs", default=None,
         help="extra command line arguments for tox. e.g. "
              "--toxargs=\"-c othertox.ini\"")
+
+    parser.add_argument("--detox", "-d", action="store_true",
+        dest="detox", default=False,
+        help="(experimental) run tests concurrently in multiple processes using "
+             "the detox tool (which must be installed)")
 
     parser.add_argument("pkgspec", metavar="pkgspec", type=str,
         default=None, action="store", nargs="+",

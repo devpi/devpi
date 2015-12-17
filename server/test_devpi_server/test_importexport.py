@@ -3,7 +3,6 @@ from __future__ import unicode_literals
 import sys
 import pytest
 import json
-import time
 from devpi_server.importexport import *
 from devpi_server.main import Fatal
 from devpi_common.archive import Archive, zip_dict
@@ -251,7 +250,7 @@ class TestImportExport:
         with mapp1.xom.keyfs.transaction(write=True):
             stage = mapp1.xom.model.getstage(api.stagename)
             key_projversion = stage.key_projversion("hello", "1.0")
-            verdata = key_projversion.get()
+            verdata = key_projversion.get(readonly=False)
             del verdata["version"]
             key_projversion.set(verdata)
         impexp.export()
@@ -421,34 +420,6 @@ class TestImportExport:
             assert py.builtin._totext(
                 archive.read("index.html"), 'utf-8') == "<html/>"
 
-    def test_multiple_docs_on_same_version(self, impexp):
-        mapp1 = impexp.mapp1
-        api = mapp1.create_and_use()
-        mapp1.set_versiondata({"name": "hello", "version": "1.0"})
-        with mapp1.xom.keyfs.transaction(write=True):
-            # create entries with and without log
-            stage = mapp1.xom.model.getstage(mapp1.current_stage)
-            link = stage.store_doczip(
-                "Hello", "1.0",
-                content=zip_dict({
-                    "index.html": "<html><body>Hello"}))
-            link.add_log('upload', stage.user.name, dst=stage.name)
-            time.sleep(1.1)  # force different times in log entry
-            link = stage.store_doczip(
-                "hello", "1.0",
-                content=zip_dict({
-                    "index.html": "<html><body>hello"}))
-            link.add_log('upload', stage.user.name, dst=stage.name)
-        impexp.export()
-        mapp2 = impexp.new_import()
-        with mapp2.xom.keyfs.transaction(write=False):
-            stage = mapp2.xom.model.getstage(api.stagename)
-            doczip = stage.get_doczip("hello", "1.0")
-            archive = Archive(py.io.BytesIO(doczip))
-            assert 'index.html' in archive.namelist()
-            assert py.builtin._totext(
-                archive.read("index.html"), 'utf-8') == "<html><body>hello"
-
     def test_name_mangling_relates_to_issue132(self, impexp):
         mapp1 = impexp.mapp1
         api = mapp1.create_and_use()
@@ -530,6 +501,7 @@ class TestImportExport:
             assert "uploadtrigger_jenkins" not in stage.ixconfig
 
     def test_import_fails_if_uploadtrigger_jenkins_set(self, impexp):
+        from devpi_server.model import InvalidIndexconfig
         mapp1 = impexp.mapp1
         api = mapp1.create_and_use()
         (user, index) = api.stagename.split('/')
@@ -545,9 +517,9 @@ class TestImportExport:
 
         impexp.export()
 
-        with pytest.raises(TypeError) as excinfo:
+        with pytest.raises(InvalidIndexconfig) as excinfo:
             impexp.new_import()
-        assert "uploadtrigger_jenkins" in excinfo.value.args[0]
+        assert "uploadtrigger_jenkins" in excinfo.value.args[0][0]
 
     def test_plugin_index_config(self, impexp):
         class Plugin:

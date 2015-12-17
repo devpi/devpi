@@ -18,7 +18,6 @@ def udict(**kw):
         d[py.builtin._totext(name)] = val
     return d
 
-
 @pytest.fixture(params=[(), ("root/pypi",)])
 def bases(request):
     return request.param
@@ -72,6 +71,51 @@ def test_has_pypi_base(model, pypistage):
     ixconfig["pypi_whitelist"] = ["pytest"]
     stage2.modify(**ixconfig)
     assert stage2.has_pypi_base("pytest")
+
+
+def test_get_pypi_whitelist_info(model, pypistage):
+    pypistage.mock_simple("pytest", "<a href='pytest-1.0.zip' /a>")
+    assert pypistage.get_pypi_whitelist_info("pytest") == dict(
+        has_pypi_base=True,
+        blocked_by_pypi_whitelist=None)
+    user = model.create_user("user1", "pass")
+    stage1 = user.create_stage("stage1", bases=())
+    assert stage1.get_pypi_whitelist_info("pytest") == dict(
+        has_pypi_base=False,
+        blocked_by_pypi_whitelist=None)
+    register_and_store(stage1, "pytest-1.1.tar.gz")
+    assert stage1.get_pypi_whitelist_info("pytest") == dict(
+        has_pypi_base=False,
+        blocked_by_pypi_whitelist=None)
+    stage2 = user.create_stage("stage2", bases=("root/pypi",))
+    assert stage2.get_pypi_whitelist_info("pytest") == dict(
+        has_pypi_base=True,
+        blocked_by_pypi_whitelist=None)
+    register_and_store(stage2, "pytest-1.1.tar.gz")
+    assert stage2.get_pypi_whitelist_info("pytest") == dict(
+        has_pypi_base=False,
+        blocked_by_pypi_whitelist='root/pypi')
+    # now add to whitelist
+    ixconfig = stage2.ixconfig.copy()
+    ixconfig["pypi_whitelist"] = ["pytest"]
+    stage2.modify(**ixconfig)
+    assert stage2.get_pypi_whitelist_info("pytest") == dict(
+        has_pypi_base=True,
+        blocked_by_pypi_whitelist=None)
+    # now remove from whitelist
+    ixconfig = stage2.ixconfig.copy()
+    ixconfig["pypi_whitelist"] = []
+    stage2.modify(**ixconfig)
+    assert stage2.get_pypi_whitelist_info("pytest") == dict(
+        has_pypi_base=False,
+        blocked_by_pypi_whitelist='root/pypi')
+    # and try "*"
+    ixconfig = stage2.ixconfig.copy()
+    ixconfig["pypi_whitelist"] = ["*"]
+    stage2.modify(**ixconfig)
+    assert stage2.get_pypi_whitelist_info("pytest") == dict(
+        has_pypi_base=True,
+        blocked_by_pypi_whitelist=None)
 
 
 class TestStage:
@@ -463,6 +507,55 @@ class TestStage:
         assert tmpdir.join("_static").check(dir=1)
         assert tmpdir.join("_templ", "x.css").check(file=1)
 
+    def test_multiple_store_doczip_uses_projectname(self, stage, bases, tmpdir):
+        # check that two store_doczip calls with slightly
+        # different names will not lead to two doczip entries
+        stage.set_versiondata(udict(name="pkg1", version="1.0"))
+        stage.store_doczip("pkg1", "1.0", zip_dict({}))
+        content2 = zip_dict({"index.html": "<html/>"})
+        stage.store_doczip("Pkg1", "1.0", content2)
+
+        # check we have only have one doczip link
+        linkstore = stage.get_linkstore_perstage("pkg1", "1.0")
+        links = linkstore.get_links(rel="doczip")
+        assert len(links) == 1
+
+        # get doczip and check it's really the latest one
+        doczip2 = stage.get_doczip("pkg1", "1.0")
+        with Archive(BytesIO(doczip2)) as archive:
+            archive.extract(tmpdir)
+        assert tmpdir.join("index.html").read() == "<html/>"
+
+
+    def test_simulate_multiple_doczip_entries(self, stage, bases, tmpdir):
+        stage.set_versiondata(udict(name="pkg1", version="1.0"))
+        stage.store_doczip("pkg1", "1.0", zip_dict({}))
+
+        # simulate a second entry with a slightly different name
+        # (XXX not clear if this test is really neccessary. hpk thinks for
+        # exporting state from server<2.1.5 with such a double-entry one
+        # needs to install 2.1.5 and export from there anyway, clearing
+        # the problem. Then again server<2.3.2 allowed the store_doczip
+        # method to construct doczip filenames which differ only in
+        # casing)
+        linkstore = stage.get_linkstore_perstage("Pkg1", "1.0", readonly=False)
+        content = zip_dict({"index.html": "<html/>"})
+        linkstore.create_linked_entry(
+                rel="doczip",
+                basename="Pkg1-1.0.doc.zip",
+                file_content=content,
+        )
+
+        # check we have two doczip links
+        linkstore = stage.get_linkstore_perstage("pkg1", "1.0")
+        links = linkstore.get_links(rel="doczip")
+        assert len(links) == 2
+
+        # get doczip and check it's really the latest one
+        doczip = stage.get_doczip("pkg1", "1.0")
+        assert doczip == content
+
+
     def test_storedoczipfile(self, stage, bases):
         from devpi_common.archive import Archive
         stage.set_versiondata(udict(name="pkg1", version="1.0"))
@@ -619,7 +712,7 @@ class TestStage:
             assert link.entry.file_get_content() == content
         # delete, which shouldnt trigger devpiserver_on_upload
         with stage.xom.keyfs.transaction(write=True):
-            linkstore = stage.get_linkstore_perstage("pkg1", "1.0")
+            linkstore = stage.get_linkstore_perstage("pkg1", "1.0", readonly=False)
             linkstore.remove_links()
 
         # now write again and check that we get something from the queue
@@ -642,7 +735,7 @@ class TestLinkStore:
     @pytest.fixture
     def linkstore(self, stage):
         stage.set_versiondata(udict(name="proj1", version="1.0"))
-        return stage.get_linkstore_perstage("proj1", "1.0")
+        return stage.get_linkstore_perstage("proj1", "1.0", readonly=False)
 
     def test_store_file(self, linkstore):
         linkstore.create_linked_entry(

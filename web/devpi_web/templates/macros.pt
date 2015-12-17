@@ -12,14 +12,30 @@
     <metal:headcss use-macro="request.macros['headcss']" />
     <metal:headscript use-macro="request.macros['headscript']" />
 </metal:head>
+<metal:status define-macro="status">
+    <div id="serverstatus" class="${request.status_info.status}"
+         tal:condition="request.status_info.status == 'fatal'">
+        <ul>
+            <tal:msgs repeat="msg request.status_info.msgs">
+                <li tal:condition="msg.status == 'fatal'">${msg.msg}</li>
+            </tal:msgs>
+        </ul>
+        <a href="${request.status_info.url}">
+            Server status ...
+        </a>
+    </div>
+</metal:status>
 <metal:search define-macro="logo">
     <h1><a href="${request.route_url('root')}">devpi</a></h1>
 </metal:search>
 <metal:search define-macro="search">
     <form method="get" id="search" action="${request.route_url('search')}">
         <metal:search use-macro="request.macros['logo']" />
-        <input type="text" size="60" name="query" tal:attributes="value query|None" />
+        <input type="text" size="60" name="query" autofocus tal:attributes="value query|None" />
         <input type="submit" value="Search" />
+        <span class="help">
+            <a href="${request.route_url('search_help')}">How to<br /> search?</a>
+        </span>
         <div class="query_doc inline" style="display: none">
             <span class="help">
                 <a href="#">Close help</a>
@@ -43,14 +59,19 @@
             <tal:separator condition="not repeat.part.start">»</tal:separator>
             <a href="${part.url}">${part.title}</a>
         </span>
-        <span class="help">
-            <a href="${request.route_url('search_help')}">How to search?</a>
-        </span>
+        <metal:statusbadge use-macro="request.macros['statusbadge']" />
     </div>
+    <metal:status use-macro="request.macros['status']" />
 </metal:search>
 <metal:query_doc define-macro="query_doc">
     <p tal:repeat="html request.query_docs_html" tal:content="structure html"></p>
 </metal:query_doc>
+<metal:statusbadge define-macro="statusbadge">
+    <a class="statusbadge ${request.status_info.status}"
+       href="${request.status_info.url}">
+        ${request.status_info.short_msg}
+    </a>
+</metal:statusbadge>
 <metal:versions define-macro="versions">
     <ul class="footer-versions"
         tal:define="version_infos request.registry.get('devpi_version_info')"

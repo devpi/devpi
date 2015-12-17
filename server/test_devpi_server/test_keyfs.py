@@ -142,6 +142,33 @@ class TestKey:
         assert keyfs.get_key("SOME1") == key1
         assert keyfs.get_key("SOME2") == key2
 
+    def test_readonly(self, keyfs):
+        key1 = keyfs.add_key("NAME", "some1", dict)
+        keyfs.restart_as_write_transaction()
+        with key1.update() as d:
+            d[1] = l = [1,2,3]
+        assert key1.get()[1] == l
+        keyfs.commit_transaction_in_thread()
+        with keyfs.transaction(write=False):
+            assert key1.get()[1] == l
+            with pytest.raises(TypeError):
+                key1.get()[13] = "something"
+
+    def test_write_then_readonly(self, keyfs):
+        key1 = keyfs.add_key("NAME", "some1", dict)
+        keyfs.restart_as_write_transaction()
+        with key1.update() as d:
+            d[1] = [1,2,3]
+
+        # if we get it new, we still get a readonly view
+        assert is_deeply_readonly(key1.get())
+
+        # if we get it new in write mode, we get a new copy
+        d2 = key1.get(readonly=False)
+        assert d2 == d
+        d2[3] = 4
+        assert d2 != d
+
     def test_update(self, keyfs):
         key1 = keyfs.add_key("NAME", "some1", dict)
         key2 = keyfs.add_key("NAME", "some2", list)
@@ -200,9 +227,9 @@ class TestTransactionIsolation:
     def test_cannot_write_on_read_trans(self, keyfs):
         key = keyfs.add_key("hello", "hello", dict)
         tx_1 = Transaction(keyfs)
-        with pytest.raises(AssertionError):
+        with pytest.raises(keyfs.ReadOnly):
             tx_1.set(key, {})
-        with pytest.raises(AssertionError):
+        with pytest.raises(keyfs.ReadOnly):
             tx_1.delete(key)
 
     def test_serialized_writing(self, keyfs, monkeypatch):
@@ -245,6 +272,14 @@ class TestTransactionIsolation:
         tx_1.commit()
         assert tx_2.get(D) == {1:2}
 
+    def test_not_exist_yields_readonly(self, keyfs):
+        D = keyfs.add_key("NAME", "hello", dict)
+        with keyfs.transaction():
+            x = D.get()
+        assert x == {}
+        with pytest.raises(TypeError):
+            x[1] = 3
+
     def test_tx_delete(self, keyfs):
         D = keyfs.add_key("NAME", "hello", dict)
         with keyfs.transaction(write=True):
@@ -283,9 +318,12 @@ class TestTransactionIsolation:
             D.set(d)
         assert keyfs.get_value_at(D, 0) == d_orig
         d2 = keyfs.get_value_at(D, 0)
-        d2[1].add(4)
-        d2[2][3] = 5
-        d2[3].append(6)
+        with pytest.raises(AttributeError):
+            d2[1].add(4)
+        with pytest.raises(TypeError):
+            d2[2][3] = 5
+        with pytest.raises(AttributeError):
+            d2[3].append(6)
         assert keyfs.get_value_at(D, 0) == d_orig
 
     def test_is_dirty(self, keyfs):
@@ -583,3 +621,4 @@ def test_devpiserver_22_event_serial():
     import devpi_server
     if devpi_server.__version__ == "2.2.":
         pytest.fail("change event_serial disk representation wrt -1/+1 hack")
+

@@ -9,7 +9,8 @@ import shutil
 from devpi_common.validation import normalize_name
 from devpi_common.metadata import BasenameMeta
 from devpi_common.types import parse_hash_spec
-from devpi_server.main import fatal
+from .main import fatal
+from .readonly import get_mutable_deepcopy, ReadonlyView
 import devpi_server
 
 
@@ -101,7 +102,13 @@ class Exporter:
         self._write_json(path.join("dataindex.json"), self.export)
 
     def _write_json(self, path, data):
-        writedata = json.dumps(data, indent=2)
+        # use a special handler for serializing ReadonlyViews
+        def handle_readonly(val):
+            if isinstance(val, ReadonlyView):
+                return val._data
+            raise TypeError(type(val))
+
+        writedata = json.dumps(data, indent=2, default=handle_readonly)
         path.dirpath().ensure(dir=1)
         self.tw.line("writing %s, length %s" %(path.relto(self.basepath),
                                                len(writedata)))
@@ -119,13 +126,12 @@ class IndexDump:
         self.indexmeta["files"] = []
 
     def dump(self):
-        import copy
         for name in self.stage.list_projectnames_perstage():
             data = {}
             versions = self.stage.list_versions_perstage(name)
             for version in versions:
-                data[version] = copy.deepcopy(
-                    self.stage.get_versiondata_perstage(name, version))
+                v = self.stage.get_versiondata_perstage(name, version)
+                data[version] = get_mutable_deepcopy(v)
             for val in data.values():
                 val.pop("+elinks", None)
             norm_name = normalize_name(name)
@@ -151,7 +157,7 @@ class IndexDump:
                 self.basedir.join(linkstore.projectname, entry.basename))
             self.add_filedesc("releasefile", linkstore.projectname, relpath,
                                version=linkstore.version,
-                               entrymapping=entry.meta.copy(),
+                               entrymapping=entry.meta,
                                log=link.get_logs())
 
     def dump_toxresults(self, linkstore):

@@ -33,6 +33,11 @@ def test_check_compatible_dev_version(xom, monkeypatch):
     monkeypatch.setattr("devpi_server.main.server_version", "2.1.0.dev2")
     check_compatible_version(xom)
 
+def test_check_compatible_minor_version(xom, monkeypatch):
+    monkeypatch.setattr(xom, "get_state_version", lambda: "2.1.0")
+    monkeypatch.setattr("devpi_server.main.server_version", "2.3.0")
+    check_compatible_version(xom)
+
 def test_check_incompatible_version_raises(xom):
     versionfile = xom.config.serverdir.join(".serverversion")
     versionfile.write("5.0.4")
@@ -41,7 +46,7 @@ def test_check_incompatible_version_raises(xom):
 
 @wsgi_run_throws
 def test_startup_fails_on_initial_setup_nonetwork(tmpdir, monkeypatch):
-    monkeypatch.setattr(devpi_server.main, "PYPIURL_XMLRPC",
+    monkeypatch.setattr(devpi_server.extpypi, "PYPIURL_SIMPLE",
                         "http://localhost:1")
     ret = main(["devpi-server", "--serverdir", str(tmpdir)])
     assert ret
@@ -96,3 +101,24 @@ def test_main_starts_server_if_run_commands_returns_none(monkeypatch, tmpdir):
             pluginmanager=pm)
     assert len(l) == 1
     assert isinstance(l[0], XOM)
+
+
+def test_version_info(xom):
+    app = xom.create_app()
+    counts = {}
+    for name, version in app.app.registry['devpi_version_info']:
+        counts[name] = counts.get(name, 0) + 1
+    assert counts['devpi-server'] == 1
+
+
+def test_profiling_tween(capsys):
+    class xom:
+        class config:
+            class args:
+                profile_requests = 10
+    registry = dict(xom=xom)
+    handler = tween_request_profiling(lambda req: None, registry)
+    for i in range(10):
+        handler(None)
+    out, err = capsys.readouterr()
+    assert "ncalls" in out

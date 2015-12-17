@@ -19,8 +19,11 @@ H_REPLICA_OUTSIDE_URL = str("X-DEVPI-REPLICA-OUTSIDE-URL")
 H_REPLICA_FILEREPL = str("X-DEVPI-REPLICA-FILEREPL")
 H_EXPECTED_MASTER_ID = str("X-DEVPI-EXPECTED-MASTER-ID")
 
+MAX_REPLICA_BLOCK_TIME = 30.0
+
+
 class MasterChangelogRequest:
-    MAX_REPLICA_BLOCK_TIME = 30.0
+    MAX_REPLICA_BLOCK_TIME = MAX_REPLICA_BLOCK_TIME
     WAKEUP_INTERVAL = 2.0
 
     def __init__(self, request):
@@ -131,6 +134,7 @@ class MasterChangelogRequest:
 
 
 class ReplicaThread:
+    REPLICA_REQUEST_TIMEOUT = MAX_REPLICA_BLOCK_TIME * 1.25
     ERROR_SLEEP = 50
 
     def __init__(self, xom):
@@ -139,10 +143,42 @@ class ReplicaThread:
         if xom.is_replica():
             xom.keyfs.notifier.on_key_change("PYPILINKS",
                                              PypiProjectChanged(xom))
+        self._master_serial = None
+        self._master_serial_timestamp = None
+        self.started_at = None
+        # updated whenever we try to connect to the master
+        self.master_contacted_at = None
+        # updated on valid reply or 202 from master
+        self.update_from_master_at = None
+        # set whenever the master serial and current replication serial match
+        self.replica_in_sync_at = None
+
+    def get_master_serial(self):
+        return self._master_serial
+
+    def get_master_serial_timestamp(self):
+        return self._master_serial_timestamp
+
+    def update_master_serial(self, serial):
+        now = time.time()
+        # record that we got a reply from the master, so we can produce status
+        # information about the connection to master
+        self.update_from_master_at = now
+        if self.xom.keyfs.get_current_serial() == serial:
+            self.replica_in_sync_at = now
+        if self._master_serial is not None and serial <= self._master_serial:
+            if serial < self._master_serial:
+                self.log.error(
+                    "Got serial %s from master which is smaller than last "
+                    "recorded serial %s." % (serial, self._master_serial))
+            return
+        self._master_serial = serial
+        self._master_serial_timestamp = now
 
     def thread_run(self):
         # within a devpi replica server this thread is the only writer
-        log = thread_push_log("[REP]")
+        self.started_at = time.time()
+        self.log = log = thread_push_log("[REP]")
         session = self.xom.new_http_session("replica")
         keyfs = self.xom.keyfs
         errors = ReplicationErrors(self.xom.config.serverdir)
@@ -157,12 +193,14 @@ class ReplicaThread:
             uuid, master_uuid = make_uuid_headers(config.nodeinfo)
             assert uuid != master_uuid
             try:
+                self.master_contacted_at = time.time()
                 r = session.get(url, headers={
                     H_REPLICA_UUID: uuid,
                     H_EXPECTED_MASTER_ID: master_uuid,
                     H_REPLICA_OUTSIDE_URL: config.args.outside_url,
-                })
-            except session.Errors as e:
+                }, timeout=self.REPLICA_REQUEST_TIMEOUT)
+                remote_serial = int(r.headers["X-DEVPI-SERIAL"])
+            except Exception as e:
                 log.error("error fetching %s: %s", url, str(e))
             else:
                 # we check that the remote instance
@@ -195,14 +233,17 @@ class ReplicaThread:
                     except Exception:
                         log.exception("could not process: %s", r.url)
                     else:
-                        serial += 1
                         # we successfully received data so let's
                         # record the master_uuid for future consistency checks
                         if not master_uuid:
                             self.xom.config.set_master_uuid(remote_master_uuid)
+                        # also record the current master serial for status info
+                        self.update_master_serial(remote_serial)
                         continue
                 elif r.status_code == 202:
                     log.debug("%s: trying again %s\n", r.status_code, url)
+                    # also record the current master serial for status info
+                    self.update_master_serial(remote_serial)
                     continue
                 else:
                     log.error("%s: failed fetching %s", r.status_code, url)
@@ -210,7 +251,7 @@ class ReplicaThread:
             self.thread.sleep(5.0)
 
 
-class PyPIProxy(object):
+class PyPIDevpiProxy(object):
     def __init__(self, http, master_url):
         self._url = master_url.joinpath("root/pypi/+name2serials").url
         self._http = http
@@ -400,7 +441,7 @@ class ImportFileReplica:
             return
 
         if r.status_code != 200:
-            raise FileReplicationError(r)
+            raise FileReplicationError(r, relpath)
         err = entry.check_checksum(r.content)
         if err:
             # the file we got is different, it may have changed later.
@@ -420,9 +461,10 @@ class ImportFileReplica:
 
 class FileReplicationError(Exception):
     """ raised when replicating a file from the master failed. """
-    def __init__(self, response, message=None):
+    def __init__(self, response, relpath, message=None):
         self.url = response.url
         self.status_code = response.status_code
+        self.relpath = relpath
         self.message = message or "failed"
 
     def __str__(self):

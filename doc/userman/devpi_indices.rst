@@ -473,9 +473,9 @@ given user::
 
    $ devpi index -l
    emilie/prod
-   emilie/someindex
-   emilie/dev
    emilie/wheelindex
+   emilie/dev
+   emilie/someindex
    
 However, it is sometimes useful to see all indexes present on the server. This 
 can done with the **devpi** :ref:`cmdref_use` ``-l`` command [#f1]_ which 
@@ -487,9 +487,9 @@ information::
    sophie/dev      bases=sophie/prod     volatile=True
    root/pypi       bases=                volatile=False
    emilie/prod     bases=root/pypi       volatile=False
-   emilie/someindex bases=root/pypi       volatile=True
-   emilie/dev      bases=emilie/prod     volatile=True
    emilie/wheelindex bases=root/pypi       volatile=True
+   emilie/dev      bases=emilie/prod     volatile=True
+   emilie/someindex bases=root/pypi       volatile=True
 
 .. rubric:: Footnotes
 

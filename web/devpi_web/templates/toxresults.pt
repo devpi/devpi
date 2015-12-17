@@ -43,6 +43,7 @@
                 </tr>
             </tbody>
         </table>
+        </div>
         <metal:footer use-macro="request.macros['footer']" />
     </body>
 </html>

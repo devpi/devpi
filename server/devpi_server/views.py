@@ -2,13 +2,14 @@ from __future__ import unicode_literals
 
 import os
 import py
-from py.xml import html
+import re
+from time import time
 from devpi_common.types import ensure_unicode
 from devpi_common.url import URL
 from devpi_common.metadata import get_pyversion_filetype
 import devpi_server
 from pyramid.compat import urlparse
-from pyramid.httpexceptions import HTTPException, HTTPFound, HTTPSuccessful
+from pyramid.httpexceptions import HTTPException, HTTPFound, HTTPSuccessful, HTTPNotFound
 from pyramid.httpexceptions import HTTPUnauthorized
 from pyramid.httpexceptions import exception_response
 from pyramid.response import Response
@@ -19,8 +20,9 @@ import json
 from devpi_common.request import new_requests_session
 from devpi_common.validation import normalize_name, is_valid_archive_name
 
+from .filestore import BadGateway
 from .model import InvalidIndexconfig, InvalidUser, get_ixconfigattrs
-from .keyfs import copy_if_mutable
+from .readonly import get_mutable_deepcopy
 from .log import thread_push_log, thread_pop_log, threadlog
 
 from .auth import Auth
@@ -40,6 +42,9 @@ meta_headers = {str("X-DEVPI-API-VERSION"): str(API_VERSION),
                 str("X-DEVPI-SERVER-VERSION"): server_version}
 
 
+PIP_USER_AGENT = r"(distribute|setuptools|pip|pex)/.*"
+
+
 def abort(request, code, body):
     # if no Accept header is set, then force */*, otherwise the exception
     # will be returned as text/plain, which causes easy_install/setuptools
@@ -50,13 +55,18 @@ def abort(request, code, body):
     threadlog.error(body)
     raise exception_response(code, explanation=body, headers=meta_headers)
 
-def abort_submit(code, msg):
+def abort_submit(code, msg, level="error"):
     # we construct our own type because we need to set the title
     # so that setup.py upload/register use it to explain the failure
     error = type(
         str('HTTPError'), (HTTPException,), dict(
             code=code, title=msg))
-    threadlog.error(msg)
+    if level == "info":
+        threadlog.info(msg)
+    elif level == "warn":
+        threadlog.warn(msg)
+    else:
+        threadlog.error(msg)
     raise error(headers=meta_headers)
 
 
@@ -131,7 +141,6 @@ def route_url(self, *args, **kw):
 
 def tween_request_logging(handler, registry):
     req_count = itertools.count()
-    from time import time
 
     nodeinfo = registry["xom"].config.nodeinfo
 
@@ -183,6 +192,7 @@ def tween_keyfs_transaction(handler, registry):
         return response
     return request_tx_handler
 
+
 def set_header_devpi_serial(headers, serial):
     headers[str("X-DEVPI-SERIAL")] = str(serial)
 
@@ -195,8 +205,7 @@ class StatusView:
         self.request = request
         self.xom = request.registry["xom"]
 
-    @view_config(route_name="/+status")
-    def status(self):
+    def _status(self):
         config = self.xom.config
 
         status = {
@@ -209,7 +218,12 @@ class StatusView:
             "port": config.args.port,
             "outside-url": config.args.outside_url,
             "serial": self.xom.keyfs.get_current_serial(),
+            "last-commit-timestamp": self.xom.keyfs.get_last_commit_timestamp(),
             "event-serial": self.xom.keyfs.notifier.read_event_serial(),
+            "event-serial-timestamp":
+                self.xom.keyfs.notifier.get_event_serial_timestamp(),
+            "event-serial-in-sync-at":
+                self.xom.keyfs.notifier.event_serial_in_sync_at,
         }
         master_url = config.args.master_url
         if master_url:
@@ -217,12 +231,55 @@ class StatusView:
             status["role"] = "REPLICA"
             status["master-url"] = master_url
             status["master-uuid"] = config.nodeinfo.get("master-uuid")
+            status["master-serial"] = self.xom.replica_thread.get_master_serial()
+            status["master-serial-timestamp"] = self.xom.replica_thread.get_master_serial_timestamp()
+            status["replica-started-at"] = self.xom.replica_thread.started_at
+            status["master-contacted-at"] = self.xom.replica_thread.master_contacted_at
+            status["update-from-master-at"] = self.xom.replica_thread.update_from_master_at
+            status["replica-in-sync-at"] = self.xom.replica_thread.replica_in_sync_at
             replication_errors = ReplicationErrors(self.xom.config.serverdir)
             status["replication-errors"] = replication_errors.errors
         else:
             status["role"] = "MASTER"
         status["polling_replicas"] = self.xom.polling_replicas
-        apireturn(200, type="status", result=status)
+        return status
+
+    @view_config(route_name="/+status", accept="application/json")
+    def status(self):
+        apireturn(200, type="status", result=self._status())
+
+
+def devpiweb_get_status_info(request):
+    msgs = []
+    status = StatusView(request)._status()
+    now = time()
+    if status["role"] == "REPLICA":
+        master_serial = status["master-serial"]
+        if master_serial is not None and master_serial > status["serial"]:
+            if status["replica-in-sync-at"] is None or (now - status["replica-in-sync-at"]) > 300:
+                msgs.append(dict(status="fatal", msg="Replica is behind master for more than 5 minutes"))
+            elif (now - status["replica-in-sync-at"]) > 60:
+                msgs.append(dict(status="warn", msg="Replica is behind master for more than 1 minute"))
+        else:
+            if len(status["replication-errors"]):
+                msgs.append(dict(status="fatal", msg="Unhandled replication errors"))
+        if status["replica-started-at"] is not None:
+            last_update = status["update-from-master-at"]
+            if last_update is None:
+                if (now - status["replica-started-at"]) > 300:
+                    msgs.append(dict(status="fatal", msg="No contact to master for more than 5 minutes"))
+                elif (now - status["replica-started-at"]) > 60:
+                    msgs.append(dict(status="warn", msg="No contact to master for more than 1 minute"))
+            elif (now - last_update) > 300:
+                msgs.append(dict(status="fatal", msg="No update from master for more than 5 minutes"))
+            elif (now - last_update) > 60:
+                msgs.append(dict(status="warn", msg="No update from master for more than 1 minute"))
+    if status["serial"] > status["event-serial"]:
+        if status["event-serial-in-sync-at"] is None or (now - status["event-serial-in-sync-at"]) > 300:
+            msgs.append(dict(status="fatal", msg="Not all changes processed by plugins for more than 5 minutes"))
+        elif (now - status["event-serial-in-sync-at"]) > 60:
+            msgs.append(dict(status="warn", msg="Not all changes processed by plugins for more than 1 minute"))
+    return msgs
 
 
 class PyPIView:
@@ -306,56 +363,71 @@ class PyPIView:
         # we only serve absolute links so we don't care about the route's slash
         abort_if_invalid_projectname(request, name)
         stage = self.context.stage
-        if stage.get_projectname(name) is None:
+        try:
+            projectname = self.context.projectname
+        except HTTPNotFound:
             # we return 200 instead of !=200 so that pip/easy_install don't
             # ask for the full simple page although we know it doesn't exist
-            # XXX change that when pip-6.0 is released?
+            # This is no longer necessary for pip >= 8.0
             abort(request, 200, "no such project %r" % name)
-
-        projectname = self.context.projectname
+        requested_by_pip = re.match(PIP_USER_AGENT, request.user_agent or "")
         try:
-            result = stage.get_releaselinks(projectname)
+            result = stage.get_simplelinks(projectname, sorted_links=not requested_by_pip)
         except stage.UpstreamError as e:
             threadlog.error(e.msg)
             abort(request, 502, e.msg)
-        links = []
-        for link in result:
-            relpath = link.entrypath
-            href = "/" + relpath
-            href = URL(request.path_info).relpath(href)
-            if link.eggfragment:
-                href += "#egg=%s" % link.eggfragment
-            elif link.hash_spec:
-                href += "#" + link.hash_spec
-            links.extend([
-                 "/".join(relpath.split("/", 2)[:2]) + " ",
-                 html.a(link.basename, href=href),
-                 html.br(), "\n",
-            ])
-        title = "%s: links for %s" % (stage.name, projectname)
-        if stage.has_pypi_base(projectname):
-            refresh_title = "Refresh" if stage.ixconfig["type"] == "mirror" else \
-                            "Refresh PyPI links"
-            refresh_url = request.route_url(
-                "/{user}/{index}/+simple/{name}/refresh",
-                user=self.context.username, index=self.context.index,
-                name=projectname)
-            refresh_form = [
-                html.form(
-                    html.input(
-                        type="submit", value=refresh_title, name="refresh"),
-                    action=refresh_url,
-                    method="post"),
-                "\n"]
+
+        if requested_by_pip:
+            # we don't need the extra stuff on the simple page for pip
+            embed_form = False
+            blocked_index = None
         else:
-            refresh_form = []
-        return Response(html.html(
-            html.head(
-                html.title(title)),
-            html.body(
-                html.h1(title), "\n",
-                refresh_form,
-                links)).unicode(indent=2))
+            # only mere humans need to know and do more
+            whitelist_info = stage.get_pypi_whitelist_info(projectname)
+            embed_form = whitelist_info['has_pypi_base']
+            blocked_index = whitelist_info['blocked_by_pypi_whitelist']
+        response = Response(app_iter=self._simple_list_project(
+            stage, projectname, result, embed_form, blocked_index))
+        if stage.ixconfig['type'] == 'mirror':
+            serial = stage.pypimirror.get_project_serial(name)
+            if serial > 0:
+                response.headers[str("X-PYPI-LAST-SERIAL")] = str(serial)
+        return response
+
+    def _simple_list_project(self, stage, projectname, result, embed_form, blocked_index):
+        response = self.request.response
+        response.content_type = "text/html ; charset=utf-8"
+
+        title = "%s: links for %s" % (stage.name, projectname)
+        yield ("<html><head><title>%s</title></head><body><h1>%s</h1>\n" %
+               (title, title)).encode("utf-8")
+
+        if embed_form:
+            yield self._index_refresh_form(stage, projectname).encode("utf-8")
+
+        if blocked_index:
+            yield ("<p><strong>INFO:</strong> Because this project isn't in "
+                   "the <code>pypi_whitelist</code>, no releases from "
+                   "<strong>%s</strong> are included.</p>"
+                   % blocked_index).encode('utf-8')
+
+        url = URL(self.request.path_info)
+        for key, href in result:
+            yield ('%s <a href="%s">%s</a><br/>\n' %
+                   ("/".join(href.split("/", 2)[:2]),
+                    url.relpath("/" + href),
+                    key)).encode("utf-8")
+
+        yield "</body></html>".encode("utf-8")
+
+    def _index_refresh_form(self, stage, projectname):
+        url = self.request.route_url(
+            "/{user}/{index}/+simple/{name}/refresh",
+            user=self.context.username, index=self.context.index,
+            name=projectname)
+        title = "Refresh" if stage.ixconfig["type"] == "mirror" else "Refresh PyPI links"
+        submit = '<input name="refresh" type="submit" value="%s"/>' % title
+        return '<form action="%s" method="post">%s</form>' % (url, submit)
 
     @view_config(route_name="/{user}/{index}/+simple/")
     def simple_list_all(self):
@@ -371,26 +443,25 @@ class PyPIView:
         return Response(app_iter=self._simple_list_all(stage, stage_results))
 
     def _simple_list_all(self, stage, stage_results):
-        encoding = "utf-8"
         response = self.request.response
-        response.content_type = "text/html ; charset=%s" % encoding
+        response.content_type = "text/html ; charset=utf-8"
         title =  "%s: simple list (including inherited indices)" %(
                  stage.name)
         yield ("<html><head><title>%s</title></head><body><h1>%s</h1>" %(
-              title, title)).encode(encoding)
+              title, title)).encode("utf-8")
         all_names = set()
         for stage, names in stage_results:
             h2 = stage.name
             bases = getattr(stage, "ixconfig", {}).get("bases")
             if bases:
                 h2 += " (bases: %s)" % ",".join(bases)
-            yield ("<h2>" + h2 + "</h2>").encode(encoding)
+            yield ("<h2>" + h2 + "</h2>").encode("utf-8")
             for name in sorted(names):
                 if name not in all_names:
                     anchor = '<a href="%s">%s</a><br/>\n' % (name, name)
-                    yield anchor.encode(encoding)
+                    yield anchor.encode("utf-8")
                     all_names.add(name)
-        yield "</body>".encode(encoding)
+        yield "</body>".encode("utf-8")
 
     @view_config(
         route_name="/{user}/{index}/+simple/{name}/refresh", request_method="POST")
@@ -400,7 +471,7 @@ class PyPIView:
         stage = context.model.getstage('root', 'pypi')
         assert stage.ixconfig["type"] == "mirror", stage.ixconfig
         stage.clear_cache(context.name)
-        stage.get_releaselinks_perstage(context.name)
+        stage.get_simplelinks_perstage(context.name)
         redirect(self.request.route_url(
             "/{user}/{index}/+simple/{name}",
             user=context.username, index=context.index, name=context.name))
@@ -495,6 +566,8 @@ class PyPIView:
             except target_stage.NonVolatile as e:
                 apireturn(409, "%s already exists in non-volatile index" % (
                           e.link.basename,))
+            except BadGateway as e:
+                return apireturn(502, e.args[0])
             apireturn(200, result=results, type="actionlog")
         else:
             posturl = pushdata["posturl"]
@@ -544,6 +617,8 @@ class PyPIView:
 
     def _push_links(self, links, target_stage, name, version):
         for link in links["releasefile"]:
+            if should_fetch_remote_file(link.entry, self.request.headers):
+                fetch_remote_file(self.xom, link.entry)
             new_link = target_stage.store_releasefile(
                 name, version, link.basename, link.entry.file_get_content(),
                 last_modified=link.entry.last_modified)
@@ -615,14 +690,23 @@ class PyPIView:
             except KeyError:
                 abort_submit(400, "content file field not found")
             name = ensure_unicode(request.POST.get("name"))
-            # version may be empty on plain uploads
+            # version may be empty on plain doczip uploads
             version = ensure_unicode(request.POST.get("version") or "")
             projectname = stage.get_projectname(name)
             if projectname is None:
                 abort_submit(400, "no project named %r was ever registered" % (name))
+
             if action == "file_upload":
                 self.log.debug("metadata in form: %s",
                                list(request.POST.items()))
+
+                # we only check for release files if version is
+                # contained in the filename because for doczip files
+                # we construct the filename ourselves anyway.
+                if version and version not in content.filename:
+                    abort_submit(400, "filename %r does not contain version %r" %(
+                                 content.filename, version))
+
                 abort_if_invalid_filename(name, content.filename)
                 metadata = stage.get_versiondata_perstage(projectname, version)
                 if not metadata:
@@ -638,7 +722,8 @@ class PyPIView:
                 except stage.NonVolatile as e:
                     if e.link.matches_checksum(file_content):
                         abort_submit(200,
-                            "Upload of identical file to non volatile index.")
+                            "Upload of identical file to non volatile index.",
+                            level="info")
                     abort_submit(409, "%s already exists in non-volatile index" % (
                          content.filename,))
                 link.add_log(
@@ -648,7 +733,8 @@ class PyPIView:
                         log=request.log, application_url=request.application_url,
                         stage=stage, projectname=projectname, version=version)
                 except Exception as e:
-                    abort_submit(200, "OK, but a trigger plugin failed: %s" % e)
+                    abort_submit(200,
+                        "OK, but a trigger plugin failed: %s" % e, level="warn")
             else:
                 doczip = content.file.read()
                 try:
@@ -658,7 +744,8 @@ class PyPIView:
                 except stage.NonVolatile as e:
                     if e.link.matches_checksum(doczip):
                         abort_submit(200,
-                            "Upload of identical file to non volatile index.")
+                            "Upload of identical file to non volatile index.",
+                            level="info")
                     abort_submit(409, "%s already exists in non-volatile index" % (
                          content.filename,))
                 link.add_log(
@@ -736,12 +823,11 @@ class PyPIView:
         apireturn(200, type="versiondata", result=view_verdata)
 
     def _make_view_verdata(self, verdata):
-        view_verdata = copy_if_mutable(verdata)
+        view_verdata = get_mutable_deepcopy(verdata)
         elinks = view_verdata.pop("+elinks", None)
         if elinks is not None:
             view_verdata["+links"] = links = []
-            for elinkdict in elinks:
-                linkdict = copy_if_mutable(elinkdict)
+            for linkdict in elinks:
                 entrypath = linkdict.pop("entrypath")
                 linkdict["href"] = url_for_entrypath(self.request, entrypath)
                 for_entrypath = linkdict.pop("for_entrypath", None)
@@ -785,24 +871,19 @@ class PyPIView:
         if json_preferred(request):
             if not entry or not entry.meta:
                 apireturn(404, "no such release file")
-            apireturn(200, type="releasefilemeta", result=entry.meta)
+            entry_data = get_mutable_deepcopy(entry.meta)
+            apireturn(200, type="releasefilemeta", result=entry_data)
         if not entry or not entry.meta:
             if entry is None:
                 abort(request, 404, "no such file")
             else:
                 abort(request, 410, "file existed, deleted in later serial")
 
-        if should_fetch_remote_file(entry, request.headers):
-            keyfs = self.xom.keyfs
-            try:
-                if not self.xom.is_replica():
-                    keyfs.restart_as_write_transaction()
-                    entry = filestore.get_file_entry(relpath)
-                    entry.cache_remote_file()
-                else:
-                    entry = entry.cache_remote_file_replica()
-            except entry.BadGateway as e:
-                return apireturn(502, e.args[0])
+        try:
+            if should_fetch_remote_file(entry, request.headers):
+                fetch_remote_file(self.xom, entry)
+        except entry.BadGateway as e:
+            return apireturn(502, e.args[0])
 
         headers = entry.gethttpheaders()
         if self.request.method == "HEAD":
@@ -914,6 +995,17 @@ def should_fetch_remote_file(entry, headers):
     if entry.eggfragment and not headers.get(H_REPLICA_FILEREPL):
         should_fetch = True
     return should_fetch
+
+
+def fetch_remote_file(xom, entry):
+    filestore = xom.filestore
+    keyfs = xom.keyfs
+    if not xom.is_replica():
+        keyfs.restart_as_write_transaction()
+        entry = filestore.get_file_entry(entry.relpath, readonly=False)
+        entry.cache_remote_file()
+    else:
+        entry = entry.cache_remote_file_replica()
 
 
 def url_for_entrypath(request, entrypath):

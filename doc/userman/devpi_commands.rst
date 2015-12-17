@@ -314,7 +314,7 @@ test
     usage: /home/hpk/venv/0/bin/devpi test [-h] [--version] [--debug] [-y] [-v]
                                            [--clientdir DIR] [-e ENVNAME]
                                            [-c PATH] [--fallback-ini PATH]
-                                           [--tox-args toxargs]
+                                           [--tox-args toxargs] [--detox]
                                            pkgspec [pkgspec ...]
     
     download and test a package against tox environments. Download a package and
@@ -333,6 +333,9 @@ test
                            none
       --tox-args toxargs   extra command line arguments for tox. e.g.
                            --toxargs="-c othertox.ini"
+      --detox, -d          (experimental) run tests concurrently in multiple
+                           processes using the detox tool (which must be
+                           installed)
     
     generic options:
       --version            show program's version number and exit
@@ -352,9 +355,10 @@ upload
     $ devpi upload -h
     usage: /home/hpk/venv/0/bin/devpi upload [-h] [--version] [--debug] [-y] [-v]
                                              [--clientdir DIR] [--no-vcs]
-                                             [--formats FORMATS] [--with-docs]
-                                             [--only-docs] [--from-dir]
-                                             [--only-latest] [--dry-run]
+                                             [--setupdir-only] [--formats FORMATS]
+                                             [--with-docs] [--only-docs]
+                                             [--from-dir] [--only-latest]
+                                             [--dry-run]
                                              [path [path ...]]
     
     (build and) upload packages to the current devpi-server index. You can
@@ -362,7 +366,9 @@ upload
     positional arguments. Such release files need to contain package metadata as
     created by setup.py or wheel invocations. Or, if you don't specify any path, a
     setup.py file must exist and will be used to perform build and upload
-    commands.
+    commands. If you have a ``setup.cfg`` file you can have a "[devpi:upload]"
+    section with ``formats``, ``no-vcs = 1``, and ``setupdir-only = 1`` settings
+    providing defaults for the respective command line options.
     
     optional arguments:
       -h, --help         show this help message and exit
@@ -381,6 +387,7 @@ upload
                          default git/hg/svn/bazaar are auto-detected and packaging
                          is run from a fresh directory with all versioned files
                          exported.
+      --setupdir-only    VCS-export only the directory containing setup.py
       --formats FORMATS  comma separated list of build formats (passed to
                          setup.py). Examples
                          sdist.zip,bdist_egg,bdist_wheel,bdist_dumb.
@@ -499,14 +506,16 @@ devpi command reference (server)
 
     $ devpi-server -h
     usage: devpi-server [-h] [--host HOST] [--port PORT] [--outside-url URL]
-                        [--debug] [--logger-cfg LOGGER_CFG] [--refresh SECS]
-                        [--bypass-cdn] [--version] [--role {master,replica,auto}]
-                        [--master-url MASTER_URL] [--replica-cert pem_file]
-                        [--gen-config] [--secretfile path] [--export PATH]
-                        [--hard-links] [--import PATH] [--no-events]
-                        [--passwd USER] [--serverdir DIR] [--restrict-modify SPEC]
-                        [--start] [--stop] [--status] [--log] [--theme THEME]
-                        [--recreate-search-index]
+                        [--debug] [--profile-requests NUM]
+                        [--logger-cfg LOGGER_CFG] [--refresh SECS] [--bypass-cdn]
+                        [--pypi-cache-expiry SECS] [--version]
+                        [--role {master,replica,auto}] [--master-url MASTER_URL]
+                        [--replica-cert pem_file] [--gen-config]
+                        [--secretfile path] [--export PATH] [--hard-links]
+                        [--import PATH] [--no-events] [--passwd USER]
+                        [--serverdir DIR] [--restrict-modify SPEC]
+                        [--keyfs-cache-size NUM] [--start] [--stop] [--status]
+                        [--log] [--theme THEME] [--recreate-search-index]
     
     Start a server which serves multiples users and indices. The special root/pypi
     index is a real-time mirror of pypi.python.org and is created by default. All
@@ -526,22 +535,29 @@ devpi command reference (server)
                             server and the web server does not set or you want to
                             override the custom X-outside-url header.
       --debug               run wsgi application with debug logging
+      --profile-requests NUM
+                            profile NUM requests and print out cumulative stats.
+                            After print profiling is restarted. By default no
+                            profiling is performed.
       --logger-cfg LOGGER_CFG
-                            path to yaml/json logger configuration file, requires
-                            python2.7 or higher.
+                            path to .json or .yaml logger configuration file,
+                            requires at least python2.7. If you specify a yaml
+                            file you need to have the pyyaml package installed.
       --theme THEME         folder with template and resource overwrites for the
                             web interface
     
     pypi mirroring options (root/pypi):
-      --refresh SECS        interval for consulting changelog api of
-                            pypi.python.org [60]
+      --refresh SECS        NO EFFECT: changelog API is not used anymore [60]
       --bypass-cdn          set this if you want to bypass pypi's CDN for access
                             to simple pages and packages, in order to rule out
                             cache-invalidation issues. This will only work if you
                             are not using a http proxy.
+      --pypi-cache-expiry SECS
+                            (experimental) time after which PyPI projects are
+                            checked for new releases. [1800]
     
     deployment and data options:
-      --version             show devpi_version (2.2.0)
+      --version             show devpi_version (2.5.2)
       --role {master,replica,auto}
                             set role of this instance. [auto]
       --master-url MASTER_URL
@@ -590,6 +606,11 @@ devpi command reference (server)
                             can do anything. When this option is set, only the
                             specified users/groups can create and modify users and
                             indices. You have to add root explicitely if wanted.
+      --keyfs-cache-size NUM
+                            size of keyfs cache. If your devpi-server installation
+                            gets a lot of writes, then increasing this might
+                            improve performance. Each entry uses 1kb of memory on
+                            average. So by default about 10MB are used. [10000]
     
     background server:
       --start               start the background devpi-server

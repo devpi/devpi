@@ -4,7 +4,8 @@ from devpi_common.metadata import get_pyversion_filetype
 from devpi_common.metadata import get_sorted_versions
 from devpi_common.viewhelp import iter_toxresults
 from devpi_server.log import threadlog as log
-from devpi_server.views import url_for_entrypath
+from devpi_server.readonly import SeqViewReadonly
+from devpi_server.views import StatusView, url_for_entrypath
 from devpi_web.description import get_description
 from devpi_web.doczip import Docs, get_unpack_path
 from devpi_web.indexing import is_project_cached
@@ -20,9 +21,13 @@ from pyramid.httpexceptions import default_exceptionresponse_view
 from pyramid.interfaces import IRoutesMapper
 from pyramid.response import FileResponse
 from pyramid.view import notfound_view_config, view_config
+from time import gmtime
 import functools
 import json
 import py
+
+
+seq_types = (list, tuple, SeqViewReadonly)
 
 
 class ContextWrapper(object):
@@ -175,6 +180,17 @@ def format_timetuple(tt):
         return "{0}-{1:02d}-{2:02d} {3:02d}:{4:02d}:{5:02d}".format(*tt)
 
 
+def format_timestamp(ts, unset_value=None):
+    if ts is None:
+        ts = unset_value
+    try:
+        if ts is not None:
+            ts = format_timetuple(gmtime(ts)[:6])
+    except (ValueError, TypeError):
+        pass
+    return ts
+
+
 _what_map = dict(
     overwrite="Replaced",
     push="Pushed",
@@ -313,16 +329,19 @@ def index_get(context, request):
     permissions = []
     bases = []
     packages = []
+    whitelist = []
     result = dict(
         title="%s index" % stage.name,
         simple_index_url=request.simpleindex_url(stage),
         permissions=permissions,
         bases=bases,
-        packages=packages)
+        packages=packages,
+        whitelist=whitelist)
     if stage.name == "root/pypi":
         return result
 
     if hasattr(stage, "ixconfig"):
+        whitelist.extend(sorted(stage.ixconfig['pypi_whitelist']))
         for base in stage.ixconfig["bases"]:
             bases.append(dict(
                 title=base,
@@ -395,7 +414,7 @@ def project_get(context, request):
     for release in releaselinks:
         user, index = release.entrypath.split("/", 2)[:2]
         name, version = release.projectname, release.version
-        if version == 'XXX':
+        if not version or version == 'XXX':
             continue
         seen_key = (user, index, name, version)
         if seen_key in seen:
@@ -408,8 +427,15 @@ def project_get(context, request):
                 "/{user}/{index}/{name}/{version}",
                 user=user, index=index, name=name, version=version)))
         seen.add(seen_key)
+    if hasattr(context.stage, 'get_pypi_whitelist_info'):
+        whitelist_info = context.stage.get_pypi_whitelist_info(context.name)
+    else:
+        whitelist_info = dict(
+            has_pypi_base=context.stage.has_pypi_base(context.name),
+            blocked_by_pypi_whitelist=None)
     return dict(
         title="%s/: %s versions" % (context.stage.name, context.name),
+        blocked_by_pypi_whitelist=whitelist_info['blocked_by_pypi_whitelist'],
         versions=versions)
 
 
@@ -434,7 +460,7 @@ def version_get(context, request):
     for key, value in sorted(verdata.items()):
         if key in skipped_keys or key.startswith('+'):
             continue
-        if isinstance(value, list):
+        if isinstance(value, seq_types):
             if not len(value):
                 continue
             value = html.ul([html.li(x) for x in value]).unicode()
@@ -462,7 +488,13 @@ def version_get(context, request):
         url=request.route_url(
             "/{user}/{index}/+simple/{name}",
             user=context.username, index=context.index, name=context.name)))
-    if stage.has_pypi_base(name):
+    if hasattr(stage, 'get_pypi_whitelist_info'):
+        whitelist_info = stage.get_pypi_whitelist_info(name)
+    else:
+        whitelist_info = dict(
+            has_pypi_base=stage.has_pypi_base(name),
+            blocked_by_pypi_whitelist=False)
+    if whitelist_info['has_pypi_base']:
         nav_links.append(dict(
             title="PyPI page",
             url="https://pypi.python.org/pypi/%s" % name))
@@ -473,6 +505,7 @@ def version_get(context, request):
         nav_links=nav_links,
         infos=infos,
         files=files,
+        blocked_by_pypi_whitelist=whitelist_info['blocked_by_pypi_whitelist'],
         show_toxresults=show_toxresults,
         make_toxresults_url=functools.partial(
             request.route_url, "toxresults",
@@ -522,6 +555,59 @@ def toxresult(context, request):
         title="%s/: %s-%s toxresult %s" % (
             context.stage.name, context.name, context.version, toxresult),
         toxresults=toxresults)
+
+
+@view_config(
+    route_name="/+status",
+    accept="text/html",
+    renderer="templates/status.pt")
+def statusview(request):
+    status = StatusView(request)._status()
+    replication_errors = []
+    for index, error in enumerate(status.get('replication-errors', {}).values()):
+        replication_errors.append(error)
+        if index >= 10:
+            replication_errors.append(dict(message="More than 10 replication errors."))
+    _polling_replicas = status.get('polling_replicas', {})
+    polling_replicas = []
+    for replica_uuid in sorted(_polling_replicas):
+        replica = _polling_replicas[replica_uuid]
+        polling_replicas.append(dict(
+            uuid=replica_uuid,
+            remote_ip=replica.get('remote-ip', 'unknown'),
+            outside_url=replica.get('outside-url', 'unknown'),
+            serial=replica.get('serial', 'unknown'),
+            in_request=replica.get('in-request', 'unknown'),
+            last_request=format_timestamp(
+                replica.get('last-request', 'unknown'))))
+    return dict(
+        msgs=request.status_info['msgs'],
+        info=dict(
+            uuid=status.get('uuid', 'unknown'),
+            role=status.get('role', 'unknown'),
+            outside_url=status.get('outside-url', 'unknown'),
+            master_url=status.get('master-url'),
+            master_uuid=status.get('master-uuid'),
+            master_serial=status.get('master-serial'),
+            master_serial_timestamp=format_timestamp(
+                status.get('master-serial-timestamp'), unset_value="never"),
+            replica_started_at=format_timestamp(
+                status.get('replica-started-at')),
+            replica_in_sync_at=format_timestamp(
+                status.get('replica-in-sync-at'), unset_value="never"),
+            update_from_master_at=format_timestamp(
+                status.get('update-from-master-at'), unset_value="never"),
+            serial=status.get('serial', 'unknown'),
+            last_commit_timestamp=format_timestamp(
+                status.get('last-commit-timestamp', 'unknown')),
+            event_serial=status.get('event-serial', 'unknown'),
+            event_serial_timestamp=format_timestamp(
+                status.get('event-serial-timestamp', 'unknown')),
+            event_serial_in_sync_at=format_timestamp(
+                status.get('event-serial-in-sync-at', 'unknown'),
+                unset_value="never")),
+        replication_errors=replication_errors,
+        polling_replicas=polling_replicas)
 
 
 def batch_list(num, current, left=3, right=3):

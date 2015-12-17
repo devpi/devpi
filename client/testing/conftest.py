@@ -7,7 +7,6 @@ import textwrap
 import py
 import sys
 import json
-from devpi import log
 
 from _pytest.pytester import RunResult, LineMatcher
 from devpi.main import Hub, initmain, parse_args
@@ -335,7 +334,6 @@ def runprocess(tmpdir, cmdargs):
 @pytest.fixture
 def mockhtml(monkeypatch):
     def mockhtml(cache, mockurl, content):
-        log.test("mock", mockurl)
         mockurl = cache._getsimpleurl(mockurl)
         old = cache.http.gethtml
         def newgethtml(url):

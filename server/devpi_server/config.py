@@ -49,21 +49,32 @@ def addoptions(parser):
     web.addoption("--debug", action="store_true",
             help="run wsgi application with debug logging")
 
+    web.addoption("--profile-requests", type=int, metavar="NUM", default=0,
+            help="profile NUM requests and print out cumulative stats. "
+                 "After print profiling is restarted. "
+                 "By default no profiling is performed.")
+
     web.addoption("--logger-cfg", action="store", dest="logger_cfg",
-            help="path to yaml/json logger configuration file,"
-                 " requires python2.7 or higher.",
+            help="path to .json or .yaml logger configuration file, "
+                 "requires at least python2.7. If you specify a yaml "
+                 "file you need to have the pyyaml package installed.",
             default=None)
 
     mirror = parser.addgroup("pypi mirroring options (root/pypi)")
     mirror.addoption("--refresh", type=float, metavar="SECS",
             default=60,
-            help="interval for consulting changelog api of pypi.python.org")
+            help="NO EFFECT: changelog API is not used anymore")
 
     mirror.addoption("--bypass-cdn", action="store_true",
             help="set this if you want to bypass pypi's CDN for access to "
                  "simple pages and packages, in order to rule out cache-"
                  "invalidation issues.  This will only work if you "
                  "are not using a http proxy.")
+
+    mirror.addoption("--pypi-cache-expiry", type=float, metavar="SECS",
+            default=1800,
+            help="(experimental) time after which PyPI projects are "
+                 "checked for new releases.")
 
     deploy = parser.addgroup("deployment and data options")
 
@@ -146,6 +157,13 @@ def addoptions(parser):
                  "option is set, only the specified users/groups can create "
                  "and modify users and indices. You have to add root "
                  "explicitely if wanted.")
+
+    deploy.addoption("--keyfs-cache-size", type=int, metavar="NUM",
+            action="store", default=10000,
+            help="size of keyfs cache. If your devpi-server installation "
+                 "gets a lot of writes, then increasing this might "
+                 "improve performance. Each entry uses 1kb of memory on "
+                 "average. So by default about 10MB are used.")
 
     bg = parser.addgroup("background server")
     bg.addoption("--start", action="store_true",

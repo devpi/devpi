@@ -5,7 +5,6 @@ import re
 
 import json
 
-from devpi import log
 from devpi_common.url import URL
 
 if sys.platform == "win32":
@@ -64,10 +63,7 @@ class Current(object):
         self.path = path
         self._currentdict = {}
         if self.path.check():
-            log.debug("loading current from %s" % self.path)
             self._currentdict.update(json.loads(self.path.read()))
-        else:
-            log.debug("no client config found at %s" % self.path)
 
     def _get_auth_dict(self):
         auth = self._auth
@@ -173,13 +169,11 @@ class Current(object):
             newval = data[name]
             if oldval != newval:
                 setattr(self, name, newval)
-                log.info("changing %r to %r", name, newval)
         try:
             olddata = json.loads(self.path.read())
         except Exception:
             olddata = {}
         if self._currentdict != olddata:
-            log.info("writing current %s", self.path)
             oldumask = os.umask(7 * 8 + 7)
             try:
                 self.path.write(

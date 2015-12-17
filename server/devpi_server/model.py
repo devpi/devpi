@@ -4,13 +4,17 @@ import sys
 import py
 import re
 import json
-from devpi_common.metadata import sorted_sameproject_links, get_latest_version
+from devpi_common.metadata import get_latest_version
+from devpi_common.metadata import CompareMixin
+from devpi_common.metadata import splitbasename, parse_version
+from devpi_common.url import URL
 from devpi_common.validation import validate_metadata, normalize_name
 from devpi_common.types import ensure_unicode, cached_property, parse_hash_spec
 from time import gmtime
 from .auth import crypt_password, verify_password
 from .filestore import FileEntry
 from .log import threadlog, thread_current_log
+from .readonly import get_mutable_deepcopy
 
 
 def run_passwd(root, username):
@@ -114,7 +118,7 @@ class RootModel:
             return user.getstage(index)
 
     def is_empty(self):
-        userlist = list(self.get_userlist())
+        userlist = self.get_userlist()
         if len(userlist) == 1:
             user, = userlist
             if user.name == "root":
@@ -139,7 +143,7 @@ class User:
 
     @classmethod
     def create(cls, model, username, password, email):
-        userlist = model.keyfs.USERLIST.get()
+        userlist = model.keyfs.USERLIST.get(readonly=False)
         if username in userlist:
             raise InvalidUser("username already exists")
         if not cls.name_regexp.match(username):
@@ -182,7 +186,8 @@ class User:
 
     def delete(self):
         # delete all projects on the index
-        for name in self.get().get("indexes", {}):
+        userconfig = self.get()
+        for name in list(userconfig.get("indexes", {})):
             self.getstage(name).delete()
         # delete the user information itself
         self.key.delete()
@@ -200,7 +205,7 @@ class User:
         return None
 
     def get(self, credentials=False):
-        d = self.key.get().copy()
+        d = get_mutable_deepcopy(self.key.get())
         if not d:
             return d
         if not credentials:
@@ -216,6 +221,9 @@ class User:
         if acl_upload is None:
             acl_upload = [self.name]
         bases = tuple(normalize_bases(self.xom.model, bases))
+        if type not in ("mirror", "stage"):
+            raise InvalidIndexconfig(
+                ["create_stage() got invalid index type: %s" % type])
 
         # modify user/indexconfig
         with self.key.update() as userconfig:
@@ -232,9 +240,9 @@ class User:
                 for key, value in defaults.items():
                     indexes[index][key] = kwargs.pop(key, value)
             if kwargs:
-                raise TypeError(
-                    "create_stage() got unexpected keyword arguments: %s"
-                    % ", ".join(kwargs))
+                raise InvalidIndexconfig(
+                    ["create_stage() got unexpected keyword arguments: %s"
+                     % ", ".join(kwargs)])
         stage = self.getstage(index)
         threadlog.info("created index %s: %s", stage.name, stage.ixconfig)
         return stage
@@ -265,8 +273,24 @@ class BaseStage:
     MissesRegistration = MissesRegistration
     NonVolatile = NonVolatile
 
-    def get_linkstore_perstage(self, name, version):
-        return LinkStore(self, name, version)
+    def get_releaselinks(self, projectname):
+        # compatibility access method used by devpi-web and tests
+        return [self._make_elink(projectname, key, href)
+                for key, href in self.get_simplelinks(projectname)]
+
+    def get_releaselinks_perstage(self, projectname):
+        # compatibility access method for devpi-findlinks and possibly other plugins
+        return [self._make_elink(projectname, key, href)
+                for key, href in self.get_simplelinks_perstage(projectname)]
+
+    def _make_elink(self, name, key, href):
+        rp = SimplelinkMeta((key, href))
+        linkdict = {"entrypath": rp._url.path, "hash_spec": rp._url.hash_spec,
+                    "eggfragment": rp.eggfragment}
+        return ELink(self.xom.filestore, linkdict, name, rp.version)
+
+    def get_linkstore_perstage(self, name, version, readonly=True):
+        return LinkStore(self, name, version, readonly=readonly)
 
     def get_link_from_entrypath(self, entrypath):
         entry = self.xom.filestore.get_file_entry(entrypath)
@@ -280,7 +304,7 @@ class BaseStage:
 
     def store_toxresult(self, link, toxresultdata):
         assert isinstance(toxresultdata, dict), toxresultdata
-        linkstore = self.get_linkstore_perstage(link.projectname, link.version)
+        linkstore = self.get_linkstore_perstage(link.projectname, link.version, readonly=False)
         return linkstore.new_reflink(
                 rel="toxresult",
                 file_content=json.dumps(toxresultdata).encode("utf-8"),
@@ -322,22 +346,24 @@ class BaseStage:
                     l.append(res)
         return result
 
-    def get_releaselinks(self, projectname):
+    def get_simplelinks(self, projectname, sorted_links=True):
+        """ Return list of (key, href) tuples where "href" is a path
+        to a file entry with "#" appended hash-specs or egg-ids
+        and "key" is usually the basename of the link or else
+        the egg-ID if the link points to an egg.
+        """
         all_links = []
-        basenames = set()
-        stagename2res = {}
+        seen = set()
         for stage, res in self.op_sro_check_pypi_whitelist(
-            "get_releaselinks_perstage", projectname=projectname):
-            stagename2res[stage.name] = res
-            for link in res:
-                if link.eggfragment:
-                    key = link.eggfragment
-                else:
-                    key = link.basename
-                if key not in basenames:
-                    basenames.add(key)
-                    all_links.append(link)
-        return sorted_sameproject_links(all_links)
+            "get_simplelinks_perstage", projectname=projectname):
+            for key, href in res:
+                if key not in seen:
+                    seen.add(key)
+                    all_links.append((key, href))
+        if sorted_links:
+           all_links = [(v.key, v.href)
+                        for v in sorted(map(SimplelinkMeta, all_links), reverse=True)]
+        return all_links
 
     def get_projectname(self, name):
         for stage, res in self.op_sro("get_projectname_perstage", name=name):
@@ -345,16 +371,26 @@ class BaseStage:
                 assert py.builtin._istext(res), (repr(res), stage.name)
                 return res
 
-    def has_pypi_base(self, name):
+    def get_pypi_whitelist_info(self, name):
         name = ensure_unicode(name)
         private_hit = whitelisted = False
         for stage in self._sro():
             if stage.ixconfig["type"] == "mirror":
-                return stage.get_projectname_perstage(name) and \
-                       (not private_hit or whitelisted)
+                in_index = bool(stage.get_projectname_perstage(name))
+                has_pypi_base = in_index and (not private_hit or whitelisted)
+                blocked_by_pypi_whitelist = in_index and private_hit and not whitelisted
+                return dict(
+                    has_pypi_base=has_pypi_base,
+                    blocked_by_pypi_whitelist=stage.name if blocked_by_pypi_whitelist else None)
             private_hit = private_hit or bool(self.get_projectname_perstage(name))
             whitelist = set(stage.ixconfig["pypi_whitelist"])
             whitelisted = whitelisted or '*' in whitelist or name in whitelist
+        return dict(
+            has_pypi_base=False,
+            blocked_by_pypi_whitelist=None)
+
+    def has_pypi_base(self, name):
+        return self.get_pypi_whitelist_info(name)['has_pypi_base']
 
     def op_sro(self, opname, **kw):
         for stage in self._sro():
@@ -420,6 +456,9 @@ class PrivateStage(BaseStage):
                     user=self.user.name, index=self.index)
 
     def modify(self, index=None, **kw):
+        if 'type' in kw and self.ixconfig["type"] != kw['type']:
+            raise InvalidIndexconfig(
+                ["the 'type' of an index can't be changed"])
         attrs = get_ixconfigattrs(self.xom.config.hook, self.ixconfig["type"])
         diff = list(set(kw).difference(attrs))
         if diff:
@@ -445,7 +484,7 @@ class PrivateStage(BaseStage):
 
     def delete(self):
         # delete all projects on this index
-        for name in self.list_projectnames_perstage().copy():
+        for name in self.list_projectnames_perstage():
             self.del_project(name)
         with self.user.key.update() as userconfig:
             indexes = userconfig.get("indexes", {})
@@ -501,7 +540,7 @@ class PrivateStage(BaseStage):
         name = metadata["name"]
         version = metadata["version"]
         key_projversion = self.key_projversion(name, version)
-        versiondata = key_projversion.get()
+        versiondata = key_projversion.get(readonly=False)
         if not key_projversion.is_dirty():
             # check if something really changed to prevent
             # unneccessary changes on db/replica level
@@ -515,17 +554,17 @@ class PrivateStage(BaseStage):
         versiondata.update(metadata)
         key_projversion.set(versiondata)
         threadlog.info("set_metadata %s-%s", name, version)
-        versions = self.key_projversions(name).get()
+        versions = self.key_projversions(name).get(readonly=False)
         if version not in versions:
             versions.add(version)
             self.key_projversions(name).set(versions)
-        projectnames = self.key_projectnames.get()
+        projectnames = self.key_projectnames.get(readonly=False)
         if name not in projectnames:
             projectnames.add(name)
             self.key_projectnames.set(projectnames)
 
     def del_project(self, name):
-        for version in self.key_projversions(name).get():
+        for version in list(self.key_projversions(name).get()):
             self.del_versiondata(name, version, cleanup=False)
         with self.key_projectnames.update() as projectnames:
             projectnames.remove(name)
@@ -537,11 +576,11 @@ class PrivateStage(BaseStage):
         if projectname is None:
             raise self.NotFound("project %r not found on stage %r" %
                                 (name, self.name))
-        versions = self.key_projversions(projectname).get()
+        versions = self.key_projversions(projectname).get(readonly=False)
         if version not in versions:
             raise self.NotFound("version %r of project %r not found on stage %r" %
                                 (version, projectname, self.name))
-        linkstore = self.get_linkstore_perstage(projectname, version)
+        linkstore = self.get_linkstore_perstage(projectname, version, readonly=False)
         linkstore.remove_links()
         versions.remove(version)
         self.key_projversion(projectname, version).delete()
@@ -552,14 +591,14 @@ class PrivateStage(BaseStage):
     def list_versions_perstage(self, projectname):
         return self.key_projversions(projectname).get()
 
-    def get_versiondata_perstage(self, projectname, version):
-        return self.key_projversion(projectname, version).get()
+    def get_versiondata_perstage(self, projectname, version, readonly=True):
+        return self.key_projversion(projectname, version).get(readonly=readonly)
 
-    def get_releaselinks_perstage(self, projectname):
+    def get_simplelinks_perstage(self, projectname):
         links = []
         for version in self.list_versions_perstage(projectname):
             linkstore = self.get_linkstore_perstage(projectname, version)
-            links.extend(linkstore.get_links("releasefile"))
+            links.extend(map(make_key_and_href, linkstore.get_links("releasefile")))
         return links
 
     def list_projectnames_perstage(self):
@@ -578,7 +617,7 @@ class PrivateStage(BaseStage):
             else:
                 raise MissesRegistration("%s-%s", name, version)
         threadlog.debug("project name of %r is %r", filename, name)
-        linkstore = self.get_linkstore_perstage(name, version)
+        linkstore = self.get_linkstore_perstage(name, version, readonly=False)
         link = linkstore.create_linked_entry(
                 rel="releasefile",
                 basename=filename,
@@ -591,8 +630,9 @@ class PrivateStage(BaseStage):
             version = self.get_latest_version_perstage(name)
             threadlog.info("store_doczip: derived version of %s is %s",
                            name, version)
-        basename = "%s-%s.doc.zip" % (name, version)
-        linkstore = self.get_linkstore_perstage(name, version)
+        projectname = self.get_projectname(name)
+        basename = "%s-%s.doc.zip" % (projectname, version)
+        linkstore = self.get_linkstore_perstage(projectname, version, readonly=False)
         link = linkstore.create_linked_entry(
                 rel="doczip",
                 basename=basename,
@@ -606,17 +646,9 @@ class PrivateStage(BaseStage):
         links = linkstore.get_links(rel="doczip")
         if links:
             if len(links) > 1:
-                def key(link):
-                    when = None
-                    for log in link.get_logs():
-                        when = log.get('when')
-                        if when is not None:
-                            break
-                    return when
-                link = max(links, key=key)
-                threadlog.warn("Multiple documentation files for %s-%s, returning newest", name, version)
-            else:
-                link = links[0]
+                threadlog.warn("Multiple documentation files for %s-%s, returning newest",
+                               name, version)
+            link = links[-1]
             return link.entry
 
     def get_doczip(self, name, version):
@@ -637,6 +669,10 @@ class ELink:
         if sys.version_info < (3,0):
             for key in linkdict:
                 assert py.builtin._istext(key)
+
+    @property
+    def relpath(self):
+        return self.linkdict["entrypath"]
 
     @property
     def hash_spec(self):
@@ -679,16 +715,16 @@ class ELink:
         self._log.extend(logs)
 
     def get_logs(self):
-        return list(self._log)
+        return list(getattr(self, '_log', []))
 
 
 class LinkStore:
-    def __init__(self, stage, projectname, version):
+    def __init__(self, stage, projectname, version, readonly=True):
         self.stage = stage
         self.filestore = stage.xom.filestore
         self.projectname = projectname
         self.version = version
-        self.verdata = stage.get_versiondata_perstage(projectname, version)
+        self.verdata = stage.get_versiondata_perstage(projectname, version, readonly=readonly)
         if not self.verdata:
             raise MissesRegistration("%s-%s on stage %s",
                                      projectname, version, stage.name)
@@ -785,6 +821,40 @@ class LinkStore:
         self._mark_dirty()
         return ELink(self.filestore, new_linkdict, self.projectname,
                      self.version)
+
+
+class SimplelinkMeta(CompareMixin):
+    """ helper class to provide information for items from get_simplelinks() """
+    def __init__(self, key_href):
+        self.key, self.href = key_href
+        self._url = URL(self.href)
+        self.name, self.version, self.ext = splitbasename(self._url.basename, checkarch=False)
+        self.eggfragment = self._url.eggfragment
+
+    @cached_property
+    def cmpval(self):
+        return parse_version(self.version), normalize_name(self.name), self.ext
+
+    def get_eggfragment_or_version(self):
+        """ return the egg-identifier (link ending in #egg=ID)
+        or the version of the basename
+        """
+        if self.eggfragment:
+            return "egg=" + self.eggfragment
+        else:
+            return self.version
+
+
+def make_key_and_href(entry):
+    # entry is either an ELink or a filestore.FileEntry instance.
+    # both provide a "relpath" attribute which points to a file entry.
+    href = entry.relpath
+    if entry.hash_spec:
+        href += "#" + entry.hash_spec
+    elif entry.eggfragment:
+        href += "#egg=%s" % entry.eggfragment
+        return entry.eggfragment, href
+    return entry.basename, href
 
 
 def normalize_bases(model, bases):

@@ -94,10 +94,29 @@ class TestLoggerConfiguration:
         assert level == logging.ERROR
 
     @pytest.mark.skipif("sys.version_info < (2,7)")
-    def test_logger_cfg(self, tmpdir):
+    def test_logger_cfg_json(self, tmpdir):
+        logger_cfg = tmpdir.join("logging.json")
+        logger_cfg.write(textwrap.dedent("""
+            {
+                "version": 1,
+                "disable_existing_loggers": false,
+                "root": {
+                    "handlers": [],
+                    "level": "WARNING"
+                }
+            }
+        """))
+        config = make_config(["devpi-server", "--logger-cfg=%s" % logger_cfg])
+        configure_logging(config.args)
+
+        assert logging.getLogger().getEffectiveLevel() == logging.WARNING
+        assert not logging.getLogger().handlers
+
+    @pytest.mark.skipif("sys.version_info < (2,7)")
+    def test_logger_cfg_yaml(self, tmpdir):
+        pytest.importorskip("yaml")
         logger_cfg = tmpdir.join("logging.yml")
         logger_cfg.write(textwrap.dedent("""
-            ---
             version: 1
             disable_existing_loggers: False
 
