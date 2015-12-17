@@ -2,7 +2,10 @@
 ------------------
 
 - fix issue296: try to fetch files from master again when requested, if there
-  were checksum errors during replication
+  were checksum errors during replication.
+
+- if a user can't be found during authentication (with ``setup.py upload`` for
+  example), then the http return code is now 401 instead of 404.
 
 - fix issue293: push from root/pypi to another index is now supported
 - fix issue265: ignore HTTP(S) proxies when checking if the server is
