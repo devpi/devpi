@@ -2,7 +2,7 @@ import sys
 from requests import *  # noqa
 from requests.exceptions import ConnectionError, RequestException, BaseHTTPError
 
-def new_requests_session(proxies=True, agent=None):
+def new_requests_session(agent=None):
     if agent is None:
         agent = "devpi"
     else:
