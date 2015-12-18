@@ -43,6 +43,30 @@ def test_passthrough_args_toxargs(makehub, tmpdir, pseudo_current):
     args = index.get_tox_args(unpack_path=tmpdir)
     assert args[-2:] == ["--", "-x"]
 
+
+def test_index_option(create_and_upload, devpi, monkeypatch, out_devpi):
+    import re
+
+    def runtox(self, *args, **kwargs):
+        self.hub.info("Mocked tests ... %r %r" % (args, kwargs))
+    monkeypatch.setattr("devpi.test.DevIndex.runtox", runtox)
+
+    create_and_upload("exa-1.0")
+
+    # remember username
+    out = out_devpi("use")
+    user = re.search('\(logged in as (.+?)\)', out.stdout.str()).group(1)
+
+    # go to other index
+    devpi("use", "root/pypi")
+
+    out = out_devpi("test", "--index", "%s/dev" % user, "exa")
+    out.stdout.fnmatch_lines("""
+        received*/%s/dev/*exa-1.0*
+        unpacking*
+        Mocked tests ...*""" % user)
+
+
 def test_toxini(makehub, tmpdir, pseudo_current):
     toxini = tmpdir.ensure("new-tox.ini")
     hub = makehub(["test", "-c", toxini, "somepkg"])

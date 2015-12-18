@@ -1,11 +1,12 @@
-2.3.3 (unreleased)
+2.4.0 (unreleased)
 ------------------
 
 - fix issue291: transfer file modes with vcs exports.  Thanks Sergey
   Vasilyev for the report.
 
-- new option "devpi upload --index" which allows to upload to a different
-  index without first using "devpi use"
+- new option "--index" for "install", "list", "push", "remove", "upload" and
+  "test" which allows to use a different than the current index without using
+  "devpi use" before
 
 
 2.3.2 (2015-11-11)

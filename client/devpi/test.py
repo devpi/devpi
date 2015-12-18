@@ -62,9 +62,10 @@ class DevIndex:
         pkg.unpack()
         return pkg
 
-    def get_matching_versioninfo(self, pkgname):
+    def get_matching_versioninfo(self, pkgname, indexname):
         req = next(pkg_resources.parse_requirements(pkgname))
-        projurl = self.hub.current.index_url.asdir().joinpath(req.project_name).url
+        projurl = self.hub.current.get_project_url(
+            req.project_name, indexname=indexname).url
         r = self.hub.http_api("get", projurl)
         for version in get_sorted_versions(r.result):
             if version not in req:
@@ -201,7 +202,9 @@ def main(hub, args):
     tmpdir = py.path.local.make_numbered_dir("devpi-test", keep=3)
     devindex = DevIndex(hub, tmpdir, current)
     for pkgspec in args.pkgspec:
-        versioninfo = devindex.get_matching_versioninfo(pkgspec)
+        if args.index and args.index.count("/") > 1:
+            hub.fatal("index %r not of form USER/NAME or NAME" % args.index)
+        versioninfo = devindex.get_matching_versioninfo(pkgspec, args.index)
         links = versioninfo.get_links("releasefile")
         if not links:
             hub.fatal("could not find/receive links for", pkgspec)

@@ -265,8 +265,17 @@ class Current(object):
             indexname = indexname.rstrip("/")
         return URL(self.rooturl).joinpath(indexname, asdir=slash)
 
-    def get_project_url(self, name):
-        return self.index_url.addpath(name, asdir=1)
+    def get_project_url(self, name, indexname=None):
+        return self.get_index_url(indexname=indexname).addpath(name, asdir=1)
+
+    def get_simpleindex_url(self, indexname=None):
+        return self.get_index_url(
+            indexname=indexname).addpath('+simple', asdir=1)
+
+    def get_simpleproject_url(self, name, indexname=None):
+        return self.get_simpleindex_url(
+            indexname=indexname).addpath(name, asdir=1)
+
 
 def out_index_list(hub, data):
     for user in data:
