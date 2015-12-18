@@ -5,6 +5,12 @@
   normalized project names internally and offers new hooks.
   devpi-web-3.0.0 is incompatible to devpi-server-2.X.
 
+- doc.pt, macros.pt, style.css, docview.js: use scrollbar of documentation
+  iframe, so documentation that contains dynamically resizing elements works
+  correctly. For that to work, the search from and navigation was moved into a
+  wrapping div with class ``header``, so it can overlap the top of the iframe.
+
+
 2.5.0 (2015-11-19)
 ------------------
 
@@ -14,6 +20,7 @@
   requires devpi-server > 2.4.0 to work.
 
 - fix issue286: indexing of most data failed due to new read only views
+
 
 2.4.2 (2015-11-11)
 ------------------
