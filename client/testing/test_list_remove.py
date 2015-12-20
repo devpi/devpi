@@ -64,7 +64,7 @@ def test_confirm_delete(loghub, monkeypatch):
                 "1.1": linkver("root/dev", "x-1.1.tar.gz")}
         type = "projectconfig"
     req = parse_requirement("x>=1.1")
-    assert confirm_delete(loghub, r, req)
+    assert confirm_delete(loghub, loghub.current.get_index_url(), r, req)
     m = loghub._getmatcher()
     m.fnmatch_lines("""
         *x-1.1.tar.gz*
@@ -85,8 +85,8 @@ def test_showcommands(loghub):
     """)
 
 
-class TestList:
-    def test_all(self, initproj, devpi):
+class TestListRemove:
+    def test_all(self, initproj, devpi, out_devpi):
         initproj("hello-1.0", {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
@@ -97,9 +97,59 @@ class TestList:
             "conf.py": "",
             "index.html": "<html/>"}})
         devpi("upload", "--formats", "sdist.zip")
-        devpi("list", "hello")
-        devpi("remove", "-y", "hello==1.0", code=200)
-        devpi("list", "hello")
-        devpi("remove", "-y", "hello==1.1", code=200)
-        devpi("list")
-        devpi("list", "-v")
+        out = out_devpi("list", "hello")
+        out.stdout.fnmatch_lines_random("""
+            */hello-1.1.zip
+            */hello-1.0*
+            */hello-1.0.zip""")
+        assert len([x for x in out.stdout.lines if x.strip()]) == 3
+        out = out_devpi("remove", "-y", "hello==1.0", code=200)
+        out.stdout.fnmatch_lines_random("deleting release 1.0 of hello")
+        out = out_devpi("list", "hello")
+        out.stdout.fnmatch_lines_random("""
+            */hello-1.1.zip""")
+        assert len([x for x in out.stdout.lines if x.strip()]) == 1
+        out = out_devpi("remove", "-y", "hello==1.1", code=200)
+        out.stdout.fnmatch_lines_random("deleting release 1.1 of hello")
+        out = out_devpi("list")
+        assert len([x for x in out.stdout.lines if x.strip()]) == 0
+        out = out_devpi("list", "-v")
+        assert len([x for x in out.stdout.lines if x.strip()]) == 0
+
+    def test_all_index_option(self, initproj, devpi, out_devpi):
+        import re
+        initproj("hello-1.0", {"doc": {
+            "conf.py": "",
+            "index.html": "<html/>"}})
+        assert py.path.local("setup.py").check()
+        devpi("upload", "--formats", "sdist.zip")
+        devpi("upload", "--formats", "sdist.zip,bdist_dumb")
+        initproj("hello-1.1", {"doc": {
+            "conf.py": "",
+            "index.html": "<html/>"}})
+        devpi("upload", "--formats", "sdist.zip")
+
+        # remember username
+        out = out_devpi("use")
+        user = re.search('\(logged in as (.+?)\)', out.stdout.str()).group(1)
+
+        # go to other index
+        devpi("use", "root/pypi")
+        out = out_devpi("list", "--index", "%s/dev" % user, "hello")
+        out.stdout.fnmatch_lines_random("""
+            */hello-1.1.zip
+            */hello-1.0*
+            */hello-1.0.zip""")
+        assert len([x for x in out.stdout.lines if x.strip()]) == 3
+        out = out_devpi("remove", "--index", "%s/dev" % user, "-y", "hello==1.0", code=200)
+        out.stdout.fnmatch_lines_random("deleting release 1.0 of hello")
+        out = out_devpi("list", "--index", "%s/dev" % user, "hello")
+        out.stdout.fnmatch_lines_random("""
+            */hello-1.1.zip""")
+        assert len([x for x in out.stdout.lines if x.strip()]) == 1
+        out = out_devpi("remove", "--index", "%s/dev" % user, "-y", "hello==1.1", code=200)
+        out.stdout.fnmatch_lines_random("deleting release 1.1 of hello")
+        out = out_devpi("list", "--index", "%s/dev" % user)
+        assert len([x for x in out.stdout.lines if x.strip()]) == 0
+        out = out_devpi("list", "--index", "%s/dev" % user, "-v")
+        assert len([x for x in out.stdout.lines if x.strip()]) == 0
