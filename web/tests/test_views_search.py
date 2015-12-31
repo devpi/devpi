@@ -195,3 +195,79 @@ def test_search_batch_links(dummyrequest, pagecount, pagenum, expected):
     dummyrequest.route_url = lambda r, **kw: "search?%s" % "&".join(
         "%s=%s" % x for x in sorted(kw['_query'].items()))
     assert view.batch_links == expected
+
+
+def get_xmlrpc_data(body):
+    from devpi_web.views import DefusedExpatParser, Unmarshaller
+    unmarshaller = Unmarshaller()
+    parser = DefusedExpatParser(unmarshaller)
+    parser.feed(body)
+    parser.close()
+    return (unmarshaller.close(), unmarshaller.getmethodname())
+
+
+@pytest.mark.with_notifier
+def test_pip_search(mapp, pypistage, testapp):
+    from devpi_web.main import get_indexer
+    from operator import itemgetter
+    api = mapp.create_and_use()
+    pypistage.mock_simple("pkg1", '<a href="/pkg1-2.6.zip" /a>')
+    pypistage.mock_simple("pkg2", '')
+    indexer = get_indexer(mapp.xom.config)
+    indexer.update_projects([
+        dict(name=u'pkg1', user=u'root', index=u'pypi'),
+        dict(name=u'pkg2', user=u'root', index=u'pypi')], clear=True)
+    mapp.set_versiondata({
+        "name": "pkg2",
+        "version": "2.7",
+        "summary": "foo",
+        "description": "bar"}, waithooks=True)
+    headers = {'Content-Type': 'text/xml'}
+    body = b"""<?xml version='1.0'?>
+        <methodCall>
+        <methodName>search</methodName>
+        <params>
+        <param>
+        <value><struct>
+        <member>
+        <name>summary</name>
+        <value><array><data>
+        <value><string>pkg</string></value>
+        </data></array></value>
+        </member>
+        <member>
+        <name>name</name>
+        <value><array><data>
+        <value><string>pkg</string></value>
+        </data></array></value>
+        </member>
+        </struct></value>
+        </param>
+        <param>
+        <value><string>or</string></value>
+        </param>
+        </params>
+        </methodCall>
+        """
+    r = testapp.post('/%s/' % api.stagename, body, headers=headers)
+    assert r.status_code == 200
+    (data, method) = get_xmlrpc_data(r.body)
+    assert method is None
+    items = sorted(data[0], key=itemgetter('_pypi_ordering', 'name'))
+    assert len(items) == 2
+    # we only use cached data, so the version is empty
+    assert items[0]['name'] == '/root/pypi/pkg1'
+    assert items[0]['summary'] == ''
+    assert items[0]['version'] == ''
+    assert items[1]['name'] == '/user1/dev/pkg2'
+    assert items[1]['summary'] == 'foo'
+    assert items[1]['version'] == '2.7'
+    # without root/pypi, we only get data from the private index
+    r = mapp.modify_index(api.stagename, indexconfig=dict(bases=()))
+    r = testapp.post('/%s/' % api.stagename, body, headers=headers)
+    assert r.status_code == 200
+    (data, method) = get_xmlrpc_data(r.body)
+    assert method is None
+    items = data[0]
+    assert len(items) == 1
+    assert items[0]['name'] == '/user1/dev/pkg2'

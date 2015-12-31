@@ -8,6 +8,9 @@
   "test" which allows to use a different than the current index without using
   "devpi use" before
 
+- set ``index`` in ``[search]`` section of ``pip.cfg`` when writing cfgs, to
+  support ``pip search``
+
 
 2.3.2 (2015-11-11)
 ------------------

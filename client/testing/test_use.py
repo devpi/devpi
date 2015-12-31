@@ -320,6 +320,7 @@ class TestUnit:
         assert PipCfg.default_location.exists()
         content = PipCfg.default_location.read()
         assert "index_url = %s://%sworld/" % (scheme, basic_auth) in content
+        assert "[search]\nindex = %s://%sworld/" % (scheme, basic_auth) in content
         assert DistutilsCfg.default_location.exists()
         content = DistutilsCfg.default_location.read()
         assert "index_url = %s://%sworld/" % (scheme, basic_auth) in content
