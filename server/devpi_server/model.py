@@ -715,7 +715,7 @@ class ELink:
         self._log.extend(logs)
 
     def get_logs(self):
-        return list(self._log)
+        return list(getattr(self, '_log', []))
 
 
 class LinkStore:

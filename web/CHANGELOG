@@ -1,3 +1,11 @@
+2.6.0 (Unreleased)
+------------------
+
+- require devpi-server >= 2.6.0
+
+- support for ``pip search`` command on indexes
+
+
 2.5.0 (2015-11-19)
 ------------------
 
@@ -7,6 +15,7 @@
   requires devpi-server > 2.4.0 to work.
 
 - fix issue286: indexing of most data failed due to new read only views
+
 
 2.4.2 (2015-11-11)
 ------------------

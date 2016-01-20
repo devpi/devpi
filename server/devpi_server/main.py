@@ -291,6 +291,7 @@ class XOM:
 
     def create_app(self):
         from devpi_server.view_auth import DevpiAuthenticationPolicy
+        from devpi_server.views import ContentTypePredicate
         from devpi_server.views import OutsideURLMiddleware
         from devpi_server.views import route_url, PIP_USER_AGENT
         from pkg_resources import get_distribution
@@ -315,6 +316,8 @@ class XOM:
         self.config.hook.devpiserver_pyramid_configure(
                 config=self.config,
                 pyramid_config=pyramid_config)
+
+        pyramid_config.add_view_predicate('content_type', ContentTypePredicate)
 
         pyramid_config.add_route("/+changelog/{serial}",
                                  "/+changelog/{serial}")

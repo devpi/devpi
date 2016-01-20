@@ -1,8 +1,16 @@
-2.3.3 (unreleased)
+2.4.0 (unreleased)
 ------------------
 
 - fix issue291: transfer file modes with vcs exports.  Thanks Sergey
   Vasilyev for the report.
+
+- new option "--index" for "install", "list", "push", "remove", "upload" and
+  "test" which allows to use a different than the current index without using
+  "devpi use" before
+
+- set ``index`` in ``[search]`` section of ``pip.cfg`` when writing cfgs, to
+  support ``pip search``
+
 
 2.3.2 (2015-11-11)
 ------------------
@@ -15,6 +23,7 @@
   vcs-export the directory containing setup.py. You can also
   set "setupdirs-only = 1" in the "[devpi:upload]" section
   of setup.cfg for the same effect.  Thanks Chad Wagner for the PR.
+
 
 2.3.1 (2015-09-10)
 ------------------

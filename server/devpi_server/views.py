@@ -20,6 +20,7 @@ import json
 from devpi_common.request import new_requests_session
 from devpi_common.validation import normalize_name, is_valid_archive_name
 
+from .filestore import BadGateway
 from .model import InvalidIndexconfig, InvalidUser, get_ixconfigattrs
 from .readonly import get_mutable_deepcopy
 from .log import thread_push_log, thread_pop_log, threadlog
@@ -107,6 +108,18 @@ def apireturn(code, message=None, result=None, type=None):
 def json_preferred(request):
     # XXX do proper "best" matching
     return "application/json" in request.headers.get("Accept", "")
+
+
+class ContentTypePredicate(object):
+    def __init__(self, val, config):
+        self.val = val
+
+    def text(self):
+        return 'content type = %s' % self.val
+    phash = text
+
+    def __call__(self, context, request):
+        return request.content_type == self.val
 
 
 class OutsideURLMiddleware(object):
@@ -565,6 +578,8 @@ class PyPIView:
             except target_stage.NonVolatile as e:
                 apireturn(409, "%s already exists in non-volatile index" % (
                           e.link.basename,))
+            except BadGateway as e:
+                return apireturn(502, e.args[0])
             apireturn(200, result=results, type="actionlog")
         else:
             posturl = pushdata["posturl"]
@@ -614,6 +629,8 @@ class PyPIView:
 
     def _push_links(self, links, target_stage, name, version):
         for link in links["releasefile"]:
+            if should_fetch_remote_file(link.entry, self.request.headers):
+                fetch_remote_file(self.xom, link.entry)
             new_link = target_stage.store_releasefile(
                 name, version, link.basename, link.entry.file_get_content(),
                 last_modified=link.entry.last_modified)
@@ -874,17 +891,11 @@ class PyPIView:
             else:
                 abort(request, 410, "file existed, deleted in later serial")
 
-        if should_fetch_remote_file(entry, request.headers):
-            keyfs = self.xom.keyfs
-            try:
-                if not self.xom.is_replica():
-                    keyfs.restart_as_write_transaction()
-                    entry = filestore.get_file_entry(relpath, readonly=False)
-                    entry.cache_remote_file()
-                else:
-                    entry = entry.cache_remote_file_replica()
-            except entry.BadGateway as e:
-                return apireturn(502, e.args[0])
+        try:
+            if should_fetch_remote_file(entry, request.headers):
+                fetch_remote_file(self.xom, entry)
+        except entry.BadGateway as e:
+            return apireturn(502, e.args[0])
 
         headers = entry.gethttpheaders()
         if self.request.method == "HEAD":
@@ -996,6 +1007,17 @@ def should_fetch_remote_file(entry, headers):
     if entry.eggfragment and not headers.get(H_REPLICA_FILEREPL):
         should_fetch = True
     return should_fetch
+
+
+def fetch_remote_file(xom, entry):
+    filestore = xom.filestore
+    keyfs = xom.keyfs
+    if not xom.is_replica():
+        keyfs.restart_as_write_transaction()
+        entry = filestore.get_file_entry(entry.relpath, readonly=False)
+        entry.cache_remote_file()
+    else:
+        entry = entry.cache_remote_file_replica()
 
 
 def url_for_entrypath(request, entrypath):

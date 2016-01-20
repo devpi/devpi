@@ -13,6 +13,7 @@ from whoosh.index import create_in, exists_in, open_dir
 from whoosh.index import IndexError as WhooshIndexError
 from whoosh.qparser import QueryParser
 from whoosh.qparser import plugins
+from whoosh.searching import ResultsPage
 from whoosh.util.text import rcompile
 from whoosh.writing import CLEAR
 import itertools
@@ -311,15 +312,19 @@ class Index(object):
         result = {"items": items, "info": result_info}
         found = raw.scored_length()
         result_info['found'] = found
-        result_info['total'] = raw.total
-        result_info['pagecount'] = raw.pagecount
-        result_info['pagenum'] = raw.pagenum
+        if isinstance(raw, ResultsPage):
+            result_info['total'] = raw.total
+            result_info['pagecount'] = raw.pagecount
+            result_info['pagenum'] = raw.pagenum
+            results = raw.results
+        else:
+            results = raw
         collapsed_counts = defaultdict(int)
         result_info['collapsed_counts'] = collapsed_counts
-        fields = set(x.field() for x in raw.results.q.leaves())
+        fields = set(x.field() for x in results.q.leaves())
         collapse = "path" not in fields
         parents = {}
-        text_field = raw.results.searcher.schema['text']
+        text_field = results.searcher.schema['text']
         for item in raw:
             info = {
                 "data": dict(item),
@@ -349,7 +354,10 @@ class Index(object):
         return result
 
     def _search_projects(self, searcher, query, page=1):
-        result = searcher.search_page(query, page, terms=True)
+        if page is None:
+            result = searcher.search(query, limit=None, terms=True)
+        else:
+            result = searcher.search_page(query, page, terms=True)
         return result
 
     @property

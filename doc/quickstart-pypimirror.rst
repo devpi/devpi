@@ -99,6 +99,43 @@ mirroring 100% bug free and compatible to pypi.python.org.
 
 .. _perminstallindex:
 
+
+using ``pip search``
+++++++++++++++++++++
+
+To enable ``pip search`` functionality, we need the ``devpi-web`` plugin::
+
+    pip install -q -U devpi-web
+
+The server needs to be restarted for ``devpi-web`` to be used:
+
+    $ devpi-server --stop
+    2015-11-20 22:12:45,428 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2015-11-20 22:12:45,429 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    killed server pid=31305
+
+    $ devpi-server --start
+    2015-11-20 22:12:33,191 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2015-11-20 22:12:33,192 INFO  NOCTX generated uuid: 1435641cf8a64f53ab1a8d84c9a314ea
+    2015-11-20 22:12:33,192 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    2015-11-20 22:12:33,192 INFO  NOCTX DB: Creating schema
+    2015-11-20 22:12:33,240 INFO  [Wtx-1] setting password for user u'root'
+    2015-11-20 22:12:33,240 INFO  [Wtx-1] created user u'root' with email None
+    2015-11-20 22:12:33,240 INFO  [Wtx-1] created root user
+    2015-11-20 22:12:33,240 INFO  [Wtx-1] created root/pypi index
+    2015-11-20 22:12:33,255 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
+    starting background devpi-server at http://localhost:3141
+    /tmp/home/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server
+    process u'devpi-server' started pid=31316
+    devpi-server process startup detected
+    logfile is at /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
+
+Now we can search our own index::
+
+    $ pip search --index http://localhost:3141/root/pypi/ devpi-client
+    /root/pypi/devpi-client     -
+
+
 permanent index configuration for pip
 +++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -115,6 +152,15 @@ Alternatively, you can add a special environment variable
 to your shell settings (e.g. ``.bashrc``):
 
    export PIP_INDEX_URL=http://localhost:3141/root/pypi/+simple/
+
+For ``pip search`` you need a ``[search]`` section in your ``pip.conf``::
+
+    # $HOME/.pip/pip.conf
+    [global]
+    index-url = http://localhost:3141/root/pypi/+simple/
+
+    [search]
+    index = http://localhost:3141/root/pypi/
 
 
 permanent index configuration for easy_install
@@ -136,14 +182,14 @@ At any time you can check the background server status with::
     $ devpi-server --status
     2015-11-20 22:12:44,785 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
     2015-11-20 22:12:44,785 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    server is running with pid 31305
+    server is running with pid 31316
 
 Or stop it::
     
     $ devpi-server --stop
     2015-11-20 22:12:45,428 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
     2015-11-20 22:12:45,429 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    killed server pid=31305
+    killed server pid=31316
 
 Finally, you can also look at the logfile of the background server
 (also after it has been stopped)::

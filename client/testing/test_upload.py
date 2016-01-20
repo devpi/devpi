@@ -255,13 +255,28 @@ class TestUploadFunctional:
                        projname_version_norm=projname_version.replace("-", "*")
                        ))
 
-        # logoff then upload
-        devpi("logoff")
-        devpi("upload", "--dry-run")
+        # remember username
+        out = out_devpi("use")
+        user = re.search('\(logged in as (.+?)\)', out.stdout.str()).group(1)
 
         # go to other index
-        devpi("use", "root/pypi")
-        devpi("upload", "--dry-run")
+        out = out_devpi("use", "root/pypi")
+        out.stdout.fnmatch_lines_random("current devpi index*/root/pypi*")
+        out = out_devpi("upload", "--dry-run")
+        out.stdout.fnmatch_lines_random("no pypisubmit endpoint available for*")
+
+        # --index option
+        out = out_devpi("upload", "--index", "%s/dev" % user, "--dry-run")
+        out.stdout.fnmatch_lines_random("skipped: register*to*/%s/dev*" % user)
+
+        # go back
+        out = out_devpi("use", "%s/dev" % user)
+        out.stdout.fnmatch_lines_random("current devpi index*/%s/dev*" % user)
+        # logoff then upload
+        out = out_devpi("logoff")
+        out.stdout.fnmatch_lines_random("login information deleted")
+        out = out_devpi("upload", "--dry-run")
+        out.stdout.fnmatch_lines_random("need to be authenticated*")
 
         # see if we get an error return code
         res = devpi("upload")
