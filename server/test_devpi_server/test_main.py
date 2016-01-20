@@ -122,3 +122,15 @@ def test_profiling_tween(capsys):
         handler(None)
     out, err = capsys.readouterr()
     assert "ncalls" in out
+
+
+@pytest.mark.parametrize("url", [
+    "http://someserver/path",
+    "https://pypi.python.org/simple/package/",
+])
+@pytest.mark.parametrize("allowRedirect", [True, False])
+def test_offline_mode_httpget_returns_server_error(makexom, url, allowRedirect):
+    xom = makexom(["--offline-mode"], httpget=XOM.httpget, mocking=False)
+
+    r = xom.httpget(url, allowRedirect)
+    assert r.status_code == 500
