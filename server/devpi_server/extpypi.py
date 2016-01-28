@@ -10,6 +10,7 @@ from __future__ import unicode_literals
 import py
 import time
 
+import re
 from devpi_common.vendor._pip import HTMLPage
 
 from devpi_common.url import URL
@@ -22,7 +23,7 @@ from devpi_common.request import new_requests_session
 from . import __version__ as server_version
 from .model import BaseStage, make_key_and_href, SimplelinkMeta
 from .keyfs import load_from_file, dump_to_file
-from .readonly import ensure_deeply_readonly
+from .readonly import ensure_deeply_readonly, get_mutable_deepcopy
 from .log import threadlog
 
 
@@ -189,9 +190,22 @@ class PyPIStage(BaseStage):
             threadlog.debug("data unchanged for %s: %s", projectname, data)
         return dumplist
 
+    def _is_file_cached(self, dumplistentry):
+        relpath = re.sub(r"#.*$", "", dumplistentry[1])
+        entry = self.filestore.get_file_entry(relpath)
+        return entry is not None and entry.file_exists()
+
+    def _remove_uncached_files(self, data):
+        data = get_mutable_deepcopy(data)
+        data["dumplist"] = [e for e in data["dumplist"] if self._is_file_cached(e)]
+        return ensure_deeply_readonly(data)
+
     def _load_project_cache(self, projectname):
         normname = normalize_name(projectname)
         data = self.keyfs.PYPILINKS(name=normname).get()
+
+        if self.xom.config.args.offline_mode and "dumplist" in data:
+            data = self._remove_uncached_files(data)
         #log.debug("load data for %s: %s", projectname, data)
         return data
 

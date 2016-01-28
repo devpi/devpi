@@ -19,6 +19,7 @@ from devpi_server.views import tween_keyfs_transaction, make_uuid_headers
 
 from .functional import TestUserThings, TestIndexThings  # noqa
 
+import devpi_server.filestore
 from devpi_server.filestore import get_default_hash_spec, make_splitdir
 
 proj = pytest.mark.parametrize("proj", [True, False])
@@ -1372,6 +1373,47 @@ def test_outside_url_middleware(headers, environ, outsideurl, expected, testapp)
     testapp.xom.config.args.outside_url = outsideurl
     r = testapp.get('/+api', headers=headers, extra_environ=environ)
     assert r.json['result']['login'] == "%s/+login" % expected
+
+
+@pytest.mark.parametrize("stagename", [None, "root/pypi"])
+class TestOfflineMode:
+    @pytest.fixture
+    def xom(self, makexom):
+        return makexom(["--offline-mode"])
+
+    def test_file_not_available(self, mapp, model, testapp, pypistage, stagename):
+        pypistage.mock_simple("package", '<a href="/package-1.0.zip" />',
+                              serial=100)
+        if stagename is None:
+            api = mapp.create_and_use()
+        else:
+            api = mapp.use(stagename)
+        stagename = api.stagename
+
+        testapp.xget(200, "/%s/+simple/package" % stagename)
+        with model.keyfs.transaction(write=False):
+            info = pypistage._load_project_cache("package")
+
+        elist = info["dumplist"]
+        assert len(elist) == 0
+
+    def test_file_available(self, mapp, model, testapp, pypistage, monkeypatch, stagename):
+        pypistage.mock_simple("package", '<a href="/package-1.0.zip" />',
+                              serial=100)
+        if stagename is None:
+            api = mapp.create_and_use()
+        else:
+            api = mapp.use(stagename)
+        stagename = api.stagename
+
+        monkeypatch.setattr(devpi_server.filestore.FileEntry, "file_exists", lambda a: True)
+        testapp.xget(200, "/%s/+simple/package" % stagename)
+        with model.keyfs.transaction(write=False):
+            info = pypistage._load_project_cache("package")
+
+        elist = info["dumplist"]
+        assert len(elist) == 1
+        assert elist[0][0] == "package-1.0.zip"
 
 
 class Test_getjson:

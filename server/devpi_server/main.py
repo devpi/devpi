@@ -266,6 +266,11 @@ class XOM:
         return self.new_http_session("server")
 
     def httpget(self, url, allow_redirects, timeout=30, extra_headers=None):
+        if self.config.args.offline_mode:
+            from requests import Response
+            resp = Response()
+            resp.status_code = 500
+            return resp
         headers = {}
         if extra_headers:
             headers.update(extra_headers)
