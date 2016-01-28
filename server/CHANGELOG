@@ -1,6 +1,11 @@
 2.6.0 (Unreleased)
 ------------------
 
+- fix issue262: new experimental option --offline-mode will prevent
+  devpi-server from even trying to perform network requests and it
+  also strip all non-local release files from the simple index.
+  Thanks Daniel Panteleit for the PR.
+
 - fix issue304: mark devpi-server versions older than 2.2.x as incompatible
                 and requiring an import/export cycle.
 

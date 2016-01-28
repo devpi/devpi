@@ -1381,15 +1381,16 @@ class TestOfflineMode:
     def xom(self, makexom):
         return makexom(["--offline-mode"])
 
-    def test_file_not_available(self, mapp, model, testapp, pypistage, stagename):
-        pypistage.mock_simple("package", '<a href="/package-1.0.zip" />',
-                              serial=100)
+    def _prepare(self, mapp, pypistage, stagename):
+        pypistage.mock_simple("package", '<a href="/package-1.0.zip" />', serial=100)
         if stagename is None:
             api = mapp.create_and_use()
         else:
             api = mapp.use(stagename)
-        stagename = api.stagename
+        return api.stagename
 
+    def test_file_not_available(self, mapp, model, testapp, pypistage, stagename):
+        stagename = self._prepare(mapp, pypistage, stagename)
         testapp.xget(200, "/%s/+simple/package" % stagename)
         with model.keyfs.transaction(write=False):
             info = pypistage._load_project_cache("package")
@@ -1398,14 +1399,7 @@ class TestOfflineMode:
         assert len(elist) == 0
 
     def test_file_available(self, mapp, model, testapp, pypistage, monkeypatch, stagename):
-        pypistage.mock_simple("package", '<a href="/package-1.0.zip" />',
-                              serial=100)
-        if stagename is None:
-            api = mapp.create_and_use()
-        else:
-            api = mapp.use(stagename)
-        stagename = api.stagename
-
+        stagename = self._prepare(mapp, pypistage, stagename)
         monkeypatch.setattr(devpi_server.filestore.FileEntry, "file_exists", lambda a: True)
         testapp.xget(200, "/%s/+simple/package" % stagename)
         with model.keyfs.transaction(write=False):

@@ -8,6 +8,7 @@ from __future__ import unicode_literals
 import os, sys
 import py
 
+from requests import Response
 from devpi_common.metadata import Version
 from devpi_common.types import cached_property
 from devpi_common.request import new_requests_session
@@ -267,9 +268,8 @@ class XOM:
 
     def httpget(self, url, allow_redirects, timeout=30, extra_headers=None):
         if self.config.args.offline_mode:
-            from requests import Response
             resp = Response()
-            resp.status_code = 500
+            resp.status_code = 503  # service unavailable
             return resp
         headers = {}
         if extra_headers:
