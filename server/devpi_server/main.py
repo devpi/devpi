@@ -8,6 +8,7 @@ from __future__ import unicode_literals
 import os, sys
 import py
 
+from devpi_common.metadata import Version
 from devpi_common.types import cached_property
 from devpi_common.request import new_requests_session
 from .config import parseoptions, get_pluginmanager
@@ -29,9 +30,12 @@ def check_compatible_version(xom):
         return
     state_version = xom.get_state_version()
     if server_version != state_version:
-        state_ver = state_version.split(".")
-        server_ver = server_version.split(".")
-        if state_ver[:1] != server_ver[:1]:
+        state_ver = tuple(state_version.split("."))
+        server_ver = tuple(server_version.split("."))
+        incompatible = (
+            state_ver[:1] != server_ver[:1] or
+            Version(state_version) < Version("2.2.dev0"))
+        if incompatible:
             fatal("Incompatible state: server %s cannot run serverdir "
                   "%s created by %s.\n"
                   "Use --export from older version, then --import with newer "
