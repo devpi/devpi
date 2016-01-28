@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from devpi_common.archive import zip_dict
 import pytest
 import re
@@ -148,6 +149,18 @@ def test_indexing_doc_with_missing_title(mapp, testapp):
     links = search_results[0].findAll('a')
     assert sorted((compareable_text(l.text), l.attrs['href']) for l in links) == [
         ("pkg1-2.6", "http://localhost/user1/dev/pkg1/2.6")]
+
+
+@pytest.mark.with_notifier
+def test_indexing_doc_with_unicode(mapp, testapp):
+    mapp.create_and_use()
+    mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
+    content = zip_dict({"index.html": u'<html><meta charset="utf-8"><body>Föö</body></html>'.encode('utf-8')})
+    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
+                    waithooks=True)
+    r = testapp.xget(200, '/+search?query=F%C3%B6%C3%B6')
+    search_results = r.html.select('.searchresults > dl > dt')
+    assert len(search_results) == 1
 
 
 @pytest.mark.parametrize("pagecount, pagenum, expected", [
