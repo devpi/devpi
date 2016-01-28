@@ -36,11 +36,13 @@ def test_server_commands(tmpdir, monkeypatch):
 def test_no_proxy(monkeypatch):
     envvars = ["no_proxy", "NO_PROXY"]
     for var in envvars:
-        monkeypatch.setenv(var, var)
+        monkeypatch.setenv(var, "123")
 
     with no_proxy("localhost:8080"):
         assert os.environ["no_proxy"] == "localhost:8080"
-        assert "NO_PROXY" not in os.environ
+        # on windows env variable names are case-insensitive
+        if not sys.platform.startswith("win32"):
+            assert "NO_PROXY" not in os.environ
 
     for var in envvars:
-        assert os.environ[var] == var
+        assert os.environ[var] == "123"

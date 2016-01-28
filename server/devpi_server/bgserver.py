@@ -109,9 +109,10 @@ class BackgroundServer:
 
 @contextlib.contextmanager
 def no_proxy(netloc):
-    saved = dict(
-        (k, os.environ.pop(k, None)) for k in ["no_proxy", "NO_PROXY"]
-    )
+    saved = dict(no_proxy=os.environ.pop("no_proxy", None))
+    if not sys.platform.startswith("win"):
+        saved["NO_PROXY"] = os.environ.pop("NO_PROXY", None)
+
     try:
         os.environ["no_proxy"] = netloc
         yield
@@ -121,4 +122,3 @@ def no_proxy(netloc):
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
-
