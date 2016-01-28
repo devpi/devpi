@@ -1,6 +1,9 @@
 2.6.0 (Unreleased)
 ------------------
 
+- fix issue305: read documentation html files in binary and let BeautifulSoup
+                detect the encoding.
+
 - require devpi-server >= 2.6.0
 
 - support for ``pip search`` command on indexes
