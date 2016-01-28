@@ -29,14 +29,21 @@ def test_check_compatible_version_self(xom):
     check_compatible_version(xom)
 
 def test_check_compatible_dev_version(xom, monkeypatch):
-    monkeypatch.setattr(xom, "get_state_version", lambda: "2.1.0.dev1")
-    monkeypatch.setattr("devpi_server.main.server_version", "2.1.0.dev2")
+    monkeypatch.setattr(xom, "get_state_version", lambda: "2.3.0.dev1")
+    monkeypatch.setattr("devpi_server.main.server_version", "2.3.0.dev2")
     check_compatible_version(xom)
 
 def test_check_compatible_minor_version(xom, monkeypatch):
-    monkeypatch.setattr(xom, "get_state_version", lambda: "2.1.0")
+    monkeypatch.setattr(xom, "get_state_version", lambda: "2.2.0")
     monkeypatch.setattr("devpi_server.main.server_version", "2.3.0")
     check_compatible_version(xom)
+
+@pytest.mark.parametrize("version", ["2.0.1", "2.1.9"])
+def test_check_incompatible_minor_version_raises(xom, monkeypatch, version):
+    monkeypatch.setattr(xom, "get_state_version", lambda: version)
+    monkeypatch.setattr("devpi_server.main.server_version", "2.3.0")
+    with pytest.raises(Fatal):
+        check_compatible_version(xom)
 
 def test_check_incompatible_version_raises(xom):
     versionfile = xom.config.serverdir.join(".serverversion")

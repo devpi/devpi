@@ -1,6 +1,9 @@
 2.6.0 (Unreleased)
 ------------------
 
+- fix issue304: mark devpi-server versions older than 2.2.x as incompatible
+                and requiring an import/export cycle.
+
 - fix issue296: try to fetch files from master again when requested, if there
   were checksum errors during replication.
 
