@@ -86,8 +86,8 @@ install
 
     $ devpi install -h
     usage: /home/hpk/venv/0/bin/devpi install [-h] [--version] [--debug] [-y] [-v]
-                                              [--clientdir DIR] [-l] [-e ARG]
-                                              [--venv DIR]
+                                              [--clientdir DIR] [--index INDEX]
+                                              [-l] [-e ARG] [--venv DIR]
                                               [pkg [pkg ...]]
     
     install packages through current devpi index. This is convenience wrapper
@@ -99,6 +99,7 @@ install
     
     optional arguments:
       -h, --help       show this help message and exit
+      --index INDEX    index to get package from (defaults to current index)
       -l               print list of currently installed packages.
       -e ARG           install a project in editable mode.
       --venv DIR       install into specified virtualenv (created on the fly if
@@ -121,6 +122,7 @@ list
     $ devpi list -h
     usage: /home/hpk/venv/0/bin/devpi list [-h] [--version] [--debug] [-y] [-v]
                                            [--clientdir DIR] [-f] [--all]
+                                           [--index INDEX]
                                            [spec]
     
     list project versions and files for the current index. Without a spec argument
@@ -138,6 +140,7 @@ list
       -h, --help       show this help message and exit
       -f, --failures   show test setup/failure logs
       --all            show all versions instead of just the newest
+      --index INDEX    index to look at (defaults to current index)
     
     generic options:
       --version        show program's version number and exit
@@ -212,7 +215,8 @@ push
 
     $ devpi push -h
     usage: /home/hpk/venv/0/bin/devpi push [-h] [--version] [--debug] [-y] [-v]
-                                           [--clientdir DIR] [--pypirc path]
+                                           [--clientdir DIR] [--index INDEX]
+                                           [--pypirc path]
                                            pkgspec TARGETSPEC
     
     push a release and releasefiles to an internal or external index. You can push
@@ -231,6 +235,7 @@ push
     
     optional arguments:
       -h, --help       show this help message and exit
+      --index INDEX    index to push from (defaults to current index)
       --pypirc path    path to pypirc
     
     generic options:
@@ -281,7 +286,7 @@ remove
 
     $ devpi remove -h
     usage: /home/hpk/venv/0/bin/devpi remove [-h] [--version] [--debug] [-y] [-v]
-                                             [--clientdir DIR]
+                                             [--clientdir DIR] [--index INDEX]
                                              spec
     
     remove project info/files from current index. This command allows to remove
@@ -295,6 +300,7 @@ remove
     
     optional arguments:
       -h, --help       show this help message and exit
+      --index INDEX    index to remove from (defaults to current index)
     
     generic options:
       --version        show program's version number and exit
@@ -315,6 +321,7 @@ test
                                            [--clientdir DIR] [-e ENVNAME]
                                            [-c PATH] [--fallback-ini PATH]
                                            [--tox-args toxargs] [--detox]
+                                           [--index INDEX]
                                            pkgspec [pkgspec ...]
     
     download and test a package against tox environments. Download a package and
@@ -336,6 +343,7 @@ test
       --detox, -d          (experimental) run tests concurrently in multiple
                            processes using the detox tool (which must be
                            installed)
+      --index INDEX        index to get package from (defaults to current index)
     
     generic options:
       --version            show program's version number and exit
@@ -357,8 +365,8 @@ upload
                                              [--clientdir DIR] [--no-vcs]
                                              [--setupdir-only] [--formats FORMATS]
                                              [--with-docs] [--only-docs]
-                                             [--from-dir] [--only-latest]
-                                             [--dry-run]
+                                             [--index INDEX] [--from-dir]
+                                             [--only-latest] [--dry-run]
                                              [path [path ...]]
     
     (build and) upload packages to the current devpi-server index. You can
@@ -396,6 +404,7 @@ upload
       --only-docs        as --with-docs but don't build or upload release files
     
     direct file upload options:
+      --index INDEX      index to upload to (defaults to current index)
       --from-dir         recursively look for archive files in path if it is a dir
       --only-latest      upload only latest version if multiple archives for a
                          package are found (only effective with --from-dir)
@@ -508,7 +517,7 @@ devpi command reference (server)
     usage: devpi-server [-h] [--host HOST] [--port PORT] [--outside-url URL]
                         [--debug] [--profile-requests NUM]
                         [--logger-cfg LOGGER_CFG] [--refresh SECS] [--bypass-cdn]
-                        [--pypi-cache-expiry SECS] [--version]
+                        [--pypi-cache-expiry SECS] [--offline-mode] [--version]
                         [--role {master,replica,auto}] [--master-url MASTER_URL]
                         [--replica-cert pem_file] [--gen-config]
                         [--secretfile path] [--export PATH] [--hard-links]
@@ -555,9 +564,12 @@ devpi command reference (server)
       --pypi-cache-expiry SECS
                             (experimental) time after which PyPI projects are
                             checked for new releases. [1800]
+      --offline-mode        (experimental) prevents connections to any upstream
+                            server (e.g. pypi) and only serves locally cached
+                            files through the simple index used by pip.
     
     deployment and data options:
-      --version             show devpi_version (2.5.2)
+      --version             show devpi_version (2.6.0)
       --role {master,replica,auto}
                             set role of this instance. [auto]
       --master-url MASTER_URL

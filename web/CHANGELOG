@@ -1,5 +1,5 @@
-2.6.0 (Unreleased)
-------------------
+2.6.0 (2016-1-29)
+-----------------
 
 - fix issue305: read documentation html files in binary and let BeautifulSoup
                 detect the encoding.
