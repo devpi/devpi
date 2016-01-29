@@ -214,6 +214,22 @@ And from there, the urls should be set to::
           himself/herself. This implies that other users are not allowed 
           to upload packages in that index.  
 
+Creating a mirror index
+^^^^^^^^^^^^^^^^^^^^^^^
+
+A mirroring index can be created by using ``type=mirror`` and setting the
+``mirror_url`` option::
+
+   $ devpi index -c pypi type=mirror mirror_url=https://pypi.python.org/simple/
+   http://localhost:3141/emilie/pypi:
+     type=mirror
+     bases=root/pypi
+     volatile=False
+     acl_upload=emilie
+     pypi_whitelist=
+     mirror_url=https://pypi.python.org/simple/
+     mirror_cache_expiry=1800
+
 .. _devpi_um_indices_modify:
    
 Modifying an Index
