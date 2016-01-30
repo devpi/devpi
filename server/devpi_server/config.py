@@ -63,11 +63,7 @@ def addoptions(parser, pluginmanager):
                  "file you need to have the pyyaml package installed.",
             default=None)
 
-    mirror = parser.addgroup("pypi mirroring options (root/pypi)")
-    mirror.addoption("--refresh", type=float, metavar="SECS",
-            default=60,
-            help="NO EFFECT: changelog API is not used anymore")
-
+    mirror = parser.addgroup("mirroring options")
     mirror.addoption("--bypass-cdn", action="store_true",
             help="set this if you want to bypass pypi's CDN for access to "
                  "simple pages and packages, in order to rule out cache-"
@@ -157,9 +153,9 @@ def addoptions(parser, pluginmanager):
     expimp = parser.addgroup("serverstate export / import options")
     expimp.addoption("--export", type=str, metavar="PATH",
             help="export devpi-server database state into PATH. "
-                 "This will export all users, indices (except root/pypi),"
-                 " release files, test results and documentation. "
-    )
+                 "This will export all users, indices, release files "
+                 "(except for mirrors), test results and documentation.")
+
     expimp.addoption("--hard-links", action="store_true",
             help="use hard links during export instead of copying files. "
                  "All limitations for hard links on your OS apply. "
@@ -207,8 +203,8 @@ def try_argcomplete(parser):
 
 def parseoptions(pluginmanager, argv, addoptions=addoptions):
     parser = MyArgumentParser(
-        description="Start a server which serves multiples users and "
-                    "indices. The special root/pypi index is a real-time "
+        description="Start a server which serves multiple users and "
+                    "indices. The special root/pypi index is a cached "
                     "mirror of pypi.python.org and is created by default. "
                     "All indices are suitable for pip or easy_install usage "
                     "and setup.py upload ... invocations."

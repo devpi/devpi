@@ -432,7 +432,7 @@ class BaseStage(object):
                 if private_hit:
                     if not whitelisted:
                         threadlog.debug("%s: private package %r not whitelisted, "
-                                        "ignoring root/pypi", opname, project)
+                                        "ignoring %s", opname, project, stage.name)
                         continue
                     threadlog.debug("private package %r whitelisted at stage %s",
                                     project, whitelisted.name)
