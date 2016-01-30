@@ -192,6 +192,42 @@ one of its bases.
 **Non volatile indexes** should be used as common package repositories between 
 users, either for staging or production.
 
+.. _mirror_indexes:
+
+Mirror Indexes
+++++++++++++++
+
+These indexes mirror externally stored packages. By default *root/pypi* is such
+an index, which mirrors https://pypi.python.org.
+
+You can't upload or push any packages to mirror indexes. They update themselves
+whenever they are used. For example when you try to install a package via pip.
+
+By default the info for a package is cached for 30 minutes, after that the
+original is queried again. This can be adjusted per mirror index.
+
+Package releases are downloaded on demand from the original location and cached
+indefinitely from then on.
+
+Mirror indexes can't have bases from which they inherit. They are commonly used
+as a base in regular indexes though.
+
+The data produced by exporting the server state doesn't include mirrored
+releases, only the settings of the mirror index.
+
+The default settings of *root/pypi* look like this::
+
+      $ devpi index root/pypi
+      http://localhost:3141/root/pypi:
+        type=mirror
+        bases=
+        volatile=False
+        acl_upload=root
+        pypi_whitelist=
+        custom_data=
+        mirror_url=https://pypi.python.org/simple/
+        mirror_cache_expiry=1800
+
 .. _um_concept_server_end_points:
 
 Server End Points
