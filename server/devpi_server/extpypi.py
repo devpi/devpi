@@ -116,7 +116,8 @@ class PyPIStage(BaseStage):
     def __init__(self, xom, username, index, ixconfig):
         super(PyPIStage, self).__init__(xom, username, index, ixconfig)
         self.httpget = self.xom.httpget  # XXX is requests/httpget multi-thread safe?
-        self.cache_expiry = xom.config.args.pypi_cache_expiry
+        self.cache_expiry = self.ixconfig.get(
+            'mirror_cache_expiry', xom.config.args.mirror_cache_expiry)
         self.xom = xom
         if xom.is_replica():
             url = xom.config.master_url
