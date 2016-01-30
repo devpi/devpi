@@ -286,7 +286,7 @@ def get_toxresults_info(linkstore, for_link, newest=True):
 
 
 def get_docs_info(request, stage, metadata):
-    if stage.name == 'root/pypi':
+    if stage.ixconfig['type'] == 'mirror':
         return
     name, ver = metadata["name"], metadata["version"]
     doc_path = get_unpack_path(stage, name, ver)
@@ -337,7 +337,7 @@ def index_get(context, request):
         bases=bases,
         packages=packages,
         whitelist=whitelist)
-    if stage.name == "root/pypi":
+    if stage.ixconfig['type'] == 'mirror':
         return result
 
     if hasattr(stage, "ixconfig"):
@@ -378,7 +378,7 @@ def index_get(context, request):
             log.error("metadata for project %r empty: %s, skipping",
                       project, verdata)
             continue
-        show_toxresults = not (stage.user.name == 'root' and stage.index == 'pypi')
+        show_toxresults = (stage.ixconfig['type'] != 'mirror')
         linkstore = stage.get_linkstore_perstage(name, ver)
         packages.append(dict(
             info=dict(
@@ -446,7 +446,6 @@ def project_get(context, request):
 def version_get(context, request):
     """ Show version for the precise stage, ignores inheritance. """
     context = ContextWrapper(context)
-    user, index = context.username, context.index
     name, version = context.verified_project, context.version
     stage = context.stage
     try:
@@ -469,7 +468,7 @@ def version_get(context, request):
                 continue
             value = py.xml.escape(value)
         infos.append((py.xml.escape(key), value))
-    show_toxresults = not (user == 'root' and index == 'pypi')
+    show_toxresults = (stage.ixconfig['type'] != 'mirror')
     linkstore = stage.get_linkstore_perstage(name, version)
     files = get_files_info(request, linkstore, show_toxresults)
     docs = get_docs_info(request, stage, verdata)

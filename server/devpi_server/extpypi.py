@@ -14,6 +14,7 @@ from devpi_common.vendor._pip import HTMLPage
 from devpi_common.url import URL
 from devpi_common.metadata import BasenameMeta
 from devpi_common.metadata import is_archive_of_project
+from devpi_common.types import cached_property
 from devpi_common.validation import normalize_name
 
 from .model import BaseStage, make_key_and_href, SimplelinkMeta
@@ -121,9 +122,23 @@ class PyPIStage(BaseStage):
         self.xom = xom
         if xom.is_replica():
             url = xom.config.master_url
-            self.PYPIURL_SIMPLE = url.joinpath("root/pypi/+simple/").url
+            self.mirror_url = url.joinpath("%s/+simple/" % self.name).url
         else:
-            self.PYPIURL_SIMPLE = PYPIURL_SIMPLE
+            url = URL(self.ixconfig.get('mirror_url', PYPIURL_SIMPLE))
+            self.mirror_url = url.asdir().url
+
+    @cached_property
+    def user(self):
+        # only few methods need the user object.
+        return self.model.get_user(self.username)
+
+    def delete(self):
+        with self.user.key.update() as userconfig:
+            indexes = userconfig.get("indexes", {})
+            if self.index not in indexes:
+                threadlog.info("index %s not exists" % self.index)
+                return False
+            del indexes[self.index]
 
     @property
     def cache_projectnames(self):
@@ -152,10 +167,10 @@ class PyPIStage(BaseStage):
 
     def _get_remote_projects(self):
         headers = {"Accept": "text/html"}
-        response = self.httpget(self.PYPIURL_SIMPLE, allow_redirects=True, extra_headers=headers)
+        response = self.httpget(self.mirror_url, allow_redirects=True, extra_headers=headers)
         if response.status_code != 200:
             raise self.UpstreamError("URL %r returned %s",
-                                self.PYPIURL_SIMPLE, response.status_code)
+                                self.mirror_url, response.status_code)
         page = HTMLPage(response.text, response.url)
         projects = set()
         baseurl = URL(response.url)
@@ -246,7 +261,7 @@ class PyPIStage(BaseStage):
             return links
 
         # get the simple page for the project
-        url = self.PYPIURL_SIMPLE + project + "/"
+        url = self.mirror_url + project + "/"
         threadlog.debug("reading index %s", url)
         response = self.httpget(url, allow_redirects=True)
         if response.status_code != 200:

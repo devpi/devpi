@@ -462,7 +462,7 @@ class TestExtPYPIDB:
 @pytest.mark.nomockprojectsremote
 class TestPyPIStageprojects:
     def test_get_remote_projects(self, pypistage):
-        pypistage.httpget.mockresponse(pypistage.PYPIURL_SIMPLE, code=200, text="""
+        pypistage.httpget.mockresponse(pypistage.mirror_url, code=200, text="""
             <html><head><title>Simple Index</title>
             <meta name="api-version" value="2" /></head>
             <body>
@@ -476,7 +476,7 @@ class TestPyPIStageprojects:
         assert s == set(["ploy-ansible", "devpi-server", "django"])
 
     def test_single_project_access_updates_projects(self, pypistage):
-        pypistage.httpget.mockresponse(pypistage.PYPIURL_SIMPLE, code=200, text="""
+        pypistage.httpget.mockresponse(pypistage.mirror_url, code=200, text="""
             <body>
                 <a href='django'>Django</a><br/>
             </body>""")

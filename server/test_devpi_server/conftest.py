@@ -363,7 +363,7 @@ def add_pypistage_mocks(monkeypatch, httpget):
     def mock_simple_projects(self, projectlist):
         t = "".join('<a href="%s">%s</a>\n' % (name, name) for name in projectlist)
         threadlog.debug("patching simple page with: %s" %(t))
-        self.httpget.mockresponse(self.PYPIURL_SIMPLE, code=200, text=t)
+        self.httpget.mockresponse(self.mirror_url, code=200, text=t)
 
     monkeypatch.setattr(PyPIStage, "mock_simple_projects",
                         mock_simple_projects, raising=False)
@@ -372,7 +372,7 @@ def add_pypistage_mocks(monkeypatch, httpget):
         headers = {"content-length": len(content),
                    "content-type": mimetypes.guess_type(path),
                    "last-modified": "today",}
-        url = URL(self.PYPIURL_SIMPLE).joinpath(path)
+        url = URL(self.mirror_url).joinpath(path)
         return self.httpget.mockresponse(url.url, raw=py.io.BytesIO(content),
                                          headers=headers, **kw)
     monkeypatch.setattr(PyPIStage, "mock_extfile", mock_extfile, raising=False)

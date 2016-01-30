@@ -116,8 +116,10 @@ class TestIndexThings:
         mapp.login_root()
         data = mapp.getjson("/root/pypi")
         res = data["result"]
-        assert res["volatile"] == False
-        assert res["acl_upload"] == ["root"]
+        res.pop("projects")
+        assert res == {
+            "type": "mirror",
+            "volatile": False}
 
     def test_pypi_not_modifiable(self, mapp):
         mapp.login_root()

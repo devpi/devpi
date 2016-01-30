@@ -1047,7 +1047,10 @@ def abort_if_invalid_project(request, project):
 
 def getkvdict_index(hook, req):
     req_volatile = req.get("volatile")
-    kvdict = {"volatile": True, "type": "stage", "bases": ["root/pypi"]}
+    kvdict = {
+        "volatile": True,
+        "type": req.get("type", "stage"),
+        "bases": ["root/pypi"]}
     if req_volatile is not None:
         if req_volatile == False or (req_volatile != True and
             req_volatile.lower() in ["false", "no"]):
@@ -1058,7 +1061,8 @@ def getkvdict_index(hook, req):
             kvdict["bases"] = bases.split(",")
         else:
             kvdict["bases"] = bases
-    additional_keys = get_ixconfigattrs(hook, "stage") - set(('volatile', 'bases'))
+    ixconfigattrs = get_ixconfigattrs(hook, kvdict["type"])
+    additional_keys = ixconfigattrs - set(('volatile', 'type', 'bases'))
     for key in additional_keys:
         if key in req:
             kvdict[key] = req[key]

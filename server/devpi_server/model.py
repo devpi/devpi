@@ -38,8 +38,11 @@ def run_passwd(root, username):
 
 def get_ixconfigattrs(hooks, index_type):
     base = set((
-        "type", "volatile", "bases", "acl_upload",
-        "pypi_whitelist", "custom_data"))
+        "type", "volatile", "custom_data"))
+    if index_type == 'mirror':
+        base.update(("mirror_url", "mirror_cache_expiry"))
+    elif index_type == 'stage':
+        base.update(("bases", "acl_upload", "pypi_whitelist"))
     for defaults in hooks.devpiserver_indexconfig_defaults(index_type=index_type):
         conflicting = base.intersection(defaults)
         if conflicting:
@@ -215,35 +218,40 @@ class User:
         d["username"] = self.name
         return d
 
-    def create_stage(self, index, type="stage",
-                     volatile=True, bases=("root/pypi",),
-                     acl_upload=None, pypi_whitelist=(),
-                     custom_data=None, **kwargs):
-        if acl_upload is None:
-            acl_upload = [self.name]
-        bases = tuple(normalize_bases(self.xom.model, bases))
-        if type not in ("mirror", "stage"):
+    def create_stage(self, index, type="stage", volatile=True, **kwargs):
+        ixconfig = {"type": type, "volatile": volatile}
+        if type == "mirror":
+            pass
+        elif type == "stage":
+            acl_upload = kwargs.pop("acl_upload", None)
+            if acl_upload is None:
+                acl_upload = [self.name]
+            bases = tuple(normalize_bases(
+                self.xom.model, kwargs.pop("bases", ("root/pypi",))))
+            ixconfig["bases"] = bases
+            ixconfig["acl_upload"] = acl_upload
+            ixconfig["pypi_whitelist"] = kwargs.pop("pypi_whitelist", ())
+        else:
             raise InvalidIndexconfig(
                 ["create_stage() got invalid index type: %s" % type])
-
+        if "custom_data" in kwargs:
+            ixconfig["custom_data"] = kwargs["custom_data"]
+        hooks = self.xom.config.hook
+        for defaults in hooks.devpiserver_indexconfig_defaults(index_type=type):
+            for key, value in defaults.items():
+                ixconfig[key] = kwargs.pop(key, value)
+        attrs = get_ixconfigattrs(hooks, type)
+        diff = list(set(kwargs).difference(attrs))
+        if diff:
+            raise InvalidIndexconfig(
+                ["create_stage() got unexpected keyword arguments: %s"
+                 % ", ".join(kwargs)])
+        ixconfig.update(kwargs)
         # modify user/indexconfig
         with self.key.update() as userconfig:
             indexes = userconfig.setdefault("indexes", {})
             assert index not in indexes, indexes[index]
-            indexes[index] = {
-                "type": type, "volatile": volatile, "bases": bases,
-                "acl_upload": acl_upload, "pypi_whitelist": pypi_whitelist,
-            }
-            if custom_data is not None:
-                indexes[index]["custom_data"] = custom_data
-            hooks = self.xom.config.hook
-            for defaults in hooks.devpiserver_indexconfig_defaults(index_type=type):
-                for key, value in defaults.items():
-                    indexes[index][key] = kwargs.pop(key, value)
-            if kwargs:
-                raise InvalidIndexconfig(
-                    ["create_stage() got unexpected keyword arguments: %s"
-                     % ", ".join(kwargs)])
+            indexes[index] = ixconfig
         stage = self.getstage(index)
         threadlog.info("created index %s: %s", stage.name, stage.ixconfig)
         return stage
@@ -444,7 +452,7 @@ class BaseStage(object):
             stage = todo.pop(0)
             yield stage
             seen.add(stage.name)
-            for base in stage.ixconfig["bases"]:
+            for base in stage.ixconfig.get("bases", ()):
                 if base not in seen:
                     todo.append(self.model.getstage(base))
 
