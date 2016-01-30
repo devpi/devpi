@@ -415,7 +415,9 @@ def set_default_indexes(model):
         root_user.key.set(userconfig)
         threadlog.info("created root/pypi index")
 
-_pypi_ixconfig_default = {"type": "mirror", "volatile": False}
+_pypi_ixconfig_default = {
+    "type": "mirror", "volatile": False,
+    "mirror_url": "https://pypi.python.org/simple/"}
 
 
 def tween_request_profiling(handler, registry):

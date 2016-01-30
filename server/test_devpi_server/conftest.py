@@ -379,10 +379,10 @@ def add_pypistage_mocks(monkeypatch, httpget):
 
 @pytest.fixture
 def pypiurls():
-    from devpi_server.extpypi import PYPIURL_SIMPLE
+    from devpi_server.main import _pypi_ixconfig_default
     class PyPIURL:
         def __init__(self):
-            self.simple = PYPIURL_SIMPLE
+            self.simple = _pypi_ixconfig_default['mirror_url']
     return PyPIURL()
 
 

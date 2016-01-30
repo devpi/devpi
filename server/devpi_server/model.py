@@ -221,7 +221,9 @@ class User:
     def create_stage(self, index, type="stage", volatile=True, **kwargs):
         ixconfig = {"type": type, "volatile": volatile}
         if type == "mirror":
-            pass
+            if not kwargs.get("mirror_url"):
+                raise InvalidIndexconfig(
+                    ["create_stage() requires a mirror_url for type: %s" % type])
         elif type == "stage":
             acl_upload = kwargs.pop("acl_upload", None)
             if acl_upload is None:

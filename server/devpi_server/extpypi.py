@@ -111,7 +111,6 @@ def perform_crawling(pypistage, result, numthreads=10):
                 continue
         threadlog.warn("crawlurl %s status %s", crawlurl, response)
 
-PYPIURL_SIMPLE = "https://pypi.python.org/simple/"
 
 class PyPIStage(BaseStage):
     def __init__(self, xom, username, index, ixconfig):
@@ -124,7 +123,7 @@ class PyPIStage(BaseStage):
             url = xom.config.master_url
             self.mirror_url = url.joinpath("%s/+simple/" % self.name).url
         else:
-            url = URL(self.ixconfig.get('mirror_url', PYPIURL_SIMPLE))
+            url = URL(self.ixconfig['mirror_url'])
             self.mirror_url = url.asdir().url
 
     @cached_property
