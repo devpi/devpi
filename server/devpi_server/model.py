@@ -396,7 +396,7 @@ class BaseStage(object):
     def get_pypi_whitelist_info(self, project):
         project = ensure_unicode(project)
         private_hit = whitelisted = False
-        for stage in self._sro():
+        for stage in self.sro():
             in_index = stage.has_project_perstage(project)
             if stage.ixconfig["type"] == "mirror":
                 has_pypi_base = in_index and (not private_hit or whitelisted)
@@ -421,13 +421,13 @@ class BaseStage(object):
         return False
 
     def op_sro(self, opname, **kw):
-        for stage in self._sro():
+        for stage in self.sro():
             yield stage, getattr(stage, opname)(**kw)
 
     def op_sro_check_pypi_whitelist(self, opname, **kw):
         project = normalize_name(kw["project"])
         whitelisted = private_hit = False
-        for stage in self._sro():
+        for stage in self.sro():
             if stage.ixconfig["type"] == "mirror":
                 if private_hit:
                     if not whitelisted:
@@ -444,7 +444,7 @@ class BaseStage(object):
             private_hit = private_hit or res
             yield stage, res
 
-    def _sro(self):
+    def sro(self):
         """ return stage resolution order. """
         todo = [self]
         seen = set()

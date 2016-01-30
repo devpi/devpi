@@ -463,11 +463,11 @@ class PyPIView:
         route_name="/{user}/{index}/+simple/{project}/refresh", request_method="POST")
     def simple_refresh(self):
         context = self.context
-        # XXX we might want to check if user/index has root/pypi as a base
-        stage = context.model.getstage('root', 'pypi')
-        assert stage.ixconfig["type"] == "mirror", stage.ixconfig
-        stage.clear_simplelinks_cache(context.project)
-        stage.get_simplelinks_perstage(context.project)
+        for stage in context.stage.sro():
+            if stage.ixconfig["type"] != "mirror":
+                continue
+            stage.clear_simplelinks_cache(context.project)
+            stage.get_simplelinks_perstage(context.project)
         redirect(self.request.route_url(
             "/{user}/{index}/+simple/{project}",
             user=context.username, index=context.index, project=context.project))
