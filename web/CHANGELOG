@@ -14,6 +14,17 @@
   wrapping div with class ``header``, so it can overlap the top of the iframe.
 
 
+2.6.0 (2016-1-29)
+-----------------
+
+- fix issue305: read documentation html files in binary and let BeautifulSoup
+                detect the encoding.
+
+- require devpi-server >= 2.6.0
+
+- support for ``pip search`` command on indexes
+
+
 2.5.0 (2015-11-19)
 ------------------
 

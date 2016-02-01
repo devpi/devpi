@@ -8,6 +8,8 @@ from __future__ import unicode_literals
 import os, sys
 import py
 
+from requests import Response
+from devpi_common.metadata import Version
 from devpi_common.types import cached_property
 from devpi_common.request import new_requests_session
 from .config import parseoptions, get_pluginmanager
@@ -29,9 +31,12 @@ def check_compatible_version(xom):
         return
     state_version = xom.get_state_version()
     if server_version != state_version:
-        state_ver = state_version.split(".")
-        server_ver = server_version.split(".")
-        if state_ver[:1] != server_ver[:1]:
+        state_ver = tuple(state_version.split("."))
+        server_ver = tuple(server_version.split("."))
+        incompatible = (
+            state_ver[:1] != server_ver[:1] or
+            Version(state_version) < Version("2.2.dev0"))
+        if incompatible:
             fatal("Incompatible state: server %s cannot run serverdir "
                   "%s created by %s.\n"
                   "Use --export from older version, then --import with newer "
@@ -254,6 +259,10 @@ class XOM:
         return self.new_http_session("server")
 
     def httpget(self, url, allow_redirects, timeout=30, extra_headers=None):
+        if self.config.args.offline_mode:
+            resp = Response()
+            resp.status_code = 503  # service unavailable
+            return resp
         headers = {}
         if extra_headers:
             headers.update(extra_headers)
@@ -278,6 +287,7 @@ class XOM:
 
     def create_app(self):
         from devpi_server.view_auth import DevpiAuthenticationPolicy
+        from devpi_server.views import ContentTypePredicate
         from devpi_server.views import OutsideURLMiddleware
         from devpi_server.views import route_url, PIP_USER_AGENT
         from pkg_resources import get_distribution
@@ -302,6 +312,8 @@ class XOM:
         self.config.hook.devpiserver_pyramid_configure(
                 config=self.config,
                 pyramid_config=pyramid_config)
+
+        pyramid_config.add_view_predicate('content_type', ContentTypePredicate)
 
         pyramid_config.add_route("/+changelog/{serial}",
                                  "/+changelog/{serial}")

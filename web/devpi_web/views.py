@@ -1,5 +1,6 @@
 # coding: utf-8
 from __future__ import unicode_literals
+from defusedxml.xmlrpc import DefusedExpatParser
 from devpi_common.metadata import get_pyversion_filetype
 from devpi_common.metadata import get_sorted_versions
 from devpi_common.viewhelp import iter_toxresults
@@ -19,13 +20,16 @@ from pyramid.httpexceptions import HTTPBadGateway, HTTPError
 from pyramid.httpexceptions import HTTPFound, HTTPNotFound
 from pyramid.httpexceptions import default_exceptionresponse_view
 from pyramid.interfaces import IRoutesMapper
-from pyramid.response import FileResponse
+from pyramid.response import FileResponse, Response
 from pyramid.view import notfound_view_config, view_config
 from time import gmtime
+try:
+    from xmlrpc.client import Fault, Unmarshaller, dumps
+except ImportError:
+    from xmlrpclib import Fault, Unmarshaller, dumps
 import functools
 import json
 import py
-
 
 seq_types = (list, tuple, SeqViewReadonly)
 
@@ -828,3 +832,94 @@ class SearchView:
         renderer='templates/search_help.pt')
     def search_help(self):
         return dict()
+
+    def query_from_xmlrpc(self, body):
+        unmarshaller = Unmarshaller()
+        parser = DefusedExpatParser(unmarshaller)
+        parser.feed(body)
+        parser.close()
+        (data, method) = (unmarshaller.close(), unmarshaller.getmethodname())
+        if method != "search":
+            raise ValueError("Unknown method '%s'." % method)
+        if len(data) == 2:
+            query, operator = data
+        else:
+            query = data
+            operator = "and"
+        log.debug("xmlrpc_search {0}".format((query, operator)))
+        operator = operator.upper()
+        if operator not in ('AND', 'OR', 'ANDNOT', 'ANDMAYBE', 'NOT'):
+            raise ValueError("Unknown operator '%s'." % operator)
+        if set(query.keys()).difference(['name', 'summary']):
+            raise ValueError("Only 'name' and 'summary' allowed in query.")
+        parts = []
+        for key, field in (('name', 'project'), ('summary', 'summary')):
+            value = query.get(key, [])
+            if len(value) == 0:
+                continue
+            elif len(value) == 1:
+                parts.append('(type:%s "%s")' % (field, value[0].replace('"', '')))
+            else:
+                raise ValueError("Only on value allowed for query.")
+        return (" %s " % operator).join(parts)
+
+    def search_index_packages(self, query):
+        search_index = self.request.registry['search_index']
+        result = search_index.query_projects(query, page=None)
+        context = ContextWrapper(self.request.context)
+        sro = dict((x.name, i) for i, x in enumerate(context.stage._sro()))
+        # first gather basic info and only get most relevant info based on
+        # stage resolution order
+        name2stage = {}
+        name2data = {}
+        for item in result['items']:
+            data = item['data']
+            path = data['path']
+            stage = self.get_stage(path)
+            if stage is None:
+                continue
+            if stage.name not in sro:
+                continue
+            name = data['name']
+            current_stage = name2stage.get(name)
+            if current_stage is None or sro[stage.name] < sro[current_stage.name]:
+                name2stage[name] = stage
+                try:
+                    score = item['score']
+                except KeyError:
+                    score = False
+                    sub_hits = item.get('sub_hits')
+                    if sub_hits:
+                        score = sub_hits[0].get('score', False)
+                name2data[name] = dict(
+                    version=data.get('version', ''),
+                    score=score)
+        # then gather more info if available and build results
+        hits = []
+        for name, stage in name2stage.items():
+            data = name2data[name]
+            version = data['version']
+            if version and is_project_cached(stage, name):
+                metadata = stage.get_versiondata(name, version)
+                version = metadata.get('version', version)
+                summary = metadata.get('summary', '')
+            else:
+                summary = ''
+            hits.append(dict(
+                name="/%s/%s" % (stage.name, name), summary=summary,
+                version=version, _pypi_ordering=data['score']))
+        return hits
+
+    @view_config(
+        route_name="/{user}/{index}/", request_method="POST",
+        content_type="text/xml")
+    def xmlrpc_search(self):
+        try:
+            query = self.query_from_xmlrpc(self.request.body)
+            log.debug("xmlrpc_search {0}".format(query))
+            hits = self.search_index_packages(query)
+            response = dumps((hits,), methodresponse=1, encoding='utf-8')
+        except Exception as e:
+            log.exception("Error in xmlrpc_search")
+            response = dumps(Fault(1, repr(e)), encoding='utf-8')
+        return Response(response)

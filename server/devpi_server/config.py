@@ -75,6 +75,11 @@ def addoptions(parser, pluginmanager):
             help="(experimental) time after which projects in mirror indexes "
                  "are checked for new releases.")
 
+    mirror.addoption("--offline-mode", action="store_true",
+            help="(experimental) prevents connections to any upstream server "
+                 "(e.g. pypi) and only serves locally cached files through the "
+                 "simple index used by pip.")
+
     deploy = parser.addgroup("deployment and data options")
 
     deploy.addoption("--version", action="store_true",

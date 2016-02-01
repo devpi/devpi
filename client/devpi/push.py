@@ -18,13 +18,14 @@ class PyPIPush:
 
 
 class DevpiPush:
-    def __init__(self, targetindex):
+    def __init__(self, targetindex, index):
         self.targetindex = targetindex
+        self.index = index
 
     def execute(self, hub, name, version):
         req = dict(name=name, version=str(version),
                    targetindex=self.targetindex)
-        return hub.http_api("push", hub.current.index, kvdict=req, fatal=True)
+        return hub.http_api("push", self.index, kvdict=req, fatal=True)
 
 def parse_target(hub, args):
     if args.target.startswith("pypi:"):
@@ -46,7 +47,13 @@ def parse_target(hub, args):
     if args.target.count("/") != 1:
         hub.fatal("target %r not of form USER/NAME or pypi:REPONAME" % (
                   args.target, ))
-    return DevpiPush(args.target)
+    index = hub.current.index
+    if args.index:
+        if args.index.count("/") > 1:
+            hub.fatal("index %r not of form USER/NAME or NAME" % args.index)
+        index = hub.current.get_index_url(args.index, slash=False)
+    return DevpiPush(args.target, index)
+
 
 def main(hub, args):
     pusher = parse_target(hub, args)

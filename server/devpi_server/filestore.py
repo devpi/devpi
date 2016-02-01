@@ -253,27 +253,53 @@ class FileEntry(object):
         self.file_set_content(content, r.headers.get("last-modified", None))
 
     def cache_remote_file_replica(self):
+        from .replica import H_REPLICA_FILEREPL, ReplicationErrors
+        replication_errors = ReplicationErrors(self.xom.config.serverdir)
         # construct master URL with param
-        assert self.url, "should have private files already: %s" % self.relpath
-        threadlog.info("replica doesn't have file: %s", self.relpath)
         url = self.xom.config.master_url.joinpath(self.relpath).url
-
-        # we do a head request to master and then wait for the file
-        # to arrive through the replication machinery
+        entry = self.xom.filestore.get_file_entry(self.relpath)
+        if not self.url:
+            threadlog.warn("missing private file: %s" % self.relpath)
+        else:
+            threadlog.info("replica doesn't have file: %s", self.relpath)
+        # we do a head request to master and then wait
         r = self.xom._httpsession.head(url)
         if r.status_code != 200:
-            msg = "%s: received %s from master" %(url, r.status_code)
+            msg = "%s: received %s from master" % (url, r.status_code)
             threadlog.error(msg)
             raise self.BadGateway(msg)
         serial = int(r.headers["X-DEVPI-SERIAL"])
         keyfs = self.key.keyfs
         keyfs.wait_tx_serial(serial)
         keyfs.restart_read_transaction()  # use latest serial
-        entry = self.xom.filestore.get_file_entry(self.relpath)
         if not entry.file_exists():
-            msg = "%s: did not get file after waiting" % url
+            # the file should have arrived through the replication machinery
+            if entry.relpath not in replication_errors.errors:
+                msg = "%s: did not get file after waiting" % url
+                threadlog.error(msg)
+                raise self.BadGateway(msg)
+        else:
+            return entry
+        # there was an error during file replication, so we try to fetch again
+        r = self.xom.httpget(
+            url, allow_redirects=True,
+            extra_headers={H_REPLICA_FILEREPL: str("YES")})
+        if r.status_code == 410:
+            # master indicates Gone for files which were later deleted
+            threadlog.warn("ignoring because of later deletion: %s",
+                           self.relpath)
+            return
+        if r.status_code != 200:
+            msg = "%s: received %s from master" % (url, r.status_code)
             threadlog.error(msg)
             raise self.BadGateway(msg)
+        err = entry.check_checksum(r.content)
+        if err:
+            # the file we got is different, so we fail
+            raise self.BadGateway(str(err))
+        self.tx.conn.io_file_set(self._storepath, r.content)
+        # in case there were errors before, we can now remove them
+        replication_errors.remove(entry)
         return entry
 
 
@@ -283,4 +309,3 @@ def get_checksum_error(content, hash_spec):
     digest = hash_algo(content).hexdigest()
     if digest != hash_value:
        return "%s mismatch, got %s, expected %s" % (hash_type, digest, hash_value)
-

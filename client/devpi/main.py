@@ -89,6 +89,7 @@ class Hub:
         If type is specified and the json result type does not match,
         bail out fatally (unless fatal = False)
         """
+        assert kvdict is None or isinstance(kvdict, dict)
         if isinstance(url, URL):
             url = url.url
         jsontype = "application/json"
@@ -538,6 +539,9 @@ def list_(parser):
     parser.add_argument("--all", action="store_true",
         help="show all versions instead of just the newest")
 
+    parser.add_argument("--index", default=None,
+        help="index to look at (defaults to current index)")
+
     parser.add_argument("spec", nargs="?",
         help="show info for a project or a specific release. "
              "Example specs: pytest or 'pytest>=2.3.5'"
@@ -551,6 +555,8 @@ def remove(parser):
     current index (see "devpi use").  It will ask interactively
     for confirmation before performing the actual removals.
     """
+    parser.add_argument("--index", default=None,
+        help="index to remove from (defaults to current index)")
     parser.add_argument("spec",
         help="remove info/files for a project/version/release file from the "
              "current index. "
@@ -670,6 +676,8 @@ def upload(parser):
         help="as --with-docs but don't build or upload release files")
 
     direct = parser.add_argument_group("direct file upload options")
+    direct.add_argument("--index", default=None,
+        help="index to upload to (defaults to current index)")
     direct.add_argument("--from-dir", action="store_true", default=None,
         dest="fromdir",
         help="recursively look for archive files in path if it is a dir")
@@ -716,6 +724,9 @@ def test(parser):
         help="(experimental) run tests concurrently in multiple processes using "
              "the detox tool (which must be installed)")
 
+    parser.add_argument("--index", default=None,
+        help="index to get package from (defaults to current index)")
+
     parser.add_argument("pkgspec", metavar="pkgspec", type=str,
         default=None, action="store", nargs="+",
         help="package specification in pip/setuptools requirement-syntax, "
@@ -731,6 +742,8 @@ def push(parser):
         needs to be defined in your ``.pypirc`` file.  Or you can
         push to another devpi index ("user/name").
     """
+    parser.add_argument("--index", default=None,
+        help="index to push from (defaults to current index)")
     parser.add_argument("--pypirc", metavar="path", type=str,
         default=None, action="store",
         help="path to pypirc")
@@ -754,6 +767,8 @@ def install(parser):
     This is convenience wrapper which configures and invokes
     ``pip install`` commands for you, using the current index.
     """
+    parser.add_argument("--index", default=None,
+        help="index to get package from (defaults to current index)")
     parser.add_argument("-l", action="store_true", dest="listinstalled",
         help="print list of currently installed packages. ")
     parser.add_argument("-e", action="store", dest="editable", metavar="ARG",
@@ -774,6 +789,8 @@ def refresh(parser):
     In case your devpi server hasn't updated the list of latest releases, this
     forces a reload of the them (EXPERIMENTAL).
     """
+    parser.add_argument("--index", default=None,
+        help="index to refresh (defaults to current index)")
     parser.add_argument(
         "pkgnames", metavar="pkg", type=str, action="store", nargs="+",
         help="package name to refresh.""")

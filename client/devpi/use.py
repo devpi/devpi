@@ -54,6 +54,15 @@ class Current(object):
         return indexserver.url
 
     @property
+    def searchindex_auth(self):
+        indexserver = self.get_index_url()
+        basic_auth = self.get_basic_auth(indexserver)
+        if basic_auth:
+            indexserver = indexserver.replace(netloc="%s@%s" % (
+                ':'.join(basic_auth), indexserver.netloc))
+        return indexserver.url
+
+    @property
     def index_url(self):
         if self.index:
             return URL(self.index)
@@ -265,8 +274,17 @@ class Current(object):
             indexname = indexname.rstrip("/")
         return URL(self.rooturl).joinpath(indexname, asdir=slash)
 
-    def get_project_url(self, name):
-        return self.index_url.addpath(name, asdir=1)
+    def get_project_url(self, name, indexname=None):
+        return self.get_index_url(indexname=indexname).addpath(name, asdir=1)
+
+    def get_simpleindex_url(self, indexname=None):
+        return self.get_index_url(
+            indexname=indexname).addpath('+simple', asdir=1)
+
+    def get_simpleproject_url(self, name, indexname=None):
+        return self.get_simpleindex_url(
+            indexname=indexname).addpath(name, asdir=1)
+
 
 def out_index_list(hub, data):
     for user in data:
@@ -356,8 +374,10 @@ def main(hub, args=None):
             hub.error("no index configured: cannot set pip/easy_install index")
         else:
             indexserver = hub.current.simpleindex_auth
+            searchindexserver = hub.current.searchindex_auth
             DistutilsCfg().write_indexserver(indexserver)
             PipCfg().write_indexserver(indexserver)
+            PipCfg().write_searchindexserver(searchindexserver)
             BuildoutCfg().write_indexserver(indexserver)
 
     show_one_conf(hub, DistutilsCfg())
@@ -449,6 +469,24 @@ class PipCfg(BaseCfg):
         default_location = ("~/.pip/pip.conf" if sys.platform != "win32"
                             else "~/pip/pip.ini")
         return os.environ.get('PIP_CONFIG_FILE', default_location)
+
+    def write_searchindexserver(self, searchindexserver):
+        self.ensure_backup_file()
+        if not self.path.exists():
+            return
+        section = '[search]'
+        newlines = []
+        found = False
+        for line in self.path.readlines(cr=1):
+            if section in line.lower():
+                line = line + "index = %s\n" % searchindexserver
+                found = True
+            newlines.append(line)
+        if not found:
+            newlines.append(section + "\n")
+            newlines.append("index = %s\n" % searchindexserver)
+        self.path.write("".join(newlines))
+
 
 class BuildoutCfg(BaseCfg):
     section_name = "[buildout]"

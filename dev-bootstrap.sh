@@ -9,4 +9,4 @@ for i in common client server web ; do
 done
 
 # install some deps for testing
-pip install -U Sphinx pytest mock webtest pytest-capturelog pytest-cov pytest-flakes pytest-pep8 pytest-timeout beautifulsoup4 tox
+pip install -U Sphinx pytest mock webtest pytest-capturelog pytest-cov pytest-flakes pytest-pep8 pytest-timeout beautifulsoup4 tox wheel

@@ -20,6 +20,7 @@ from devpi_server.extpypi import parse_index
 
 from .functional import TestUserThings, TestIndexThings  # noqa
 
+import devpi_server.filestore
 from devpi_server.filestore import get_default_hash_spec, make_splitdir
 
 proj = pytest.mark.parametrize("proj", [True, False])
@@ -1369,6 +1370,38 @@ def test_outside_url_middleware(headers, environ, outsideurl, expected, testapp)
     testapp.xom.config.args.outside_url = outsideurl
     r = testapp.get('/+api', headers=headers, extra_environ=environ)
     assert r.json['result']['login'] == "%s/+login" % expected
+
+
+@pytest.mark.parametrize("stagename", [None, "root/pypi"])
+class TestOfflineMode:
+    @pytest.fixture
+    def xom(self, makexom):
+        return makexom(["--offline-mode"])
+
+    def _prepare(self, mapp, pypistage, stagename):
+        pypistage.mock_simple("package", '<a href="/package-1.0.zip" />', serial=100)
+        if stagename is None:
+            api = mapp.create_and_use()
+        else:
+            api = mapp.use(stagename)
+        return api.stagename
+
+    def test_file_not_available(self, mapp, model, testapp, pypistage, stagename):
+        stagename = self._prepare(mapp, pypistage, stagename)
+        testapp.xget(200, "/%s/+simple/package" % stagename)
+        with model.keyfs.transaction(write=False):
+            is_fresh, links, serial = pypistage._load_cache_links("package")
+
+        assert len(links) == 0
+
+    def test_file_available(self, mapp, model, testapp, pypistage, monkeypatch, stagename):
+        stagename = self._prepare(mapp, pypistage, stagename)
+        monkeypatch.setattr(devpi_server.filestore.FileEntry, "file_exists", lambda a: True)
+        testapp.xget(200, "/%s/+simple/package" % stagename)
+        with model.keyfs.transaction(write=False):
+            is_fresh, links, serial = pypistage._load_cache_links("package")
+
+        assert links[0][0] == "package-1.0.zip"
 
 
 class Test_getjson:

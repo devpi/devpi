@@ -1,5 +1,4 @@
 import json
-from devpi_common.url import URL
 from devpi_common.metadata import get_sorted_versions, parse_requirement, Version
 from devpi_common.viewhelp import ViewLinkStore, iter_toxresults
 from functools import partial
@@ -105,36 +104,47 @@ def main_list(hub, args):
     hub.require_valid_current_with_index()
     if hub.args.spec:
         req = parse_requirement(hub.args.spec)
-        url = hub.current.get_project_url(req.project_name)
+        url = hub.current.get_project_url(
+            req.project_name, indexname=args.index)
         reply = hub.http_api("get", url, type="projectconfig")
         out_project(hub, reply, req)
     else:
-        reply = hub.http_api("get", hub.current.index, type="indexconfig")
+        index = hub.current.index
+        if args.index:
+            if args.index.count("/") > 1:
+                hub.fatal("index %r not of form USER/NAME or NAME" % args.index)
+            index = hub.current.get_index_url(args.index, slash=False)
+        reply = hub.http_api("get", index, type="indexconfig")
         out_index(hub, reply.result["projects"])
 
 def main_remove(hub, args):
     hub.require_valid_current_with_index()
     args = hub.args
     req = parse_requirement(args.spec)
-    url = hub.current.get_project_url(req.project_name)
-    reply = hub.http_api("get", url, type="projectconfig")
-    ver_to_delete = confirm_delete(hub, reply, req)
+    if args.index and args.index.count("/") > 1:
+        hub.fatal("index %r not of form USER/NAME or NAME" % args.index)
+    index_url = hub.current.get_index_url(indexname=args.index)
+    proj_url = hub.current.get_project_url(
+        req.project_name, indexname=args.index)
+    reply = hub.http_api("get", proj_url, type="projectconfig")
+    ver_to_delete = confirm_delete(hub, index_url, reply, req)
     if not ver_to_delete:
         hub.error("not deleting anything")
         return 1
     else:
         for ver, links in ver_to_delete:
             hub.info("deleting release %s of %s" % (ver, req.project_name))
-            hub.http_api("delete", url.addpath(ver))
+            hub.http_api("delete", proj_url.addpath(ver))
 
-def confirm_delete(hub, reply, req):
-    basepath = URL(hub.current.index).path.lstrip("/")
+
+def confirm_delete(hub, index_url, reply, req):
+    basepath = index_url.path.lstrip("/")
     ver_to_delete = []
     for version, verdata in reply.result.items():
         if version in req:
             vv = ViewLinkStore(basepath, verdata)
             files_to_delete = [link for link in vv.get_links()
-                                if link.href.startswith(hub.current.index)]
+                               if link.href.startswith(index_url.url)]
             if files_to_delete:  # XXX need to delete metadata without files
                 ver_to_delete.append((version, files_to_delete))
     if ver_to_delete:
@@ -145,13 +155,3 @@ def confirm_delete(hub, reply, req):
                 hub.info("  - " + link.href)
         if hub.ask_confirm("Are you sure"):
             return ver_to_delete
-
-#def filter_versions(spec, lines):
-    #    ver = pkg_resources.parse_version(line)
-#    req = pkg_resources.Requirement.parse(spec)
-#    if ver in req:
-#        pass
-
-def check_verify_current(hub):
-    if not hub.current.index:
-        hub.fatal("cannot use relative path without an active index")

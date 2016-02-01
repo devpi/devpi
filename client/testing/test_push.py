@@ -11,6 +11,7 @@ def runproc(cmd):
 def test_parse_target_devpi(loghub):
     class args:
         target = "user/name"
+        index = None
     res = parse_target(loghub, args)
     assert isinstance(res, DevpiPush)
 
@@ -28,6 +29,7 @@ def test_parse_target_pypi(tmpdir, loghub):
     class args:
         target = "pypi:whatever"
         pypirc = str(p)
+        index = None
     res = parse_target(loghub, args)
     assert isinstance(res, PyPIPush)
     assert res.user == "test"
@@ -48,6 +50,7 @@ def test_parse_target_pypi_default_repository(tmpdir, loghub):
     class args:
         target = "pypi:whatever"
         pypirc = str(p)
+        index = None
     res = parse_target(loghub, args)
     assert isinstance(res, PyPIPush)
     assert res.user == "test"
@@ -58,6 +61,7 @@ def test_parse_target_pypi_default_repository(tmpdir, loghub):
 def test_push_devpi(loghub, monkeypatch, mock_http_api):
     class args:
         target = "user/name"
+        index = None
     pusher = parse_target(loghub, args)
     mock_http_api.set(loghub.current.index, 200, result={})
     pusher.execute(loghub, "pytest", "2.3.5")
@@ -65,6 +69,17 @@ def test_push_devpi(loghub, monkeypatch, mock_http_api):
     assert len(mock_http_api.called) == 1
     # loghub.http_api.assert_called_once_with(
     #            "push", loghub.current.index, kvdict=req)
+
+
+def test_push_devpi_index_option(loghub, monkeypatch, mock_http_api):
+    class args:
+        target = "user/name"
+        index = "src/dev"
+    pusher = parse_target(loghub, args)
+    mock_http_api.set("src/dev", 200, result={})
+    pusher.execute(loghub, "pytest", "2.3.5")
+    dict(name="pytest", version="2.3.5", targetindex="user/name")
+    assert len(mock_http_api.called) == 1
 
 
 @pytest.mark.parametrize("spec", ("pkg==1.0", "pkg-1.0"))
@@ -88,6 +103,7 @@ def test_main_push_pypi(monkeypatch, tmpdir, spec):
     class args:
         clientdir = tmpdir.join("client")
         debug = False
+        index = None
     hub = Hub(args)
     monkeypatch.setattr(hub.http, "request", mypost)
     hub.current.reconfigure(dict(index="/some/index"))
@@ -105,6 +121,7 @@ def test_main_push_pypi(monkeypatch, tmpdir, spec):
         pypirc = str(p)
         target = "pypi:whatever"
         pkgspec = spec
+        index = None
 
     main(hub, args)
     assert len(l) == 1
@@ -141,6 +158,7 @@ def test_fail_push(monkeypatch, tmpdir):
     class args:
         clientdir = tmpdir.join("client")
         debug = False
+        index = None
     hub = Hub(args)
     monkeypatch.setattr(hub.http, "request", mypost)
     hub.current.reconfigure(dict(index="/some/index"))
@@ -158,6 +176,7 @@ def test_fail_push(monkeypatch, tmpdir):
         pypirc = str(p)
         target = "pypi:whatever"
         pkgspec = "pkg==1.0"
+        index = None
 
     try:
         main(hub, args)
