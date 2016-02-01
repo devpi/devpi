@@ -119,7 +119,8 @@ class TestIndexThings:
         res.pop("projects")
         assert res == {
             "type": "mirror",
-            "volatile": False}
+            "volatile": False,
+            "mirror_url": "https://pypi.python.org/simple/"}
 
     def test_pypi_not_modifiable(self, mapp):
         mapp.login_root()
@@ -127,7 +128,7 @@ class TestIndexThings:
         mapp.modify_index("root/pypi", res, code=403)
 
     def test_create_index_base_empty(self, mapp):
-        indexconfig = dict(bases=())
+        indexconfig = dict(bases="")
         mapp.login_root()
         mapp.create_index("root/empty", indexconfig=indexconfig, code=200)
         data = mapp.getjson("/root/empty")

@@ -74,7 +74,7 @@ a series of other devpi commands::
       bases=root/pypi
       volatile=True
       acl_upload=testuser
-      pypi_whitelist=
+      mirror_whitelist=
     
     -->  /home/hpk/p/devpi/doc$ devpi use dev 
     current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
@@ -267,7 +267,7 @@ Let's create another ``staging`` index::
       bases=root/pypi
       volatile=False
       acl_upload=testuser
-      pypi_whitelist=
+      mirror_whitelist=
 
 We created a non-volatile index which means that one can not 
 overwrite or delete release files. See :ref:`non_volatile_indexes` for more info
@@ -342,7 +342,7 @@ index, we can reconfigure the inheritance
       bases=testuser/staging
       volatile=True
       acl_upload=testuser
-      pypi_whitelist=
+      mirror_whitelist=
 
 If we now switch back to using ``testuser/dev``::
 

@@ -379,9 +379,9 @@ class PyPIView:
             blocked_index = None
         else:
             # only mere humans need to know and do more
-            whitelist_info = stage.get_pypi_whitelist_info(project)
-            embed_form = whitelist_info['has_pypi_base']
-            blocked_index = whitelist_info['blocked_by_pypi_whitelist']
+            whitelist_info = stage.get_mirror_whitelist_info(project)
+            embed_form = whitelist_info['has_mirror_base']
+            blocked_index = whitelist_info['blocked_by_mirror_whitelist']
         response = Response(app_iter=self._simple_list_project(
             stage, project, result, embed_form, blocked_index))
         if stage.ixconfig['type'] == 'mirror':
@@ -403,7 +403,7 @@ class PyPIView:
 
         if blocked_index:
             yield ("<p><strong>INFO:</strong> Because this project isn't in "
-                   "the <code>pypi_whitelist</code>, no releases from "
+                   "the <code>mirror_whitelist</code>, no releases from "
                    "<strong>%s</strong> are included.</p>"
                    % blocked_index).encode('utf-8')
 
@@ -1046,24 +1046,9 @@ def abort_if_invalid_project(request, project):
 
 
 def getkvdict_index(hook, req):
-    req_volatile = req.get("volatile")
-    kvdict = {
-        "volatile": True,
-        "type": req.get("type", "stage"),
-        "bases": ["root/pypi"]}
-    if req_volatile is not None:
-        if req_volatile == False or (req_volatile != True and
-            req_volatile.lower() in ["false", "no"]):
-            kvdict["volatile"] = False
-    bases = req.get("bases")
-    if bases is not None:
-        if not isinstance(bases, list):
-            kvdict["bases"] = bases.split(",")
-        else:
-            kvdict["bases"] = bases
-    ixconfigattrs = get_ixconfigattrs(hook, kvdict["type"])
-    additional_keys = ixconfigattrs - set(('volatile', 'type', 'bases'))
-    for key in additional_keys:
+    kvdict = {}
+    ixconfigattrs = get_ixconfigattrs(hook, req.get("type", "stage"))
+    for key in ixconfigattrs:
         if key in req:
             kvdict[key] = req[key]
     return kvdict

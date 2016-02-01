@@ -254,6 +254,9 @@ class Importer:
                         # remove if not set, so if the trigger was never
                         # used, you don't need to install the plugin
                         del indexconfig['uploadtrigger_jenkins']
+                if 'pypi_whitelist' in indexconfig:
+                    # this was renamed in 3.0.0
+                    indexconfig['mirror_whitelist'] = indexconfig.pop('pypi_whitelist')
                 user, index = stagename.split("/")
                 user = self.xom.model.get_user(user)
                 stage = user.create_stage(index, **indexconfig)

@@ -564,14 +564,14 @@ class Mapp(MappMixin):
         assert r.status_code == 200
         assert r.json["result"][key] == value
 
-    def set_pypi_whitelist(self, whitelist, indexname=None):
+    def set_mirror_whitelist(self, whitelist, indexname=None):
         indexname = self._getindexname(indexname)
         r = self.testapp.get_json("/%s" % indexname)
         result = r.json["result"]
         if not isinstance(whitelist, list):
             whitelist = whitelist.split(",")
         assert isinstance(whitelist, list)
-        result["pypi_whitelist"] = whitelist
+        result["mirror_whitelist"] = whitelist
         r = self.testapp.patch_json("/%s" % (indexname,), result)
         assert r.status_code == 200
 
@@ -591,10 +591,10 @@ class Mapp(MappMixin):
         r = self.testapp.get_json("/%s" % indexname)
         return r.json["result"].get("acl_" + acltype, None)
 
-    def get_pypi_whitelist(self, indexname=None):
+    def get_mirror_whitelist(self, indexname=None):
         indexname = self._getindexname(indexname)
         r = self.testapp.get_json("/%s" % indexname)
-        return r.json["result"]["pypi_whitelist"]
+        return r.json["result"]["mirror_whitelist"]
 
     def delete_project(self, project, code=200, indexname=None,
                        waithooks=False):
@@ -615,9 +615,9 @@ class Mapp(MappMixin):
                               expect_errors=True)
         assert r.status_code == code
         if r.status_code == 200 and set_whitelist:
-            whitelist = set(self.get_pypi_whitelist(indexname=indexname))
+            whitelist = set(self.get_mirror_whitelist(indexname=indexname))
             whitelist.add(metadata["name"])
-            self.set_pypi_whitelist(sorted(whitelist), indexname=indexname)
+            self.set_mirror_whitelist(sorted(whitelist), indexname=indexname)
         if waithooks:
             self._wait_for_serial_in_result(r)
         return r

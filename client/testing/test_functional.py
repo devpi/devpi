@@ -159,12 +159,12 @@ class Mapp(MappMixin):
             self.devpi("index", indexname,
                        "%s=%s" % (key, value), code=200)
 
-    def set_pypi_whitelist(self, whitelist, indexname=None):
+    def set_mirror_whitelist(self, whitelist, indexname=None):
         if indexname is None:
-            self.devpi("index", "pypi_whitelist=%s" % whitelist, code=200)
+            self.devpi("index", "mirror_whitelist=%s" % whitelist, code=200)
         else:
             self.devpi("index", indexname,
-                       "pypi_whitelist=%s" % whitelist, code=200)
+                       "mirror_whitelist=%s" % whitelist, code=200)
 
     def get_acl(self, code=200, indexname=None):
         indexname = self._getindexname(indexname)
@@ -176,12 +176,12 @@ class Mapp(MappMixin):
                 return [x for x in parts[1].split(",") if x]
         return  []
 
-    def get_pypi_whitelist(self, code=200, indexname=None):
+    def get_mirror_whitelist(self, code=200, indexname=None):
         indexname = self._getindexname(indexname)
         result = self.out_devpi("index", indexname)
         for line in result.outlines:
             line = line.strip()
-            parts = line.split("pypi_whitelist=", 1)
+            parts = line.split("mirror_whitelist=", 1)
             return parts[1].split(",")
 
     def upload_file_pypi(self, basename, content,

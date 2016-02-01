@@ -37,12 +37,11 @@ def run_passwd(root, username):
 
 
 def get_ixconfigattrs(hooks, index_type):
-    base = set((
-        "type", "volatile", "custom_data"))
+    base = set(("type", "volatile", "custom_data"))
     if index_type == 'mirror':
         base.update(("mirror_url", "mirror_cache_expiry"))
     elif index_type == 'stage':
-        base.update(("bases", "acl_upload", "pypi_whitelist"))
+        base.update(("bases", "acl_upload", "mirror_whitelist"))
     for defaults in hooks.devpiserver_indexconfig_defaults(index_type=index_type):
         conflicting = base.intersection(defaults)
         if conflicting:
@@ -129,6 +128,62 @@ class RootModel:
                 rootindexes = user.get().get("indexes", [])
                 return list(rootindexes) == ["pypi"]
         return False
+
+
+def ensure_list(data):
+    if isinstance(data, (list, tuple, set)):
+        return list(data)
+    # split and remove empty
+    return list(filter(None, (x.strip() for x in data.split(","))))
+
+
+def get_indexconfig(hooks, type, **kwargs):
+    ixconfig = {"type": type}
+    if "volatile" in kwargs:
+        volatile = kwargs.pop("volatile")
+        if volatile is False or (
+                volatile is not True and volatile.lower() in ["false", "no"]):
+            ixconfig["volatile"] = False
+        else:
+            ixconfig["volatile"] = True
+    if type == "mirror":
+        if not kwargs.get("mirror_url"):
+            raise InvalidIndexconfig(
+                ["create_stage() requires a mirror_url for type: %s" % type])
+    elif type == "stage":
+        if "acl_upload" in kwargs:
+            acl_upload = ensure_list(kwargs.pop("acl_upload"))
+            for index, name in enumerate(acl_upload):
+                if name.upper() == ':ANONYMOUS:':
+                    acl_upload[index] = name.upper()
+            ixconfig["acl_upload"] = acl_upload
+        if "bases" in kwargs:
+            ixconfig["bases"] = ensure_list(kwargs.pop("bases"))
+        if "pypi_whitelist" in kwargs and "mirror_whitelist" in kwargs:
+            raise InvalidIndexconfig(
+                ["indexconfig has pypi_whitelist and mirror_whitelist together"])
+        if "pypi_whitelist" in kwargs:
+            ixconfig["mirror_whitelist"] = ensure_list(
+                kwargs.pop("pypi_whitelist"))
+        elif "mirror_whitelist" in kwargs:
+            ixconfig["mirror_whitelist"] = ensure_list(
+                kwargs.pop("mirror_whitelist"))
+    else:
+        raise InvalidIndexconfig(
+            ["indexconfig has invalid index type: %s" % type])
+    if "custom_data" in kwargs:
+        ixconfig["custom_data"] = kwargs["custom_data"]
+    for defaults in hooks.devpiserver_indexconfig_defaults(index_type=type):
+        for key, value in defaults.items():
+            ixconfig[key] = kwargs.pop(key, value)
+    attrs = get_ixconfigattrs(hooks, type)
+    diff = list(set(kwargs).difference(attrs))
+    if diff:
+        raise InvalidIndexconfig(
+            ["indexconfig has unexpected keyword arguments: %s"
+             % ", ".join(kwargs)])
+    ixconfig.update(kwargs)
+    return ixconfig
 
 
 class User:
@@ -219,36 +274,14 @@ class User:
         return d
 
     def create_stage(self, index, type="stage", volatile=True, **kwargs):
-        ixconfig = {"type": type, "volatile": volatile}
-        if type == "mirror":
-            if not kwargs.get("mirror_url"):
-                raise InvalidIndexconfig(
-                    ["create_stage() requires a mirror_url for type: %s" % type])
-        elif type == "stage":
-            acl_upload = kwargs.pop("acl_upload", None)
-            if acl_upload is None:
-                acl_upload = [self.name]
-            bases = tuple(normalize_bases(
-                self.xom.model, kwargs.pop("bases", ("root/pypi",))))
-            ixconfig["bases"] = bases
-            ixconfig["acl_upload"] = acl_upload
-            ixconfig["pypi_whitelist"] = kwargs.pop("pypi_whitelist", ())
-        else:
-            raise InvalidIndexconfig(
-                ["create_stage() got invalid index type: %s" % type])
-        if "custom_data" in kwargs:
-            ixconfig["custom_data"] = kwargs["custom_data"]
-        hooks = self.xom.config.hook
-        for defaults in hooks.devpiserver_indexconfig_defaults(index_type=type):
-            for key, value in defaults.items():
-                ixconfig[key] = kwargs.pop(key, value)
-        attrs = get_ixconfigattrs(hooks, type)
-        diff = list(set(kwargs).difference(attrs))
-        if diff:
-            raise InvalidIndexconfig(
-                ["create_stage() got unexpected keyword arguments: %s"
-                 % ", ".join(kwargs)])
-        ixconfig.update(kwargs)
+        ixconfig = get_indexconfig(
+            self.xom.config.hook,
+            type=type, volatile=volatile, **kwargs)
+        if ixconfig.get("acl_upload") is None:
+            ixconfig["acl_upload"] = [self.name]
+        ixconfig["bases"] = tuple(normalize_bases(
+            self.xom.model, ixconfig.get("bases", ("root/pypi",))))
+        ixconfig["mirror_whitelist"] = ixconfig.get("mirror_whitelist", [])
         # modify user/indexconfig
         with self.key.update() as userconfig:
             indexes = userconfig.setdefault("indexes", {})
@@ -351,7 +384,7 @@ class BaseStage(object):
     def list_versions(self, project):
         assert py.builtin._istext(project), "project %r not text" % project
         versions = set()
-        for stage, res in self.op_sro_check_pypi_whitelist(
+        for stage, res in self.op_sro_check_mirror_whitelist(
                 "list_versions_perstage", project=project):
             versions.update(res)
         return versions
@@ -365,7 +398,7 @@ class BaseStage(object):
     def get_versiondata(self, project, version):
         assert py.builtin._istext(project), "project %r not text" % project
         result = {}
-        for stage, res in self.op_sro_check_pypi_whitelist(
+        for stage, res in self.op_sro_check_mirror_whitelist(
                 "get_versiondata_perstage",
                 project=project, version=version):
             if res:
@@ -384,7 +417,7 @@ class BaseStage(object):
         """
         all_links = []
         seen = set()
-        for stage, res in self.op_sro_check_pypi_whitelist(
+        for stage, res in self.op_sro_check_mirror_whitelist(
             "get_simplelinks_perstage", project=project):
             for key, href in res:
                 if key not in seen:
@@ -395,26 +428,26 @@ class BaseStage(object):
                         for v in sorted(map(SimplelinkMeta, all_links), reverse=True)]
         return all_links
 
-    def get_pypi_whitelist_info(self, project):
+    def get_mirror_whitelist_info(self, project):
         project = ensure_unicode(project)
         private_hit = whitelisted = False
         for stage in self.sro():
             in_index = stage.has_project_perstage(project)
             if stage.ixconfig["type"] == "mirror":
-                has_pypi_base = in_index and (not private_hit or whitelisted)
-                blocked_by_pypi_whitelist = in_index and private_hit and not whitelisted
+                has_mirror_base = in_index and (not private_hit or whitelisted)
+                blocked_by_mirror_whitelist = in_index and private_hit and not whitelisted
                 return dict(
-                    has_pypi_base=has_pypi_base,
-                    blocked_by_pypi_whitelist=stage.name if blocked_by_pypi_whitelist else None)
+                    has_mirror_base=has_mirror_base,
+                    blocked_by_mirror_whitelist=stage.name if blocked_by_mirror_whitelist else None)
             private_hit = private_hit or in_index
-            whitelist = set(stage.ixconfig["pypi_whitelist"])
+            whitelist = set(stage.ixconfig["mirror_whitelist"])
             whitelisted = whitelisted or '*' in whitelist or project in whitelist
         return dict(
-            has_pypi_base=False,
-            blocked_by_pypi_whitelist=None)
+            has_mirror_base=False,
+            blocked_by_mirror_whitelist=None)
 
-    def has_pypi_base(self, project):
-        return self.get_pypi_whitelist_info(project)['has_pypi_base']
+    def has_mirror_base(self, project):
+        return self.get_mirror_whitelist_info(project)['has_mirror_base']
 
     def has_project(self, project):
         for stage, res in self.op_sro("has_project_perstage", project=project):
@@ -426,7 +459,7 @@ class BaseStage(object):
         for stage in self.sro():
             yield stage, getattr(stage, opname)(**kw)
 
-    def op_sro_check_pypi_whitelist(self, opname, **kw):
+    def op_sro_check_mirror_whitelist(self, opname, **kw):
         project = normalize_name(kw["project"])
         whitelisted = private_hit = False
         for stage in self.sro():
@@ -439,7 +472,7 @@ class BaseStage(object):
                     threadlog.debug("private package %r whitelisted at stage %s",
                                     project, whitelisted.name)
             else:
-                whitelist = set(stage.ixconfig["pypi_whitelist"])
+                whitelist = set(stage.ixconfig["mirror_whitelist"])
                 if '*' in whitelist or project in whitelist:
                     whitelisted = stage
             res = getattr(stage, opname)(**kw)
@@ -486,24 +519,19 @@ class PrivateStage(BaseStage):
         if 'type' in kw and self.ixconfig["type"] != kw['type']:
             raise InvalidIndexconfig(
                 ["the 'type' of an index can't be changed"])
-        attrs = get_ixconfigattrs(self.xom.config.hook, self.ixconfig["type"])
-        diff = list(set(kw).difference(attrs))
-        if diff:
-            raise InvalidIndexconfig(
-                ["invalid keys for index configuration: %s" %(diff,)])
-        if "bases" in kw:
-            kw["bases"] = tuple(normalize_bases(self.xom.model, kw["bases"]))
-        if 'acl_upload' in kw:
-            for index, name in enumerate(kw['acl_upload']):
-                if name.upper() == ':ANONYMOUS:':
-                    kw['acl_upload'][index] = name.upper()
+        kw.pop("type", None)
+        ixconfig = get_indexconfig(
+            self.xom.config.hook, type=self.ixconfig["type"], **kw)
+        if "bases" in ixconfig:
+            ixconfig["bases"] = tuple(normalize_bases(
+                self.xom.model, ixconfig["bases"]))
         # modify user/indexconfig
         with self.user.key.update() as userconfig:
-            ixconfig = userconfig["indexes"][self.index]
-            ixconfig.update(kw)
+            newconfig = userconfig["indexes"][self.index]
+            newconfig.update(ixconfig)
             threadlog.info("modified index %s: %s", self.name, ixconfig)
-            self.ixconfig = ixconfig
-            return ixconfig
+            self.ixconfig = newconfig
+            return newconfig
 
     def get(self):
         userconfig = self.user.get()

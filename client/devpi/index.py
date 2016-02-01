@@ -32,7 +32,7 @@ def index_show(hub, url):
     reply = hub.http_api("get", url, None, quiet=True, type="indexconfig")
     ixconfig = reply.result
     hub.info(url.url + ":")
-    key_order = ["type", "bases", "volatile", "acl_upload", "pypi_whitelist"]
+    key_order = ["type", "bases", "volatile", "acl_upload"]
     additional_keys = set(ixconfig) - set(key_order)
     additional_keys = additional_keys - set(('projects',))
     key_order.extend(sorted(additional_keys))
@@ -77,7 +77,4 @@ def parse_keyvalue_spec_index(hub, keyvalues):
         kvdict = parse_keyvalue_spec(keyvalues)
     except ValueError:
         hub.fatal("arguments must be format NAME=VALUE: %r" %( keyvalues,))
-    for key in ("acl_upload", "bases", "pypi_whitelist"):
-        if key in kvdict:
-            kvdict[key] = [x for x in kvdict[key].split(",") if x]
     return kvdict

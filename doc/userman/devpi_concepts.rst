@@ -220,10 +220,7 @@ The default settings of *root/pypi* look like this::
       $ devpi index root/pypi
       http://localhost:3141/root/pypi:
         type=mirror
-        bases=
         volatile=False
-        acl_upload=root
-        pypi_whitelist=
         custom_data=
         mirror_url=https://pypi.python.org/simple/
         mirror_cache_expiry=1800
