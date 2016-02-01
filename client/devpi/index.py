@@ -5,7 +5,7 @@ def index_create(hub, url, kvdict):
     index_show(hub, url)
 
 def index_modify(hub, url, kvdict):
-    reply = hub.http_api("get", url, "indexconfig")
+    reply = hub.http_api("get", url, type="indexconfig")
     for name, val in kvdict.items():
         reply.result[name] = val
         hub.info("%s changing %s: %s" %(url.path, name, val))
