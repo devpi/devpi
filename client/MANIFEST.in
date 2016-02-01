@@ -3,6 +3,6 @@ include README.rst
 include AUTHORS
 include setup.py
 include tox.ini
-#include LICENSE
+include LICENSE
 recursive-include testing *.py
 graft testing
