@@ -545,3 +545,58 @@ class TestImportExport:
             stage = mapp2.xom.model.getstage(api.stagename)
             assert "foo_plugin" in stage.ixconfig
             assert stage.ixconfig["foo_plugin"] == "foo"
+
+    @pytest.mark.nomockprojectsremote
+    def test_mirror_settings_preserved(self, httpget, impexp, pypiurls):
+        mapp1 = impexp.mapp1
+        indexconfig = dict(
+            type="mirror",
+            mirror_url="http://localhost:6543/index/",
+            mirror_cache_expiry="600")
+        api = mapp1.create_and_use(indexconfig=indexconfig)
+
+        impexp.export()
+
+        httpget.mockresponse(pypiurls.simple, code=200, text="")
+        httpget.mockresponse(indexconfig["mirror_url"], code=200, text="")
+
+        mapp2 = impexp.new_import()
+        result = mapp2.getjson(api.index)
+        assert result["type"] == "indexconfig"
+        assert result["result"] == dict(
+            type="mirror",
+            volatile=True,
+            mirror_url="http://localhost:6543/index/",
+            mirror_cache_expiry=600,
+            projects=[])
+
+    @pytest.mark.nomockprojectsremote
+    def test_no_mirror_releases_touched(self, httpget, impexp, pypiurls):
+        mapp1 = impexp.mapp1
+        indexconfig = dict(
+            type="mirror",
+            mirror_url="http://localhost:6543/index/")
+        api = mapp1.create_and_use(indexconfig=indexconfig)
+
+        httpget.mockresponse(
+            pypiurls.simple, code=200,
+            text='<a href="pytest">pytest</a>')
+        httpget.mockresponse(
+            indexconfig["mirror_url"], code=200,
+            text='<a href="devpi">devpi</a>')
+
+        impexp.export()
+
+        assert os.listdir(impexp.exportdir.strpath) == ['dataindex.json']
+
+        httpget.mockresponse(pypiurls.simple, code=200, text="")
+        httpget.mockresponse(indexconfig["mirror_url"], code=200, text="")
+
+        mapp2 = impexp.new_import()
+        result = mapp2.getjson(api.index)
+        assert result["type"] == "indexconfig"
+        assert result["result"] == dict(
+            type="mirror",
+            volatile=True,
+            mirror_url="http://localhost:6543/index/",
+            projects=[])

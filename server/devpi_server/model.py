@@ -152,6 +152,10 @@ def get_indexconfig(hooks, type, **kwargs):
         if not kwargs.get("mirror_url"):
             raise InvalidIndexconfig(
                 ["create_stage() requires a mirror_url for type: %s" % type])
+        if "mirror_cache_expiry" in kwargs:
+            expiry = kwargs.pop("mirror_cache_expiry")
+            if expiry:
+                ixconfig["mirror_cache_expiry"] = int(expiry)
     elif type == "stage":
         if "acl_upload" in kwargs:
             acl_upload = ensure_list(kwargs.pop("acl_upload"))
@@ -279,11 +283,12 @@ class User:
         ixconfig = get_indexconfig(
             self.xom.config.hook,
             type=type, volatile=volatile, **kwargs)
-        if ixconfig.get("acl_upload") is None:
-            ixconfig["acl_upload"] = [self.name]
-        ixconfig["bases"] = tuple(normalize_bases(
-            self.xom.model, ixconfig.get("bases", ("root/pypi",))))
-        ixconfig["mirror_whitelist"] = ixconfig.get("mirror_whitelist", [])
+        if type == "stage":
+            if ixconfig.get("acl_upload") is None:
+                ixconfig["acl_upload"] = [self.name]
+            ixconfig["bases"] = tuple(normalize_bases(
+                self.xom.model, ixconfig.get("bases", ("root/pypi",))))
+            ixconfig["mirror_whitelist"] = ixconfig.get("mirror_whitelist", [])
         # modify user/indexconfig
         with self.key.update() as userconfig:
             indexes = userconfig.setdefault("indexes", {})

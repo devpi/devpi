@@ -301,9 +301,11 @@ def httpget(pypiurls):
             self.url2response[mockurl] = kw
 
         def mock_simple(self, name, text="", pkgver=None, hash_type=None,
-            pypiserial=10000, **kw):
+                        pypiserial=10000, remoteurl=None, **kw):
             class ret:
                 hash_spec = ""
+            if remoteurl is None:
+                remoteurl = pypiurls.simple
             if pkgver is not None:
                 assert not text
                 if hash_type and "#" not in pkgver:
@@ -319,8 +321,7 @@ def httpget(pypiurls):
             headers = kw.setdefault("headers", {})
             if pypiserial is not None:
                 headers["X-PYPI-LAST-SERIAL"] = str(pypiserial)
-            self.mockresponse(pypiurls.simple + name + "/",
-                                      text=text, **kw)
+            self.mockresponse(remoteurl + name + "/", text=text, **kw)
             return ret
 
         def _getmd5digest(self, s):
@@ -513,7 +514,7 @@ class Mapp(MappMixin):
                                   expect_errors=True)
         assert r.status_code == code
         if code in (200,201):
-            assert r.json["result"]["type"] == "stage"
+            assert r.json["result"]["type"] == indexconfig.get("type", "stage")
             return self.use("%s/%s" % (user, index))
         if code in (400,):
             return r.json["message"]
