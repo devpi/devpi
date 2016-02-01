@@ -219,6 +219,22 @@ class Importer:
         self.xom.config.secret = secret = self.import_data["secret"]
         self.xom.config.secretfile.write(secret)
 
+        self.tw.line("******** Importing packages from %s **********" % path)
+        self.tw.line('Number of users: %d' % len(self.import_users))
+        self.tw.line('Number of indexes: %d' % len(self.import_indexes))
+        total_num_projects = 0
+        total_num_files = 0
+        for idx_name, idx in self.import_indexes.items():
+            num_projects = len(idx['projects'])
+            num_files = len(idx['files'])
+            self.tw.line(
+                'Index %s has %d projects and %d files'
+                % (idx_name, num_projects, num_files))
+            total_num_projects += num_projects
+            total_num_files += num_files
+        self.tw.line('Total number of projects: %d' % total_num_projects)
+        self.tw.line('Total number of files: %d' % total_num_files)
+
         # first create all users
         for username, userconfig in self.import_users.items():
             with self.xom.keyfs.transaction(write=True):
@@ -281,12 +297,15 @@ class Importer:
                 with self.xom.keyfs.transaction(write=True):
                     self.import_filedesc(stage, filedesc)
 
+        self.tw.line("********* import_all: importing finished ***********")
+
     def wait_for_events(self):
         latest_serial = self.xom.keyfs.get_next_serial() - 1
         self.tw.line("waiting for events until latest_serial %s"
                      % latest_serial)
         self.xom.keyfs.notifier.wait_event_serial(latest_serial)
-        self.tw.line("importing finished")
+        self.tw.line("wait_for_events: importing finished"
+                     "; latest_serial = %s" % latest_serial)
 
     def import_filedesc(self, stage, filedesc):
         assert stage.ixconfig["type"] != "mirror"
