@@ -29,14 +29,21 @@ def test_check_compatible_version_self(xom):
     check_compatible_version(xom)
 
 def test_check_compatible_dev_version(xom, monkeypatch):
-    monkeypatch.setattr(xom, "get_state_version", lambda: "2.1.0.dev1")
-    monkeypatch.setattr("devpi_server.main.server_version", "2.1.0.dev2")
+    monkeypatch.setattr(xom, "get_state_version", lambda: "2.3.0.dev1")
+    monkeypatch.setattr("devpi_server.main.server_version", "2.3.0.dev2")
     check_compatible_version(xom)
 
 def test_check_compatible_minor_version(xom, monkeypatch):
-    monkeypatch.setattr(xom, "get_state_version", lambda: "2.1.0")
+    monkeypatch.setattr(xom, "get_state_version", lambda: "2.2.0")
     monkeypatch.setattr("devpi_server.main.server_version", "2.3.0")
     check_compatible_version(xom)
+
+@pytest.mark.parametrize("version", ["2.0.1", "2.1.9"])
+def test_check_incompatible_minor_version_raises(xom, monkeypatch, version):
+    monkeypatch.setattr(xom, "get_state_version", lambda: version)
+    monkeypatch.setattr("devpi_server.main.server_version", "2.3.0")
+    with pytest.raises(Fatal):
+        check_compatible_version(xom)
 
 def test_check_incompatible_version_raises(xom):
     versionfile = xom.config.serverdir.join(".serverversion")
@@ -121,6 +128,7 @@ def test_profiling_tween(capsys):
     out, err = capsys.readouterr()
     assert "ncalls" in out
 
+
 def test_xom_singleton(xom):
     with pytest.raises(KeyError):
         xom.get_singleton("x/y", "hello")
@@ -132,3 +140,14 @@ def test_xom_singleton(xom):
     xom.del_singletons("x/y")
     with pytest.raises(KeyError):
         assert xom.get_singleton("x/y", "hello") is None
+
+
+@pytest.mark.parametrize("url", [
+    "http://someserver/path",
+    "https://pypi.python.org/simple/package/",
+])
+@pytest.mark.parametrize("allowRedirect", [True, False])
+def test_offline_mode_httpget_returns_server_error(makexom, url, allowRedirect):
+    xom = makexom(["--offline-mode"], httpget=XOM.httpget, mocking=False)
+    r = xom.httpget(url, allowRedirect)
+    assert r.status_code == 503

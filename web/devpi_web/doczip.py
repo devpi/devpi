@@ -82,7 +82,7 @@ class Docs(DictMixin):
                 text=BeautifulSoup(info.get('body', ''), "html.parser").text,
                 path=info.get('current_page_name', name))
         else:
-            soup = BeautifulSoup(entry.read(), "html.parser")
+            soup = BeautifulSoup(entry.read(mode='rb'))
             body = soup.find('body')
             if body is None:
                 return

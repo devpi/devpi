@@ -9,6 +9,7 @@ from __future__ import unicode_literals
 
 import time
 
+import re
 from devpi_common.vendor._pip import HTMLPage
 
 from devpi_common.url import URL
@@ -17,7 +18,8 @@ from devpi_common.metadata import is_archive_of_project
 from devpi_common.validation import normalize_name
 
 from .model import BaseStage, make_key_and_href, SimplelinkMeta
-from .readonly import ensure_deeply_readonly
+from .fileutil import load_from_file, dump_to_file
+from .readonly import ensure_deeply_readonly, get_mutable_deepcopy
 from .log import threadlog
 
 
@@ -218,11 +220,21 @@ class PyPIStage(BaseStage):
         self.cache_link_updates.refresh(project)
 
     def _load_cache_links(self, project):
+        is_fresh, links, serial = False, None, -1
+
         cache = self.key_projsimplelinks(project).get()
         if cache:
-            return (self.cache_link_updates.is_fresh(project),
-                    cache["links"], cache["serial"])
-        return False, None, -1
+            is_fresh = self.cache_link_updates.is_fresh(project)
+            links, serial = cache["links"], cache["serial"]
+            if self.xom.config.args.offline_mode and links:
+                links = ensure_deeply_readonly(list(filter(self._is_file_cached, links)))
+
+        return is_fresh, links, serial
+
+    def _is_file_cached(self, dumplistentry):
+        relpath = re.sub(r"#.*$", "", dumplistentry[1])
+        entry = self.filestore.get_file_entry(relpath)
+        return entry is not None and entry.file_exists()
 
     def clear_simplelinks_cache(self, project):
         # we have to set to an empty dict instead of removing the key, so

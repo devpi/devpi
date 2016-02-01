@@ -101,3 +101,38 @@ class TestHeaderCredentialPlugin:
         request = blank_request()
         request.headers['X-Devpi-User'] = 'foo'
         assert dap._get_credentials(request) == ('foo', '')
+
+
+class TestDevpiAuthenticationPolicy:
+    @pytest.fixture
+    def policy(self, xom):
+        from devpi_server.view_auth import DevpiAuthenticationPolicy
+        return DevpiAuthenticationPolicy(xom)
+
+    @pytest.fixture
+    def blank_request(self, blank_request, xom):
+        request = blank_request()
+        request.log = xom.log
+        request.route_url = lambda x: x
+        return request
+
+    def test_nouser_basic(self, blank_request, policy, xom):
+        from devpi_server.views import HTTPException
+        from pyramid.authentication import b64encode
+        blank_request.headers['Authorization'] = 'BASIC ' + b64encode('foo:bar').decode("ascii")
+        with pytest.raises(HTTPException) as e:
+            policy.callback('foo', blank_request)
+        assert e.value.status_code == 401
+        assert e.value.title == "user 'foo' does not exist"
+
+    def test_expired(self, blank_request, mock, policy, xom):
+        from devpi_server.views import HTTPException
+        from pyramid.authentication import b64encode
+        with mock.patch('time.time') as timemock:
+            timemock.return_code = 0.0
+            passwd = policy.auth.serializer.dumps(('foo', []))
+        blank_request.headers['X-Devpi-Auth'] = b64encode('foo:%s' % passwd).decode("ascii")
+        with pytest.raises(HTTPException) as e:
+            policy.callback('foo', blank_request)
+        assert e.value.status_code == 401
+        assert e.value.title == "auth expired for 'foo'"

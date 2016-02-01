@@ -3,8 +3,10 @@ interact/control devpi-server background process.
 """
 from __future__ import unicode_literals
 import sys
+import os
 import time
 import py
+import contextlib
 
 from devpi_common.url import urlparse
 
@@ -20,6 +22,7 @@ def getnetloc(url, scheme=False):
     if scheme:
         netloc = "%s://%s" %(parsed.scheme, netloc)
     return netloc
+
 
 class BackgroundServer:
     def __init__(self, tw, xprocdir):
@@ -38,15 +41,16 @@ class BackgroundServer:
     def _waitup(self, url, count=1800):
         # try to start devpi-server (which remotely
         # receives a serials list which may take a while)
-        session = new_requests_session(proxies=False)
-        while count > 0:
-            try:
-                session.get(url)
-            except session.Errors:
-                time.sleep(0.1)
-                count -= 1
-            else:
-                return True
+        session = new_requests_session()
+        with no_proxy(urlparse(url).netloc):
+            while count > 0:
+                try:
+                    session.get(url)
+                except session.Errors:
+                    time.sleep(0.1)
+                    count -= 1
+                else:
+                    return True
         return False
 
     def start(self, args):
@@ -56,7 +60,8 @@ class BackgroundServer:
             self.fatal("cannot find devpi-server binary, no auto-start")
         if devpi_server.endswith(".py") and sys.platform == "win32":
             devpi_server = str(py.path.local.sysfind("devpi-server"))
-        if not py.path.local(devpi_server).exists():
+        if not (py.path.local(devpi_server).exists()
+                or py.path.local(devpi_server + '.exe').exists()):
             self.fatal("not existing devpi-server: %r" % devpi_server)
 
         url = "http://%s:%s" % (args.host, args.port)
@@ -66,8 +71,6 @@ class BackgroundServer:
         def prepare_devpiserver(cwd):
             self.line("starting background devpi-server at %s" % url)
             argv = [devpi_server, ] + filtered_args
-            #self.line("command: %s" % (argv,))
-            #self.line("command: %s" % argv)
             return (lambda: self._waitup(url), argv)
         self.xproc.ensure("devpi-server", prepare_devpiserver)
         info = self.xproc.getinfo("devpi-server")
@@ -103,3 +106,19 @@ class BackgroundServer:
                 self.line(line.rstrip())
             self.line("logfile at: %s" % logpath, bold=True)
 
+
+@contextlib.contextmanager
+def no_proxy(netloc):
+    saved = dict(no_proxy=os.environ.pop("no_proxy", None))
+    if not sys.platform.startswith("win"):
+        saved["NO_PROXY"] = os.environ.pop("NO_PROXY", None)
+
+    try:
+        os.environ["no_proxy"] = netloc
+        yield
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v

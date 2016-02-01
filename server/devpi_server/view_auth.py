@@ -217,9 +217,9 @@ class DevpiAuthenticationPolicy(CallbackAuthenticationPolicy):
             if status == "ok":
                 return [":%s" % g for g in groups]
             elif status == "nouser":
-                abort(request, 404, "user %r does not exist" % auth_user)
+                abort_authenticate(request, msg="user '%s' does not exist" % auth_user)
             elif status == "expired":
-                abort_authenticate(request, msg="auth expired for %r" % auth_user)
+                abort_authenticate(request, msg="auth expired for '%s'" % auth_user)
             raise ValueError("Unknown authentication status: %s" % status)
 
     def _get_credentials(self, request):

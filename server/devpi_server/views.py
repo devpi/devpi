@@ -110,6 +110,18 @@ def json_preferred(request):
     return "application/json" in request.headers.get("Accept", "")
 
 
+class ContentTypePredicate(object):
+    def __init__(self, val, config):
+        self.val = val
+
+    def text(self):
+        return 'content type = %s' % self.val
+    phash = text
+
+    def __call__(self, context, request):
+        return request.content_type == self.val
+
+
 class OutsideURLMiddleware(object):
     def __init__(self, app, xom):
         self.app = app

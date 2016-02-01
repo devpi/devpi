@@ -29,7 +29,7 @@ Install or upgrade ``devpi-server``::
 And let's check the version::
 
     $ devpi-server --version
-    2.5.2
+    2.6.0
 
 .. _genconfig:
 
@@ -240,15 +240,15 @@ Installing devpi server and client
 
 .. 
     $ devpi-server --stop
-    2015-11-20 22:13:18,052 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2015-11-20 22:13:18,053 INFO  NOCTX generated uuid: 3698413fbb3b4f72adeed9e2a7b52c05
-    2015-11-20 22:13:18,053 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2015-11-20 22:13:18,053 INFO  NOCTX DB: Creating schema
-    2015-11-20 22:13:18,072 INFO  [Wtx-1] setting password for user u'root'
-    2015-11-20 22:13:18,073 INFO  [Wtx-1] created user u'root' with email None
-    2015-11-20 22:13:18,073 INFO  [Wtx-1] created root user
-    2015-11-20 22:13:18,073 INFO  [Wtx-1] created root/pypi index
-    2015-11-20 22:13:18,080 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
+    2016-01-28 23:54:51,428 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2016-01-28 23:54:51,429 INFO  NOCTX generated uuid: 1477c57104084bac8e4b041e5af73f48
+    2016-01-28 23:54:51,429 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    2016-01-28 23:54:51,430 INFO  NOCTX DB: Creating schema
+    2016-01-28 23:54:51,446 INFO  [Wtx-1] setting password for user u'root'
+    2016-01-28 23:54:51,446 INFO  [Wtx-1] created user u'root' with email None
+    2016-01-28 23:54:51,446 INFO  [Wtx-1] created root user
+    2016-01-28 23:54:51,446 INFO  [Wtx-1] created root/pypi index
+    2016-01-28 23:54:51,461 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
     no server found
 
 ..
@@ -261,18 +261,18 @@ and caches https://pypi.python.org packages.  Let's start a server
 for the purposes of this tutorial in the background::
 
     $ devpi-server --port 4040 --start
-    2015-11-20 22:13:18,696 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2015-11-20 22:13:18,697 INFO  NOCTX generated uuid: dc289b3f404f48d9a1abbc3a1653522d
-    2015-11-20 22:13:18,697 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2015-11-20 22:13:18,698 INFO  NOCTX DB: Creating schema
-    2015-11-20 22:13:18,726 INFO  [Wtx-1] setting password for user u'root'
-    2015-11-20 22:13:18,726 INFO  [Wtx-1] created user u'root' with email None
-    2015-11-20 22:13:18,726 INFO  [Wtx-1] created root user
-    2015-11-20 22:13:18,726 INFO  [Wtx-1] created root/pypi index
-    2015-11-20 22:13:18,745 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
+    2016-01-28 23:54:52,001 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2016-01-28 23:54:52,002 INFO  NOCTX generated uuid: 616c846232c54140962ce6b0354b4ac9
+    2016-01-28 23:54:52,002 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    2016-01-28 23:54:52,002 INFO  NOCTX DB: Creating schema
+    2016-01-28 23:54:52,040 INFO  [Wtx-1] setting password for user u'root'
+    2016-01-28 23:54:52,041 INFO  [Wtx-1] created user u'root' with email None
+    2016-01-28 23:54:52,041 INFO  [Wtx-1] created root user
+    2016-01-28 23:54:52,041 INFO  [Wtx-1] created root/pypi index
+    2016-01-28 23:54:52,056 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
     starting background devpi-server at http://localhost:4040
     /tmp/home/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server --port 4040
-    process u'devpi-server' started pid=31744
+    process u'devpi-server' started pid=18815
     devpi-server process startup detected
     logfile is at /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
 
@@ -287,9 +287,10 @@ In order to manage users and indices on our fresh server let's also
 install the ``devpi-client`` package::
 
     $ pip install -U --pre -q devpi-client
-    /tmp/docenv/local/lib/python2.7/site-packages/pip/_vendor/requests/packages/urllib3/util/ssl_.py:90: InsecurePlatformWarning: A true SSLContext object is not available. This prevents urllib3 from configuring SSL appropriately and may cause certain SSL connections to fail. For more information, see https://urllib3.readthedocs.org/en/latest/security.html#insecureplatformwarning.
+    /tmp/docenv/local/lib/python2.7/site-packages/pip/_vendor/requests/packages/urllib3/util/ssl_.py:315: SNIMissingWarning: An HTTPS request has been made, but the SNI (Subject Name Indication) extension to TLS is not available on this platform. This may cause the server to present an incorrect TLS certificate, which can cause validation failures. For more information, see https://urllib3.readthedocs.org/en/latest/security.html#snimissingwarning.
+      SNIMissingWarning
+    /tmp/docenv/local/lib/python2.7/site-packages/pip/_vendor/requests/packages/urllib3/util/ssl_.py:120: InsecurePlatformWarning: A true SSLContext object is not available. This prevents urllib3 from configuring SSL appropriately and may cause certain SSL connections to fail. For more information, see https://urllib3.readthedocs.org/en/latest/security.html#insecureplatformwarning.
       InsecurePlatformWarning
-
 You can install this client software on different hosts if you
 `configured nginx`_.
 
@@ -420,9 +421,9 @@ Stopping the server
 Let's not forget to stop our background tutorial server::
 
     $ devpi-server --stop
-    2015-11-20 22:13:39,498 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2015-11-20 22:13:39,499 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    killed server pid=31744
+    2016-01-28 23:55:06,556 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2016-01-28 23:55:06,557 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    killed server pid=18815
 
 .. _upgrade:
 
