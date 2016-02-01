@@ -867,7 +867,7 @@ class SearchView:
         search_index = self.request.registry['search_index']
         result = search_index.query_projects(query, page=None)
         context = ContextWrapper(self.request.context)
-        sro = dict((x.name, i) for i, x in enumerate(context.stage._sro()))
+        sro = dict((x.name, i) for i, x in enumerate(context.stage.sro()))
         # first gather basic info and only get most relevant info based on
         # stage resolution order
         name2stage = {}
