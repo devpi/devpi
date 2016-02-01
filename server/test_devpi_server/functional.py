@@ -120,7 +120,9 @@ class TestIndexThings:
         assert res == {
             "type": "mirror",
             "volatile": False,
-            "mirror_url": "https://pypi.python.org/simple/"}
+            "mirror_name": "PyPI",
+            "mirror_url": "https://pypi.python.org/simple/",
+            "mirror_web_url_fmt": "https://pypi.python.org/pypi/{name}"}
 
     def test_pypi_not_modifiable(self, mapp):
         mapp.login_root()

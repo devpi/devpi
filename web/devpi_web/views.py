@@ -494,9 +494,15 @@ def version_get(context, request):
             has_mirror_base=stage.has_mirror_base(name),
             blocked_by_mirror_whitelist=False)
     if whitelist_info['has_mirror_base']:
-        nav_links.append(dict(
-            title="PyPI page",
-            url="https://pypi.python.org/pypi/%s" % name))
+        for base in reversed(list(stage.sro())):
+            if base.ixconfig["type"] != "mirror":
+                continue
+            mirror_web_url_fmt = base.ixconfig.get("mirror_web_url_fmt")
+            if not mirror_web_url_fmt:
+                continue
+            nav_links.append(dict(
+                title="%s page" % base.ixconfig.get("mirror_name", "Mirror"),
+                url=mirror_web_url_fmt.format(name=name)))
     return dict(
         title="%s/: %s-%s metadata and description" % (stage.name, name, version),
         content=get_description(stage, name, version),

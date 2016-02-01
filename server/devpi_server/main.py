@@ -417,7 +417,9 @@ def set_default_indexes(model):
 
 _pypi_ixconfig_default = {
     "type": "mirror", "volatile": False,
-    "mirror_url": "https://pypi.python.org/simple/"}
+    "mirror_url": "https://pypi.python.org/simple/",
+    "mirror_name": "PyPI",
+    "mirror_web_url_fmt": "https://pypi.python.org/pypi/{name}"}
 
 
 def tween_request_profiling(handler, registry):

@@ -39,7 +39,9 @@ def run_passwd(root, username):
 def get_ixconfigattrs(hooks, index_type):
     base = set(("type", "volatile", "custom_data"))
     if index_type == 'mirror':
-        base.update(("mirror_url", "mirror_cache_expiry"))
+        base.update((
+            "mirror_url", "mirror_cache_expiry",
+            "mirror_name", "mirror_web_url_fmt"))
     elif index_type == 'stage':
         base.update(("bases", "acl_upload", "mirror_whitelist"))
     for defaults in hooks.devpiserver_indexconfig_defaults(index_type=index_type):
