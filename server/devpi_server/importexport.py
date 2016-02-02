@@ -205,20 +205,7 @@ class Importer:
     def warn(self, msg):
         self.tw.line(msg, red=True)
 
-    def import_all(self, path):
-        self.import_rootdir = path
-        self.import_data = self.read_json(path.join("dataindex.json"))
-        self.dumpversion = self.import_data["dumpversion"]
-        if self.dumpversion not in ("1", "2"):
-            fatal("incompatible dumpversion: %r" %(self.dumpversion,))
-        uuid = self.import_data.get("uuid")
-        if uuid is not None:
-            self.xom.config.set_uuid(uuid)
-        self.import_users = self.import_data["users"]
-        self.import_indexes = self.import_data["indexes"]
-        self.xom.config.secret = secret = self.import_data["secret"]
-        self.xom.config.secretfile.write(secret)
-
+    def display_import_header(self, path):
         self.tw.line("******** Importing packages from %s **********" % path)
         self.tw.line('Number of users: %d' % len(self.import_users))
         self.tw.line('Number of indexes: %d' % len(self.import_indexes))
@@ -234,6 +221,21 @@ class Importer:
             total_num_files += num_files
         self.tw.line('Total number of projects: %d' % total_num_projects)
         self.tw.line('Total number of files: %d' % total_num_files)
+
+    def import_all(self, path):
+        self.import_rootdir = path
+        self.import_data = self.read_json(path.join("dataindex.json"))
+        self.dumpversion = self.import_data["dumpversion"]
+        if self.dumpversion not in ("1", "2"):
+            fatal("incompatible dumpversion: %r" %(self.dumpversion,))
+        uuid = self.import_data.get("uuid")
+        if uuid is not None:
+            self.xom.config.set_uuid(uuid)
+        self.import_users = self.import_data["users"]
+        self.import_indexes = self.import_data["indexes"]
+        self.xom.config.secret = secret = self.import_data["secret"]
+        self.xom.config.secretfile.write(secret)
+        self.display_import_header(path)
 
         # first create all users
         for username, userconfig in self.import_users.items():
