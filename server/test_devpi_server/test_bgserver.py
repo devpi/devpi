@@ -1,8 +1,8 @@
 import sys
 import os
-import random
 import py
 import pytest
+from .conftest import get_open_port
 from devpi_server.main import main
 from devpi_server.bgserver import no_proxy
 
@@ -20,8 +20,8 @@ def test_server_commands(tmpdir, monkeypatch):
         monkeypatch.setattr(sys, "argv",
                             [sys.argv[0][:-4]])
 
-
-    portopt = "--port=" + str(random.randint(2001, 64000))
+    port = get_open_port('localhost')
+    portopt = "--port=" + str(port)
     main(["devpi-server", "--start", portopt])
     try:
         main(["devpi-server", "--status"])

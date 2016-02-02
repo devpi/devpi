@@ -884,9 +884,9 @@ def test_setdefault_indexes(xom, model):
     ("", []), ("x,y", ["x", "y"]), ("x,,y", ["x", "y"])))
 def test_get_indexconfig_lists(key, value, result):
     class hooks:
-        def devpiserver_indexconfig_defaults(index_type):
+        def devpiserver_indexconfig_defaults(self, index_type):
             return {}
-    kvdict = get_indexconfig(hooks, type="stage", **{key: value})
+    kvdict = get_indexconfig(hooks(), type="stage", **{key: value})
     if key == "pypi_whitelist":
         # check behaviour of older devpi-client
         key = "mirror_whitelist"
@@ -910,7 +910,7 @@ def test_get_indexconfig_lists(key, value, result):
 ])
 def test_get_indexconfig_values(xom, input, expected):
     class hooks:
-        def devpiserver_indexconfig_defaults(index_type):
+        def devpiserver_indexconfig_defaults(self, index_type):
             return {}
-    result = get_indexconfig(hooks, type="stage", **input)
+    result = get_indexconfig(hooks(), type="stage", **input)
     assert result == expected

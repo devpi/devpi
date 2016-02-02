@@ -37,6 +37,8 @@ def index_show(hub, url):
     additional_keys = additional_keys - set(('projects',))
     key_order.extend(sorted(additional_keys))
     for key in key_order:
+        if key not in ixconfig:
+            continue
         value = ixconfig[key]
         if isinstance(value, list):
             value = ",".join(value)
@@ -77,4 +79,9 @@ def parse_keyvalue_spec_index(hub, keyvalues):
         kvdict = parse_keyvalue_spec(keyvalues)
     except ValueError:
         hub.fatal("arguments must be format NAME=VALUE: %r" %( keyvalues,))
+    # XXX devpi-server 3.0.0 handles the splitting on it's own, this is for
+    # compatibility with older devpi-server
+    for key in ("acl_upload", "bases", "pypi_whitelist"):
+        if key in kvdict:
+            kvdict[key] = [x for x in kvdict[key].split(",") if x]
     return kvdict

@@ -496,23 +496,26 @@ def raise_ValueError():
     raise ValueError(42)
 
 
-def test_requests_httpget_negative_status_code(xom_notmocked, monkeypatch):
+@pytest.mark.nomocking
+def test_requests_httpget_negative_status_code(xom, monkeypatch):
     import requests.exceptions
     l = []
     def r(*a, **k):
         l.append(1)
         raise requests.exceptions.RequestException()
 
-    monkeypatch.setattr(xom_notmocked._httpsession, "get", r)
+    monkeypatch.setattr(xom._httpsession, "get", r)
 
-def test_requests_httpget_timeout(xom_notmocked, monkeypatch):
+
+@pytest.mark.nomocking
+def test_requests_httpget_timeout(xom, monkeypatch):
     import requests.exceptions
     def httpget(url, **kw):
         assert kw["timeout"] == 1.2
         raise requests.exceptions.Timeout()
 
-    monkeypatch.setattr(xom_notmocked._httpsession, "get", httpget)
-    r = xom_notmocked.httpget("http://notexists.qwe", allow_redirects=False,
+    monkeypatch.setattr(xom._httpsession, "get", httpget)
+    r = xom.httpget("http://notexists.qwe", allow_redirects=False,
                               timeout=1.2)
     assert r.status_code == -1
 

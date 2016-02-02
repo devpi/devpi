@@ -19,8 +19,7 @@ from devpi_common.types import cached_property
 from devpi_common.validation import normalize_name
 
 from .model import BaseStage, make_key_and_href, SimplelinkMeta
-from .fileutil import load_from_file, dump_to_file
-from .readonly import ensure_deeply_readonly, get_mutable_deepcopy
+from .readonly import ensure_deeply_readonly
 from .log import threadlog
 
 

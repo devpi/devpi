@@ -156,6 +156,12 @@ def get_indexconfig(hooks, type, **kwargs):
             expiry = kwargs.pop("mirror_cache_expiry")
             if expiry:
                 ixconfig["mirror_cache_expiry"] = int(expiry)
+        # XXX backward compatibility with devpi-client <= 2.4.1
+        # it always sends these
+        kwargs.pop("bases", None)
+        kwargs.pop("acl_upload", None)
+        kwargs.pop("pypi_whitelist", None)
+        kwargs.pop("mirror_whitelist", None)
     elif type == "stage":
         if "acl_upload" in kwargs:
             acl_upload = ensure_list(kwargs.pop("acl_upload"))
@@ -165,9 +171,9 @@ def get_indexconfig(hooks, type, **kwargs):
             ixconfig["acl_upload"] = acl_upload
         if "bases" in kwargs:
             ixconfig["bases"] = ensure_list(kwargs.pop("bases"))
-        if "pypi_whitelist" in kwargs and "mirror_whitelist" in kwargs:
+        if "mirror_whitelist" in kwargs and kwargs.get("pypi_whitelist", []) != []:
             raise InvalidIndexconfig(
-                ["indexconfig has pypi_whitelist and mirror_whitelist together"])
+                ["indexconfig got non empty pypi_whitelist, use mirror_whitelist instead"])
         if "pypi_whitelist" in kwargs:
             ixconfig["mirror_whitelist"] = ensure_list(
                 kwargs.pop("pypi_whitelist"))
@@ -289,6 +295,10 @@ class User:
             ixconfig["bases"] = tuple(normalize_bases(
                 self.xom.model, ixconfig.get("bases", ("root/pypi",))))
             ixconfig["mirror_whitelist"] = ixconfig.get("mirror_whitelist", [])
+        # XXX backward compatibility with devpi-client <= 2.4.1
+        # it always expects these
+        for key in ("bases", "acl_upload", "pypi_whitelist"):
+            ixconfig.setdefault(key, [])
         # modify user/indexconfig
         with self.key.update() as userconfig:
             indexes = userconfig.setdefault("indexes", {})

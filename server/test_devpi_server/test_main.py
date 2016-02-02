@@ -142,12 +142,13 @@ def test_xom_singleton(xom):
         assert xom.get_singleton("x/y", "hello") is None
 
 
+@pytest.mark.nomocking
 @pytest.mark.parametrize("url", [
     "http://someserver/path",
     "https://pypi.python.org/simple/package/",
 ])
 @pytest.mark.parametrize("allowRedirect", [True, False])
 def test_offline_mode_httpget_returns_server_error(makexom, url, allowRedirect):
-    xom = makexom(["--offline-mode"], httpget=XOM.httpget, mocking=False)
+    xom = makexom(["--offline-mode"], httpget=XOM.httpget)
     r = xom.httpget(url, allowRedirect)
     assert r.status_code == 503

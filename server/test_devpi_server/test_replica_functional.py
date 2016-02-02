@@ -1,29 +1,10 @@
+from .conftest import get_open_port, wait_for_port
 from .functional import TestUserThings as BaseTestUserThings
 from .functional import TestIndexThings as BaseTestIndexThings
-from contextlib import closing
+from .functional import TestMirrorIndexThings as BaseTestMirrorIndexThings
 import py
 import pytest
-import socket
 import tempfile
-import time
-
-
-def get_open_port(host):
-    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-        s.bind((host, 0))
-        s.listen(1)
-        port = s.getsockname()[1]
-    return port
-
-
-def wait_for_port(host, port, timeout=60):
-    while timeout > 0:
-        with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-            s.settimeout(1)
-            if s.connect_ex((host, port)) == 0:
-                return
-        time.sleep(1)
-        timeout -= 1
 
 
 @pytest.yield_fixture(scope="session")
@@ -90,4 +71,9 @@ class TestUserThings(BaseTestUserThings):
 
 @pytest.mark.skipif("not config.option.slow")
 class TestIndexThings(BaseTestIndexThings):
+    pass
+
+
+@pytest.mark.skipif("not config.option.slow")
+class TestMirrorIndexThings(BaseTestMirrorIndexThings):
     pass

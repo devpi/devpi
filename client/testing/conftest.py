@@ -12,6 +12,11 @@ from _pytest.pytester import RunResult, LineMatcher
 from devpi.main import Hub, initmain, parse_args
 from devpi_common.url import URL
 from test_devpi_server.conftest import reqmock  # noqa
+try:
+    from test_devpi_server.conftest import simpypi, simpypiserver  # noqa
+except ImportError:
+    # when testing with older devpi-server
+    pass
 
 import subprocess
 

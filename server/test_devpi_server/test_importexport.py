@@ -568,6 +568,11 @@ class TestImportExport:
             volatile=True,
             mirror_url="http://localhost:6543/index/",
             mirror_cache_expiry=600,
+            # XXX backward compatibility with devpi-client <= 2.4.1
+            acl_upload=[],
+            bases=[],
+            pypi_whitelist=[],
+            # XXX end
             projects=[])
 
     @pytest.mark.nomockprojectsremote
@@ -599,4 +604,9 @@ class TestImportExport:
             type="mirror",
             volatile=True,
             mirror_url="http://localhost:6543/index/",
+            # XXX backward compatibility with devpi-client <= 2.4.1
+            acl_upload=[],
+            bases=[],
+            pypi_whitelist=[],
+            # XXX end
             projects=[])

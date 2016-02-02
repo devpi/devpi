@@ -19,6 +19,7 @@ from devpi_server.views import tween_keyfs_transaction, make_uuid_headers
 from devpi_server.extpypi import parse_index
 
 from .functional import TestUserThings, TestIndexThings  # noqa
+from .functional import TestMirrorIndexThings  # noqa
 
 import devpi_server.filestore
 from devpi_server.filestore import get_default_hash_spec, make_splitdir

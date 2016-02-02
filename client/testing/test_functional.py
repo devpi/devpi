@@ -1,10 +1,19 @@
 from io import BytesIO
 import py
 import pytest
+import requests
 import tarfile
 import time
 
 from test_devpi_server.functional import TestUserThings, TestIndexThings # noqa
+try:
+    from test_devpi_server.functional import TestMirrorIndexThings  # noqa
+except ImportError:
+    # when testing with older devpi-server
+    class TestMirrorIndexThings:
+        def test_mirror_things(self):
+            pytest.skip(
+                "Couldn't import TestMirrorIndexThings from devpi server tests.")
 from test_devpi_server.functional import MappMixin
 
 @pytest.fixture
@@ -81,6 +90,21 @@ class Mapp(MappMixin):
     def getindexlist(self):
         result = self.out_devpi("index", "-l")
         return [x for x in result.outlines if x.strip()]
+
+    def getpkglist(self):
+        result = self.out_devpi("list")
+        return [x for x in result.outlines if x.strip()]
+
+    def getreleaseslist(self, name, code=200):
+        result = self.out_devpi("list", name, code=code)
+        return [x for x in result.outlines if x.strip()]
+
+    def downloadrelease(self, code, url):
+        r = requests.get(url)
+        assert r.status_code == code
+        if r.status_code < 300:
+            return r.content
+        return r.json()
 
     def change_password(self, user, password):
         auth = getattr(self, "auth", None)
