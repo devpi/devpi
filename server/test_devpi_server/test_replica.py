@@ -612,12 +612,12 @@ def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, replica_pypis
     serial = xom.keyfs.get_current_serial()
     httpget.mock_simple(
         'pytest',
-        text='<a href="https://pypi.python.org/pkg/pytest-1.0.zip">pytest-1.0.zip</a>',
+        text='<a href="https://pypi.python.org/pytest/pytest-1.0.zip">pytest-1.0.zip</a>',
         headers={'X-DEVPI-SERIAL': str(serial)})
     with replica_xom.keyfs.transaction():
         ret = replica_pypistage.get_releaselinks("pytest")
     assert len(ret) == 1
-    assert ret[0].relpath == 'root/pypi/+e/https_pypi.python.org_pkg/pytest-1.0.zip'
+    assert ret[0].relpath == 'root/pypi/+e/https_pypi.python.org_pytest/pytest-1.0.zip'
 
     # now we change the links and expire the cache
     pypiurls.simple = orig_simple
@@ -651,4 +651,4 @@ def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, replica_pypis
     assert called == [True]
     replay(xom, replica_xom)
     assert len(ret) == 1
-    assert ret[0].relpath == 'root/pypi/+e/https_pypi.python.org_pkg/pytest-1.1.zip'
+    assert ret[0].relpath == 'root/pypi/+e/https_pypi.python.org_pytest/pytest-1.1.zip'

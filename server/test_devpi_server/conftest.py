@@ -270,6 +270,26 @@ def makemapp(request, maketestapp, makexom):
         return m
     return makemapp
 
+
+def make_simple_pkg_info(name, text="", pkgver=None, hash_type=None,
+                         pypiserial=None):
+    class ret:
+        hash_spec = ""
+    if pkgver is not None:
+        assert not text
+        if hash_type and "#" not in pkgver:
+            hv = (pkgver + str(pypiserial)).encode("ascii")
+            hash_value = getattr(hashlib, hash_type)(hv).hexdigest()
+            ret.hash_spec = "%s=%s" %(hash_type, hash_value)
+            pkgver += "#" + ret.hash_spec
+        text = '<a href="../../{name}/{pkgver}" />'.format(name=name, pkgver=pkgver)
+    elif text and "{md5}" in text:
+        text = text.format(md5=getmd5(text))
+    elif text and "{sha256}" in text:
+        text = text.format(sha256=getsha256(text))
+    return ret, text
+
+
 @pytest.fixture
 def httpget(pypiurls):
     class MockHTTPGet:
@@ -302,22 +322,11 @@ def httpget(pypiurls):
 
         def mock_simple(self, name, text="", pkgver=None, hash_type=None,
                         pypiserial=10000, remoteurl=None, **kw):
-            class ret:
-                hash_spec = ""
+            ret, text = make_simple_pkg_info(
+                name, text=text, pkgver=pkgver, hash_type=hash_type,
+                pypiserial=pypiserial)
             if remoteurl is None:
                 remoteurl = pypiurls.simple
-            if pkgver is not None:
-                assert not text
-                if hash_type and "#" not in pkgver:
-                    hv = (pkgver + str(pypiserial)).encode("ascii")
-                    hash_value = getattr(hashlib, hash_type)(hv).hexdigest()
-                    ret.hash_spec = "%s=%s" %(hash_type, hash_value)
-                    pkgver += "#" + ret.hash_spec
-                text = '<a href="../../pkg/{pkgver}" />'.format(pkgver=pkgver)
-            elif text and "{md5}" in text:
-                text = text.format(md5=getmd5(text))
-            elif text and "{sha256}" in text:
-                text = text.format(sha256=getsha256(text))
             headers = kw.setdefault("headers", {})
             if pypiserial is not None:
                 headers["X-PYPI-LAST-SERIAL"] = str(pypiserial)

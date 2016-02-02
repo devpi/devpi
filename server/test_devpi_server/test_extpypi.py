@@ -270,7 +270,7 @@ class TestExtPYPIDB:
         links = pypistage.get_releaselinks("pytest")
         link, = links
         assert link.version == "1.0"
-        assert link.entry.url == "https://pypi.python.org/pkg/pytest-1.0.zip"
+        assert link.entry.url == "https://pypi.python.org/pytest/pytest-1.0.zip"
         assert not link.hash_spec
         assert link.entrypath.endswith("/pytest-1.0.zip")
         assert link.entrypath == link.entry.relpath
