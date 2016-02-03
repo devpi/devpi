@@ -19,6 +19,7 @@ from devpi_server.views import tween_keyfs_transaction, make_uuid_headers
 from devpi_server.extpypi import parse_index
 
 from .functional import TestUserThings, TestIndexThings  # noqa
+from .functional import TestMirrorIndexThings  # noqa
 
 import devpi_server.filestore
 from devpi_server.filestore import get_default_hash_spec, make_splitdir
@@ -255,7 +256,7 @@ def test_simple_blocked_warning(mapp, pypistage, testapp):
     mapp.set_versiondata(dict(name="pkg", version="1.0"), set_whitelist=False)
     r = testapp.xget(200, "/%s/+simple/pkg" % api.stagename)
     (paragraph,) = r.html.select('p')
-    assert paragraph.text == "INFO: Because this project isn't in the pypi_whitelist, no releases from root/pypi are included."
+    assert paragraph.text == "INFO: Because this project isn't in the mirror_whitelist, no releases from root/pypi are included."
     mapp.set_versiondata(dict(name="pkg", version="1.1"), set_whitelist=True)
     r = testapp.xget(200, "/%s/+simple/pkg" % api.stagename)
     assert r.html.select('p') == []
@@ -1330,26 +1331,6 @@ def test_wrong_login_format(testapp, mapp):
     assert r.status_code == 400
     r = testapp.post_json(api.login, {"qwelk": ""}, expect_errors=True)
     assert r.status_code == 400
-
-
-
-@pytest.mark.parametrize(["input", "expected"], [
-    ({},
-      dict(type="stage", volatile=True, bases=["root/pypi"])),
-    ({"volatile": "False"},
-      dict(type="stage", volatile=False, bases=["root/pypi"])),
-    ({"volatile": "False", "bases": "root/pypi"},
-      dict(type="stage", volatile=False, bases=["root/pypi"])),
-    ({"volatile": "False", "bases": ["root/pypi"]},
-      dict(type="stage", volatile=False, bases=["root/pypi"])),
-    ({"volatile": "False", "bases": ["root/pypi"], "acl_upload": ["hello"]},
-      dict(type="stage", volatile=False, bases=["root/pypi"],
-           acl_upload=["hello"])),
-])
-def test_kvdict(xom, input, expected):
-    from devpi_server.views import getkvdict_index
-    result = getkvdict_index(xom.config.hook, input)
-    assert result == expected
 
 
 @pytest.mark.parametrize("headers, environ, outsideurl, expected", [

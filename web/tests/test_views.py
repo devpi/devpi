@@ -368,12 +368,12 @@ def test_whitelist(mapp, pypistage, testapp):
     r = testapp.get('%s/pkg1/2.6' % api.index, accept="text/html")
     (infonote,) = r.html.select('.infonote')
     text = compareable_text(infonote.text)
-    assert text == "Because this project isn't in the pypi_whitelist, no releases from root/pypi are included."
+    assert text == "Because this project isn't in the mirror_whitelist, no releases from root/pypi are included."
     # project view
     r = testapp.get('%s/pkg1' % api.index, accept="text/html")
     (infonote,) = r.html.select('.infonote')
     text = compareable_text(infonote.text)
-    assert text == "Because this project isn't in the pypi_whitelist, no releases from root/pypi are included."
+    assert text == "Because this project isn't in the mirror_whitelist, no releases from root/pypi are included."
     # index view
     r = testapp.get(api.index, accept="text/html")
     assert "No packages whitelisted." in r.unicode_body

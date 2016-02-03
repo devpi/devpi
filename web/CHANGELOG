@@ -1,6 +1,9 @@
 3.0.0 (unreleased)
 ------------------
 
+- project.pt, version.pt: renamed ``pypi_whitelist`` related things to
+  ``mirror_whitelist``.
+
 - require and adapt to devpi-server-3.0.0 which always uses
   normalized project names internally and offers new hooks.
   devpi-web-3.0.0 is incompatible to devpi-server-2.X.

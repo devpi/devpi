@@ -308,7 +308,7 @@ can modify her ``dev`` index to use ``/emilie/prod`` index as a base::
      bases=emilie/prod,sophie/prod
      volatile=True
      acl_upload=sophie
-     pypi_whitelist=
+     mirror_whitelist=
    
 The list command now gives her a different picture::
 

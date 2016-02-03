@@ -391,9 +391,9 @@ class PyPIView:
             blocked_index = None
         else:
             # only mere humans need to know and do more
-            whitelist_info = stage.get_pypi_whitelist_info(project)
-            embed_form = whitelist_info['has_pypi_base']
-            blocked_index = whitelist_info['blocked_by_pypi_whitelist']
+            whitelist_info = stage.get_mirror_whitelist_info(project)
+            embed_form = whitelist_info['has_mirror_base']
+            blocked_index = whitelist_info['blocked_by_mirror_whitelist']
         response = Response(app_iter=self._simple_list_project(
             stage, project, result, embed_form, blocked_index))
         if stage.ixconfig['type'] == 'mirror':
@@ -415,7 +415,7 @@ class PyPIView:
 
         if blocked_index:
             yield ("<p><strong>INFO:</strong> Because this project isn't in "
-                   "the <code>pypi_whitelist</code>, no releases from "
+                   "the <code>mirror_whitelist</code>, no releases from "
                    "<strong>%s</strong> are included.</p>"
                    % blocked_index).encode('utf-8')
 
@@ -475,11 +475,11 @@ class PyPIView:
         route_name="/{user}/{index}/+simple/{project}/refresh", request_method="POST")
     def simple_refresh(self):
         context = self.context
-        # XXX we might want to check if user/index has root/pypi as a base
-        stage = context.model.getstage('root', 'pypi')
-        assert stage.ixconfig["type"] == "mirror", stage.ixconfig
-        stage.clear_simplelinks_cache(context.project)
-        stage.get_simplelinks_perstage(context.project)
+        for stage in context.stage.sro():
+            if stage.ixconfig["type"] != "mirror":
+                continue
+            stage.clear_simplelinks_cache(context.project)
+            stage.get_simplelinks_perstage(context.project)
         redirect(self.request.route_url(
             "/{user}/{index}/+simple/{project}",
             user=context.username, index=context.index, project=context.project))
@@ -1058,20 +1058,9 @@ def abort_if_invalid_project(request, project):
 
 
 def getkvdict_index(hook, req):
-    req_volatile = req.get("volatile")
-    kvdict = {"volatile": True, "type": "stage", "bases": ["root/pypi"]}
-    if req_volatile is not None:
-        if req_volatile == False or (req_volatile != True and
-            req_volatile.lower() in ["false", "no"]):
-            kvdict["volatile"] = False
-    bases = req.get("bases")
-    if bases is not None:
-        if not isinstance(bases, list):
-            kvdict["bases"] = bases.split(",")
-        else:
-            kvdict["bases"] = bases
-    additional_keys = get_ixconfigattrs(hook, "stage") - set(('volatile', 'bases'))
-    for key in additional_keys:
+    kvdict = {}
+    ixconfigattrs = get_ixconfigattrs(hook, req.get("type", "stage"))
+    for key in ixconfigattrs:
         if key in req:
             kvdict[key] = req[key]
     return kvdict

@@ -55,67 +55,67 @@ def stage(request, user):
 def user(model):
     return model.create_user("hello", password="123")
 
-def test_has_pypi_base(model, pypistage):
+def test_has_mirror_base(model, pypistage):
     pypistage.mock_simple("pytest", "<a href='pytest-1.0.zip' /a>")
-    assert pypistage.has_pypi_base("pytest")
+    assert pypistage.has_mirror_base("pytest")
     assert pypistage.has_project_perstage("pytest")
     user = model.create_user("user1", "pass")
     stage1 = user.create_stage("stage1", bases=())
-    assert not stage1.has_pypi_base("pytest")
+    assert not stage1.has_mirror_base("pytest")
 
     stage2 = user.create_stage("stage2", bases=("root/pypi",))
-    assert stage2.has_pypi_base("pytest")
+    assert stage2.has_mirror_base("pytest")
     register_and_store(stage2, "pytest-1.1.tar.gz")
-    assert not stage2.has_pypi_base("pytest")
+    assert not stage2.has_mirror_base("pytest")
     ixconfig = stage2.ixconfig.copy()
-    ixconfig["pypi_whitelist"] = ["pytest"]
+    ixconfig["mirror_whitelist"] = ["pytest"]
     stage2.modify(**ixconfig)
-    assert stage2.has_pypi_base("pytest")
+    assert stage2.has_mirror_base("pytest")
 
 
-def test_get_pypi_whitelist_info(model, pypistage):
+def test_get_mirror_whitelist_info(model, pypistage):
     pypistage.mock_simple("pytest", "<a href='pytest-1.0.zip' /a>")
-    assert pypistage.get_pypi_whitelist_info("pytest") == dict(
-        has_pypi_base=True,
-        blocked_by_pypi_whitelist=None)
+    assert pypistage.get_mirror_whitelist_info("pytest") == dict(
+        has_mirror_base=True,
+        blocked_by_mirror_whitelist=None)
     user = model.create_user("user1", "pass")
     stage1 = user.create_stage("stage1", bases=())
-    assert stage1.get_pypi_whitelist_info("pytest") == dict(
-        has_pypi_base=False,
-        blocked_by_pypi_whitelist=None)
+    assert stage1.get_mirror_whitelist_info("pytest") == dict(
+        has_mirror_base=False,
+        blocked_by_mirror_whitelist=None)
     register_and_store(stage1, "pytest-1.1.tar.gz")
-    assert stage1.get_pypi_whitelist_info("pytest") == dict(
-        has_pypi_base=False,
-        blocked_by_pypi_whitelist=None)
+    assert stage1.get_mirror_whitelist_info("pytest") == dict(
+        has_mirror_base=False,
+        blocked_by_mirror_whitelist=None)
     stage2 = user.create_stage("stage2", bases=("root/pypi",))
-    assert stage2.get_pypi_whitelist_info("pytest") == dict(
-        has_pypi_base=True,
-        blocked_by_pypi_whitelist=None)
+    assert stage2.get_mirror_whitelist_info("pytest") == dict(
+        has_mirror_base=True,
+        blocked_by_mirror_whitelist=None)
     register_and_store(stage2, "pytest-1.1.tar.gz")
-    assert stage2.get_pypi_whitelist_info("pytest") == dict(
-        has_pypi_base=False,
-        blocked_by_pypi_whitelist='root/pypi')
+    assert stage2.get_mirror_whitelist_info("pytest") == dict(
+        has_mirror_base=False,
+        blocked_by_mirror_whitelist='root/pypi')
     # now add to whitelist
     ixconfig = stage2.ixconfig.copy()
-    ixconfig["pypi_whitelist"] = ["pytest"]
+    ixconfig["mirror_whitelist"] = ["pytest"]
     stage2.modify(**ixconfig)
-    assert stage2.get_pypi_whitelist_info("pytest") == dict(
-        has_pypi_base=True,
-        blocked_by_pypi_whitelist=None)
+    assert stage2.get_mirror_whitelist_info("pytest") == dict(
+        has_mirror_base=True,
+        blocked_by_mirror_whitelist=None)
     # now remove from whitelist
     ixconfig = stage2.ixconfig.copy()
-    ixconfig["pypi_whitelist"] = []
+    ixconfig["mirror_whitelist"] = []
     stage2.modify(**ixconfig)
-    assert stage2.get_pypi_whitelist_info("pytest") == dict(
-        has_pypi_base=False,
-        blocked_by_pypi_whitelist='root/pypi')
+    assert stage2.get_mirror_whitelist_info("pytest") == dict(
+        has_mirror_base=False,
+        blocked_by_mirror_whitelist='root/pypi')
     # and try "*"
     ixconfig = stage2.ixconfig.copy()
-    ixconfig["pypi_whitelist"] = ["*"]
+    ixconfig["mirror_whitelist"] = ["*"]
     stage2.modify(**ixconfig)
-    assert stage2.get_pypi_whitelist_info("pytest") == dict(
-        has_pypi_base=True,
-        blocked_by_pypi_whitelist=None)
+    assert stage2.get_mirror_whitelist_info("pytest") == dict(
+        has_mirror_base=True,
+        blocked_by_mirror_whitelist=None)
 
 
 class TestStage:
@@ -180,7 +180,7 @@ class TestStage:
         assert not stage.list_projects_perstage()
 
     def test_inheritance_simple(self, pypistage, stage):
-        stage.modify(bases=("root/pypi",), pypi_whitelist=['someproject'])
+        stage.modify(bases=("root/pypi",), mirror_whitelist=['someproject'])
         pypistage.mock_simple("someproject", "<a href='someproject-1.0.zip' /a>")
         assert stage.list_projects_perstage() == set()
         links = stage.get_releaselinks("someproject")
@@ -191,7 +191,7 @@ class TestStage:
     def test_inheritance_twice(self, pypistage, stage, user):
         user.create_stage(index="dev2", bases=("root/pypi",))
         stage_dev2 = user.getstage("dev2")
-        stage.modify(bases=(stage_dev2.name,), pypi_whitelist=['someproject'])
+        stage.modify(bases=(stage_dev2.name,), mirror_whitelist=['someproject'])
         pypistage.mock_simple("someproject",
                               "<a href='someproject-1.0.zip' /a>")
         register_and_store(stage_dev2, "someproject-1.1.tar.gz")
@@ -232,7 +232,7 @@ class TestStage:
         assert extagg_index2.list_versions('pkg') == set(['1.0', '2.0', '3.0'])
 
     def test_inheritance_normalize_multipackage(self, pypistage, stage):
-        stage.modify(bases=("root/pypi",), pypi_whitelist=['some-project'])
+        stage.modify(bases=("root/pypi",), mirror_whitelist=['some-project'])
         pypistage.mock_simple("some-project", """
             <a href='some_project-1.0.zip' /a>
             <a href='some_project-1.0.tar.gz' /a>
@@ -263,7 +263,7 @@ class TestStage:
         assert len(links) == 1
 
     def test_get_releaselinks_inheritance_shadow(self, pypistage, stage):
-        stage.modify(bases=("root/pypi",), pypi_whitelist=['someproject'])
+        stage.modify(bases=("root/pypi",), mirror_whitelist=['someproject'])
         pypistage.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         register_and_store(stage, "someproject-1.0.zip", b"123")
@@ -274,7 +274,7 @@ class TestStage:
         assert links[0].entrypath.endswith("someproject-1.0.zip")
 
     def test_get_releaselinks_inheritance_shadow_egg(self, pypistage, stage):
-        stage.modify(bases=("root/pypi",), pypi_whitelist=['py'])
+        stage.modify(bases=("root/pypi",), mirror_whitelist=['py'])
         pypistage.mock_simple("py",
         """<a href="http://bb.org/download/py.zip#egg=py-dev" />
            <a href="http://bb.org/download/master#egg=py-dev2" />
@@ -288,7 +288,7 @@ class TestStage:
         assert e2.basename == "master"
 
     def test_inheritance_error(self, pypistage, stage):
-        stage.modify(bases=("root/pypi",), pypi_whitelist=['someproject'])
+        stage.modify(bases=("root/pypi",), mirror_whitelist=['someproject'])
         pypistage.mock_simple("someproject", status_code = -1)
         with pytest.raises(stage.UpstreamError):
             stage.get_releaselinks("someproject")
@@ -296,7 +296,7 @@ class TestStage:
             stage.list_versions("someproject")
 
     def test_get_versiondata_inherited(self, pypistage, stage):
-        stage.modify(bases=("root/pypi",), pypi_whitelist=['someproject'])
+        stage.modify(bases=("root/pypi",), mirror_whitelist=['someproject'])
         pypistage.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         verdata = stage.get_versiondata("someproject", "1.0")
@@ -304,7 +304,7 @@ class TestStage:
         assert "someproject-1.0.zip" in str(verdata)
 
     def test_get_versiondata_inherit_not_exist_version(self, pypistage, stage):
-        stage.modify(bases=("root/pypi",), pypi_whitelist=['someproject'])
+        stage.modify(bases=("root/pypi",), mirror_whitelist=['someproject'])
         pypistage.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         assert not stage.get_versiondata("someproject", "2.0")
@@ -338,7 +338,7 @@ class TestStage:
         assert len(ls.get_links()) == 2
 
     def test_project_versiondata_shadowed(self, pypistage, stage):
-        stage.modify(bases=("root/pypi",), pypi_whitelist=['someproject'])
+        stage.modify(bases=("root/pypi",), mirror_whitelist=['someproject'])
         pypistage.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         content = b"123"
@@ -362,7 +362,7 @@ class TestStage:
         assert links[0].entrypath.endswith("someproject-1.0.zip")
         # if we add the project to the whitelist, we also get the release
         # from pypi
-        stage.modify(pypi_whitelist=['someproject'])
+        stage.modify(mirror_whitelist=['someproject'])
         links = stage.get_releaselinks("someproject")
         assert len(links) == 2
         assert links[0].entrypath.endswith("someproject-1.1.zip")
@@ -384,7 +384,7 @@ class TestStage:
         assert links[0].entrypath.endswith("someproject-1.0.zip")
         # if we add the project to the whitelist of the inherited index, we
         # also get the release from pypi
-        stage_dev2.modify(pypi_whitelist=['someproject'])
+        stage_dev2.modify(mirror_whitelist=['someproject'])
         links = stage.get_releaselinks("someproject")
         assert len(links) == 2
         assert links[0].entrypath.endswith("someproject-1.1.zip")
@@ -404,7 +404,7 @@ class TestStage:
         assert links[0].entrypath.endswith("someproject-1.0.zip")
         # if we allow all projects in the whitelist, we also get the release
         # from pypi
-        stage.modify(pypi_whitelist=['*'])
+        stage.modify(mirror_whitelist=['*'])
         links = stage.get_releaselinks("someproject")
         assert len(links) == 2
         assert links[0].entrypath.endswith("someproject-1.1.zip")
@@ -426,7 +426,7 @@ class TestStage:
         assert links[0].entrypath.endswith("someproject-1.0.zip")
         # if we add all projects to the whitelist of the inherited index, we
         # also get the release from pypi
-        stage_dev2.modify(pypi_whitelist=['*'])
+        stage_dev2.modify(mirror_whitelist=['*'])
         links = stage.get_releaselinks("someproject")
         assert len(links) == 2
         assert links[0].entrypath.endswith("someproject-1.1.zip")
@@ -448,7 +448,7 @@ class TestStage:
         assert links[0].entrypath.endswith("someproject-1.0.zip")
         # if we add all projects to the whitelist of the inheriting index, we
         # also get the release from pypi
-        stage.modify(pypi_whitelist=['*'])
+        stage.modify(mirror_whitelist=['*'])
         links = stage.get_releaselinks("someproject")
         assert len(links) == 2
         assert links[0].entrypath.endswith("someproject-1.1.zip")
@@ -877,3 +877,40 @@ def test_setdefault_indexes(xom, model):
         userconfig = model.get_user("root").get()
         for key in userconfig["indexes"]["pypi"]:
             assert py.builtin._istext(key)
+
+
+@pytest.mark.parametrize("key", ("acl_upload", "bases", "mirror_whitelist", "pypi_whitelist"))
+@pytest.mark.parametrize("value, result", (
+    ("", []), ("x,y", ["x", "y"]), ("x,,y", ["x", "y"])))
+def test_get_indexconfig_lists(key, value, result):
+    class hooks:
+        def devpiserver_indexconfig_defaults(self, index_type):
+            return {}
+    kvdict = get_indexconfig(hooks(), type="stage", **{key: value})
+    if key == "pypi_whitelist":
+        # check behaviour of older devpi-client
+        key = "mirror_whitelist"
+    assert kvdict[key] == result
+
+
+@pytest.mark.parametrize(["input", "expected"], [
+    ({},
+     dict(type="stage")),
+    ({"volatile": "foo"},
+     dict(type="stage", volatile=True)),
+    ({"volatile": "False"},
+     dict(type="stage", volatile=False)),
+    ({"volatile": "False", "bases": "root/pypi"},
+     dict(type="stage", volatile=False, bases=["root/pypi"])),
+    ({"volatile": "False", "bases": ["root/pypi"]},
+     dict(type="stage", volatile=False, bases=["root/pypi"])),
+    ({"volatile": "False", "bases": ["root/pypi"], "acl_upload": ["hello"]},
+     dict(type="stage", volatile=False, bases=["root/pypi"],
+          acl_upload=["hello"])),
+])
+def test_get_indexconfig_values(xom, input, expected):
+    class hooks:
+        def devpiserver_indexconfig_defaults(self, index_type):
+            return {}
+    result = get_indexconfig(hooks(), type="stage", **input)
+    assert result == expected

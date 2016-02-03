@@ -100,10 +100,7 @@ class Exporter:
             self.completed("user %r" % user.name)
             for indexname, indexconfig in indexes.items():
                 stage = self.xom.model.getstage(user.name, indexname)
-                if stage.ixconfig["type"] == "mirror":
-                    continue
-                indexdir = userdir.ensure(indexname, dir=1)
-                IndexDump(self, stage, indexdir).dump()
+                IndexDump(self, stage, userdir.join(indexname)).dump()
         self._write_json(path.join("dataindex.json"), self.export)
 
     def _write_json(self, path, data):
@@ -126,12 +123,16 @@ class IndexDump:
         self.stage = stage
         self.basedir = basedir
         self.indexmeta = exporter.export_indexes[stage.name] = {}
-        self.indexmeta["projects"] = {}
         self.indexmeta["indexconfig"] = stage.ixconfig
-        self.indexmeta["files"] = []
 
     def dump(self):
-        for name in self.stage.list_projects_perstage():
+        if self.stage.ixconfig["type"] == "mirror":
+            projects = []
+        else:
+            self.indexmeta["projects"] = {}
+            self.indexmeta["files"] = []
+            projects = self.stage.list_projects_perstage()
+        for name in projects:
             data = {}
             versions = self.stage.list_versions_perstage(name)
             for version in versions:
@@ -146,6 +147,7 @@ class IndexDump:
             for version in data:
                 vername = data[version]["name"]
                 linkstore = self.stage.get_linkstore_perstage(vername, version)
+                self.basedir.ensure(dir=1)
                 self.dump_releasefiles(linkstore)
                 self.dump_toxresults(linkstore)
                 entry = self.stage.get_doczip_entry(vername, version)
@@ -235,18 +237,22 @@ class Importer:
 
         # memorize index inheritance structure
         tree = IndexTree()
-        tree.add("root/pypi")  # a root index
+        with self.xom.keyfs.transaction(write=False):
+            stage = self.xom.model.getstage("root/pypi")
+        if stage is not None:
+            tree.add("root/pypi")
         for stagename, import_index in self.import_indexes.items():
             bases = import_index["indexconfig"].get("bases")
             tree.add(stagename, bases)
 
         # create stages in inheritance/root-first order
         stages = []
-        for stagename in tree.iternames():
-            with self.xom.keyfs.transaction(write=True):
+        with self.xom.keyfs.transaction(write=True):
+            for stagename in tree.iternames():
                 if stagename == "root/pypi":
-                    assert self.xom.model.getstage(stagename)
-                    continue
+                    stage = self.xom.model.getstage(stagename)
+                    if stage is not None:
+                        continue
                 import_index = self.import_indexes[stagename]
                 indexconfig = import_index["indexconfig"]
                 if 'uploadtrigger_jenkins' in indexconfig:
@@ -254,6 +260,9 @@ class Importer:
                         # remove if not set, so if the trigger was never
                         # used, you don't need to install the plugin
                         del indexconfig['uploadtrigger_jenkins']
+                if 'pypi_whitelist' in indexconfig:
+                    # this was renamed in 3.0.0
+                    indexconfig['mirror_whitelist'] = indexconfig.pop('pypi_whitelist')
                 user, index = stagename.split("/")
                 user = self.xom.model.get_user(user)
                 stage = user.create_stage(index, **indexconfig)
@@ -262,10 +271,10 @@ class Importer:
 
         # create projects and releasefiles for each index
         for stage in stages:
-            assert stage.name != "root/pypi"
+            if stage.ixconfig["type"] == "mirror":
+                continue
             import_index = self.import_indexes[stage.name]
             projects = import_index["projects"]
-            #normalized = self.normalize_index_projects(projects)
             for project, versions in projects.items():
                 for version, versiondata in versions.items():
                     with self.xom.keyfs.transaction(write=True):

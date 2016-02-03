@@ -1,3 +1,4 @@
+from __future__ import print_function
 import re
 import logging
 from webtest.forms import Upload
@@ -6,7 +7,10 @@ import mimetypes
 
 import pytest
 import py
+import socket
+import sys
 from bs4 import BeautifulSoup
+from contextlib import closing
 from devpi_server import extpypi
 from devpi_server.config import get_pluginmanager
 from devpi_server.main import XOM, parseoptions
@@ -14,12 +18,19 @@ from devpi_common.url import URL
 from devpi_server.extpypi import PyPIStage
 from devpi_server.log import threadlog, thread_clear_log
 from pyramid.authentication import b64encode
+from time import sleep
 
 import hashlib
 try:
     from queue import Queue as BaseQueue
 except ImportError:
     from Queue import Queue as BaseQueue
+
+try:
+    import http.server as httpserver
+except ImportError:
+    import BaseHTTPServer as httpserver
+
 
 def make_file_url(basename, content, stagename=None, baseurl="http://localhost/"):
     from devpi_server.filestore import get_default_hash_spec, make_splitdir
@@ -99,9 +110,6 @@ def gentmp(request):
                 keep=0, rootdir=basedir, lock_timeout=None)
     return gentmp
 
-@pytest.fixture
-def xom_notmocked(request, makexom):
-    return makexom(mocking=False)
 
 @pytest.yield_fixture(autouse=True)
 def auto_transact(request):
@@ -184,7 +192,7 @@ def storage(storage_info):
 
 @pytest.fixture
 def makexom(request, gentmp, httpget, monkeypatch, storage_info):
-    def makexom(opts=(), httpget=httpget, mocking=True, plugins=()):
+    def makexom(opts=(), httpget=httpget, plugins=()):
         from devpi_server import auth_basic
         from devpi_server import auth_devpi
         plugins = [
@@ -214,14 +222,14 @@ def makexom(request, gentmp, httpget, monkeypatch, storage_info):
                     pytest.skip("The storage doesn't have marker '%s'." % marker)
         if not request.node.get_marker("no_storage_option"):
             assert storage_info["storage"] is config.storage
-        if mocking:
+        if request.node.get_marker("nomocking"):
+            xom = XOM(config)
+        else:
             xom = XOM(config, httpget=httpget)
             if not request.node.get_marker("nomockprojectsremote"):
                 monkeypatch.setattr(extpypi.PyPIStage, "_get_remote_projects",
                     lambda self: set())
             add_pypistage_mocks(monkeypatch, httpget)
-        else:
-            xom = XOM(config)
         # initialize default indexes
         from devpi_server.main import set_default_indexes
         if not xom.config.args.master_url:
@@ -270,6 +278,26 @@ def makemapp(request, maketestapp, makexom):
         return m
     return makemapp
 
+
+def make_simple_pkg_info(name, text="", pkgver=None, hash_type=None,
+                         pypiserial=None):
+    class ret:
+        hash_spec = ""
+    if pkgver is not None:
+        assert not text
+        if hash_type and "#" not in pkgver:
+            hv = (pkgver + str(pypiserial)).encode("ascii")
+            hash_value = getattr(hashlib, hash_type)(hv).hexdigest()
+            ret.hash_spec = "%s=%s" %(hash_type, hash_value)
+            pkgver += "#" + ret.hash_spec
+        text = '<a href="../../{name}/{pkgver}" />'.format(name=name, pkgver=pkgver)
+    elif text and "{md5}" in text:
+        text = text.format(md5=getmd5(text))
+    elif text and "{sha256}" in text:
+        text = text.format(sha256=getsha256(text))
+    return ret, text
+
+
 @pytest.fixture
 def httpget(pypiurls):
     class MockHTTPGet:
@@ -301,26 +329,16 @@ def httpget(pypiurls):
             self.url2response[mockurl] = kw
 
         def mock_simple(self, name, text="", pkgver=None, hash_type=None,
-            pypiserial=10000, **kw):
-            class ret:
-                hash_spec = ""
-            if pkgver is not None:
-                assert not text
-                if hash_type and "#" not in pkgver:
-                    hv = (pkgver + str(pypiserial)).encode("ascii")
-                    hash_value = getattr(hashlib, hash_type)(hv).hexdigest()
-                    ret.hash_spec = "%s=%s" %(hash_type, hash_value)
-                    pkgver += "#" + ret.hash_spec
-                text = '<a href="../../pkg/{pkgver}" />'.format(pkgver=pkgver)
-            elif text and "{md5}" in text:
-                text = text.format(md5=getmd5(text))
-            elif text and "{sha256}" in text:
-                text = text.format(sha256=getsha256(text))
+                        pypiserial=10000, remoteurl=None, **kw):
+            ret, text = make_simple_pkg_info(
+                name, text=text, pkgver=pkgver, hash_type=hash_type,
+                pypiserial=pypiserial)
+            if remoteurl is None:
+                remoteurl = pypiurls.simple
             headers = kw.setdefault("headers", {})
             if pypiserial is not None:
                 headers["X-PYPI-LAST-SERIAL"] = str(pypiserial)
-            self.mockresponse(pypiurls.simple + name + "/",
-                                      text=text, **kw)
+            self.mockresponse(remoteurl + name + "/", text=text, **kw)
             return ret
 
         def _getmd5digest(self, s):
@@ -363,7 +381,7 @@ def add_pypistage_mocks(monkeypatch, httpget):
     def mock_simple_projects(self, projectlist):
         t = "".join('<a href="%s">%s</a>\n' % (name, name) for name in projectlist)
         threadlog.debug("patching simple page with: %s" %(t))
-        self.httpget.mockresponse(self.PYPIURL_SIMPLE, code=200, text=t)
+        self.httpget.mockresponse(self.mirror_url, code=200, text=t)
 
     monkeypatch.setattr(PyPIStage, "mock_simple_projects",
                         mock_simple_projects, raising=False)
@@ -372,17 +390,17 @@ def add_pypistage_mocks(monkeypatch, httpget):
         headers = {"content-length": len(content),
                    "content-type": mimetypes.guess_type(path),
                    "last-modified": "today",}
-        url = URL(self.PYPIURL_SIMPLE).joinpath(path)
+        url = URL(self.mirror_url).joinpath(path)
         return self.httpget.mockresponse(url.url, raw=py.io.BytesIO(content),
                                          headers=headers, **kw)
     monkeypatch.setattr(PyPIStage, "mock_extfile", mock_extfile, raising=False)
 
 @pytest.fixture
 def pypiurls():
-    from devpi_server.extpypi import PYPIURL_SIMPLE
+    from devpi_server.main import _pypi_ixconfig_default
     class PyPIURL:
         def __init__(self):
-            self.simple = PYPIURL_SIMPLE
+            self.simple = _pypi_ixconfig_default['mirror_url']
     return PyPIURL()
 
 
@@ -441,13 +459,40 @@ class Mapp(MappMixin):
     def getindexlist(self, user=None):
         if user is None:
             user = self.testapp.auth[0]
-        r = self.testapp.get("/%s" % user, {"Accept": "*/json"})
+        r = self.testapp.get("/%s" % user, accept="application/json")
         assert r.status_code == 200
         name = r.json["result"]["username"]
         result = {}
         for index, data in r.json["result"].get("indexes", {}).items():
             result["%s/%s" % (name, index)] = data
         return result
+
+    def getpkglist(self, user=None, indexname=None):
+        indexname = self._getindexname(indexname)
+        if user is None:
+            user = self.testapp.auth[0]
+        r = self.testapp.get("/%s" % indexname, accept="application/json")
+        assert r.status_code == 200
+        return r.json["result"]["projects"]
+
+    def getreleaseslist(self, name, code=200, user=None, indexname=None):
+        indexname = self._getindexname(indexname)
+        if user is None:
+            user = self.testapp.auth[0]
+        r = self.testapp.get("/%s/%s" % (indexname, name), accept="application/json")
+        assert r.status_code == 200
+        result = r.json["result"]
+        links = set()
+        for version in result.values():
+            for link in version["+links"]:
+                links.add(link["href"])
+        return sorted(links)
+
+    def downloadrelease(self, code, url):
+        r = self.testapp.xget(code, url)
+        if code < 300:
+            return r.body
+        return r.json
 
     def change_password(self, user, password):
         r = self.testapp.patch_json("/%s" % user, dict(password=password))
@@ -513,7 +558,7 @@ class Mapp(MappMixin):
                                   expect_errors=True)
         assert r.status_code == code
         if code in (200,201):
-            assert r.json["result"]["type"] == "stage"
+            assert r.json["result"]["type"] == indexconfig.get("type", "stage")
             return self.use("%s/%s" % (user, index))
         if code in (400,):
             return r.json["message"]
@@ -564,14 +609,14 @@ class Mapp(MappMixin):
         assert r.status_code == 200
         assert r.json["result"][key] == value
 
-    def set_pypi_whitelist(self, whitelist, indexname=None):
+    def set_mirror_whitelist(self, whitelist, indexname=None):
         indexname = self._getindexname(indexname)
         r = self.testapp.get_json("/%s" % indexname)
         result = r.json["result"]
         if not isinstance(whitelist, list):
             whitelist = whitelist.split(",")
         assert isinstance(whitelist, list)
-        result["pypi_whitelist"] = whitelist
+        result["mirror_whitelist"] = whitelist
         r = self.testapp.patch_json("/%s" % (indexname,), result)
         assert r.status_code == 200
 
@@ -591,10 +636,10 @@ class Mapp(MappMixin):
         r = self.testapp.get_json("/%s" % indexname)
         return r.json["result"].get("acl_" + acltype, None)
 
-    def get_pypi_whitelist(self, indexname=None):
+    def get_mirror_whitelist(self, indexname=None):
         indexname = self._getindexname(indexname)
         r = self.testapp.get_json("/%s" % indexname)
-        return r.json["result"]["pypi_whitelist"]
+        return r.json["result"]["mirror_whitelist"]
 
     def delete_project(self, project, code=200, indexname=None,
                        waithooks=False):
@@ -615,9 +660,9 @@ class Mapp(MappMixin):
                               expect_errors=True)
         assert r.status_code == code
         if r.status_code == 200 and set_whitelist:
-            whitelist = set(self.get_pypi_whitelist(indexname=indexname))
+            whitelist = set(self.get_mirror_whitelist(indexname=indexname))
             whitelist.add(metadata["name"])
-            self.set_pypi_whitelist(sorted(whitelist), indexname=indexname)
+            self.set_mirror_whitelist(sorted(whitelist), indexname=indexname)
         if waithooks:
             self._wait_for_serial_in_result(r)
         return r
@@ -793,6 +838,111 @@ class MyTestApp(TApp):
 @pytest.fixture
 def testapp(request, maketestapp, xom):
     return maketestapp(xom)
+
+
+class SimPyPIRequestHandler(httpserver.BaseHTTPRequestHandler):
+    def do_GET(self):
+        simpypi = self.server.simpypi
+        p = self.path.split('/')
+        if len(p) == 4 and p[0] == '' and p[1] == 'simple' and p[3] == '':
+            project = simpypi.projects.get(p[2])
+            if project is not None:
+                releases = project['releases']
+                print(
+                    "do_GET", self.path, "found",
+                    project['title'], "with", list(releases), file=sys.stderr)
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b'\n'.join(releases))
+                return
+        elif p == ['', 'simple', '']:
+            projects = [
+                '<a href="%s">%s</a>' % (k, v['title'])
+                for k, v in simpypi.projects.items()]
+            print("do_GET", self.path, "found", list(simpypi.projects), file=sys.stderr)
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b'\n'.join(x.encode('utf-8') for x in projects))
+            return
+        elif self.path in simpypi.files:
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(simpypi.files[self.path])
+            return
+        print("do_GET", self.path, "not found", file=sys.stderr)
+        self.send_response(404)
+        self.end_headers()
+
+
+def get_open_port(host):
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+        s.bind((host, 0))
+        s.listen(1)
+        port = s.getsockname()[1]
+    return port
+
+
+def wait_for_port(host, port, timeout=60):
+    while timeout > 0:
+        with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+            s.settimeout(1)
+            if s.connect_ex((host, port)) == 0:
+                return
+        sleep(1)
+        timeout -= 1
+    raise RuntimeError(
+        "The port %s on host %s didn't become accessible" % (port, host))
+
+
+@pytest.fixture(scope="session")
+def simpypiserver():
+    import threading
+    host = 'localhost'
+    port = get_open_port(host)
+    server = httpserver.HTTPServer((host, port), SimPyPIRequestHandler)
+    thread = threading.Thread(target=server.serve_forever)
+    thread.daemon = True
+    thread.start()
+    wait_for_port(host, port, 5)
+    print("Started simpypi server %s:%s" % server.server_address)
+    return server
+
+
+class SimPyPI:
+    def __init__(self, address):
+        self.baseurl = "http://%s:%s" % address
+        self.simpleurl = "%s/simple" % self.baseurl
+        self.projects = {}
+        self.files = {}
+
+    def add_project(self, name, title=None):
+        if title is None:
+            title = name
+        self.projects.setdefault(
+            name, dict(
+                title=title,
+                releases=set(),
+                pypiserial=None))
+        return self.projects[name]
+
+    def add_release(self, name, title=None, text="", pkgver=None, hash_type=None,
+                    pypiserial=None, **kw):
+        project = self.add_project(name, title=title)
+        ret, text = make_simple_pkg_info(
+            name, text=text, pkgver=pkgver, hash_type=hash_type,
+            pypiserial=pypiserial)
+        assert text
+        project['releases'].add(text.encode('utf-8'))
+
+    def add_file(self, relpath, content):
+        self.files[relpath] = content
+
+
+@pytest.fixture
+def simpypi(simpypiserver):
+    simpypiserver.simpypi = SimPyPI(simpypiserver.server_address)
+    return simpypiserver.simpypi
+
 
 ### incremental testing
 

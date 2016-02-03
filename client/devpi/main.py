@@ -784,7 +784,7 @@ def install(parser):
 
 @subcommand("devpi.refresh")
 def refresh(parser):
-    """ invalidates the root/pypi cache for the specified package(s).
+    """ invalidates the mirror caches for the specified package(s).
 
     In case your devpi server hasn't updated the list of latest releases, this
     forces a reload of the them (EXPERIMENTAL).

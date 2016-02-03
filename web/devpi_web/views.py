@@ -290,7 +290,7 @@ def get_toxresults_info(linkstore, for_link, newest=True):
 
 
 def get_docs_info(request, stage, metadata):
-    if stage.name == 'root/pypi':
+    if stage.ixconfig['type'] == 'mirror':
         return
     name, ver = metadata["name"], metadata["version"]
     doc_path = get_unpack_path(stage, name, ver)
@@ -341,11 +341,11 @@ def index_get(context, request):
         bases=bases,
         packages=packages,
         whitelist=whitelist)
-    if stage.name == "root/pypi":
+    if stage.ixconfig['type'] == 'mirror':
         return result
 
     if hasattr(stage, "ixconfig"):
-        whitelist.extend(sorted(stage.ixconfig['pypi_whitelist']))
+        whitelist.extend(sorted(stage.ixconfig['mirror_whitelist']))
         for base in stage.ixconfig["bases"]:
             bases.append(dict(
                 title=base,
@@ -382,7 +382,7 @@ def index_get(context, request):
             log.error("metadata for project %r empty: %s, skipping",
                       project, verdata)
             continue
-        show_toxresults = not (stage.user.name == 'root' and stage.index == 'pypi')
+        show_toxresults = (stage.ixconfig['type'] != 'mirror')
         linkstore = stage.get_linkstore_perstage(name, ver)
         packages.append(dict(
             info=dict(
@@ -431,15 +431,15 @@ def project_get(context, request):
                 "/{user}/{index}/{project}/{version}",
                 user=user, index=index, project=name, version=version)))
         seen.add(seen_key)
-    if hasattr(context.stage, 'get_pypi_whitelist_info'):
-        whitelist_info = context.stage.get_pypi_whitelist_info(context.project)
+    if hasattr(context.stage, 'get_mirror_whitelist_info'):
+        whitelist_info = context.stage.get_mirror_whitelist_info(context.project)
     else:
         whitelist_info = dict(
-            has_pypi_base=context.stage.has_pypi_base(context.project),
-            blocked_by_pypi_whitelist=None)
+            has_mirror_base=context.stage.has_mirror_base(context.project),
+            blocked_by_mirror_whitelist=None)
     return dict(
         title="%s/: %s versions" % (context.stage.name, context.project),
-        blocked_by_pypi_whitelist=whitelist_info['blocked_by_pypi_whitelist'],
+        blocked_by_mirror_whitelist=whitelist_info['blocked_by_mirror_whitelist'],
         versions=versions)
 
 
@@ -450,7 +450,6 @@ def project_get(context, request):
 def version_get(context, request):
     """ Show version for the precise stage, ignores inheritance. """
     context = ContextWrapper(context)
-    user, index = context.username, context.index
     name, version = context.verified_project, context.version
     stage = context.stage
     try:
@@ -473,7 +472,7 @@ def version_get(context, request):
                 continue
             value = py.xml.escape(value)
         infos.append((py.xml.escape(key), value))
-    show_toxresults = not (user == 'root' and index == 'pypi')
+    show_toxresults = (stage.ixconfig['type'] != 'mirror')
     linkstore = stage.get_linkstore_perstage(name, version)
     files = get_files_info(request, linkstore, show_toxresults)
     docs = get_docs_info(request, stage, verdata)
@@ -492,16 +491,22 @@ def version_get(context, request):
         url=request.route_url(
             "/{user}/{index}/+simple/{project}",
             user=context.username, index=context.index, project=context.project)))
-    if hasattr(stage, 'get_pypi_whitelist_info'):
-        whitelist_info = stage.get_pypi_whitelist_info(name)
+    if hasattr(stage, 'get_mirror_whitelist_info'):
+        whitelist_info = stage.get_mirror_whitelist_info(name)
     else:
         whitelist_info = dict(
-            has_pypi_base=stage.has_pypi_base(name),
-            blocked_by_pypi_whitelist=False)
-    if whitelist_info['has_pypi_base']:
-        nav_links.append(dict(
-            title="PyPI page",
-            url="https://pypi.python.org/pypi/%s" % name))
+            has_mirror_base=stage.has_mirror_base(name),
+            blocked_by_mirror_whitelist=False)
+    if whitelist_info['has_mirror_base']:
+        for base in reversed(list(stage.sro())):
+            if base.ixconfig["type"] != "mirror":
+                continue
+            mirror_web_url_fmt = base.ixconfig.get("mirror_web_url_fmt")
+            if not mirror_web_url_fmt:
+                continue
+            nav_links.append(dict(
+                title="%s page" % base.ixconfig.get("mirror_name", "Mirror"),
+                url=mirror_web_url_fmt.format(name=name)))
     return dict(
         title="%s/: %s-%s metadata and description" % (stage.name, name, version),
         content=get_description(stage, name, version),
@@ -509,7 +514,7 @@ def version_get(context, request):
         nav_links=nav_links,
         infos=infos,
         files=files,
-        blocked_by_pypi_whitelist=whitelist_info['blocked_by_pypi_whitelist'],
+        blocked_by_mirror_whitelist=whitelist_info['blocked_by_mirror_whitelist'],
         show_toxresults=show_toxresults,
         make_toxresults_url=functools.partial(
             request.route_url, "toxresults",
@@ -862,7 +867,7 @@ class SearchView:
         search_index = self.request.registry['search_index']
         result = search_index.query_projects(query, page=None)
         context = ContextWrapper(self.request.context)
-        sro = dict((x.name, i) for i, x in enumerate(context.stage._sro()))
+        sro = dict((x.name, i) for i, x in enumerate(context.stage.sro()))
         # first gather basic info and only get most relevant info based on
         # stage resolution order
         name2stage = {}

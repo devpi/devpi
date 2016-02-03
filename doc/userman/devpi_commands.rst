@@ -517,7 +517,7 @@ devpi command reference (server)
     usage: devpi-server [-h] [--host HOST] [--port PORT] [--outside-url URL]
                         [--debug] [--profile-requests NUM]
                         [--logger-cfg LOGGER_CFG] [--refresh SECS] [--bypass-cdn]
-                        [--pypi-cache-expiry SECS] [--offline-mode] [--version]
+                        [--mirror-cache-expiry SECS] [--offline-mode] [--version]
                         [--role {master,replica,auto}] [--master-url MASTER_URL]
                         [--replica-cert pem_file] [--gen-config]
                         [--secretfile path] [--export PATH] [--hard-links]
@@ -561,9 +561,9 @@ devpi command reference (server)
                             to simple pages and packages, in order to rule out
                             cache-invalidation issues. This will only work if you
                             are not using a http proxy.
-      --pypi-cache-expiry SECS
-                            (experimental) time after which PyPI projects are
-                            checked for new releases. [1800]
+      --mirror-cache-expiry SECS
+                            (experimental) time after which projects in mirror
+                            indexes are checked for new releases. [1800]
       --offline-mode        (experimental) prevents connections to any upstream
                             server (e.g. pypi) and only serves locally cached
                             files through the simple index used by pip.

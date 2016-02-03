@@ -1,3 +1,4 @@
+import pytest
 
 
 class API:
@@ -116,8 +117,13 @@ class TestIndexThings:
         mapp.login_root()
         data = mapp.getjson("/root/pypi")
         res = data["result"]
-        assert res["volatile"] == False
-        assert res["acl_upload"] == ["root"]
+        res.pop("projects")
+        assert res == {
+            "type": "mirror",
+            "volatile": False,
+            "mirror_name": "PyPI",
+            "mirror_url": "https://pypi.python.org/simple/",
+            "mirror_web_url_fmt": "https://pypi.python.org/pypi/{name}"}
 
     def test_pypi_not_modifiable(self, mapp):
         mapp.login_root()
@@ -125,7 +131,7 @@ class TestIndexThings:
         mapp.modify_index("root/pypi", res, code=403)
 
     def test_create_index_base_empty(self, mapp):
-        indexconfig = dict(bases=())
+        indexconfig = dict(bases="")
         mapp.login_root()
         mapp.create_index("root/empty", indexconfig=indexconfig, code=200)
         data = mapp.getjson("/root/empty")
@@ -263,3 +269,87 @@ class TestIndexThings:
         mapp.set_custom_data("foo")
         res = mapp.getjson("/cuser5/dev")
         assert res["result"]["custom_data"] == "foo"
+
+
+@pytest.mark.nomocking
+class TestMirrorIndexThings:
+    def test_create_and_delete_mirror_index(self, mapp, simpypi):
+        mapp.create_and_login_user('mirror1')
+        indexname = mapp.auth[0] + "/mirror"
+        assert indexname not in mapp.getindexlist()
+        indexconfig = dict(
+            type="mirror",
+            mirror_url=simpypi.simpleurl,
+            mirror_cache_expiry=0)
+        mapp.create_index("mirror", indexconfig=indexconfig)
+        assert indexname in mapp.getindexlist()
+        mapp.delete_index("mirror")
+        assert indexname not in mapp.getindexlist()
+
+    def test_missing_package(self, mapp, simpypi):
+        mapp.create_and_login_user('mirror2')
+        indexconfig = dict(
+            type="mirror",
+            mirror_url=simpypi.simpleurl,
+            mirror_cache_expiry=0)
+        mapp.create_index("mirror", indexconfig=indexconfig)
+        mapp.use("mirror2/mirror")
+        result = mapp.getpkglist()
+        assert result == []
+
+    def test_no_releases(self, mapp, simpypi):
+        mapp.create_and_login_user('mirror3')
+        indexconfig = dict(
+            type="mirror",
+            mirror_url=simpypi.simpleurl,
+            mirror_cache_expiry=0)
+        mapp.create_index("mirror", indexconfig=indexconfig)
+        mapp.use("mirror3/mirror")
+        simpypi.add_project('pkg')
+        result = mapp.getreleaseslist("pkg")
+        assert result == []
+
+    def test_releases(self, mapp, simpypi):
+        mapp.create_and_login_user('mirror4')
+        indexconfig = dict(
+            type="mirror",
+            mirror_url=simpypi.simpleurl,
+            mirror_cache_expiry=0)
+        mapp.create_index("mirror", indexconfig=indexconfig)
+        mapp.use("mirror4/mirror")
+        simpypi.add_release('pkg', pkgver='pkg-1.0.zip')
+        result = mapp.getreleaseslist("pkg")
+        base = simpypi.baseurl.replace('http://', 'http_').replace(':', '%3A')
+        assert len(result) == 1
+        assert result[0].endswith('/root/pypi/+e/%s_pkg/pkg-1.0.zip' % base)
+
+    def test_download_release_error(self, mapp, simpypi):
+        mapp.create_and_login_user('mirror5')
+        indexconfig = dict(
+            type="mirror",
+            mirror_url=simpypi.simpleurl,
+            mirror_cache_expiry=0)
+        mapp.create_index("mirror", indexconfig=indexconfig)
+        mapp.use("mirror5/mirror")
+        simpypi.add_release('pkg', pkgver='pkg-1.0.zip')
+        result = mapp.getreleaseslist("pkg")
+        assert len(result) == 1
+        r = mapp.downloadrelease(502, result[0])
+        msg = r['message']
+        assert 'error 404 getting' in msg or 'received 502 from master' in msg
+
+    def test_download_release(self, mapp, simpypi):
+        mapp.create_and_login_user('mirror6')
+        indexconfig = dict(
+            type="mirror",
+            mirror_url=simpypi.simpleurl,
+            mirror_cache_expiry=0)
+        mapp.create_index("mirror", indexconfig=indexconfig)
+        mapp.use("mirror6/mirror")
+        content = b'13'
+        simpypi.add_release('pkg', pkgver='pkg-1.0.zip')
+        simpypi.add_file('/pkg/pkg-1.0.zip', content)
+        result = mapp.getreleaseslist("pkg")
+        assert len(result) == 1
+        r = mapp.downloadrelease(200, result[0])
+        assert r == content
