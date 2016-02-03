@@ -1,3 +1,8 @@
+2.6.1 (unreleased)
+-----------------
+
+- add more info when importing data.  Thanks Marc Abramowitz for the PR.
+
 2.6.0 (2016-1-29)
 -----------------
 
