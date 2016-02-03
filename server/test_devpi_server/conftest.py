@@ -573,7 +573,7 @@ class Mapp(MappMixin):
                                   expect_errors=True)
         assert r.status_code == code
         if code in (200,201):
-            assert r.json["result"]["type"] == "stage"
+            assert r.json["result"]["type"] == indexconfig.get("type", "stage")
             return r.json["result"]
         if code in (400,):
             return r.json["message"]
@@ -924,6 +924,9 @@ class SimPyPI:
                 releases=set(),
                 pypiserial=None))
         return self.projects[name]
+
+    def remove_project(self, name):
+        self.projects.pop(name)
 
     def add_release(self, name, title=None, text="", pkgver=None, hash_type=None,
                     pypiserial=None, **kw):

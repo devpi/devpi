@@ -283,6 +283,9 @@ class TestMirrorIndexThings:
             mirror_cache_expiry=0)
         mapp.create_index("mirror", indexconfig=indexconfig)
         assert indexname in mapp.getindexlist()
+        result = mapp.getjson('/mirror1/mirror')
+        assert result['result']['mirror_url'] == simpypi.simpleurl
+        assert result['result']['mirror_cache_expiry'] == 0
         mapp.delete_index("mirror")
         assert indexname not in mapp.getindexlist()
 
@@ -353,3 +356,26 @@ class TestMirrorIndexThings:
         assert len(result) == 1
         r = mapp.downloadrelease(200, result[0])
         assert r == content
+
+    def test_deleted_package(self, mapp, simpypi):
+        mapp.create_and_login_user('mirror7')
+        indexconfig = dict(
+            type="mirror",
+            mirror_url=simpypi.simpleurl,
+            mirror_cache_expiry=1800)
+        mapp.create_index("mirror", indexconfig=indexconfig)
+        mapp.use("mirror7/mirror")
+        simpypi.add_project('pkg')
+        simpypi.add_release('pkg', pkgver='pkg-1.0.zip')
+        result = mapp.getreleaseslist("pkg")
+        assert len(result) == 1
+        simpypi.remove_project('pkg')
+        indexconfig['mirror_cache_expiry'] = 0
+        mapp.modify_index("mirror7/mirror", indexconfig=indexconfig)
+        result = mapp.getreleaseslist("pkg")
+        # serving stale links indefinitely
+        # we can't explicitly test for that here, because these tests also run
+        # with devpi-client where we can't easily check the server output
+        # XXX maybe we can add a function which parses the log on devpi-client
+        # and the output in devpi-server?
+        assert len(result) == 1
