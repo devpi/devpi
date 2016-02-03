@@ -1,10 +1,18 @@
-2.4.1 (2016-2-1)
+2.4.2 (Unreleased)
+------------------
+
+- fix issue310: with --set-cfg the ``index`` setting in the ``[search]``
+  section would be set multiple times.
+
+
+2.4.1 (2016-02-01)
 ------------------
 
 - fix issue308: properly handle index reconfiguration in the client API.
   thanks to Jacob Geiger for the report and an initial PR.
 
-2.4.0 (2016-1-29)
+
+2.4.0 (2016-01-29)
 ------------------
 
 - fix issue291: transfer file modes with vcs exports.  Thanks Sergey
