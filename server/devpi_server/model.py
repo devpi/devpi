@@ -154,14 +154,15 @@ def get_indexconfig(hooks, type, **kwargs):
                 ["create_stage() requires a mirror_url for type: %s" % type])
         if "mirror_cache_expiry" in kwargs:
             expiry = kwargs.pop("mirror_cache_expiry")
-            if expiry:
+            if expiry or expiry == 0:  # None or empty string are ignored
                 ixconfig["mirror_cache_expiry"] = int(expiry)
         # XXX backward compatibility with devpi-client <= 2.4.1
         # it always sends these
-        kwargs.pop("bases", None)
-        kwargs.pop("acl_upload", None)
-        kwargs.pop("pypi_whitelist", None)
-        kwargs.pop("mirror_whitelist", None)
+        for key in ("bases", "acl_upload", "mirror_whitelist", "pypi_whitelist"):
+            value = kwargs.pop(key, [])
+            if len(ixconfig.get(key, [])):
+                raise InvalidIndexconfig(
+                    ["%s not allowed on mirror indexes" % key])
     elif type == "stage":
         if "acl_upload" in kwargs:
             acl_upload = ensure_list(kwargs.pop("acl_upload"))

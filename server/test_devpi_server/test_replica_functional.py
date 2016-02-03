@@ -44,7 +44,7 @@ def master_host_port(request):
             srvdir.remove(ignore_errors=True)
 
 
-@pytest.fixture
+@pytest.yield_fixture
 def mapp(makemapp, master_host_port):
     from devpi_server.replica import ReplicaThread
     app = makemapp(options=['--master', 'http://%s:%s' % master_host_port])
@@ -52,7 +52,10 @@ def mapp(makemapp, master_host_port):
     app.xom.replica_thread = rt
     app.xom.thread_pool.register(rt)
     app.xom.thread_pool.start_one(rt)
-    return app
+    try:
+        yield app
+    finally:
+        app.xom.thread_pool.shutdown()
 
 
 @pytest.fixture(autouse=True)

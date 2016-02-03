@@ -574,7 +574,7 @@ def test_404_on_pypi_cached(httpget, pypistage):
 class TestProjectNamesCache:
     @pytest.fixture
     def cache(self):
-        return ProjectNamesCache(expiry_time=100)
+        return ProjectNamesCache()
 
     def test_get_set(self, cache):
         assert cache.get() == set()
@@ -587,27 +587,29 @@ class TestProjectNamesCache:
         assert 5 in cache.get()
 
     def test_is_fresh(self, cache, monkeypatch):
+        expiry_time = 100
         s = set([1,2,3])
         cache.set(s)
-        assert cache.is_fresh()
-        t = time.time() + 101
+        assert cache.is_fresh(expiry_time)
+        t = time.time() + expiry_time + 1
         monkeypatch.setattr("time.time", lambda: t)
-        assert not cache.is_fresh()
+        assert not cache.is_fresh(expiry_time)
         assert cache.get() == s
 
 
 def test_ProjectUpdateCache(monkeypatch):
-    x = ProjectUpdateCache(30)
-    assert not x.is_fresh("x")
+    x = ProjectUpdateCache()
+    expiry_time = 30
+    assert not x.is_fresh("x", expiry_time)
     x.refresh("x")
-    assert x.is_fresh("x")
+    assert x.is_fresh("x", expiry_time)
     t = time.time() + 35
     monkeypatch.setattr("time.time", lambda: t)
-    assert not x.is_fresh("x")
+    assert not x.is_fresh("x", expiry_time)
     x.refresh("x")
-    assert x.is_fresh("x")
+    assert x.is_fresh("x", expiry_time)
     x.expire("x")
-    assert not x.is_fresh("x")
+    assert not x.is_fresh("x", expiry_time)
 
     x.refresh("y")
     assert x.get_timestamp("y") == t

@@ -19,6 +19,7 @@ from devpi_common.types import cached_property
 from devpi_common.validation import normalize_name
 
 from .model import BaseStage, make_key_and_href, SimplelinkMeta
+from .model import InvalidIndexconfig, get_indexconfig
 from .readonly import ensure_deeply_readonly
 from .log import threadlog
 
@@ -140,6 +141,21 @@ class PyPIStage(BaseStage):
                 return False
             del indexes[self.index]
 
+    def modify(self, index=None, **kw):
+        if 'type' in kw and self.ixconfig["type"] != kw['type']:
+            raise InvalidIndexconfig(
+                ["the 'type' of an index can't be changed"])
+        kw.pop("type", None)
+        ixconfig = get_indexconfig(
+            self.xom.config.hook, type=self.ixconfig["type"], **kw)
+        # modify user/indexconfig
+        with self.user.key.update() as userconfig:
+            newconfig = userconfig["indexes"][self.index]
+            newconfig.update(ixconfig)
+            threadlog.info("modified index %s: %s", self.name, ixconfig)
+            self.ixconfig = newconfig
+            return newconfig
+
     @property
     def cache_projectnames(self):
         """ filesystem-persistent cache for full list of projectnames. """
@@ -149,7 +165,7 @@ class PyPIStage(BaseStage):
         try:
             return self.xom.get_singleton(self.name, "projectnames")
         except KeyError:
-            cache_projectnames = ProjectNamesCache(expiry_time=self.cache_expiry)
+            cache_projectnames = ProjectNamesCache()
             self.xom.set_singleton(self.name, "projectnames", cache_projectnames)
             return cache_projectnames
 
@@ -161,7 +177,7 @@ class PyPIStage(BaseStage):
         try:
             return self.xom.get_singleton(self.name, "project_retrieve_times")
         except KeyError:
-            c = ProjectUpdateCache(expiry_time=self.cache_expiry)
+            c = ProjectUpdateCache()
             self.xom.set_singleton(self.name, "project_retrieve_times", c)
             return c
 
@@ -188,7 +204,7 @@ class PyPIStage(BaseStage):
 
     def list_projects_perstage(self):
         """ return set of all projects served through the mirror. """
-        if self.cache_projectnames.is_fresh():
+        if self.cache_projectnames.is_fresh(self.cache_expiry):
             projects = self.cache_projectnames.get()
         else:
             # no fresh projects or None at all, let's go remote
@@ -238,7 +254,7 @@ class PyPIStage(BaseStage):
 
         cache = self.key_projsimplelinks(project).get()
         if cache:
-            is_fresh = self.cache_link_updates.is_fresh(project)
+            is_fresh = self.cache_link_updates.is_fresh(project, self.cache_expiry)
             links, serial = cache["links"], cache["serial"]
             if self.xom.config.args.offline_mode and links:
                 links = ensure_deeply_readonly(list(filter(self._is_file_cached, links)))
@@ -410,16 +426,15 @@ class PyPIStage(BaseStage):
 
 class ProjectNamesCache:
     """ Helper class for maintaining project names from a mirror. """
-    def __init__(self, expiry_time):
+    def __init__(self):
         self._timestamp = -1
-        self._expiry_time = expiry_time
         self._data = set()
 
     def exists(self):
         return self._timestamp != -1
 
-    def is_fresh(self):
-        return (time.time() - self._timestamp) < self._expiry_time
+    def is_fresh(self, expiry_time):
+        return (time.time() - self._timestamp) < expiry_time
 
     def get(self):
         """ Get a copy of the cached data. """
@@ -438,14 +453,13 @@ class ProjectNamesCache:
 
 class ProjectUpdateCache:
     """ Helper class to manage when we last updated something project specific. """
-    def __init__(self, expiry_time):
-        self.expiry_time = expiry_time
+    def __init__(self):
         self._project2time = {}
 
-    def is_fresh(self, project):
+    def is_fresh(self, project, expiry_time):
         t = self._project2time.get(project)
         if t is not None:
-            if (time.time() - t) < self.expiry_time:
+            if (time.time() - t) < expiry_time:
                 return True
         return False
 
