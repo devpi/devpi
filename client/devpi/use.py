@@ -477,9 +477,15 @@ class PipCfg(BaseCfg):
         section = '[search]'
         newlines = []
         found = False
+        insection = False
         for line in self.path.readlines(cr=1):
-            if section in line.lower():
-                line = line + "index = %s\n" % searchindexserver
+            if insection:
+                if line.strip().startswith('['):
+                    insection = False
+            if section in line.lower() and not insection:
+                insection = True
+            if insection and re.match('index\s*=.*', line):
+                line = "index = %s\n" % searchindexserver
                 found = True
             newlines.append(line)
         if not found:

@@ -317,16 +317,29 @@ class TestUnit:
                    ))
 
         hub = cmd_devpi("use", "--set-cfg", "%s://%sworld" % (scheme, basic_auth))
+        # run twice to find any issues where lines are added more than once
+        hub = cmd_devpi("use", "--set-cfg", "%s://%sworld" % (scheme, basic_auth))
         assert PipCfg.default_location.exists()
         content = PipCfg.default_location.read()
-        assert "index_url = %s://%sworld/" % (scheme, basic_auth) in content
-        assert "[search]\nindex = %s://%sworld/" % (scheme, basic_auth) in content
+        assert len(
+            re.findall("index_url\s*=\s*%s://%sworld/simple" % (
+                scheme, basic_auth), content)) == 1
+        result = re.findall(
+            "\[search\].*index\s*=\s*%s://%sworld/" % (
+                scheme, basic_auth), content, flags=re.DOTALL)
+        assert len(result) == 1
+        result = result[0].splitlines()
+        assert len(result) == 2
         assert DistutilsCfg.default_location.exists()
         content = DistutilsCfg.default_location.read()
-        assert "index_url = %s://%sworld/" % (scheme, basic_auth) in content
+        assert len(
+            re.findall("index_url\s*=\s*%s://%sworld/simple" % (
+                scheme, basic_auth), content)) == 1
         assert BuildoutCfg.default_location.exists()
         content = BuildoutCfg.default_location.read()
-        assert "index = %s://%sworld/" % (scheme, basic_auth) in content
+        assert len(
+            re.findall("index\s*=\s*%s://%sworld/simple" % (
+                scheme, basic_auth), content)) == 1
         hub = cmd_devpi("use", "--always-set-cfg=yes")
         assert hub.current.always_setcfg
         hub = cmd_devpi("use", "--always-set-cfg=no")
