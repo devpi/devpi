@@ -4,6 +4,10 @@
 - fix issue310: with --set-cfg the ``index`` setting in the ``[search]``
   section would be set multiple times.
 
+- fix getjson to work when no index but a server is selected
+
+- allow full urls for getjson
+
 
 2.4.1 (2016-02-01)
 ------------------

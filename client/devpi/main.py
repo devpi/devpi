@@ -504,8 +504,8 @@ def getjson(parser):
     A low-level command to show json-formatted configuration data
     from remote resources.  This will always query the remote server.
     """
-    parser.add_argument("path", action="store",
-        help="path to a resource to show information on. "
+    parser.add_argument("path", action="store", metavar="path_or_url",
+        help="path or url of a resource to show information on. "
              "examples: '/', '/user', '/user/index'.")
 
 @subcommand("devpi.getjson:main_patchjson")
