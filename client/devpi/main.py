@@ -362,13 +362,41 @@ def try_argcomplete(parser):
         else:
             argcomplete.autocomplete(parser)
 
+
+def print_version(hub):
+    hub.line("devpi-client %s\n" % client_version)
+    if hub.current.rooturl is not None:
+        url = URL(hub.current.rooturl).addpath('+status').url
+        try:
+            r = HTTPReply(hub.http.get(
+                url, headers=dict(accept='application/json')))
+        except hub.http.Errors as e:
+            pass
+        else:
+            status = r.json_get('result')
+            if r.status_code == 200 and status is not None:
+                hub.info(
+                    "current devpi server: %s" % hub.current.rooturl)
+                versioninfo = status.get('versioninfo', {})
+                for name, version in sorted(versioninfo.items()):
+                    hub.line("    %s %s" % (name, version))
+
+
 def parse_args(argv):
     argv = [str(x) for x in argv]
     parser = getbaseparser(argv[0])
     add_subparsers(parser)
     try_argcomplete(parser)
     try:
-        return parser.parse_args(argv[1:])
+        args = parser.parse_args(argv[1:])
+        if args.version:
+            hub = Hub(args)
+            print_version(hub)
+            parser.exit()
+        if args.command is None:
+            raise parser.ArgumentError(
+                "the following arguments are required: command")
+        return args
     except parser.ArgumentError as e:
         if not argv[1:]:
             return parser.parse_args(["-h"])
@@ -388,7 +416,7 @@ def add_subparsers(parser):
     subparsers = parser.add_subparsers()
     # see http://stackoverflow.com/questions/18282403/
     # for the following two lines (py3 compat)
-    subparsers.required = True
+    subparsers.required = False
     subparsers.dest = "command"
 
     for func, args, kwargs in subcommand.discover(globals()):
@@ -415,8 +443,7 @@ def getbaseparser(prog):
 
 def add_generic_options(parser, defaults=False):
     group = parser.add_argument_group("generic options")
-    group.add_argument("--version", action="version",
-                       version=devpi.__version__)
+    group.add_argument("--version", action="store_true")
     group.add_argument("--debug", action="store_true",
         help="show debug messages including more info on server requests")
     group.add_argument("-y", action="store_true", dest="yes",

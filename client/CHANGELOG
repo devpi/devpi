@@ -1,6 +1,8 @@
 2.4.2 (Unreleased)
 ------------------
 
+- fix issue309: print server versions with ``devpi --version`` if available.
+
 - fix issue310: with --set-cfg the ``index`` setting in the ``[search]``
   section would be set multiple times.
 
