@@ -41,8 +41,8 @@ You can install the web interface with::
     pip install devpi-web
 
 There is no configuration needed as ``devpi-server`` will automatically
-discover the web plugin through calling :doc:`hooks` using the setuptools
-entry points mechanism.
+discover the web plugin through calling :doc:`hooks <../devguide/hooks>`
+using the setuptools entry points mechanism.
 
 
 Navigation (commented screenshots)
@@ -50,25 +50,25 @@ Navigation (commented screenshots)
 
 At the root of your devpi server web interface you get an overview of the existing users and their indices:
 
-.. image:: images/web_root_view.png
+.. image:: ../images/web_root_view.png
    :align: center
 
 The index view shows the latest uploads with their info.
 You get links to test results and documentation:
 
-.. image:: images/web_index_view.png
+.. image:: ../images/web_index_view.png
    :align: center
 
 The version view shows you all the details about a certain version. It links the homepage, documentation and tox results:
 
-.. image:: images/web_version_view.png
+.. image:: ../images/web_version_view.png
    :align: center
 
 At the top you get links to the index, the package and the version you are currently in.
 
 You can also show package documentation which is embedded into the navigation:
 
-.. image:: images/web_doc_view.png
+.. image:: ../images/web_doc_view.png
    :align: center
 
 

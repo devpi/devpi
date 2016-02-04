@@ -36,15 +36,15 @@ release activities with Python.  Main features and usage scenarios:
   from pypi, allowing to stay safe from an attacker who could otherwise
   upload malicious release files to the public PyPI index.
 
-- **web interface and search**: (New with 2.0) By installing the :doc:`web`
+- **web interface and search**: By installing the :doc:`adminman/web`
   plugin package you can navigate indexes and search through release metadata
   and documentation.
 
-- **replication**: (new with 2.0) Keep one or more real-time
-  :doc:`replica <replica>` to speed up access, keep a failover server
+- **replication**: Keep one or more real-time
+  :doc:`replica <adminman/replica>` to speed up access, keep a failover server
   and to distribute the devpi system across your organisation.
-  (new with 2.1) :doc:`json status information <server-status>` 
-  about master/replica sites.
+  There is :doc:`json status information <server-status>`
+  about master/replica sites for monitoring.
 
 - **importing/exporting**: To :ref:`upgrade <upgrade>` to a newer version, 
   devpi-server
@@ -69,17 +69,15 @@ Tutorials and Documentation
    quickstart-releaseprocess
    quickstart-server
 
-   web
-   replica
-   hooks
    status
+   glossary
+   announce/index
+
+.. toctree::
+   :maxdepth: 2
 
    userman/index
-
-   announce/index
-   
-   glossary
-
+   adminman/index
    devguide/index
 
 
