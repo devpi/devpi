@@ -159,5 +159,5 @@ in a future devpi-web release, you have to adjust your modified copy accordingly
 
 For reference you can see the whole ``macro.pt`` file here:
 
-.. literalinclude:: ../web/devpi_web/templates/macros.pt
+.. literalinclude:: ../../web/devpi_web/templates/macros.pt
   :language: xml

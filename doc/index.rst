@@ -43,7 +43,7 @@ release activities with Python.  Main features and usage scenarios:
 - **replication**: Keep one or more real-time
   :doc:`replica <adminman/replica>` to speed up access, keep a failover server
   and to distribute the devpi system across your organisation.
-  There is :doc:`json status information <server-status>`
+  There is :doc:`json status information <adminman/server-status>`
   about master/replica sites for monitoring.
 
 - **importing/exporting**: To :ref:`upgrade <upgrade>` to a newer version, 
@@ -63,30 +63,29 @@ Tutorials and Documentation
 -----------------------------------------
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
    quickstart-pypimirror
    quickstart-releaseprocess
    quickstart-server
 
-   status
-   glossary
-   announce/index
-
-.. toctree::
-   :maxdepth: 2
-
    userman/index
    adminman/index
    devguide/index
 
+.. toctree::
+   :maxdepth: 1
+
+   status
+   glossary
+   announce/index
+   changelog
 
 .. toctree::
    :hidden:
 
    links
    curl
-   changelog
 
 .. 
     Indices and tables
