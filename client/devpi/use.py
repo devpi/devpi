@@ -254,7 +254,12 @@ class Current(object):
     @property
     def rooturl(self):
         if self.login:
-            return URL(self.login, ".").url
+            return self.root_url.url
+
+    @property
+    def root_url(self):
+        if self.login:
+            return URL(self.login, ".")
 
     def get_user_url(self, user=None):
         if user is None:
