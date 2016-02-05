@@ -28,6 +28,8 @@ def unpack_docs(stage, name, version, entry):
                     "%s: returning existing docs with hash_spec %s",
                     stage.name, entry.hash_spec)
                 return unpack_path
+    if unpack_path.exists():
+        unpack_path.remove()
     with entry.file_open_read() as f:
         with Archive(f) as archive:
             archive.extract(unpack_path)

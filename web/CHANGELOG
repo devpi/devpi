@@ -1,6 +1,8 @@
 3.0.0 (unreleased)
 ------------------
 
+- cleanup previously unpacked documentation to remove obsolete files.
+
 - store hash of doczip with the unpacked data to avoid unpacking if the data
   already exists.
 
