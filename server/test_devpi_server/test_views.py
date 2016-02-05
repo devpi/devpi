@@ -1239,16 +1239,16 @@ def test_delete_version_fails_on_non_volatile(mapp):
     mapp.delete_project("pkg1/2.6", code=403)
 
 
-def test_upload_pypi_fails(mapp):
+def test_upload_to_mirror_fails(mapp):
     mapp.upload_file_pypi(
             "pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=404,
             indexname="root/pypi")
 
-def test_delete_pypi_fails(mapp):
+def test_delete_from_mirror_fails(mapp):
     mapp.login_root()
     mapp.use("root/pypi")
-    mapp.delete_project("pytest/2.3.5", code=403)
-    mapp.delete_project("pytest", code=403)
+    mapp.delete_project("pytest/2.3.5", code=405)
+    mapp.delete_project("pytest", code=405)
 
 def test_delete_volatile_fails(mapp):
     mapp.login_root()
