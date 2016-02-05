@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 from devpi_common.types import ensure_unicode
 from devpi_common.metadata import get_sorted_versions
 from devpi_server.log import threadlog as log
-from devpi_web.doczip import iter_doc_contents
+from devpi_web.doczip import Docs
 import time
 
 
@@ -34,7 +34,7 @@ def preprocess_project(stage, name):
         if links:
             # we assume it has been unpacked
             result['doc_version'] = version
-            result['+doczip'] = iter_doc_contents(stage, name, version)
+            result['+doczip'] = Docs(stage, name, version)
             break
         else:
             assert '+doczip' not in result

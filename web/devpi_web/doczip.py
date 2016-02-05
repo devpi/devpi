@@ -20,9 +20,19 @@ def unpack_docs(stage, name, version, entry):
     # unpack, maybe a bit uncarefully but in principle
     # we are not loosing the original zip file anyway
     unpack_path = get_unpack_path(stage, name, version)
+    hash_path = unpack_path.join('.hash')
+    if hash_path.exists():
+        with hash_path.open() as f:
+            if f.read().strip() == entry.hash_spec:
+                threadlog.debug(
+                    "%s: returning existing docs with hash_spec %s",
+                    stage.name, entry.hash_spec)
+                return unpack_path
     with entry.file_open_read() as f:
         with Archive(f) as archive:
             archive.extract(unpack_path)
+    with hash_path.open('w') as f:
+        f.write(entry.hash_spec)
     threadlog.debug("%s: unpacked %s-%s docs to %s",
                     stage.name, name, version, unpack_path)
     return unpack_path
@@ -35,9 +45,12 @@ class Docs(DictMixin):
         self.version = version
         self.unpack_path = get_unpack_path(stage, name, version)
 
+    def exists(self):
+        return self.unpack_path.exists()
+
     @cached_property
     def _entries(self):
-        if not self.unpack_path.exists():
+        if not self.exists():
             # this happens on import, when the metadata is registered, but the docs
             # aren't uploaded yet
             return {}
@@ -82,7 +95,7 @@ class Docs(DictMixin):
                 text=BeautifulSoup(info.get('body', ''), "html.parser").text,
                 path=info.get('current_page_name', name))
         else:
-            soup = BeautifulSoup(entry.read(mode='rb'))
+            soup = BeautifulSoup(entry.read(mode='rb'), "html.parser")
             body = soup.find('body')
             if body is None:
                 return
@@ -95,12 +108,3 @@ class Docs(DictMixin):
                 title=title,
                 text=body.text,
                 path=name)
-
-
-def iter_doc_contents(stage, name, version):
-    docs = Docs(stage, name, version)
-    for entry in docs:
-        result = docs[entry]
-        if result is None:
-            continue
-        yield result
