@@ -152,3 +152,15 @@ def test_offline_mode_httpget_returns_server_error(makexom, url, allowRedirect):
     xom = makexom(["--offline-mode"], httpget=XOM.httpget)
     r = xom.httpget(url, allowRedirect)
     assert r.status_code == 503
+
+
+def test_no_root_pypi_option(makexom):
+    xom = makexom(["--no-root-pypi"])
+    with xom.keyfs.transaction(write=False) as tx:
+        stage = xom.model.getstage('root/pypi')
+        assert stage is None
+    xom = makexom()
+    with xom.keyfs.transaction(write=False) as tx:
+        stage = xom.model.getstage('root/pypi')
+        assert stage is not None
+        assert stage.name == 'root/pypi'

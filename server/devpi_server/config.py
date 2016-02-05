@@ -80,6 +80,9 @@ def addoptions(parser, pluginmanager):
                  "(e.g. pypi) and only serves locally cached files through the "
                  "simple index used by pip.")
 
+    mirror.addoption("--no-root-pypi", action="store_true",
+            help="don't create root/pypi on server initialization.")
+
     deploy = parser.addgroup("deployment and data options")
 
     deploy.addoption("--version", action="store_true",
