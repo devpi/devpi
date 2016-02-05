@@ -1,6 +1,11 @@
 3.0.0 (unreleased)
 ------------------
 
+- cleanup previously unpacked documentation to remove obsolete files.
+
+- store hash of doczip with the unpacked data to avoid unpacking if the data
+  already exists.
+
 - project.pt, version.pt: renamed ``pypi_whitelist`` related things to
   ``mirror_whitelist``.
 
@@ -14,8 +19,8 @@
   wrapping div with class ``header``, so it can overlap the top of the iframe.
 
 
-2.6.0 (2016-1-29)
------------------
+2.6.0 (2016-01-29)
+------------------
 
 - fix issue305: read documentation html files in binary and let BeautifulSoup
                 detect the encoding.
