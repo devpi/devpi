@@ -1,6 +1,10 @@
 3.0.0 (unreleased)
 ------------------
 
+- new indexes have no bases by default anymore. If you want to be able to
+  install pypi packages, then you have to explicitly add ``root/pypi`` to
+  the ``bases`` option of your index.
+
 - generalized mirroring to allow adding mirror indexes other than only PyPI
 
 - renamed ``pypi_whitelist`` to ``mirror_whitelist``

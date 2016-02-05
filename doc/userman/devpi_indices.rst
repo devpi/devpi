@@ -97,7 +97,7 @@ example below, we create the **emilie/prod** production index::
    $ devpi index -c prod volatile=False
    http://localhost:3141/emilie/prod:
      type=stage
-     bases=root/pypi
+     bases=
      volatile=False
      acl_upload=emilie
      mirror_whitelist=
@@ -113,9 +113,7 @@ which leads to the following::
                    "acl_upload": [
                        "emilie"
                    ], 
-                   "bases": [
-                       "root/pypi"
-                   ], 
+                   "bases": [],
                    "mirror_whitelist": [],
                    "type": "stage", 
                    "volatile": false
@@ -128,12 +126,12 @@ which leads to the following::
    
 Two things happened when issuing this command:
 
-   * The index has (by default) ``/root/pypi`` as it base.
-   * The index is created as non :term:`non volatile index` 
+   * The index has no bases by default.
+   * The index is created as :term:`non volatile index`
      (``volatile=False``) which is the desired result if the index is intended 
      to be a production index. 
      
-Emilie can then creating a development index (:term:`volatile index`) by 
+Emilie can then create a development index (:term:`volatile index`) by 
 specifying her ``prod`` index as follow::
 
    $ devpi index -c dev bases=/emilie/prod volatile=True
@@ -253,7 +251,7 @@ Assuming that Sophie has both index types as well::
    $ devpi index -c prod volatile=False
    http://localhost:3141/sophie/prod:
      type=stage
-     bases=root/pypi
+     bases=
      volatile=False
      acl_upload=sophie
      mirror_whitelist=
@@ -378,7 +376,7 @@ To allow uploads on PyPI or another mirror to be visible on your index, you have
    $ devpi index -c someindex mirror_whitelist=mypkg
    http://localhost:3141/emilie/someindex:
      type=stage
-     bases=root/pypi
+     bases=
      volatile=True
      acl_upload=emilie
      mirror_whitelist=mypkg
@@ -390,7 +388,7 @@ You can also whitelist all packages on an index by setting mirror_whitelist to a
    $ devpi index -c wheelindex mirror_whitelist="*"
    http://localhost:3141/emilie/wheelindex:
      type=stage
-     bases=root/pypi
+     bases=
      volatile=True
      acl_upload=emilie
      mirror_whitelist=*
@@ -501,13 +499,13 @@ provides, not only the index names and their owner, but also index property
 information::
 
    $ devpi use -l
-   sophie/prod     bases=root/pypi       volatile=False
+   sophie/prod     bases=                volatile=False
    sophie/dev      bases=sophie/prod     volatile=True
    root/pypi       bases=                volatile=False
-   emilie/prod     bases=root/pypi       volatile=False
-   emilie/wheelindex bases=root/pypi       volatile=True
+   emilie/prod     bases=                volatile=False
+   emilie/wheelindex bases=                volatile=True
    emilie/dev      bases=emilie/prod     volatile=True
-   emilie/someindex bases=root/pypi       volatile=True
+   emilie/someindex bases=                volatile=True
 
 .. rubric:: Footnotes
 

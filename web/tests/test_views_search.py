@@ -223,7 +223,7 @@ def get_xmlrpc_data(body):
 def test_pip_search(mapp, pypistage, testapp):
     from devpi_web.main import get_indexer
     from operator import itemgetter
-    api = mapp.create_and_use()
+    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
     pypistage.mock_simple("pkg1", '<a href="/pkg1-2.6.zip" /a>')
     pypistage.mock_simple("pkg2", '')
     indexer = get_indexer(mapp.xom.config)

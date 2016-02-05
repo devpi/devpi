@@ -13,7 +13,9 @@ def get_description_file(stage, name, version):
 
 
 def get_description(stage, name, version):
-    if stage.name == 'root/pypi':
+    is_mirror = (stage.ixconfig['type'] == 'mirror')
+    mirror_url = stage.ixconfig.get('mirror_url', '')
+    if is_mirror and (stage.name == 'root/pypi' or 'pypi.python.org' in mirror_url):
         html = py.xml.html
         link = "https://pypi.python.org/pypi/%s/%s/" % (name, version)
         return html.div(
