@@ -37,11 +37,11 @@ def run_passwd(root, username):
 
 
 def get_ixconfigattrs(hooks, index_type):
-    base = set(("type", "volatile", "custom_data"))
+    base = set(("type", "volatile", "title", "description", "custom_data"))
     if index_type == 'mirror':
         base.update((
             "mirror_url", "mirror_cache_expiry",
-            "mirror_name", "mirror_web_url_fmt"))
+            "mirror_web_url_fmt"))
     elif index_type == 'stage':
         base.update(("bases", "acl_upload", "mirror_whitelist"))
     for defaults in hooks.devpiserver_indexconfig_defaults(index_type=index_type):
@@ -238,15 +238,20 @@ class User:
             userconfig.update(newuserconfig)
             threadlog.info("internal: set user information %r", self.name)
 
-    def modify(self, password=None, email=None):
+    def modify(self, password=None, **kwargs):
         with self.key.update() as userconfig:
             modified = []
             if password is not None:
                 self._setpassword(userconfig, password)
                 modified.append("password=*******")
-            if email:
-                userconfig["email"] = email
-                modified.append("email=%s" % email)
+            for key, value in kwargs.items():
+                if key == 'username':
+                    continue
+                if value:
+                    userconfig[key] = value
+                elif key in userconfig:
+                    del userconfig[key]
+                modified.append("%s=%s" % (key, value))
             threadlog.info("modified user %r: %s", self.name,
                            ", ".join(modified))
 

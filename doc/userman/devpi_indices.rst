@@ -227,8 +227,8 @@ A mirroring index can be created by using ``type=mirror`` and setting the
      mirror_url=https://pypi.python.org/simple/
      mirror_cache_expiry=1800
 
-Additionally you can set ``mirror_web_url_fmt`` and ``mirror_name`` if you want
-links to the original mirror in the web interface. For *root/pypi* the default
+Additionally you can set ``mirror_web_url_fmt`` if you want links to the
+original mirror in the web interface. For *root/pypi* the default
 for ``mirror_web_url_fmt`` is ``https://pypi.python.org/pypi/{name}``. That is
 a Python format string, so the ``{name}`` part is replaced by the project name.
 

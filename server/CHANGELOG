@@ -1,6 +1,10 @@
 3.0.0 (unreleased)
 ------------------
 
+- added optional ``title`` and ``description`` options to users and indexes.
+
+- added optional ``custom_data`` option to users.
+
 - generalized mirroring to allow adding mirror indexes other than only PyPI
 
 - renamed ``pypi_whitelist`` to ``mirror_whitelist``

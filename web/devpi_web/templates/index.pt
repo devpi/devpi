@@ -7,7 +7,9 @@
     <body>
         <metal:search use-macro="request.macros['navigation']" />
         <div id="content">
-        <h1>${title}</h1>
+        <h1 class="index_title">
+            ${index_name} <span tal:condition="index_title">${index_title}</span> index
+        </h1>
 
         <ul>
             <li><a href="${simple_index_url}">simple index</a></li>
@@ -43,6 +45,8 @@
             </tbody>
         </table>
         </tal:packages>
+
+        <p class="index_description" tal:condition="index_description">${index_description}</p>
 
         <tal:permissions condition="permissions">
             <h2>permissions</h2>

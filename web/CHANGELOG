@@ -1,6 +1,12 @@
 3.0.0 (unreleased)
 ------------------
 
+- index.pt, root.pt, style.css: added title and description to
+  users and indexes.
+
+- root.pt, style.css: more compact styling of user/index overview using
+  flexbox, resulting in three columns at most sizes
+
 - cleanup previously unpacked documentation to remove obsolete files.
 
 - store hash of doczip with the unpacked data to avoid unpacking if the data
