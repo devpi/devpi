@@ -599,13 +599,14 @@ def user(parser):
     If you create a user you either need to pass a ``password=...``
     setting or interactively type a password.
     """
-    parser.add_argument("-c", "--create", action="store_true",
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("-c", "--create", action="store_true",
         help="create a user")
-    parser.add_argument("--delete", action="store_true",
+    group.add_argument("--delete", action="store_true",
         help="delete a user")
-    parser.add_argument("-m", "--modify", action="store_true",
+    group.add_argument("-m", "--modify", action="store_true",
         help="modify user settings")
-    parser.add_argument("-l", "--list", action="store_true",
+    group.add_argument("-l", "--list", action="store_true",
         help="list user names")
     parser.add_argument("username", type=str, action="store", nargs="?",
         help="user name")

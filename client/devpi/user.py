@@ -17,7 +17,17 @@ def user_create(hub, user, kvdict):
     hub.info("user created: %s" % user)
 
 def user_modify(hub, user, kvdict):
-    hub.http_api("patch", hub.current.get_user_url(user), kvdict)
+    url = hub.current.get_user_url(user)
+    reply = hub.http_api("get", url, type="userconfig")
+    for name, val in kvdict.items():
+        reply.result[name] = val
+        hub.info("%s changing %s: %s" %(url.path, name, val))
+
+    for name in ('indexes', 'username'):
+        # pre devpi-server 3.0.0 can't handle these
+        reply.result.pop(name, None)
+
+    hub.http_api("patch", url, reply.result)
     hub.info("user modified: %s" % user)
 
 def user_delete(hub, user):
@@ -32,18 +42,37 @@ def user_list(hub):
     for name in r.result or []:
         hub.line(name)
 
+
+def user_show(hub, user):
+    if not user:
+        user = hub.current.get_auth_user()
+    if not user:
+        hub.fatal("no user specified and no user currently active")
+    url = hub.current.get_user_url(user)
+    reply = hub.http_api("get", url, quiet=True, type="userconfig")
+    userconfig = reply.result
+    hub.info(url.url + ":")
+    skip = set(('indexes', 'username'))
+    for key, value in sorted(userconfig.items()):
+        if key in skip:
+            continue
+        if isinstance(value, list):
+            value = ",".join(value)
+        hub.line("  %s=%s" % (key, value))
+
+
 def main(hub, args):
     username = args.username
-    if not args.list and not username:
+    if (args.delete or args.create) and not username:
         hub.fatal("need to specify a username")
     kvdict = parse_keyvalue_spec(args.keyvalues)
     if args.create:
         return user_create(hub, username, kvdict)
     elif args.delete:
         return user_delete(hub, username)
-    elif args.modify:
+    elif kvdict or args.modify:
         return user_modify(hub, username, kvdict)
     elif args.list:
         return user_list(hub)
     else:
-        hub.fatal("need to specify -c|--delete|-m|-l")
+        return user_show(hub, username)
