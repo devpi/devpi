@@ -443,7 +443,8 @@ def getbaseparser(prog):
 
 def add_generic_options(parser, defaults=False):
     group = parser.add_argument_group("generic options")
-    group.add_argument("--version", action="store_true")
+    group.add_argument("--version", action="store_true",
+        help="show program's version number and exit")
     group.add_argument("--debug", action="store_true",
         help="show debug messages including more info on server requests")
     group.add_argument("-y", action="store_true", dest="yes",
