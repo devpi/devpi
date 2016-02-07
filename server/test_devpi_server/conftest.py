@@ -511,12 +511,12 @@ class Mapp(MappMixin):
             assert res["username"] == user
             assert res.get("email") == email
 
-    def modify_user(self, user, code=200, password=None, email=None):
+    def modify_user(self, user, code=200, password=None, **kwargs):
         reqdict = {}
         if password:
             reqdict["password"] = password
-        if email:
-            reqdict["email"] = email
+        for key, value in kwargs.items():
+            reqdict[key] = value
         r = self.testapp.patch_json("/%s" % user, reqdict, expect_errors=True)
         assert r.status_code == code
         if code == 200:
@@ -590,12 +590,12 @@ class Mapp(MappMixin):
             self._wait_for_serial_in_result(r)
         assert r.status_code == code
 
-    def set_custom_data(self, data, indexname=None):
+    def set_key_value(self, key, value, indexname=None):
         indexname = self._getindexname(indexname)
         indexurl = "/" + indexname
         r = self.testapp.get_json(indexurl)
         result = r.json["result"]
-        result["custom_data"] = data
+        result[key] = value
         r = self.testapp.patch_json(indexurl, result)
         assert r.status_code == 200
 

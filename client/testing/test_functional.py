@@ -166,11 +166,14 @@ class Mapp(MappMixin):
         self.devpi("index", indexname, "acl_upload=%s" % acls, code=200)
 
     def set_custom_data(self, data, indexname=None):
+        return self.set_key_value("custom_data", data, indexname=indexname)
+
+    def set_key_value(self, key, value, indexname=None):
         if indexname is None:
-            self.devpi("index", "custom_data=%s" % data, code=200)
+            self.devpi("index", "%s=%s" % (key, value), code=200)
         else:
             self.devpi("index", indexname,
-                       "custom_data=%s" % data, code=200)
+                       "%s=%s" % (key, value), code=200)
 
     def set_uploadtrigger_jenkins(self, *args, **kwargs):
         # called when we run client tests against server-2.1

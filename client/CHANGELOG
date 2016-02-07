@@ -1,5 +1,8 @@
-2.4.2 (Unreleased)
+2.5.0 (Unreleased)
 ------------------
+
+- the ``user`` command now behaves slightly more like ``index`` to show
+  current user settings and modify them.
 
 - fix issue309: print server versions with ``devpi --version`` if available.
 

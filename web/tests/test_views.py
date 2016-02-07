@@ -20,8 +20,8 @@ def test_root_view(testapp):
     r = testapp.get('/', headers=dict(accept="text/html"))
     assert r.status_code == 200
     links = r.html.select('#content a')
-    assert [(l.text, l.attrs['href']) for l in links] == [
-        ("root/pypi", "http://localhost/root/pypi")]
+    assert [(compareable_text(l.text), l.attrs['href']) for l in links] == [
+        ("root/pypi PyPI", "http://localhost/root/pypi")]
 
 
 def test_root_view_with_index(mapp, testapp):
@@ -29,8 +29,8 @@ def test_root_view_with_index(mapp, testapp):
     r = testapp.get('/', headers=dict(accept="text/html"))
     assert r.status_code == 200
     links = r.html.select('#content a')
-    assert [(l.text, l.attrs['href']) for l in links] == [
-        ("root/pypi", "http://localhost/root/pypi"),
+    assert [(compareable_text(l.text), l.attrs['href']) for l in links] == [
+        ("root/pypi PyPI", "http://localhost/root/pypi"),
         (api.stagename, "http://localhost/%s" % api.stagename)]
 
 
@@ -127,6 +127,28 @@ def test_index_view_permissions(mapp, testapp):
     text = [compareable_text(x.text) for x in elements]
     assert text == [
         'upload', 'Users: user1', 'Groups: developers', 'Special: ANONYMOUS']
+
+
+def test_title_description(mapp, testapp):
+    api = mapp.create_and_use()
+    mapp.modify_user(api.user, title="usertitle", description="userdescription")
+    mapp.modify_index(api.stagename, indexconfig=dict(
+        title="indextitle", description="indexdescription"))
+    r = testapp.xget(200, '/', headers=dict(accept="text/html"))
+    (content,) = r.html.select('#content')
+    users = content.select('.user_index_list dt')
+    assert [compareable_text(x.text) for x in users] == [
+        'root', 'user1 usertitle']
+    (userdescription,) = content.select('.user_index_list dd.user_description')
+    assert compareable_text(userdescription.text) == "userdescription"
+    links = content.select('a')
+    assert [x.attrs.get('title') for x in links] == [None, 'indexdescription']
+    r = testapp.xget(200, api.index, headers=dict(accept="text/html"))
+    (content,) = r.html.select('#content')
+    (indextitle,) = content.select('.index_title')
+    assert compareable_text(indextitle.text) == "user1/dev indextitle index"
+    (p,) = content.select('.index_description')
+    assert compareable_text(p.text) == "indexdescription"
 
 
 def test_project_view(mapp, testapp):

@@ -60,6 +60,26 @@ def test_invalid_username(caplog, testapp, user, status):
         assert r.json['message'] == msg
 
 
+def test_user_patch_keeps_missing_keys(testapp):
+    # needed for devpi-client < 2.5.0
+    testapp.put_json("/foo", dict(password="123"))
+    testapp.set_auth('foo', '123')
+    r = testapp.get("/foo")
+    assert r.json['result'] == {'username': 'foo', 'indexes': {}}
+    testapp.patch_json("/foo", dict(title="foo"))
+    r = testapp.get("/foo")
+    assert r.json['result'] == {
+        'username': 'foo', 'title': 'foo', 'indexes': {}}
+    testapp.patch_json("/foo", dict(description="bar"))
+    r = testapp.get("/foo")
+    assert r.json['result'] == {
+        'username': 'foo', 'title': 'foo', 'description': 'bar', 'indexes': {}}
+    testapp.patch_json("/foo", dict(description=""))
+    r = testapp.get("/foo")
+    assert r.json['result'] == {
+        'username': 'foo', 'title': 'foo', 'indexes': {}}
+
+
 @pytest.mark.parametrize("nodeinfo,expected", [
     ({}, (None, None)),
     ({"uuid": "123", "role":"master"}, ("123", "123")),

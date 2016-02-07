@@ -929,11 +929,18 @@ class PyPIView:
         permission="user_modify")
     def user_patch(self):
         request = self.request
-        dict = getjson(request, allowed_keys=["email", "password"])
-        email = dict.get("email")
-        password = dict.get("password")
+        ignored_keys = set(('indexes', 'username'))
+        allowed_keys = set((
+            "email", "password", "title", "description", "custom_data"))
+        result = getjson(request, allowed_keys=allowed_keys.union(ignored_keys))
+        kvdict = dict()
+        for key in allowed_keys:
+            if key not in result:
+                continue
+            kvdict[key] = result[key]
         user = self.context.user
-        user.modify(password=password, email=email)
+        password = kvdict.get("password")
+        user.modify(**kvdict)
         if password is not None:
             apireturn(200, "user updated, new proxy auth",
                       type="userpassword",

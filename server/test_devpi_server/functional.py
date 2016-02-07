@@ -121,7 +121,7 @@ class TestIndexThings:
         assert res == {
             "type": "mirror",
             "volatile": False,
-            "mirror_name": "PyPI",
+            "title": "PyPI",
             "mirror_url": "https://pypi.python.org/simple/",
             "mirror_web_url_fmt": "https://pypi.python.org/pypi/{name}"}
 
@@ -261,9 +261,22 @@ class TestIndexThings:
         mapp.use("cuser5/dev")
         res = mapp.getjson("/cuser5/dev")
         assert "custom_data" not in res["result"]
-        mapp.set_custom_data("foo")
+        mapp.set_key_value("custom_data", "foo")
         res = mapp.getjson("/cuser5/dev")
         assert res["result"]["custom_data"] == "foo"
+
+    def test_title_description(self, mapp):
+        mapp.create_and_login_user("cuser6")
+        mapp.create_index("dev")
+        mapp.use("cuser6/dev")
+        res = mapp.getjson("/cuser6/dev")
+        assert "title" not in res["result"]
+        assert "description" not in res["result"]
+        mapp.set_key_value("title", "foo")
+        mapp.set_key_value("description", "bar")
+        res = mapp.getjson("/cuser6/dev")
+        assert res["result"]["title"] == "foo"
+        assert res["result"]["description"] == "bar"
 
 
 @pytest.mark.nomocking

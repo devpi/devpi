@@ -315,11 +315,21 @@ def root(context, request):
         indexes = []
         for index in sorted(user.get('indexes', [])):
             stagename = "%s/%s" % (username, index)
+            stage = context.model.getstage(stagename)
             indexes.append(dict(
+                _ixconfig=stage.ixconfig,
                 title=stagename,
+                index_name=index,
+                index_title=stage.ixconfig.get('title', None),
+                index_description=stage.ixconfig.get('description', None),
                 url=request.stage_url(stagename)))
         users.append(dict(
+            _user=user,
             title=username,
+            user_name=username,
+            user_title=user.get('title', None),
+            user_description=user.get('description', None),
+            user_email=user.get('email', None),
             indexes=indexes))
     return dict(users=users)
 
@@ -340,7 +350,10 @@ def index_get(context, request):
         permissions=permissions,
         bases=bases,
         packages=packages,
-        whitelist=whitelist)
+        whitelist=whitelist,
+        index_name=stage.name,
+        index_title=stage.ixconfig.get('title', None),
+        index_description=stage.ixconfig.get('description', None))
     if stage.ixconfig['type'] == 'mirror':
         return result
 
@@ -505,7 +518,7 @@ def version_get(context, request):
             if not mirror_web_url_fmt:
                 continue
             nav_links.append(dict(
-                title="%s page" % base.ixconfig.get("mirror_name", "Mirror"),
+                title="%s page" % base.ixconfig.get("title", "Mirror"),
                 url=mirror_web_url_fmt.format(name=name)))
     return dict(
         title="%s/: %s-%s metadata and description" % (stage.name, name, version),

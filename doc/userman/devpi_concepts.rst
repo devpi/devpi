@@ -219,9 +219,9 @@ The default settings of *root/pypi* look like this::
         volatile=False
         custom_data=
         mirror_cache_expiry=1800
-        mirror_name=PyPI
         mirror_url=https://pypi.python.org/simple/
         mirror_web_url_fmt=https://pypi.python.org/pypi/{name}
+        title=PyPI
 
 .. _um_concept_server_end_points:
 
