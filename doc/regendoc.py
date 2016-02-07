@@ -7,6 +7,7 @@ import argparse
 import subprocess
 
 import py
+import re
 tw = py.io.TerminalWriter()
 
 parser = argparse.ArgumentParser()
@@ -127,6 +128,18 @@ def do_write(tmpdir, action):
     targetfile.ensure()
     targetfile.write(action['content'])
 
+
+def strip_ansi_codes(s):
+    """
+    >>> import blessings
+    >>> term = blessings.Terminal()
+    >>> foo = 'hidden'+term.clear_bol+'foo'+term.color(5)+'bar'+term.color(255)+'baz'
+    >>> repr(strip_ansi_codes(foo))
+    u'hiddenfoobarbaz'
+    """
+    return re.sub(b'\x1b\\[([0-9,A-Z]{1,2}(;[0-9]{1,2})?(;[0-9]{3})?)?[m|K]?', b'', s)
+
+
 def do_shell(tmpdir, action):
     if action['cwd']:
         cwd = action['file'].dirpath().join(action['cwd'])
@@ -141,6 +154,8 @@ def do_shell(tmpdir, action):
         stderr=subprocess.STDOUT,
     )
     out, err = proc.communicate()
+    out = strip_ansi_codes(out)
+    out = out.decode('ascii')
     # XXX join with err?
     if out != action['content']:
         import difflib
@@ -196,10 +211,10 @@ def _main(files, should_update, rootdir=None):
         )
         if should_update:
             with open(str(path), "rb") as f:
-                content = f.read()
+                content = f.read().decode('utf-8')
                 corrected = correct_content(content, updates)
             with open(str(path), "wb") as f:
-                f.write(corrected)
+                f.write(corrected.encode('utf-8'))
 
 
 def main():
