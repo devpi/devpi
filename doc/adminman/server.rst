@@ -43,9 +43,9 @@ Once you are happy you can remove the old serverdir.
 
 .. note::
 
-    Only your private indexes are exported and can be imported.  
-    The special ``root/pypi`` pypi-caching index along with its files
-    is not exported.
+    Only your private indexes are fully exported and can be imported.
+    For mirror indexes only the settings are exported, cached files are
+    left out.
 
 
 restricting modification rights

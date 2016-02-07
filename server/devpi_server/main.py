@@ -84,7 +84,7 @@ def _main(pluginmanager, argv=None):
     config.init_nodeinfo()
 
     xom = XOM(config)
-    if not xom.is_replica():
+    if not xom.is_replica() and xom.keyfs.get_current_serial() == -1:
         with xom.keyfs.transaction(write=True):
             set_default_indexes(xom.model)
     check_compatible_version(xom)
@@ -422,7 +422,7 @@ def set_default_indexes(model):
         threadlog.info("created root user")
     userconfig = root_user.key.get(readonly=False)
     indexes = userconfig["indexes"]
-    if "pypi" not in indexes:
+    if "pypi" not in indexes and not model.xom.config.args.no_root_pypi:
         indexes["pypi"] = _pypi_ixconfig_default.copy()
         root_user.key.set(userconfig)
         threadlog.info("created root/pypi index")

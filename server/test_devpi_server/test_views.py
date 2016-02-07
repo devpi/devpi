@@ -89,7 +89,7 @@ def test_simple_project(pypistage, testapp):
 
 @pytest.mark.parametrize("outside_url", ['', 'http://localhost/devpi'])
 def test_simple_project_outside_url_subpath(mapp, outside_url, pypistage, testapp):
-    api = mapp.create_and_use()
+    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
     mapp.upload_file_pypi(
         "qpwoei-1.0.tar.gz", b'123', "qpwoei", "1.0", indexname=api.stagename)
     pypistage.mock_simple("qpwoei", text='<a href="/qpwoei-1.0.zip"/>')
@@ -219,7 +219,7 @@ def test_simple_refresh_inherited(mapp, model, pypistage, testapp, project,
     pypistage.mock_simple(project, '<a href="/%s-1.0.zip" />' % project,
                           serial=100)
     if stagename is None:
-        api = mapp.create_and_use()
+        api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
     else:
         api = mapp.use(stagename)
     stagename = api.stagename
@@ -252,7 +252,7 @@ def test_simple_refresh_inherited_not_whitelisted(mapp, testapp):
 
 def test_simple_blocked_warning(mapp, pypistage, testapp):
     pypistage.mock_simple('pkg', '<a href="/pkg-1.0.zip" />', serial=100)
-    api = mapp.create_and_use()
+    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
     mapp.set_versiondata(dict(name="pkg", version="1.0"), set_whitelist=False)
     r = testapp.xget(200, "/%s/+simple/pkg" % api.stagename)
     (paragraph,) = r.html.select('p')
@@ -531,7 +531,8 @@ class TestSubmitValidation:
             def __init__(self, stagename="user/dev"):
                 self.stagename = stagename
                 self.username = stagename.split("/")[0]
-                self.api = mapp.create_and_use(stagename)
+                self.api = mapp.create_and_use(
+                    stagename, indexconfig=dict(bases=["root/pypi"]))
 
             def metadata(self, metadata, code):
                 return testapp.post(self.api.pypisubmit, metadata, code=code)
@@ -1238,12 +1239,12 @@ def test_delete_version_fails_on_non_volatile(mapp):
     mapp.delete_project("pkg1/2.6", code=403)
 
 
-def test_upload_pypi_fails(mapp):
+def test_upload_to_mirror_fails(mapp):
     mapp.upload_file_pypi(
             "pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=404,
             indexname="root/pypi")
 
-def test_delete_pypi_fails(mapp):
+def test_delete_from_mirror_fails(mapp):
     mapp.login_root()
     mapp.use("root/pypi")
     mapp.delete_project("pytest/2.3.5", code=405)
@@ -1382,7 +1383,7 @@ class TestOfflineMode:
     def _prepare(self, mapp, pypistage, stagename):
         pypistage.mock_simple("package", '<a href="/package-1.0.zip" />', serial=100)
         if stagename is None:
-            api = mapp.create_and_use()
+            api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
         else:
             api = mapp.use(stagename)
         return api.stagename

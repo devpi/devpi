@@ -506,8 +506,6 @@ class PyPIView:
         permission="index_modify")
     def index_modify(self):
         stage = self.context.stage
-        if stage.name == "root/pypi":
-            apireturn(403, "root/pypi index config can not be modified")
         kvdict = getkvdict_index(self.xom.config.hook, getjson(self.request))
         try:
             ixconfig = stage.modify(**kvdict)
@@ -812,8 +810,8 @@ class PyPIView:
         permission="del_project")
     def del_project(self):
         stage = self.context.stage
-        if stage.name == "root/pypi":
-            abort(self.request, 405, "cannot delete root/pypi index")
+        if stage.ixconfig["type"] == "mirror":
+            abort(self.request, 405, "cannot delete on mirror index")
         project = self.context.project
         if not stage.ixconfig["volatile"]:
             apireturn(403, "project %r is on non-volatile index %s" %(
@@ -858,8 +856,8 @@ class PyPIView:
     def del_versiondata(self):
         stage = self.context.stage
         name, version = self.context.project, self.context.version
-        if stage.name == "root/pypi":
-            abort(self.request, 405, "cannot delete on root/pypi index")
+        if stage.ixconfig["type"] == "mirror":
+            abort(self.request, 405, "cannot delete on mirror index")
         if not stage.ixconfig["volatile"]:
             abort(self.request, 403, "cannot delete version on non-volatile index")
         try:

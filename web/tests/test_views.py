@@ -43,7 +43,7 @@ def test_index_view_root_pypi(testapp):
 
 
 def test_index_view(mapp, testapp):
-    api = mapp.create_and_use()
+    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
     r = testapp.get(api.index, headers=dict(accept="text/html"))
     assert r.status_code == 200
     links = r.html.select('#content a')
@@ -61,7 +61,7 @@ def test_index_not_found(testapp):
 
 
 def test_index_view_project_info(mapp, testapp):
-    api = mapp.create_and_use()
+    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
     mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
     r = testapp.get(api.index, headers=dict(accept="text/html"))
     assert r.status_code == 200
@@ -75,7 +75,7 @@ def test_index_view_project_info(mapp, testapp):
 
 @pytest.mark.with_notifier
 def test_index_view_project_files(mapp, testapp):
-    api = mapp.create_and_use()
+    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
     r = mapp.upload_file_pypi("pkg1-2.6.tar.gz", b"content", "pkg1", "2.6")
     tar_url = r.file_url
     r = testapp.xget(200, api.index, headers=dict(accept="text/html"))
@@ -103,7 +103,7 @@ def test_index_view_project_files(mapp, testapp):
 
 @pytest.mark.with_notifier
 def test_index_view_project_docs(mapp, testapp):
-    api = mapp.create_and_use()
+    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
     mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
     content = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
@@ -357,7 +357,7 @@ def test_version_view_root_pypi_external_files(mapp, testapp, pypistage):
 def test_whitelist(mapp, pypistage, testapp):
     pypistage.mock_simple(
         "pkg1", '<a href="http://example.com/releases/pkg1-2.7.zip" /a>)')
-    api = mapp.create_and_use()
+    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
     mapp.set_versiondata(
         {"name": "pkg1", "version": "2.6", "description": "foo"},
         set_whitelist=False)

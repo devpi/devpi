@@ -219,6 +219,8 @@ class Importer:
         total_num_projects = 0
         total_num_files = 0
         for idx_name, idx in self.import_indexes.items():
+            if idx['indexconfig']['type'] == 'mirror':
+                continue
             num_projects = len(idx['projects'])
             num_files = len(idx['files'])
             self.tw.line(

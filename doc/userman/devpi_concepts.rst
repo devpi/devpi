@@ -83,9 +83,9 @@ Indexes
 - An index derives from one or multiple base indices: 
 
    For instance, imagine Emilie creates her own production index (called 
-   */emilie/prod* - the default base is */root/pypi*)) and decide to have a 
+   */emilie/prod*)) and decide to have a 
    developement index (*/emilie/dev*) which derives from her production index 
-   (a base). The later is used to upload temporary packages currently under 
+   (a base). The latter is used to upload temporary packages currently under 
    development.
    
    The structure could look something like this:: 
@@ -103,9 +103,7 @@ Indexes
                       "volatile": true
                   }, 
                   "prod": {
-                      "bases": [
-                          "/root/pypi"
-                      ], 
+                      "bases": [],
                       "type": "stage", 
                       "volatile": false
                   }
@@ -158,9 +156,7 @@ Indexes
                       "volatile": true
                   }, 
                   "prod": {
-                      "bases": [
-                          "/root/pypi"
-                      ], 
+                      "bases": [], 
                       "type": "stage", 
                       "volatile": false
                   }

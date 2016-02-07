@@ -294,7 +294,7 @@ class User:
             if ixconfig.get("acl_upload") is None:
                 ixconfig["acl_upload"] = [self.name]
             ixconfig["bases"] = tuple(normalize_bases(
-                self.xom.model, ixconfig.get("bases", ("root/pypi",))))
+                self.xom.model, ixconfig.get("bases", [])))
             ixconfig["mirror_whitelist"] = ixconfig.get("mirror_whitelist", [])
         # XXX backward compatibility with devpi-client <= 2.4.1
         # it always expects these

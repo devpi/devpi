@@ -330,7 +330,7 @@ and then login::
 
 Alice can now create her new ``dev`` index::
 
-    $ devpi index -c dev
+    $ devpi index -c dev bases=root/pypi
     http://localhost:4040/alice/dev:
       type=stage
       bases=root/pypi
@@ -347,7 +347,7 @@ and use it ::
     ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
     always-set-cfg: no
 
-Our ``alice/dev`` index derives from ``root/pypi`` by default
+Our ``alice/dev`` index derives from ``root/pypi``
 which makes all pypi.python.org releases available.
 
 

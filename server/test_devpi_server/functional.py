@@ -125,11 +125,6 @@ class TestIndexThings:
             "mirror_url": "https://pypi.python.org/simple/",
             "mirror_web_url_fmt": "https://pypi.python.org/pypi/{name}"}
 
-    def test_pypi_not_modifiable(self, mapp):
-        mapp.login_root()
-        res = mapp.getjson("/root/pypi")["result"]
-        mapp.modify_index("root/pypi", res, code=403)
-
     def test_create_index_base_empty(self, mapp):
         indexconfig = dict(bases="")
         mapp.login_root()
