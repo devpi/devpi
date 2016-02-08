@@ -590,6 +590,9 @@ class Mapp(MappMixin):
             self._wait_for_serial_in_result(r)
         assert r.status_code == code
 
+    def set_custom_data(self, data, indexname=None):
+        return self.set_key_value("custom_data", data, indexname=indexname)
+
     def set_key_value(self, key, value, indexname=None):
         indexname = self._getindexname(indexname)
         indexurl = "/" + indexname
