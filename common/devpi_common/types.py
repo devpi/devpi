@@ -155,11 +155,6 @@ def ensure_unicode(x):
         return x
     return py.builtin._totext(x, "utf8")
 
-def ensure_unicode_keys(somedict, ensure_unicode=ensure_unicode):
-    for key in list(somedict):
-        if not py.builtin._istext(key):
-            val = somedict.pop(key)
-            somedict[py.builtin.text(key, "utf-8")] = val
 
 def parse_hash_spec(fragment):
     """ Return (hashtype, hash_value) from parsing a given X=Y fragment.

@@ -245,6 +245,7 @@ class User:
                 self._setpassword(userconfig, password)
                 modified.append("password=*******")
             for key, value in kwargs.items():
+                key = ensure_unicode(key)
                 if key == 'username':
                     continue
                 if value:
