@@ -1,4 +1,4 @@
-2.5.0 (Unreleased)
+2.5.0 (2016-02-08)
 ------------------
 
 - the ``user`` command now behaves slightly more like ``index`` to show
