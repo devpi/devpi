@@ -1,5 +1,5 @@
-3.0.0 (unreleased)
-------------------
+3.0.0b1 (2016-02-08)
+--------------------
 
 - index.pt, root.pt, style.css: added title and description to
   users and indexes.
