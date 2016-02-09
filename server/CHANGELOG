@@ -1,3 +1,9 @@
+3.0.0 (Unreleased)
+------------------
+
+- block most ascii symbols for user and index names except ``-.@_``.
+
+
 3.0.0.beta1 (2016-02-08)
 ------------------------
 

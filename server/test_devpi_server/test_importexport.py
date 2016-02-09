@@ -1,6 +1,8 @@
 from __future__ import unicode_literals
 
 import sys
+import pkg_resources
+import py
 import pytest
 import json
 from devpi_server.importexport import *
@@ -70,6 +72,9 @@ class TestImportExport:
         class ImpExp:
             def __init__(self, options=()):
                 self.exportdir = gentmp()
+                self.testdatadir = py.path.local(
+                    pkg_resources.resource_filename(
+                        'test_devpi_server', 'importexportdata'))
                 self.mapp1 = makemapp(
                     options=("--export", self.exportdir) + options)
 
@@ -77,6 +82,16 @@ class TestImportExport:
                 if initnodeinfo:
                     self.mapp1.xom.config.init_nodeinfo()
                 assert self.mapp1.xom.main() == 0
+
+            def import_testdata(self, name, options=(), plugin=None):
+                path = self.testdatadir.join(name).strpath
+                mapp = makemapp(
+                    options=("--import", path) + options)
+                if plugin is not None:
+                    mapp.xom.config.pluginmanager.register(plugin)
+                mapp.xom.config.init_nodeinfo()
+                assert mapp.xom.main() == 0
+                return mapp
 
             def new_import(self, options=(), plugin=None):
                 mapp2 = makemapp(
@@ -120,6 +135,22 @@ class TestImportExport:
         assert api.user in mapp2.getuserlist()
         indexlist = mapp2.getindexlist(api.user)
         assert indexlist[api.stagename]["custom_data"] == 42
+
+    def test_bad_username(self, caplog, impexp):
+        with pytest.raises(SystemExit):
+            impexp.import_testdata('badusername')
+        (record,) = caplog.getrecords('contains characters')
+        assert 'root~foo.com' in record.message
+        (record,) = caplog.getrecords('You should edit')
+        assert 'dataindex.json' in record.message
+
+    def test_bad_indexname(self, caplog, impexp):
+        with pytest.raises(SystemExit):
+            impexp.import_testdata('badindexname')
+        (record,) = caplog.getrecords('contains characters')
+        assert 'root/pypi!Jo' in record.message
+        (record,) = caplog.getrecords('You should edit')
+        assert 'dataindex.json' in record.message
 
     def test_upload_releasefile_with_toxresult(self, impexp):
         from test_devpi_server.example import tox_result_data

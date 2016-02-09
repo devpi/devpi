@@ -36,27 +36,38 @@ def hash_spec_matches(hash_spec, content):
     return digest == hash_value
 
 
-@pytest.mark.parametrize("user,status", [
+@pytest.mark.parametrize("kind", ["user", "index"])
+@pytest.mark.parametrize("name,status", [
     ("foo_bar", 'ok'),
     ("foo-bar", 'ok'),
     ("foo.bar", 'ok'),
     ("foo.bar42", 'ok'),
-    (":foobar", 'warn'),
+    ("foo@bar42", 'ok'),
+    ("foo:bar42", 'fatal'),
+    ("foo!bar42", 'fatal'),
+    ("foo~bar42", 'fatal'),
+    (":foobar", 'fatal'),
     (":foobar:", 'fatal')])
-def test_invalid_username(caplog, testapp, user, status):
+def test_invalid_name(caplog, testapp, name, status, kind):
     reqdict = dict(password="123")
-    r = testapp.put_json("/%s" % user, reqdict, expect_errors=True)
+    if kind == "user":
+        r = testapp.put_json("/%s" % name, reqdict, expect_errors=True)
+    else:
+        r = testapp.put_json("/foo", reqdict)
+        testapp.set_auth("foo", "123")
+        r = testapp.put_json("/foo/%s" % name, {}, expect_errors=True)
     if status in ('ok', 'warn'):
-        code = 201
+        if kind == "user":
+            code = 201
+        else:
+            code = 200
     else:
         code = 400
     assert r.status_code == code
-    if status == 'warn':
-        msg = "username '%s' will be invalid with next release, use characters, numbers, underscore, dash and dots only" % user
-        logmsg = caplog.getrecords('invalid')[-1]
-        assert logmsg.message.endswith(msg)
     if status == 'fatal':
-        msg = "username '%s' is invalid, use characters, numbers, underscore, dash and dots only" % user
+        msg = (
+            "%sname '%s' contains characters that aren't allowed. "
+            "Any ascii symbol besides -.@_ is blocked." % (kind, name))
         assert r.json['message'] == msg
 
 

@@ -9,9 +9,10 @@ import shutil
 from devpi_common.validation import normalize_name
 from devpi_common.metadata import BasenameMeta
 from devpi_common.types import parse_hash_spec
+from devpi_server import __version__ as server_version
+from devpi_server.model import is_valid_name
 from .main import fatal
 from .readonly import get_mutable_deepcopy, ReadonlyView
-import devpi_server
 
 
 def do_export(path, xom):
@@ -89,7 +90,7 @@ class Exporter:
         self.basepath = path
         self.export["dumpversion"] = self.DUMPVERSION
         self.export["pythonversion"] = list(sys.version_info)
-        self.export["devpi_server"] = devpi_server.__version__
+        self.export["devpi_server"] = server_version
         self.export["secret"] = self.config.secret
         self.export["uuid"] = self.xom.config.get_master_uuid()
         for user in self.xom.model.get_userlist():
@@ -231,9 +232,33 @@ class Importer:
         self.tw.line('Total number of projects: %d' % total_num_projects)
         self.tw.line('Total number of files: %d' % total_num_files)
 
+    def check_names(self, json_path):
+        errors = False
+        for name in self.import_users:
+            if is_valid_name(name):
+                continue
+            self.xom.log.error(
+                "username '%s' contains characters that aren't allowed. "
+                "Any ascii symbol besides -.@_ is blocked." % name)
+            errors = True
+        for index in self.import_indexes:
+            user, name = index.split('/')
+            if is_valid_name(name):
+                continue
+            self.xom.log.error(
+                "indexname '%s' contains characters that aren't allowed. "
+                "Any ascii symbol besides -.@_ is blocked." % index)
+            errors = True
+        if errors:
+            self.xom.log.warn(
+                "You should edit %s manually to fix the above errors." % json_path)
+            raise SystemExit(1)
+
+
     def import_all(self, path):
         self.import_rootdir = path
-        self.import_data = self.read_json(path.join("dataindex.json"))
+        json_path = path.join("dataindex.json")
+        self.import_data = self.read_json(json_path)
         self.dumpversion = self.import_data["dumpversion"]
         if self.dumpversion not in ("1", "2"):
             fatal("incompatible dumpversion: %r" %(self.dumpversion,))
@@ -245,6 +270,7 @@ class Importer:
         self.xom.config.secret = secret = self.import_data["secret"]
         self.xom.config.secretfile.write(secret)
         self.display_import_header(path)
+        self.check_names(json_path)
 
         # first create all users
         for username, userconfig in self.import_users.items():
