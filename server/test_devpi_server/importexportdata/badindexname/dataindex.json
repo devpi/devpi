@@ -1,0 +1,31 @@
+{
+  "users": {
+    "root": {
+      "username": "root",
+      "pwsalt": "uBLR5DKWtF6ro4H7h3FObQ==",
+      "pwhash": "667a21361c2d700d6451ecc77c837a595329a74fa5b49c396c6aa6c49600bad6"
+    }
+  },
+  "secret": "ItYAZLP23wgW4/F2uFMNJ+ffjYhIiZg3T3HJlIzVTB8=",
+  "indexes": {
+    "root/pypi!Jo": {
+      "indexconfig": {
+        "volatile": false,
+        "type": "mirror",
+        "mirror_web_url_fmt": "https://pypi.python.org/pypi/{name}",
+        "title": "PyPI",
+        "mirror_url": "https://pypi.python.org/simple/"
+      }
+    }
+  },
+  "pythonversion": [
+    3,
+    4,
+    3,
+    "final",
+    0
+  ],
+  "dumpversion": "2",
+  "devpi_server": "3.0.0b1",
+  "uuid": "3885c05ceae34ed4b7574da2a1bd1e0f"
+}
