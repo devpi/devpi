@@ -19,15 +19,15 @@ getjson
     $ devpi getjson -h
     usage: /home/hpk/venv/0/bin/devpi getjson [-h] [--version] [--debug] [-y] [-v]
                                               [--clientdir DIR]
-                                              path
+                                              path_or_url
     
     show remote server and index configuration. A low-level command to show json-
     formatted configuration data from remote resources. This will always query the
     remote server.
     
     positional arguments:
-      path             path to a resource to show information on. examples: '/',
-                       '/user', '/user/index'.
+      path_or_url      path or url of a resource to show information on. examples:
+                       '/', '/user', '/user/index'.
     
     optional arguments:
       -h, --help       show this help message and exit
@@ -245,37 +245,6 @@ push
       -v, --verbose    increase verbosity
       --clientdir DIR  directory for storing login and other state
 
-.. _cmdref_quickstart:
-
-quickstart
-----------
-
-::
-
-    $ devpi quickstart -h
-    usage: /home/hpk/venv/0/bin/devpi quickstart [-h] [--version] [--debug] [-y]
-                                                 [-v] [--clientdir DIR]
-                                                 [--user USER]
-                                                 [--password PASSWORD]
-                                                 [--index INDEX] [--dry-run]
-    
-    start a server, create a user and login, then create a USER/dev index and then
-    connect to this index, so that subsequent devpi commands can work with it.
-    
-    optional arguments:
-      -h, --help           show this help message and exit
-      --user USER          set initial user name to create and login
-      --password PASSWORD  initial password (default is empty)
-      --index INDEX        initial index name for the user.
-      --dry-run            don't perform any actions, just show them
-    
-    generic options:
-      --version            show program's version number and exit
-      --debug              show debug messages including more info on server
-                           requests
-      -y                   assume 'yes' on confirmation questions
-      -v, --verbose        increase verbosity
-      --clientdir DIR      directory for storing login and other state
 
 .. _cmdref_remove:
 
@@ -477,8 +446,8 @@ user
 
     $ devpi user -h
     usage: /home/hpk/venv/0/bin/devpi user [-h] [--version] [--debug] [-y] [-v]
-                                           [--clientdir DIR] [-c] [--delete] [-m]
-                                           [-l]
+                                           [--clientdir DIR]
+                                           [-c | --delete | -m | -l]
                                            [username] [keyvalues [keyvalues ...]]
     
     add, remove, modify, list user configuration. This is the central command for
@@ -516,18 +485,20 @@ devpi command reference (server)
     $ devpi-server -h
     usage: devpi-server [-h] [--host HOST] [--port PORT] [--outside-url URL]
                         [--debug] [--profile-requests NUM]
-                        [--logger-cfg LOGGER_CFG] [--refresh SECS] [--bypass-cdn]
-                        [--mirror-cache-expiry SECS] [--offline-mode] [--version]
+                        [--logger-cfg LOGGER_CFG] [--bypass-cdn]
+                        [--mirror-cache-expiry SECS] [--offline-mode]
+                        [--no-root-pypi] [--version]
                         [--role {master,replica,auto}] [--master-url MASTER_URL]
                         [--replica-cert pem_file] [--gen-config]
-                        [--secretfile path] [--export PATH] [--hard-links]
-                        [--import PATH] [--no-events] [--passwd USER]
+                        [--secretfile path] [--requests-only] [--passwd USER]
                         [--serverdir DIR] [--restrict-modify SPEC]
-                        [--keyfs-cache-size NUM] [--start] [--stop] [--status]
-                        [--log] [--theme THEME] [--recreate-search-index]
+                        [--keyfs-cache-size NUM] [--storage NAME] [--export PATH]
+                        [--hard-links] [--import PATH] [--no-events] [--start]
+                        [--stop] [--status] [--log] [--theme THEME]
+                        [--recreate-search-index]
     
-    Start a server which serves multiples users and indices. The special root/pypi
-    index is a real-time mirror of pypi.python.org and is created by default. All
+    Start a server which serves multiple users and indices. The special root/pypi
+    index is a cached mirror of pypi.python.org and is created by default. All
     indices are suitable for pip or easy_install usage and setup.py upload ...
     invocations.
     
@@ -555,8 +526,7 @@ devpi command reference (server)
       --theme THEME         folder with template and resource overwrites for the
                             web interface
     
-    pypi mirroring options (root/pypi):
-      --refresh SECS        NO EFFECT: changelog API is not used anymore [60]
+    mirroring options:
       --bypass-cdn          set this if you want to bypass pypi's CDN for access
                             to simple pages and packages, in order to rule out
                             cache-invalidation issues. This will only work if you
@@ -567,9 +537,10 @@ devpi command reference (server)
       --offline-mode        (experimental) prevents connections to any upstream
                             server (e.g. pypi) and only serves locally cached
                             files through the simple index used by pip.
+      --no-root-pypi        don't create root/pypi on server initialization.
     
     deployment and data options:
-      --version             show devpi_version (2.6.0)
+      --version             show devpi_version (3.0.0b1)
       --role {master,replica,auto}
                             set role of this instance. [auto]
       --master-url MASTER_URL
@@ -585,25 +556,9 @@ devpi command reference (server)
                             validation. If it does not exist, a random secret is
                             generated on start up and used subsequently.
                             [{serverdir}/.secret]
-      --export PATH         export devpi-server database state into PATH. This
-                            will export all users, indices (except root/pypi),
-                            release files, test results and documentation.
-      --hard-links          use hard links during export instead of copying files.
-                            All limitations for hard links on your OS apply. USE
-                            AT YOUR OWN RISK
-      --import PATH         import devpi-server database from PATH where PATH is a
-                            directory which was created by a 'devpi-server
-                            --export PATH' operation, using the same or an earlier
-                            devpi-server version. Note that you can only import
-                            into a fresh server state directory (positional
-                            argument to devpi-server).
-      --no-events           no events will be run during import, instead they
-                            arepostponed to run on server start. This allows much
-                            faster start of the server after import, when devpi-
-                            web is used. When you start the server after the
-                            import, the search index and documentation will
-                            gradually update until the server has caught up with
-                            all events. [True]
+      --requests-only       only start as a worker which handles read/write web
+                            requests but does not run an event processing or
+                            replication thread.
       --passwd USER         set password for user USER (interactive)
       --serverdir DIR       directory for server data. By default,
                             $DEVPI_SERVERDIR is used if it exists, otherwise the
@@ -623,6 +578,32 @@ devpi command reference (server)
                             gets a lot of writes, then increasing this might
                             improve performance. Each entry uses 1kb of memory on
                             average. So by default about 10MB are used. [10000]
+      --storage NAME        the storage backend to use. This choice will be stored
+                            in your '--serverdir' upon initialization. "sqlite":
+                            SQLite backend with files on the filesystem,
+                            "sqlite_db_files": SQLite backend with files in DB for
+                            testing only
+    
+    serverstate export / import options:
+      --export PATH         export devpi-server database state into PATH. This
+                            will export all users, indices, release files (except
+                            for mirrors), test results and documentation.
+      --hard-links          use hard links during export instead of copying files.
+                            All limitations for hard links on your OS apply. USE
+                            AT YOUR OWN RISK
+      --import PATH         import devpi-server database from PATH where PATH is a
+                            directory which was created by a 'devpi-server
+                            --export PATH' operation, using the same or an earlier
+                            devpi-server version. Note that you can only import
+                            into a fresh server state directory (positional
+                            argument to devpi-server).
+      --no-events           no events will be run during import, instead they
+                            arepostponed to run on server start. This allows much
+                            faster start of the server after import, when devpi-
+                            web is used. When you start the server after the
+                            import, the search index and documentation will
+                            gradually update until the server has caught up with
+                            all events. [True]
     
     background server:
       --start               start the background devpi-server

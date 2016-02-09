@@ -469,7 +469,7 @@ def add_generic_options(parser, defaults=False):
 
 @subcommand("devpi.quickstart")
 def quickstart(parser):
-    """ start a server, create a user and login, then create a USER/dev
+    """ (deprecated) start a server, create a user and login, then create a USER/dev
     index and then connect to this index, so that subsequent devpi
     commands can work with it.
     """

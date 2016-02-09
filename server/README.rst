@@ -18,12 +18,13 @@ index, serving as a self-updating transparent cache for pypi-hosted
 greatest PyPI protocols.  The cache index continues to serve when
 offline and will resume cache-updates once network is available.
 
-github-style indexes
----------------------------------
+user specific indexes
+---------------------
 
-Each user can have multiple indexes and upload packages and docs via
-standard ``setup.py`` invocations.  Users, indexes (and soon projects
-and releases) are manipulaed through a RESTful HTTP API.
+Each user (which can represent a person or a project, team) can have
+multiple indexes and upload packages and docs via standard ``setup.py``
+invocations command.  Users and indexes can be manipulated through a
+RESTful HTTP API.
 
 index inheritance
 --------------------------
