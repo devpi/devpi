@@ -1,5 +1,5 @@
-3.0.0 (unreleased)
-------------------
+3.0.0.beta1 (2016-02-08)
+------------------------
 
 - add ``--no-root-pypi`` option which prevents the creation of the
   ``root/pypi`` mirror instance on first startup.
@@ -58,7 +58,7 @@
 
 
 2.6.1 (unreleased)
------------------
+------------------
 
 - add more info when importing data.  Thanks Marc Abramowitz for the PR.
 

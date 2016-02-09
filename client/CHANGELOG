@@ -1,10 +1,12 @@
-2.5.0 (Unreleased)
+2.5.0 (2016-02-08)
 ------------------
 
 - the ``user`` command now behaves slightly more like ``index`` to show
   current user settings and modify them.
 
 - fix issue309: print server versions with ``devpi --version`` if available.
+  This is only supported on Python 3.x because of shortcomings in older
+  argparse versions for Python 2.x.
 
 - fix issue310: with --set-cfg the ``index`` setting in the ``[search]``
   section would be set multiple times.

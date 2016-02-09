@@ -156,11 +156,11 @@ def test_offline_mode_httpget_returns_server_error(makexom, url, allowRedirect):
 
 def test_no_root_pypi_option(makexom):
     xom = makexom(["--no-root-pypi"])
-    with xom.keyfs.transaction(write=False) as tx:
+    with xom.keyfs.transaction(write=False):
         stage = xom.model.getstage('root/pypi')
         assert stage is None
     xom = makexom()
-    with xom.keyfs.transaction(write=False) as tx:
+    with xom.keyfs.transaction(write=False):
         stage = xom.model.getstage('root/pypi')
         assert stage is not None
         assert stage.name == 'root/pypi'

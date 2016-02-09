@@ -389,7 +389,7 @@ def parse_args(argv):
     try_argcomplete(parser)
     try:
         args = parser.parse_args(argv[1:])
-        if args.version:
+        if sys.version_info >= (3,) and args.version:
             hub = Hub(args)
             print_version(hub)
             parser.exit()
@@ -433,8 +433,7 @@ def add_subparsers(parser):
         func(subparser)
         mainloc = args[0]
         subparser.set_defaults(mainloc=mainloc)
-    #subparser = subparsers.add_parser("_test", help=argparse.SUPPRESS)
-    #subparser.set_defaults(mainloc="devpi")
+
 
 def getbaseparser(prog):
     parser = MyArgumentParser(prog=prog, description=main_description)
@@ -443,8 +442,13 @@ def getbaseparser(prog):
 
 def add_generic_options(parser, defaults=False):
     group = parser.add_argument_group("generic options")
-    group.add_argument("--version", action="store_true",
-        help="show program's version number and exit")
+    if sys.version_info < (3,):
+        # workaround old argparse which doesn't support optional sub commands
+        group.add_argument("--version", action="version",
+            version="devpi-client %s" % client_version)
+    else:
+        group.add_argument("--version", action="store_true",
+            help="show program's version number and exit")
     group.add_argument("--debug", action="store_true",
         help="show debug messages including more info on server requests")
     group.add_argument("-y", action="store_true", dest="yes",
