@@ -55,6 +55,17 @@ def postgresql():
                 tmpdir, notify_on_commit=False,
                 cache_size=10000, settings=settings)
             yield settings
+            for conn, db, ts in Storage._connections:
+                try:
+                    conn.close()
+                except AttributeError:
+                    pass
+            for db in Storage._dbs_created:
+                try:
+                    subprocess.check_call([
+                        'dropdb', '-h', Storage.host, '-p', str(Storage.port), db])
+                except subprocess.CalledProcessError:
+                    pass
         finally:
             p.terminate()
             p.wait()
@@ -64,6 +75,7 @@ def postgresql():
 
 class Storage(main.Storage):
     _dbs_created = set()
+    _connections = []
 
     @property
     def database(self):
@@ -78,19 +90,34 @@ class Storage(main.Storage):
         self.__dict__["database"] = db
         return db
 
+    def get_connection(self, *args, **kwargs):
+        result = main.Storage.get_connection(self, *args, **kwargs)
+        conn = getattr(result, 'thing', result)
+        self._connections.append((conn, conn.storage.database, time.time()))
+        return result
 
-@pytest.fixture(autouse=True)
+
+@pytest.yield_fixture(autouse=True)
 def db_cleanup():
-    if len(Storage._dbs_created) < 10:
-        return
-    for db in set(Storage._dbs_created):
-        try:
-            subprocess.check_call([
-                'dropdb', '-h', Storage.host, '-p', str(Storage.port), db])
-        except subprocess.CalledProcessError:
-            pass
-        else:
-            Storage._dbs_created.remove(db)
+    try:
+        yield
+    finally:
+        dbs_to_skip = set()
+        for i, (conn, db, ts) in reversed(list(enumerate(Storage._connections))):
+            sqlconn = getattr(conn, '_sqlconn', None)
+            if sqlconn is not None:
+                # the connection is still open
+                dbs_to_skip.add(db)
+                continue
+            del Storage._connections[i]
+        for db in Storage._dbs_created - dbs_to_skip:
+            try:
+                subprocess.check_call([
+                    'dropdb', '-h', Storage.host, '-p', str(Storage.port), db])
+            except subprocess.CalledProcessError as e:
+                pass
+            else:
+                Storage._dbs_created.remove(db)
 
 
 @pytest.fixture(autouse=True, scope="session")
