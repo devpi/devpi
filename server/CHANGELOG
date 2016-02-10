@@ -1,11 +1,10 @@
-3.0.0 (Unreleased)
-------------------
+3.0.0.beta1 (2016-02-10)
+------------------------
+
+- dropped support for python2.6
 
 - block most ascii symbols for user and index names except ``-.@_``.
-
-
-3.0.0.beta1 (2016-02-08)
-------------------------
+  unicode characters are fine.
 
 - add ``--no-root-pypi`` option which prevents the creation of the
   ``root/pypi`` mirror instance on first startup.
