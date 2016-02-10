@@ -21,7 +21,8 @@ from devpi_common.request import new_requests_session
 from devpi_common.validation import normalize_name, is_valid_archive_name
 
 from .filestore import BadGateway
-from .model import InvalidIndexconfig, InvalidUser, get_ixconfigattrs
+from .model import InvalidIndex, InvalidIndexconfig, InvalidUser
+from .model import get_ixconfigattrs
 from .readonly import get_mutable_deepcopy
 from .log import thread_push_log, thread_pop_log, threadlog
 
@@ -497,6 +498,8 @@ class PyPIView:
         try:
             stage = self.context.user.create_stage(self.context.index, **kvdict)
             ixconfig = stage.ixconfig
+        except InvalidIndex as e:
+            apireturn(400, "%s" % e)
         except InvalidIndexconfig as e:
             apireturn(400, message=", ".join(e.messages))
         apireturn(200, type="indexconfig", result=ixconfig)

@@ -68,6 +68,10 @@ class InvalidUser(ModelException):
     """ If a username is invalid or already in use. """
 
 
+class InvalidIndex(ModelException):
+    """ If a indexname is invalid or already in use. """
+
+
 class NotFound(ModelException):
     """ If a project or version cannot be found. """
 
@@ -199,9 +203,17 @@ def get_indexconfig(hooks, type, **kwargs):
     return ixconfig
 
 
+name_char_blacklist_regexp = re.compile(
+    '[\x00\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\x0c\r\x0e\x0f'
+    '\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f'
+    ' !"#$%&\'()*+,/:;<=>?\[\\\\\]^`{|}~]')
+
+
+def is_valid_name(name):
+    return not name_char_blacklist_regexp.search(name)
+
+
 class User:
-    group_regexp = re.compile('^:.*:$')
-    name_regexp = re.compile('^[a-zA-Z0-9._-]+$')
 
     def __init__(self, parent, name):
         self.__parent__ = parent
@@ -217,11 +229,11 @@ class User:
     def create(cls, model, username, password, email):
         userlist = model.keyfs.USERLIST.get(readonly=False)
         if username in userlist:
-            raise InvalidUser("username already exists")
-        if not cls.name_regexp.match(username):
-            threadlog.error("username '%s' will be invalid with next release, use characters, numbers, underscore, dash and dots only" % username)
-        if cls.group_regexp.match(username):
-            raise InvalidUser("username '%s' is invalid, use characters, numbers, underscore, dash and dots only" % username)
+            raise InvalidUser("username '%s' already exists" % username)
+        if not is_valid_name(username):
+            raise InvalidUser(
+                "username '%s' contains characters that aren't allowed. "
+                "Any ascii symbol besides -.@_ is blocked." % username)
         user = cls(model, username)
         with user.key.update() as userconfig:
             user._setpassword(userconfig, password)
@@ -293,6 +305,10 @@ class User:
         return d
 
     def create_stage(self, index, type="stage", volatile=True, **kwargs):
+        if not is_valid_name(index):
+            raise InvalidIndex(
+                "indexname '%s' contains characters that aren't allowed. "
+                "Any ascii symbol besides -.@_ is blocked." % index)
         ixconfig = get_indexconfig(
             self.xom.config.hook,
             type=type, volatile=volatile, **kwargs)
@@ -309,7 +325,8 @@ class User:
         # modify user/indexconfig
         with self.key.update() as userconfig:
             indexes = userconfig.setdefault("indexes", {})
-            assert index not in indexes, indexes[index]
+            if index in indexes:
+                raise InvalidIndex("indexname '%s' already exists" % index)
             indexes[index] = ixconfig
         stage = self.getstage(index)
         threadlog.info("created index %s: %s", stage.name, stage.ixconfig)
