@@ -29,7 +29,7 @@ Install or upgrade ``devpi-server``::
 And let's check the version::
 
     $ devpi-server --version
-    2.6.0
+    3.0.0b1
 
 .. _genconfig:
 
@@ -215,15 +215,15 @@ Installing devpi server and client
 
 .. 
     $ devpi-server --stop
-    2016-01-28 23:54:51,428 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2016-01-28 23:54:51,429 INFO  NOCTX generated uuid: 1477c57104084bac8e4b041e5af73f48
-    2016-01-28 23:54:51,429 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2016-01-28 23:54:51,430 INFO  NOCTX DB: Creating schema
-    2016-01-28 23:54:51,446 INFO  [Wtx-1] setting password for user u'root'
-    2016-01-28 23:54:51,446 INFO  [Wtx-1] created user u'root' with email None
-    2016-01-28 23:54:51,446 INFO  [Wtx-1] created root user
-    2016-01-28 23:54:51,446 INFO  [Wtx-1] created root/pypi index
-    2016-01-28 23:54:51,461 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
+    2016-02-09 17:36:58,111 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2016-02-09 17:36:58,112 INFO  NOCTX generated uuid: e8868216c3464cf59a5f7a7e715c6f4c
+    2016-02-09 17:36:58,112 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    2016-02-09 17:36:58,113 INFO  NOCTX DB: Creating schema
+    2016-02-09 17:36:58,131 INFO  [Wtx-1] setting password for user u'root'
+    2016-02-09 17:36:58,132 INFO  [Wtx-1] created user u'root' with email None
+    2016-02-09 17:36:58,132 INFO  [Wtx-1] created root user
+    2016-02-09 17:36:58,132 INFO  [Wtx-1] created root/pypi index
+    2016-02-09 17:36:58,140 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
     no server found
 
 ..
@@ -236,18 +236,18 @@ and caches https://pypi.python.org packages.  Let's start a server
 for the purposes of this tutorial in the background::
 
     $ devpi-server --port 4040 --start
-    2016-01-28 23:54:52,001 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2016-01-28 23:54:52,002 INFO  NOCTX generated uuid: 616c846232c54140962ce6b0354b4ac9
-    2016-01-28 23:54:52,002 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2016-01-28 23:54:52,002 INFO  NOCTX DB: Creating schema
-    2016-01-28 23:54:52,040 INFO  [Wtx-1] setting password for user u'root'
-    2016-01-28 23:54:52,041 INFO  [Wtx-1] created user u'root' with email None
-    2016-01-28 23:54:52,041 INFO  [Wtx-1] created root user
-    2016-01-28 23:54:52,041 INFO  [Wtx-1] created root/pypi index
-    2016-01-28 23:54:52,056 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
+    2016-02-09 17:36:58,617 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2016-02-09 17:36:58,618 INFO  NOCTX generated uuid: b2004bf09f5b493ba21d7cac29b922ae
+    2016-02-09 17:36:58,618 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    2016-02-09 17:36:58,620 INFO  NOCTX DB: Creating schema
+    2016-02-09 17:36:58,650 INFO  [Wtx-1] setting password for user u'root'
+    2016-02-09 17:36:58,650 INFO  [Wtx-1] created user u'root' with email None
+    2016-02-09 17:36:58,650 INFO  [Wtx-1] created root user
+    2016-02-09 17:36:58,650 INFO  [Wtx-1] created root/pypi index
+    2016-02-09 17:36:58,669 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
     starting background devpi-server at http://localhost:4040
     /tmp/home/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server --port 4040
-    process u'devpi-server' started pid=18815
+    process u'devpi-server' started pid=5119
     devpi-server process startup detected
     logfile is at /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
 
@@ -302,6 +302,7 @@ For that we first need to login::
 and can then change it::
 
     $ devpi user -m root password=123
+    /root changing password: 123
     user modified: root
 
 Let's verify we don't have any other users::
@@ -337,6 +338,7 @@ Alice can now create her new ``dev`` index::
       volatile=True
       acl_upload=alice
       mirror_whitelist=
+      pypi_whitelist=
 
 and use it ::
 
@@ -390,7 +392,6 @@ Stopping the server
 Let's not forget to stop our background tutorial server::
 
     $ devpi-server --stop
-    2016-01-28 23:55:06,556 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2016-01-28 23:55:06,557 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    killed server pid=18815
-
+    2016-02-09 17:37:07,283 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2016-02-09 17:37:07,284 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    killed server pid=5119

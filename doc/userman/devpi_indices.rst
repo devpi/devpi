@@ -101,6 +101,7 @@ example below, we create the **emilie/prod** production index::
      volatile=False
      acl_upload=emilie
      mirror_whitelist=
+     pypi_whitelist=
    
 which leads to the following::
 
@@ -113,8 +114,9 @@ which leads to the following::
                    "acl_upload": [
                        "emilie"
                    ], 
-                   "bases": [],
-                   "mirror_whitelist": [],
+                   "bases": [], 
+                   "mirror_whitelist": [], 
+                   "pypi_whitelist": [], 
                    "type": "stage", 
                    "volatile": false
                }
@@ -141,6 +143,7 @@ specifying her ``prod`` index as follow::
      volatile=True
      acl_upload=emilie
      mirror_whitelist=
+     pypi_whitelist=
    
 which has the following definition on the server side::
 
@@ -153,8 +156,9 @@ which has the following definition on the server side::
            "bases": [
                "emilie/prod"
            ], 
+           "mirror_whitelist": [], 
            "projects": [], 
-           "mirror_whitelist": [],
+           "pypi_whitelist": [], 
            "type": "stage", 
            "volatile": true
        }, 
@@ -221,9 +225,11 @@ A mirroring index can be created by using ``type=mirror`` and setting the
    $ devpi index -c pypi type=mirror mirror_url=https://pypi.python.org/simple/
    http://localhost:3141/emilie/pypi:
      type=mirror
-     volatile=False
+     bases=
+     volatile=True
+     acl_upload=
      mirror_url=https://pypi.python.org/simple/
-     mirror_cache_expiry=1800
+     pypi_whitelist=
 
 Additionally you can set ``mirror_web_url_fmt`` if you want links to the
 original mirror in the web interface. For *root/pypi* the default
@@ -255,6 +261,7 @@ Assuming that Sophie has both index types as well::
      volatile=False
      acl_upload=sophie
      mirror_whitelist=
+     pypi_whitelist=
    
 ::
 
@@ -265,6 +272,7 @@ Assuming that Sophie has both index types as well::
      volatile=True
      acl_upload=sophie
      mirror_whitelist=
+     pypi_whitelist=
 
 Lets now assume that Sophie uploads her ``pysober`` package in her **dev** 
 index and Emilie wants to test the integration of this package with the 
@@ -289,6 +297,7 @@ bases::
      volatile=True
      acl_upload=emilie
      mirror_whitelist=
+     pypi_whitelist=
    
 .. note:: It is important to specify all bases for that index, that is repeating
           **/emilie/prod** which can be obtained by doing::
@@ -306,6 +315,7 @@ When the work is done, this relationship can be revoked by doing::
      volatile=True
      acl_upload=emilie
      mirror_whitelist=
+     pypi_whitelist=
 
 .. Adding a comment to work around a bug in regendoc where all lines are removed.     
      
@@ -318,6 +328,7 @@ which now has the ``/emilie/dev`` as a base only::
      volatile=True
      acl_upload=emilie
      mirror_whitelist=
+     pypi_whitelist=
    
 Modifying the ACL
 ^^^^^^^^^^^^^^^^^
@@ -335,6 +346,7 @@ Emilie may allow sophie to upload to her dev index:
      volatile=True
      acl_upload=emilie,sophie
      mirror_whitelist=
+     pypi_whitelist=
 
 If you have a plugin implementing an authentication method with group support,
 then you can use them in acls by prefixing the group name with a colon.
@@ -350,6 +362,7 @@ Suppose you want to allow all users in the "developers" group to upload packages
      volatile=True
      acl_upload=emilie,:developers
      mirror_whitelist=
+     pypi_whitelist=
 
 It is also possible to allow anonymous uploads if you have a controlled environment.
 
@@ -363,6 +376,7 @@ It is also possible to allow anonymous uploads if you have a controlled environm
      volatile=True
      acl_upload=:ANONYMOUS:
      mirror_whitelist=
+     pypi_whitelist=
 
 Modifying the mirror whitelist
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -380,6 +394,7 @@ To allow uploads on PyPI or another mirror to be visible on your index, you have
      volatile=True
      acl_upload=emilie
      mirror_whitelist=mypkg
+     pypi_whitelist=
 
 You can also whitelist all packages on an index by setting mirror_whitelist to an asterisk.
 
@@ -392,6 +407,7 @@ You can also whitelist all packages on an index by setting mirror_whitelist to a
      volatile=True
      acl_upload=emilie
      mirror_whitelist=*
+     pypi_whitelist=
 
 Switching Between Indices
 -------------------------
@@ -446,6 +462,7 @@ In the example below, we create a "bad" index and delete it::
      volatile=True
      acl_upload=emilie
      mirror_whitelist=
+     pypi_whitelist=
 
 here is the bad index::
 
@@ -458,8 +475,9 @@ here is the bad index::
            "bases": [
                "emilie/prod"
            ], 
+           "mirror_whitelist": [], 
            "projects": [], 
-           "mirror_whitelist": [],
+           "pypi_whitelist": [], 
            "type": "stage", 
            "volatile": true
        }, 
@@ -489,9 +507,10 @@ given user::
 
    $ devpi index -l
    emilie/prod
-   emilie/wheelindex
-   emilie/dev
+   emilie/pypi
    emilie/someindex
+   emilie/dev
+   emilie/wheelindex
    
 However, it is sometimes useful to see all indexes present on the server. This 
 can done with the **devpi** :ref:`cmdref_use` ``-l`` command [#f1]_ which 
@@ -503,9 +522,10 @@ information::
    sophie/dev      bases=sophie/prod     volatile=True
    root/pypi       bases=                volatile=False
    emilie/prod     bases=                volatile=False
-   emilie/wheelindex bases=                volatile=True
-   emilie/dev      bases=emilie/prod     volatile=True
+   emilie/pypi     bases=                volatile=True
    emilie/someindex bases=                volatile=True
+   emilie/dev      bases=emilie/prod     volatile=True
+   emilie/wheelindex bases=                volatile=True
 
 .. rubric:: Footnotes
 

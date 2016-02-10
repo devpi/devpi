@@ -1,5 +1,5 @@
 """
-perform a quickstart initialization of devpi-server and devpi-client.
+(deprecated) perform a quickstart initialization of devpi-server and devpi-client.
 """
 import py
 
