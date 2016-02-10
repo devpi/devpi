@@ -330,9 +330,9 @@ class TestMirrorIndexThings:
         mapp.use("mirror4/mirror")
         simpypi.add_release('pkg', pkgver='pkg-1.0.zip')
         result = mapp.getreleaseslist("pkg")
-        base = simpypi.baseurl.replace('http://', 'http_').replace(':', '%3A')
+        base = simpypi.baseurl.replace('http://', 'http_').replace(':', '_')
         assert len(result) == 1
-        assert result[0].endswith('/root/pypi/+e/%s_pkg/pkg-1.0.zip' % base)
+        assert result[0].endswith('/mirror4/mirror/+e/%s_pkg/pkg-1.0.zip' % base)
 
     def test_download_release_error(self, mapp, simpypi):
         mapp.create_and_login_user('mirror5')

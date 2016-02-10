@@ -17,6 +17,7 @@ from devpi_common.metadata import BasenameMeta
 from devpi_common.metadata import is_archive_of_project
 from devpi_common.types import cached_property
 from devpi_common.validation import normalize_name
+from functools import partial
 
 from .model import BaseStage, make_key_and_href, SimplelinkMeta
 from .model import InvalidIndexconfig, get_indexconfig
@@ -351,7 +352,9 @@ class PyPIStage(BaseStage):
             # both maplink() and _save_cache_links() will not modify
             # storage if there are no changes so they operate fine within a
             # read-transaction if nothing changed.
-            entries = [self.filestore.maplink(link) for link in releaselinks]
+            maplink = partial(
+                self.filestore.maplink, user=self.user.name, index=self.index)
+            entries = [maplink(link) for link in releaselinks]
             links = [make_key_and_href(entry) for entry in entries]
             self._save_cache_links(project, links, serial)
 
