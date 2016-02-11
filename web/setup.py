@@ -43,7 +43,7 @@ setup(
         'devpi_server': [
             "devpi-web = devpi_web.main"]},
     install_requires=[
-        'Whoosh',
+        'Whoosh<3',
         'beautifulsoup4>=4.3.2',
         'defusedxml',
         'devpi-server>=3.0.0.dev2',

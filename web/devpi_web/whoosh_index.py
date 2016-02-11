@@ -260,7 +260,6 @@ class Index(object):
         for project in projects:
             data = dict((u(x), get_mutable_deepcopy(project[x])) for x in main_keys if x in project)
             data['path'] = u"/{user}/{index}/{name}".format(**data)
-            log.debug("Indexing %s", data['path'])
             if not clear:
                 # because we use hierarchical documents, we have to delete
                 # everything we got for this path and index it again
