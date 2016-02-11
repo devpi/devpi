@@ -80,3 +80,63 @@ that the ``/+status`` url is routed to a main instance because workers
 will not be able to represent the status.
 
 
+storage backend selection
+-------------------------
+
+.. versionadded: 3.0
+
+.. warning::
+
+    This is experimental and not well tested in production yet, use at your
+    own risk.
+
+The storage for user and index data can be changed by plugins. One example is
+the `devpi-postgresql`_ plugin. It stores all the metadata and the package
+files in a PostgreSQL database.
+
+There are still some files in the directory specified with ``--serverdir``, for
+example the server settings including the backend. Several plugins like
+``devpi-web`` also still store their data in that directory, because the can't
+use the storage backend for various reasons.
+
+The storage backend can be selected and configured with the ``--storage``
+option. As an example for ``devpi-postgresql``::
+
+    devpi-server --serverdir newserver --storage pg8000:host=example.com
+
+
+multiple server instances
+-------------------------
+
+.. versionadded: 3.0
+
+.. warning::
+
+    This is experimental and not well tested in production yet, use at your
+    own risk. Maybe a :doc:`replica setup <replica>` is the better option.
+
+To improve the performance of ``devpi-web``, there is an option to run
+additional instances. They can be started with the ``--requests-only`` option.
+There **can** *and* **must** be only one instance which runs without
+``--requests-only``.
+
+.. warning::
+
+    The default sqlite storage backend can only have one writer, so the
+    additional instances can only be used for web views and search, not for
+    package downloads and uploads, as that can cause write conflicts. Any
+    access to mirror indexes causes writes whenever the caches are updated.
+    With a storage backend like `devpi-postgresql`_, which allows multiple
+    writers, this limitation goes away.
+
+For this to work, the ``--serverdir`` needs to be shared between all instances.
+This can either be done on the same physical server by using the same
+``--serverdir`` for all instances, or via a network filesystem.
+
+The reason why all instances but one have to run with the ``--requests-only``
+option are the event notification hooks. The event hooks are needed for
+updating the search index, unpacking docs and rendering package descriptions
+etc. If all instances would run them, they would cause write conflicts in the
+shared storage.
+
+.. _devpi-postgresql: http://pypi.python.org/pypi/devpi-postgresql
