@@ -79,25 +79,24 @@ class Storage(main.Storage):
 
 @pytest.yield_fixture(autouse=True)
 def db_cleanup():
-    try:
-        yield
-    finally:
-        dbs_to_skip = set()
-        for i, (conn, db, ts) in reversed(list(enumerate(Storage._connections))):
-            sqlconn = getattr(conn, '_sqlconn', None)
-            if sqlconn is not None:
-                # the connection is still open
-                dbs_to_skip.add(db)
-                continue
-            del Storage._connections[i]
-        for db in Storage._dbs_created - dbs_to_skip:
-            try:
-                subprocess.check_call([
-                    'dropdb', '-h', Storage.host, '-p', str(Storage.port), db])
-            except subprocess.CalledProcessError as e:
-                pass
-            else:
-                Storage._dbs_created.remove(db)
+    # this fixture is doing cleanups after tests, so it doesn't yield anything
+    yield
+    dbs_to_skip = set()
+    for i, (conn, db, ts) in reversed(list(enumerate(Storage._connections))):
+        sqlconn = getattr(conn, '_sqlconn', None)
+        if sqlconn is not None:
+            # the connection is still open
+            dbs_to_skip.add(db)
+            continue
+        del Storage._connections[i]
+    for db in Storage._dbs_created - dbs_to_skip:
+        try:
+            subprocess.check_call([
+                'dropdb', '-h', Storage.host, '-p', str(Storage.port), db])
+        except subprocess.CalledProcessError:
+            pass
+        else:
+            Storage._dbs_created.remove(db)
 
 
 @pytest.fixture(autouse=True, scope="session")
