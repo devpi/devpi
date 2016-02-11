@@ -565,8 +565,8 @@ def test_404_on_pypi_cached(httpget, pypistage):
 
     # if we reset the cache time, we should get a result
     retrieve_times.expire('foo')
-    assert pypistage.has_project_perstage("foo")
     time.sleep(0.01)  # to make sure we get a new timestamp
+    assert pypistage.has_project_perstage("foo")
     assert len(pypistage.get_releaselinks('foo')) == 0
     assert retrieve_times.get_timestamp('foo') > updated_at
 

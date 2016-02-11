@@ -1,3 +1,4 @@
+from devpi_common.types import cached_property
 from devpi_server.fileutil import dumps, loads
 from devpi_server.log import threadlog, thread_push_log, thread_pop_log
 from devpi_server.readonly import ReadonlyView
@@ -29,6 +30,20 @@ class Connection:
         self._sqlconn.close()
         del self._sqlconn
         del self.storage
+
+    def commit(self):
+        self._sqlconn.commit()
+
+    @cached_property
+    def last_changelog_serial(self):
+        return self.db_read_last_changelog_serial()
+
+    def db_read_last_changelog_serial(self):
+        q = 'SELECT MAX(serial) FROM changelog LIMIT 1'
+        c = self._sqlconn.cursor()
+        c.execute(q)
+        res = c.fetchone()[0]
+        return -1 if res is None else res
 
     def db_read_typedkey(self, relpath):
         q = "SELECT keyname, serial FROM kv WHERE key = %s"
@@ -164,7 +179,7 @@ class Storage:
     def perform_crash_recovery(self):
         pass
 
-    def get_connection(self, closing=True):
+    def get_connection(self, closing=True, write=False):
         sqlconn = pg8000.connect(
             host=self.host,
             port=int(self.port),

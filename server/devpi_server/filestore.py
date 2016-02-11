@@ -9,6 +9,7 @@ import mimetypes
 from wsgiref.handlers import format_date_time
 import os
 import py
+import re
 from devpi_common.types import cached_property, parse_hash_spec
 from .log import threadlog
 
@@ -40,7 +41,7 @@ class FileStore:
         self.rel_storedir = "+files"
         self.storedir = self.keyfs.basedir.join(self.rel_storedir)
 
-    def maplink(self, link):
+    def maplink(self, link, user, index):
         if link.hash_spec:
             # we can only create 32K entries per directory
             # so let's take the first 3 bytes which gives
@@ -53,9 +54,11 @@ class FileStore:
             parts = link.torelpath().split("/")
             assert parts
             dirname = "_".join(parts[:-1])
-            key = self.keyfs.PYPIFILE_NOMD5(user="root", index="pypi",
-                   dirname=dirname,
-                   basename=parts[-1])
+            dirname = re.sub('[^a-zA-Z0-9_.-]', '_', dirname)
+            key = self.keyfs.PYPIFILE_NOMD5(
+                user=user, index=index,
+                dirname=dirname,
+                basename=parts[-1])
         entry = FileEntry(self.xom, key, readonly=False)
         entry.url = link.geturl_nofragment().url
         entry.eggfragment = link.eggfragment

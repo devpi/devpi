@@ -1,9 +1,7 @@
-from contextlib import closing
 from devpi_postgresql import main
 from test_devpi_server import conftest
 import py
 import pytest
-import socket
 import subprocess
 import tempfile
 import time
@@ -11,24 +9,6 @@ import time
 
 # we need the --backend option here as well
 pytest_addoption = conftest.pytest_addoption
-
-
-def get_open_port(host):
-    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-        s.bind((host, 0))
-        s.listen(1)
-        port = s.getsockname()[1]
-    return port
-
-
-def wait_for_port(host, port, timeout=60):
-    while timeout > 0:
-        with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-            s.settimeout(1)
-            if s.connect_ex((host, port)) == 0:
-                return
-        time.sleep(1)
-        timeout -= 1
 
 
 @pytest.yield_fixture(scope="session")
@@ -43,10 +23,10 @@ def postgresql():
                 b"full_page_writes = off",
                 b"synchronous_commit = off"]))
         host = 'localhost'
-        port = get_open_port(host)
+        port = conftest.get_open_port(host)
         p = subprocess.Popen([
             'postgres', '-D', tmpdir.strpath, '-h', host, '-p', str(port)])
-        wait_for_port(host, port)
+        conftest.wait_for_port(host, port)
         try:
             subprocess.check_call([
                 'createdb', '-h', host, '-p', str(port), 'devpi'])
@@ -55,6 +35,17 @@ def postgresql():
                 tmpdir, notify_on_commit=False,
                 cache_size=10000, settings=settings)
             yield settings
+            for conn, db, ts in Storage._connections:
+                try:
+                    conn.close()
+                except AttributeError:
+                    pass
+            for db in Storage._dbs_created:
+                try:
+                    subprocess.check_call([
+                        'dropdb', '-h', Storage.host, '-p', str(Storage.port), db])
+                except subprocess.CalledProcessError:
+                    pass
         finally:
             p.terminate()
             p.wait()
@@ -64,6 +55,7 @@ def postgresql():
 
 class Storage(main.Storage):
     _dbs_created = set()
+    _connections = []
 
     @property
     def database(self):
@@ -78,12 +70,26 @@ class Storage(main.Storage):
         self.__dict__["database"] = db
         return db
 
+    def get_connection(self, *args, **kwargs):
+        result = main.Storage.get_connection(self, *args, **kwargs)
+        conn = getattr(result, 'thing', result)
+        self._connections.append((conn, conn.storage.database, time.time()))
+        return result
 
-@pytest.fixture(autouse=True)
+
+@pytest.yield_fixture(autouse=True)
 def db_cleanup():
-    if len(Storage._dbs_created) < 10:
-        return
-    for db in set(Storage._dbs_created):
+    # this fixture is doing cleanups after tests, so it doesn't yield anything
+    yield
+    dbs_to_skip = set()
+    for i, (conn, db, ts) in reversed(list(enumerate(Storage._connections))):
+        sqlconn = getattr(conn, '_sqlconn', None)
+        if sqlconn is not None:
+            # the connection is still open
+            dbs_to_skip.add(db)
+            continue
+        del Storage._connections[i]
+    for db in Storage._dbs_created - dbs_to_skip:
         try:
             subprocess.check_call([
                 'dropdb', '-h', Storage.host, '-p', str(Storage.port), db])
