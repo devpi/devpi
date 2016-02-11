@@ -104,7 +104,7 @@ def devpiserver_storage_backend_mock(postgresql):
     old = main.devpiserver_storage_backend
 
     def devpiserver_storage_backend(settings):
-        result = old()
+        result = old(settings)
         Storage.host = postgresql['host']
         Storage.port = postgresql['port']
         result['storage'] = Storage
