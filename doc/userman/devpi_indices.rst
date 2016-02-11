@@ -413,6 +413,30 @@ You can also whitelist all packages on an index by setting mirror_whitelist to a
      mirror_whitelist=*
      pypi_whitelist=
 
+Modifying the title and description
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. versionadded:: 3.0
+
+An index can have a title and description which is used in ``devpi-web``.
+
+.. code-block:: console
+
+   $ devpi index -c wheelindex "title=Wheel Index" "description=Used for pip wheels"
+   http://localhost:3141/emilie/wheelindex:
+     type=stage
+     bases=
+     volatile=True
+     acl_upload=emilie
+     mirror_whitelist=*
+     pypi_whitelist=
+     title=Wheel Index
+     description=Used for pip wheels
+
+The description is included as is on the index overview page. You can't use any
+html here for security reasons.
+
+
 Switching Between Indices
 -------------------------
 

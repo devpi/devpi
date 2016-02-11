@@ -95,7 +95,8 @@ Once authenticated, the session remains for a period of 10 hours.
 Modifying a User
 ----------------
 
-It is possible to modify the user password and/or email address.
+It is possible to modify the user password, email address, title and/or
+description.
 
 First login at the user or root::
 
@@ -110,6 +111,18 @@ Then modify the desired property::
    
 Attempting to modify a user with the wrong credentials results in an 401 
 (unauthorized) error.
+
+Multiple properties can be changed at once::
+
+   $ devpi user -m emilie title=CTO "description=Has final say"
+   /emilie changing title: CTO
+   /emilie changing description: Has final say
+   user modified: emilie
+
+.. versionadded:: 3.0
+
+The title and description are used by ``devpi-web`` in the main overview page.
+
 
 Deleting a User
 ---------------
