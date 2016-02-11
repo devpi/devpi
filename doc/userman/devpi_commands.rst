@@ -245,7 +245,6 @@ push
       -v, --verbose    increase verbosity
       --clientdir DIR  directory for storing login and other state
 
-
 .. _cmdref_remove:
 
 remove
@@ -540,7 +539,7 @@ devpi command reference (server)
       --no-root-pypi        don't create root/pypi on server initialization.
     
     deployment and data options:
-      --version             show devpi_version (3.0.0b1)
+      --version             show devpi_version (3.0.0)
       --role {master,replica,auto}
                             set role of this instance. [auto]
       --master-url MASTER_URL
