@@ -16,25 +16,14 @@ on most urls.
     If you have a :doc:`replica` setup you are free to run only a replica
     site with the web interface and run a core ``devpi-server`` without it.
 
-    Note, however, that as of the 2.0 version, you cannot add the web interface
-    plugin after the first devpi-server start.  It's recommended to
-    install the web interface for devpi-server installations unless you are
-    aiming for a more refined deployment aiming at minimizing risks.
-    It's fine to uninstall devpi-web later in the lifetime of a devpi-server.
-
-    It is possible to use devpi-web if you run an import though. So if you
-    already used devpi-server and want to start using devpi-web, you can do so
-    by exporting your data and importing it in an installation that has
-    devpi-web included.
-
-
 Usage and installation
 -------------------------------------------
 
 ``devpi-web`` needs to be installed alongside ``devpi-server`` before
 the server is started the first time because it needs to follow all 
-server state changes from the beginning. You can export without devpi-web
-and import in a new installation with devpi-web though.
+server state changes from the beginning.  If you already did start
+devpi-server before you installed devpi-web you will need to export your
+data and import in a new installation with devpi-web installed.
 
 You can install the web interface with::
 

@@ -4,12 +4,12 @@ Changelog
 
 devpi-client
 ============
-.. include:: ../client/changelog
+.. include:: ../client/CHANGELOG
 
 devpi-server
 ============
-.. include:: ../server/changelog
+.. include:: ../server/CHANGELOG
 
 devpi-web
 =========
-.. include:: ../web/changelog
+.. include:: ../web/CHANGELOG

@@ -6,7 +6,7 @@ devpi administration manual
 .. toctree::
    :maxdepth: 3
 
-   web
    server
+   web
    server-status
    replica

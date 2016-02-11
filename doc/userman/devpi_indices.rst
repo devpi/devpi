@@ -216,8 +216,12 @@ And from there, the urls should be set to::
           himself/herself. This implies that other users are not allowed 
           to upload packages in that index.  
 
+.. _mirror_index:
+
 Creating a mirror index
 ^^^^^^^^^^^^^^^^^^^^^^^
+
+.. versionadded:: 3.0
 
 A mirroring index can be created by using ``type=mirror`` and setting the
 ``mirror_url`` option::
