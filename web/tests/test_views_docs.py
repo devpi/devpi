@@ -1,3 +1,4 @@
+import sys
 from devpi_common.archive import zip_dict
 import py
 import pytest
@@ -129,6 +130,7 @@ def test_docs_latest(mapp, testapp):
     assert r.text == "<html><body>2.7</body></html>"
 
 
+@pytest.mark.xfail(sys.platform.startswith("win"), run=False, reason="flaky test on windows")
 @pytest.mark.with_notifier
 def test_docs_stable(mapp, testapp):
     api = mapp.create_and_use()
