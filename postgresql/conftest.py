@@ -1,9 +1,7 @@
-from contextlib import closing
 from devpi_postgresql import main
 from test_devpi_server import conftest
 import py
 import pytest
-import socket
 import subprocess
 import tempfile
 import time
@@ -11,24 +9,6 @@ import time
 
 # we need the --backend option here as well
 pytest_addoption = conftest.pytest_addoption
-
-
-def get_open_port(host):
-    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-        s.bind((host, 0))
-        s.listen(1)
-        port = s.getsockname()[1]
-    return port
-
-
-def wait_for_port(host, port, timeout=60):
-    while timeout > 0:
-        with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-            s.settimeout(1)
-            if s.connect_ex((host, port)) == 0:
-                return
-        time.sleep(1)
-        timeout -= 1
 
 
 @pytest.yield_fixture(scope="session")
@@ -43,10 +23,10 @@ def postgresql():
                 b"full_page_writes = off",
                 b"synchronous_commit = off"]))
         host = 'localhost'
-        port = get_open_port(host)
+        port = conftest.get_open_port(host)
         p = subprocess.Popen([
             'postgres', '-D', tmpdir.strpath, '-h', host, '-p', str(port)])
-        wait_for_port(host, port)
+        conftest.wait_for_port(host, port)
         try:
             subprocess.check_call([
                 'createdb', '-h', host, '-p', str(port), 'devpi'])
