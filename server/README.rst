@@ -1,4 +1,4 @@
-devpi-server: consistent pypi.python.org cache, github-style internal indexes
+devpi-server: pypi server for caching and private indexes
 =============================================================================
 
 * `issue tracker <https://bitbucket.org/hpk42/devpi/issues>`_, `repo

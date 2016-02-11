@@ -413,6 +413,8 @@ You can also whitelist all packages on an index by setting mirror_whitelist to a
      mirror_whitelist=*
      pypi_whitelist=
 
+.. _index_description:
+
 Modifying the title and description
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
