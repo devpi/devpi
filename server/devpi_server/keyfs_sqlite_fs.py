@@ -100,7 +100,7 @@ class Storage(BaseStorage):
             """)
 
 
-def devpiserver_storage_backend():
+def devpiserver_storage_backend(settings):
     return dict(
         storage=Storage,
         name="sqlite",

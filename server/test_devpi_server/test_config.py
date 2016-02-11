@@ -175,3 +175,20 @@ class TestConfig:
                               "--storage", "sqlite"])
         with pytest.raises(Fatal):
             config.init_nodeinfo()
+
+    @pytest.mark.no_storage_option
+    def test_storage_backend_options(self, makexom):
+        class Plugin:
+            def devpiserver_storage_backend(self, settings):
+                from devpi_server import keyfs_sqlite_fs
+                self.settings = settings
+                return dict(
+                    storage=keyfs_sqlite_fs.Storage,
+                    name="foo",
+                    description="Foo backend")
+        options = ("--storage", "foo:bar=ham")
+        config = make_config(("devpi-server",) + options)
+        assert config.args.storage == "foo:bar=ham"
+        plugin = Plugin()
+        makexom(plugins=(plugin,), opts=options)
+        assert plugin.settings == {"bar": "ham"}

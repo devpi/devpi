@@ -276,14 +276,9 @@ class Storage:
                 c.close()
 
 
-def devpiserver_storage_backend(settings=None):
-    opts = {}
-    if settings is not None:
-        for item in settings.split(','):
-            key, value = item.split('=', 1)
-            opts[key] = value
+def devpiserver_storage_backend(settings):
     return dict(
-        storage=partial(Storage, settings=opts),
+        storage=partial(Storage, settings=settings),
         name="pg8000",
         description="Postgresql backend")
 

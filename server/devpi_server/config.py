@@ -149,11 +149,10 @@ def addoptions(parser, pluginmanager):
                  "average. So by default about 10MB are used.")
 
     backends = sorted(
-        pluginmanager.hook.devpiserver_storage_backend(),
+        pluginmanager.hook.devpiserver_storage_backend(settings=None),
         key=itemgetter("name"))
     deploy.addoption("--storage", type=str, metavar="NAME",
             action="store",
-            choices=[x['name'] for x in backends],
             help="the storage backend to use. This choice will be stored in "
                  "your '--serverdir' upon initialization.\n" + ", ".join(
                  '"%s": %s' % (x['name'], x['description']) for x in backends))
@@ -372,7 +371,12 @@ class Config:
         old_storage_info = self.nodeinfo.get("storage", {})
         old_name = old_storage_info.get("name")
         if self.args.storage:
-            name, sep, settings = self.args.storage.partition(':')
+            name, sep, setting_str = self.args.storage.partition(':')
+            settings = {}
+            if setting_str:
+                for item in setting_str.split(','):
+                    key, value = item.split('=', 1)
+                    settings[key] = value
             storage_info = self._storage_info_from_name(name, settings)
             if old_name is not None and storage_info["name"] != old_name:
                 fatal("cannot change storage type after initialization")

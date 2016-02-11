@@ -103,7 +103,7 @@ def db_cleanup():
 def devpiserver_storage_backend_mock(postgresql):
     old = main.devpiserver_storage_backend
 
-    def devpiserver_storage_backend(settings=None):
+    def devpiserver_storage_backend(settings):
         result = old()
         Storage.host = postgresql['host']
         Storage.port = postgresql['port']
