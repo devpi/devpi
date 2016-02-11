@@ -44,6 +44,8 @@ def get_ixconfigattrs(hooks, index_type):
             "mirror_web_url_fmt"))
     elif index_type == 'stage':
         base.update(("bases", "acl_upload", "mirror_whitelist"))
+    # XXX backward compatibility with devpi-client <= 2.4.1
+    base.update(("pypi_whitelist",))
     for defaults in hooks.devpiserver_indexconfig_defaults(index_type=index_type):
         conflicting = base.intersection(defaults)
         if conflicting:
@@ -178,7 +180,7 @@ def get_indexconfig(hooks, type, **kwargs):
             ixconfig["bases"] = ensure_list(kwargs.pop("bases"))
         if "mirror_whitelist" in kwargs and kwargs.get("pypi_whitelist", []) != []:
             raise InvalidIndexconfig(
-                ["indexconfig got non empty pypi_whitelist, use mirror_whitelist instead"])
+                ["pypi_whitelist is deprecated, use mirror_whitelist instead"])
         if "pypi_whitelist" in kwargs:
             ixconfig["mirror_whitelist"] = ensure_list(
                 kwargs.pop("pypi_whitelist"))
