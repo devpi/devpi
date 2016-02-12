@@ -1,4 +1,4 @@
-devpi-{server,web}-3.0 releases: generalized mirroring, speed, descriptions
+devpi-{server,web}-3.0 releases: generalized mirroring, speed, new backends
 ============================================================================
 
 The 3.0 releases of devpi-server and devpi-web, the python packaging and 
@@ -24,6 +24,9 @@ bring several major improvements:
   The default remains to use the "sqlite" backend and store files
   on the filesystem. See
   http://doc.devpi.net/3.0/adminman/server.html#storage-backend-selection
+
+- indexes can now have a title and description, see
+  http://doc.devpi.net/3.0/userman/devpi_indices.html#modifying-the-title-and-description
 
 - we started a new "admin" manual for devpi-server which describes
   features relating to server configuration, replication and security
