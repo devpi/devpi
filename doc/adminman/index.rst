@@ -7,6 +7,7 @@ devpi administration manual
    :maxdepth: 3
 
    server
+   security
    web
    server-status
    replica

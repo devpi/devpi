@@ -148,7 +148,9 @@ credentials::
 .. rubric:: Footnotes
 
 .. [#f1] This is a workaround.
-    
+
+.. _devpi_um_restrict_user_creation:
+
 Restricting who can create users
 --------------------------------
 

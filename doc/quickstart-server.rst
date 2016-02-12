@@ -16,6 +16,11 @@ Note that the :doc:`the pypi-mirroring quickstart
 --start|--log|--stop`` background-server control options which you might
 use to integrate with existing ``init.d`` or similar infrastructure.
 
+.. warning::
+
+    If you intend to expose your server to the internet, you should read
+    about :doc:`securing it properly <adminman/security>`.
+
 Installing devpi-server
 -----------------------
 
@@ -262,8 +267,8 @@ In order to manage users and indices on our fresh server let's also
 install the ``devpi-client`` package::
 
     $ pip install -U --pre -q devpi-client
-    ?25l?25hYou can install this client software on different hosts if you
-`configured nginx`_.
+
+You can install this client software on different hosts if you `configured nginx`_.
 
 .. _auth:
 
