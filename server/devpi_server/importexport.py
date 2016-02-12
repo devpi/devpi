@@ -312,7 +312,7 @@ class Importer:
                 user, index = stagename.split("/")
                 user = self.xom.model.get_user(user)
                 stage = user.create_stage(index, **indexconfig)
-            stages.append(stage)
+                stages.append(stage)
         del tree
 
         # create projects and releasefiles for each index

@@ -107,6 +107,26 @@ class TestImportExport:
     def impexp(self, makeimpexp):
         return makeimpexp()
 
+    def test_importing_multiple_indexes_with_releases(self, impexp):
+        mapp1 = impexp.mapp1
+        api1 = mapp1.create_and_use()
+        content = b'content1'
+        mapp1.upload_file_pypi("hello-1.0.tar.gz", content, "hello", "1.0")
+        path, = mapp1.get_release_paths("hello")
+        path = path.strip("/")
+        stagename2 = api1.user + "/" + "dev6"
+        api2 = mapp1.create_index(stagename2)
+        content = b'content2'
+        mapp1.upload_file_pypi("pkg1-1.0.tar.gz", content, "pkg1", "1.0")
+        impexp.export()
+        mapp2 = impexp.new_import()
+        mapp2.use(api1.stagename)
+        assert mapp2.get_release_paths('hello') == [
+            '/user1/dev/+f/d0b/425e00e15a0d3/hello-1.0.tar.gz']
+        mapp2.use(api2.stagename)
+        assert mapp2.get_release_paths('pkg1') == [
+            '/user1/dev6/+f/dab/741b6289e7dcc/pkg1-1.0.tar.gz']
+
     def test_uuid(self, impexp):
         impexp.export()
         mapp2 = impexp.new_import()

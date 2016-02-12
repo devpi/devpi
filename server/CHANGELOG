@@ -1,3 +1,10 @@
+3.0.1 (2016-02-12)
+------------------
+
+- fix importing of uploaded files. Only the last index from exported data
+  was processed.
+
+
 3.0.0 (2016-02-12)
 ------------------
 
