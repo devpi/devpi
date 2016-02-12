@@ -5,6 +5,9 @@ import pytest
 import re
 
 
+pytestmark = pytest.mark.xfail(sys.platform.startswith("win"), run=False, reason="flaky test on windows")
+
+
 def compareable_text(text):
     return re.sub('\s+', ' ', text.strip())
 
@@ -130,7 +133,6 @@ def test_docs_latest(mapp, testapp):
     assert r.text == "<html><body>2.7</body></html>"
 
 
-@pytest.mark.xfail(sys.platform.startswith("win"), run=False, reason="flaky test on windows")
 @pytest.mark.with_notifier
 def test_docs_stable(mapp, testapp):
     api = mapp.create_and_use()
