@@ -75,8 +75,9 @@ class Hub:
 
     # remote http hooks
 
-    def http_api(self, method, url, kvdict=None, quiet=False, auth=notset,
-        check_version=True, fatal=True, type=None):
+    def http_api(self, method, url, kvdict=None, quiet=False,
+                 auth=notset, basic_auth=notset, cert=notset,
+                 check_version=True, fatal=True, type=None):
         """ send a json request and return a HTTPReply object which
         adds some extra methods to the requests's Reply object.
 
@@ -99,8 +100,10 @@ class Hub:
             if auth is notset:
                 auth = self.current.get_auth()
             set_devpi_auth_header(headers, auth)
-            basic_auth = self.current.get_basic_auth(url=url)
-            cert = self.current.get_client_cert(url=url)
+            if basic_auth is notset:
+                basic_auth = self.current.get_basic_auth(url=url)
+            if cert is notset:
+                cert = self.current.get_client_cert(url=url)
             r = self.http.request(method, url, data=data, headers=headers,
                                   auth=basic_auth, cert=cert)
         except self.http.Errors as e:

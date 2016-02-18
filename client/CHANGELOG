@@ -1,3 +1,14 @@
+2.6.0 (Unreleased)
+------------------
+
+- switching to another server with ``devpi use`` now reuses an existing
+  authentication token as well as previously set basic auth and client cert.
+
+- basic authentication is now stored at the devpi-server root instead of the
+  domain root, so you can have more than one devpi-server on different paths
+  with different basic auth.
+
+
 2.5.0 (2016-02-08)
 ------------------
 
@@ -17,6 +28,7 @@
 
 - "devpi quickstart" is not documented anymore and will be removed
   in a later release.
+
 
 2.4.1 (2016-02-01)
 ------------------

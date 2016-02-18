@@ -86,14 +86,18 @@ class TestUnit:
         current = Current(tmpdir.join("current"))
         login1 = "http://site.com/+login"
         login2 = "http://site2.com/+login"
-        current.set_auth("hello", "pass1", login1)
-        current.set_auth("hello", "pass2", login2)
+        current.login = login1
+        current.set_auth("hello", "pass1")
+        current.login = login2
+        current.set_auth("hello", "pass2")
         assert current.get_auth(login1) == ("hello", "pass1")
         assert current.get_auth(login2) == ("hello", "pass2")
-        current.del_auth(login1)
+        current.login = login1
+        current.del_auth()
         assert not current.get_auth(login1)
         assert current.get_auth(login2) == ("hello", "pass2")
-        current.del_auth(login2)
+        current.login = login2
+        current.del_auth()
         assert not current.get_auth(login2)
 
     def test_invalid_url(self, loghub, tmpdir):
@@ -187,9 +191,9 @@ class TestUnit:
         hub = cmd_devpi("use", "-l")
         assert hub.current.get_basic_auth(url="http://devpi/foo/bar") == ('user', 'password')
         assert hub.current.get_basic_auth(url="http://devpi:80/foo/bar") == ('user', 'password')
-        # now without basic authentication
+        # now without basic authentication the user and password should still be used
         hub = cmd_devpi("use", "http://devpi/foo/bar")
-        assert hub.current.get_basic_auth(url="http://devpi/foo/bar") is None
+        assert hub.current.get_basic_auth(url="http://devpi/foo/bar") == ('user', 'password')
 
     def test_use_with_basic_auth_https(self, cmd_devpi, mock_http_api):
         mock_http_api.set(
@@ -205,9 +209,9 @@ class TestUnit:
         # should work with and without explicit port if it's the default port
         assert hub.current.get_basic_auth(url="https://devpi/foo/bar") == ('user', 'password')
         assert hub.current.get_basic_auth(url="https://devpi:443/foo/bar") == ('user', 'password')
-        # now without basic authentication
+        # now without basic authentication the user and password should still be used
         hub = cmd_devpi("use", "https://devpi/foo/bar")
-        assert hub.current.get_basic_auth(url="https://devpi/foo/bar") is None
+        assert hub.current.get_basic_auth(url="https://devpi/foo/bar") == ('user', 'password')
 
     def test_change_index(self, cmd_devpi, mock_http_api):
         mock_http_api.set("http://world.com/+api", 200,
