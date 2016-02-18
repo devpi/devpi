@@ -9,7 +9,7 @@ from base64 import b64encode
 from devpi_common.types import lazydecorator, cached_property
 from devpi_common.url import URL
 from devpi_common.proc import check_output
-from devpi.use import Current
+from devpi.use import PersistentCurrent
 from devpi_common.request import new_requests_session
 from devpi import __version__ as client_version
 
@@ -181,7 +181,7 @@ class Hub:
     def current(self):
         self.clientdir.ensure(dir=1)
         path = self.clientdir.join("current.json")
-        return Current(path)
+        return PersistentCurrent(path)
 
     def get_existing_file(self, arg):
         p = py.path.local(arg, expanduser=True)

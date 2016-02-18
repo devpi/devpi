@@ -27,10 +27,10 @@ def test_linkset_underscore():
 
 
 class TestRemoteIndex:
-    def test_basic(self, monkeypatch, gen, tmpdir):
+    def test_basic(self, monkeypatch, gen):
         md5 = gen.md5()
         indexurl = "http://my/simple/"
-        current = Current(tmpdir.join("client"))
+        current = Current()
         current.reconfigure(dict(simpleindex=indexurl))
         ri = RemoteIndex(current)
         def mockget(url):
@@ -44,9 +44,9 @@ class TestRemoteIndex:
         link = ri.getbestlink("pkg")
         assert URL(link.url).url_nofrag == "http://my/pkg-1.2.tar.gz"
 
-    def test_receive_error(self, monkeypatch, tmpdir):
+    def test_receive_error(self, monkeypatch):
         indexurl = "http://my/simple/"
-        current = Current(tmpdir.join("client"))
+        current = Current()
         current.reconfigure(dict(simpleindex=indexurl))
         ri = RemoteIndex(current)
         def mockget(url):
@@ -64,9 +64,9 @@ class TestRemoteIndex:
         ("pkg>=0.2.8", "http://my/pkg-0.3.tar.gz"),
         ("pkg<0.2.4,>0.2.2", "http://my/pkg-0.2.3.tar.gz"),
     ])
-    def test_package_with_version_specs(self, monkeypatch, tmpdir, specs, link):
+    def test_package_with_version_specs(self, monkeypatch, specs, link):
         indexurl = "http://my/simple/"
-        current = Current(tmpdir.join("client"))
+        current = Current()
         current.reconfigure(dict(simpleindex=indexurl))
         ri = RemoteIndex(current)
         def mockget(url):

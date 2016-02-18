@@ -8,6 +8,9 @@
   domain root, so you can have more than one devpi-server on different paths
   with different basic auth.
 
+- fix issue318: ``devpi test --index`` now accepts a URL, so one can test a
+  package from another server without having to run ``devpi use`` first.
+
 
 2.5.0 (2016-02-08)
 ------------------

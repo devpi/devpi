@@ -1,8 +1,11 @@
-#from __future__ import unicode_literals
-
+from devpi.use import BuildoutCfg, DistutilsCfg, PipCfg
+from devpi.use import Current, PersistentCurrent
+from devpi.use import parse_keyvalue_spec, out_index_list
+from devpi_common.url import URL
 import pytest
+import re
 import requests.exceptions
-from devpi.use import *
+
 
 def test_ask_confirm(makehub, monkeypatch):
     import devpi.main
@@ -23,7 +26,7 @@ def test_ask_confirm_delete_args_yes(makehub):
 class TestUnit:
     def test_write_and_read(self, tmpdir):
         path=tmpdir.join("current")
-        current = Current(path)
+        current = PersistentCurrent(path)
         assert not current.simpleindex
         current.reconfigure(dict(
                 pypisubmit="/post",
@@ -31,7 +34,7 @@ class TestUnit:
                 login="/login",
         ))
         assert current.simpleindex
-        newcurrent = Current(path)
+        newcurrent = PersistentCurrent(path)
         assert newcurrent.pypisubmit == current.pypisubmit
         assert newcurrent.simpleindex == current.simpleindex
         assert newcurrent.venvdir == current.venvdir
@@ -39,7 +42,7 @@ class TestUnit:
 
     def test_write_and_read_always_setcfg(self, tmpdir):
         path=tmpdir.join("current")
-        current = Current(path)
+        current = PersistentCurrent(path)
         assert not current.simpleindex
         current.reconfigure(dict(
                 pypisubmit="/post",
@@ -48,10 +51,10 @@ class TestUnit:
         ))
         assert current.simpleindex
         current.reconfigure(dict(always_setcfg=True))
-        newcurrent = Current(path)
+        newcurrent = PersistentCurrent(path)
         assert newcurrent.always_setcfg == True
         newcurrent.reconfigure(data=dict(simpleindex="/index2"))
-        current = Current(path)
+        current = PersistentCurrent(path)
         assert current.always_setcfg
         assert current.simpleindex == "/index2"
 
@@ -76,14 +79,14 @@ class TestUnit:
         cmd_devpi("use", "-l")
         assert mtime == path.mtime()
 
-    def test_normalize_url(self, tmpdir):
-        current = Current(tmpdir.join("current"))
+    def test_normalize_url(self):
+        current = Current()
         current.reconfigure(dict(simpleindex="http://my.serv/index1"))
         url = current._normalize_url("index2")
         assert url == "http://my.serv/index2"
 
-    def test_auth_multisite(self, tmpdir):
-        current = Current(tmpdir.join("current"))
+    def test_auth_multisite(self):
+        current = Current()
         login1 = "http://site.com/+login"
         login2 = "http://site2.com/+login"
         current.login = login1
@@ -100,13 +103,13 @@ class TestUnit:
         current.del_auth()
         assert not current.get_auth(login2)
 
-    def test_invalid_url(self, loghub, tmpdir):
-        current = Current(tmpdir.join("current"))
+    def test_invalid_url(self, loghub):
+        current = Current()
         with pytest.raises(SystemExit):
             current.configure_fromurl(loghub, "http://heise.de:1802:31/qwe")
 
-    def test_auth_handling(self, loghub, tmpdir):
-        current = Current(tmpdir.join("current"))
+    def test_auth_handling(self, loghub):
+        current = Current()
         d = {
             "index": "http://l/some/index",
             "login": "http://l/login",
@@ -126,8 +129,8 @@ class TestUnit:
         current._configure_from_server_api(d, URL(current.rooturl))
         assert not current.get_auth()
 
-    def test_rooturl_on_outside_url(self, loghub, tmpdir):
-        current = Current(tmpdir.join("current"))
+    def test_rooturl_on_outside_url(self, loghub):
+        current = Current()
         d = {
             "index": "http://l/subpath/some/index",
             "login": "http://l/subpath/login",
@@ -234,6 +237,32 @@ class TestUnit:
         assert not hub.current.index
         assert hub.current.rooturl == "http://world2.com/"
 
+    def test_switch_to_temporary(self, makehub, mock_http_api):
+        hub = makehub(['use'])
+        mock_http_api.set(
+            "http://foo/+api", 200, result=dict(
+                pypisubmit="/post",
+                simpleindex="/index/",
+                index="root/some",
+                bases="root/dev",
+                login="/+login",
+                authstatus=["noauth", ""]))
+        current = Current()
+        d = {
+            "index": "http://l/some/index",
+            "login": "http://l/login",
+        }
+        current.reconfigure(data=d)
+        current.set_auth("user", "password")
+        assert current.get_auth() == ("user", "password")
+        temp = current.switch_to_temporary(hub, "http://foo")
+        temp.set_auth("user1", "password1")
+        assert temp.get_auth() == ("user1", "password1")
+        # original is unaffected
+        assert current.get_auth() == ("user", "password")
+        assert temp._currentdict is not current._currentdict
+        assert temp._currentdict['auth'] is not current._currentdict['auth']
+
     def test_main(self, cmd_devpi, mock_http_api):
         mock_http_api.set("http://world/this/+api", 200,
                     result=dict(
@@ -288,7 +317,7 @@ class TestUnit:
         venvdir.ensure(vbin, dir=1)
         monkeypatch.chdir(tmpdir)
         hub = cmd_devpi("use", "--venv=%s" % venvdir)
-        current = Current(hub.current.path)
+        current = PersistentCurrent(hub.current.path)
         assert current.venvdir == str(venvdir)
         hub = cmd_devpi("use", "--venv=%s" % venvdir)
         res = out_devpi("use")

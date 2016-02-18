@@ -1,3 +1,4 @@
+from copy import deepcopy
 import os
 import sys
 import py
@@ -33,6 +34,9 @@ class Current(object):
     _client_cert = currentproperty("client_cert")
     always_setcfg = currentproperty("always_setcfg")
 
+    def __init__(self):
+        self._currentdict = {}
+
     @property
     def simpleindex_auth(self):
         indexserver = URL(self.simpleindex)
@@ -56,12 +60,6 @@ class Current(object):
         if self.index:
             return URL(self.index)
         return URL("")
-
-    def __init__(self, path):
-        self.path = path
-        self._currentdict = {}
-        if self.path.check():
-            self._currentdict.update(json.loads(self.path.read()))
 
     def _value_from_dict_by_url(self, d, url, default=None):
         # searches for longest match, so there can be multiple devpi instances
@@ -165,17 +163,6 @@ class Current(object):
             newval = data[name]
             if oldval != newval:
                 setattr(self, name, newval)
-        try:
-            olddata = json.loads(self.path.read())
-        except Exception:
-            olddata = {}
-        if self._currentdict != olddata:
-            oldumask = os.umask(7 * 8 + 7)
-            try:
-                self.path.write(
-                    json.dumps(self._currentdict, indent=2, sort_keys=True))
-            finally:
-                os.umask(oldumask)
 
     def exists(self):
         return self.path and self.path.check()
@@ -185,6 +172,12 @@ class Current(object):
         if not url.is_valid_http_url():
             url = URL(self.simpleindex, url.url).url
         return url
+
+    def switch_to_temporary(self, hub, url):
+        current = Current()
+        current._currentdict = deepcopy(self._currentdict)
+        current.configure_fromurl(hub, url)
+        return current
 
     def configure_fromurl(self, hub, url, client_cert=None):
         is_absolute_url = url is not None and '://' in url
@@ -288,6 +281,28 @@ class Current(object):
     def get_simpleproject_url(self, name, indexname=None):
         return self.get_simpleindex_url(
             indexname=indexname).addpath(name, asdir=1)
+
+
+class PersistentCurrent(Current):
+    def __init__(self, path):
+        Current.__init__(self)
+        self.path = path
+        if self.path.check():
+            self._currentdict.update(json.loads(self.path.read()))
+
+    def reconfigure(self, data):
+        Current.reconfigure(self, data)
+        try:
+            olddata = json.loads(self.path.read())
+        except Exception:
+            olddata = {}
+        if self._currentdict != olddata:
+            oldumask = os.umask(7 * 8 + 7)
+            try:
+                self.path.write(
+                    json.dumps(self._currentdict, indent=2, sort_keys=True))
+            finally:
+                os.umask(oldumask)
 
 
 def out_index_list(hub, data):
