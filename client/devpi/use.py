@@ -21,17 +21,6 @@ def currentproperty(name):
         self._currentdict[name] = val
     return property(propget, propset)
 
-def urlproperty(name):
-    def propget(self):
-        val = self._currentdict.get(name, None)
-        if val:
-            return URL(val)
-
-    def propset(self, val):
-        if isinstance(val, URL):
-            val = val.url
-        self._currentdict[name] = val
-    return property(propget, propset)
 
 class Current(object):
     index = currentproperty("index")
