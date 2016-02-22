@@ -244,6 +244,11 @@ We can verify that the test status was recorded via::
     http://localhost:3141/testuser/dev/+f/371/be2830420799e/example-1.0.tar.gz
     uwanda     linux2  python     2.7.11 tests passed
 
+.. versionadded:: 2.6
+
+With ``--index`` you can get the release from another index. Full URLs to
+another devpi-server are also supported.
+
 .. note::
 
     Since version 2.2.0 testing of universal wheels is supported if there

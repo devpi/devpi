@@ -761,7 +761,9 @@ def test(parser):
              "the detox tool (which must be installed)")
 
     parser.add_argument("--index", default=None,
-        help="index to get package from (defaults to current index)")
+        help="index to get package from, defaults to current index. "
+             "Either just the NAME, using the current user, USER/NAME using "
+             "the current server or a full URL for another server.")
 
     parser.add_argument("pkgspec", metavar="pkgspec", type=str,
         default=None, action="store", nargs="+",

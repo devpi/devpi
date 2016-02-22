@@ -205,7 +205,7 @@ def main(hub, args):
             current = hub.current.switch_to_temporary(hub, index)
             index = None
         elif index.count("/") > 1:
-            hub.fatal("index %r not of form USER/NAME or NAME" % index)
+            hub.fatal("index %r not of form URL, USER/NAME or NAME" % index)
     tmpdir = py.path.local.make_numbered_dir("devpi-test", keep=3)
     devindex = DevIndex(hub, tmpdir, current)
     for pkgspec in args.pkgspec:
