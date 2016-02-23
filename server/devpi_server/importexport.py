@@ -154,7 +154,8 @@ class IndexDump:
             assert entry.file_exists(), entry.relpath
             relpath = self.exporter.copy_file(
                 entry._filepath,
-                self.basedir.join(linkstore.projectname, entry.basename))
+                self.basedir.join(
+                    linkstore.projectname, link.version, entry.basename))
             self.add_filedesc("releasefile", linkstore.projectname, relpath,
                                version=linkstore.version,
                                entrymapping=entry.meta,

@@ -266,6 +266,34 @@ class TestImportExport:
             assert len(links) == 1
             assert links[0].entry.file_get_content() == b"content"
 
+    def test_same_filename_in_different_versions(self, impexp):
+        # for some unknown reason, the same filename can be uploaded in two
+        # different versions. Seems to be related to PEP440
+        mapp1 = impexp.mapp1
+        api = mapp1.create_and_use()
+        content1 = b'content1'
+        content2 = b'content2'
+        mapp1.upload_file_pypi("hello-1.0.foo.tar.gz", content1, "hello", "1.0")
+        mapp1.upload_file_pypi("hello-1.0.foo.tar.gz", content2, "hello", "1.0.foo")
+
+        impexp.export()
+        mapp2 = impexp.new_import()
+
+        with mapp2.xom.keyfs.transaction():
+            stage = mapp2.xom.model.getstage(api.stagename)
+            # first
+            verdata = stage.get_versiondata_perstage("hello", "1.0")
+            assert verdata["version"] == "1.0"
+            links = stage.get_linkstore_perstage("hello", "1.0").get_links()
+            assert len(links) == 1
+            assert links[0].entry.file_get_content() == b"content1"
+            # second
+            verdata = stage.get_versiondata_perstage("hello", "1.0.foo")
+            assert verdata["version"] == "1.0.foo"
+            links = stage.get_linkstore_perstage("hello", "1.0.foo").get_links()
+            assert len(links) == 1
+            assert links[0].entry.file_get_content() == b"content2"
+
     def test_dashes_in_name_issue199(self, impexp):
         mapp1 = impexp.mapp1
         api = mapp1.create_and_use()
@@ -462,7 +490,7 @@ class TestImportExport:
         assert impexp.exportdir.join(
           'user1', 'dev', 'he_llo-1.0.doc.zip').stat().nlink == 2
         assert impexp.exportdir.join(
-          'user1', 'dev', 'he_llo', 'he-llo-1.0.tar.gz').stat().nlink == 2
+          'user1', 'dev', 'he_llo', '1.0', 'he-llo-1.0.tar.gz').stat().nlink == 2
 
         mapp2 = impexp.new_import()
 
