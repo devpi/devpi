@@ -9,7 +9,7 @@ from base64 import b64encode
 from devpi_common.types import lazydecorator, cached_property
 from devpi_common.url import URL
 from devpi_common.proc import check_output
-from devpi.use import Current
+from devpi.use import PersistentCurrent
 from devpi_common.request import new_requests_session
 from devpi import __version__ as client_version
 
@@ -75,8 +75,9 @@ class Hub:
 
     # remote http hooks
 
-    def http_api(self, method, url, kvdict=None, quiet=False, auth=notset,
-        check_version=True, fatal=True, type=None):
+    def http_api(self, method, url, kvdict=None, quiet=False,
+                 auth=notset, basic_auth=notset, cert=notset,
+                 check_version=True, fatal=True, type=None):
         """ send a json request and return a HTTPReply object which
         adds some extra methods to the requests's Reply object.
 
@@ -99,8 +100,10 @@ class Hub:
             if auth is notset:
                 auth = self.current.get_auth()
             set_devpi_auth_header(headers, auth)
-            basic_auth = self.current.get_basic_auth(url=url)
-            cert = self.current.get_client_cert(url=url)
+            if basic_auth is notset:
+                basic_auth = self.current.get_basic_auth(url=url)
+            if cert is notset:
+                cert = self.current.get_client_cert(url=url)
             r = self.http.request(method, url, data=data, headers=headers,
                                   auth=basic_auth, cert=cert)
         except self.http.Errors as e:
@@ -178,7 +181,7 @@ class Hub:
     def current(self):
         self.clientdir.ensure(dir=1)
         path = self.clientdir.join("current.json")
-        return Current(path)
+        return PersistentCurrent(path)
 
     def get_existing_file(self, arg):
         p = py.path.local(arg, expanduser=True)
@@ -758,7 +761,9 @@ def test(parser):
              "the detox tool (which must be installed)")
 
     parser.add_argument("--index", default=None,
-        help="index to get package from (defaults to current index)")
+        help="index to get package from, defaults to current index. "
+             "Either just the NAME, using the current user, USER/NAME using "
+             "the current server or a full URL for another server.")
 
     parser.add_argument("pkgspec", metavar="pkgspec", type=str,
         default=None, action="store", nargs="+",

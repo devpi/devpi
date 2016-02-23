@@ -1,3 +1,4 @@
+from copy import deepcopy
 import os
 import sys
 import py
@@ -21,17 +22,6 @@ def currentproperty(name):
         self._currentdict[name] = val
     return property(propget, propset)
 
-def urlproperty(name):
-    def propget(self):
-        val = self._currentdict.get(name, None)
-        if val:
-            return URL(val)
-
-    def propset(self, val):
-        if isinstance(val, URL):
-            val = val.url
-        self._currentdict[name] = val
-    return property(propget, propset)
 
 class Current(object):
     index = currentproperty("index")
@@ -43,6 +33,9 @@ class Current(object):
     _basic_auth = currentproperty("basic_auth")
     _client_cert = currentproperty("client_cert")
     always_setcfg = currentproperty("always_setcfg")
+
+    def __init__(self):
+        self._currentdict = {}
 
     @property
     def simpleindex_auth(self):
@@ -68,11 +61,15 @@ class Current(object):
             return URL(self.index)
         return URL("")
 
-    def __init__(self, path):
-        self.path = path
-        self._currentdict = {}
-        if self.path.check():
-            self._currentdict.update(json.loads(self.path.read()))
+    def _value_from_dict_by_url(self, d, url, default=None):
+        # searches for longest match, so there can be multiple devpi instances
+        # on the same domain with different paths
+        url = URL(url)
+        while url:
+            if url in d or url.path == '/':
+                break
+            url = url.joinpath('..')
+        return d.get(url.url, default)
 
     def _get_auth_dict(self):
         auth = self._auth
@@ -80,19 +77,15 @@ class Current(object):
             auth = {}
         return auth
 
-    def set_auth(self, user, password, url=None):
-        if url is None:
-            url = self.rooturl
+    def set_auth(self, user, password):
         auth = self._get_auth_dict()
-        auth[url] = (user, password)
+        auth[self.rooturl] = (user, password)
         self.reconfigure(data=dict(_auth=auth))
 
-    def del_auth(self, url=None):
-        if url is None:
-            url = self.rooturl
+    def del_auth(self):
         auth = self._get_auth_dict()
         try:
-            del auth[url]
+            del auth[self.rooturl]
         except KeyError:
             return False
         self.reconfigure(data=dict(_auth=auth))
@@ -103,7 +96,7 @@ class Current(object):
 
     def get_auth(self, url=None):
         url = url if url is not None else self.rooturl
-        auth = self._get_auth_dict().get(url)
+        auth = self._value_from_dict_by_url(self._get_auth_dict(), url)
         return tuple(auth) if auth else None
 
     def _get_basic_auth_dict(self):
@@ -112,11 +105,9 @@ class Current(object):
             basic_auth = {}
         return basic_auth
 
-    def _get_normalized_root_url(self, url):
-        if url is None:
-            url = URL(self.rooturl)
-        else:
-            url = URL(url).joinpath("/")
+    def _get_normalized_url(self, url):
+        # returns url with port always included
+        url = URL(url)
         if ':' not in url.netloc:
             if url.scheme == 'http':
                 url = url.replace(netloc="%s:80" % url.netloc)
@@ -124,25 +115,17 @@ class Current(object):
                 url = url.replace(netloc="%s:443" % url.netloc)
         return url.url
 
-    def set_basic_auth(self, user, password, url=None):
-        url = self._get_normalized_root_url(url)
+    def set_basic_auth(self, user, password):
+        # store at root_url, so we can find it from any sub path
+        url = self._get_normalized_url(self.root_url)
         basic_auth = self._get_basic_auth_dict()
         basic_auth[url] = (user, password)
         self.reconfigure(data=dict(_basic_auth=basic_auth))
 
-    def del_basic_auth(self, url=None):
-        url = self._get_normalized_root_url(url)
-        basic_auth = self._get_basic_auth_dict()
-        try:
-            del basic_auth[url]
-        except KeyError:
-            return False
-        self.reconfigure(data=dict(_basic_auth=basic_auth))
-        return True
-
     def get_basic_auth(self, url=None):
-        url = self._get_normalized_root_url(url)
-        basic_auth = self._get_basic_auth_dict().get(url)
+        url = self._get_normalized_url(url)
+        basic_auth = self._value_from_dict_by_url(
+            self._get_basic_auth_dict(), url)
         return tuple(basic_auth) if basic_auth else None
 
     def _get_client_cert_dict(self):
@@ -151,14 +134,16 @@ class Current(object):
             client_cert = {}
         return client_cert
 
-    def set_client_cert(self, cert, url=None):
-        url = self._get_normalized_root_url(url)
+    def set_client_cert(self, cert):
+        # store at root_url, so we can find it from any sub path
+        url = self._get_normalized_url(self.root_url)
         client_cert = self._get_client_cert_dict()
         client_cert[url] = cert
         self.reconfigure(data=dict(_client_cert=client_cert))
 
     def del_client_cert(self, url=None):
-        url = self._get_normalized_root_url(url)
+        # stored at root_url, so we can find it from any sub path
+        url = self._get_normalized_url(self.root_url)
         client_cert = self._get_client_cert_dict()
         try:
             del client_cert[url]
@@ -168,8 +153,8 @@ class Current(object):
         return True
 
     def get_client_cert(self, url=None):
-        url = self._get_normalized_root_url(url)
-        client_cert = self._get_client_cert_dict().get(url)
+        client_cert = self._value_from_dict_by_url(
+            self._get_client_cert_dict(), url)
         return client_cert if client_cert else None
 
     def reconfigure(self, data):
@@ -178,17 +163,6 @@ class Current(object):
             newval = data[name]
             if oldval != newval:
                 setattr(self, name, newval)
-        try:
-            olddata = json.loads(self.path.read())
-        except Exception:
-            olddata = {}
-        if self._currentdict != olddata:
-            oldumask = os.umask(7 * 8 + 7)
-            try:
-                self.path.write(
-                    json.dumps(self._currentdict, indent=2, sort_keys=True))
-            finally:
-                os.umask(oldumask)
 
     def exists(self):
         return self.path and self.path.check()
@@ -199,33 +173,51 @@ class Current(object):
             url = URL(self.simpleindex, url.url).url
         return url
 
+    def switch_to_temporary(self, hub, url):
+        current = Current()
+        current._currentdict = deepcopy(self._currentdict)
+        current.configure_fromurl(hub, url)
+        return current
+
     def configure_fromurl(self, hub, url, client_cert=None):
         is_absolute_url = url is not None and '://' in url
         url = self.get_index_url(url)
         if not url.is_valid_http_url():
             hub.fatal("invalid URL: %s" % url.url)
+        basic_auth = None
         if '@' in url.netloc:
             basic_auth, netloc = url.netloc.rsplit('@', 1)
             if ':' not in basic_auth:
                 hub.fatal("When using basic auth, you have to provide username and password.")
             basic_auth = basic_auth.split(':', 1)
             url = url.replace(netloc=netloc)
-            hub.warn("Using basic authentication for '%s'." % url.url)
+            hub.info("Using basic authentication for '%s'." % url.url)
             hub.warn("The password is stored unencrypted!")
-            self.set_basic_auth(
-                basic_auth[0], basic_auth[1], url=url)
         elif is_absolute_url:
-            self.del_basic_auth(url=url.joinpath("/").url)
+            if self.get_basic_auth(url=url) is not None:
+                hub.info("Using existing basic auth for '%s'." % url)
+                hub.warn("The password is stored unencrypted!")
         if client_cert:
             client_cert = os.path.abspath(os.path.expanduser(client_cert))
             if not os.path.exists(client_cert):
                 hub.fatal("The client certificate at '%s' doesn't exist.")
-            self.set_client_cert(client_cert, url=url)
-        else:
-            self.del_client_cert(url=url)
+        elif self.get_client_cert(url=url) is not None:
+            hub.info("Using existing client cert for '%s'." % url.url)
         r = hub.http_api(
-            "get", url.addpath("+api"), quiet=True)
+            "get", url.addpath("+api"), quiet=True,
+            auth=self.get_auth(url=url),
+            basic_auth=basic_auth or self.get_basic_auth(url=url),
+            cert=client_cert or self.get_client_cert(url=url))
         self._configure_from_server_api(r.result, url)
+        # at this point we know the root url to store the following data
+        if basic_auth is not None:
+            self.set_basic_auth(basic_auth[0], basic_auth[1])
+        if client_cert is not None:
+            if client_cert:
+                self.set_client_cert(client_cert)
+            else:
+                hub.warn("Removing stored client cert for '%s'." % url.url)
+                self.del_client_cert(url=url)
 
     def _configure_from_server_api(self, result, url):
         rooturl = url.joinpath("/")
@@ -238,7 +230,7 @@ class Current(object):
         self.reconfigure(data)
         status = result.get("authstatus", None)
         if status and status[0] not in ["ok", "noauth"]:
-            self.del_auth(rooturl)
+            self.del_auth()
 
     def getvenvbin(self, name, venvdir=None, glob=True):
         if venvdir is None:
@@ -289,6 +281,28 @@ class Current(object):
     def get_simpleproject_url(self, name, indexname=None):
         return self.get_simpleindex_url(
             indexname=indexname).addpath(name, asdir=1)
+
+
+class PersistentCurrent(Current):
+    def __init__(self, path):
+        Current.__init__(self)
+        self.path = path
+        if self.path.check():
+            self._currentdict.update(json.loads(self.path.read()))
+
+    def reconfigure(self, data):
+        Current.reconfigure(self, data)
+        try:
+            olddata = json.loads(self.path.read())
+        except Exception:
+            olddata = {}
+        if self._currentdict != olddata:
+            oldumask = os.umask(7 * 8 + 7)
+            try:
+                self.path.write(
+                    json.dumps(self._currentdict, indent=2, sort_keys=True))
+            finally:
+                os.umask(oldumask)
 
 
 def out_index_list(hub, data):

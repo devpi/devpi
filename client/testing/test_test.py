@@ -55,12 +55,22 @@ def test_index_option(create_and_upload, devpi, monkeypatch, out_devpi):
 
     # remember username
     out = out_devpi("use")
-    user = re.search('\(logged in as (.+?)\)', out.stdout.str()).group(1)
+    (url, user) = re.search(
+        '(https?://.+?)\s+\(logged in as (.+?)\)', out.stdout.str()).groups()
 
     # go to other index
     devpi("use", "root/pypi")
 
     out = out_devpi("test", "--index", "%s/dev" % user, "exa")
+    out.stdout.fnmatch_lines("""
+        received*/%s/dev/*exa-1.0*
+        unpacking*
+        Mocked tests ...*""" % user)
+
+    # forget current server index
+    devpi("use", "--delete")
+
+    out = out_devpi("test", "--index", url, "exa")
     out.stdout.fnmatch_lines("""
         received*/%s/dev/*exa-1.0*
         unpacking*
