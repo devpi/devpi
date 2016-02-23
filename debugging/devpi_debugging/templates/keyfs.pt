@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <metal:head use-macro="request.macros['head']" />
+    </head>
+    <body>
+        <form method="get" id="search" action="${request.route_url('keyfs')}">
+            <input type="text" size="60" name="query" autofocus tal:attributes="value query|None" />
+            <input type="submit" value="Search" />
+        </form>
+        <p>
+            <span tal:repeat="serial serials">
+                <a href="${request.route_url('keyfs_changelog', serial=serial, _query=dict(query=query))}">${serial}</a><tal:last condition="not repeat.serial.end">,</tal:last>
+            </span>
+        </p>
+    </body>
+</html>
