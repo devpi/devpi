@@ -1,3 +1,9 @@
+3.0.2 (Unreleased)
+------------------
+
+- fix handling of 404 in mirror indexes on replicas.
+
+
 3.0.1 (2016-02-12)
 ------------------
 

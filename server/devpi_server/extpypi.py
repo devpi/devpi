@@ -300,15 +300,22 @@ class PyPIStage(BaseStage):
                                 project, url, response.status_code)
                 return links
             if response.status_code == 404:
-                # we get a 404 if a project does not exist. We persist
-                # this result so replicas see it as well.  After the
-                # dump cache expires new requests will retry and thus
-                # detect new projects and their releases.
+                # We get a 404 if a project does not exist.
+                if self.xom.is_replica():
+                    # We triggered master above, so we just go on, since we
+                    # know we won't get anything else than a 404 and the
+                    # master will persist this information and pass it on to
+                    # the replicas
+                    pass
+                else:
+                    # We persist this result so replicas see it as well.
+                    # After the dump cache expires new requests will retry
+                    # and thus detect new projects and their releases.
+                    self.keyfs.restart_as_write_transaction()
+                    self._save_cache_links(project, (), -1)
                 # Note that we use an empty tuple (instead of the usual
                 # list) so has_project_per_stage() can determine it as a
                 # non-existing project.
-                self.keyfs.restart_as_write_transaction()
-                self._save_cache_links(project, (), -1)
                 return ()
 
             # we don't have an old result and got a non-404 code.
