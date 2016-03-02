@@ -616,9 +616,6 @@ class Mapp(MappMixin):
         indexname = self._getindexname(indexname)
         r = self.testapp.get_json("/%s" % indexname)
         result = r.json["result"]
-        if not isinstance(whitelist, list):
-            whitelist = whitelist.split(",")
-        assert isinstance(whitelist, list)
         result["mirror_whitelist"] = whitelist
         r = self.testapp.patch_json("/%s" % (indexname,), result)
         assert r.status_code == 200
