@@ -387,3 +387,23 @@ class TestMirrorIndexThings:
         # XXX maybe we can add a function which parses the log on devpi-client
         # and the output in devpi-server?
         assert len(result) == 1
+
+    def test_whitelisted_package_not_in_mirror(self, mapp, simpypi):
+        if not hasattr(mapp, "get_simple"):
+            # happens in the devpi-client tests
+            pytest.skip("Mapp implementation doesn't have 'get_simple' method.")
+        mapp.create_and_login_user('mirror8')
+        indexconfig = dict(
+            type="mirror",
+            mirror_url=simpypi.simpleurl,
+            mirror_cache_expiry=1800)
+        mapp.create_index("mirror", indexconfig=indexconfig)
+        indexconfig = dict(
+            mirror_whitelist="*",
+            bases="mirror8/mirror")
+        mapp.create_index("regular", indexconfig=indexconfig)
+        mapp.use("mirror8/regular")
+        content = mapp.makepkg("pkg-1.0.tar.gz", b"content", "pkg", "1.0")
+        mapp.upload_file_pypi("pkg-1.0.tar.gz", content, "pkg", "1.0")
+        r = mapp.get_simple("pkg")
+        assert b'ed7/002b439e9ac84/pkg-1.0.tar.gz' in r.body
