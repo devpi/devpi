@@ -184,7 +184,7 @@ def get_indexconfig(hooks, type, **kwargs):
         if "pypi_whitelist" in kwargs:
             ixconfig["mirror_whitelist"] = ensure_list(
                 kwargs.pop("pypi_whitelist"))
-        elif "mirror_whitelist" in kwargs:
+        if "mirror_whitelist" in kwargs:
             ixconfig["mirror_whitelist"] = ensure_list(
                 kwargs.pop("mirror_whitelist"))
     else:

@@ -454,6 +454,28 @@ class TestStage:
         assert links[0].entrypath.endswith("someproject-1.1.zip")
         assert links[1].entrypath.endswith("someproject-1.0.zip")
 
+    @pytest.mark.parametrize("setting, expected", [
+        ('someproject', ['someproject']),
+        ('foo,bar', ['foo', 'bar'])])
+    def test_whitelist_setting(self, pypistage, stage, setting, expected):
+        from devpi_server.model import InvalidIndexconfig
+        stage.modify(mirror_whitelist=setting)
+        ixconfig = stage.get()
+        assert ixconfig['pypi_whitelist'] == []
+        assert ixconfig['mirror_whitelist'] == expected
+        stage.modify(pypi_whitelist=setting)
+        ixconfig = stage.get()
+        assert ixconfig['pypi_whitelist'] == []
+        assert ixconfig['mirror_whitelist'] == expected
+        stage.modify(pypi_whitelist=[], mirror_whitelist=setting)
+        ixconfig = stage.get()
+        assert ixconfig['pypi_whitelist'] == []
+        assert ixconfig['mirror_whitelist'] == expected
+        with pytest.raises(InvalidIndexconfig):
+            stage.modify(pypi_whitelist=setting, mirror_whitelist=[])
+        with pytest.raises(InvalidIndexconfig):
+            stage.modify(pypi_whitelist=setting, mirror_whitelist=setting)
+
     def test_store_and_delete_project(self, stage):
         register_and_store(stage, "some_xyz-1.0.zip", b"123")
         assert stage.get_versiondata_perstage("Some_xyz", "1.0")

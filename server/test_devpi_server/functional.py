@@ -278,6 +278,22 @@ class TestIndexThings:
         assert res["result"]["title"] == "foo"
         assert res["result"]["description"] == "bar"
 
+    def test_whitelist_setting(self, mapp):
+        mapp.create_and_login_user("cuser7")
+        mapp.create_index("dev")
+        mapp.use("cuser7/dev")
+        res = mapp.getjson("/cuser7/dev")['result']
+        assert res['pypi_whitelist'] == []
+        assert res['mirror_whitelist'] == []
+        mapp.set_mirror_whitelist("foo")
+        res = mapp.getjson("/cuser7/dev")['result']
+        assert res['pypi_whitelist'] == []
+        assert res['mirror_whitelist'] == ['foo']
+        mapp.set_mirror_whitelist("foo,bar")
+        res = mapp.getjson("/cuser7/dev")['result']
+        assert res['pypi_whitelist'] == []
+        assert res['mirror_whitelist'] == ['foo', 'bar']
+
 
 @pytest.mark.nomocking
 class TestMirrorIndexThings:

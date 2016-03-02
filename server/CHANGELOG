@@ -1,6 +1,8 @@
 3.0.2 (Unreleased)
 ------------------
 
+- fix setting of ``mirror_whitelist``.
+
 - fix handling of 404 in mirror indexes on replicas.
 
 
