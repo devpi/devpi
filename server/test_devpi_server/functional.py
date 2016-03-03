@@ -293,6 +293,18 @@ class TestIndexThings:
         res = mapp.getjson("/cuser7/dev")['result']
         assert res['pypi_whitelist'] == []
         assert res['mirror_whitelist'] == ['foo', 'bar']
+        mapp.set_mirror_whitelist("he_llo")
+        res = mapp.getjson("/cuser7/dev")['result']
+        assert res['pypi_whitelist'] == []
+        assert res['mirror_whitelist'] == ['he-llo']
+        mapp.set_mirror_whitelist("he_llo,Django")
+        res = mapp.getjson("/cuser7/dev")['result']
+        assert res['pypi_whitelist'] == []
+        assert res['mirror_whitelist'] == ['he-llo', 'django']
+        mapp.set_mirror_whitelist("*")
+        res = mapp.getjson("/cuser7/dev")['result']
+        assert res['pypi_whitelist'] == []
+        assert res['mirror_whitelist'] == ['*']
 
 
 @pytest.mark.nomocking

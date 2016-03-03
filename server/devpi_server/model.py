@@ -145,6 +145,12 @@ def ensure_list(data):
     return list(filter(None, (x.strip() for x in data.split(","))))
 
 
+def normalize_whitelist_name(name):
+    if name == '*':
+        return name
+    return normalize_name(name)
+
+
 def get_indexconfig(hooks, type, **kwargs):
     ixconfig = {"type": type}
     if "volatile" in kwargs:
@@ -182,11 +188,13 @@ def get_indexconfig(hooks, type, **kwargs):
             raise InvalidIndexconfig(
                 ["pypi_whitelist is deprecated, use mirror_whitelist instead"])
         if "pypi_whitelist" in kwargs:
-            ixconfig["mirror_whitelist"] = ensure_list(
-                kwargs.pop("pypi_whitelist"))
+            ixconfig["mirror_whitelist"] = [
+                normalize_whitelist_name(x)
+                for x in ensure_list(kwargs.pop("pypi_whitelist"))]
         if "mirror_whitelist" in kwargs:
-            ixconfig["mirror_whitelist"] = ensure_list(
-                kwargs.pop("mirror_whitelist"))
+            ixconfig["mirror_whitelist"] = [
+                normalize_whitelist_name(x)
+                for x in ensure_list(kwargs.pop("mirror_whitelist"))]
     else:
         raise InvalidIndexconfig(
             ["indexconfig has invalid index type: %s" % type])
