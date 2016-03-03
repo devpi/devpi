@@ -77,10 +77,13 @@
   always be routed to the main instance.
 
 
-2.6.1 (unreleased)
+2.6.1 (2016-02-03)
 ------------------
 
 - add more info when importing data.  Thanks Marc Abramowitz for the PR.
+
+- include version in file paths in exported data to avoid possible
+  name conflicts.
 
 
 2.6.0 (2016-01-29)
