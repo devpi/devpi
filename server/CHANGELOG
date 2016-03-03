@@ -7,6 +7,9 @@
 
 - fix handling of 404 in mirror indexes on replicas.
 
+- include version in file paths in exported data to avoid possible
+  name conflicts.
+
 
 3.0.1 (2016-02-12)
 ------------------
@@ -79,7 +82,7 @@
   always be routed to the main instance.
 
 
-2.6.1 (2016-02-03)
+2.6.1 (2016-03-03)
 ------------------
 
 - add more info when importing data.  Thanks Marc Abramowitz for the PR.
