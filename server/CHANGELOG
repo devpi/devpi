@@ -3,6 +3,8 @@
 
 - fix setting of ``mirror_whitelist``.
 
+- normalize names when setting ``mirror_whitelist``.
+
 - fix handling of 404 in mirror indexes on replicas.
 
 

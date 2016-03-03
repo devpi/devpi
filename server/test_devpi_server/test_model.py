@@ -456,7 +456,10 @@ class TestStage:
 
     @pytest.mark.parametrize("setting, expected", [
         ('someproject', ['someproject']),
-        ('foo,bar', ['foo', 'bar'])])
+        ('he_llo', ['he-llo']),
+        ('he_llo,Django', ['he-llo', 'django']),
+        ('foo,bar', ['foo', 'bar']),
+        ('*', ['*'])])
     def test_whitelist_setting(self, pypistage, stage, setting, expected):
         from devpi_server.model import InvalidIndexconfig
         stage.modify(mirror_whitelist=setting)
