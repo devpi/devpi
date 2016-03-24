@@ -9,12 +9,6 @@ def test_CompareMixin():
     assert max(reversed(l)).cmpval == 9
 
 
-def test_ensure_unicode_keys():
-    d = {b"hello": "world"}
-    ensure_unicode_keys(d)
-    assert py.builtin._istext(list(d)[0])
-    assert d[u"hello"] == "world"
-
 def test_parsehashspec():
     hash_algo, hash_value = parse_hash_spec("l1kj23")
     assert hash_algo is None and hash_value is None

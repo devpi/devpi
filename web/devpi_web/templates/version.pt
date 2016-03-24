@@ -1,3 +1,4 @@
+<!doctype html>
 <html>
     <head>
         <title>${title}</title>
@@ -20,9 +21,9 @@
             </tr>
         </table>
 
-        <p class="infonote" tal:condition="blocked_by_pypi_whitelist">
-            Because this project isn't in the <code>pypi_whitelist</code>,
-            no releases from <strong>${blocked_by_pypi_whitelist}</strong> are included.
+        <p class="infonote" tal:condition="blocked_by_mirror_whitelist">
+            Because this project isn't in the <code>mirror_whitelist</code>,
+            no releases from <strong>${blocked_by_mirror_whitelist}</strong> are included.
         </p>
 
         <table class="files" tal:condition="files">

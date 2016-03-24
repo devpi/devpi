@@ -1,6 +1,8 @@
 from __future__ import unicode_literals
 
 import sys
+import pkg_resources
+import py
 import pytest
 import json
 from devpi_server.importexport import *
@@ -70,6 +72,9 @@ class TestImportExport:
         class ImpExp:
             def __init__(self, options=()):
                 self.exportdir = gentmp()
+                self.testdatadir = py.path.local(
+                    pkg_resources.resource_filename(
+                        'test_devpi_server', 'importexportdata'))
                 self.mapp1 = makemapp(
                     options=("--export", self.exportdir) + options)
 
@@ -77,6 +82,16 @@ class TestImportExport:
                 if initnodeinfo:
                     self.mapp1.xom.config.init_nodeinfo()
                 assert self.mapp1.xom.main() == 0
+
+            def import_testdata(self, name, options=(), plugin=None):
+                path = self.testdatadir.join(name).strpath
+                mapp = makemapp(
+                    options=("--import", path) + options)
+                if plugin is not None:
+                    mapp.xom.config.pluginmanager.register(plugin)
+                mapp.xom.config.init_nodeinfo()
+                assert mapp.xom.main() == 0
+                return mapp
 
             def new_import(self, options=(), plugin=None):
                 mapp2 = makemapp(
@@ -91,6 +106,26 @@ class TestImportExport:
     @pytest.fixture
     def impexp(self, makeimpexp):
         return makeimpexp()
+
+    def test_importing_multiple_indexes_with_releases(self, impexp):
+        mapp1 = impexp.mapp1
+        api1 = mapp1.create_and_use()
+        content = b'content1'
+        mapp1.upload_file_pypi("hello-1.0.tar.gz", content, "hello", "1.0")
+        path, = mapp1.get_release_paths("hello")
+        path = path.strip("/")
+        stagename2 = api1.user + "/" + "dev6"
+        api2 = mapp1.create_index(stagename2)
+        content = b'content2'
+        mapp1.upload_file_pypi("pkg1-1.0.tar.gz", content, "pkg1", "1.0")
+        impexp.export()
+        mapp2 = impexp.new_import()
+        mapp2.use(api1.stagename)
+        assert mapp2.get_release_paths('hello') == [
+            '/user1/dev/+f/d0b/425e00e15a0d3/hello-1.0.tar.gz']
+        mapp2.use(api2.stagename)
+        assert mapp2.get_release_paths('pkg1') == [
+            '/user1/dev6/+f/dab/741b6289e7dcc/pkg1-1.0.tar.gz']
 
     def test_uuid(self, impexp):
         impexp.export()
@@ -121,6 +156,22 @@ class TestImportExport:
         indexlist = mapp2.getindexlist(api.user)
         assert indexlist[api.stagename]["custom_data"] == 42
 
+    def test_bad_username(self, caplog, impexp):
+        with pytest.raises(SystemExit):
+            impexp.import_testdata('badusername')
+        (record,) = caplog.getrecords('contains characters')
+        assert 'root~foo.com' in record.message
+        (record,) = caplog.getrecords('You should edit')
+        assert 'dataindex.json' in record.message
+
+    def test_bad_indexname(self, caplog, impexp):
+        with pytest.raises(SystemExit):
+            impexp.import_testdata('badindexname')
+        (record,) = caplog.getrecords('contains characters')
+        assert 'root/pypi!Jo' in record.message
+        (record,) = caplog.getrecords('You should edit')
+        assert 'dataindex.json' in record.message
+
     def test_upload_releasefile_with_toxresult(self, impexp):
         from test_devpi_server.example import tox_result_data
         mapp1 = impexp.mapp1
@@ -147,7 +198,7 @@ class TestImportExport:
             assert len(results) == 1
             assert results[0] == tox_result_data
             linkstore = stage.get_linkstore_perstage(
-                link.projectname, link.version)
+                link.project, link.version)
             tox_link, = linkstore.get_links(rel="toxresult", for_entrypath=link)
             history_log = tox_link.get_logs()
             assert len(history_log) == 1
@@ -232,7 +283,7 @@ class TestImportExport:
             assert len(results) == 1
             assert results[0] == tox_result_data
             linkstore = stage.get_linkstore_perstage(
-                link.projectname, link.version)
+                link.project, link.version)
             tox_link, = linkstore.get_links(rel="toxresult", for_entrypath=link)
             history_log = tox_link.get_logs()
             assert len(history_log) == 1
@@ -468,10 +519,10 @@ class TestImportExport:
 
             links = stage.get_releaselinks("he_llo")
             assert len(links) == 2
-            projectname = stage.get_projectname("he-llo")
-            links = stage.get_releaselinks(projectname)
+            links = stage.get_releaselinks("he-llo")
             assert len(links) == 2
 
+    @pytest.mark.storage_with_filesystem
     @pytest.mark.skipif(not hasattr(os, 'link'),
                         reason="OS doesn't support hard links")
     def test_hard_links(self, makeimpexp):
@@ -490,7 +541,7 @@ class TestImportExport:
         assert impexp.exportdir.join(
           'user1', 'dev', 'he_llo-1.0.doc.zip').stat().nlink == 2
         assert impexp.exportdir.join(
-          'user1', 'dev', 'he_llo', '1.0', 'he-llo-1.0.tar.gz').stat().nlink == 2
+          'user1', 'dev', 'he-llo', '1.0', 'he-llo-1.0.tar.gz').stat().nlink == 2
 
         mapp2 = impexp.new_import()
 
@@ -573,3 +624,68 @@ class TestImportExport:
             stage = mapp2.xom.model.getstage(api.stagename)
             assert "foo_plugin" in stage.ixconfig
             assert stage.ixconfig["foo_plugin"] == "foo"
+
+    @pytest.mark.nomockprojectsremote
+    def test_mirror_settings_preserved(self, httpget, impexp, pypiurls):
+        mapp1 = impexp.mapp1
+        indexconfig = dict(
+            type="mirror",
+            mirror_url="http://localhost:6543/index/",
+            mirror_cache_expiry="600")
+        api = mapp1.create_and_use(indexconfig=indexconfig)
+
+        impexp.export()
+
+        httpget.mockresponse(pypiurls.simple, code=200, text="")
+        httpget.mockresponse(indexconfig["mirror_url"], code=200, text="")
+
+        mapp2 = impexp.new_import()
+        result = mapp2.getjson(api.index)
+        assert result["type"] == "indexconfig"
+        assert result["result"] == dict(
+            type="mirror",
+            volatile=True,
+            mirror_url="http://localhost:6543/index/",
+            mirror_cache_expiry=600,
+            # XXX backward compatibility with devpi-client <= 2.4.1
+            acl_upload=[],
+            bases=[],
+            pypi_whitelist=[],
+            # XXX end
+            projects=[])
+
+    @pytest.mark.nomockprojectsremote
+    def test_no_mirror_releases_touched(self, httpget, impexp, pypiurls):
+        mapp1 = impexp.mapp1
+        indexconfig = dict(
+            type="mirror",
+            mirror_url="http://localhost:6543/index/")
+        api = mapp1.create_and_use(indexconfig=indexconfig)
+
+        httpget.mockresponse(
+            pypiurls.simple, code=200,
+            text='<a href="pytest">pytest</a>')
+        httpget.mockresponse(
+            indexconfig["mirror_url"], code=200,
+            text='<a href="devpi">devpi</a>')
+
+        impexp.export()
+
+        assert os.listdir(impexp.exportdir.strpath) == ['dataindex.json']
+
+        httpget.mockresponse(pypiurls.simple, code=200, text="")
+        httpget.mockresponse(indexconfig["mirror_url"], code=200, text="")
+
+        mapp2 = impexp.new_import()
+        result = mapp2.getjson(api.index)
+        assert result["type"] == "indexconfig"
+        assert result["result"] == dict(
+            type="mirror",
+            volatile=True,
+            mirror_url="http://localhost:6543/index/",
+            # XXX backward compatibility with devpi-client <= 2.4.1
+            acl_upload=[],
+            bases=[],
+            pypi_whitelist=[],
+            # XXX end
+            projects=[])

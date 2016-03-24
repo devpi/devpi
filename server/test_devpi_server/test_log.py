@@ -4,6 +4,7 @@ import textwrap
 from devpi_server.log import *
 from .test_config import make_config
 
+pytestmark = pytest.mark.notransaction
 
 @pytest.fixture
 def taglogger(caplog):

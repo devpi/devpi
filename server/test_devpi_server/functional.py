@@ -1,3 +1,4 @@
+import pytest
 
 
 class API:
@@ -35,7 +36,7 @@ class MappMixin:
 class TestUserThings:
     def test_root_cannot_modify_unknown_user(self, mapp):
         mapp.login_root()
-        mapp.modify_user("/user", password="123", email="whatever",
+        mapp.modify_user("user", password="123", email="whatever",
                          code=404)
 
     def test_root_is_refused_with_wrong_password(self, mapp):
@@ -75,9 +76,13 @@ class TestUserThings:
         mapp.delete_user("qlwkje", code=404)
 
     def test_password_setting_admin(self, mapp):
+        # if this test fails after the first change_password, subsequent tests
+        # might fail as well with an unauthorized error
         mapp.login("root", "")
         mapp.change_password("root", "p1oi2p3i")
         mapp.login("root", "p1oi2p3i")
+        mapp.change_password("root", "")
+
 
 class TestIndexThings:
 
@@ -112,16 +117,16 @@ class TestIndexThings:
         mapp.login_root()
         data = mapp.getjson("/root/pypi")
         res = data["result"]
-        assert res["volatile"] == False
-        assert res["acl_upload"] == ["root"]
-
-    def test_pypi_not_modifiable(self, mapp):
-        mapp.login_root()
-        res = mapp.getjson("/root/pypi")["result"]
-        mapp.modify_index("root/pypi", res, code=403)
+        res.pop("projects")
+        assert res == {
+            "type": "mirror",
+            "volatile": False,
+            "title": "PyPI",
+            "mirror_url": "https://pypi.python.org/simple/",
+            "mirror_web_url_fmt": "https://pypi.python.org/pypi/{name}"}
 
     def test_create_index_base_empty(self, mapp):
-        indexconfig = dict(bases=())
+        indexconfig = dict(bases="")
         mapp.login_root()
         mapp.create_index("root/empty", indexconfig=indexconfig, code=200)
         data = mapp.getjson("/root/empty")
@@ -145,7 +150,6 @@ class TestIndexThings:
         mapp.login_root()
         mapp.create_index("root/test1")
         mapp.login("root", "")
-        mapp.change_password("root", "asd")
         mapp.create_and_login_user("newuser1")
         mapp.create_index("root/test2", code=403)
 
@@ -257,6 +261,177 @@ class TestIndexThings:
         mapp.use("cuser5/dev")
         res = mapp.getjson("/cuser5/dev")
         assert "custom_data" not in res["result"]
-        mapp.set_custom_data("foo")
+        mapp.set_key_value("custom_data", "foo")
         res = mapp.getjson("/cuser5/dev")
         assert res["result"]["custom_data"] == "foo"
+
+    def test_title_description(self, mapp):
+        mapp.create_and_login_user("cuser6")
+        mapp.create_index("dev")
+        mapp.use("cuser6/dev")
+        res = mapp.getjson("/cuser6/dev")
+        assert "title" not in res["result"]
+        assert "description" not in res["result"]
+        mapp.set_key_value("title", "foo")
+        mapp.set_key_value("description", "bar")
+        res = mapp.getjson("/cuser6/dev")
+        assert res["result"]["title"] == "foo"
+        assert res["result"]["description"] == "bar"
+
+    def test_whitelist_setting(self, mapp):
+        mapp.create_and_login_user("cuser7")
+        mapp.create_index("dev")
+        mapp.use("cuser7/dev")
+        res = mapp.getjson("/cuser7/dev")['result']
+        assert res['pypi_whitelist'] == []
+        assert res['mirror_whitelist'] == []
+        mapp.set_mirror_whitelist("foo")
+        res = mapp.getjson("/cuser7/dev")['result']
+        assert res['pypi_whitelist'] == []
+        assert res['mirror_whitelist'] == ['foo']
+        mapp.set_mirror_whitelist("foo,bar")
+        res = mapp.getjson("/cuser7/dev")['result']
+        assert res['pypi_whitelist'] == []
+        assert res['mirror_whitelist'] == ['foo', 'bar']
+        mapp.set_mirror_whitelist("he_llo")
+        res = mapp.getjson("/cuser7/dev")['result']
+        assert res['pypi_whitelist'] == []
+        assert res['mirror_whitelist'] == ['he-llo']
+        mapp.set_mirror_whitelist("he_llo,Django")
+        res = mapp.getjson("/cuser7/dev")['result']
+        assert res['pypi_whitelist'] == []
+        assert res['mirror_whitelist'] == ['he-llo', 'django']
+        mapp.set_mirror_whitelist("*")
+        res = mapp.getjson("/cuser7/dev")['result']
+        assert res['pypi_whitelist'] == []
+        assert res['mirror_whitelist'] == ['*']
+
+
+@pytest.mark.nomocking
+class TestMirrorIndexThings:
+    def test_create_and_delete_mirror_index(self, mapp, simpypi):
+        mapp.create_and_login_user('mirror1')
+        indexname = mapp.auth[0] + "/mirror"
+        assert indexname not in mapp.getindexlist()
+        indexconfig = dict(
+            type="mirror",
+            mirror_url=simpypi.simpleurl,
+            mirror_cache_expiry=0)
+        mapp.create_index("mirror", indexconfig=indexconfig)
+        assert indexname in mapp.getindexlist()
+        result = mapp.getjson('/mirror1/mirror')
+        assert result['result']['mirror_url'] == simpypi.simpleurl
+        assert result['result']['mirror_cache_expiry'] == 0
+        mapp.delete_index("mirror")
+        assert indexname not in mapp.getindexlist()
+
+    def test_missing_package(self, mapp, simpypi):
+        mapp.create_and_login_user('mirror2')
+        indexconfig = dict(
+            type="mirror",
+            mirror_url=simpypi.simpleurl,
+            mirror_cache_expiry=0)
+        mapp.create_index("mirror", indexconfig=indexconfig)
+        mapp.use("mirror2/mirror")
+        result = mapp.getpkglist()
+        assert result == []
+
+    def test_no_releases(self, mapp, simpypi):
+        mapp.create_and_login_user('mirror3')
+        indexconfig = dict(
+            type="mirror",
+            mirror_url=simpypi.simpleurl,
+            mirror_cache_expiry=0)
+        mapp.create_index("mirror", indexconfig=indexconfig)
+        mapp.use("mirror3/mirror")
+        simpypi.add_project('pkg')
+        result = mapp.getreleaseslist("pkg")
+        assert result == []
+
+    def test_releases(self, mapp, simpypi):
+        mapp.create_and_login_user('mirror4')
+        indexconfig = dict(
+            type="mirror",
+            mirror_url=simpypi.simpleurl,
+            mirror_cache_expiry=0)
+        mapp.create_index("mirror", indexconfig=indexconfig)
+        mapp.use("mirror4/mirror")
+        simpypi.add_release('pkg', pkgver='pkg-1.0.zip')
+        result = mapp.getreleaseslist("pkg")
+        base = simpypi.baseurl.replace('http://', 'http_').replace(':', '_')
+        assert len(result) == 1
+        assert result[0].endswith('/mirror4/mirror/+e/%s_pkg/pkg-1.0.zip' % base)
+
+    def test_download_release_error(self, mapp, simpypi):
+        mapp.create_and_login_user('mirror5')
+        indexconfig = dict(
+            type="mirror",
+            mirror_url=simpypi.simpleurl,
+            mirror_cache_expiry=0)
+        mapp.create_index("mirror", indexconfig=indexconfig)
+        mapp.use("mirror5/mirror")
+        simpypi.add_release('pkg', pkgver='pkg-1.0.zip')
+        result = mapp.getreleaseslist("pkg")
+        assert len(result) == 1
+        r = mapp.downloadrelease(502, result[0])
+        msg = r['message']
+        assert 'error 404 getting' in msg or 'received 502 from master' in msg
+
+    def test_download_release(self, mapp, simpypi):
+        mapp.create_and_login_user('mirror6')
+        indexconfig = dict(
+            type="mirror",
+            mirror_url=simpypi.simpleurl,
+            mirror_cache_expiry=0)
+        mapp.create_index("mirror", indexconfig=indexconfig)
+        mapp.use("mirror6/mirror")
+        content = b'13'
+        simpypi.add_release('pkg', pkgver='pkg-1.0.zip')
+        simpypi.add_file('/pkg/pkg-1.0.zip', content)
+        result = mapp.getreleaseslist("pkg")
+        assert len(result) == 1
+        r = mapp.downloadrelease(200, result[0])
+        assert r == content
+
+    def test_deleted_package(self, mapp, simpypi):
+        mapp.create_and_login_user('mirror7')
+        indexconfig = dict(
+            type="mirror",
+            mirror_url=simpypi.simpleurl,
+            mirror_cache_expiry=1800)
+        mapp.create_index("mirror", indexconfig=indexconfig)
+        mapp.use("mirror7/mirror")
+        simpypi.add_project('pkg')
+        simpypi.add_release('pkg', pkgver='pkg-1.0.zip')
+        result = mapp.getreleaseslist("pkg")
+        assert len(result) == 1
+        simpypi.remove_project('pkg')
+        indexconfig['mirror_cache_expiry'] = 0
+        mapp.modify_index("mirror7/mirror", indexconfig=indexconfig)
+        result = mapp.getreleaseslist("pkg")
+        # serving stale links indefinitely
+        # we can't explicitly test for that here, because these tests also run
+        # with devpi-client where we can't easily check the server output
+        # XXX maybe we can add a function which parses the log on devpi-client
+        # and the output in devpi-server?
+        assert len(result) == 1
+
+    def test_whitelisted_package_not_in_mirror(self, mapp, simpypi):
+        if not hasattr(mapp, "get_simple"):
+            # happens in the devpi-client tests
+            pytest.skip("Mapp implementation doesn't have 'get_simple' method.")
+        mapp.create_and_login_user('mirror8')
+        indexconfig = dict(
+            type="mirror",
+            mirror_url=simpypi.simpleurl,
+            mirror_cache_expiry=1800)
+        mapp.create_index("mirror", indexconfig=indexconfig)
+        indexconfig = dict(
+            mirror_whitelist="*",
+            bases="mirror8/mirror")
+        mapp.create_index("regular", indexconfig=indexconfig)
+        mapp.use("mirror8/regular")
+        content = mapp.makepkg("pkg-1.0.tar.gz", b"content", "pkg", "1.0")
+        mapp.upload_file_pypi("pkg-1.0.tar.gz", content, "pkg", "1.0")
+        r = mapp.get_simple("pkg")
+        assert b'ed7/002b439e9ac84/pkg-1.0.tar.gz' in r.body

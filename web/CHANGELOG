@@ -1,5 +1,34 @@
-2.6.0 (2016-1-29)
------------------
+3.0.0 (2016-02-12)
+--------------------
+
+- dropped support for python2.6
+
+- index.pt, root.pt, style.css: added title and description to
+  users and indexes.
+
+- root.pt, style.css: more compact styling of user/index overview using
+  flexbox, resulting in three columns at most sizes
+
+- cleanup previously unpacked documentation to remove obsolete files.
+
+- store hash of doczip with the unpacked data to avoid unpacking if the data
+  already exists.
+
+- project.pt, version.pt: renamed ``pypi_whitelist`` related things to
+  ``mirror_whitelist``.
+
+- require and adapt to devpi-server-3.0.0 which always uses
+  normalized project names internally and offers new hooks.
+  devpi-web-3.0.0 is incompatible to devpi-server-2.X.
+
+- doc.pt, macros.pt, style.css, docview.js: use scrollbar of documentation
+  iframe, so documentation that contains dynamically resizing elements works
+  correctly. For that to work, the search from and navigation was moved into a
+  wrapping div with class ``header``, so it can overlap the top of the iframe.
+
+
+2.6.0 (2016-01-29)
+------------------
 
 - fix issue305: read documentation html files in binary and let BeautifulSoup
                 detect the encoding.

@@ -1,5 +1,5 @@
 
-.. include:: links.rst
+.. include:: ../links.rst
 
 .. _serverstatus:
 

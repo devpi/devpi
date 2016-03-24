@@ -12,6 +12,11 @@ from _pytest.pytester import RunResult, LineMatcher
 from devpi.main import Hub, initmain, parse_args
 from devpi_common.url import URL
 from test_devpi_server.conftest import reqmock  # noqa
+try:
+    from test_devpi_server.conftest import simpypi, simpypiserver  # noqa
+except ImportError:
+    # when testing with older devpi-server
+    pass
 
 import subprocess
 
@@ -102,24 +107,42 @@ def get_pypirc_patcher(devpi):
                 self.saved.copy(self.pypirc)
     return overwrite()
 
-@pytest.fixture(scope="session")
-def url_of_liveserver(request):
-    if request.config.option.fast:
-        pytest.skip("not running functional tests in --fast mode")
-    if request.config.option.live_url:
-        return URL(request.config.option.live_url)
+
+def _url_of_liveserver(clientdir):
     port = random.randint(2001, 64000)
-    clientdir = request.config._tmpdirhandler.mktemp("liveserver")
     path = py.path.local.sysfind("devpi-server")
     assert path
     subprocess.check_call([str(path), "--serverdir", str(clientdir),
                            "--debug",
-                             "--port", str(port), "--start"])
-    def stop():
-        subprocess.check_call(["devpi-server", "--serverdir", str(clientdir),
-                                 "--stop"])
-    request.addfinalizer(stop)
+                           "--port", str(port), "--start"])
     return URL("http://localhost:%s" % port)
+
+
+def _stop_liveserver(clientdir):
+    subprocess.check_call(["devpi-server", "--serverdir", str(clientdir),
+                           "--stop"])
+
+
+@pytest.yield_fixture(scope="session")
+def url_of_liveserver(request):
+    if request.config.option.fast:
+        pytest.skip("not running functional tests in --fast mode")
+    if request.config.option.live_url:
+        yield URL(request.config.option.live_url)
+        return
+    clientdir = request.config._tmpdirhandler.mktemp("liveserver")
+    yield _url_of_liveserver(clientdir)
+    _stop_liveserver(clientdir)
+
+
+@pytest.yield_fixture(scope="session")
+def url_of_liveserver2(request):
+    if request.config.option.fast:
+        pytest.skip("not running functional tests in --fast mode")
+    clientdir = request.config._tmpdirhandler.mktemp("liveserver2")
+    yield _url_of_liveserver(clientdir)
+    _stop_liveserver(clientdir)
+
 
 @pytest.fixture
 def devpi(cmd_devpi, gen, url_of_liveserver):
@@ -413,7 +436,8 @@ def mock_http_api(monkeypatch):
             self.called = []
             self._json_responses = {}
 
-        def __call__(self, method, url, kvdict=None, quiet=False, auth=None,
+        def __call__(self, method, url, kvdict=None, quiet=False,
+                     auth=None, basic_auth=None, cert=None,
                      fatal=True):
             self.called.append((method, url, kvdict))
             reply_data = self._json_responses.get(url)

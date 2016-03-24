@@ -9,9 +9,10 @@ import shutil
 from devpi_common.validation import normalize_name
 from devpi_common.metadata import BasenameMeta
 from devpi_common.types import parse_hash_spec
+from devpi_server import __version__ as server_version
+from devpi_server.model import is_valid_name
 from .main import fatal
 from .readonly import get_mutable_deepcopy, ReadonlyView
-import devpi_server
 
 
 def do_export(path, xom):
@@ -63,15 +64,20 @@ class Exporter:
         self.export_users = self.export["users"] = {}
         self.export_indexes = self.export["indexes"] = {}
 
-    def copy_file(self, src, dest):
+    def copy_file(self, entry, dest):
         dest.dirpath().ensure(dir=1)
         relpath = dest.relto(self.basepath)
-        if self.config.args.hard_links:
+        src = entry.file_os_path()
+        if self.config.args.hard_links and src is not None:
             self.tw.line("link file at %s" % relpath)
             os.link(src, dest.strpath)
+        elif src is not None:
+            self.tw.line("copy file at %s" % relpath)
+            shutil.copyfile(src, dest.strpath)
         else:
             self.tw.line("write file at %s" % relpath)
-            shutil.copyfile(src, dest.strpath)
+            with open(dest.strpath, 'wb') as f:
+                f.write(entry.file_get_content())
         return relpath
 
     def warn(self, msg):
@@ -84,7 +90,7 @@ class Exporter:
         self.basepath = path
         self.export["dumpversion"] = self.DUMPVERSION
         self.export["pythonversion"] = list(sys.version_info)
-        self.export["devpi_server"] = devpi_server.__version__
+        self.export["devpi_server"] = server_version
         self.export["secret"] = self.config.secret
         self.export["uuid"] = self.xom.config.get_master_uuid()
         for user in self.xom.model.get_userlist():
@@ -95,10 +101,7 @@ class Exporter:
             self.completed("user %r" % user.name)
             for indexname, indexconfig in indexes.items():
                 stage = self.xom.model.getstage(user.name, indexname)
-                if stage.ixconfig["type"] == "mirror":
-                    continue
-                indexdir = userdir.ensure(indexname, dir=1)
-                IndexDump(self, stage, indexdir).dump()
+                IndexDump(self, stage, userdir.join(indexname)).dump()
         self._write_json(path.join("dataindex.json"), self.export)
 
     def _write_json(self, path, data):
@@ -121,12 +124,16 @@ class IndexDump:
         self.stage = stage
         self.basedir = basedir
         self.indexmeta = exporter.export_indexes[stage.name] = {}
-        self.indexmeta["projects"] = {}
         self.indexmeta["indexconfig"] = stage.ixconfig
-        self.indexmeta["files"] = []
 
     def dump(self):
-        for name in self.stage.list_projectnames_perstage():
+        if self.stage.ixconfig["type"] == "mirror":
+            projects = []
+        else:
+            self.indexmeta["projects"] = {}
+            self.indexmeta["files"] = []
+            projects = self.stage.list_projects_perstage()
+        for name in projects:
             data = {}
             versions = self.stage.list_versions_perstage(name)
             for version in versions:
@@ -141,6 +148,7 @@ class IndexDump:
             for version in data:
                 vername = data[version]["name"]
                 linkstore = self.stage.get_linkstore_perstage(vername, version)
+                self.basedir.ensure(dir=1)
                 self.dump_releasefiles(linkstore)
                 self.dump_toxresults(linkstore)
                 entry = self.stage.get_doczip_entry(vername, version)
@@ -153,10 +161,9 @@ class IndexDump:
             entry = self.exporter.filestore.get_file_entry(link.entrypath)
             assert entry.file_exists(), entry.relpath
             relpath = self.exporter.copy_file(
-                entry._filepath,
-                self.basedir.join(
-                    linkstore.projectname, link.version, entry.basename))
-            self.add_filedesc("releasefile", linkstore.projectname, relpath,
+                entry,
+                self.basedir.join(linkstore.project, link.version, entry.basename))
+            self.add_filedesc("releasefile", linkstore.project, relpath,
                                version=linkstore.version,
                                entrymapping=entry.meta,
                                log=link.get_logs())
@@ -165,31 +172,31 @@ class IndexDump:
         for tox_link in linkstore.get_links(rel="toxresult"):
             reflink = linkstore.stage.get_link_from_entrypath(tox_link.for_entrypath)
             relpath = self.exporter.copy_file(
-                tox_link.entry._filepath,
-                self.basedir.join(linkstore.projectname, reflink.hash_spec,
+                tox_link.entry,
+                self.basedir.join(linkstore.project, reflink.hash_spec,
                                   tox_link.basename)
             )
             self.add_filedesc(type="toxresult",
-                              projectname=linkstore.projectname,
+                              project=linkstore.project,
                               relpath=relpath,
                               version=linkstore.version,
                               for_entrypath=reflink.entrypath,
                               log=tox_link.get_logs())
 
-    def add_filedesc(self, type, projectname, relpath, **kw):
+    def add_filedesc(self, type, project, relpath, **kw):
         assert self.exporter.basepath.join(relpath).check()
         d = kw.copy()
         d["type"] = type
-        d["projectname"] = projectname
+        d["projectname"] = project
         d["relpath"] = relpath
         self.indexmeta["files"].append(d)
         self.exporter.completed("%s: %s " %(type, relpath))
 
-    def dump_docfile(self, projectname, version, entry):
+    def dump_docfile(self, project, version, entry):
         relpath = self.exporter.copy_file(
-            entry._filepath,
-            self.basedir.join("%s-%s.doc.zip" % (projectname, version)))
-        self.add_filedesc("doczip", projectname, relpath, version=version)
+            entry,
+            self.basedir.join("%s-%s.doc.zip" % (project, version)))
+        self.add_filedesc("doczip", project, relpath, version=version)
 
 
 class Importer:
@@ -213,6 +220,8 @@ class Importer:
         total_num_projects = 0
         total_num_files = 0
         for idx_name, idx in self.import_indexes.items():
+            if idx['indexconfig']['type'] == 'mirror':
+                continue
             num_projects = len(idx['projects'])
             num_files = len(idx['files'])
             self.tw.line(
@@ -223,9 +232,33 @@ class Importer:
         self.tw.line('Total number of projects: %d' % total_num_projects)
         self.tw.line('Total number of files: %d' % total_num_files)
 
+    def check_names(self, json_path):
+        errors = False
+        for name in self.import_users:
+            if is_valid_name(name):
+                continue
+            self.xom.log.error(
+                "username '%s' contains characters that aren't allowed. "
+                "Any ascii symbol besides -.@_ is blocked." % name)
+            errors = True
+        for index in self.import_indexes:
+            user, name = index.split('/')
+            if is_valid_name(name):
+                continue
+            self.xom.log.error(
+                "indexname '%s' contains characters that aren't allowed. "
+                "Any ascii symbol besides -.@_ is blocked." % index)
+            errors = True
+        if errors:
+            self.xom.log.warn(
+                "You should edit %s manually to fix the above errors." % json_path)
+            raise SystemExit(1)
+
+
     def import_all(self, path):
         self.import_rootdir = path
-        self.import_data = self.read_json(path.join("dataindex.json"))
+        json_path = path.join("dataindex.json")
+        self.import_data = self.read_json(json_path)
         self.dumpversion = self.import_data["dumpversion"]
         if self.dumpversion not in ("1", "2"):
             fatal("incompatible dumpversion: %r" %(self.dumpversion,))
@@ -237,6 +270,7 @@ class Importer:
         self.xom.config.secret = secret = self.import_data["secret"]
         self.xom.config.secretfile.write(secret)
         self.display_import_header(path)
+        self.check_names(json_path)
 
         # first create all users
         for username, userconfig in self.import_users.items():
@@ -249,18 +283,22 @@ class Importer:
 
         # memorize index inheritance structure
         tree = IndexTree()
-        tree.add("root/pypi")  # a root index
+        with self.xom.keyfs.transaction(write=False):
+            stage = self.xom.model.getstage("root/pypi")
+        if stage is not None:
+            tree.add("root/pypi")
         for stagename, import_index in self.import_indexes.items():
             bases = import_index["indexconfig"].get("bases")
             tree.add(stagename, bases)
 
         # create stages in inheritance/root-first order
         stages = []
-        for stagename in tree.iternames():
-            with self.xom.keyfs.transaction(write=True):
+        with self.xom.keyfs.transaction(write=True):
+            for stagename in tree.iternames():
                 if stagename == "root/pypi":
-                    assert self.xom.model.getstage(stagename)
-                    continue
+                    stage = self.xom.model.getstage(stagename)
+                    if stage is not None:
+                        continue
                 import_index = self.import_indexes[stagename]
                 indexconfig = import_index["indexconfig"]
                 if 'uploadtrigger_jenkins' in indexconfig:
@@ -268,18 +306,21 @@ class Importer:
                         # remove if not set, so if the trigger was never
                         # used, you don't need to install the plugin
                         del indexconfig['uploadtrigger_jenkins']
+                if 'pypi_whitelist' in indexconfig:
+                    # this was renamed in 3.0.0
+                    indexconfig['mirror_whitelist'] = indexconfig.pop('pypi_whitelist')
                 user, index = stagename.split("/")
                 user = self.xom.model.get_user(user)
                 stage = user.create_stage(index, **indexconfig)
-            stages.append(stage)
+                stages.append(stage)
         del tree
 
         # create projects and releasefiles for each index
         for stage in stages:
-            assert stage.name != "root/pypi"
+            if stage.ixconfig["type"] == "mirror":
+                continue
             import_index = self.import_indexes[stage.name]
             projects = import_index["projects"]
-            #normalized = self.normalize_index_projects(projects)
             for project, versions in projects.items():
                 for version, versiondata in versions.items():
                     with self.xom.keyfs.transaction(write=True):
@@ -313,7 +354,7 @@ class Importer:
     def import_filedesc(self, stage, filedesc):
         assert stage.ixconfig["type"] != "mirror"
         rel = filedesc["relpath"]
-        projectname = filedesc["projectname"]
+        project = filedesc["projectname"]
         p = self.import_rootdir.join(rel)
         assert p.check(), p
         if filedesc["type"] == "releasefile":
@@ -324,7 +365,7 @@ class Importer:
             else:
                 version = filedesc["version"]
 
-            link = stage.store_releasefile(projectname, version,
+            link = stage.store_releasefile(project, version,
                                            p.basename, p.read("rb"),
                                            last_modified=mapping["last_modified"])
             # devpi-server-2.1 exported with md5 checksums
@@ -338,7 +379,7 @@ class Importer:
             # determined here but in store_releasefile/store_doczip/store_toxresult etc
         elif filedesc["type"] == "doczip":
             version = filedesc["version"]
-            link = stage.store_doczip(projectname, version, p.read("rb"))
+            link = stage.store_doczip(project, version, p.read("rb"))
         elif filedesc["type"] == "toxresult":
             linkstore = stage.get_linkstore_perstage(filedesc["projectname"],
                                            filedesc["version"])

@@ -83,9 +83,9 @@ Indexes
 - An index derives from one or multiple base indices: 
 
    For instance, imagine Emilie creates her own production index (called 
-   */emilie/prod* - the default base is */root/pypi*)) and decide to have a 
+   */emilie/prod*)) and decide to have a 
    developement index (*/emilie/dev*) which derives from her production index 
-   (a base). The later is used to upload temporary packages currently under 
+   (a base). The latter is used to upload temporary packages currently under 
    development.
    
    The structure could look something like this:: 
@@ -103,9 +103,7 @@ Indexes
                       "volatile": true
                   }, 
                   "prod": {
-                      "bases": [
-                          "/root/pypi"
-                      ], 
+                      "bases": [],
                       "type": "stage", 
                       "volatile": false
                   }
@@ -158,9 +156,7 @@ Indexes
                       "volatile": true
                   }, 
                   "prod": {
-                      "bases": [
-                          "/root/pypi"
-                      ], 
+                      "bases": [], 
                       "type": "stage", 
                       "volatile": false
                   }
@@ -191,6 +187,41 @@ one of its bases.
 
 **Non volatile indexes** should be used as common package repositories between 
 users, either for staging or production.
+
+.. _mirror_indexes:
+
+Mirror Indexes
+++++++++++++++
+
+These indexes mirror externally stored packages. By default *root/pypi* is such
+an index, which mirrors https://pypi.python.org/simple.
+
+You can't upload or push any packages to mirror indexes. They update themselves
+whenever they are used. For example when you try to install a package via pip.
+
+By default the info for a package is cached for 30 minutes, after that the
+original is queried again. This can be adjusted per mirror index.
+
+Package releases are downloaded on demand from the original location and cached
+indefinitely from then on.
+
+Mirror indexes can't have bases from which they inherit. They are commonly used
+as a base in regular indexes though.
+
+The data produced by exporting the server state doesn't include mirrored
+releases, only the settings of the mirror index.
+
+The default settings of *root/pypi* look like this::
+
+      $ devpi index root/pypi
+      http://localhost:3141/root/pypi:
+        type=mirror
+        volatile=False
+        custom_data=
+        mirror_cache_expiry=1800
+        mirror_url=https://pypi.python.org/simple/
+        mirror_web_url_fmt=https://pypi.python.org/pypi/{name}
+        title=PyPI
 
 .. _um_concept_server_end_points:
 

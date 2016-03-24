@@ -1,8 +1,11 @@
-#from __future__ import unicode_literals
-
+from devpi.use import BuildoutCfg, DistutilsCfg, PipCfg
+from devpi.use import Current, PersistentCurrent
+from devpi.use import parse_keyvalue_spec, out_index_list
+from devpi_common.url import URL
 import pytest
+import re
 import requests.exceptions
-from devpi.use import *
+
 
 def test_ask_confirm(makehub, monkeypatch):
     import devpi.main
@@ -23,7 +26,7 @@ def test_ask_confirm_delete_args_yes(makehub):
 class TestUnit:
     def test_write_and_read(self, tmpdir):
         path=tmpdir.join("current")
-        current = Current(path)
+        current = PersistentCurrent(path)
         assert not current.simpleindex
         current.reconfigure(dict(
                 pypisubmit="/post",
@@ -31,7 +34,7 @@ class TestUnit:
                 login="/login",
         ))
         assert current.simpleindex
-        newcurrent = Current(path)
+        newcurrent = PersistentCurrent(path)
         assert newcurrent.pypisubmit == current.pypisubmit
         assert newcurrent.simpleindex == current.simpleindex
         assert newcurrent.venvdir == current.venvdir
@@ -39,7 +42,7 @@ class TestUnit:
 
     def test_write_and_read_always_setcfg(self, tmpdir):
         path=tmpdir.join("current")
-        current = Current(path)
+        current = PersistentCurrent(path)
         assert not current.simpleindex
         current.reconfigure(dict(
                 pypisubmit="/post",
@@ -48,10 +51,10 @@ class TestUnit:
         ))
         assert current.simpleindex
         current.reconfigure(dict(always_setcfg=True))
-        newcurrent = Current(path)
+        newcurrent = PersistentCurrent(path)
         assert newcurrent.always_setcfg == True
         newcurrent.reconfigure(data=dict(simpleindex="/index2"))
-        current = Current(path)
+        current = PersistentCurrent(path)
         assert current.always_setcfg
         assert current.simpleindex == "/index2"
 
@@ -76,33 +79,37 @@ class TestUnit:
         cmd_devpi("use", "-l")
         assert mtime == path.mtime()
 
-    def test_normalize_url(self, tmpdir):
-        current = Current(tmpdir.join("current"))
+    def test_normalize_url(self):
+        current = Current()
         current.reconfigure(dict(simpleindex="http://my.serv/index1"))
         url = current._normalize_url("index2")
         assert url == "http://my.serv/index2"
 
-    def test_auth_multisite(self, tmpdir):
-        current = Current(tmpdir.join("current"))
+    def test_auth_multisite(self):
+        current = Current()
         login1 = "http://site.com/+login"
         login2 = "http://site2.com/+login"
-        current.set_auth("hello", "pass1", login1)
-        current.set_auth("hello", "pass2", login2)
+        current.login = login1
+        current.set_auth("hello", "pass1")
+        current.login = login2
+        current.set_auth("hello", "pass2")
         assert current.get_auth(login1) == ("hello", "pass1")
         assert current.get_auth(login2) == ("hello", "pass2")
-        current.del_auth(login1)
+        current.login = login1
+        current.del_auth()
         assert not current.get_auth(login1)
         assert current.get_auth(login2) == ("hello", "pass2")
-        current.del_auth(login2)
+        current.login = login2
+        current.del_auth()
         assert not current.get_auth(login2)
 
-    def test_invalid_url(self, loghub, tmpdir):
-        current = Current(tmpdir.join("current"))
+    def test_invalid_url(self, loghub):
+        current = Current()
         with pytest.raises(SystemExit):
             current.configure_fromurl(loghub, "http://heise.de:1802:31/qwe")
 
-    def test_auth_handling(self, loghub, tmpdir):
-        current = Current(tmpdir.join("current"))
+    def test_auth_handling(self, loghub):
+        current = Current()
         d = {
             "index": "http://l/some/index",
             "login": "http://l/login",
@@ -122,8 +129,8 @@ class TestUnit:
         current._configure_from_server_api(d, URL(current.rooturl))
         assert not current.get_auth()
 
-    def test_rooturl_on_outside_url(self, loghub, tmpdir):
-        current = Current(tmpdir.join("current"))
+    def test_rooturl_on_outside_url(self, loghub):
+        current = Current()
         d = {
             "index": "http://l/subpath/some/index",
             "login": "http://l/subpath/login",
@@ -187,9 +194,9 @@ class TestUnit:
         hub = cmd_devpi("use", "-l")
         assert hub.current.get_basic_auth(url="http://devpi/foo/bar") == ('user', 'password')
         assert hub.current.get_basic_auth(url="http://devpi:80/foo/bar") == ('user', 'password')
-        # now without basic authentication
+        # now without basic authentication the user and password should still be used
         hub = cmd_devpi("use", "http://devpi/foo/bar")
-        assert hub.current.get_basic_auth(url="http://devpi/foo/bar") is None
+        assert hub.current.get_basic_auth(url="http://devpi/foo/bar") == ('user', 'password')
 
     def test_use_with_basic_auth_https(self, cmd_devpi, mock_http_api):
         mock_http_api.set(
@@ -205,9 +212,9 @@ class TestUnit:
         # should work with and without explicit port if it's the default port
         assert hub.current.get_basic_auth(url="https://devpi/foo/bar") == ('user', 'password')
         assert hub.current.get_basic_auth(url="https://devpi:443/foo/bar") == ('user', 'password')
-        # now without basic authentication
+        # now without basic authentication the user and password should still be used
         hub = cmd_devpi("use", "https://devpi/foo/bar")
-        assert hub.current.get_basic_auth(url="https://devpi/foo/bar") is None
+        assert hub.current.get_basic_auth(url="https://devpi/foo/bar") == ('user', 'password')
 
     def test_change_index(self, cmd_devpi, mock_http_api):
         mock_http_api.set("http://world.com/+api", 200,
@@ -229,6 +236,32 @@ class TestUnit:
         hub = cmd_devpi("use", "http://world2.com")
         assert not hub.current.index
         assert hub.current.rooturl == "http://world2.com/"
+
+    def test_switch_to_temporary(self, makehub, mock_http_api):
+        hub = makehub(['use'])
+        mock_http_api.set(
+            "http://foo/+api", 200, result=dict(
+                pypisubmit="/post",
+                simpleindex="/index/",
+                index="root/some",
+                bases="root/dev",
+                login="/+login",
+                authstatus=["noauth", ""]))
+        current = Current()
+        d = {
+            "index": "http://l/some/index",
+            "login": "http://l/login",
+        }
+        current.reconfigure(data=d)
+        current.set_auth("user", "password")
+        assert current.get_auth() == ("user", "password")
+        temp = current.switch_to_temporary(hub, "http://foo")
+        temp.set_auth("user1", "password1")
+        assert temp.get_auth() == ("user1", "password1")
+        # original is unaffected
+        assert current.get_auth() == ("user", "password")
+        assert temp._currentdict is not current._currentdict
+        assert temp._currentdict['auth'] is not current._currentdict['auth']
 
     def test_main(self, cmd_devpi, mock_http_api):
         mock_http_api.set("http://world/this/+api", 200,
@@ -284,7 +317,7 @@ class TestUnit:
         venvdir.ensure(vbin, dir=1)
         monkeypatch.chdir(tmpdir)
         hub = cmd_devpi("use", "--venv=%s" % venvdir)
-        current = Current(hub.current.path)
+        current = PersistentCurrent(hub.current.path)
         assert current.venvdir == str(venvdir)
         hub = cmd_devpi("use", "--venv=%s" % venvdir)
         res = out_devpi("use")
@@ -317,16 +350,29 @@ class TestUnit:
                    ))
 
         hub = cmd_devpi("use", "--set-cfg", "%s://%sworld" % (scheme, basic_auth))
+        # run twice to find any issues where lines are added more than once
+        hub = cmd_devpi("use", "--set-cfg", "%s://%sworld" % (scheme, basic_auth))
         assert PipCfg.default_location.exists()
         content = PipCfg.default_location.read()
-        assert "index_url = %s://%sworld/" % (scheme, basic_auth) in content
-        assert "[search]\nindex = %s://%sworld/" % (scheme, basic_auth) in content
+        assert len(
+            re.findall("index_url\s*=\s*%s://%sworld/simple" % (
+                scheme, basic_auth), content)) == 1
+        result = re.findall(
+            "\[search\].*index\s*=\s*%s://%sworld/" % (
+                scheme, basic_auth), content, flags=re.DOTALL)
+        assert len(result) == 1
+        result = result[0].splitlines()
+        assert len(result) == 2
         assert DistutilsCfg.default_location.exists()
         content = DistutilsCfg.default_location.read()
-        assert "index_url = %s://%sworld/" % (scheme, basic_auth) in content
+        assert len(
+            re.findall("index_url\s*=\s*%s://%sworld/simple" % (
+                scheme, basic_auth), content)) == 1
         assert BuildoutCfg.default_location.exists()
         content = BuildoutCfg.default_location.read()
-        assert "index = %s://%sworld/" % (scheme, basic_auth) in content
+        assert len(
+            re.findall("index\s*=\s*%s://%sworld/simple" % (
+                scheme, basic_auth), content)) == 1
         hub = cmd_devpi("use", "--always-set-cfg=yes")
         assert hub.current.always_setcfg
         hub = cmd_devpi("use", "--always-set-cfg=no")

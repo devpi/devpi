@@ -1,6 +1,8 @@
+from pyramid.httpexceptions import HTTPFound
 from devpi_common.types import ensure_unicode
+from devpi_common.validation import normalize_name
 from devpi_server.auth import Auth
-from devpi_server.views import abort, abort_authenticate, redirect
+from devpi_server.views import abort, abort_authenticate
 from devpi_server.model import UpstreamError
 from pyramid.authentication import CallbackAuthenticationPolicy
 from pyramid.decorator import reify
@@ -96,9 +98,9 @@ class RootFactory(object):
         stage.__acl__ = StageACL(stage, self.restrict_modify).__acl__
         return stage
 
-    def get_versiondata(self, projectname=None, version=None, perstage=False):
-        if projectname is None:
-            projectname = self.projectname  # raises 404 if not found
+    def get_versiondata(self, project=None, version=None, perstage=False):
+        if project is None:
+            project = self.project
         if version is None:
             version = self.version
         if perstage:
@@ -108,47 +110,55 @@ class RootFactory(object):
             get = self.stage.get_versiondata
             msg = ""
         try:
-            verdata = get(projectname, version)
+            verdata = get(project, version)
         except UpstreamError as e:
             abort(self.request, 502, str(e))
         if not verdata:
             abort(self.request, 404,
                   "The version %s of project %s does not exist%s." %
-                               (self.version, projectname, msg))
+                               (self.version, project, msg))
         return verdata
 
-    def list_versions(self, projectname=None):
-        if projectname is None:
-            projectname = self.projectname
+    def list_versions(self, project=None):
+        if project is None:
+            project = self.project
         try:
-            return self.stage.list_versions(projectname)
+            res = self.stage.list_versions(project)
         except UpstreamError as e:
             abort(self.request, 502, str(e))
-
-    @reify
-    def projectname(self):
-        name = self.stage.get_projectname(self.name)
-        if name is None:
-            raise abort(self.request, 404,
-                        "The project %s does not exist." % self.name)
-        if self.request.method == 'GET' and name != self.name:
-            new_matchdict = dict(self.request.matchdict)
-            new_matchdict['name'] = name
-            route_name = self.request.matched_route.name
-            url = self.request.route_url(route_name, **new_matchdict)
-            redirect(url)
-        return name
+        if not res and not self.stage.has_project(project):
+            abort(self.request, 404, "no project %r" %(project))
+        return res
 
     @reify
     def index(self):
         return self.matchdict.get('index')
 
     @reify
-    def name(self):
-        name = self.matchdict.get('name')
-        if name is None:
+    def project(self):
+        project = self.matchdict.get('project')
+        if project is None:
             return
-        return ensure_unicode(name)
+
+        # redirect GETs to non-normalized projects
+        n_project = normalize_name(project)
+        if n_project != project and self.request.method == 'GET':
+            new_matchdict = dict(self.request.matchdict)
+            new_matchdict['project'] = n_project
+            route_name = self.request.matched_route.name
+            url = self.request.route_url(route_name, **new_matchdict)
+            raise HTTPFound(location=url)
+        return n_project
+
+    @reify
+    def verified_project(self):
+        name = self.project
+        try:
+            if not self.stage.has_project(name):
+                abort(self.request, 404, "The project %s does not exist." %(name))
+        except UpstreamError as e:
+            abort(self.request, 502, str(e))
+        return name
 
     @reify
     def version(self):

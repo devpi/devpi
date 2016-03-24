@@ -3,6 +3,8 @@ body, html {
     color: black;
     font-family: sans-serif;
     font-size: 16px;
+    margin: 0;
+    padding: 0;
 }
 
 pre, table {
@@ -26,10 +28,16 @@ form, #content, #navigation, .searchresults {
     margin: 0 1em;
 }
 
-#navigation {
+.header {
     position: relative;
+    background-color: white;
+    z-index: 1;
+    padding: 1em 0 0 0;
+}
+
+#navigation {
     border-bottom: 1px solid #ccc;
-    padding: 0.25em 0 0.25em 0;
+    padding: 0.25em 0 0.5em 0;
 }
 
 #serverstatus {
@@ -162,32 +170,57 @@ form#search .help {
     right: 1em;
 }
 
-.user_index_list dt {
+h1.index_title span:before,
+div.user_index_list dt span:before,
+div.user_index_list ul a span:before {
+    content: "(";
+}
+
+h1.index_title span:after,
+div.user_index_list dt span:after,
+div.user_index_list ul a span:after {
+    content: ")";
+}
+
+div.user_index_list {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+}
+
+div.user_index_list dl {
+    margin: 0.25em 1em;
+    width: 20em;
+}
+
+div.user_index_list dt {
     font-size: 18px;
     font-weight: bold;
 }
 
-.user_index_list dt {
+div.user_index_list dt {
     margin: 0;
     padding: 0;
 }
 
-.user_index_list dd {
-    margin: 0 0 1em 1em;
+div.user_index_list dd {
+    margin: 0 0 1em 0;
     padding: 0;
 }
 
-.user_index_list ul {
-    margin: 0;
+div.user_index_list dd.user_description {
+    margin: 0.5em 0 0.5em 1em;
     padding: 0;
-    list-style: none;
 }
 
-.user_index_list li {
+div.user_index_list ul {
+    margin: 0 0 0 1.5em;
+    padding: 0;
+}
+
+div.user_index_list li {
     margin: 0.25em 0;
     padding: 0;
-    display: inline-block;
-    min-width: 10em;
 }
 
 table.files,
@@ -465,9 +498,14 @@ table.projectinfos .closed .value:after,
     overflow: scroll;
 }
 
-iframe {
-    margin: 0.5em 0 0 0;
+div.iframe {
+    margin: 0;
+}
+
+div.iframe, iframe {
     position: absolute;
+    top: 0;
+    bottom: 0;
     left: 0;
     right: 0;
     width: 100%;

@@ -1,10 +1,19 @@
 from io import BytesIO
 import py
 import pytest
+import requests
 import tarfile
 import time
 
 from test_devpi_server.functional import TestUserThings, TestIndexThings # noqa
+try:
+    from test_devpi_server.functional import TestMirrorIndexThings  # noqa
+except ImportError:
+    # when testing with older devpi-server
+    class TestMirrorIndexThings:
+        def test_mirror_things(self):
+            pytest.skip(
+                "Couldn't import TestMirrorIndexThings from devpi server tests.")
 from test_devpi_server.functional import MappMixin
 
 @pytest.fixture
@@ -82,6 +91,21 @@ class Mapp(MappMixin):
         result = self.out_devpi("index", "-l")
         return [x for x in result.outlines if x.strip()]
 
+    def getpkglist(self):
+        result = self.out_devpi("list")
+        return [x for x in result.outlines if x.strip()]
+
+    def getreleaseslist(self, name, code=200):
+        result = self.out_devpi("list", name, code=code)
+        return [x for x in result.outlines if x.strip()]
+
+    def downloadrelease(self, code, url):
+        r = requests.get(url)
+        assert r.status_code == code
+        if r.status_code < 300:
+            return r.content
+        return r.json()
+
     def change_password(self, user, password):
         auth = getattr(self, "auth", None)
         if auth is None or auth[0] != user and auth[0] != "root":
@@ -142,11 +166,14 @@ class Mapp(MappMixin):
         self.devpi("index", indexname, "acl_upload=%s" % acls, code=200)
 
     def set_custom_data(self, data, indexname=None):
+        return self.set_key_value("custom_data", data, indexname=indexname)
+
+    def set_key_value(self, key, value, indexname=None):
         if indexname is None:
-            self.devpi("index", "custom_data=%s" % data, code=200)
+            self.devpi("index", "%s=%s" % (key, value), code=200)
         else:
             self.devpi("index", indexname,
-                       "custom_data=%s" % data, code=200)
+                       "%s=%s" % (key, value), code=200)
 
     def set_uploadtrigger_jenkins(self, *args, **kwargs):
         # called when we run client tests against server-2.1
@@ -159,12 +186,12 @@ class Mapp(MappMixin):
             self.devpi("index", indexname,
                        "%s=%s" % (key, value), code=200)
 
-    def set_pypi_whitelist(self, whitelist, indexname=None):
+    def set_mirror_whitelist(self, whitelist, indexname=None):
         if indexname is None:
-            self.devpi("index", "pypi_whitelist=%s" % whitelist, code=200)
+            self.devpi("index", "mirror_whitelist=%s" % whitelist, code=200)
         else:
             self.devpi("index", indexname,
-                       "pypi_whitelist=%s" % whitelist, code=200)
+                       "mirror_whitelist=%s" % whitelist, code=200)
 
     def get_acl(self, code=200, indexname=None):
         indexname = self._getindexname(indexname)
@@ -176,12 +203,12 @@ class Mapp(MappMixin):
                 return [x for x in parts[1].split(",") if x]
         return  []
 
-    def get_pypi_whitelist(self, code=200, indexname=None):
+    def get_mirror_whitelist(self, code=200, indexname=None):
         indexname = self._getindexname(indexname)
         result = self.out_devpi("index", indexname)
         for line in result.outlines:
             line = line.strip()
-            parts = line.split("pypi_whitelist=", 1)
+            parts = line.split("mirror_whitelist=", 1)
             return parts[1].split(",")
 
     def upload_file_pypi(self, basename, content,
@@ -206,6 +233,31 @@ def test_logoff(mapp):
 def test_getjson(out_devpi):
     result = out_devpi("getjson", "/", "-v")
     assert "X-DEVPI-API-VERSION" in result.stdout.str()
+
+
+def test_switch_preserves_auth(out_devpi, url_of_liveserver, url_of_liveserver2):
+    import re
+    result1 = out_devpi("use", url_of_liveserver)
+    (url1, user1) = re.search(
+        '(https?://.+?)\s+\(logged in as (.+?)\)', result1.stdout.str()).groups()
+    result2 = out_devpi("use", url_of_liveserver2)
+    url2 = re.search(
+        '(https?://.+?)\s+\(not logged in\)', result2.stdout.str()).group(1)
+    assert url2 != url1
+    out_devpi("user", "-c", user1, "password=123", "email=123")
+    out_devpi("login", user1, "--password", "123")
+    out_devpi("index", "-c", "dev")
+    result3 = out_devpi("use", "dev")
+    (url3, user3) = re.search(
+        '(https?://.+?)\s+\(logged in as (.+?)\)', result3.stdout.str()).groups()
+    assert user3 == user1
+    assert url3.startswith(url2)
+    result4 = out_devpi("use", url_of_liveserver)
+    (url4, user4) = re.search(
+        '(https?://.+?)\s+\(logged in as (.+?)\)', result4.stdout.str()).groups()
+    assert user4 == user1
+    assert url4 == url1
+
 
 class TestUserManagement:
     """ This class tests the user sub command of devpi

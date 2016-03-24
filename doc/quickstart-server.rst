@@ -16,6 +16,11 @@ Note that the :doc:`the pypi-mirroring quickstart
 --start|--log|--stop`` background-server control options which you might
 use to integrate with existing ``init.d`` or similar infrastructure.
 
+.. warning::
+
+    If you intend to expose your server to the internet, you should read
+    about :doc:`securing it properly <adminman/security>`.
+
 Installing devpi-server
 -----------------------
 
@@ -29,7 +34,7 @@ Install or upgrade ``devpi-server``::
 And let's check the version::
 
     $ devpi-server --version
-    2.6.0
+    3.0.0
 
 .. _genconfig:
 
@@ -215,15 +220,15 @@ Installing devpi server and client
 
 .. 
     $ devpi-server --stop
-    2016-01-28 23:54:51,428 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2016-01-28 23:54:51,429 INFO  NOCTX generated uuid: 1477c57104084bac8e4b041e5af73f48
-    2016-01-28 23:54:51,429 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2016-01-28 23:54:51,430 INFO  NOCTX DB: Creating schema
-    2016-01-28 23:54:51,446 INFO  [Wtx-1] setting password for user u'root'
-    2016-01-28 23:54:51,446 INFO  [Wtx-1] created user u'root' with email None
-    2016-01-28 23:54:51,446 INFO  [Wtx-1] created root user
-    2016-01-28 23:54:51,446 INFO  [Wtx-1] created root/pypi index
-    2016-01-28 23:54:51,461 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
+    2016-02-11 12:28:48,999 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2016-02-11 12:28:48,999 INFO  NOCTX generated uuid: fd01f4bfbc554e25ba681f87df8d8743
+    2016-02-11 12:28:49,000 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    2016-02-11 12:28:49,001 INFO  NOCTX DB: Creating schema
+    2016-02-11 12:28:49,045 INFO  [Wtx-1] setting password for user u'root'
+    2016-02-11 12:28:49,045 INFO  [Wtx-1] created user u'root' with email None
+    2016-02-11 12:28:49,045 INFO  [Wtx-1] created root user
+    2016-02-11 12:28:49,045 INFO  [Wtx-1] created root/pypi index
+    2016-02-11 12:28:49,061 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
     no server found
 
 ..
@@ -236,18 +241,18 @@ and caches https://pypi.python.org packages.  Let's start a server
 for the purposes of this tutorial in the background::
 
     $ devpi-server --port 4040 --start
-    2016-01-28 23:54:52,001 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2016-01-28 23:54:52,002 INFO  NOCTX generated uuid: 616c846232c54140962ce6b0354b4ac9
-    2016-01-28 23:54:52,002 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2016-01-28 23:54:52,002 INFO  NOCTX DB: Creating schema
-    2016-01-28 23:54:52,040 INFO  [Wtx-1] setting password for user u'root'
-    2016-01-28 23:54:52,041 INFO  [Wtx-1] created user u'root' with email None
-    2016-01-28 23:54:52,041 INFO  [Wtx-1] created root user
-    2016-01-28 23:54:52,041 INFO  [Wtx-1] created root/pypi index
-    2016-01-28 23:54:52,056 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
+    2016-02-11 12:28:49,482 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2016-02-11 12:28:49,482 INFO  NOCTX generated uuid: 8990ef6f01854e28b456daaeed21da52
+    2016-02-11 12:28:49,483 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    2016-02-11 12:28:49,484 INFO  NOCTX DB: Creating schema
+    2016-02-11 12:28:49,506 INFO  [Wtx-1] setting password for user u'root'
+    2016-02-11 12:28:49,506 INFO  [Wtx-1] created user u'root' with email None
+    2016-02-11 12:28:49,506 INFO  [Wtx-1] created root user
+    2016-02-11 12:28:49,506 INFO  [Wtx-1] created root/pypi index
+    2016-02-11 12:28:49,515 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
     starting background devpi-server at http://localhost:4040
     /tmp/home/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server --port 4040
-    process u'devpi-server' started pid=18815
+    process u'devpi-server' started pid=31346
     devpi-server process startup detected
     logfile is at /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
 
@@ -262,12 +267,8 @@ In order to manage users and indices on our fresh server let's also
 install the ``devpi-client`` package::
 
     $ pip install -U --pre -q devpi-client
-    /tmp/docenv/local/lib/python2.7/site-packages/pip/_vendor/requests/packages/urllib3/util/ssl_.py:315: SNIMissingWarning: An HTTPS request has been made, but the SNI (Subject Name Indication) extension to TLS is not available on this platform. This may cause the server to present an incorrect TLS certificate, which can cause validation failures. For more information, see https://urllib3.readthedocs.org/en/latest/security.html#snimissingwarning.
-      SNIMissingWarning
-    /tmp/docenv/local/lib/python2.7/site-packages/pip/_vendor/requests/packages/urllib3/util/ssl_.py:120: InsecurePlatformWarning: A true SSLContext object is not available. This prevents urllib3 from configuring SSL appropriately and may cause certain SSL connections to fail. For more information, see https://urllib3.readthedocs.org/en/latest/security.html#insecureplatformwarning.
-      InsecurePlatformWarning
-You can install this client software on different hosts if you
-`configured nginx`_.
+
+You can install this client software on different hosts if you `configured nginx`_.
 
 .. _auth:
 
@@ -302,6 +303,7 @@ For that we first need to login::
 and can then change it::
 
     $ devpi user -m root password=123
+    /root changing password: 123
     user modified: root
 
 Let's verify we don't have any other users::
@@ -330,12 +332,13 @@ and then login::
 
 Alice can now create her new ``dev`` index::
 
-    $ devpi index -c dev
+    $ devpi index -c dev bases=root/pypi
     http://localhost:4040/alice/dev:
       type=stage
       bases=root/pypi
       volatile=True
       acl_upload=alice
+      mirror_whitelist=
       pypi_whitelist=
 
 and use it ::
@@ -347,14 +350,8 @@ and use it ::
     ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
     always-set-cfg: no
 
-Our ``alice/dev`` index derives from ``root/pypi`` by default
+Our ``alice/dev`` index derives from ``root/pypi``
 which makes all pypi.python.org releases available.
-
-restricting modification rights
-+++++++++++++++++++++++++++++++
-
-You can use the ``--restrict-modify`` option of ``devpi-server`` to restrict
-who can create, modify and delete users and indices.
 
 
 automatically setting pip/easy_install config files
@@ -396,51 +393,6 @@ Stopping the server
 Let's not forget to stop our background tutorial server::
 
     $ devpi-server --stop
-    2016-01-28 23:55:06,556 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2016-01-28 23:55:06,557 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    killed server pid=18815
-
-.. _upgrade:
-
-versioning, exporting and importing server state
-----------------------------------------------------
-
-.. note::
-
-    you don't need to perform any explicit data migration if you are 
-    using devpi-server as a pure pypi mirror, i.e. not creating
-    users or uploading releases to indexes.  devpi-server
-    will automatically wipe and re-initialize the pypi cache 
-    in case of incompatible internal data-layout changes.
-
-``devpi-server`` maintains its state in a ``serverdir``,
-by default in ``$HOME/.devpi/server``, unless you specify
-a different location via the ``--serverdir`` option.
-
-You can use the ``--export`` option to dump user and index state
-into a directory::
-
-    devpi-server --export dumpdir
-
-``dumpdir`` will then contain a ``dataindex.json`` and the
-files that comprise the server state.
-
-Using the same version of ``devpi-server`` or a future release you can
-then import this dumped server state::
-
-    devpi-server --serverdir newserver --import dumpdir
-
-This will import the previously exported server dump and
-create a new server state structure in the ``newserver`` directory.
-You can then run a server from this new state::
-
-    devpi-server --serverdir newserver --port 5000
-
-and check through a browser that all your data got migrated correctly.
-Once you are happy you can remove the old serverdir.
-
-.. note::
-
-    Only your private indexes are exported and can be imported.  
-    The special ``root/pypi`` pypi-caching index along with its files
-    is not exported.
+    2016-02-11 12:28:57,113 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2016-02-11 12:28:57,114 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    killed server pid=31346

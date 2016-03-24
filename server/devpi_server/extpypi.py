@@ -7,7 +7,6 @@ toxresult storage.
 
 from __future__ import unicode_literals
 
-import py
 import time
 
 import re
@@ -16,21 +15,20 @@ from devpi_common.vendor._pip import HTMLPage
 from devpi_common.url import URL
 from devpi_common.metadata import BasenameMeta
 from devpi_common.metadata import is_archive_of_project
-from devpi_common.types import ensure_unicode_keys
+from devpi_common.types import cached_property
 from devpi_common.validation import normalize_name
-from devpi_common.request import new_requests_session
+from functools import partial
 
-from . import __version__ as server_version
 from .model import BaseStage, make_key_and_href, SimplelinkMeta
-from .keyfs import load_from_file, dump_to_file
-from .readonly import ensure_deeply_readonly, get_mutable_deepcopy
+from .model import InvalidIndexconfig, get_indexconfig
+from .readonly import ensure_deeply_readonly
 from .log import threadlog
 
 
 class IndexParser:
 
-    def __init__(self, projectname):
-        self.projectname = normalize_name(projectname)
+    def __init__(self, project):
+        self.project = normalize_name(project)
         self.basename2link = {}
         self.crawllinks = set()
         self.egglinks = []
@@ -59,10 +57,9 @@ class IndexParser:
                 continue
             eggfragment = newurl.eggfragment
             if scrape and eggfragment:
-                if not normalize_name(eggfragment).startswith(
-                    self.projectname):
-                    threadlog.debug("skip egg link %s (projectname: %s)",
-                              newurl, self.projectname)
+                if not normalize_name(eggfragment).startswith(self.project):
+                    threadlog.debug("skip egg link %s (project: %s)",
+                              newurl, self.project)
                     continue
                 if newurl.basename:
                     # XXX seems we have to maintain a particular
@@ -72,10 +69,10 @@ class IndexParser:
                         self.egglinks.insert(0, newurl)
                 else:
                     threadlog.warn("cannot handle egg directory link (svn?) "
-                              "skipping: %s (projectname: %s)",
-                              newurl, self.projectname)
+                                   "skipping: %s (project: %s)",
+                                   newurl, self.project)
                 continue
-            if is_archive_of_project(newurl, self.projectname):
+            if is_archive_of_project(newurl, self.project):
                 if not newurl.is_valid_http_url():
                     threadlog.warn("unparseable/unsupported url: %r", newurl)
                 else:
@@ -92,41 +89,10 @@ class IndexParser:
 def parse_index(disturl, html, scrape=True):
     if not isinstance(disturl, URL):
         disturl = URL(disturl)
-    projectname = disturl.basename or disturl.parentbasename
-    parser = IndexParser(projectname)
+    project = disturl.basename or disturl.parentbasename
+    parser = IndexParser(project)
     parser.parse_index(disturl, html, scrape=scrape)
     return parser
-
-
-class PyPISimpleProxy(object):
-    def __init__(self, simple_url=None):
-        if simple_url is None:
-            self._simple_url = PYPIURL_SIMPLE
-        else:
-            self._simple_url = simple_url
-        self._session = new_requests_session(agent=("server", server_version))
-
-    def list_packages_with_serial(self):
-        headers = {"Accept": "text/html"}
-        try:
-            response = self._session.get(self._simple_url, headers=headers)
-        except Exception as exc:
-            threadlog.warn("error %s with remote %s", exc, self._simple_url)
-            return None
-        page = HTMLPage(response.text, response.url)
-        name2serials = {}
-        baseurl = URL(self._simple_url)
-        basehost = baseurl.replace(path='')
-        for link in page.links:
-            newurl = URL(link.url)
-            if not newurl.is_valid_http_url():
-                continue
-            if not newurl.path.startswith(baseurl.path):
-                continue
-            if basehost != newurl.replace(path=''):
-                continue
-            name2serials[newurl.basename] = -1
-        return name2serials
 
 
 def perform_crawling(pypistage, result, numthreads=10):
@@ -150,84 +116,164 @@ def perform_crawling(pypistage, result, numthreads=10):
 
 
 class PyPIStage(BaseStage):
-    username = "root"
-    index = "pypi"
-    name = "root/pypi"
-    ixconfig = {"bases": (), "volatile": False, "type": "mirror",
-                "pypi_whitelist": (), "custom_data": "",
-                "acl_upload": ["root"]}
-
-    def __init__(self, xom):
-        self.keyfs = xom.keyfs
-        self.httpget = xom.httpget
-        self.filestore = xom.filestore
-        self.pypimirror = xom.pypimirror
-        self.cache_expiry = xom.config.args.pypi_cache_expiry
+    def __init__(self, xom, username, index, ixconfig):
+        super(PyPIStage, self).__init__(xom, username, index, ixconfig)
+        self.httpget = self.xom.httpget  # XXX is requests/httpget multi-thread safe?
+        self.cache_expiry = self.ixconfig.get(
+            'mirror_cache_expiry', xom.config.args.mirror_cache_expiry)
         self.xom = xom
         if xom.is_replica():
             url = xom.config.master_url
-            self.PYPIURL_SIMPLE = url.joinpath("root/pypi/+simple/").url
+            self.mirror_url = url.joinpath("%s/+simple/" % self.name).url
         else:
-            self.PYPIURL_SIMPLE = PYPIURL_SIMPLE
+            url = URL(self.ixconfig['mirror_url'])
+            self.mirror_url = url.asdir().url
 
-    def list_projectnames_perstage(self):
-        """ return list of all projects served through the mirror. """
-        return set(self.pypimirror.name2serials)
+    @cached_property
+    def user(self):
+        # only few methods need the user object.
+        return self.model.get_user(self.username)
 
-    def _dump_project_cache(self, projectname, entries, serial):
-        normname = normalize_name(projectname)
-        dumplist = [make_key_and_href(entry) for entry in entries]
+    def delete(self):
+        with self.user.key.update() as userconfig:
+            indexes = userconfig.get("indexes", {})
+            if self.index not in indexes:
+                threadlog.info("index %s not exists" % self.index)
+                return False
+            del indexes[self.index]
 
-        data = {"serial": serial,
-                "dumplist": dumplist,
-                "projectname": projectname}
-        self.xom.set_updated_at(self.name, projectname, time.time())
-        old = self.keyfs.PYPILINKS(name=normname).get()
+    def modify(self, index=None, **kw):
+        if 'type' in kw and self.ixconfig["type"] != kw['type']:
+            raise InvalidIndexconfig(
+                ["the 'type' of an index can't be changed"])
+        kw.pop("type", None)
+        ixconfig = get_indexconfig(
+            self.xom.config.hook, type=self.ixconfig["type"], **kw)
+        # modify user/indexconfig
+        with self.user.key.update() as userconfig:
+            newconfig = userconfig["indexes"][self.index]
+            newconfig.update(ixconfig)
+            threadlog.info("modified index %s: %s", self.name, ixconfig)
+            self.ixconfig = newconfig
+            return newconfig
+
+    @property
+    def cache_projectnames(self):
+        """ filesystem-persistent cache for full list of projectnames. """
+        # we could keep this info inside keyfs but pypi.python.org
+        # produces a 3MB list of names and it changes often which
+        # would spam the database.
+        try:
+            return self.xom.get_singleton(self.name, "projectnames")
+        except KeyError:
+            cache_projectnames = ProjectNamesCache()
+            self.xom.set_singleton(self.name, "projectnames", cache_projectnames)
+            return cache_projectnames
+
+    @property
+    def cache_link_updates(self):
+        """ per-xom RAM cache for keeping track when we last updated simplelinks. """
+        # we could keep this info in keyfs but it would lead to a write
+        # for each remote check.
+        try:
+            return self.xom.get_singleton(self.name, "project_retrieve_times")
+        except KeyError:
+            c = ProjectUpdateCache()
+            self.xom.set_singleton(self.name, "project_retrieve_times", c)
+            return c
+
+    def _get_remote_projects(self):
+        headers = {"Accept": "text/html"}
+        response = self.httpget(self.mirror_url, allow_redirects=True, extra_headers=headers)
+        if response.status_code != 200:
+            raise self.UpstreamError("URL %r returned %s",
+                                self.mirror_url, response.status_code)
+        page = HTMLPage(response.text, response.url)
+        projects = set()
+        baseurl = URL(response.url)
+        basehost = baseurl.replace(path='')
+        for link in page.links:
+            newurl = URL(link.url)
+            if not newurl.is_valid_http_url():
+                continue
+            if not newurl.path.startswith(baseurl.path):
+                continue
+            if basehost != newurl.replace(path=''):
+                continue
+            projects.add(newurl.basename)
+        return projects
+
+    def list_projects_perstage(self):
+        """ return set of all projects served through the mirror. """
+        if self.cache_projectnames.is_fresh(self.cache_expiry):
+            projects = self.cache_projectnames.get()
+        else:
+            # no fresh projects or None at all, let's go remote
+            try:
+                projects = self._get_remote_projects()
+            except self.UpstreamError:
+                if not self.cache_projectnames.exists():
+                    raise
+                threadlog.warn("using stale projects list")
+                projects = self.cache_projectnames.get()
+            else:
+                old = self.cache_projectnames.get()
+                if not self.cache_projectnames.exists() or old != projects:
+                    self.cache_projectnames.set(projects)
+
+                    # trigger an initial-load event on master
+                    if not self.xom.is_replica():
+                        k = self.keyfs.MIRRORNAMESINIT(user=self.username, index=self.index)
+                        if k.get() == 0:
+                            self.keyfs.restart_as_write_transaction()
+                            k.set(1)
+
+        return projects
+
+    def is_project_cached(self, project):
+        """ return True if we have some cached simpelinks information. """
+        return self.key_projsimplelinks(project).exists()
+
+    def _save_cache_links(self, project, links, serial):
+        assert isinstance(serial, int)
+        assert project == normalize_name(project), project
+        data = {"serial": serial, "links": links}
+        key = self.key_projsimplelinks(project)
+        old = key.get()
         if old != data:
-            threadlog.debug("saving data for %s: %s", projectname, data)
-            self.keyfs.PYPILINKS(name=normname).set(data)
-        else:
-            threadlog.debug("data unchanged for %s: %s", projectname, data)
-        return dumplist
+            threadlog.debug("saving changed simplelinks for %s: %s", project, data)
+            key.set(data)
+        # XXX if the transaction fails the links are still marked
+        # as refreshed but the data was not persisted.  It's a rare
+        # enough event (tm) to not worry too much, though.
+        # (we can, however, easily add a
+        # keyfs.tx.on_commit_success(callback) method.
+        self.cache_link_updates.refresh(project)
+
+    def _load_cache_links(self, project):
+        is_fresh, links, serial = False, None, -1
+
+        cache = self.key_projsimplelinks(project).get()
+        if cache:
+            is_fresh = self.cache_link_updates.is_fresh(project, self.cache_expiry)
+            links, serial = cache["links"], cache["serial"]
+            if self.xom.config.args.offline_mode and links:
+                links = ensure_deeply_readonly(list(filter(self._is_file_cached, links)))
+
+        return is_fresh, links, serial
 
     def _is_file_cached(self, dumplistentry):
         relpath = re.sub(r"#.*$", "", dumplistentry[1])
         entry = self.filestore.get_file_entry(relpath)
         return entry is not None and entry.file_exists()
 
-    def _remove_uncached_files(self, data):
-        data = get_mutable_deepcopy(data)
-        data["dumplist"] = [e for e in data["dumplist"] if self._is_file_cached(e)]
-        return ensure_deeply_readonly(data)
-
-    def _load_project_cache(self, projectname):
-        normname = normalize_name(projectname)
-        data = self.keyfs.PYPILINKS(name=normname).get()
-
-        if self.xom.config.args.offline_mode and "dumplist" in data:
-            data = self._remove_uncached_files(data)
-        #log.debug("load data for %s: %s", projectname, data)
-        return data
-
-    def _load_cache_links(self, projectname):
-        cache = self._load_project_cache(projectname)
-        if cache and "dumplist" in cache:  # prior to 2.4 there was no "dumplist"
-            serial = self.pypimirror.get_project_serial(projectname)
-            is_fresh = (cache["serial"] >= serial)
-            if is_fresh:
-                updated_at = self.xom.get_updated_at(self.name, projectname)
-                is_fresh = (time.time() - updated_at) <= self.cache_expiry
-            return (is_fresh, cache["dumplist"])
-        return True, None
-
-    def clear_cache(self, projectname):
-        normname = normalize_name(projectname)
+    def clear_simplelinks_cache(self, project):
         # we have to set to an empty dict instead of removing the key, so
         # replicas behave correctly
-        self.keyfs.PYPILINKS(name=normname).set({})
-        threadlog.debug("cleared cache for %s", projectname)
+        self.key_projsimplelinks(project).set({})
+        threadlog.debug("cleared cache for %s", project)
 
-    def get_simplelinks_perstage(self, projectname):
+    def get_simplelinks_perstage(self, project):
         """ return all releaselinks from the index and referenced scrape
         pages, returning cached entries if we have a recent enough
         request stored locally.
@@ -236,34 +282,43 @@ class PyPIStage(BaseStage):
         does not return a fresh enough page although we know it must
         exist.
         """
-        projectname = self.get_projectname_perstage(projectname)
-        if projectname is None:
-            return []
-        is_fresh, links = self._load_cache_links(projectname)
-        if links is not None and is_fresh:
+        project = normalize_name(project)
+        is_fresh, links, cache_serial = self._load_cache_links(project)
+        if is_fresh:
             return links
 
         # get the simple page for the project
-        url = self.PYPIURL_SIMPLE + projectname + "/"
-        threadlog.debug("visiting index %s", url)
+        url = self.mirror_url + project + "/"
+        threadlog.debug("reading index %s", url)
         response = self.httpget(url, allow_redirects=True)
         if response.status_code != 200:
-            # if we have an old version, return it instead of erroring out
-            # in case that a project was deleted or all releases removed, links
-            # will be served until the cache expires
-            if links is not None:
-                threadlog.error("serving stale links for %r, upstream not reachable",
-                                projectname)
+            # if we have and old result, return it. While this will
+            # miss the rare event of actual project deletions it allows
+            # to stay resilient against server misconfigurations.
+            if links is not None and links != ():
+                threadlog.error("serving stale links for %r, url %r responded %r",
+                                project, url, response.status_code)
                 return links
             if response.status_code == 404:
-                # we get a 404 if a project has no releases or when it's deleted
-                # the empty list must be persisted, so replicas see the same
-                # result. If a release is made, the changelog triggers an update
-                # and when the expiry time is reached pypi is also checked again
-                self.keyfs.restart_as_write_transaction()
-                return self._dump_project_cache(
-                    projectname, [],
-                    self.pypimirror.get_project_serial(projectname))
+                # We get a 404 if a project does not exist.
+                if self.xom.is_replica():
+                    # We triggered master above, so we just go on, since we
+                    # know we won't get anything else than a 404 and the
+                    # master will persist this information and pass it on to
+                    # the replicas
+                    pass
+                else:
+                    # We persist this result so replicas see it as well.
+                    # After the dump cache expires new requests will retry
+                    # and thus detect new projects and their releases.
+                    self.keyfs.restart_as_write_transaction()
+                    self._save_cache_links(project, (), -1)
+                # Note that we use an empty tuple (instead of the usual
+                # list) so has_project_per_stage() can determine it as a
+                # non-existing project.
+                return ()
+
+            # we don't have an old result and got a non-404 code.
             raise self.UpstreamError("%s status on GET %s" %
                                      (response.status_code, url))
 
@@ -277,21 +332,17 @@ class PyPIStage(BaseStage):
         # simple page.
         serial = int(response.headers.get(str("X-PYPI-LAST-SERIAL"), "-1"))
 
-        if not self.xom.is_replica():  # we are a master
-            # check that we got a fresh enough page
-            newest_serial = self.pypimirror.get_project_serial(projectname)
-            if serial < newest_serial:
-                raise self.UpstreamError(
-                            "%s: pypi returned serial %s, expected at least %s",
-                            projectname, serial, newest_serial)
-            elif serial > newest_serial:
-                self.pypimirror.set_project_serial(projectname, serial)
+        if serial < cache_serial:
+            threadlog.warn("serving cached links for %s "
+                           "because returned serial %s, cache_serial %s is better!",
+                           response.url, serial, cache_serial)
+            return links
 
-            threadlog.debug("%s: got response with serial %s", projectname, serial)
+        threadlog.debug("%s: got response with serial %s", project, serial)
 
-            # check returned url has the same normalized name
-            ret_projectname = response.url.strip("/").split("/")[-1]
-            assert normalize_name(projectname) == normalize_name(ret_projectname)
+        # check returned url has the same normalized name
+        ret_project = response.url.strip("/").split("/")[-1]
+        assert project == normalize_name(ret_project)
 
 
         # parse simple index's link and perform crawling
@@ -302,14 +353,23 @@ class PyPIStage(BaseStage):
 
         # first we try to process mirror links without an explicit write transaction.
         # if all links already exist in storage we might then return our already
-        # cached information about them.  Note that _dump_project_cache() will
-        # implicitely update cache timestamps.
+        # cached information about them.  Note that _save_cache_links() will
+        # implicitely update non-persisted cache timestamps.
         def map_and_dump():
-            # both maplink() and _dump_project_cache() will not modify
+            # both maplink() and _save_cache_links() will not modify
             # storage if there are no changes so they operate fine within a
             # read-transaction if nothing changed.
-            entries = [self.filestore.maplink(link) for link in releaselinks]
-            return self._dump_project_cache(projectname, entries, serial)
+            maplink = partial(
+                self.filestore.maplink, user=self.user.name, index=self.index)
+            entries = [maplink(link) for link in releaselinks]
+            links = [make_key_and_href(entry) for entry in entries]
+            self._save_cache_links(project, links, serial)
+
+            # make project appear in projects list even
+            # before we next check up the full list with remote
+            threadlog.info("setting projects cache for %r", project)
+            self.cache_projectnames.get_inplace().add(project)
+            return links
 
         try:
             return map_and_dump()
@@ -328,18 +388,18 @@ class PyPIStage(BaseStage):
             devpi_serial = int(response.headers["X-DEVPI-SERIAL"])
             threadlog.debug("get_simplelinks pypi: waiting for devpi_serial %r",
                             devpi_serial)
-            self.keyfs.notifier.wait_tx_serial(devpi_serial)
+            self.keyfs.wait_tx_serial(devpi_serial)
             threadlog.debug("get_simplelinks pypi: finished waiting for devpi_serial %r",
                             devpi_serial)
             # XXX raise TransactionRestart to get a consistent clean view
             self.keyfs.commit_transaction_in_thread()
             self.keyfs.begin_transaction_in_thread()
-            is_fresh, links = self._load_cache_links(projectname)
+            is_fresh, links, cache_serial = self._load_cache_links(project)
             if links is not None:
-                self.xom.set_updated_at(self.name, projectname, time.time())
+                self.cache_link_updates.refresh(project)
                 return links
             raise self.UpstreamError("no cache links from master for %s" %
-                                     projectname)
+                                     project)
         else:
             # we are on the master and something changed and we are
             # in a readonly-transaction so we need to start a write
@@ -347,45 +407,24 @@ class PyPIStage(BaseStage):
             self.keyfs.restart_as_write_transaction()
             return map_and_dump()
 
-    def get_projectname_perstage(self, name):
-        result = self.pypimirror.get_registered_name(name)
-        if result is None:
-            # we don't know about the project
-            projectname = normalize_name(name)
-            is_fresh, links = self._load_cache_links(projectname)
-            serial = self.pypimirror.get_project_serial(projectname)
-            if links is not None and serial == -1 and is_fresh:
-                # since the serial is -1, this is a cached 404
-                return
-            if links is None or not is_fresh:
-                # get the simple page for the project
-                url = self.PYPIURL_SIMPLE + projectname + "/"
-                threadlog.debug("visiting index %s", url)
-                response = self.httpget(url, allow_redirects=True)
-                if response.status_code == 404:
-                    # the project isn't found, cache that fact
-                    self.keyfs.restart_as_write_transaction()
-                    self._dump_project_cache(projectname, [], -1)
-                    return
-                if response.status_code != 200:
-                    # we can't say if the project exists
-                    return
-                # the project exists, so register it
-                self.pypimirror.set_project_serial(projectname, -1)
-                return projectname
-        return result
+    def has_project_perstage(self, project):
+        links = self.get_simplelinks_perstage(project)
+        if links == ():  # marker for non-existing project, see get_simplelinks_perstage
+            return False
+        return True
 
-    def list_versions_perstage(self, projectname):
+    def list_versions_perstage(self, project):
         return set(x.get_eggfragment_or_version()
-                   for x in map(SimplelinkMeta, self.get_simplelinks_perstage(projectname)))
+                   for x in map(SimplelinkMeta, self.get_simplelinks_perstage(project)))
 
-    def get_versiondata_perstage(self, projectname, version, readonly=True):
+    def get_versiondata_perstage(self, project, version, readonly=True):
+        project = normalize_name(project)
         verdata = {}
-        for sm in map(SimplelinkMeta, self.get_simplelinks_perstage(projectname)):
+        for sm in map(SimplelinkMeta, self.get_simplelinks_perstage(project)):
             link_version = sm.get_eggfragment_or_version()
             if version == link_version:
                 if not verdata:
-                    verdata['name'] = projectname
+                    verdata['name'] = project
                     verdata['version'] = version
                 elinks = verdata.setdefault("+elinks", [])
                 entrypath = sm._url.path
@@ -395,90 +434,50 @@ class PyPIStage(BaseStage):
         return verdata
 
 
-class PyPIMirror:
-    def __init__(self, xom):
-        self.xom = xom
-        self.keyfs = keyfs = xom.keyfs
-        self.path_name2serials = str(
-            keyfs.basedir.join(PyPIStage.name, ".name2serials"))
+class ProjectNamesCache:
+    """ Helper class for maintaining project names from a mirror. """
+    def __init__(self):
+        self._timestamp = -1
+        self._data = set()
 
-    def get_registered_name(self, name):
-        norm_name = normalize_name(name)
-        name = self.normname2name.get(norm_name, norm_name)
-        if name in self.name2serials:
-            return name
+    def exists(self):
+        return self._timestamp != -1
 
-    def init_pypi_mirror(self, proxy):
-        """ initialize pypi mirror if no mirror state exists. """
-        self.name2serials = self.load_name2serials(proxy)
-        # create a mapping of normalized name to real name
-        self.normname2name = d = dict()
-        for name in self.name2serials:
-            norm = normalize_name(name)
-            assert py.builtin._istext(norm)
-            assert py.builtin._istext(name)
-            if norm != name:
-                d[norm] = name
+    def is_fresh(self, expiry_time):
+        return (time.time() - self._timestamp) < expiry_time
 
-    def load_name2serials(self, proxy):
-        name2serials = load_from_file(self.path_name2serials, {})
-        if name2serials:
-            threadlog.info("reusing already cached name/serial list")
-            ensure_unicode_keys(name2serials)
-        else:
-            threadlog.info("retrieving initial name/serial list")
-            name2serials = proxy.list_packages_with_serial()
-            if name2serials is None:
-                from devpi_server.main import fatal
-                fatal("mirror initialization failed: "
-                      "pypi.python.org not reachable")
-            ensure_unicode_keys(name2serials)
+    def get(self):
+        """ Get a copy of the cached data. """
+        return set(self._data)
 
-            dump_to_file(name2serials, self.path_name2serials)
-            # trigger anything (e.g. web-search indexing) that wants to
-            # look at the initially loaded serials
-            if not self.xom.is_replica():
-                with self.xom.keyfs.transaction(write=True):
-                    with self.xom.keyfs.PYPI_SERIALS_LOADED.update():
-                        pass
-        return name2serials
+    def get_inplace(self):
+        """ Get cached data in-place. """
+        return self._data
 
-    def get_project_serial(self, projectname):
-        """ get serial for project.
-
-        Will use the normalization table to look up the correct name.
-        Returns -1 if the project isn't known.
-        """
-        name = self.get_registered_name(projectname)
-        return self.name2serials.get(name, -1)
-
-    def set_project_serial(self, name, serial):
-        """ set the current serial and update projectname normalization table.
-
-        Usually ``name`` is a "realname" not a normalized name.
-        But you can pass in a normalized name if the project
-        is already known in which case we derive the real name
-        automatically.
-        """
-        n = normalize_name(name)
-        if n in self.normname2name:
-            name = self.normname2name[n]
-
-        if serial is None:
-            del self.name2serials[name]
-            self.normname2name.pop(n, None)
-        else:
-            self.name2serials[name] = serial
-            if n != name:
-                self.normname2name[n] = name
-        return n
+    def set(self, data):
+        """ Set data, updating timestamp and writing to local file"""
+        if data is not self._data:
+            self._data = data.copy()
+        self._timestamp = time.time()
 
 
-PYPIURL_SIMPLE = "https://pypi.python.org/simple/"
-PYPIURL = "https://pypi.python.org/"
+class ProjectUpdateCache:
+    """ Helper class to manage when we last updated something project specific. """
+    def __init__(self):
+        self._project2time = {}
 
+    def is_fresh(self, project, expiry_time):
+        t = self._project2time.get(project)
+        if t is not None:
+            if (time.time() - t) < expiry_time:
+                return True
+        return False
 
-def itervalues(d):
-    return getattr(d, "itervalues", d.values)()
-def iteritems(d):
-    return getattr(d, "iteritems", d.items)()
+    def get_timestamp(self, project):
+        return self._project2time.get(project, 0)
+
+    def refresh(self, project):
+        self._project2time[project] = time.time()
+
+    def expire(self, project):
+        self._project2time.pop(project, None)

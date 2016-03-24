@@ -62,7 +62,7 @@ if __name__ == "__main__":
       keywords="pypi realtime cache server",
       long_description="\n\n".join([README, CHANGELOG]),
       url="http://doc.devpi.net",
-      version='2.6.1',
+      version='3.0.2',
       maintainer="Holger Krekel, Florian Schulze",
       maintainer_email="holger@merlinux.eu",
       packages=find_packages(),
@@ -90,6 +90,8 @@ if __name__ == "__main__":
                     ["devpi-server = devpi_server.main:main"],
         'devpi_server': [
             "devpi-server-auth-basic = devpi_server.auth_basic",
-            "devpi-server-auth-devpi = devpi_server.auth_devpi"],
+            "devpi-server-auth-devpi = devpi_server.auth_devpi",
+            "devpi-server-sqlite = devpi_server.keyfs_sqlite",
+            "devpi-server-sqlite-fs = devpi_server.keyfs_sqlite_fs"],
         'devpi_web': [
             "devpi-server-status = devpi_server.views"]})

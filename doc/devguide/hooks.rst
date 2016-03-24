@@ -3,8 +3,8 @@
 devpi-server plugin hooks (experimental)
 ============================================
 
-``devpi-server-2.0`` introduced an experimental Plugin system in order
-to decouple ``devpi-web`` from core operations.  As the 2.0 series becomes more
+``devpi-server-3.0`` provides a reasonably but not completely stable Plugin system 
+in order to decouple ``devpi-web`` from core operations.  As the 3.0 series becomes more
 battle tested we expect the plugin API to stabilize and be useable from
 other prospective extensions.
 
@@ -46,6 +46,14 @@ There is one hook to enable authentication from external sources::
         Optionally the plugin can return a list of group names the user is
         member of using the "groups" key of the result dict.
         """
+
+
+hook semantics for creating of indexes
+--------------------------------------
+
+In order to act on creation of new indexes::
+
+    devpiserver_stage_created(stage)
 
 
 hook semantics for metadata changes and uploads
@@ -117,6 +125,33 @@ Plugins can add key names and default values to the index configuration::
 
         It's best to use the plugin name as prefix to avoid clashes between
         key names in different plugins."""
+
+
+hook semantics for mirror indexes
+---------------------------------
+
+Plugins can process the initial list of projectnames when a mirror loads it::
+
+    def devpiserver_mirror_initialnames(stage, projectnames):
+        """called with a mirror stage and a list of projectnames, initially
+        retrieved from the mirrored remote site. """
+
+
+hook semantics for storage backends
+-----------------------------------
+
+Plugins can provide custom storage backends. The storage API is still experimental::
+
+    def devpiserver_storage_backend(settings):
+        """ return dict containing storage backend info.
+
+        The following keys are defined:
+
+            "storage" - the class implementing the storage API
+            "name" - name for selection from command line
+            "description" - a short description for the commandline help
+        """
+
 
 
 devpi-web plugin hooks (experimental)

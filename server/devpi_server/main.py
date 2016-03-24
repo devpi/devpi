@@ -15,7 +15,7 @@ from devpi_common.request import new_requests_session
 from .config import parseoptions, get_pluginmanager
 from .log import configure_logging, threadlog
 from .model import BaseStage
-from . import extpypi, replica, mythread
+from . import mythread
 from . import __version__ as server_version
 
 
@@ -84,7 +84,7 @@ def _main(pluginmanager, argv=None):
     config.init_nodeinfo()
 
     xom = XOM(config)
-    if not xom.is_replica():
+    if not xom.is_replica() and xom.keyfs.get_current_serial() == -1:
         with xom.keyfs.transaction(write=True):
             set_default_indexes(xom.model)
     check_compatible_version(xom)
@@ -148,10 +148,8 @@ class XOM:
     class Exiting(SystemExit):
         pass
 
-    def __init__(self, config, proxy=None, httpget=None):
+    def __init__(self, config, httpget=None):
         self.config = config
-        if proxy is not None:
-            self.proxy = proxy
         self.thread_pool = mythread.ThreadPool()
         if httpget is not None:
             self.httpget = httpget
@@ -160,7 +158,7 @@ class XOM:
             self.set_state_version(server_version)
         self.log = threadlog
         self.polling_replicas = {}
-        self.stage2name2updated = {}
+        self._stagecache = {}
 
     def get_state_version(self):
         versionfile = self.config.serverdir.join(".serverversion")
@@ -176,15 +174,22 @@ class XOM:
         versionfile.dirpath().ensure(dir=1)
         versionfile.write(version)
 
-    def get_updated_at(self, stagename, projectname):
-        name2updated = self.stage2name2updated.setdefault(stagename, {})
-        return name2updated.setdefault(projectname, 0)
+    def get_singleton(self, indexpath, key):
+        """ return a per-xom singleton for the given indexpath and key
+        or raise KeyError if no such singleton was set yet.
+        """
+        return self._stagecache[indexpath][key]
 
-    def set_updated_at(self, stagename, projectname, ts):
-        name2updated = self.stage2name2updated.setdefault(stagename, {})
-        name2updated[projectname] = ts
+    def set_singleton(self, indexpath, key, obj):
+        """ set the singleton for indexpath/key to obj. """
+        s = self._stagecache.setdefault(indexpath, {})
+        s[key] = obj
 
-    @property
+    def del_singletons(self, indexpath):
+        """ delete all singletones for the given indexpath """
+        self._stagecache.pop(indexpath, None)
+
+    @cached_property
     def model(self):
         """ root model object. """
         from devpi_server.model import RootModel
@@ -193,13 +198,6 @@ class XOM:
     def main(self):
         xom = self
         args = xom.config.args
-        # need to initialize the pypi mirror state before importing
-        # because importing may need pypi mirroring state
-        if xom.is_replica():
-            proxy = replica.PyPIDevpiProxy(xom._httpsession, xom.config.master_url)
-        else:
-            proxy = self.proxy
-        xom.pypimirror.init_pypi_mirror(proxy)
         if args.export:
             from devpi_server.importexport import do_export
             #xom.thread_pool.start_one(xom.keyfs.notifier)
@@ -228,6 +226,7 @@ class XOM:
             return wsgi_run(xom, app)
 
     def fatal(self, msg):
+        self.keyfs.release_all_wait_tx()
         self.thread_pool.shutdown()
         fatal(msg)
 
@@ -242,20 +241,13 @@ class XOM:
         from devpi_server.model import add_keys
         keyfs = KeyFS(
             self.config.serverdir,
+            self.config.storage,
             readonly=self.is_replica(),
             cache_size=self.config.args.keyfs_cache_size)
         add_keys(self, keyfs)
-        self.thread_pool.register(keyfs.notifier)
+        if not self.config.args.requests_only:
+            self.thread_pool.register(keyfs.notifier)
         return keyfs
-
-    @cached_property
-    def pypimirror(self):
-        from devpi_server.extpypi import PyPIMirror
-        return PyPIMirror(self)
-
-    @cached_property
-    def proxy(self):
-        return extpypi.PyPISimpleProxy()
 
     def new_http_session(self, component_name):
         session = new_requests_session(agent=(component_name, server_version))
@@ -326,23 +318,25 @@ class XOM:
         pyramid_config.add_route("/+changelog/{serial}",
                                  "/+changelog/{serial}")
         pyramid_config.add_route("/+status", "/+status")
-        pyramid_config.add_route("/root/pypi/+name2serials",
-                                 "/root/pypi/+name2serials")
         pyramid_config.add_route("/+api", "/+api", accept="application/json")
         pyramid_config.add_route("{path:.*}/+api", "{path:.*}/+api", accept="application/json")
         pyramid_config.add_route("/+login", "/+login", accept="application/json")
         pyramid_config.add_route("/{user}/{index}/+e/{relpath:.*}", "/{user}/{index}/+e/{relpath:.*}")
         pyramid_config.add_route("/{user}/{index}/+f/{relpath:.*}", "/{user}/{index}/+f/{relpath:.*}")
         pyramid_config.add_route("/{user}/{index}/+simple/", "/{user}/{index}/+simple/")
-        pyramid_config.add_route("/{user}/{index}/+simple/{name}", "/{user}/{index}/+simple/{name:[^/]+/?}")
-        pyramid_config.add_route("/{user}/{index}/+simple/{name}/refresh", "/{user}/{index}/+simple/{name}/refresh")
-        pyramid_config.add_route("/{user}/{index}/{name}/{version}", "/{user}/{index}/{name}/{version:[^/]+/?}")
+        pyramid_config.add_route("/{user}/{index}/+simple/{project}",
+                                 "/{user}/{index}/+simple/{project:[^/]+/?}")
+        pyramid_config.add_route("/{user}/{index}/+simple/{project}/refresh",
+                                 "/{user}/{index}/+simple/{project}/refresh")
+        pyramid_config.add_route("/{user}/{index}/{project}/{version}",
+                                 "/{user}/{index}/{project}/{version:[^/]+/?}")
         pyramid_config.add_route(
-            "simple_redirect", "/{user}/{index}/{name:[^/]+/?}",
+            "simple_redirect", "/{user}/{index}/{project:[^/]+/?}",
             header="User-Agent:" + PIP_USER_AGENT,
             accept="text/html",
         )
-        pyramid_config.add_route("/{user}/{index}/{name}", "/{user}/{index}/{name:[^/]+/?}")
+        pyramid_config.add_route("/{user}/{index}/{project}",
+                                 "/{user}/{index}/{project:[^/]+/?}")
         pyramid_config.add_route("/{user}/{index}/", "/{user}/{index}/")
         pyramid_config.add_route("/{user}/{index}", "/{user}/{index}")
         pyramid_config.add_route("/{user}", "/{user}")
@@ -372,16 +366,19 @@ class XOM:
         pyramid_config.registry['xom'] = self
         app = pyramid_config.make_wsgi_app()
         if self.is_replica():
-            from devpi_server.replica import ReplicaThread
+            from devpi_server.replica import ReplicaThread, register_key_subscribers
+            register_key_subscribers(self)
             self.replica_thread = ReplicaThread(self)
             # the replica thread replays keyfs changes
-            # and pypimirror.name2serials changes are discovered
+            # and project-specific changes are discovered
             # and replayed through the PypiProjectChange event
-            self.thread_pool.register(self.replica_thread)
+            if not self.config.args.requests_only:
+                self.thread_pool.register(self.replica_thread)
         return OutsideURLMiddleware(app, self)
 
     def is_replica(self):
         return bool(self.config.args.master_url)
+
 
 class FatalResponse:
     status_code = -1
@@ -425,10 +422,16 @@ def set_default_indexes(model):
         threadlog.info("created root user")
     userconfig = root_user.key.get(readonly=False)
     indexes = userconfig["indexes"]
-    if "pypi" not in indexes:
-        indexes["pypi"] = {"bases": (), "type": "mirror", "volatile": False}
+    if "pypi" not in indexes and not model.xom.config.args.no_root_pypi:
+        indexes["pypi"] = _pypi_ixconfig_default.copy()
         root_user.key.set(userconfig)
         threadlog.info("created root/pypi index")
+
+_pypi_ixconfig_default = {
+    "type": "mirror", "volatile": False,
+    "title": "PyPI",
+    "mirror_url": "https://pypi.python.org/simple/",
+    "mirror_web_url_fmt": "https://pypi.python.org/pypi/{name}"}
 
 
 def tween_request_profiling(handler, registry):

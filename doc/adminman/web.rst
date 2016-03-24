@@ -16,33 +16,22 @@ on most urls.
     If you have a :doc:`replica` setup you are free to run only a replica
     site with the web interface and run a core ``devpi-server`` without it.
 
-    Note, however, that as of the 2.0 version, you cannot add the web interface
-    plugin after the first devpi-server start.  It's recommended to
-    install the web interface for devpi-server installations unless you are
-    aiming for a more refined deployment aiming at minimizing risks.
-    It's fine to uninstall devpi-web later in the lifetime of a devpi-server.
-
-    It is possible to use devpi-web if you run an import though. So if you
-    already used devpi-server and want to start using devpi-web, you can do so
-    by exporting your data and importing it in an installation that has
-    devpi-web included.
-
-
 Usage and installation
 -------------------------------------------
 
 ``devpi-web`` needs to be installed alongside ``devpi-server`` before
 the server is started the first time because it needs to follow all 
-server state changes from the beginning. You can export without devpi-web
-and import in a new installation with devpi-web though.
+server state changes from the beginning.  If you already did start
+devpi-server before you installed devpi-web you will need to export your
+data and import in a new installation with devpi-web installed.
 
 You can install the web interface with::
 
     pip install devpi-web
 
 There is no configuration needed as ``devpi-server`` will automatically
-discover the web plugin through calling :doc:`hooks` using the setuptools
-entry points mechanism.
+discover the web plugin through calling :doc:`hooks <../devguide/hooks>`
+using the setuptools entry points mechanism.
 
 
 Navigation (commented screenshots)
@@ -50,25 +39,25 @@ Navigation (commented screenshots)
 
 At the root of your devpi server web interface you get an overview of the existing users and their indices:
 
-.. image:: images/web_root_view.png
+.. image:: ../images/web_root_view.png
    :align: center
 
 The index view shows the latest uploads with their info.
 You get links to test results and documentation:
 
-.. image:: images/web_index_view.png
+.. image:: ../images/web_index_view.png
    :align: center
 
 The version view shows you all the details about a certain version. It links the homepage, documentation and tox results:
 
-.. image:: images/web_version_view.png
+.. image:: ../images/web_version_view.png
    :align: center
 
 At the top you get links to the index, the package and the version you are currently in.
 
 You can also show package documentation which is embedded into the navigation:
 
-.. image:: images/web_doc_view.png
+.. image:: ../images/web_doc_view.png
    :align: center
 
 
@@ -159,5 +148,5 @@ in a future devpi-web release, you have to adjust your modified copy accordingly
 
 For reference you can see the whole ``macro.pt`` file here:
 
-.. literalinclude:: ../web/devpi_web/templates/macros.pt
+.. literalinclude:: ../../web/devpi_web/templates/macros.pt
   :language: xml

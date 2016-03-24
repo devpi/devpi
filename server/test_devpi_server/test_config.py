@@ -148,4 +148,47 @@ class TestConfig:
         config = make_config(("devpi-server",) + opts)
         assert config.args.keyfs_cache_size == 200
         xom = makexom(opts=opts)
-        assert xom.keyfs._fs._changelog_cache.size == 200
+        assert xom.keyfs._storage._changelog_cache.size == 200
+
+    @pytest.mark.no_storage_option
+    def test_storage_backend_default(self, makexom):
+        from devpi_server import keyfs_sqlite
+        from devpi_server import keyfs_sqlite_fs
+        config = make_config(("devpi-server",))
+        assert config.args.storage is None
+        xom = makexom(plugins=(keyfs_sqlite, keyfs_sqlite_fs))
+        assert xom.config.storage is keyfs_sqlite_fs.Storage
+
+    def test_storage_backend_persisted(self, tmpdir):
+        from devpi_server import keyfs_sqlite
+        config = make_config(["devpi-server",
+                              "--serverdir", str(tmpdir),
+                              "--storage", "sqlite_db_files"])
+        config.init_nodeinfo()
+        assert config.storage is keyfs_sqlite.Storage
+        config = make_config(["devpi-server",
+                              "--serverdir", str(tmpdir)])
+        config.init_nodeinfo()
+        assert config.storage is keyfs_sqlite.Storage
+        config = make_config(["devpi-server",
+                              "--serverdir", str(tmpdir),
+                              "--storage", "sqlite"])
+        with pytest.raises(Fatal):
+            config.init_nodeinfo()
+
+    @pytest.mark.no_storage_option
+    def test_storage_backend_options(self, makexom):
+        class Plugin:
+            def devpiserver_storage_backend(self, settings):
+                from devpi_server import keyfs_sqlite_fs
+                self.settings = settings
+                return dict(
+                    storage=keyfs_sqlite_fs.Storage,
+                    name="foo",
+                    description="Foo backend")
+        options = ("--storage", "foo:bar=ham")
+        config = make_config(("devpi-server",) + options)
+        assert config.args.storage == "foo:bar=ham"
+        plugin = Plugin()
+        makexom(plugins=(plugin,), opts=options)
+        assert plugin.settings == {"bar": "ham"}

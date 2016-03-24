@@ -9,7 +9,7 @@ from base64 import b64encode
 from devpi_common.types import lazydecorator, cached_property
 from devpi_common.url import URL
 from devpi_common.proc import check_output
-from devpi.use import Current
+from devpi.use import PersistentCurrent
 from devpi_common.request import new_requests_session
 from devpi import __version__ as client_version
 
@@ -75,8 +75,9 @@ class Hub:
 
     # remote http hooks
 
-    def http_api(self, method, url, kvdict=None, quiet=False, auth=notset,
-        check_version=True, fatal=True, type=None):
+    def http_api(self, method, url, kvdict=None, quiet=False,
+                 auth=notset, basic_auth=notset, cert=notset,
+                 check_version=True, fatal=True, type=None):
         """ send a json request and return a HTTPReply object which
         adds some extra methods to the requests's Reply object.
 
@@ -99,8 +100,10 @@ class Hub:
             if auth is notset:
                 auth = self.current.get_auth()
             set_devpi_auth_header(headers, auth)
-            basic_auth = self.current.get_basic_auth(url=url)
-            cert = self.current.get_client_cert(url=url)
+            if basic_auth is notset:
+                basic_auth = self.current.get_basic_auth(url=url)
+            if cert is notset:
+                cert = self.current.get_client_cert(url=url)
             r = self.http.request(method, url, data=data, headers=headers,
                                   auth=basic_auth, cert=cert)
         except self.http.Errors as e:
@@ -178,7 +181,7 @@ class Hub:
     def current(self):
         self.clientdir.ensure(dir=1)
         path = self.clientdir.join("current.json")
-        return Current(path)
+        return PersistentCurrent(path)
 
     def get_existing_file(self, arg):
         p = py.path.local(arg, expanduser=True)
@@ -362,13 +365,41 @@ def try_argcomplete(parser):
         else:
             argcomplete.autocomplete(parser)
 
+
+def print_version(hub):
+    hub.line("devpi-client %s\n" % client_version)
+    if hub.current.rooturl is not None:
+        url = URL(hub.current.rooturl).addpath('+status').url
+        try:
+            r = HTTPReply(hub.http.get(
+                url, headers=dict(accept='application/json')))
+        except hub.http.Errors as e:
+            pass
+        else:
+            status = r.json_get('result')
+            if r.status_code == 200 and status is not None:
+                hub.info(
+                    "current devpi server: %s" % hub.current.rooturl)
+                versioninfo = status.get('versioninfo', {})
+                for name, version in sorted(versioninfo.items()):
+                    hub.line("    %s %s" % (name, version))
+
+
 def parse_args(argv):
     argv = [str(x) for x in argv]
     parser = getbaseparser(argv[0])
     add_subparsers(parser)
     try_argcomplete(parser)
     try:
-        return parser.parse_args(argv[1:])
+        args = parser.parse_args(argv[1:])
+        if sys.version_info >= (3,) and args.version:
+            hub = Hub(args)
+            print_version(hub)
+            parser.exit()
+        if args.command is None:
+            raise parser.ArgumentError(
+                "the following arguments are required: command")
+        return args
     except parser.ArgumentError as e:
         if not argv[1:]:
             return parser.parse_args(["-h"])
@@ -388,7 +419,7 @@ def add_subparsers(parser):
     subparsers = parser.add_subparsers()
     # see http://stackoverflow.com/questions/18282403/
     # for the following two lines (py3 compat)
-    subparsers.required = True
+    subparsers.required = False
     subparsers.dest = "command"
 
     for func, args, kwargs in subcommand.discover(globals()):
@@ -405,8 +436,7 @@ def add_subparsers(parser):
         func(subparser)
         mainloc = args[0]
         subparser.set_defaults(mainloc=mainloc)
-    #subparser = subparsers.add_parser("_test", help=argparse.SUPPRESS)
-    #subparser.set_defaults(mainloc="devpi")
+
 
 def getbaseparser(prog):
     parser = MyArgumentParser(prog=prog, description=main_description)
@@ -415,8 +445,13 @@ def getbaseparser(prog):
 
 def add_generic_options(parser, defaults=False):
     group = parser.add_argument_group("generic options")
-    group.add_argument("--version", action="version",
-                       version=devpi.__version__)
+    if sys.version_info < (3,):
+        # workaround old argparse which doesn't support optional sub commands
+        group.add_argument("--version", action="version",
+            version="devpi-client %s" % client_version)
+    else:
+        group.add_argument("--version", action="store_true",
+            help="show program's version number and exit")
     group.add_argument("--debug", action="store_true",
         help="show debug messages including more info on server requests")
     group.add_argument("-y", action="store_true", dest="yes",
@@ -437,7 +472,7 @@ def add_generic_options(parser, defaults=False):
 
 @subcommand("devpi.quickstart")
 def quickstart(parser):
-    """ start a server, create a user and login, then create a USER/dev
+    """ (deprecated) start a server, create a user and login, then create a USER/dev
     index and then connect to this index, so that subsequent devpi
     commands can work with it.
     """
@@ -504,8 +539,8 @@ def getjson(parser):
     A low-level command to show json-formatted configuration data
     from remote resources.  This will always query the remote server.
     """
-    parser.add_argument("path", action="store",
-        help="path to a resource to show information on. "
+    parser.add_argument("path", action="store", metavar="path_or_url",
+        help="path or url of a resource to show information on. "
              "examples: '/', '/user', '/user/index'.")
 
 @subcommand("devpi.getjson:main_patchjson")
@@ -572,13 +607,14 @@ def user(parser):
     If you create a user you either need to pass a ``password=...``
     setting or interactively type a password.
     """
-    parser.add_argument("-c", "--create", action="store_true",
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("-c", "--create", action="store_true",
         help="create a user")
-    parser.add_argument("--delete", action="store_true",
+    group.add_argument("--delete", action="store_true",
         help="delete a user")
-    parser.add_argument("-m", "--modify", action="store_true",
+    group.add_argument("-m", "--modify", action="store_true",
         help="modify user settings")
-    parser.add_argument("-l", "--list", action="store_true",
+    group.add_argument("-l", "--list", action="store_true",
         help="list user names")
     parser.add_argument("username", type=str, action="store", nargs="?",
         help="user name")
@@ -725,7 +761,9 @@ def test(parser):
              "the detox tool (which must be installed)")
 
     parser.add_argument("--index", default=None,
-        help="index to get package from (defaults to current index)")
+        help="index to get package from, defaults to current index. "
+             "Either just the NAME, using the current user, USER/NAME using "
+             "the current server or a full URL for another server.")
 
     parser.add_argument("pkgspec", metavar="pkgspec", type=str,
         default=None, action="store", nargs="+",
@@ -784,7 +822,7 @@ def install(parser):
 
 @subcommand("devpi.refresh")
 def refresh(parser):
-    """ invalidates the root/pypi cache for the specified package(s).
+    """ invalidates the mirror caches for the specified package(s).
 
     In case your devpi server hasn't updated the list of latest releases, this
     forces a reload of the them (EXPERIMENTAL).

@@ -64,7 +64,7 @@ class DevIndex:
 
     def get_matching_versioninfo(self, pkgname, indexname):
         req = next(pkg_resources.parse_requirements(pkgname))
-        projurl = self.hub.current.get_project_url(
+        projurl = self.current.get_project_url(
             req.project_name, indexname=indexname).url
         r = self.hub.http_api("get", projurl)
         for version in get_sorted_versions(r.result):
@@ -198,13 +198,20 @@ def prepare_toxrun_args(dev_index, versioninfo, sdist_links, wheel_links):
 
 
 def main(hub, args):
-    current = hub.require_valid_current_with_index()
+    current = hub.current
+    index = args.index
+    if index:
+        if index.startswith(('http:', 'https:')):
+            current = hub.current.switch_to_temporary(hub, index)
+            index = None
+        elif index.count("/") > 1:
+            hub.fatal("index %r not of form URL, USER/NAME or NAME" % index)
     tmpdir = py.path.local.make_numbered_dir("devpi-test", keep=3)
     devindex = DevIndex(hub, tmpdir, current)
     for pkgspec in args.pkgspec:
-        if args.index and args.index.count("/") > 1:
-            hub.fatal("index %r not of form USER/NAME or NAME" % args.index)
-        versioninfo = devindex.get_matching_versioninfo(pkgspec, args.index)
+        versioninfo = devindex.get_matching_versioninfo(pkgspec, index)
+        if not versioninfo:
+            hub.fatal("could not find/receive links for", pkgspec)
         links = versioninfo.get_links("releasefile")
         if not links:
             hub.fatal("could not find/receive links for", pkgspec)

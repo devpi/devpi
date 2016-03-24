@@ -6,7 +6,9 @@ on the server and client side:
 
 - `devpi-server <http://pypi.python.org/pypi/devpi-server>`_: 
   for serving a pypi.python.org consistent
-  caching index as well as local github-style overlay indexes.
+  caching index as well as user or team based indexes
+  which can inherit packages from each other or from
+  the pypi.python.org site.
 
 - `devpi-web <http://pypi.python.org/pypi/devpi-web>`_: 
   plugin for devpi-server that provides a web and search interface

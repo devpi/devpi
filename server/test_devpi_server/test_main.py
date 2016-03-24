@@ -51,14 +51,6 @@ def test_check_incompatible_version_raises(xom):
     with pytest.raises(Fatal):
         check_compatible_version(xom)
 
-@wsgi_run_throws
-def test_startup_fails_on_initial_setup_nonetwork(tmpdir, monkeypatch):
-    monkeypatch.setattr(devpi_server.extpypi, "PYPIURL_SIMPLE",
-                        "http://localhost:1")
-    ret = main(["devpi-server", "--serverdir", str(tmpdir)])
-    assert ret
-
-
 def test_pyramid_configure_called(makexom):
     l = []
     class Plugin:
@@ -71,16 +63,24 @@ def test_pyramid_configure_called(makexom):
     assert config == xom.config
 
 
+def test_requests_only(makexom):
+    xom = makexom(opts=["--requests-only"])
+    xom.create_app()
+    assert not xom.thread_pool._objects
+
+    xom = makexom(opts=["--requests-only", "--master=http://localhost:3140"])
+    xom.create_app()
+    assert not xom.thread_pool._objects
+
+
 @wsgi_run_throws
-def test_run_commands_called(monkeypatch, tmpdir):
+def test_run_commands_called(tmpdir):
     from devpi_server.main import _main, get_pluginmanager
     l = []
     class Plugin:
         def devpiserver_cmdline_run(self, xom):
             l.append(xom)
             return 1
-    monkeypatch.setattr(devpi_server.extpypi.PyPIMirror, "init_pypi_mirror",
-                        lambda self, proxy: None)
     pm = get_pluginmanager()
     pm.register(Plugin())
     result = _main(
@@ -92,14 +92,12 @@ def test_run_commands_called(monkeypatch, tmpdir):
 
 
 @wsgi_run_throws
-def test_main_starts_server_if_run_commands_returns_none(monkeypatch, tmpdir):
+def test_main_starts_server_if_run_commands_returns_none(tmpdir):
     from devpi_server.main import _main, get_pluginmanager
     l = []
     class Plugin:
         def devpiserver_cmdline_run(self, xom):
             l.append(xom)
-    monkeypatch.setattr(devpi_server.extpypi.PyPIMirror, "init_pypi_mirror",
-                        lambda self, proxy: None)
     pm = get_pluginmanager()
     pm.register(Plugin())
     with pytest.raises(ZeroDivisionError):
@@ -131,12 +129,38 @@ def test_profiling_tween(capsys):
     assert "ncalls" in out
 
 
+def test_xom_singleton(xom):
+    with pytest.raises(KeyError):
+        xom.get_singleton("x/y", "hello")
+    xom.set_singleton("x/y", "hello", {})
+    d = {1:2}
+    xom.set_singleton("x/y", "hello", d)
+    d[2] = 3
+    assert xom.get_singleton("x/y", "hello") == d
+    xom.del_singletons("x/y")
+    with pytest.raises(KeyError):
+        assert xom.get_singleton("x/y", "hello") is None
+
+
+@pytest.mark.nomocking
 @pytest.mark.parametrize("url", [
     "http://someserver/path",
     "https://pypi.python.org/simple/package/",
 ])
 @pytest.mark.parametrize("allowRedirect", [True, False])
 def test_offline_mode_httpget_returns_server_error(makexom, url, allowRedirect):
-    xom = makexom(["--offline-mode"], httpget=XOM.httpget, mocking=False)
+    xom = makexom(["--offline-mode"], httpget=XOM.httpget)
     r = xom.httpget(url, allowRedirect)
     assert r.status_code == 503
+
+
+def test_no_root_pypi_option(makexom):
+    xom = makexom(["--no-root-pypi"])
+    with xom.keyfs.transaction(write=False):
+        stage = xom.model.getstage('root/pypi')
+        assert stage is None
+    xom = makexom()
+    with xom.keyfs.transaction(write=False):
+        stage = xom.model.getstage('root/pypi')
+        assert stage is not None
+        assert stage.name == 'root/pypi'

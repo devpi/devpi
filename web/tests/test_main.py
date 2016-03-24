@@ -12,14 +12,25 @@ def test_pkgresources_version_matches_init():
     assert pkg_resources.get_distribution("devpi_web").version == ver
 
 
-def test_devpi_pypi_initial(monkeypatch, pypistage, mock):
+def test_devpi_mirror_initialnames(monkeypatch, pypistage, mock):
     import devpi_web.main
-    from devpi_web.main import devpiserver_pypi_initial
+    from devpi_web.main import devpiserver_mirror_initialnames
     iter_projects = mock.MagicMock()
     iter_projects.return_value = iter([])
     monkeypatch.setattr(devpi_web.main, "iter_projects", iter_projects)
-    devpiserver_pypi_initial(pypistage, pypistage.pypimirror.name2serials)
+    with pypistage.keyfs.transaction():
+        devpiserver_mirror_initialnames(pypistage, pypistage.list_projects_perstage())
     assert iter_projects.called
+
+
+def test_devpi_stage_created(monkeypatch, pypistage, mock):
+    from devpi_web.main import devpiserver_stage_created
+    list_projects_perstage = mock.MagicMock()
+    list_projects_perstage.return_value = []
+    monkeypatch.setattr(pypistage, "list_projects_perstage", list_projects_perstage)
+    with pypistage.keyfs.transaction():
+        devpiserver_stage_created(pypistage)
+    assert list_projects_perstage.called
 
 
 def test_index_projects_arg(monkeypatch, tmpdir):
@@ -28,22 +39,25 @@ def test_index_projects_arg(monkeypatch, tmpdir):
     XOM = devpi_server.main.XOM
     xom_container = []
 
-    def MyXOM(config):
-        xom = XOM(config)
-        xom_container.append(xom)
-        return xom
-    # provide dummy data to avoid fetching mirror data from pypi
-    n2s = {u'foo': 1}
-    n2n = {u'foo': u'foo'}
-    monkeypatch.setattr(
-        devpi_server.extpypi.PyPIMirror, "init_pypi_mirror", lambda s, p: None)
-    monkeypatch.setattr(
-        devpi_server.extpypi.PyPIMirror, "name2serials", n2s, raising=False)
-    monkeypatch.setattr(
-        devpi_server.extpypi.PyPIMirror, "normname2name", n2n, raising=False)
+    class MyXOM(XOM):
+        def __init__(self, config):
+            xom_container.append(self)
+            XOM.__init__(self, config)
+
+        def httpget(self, url, allow_redirects=True, extra_headers=None):
+            class Response:
+                def __init__(self):
+                    self.status_code = 200
+                    self.text = """<a href='foo'>foo</a>"""
+                    self.url = url
+            return Response()
+
+        def create_app(self):
+            # if the webserver is started, we fail
+            0 / 0
+
     monkeypatch.setattr(devpi_server.main, "XOM", MyXOM)
-    # if the webserver is started, we fail
-    monkeypatch.setattr(devpi_server.main, "wsgi_run", lambda *x: 0 / 0)
+
     devpi_server.main.main(
         ["devpi-server", "--serverdir", str(tmpdir), "--recreate-search-index"])
     assert tmpdir.join('.indices').check()

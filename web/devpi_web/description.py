@@ -1,16 +1,21 @@
 from __future__ import unicode_literals
+from devpi_common.validation import normalize_name
 from devpi_web.vendor._description_utils import processDescription
+from devpi_server.log import threadlog
 import py
 
 
 def get_description_file(stage, name, version):
     config = stage.xom.config
+    name = normalize_name(name)
     return config.serverdir.join(
         '.web', stage.user.name, stage.index, name, version, 'description.html')
 
 
 def get_description(stage, name, version):
-    if stage.name == 'root/pypi':
+    is_mirror = (stage.ixconfig['type'] == 'mirror')
+    mirror_url = stage.ixconfig.get('mirror_url', '')
+    if is_mirror and (stage.name == 'root/pypi' or 'pypi.python.org' in mirror_url):
         html = py.xml.html
         link = "https://pypi.python.org/pypi/%s/%s/" % (name, version)
         return html.div(
@@ -35,3 +40,4 @@ def render_description(stage, metadata):
     desc_file = get_description_file(stage, name, version)
     desc_file.dirpath().ensure_dir()
     desc_file.write(html, mode='wb')
+    threadlog.debug("wrote description file: %s", desc_file)

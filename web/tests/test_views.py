@@ -20,8 +20,8 @@ def test_root_view(testapp):
     r = testapp.get('/', headers=dict(accept="text/html"))
     assert r.status_code == 200
     links = r.html.select('#content a')
-    assert [(l.text, l.attrs['href']) for l in links] == [
-        ("root/pypi", "http://localhost/root/pypi")]
+    assert [(compareable_text(l.text), l.attrs['href']) for l in links] == [
+        ("root/pypi PyPI", "http://localhost/root/pypi")]
 
 
 def test_root_view_with_index(mapp, testapp):
@@ -29,8 +29,8 @@ def test_root_view_with_index(mapp, testapp):
     r = testapp.get('/', headers=dict(accept="text/html"))
     assert r.status_code == 200
     links = r.html.select('#content a')
-    assert [(l.text, l.attrs['href']) for l in links] == [
-        ("root/pypi", "http://localhost/root/pypi"),
+    assert [(compareable_text(l.text), l.attrs['href']) for l in links] == [
+        ("root/pypi PyPI", "http://localhost/root/pypi"),
         (api.stagename, "http://localhost/%s" % api.stagename)]
 
 
@@ -43,7 +43,7 @@ def test_index_view_root_pypi(testapp):
 
 
 def test_index_view(mapp, testapp):
-    api = mapp.create_and_use()
+    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
     r = testapp.get(api.index, headers=dict(accept="text/html"))
     assert r.status_code == 200
     links = r.html.select('#content a')
@@ -61,7 +61,7 @@ def test_index_not_found(testapp):
 
 
 def test_index_view_project_info(mapp, testapp):
-    api = mapp.create_and_use()
+    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
     mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
     r = testapp.get(api.index, headers=dict(accept="text/html"))
     assert r.status_code == 200
@@ -75,7 +75,7 @@ def test_index_view_project_info(mapp, testapp):
 
 @pytest.mark.with_notifier
 def test_index_view_project_files(mapp, testapp):
-    api = mapp.create_and_use()
+    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
     r = mapp.upload_file_pypi("pkg1-2.6.tar.gz", b"content", "pkg1", "2.6")
     tar_url = r.file_url
     r = testapp.xget(200, api.index, headers=dict(accept="text/html"))
@@ -103,7 +103,7 @@ def test_index_view_project_files(mapp, testapp):
 
 @pytest.mark.with_notifier
 def test_index_view_project_docs(mapp, testapp):
-    api = mapp.create_and_use()
+    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
     mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
     content = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
@@ -127,6 +127,28 @@ def test_index_view_permissions(mapp, testapp):
     text = [compareable_text(x.text) for x in elements]
     assert text == [
         'upload', 'Users: user1', 'Groups: developers', 'Special: ANONYMOUS']
+
+
+def test_title_description(mapp, testapp):
+    api = mapp.create_and_use()
+    mapp.modify_user(api.user, title="usertitle", description="userdescription")
+    mapp.modify_index(api.stagename, indexconfig=dict(
+        title="indextitle", description="indexdescription"))
+    r = testapp.xget(200, '/', headers=dict(accept="text/html"))
+    (content,) = r.html.select('#content')
+    users = content.select('.user_index_list dt')
+    assert [compareable_text(x.text) for x in users] == [
+        'root', 'user1 usertitle']
+    (userdescription,) = content.select('.user_index_list dd.user_description')
+    assert compareable_text(userdescription.text) == "userdescription"
+    links = content.select('a')
+    assert [x.attrs.get('title') for x in links] == [None, 'indexdescription']
+    r = testapp.xget(200, api.index, headers=dict(accept="text/html"))
+    (content,) = r.html.select('#content')
+    (indextitle,) = content.select('.index_title')
+    assert compareable_text(indextitle.text) == "user1/dev indextitle index"
+    (p,) = content.select('.index_description')
+    assert compareable_text(p.text) == "indexdescription"
 
 
 def test_project_view(mapp, testapp):
@@ -153,13 +175,11 @@ def test_project_projectname_redirect(mapp, testapp):
         "name": "pkg_hello", "version": "1.0"})
     mapp.upload_file_pypi(
         "pkg-hello-1.0.zip", b"123", "pkg-hello", "1.0")
-    r = testapp.xget(302, api.index + '/pkg-hello', headers=dict(accept="text/html"))
-    assert r.location == '%s/pkg_hello' % api.index
-    r = testapp.xget(200, r.location, headers=dict(accept="text/html"))
+    r = testapp.xget(200, api.index + '/pkg_hello', headers=dict(accept="text/html"))
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
         (api.stagename, "http://localhost/%s" % api.stagename),
-        ("1.0", "http://localhost/%s/pkg_hello/1.0" % api.stagename)]
+        ("1.0", "http://localhost/%s/pkg-hello/1.0" % api.stagename)]
 
 
 def test_project_not_found(mapp, testapp):
@@ -288,9 +308,7 @@ def test_version_projectname_redirect(mapp, testapp):
     mapp.upload_file_pypi(
         "pkg-hello-1.0.whl", b"123", "pkg-hello", "1.0",
         register=False, waithooks=True)
-    r = testapp.xget(302, api.index + '/pkg-hello/1.0', headers=dict(accept="text/html"))
-    assert r.location == '%s/pkg_hello/1.0' % api.index
-    r = testapp.xget(200, r.location, headers=dict(accept="text/html"))
+    r = testapp.xget(200, api.index + "/pkg-hello/1.0", headers=dict(accept="text/html"))
     description, = r.html.select('#description')
     assert '<p>foo</p>' == py.builtin._totext(description.renderContents().strip(), 'utf-8')
 
@@ -361,7 +379,7 @@ def test_version_view_root_pypi_external_files(mapp, testapp, pypistage):
 def test_whitelist(mapp, pypistage, testapp):
     pypistage.mock_simple(
         "pkg1", '<a href="http://example.com/releases/pkg1-2.7.zip" /a>)')
-    api = mapp.create_and_use()
+    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
     mapp.set_versiondata(
         {"name": "pkg1", "version": "2.6", "description": "foo"},
         set_whitelist=False)
@@ -372,12 +390,12 @@ def test_whitelist(mapp, pypistage, testapp):
     r = testapp.get('%s/pkg1/2.6' % api.index, accept="text/html")
     (infonote,) = r.html.select('.infonote')
     text = compareable_text(infonote.text)
-    assert text == "Because this project isn't in the pypi_whitelist, no releases from root/pypi are included."
+    assert text == "Because this project isn't in the mirror_whitelist, no releases from root/pypi are included."
     # project view
     r = testapp.get('%s/pkg1' % api.index, accept="text/html")
     (infonote,) = r.html.select('.infonote')
     text = compareable_text(infonote.text)
-    assert text == "Because this project isn't in the pypi_whitelist, no releases from root/pypi are included."
+    assert text == "Because this project isn't in the mirror_whitelist, no releases from root/pypi are included."
     # index view
     r = testapp.get(api.index, accept="text/html")
     assert "No packages whitelisted." in r.unicode_body
@@ -467,9 +485,9 @@ def test_testdata_missing(mapp, testapp):
     with mapp.xom.model.keyfs.transaction(write=False):
         stage = mapp.xom.model.getstage(api.stagename)
         link, = stage.get_releaselinks('pkg1')
-        linkstore = stage.get_linkstore_perstage(link.projectname, link.version)
+        linkstore = stage.get_linkstore_perstage(link.project, link.version)
         toxresult_link, = linkstore.get_links(rel="toxresult", for_entrypath=link)
         # delete the tox result file
-        os.remove(toxresult_link.entry._filepath)
+        os.remove(toxresult_link.entry.file_os_path())
     r = testapp.xget(200, api.index, headers=dict(accept="text/html"))
     assert '.toxresult' not in r.unicode_body

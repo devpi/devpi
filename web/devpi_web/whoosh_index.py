@@ -91,7 +91,11 @@ class ProjectNameTokenizer(Tokenizer):
 
 
 def project_name(name, tokenizer=ProjectNameTokenizer()):
-    return ' '.join(x[2] for x in tokenizer.iter_value(name))
+    result = []
+    if "-" in name:
+        result.append(name.replace("-", "_"))
+    result.extend(x[2] for x in tokenizer.iter_value(name))
+    return ' '.join(result)
 
 
 class NgramFilter(Filter):
@@ -257,6 +261,8 @@ class Index(object):
             data = dict((u(x), get_mutable_deepcopy(project[x])) for x in main_keys if x in project)
             data['path'] = u"/{user}/{index}/{name}".format(**data)
             if not clear:
+                # because we use hierarchical documents, we have to delete
+                # everything we got for this path and index it again
                 writer.delete_by_term('path', data['path'])
             data['type'] = "project"
             data['text'] = "%s %s" % (data['name'], project_name(data['name']))
@@ -274,7 +280,12 @@ class Index(object):
                     count = next(counter)
                 if '+doczip' not in project:
                     continue
-                for page in project['+doczip']:
+                if not project['+doczip'].exists():
+                    log.debug("documentation not unpacked for %s", data['path'])
+                    continue
+                for page in project['+doczip'].values():
+                    if page is None:
+                        continue
                     add_document(**{
                         "path": data['path'],
                         "type": "title",

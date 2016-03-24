@@ -8,18 +8,25 @@
         <metal:search use-macro="request.macros['navigation']" />
         <div id="content">
         <metal:rootaboveuserindexlist use-macro="request.macros['rootaboveuserindexlist']" />
-        <dl class="user_index_list">
-            <tal:users repeat="user users">
-            <dt>${user.title}</dt>
+        <div class="user_index_list">
+        <dl tal:repeat="user users">
+            <dt>
+                ${user.user_name} <span tal:condition="user.user_title">${user.user_title}</span>
+            </dt>
+            <dd class="user_description" tal:condition="user.user_description">
+                ${user.user_description}
+            </dd>
             <dd tal:condition="user.indexes">
                 <ul>
                     <li tal:repeat="index user.indexes">
-                        <a href="${index.url}">${index.title}</a>
+                        <a tal:attributes="title index.index_description" href="${index.url}">
+                            ${user.user_name}/${index.index_name} <span tal:condition="index.index_title">${index.index_title}</span>
+                        </a>
                     </li>
                 </ul>
             </dd>
-            </tal:users>
         </dl>
+        </div>
         <metal:rootbelowuserindexlist use-macro="request.macros['rootbelowuserindexlist']" />
         </div>
         <metal:footer use-macro="request.macros['footer']" />

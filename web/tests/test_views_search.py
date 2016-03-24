@@ -223,9 +223,12 @@ def get_xmlrpc_data(body):
 def test_pip_search(mapp, pypistage, testapp):
     from devpi_web.main import get_indexer
     from operator import itemgetter
-    api = mapp.create_and_use()
+    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
     pypistage.mock_simple("pkg1", '<a href="/pkg1-2.6.zip" /a>')
     pypistage.mock_simple("pkg2", '')
+    # we need to set dummy data, so we can use waithooks
+    mapp.set_versiondata({"name": "pkg2", "version": "2.7"}, waithooks=True)
+    # now we can access the indexer directly without causing locking issues
     indexer = get_indexer(mapp.xom.config)
     indexer.update_projects([
         dict(name=u'pkg1', user=u'root', index=u'pypi'),

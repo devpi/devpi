@@ -34,12 +34,17 @@ Here is a Quickstart tutorial for efficient pypi-mirroring
 on your laptop::    
 
     http://doc.devpi.net/2.1/quickstart-pypimirror.html                         
+
 And if you want to manage your releases or implement staging
 as an individual or within an organisation::                                    
+
     http://doc.devpi.net/2.1/quickstart-releaseprocess.html                     
+
 If you want to host a devpi-server installation with nginx/supervisor
 and access it from clients from different hosts::
+
     http://doc.devpi.net/2.1/quickstart-server.html                             
+
 More documentation here::
 
     http://doc.devpi.net/2.1/                                                

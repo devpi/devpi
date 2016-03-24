@@ -23,7 +23,7 @@ setup(
     description="devpi-web: a web view for devpi-server",
     long_description="\n\n".join([README, CHANGELOG]),
     url="http://doc.devpi.net",
-    version='2.6.0',
+    version='3.0.0',
     maintainer="Holger Krekel, Florian Schulze",
     maintainer_email="holger@merlinux.eu",
     license="MIT",
@@ -43,11 +43,11 @@ setup(
         'devpi_server': [
             "devpi-web = devpi_web.main"]},
     install_requires=[
-        'Whoosh',
+        'Whoosh<3',
         'beautifulsoup4>=4.3.2',
         'defusedxml',
-        'devpi-server>=2.6.0.dev0,<3dev',
-        'devpi-common>=2.0.5.dev0',
+        'devpi-server>=3.0.0.dev2',
+        'devpi-common>=2.0.8',
         'docutils>=0.11',
         'pygments>=1.6',
         'pyramid',
