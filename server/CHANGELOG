@@ -4,9 +4,9 @@
 - Added checks on the index dependency tree built from bases during import.
 
 - Every project is now imported together with all it's release files on it's
-  own serial during import. Before the release files each got their own serial.
-  This reduces the number of serials generated, especially when there are many
-  projects and releases. That improves import, as well as replication and event
+  own serial. Before the release files each got their own serial. This reduces
+  the number of serials generated, especially when there are many projects and
+  releases. That in turn improves import, as well as replication and event
   handling times (in particular devpi-web indexing).
 
 
