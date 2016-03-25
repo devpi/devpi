@@ -419,7 +419,17 @@ class IndexTree:
                 children = self.name2children.setdefault(base, [])
                 children.append(name)
 
+    def validate(self):
+        all_bases = set(sum(self.name2bases.values(), []))
+        all_indexes = set(self.name2bases)
+        missing = all_bases - all_indexes
+        if missing:
+            fatal(
+                "The following indexes don't have information in the import "
+                "data: %s" % ", ".join(sorted(missing)))
+
     def iternames(self):
+        self.validate()
         pending = [None]
         created = set()
         while pending:
@@ -436,4 +446,8 @@ class IndexTree:
                     for child in self.name2children.get(name, []):
                         if child not in created:
                             pending.append(child)
-
+        missed = set(self.name2bases) - created
+        if missed:
+            fatal(
+                "The following stages couldn't be reached by the dependency "
+                "tree built from the bases: %s" % ", ".join(sorted(missed)))

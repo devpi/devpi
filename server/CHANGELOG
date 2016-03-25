@@ -1,3 +1,9 @@
+3.1.0 (Unreleased)
+------------------
+
+- Added checks on the index dependency tree built from bases during import.
+
+
 3.0.2 (2016-03-03)
 ------------------
 
