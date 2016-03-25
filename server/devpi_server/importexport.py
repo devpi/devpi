@@ -81,7 +81,7 @@ class Exporter:
         return relpath
 
     def warn(self, msg):
-        self.tw.line(msg, red=True)
+        self.tw.line(msg, yellow=True)
 
     def completed(self, msg):
         self.tw.line("dumped %s" % msg, bold=True)
@@ -211,7 +211,7 @@ class Importer:
         return json.loads(path.read())
 
     def warn(self, msg):
-        self.tw.line(msg, red=True)
+        self.tw.line(msg, yellow=True)
 
     def display_import_header(self, path):
         self.tw.line("******** Importing packages from %s **********" % path)
