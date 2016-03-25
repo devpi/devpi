@@ -273,8 +273,8 @@ class Importer:
         self.check_names(json_path)
 
         # first create all users
-        for username, userconfig in self.import_users.items():
-            with self.xom.keyfs.transaction(write=True):
+        with self.xom.keyfs.transaction(write=True):
+            for username, userconfig in self.import_users.items():
                 if username == "root":
                     user = self.xom.model.get_user(username)
                 else:
@@ -322,8 +322,8 @@ class Importer:
             import_index = self.import_indexes[stage.name]
             projects = import_index["projects"]
             for project, versions in projects.items():
-                for version, versiondata in versions.items():
-                    with self.xom.keyfs.transaction(write=True):
+                with self.xom.keyfs.transaction(write=True):
+                    for version, versiondata in versions.items():
                         assert "+elinks" not in versiondata
                         versiondata.pop('+doczip', None)
                         versiondata.pop(':action', None)
@@ -336,10 +336,10 @@ class Importer:
                             versiondata["version"] = version
                         stage.set_versiondata(versiondata)
 
-            # import release files
-            for filedesc in import_index["files"]:
-                with self.xom.keyfs.transaction(write=True):
-                    self.import_filedesc(stage, filedesc)
+                    # import release files
+                    for filedesc in import_index["files"]:
+                        if normalize_name(filedesc["projectname"]) == project:
+                            self.import_filedesc(stage, filedesc)
 
         self.tw.line("********* import_all: importing finished ***********")
 
