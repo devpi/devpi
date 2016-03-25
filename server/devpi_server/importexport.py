@@ -344,10 +344,15 @@ class Importer:
         self.tw.line("********* import_all: importing finished ***********")
 
     def wait_for_events(self):
-        latest_serial = self.xom.keyfs.get_next_serial() - 1
-        self.tw.line("waiting for events until latest_serial %s"
-                     % latest_serial)
-        self.xom.keyfs.notifier.wait_event_serial(latest_serial)
+        keyfs = self.xom.keyfs
+        while True:
+            event_serial = keyfs.notifier.read_event_serial()
+            latest_serial = keyfs.get_current_serial()
+            if event_serial == latest_serial:
+                break
+            self.tw.line(
+                "waiting for events until latest_serial %s" % latest_serial)
+            keyfs.notifier.wait_event_serial(latest_serial)
         self.tw.line("wait_for_events: importing finished"
                      "; latest_serial = %s" % latest_serial)
 
