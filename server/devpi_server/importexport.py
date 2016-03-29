@@ -387,7 +387,9 @@ class Importer:
                 mapping["hash_spec"] = "md5=" + mapping["md5"]
             hash_algo, hash_value = parse_hash_spec(mapping["hash_spec"])
             digest = hash_algo(link.entry.file_get_content()).hexdigest()
-            assert digest == hash_value
+            if digest != hash_value:
+                fatal("File %s has bad checksum %s, expected %s" % (
+                      p, digest, hash_value))
             # note that the actual hash_type used within devpi-server is not
             # determined here but in store_releasefile/store_doczip/store_toxresult etc
         elif filedesc["type"] == "doczip":
