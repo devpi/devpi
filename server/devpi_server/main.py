@@ -80,6 +80,9 @@ def _main(pluginmanager, argv=None):
 
     configure_logging(config.args)
 
+    if args.export and not config.path_nodeinfo.exists():
+        fatal("The path '%s' contains no devpi-server data." % config.serverdir)
+
     # read/create node UUID and role of this server
     config.init_nodeinfo()
 

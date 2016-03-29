@@ -38,6 +38,22 @@ def test_empty_export(tmpdir, xom):
     with pytest.raises(Fatal):
         make_export(tmpdir, xom)
 
+
+def test_empty_serverdir(tmpdir, capfd):
+    from devpi_server.main import main
+    empty = tmpdir.join("empty").ensure(dir=True)
+    export = tmpdir.join("export")
+    ret = main([
+        "devpi-server",
+        "--serverdir", empty.strpath,
+        "--export", export.strpath])
+    out, err = capfd.readouterr()
+    assert empty.listdir() == []
+    assert ret == 1
+    assert out == ''
+    assert ("The path '%s' contains no devpi-server data." % empty) in err
+
+
 def test_import_on_existing_server_data(tmpdir, xom):
     with xom.keyfs.transaction(write=True):
         xom.model.create_user("someuser", password="qwe")
