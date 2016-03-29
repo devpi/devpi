@@ -760,9 +760,16 @@ class SearchView:
                 continue
             elif text_type in ('title', 'page'):
                 docs = self.get_docs(stage, data)
-                entry = docs[sub_data['text_path']]
-                text = entry['text']
-                highlight = search_index.highlight(text, sub_hit.get('words'))
+                try:
+                    entry = docs[sub_data['text_path']]
+                except KeyError:
+                    highlight = (
+                        "Couldn't access documentation files for %s "
+                        "version %s on %s." % (
+                            data['name'], data['doc_version'], stage.name))
+                else:
+                    text = entry['text']
+                    highlight = search_index.highlight(text, sub_hit.get('words'))
                 title = sub_data.get('text_title', title)
                 text_path = sub_data.get('text_path')
                 if text_path:
