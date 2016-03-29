@@ -319,8 +319,10 @@ class Importer:
         for stage in stages:
             if stage.ixconfig["type"] == "mirror":
                 continue
+            imported_files = set()
             import_index = self.import_indexes[stage.name]
             projects = import_index["projects"]
+            files = import_index["files"]
             for project, versions in projects.items():
                 with self.xom.keyfs.transaction(write=True):
                     for version, versiondata in versions.items():
@@ -337,9 +339,15 @@ class Importer:
                         stage.set_versiondata(versiondata)
 
                     # import release files
-                    for filedesc in import_index["files"]:
+                    for filedesc in files:
                         if normalize_name(filedesc["projectname"]) == project:
+                            imported_files.add(filedesc["relpath"])
                             self.import_filedesc(stage, filedesc)
+            missing = set(x["relpath"] for x in files) - imported_files
+            if missing:
+                fatal(
+                    "Some files weren't imported: %s" % ", ".join(
+                        sorted(missing)))
 
         self.tw.line("********* import_all: importing finished ***********")
 
