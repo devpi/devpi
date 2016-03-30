@@ -296,8 +296,9 @@ class PyPIStage(BaseStage):
             # miss the rare event of actual project deletions it allows
             # to stay resilient against server misconfigurations.
             if links is not None and links != ():
-                threadlog.error("serving stale links for %r, url %r responded %r",
-                                project, url, response.status_code)
+                threadlog.warn(
+                    "serving stale links for %r, url %r responded %r",
+                    project, url, response.status_code)
                 return links
             if response.status_code == 404:
                 # We get a 404 if a project does not exist.
