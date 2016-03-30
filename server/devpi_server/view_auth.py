@@ -224,3 +224,11 @@ class DevpiAuthenticationPolicy(CallbackAuthenticationPolicy):
 
     def _get_credentials(self, request):
         return self.hook.devpiserver_get_credentials(request=request)
+
+    def verify_credentials(self, request):
+        credentials = self._get_credentials(request)
+        if credentials:
+            status = self.auth._validate(*credentials)
+            if status.get("status") == "ok":
+                return True
+        return False
