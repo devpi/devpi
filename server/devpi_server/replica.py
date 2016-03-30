@@ -152,80 +152,90 @@ class ReplicaThread:
         self._master_serial = serial
         self._master_serial_timestamp = now
 
+    def tick(self):
+        log = self.log
+        keyfs = self.xom.keyfs
+        config = self.xom.config
+        self.thread.exit_if_shutdown()
+        serial = keyfs.get_next_serial()
+        url = self.master_url.joinpath("+changelog", str(serial)).url
+        log.info("fetching %s", url)
+        uuid, master_uuid = make_uuid_headers(config.nodeinfo)
+        assert uuid != master_uuid
+        try:
+            self.master_contacted_at = time.time()
+            r = self.session.get(url, headers={
+                H_REPLICA_UUID: uuid,
+                H_EXPECTED_MASTER_ID: master_uuid,
+                H_REPLICA_OUTSIDE_URL: config.args.outside_url,
+            }, timeout=self.REPLICA_REQUEST_TIMEOUT)
+            remote_serial = int(r.headers["X-DEVPI-SERIAL"])
+        except Exception as e:
+            log.error("error fetching %s: %s", url, str(e))
+        else:
+            # we check that the remote instance
+            # has the same UUID we saw last time
+            master_uuid = config.get_master_uuid()
+            remote_master_uuid = r.headers.get(H_MASTER_UUID)
+            if not remote_master_uuid:
+                # we don't fatally leave the process because
+                # it might just be a temporary misconfiguration
+                # for example of a nginx frontend
+                log.error("remote provides no %r header, running "
+                          "<devpi-server-2.1?"
+                          " headers were: %s", H_MASTER_UUID, r.headers)
+                self.thread.sleep(self.ERROR_SLEEP)
+                return
+            if master_uuid and remote_master_uuid != master_uuid:
+                # we got a master_uuid and it is not the one we
+                # expect, we are replicating for -- it's unlikely this heals
+                # itself.  It's thus better to die and signal we can't operate.
+                log.error("FATAL: master UUID %r does not match "
+                          "expected master UUID %r. EXITTING.",
+                          remote_master_uuid, master_uuid)
+                # force exit of the process
+                os._exit(3)
+
+            if r.status_code == 200:
+                try:
+                    changes, rel_renames = loads(r.content)
+                    keyfs.import_changes(serial, changes)
+                except Exception:
+                    log.exception("could not process: %s", r.url)
+                else:
+                    # we successfully received data so let's
+                    # record the master_uuid for future consistency checks
+                    if not master_uuid:
+                        self.xom.config.set_master_uuid(remote_master_uuid)
+                    # also record the current master serial for status info
+                    self.update_master_serial(remote_serial)
+                    return
+            elif r.status_code == 202:
+                log.debug("%s: trying again %s\n", r.status_code, url)
+                # also record the current master serial for status info
+                self.update_master_serial(remote_serial)
+                return
+            else:
+                log.error("%s: failed fetching %s", r.status_code, url)
+        # we got an error, let's wait a bit
+        self.thread.sleep(5.0)
+
     def thread_run(self):
         # within a devpi replica server this thread is the only writer
         self.started_at = time.time()
-        self.log = log = thread_push_log("[REP]")
-        session = self.xom.new_http_session("replica")
+        self.log = thread_push_log("[REP]")
+        self.session = self.xom.new_http_session("replica")
         keyfs = self.xom.keyfs
         errors = ReplicationErrors(self.xom.config.serverdir)
         for key in (keyfs.STAGEFILE, keyfs.PYPIFILE_NOMD5):
             keyfs.subscribe_on_import(key, ImportFileReplica(self.xom, errors))
-        config = self.xom.config
         while 1:
-            self.thread.exit_if_shutdown()
-            serial = keyfs.get_next_serial()
-            url = self.master_url.joinpath("+changelog", str(serial)).url
-            log.info("fetching %s", url)
-            uuid, master_uuid = make_uuid_headers(config.nodeinfo)
-            assert uuid != master_uuid
             try:
-                self.master_contacted_at = time.time()
-                r = session.get(url, headers={
-                    H_REPLICA_UUID: uuid,
-                    H_EXPECTED_MASTER_ID: master_uuid,
-                    H_REPLICA_OUTSIDE_URL: config.args.outside_url,
-                }, timeout=self.REPLICA_REQUEST_TIMEOUT)
-                remote_serial = int(r.headers["X-DEVPI-SERIAL"])
-            except Exception as e:
-                log.error("error fetching %s: %s", url, str(e))
-            else:
-                # we check that the remote instance
-                # has the same UUID we saw last time
-                master_uuid = config.get_master_uuid()
-                remote_master_uuid = r.headers.get(H_MASTER_UUID)
-                if not remote_master_uuid:
-                    # we don't fatally leave the process because
-                    # it might just be a temporary misconfiguration
-                    # for example of a nginx frontend
-                    log.error("remote provides no %r header, running "
-                              "<devpi-server-2.1?"
-                              " headers were: %s", H_MASTER_UUID, r.headers)
-                    self.thread.sleep(self.ERROR_SLEEP)
-                    continue
-                if master_uuid and remote_master_uuid != master_uuid:
-                    # we got a master_uuid and it is not the one we
-                    # expect, we are replicating for -- it's unlikely this heals
-                    # itself.  It's thus better to die and signal we can't operate.
-                    log.error("FATAL: master UUID %r does not match "
-                              "expected master UUID %r. EXITTING.",
-                              remote_master_uuid, master_uuid)
-                    # force exit of the process
-                    os._exit(3)
-
-                if r.status_code == 200:
-                    try:
-                        changes, rel_renames = loads(r.content)
-                        keyfs.import_changes(serial, changes)
-                    except Exception:
-                        log.exception("could not process: %s", r.url)
-                    else:
-                        # we successfully received data so let's
-                        # record the master_uuid for future consistency checks
-                        if not master_uuid:
-                            self.xom.config.set_master_uuid(remote_master_uuid)
-                        # also record the current master serial for status info
-                        self.update_master_serial(remote_serial)
-                        continue
-                elif r.status_code == 202:
-                    log.debug("%s: trying again %s\n", r.status_code, url)
-                    # also record the current master serial for status info
-                    self.update_master_serial(remote_serial)
-                    continue
-                else:
-                    log.error("%s: failed fetching %s", r.status_code, url)
-            # we got an error, let's wait a bit
-            self.thread.sleep(5.0)
+                self.tick()
+            except:
+                self.log.exception(
+                    "Unhandled exception in replica thread.")
+                self.thread.sleep(1.0)
 
 
 def register_key_subscribers(xom):

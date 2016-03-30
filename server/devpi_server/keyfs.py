@@ -62,23 +62,31 @@ class TxNotificationThread:
     def thread_shutdown(self):
         pass
 
-    def thread_run(self):
+    def tick(self):
         event_serial = self.read_event_serial()
-        log = thread_push_log("[NOTI]")
+        while event_serial < self.keyfs.get_current_serial():
+            self.thread.exit_if_shutdown()
+            event_serial += 1
+            self._execute_hooks(event_serial, self.log)
+            with self.cv_new_event_serial:
+                self.write_event_serial(event_serial)
+                self.cv_new_event_serial.notify_all()
+        serial = self.keyfs.get_current_serial()
+        if event_serial >= serial:
+            if event_serial == serial:
+                self.event_serial_in_sync_at = time.time()
+            self.keyfs.wait_tx_serial(serial + 1)
+            self.thread.exit_if_shutdown()
+
+    def thread_run(self):
+        self.log = thread_push_log("[NOTI]")
         while 1:
-            while event_serial < self.keyfs.get_current_serial():
-                self.thread.exit_if_shutdown()
-                event_serial += 1
-                self._execute_hooks(event_serial, log)
-                with self.cv_new_event_serial:
-                    self.write_event_serial(event_serial)
-                    self.cv_new_event_serial.notify_all()
-            serial = self.keyfs.get_current_serial()
-            if event_serial >= serial:
-                if event_serial == serial:
-                    self.event_serial_in_sync_at = time.time()
-                self.keyfs.wait_tx_serial(serial+1)
-                self.thread.exit_if_shutdown()
+            try:
+                self.tick()
+            except:
+                self.log.exception(
+                    "Unhandled exception in notification thread.")
+                self.thread.sleep(1.0)
 
     def _execute_hooks(self, event_serial, log, raising=False):
         log.debug("calling hooks for tx%s", event_serial)
