@@ -131,7 +131,13 @@ class TestReplicaThread:
         reqmock.url2reply = mock.Mock()
         reqmock.url2reply.get.side_effect = [socket.error(), orig_req]
         rt.thread.sleep = mock.Mock()
-        rt.thread.sleep.side_effect = [0, ZeroDivisionError()]
+        rt.thread.sleep.side_effect = [
+            # 1. sleep
+            0,
+            # 2. raise exception to get into exception part of while loop
+            ZeroDivisionError(),
+            # 3. kill the thread
+            ZeroDivisionError()]
         # run
         with pytest.raises(ZeroDivisionError):
             rt.thread_run()
