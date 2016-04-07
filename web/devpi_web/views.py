@@ -766,7 +766,7 @@ class SearchView:
                     highlight = (
                         "Couldn't access documentation files for %s "
                         "version %s on %s. This is a bug. If you find a way "
-                        "reproduce this, please file an issue at: "
+                        "to reproduce this, please file an issue at: "
                         "https://bitbucket.org/hpk42/devpi/issues" % (
                             data['name'], data['doc_version'], stage.name))
                 else:
