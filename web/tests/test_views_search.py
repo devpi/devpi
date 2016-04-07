@@ -74,8 +74,11 @@ def test_search_deleted_docs(mapp, testapp):
     r = testapp.get('/+search?query=bar')
     assert r.status_code == 200
     highlights = r.html.select('.packageinfo dd')
-    assert [compareable_text(h.text) for h in highlights] == [
-        "Couldn't access documentation files for pkg1 version 2.6 on %s." % api.stagename]
+    text = [compareable_text(h.text) for h in highlights]
+    assert len(text) == 1
+    assert text[0].startswith(
+        "Couldn't access documentation files for pkg1 "
+        "version 2.6 on %s." % api.stagename)
 
 
 @pytest.mark.with_notifier
