@@ -246,7 +246,8 @@ class User:
                 "Any ascii symbol besides -.@_ is blocked." % username)
         user = cls(model, username)
         with user.key.update() as userconfig:
-            user._setpassword(userconfig, password)
+            if password is not None:
+                user._setpassword(userconfig, password)
             if email:
                 userconfig["email"] = email
             userconfig.setdefault("indexes", {})
@@ -309,8 +310,8 @@ class User:
         if not d:
             return d
         if not credentials:
-            del d["pwsalt"]
-            del d["pwhash"]
+            d.pop("pwsalt", None)
+            d.pop("pwhash", None)
         d["username"] = self.name
         return d
 

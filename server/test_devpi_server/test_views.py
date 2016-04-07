@@ -1204,8 +1204,9 @@ class TestPluginPermissions:
     def test_plugin_user_create_index(self, mapp):
         mapp.login("pluginuser")
         assert "pluginuser" not in mapp.getuserlist()
-        # user must already exist to succeed, since it doesn't, it should fail
-        mapp.create_index("pluginuser/dev", code=404)
+        mapp.create_index("pluginuser/dev")
+        assert "pluginuser" in mapp.getuserlist()
+        assert sorted(mapp.getindexlist("pluginuser")) == ['pluginuser/dev']
 
 
 def test_upload_trigger(mapp):

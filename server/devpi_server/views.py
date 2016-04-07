@@ -9,6 +9,7 @@ from devpi_common.url import URL
 from devpi_common.metadata import get_pyversion_filetype
 import devpi_server
 from pyramid.compat import urlparse
+from pyramid.interfaces import IAuthenticationPolicy
 from pyramid.httpexceptions import HTTPException, HTTPFound, HTTPSuccessful
 from pyramid.httpexceptions import HTTPUnauthorized
 from pyramid.httpexceptions import exception_response
@@ -489,6 +490,22 @@ class PyPIView:
     @view_config(
         route_name="/{user}/{index}", request_method="PUT")
     def index_create(self):
+        username = self.context.username
+        user = self.model.get_user(username)
+        if user is None:
+            # If the currently authenticated user tries to create an index,
+            # we create a user object automatically. The user object may
+            # not exist if the user was authenticated by a plugin.
+            if self.request.authenticated_userid == username:
+                registry = self.request.registry
+                auth_policy = registry.queryUtility(IAuthenticationPolicy)
+                # we verify the credentials explicitly here, because the
+                # provided token may belong to a deleted user
+                if auth_policy.verify_credentials(self.request):
+                    try:
+                        user = self.model.create_user(username, password=None)
+                    except InvalidUser as e:
+                        apireturn(400, "%s" % e)
         stage = self.context.user.getstage(self.context.index)
         if stage is not None:
             apireturn(409, "index %r exists" % stage.name)
