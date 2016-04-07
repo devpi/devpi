@@ -55,6 +55,7 @@ class Docs(DictMixin):
         if not self.exists():
             # this happens on import, when the metadata is registered, but the docs
             # aren't uploaded yet
+            threadlog.warn("Tried to access %s, but it doesn't exist.", self.unpack_path)
             return {}
         html = []
         fjson = []
