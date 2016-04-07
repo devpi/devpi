@@ -1,6 +1,17 @@
 3.1.0 (Unreleased)
 ------------------
 
+- fix issue317: When there is no data in the directory specified via
+  ``--serverdir`` during export, then the process aborts instead of creating
+  and exporting an empty database.
+
+- fix issue210: When an external user authenticated by a plugin tries to create
+  an index the required user object is now created automatically if the
+  permissions allow it.
+
+- fix issue321: All exceptions in the replica and event processing threads are
+  caught now and can't stop the threads anymore.
+
 - Added checks on the index dependency tree built from bases during import.
 
 - Every project is now imported together with all it's release files on it's
