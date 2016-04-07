@@ -81,7 +81,7 @@ class Exporter:
         return relpath
 
     def warn(self, msg):
-        self.tw.line(msg, red=True)
+        self.tw.line(msg, yellow=True)
 
     def completed(self, msg):
         self.tw.line("dumped %s" % msg, bold=True)
@@ -211,7 +211,7 @@ class Importer:
         return json.loads(path.read())
 
     def warn(self, msg):
-        self.tw.line(msg, red=True)
+        self.tw.line(msg, yellow=True)
 
     def display_import_header(self, path):
         self.tw.line("******** Importing packages from %s **********" % path)
@@ -273,8 +273,8 @@ class Importer:
         self.check_names(json_path)
 
         # first create all users
-        for username, userconfig in self.import_users.items():
-            with self.xom.keyfs.transaction(write=True):
+        with self.xom.keyfs.transaction(write=True):
+            for username, userconfig in self.import_users.items():
                 if username == "root":
                     user = self.xom.model.get_user(username)
                 else:
@@ -319,11 +319,13 @@ class Importer:
         for stage in stages:
             if stage.ixconfig["type"] == "mirror":
                 continue
+            imported_files = set()
             import_index = self.import_indexes[stage.name]
             projects = import_index["projects"]
+            files = import_index["files"]
             for project, versions in projects.items():
-                for version, versiondata in versions.items():
-                    with self.xom.keyfs.transaction(write=True):
+                with self.xom.keyfs.transaction(write=True):
+                    for version, versiondata in versions.items():
                         assert "+elinks" not in versiondata
                         versiondata.pop('+doczip', None)
                         versiondata.pop(':action', None)
@@ -336,18 +338,29 @@ class Importer:
                             versiondata["version"] = version
                         stage.set_versiondata(versiondata)
 
-            # import release files
-            for filedesc in import_index["files"]:
-                with self.xom.keyfs.transaction(write=True):
-                    self.import_filedesc(stage, filedesc)
+                    # import release files
+                    for filedesc in files:
+                        if normalize_name(filedesc["projectname"]) == project:
+                            imported_files.add(filedesc["relpath"])
+                            self.import_filedesc(stage, filedesc)
+            missing = set(x["relpath"] for x in files) - imported_files
+            if missing:
+                fatal(
+                    "Some files weren't imported: %s" % ", ".join(
+                        sorted(missing)))
 
         self.tw.line("********* import_all: importing finished ***********")
 
     def wait_for_events(self):
-        latest_serial = self.xom.keyfs.get_next_serial() - 1
-        self.tw.line("waiting for events until latest_serial %s"
-                     % latest_serial)
-        self.xom.keyfs.notifier.wait_event_serial(latest_serial)
+        keyfs = self.xom.keyfs
+        while True:
+            event_serial = keyfs.notifier.read_event_serial()
+            latest_serial = keyfs.get_current_serial()
+            if event_serial == latest_serial:
+                break
+            self.tw.line(
+                "waiting for events until latest_serial %s" % latest_serial)
+            keyfs.notifier.wait_event_serial(latest_serial)
         self.tw.line("wait_for_events: importing finished"
                      "; latest_serial = %s" % latest_serial)
 
@@ -374,7 +387,9 @@ class Importer:
                 mapping["hash_spec"] = "md5=" + mapping["md5"]
             hash_algo, hash_value = parse_hash_spec(mapping["hash_spec"])
             digest = hash_algo(link.entry.file_get_content()).hexdigest()
-            assert digest == hash_value
+            if digest != hash_value:
+                fatal("File %s has bad checksum %s, expected %s" % (
+                      p, digest, hash_value))
             # note that the actual hash_type used within devpi-server is not
             # determined here but in store_releasefile/store_doczip/store_toxresult etc
         elif filedesc["type"] == "doczip":
@@ -414,7 +429,17 @@ class IndexTree:
                 children = self.name2children.setdefault(base, [])
                 children.append(name)
 
+    def validate(self):
+        all_bases = set(sum(self.name2bases.values(), []))
+        all_indexes = set(self.name2bases)
+        missing = all_bases - all_indexes
+        if missing:
+            fatal(
+                "The following indexes don't have information in the import "
+                "data: %s" % ", ".join(sorted(missing)))
+
     def iternames(self):
+        self.validate()
         pending = [None]
         created = set()
         while pending:
@@ -431,4 +456,8 @@ class IndexTree:
                     for child in self.name2children.get(name, []):
                         if child not in created:
                             pending.append(child)
-
+        missed = set(self.name2bases) - created
+        if missed:
+            fatal(
+                "The following stages couldn't be reached by the dependency "
+                "tree built from the bases: %s" % ", ".join(sorted(missed)))

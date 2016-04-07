@@ -704,12 +704,12 @@ class PrivateStage(BaseStage):
                           last_modified=None):
         project = normalize_name(project)
         filename = ensure_unicode(filename)
-        if not self.get_versiondata(project, version):
+        if not self.get_versiondata_perstage(project, version):
             # There's a chance the version was guessed from the
             # filename, which might have swapped dashes to underscores
             if '_' in version:
                 version = version.replace('_', '-')
-                if not self.get_versiondata(project, version):
+                if not self.get_versiondata_perstage(project, version):
                     raise MissesRegistration("%s-%s", project, version)
             else:
                 raise MissesRegistration("%s-%s", project, version)
