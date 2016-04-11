@@ -1,6 +1,11 @@
 3.1.0 (Unreleased)
 ------------------
 
+- fix issue229: A replica talking to a master behind nginx decoded gzipped
+  data, but left the Content-Encoding header unchanged. Now data is passed on
+  unchanged.
+  Thanks to Chad Wagner for the fix.
+
 - fix issue317: When there is no data in the directory specified via
   ``--serverdir`` during export, then the process aborts instead of creating
   and exporting an empty database.

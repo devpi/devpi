@@ -894,6 +894,55 @@ def wait_for_port(host, port, timeout=60):
         "The port %s on host %s didn't become accessible" % (port, host))
 
 
+@pytest.yield_fixture(scope="module")
+def server_directory():
+    import tempfile
+    srvdir = py.path.local(
+        tempfile.mkdtemp(prefix='test-', suffix='-server-directory'))
+    yield srvdir
+    srvdir.remove(ignore_errors=True)
+
+
+@pytest.fixture(scope="module")
+def call_devpi_in_server_directory(server_directory):
+    # let xproc find the correct executable instead of py.test
+    devpiserver = str(py.path.local.sysfind("devpi-server"))
+
+    def devpi(args):
+        from devpi_server.main import main
+        import os
+        import sys
+        notset = object()
+        orig_sys_argv = sys.argv
+        orig_env_devpi_serverdir = os.environ.get("DEVPI_SERVERDIR", notset)
+        try:
+            sys.argv = [devpiserver]
+            os.environ['DEVPI_SERVERDIR'] = server_directory.strpath
+            main(args)
+        finally:
+            sys.argv = orig_sys_argv
+            if orig_env_devpi_serverdir is notset:
+                del os.environ["DEVPI_SERVERDIR"]
+            else:
+                os.environ["DEVPI_SERVERDIR"] = orig_env_devpi_serverdir
+
+    return devpi
+
+
+@pytest.yield_fixture(scope="module")
+def master_host_port(request, call_devpi_in_server_directory):
+    host = 'localhost'
+    port = get_open_port(host)
+    call_devpi_in_server_directory(
+        ["devpi-server", "--start", "--host", host, "--port", str(port)])
+    try:
+        wait_for_port(host, port)
+        yield (host, port)
+    finally:
+        call_devpi_in_server_directory(
+            ["devpi-server", "--stop"])
+
+
 @pytest.fixture(scope="session")
 def simpypiserver():
     import threading
