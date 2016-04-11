@@ -83,6 +83,8 @@ class TxNotificationThread:
         while 1:
             try:
                 self.tick()
+            except mythread.Shutdown:
+                raise
             except:
                 self.log.exception(
                     "Unhandled exception in notification thread.")

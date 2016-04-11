@@ -8,6 +8,7 @@ from pyramid.response import Response
 from devpi_common.validation import normalize_name
 from webob.headers import EnvironHeaders, ResponseHeaders
 
+from . import mythread
 from .fileutil import loads, rename
 from .log import thread_push_log, threadlog
 from .views import is_mutating_http_method, H_MASTER_UUID, make_uuid_headers
@@ -232,6 +233,8 @@ class ReplicaThread:
         while 1:
             try:
                 self.tick()
+            except mythread.Shutdown:
+                raise
             except:
                 self.log.exception(
                     "Unhandled exception in replica thread.")

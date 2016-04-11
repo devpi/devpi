@@ -2,10 +2,12 @@ import contextlib
 import threading
 from traceback import print_exc
 
-class MyThread(threading.Thread):
-    class Shutdown(Exception):
-        """ this thread is shutting down. """
 
+class Shutdown(Exception):
+    """ this thread is shutting down. """
+
+
+class MyThread(threading.Thread):
     def sleep(self, secs):
         self.pool._shutdown.wait(secs)
         self.exit_if_shutdown()
@@ -28,8 +30,8 @@ def has_active_thread(obj):
 
 
 class ThreadPool:
-    class Shutdown(Exception):
-        pass
+    Shutdown = Shutdown
+
     def __init__(self):
         self._objects = []
         self._shutdown = threading.Event()
