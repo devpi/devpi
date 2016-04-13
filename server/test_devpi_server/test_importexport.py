@@ -39,10 +39,11 @@ def test_empty_export(tmpdir, xom):
         make_export(tmpdir, xom)
 
 
-def test_empty_serverdir(tmpdir, capfd):
+def test_empty_serverdir(tmpdir, capfd, monkeypatch):
     from devpi_server.main import main
     empty = tmpdir.join("empty").ensure(dir=True)
     export = tmpdir.join("export")
+    monkeypatch.setattr("devpi_server.main.configure_logging", lambda a: None)
     ret = main([
         "devpi-server",
         "--serverdir", empty.strpath,
