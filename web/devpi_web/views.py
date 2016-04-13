@@ -3,7 +3,6 @@ from __future__ import unicode_literals
 from defusedxml.xmlrpc import DefusedExpatParser
 from devpi_common.metadata import get_pyversion_filetype
 from devpi_common.metadata import get_sorted_versions
-from devpi_common.validation import normalize_name
 from devpi_common.viewhelp import iter_toxresults
 from devpi_server.log import threadlog as log
 from devpi_server.readonly import SeqViewReadonly
@@ -293,11 +292,8 @@ def get_toxresults_info(linkstore, for_link, newest=True):
 def get_docs_info(request, stage, metadata):
     if stage.ixconfig['type'] == 'mirror':
         return
-    ver = metadata["version"]
-    for name in (metadata["name"], normalize_name(metadata["name"])):
-        doc_path = get_unpack_path(stage, name, ver)
-        if doc_path.exists():
-            break
+    name, ver = metadata["name"], metadata["version"]
+    doc_path = get_unpack_path(stage, name, ver)
     if doc_path.exists():
         return dict(
             title="%s-%s" % (name, ver),
