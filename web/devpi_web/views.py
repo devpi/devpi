@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 from defusedxml.xmlrpc import DefusedExpatParser
 from devpi_common.metadata import get_pyversion_filetype
 from devpi_common.metadata import get_sorted_versions
+from devpi_common.validation import normalize_name
 from devpi_common.viewhelp import iter_toxresults
 from devpi_server.log import threadlog as log
 from devpi_server.readonly import SeqViewReadonly
@@ -292,7 +293,7 @@ def get_toxresults_info(linkstore, for_link, newest=True):
 def get_docs_info(request, stage, metadata):
     if stage.ixconfig['type'] == 'mirror':
         return
-    name, ver = metadata["name"], metadata["version"]
+    name, ver = normalize_name(metadata["name"]), metadata["version"]
     doc_path = get_unpack_path(stage, name, ver)
     if doc_path.exists():
         return dict(
@@ -777,7 +778,8 @@ class SearchView:
                 if text_path:
                     sub_hit['url'] = self.request.route_url(
                         "docviewroot", user=data['user'], index=data['index'],
-                        project=data['name'], version=data['doc_version'],
+                        project=normalize_name(data['name']),
+                        version=data['doc_version'],
                         relpath="%s.html" % text_path)
             elif text_type in ('keywords', 'description', 'summary'):
                 metadata = self.get_versiondata(stage, data)
@@ -791,7 +793,8 @@ class SearchView:
                     sub_hit['url'] = self.request.route_url(
                         "/{user}/{index}/{project}/{version}",
                         user=data['user'], index=data['index'],
-                        project=data['name'], version=data['version'],
+                        project=data['name'],
+                        version=data['version'],
                         _anchor=text_type)
             else:
                 log.error("Unknown type %s" % text_type)

@@ -1,7 +1,6 @@
 from __future__ import unicode_literals
 from chameleon.config import AUTO_RELOAD
 from devpi_common.metadata import get_latest_version
-from devpi_common.validation import normalize_name
 from devpi_web import hookspecs
 from devpi_web.description import render_description
 from devpi_web.doczip import unpack_docs
@@ -266,10 +265,9 @@ def delete_project(stage, name):
     ix.delete_projects([preprocess_project(stage, name)])
 
 
-def index_project(stage, name_input):
+def index_project(stage, name):
     if stage is None:
         return
-    name = normalize_name(name_input)
     ix = get_indexer(stage.xom.config)
     ix.update_projects([preprocess_project(stage, name)])
 

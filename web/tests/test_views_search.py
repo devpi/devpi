@@ -28,25 +28,27 @@ def test_search_no_results(testapp):
 def test_search_docs(mapp, testapp):
     api = mapp.create_and_use()
     mapp.set_versiondata({
-        "name": "pkg1",
+        "name": "pkg_hello",
         "version": "2.6",
         "description": "foo"}, waithooks=True)
     mapp.upload_file_pypi(
-        "pkg1-2.6.tar.gz", b"content", "pkg1", "2.6")
+        "pkg_hello-2.6-py2.py3-none-any.whl", b"content", "pkg_hello", "2.6")
     content = zip_dict(
         {"index.html": "\n".join([
             "<html>",
             "<head><title>Foo</title></head>",
             "<body>Bar</body>",
             "</html>"])})
-    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
+    mapp.upload_doc("pkg-hello-2.6.doc.zip", content, "pkg_hello", "2.6", code=200,
                     waithooks=True)
     r = testapp.get('/+search?query=bar')
     assert r.status_code == 200
+    highlight = r.html.select('.searchresults dd dd')
+    assert [compareable_text(x.text) for x in highlight] == ["Bar"]
     links = r.html.select('.searchresults a')
     assert [(compareable_text(l.text), l.attrs['href']) for l in links] == [
-        ("pkg1-2.6", "http://localhost/%s/pkg1/2.6" % api.stagename),
-        ("Foo", "http://localhost/%s/pkg1/2.6/+d/index.html" % api.stagename)]
+        ("pkg_hello-2.6", "http://localhost/%s/pkg_hello/2.6" % api.stagename),
+        ("Foo", "http://localhost/%s/pkg-hello/2.6/+d/index.html" % api.stagename)]
 
 
 @pytest.mark.with_notifier

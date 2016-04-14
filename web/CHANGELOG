@@ -8,6 +8,9 @@
 - fix issue335: The documentation wasn't linked for projects with
   non-normalized names.
 
+- fix issue324: The project name wasn't correctly normalized when trying to
+  access unpacked documentation in some code paths.
+
 
 3.0.0 (2016-02-12)
 ------------------
