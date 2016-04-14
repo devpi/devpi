@@ -910,21 +910,14 @@ def call_devpi_in_server_directory(server_directory):
 
     def devpi(args):
         from devpi_server.main import main
-        import os
-        import sys
-        notset = object()
-        orig_sys_argv = sys.argv
-        orig_env_devpi_serverdir = os.environ.get("DEVPI_SERVERDIR", notset)
+        from _pytest.monkeypatch import monkeypatch
+        m = monkeypatch()
+        m.setenv("DEVPI_SERVERDIR", server_directory.strpath)
+        m.setattr("sys.argv", [devpiserver])
         try:
-            sys.argv = [devpiserver]
-            os.environ['DEVPI_SERVERDIR'] = server_directory.strpath
             main(args)
         finally:
-            sys.argv = orig_sys_argv
-            if orig_env_devpi_serverdir is notset:
-                del os.environ["DEVPI_SERVERDIR"]
-            else:
-                os.environ["DEVPI_SERVERDIR"] = orig_env_devpi_serverdir
+            m.undo()
 
     return devpi
 
