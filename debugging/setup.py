@@ -12,8 +12,8 @@ setup(
             "devpi-debugging = devpi_debugging.main"]},
     install_requires=[
         'devpi-common',
-        'devpi-server<3dev',
-        'devpi-web<3dev'],
+        'devpi-server',
+        'devpi-web'],
     include_package_data=True,
     zip_safe=False,
     packages=['devpi_debugging'])

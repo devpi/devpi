@@ -1,4 +1,4 @@
-from devpi_server.keyfs import loads
+from devpi_server.fileutil import loads
 from functools import partial
 from pprint import pformat
 from pyramid.view import view_config
@@ -9,16 +9,16 @@ from pyramid.view import view_config
     request_method="GET",
     renderer="templates/keyfs.pt")
 def keyfs_view(request):
-    fs = request.registry['xom'].keyfs._fs
-    conn = fs.get_sqlconn()
+    storage = request.registry['xom'].keyfs._storage
     query = request.params.get('query')
     serials = []
     if query:
         bquery = query.encode('ascii')
         q = "SELECT serial, data FROM changelog"
-        for serial, data in conn.execute(q):
-            if bquery in data:
-                serials.append(serial)
+        with storage.get_connection() as conn:
+            for serial, data in conn._sqlconn.execute(q):
+                if bquery in data:
+                    serials.append(serial)
     return dict(
         query=query,
         serials=serials)
@@ -29,10 +29,11 @@ def keyfs_view(request):
     request_method="GET",
     renderer="templates/keyfs_changelog.pt")
 def keyfs_changelog_view(request):
-    fs = request.registry['xom'].keyfs._fs
+    storage = request.registry['xom'].keyfs._storage
     serial = request.matchdict['serial']
     query = request.params.get('query')
-    data = fs.get_raw_changelog_entry(serial)
+    with storage.get_connection() as conn:
+        data = conn.get_raw_changelog_entry(serial)
     (changes, rel_renames) = loads(data)
     return dict(
         changes=changes,
