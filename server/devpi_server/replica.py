@@ -318,7 +318,7 @@ def clean_response_headers(response):
     return headers
 
 
-def proxy_request_to_master(xom, request):
+def proxy_request_to_master(xom, request, stream=False):
     master_url = xom.config.master_url
     url = master_url.joinpath(request.path).url
     assert url.startswith(master_url.url)
@@ -328,6 +328,7 @@ def proxy_request_to_master(xom, request):
             return http.request(request.method, url,
                                 data=request.body,
                                 headers=clean_request_headers(request),
+                                stream=stream,
                                 allow_redirects=False)
         except http.Errors as e:
             raise UpstreamError("proxy-write-to-master %s: %s" % (url, e))
@@ -337,7 +338,8 @@ def proxy_write_to_master(xom, request):
     """ relay modifying http requests to master and wait until
     the change is replicated back.
     """
-    r = proxy_request_to_master(xom, request)
+    r = proxy_request_to_master(xom, request, stream=True)
+    body = r.raw.read()
     #threadlog.debug("relay status_code: %s", r.status_code)
     #threadlog.debug("relay headers: %s", r.headers)
     if r.status_code < 400:
@@ -352,7 +354,7 @@ def proxy_write_to_master(xom, request):
         headers[str("location")] = str(
             master_location.replace(xom.config.master_url.url, outside_url))
     return Response(status="%s %s" %(r.status_code, r.reason),
-                    body=r.content,
+                    body=body,
                     headers=headers)
 
 
