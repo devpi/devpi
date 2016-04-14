@@ -11,6 +11,9 @@
 - fix issue324: The project name wasn't correctly normalized when trying to
   access unpacked documentation in some code paths.
 
+- all generated URLs in devpi-web are now normalized and don't go through a
+  redirect anymore.
+
 
 3.0.0 (2016-02-12)
 ------------------

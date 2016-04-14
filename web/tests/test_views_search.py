@@ -47,7 +47,7 @@ def test_search_docs(mapp, testapp):
     assert [compareable_text(x.text) for x in highlight] == ["Bar"]
     links = r.html.select('.searchresults a')
     assert [(compareable_text(l.text), l.attrs['href']) for l in links] == [
-        ("pkg_hello-2.6", "http://localhost/%s/pkg_hello/2.6" % api.stagename),
+        ("pkg_hello-2.6", "http://localhost/%s/pkg-hello/2.6" % api.stagename),
         ("Foo", "http://localhost/%s/pkg-hello/2.6/+d/index.html" % api.stagename)]
 
 

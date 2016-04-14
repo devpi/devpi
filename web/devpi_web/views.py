@@ -391,7 +391,7 @@ def index_get(context, request):
         version = stage.get_latest_version_perstage(project)
         verdata = stage.get_versiondata_perstage(project, version)
         try:
-            name, ver = verdata["name"], verdata["version"]
+            name, ver = normalize_name(verdata["name"]), verdata["version"]
         except KeyError:
             log.error("metadata for project %r empty: %s, skipping",
                       project, verdata)
@@ -793,7 +793,7 @@ class SearchView:
                     sub_hit['url'] = self.request.route_url(
                         "/{user}/{index}/{project}/{version}",
                         user=data['user'], index=data['index'],
-                        project=data['name'],
+                        project=normalize_name(data['name']),
                         version=data['version'],
                         _anchor=text_type)
             else:
@@ -819,12 +819,14 @@ class SearchView:
                 item['url'] = self.request.route_url(
                     "/{user}/{index}/{project}/{version}",
                     user=data['user'], index=data['index'],
-                    project=data['name'], version=data['version'])
+                    project=normalize_name(data['name']),
+                    version=data['version'])
                 item['title'] = "%s-%s" % (data['name'], data['version'])
             else:
                 item['url'] = self.request.route_url(
                     "/{user}/{index}/{project}",
-                    user=data['user'], index=data['index'], project=data['name'])
+                    user=data['user'], index=data['index'],
+                    project=normalize_name(data['name']))
                 item['title'] = data['name']
             item['sub_hits'] = self.process_sub_hits(
                 stage, item['sub_hits'], data)
