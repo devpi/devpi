@@ -229,7 +229,7 @@ class FileEntry(object):
         self.meta = {}
         self.file_delete()
 
-    def cache_remote_file(self):
+    def iter_cache_remote_file(self):
         # we get and cache the file and some http headers from remote
         r = self.xom.httpget(self.url, allow_redirects=True)
         if r.status_code != 200:
@@ -237,11 +237,28 @@ class FileEntry(object):
             threadlog.error(msg)
             raise self.BadGateway(msg)
         log.info("reading remote: %s, target %s", r.url, self.relpath)
-        content = r.raw.read()
-        filesize = len(content)
         content_size = r.headers.get("content-length")
         err = None
 
+        headers = {
+            str("X-Accel-Buffering"): str("no"),  # disable buffering in nginx
+            str("content-type"): r.headers.get(
+                "content-type", (str("application/octet-stream"), None))[0]}
+        if "last-modified" in r.headers:
+            headers[str("last-modified")] = r.headers["last-modified"]
+        if content_size is not None:
+            headers[str("content-length")] = str(content_size)
+        yield headers
+
+        content = b''
+        while 1:
+            data = r.raw.read(10240)
+            if not data:
+                break
+            content = content + data
+            yield data
+
+        filesize = len(content)
         if content_size and int(content_size) != filesize:
             err = ValueError(
                       "%s: got %s bytes of %r from remote, expected %s" % (
@@ -253,7 +270,17 @@ class FileEntry(object):
             log.error(str(err))
             raise err
 
-        self.file_set_content(content, r.headers.get("last-modified", None))
+        try:
+            tx = self.tx
+        except AttributeError:
+            # when streaming we won't be in a transaction anymore, so we need
+            # to open a new one below
+            tx = None
+        if tx is not None:
+            self.file_set_content(content, r.headers.get("last-modified", None))
+        else:
+            with self.key.keyfs.transaction(write=True):
+                self.file_set_content(content, r.headers.get("last-modified", None))
 
     def cache_remote_file_replica(self):
         from .replica import H_REPLICA_FILEREPL, ReplicationErrors
@@ -265,12 +292,23 @@ class FileEntry(object):
             threadlog.warn("missing private file: %s" % self.relpath)
         else:
             threadlog.info("replica doesn't have file: %s", self.relpath)
-        # we do a head request to master and then wait
-        r = self.xom._httpsession.head(url)
-        if r.status_code != 200:
-            msg = "%s: received %s from master" % (url, r.status_code)
-            threadlog.error(msg)
-            raise self.BadGateway(msg)
+        while 1:
+            # we do a head request to master and then wait
+            r = self.xom._httpsession.get(url)
+            if r.status_code != 200:
+                msg = "%s: received %s from master" % (url, r.status_code)
+                threadlog.error(msg)
+                raise self.BadGateway(msg)
+            if "X-DEVPI-SERIAL" in r.headers:
+                # the master has the file
+                break
+            # the master needs to fetch the file itself, so we wait at least
+            # until the serial just before that, as we don't know the final
+            # serial yet
+            serial = int(r.headers["X-DEVPI-AT-SERIAL"])
+            keyfs = self.key.keyfs
+            keyfs.wait_tx_serial(serial)
+            keyfs.restart_read_transaction()  # use latest serial
         serial = int(r.headers["X-DEVPI-SERIAL"])
         keyfs = self.key.keyfs
         keyfs.wait_tx_serial(serial)

@@ -1,6 +1,11 @@
 3.1.0 (Unreleased)
 ------------------
 
+- fix issue208: Mirrored files (PyPI) are streamed to the client while
+  downloading. This prevents timeouts in pip etc. The files are only cached if
+  there were no errors and in case there is a checksum, the content matches.
+  Replicas can't stream yet.
+
 - fix issue229: A replica talking to a master behind nginx decoded gzipped
   data, but left the Content-Encoding header unchanged. Now data is passed on
   unchanged.

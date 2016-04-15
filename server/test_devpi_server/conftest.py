@@ -4,6 +4,7 @@ import logging
 from webtest.forms import Upload
 import webtest
 import mimetypes
+import subprocess
 
 import pytest
 import py
@@ -842,36 +843,62 @@ def testapp(request, maketestapp, xom):
 
 class SimPyPIRequestHandler(httpserver.BaseHTTPRequestHandler):
     def do_GET(self):
+        def start_response(status, headers):
+            self.send_response(status)
+            for key, value in headers.items():
+                self.send_header(key, value)
+            self.end_headers()
+
         simpypi = self.server.simpypi
+        headers = {
+            'X-Simpypi-Method': 'GET'}
         p = self.path.split('/')
         if len(p) == 4 and p[0] == '' and p[1] == 'simple' and p[3] == '':
             project = simpypi.projects.get(p[2])
             if project is not None:
                 releases = project['releases']
-                print(
+                simpypi.add_log(
                     "do_GET", self.path, "found",
-                    project['title'], "with", list(releases), file=sys.stderr)
-                self.send_response(200)
-                self.end_headers()
+                    project['title'], "with", list(releases))
+                start_response(200, headers)
                 self.wfile.write(b'\n'.join(releases))
                 return
         elif p == ['', 'simple', '']:
             projects = [
                 '<a href="%s">%s</a>' % (k, v['title'])
                 for k, v in simpypi.projects.items()]
-            print("do_GET", self.path, "found", list(simpypi.projects), file=sys.stderr)
-            self.send_response(200)
-            self.end_headers()
+            simpypi.add_log("do_GET", self.path, "found", list(simpypi.projects))
+            start_response(200, headers)
             self.wfile.write(b'\n'.join(x.encode('utf-8') for x in projects))
             return
         elif self.path in simpypi.files:
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(simpypi.files[self.path])
-            return
-        print("do_GET", self.path, "not found", file=sys.stderr)
-        self.send_response(404)
-        self.end_headers()
+            f = simpypi.files[self.path]
+            content = f['content']
+            if 'length' in f:
+                headers['Content-Length'] = f['length']
+                content = content[:f['length']]
+            start_response(200, headers)
+            simpypi.add_log("do_GET", self.path, "sending")
+            if not f['stream']:
+                self.wfile.write(content)
+                simpypi.add_log("do_GET", self.path, "sent")
+                return
+            else:
+                chunksize = f['chunksize']
+                callback = f.get('callback')
+                for i in range(len(content) // chunksize):
+                    data = content[i * chunksize:(i + 1) * chunksize]
+                    if not data:
+                        break
+                    self.wfile.write(data)
+                    if callback:
+                        callback(i * chunksize)
+                    simpypi.add_log(
+                        "do_GET", self.path,
+                        "streamed %i bytes" % (i * chunksize))
+                return
+        simpypi.add_log("do_GET", self.path, "not found")
+        start_response(404, headers)
 
 
 def get_open_port(host):
@@ -904,15 +931,15 @@ def server_directory():
 
 
 @pytest.fixture(scope="module")
-def call_devpi_in_server_directory(server_directory):
+def call_devpi_in_dir():
     # let xproc find the correct executable instead of py.test
     devpiserver = str(py.path.local.sysfind("devpi-server"))
 
-    def devpi(args):
+    def devpi(server_dir, args):
         from devpi_server.main import main
         from _pytest.monkeypatch import monkeypatch
         m = monkeypatch()
-        m.setenv("DEVPI_SERVERDIR", server_directory.strpath)
+        m.setenv("DEVPI_SERVERDIR", server_dir)
         m.setattr("sys.argv", [devpiserver])
         try:
             main(args)
@@ -923,17 +950,108 @@ def call_devpi_in_server_directory(server_directory):
 
 
 @pytest.yield_fixture(scope="module")
-def master_host_port(request, call_devpi_in_server_directory):
+def master_host_port(request, call_devpi_in_dir, server_directory):
     host = 'localhost'
     port = get_open_port(host)
-    call_devpi_in_server_directory(
+    master_dir = server_directory.join("master").strpath
+    call_devpi_in_dir(
+        master_dir,
         ["devpi-server", "--start", "--host", host, "--port", str(port)])
     try:
         wait_for_port(host, port)
         yield (host, port)
     finally:
-        call_devpi_in_server_directory(
+        call_devpi_in_dir(
+            master_dir,
             ["devpi-server", "--stop"])
+
+
+@pytest.yield_fixture(scope="module")
+def replica_host_port(request, call_devpi_in_dir, server_directory):
+    host = 'localhost'
+    port = get_open_port(host)
+    replica_dir = server_directory.join("replica").strpath
+    call_devpi_in_dir(
+        replica_dir,
+        ["devpi-server", "--start", "--host", host, "--port", str(port)])
+    try:
+        wait_for_port(host, port)
+        yield (host, port)
+    finally:
+        call_devpi_in_dir(
+            replica_dir,
+            ["devpi-server", "--stop"])
+
+
+nginx_conf_content = """
+worker_processes  1;
+daemon off;
+
+events {
+    worker_connections  32;
+}
+
+http {
+    default_type  application/octet-stream;
+    sendfile        on;
+    keepalive_timeout  65;
+
+    include nginx-devpi.conf;
+}
+"""
+
+
+def _nginx_host_port(host, port, call_devpi_in_dir, server_directory):
+    # let xproc find the correct executable instead of py.test
+    nginx = py.path.local.sysfind("nginx")
+    if nginx is None:
+        pytest.skip("No nginx executable found.")
+    nginx = str(nginx)
+
+    orig_dir = server_directory.chdir()
+    try:
+        call_devpi_in_dir(
+            server_directory.strpath,
+            ["devpi-server", "--gen-config", "--host", host, "--port", str(port)])
+    finally:
+        orig_dir.chdir()
+    nginx_devpi_conf = server_directory.join("gen-config", "nginx-devpi.conf")
+    nginx_port = get_open_port(host)
+    nginx_devpi_conf_content = nginx_devpi_conf.read()
+    nginx_devpi_conf_content = nginx_devpi_conf_content.replace(
+        "listen 80;",
+        "listen %s;" % nginx_port)
+    nginx_devpi_conf.write(nginx_devpi_conf_content)
+    nginx_conf = server_directory.join("gen-config", "nginx.conf")
+    nginx_conf.write(nginx_conf_content)
+    subprocess.check_call([nginx, "-t", "-c", nginx_conf.strpath])
+    p = subprocess.Popen([nginx, "-c", nginx_conf.strpath])
+    wait_for_port(host, nginx_port)
+    return (p, nginx_port)
+
+
+@pytest.yield_fixture(scope="module")
+def nginx_host_port(master_host_port, call_devpi_in_dir, server_directory):
+    (host, port) = master_host_port
+    (p, nginx_port) = _nginx_host_port(
+        host, port, call_devpi_in_dir, server_directory)
+    try:
+        yield (host, nginx_port)
+    finally:
+        p.terminate()
+        p.wait()
+
+
+@pytest.yield_fixture(scope="module")
+def nginx_replica_host_port(replica_host_port, call_devpi_in_dir, server_directory):
+    (host, port) = replica_host_port
+    (p, nginx_port) = _nginx_host_port(
+        host, port, call_devpi_in_dir, server_directory)
+    try:
+        yield (host, nginx_port)
+    finally:
+        p.terminate()
+        p.wait()
 
 
 @pytest.fixture(scope="session")
@@ -956,6 +1074,15 @@ class SimPyPI:
         self.simpleurl = "%s/simple" % self.baseurl
         self.projects = {}
         self.files = {}
+        self.clear_log()
+
+    def clear_log(self):
+        self.log = []
+
+    def add_log(self, *args):
+        msg = ' '.join(str(x) for x in args)
+        print(msg, file=sys.stderr)
+        self.log.append(msg)
 
     def add_project(self, name, title=None):
         if title is None:
@@ -979,8 +1106,18 @@ class SimPyPI:
         assert text
         project['releases'].add(text.encode('utf-8'))
 
-    def add_file(self, relpath, content):
-        self.files[relpath] = content
+    def add_file(self, relpath, content, stream=False, chunksize=1024,
+                 length=None, callback=None):
+        if length is None:
+            length = len(content)
+        info = dict(
+            content=content,
+            stream=stream,
+            chunksize=chunksize,
+            callback=callback)
+        if length is not False:
+            info['length'] = length
+        self.files[relpath] = info
 
 
 @pytest.fixture
