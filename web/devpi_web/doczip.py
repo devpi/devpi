@@ -6,6 +6,7 @@ except ImportError:
 from bs4 import BeautifulSoup
 from devpi_common.archive import Archive
 from devpi_common.types import cached_property
+from devpi_common.validation import normalize_name
 from devpi_server.log import threadlog
 import json
 
@@ -13,7 +14,7 @@ import json
 def get_unpack_path(stage, name, version):
     # XXX this should rather be in some devpi-web managed directory area
     return stage.keyfs.basedir.join(stage.user.name, stage.index,
-                                    name, version, "+doc")
+                                    normalize_name(name), version, "+doc")
 
 
 def unpack_docs(stage, name, version, entry):
