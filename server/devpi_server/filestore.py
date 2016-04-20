@@ -274,6 +274,8 @@ class FileEntry(object):
             raise err
 
         try:
+            # when pushing from a mirror to an index, we are still in a
+            # transaction
             tx = self.tx
         except AttributeError:
             # when streaming we won't be in a transaction anymore, so we need
@@ -318,6 +320,8 @@ class FileEntry(object):
             raise self.BadGateway(str(err))
 
         try:
+            # there is no code path that still has a transaction at this point,
+            # but we handle that case just to be safe
             tx = self.tx
         except AttributeError:
             # when streaming we won't be in a transaction anymore, so we need
