@@ -468,7 +468,7 @@ class TestPyPIStageprojects:
             <body>
                 <a href='devpi-server'>devpi-server</a><br/>
                 <a href='django'>Django</a><br/>
-                <a href='ploy-ansible'>ploy_ansible</a><br/>
+                <a href='ploy-ansible/'>ploy_ansible</a><br/>
             </body></html>""")
         x = pypistage._get_remote_projects()
         assert x == set(["ploy-ansible", "devpi-server", "django"])

@@ -194,6 +194,8 @@ class PyPIStage(BaseStage):
         basehost = baseurl.replace(path='')
         for link in page.links:
             newurl = URL(link.url)
+            # remove trailing slashes, so basename works correctly
+            newurl = newurl.asfile()
             if not newurl.is_valid_http_url():
                 continue
             if not newurl.path.startswith(baseurl.path):
