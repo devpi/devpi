@@ -502,9 +502,8 @@ class TestFileReplication:
             assert r_entry.file_get_content() == content1
 
 
-    @pytest.mark.parametrize("code", [200, 500])
     def test_cache_remote_file_fails(self, xom, replica_xom, gen,
-                                     monkeypatch, reqmock, code):
+                                     monkeypatch, reqmock):
         l = []
         monkeypatch.setattr(xom.keyfs, "wait_tx_serial",
                             lambda x: l.append(x))
@@ -520,17 +519,11 @@ class TestFileReplication:
                      "X-DEVPI-SERIAL": "10"}
             entry = replica_xom.filestore.get_file_entry(entry.relpath)
             url = replica_xom.config.master_url.joinpath(entry.relpath).url
-            reqmock.mockresponse(url, code=code,
+            reqmock.mockresponse(url, code=500,
                                  headers=headers, data=b'123')
-            if code == 200:
-                l = []
-                monkeypatch.setattr(replica_xom.keyfs, "wait_tx_serial",
-                    lambda serial: l.append(serial))
             with pytest.raises(entry.BadGateway):
-                entry.cache_remote_file_replica()
-            if code == 200:
-                assert len(l) == 1
-                assert l[0] == 10
+                for part in entry.iter_remote_file_replica():
+                    pass
 
 
     def test_checksum_mismatch(self, xom, replica_xom, gen, maketestapp,
@@ -557,12 +550,12 @@ class TestFileReplication:
             '%s/+f/d0b/425e00e15a0d3/hello-1.0.zip' % api.stagename]
         # the master and replica are in sync, so getting the file on the
         # replica needs to fetch it again
-        headers = {"content-length": "3",
+        headers = {"content-length": "8",
                    "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
                    "content-type": "application/zip",
                    "X-DEVPI-SERIAL": str(xom.keyfs.get_current_serial())}
         reqmock.mockresponse(master_file_url, code=200, headers=headers)
-        replica_xom.httpget.mockresponse(master_file_url, code=200, content=content1)
+        replica_xom.httpget.mockresponse(master_file_url, code=200, content=content1, headers=headers)
         r = r_app.get(path)
         assert r.status_code == 200
         assert r.body == content1

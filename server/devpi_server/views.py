@@ -209,13 +209,12 @@ def tween_keyfs_transaction(handler, registry):
 
 def set_header_devpi_serial(response, tx):
     if isinstance(response._app_iter, collections.Iterator):
-        response.headers[str("X-DEVPI-AT-SERIAL")] = str(tx.at_serial)
+        return
+    if tx.commit_serial is not None:
+        serial = tx.commit_serial
     else:
-        if tx.commit_serial is not None:
-            serial = tx.commit_serial
-        else:
-            serial = tx.at_serial
-        response.headers[str("X-DEVPI-SERIAL")] = str(serial)
+        serial = tx.at_serial
+    response.headers[str("X-DEVPI-SERIAL")] = str(serial)
 
 
 def is_mutating_http_method(method):
@@ -1063,13 +1062,8 @@ def iter_fetch_remote_file(xom, entry):
         for part in entry.iter_cache_remote_file():
             yield part
     else:
-        entry = entry.cache_remote_file_replica()
-        headers = entry.gethttpheaders()
-        content = entry.file_get_content()
-        # yield after assignment, so everything happens inside the current
-        # transaction
-        yield headers
-        yield content
+        for part in entry.iter_remote_file_replica():
+            yield part
 
 
 def url_for_entrypath(request, entrypath):

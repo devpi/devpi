@@ -141,7 +141,7 @@ def wsgi_run(xom, app):
         app = make_eval_exception(app, {})
     try:
         log.info("Hit Ctrl-C to quit.")
-        serve(app, host=host, port=port, threads=50, expose_tracebacks=True)
+        serve(app, host=host, port=port, threads=50)
     except KeyboardInterrupt:
         pass
     return 0

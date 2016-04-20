@@ -32,8 +32,9 @@ def server_url_session(host_port, simpypi):
 @pytest.fixture(scope="session")
 def content_digest():
     import hashlib
-    content = b'deadbeaf' * 1024
-    content = content + b'cafe' * 1024
+    content = b'deadbeaf' * 128
+    content = content + b'sandwich' * 128
+    content = content * 512
     digest = hashlib.sha256(content).hexdigest()
     return (content, digest)
 
@@ -43,81 +44,55 @@ def files_directory(server_directory):
     return server_directory.join('master', '+files')
 
 
-def test_streaming_download(content_digest, files_directory, server_url_session, simpypi):
+@pytest.mark.parametrize("length,pkg_version", [
+    (None, '1.0'), (False, '1.1')])
+def test_streaming_download(content_digest, files_directory, length, pkg_version, server_url_session, simpypi):
     (content, digest) = content_digest
     (url, s) = server_url_session
-    simpypi.add_release('pkg', pkgver='pkg-1.0.zip#sha256=%s' % digest)
-    simpypi.add_file('/pkg/pkg-1.0.zip', content, stream=True)
+    pkgzip = "pkg-%s.zip" % pkg_version
+    simpypi.add_release('pkg', pkgver='%s#sha256=%s' % (pkgzip, digest))
+    simpypi.add_file('/pkg/%s' % pkgzip, content, stream=True, length=length)
     r = s.get(url + 'root/mirror/pkg').json()
-    href = r['result']['1.0']['+links'][0]['href']
+    href = r['result'][pkg_version]['+links'][0]['href']
     r = requests.get(href, stream=True)
-    stream = r.iter_content(8)
+    stream = r.iter_content(1024)
     data = next(stream)
-    assert data == b'deadbeaf'
-    assert r.headers['content-length'] == str(len(content))
+    assert data == b'deadbeaf' * 128
+    part = next(stream)
+    assert part == b'sandwich' * 128
+    data = data + part
+    if length is not False:
+        assert r.headers['content-length'] == str(len(content))
     for part in stream:
         data = data + part
     assert data == content
     pkg_file = files_directory.join(
-        'root', 'pypi', '+f', digest[:3], digest[3:16], 'pkg-1.0.zip')
+        'root', 'pypi', '+f', digest[:3], digest[3:16], pkgzip)
     assert pkg_file.exists()
 
 
-def test_streaming_no_content_size(content_digest, files_directory, server_url_session, simpypi):
+@pytest.mark.parametrize("size_factor,pkg_version", [
+    (2, '1.2'), (0.5, '1.3')])
+def test_streaming_differing_content_size(content_digest, files_directory, pkg_version, server_url_session, simpypi, size_factor):
     (content, digest) = content_digest
     (url, s) = server_url_session
-    simpypi.add_release('pkg', pkgver='pkg-1.1.zip#sha256=%s' % digest)
-    simpypi.add_file('/pkg/pkg-1.1.zip', content, stream=True, length=False)
+    pkgzip = "pkg-%s.zip" % pkg_version
+    length = int(len(content) * size_factor)
+    simpypi.add_release('pkg', pkgver='%s#sha256=%s' % (pkgzip, digest))
+    simpypi.add_file('/pkg/%s' % pkgzip, content, stream=True, length=length)
     r = s.get(url + 'root/mirror/pkg').json()
-    href = r['result']['1.1']['+links'][0]['href']
+    href = r['result'][pkg_version]['+links'][0]['href']
     r = requests.get(href, stream=True)
-    stream = r.iter_content(8)
+    stream = r.iter_content(1024)
     data = next(stream)
-    # assert data == b'deadbeaf'
-    # assert r.headers['content-length'] == str(len(content))
+    assert data == b'deadbeaf' * 128
+    part = next(stream)
+    assert part == b'sandwich' * 128
+    data = data + part
+    assert r.headers['content-length'] == str(length)
     for part in stream:
         data = data + part
-    assert data == content
+    assert data == content[:length]
     pkg_file = files_directory.join(
-        'root', 'pypi', '+f', digest[:3], digest[3:16], 'pkg-1.1.zip')
-    assert pkg_file.exists()
-
-
-def test_streaming_too_big_content_size(content_digest, files_directory, server_url_session, simpypi):
-    (content, digest) = content_digest
-    (url, s) = server_url_session
-    simpypi.add_release('pkg', pkgver='pkg-1.2.zip#sha256=%s' % digest)
-    simpypi.add_file('/pkg/pkg-1.2.zip', content, stream=True, length=len(content) * 2)
-    r = s.get(url + 'root/mirror/pkg').json()
-    href = r['result']['1.2']['+links'][0]['href']
-    r = requests.get(href, stream=True)
-    stream = r.iter_content(8)
-    data = next(stream)
-    assert data == b'deadbeaf'
-    assert r.headers['content-length'] == str(len(content) * 2)
-    for part in stream:
-        data = data + part
-    assert data == content
-    pkg_file = files_directory.join(
-        'root', 'pypi', '+f', digest[:3], digest[3:16], 'pkg-1.2.zip')
-    assert not pkg_file.exists()
-
-
-def test_streaming_too_small_content_size(content_digest, files_directory, server_url_session, simpypi):
-    (content, digest) = content_digest
-    (url, s) = server_url_session
-    simpypi.add_release('pkg', pkgver='pkg-1.3.zip#sha256=%s' % digest)
-    simpypi.add_file('/pkg/pkg-1.3.zip', content, stream=True, length=len(content) // 2)
-    r = s.get(url + 'root/mirror/pkg').json()
-    href = r['result']['1.3']['+links'][0]['href']
-    r = requests.get(href, stream=True)
-    stream = r.iter_content(8)
-    data = next(stream)
-    assert data == b'deadbeaf'
-    assert r.headers['content-length'] == str(len(content) // 2)
-    for part in stream:
-        data = data + part
-    assert data == content[:len(content) // 2]
-    pkg_file = files_directory.join(
-        'root', 'pypi', '+f', digest[:3], digest[3:16], 'pkg-1.3.zip')
+        'root', 'pypi', '+f', digest[:3], digest[3:16], pkgzip)
     assert not pkg_file.exists()
