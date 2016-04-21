@@ -410,7 +410,8 @@ def index_get(context, request):
                 user=stage.user.name, index=stage.index,
                 project=name, version=ver),
             files=get_files_info(request, linkstore, show_toxresults),
-            docs=get_docs_info(request, stage, verdata)))
+            docs=get_docs_info(request, stage, verdata),
+            _version_data=verdata))
     packages.sort(key=lambda x: x["info"]["title"])
 
     return result
@@ -443,7 +444,8 @@ def project_get(context, request):
             title=version,
             url=request.route_url(
                 "/{user}/{index}/{project}/{version}",
-                user=user, index=index, project=name, version=version)))
+                user=user, index=index, project=name, version=version),
+            _release=release))
         seen.add(seen_key)
     if hasattr(context.stage, 'get_mirror_whitelist_info'):
         whitelist_info = context.stage.get_mirror_whitelist_info(context.project)
