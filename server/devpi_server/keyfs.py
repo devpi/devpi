@@ -247,12 +247,16 @@ class KeyFS(object):
         thread_push_log("[Rtx%s]" %(tx.at_serial))
 
     def rollback_transaction_in_thread(self):
-        self._threadlocal.tx.rollback()
-        self.clear_transaction()
+        try:
+            self._threadlocal.tx.rollback()
+        finally:
+            self.clear_transaction()
 
     def commit_transaction_in_thread(self):
-        self._threadlocal.tx.commit()
-        self.clear_transaction()
+        try:
+            self._threadlocal.tx.commit()
+        finally:
+            self.clear_transaction()
 
     @contextlib.contextmanager
     def transaction(self, write=False, at_serial=None):
