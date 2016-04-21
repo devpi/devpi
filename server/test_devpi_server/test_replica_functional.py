@@ -1,8 +1,6 @@
-from .conftest import get_open_port, wait_for_port
 from .functional import TestUserThings as BaseTestUserThings
 from .functional import TestIndexThings as BaseTestIndexThings
 from .functional import TestMirrorIndexThings as BaseTestMirrorIndexThings
-import py
 import pytest
 
 

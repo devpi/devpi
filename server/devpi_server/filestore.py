@@ -229,7 +229,18 @@ class FileEntry(object):
         self.meta = {}
         self.file_delete()
 
-    def cache_remote_file(self):
+    def _headers_from_response(self, r):
+        headers = {
+            str("X-Accel-Buffering"): str("no"),  # disable buffering in nginx
+            str("content-type"): r.headers.get(
+                "content-type", (str("application/octet-stream"), None))[0]}
+        if "last-modified" in r.headers:
+            headers[str("last-modified")] = r.headers["last-modified"]
+        if "content-length" in r.headers:
+            headers[str("content-length")] = str(r.headers["content-length"])
+        return headers
+
+    def iter_cache_remote_file(self):
         # we get and cache the file and some http headers from remote
         r = self.xom.httpget(self.url, allow_redirects=True)
         if r.status_code != 200:
@@ -237,11 +248,20 @@ class FileEntry(object):
             threadlog.error(msg)
             raise self.BadGateway(msg)
         log.info("reading remote: %s, target %s", r.url, self.relpath)
-        content = r.raw.read()
-        filesize = len(content)
         content_size = r.headers.get("content-length")
         err = None
 
+        yield self._headers_from_response(r)
+
+        content = b''
+        while 1:
+            data = r.raw.read(10240)
+            if not data:
+                break
+            content = content + data
+            yield data
+
+        filesize = len(content)
         if content_size and int(content_size) != filesize:
             err = ValueError(
                       "%s: got %s bytes of %r from remote, expected %s" % (
@@ -253,57 +273,70 @@ class FileEntry(object):
             log.error(str(err))
             raise err
 
-        self.file_set_content(content, r.headers.get("last-modified", None))
+        try:
+            # when pushing from a mirror to an index, we are still in a
+            # transaction
+            tx = self.tx
+        except AttributeError:
+            # when streaming we won't be in a transaction anymore, so we need
+            # to open a new one below
+            tx = None
+        if tx is not None:
+            self.file_set_content(content, r.headers.get("last-modified", None))
+        else:
+            with self.key.keyfs.transaction(write=True):
+                self.file_set_content(content, r.headers.get("last-modified", None))
 
-    def cache_remote_file_replica(self):
+    def iter_remote_file_replica(self):
         from .replica import H_REPLICA_FILEREPL, ReplicationErrors
         replication_errors = ReplicationErrors(self.xom.config.serverdir)
         # construct master URL with param
         url = self.xom.config.master_url.joinpath(self.relpath).url
-        entry = self.xom.filestore.get_file_entry(self.relpath)
         if not self.url:
             threadlog.warn("missing private file: %s" % self.relpath)
         else:
             threadlog.info("replica doesn't have file: %s", self.relpath)
-        # we do a head request to master and then wait
-        r = self.xom._httpsession.head(url)
-        if r.status_code != 200:
-            msg = "%s: received %s from master" % (url, r.status_code)
-            threadlog.error(msg)
-            raise self.BadGateway(msg)
-        serial = int(r.headers["X-DEVPI-SERIAL"])
-        keyfs = self.key.keyfs
-        keyfs.wait_tx_serial(serial)
-        keyfs.restart_read_transaction()  # use latest serial
-        if not entry.file_exists():
-            # the file should have arrived through the replication machinery
-            if entry.relpath not in replication_errors.errors:
-                msg = "%s: did not get file after waiting" % url
-                threadlog.error(msg)
-                raise self.BadGateway(msg)
-        else:
-            return entry
-        # there was an error during file replication, so we try to fetch again
         r = self.xom.httpget(
             url, allow_redirects=True,
             extra_headers={H_REPLICA_FILEREPL: str("YES")})
-        if r.status_code == 410:
-            # master indicates Gone for files which were later deleted
-            threadlog.warn("ignoring because of later deletion: %s",
-                           self.relpath)
-            return
         if r.status_code != 200:
             msg = "%s: received %s from master" % (url, r.status_code)
             threadlog.error(msg)
             raise self.BadGateway(msg)
-        err = entry.check_checksum(r.content)
+
+        yield self._headers_from_response(r)
+
+        content = b''
+        while 1:
+            data = r.raw.read(10240)
+            if not data:
+                break
+            content = content + data
+            yield data
+
+        err = self.check_checksum(content)
         if err:
             # the file we got is different, so we fail
             raise self.BadGateway(str(err))
-        self.tx.conn.io_file_set(self._storepath, r.content)
+
+        try:
+            # there is no code path that still has a transaction at this point,
+            # but we handle that case just to be safe
+            tx = self.tx
+        except AttributeError:
+            # when streaming we won't be in a transaction anymore, so we need
+            # to open a new one below
+            tx = None
+        if tx is not None:
+            self.tx.conn.io_file_set(self._storepath, content)
+        else:
+            # we need a new transaction, but since we can't create a new serial
+            # on a replica and we wouldn't want one, it is read only, which
+            # still allows us to use the io_file_* methods
+            with self.key.keyfs.transaction(write=False):
+                self.tx.conn.io_file_set(self._storepath, content)
         # in case there were errors before, we can now remove them
-        replication_errors.remove(entry)
-        return entry
+        replication_errors.remove(self)
 
 
 def get_checksum_error(content, hash_spec):

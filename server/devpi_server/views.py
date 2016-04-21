@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import collections
 import os
 import py
 import re
@@ -201,15 +202,19 @@ def tween_keyfs_transaction(handler, registry):
         with keyfs.transaction(write=write) as tx:
             threadlog.debug("in-transaction %s", tx.at_serial)
             response = handler(request)
-        serial = tx.commit_serial if tx.commit_serial is not None \
-                                  else tx.at_serial
-        set_header_devpi_serial(response.headers, serial)
+        set_header_devpi_serial(response, tx)
         return response
     return request_tx_handler
 
 
-def set_header_devpi_serial(headers, serial):
-    headers[str("X-DEVPI-SERIAL")] = str(serial)
+def set_header_devpi_serial(response, tx):
+    if isinstance(response._app_iter, collections.Iterator):
+        return
+    if tx.commit_serial is not None:
+        serial = tx.commit_serial
+    else:
+        serial = tx.at_serial
+    response.headers[str("X-DEVPI-SERIAL")] = str(serial)
 
 
 def is_mutating_http_method(method):
@@ -397,8 +402,8 @@ class PyPIView:
             whitelist_info = stage.get_mirror_whitelist_info(project)
             embed_form = whitelist_info['has_mirror_base']
             blocked_index = whitelist_info['blocked_by_mirror_whitelist']
-        response = Response(app_iter=self._simple_list_project(
-            stage, project, result, embed_form, blocked_index))
+        response = Response(body=b"".join(self._simple_list_project(
+            stage, project, result, embed_form, blocked_index)))
         if stage.ixconfig['type'] == 'mirror':
             serial = stage.key_projsimplelinks(project).get().get("serial")
             if serial > 0:
@@ -451,7 +456,7 @@ class PyPIView:
             abort(self.request, 502, e.msg)
         # at this point we are sure we can produce the data without
         # depending on remote networks
-        return Response(app_iter=self._simple_list_all(stage, stage_results))
+        return Response(body=b"".join(self._simple_list_all(stage, stage_results)))
 
     def _simple_list_all(self, stage, stage_results):
         response = self.request.response
@@ -645,7 +650,8 @@ class PyPIView:
     def _push_links(self, links, target_stage, name, version):
         for link in links["releasefile"]:
             if should_fetch_remote_file(link.entry, self.request.headers):
-                fetch_remote_file(self.xom, link.entry)
+                for part in iter_fetch_remote_file(self.xom, link.entry):
+                    pass
             new_link = target_stage.store_releasefile(
                 name, version, link.basename, link.entry.file_get_content(),
                 last_modified=link.entry.last_modified)
@@ -921,7 +927,9 @@ class PyPIView:
 
         try:
             if should_fetch_remote_file(entry, request.headers):
-                fetch_remote_file(self.xom, entry)
+                app_iter = iter_fetch_remote_file(self.xom, entry)
+                headers = next(app_iter)
+                return Response(app_iter=app_iter, headers=headers)
         except entry.BadGateway as e:
             return apireturn(502, e.args[0])
 
@@ -1044,15 +1052,17 @@ def should_fetch_remote_file(entry, headers):
     return should_fetch
 
 
-def fetch_remote_file(xom, entry):
+def iter_fetch_remote_file(xom, entry):
     filestore = xom.filestore
     keyfs = xom.keyfs
     if not xom.is_replica():
         keyfs.restart_as_write_transaction()
         entry = filestore.get_file_entry(entry.relpath, readonly=False)
-        entry.cache_remote_file()
+        for part in entry.iter_cache_remote_file():
+            yield part
     else:
-        entry = entry.cache_remote_file_replica()
+        for part in entry.iter_remote_file_replica():
+            yield part
 
 
 def url_for_entrypath(request, entrypath):
