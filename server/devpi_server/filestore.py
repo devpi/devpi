@@ -330,6 +330,9 @@ class FileEntry(object):
         if tx is not None:
             self.tx.conn.io_file_set(self._storepath, content)
         else:
+            # we need a new transaction, but since we can't create a new serial
+            # on a replica and we wouldn't want one, it is read only, which
+            # still allows us to use the io_file_* methods
             with self.key.keyfs.transaction(write=False):
                 self.tx.conn.io_file_set(self._storepath, content)
         # in case there were errors before, we can now remove them
