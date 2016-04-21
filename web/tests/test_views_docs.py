@@ -64,7 +64,19 @@ def test_docs_raw_projectname(mapp, testapp):
         "name": "pkg_hello", "version": "1.0"})
     mapp.upload_doc(
         "pkg-hello.zip", content, "pkg-hello", "1.0", code=200, waithooks=True)
+    location = '%s/pkg_hello/1.0/' % api.index
+    r = testapp.xget(200, location, headers=dict(accept="text/html"))
+    navlinks = dict(
+        (l.text, l.attrs['href'])
+        for l in r.html.select('.projectnavigation a'))
+    assert 'Documentation' in navlinks
+    # the regular name should work
     location = '%s/pkg_hello/1.0/+doc/index.html' % api.index
+    r = testapp.xget(200, location, headers=dict(accept="text/html"))
+    html = py.builtin._totext(r.html.renderContents().strip(), 'utf-8')
+    assert '<html><body>foo</body></html>' == html
+    # as well as the normalized name
+    location = '%s/pkg-hello/1.0/+doc/index.html' % api.index
     r = testapp.xget(200, location, headers=dict(accept="text/html"))
     html = py.builtin._totext(r.html.renderContents().strip(), 'utf-8')
     assert '<html><body>foo</body></html>' == html

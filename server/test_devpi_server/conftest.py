@@ -856,6 +856,7 @@ class SimPyPIRequestHandler(httpserver.BaseHTTPRequestHandler):
             'X-Simpypi-Method': 'GET'}
         p = self.path.split('/')
         if len(p) == 4 and p[0] == '' and p[1] == 'simple' and p[3] == '':
+            # project listing
             project = simpypi.projects.get(p[2])
             if project is not None:
                 releases = project['releases']
@@ -866,6 +867,7 @@ class SimPyPIRequestHandler(httpserver.BaseHTTPRequestHandler):
                 self.wfile.write(b'\n'.join(releases))
                 return
         elif p == ['', 'simple', '']:
+            # root listing
             projects = [
                 '<a href="%s">%s</a>' % (k, v['title'])
                 for k, v in simpypi.projects.items()]
@@ -874,6 +876,7 @@ class SimPyPIRequestHandler(httpserver.BaseHTTPRequestHandler):
             self.wfile.write(b'\n'.join(x.encode('utf-8') for x in projects))
             return
         elif self.path in simpypi.files:
+            # file serving
             f = simpypi.files[self.path]
             content = f['content']
             if 'length' in f:

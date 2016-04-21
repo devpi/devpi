@@ -23,6 +23,8 @@
 - fix issue321: All exceptions in the replica and event processing threads are
   caught now and can't stop the threads anymore.
 
+- fix issue338: Handle trailing slash in project listing for mirror indexes.
+
 - Added checks on the index dependency tree built from bases during import.
 
 - Every project is now imported together with all it's release files on it's

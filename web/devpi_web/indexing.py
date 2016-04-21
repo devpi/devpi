@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 from devpi_common.types import ensure_unicode
 from devpi_common.metadata import get_sorted_versions
+from devpi_common.validation import normalize_name
 from devpi_server.log import threadlog as log
 from devpi_web.doczip import Docs
 import time
@@ -13,7 +14,8 @@ def is_project_cached(stage, project):
     return True
 
 
-def preprocess_project(stage, name):
+def preprocess_project(stage, name_input):
+    name = normalize_name(name_input)
     try:
         user = stage.user.name
         index = stage.index

@@ -154,19 +154,19 @@ def test_title_description(mapp, testapp):
 def test_project_view(mapp, testapp):
     api = mapp.create_and_use()
     mapp.upload_file_pypi(
-        "pkg1-2.6.tar.gz", b"content", "pkg1", "2.6")
+        "pkg_name-2.6.tar.gz", b"content", "pkg_name", "2.6")
     mapp.upload_file_pypi(
-        "pkg1-2.6.zip", b"contentzip", "pkg1", "2.6")
+        "pkg_name-2.6.zip", b"contentzip", "pkg_name", "2.6")
     mapp.upload_file_pypi(
-        "pkg1-2.7.tar.gz", b"content", "pkg1", "2.7")
-    r = testapp.get(api.index + '/pkg1', headers=dict(accept="text/html"))
+        "pkg_name-2.7.tar.gz", b"content", "pkg_name", "2.7")
+    r = testapp.get(api.index + '/pkg_name', headers=dict(accept="text/html"))
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
         (api.stagename, "http://localhost/%s" % api.stagename),
-        ("2.7", "http://localhost/%s/pkg1/2.7" % api.stagename),
+        ("2.7", "http://localhost/%s/pkg-name/2.7" % api.stagename),
         (api.stagename, "http://localhost/%s" % api.stagename),
-        ("2.6", "http://localhost/%s/pkg1/2.6" % api.stagename)]
+        ("2.6", "http://localhost/%s/pkg-name/2.6" % api.stagename)]
 
 
 def test_project_projectname_redirect(mapp, testapp):
