@@ -376,6 +376,27 @@ def test_version_view_root_pypi_external_files(mapp, testapp, pypistage):
 
 
 @pytest.mark.with_notifier
+def test_version_view_description_errors(mapp, testapp):
+    import textwrap
+    api = mapp.create_and_use()
+    description = textwrap.dedent(u"""
+        Foo
+        ===
+
+            error
+            -----
+    """)
+    mapp.set_versiondata({
+        "name": "pkg1",
+        "version": "2.6",
+        "description": description.encode('utf-8')},
+        waithooks=True)
+    r = testapp.get(api.index + '/pkg1/2.6', headers=dict(accept="text/html"))
+    (description,) = r.html.select('#description')
+    assert "Unexpected section title" in description.text
+
+
+@pytest.mark.with_notifier
 def test_whitelist(mapp, pypistage, testapp):
     pypistage.mock_simple(
         "pkg1", '<a href="http://example.com/releases/pkg1-2.7.zip" /a>)')

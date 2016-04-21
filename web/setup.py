@@ -23,7 +23,7 @@ setup(
     description="devpi-web: a web view for devpi-server",
     long_description="\n\n".join([README, CHANGELOG]),
     url="http://doc.devpi.net",
-    version='3.0.1.dev0',
+    version='3.1.0.dev0',
     maintainer="Holger Krekel, Florian Schulze",
     maintainer_email="holger@merlinux.eu",
     license="MIT",
@@ -51,7 +51,8 @@ setup(
         'docutils>=0.11',
         'pygments>=1.6',
         'pyramid',
-        'pyramid-chameleon'],
+        'pyramid-chameleon',
+        'readme-renderer'],
     include_package_data=True,
     zip_safe=False,
     packages=['devpi_web', 'devpi_web.vendor'])

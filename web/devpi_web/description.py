@@ -1,8 +1,10 @@
 from __future__ import unicode_literals
 from devpi_common.validation import normalize_name
-from devpi_web.vendor._description_utils import processDescription
 from devpi_server.log import threadlog
+import io
 import py
+import readme_renderer.rst
+import readme_renderer.txt
 
 
 def get_description_file(stage, name, version):
@@ -34,7 +36,13 @@ def render_description(stage, metadata):
     version = metadata.get("version")
     if stage is None or desc is None or name is None or version is None:
         return
-    html = processDescription(desc)
+    warnings = io.StringIO()
+    html = readme_renderer.rst.render(desc, stream=warnings)
+    warnings = warnings.getvalue()
+    if warnings:
+        desc = "%s\n\nRender warnings:\n%s" % (desc, warnings)
+    if html is None:
+        html = readme_renderer.txt.render(desc)
     if py.builtin._istext(html):
         html = html.encode("utf8")
     desc_file = get_description_file(stage, name, version)
