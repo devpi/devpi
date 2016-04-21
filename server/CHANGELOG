@@ -20,6 +20,11 @@
   an index the required user object is now created automatically if the
   permissions allow it.
 
+- address issue267: We unconditionally clean up the transaction if there was an
+  exception in rollback or commit. This prevents issues in logging and a
+  possible server lockup if at some point all threads contain a failed
+  transaction object.
+
 - fix issue321: All exceptions in the replica and event processing threads are
   caught now and can't stop the threads anymore.
 
