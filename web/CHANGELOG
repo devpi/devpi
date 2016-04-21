@@ -14,6 +14,10 @@
 - all generated URLs in devpi-web are now normalized and don't go through a
   redirect anymore.
 
+- added some internal infos to view data for use in theme templates. Any view
+  data starting with an underscore is internal and may change between releases
+  without notice. see issue319
+
 
 3.0.0 (2016-02-12)
 ------------------
