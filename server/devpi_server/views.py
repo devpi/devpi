@@ -385,12 +385,12 @@ class PyPIView:
         stage = self.context.stage
         requested_by_pip = re.match(PIP_USER_AGENT, request.user_agent or "")
         try:
-            links = stage.get_simplelinks(project, sorted_links=not requested_by_pip)
+            result = stage.get_simplelinks(project, sorted_links=not requested_by_pip)
         except stage.UpstreamError as e:
             threadlog.error(e.msg)
             abort(request, 502, e.msg)
 
-        if not links:
+        if not result:
             self.request.context.verified_project  # access will trigger 404 if not found
 
         if requested_by_pip:
@@ -402,41 +402,39 @@ class PyPIView:
             whitelist_info = stage.get_mirror_whitelist_info(project)
             embed_form = whitelist_info['has_mirror_base']
             blocked_index = whitelist_info['blocked_by_mirror_whitelist']
-
-        response = self.request.response
-        response.content_type = str("text/html")
-
+        response = Response(body=b"".join(self._simple_list_project(
+            stage, project, result, embed_form, blocked_index)))
         if stage.ixconfig['type'] == 'mirror':
             serial = stage.key_projsimplelinks(project).get().get("serial")
             if serial > 0:
                 response.headers[str("X-PYPI-LAST-SERIAL")] = str(serial)
+        return response
 
-        result = []
+    def _simple_list_project(self, stage, project, result, embed_form, blocked_index):
+        response = self.request.response
+        response.content_type = "text/html ; charset=utf-8"
+
         title = "%s: links for %s" % (stage.name, project)
-        result.append(
-            "<html><head><title>%s</title></head><body><h1>%s</h1>\n" % (
-                title, title))
+        yield ("<html><head><title>%s</title></head><body><h1>%s</h1>\n" %
+               (title, title)).encode("utf-8")
 
         if embed_form:
-            result.append(self._index_refresh_form(stage, project))
+            yield self._index_refresh_form(stage, project).encode("utf-8")
 
         if blocked_index:
-            result.append(
-                "<p><strong>INFO:</strong> Because this project isn't in "
-                "the <code>mirror_whitelist</code>, no releases from "
-                "<strong>%s</strong> are included.</p>" % blocked_index)
+            yield ("<p><strong>INFO:</strong> Because this project isn't in "
+                   "the <code>mirror_whitelist</code>, no releases from "
+                   "<strong>%s</strong> are included.</p>"
+                   % blocked_index).encode('utf-8')
 
         url = URL(self.request.path_info)
-        for key, href in links:
-            result.append(
-                '%s <a href="%s">%s</a><br/>\n' % (
-                    "/".join(href.split("/", 2)[:2]),
+        for key, href in result:
+            yield ('%s <a href="%s">%s</a><br/>\n' %
+                   ("/".join(href.split("/", 2)[:2]),
                     url.relpath("/" + href),
-                    key))
+                    key)).encode("utf-8")
 
-        result.append("</body></html>")
-        response.text = "".join(result)
-        return response
+        yield "</body></html>".encode("utf-8")
 
     def _index_refresh_form(self, stage, project):
         url = self.request.route_url(
@@ -458,27 +456,28 @@ class PyPIView:
             abort(self.request, 502, e.msg)
         # at this point we are sure we can produce the data without
         # depending on remote networks
+        return Response(body=b"".join(self._simple_list_all(stage, stage_results)))
+
+    def _simple_list_all(self, stage, stage_results):
         response = self.request.response
-        response.content_type = str("text/html")
-        result = []
-        title = "%s: simple list (including inherited indices)" % (stage.name)
-        result.append(
-            "<html><head><title>%s</title></head><body><h1>%s</h1>" % (
-                title, title))
+        response.content_type = "text/html ; charset=utf-8"
+        title =  "%s: simple list (including inherited indices)" %(
+                 stage.name)
+        yield ("<html><head><title>%s</title></head><body><h1>%s</h1>" %(
+              title, title)).encode("utf-8")
         all_names = set()
         for stage, names in stage_results:
             h2 = stage.name
             bases = getattr(stage, "ixconfig", {}).get("bases")
             if bases:
                 h2 += " (bases: %s)" % ",".join(bases)
-            result.append("<h2>" + h2 + "</h2>")
+            yield ("<h2>" + h2 + "</h2>").encode("utf-8")
             for name in sorted(names):
                 if name not in all_names:
-                    result.append('<a href="%s">%s</a><br/>\n' % (name, name))
+                    anchor = '<a href="%s">%s</a><br/>\n' % (name, name)
+                    yield anchor.encode("utf-8")
                     all_names.add(name)
-        result.append("</body>")
-        response.text = "".join(result)
-        return response
+        yield "</body>".encode("utf-8")
 
     @view_config(
         route_name="/{user}/{index}/+simple/{project}/refresh", request_method="POST")
