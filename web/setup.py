@@ -23,7 +23,7 @@ setup(
     description="devpi-web: a web view for devpi-server",
     long_description="\n\n".join([README, CHANGELOG]),
     url="http://doc.devpi.net",
-    version='3.1.0.dev0',
+    version='3.1.0',
     maintainer="Holger Krekel, Florian Schulze",
     maintainer_email="holger@merlinux.eu",
     license="MIT",
@@ -55,4 +55,4 @@ setup(
         'readme-renderer'],
     include_package_data=True,
     zip_safe=False,
-    packages=['devpi_web', 'devpi_web.vendor'])
+    packages=['devpi_web'])

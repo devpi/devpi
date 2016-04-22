@@ -1,4 +1,4 @@
-2.6.0 (Unreleased)
+2.6.0 (2016-04-22)
 ------------------
 
 - switching to another server with ``devpi use`` now reuses an existing

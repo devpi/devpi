@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 # content of conftest.py
 import os
 import random
@@ -112,9 +112,13 @@ def _url_of_liveserver(clientdir):
     port = random.randint(2001, 64000)
     path = py.path.local.sysfind("devpi-server")
     assert path
-    subprocess.check_call([str(path), "--serverdir", str(clientdir),
-                           "--debug",
-                           "--port", str(port), "--start"])
+    try:
+        subprocess.check_call([
+            str(path), "--serverdir", str(clientdir), "--debug",
+            "--port", str(port), "--start"])
+    except subprocess.CalledProcessError as e:
+        print(e.output, file=sys.stderr)
+        raise
     return URL("http://localhost:%s" % port)
 
 

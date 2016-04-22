@@ -991,12 +991,15 @@ def replica_host_port(request, call_devpi_in_dir, server_directory):
 nginx_conf_content = """
 worker_processes  1;
 daemon off;
+pid nginx.pid;
+error_log nginx_error.log;
 
 events {
     worker_connections  32;
 }
 
 http {
+    access_log off;
     default_type  application/octet-stream;
     sendfile        on;
     keepalive_timeout  65;
@@ -1020,24 +1023,36 @@ def _nginx_host_port(host, port, call_devpi_in_dir, server_directory):
             ["devpi-server", "--gen-config", "--host", host, "--port", str(port)])
     finally:
         orig_dir.chdir()
-    nginx_devpi_conf = server_directory.join("gen-config", "nginx-devpi.conf")
+    nginx_directory = server_directory.join("gen-config")
+    nginx_devpi_conf = nginx_directory.join("nginx-devpi.conf")
     nginx_port = get_open_port(host)
     nginx_devpi_conf_content = nginx_devpi_conf.read()
     nginx_devpi_conf_content = nginx_devpi_conf_content.replace(
         "listen 80;",
         "listen %s;" % nginx_port)
     nginx_devpi_conf.write(nginx_devpi_conf_content)
-    nginx_conf = server_directory.join("gen-config", "nginx.conf")
+    nginx_conf = nginx_directory.join("nginx.conf")
     nginx_conf.write(nginx_conf_content)
-    subprocess.check_call([nginx, "-t", "-c", nginx_conf.strpath])
-    p = subprocess.Popen([nginx, "-c", nginx_conf.strpath])
+    try:
+        subprocess.check_output([
+            nginx, "-t",
+            "-c", nginx_conf.strpath,
+            "-p", nginx_directory.strpath], stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        print(e.output, file=sys.stderr)
+        raise
+    p = subprocess.Popen([
+        nginx, "-c", nginx_conf.strpath, "-p", nginx_directory.strpath])
     wait_for_port(host, nginx_port)
     return (p, nginx_port)
 
 
 @pytest.yield_fixture(scope="module")
-def nginx_host_port(master_host_port, call_devpi_in_dir, server_directory):
-    (host, port) = master_host_port
+def nginx_host_port(request, call_devpi_in_dir, server_directory):
+    if sys.platform.startswith("win"):
+        pytest.skip("no nginx on windows")
+    # we need the skip above before master_host_port is called
+    (host, port) = request.getfuncargvalue("master_host_port")
     (p, nginx_port) = _nginx_host_port(
         host, port, call_devpi_in_dir, server_directory)
     try:
