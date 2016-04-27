@@ -189,7 +189,7 @@ class Current(object):
             basic_auth, netloc = url.netloc.rsplit('@', 1)
             if ':' not in basic_auth:
                 hub.fatal("When using basic auth, you have to provide username and password.")
-            basic_auth = basic_auth.split(':', 1)
+            basic_auth = tuple(basic_auth.split(':', 1))
             url = url.replace(netloc=netloc)
             hub.info("Using basic authentication for '%s'." % url.url)
             hub.warn("The password is stored unencrypted!")

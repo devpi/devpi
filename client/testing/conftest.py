@@ -443,7 +443,10 @@ def mock_http_api(monkeypatch):
         def __call__(self, method, url, kvdict=None, quiet=False,
                      auth=None, basic_auth=None, cert=None,
                      fatal=True):
-            self.called.append((method, url, kvdict))
+            kwargs = dict(
+                kvdict=kvdict, quiet=quiet, auth=auth, basic_auth=basic_auth,
+                cert=cert, fatal=fatal)
+            self.called.append((method, url, kwargs))
             reply_data = self._json_responses.get(url)
             if reply_data is not None:
                 class R:
