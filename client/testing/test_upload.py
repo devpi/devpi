@@ -204,6 +204,48 @@ def test_parent_subpath(tmpdir):
     pytest.raises(ValueError, lambda: find_parent_subpath(tmpdir, "poiqel123"))
 
 
+def test_post_includes_auth_info(initproj, monkeypatch, uploadhub):
+    class Session:
+        posts = []
+
+        def post(self, *args, **kwargs):
+            class reply:
+                status_code = 200
+            self.posts.append((args, kwargs))
+            return reply
+
+    class args:
+        dryrun = None
+        index = None
+        only_latest = None
+        onlydocs = None
+        path = None
+        withdocs = None
+
+    initproj("pkg-1.0")
+    tmpdir = py.path.local()
+    certpath = tmpdir.join("cert.key").strpath
+    uploadhub.cwd = tmpdir
+    uploadhub.http = Session()
+    uploadhub.current.reconfigure(dict(
+        index="http://devpi/foo/bar",
+        login="http://devpi/+login",
+        pypisubmit="http://devpi/foo/bar"))
+    uploadhub.current.set_auth("devpi", "password")
+    uploadhub.current.set_basic_auth("basic", "auth")
+    uploadhub.current.set_client_cert(certpath)
+    main(uploadhub, args)
+    (submit, upload) = Session.posts
+    assert submit[0][1][":action"] == "submit"
+    assert submit[1]["auth"] == ("basic", "auth")
+    assert submit[1]["cert"] == certpath
+    assert "X-Devpi-Auth" in submit[1]["headers"]
+    assert upload[0][1][":action"] == "file_upload"
+    assert upload[1]["auth"] == ("basic", "auth")
+    assert upload[1]["cert"] == certpath
+    assert "X-Devpi-Auth" in upload[1]["headers"]
+
+
 class TestUploadFunctional:
     @pytest.mark.parametrize("projname_version", [
         "hello-1.0", "my-pkg-123-1.0"])

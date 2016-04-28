@@ -153,6 +153,7 @@ class Current(object):
         return True
 
     def get_client_cert(self, url=None):
+        url = self._get_normalized_url(url)
         client_cert = self._value_from_dict_by_url(
             self._get_client_cert_dict(), url)
         return client_cert if client_cert else None
