@@ -5,6 +5,12 @@ import pytest
 def names(*args):
     return pytest.mark.parametrize("name", args)
 
+
+@names("hello-xyz", "hello_xyz", "hello.xyz")
+def test_safe_name(name):
+    assert safe_name(name) == "hello-xyz"
+
+
 class TestValidateMetadata:
     @names("hello", "hello-xyz", "hello1-xyz", "hello_xyz")
     def test_valid_names(self, name):
