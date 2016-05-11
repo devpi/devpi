@@ -340,7 +340,7 @@ class Importer:
 
                     # import release files
                     for filedesc in files:
-                        if normalize_name(filedesc["projectname"]) == project:
+                        if normalize_name(filedesc["projectname"]) == normalize_name(project):
                             imported_files.add(filedesc["relpath"])
                             self.import_filedesc(stage, filedesc)
             missing = set(x["relpath"] for x in files) - imported_files

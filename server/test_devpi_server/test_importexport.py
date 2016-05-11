@@ -189,6 +189,15 @@ class TestImportExport:
         (record,) = caplog.getrecords('You should edit')
         assert 'dataindex.json' in record.message
 
+    def test_normalization(self, caplog, impexp):
+        mapp = impexp.import_testdata('normalization')
+        with mapp.xom.keyfs.transaction(write=False):
+            stage = mapp.xom.model.getstage('root/dev')
+            links = stage.get_releaselinks("hello.pkg")
+            assert links[0].project == "hello-pkg"
+            link = stage.get_link_from_entrypath(links[0].entrypath)
+            assert link.entry.file_get_content() == b"content"
+
     def test_upload_releasefile_with_toxresult(self, impexp):
         from test_devpi_server.example import tox_result_data
         mapp1 = impexp.mapp1

@@ -42,7 +42,7 @@ if __name__ == "__main__":
     CHANGELOG = get_changelog()
 
     install_requires = ["py>=1.4.23",
-                        "devpi_common<2.1,>=2.0.7.dev0",
+                        "devpi_common<4,>=2.0.9.dev0",
                         "itsdangerous>=0.24",
                         "execnet>=1.2",
                         "pyramid>=1.5.1",
@@ -62,7 +62,7 @@ if __name__ == "__main__":
       keywords="pypi realtime cache server",
       long_description="\n\n".join([README, CHANGELOG]),
       url="http://doc.devpi.net",
-      version='3.1.0',
+      version='3.1.1',
       maintainer="Holger Krekel, Florian Schulze",
       maintainer_email="holger@merlinux.eu",
       packages=find_packages(),
