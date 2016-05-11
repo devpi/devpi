@@ -6,7 +6,7 @@ from .types import ensure_unicode
 
 legal_package_name = re.compile(r"^[a-z0-9\._-]+$", re.IGNORECASE)
 safe_filenames = re.compile(r'.+?\.(exe|tar\.gz|bz2|rpm|deb|zip|tgz|egg|dmg|msi|whl)$', re.I)
-safe_name_rex = re.compile('[^A-Za-z0-9.]+')
+safe_name_rex = re.compile('[^A-Za-z0-9]+')
 
 def safe_name(name):
     """Convert an arbitrary string to a standard distribution name
