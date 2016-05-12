@@ -8,16 +8,14 @@ legal_package_name = re.compile(r"^[a-z0-9\._-]+$", re.IGNORECASE)
 safe_filenames = re.compile(r'.+?\.(exe|tar\.gz|bz2|rpm|deb|zip|tgz|egg|dmg|msi|whl)$', re.I)
 safe_name_rex = re.compile('[^A-Za-z0-9]+')
 
-def _safe_name(name):
+
+def normalize_name(name):
     """Convert an arbitrary string to a standard distribution name
 
     Any runs of non-alphanumeric/. characters are replaced with a single '-'.
     """
-    return safe_name_rex.sub('-', name).lower()
-
-def normalize_name(name):
     name = ensure_unicode(name)
-    return _safe_name(name).lower()
+    return safe_name_rex.sub('-', name).lower()
 
 def safe_version(version):
     """Convert an arbitrary string to a standard version string
