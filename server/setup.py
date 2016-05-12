@@ -42,7 +42,7 @@ if __name__ == "__main__":
     CHANGELOG = get_changelog()
 
     install_requires = ["py>=1.4.23",
-                        "devpi_common<4,>=2.0.9.dev0",
+                        "devpi_common<2.1,>=2.0.8,!=2.0.9",
                         "itsdangerous>=0.24",
                         "execnet>=1.2",
                         "pyramid>=1.5.1",
