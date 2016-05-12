@@ -32,7 +32,7 @@ if __name__ == "__main__":
       maintainer="Holger Krekel",
       maintainer_email="holger@merlinux.eu",
       classifiers=[
-        "Development Status :: 4 - Beta",
+        "Development Status :: 5 - Production/Stable",
         "Environment :: Web Environment",
         "Intended Audience :: Developers",
         "Intended Audience :: System Administrators",
