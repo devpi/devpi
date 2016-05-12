@@ -204,7 +204,8 @@ class TestImportExport:
         with mapp.xom.keyfs.transaction(write=False):
             stage = mapp.xom.model.getstage('root/dev')
             links = stage.get_releaselinks("hello.pkg")
-            assert links[0].project == "hello-pkg"
+            assert len(links) == 1
+            assert links[0].project == "hello.pkg"
             link = stage.get_link_from_entrypath(links[0].entrypath)
             assert link.entry.file_get_content() == b"content"
 
