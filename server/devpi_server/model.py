@@ -825,7 +825,7 @@ class LinkStore:
         if not self.verdata:
             # there may have been uploads using devpi-common 2.0.9, so we check
             # if it's accessible with full PEP503 normalization
-            self.project = re.sub('[^A-Za-z0-9]+', '-', project)
+            self.project = re.sub('[^A-Za-z0-9]+', '-', project).lower()
             self.verdata = stage.get_versiondata_perstage(self.project, version, readonly=readonly)
         if not self.verdata:
             raise MissesRegistration("%s-%s on stage %s",
