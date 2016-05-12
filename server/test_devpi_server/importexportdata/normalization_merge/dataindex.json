@@ -1,0 +1,74 @@
+{
+  "users": {
+    "root": {
+      "username": "root",
+      "pwsalt": "uBLR5DKWtF6ro4H7h3FObQ==",
+      "pwhash": "667a21361c2d700d6451ecc77c837a595329a74fa5b49c396c6aa6c49600bad6"
+    }
+  },
+  "secret": "ItYAZLP23wgW4/F2uFMNJ+ffjYhIiZg3T3HJlIzVTB8=",
+  "indexes": {
+    "root/pypi": {
+      "indexconfig": {
+        "volatile": false,
+        "type": "mirror",
+        "mirror_web_url_fmt": "https://pypi.python.org/pypi/{name}",
+        "title": "PyPI",
+        "mirror_url": "https://pypi.python.org/simple/"
+      }
+    },
+    "root/dev": {
+      "files": [
+        {
+          "projectname": "hello-pkg", "version": "1.1",
+          "entrymapping": {
+            "projectname": "hello-pkg", "version": "1.1",
+            "last_modified": "Fri, 12 Sep 2014 14:18:55 GMT",
+            "md5": "eea670f4ac941df71a3b5f268ebe3eac"},
+          "type": "releasefile", "relpath": "root/dev/hello-pkg/hello.pkg-1.1.tar.gz"
+        },
+        {
+          "projectname": "hello.pkg", "version": "1.0",
+          "entrymapping": {
+            "projectname": "hello.pkg", "version": "1.0",
+            "last_modified": "Fri, 12 Sep 2014 13:18:55 GMT",
+            "md5": "7e55db001d319a94b0b713529a756623"},
+          "type": "releasefile", "relpath": "root/dev/hello.pkg/hello.pkg-1.0.tar.gz"
+        }
+      ],
+      "indexconfig": {
+        "bases": [], "pypi_whitelist": [],
+        "acl_upload": ["root"],
+        "volatile": true, "type": "stage"
+      },
+      "projects": {
+        "hello-pkg": {
+          "1.1": {
+            "description": "", "license": "", "author": "", "download_url": "",
+            "summary": "", "author_email": "", "version": "1.1", "platform": [],
+            "home_page": "", "keywords": "", "classifiers": [],
+            "name": "hello.pkg"
+          }
+        },
+        "hello.pkg": {
+          "1.0": {
+            "description": "", "license": "", "author": "", "download_url": "",
+            "summary": "", "author_email": "", "version": "1.0", "platform": [],
+            "home_page": "", "keywords": "", "classifiers": [],
+            "name": "hello.pkg"
+          }
+        }
+      }
+    }
+  },
+  "pythonversion": [
+    3,
+    4,
+    3,
+    "final",
+    0
+  ],
+  "dumpversion": "2",
+  "devpi_server": "3.0.0b1",
+  "uuid": "3885c05ceae34ed4b7574da2a1bd1e0f"
+}

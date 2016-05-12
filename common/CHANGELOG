@@ -1,3 +1,12 @@
+3.0.0 (2016-05-12)
+------------------
+
+- fully implement normalization from PEP-503 to allow pip 8.1.2 to install
+  packages with dots in their name
+
+- dropped support for Python 2.6.
+
+
 2.0.10 (2016-05-11)
 -------------------
 

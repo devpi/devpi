@@ -254,6 +254,15 @@ class Importer:
                 "You should edit %s manually to fix the above errors." % json_path)
             raise SystemExit(1)
 
+    def iter_projects_normalized(self, projects):
+        project_name_map = {}
+        for project in projects:
+            project_name_map.setdefault(normalize_name(project), set()).add(project)
+        for project, names in project_name_map.items():
+            versions = {}
+            for name in names:
+                versions.update(projects[name])
+            yield (project, versions)
 
     def import_all(self, path):
         self.import_rootdir = path
@@ -325,7 +334,7 @@ class Importer:
             import_index = self.import_indexes[stage.name]
             projects = import_index["projects"]
             files = import_index["files"]
-            for project, versions in projects.items():
+            for project, versions in self.iter_projects_normalized(projects):
                 with self.xom.keyfs.transaction(write=True):
                     for version, versiondata in versions.items():
                         assert "+elinks" not in versiondata

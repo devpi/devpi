@@ -1,6 +1,17 @@
 devpi: PyPI server and packaging/testing/release tool
 =================================================================
 
+
+.. note::
+
+  Please note that devpi-server 4.0.0 is a bug fix/compatibility release as it
+  only changes project name normalization compared to 3.1.x. The internal use
+  of the normalization requires an export/import cycle, which is the reason for
+  the major version increase. There are no other big changes and so everyone
+  who used devpi-server 3.x.y should be fine just using 4.0.0. It's also fine
+  to export from 2.6.x and import with 4.0.0.
+
+
 .. include:: links.rst
 
 .. sidebar:: Links and contact

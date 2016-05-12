@@ -1,15 +1,14 @@
-
-from devpi_common.validation import *
+from devpi_common.validation import normalize_name, validate_metadata
 import pytest
+
 
 def names(*args):
     return pytest.mark.parametrize("name", args)
 
 
-def test_safe_name():
-    assert safe_name("hello-xyz") == "hello-xyz"
-    assert safe_name("hello_xyz") == "hello-xyz"
-    assert safe_name("hello.xyz") == "hello.xyz"
+@names("hello-xyz", "hello_xyz", "hello.xyz", "Hello.XYZ", "Hello___XYZ")
+def test_safe_name(name):
+    assert normalize_name(name) == "hello-xyz"
 
 
 class TestValidateMetadata:

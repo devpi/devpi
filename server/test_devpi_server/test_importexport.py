@@ -8,6 +8,7 @@ import json
 from devpi_server.importexport import *
 from devpi_server.main import Fatal
 from devpi_common.archive import Archive, zip_dict
+from devpi_common.metadata import Version
 
 import devpi_server
 
@@ -204,9 +205,27 @@ class TestImportExport:
         with mapp.xom.keyfs.transaction(write=False):
             stage = mapp.xom.model.getstage('root/dev')
             links = stage.get_releaselinks("hello.pkg")
+            assert len(links) == 1
             assert links[0].project == "hello-pkg"
             link = stage.get_link_from_entrypath(links[0].entrypath)
             assert link.entry.file_get_content() == b"content"
+
+    def test_normalization_merge(self, caplog, impexp):
+        mapp = impexp.import_testdata('normalization_merge')
+        with mapp.xom.keyfs.transaction(write=False):
+            stage = mapp.xom.model.getstage('root/dev')
+            links = sorted(
+                stage.get_releaselinks("hello.pkg"),
+                key=lambda x: Version(x.version))
+            assert len(links) == 2
+            assert links[0].project == "hello-pkg"
+            assert links[1].project == "hello-pkg"
+            assert links[0].version == "1.0"
+            assert links[1].version == "1.1"
+            link = stage.get_link_from_entrypath(links[0].entrypath)
+            assert link.entry.file_get_content() == b"content1"
+            link = stage.get_link_from_entrypath(links[1].entrypath)
+            assert link.entry.file_get_content() == b"content2"
 
     def test_upload_releasefile_with_toxresult(self, impexp):
         from test_devpi_server.example import tox_result_data
