@@ -1,4 +1,4 @@
-3.0.0 (Unreleased)
+3.0.0 (2016-05-12)
 ------------------
 
 - fully implement normalization from PEP-503 to allow pip 8.1.2 to install
