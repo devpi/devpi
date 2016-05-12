@@ -173,6 +173,16 @@ class TestImportExport:
         indexlist = mapp2.getindexlist(api.user)
         assert indexlist[api.stagename]["custom_data"] == 42
 
+    def test_indexes_mirror_whitelist(self, impexp):
+        mapp1 = impexp.mapp1
+        api = mapp1.create_and_use()
+        mapp1.set_mirror_whitelist("*")
+        impexp.export()
+        mapp2 = impexp.new_import()
+        assert api.user in mapp2.getuserlist()
+        indexlist = mapp2.getindexlist(api.user)
+        assert indexlist[api.stagename]["mirror_whitelist"] == ["*"]
+
     def test_bad_username(self, caplog, impexp):
         with pytest.raises(SystemExit):
             impexp.import_testdata('badusername')

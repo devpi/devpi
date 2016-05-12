@@ -308,7 +308,9 @@ class Importer:
                         del indexconfig['uploadtrigger_jenkins']
                 if 'pypi_whitelist' in indexconfig:
                     # this was renamed in 3.0.0
-                    indexconfig['mirror_whitelist'] = indexconfig.pop('pypi_whitelist')
+                    whitelist = indexconfig.pop('pypi_whitelist')
+                    if 'mirror_whitelist' not in indexconfig:
+                        indexconfig['mirror_whitelist'] = whitelist
                 user, index = stagename.split("/")
                 user = self.xom.model.get_user(user)
                 stage = user.create_stage(index, **indexconfig)
