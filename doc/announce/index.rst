@@ -4,6 +4,7 @@ release announcements
 
 .. toctree::
 
+    server-4.0
     server-3.0
     server-2.3.0
     server-2.2.0

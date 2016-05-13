@@ -1002,8 +1002,7 @@ http {
     access_log off;
     default_type  application/octet-stream;
     sendfile        on;
-    keepalive_timeout  65;
-
+    keepalive_timeout 0;
     include nginx-devpi.conf;
 }
 """

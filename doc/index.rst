@@ -11,6 +11,8 @@ devpi: PyPI server and packaging/testing/release tool
   who used devpi-server 3.x.y should be fine just using 4.0.0. It's also fine
   to export from 2.6.x and import with 4.0.0.
 
+  See :doc:`announce/server-4.0` for details.
+
 
 .. include:: links.rst
 
