@@ -1,3 +1,10 @@
+2.6.3 (2016-05-13)
+------------------
+
+- update devpi-common requirement, so devpi-client can be installed in the same
+  virtualenv as devpi-server 4.0.0.
+
+
 2.6.2 (2016-04-28)
 ------------------
 
