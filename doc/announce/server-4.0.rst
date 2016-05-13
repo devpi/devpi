@@ -1,8 +1,8 @@
-devpi-server-4.0: fixing the pip-8.1.2 problem
+devpi-server-4.0: fixing the pip-8.1.2 problem / PEP503 compliance
 ============================================================================
 
 We've made critically important releases of the devpi private packaging
-system available.  If you are not using "devpi" yet you may better read
+system available.  If you are not using "devpi" yet then you may rather read
 http://doc.devpi.net  and forget about the rest of this announcement.
 
 This is for the many who experienced the "pip doesn't install packages
@@ -11,12 +11,12 @@ to avoid the problem on the client side:
  
     pip install pip==8.1.1
 
-This is obviously a crotch but gives you some time to perform the
+This is obviously a crutch but gives you some time to perform the
 export/import cycle required for hosting private packages via
-devpi-server-4.0 and using pip-8.1.2.
+devpi-server-4.0 and being compatible with pip-8.1.2.
 
-If you using devpi-server as a pure pypi.python.org cache you don't 
-actually need to perform export/import and can just wipe your server directory 
+If you are using devpi-server as a pure pypi.python.org cache you don't 
+need to perform export/import and can just delete your server directory 
 ($HOME/.devpi/server by default) before you install and start up 
 devpi-server-4.0.
 
