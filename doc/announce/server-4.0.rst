@@ -6,8 +6,8 @@ system available.  If you are not using "devpi" yet you may better read
 http://doc.devpi.net  and forget about the rest of this announcement.
 
 This is for the many who experienced the "pip doesn't install packages
-anymore with devpi" problem you can, first of all, pin "pip" to avoid
-the problem on the client side:
+anymore with devpi" problem.  First of all, you may temporarily pin "pip" 
+to avoid the problem on the client side:
  
     pip install pip==8.1.1
 
