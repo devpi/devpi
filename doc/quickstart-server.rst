@@ -220,15 +220,15 @@ Installing devpi server and client
 
 .. 
     $ devpi-server --stop
-    2016-05-13 16:43:20,699 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2016-05-13 16:43:20,700 INFO  NOCTX generated uuid: 0dbe7523c1694ae3ac51fc10c391d7fd
-    2016-05-13 16:43:20,700 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2016-05-13 16:43:20,701 INFO  NOCTX DB: Creating schema
-    2016-05-13 16:43:20,719 INFO  [Wtx-1] setting password for user u'root'
-    2016-05-13 16:43:20,720 INFO  [Wtx-1] created user u'root' with email None
-    2016-05-13 16:43:20,720 INFO  [Wtx-1] created root user
-    2016-05-13 16:43:20,720 INFO  [Wtx-1] created root/pypi index
-    2016-05-13 16:43:20,728 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
+    2016-05-13 17:49:38,612 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2016-05-13 17:49:38,612 INFO  NOCTX generated uuid: 4d3b62a0e45c4629a6c81d73ce967cd3
+    2016-05-13 17:49:38,613 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    2016-05-13 17:49:38,614 INFO  NOCTX DB: Creating schema
+    2016-05-13 17:49:38,649 INFO  [Wtx-1] setting password for user u'root'
+    2016-05-13 17:49:38,650 INFO  [Wtx-1] created user u'root' with email None
+    2016-05-13 17:49:38,650 INFO  [Wtx-1] created root user
+    2016-05-13 17:49:38,650 INFO  [Wtx-1] created root/pypi index
+    2016-05-13 17:49:38,669 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
     no server found
 
 ..
@@ -241,18 +241,18 @@ and caches https://pypi.python.org packages.  Let's start a server
 for the purposes of this tutorial in the background::
 
     $ devpi-server --port 4040 --start
-    2016-05-13 16:43:21,295 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2016-05-13 16:43:21,295 INFO  NOCTX generated uuid: af5dee0b72da4bdbafae7d96bc56f0b5
-    2016-05-13 16:43:21,296 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2016-05-13 16:43:21,297 INFO  NOCTX DB: Creating schema
-    2016-05-13 16:43:21,337 INFO  [Wtx-1] setting password for user u'root'
-    2016-05-13 16:43:21,337 INFO  [Wtx-1] created user u'root' with email None
-    2016-05-13 16:43:21,337 INFO  [Wtx-1] created root user
-    2016-05-13 16:43:21,337 INFO  [Wtx-1] created root/pypi index
-    2016-05-13 16:43:21,354 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
+    2016-05-13 17:49:39,277 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2016-05-13 17:49:39,278 INFO  NOCTX generated uuid: 4078a2f1449d45d999ee4eedbdeb0171
+    2016-05-13 17:49:39,278 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    2016-05-13 17:49:39,279 INFO  NOCTX DB: Creating schema
+    2016-05-13 17:49:39,313 INFO  [Wtx-1] setting password for user u'root'
+    2016-05-13 17:49:39,313 INFO  [Wtx-1] created user u'root' with email None
+    2016-05-13 17:49:39,313 INFO  [Wtx-1] created root user
+    2016-05-13 17:49:39,313 INFO  [Wtx-1] created root/pypi index
+    2016-05-13 17:49:39,324 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
     starting background devpi-server at http://localhost:4040
     /tmp/home/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server --port 4040
-    process u'devpi-server' started pid=16974
+    process u'devpi-server' started pid=23936
     devpi-server process startup detected
     logfile is at /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
 
@@ -393,6 +393,6 @@ Stopping the server
 Let's not forget to stop our background tutorial server::
 
     $ devpi-server --stop
-    2016-05-13 16:43:29,467 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2016-05-13 16:43:29,468 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    killed server pid=16974
+    2016-05-13 17:49:47,785 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2016-05-13 17:49:47,786 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    killed server pid=23936

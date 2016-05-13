@@ -33,18 +33,18 @@ start background devpi-server process
 To start ``devpi-server`` in the background issue::
     
     $ devpi-server --start
-    2016-05-13 16:40:55,032 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2016-05-13 16:40:55,032 INFO  NOCTX generated uuid: 63e471d4d6e642df86fd9bcb3da895af
-    2016-05-13 16:40:55,033 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2016-05-13 16:40:55,034 INFO  NOCTX DB: Creating schema
-    2016-05-13 16:40:55,071 INFO  [Wtx-1] setting password for user u'root'
-    2016-05-13 16:40:55,071 INFO  [Wtx-1] created user u'root' with email None
-    2016-05-13 16:40:55,071 INFO  [Wtx-1] created root user
-    2016-05-13 16:40:55,072 INFO  [Wtx-1] created root/pypi index
-    2016-05-13 16:40:55,088 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
+    2016-05-13 17:46:29,171 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2016-05-13 17:46:29,172 INFO  NOCTX generated uuid: 36769b3f17e041279686e807d596c5ae
+    2016-05-13 17:46:29,173 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    2016-05-13 17:46:29,174 INFO  NOCTX DB: Creating schema
+    2016-05-13 17:46:29,218 INFO  [Wtx-1] setting password for user u'root'
+    2016-05-13 17:46:29,218 INFO  [Wtx-1] created user u'root' with email None
+    2016-05-13 17:46:29,218 INFO  [Wtx-1] created root user
+    2016-05-13 17:46:29,218 INFO  [Wtx-1] created root/pypi index
+    2016-05-13 17:46:29,225 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
     starting background devpi-server at http://localhost:3141
     /tmp/home/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server
-    process u'devpi-server' started pid=16336
+    process u'devpi-server' started pid=23223
     devpi-server process startup detected
     logfile is at /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
 
@@ -64,12 +64,16 @@ Let's install the ``simplejson`` package as a test from our cache::
     Collecting simplejson
     Installing collected packages: simplejson
     Successfully installed simplejson-3.8.2
+    You are using pip version 8.1.1, however version 8.1.2 is available.
+    You should consider upgrading via the 'pip install --upgrade pip' command.
 
 Let's uninstall it::
 
     $ pip uninstall -y simplejson
     Uninstalling simplejson-3.8.2:
       Successfully uninstalled simplejson-3.8.2
+    You are using pip version 8.1.1, however version 8.1.2 is available.
+    You should consider upgrading via the 'pip install --upgrade pip' command.
 
 and then re-install it with ``easy_install``::
 
@@ -79,8 +83,8 @@ and then re-install it with ``easy_install``::
     Best match: simplejson 3.8.2
     Downloading http://localhost:3141/root/pypi/+f/53b/1371bbf883b12/simplejson-3.8.2.tar.gz#md5=53b1371bbf883b129a12d594a97e9a18
     Processing simplejson-3.8.2.tar.gz
-    Writing /tmp/easy_install-fvGHEc/simplejson-3.8.2/setup.cfg
-    Running simplejson-3.8.2/setup.py -q bdist_egg --dist-dir /tmp/easy_install-fvGHEc/simplejson-3.8.2/egg-dist-tmp-TEVxW9
+    Writing /tmp/easy_install-gDLAKV/simplejson-3.8.2/setup.cfg
+    Running simplejson-3.8.2/setup.py -q bdist_egg --dist-dir /tmp/easy_install-gDLAKV/simplejson-3.8.2/egg-dist-tmp-1z00wm
     zip_safe flag not set; analyzing archive contents...
     simplejson.tests.__init__: module references __file__
     creating /tmp/docenv/lib/python2.7/site-packages/simplejson-3.8.2-py2.7-linux-x86_64.egg
@@ -114,29 +118,29 @@ install the plugin which we can safely do while the server is running::
 We now need to stop the server::
 
     $ devpi-server --stop
-    2016-05-13 16:41:09,706 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2016-05-13 16:41:09,707 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    killed server pid=16336
+    2016-05-13 17:47:05,134 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2016-05-13 17:47:05,135 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    killed server pid=23223
 
 and then recreate the search index::
 
     $ devpi-server --recreate-search-index
-    2016-05-13 16:41:10,256 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2016-05-13 16:41:10,257 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2016-05-13 16:41:10,270 INFO  [Rtx3] Search-Indexing root/pypi:
-    2016-05-13 16:41:35,774 INFO  [Wtx3] setting projects cache for u'simplejson'
-    2016-05-13 16:41:59,363 INFO  [Wtx3] Committing 80500 new documents to search index.
-    2016-05-13 16:42:54,892 INFO  [Wtx3] Finished committing 80500 documents to search index.
-    2016-05-13 16:42:54,956 INFO  [Wtx3] fswriter4: committed: keys: u'root/pypi/+f/53b/1371bbf883b12/simplejson-3.8.2.tar.gz'
+    2016-05-13 17:47:05,603 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2016-05-13 17:47:05,604 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    2016-05-13 17:47:05,621 INFO  [Rtx3] Search-Indexing root/pypi:
+    2016-05-13 17:47:36,217 INFO  [Wtx3] setting projects cache for u'simplejson'
+    2016-05-13 17:48:00,488 INFO  [Wtx3] Committing 80502 new documents to search index.
+    2016-05-13 17:48:56,017 INFO  [Wtx3] Finished committing 80502 documents to search index.
+    2016-05-13 17:48:56,074 INFO  [Wtx3] fswriter4: committed: keys: u'root/pypi/+f/53b/1371bbf883b12/simplejson-3.8.2.tar.gz'
 
 and then start the server again::
 
     $ devpi-server --start
-    2016-05-13 16:42:55,529 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2016-05-13 16:42:55,530 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    2016-05-13 17:48:56,541 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2016-05-13 17:48:56,542 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
     starting background devpi-server at http://localhost:3141
-    /tmp/home/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server
-    process u'devpi-server' started pid=16546
+    /tmp/home/.devpi/server/.xproc/devpi-server$ /tmp/docenv/bin/devpi-server
+    process u'devpi-server' started pid=23499
     devpi-server process startup detected
     logfile is at /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
 
@@ -144,6 +148,8 @@ We can now use search with pip::
 
     $ pip search --index http://localhost:3141/root/pypi/ devpi-client
     /root/pypi/devpi-client ()  - 
+    You are using pip version 8.1.1, however version 8.1.2 is available.
+    You should consider upgrading via the 'pip install --upgrade pip' command.
 
 .. note::
 
@@ -197,40 +203,40 @@ Checking and stopping the background server
 At any time you can check the background server status with::
 
     $ devpi-server --status
-    2016-05-13 16:43:03,287 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2016-05-13 16:43:03,288 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    server is running with pid 16546
+    2016-05-13 17:49:04,401 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2016-05-13 17:49:04,402 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    server is running with pid 23499
 
 Or stop it::
     
     $ devpi-server --stop
-    2016-05-13 16:43:03,999 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2016-05-13 16:43:04,000 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    killed server pid=16546
+    2016-05-13 17:49:04,931 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2016-05-13 17:49:04,932 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    killed server pid=23499
 
 Finally, you can also look at the logfile of the background server
 (also after it has been stopped)::
 
     $ devpi-server --log
-    2016-05-13 16:43:04,549 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2016-05-13 16:43:04,550 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    2016-05-13 17:49:05,390 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2016-05-13 17:49:05,391 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
     last lines of devpi-server log
-    2016-05-13 16:42:56,186 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2016-05-13 16:42:56,259 INFO  NOCTX Found plugin devpi-web-3.1.0 (/home/hpk/p/devpi/web).
-    2016-05-13 16:42:56,259 INFO  NOCTX Found plugin devpi-server-4.0.0 (/home/hpk/p/devpi/server).
-    2016-05-13 16:42:56,259 INFO  NOCTX Found plugin devpi-server-4.0.0 (/home/hpk/p/devpi/server).
-    2016-05-13 16:42:56,259 INFO  NOCTX Found plugin devpi-server-4.0.0 (/home/hpk/p/devpi/server).
-    2016-05-13 16:42:56,259 INFO  NOCTX Found plugin devpi-server-4.0.0 (/home/hpk/p/devpi/server).
-    2016-05-13 16:42:56,350 INFO  NOCTX devpi-server version: 4.0.0
-    2016-05-13 16:42:56,351 INFO  NOCTX serverdir: /tmp/home/.devpi/server
-    2016-05-13 16:42:56,351 INFO  NOCTX uuid: 63e471d4d6e642df86fd9bcb3da895af
-    2016-05-13 16:42:56,351 INFO  NOCTX serving at url: http://localhost:3141
-    2016-05-13 16:42:56,351 INFO  NOCTX bug tracker: https://bitbucket.org/hpk42/devpi/issues
-    2016-05-13 16:42:56,351 INFO  NOCTX IRC: #devpi on irc.freenode.net
-    2016-05-13 16:42:56,351 INFO  NOCTX Hit Ctrl-C to quit.
-    2016-05-13 16:42:56,458 INFO  [req0] GET /
-    2016-05-13 16:42:57,547 INFO  [req1] POST /root/pypi/
-    2016-05-13 16:43:02,445 INFO  [NOTI] [Rtx2] Search-Indexing root/pypi:
+    2016-05-13 17:48:57,083 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    2016-05-13 17:48:57,148 INFO  NOCTX Found plugin devpi-web-3.1.0 (/tmp/docenv/lib/python2.7/site-packages).
+    2016-05-13 17:48:57,149 INFO  NOCTX Found plugin devpi-server-4.0.0 (/tmp/docenv/lib/python2.7/site-packages).
+    2016-05-13 17:48:57,149 INFO  NOCTX Found plugin devpi-server-4.0.0 (/tmp/docenv/lib/python2.7/site-packages).
+    2016-05-13 17:48:57,149 INFO  NOCTX Found plugin devpi-server-4.0.0 (/tmp/docenv/lib/python2.7/site-packages).
+    2016-05-13 17:48:57,149 INFO  NOCTX Found plugin devpi-server-4.0.0 (/tmp/docenv/lib/python2.7/site-packages).
+    2016-05-13 17:48:57,222 INFO  NOCTX devpi-server version: 4.0.0
+    2016-05-13 17:48:57,223 INFO  NOCTX serverdir: /tmp/home/.devpi/server
+    2016-05-13 17:48:57,223 INFO  NOCTX uuid: 36769b3f17e041279686e807d596c5ae
+    2016-05-13 17:48:57,223 INFO  NOCTX serving at url: http://localhost:3141
+    2016-05-13 17:48:57,223 INFO  NOCTX bug tracker: https://bitbucket.org/hpk42/devpi/issues
+    2016-05-13 17:48:57,223 INFO  NOCTX IRC: #devpi on irc.freenode.net
+    2016-05-13 17:48:57,223 INFO  NOCTX Hit Ctrl-C to quit.
+    2016-05-13 17:48:57,267 INFO  [req0] GET /
+    2016-05-13 17:48:58,123 INFO  [req1] POST /root/pypi/
+    2016-05-13 17:49:03,621 INFO  [NOTI] [Rtx2] Search-Indexing root/pypi:
     logfile at: /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
 
 running devpi-server permanently
