@@ -46,7 +46,7 @@ To export from devpi-server-2.X
 
 Upgrade to the latest devpi-server-2.X release:
 
-    pip install "devpi-server<3.0" devpi-common>=2.0.10
+    pip install "devpi-server<3.0" "devpi-common>=2.0.10"
 
 Here we force the devpi-common dependency to not accidentally
 be "devpi-common==2.0.9" which could lead to problems.
