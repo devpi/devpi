@@ -311,7 +311,10 @@ test
       --detox, -d          (experimental) run tests concurrently in multiple
                            processes using the detox tool (which must be
                            installed)
-      --index INDEX        index to get package from (defaults to current index)
+      --index INDEX        index to get package from, defaults to current index.
+                           Either just the NAME, using the current user, USER/NAME
+                           using the current server or a full URL for another
+                           server.
     
     generic options:
       --version            show program's version number and exit
@@ -539,7 +542,7 @@ devpi command reference (server)
       --no-root-pypi        don't create root/pypi on server initialization.
     
     deployment and data options:
-      --version             show devpi_version (3.0.0)
+      --version             show devpi_version (4.0.0)
       --role {master,replica,auto}
                             set role of this instance. [auto]
       --master-url MASTER_URL

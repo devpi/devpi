@@ -38,61 +38,121 @@ where we can upload and test packages:
 So let's first start a background server::
 
     $ devpi-server --start 
-    2016-02-11 12:28:26,022 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2016-02-11 12:28:26,022 INFO  NOCTX generated uuid: 59e5d888322c4406b3e67c0e90ce87cb
-    2016-02-11 12:28:26,023 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2016-02-11 12:28:26,024 INFO  NOCTX DB: Creating schema
-    2016-02-11 12:28:26,084 INFO  [Wtx-1] setting password for user u'root'
-    2016-02-11 12:28:26,084 INFO  [Wtx-1] created user u'root' with email None
-    2016-02-11 12:28:26,085 INFO  [Wtx-1] created root user
-    2016-02-11 12:28:26,085 INFO  [Wtx-1] created root/pypi index
-    2016-02-11 12:28:26,117 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
+    2016-05-13 16:43:08,907 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2016-05-13 16:43:08,907 INFO  NOCTX generated uuid: ec7387e1df27416293a0d0e2f319bbdc
+    2016-05-13 16:43:08,908 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    2016-05-13 16:43:08,909 INFO  NOCTX DB: Creating schema
+    2016-05-13 16:43:08,936 INFO  [Wtx-1] setting password for user u'root'
+    2016-05-13 16:43:08,936 INFO  [Wtx-1] created user u'root' with email None
+    2016-05-13 16:43:08,936 INFO  [Wtx-1] created root user
+    2016-05-13 16:43:08,937 INFO  [Wtx-1] created root/pypi index
+    2016-05-13 16:43:08,945 INFO  [Wtx-1] fswriter0: committed: keys: u'.config',u'root/.config'
     starting background devpi-server at http://localhost:3141
     /tmp/home/.devpi/server/.xproc/devpi-server$ /home/hpk/venv/0/bin/devpi-server
-    process u'devpi-server' started pid=31041
+    process u'devpi-server' started pid=16719
     devpi-server process startup detected
     logfile is at /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
 
 Then we point the devpi client to it::
 
     $ devpi use http://localhost:3141
-    using server: http://localhost:3141/ (not logged in)
-    no current index: type 'devpi use -l' to discover indices
-    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
-    always-set-cfg: no
+    Traceback (most recent call last):
+      File "/home/hpk/venv/0/bin/devpi", line 5, in <module>
+        from pkg_resources import load_entry_point
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2927, in <module>
+        @_call_aside
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2913, in _call_aside
+        f(*args, **kwargs)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2940, in _initialize_master_working_set
+        working_set = WorkingSet._build_master()
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 637, in _build_master
+        return cls._build_from_requirements(__requires__)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 650, in _build_from_requirements
+        dists = ws.resolve(reqs, Environment())
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 829, in resolve
+        raise DistributionNotFound(req, requirers)
+    pkg_resources.DistributionNotFound: The 'devpi_common<3.0,>2.0.2' distribution was not found and is required by devpi-client
 
 Then we add our own "testuser"::
 
     $ devpi user -c testuser password=123
-    user created: testuser
+    Traceback (most recent call last):
+      File "/home/hpk/venv/0/bin/devpi", line 5, in <module>
+        from pkg_resources import load_entry_point
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2927, in <module>
+        @_call_aside
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2913, in _call_aside
+        f(*args, **kwargs)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2940, in _initialize_master_working_set
+        working_set = WorkingSet._build_master()
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 637, in _build_master
+        return cls._build_from_requirements(__requires__)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 650, in _build_from_requirements
+        dists = ws.resolve(reqs, Environment())
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 829, in resolve
+        raise DistributionNotFound(req, requirers)
+    pkg_resources.DistributionNotFound: The 'devpi_common<3.0,>2.0.2' distribution was not found and is required by devpi-client
 
 Then we login::
 
     $ devpi login testuser --password=123
-    logged in 'testuser', credentials valid for 10.00 hours
+    Traceback (most recent call last):
+      File "/home/hpk/venv/0/bin/devpi", line 5, in <module>
+        from pkg_resources import load_entry_point
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2927, in <module>
+        @_call_aside
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2913, in _call_aside
+        f(*args, **kwargs)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2940, in _initialize_master_working_set
+        working_set = WorkingSet._build_master()
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 637, in _build_master
+        return cls._build_from_requirements(__requires__)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 650, in _build_from_requirements
+        dists = ws.resolve(reqs, Environment())
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 829, in resolve
+        raise DistributionNotFound(req, requirers)
+    pkg_resources.DistributionNotFound: The 'devpi_common<3.0,>2.0.2' distribution was not found and is required by devpi-client
 
 And create a "dev" index, telling it to use the ``root/pypi`` cache as a base
 so that all of pypi.python.org packages will appear on that index::
 
     $ devpi index -c dev bases=root/pypi
-    http://localhost:3141/testuser/dev:
-      type=stage
-      bases=root/pypi
-      volatile=True
-      acl_upload=testuser
-      mirror_whitelist=
-      pypi_whitelist=
+    Traceback (most recent call last):
+      File "/home/hpk/venv/0/bin/devpi", line 5, in <module>
+        from pkg_resources import load_entry_point
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2927, in <module>
+        @_call_aside
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2913, in _call_aside
+        f(*args, **kwargs)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2940, in _initialize_master_working_set
+        working_set = WorkingSet._build_master()
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 637, in _build_master
+        return cls._build_from_requirements(__requires__)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 650, in _build_from_requirements
+        dists = ws.resolve(reqs, Environment())
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 829, in resolve
+        raise DistributionNotFound(req, requirers)
+    pkg_resources.DistributionNotFound: The 'devpi_common<3.0,>2.0.2' distribution was not found and is required by devpi-client
 
 Finally we use the new index::
 
     $ devpi use testuser/dev
-    current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
-    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
-    always-set-cfg: no
+    Traceback (most recent call last):
+      File "/home/hpk/venv/0/bin/devpi", line 5, in <module>
+        from pkg_resources import load_entry_point
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2927, in <module>
+        @_call_aside
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2913, in _call_aside
+        f(*args, **kwargs)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2940, in _initialize_master_working_set
+        working_set = WorkingSet._build_master()
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 637, in _build_master
+        return cls._build_from_requirements(__requires__)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 650, in _build_from_requirements
+        dists = ws.resolve(reqs, Environment())
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 829, in resolve
+        raise DistributionNotFound(req, requirers)
+    pkg_resources.DistributionNotFound: The 'devpi_common<3.0,>2.0.2' distribution was not found and is required by devpi-client
 
 We are now ready to go for uploading and testing packages.
 
@@ -105,12 +165,22 @@ We can now use the ``devpi`` command line client to trigger a ``pip
 install`` of a pypi package using the index from our already running server::
 
     $ devpi install pytest
-    -->  /home/hpk/p/devpi/doc$ /tmp/docenv/bin/pip install -U -i http://localhost:3141/testuser/dev/+simple/ pytest  [PIP_USE_WHEEL=1,PIP_PRE=1]
-    Collecting pytest
-      Downloading http://localhost:3141/root/pypi/+f/280/bd63a44febf21/pytest-2.8.7-py2.py3-none-any.whl (151kB)
-    Requirement already up-to-date: py>=1.4.29 in /tmp/docenv/lib/python2.7/site-packages (from pytest)
-    Installing collected packages: pytest
-    Successfully installed pytest-2.8.7
+    Traceback (most recent call last):
+      File "/home/hpk/venv/0/bin/devpi", line 5, in <module>
+        from pkg_resources import load_entry_point
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2927, in <module>
+        @_call_aside
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2913, in _call_aside
+        f(*args, **kwargs)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2940, in _initialize_master_working_set
+        working_set = WorkingSet._build_master()
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 637, in _build_master
+        return cls._build_from_requirements(__requires__)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 650, in _build_from_requirements
+        dists = ws.resolve(reqs, Environment())
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 829, in resolve
+        raise DistributionNotFound(req, requirers)
+    pkg_resources.DistributionNotFound: The 'devpi_common<3.0,>2.0.2' distribution was not found and is required by devpi-client
 
 The ``devpi install`` command configured a pip call, using the
 pypi-compatible ``+simple/`` page on our ``testuser/dev`` index for
@@ -120,7 +190,7 @@ in the ``PATH`` and found in ``docenv/bin/pip``.
 Let's check that ``pytest`` was installed correctly::
 
     $ py.test --version
-    This is pytest version 2.8.7, imported from /tmp/docenv/local/lib/python2.7/site-packages/pytest.pyc
+    /bin/sh: 1: py.test: not found
 
 You may invoke the ``devpi install`` command a second time which will
 even work when you have no network.
@@ -137,24 +207,44 @@ performing uploads (you can also
 Let's verify we are logged in to the correct index::
 
     $ devpi use
-    current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
-    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
-    always-set-cfg: no
+    Traceback (most recent call last):
+      File "/home/hpk/venv/0/bin/devpi", line 5, in <module>
+        from pkg_resources import load_entry_point
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2927, in <module>
+        @_call_aside
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2913, in _call_aside
+        f(*args, **kwargs)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2940, in _initialize_master_working_set
+        working_set = WorkingSet._build_master()
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 637, in _build_master
+        return cls._build_from_requirements(__requires__)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 650, in _build_from_requirements
+        dists = ws.resolve(reqs, Environment())
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 829, in resolve
+        raise DistributionNotFound(req, requirers)
+    pkg_resources.DistributionNotFound: The 'devpi_common<3.0,>2.0.2' distribution was not found and is required by devpi-client
 
 Now go to the directory of a ``setup.py`` file of one of your projects  
 (we assume it is named ``example``) to build and upload your package
 to our ``testuser/dev`` index::
 
     example $ devpi upload
-    using workdir /tmp/devpi0
-    copied repo /home/hpk/p/devpi/.hg to /tmp/devpi0/upload/devpi/.hg
-    pre-build: cleaning /home/hpk/p/devpi/doc/example/dist
-    -->  /tmp/devpi0/upload/devpi/doc/example$ /tmp/docenv/bin/python setup.py sdist --formats gztar 
-    built: /home/hpk/p/devpi/doc/example/dist/example-1.0.tar.gz [SDIST.TGZ] 0kb
-    register example-1.0 to http://localhost:3141/testuser/dev/
-    file_upload of example-1.0.tar.gz to http://localhost:3141/testuser/dev/
+    Traceback (most recent call last):
+      File "/home/hpk/venv/0/bin/devpi", line 5, in <module>
+        from pkg_resources import load_entry_point
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2927, in <module>
+        @_call_aside
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2913, in _call_aside
+        f(*args, **kwargs)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2940, in _initialize_master_working_set
+        working_set = WorkingSet._build_master()
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 637, in _build_master
+        return cls._build_from_requirements(__requires__)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 650, in _build_from_requirements
+        dists = ws.resolve(reqs, Environment())
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 829, in resolve
+        raise DistributionNotFound(req, requirers)
+    pkg_resources.DistributionNotFound: The 'devpi_common<3.0,>2.0.2' distribution was not found and is required by devpi-client
 
 There are three triggered actions:
 
@@ -173,16 +263,22 @@ There are three triggered actions:
 We can now install the freshly uploaded package::
 
     $ devpi install example
-    -->  /home/hpk/p/devpi/doc$ /tmp/docenv/bin/pip install -U -i http://localhost:3141/testuser/dev/+simple/ example  [PIP_USE_WHEEL=1,PIP_PRE=1]
-    Collecting example
-      Downloading http://localhost:3141/testuser/dev/+f/371/be2830420799e/example-1.0.tar.gz
-    Building wheels for collected packages: example
-      Running setup.py bdist_wheel for example: started
-    ?25l  Running setup.py bdist_wheel for example: finished with status 'done'
-    ?25h  Stored in directory: /tmp/home/.cache/pip/wheels/a1/5a/b9/0807147643cadc37b2b25db32470b9502397d834ac13b669cd
-    Successfully built example
-    Installing collected packages: example
-    Successfully installed example-1.0
+    Traceback (most recent call last):
+      File "/home/hpk/venv/0/bin/devpi", line 5, in <module>
+        from pkg_resources import load_entry_point
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2927, in <module>
+        @_call_aside
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2913, in _call_aside
+        f(*args, **kwargs)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2940, in _initialize_master_working_set
+        working_set = WorkingSet._build_master()
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 637, in _build_master
+        return cls._build_from_requirements(__requires__)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 650, in _build_from_requirements
+        dists = ws.resolve(reqs, Environment())
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 829, in resolve
+        raise DistributionNotFound(req, requirers)
+    pkg_resources.DistributionNotFound: The 'devpi_common<3.0,>2.0.2' distribution was not found and is required by devpi-client
 
 This installed your just uploaded package from the ``testuser/dev``
 index where we previously uploaded the package.
@@ -201,29 +297,22 @@ devpi test: testing an uploaded package
 If you have a package which uses tox_ for testing you may now invoke::
 
     $ devpi test example  # package needs to contain tox.ini
-    received http://localhost:3141/testuser/dev/+f/371/be2830420799e/example-1.0.tar.gz
-    unpacking /tmp/devpi-test0/downloads/example-1.0.tar.gz to /tmp/devpi-test0/targz
-    /tmp/devpi-test0/targz/example-1.0$ tox --installpkg /tmp/devpi-test0/downloads/example-1.0.tar.gz -i ALL=http://localhost:3141/testuser/dev/+simple/ --recreate --result-json /tmp/devpi-test0/targz/toxreport.json -c /tmp/devpi-test0/targz/example-1.0/tox.ini
-    python create: /tmp/devpi-test0/targz/example-1.0/.tox/python
-    python installdeps: pytest
-    python inst: /tmp/devpi-test0/downloads/example-1.0.tar.gz
-    python installed: example==1.0,py==1.4.31,pytest==2.8.7,wheel==0.29.0
-    python runtests: PYTHONHASHSEED='2199691428'
-    python runtests: commands[0] | py.test
-    ============================= test session starts ==============================
-    platform linux2 -- Python 2.7.11, pytest-2.8.7, py-1.4.31, pluggy-0.3.1
-    rootdir: /tmp/devpi-test0/targz/example-1.0, inifile: 
-    collected 1 items
-    
-    test_example.py .
-    
-    =========================== 1 passed in 0.01 seconds ===========================
-    ___________________________________ summary ____________________________________
-      python: commands succeeded
-      congratulations :)
-    wrote json report at: /tmp/devpi-test0/targz/toxreport.json
-    posting tox result data to http://localhost:3141/testuser/dev/+f/371/be2830420799e/example-1.0.tar.gz
-    successfully posted tox result data
+    Traceback (most recent call last):
+      File "/home/hpk/venv/0/bin/devpi", line 5, in <module>
+        from pkg_resources import load_entry_point
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2927, in <module>
+        @_call_aside
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2913, in _call_aside
+        f(*args, **kwargs)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2940, in _initialize_master_working_set
+        working_set = WorkingSet._build_master()
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 637, in _build_master
+        return cls._build_from_requirements(__requires__)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 650, in _build_from_requirements
+        dists = ws.resolve(reqs, Environment())
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 829, in resolve
+        raise DistributionNotFound(req, requirers)
+    pkg_resources.DistributionNotFound: The 'devpi_common<3.0,>2.0.2' distribution was not found and is required by devpi-client
 
 Here is what happened:
 
@@ -241,8 +330,22 @@ Here is what happened:
 We can verify that the test status was recorded via::
 
     $ devpi list example
-    http://localhost:3141/testuser/dev/+f/371/be2830420799e/example-1.0.tar.gz
-    uwanda     linux2  python     2.7.11 tests passed
+    Traceback (most recent call last):
+      File "/home/hpk/venv/0/bin/devpi", line 5, in <module>
+        from pkg_resources import load_entry_point
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2927, in <module>
+        @_call_aside
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2913, in _call_aside
+        f(*args, **kwargs)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2940, in _initialize_master_working_set
+        working_set = WorkingSet._build_master()
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 637, in _build_master
+        return cls._build_from_requirements(__requires__)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 650, in _build_from_requirements
+        dists = ws.resolve(reqs, Environment())
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 829, in resolve
+        raise DistributionNotFound(req, requirers)
+    pkg_resources.DistributionNotFound: The 'devpi_common<3.0,>2.0.2' distribution was not found and is required by devpi-client
 
 .. versionadded:: 2.6
 
@@ -265,13 +368,22 @@ to another devpi-managed index or to an outside pypi index server.
 Let's create another ``staging`` index::
 
     $ devpi index -c staging volatile=False
-    http://localhost:3141/testuser/staging:
-      type=stage
-      bases=
-      volatile=False
-      acl_upload=testuser
-      mirror_whitelist=
-      pypi_whitelist=
+    Traceback (most recent call last):
+      File "/home/hpk/venv/0/bin/devpi", line 5, in <module>
+        from pkg_resources import load_entry_point
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2927, in <module>
+        @_call_aside
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2913, in _call_aside
+        f(*args, **kwargs)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2940, in _initialize_master_working_set
+        working_set = WorkingSet._build_master()
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 637, in _build_master
+        return cls._build_from_requirements(__requires__)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 650, in _build_from_requirements
+        dists = ws.resolve(reqs, Environment())
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 829, in resolve
+        raise DistributionNotFound(req, requirers)
+    pkg_resources.DistributionNotFound: The 'devpi_common<3.0,>2.0.2' distribution was not found and is required by devpi-client
 
 We created a non-volatile index which means that one can not 
 overwrite or delete release files. See :ref:`non_volatile_indexes` for more info
@@ -281,9 +393,22 @@ We can now push the ``example-1.0.tar.gz`` from above to
 our ``staging`` index::
 
     $ devpi push example==1.0 testuser/staging
-       200 register example 1.0 -> testuser/staging
-       200 store_releasefile testuser/staging/+f/371/be2830420799e/example-1.0.tar.gz
-       200 store_toxresult testuser/staging/+f/371/be2830420799e/example-1.0.tar.gz.toxresult0
+    Traceback (most recent call last):
+      File "/home/hpk/venv/0/bin/devpi", line 5, in <module>
+        from pkg_resources import load_entry_point
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2927, in <module>
+        @_call_aside
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2913, in _call_aside
+        f(*args, **kwargs)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2940, in _initialize_master_working_set
+        working_set = WorkingSet._build_master()
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 637, in _build_master
+        return cls._build_from_requirements(__requires__)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 650, in _build_from_requirements
+        dists = ws.resolve(reqs, Environment())
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 829, in resolve
+        raise DistributionNotFound(req, requirers)
+    pkg_resources.DistributionNotFound: The 'devpi_common<3.0,>2.0.2' distribution was not found and is required by devpi-client
 
 This will determine all files on our ``testuser/dev`` index belonging to
 the specified ``example==1.0`` release and copy them to the
@@ -295,26 +420,62 @@ devpi push: releasing to an external index
 Let's check again our current index::
 
     $ devpi use
-    current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
-    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
-    always-set-cfg: no
+    Traceback (most recent call last):
+      File "/home/hpk/venv/0/bin/devpi", line 5, in <module>
+        from pkg_resources import load_entry_point
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2927, in <module>
+        @_call_aside
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2913, in _call_aside
+        f(*args, **kwargs)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2940, in _initialize_master_working_set
+        working_set = WorkingSet._build_master()
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 637, in _build_master
+        return cls._build_from_requirements(__requires__)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 650, in _build_from_requirements
+        dists = ws.resolve(reqs, Environment())
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 829, in resolve
+        raise DistributionNotFound(req, requirers)
+    pkg_resources.DistributionNotFound: The 'devpi_common<3.0,>2.0.2' distribution was not found and is required by devpi-client
 
 Let's now use our ``testuser/staging`` index::
 
     $ devpi use testuser/staging
-    current devpi index: http://localhost:3141/testuser/staging (logged in as testuser)
-    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
-    always-set-cfg: no
+    Traceback (most recent call last):
+      File "/home/hpk/venv/0/bin/devpi", line 5, in <module>
+        from pkg_resources import load_entry_point
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2927, in <module>
+        @_call_aside
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2913, in _call_aside
+        f(*args, **kwargs)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2940, in _initialize_master_working_set
+        working_set = WorkingSet._build_master()
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 637, in _build_master
+        return cls._build_from_requirements(__requires__)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 650, in _build_from_requirements
+        dists = ws.resolve(reqs, Environment())
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 829, in resolve
+        raise DistributionNotFound(req, requirers)
+    pkg_resources.DistributionNotFound: The 'devpi_common<3.0,>2.0.2' distribution was not found and is required by devpi-client
 
 and check the test result status again::
 
     $ devpi list example
-    http://localhost:3141/testuser/staging/+f/371/be2830420799e/example-1.0.tar.gz
-    uwanda     linux2  python     2.7.11 tests passed
+    Traceback (most recent call last):
+      File "/home/hpk/venv/0/bin/devpi", line 5, in <module>
+        from pkg_resources import load_entry_point
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2927, in <module>
+        @_call_aside
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2913, in _call_aside
+        f(*args, **kwargs)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2940, in _initialize_master_working_set
+        working_set = WorkingSet._build_master()
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 637, in _build_master
+        return cls._build_from_requirements(__requires__)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 650, in _build_from_requirements
+        dists = ws.resolve(reqs, Environment())
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 829, in resolve
+        raise DistributionNotFound(req, requirers)
+    pkg_resources.DistributionNotFound: The 'devpi_common<3.0,>2.0.2' distribution was not found and is required by devpi-client
 
 Good, the test result status is still available after the push
 from the last step.
@@ -323,7 +484,22 @@ We may now decide to push this release to an external
 pypi-style index which we have configured in the ``.pypirc`` file::
 
     $ devpi push example-1.0 pypi:testrun
-    no pypirc file found at: /tmp/home/.pypirc
+    Traceback (most recent call last):
+      File "/home/hpk/venv/0/bin/devpi", line 5, in <module>
+        from pkg_resources import load_entry_point
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2927, in <module>
+        @_call_aside
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2913, in _call_aside
+        f(*args, **kwargs)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2940, in _initialize_master_working_set
+        working_set = WorkingSet._build_master()
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 637, in _build_master
+        return cls._build_from_requirements(__requires__)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 650, in _build_from_requirements
+        dists = ws.resolve(reqs, Environment())
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 829, in resolve
+        raise DistributionNotFound(req, requirers)
+    pkg_resources.DistributionNotFound: The 'devpi_common<3.0,>2.0.2' distribution was not found and is required by devpi-client
 
 this will push all release files of the ``example-1.0`` release
 to the external ``testrun`` index server, using credentials
@@ -340,42 +516,83 @@ index, we can reconfigure the inheritance
 ``bases`` for ``testuser/dev``::
 
     $ devpi index testuser/dev bases=testuser/staging
-    /testuser/dev changing bases: ['testuser/staging']
-    http://localhost:3141/testuser/dev:
-      type=stage
-      bases=testuser/staging
-      volatile=True
-      acl_upload=testuser
-      mirror_whitelist=
-      pypi_whitelist=
+    Traceback (most recent call last):
+      File "/home/hpk/venv/0/bin/devpi", line 5, in <module>
+        from pkg_resources import load_entry_point
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2927, in <module>
+        @_call_aside
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2913, in _call_aside
+        f(*args, **kwargs)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2940, in _initialize_master_working_set
+        working_set = WorkingSet._build_master()
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 637, in _build_master
+        return cls._build_from_requirements(__requires__)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 650, in _build_from_requirements
+        dists = ws.resolve(reqs, Environment())
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 829, in resolve
+        raise DistributionNotFound(req, requirers)
+    pkg_resources.DistributionNotFound: The 'devpi_common<3.0,>2.0.2' distribution was not found and is required by devpi-client
 
 If we now switch back to using ``testuser/dev``::
 
     $ devpi use testuser/dev
-    current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
-    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
-    always-set-cfg: no
+    Traceback (most recent call last):
+      File "/home/hpk/venv/0/bin/devpi", line 5, in <module>
+        from pkg_resources import load_entry_point
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2927, in <module>
+        @_call_aside
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2913, in _call_aside
+        f(*args, **kwargs)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2940, in _initialize_master_working_set
+        working_set = WorkingSet._build_master()
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 637, in _build_master
+        return cls._build_from_requirements(__requires__)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 650, in _build_from_requirements
+        dists = ws.resolve(reqs, Environment())
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 829, in resolve
+        raise DistributionNotFound(req, requirers)
+    pkg_resources.DistributionNotFound: The 'devpi_common<3.0,>2.0.2' distribution was not found and is required by devpi-client
 
 and look at our example release files::
 
     $ devpi list example
-    http://localhost:3141/testuser/dev/+f/371/be2830420799e/example-1.0.tar.gz
-    uwanda     linux2  python     2.7.11 tests passed
-    http://localhost:3141/testuser/staging/+f/371/be2830420799e/example-1.0.tar.gz
-    uwanda     linux2  python     2.7.11 tests passed
+    Traceback (most recent call last):
+      File "/home/hpk/venv/0/bin/devpi", line 5, in <module>
+        from pkg_resources import load_entry_point
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2927, in <module>
+        @_call_aside
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2913, in _call_aside
+        f(*args, **kwargs)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2940, in _initialize_master_working_set
+        working_set = WorkingSet._build_master()
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 637, in _build_master
+        return cls._build_from_requirements(__requires__)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 650, in _build_from_requirements
+        dists = ws.resolve(reqs, Environment())
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 829, in resolve
+        raise DistributionNotFound(req, requirers)
+    pkg_resources.DistributionNotFound: The 'devpi_common<3.0,>2.0.2' distribution was not found and is required by devpi-client
 
 we'll see that ``example-1.0.tar.gz`` is contained in both
 indices.  Let's remove the ``testuser/dev`` ``example`` release::
 
     $ devpi remove -y example
-    About to remove the following releases and distributions
-    version: 1.0
-      - http://localhost:3141/testuser/dev/+f/371/be2830420799e/example-1.0.tar.gz
-      - http://localhost:3141/testuser/dev/+f/371/be2830420799e/example-1.0.tar.gz.toxresult0
-    Are you sure (yes/no)? yes (autoset from -y option)
-    deleting release 1.0 of example
+    Traceback (most recent call last):
+      File "/home/hpk/venv/0/bin/devpi", line 5, in <module>
+        from pkg_resources import load_entry_point
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2927, in <module>
+        @_call_aside
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2913, in _call_aside
+        f(*args, **kwargs)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2940, in _initialize_master_working_set
+        working_set = WorkingSet._build_master()
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 637, in _build_master
+        return cls._build_from_requirements(__requires__)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 650, in _build_from_requirements
+        dists = ws.resolve(reqs, Environment())
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 829, in resolve
+        raise DistributionNotFound(req, requirers)
+    pkg_resources.DistributionNotFound: The 'devpi_common<3.0,>2.0.2' distribution was not found and is required by devpi-client
 
 If you don't specify the ``-y`` option you will be asked to confirm
 the delete operation interactively.
@@ -384,15 +601,29 @@ The ``example-1.0`` release remains accessible through ``testuser/dev``
 because it inherits all releases from its ``testuser/staging`` base::
 
     $ devpi list example
-    http://localhost:3141/testuser/staging/+f/371/be2830420799e/example-1.0.tar.gz
-    uwanda     linux2  python     2.7.11 tests passed
+    Traceback (most recent call last):
+      File "/home/hpk/venv/0/bin/devpi", line 5, in <module>
+        from pkg_resources import load_entry_point
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2927, in <module>
+        @_call_aside
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2913, in _call_aside
+        f(*args, **kwargs)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 2940, in _initialize_master_working_set
+        working_set = WorkingSet._build_master()
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 637, in _build_master
+        return cls._build_from_requirements(__requires__)
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 650, in _build_from_requirements
+        dists = ws.resolve(reqs, Environment())
+      File "/home/hpk/venv/0/local/lib/python2.7/site-packages/pkg_resources/__init__.py", line 829, in resolve
+        raise DistributionNotFound(req, requirers)
+    pkg_resources.DistributionNotFound: The 'devpi_common<3.0,>2.0.2' distribution was not found and is required by devpi-client
 
 ::
 
     $ devpi-server --stop
-    2016-02-11 12:28:44,709 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2016-02-11 12:28:44,710 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    killed server pid=31041
+    2016-05-13 16:43:14,319 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2016-05-13 16:43:14,321 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    killed server pid=16719
 
 running devpi-server permanently
 +++++++++++++++++++++++++++++++++

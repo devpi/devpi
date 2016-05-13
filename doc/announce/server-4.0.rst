@@ -81,6 +81,17 @@ devpi-web will create a search index over all of it during import.
 You are now good to go -- pip works again!
 
 
+devpi-client also has a 2.6.3
+--------------------------------
+
+We also published a minor bugfix "devpi-client-2.6.3" release which
+should work with both devpi-server-2.6 and devpi-server-4.0 as we
+are generally trying to keep devpi-client forward/backward compatible.
+You only need to install devpi-client-2.6.3 if you also install
+devpi-server into the same virtual environment.  Otherwise using
+devpi-client-2.6.2 with both devpi-server-2.6 and devpi-server-4.0
+probably works fine as well.
+
 background on the pip/devpi bug for the curious
 -----------------------------------------------
 

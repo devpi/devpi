@@ -115,8 +115,8 @@ Attempting to modify a user with the wrong credentials results in an 401
 Multiple properties can be changed at once::
 
    $ devpi user -m emilie title=CTO "description=Has final say"
-   /emilie changing title: CTO
    /emilie changing description: Has final say
+   /emilie changing title: CTO
    user modified: emilie
 
 .. versionadded:: 3.0

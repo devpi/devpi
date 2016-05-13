@@ -108,6 +108,7 @@ which leads to the following::
    $ devpi getjson /emilie
    {
        "result": {
+           "description": "Has final say", 
            "email": "emilienew@gmail.com", 
            "indexes": {
                "prod": {
@@ -121,6 +122,7 @@ which leads to the following::
                    "volatile": false
                }
            }, 
+           "title": "CTO", 
            "username": "emilie"
        }, 
        "type": "userconfig"
@@ -424,16 +426,18 @@ An index can have a title and description which is used in ``devpi-web``.
 
 .. code-block:: console
 
-   $ devpi index -c wheelindex "title=Wheel Index" "description=Used for pip wheels"
+   $ devpi index wheelindex "title=Wheel Index" "description=Used for pip wheels"
+   /emilie/wheelindex changing description: Used for pip wheels
+   /emilie/wheelindex changing title: Wheel Index
    http://localhost:3141/emilie/wheelindex:
      type=stage
      bases=
      volatile=True
      acl_upload=emilie
+     description=Used for pip wheels
      mirror_whitelist=*
      pypi_whitelist=
      title=Wheel Index
-     description=Used for pip wheels
 
 The description is included as is on the index overview page. You can't use any
 html here for security reasons.
