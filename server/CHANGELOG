@@ -1,3 +1,9 @@
+4.0.1 (Unreleased)
+------------------
+
+- fix issue352: AttributeError during rollback.
+
+
 4.0.0 (2016-05-12)
 ------------------
 

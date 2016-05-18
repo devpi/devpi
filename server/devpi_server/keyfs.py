@@ -362,18 +362,17 @@ class TypedKey:
 
 
 class Transaction(object):
-    commit_serial = None
-    write = False
-
     def __init__(self, keyfs, at_serial=None, write=False):
         self.keyfs = keyfs
         self.conn = keyfs._storage.get_connection(write=write, closing=False)
+        self.commit_serial = None
         self.write = write
         if at_serial is None:
             at_serial = self.conn.last_changelog_serial
         self.at_serial = at_serial
         self.cache = {}
         self.dirty = set()
+        self.closed = False
 
     def get_value_at(self, typedkey, at_serial):
         relpath = typedkey.relpath
@@ -485,9 +484,17 @@ class Transaction(object):
         return commit_serial
 
     def _close(self):
+        if self.closed:
+            # We can reach this when the transaction is restarted and there
+            # is an exception after the commit and before the assignment of
+            # the __dict__. The ``transaction`` context manager will call
+            # ``rollback``, which then arrives here.
+            return
+        threadlog.debug("closing transaction at %s" % (self.at_serial))
         del self.cache
         del self.dirty
         self.conn.close()
+        self.closed = True
         return self.at_serial
 
     def rollback(self):
@@ -496,7 +503,9 @@ class Transaction(object):
 
     def restart(self, write=False):
         self.commit()
-        threadlog.debug("restarting afresh as write transaction")
+        threadlog.debug("restarting %s transaction afresh as %s transaction" % (
+            "write" if self.write else "read",
+            "write" if write else "read"))
         newtx = self.__class__(self.keyfs, write=write)
         self.__dict__ = newtx.__dict__
 
