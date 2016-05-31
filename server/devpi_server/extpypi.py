@@ -322,8 +322,10 @@ class PyPIStage(BaseStage):
                 return ()
 
             # we don't have an old result and got a non-404 code.
-            raise self.UpstreamError("%s status on GET %s" %
-                                     (response.status_code, url))
+            # raise self.UpstreamError("%s status on GET %s" %
+            #                          (response.status_code, url))
+            threadlog.error("%s status on GET %s" % (response.status_code, url))
+            return ()
 
         # pypi.python.org provides X-PYPI-LAST-SERIAL header in case of 200 returns.
         # devpi-master may provide a 200 but not supply the header
