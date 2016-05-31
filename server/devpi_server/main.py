@@ -292,7 +292,7 @@ class XOM:
         from devpi_server.view_auth import DevpiAuthenticationPolicy
         from devpi_server.views import ContentTypePredicate
         from devpi_server.views import OutsideURLMiddleware
-        from devpi_server.views import route_url, PIP_USER_AGENT
+        from devpi_server.views import route_url, INSTALLER_USER_AGENT
         from pkg_resources import get_distribution
         from pyramid.authorization import ACLAuthorizationPolicy
         from pyramid.config import Configurator
@@ -335,7 +335,7 @@ class XOM:
                                  "/{user}/{index}/{project}/{version:[^/]+/?}")
         pyramid_config.add_route(
             "simple_redirect", "/{user}/{index}/{project:[^/]+/?}",
-            header="User-Agent:" + PIP_USER_AGENT,
+            header="User-Agent:" + INSTALLER_USER_AGENT,
             accept="text/html",
         )
         pyramid_config.add_route("/{user}/{index}/{project}",
