@@ -45,7 +45,7 @@ meta_headers = {str("X-DEVPI-API-VERSION"): str(API_VERSION),
                 str("X-DEVPI-SERVER-VERSION"): server_version}
 
 
-PIP_USER_AGENT = r"(distribute|setuptools|pip|pex)/.*"
+INSTALLER_USER_AGENT = r"([^ ]* )*(distribute|setuptools|pip|pex)/.*"
 
 
 def abort(request, code, body):
@@ -383,7 +383,8 @@ class PyPIView:
         project = self.context.project
         # we only serve absolute links so we don't care about the route's slash
         stage = self.context.stage
-        requested_by_pip = re.match(PIP_USER_AGENT, request.user_agent or "")
+        requested_by_pip = re.match(INSTALLER_USER_AGENT,
+            request.user_agent or "")
         try:
             result = stage.get_simplelinks(project, sorted_links=not requested_by_pip)
         except stage.UpstreamError as e:
