@@ -302,7 +302,7 @@ class PyPIStage(BaseStage):
                     "serving stale links for %r, url %r responded %r",
                     project, url, response.status_code)
                 return links
-            if response.status_code == 404:
+            if response.status_code == 404 or response.status_code == 502:
                 # We get a 404 if a project does not exist.
                 if self.xom.is_replica():
                     # We triggered master above, so we just go on, since we
@@ -322,10 +322,8 @@ class PyPIStage(BaseStage):
                 return ()
 
             # we don't have an old result and got a non-404 code.
-            # raise self.UpstreamError("%s status on GET %s" %
-            #                          (response.status_code, url))
-            threadlog.error("%s status on GET %s" % (response.status_code, url))
-            return ()
+            raise self.UpstreamError("%s status on GET %s" %
+                                     (response.status_code, url))
 
         # pypi.python.org provides X-PYPI-LAST-SERIAL header in case of 200 returns.
         # devpi-master may provide a 200 but not supply the header
