@@ -82,7 +82,7 @@ class Storage(BaseStorage):
     def ensure_tables_exist(self):
         if self.sqlpath.exists():
             return
-        with self.get_connection() as conn:
+        with self.get_connection(write=True) as conn:
             threadlog.info("DB: Creating schema")
             c = conn._sqlconn.cursor()
             c.execute("""
@@ -98,6 +98,7 @@ class Storage(BaseStorage):
                     data BLOB NOT NULL
                 )
             """)
+            conn.commit()
 
 
 def devpiserver_storage_backend(settings):
@@ -163,6 +164,7 @@ class FSWriter:
 
             self.storage._notify_on_commit(commit_serial)
         else:
+            self.conn.rollback()
             self.log.info("roll back at %s" %(self.next_serial))
 
     def commit_to_filesystem(self, pending_renames):
