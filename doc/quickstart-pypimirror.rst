@@ -22,7 +22,7 @@ Show version::
 .. note::
 
     This tutorial does not require you to install or use the ``devpi-client``
-    package.  Consult :doc:`quickstart-releaseprocess` to learn more 
+    package.  Consult :doc:`quickstart-releaseprocess` to learn more
     about how you can use the ``devpi`` command line tool to
     manage working with uploads, tests and multiple indexes.
 
@@ -31,7 +31,7 @@ start background devpi-server process
 ++++++++++++++++++++++++++++++++++++++++++++++
 
 To start ``devpi-server`` in the background issue::
-    
+
     $ devpi-server --start
     2016-05-13 17:46:29,171 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
     2016-05-13 17:46:29,172 INFO  NOCTX generated uuid: 36769b3f17e041279686e807d596c5ae
@@ -57,10 +57,10 @@ install your first package with pip/easy_install
 
 Both pip_ and easy_install_ support the ``-i`` option to specify
 an index server url.  We use it to point installers to a special
-``root/pypi`` index, served by ``devpi-server`` by default. 
+``root/pypi`` index, served by ``devpi-server`` by default.
 Let's install the ``simplejson`` package as a test from our cache::
 
-    $ pip install -i http://localhost:3141/root/pypi/ simplejson
+    $ pip install -i http://localhost:3141/root/pypi/+simple/ simplejson
     Collecting simplejson
     Installing collected packages: simplejson
     Successfully installed simplejson-3.8.2
@@ -90,7 +90,7 @@ and then re-install it with ``easy_install``::
     creating /tmp/docenv/lib/python2.7/site-packages/simplejson-3.8.2-py2.7-linux-x86_64.egg
     Extracting simplejson-3.8.2-py2.7-linux-x86_64.egg to /tmp/docenv/lib/python2.7/site-packages
     Adding simplejson 3.8.2 to easy-install.pth file
-    
+
     Installed /tmp/docenv/lib/python2.7/site-packages/simplejson-3.8.2-py2.7-linux-x86_64.egg
     Processing dependencies for simplejson
     Finished processing dependencies for simplejson
@@ -147,7 +147,7 @@ and then start the server again::
 We can now use search with pip::
 
     $ pip search --index http://localhost:3141/root/pypi/ devpi-client
-    /root/pypi/devpi-client ()  - 
+    /root/pypi/devpi-client ()  -
     You are using pip version 8.1.1, however version 8.1.2 is available.
     You should consider upgrading via the 'pip install --upgrade pip' command.
 
@@ -166,7 +166,7 @@ To avoid having to re-type index URLs with ``pip`` or ``easy-install`` ,
 you can configure pip by setting the index-url entry in your
 ``$HOME/.pip/pip.conf`` (posix) or ``$HOME/pip/pip.ini`` (windows).
 Let's do it for the ``root/pypi`` index::
-    
+
     # $HOME/.pip/pip.conf
     [global]
     index-url = http://localhost:3141/root/pypi/+simple/
@@ -189,9 +189,9 @@ For `pip search`_ you need a ``[search]`` section in your ``pip.conf``::
 permanent index configuration for easy_install
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-You can configure ``easy_install`` by an entry in 
+You can configure ``easy_install`` by an entry in
 the ``$HOME/.pydistutils.cfg`` file::
-    
+
     # $HOME/.pydistutils.cfg:
     [easy_install]
     index_url = http://localhost:3141/root/pypi/+simple/
@@ -208,7 +208,7 @@ At any time you can check the background server status with::
     server is running with pid 23499
 
 Or stop it::
-    
+
     $ devpi-server --stop
     2016-05-13 17:49:04,931 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
     2016-05-13 17:49:04,932 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
