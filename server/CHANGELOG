@@ -1,3 +1,11 @@
+4.0.1 (Unreleased)
+------------------
+
+- fix issue354: allow more general agent versions, such as 'Python-urllib/3.5'
+  to appear before the installer user agent string so redirects for setuptools
+  versions which had that work.
+
+
 4.0.0 (2016-05-12)
 ------------------
 
