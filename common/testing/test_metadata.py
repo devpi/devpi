@@ -38,6 +38,8 @@ def test_splitbasename(releasename, expected):
     ("devpi-0.9.5.dev1-cp26-none-linux_x86_64.whl", ("2.6", "bdist_wheel")),
     ("greenlet-0.4.0-py3.3-win-amd64.egg", ("3.3", "bdist_egg")),
     ("greenlet-0.4.0.linux-x86_64.tar.gz", ("any", "bdist_dumb")),
+    ("cffi-1.6.0-pp251-pypy_41-macosx_10_11_x86_64.whl", ("2.5.1", "bdist_wheel")),
+    ("cryptography-1.4-pp253-pypy_41-linux_x86_64.whl", ("2.5.3", "bdist_wheel"))
 ])
 def test_get_pyversion_filetype(releasename, expected):
     result = get_pyversion_filetype(releasename)
