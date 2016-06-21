@@ -534,14 +534,21 @@ class BaseStage(object):
     def sro(self):
         """ return stage resolution order. """
         todo = [self]
+        todo_mirrors = []
         seen = set()
         while todo:
             stage = todo.pop(0)
             yield stage
             seen.add(stage.name)
             for base in stage.ixconfig.get("bases", ()):
+                current_stage = self.model.getstage(base)
                 if base not in seen:
-                    todo.append(self.model.getstage(base))
+                    if current_stage.ixconfig['type'] == 'mirror':
+                        todo_mirrors.append(current_stage)
+                    else:
+                        todo.append(self.model.getstage(base))
+        for stage in todo_mirrors:
+            yield stage
 
 
 class PrivateStage(BaseStage):
