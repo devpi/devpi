@@ -211,6 +211,20 @@ def test_simple_list(pypistage, testapp):
     hrefs = [a.get("href") for a in links]
     assert hrefs == ["hello1", "hello2"]
 
+def test_correct_resolution_order(pypistage, mapp, testapp):
+    pypistage.mock_simple("hello", pkgver="hello-1.0.tar.gz")
+    index1 = mapp.create_and_use()
+    index2 = mapp.create_and_use(indexconfig=dict(bases=[index1.stagename]))
+    index3 = mapp.create_and_use(
+        indexconfig=dict(bases=[index2.stagename, 'root/pypi']))
+    mapp.use(index1.stagename)
+    mapp.login(index1.user, index1.password)
+    mapp.upload_file_pypi("hello-1.0.tar.gz", b'123', "hello", "1.0",
+                          indexname=index1.stagename)
+    # the package should be found in our internal index, not on root/pypi
+    r = testapp.get("/%s/+simple/hello" % index3.stagename)
+    assert index1.stagename in r.text
+
 def test_simple_page_pypi_serial(pypistage, testapp):
     pypistage.mock_simple("hello1", text="qwe", pypiserial=None)
     r = testapp.get("/root/pypi/+simple/hello1", expect_errors=False)
