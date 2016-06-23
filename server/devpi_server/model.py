@@ -546,7 +546,7 @@ class BaseStage(object):
                     if current_stage.ixconfig['type'] == 'mirror':
                         todo_mirrors.append(current_stage)
                     else:
-                        todo.append(self.model.getstage(base))
+                        todo.append(current_stage)
         for stage in todo_mirrors:
             yield stage
 
