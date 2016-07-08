@@ -335,7 +335,6 @@ def test_upstream_not_reachable_but_cache_still_returned(pypistage, mapp, testap
 
     pypistage.mock_simple(name, '', status_code=502)
     r = testapp.get('/{index_name}/{name}'.format(index_name=index_name, name=name), accept="application/json")
-    print(r)
     assert r.status_code == 200
 
 
