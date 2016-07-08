@@ -528,11 +528,6 @@ class BaseStage(object):
                 if '*' in whitelist or project in whitelist:
                     whitelisted = stage
 
-
-            # res = getattr(stage, opname)(**kw)
-            # private_hit = private_hit or res
-            # yield stage, res
-
             try:
                 res = getattr(stage, opname)(**kw)
                 private_hit = private_hit or res
