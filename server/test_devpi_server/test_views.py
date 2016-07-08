@@ -320,6 +320,25 @@ def test_upstream_not_reachable(reqmock, pypistage, testapp, code, url):
     assert r.status_code == 502
 
 
+def test_upstream_not_reachable_but_cache_still_returned(pypistage, mapp, testapp, monkeypatch):
+    index_name = 'user/name'
+    name = 'pkg1'
+    version = '1.0'
+    mapp.create_and_use(index_name, indexconfig=dict(bases=["root/pypi"]))
+    mapp.upload_file_pypi(
+        '{name}-{version}-2.6.tgz'.format(name=name, version=version),
+        b'123',
+        name=name,
+        version=version,
+        indexname=index_name,
+        register=True)
+
+    pypistage.mock_simple(name, '', status_code=502)
+    r = testapp.get('/{index_name}/{name}'.format(index_name=index_name, name=name), accept="application/json")
+    print(r)
+    assert r.status_code == 200
+
+
 def test_pkgserv(httpget, pypistage, testapp):
     pypistage.mock_simple("package", '<a href="/package-1.0.zip" />')
     pypistage.mock_extfile("/package-1.0.zip", b"123")

@@ -527,9 +527,21 @@ class BaseStage(object):
                 whitelist = set(stage.ixconfig["mirror_whitelist"])
                 if '*' in whitelist or project in whitelist:
                     whitelisted = stage
-            res = getattr(stage, opname)(**kw)
-            private_hit = private_hit or res
-            yield stage, res
+
+
+            # res = getattr(stage, opname)(**kw)
+            # private_hit = private_hit or res
+            # yield stage, res
+
+            try:
+                res = getattr(stage, opname)(**kw)
+                private_hit = private_hit or res
+                yield stage, res
+            except UpstreamError as exc:
+                # If we are currently checking ourself raise the error, it is fatal
+                if stage is self:
+                    raise
+                threadlog.warn('Failed to check mirror whitelist. Assume it does not exists (%s)', exc)
 
     def sro(self):
         """ return stage resolution order. """
