@@ -490,7 +490,7 @@ class Transaction(object):
             # the __dict__. The ``transaction`` context manager will call
             # ``rollback``, which then arrives here.
             return
-        threadlog.debug("closing transaction at %s" % (self.at_serial))
+        threadlog.debug("closing transaction at %s", self.at_serial)
         del self.cache
         del self.dirty
         self.conn.close()
@@ -503,9 +503,10 @@ class Transaction(object):
 
     def restart(self, write=False):
         self.commit()
-        threadlog.debug("restarting %s transaction afresh as %s transaction" % (
+        threadlog.debug(
+            "restarting %s transaction afresh as %s transaction",
             "write" if self.write else "read",
-            "write" if write else "read"))
+            "write" if write else "read")
         newtx = self.__class__(self.keyfs, write=write)
         self.__dict__ = newtx.__dict__
 
