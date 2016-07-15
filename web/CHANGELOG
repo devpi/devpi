@@ -1,4 +1,4 @@
-3.1.1 (Unreleased)
+3.1.1 (2016-07-15)
 ------------------
 
 - removed unnecessary fetching of mirror data during indexing.

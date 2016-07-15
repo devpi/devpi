@@ -1,4 +1,11 @@
-4.1.0 (Unreleased)
+4.1.1 (Unreleased)
+------------------
+
+- when a project has no releases (only setup.py register ran) and it isn't
+  whitelisted, then upstream releases will now be blocked as expected.
+
+
+4.1.0 (2016-07-15)
 ------------------
 
 - Try opening read only transactions in SQLite read only mode for better
@@ -22,9 +29,6 @@
 - fix issue214: change the order in which indices are searched to fix the
   mirror whitelisting and also make sure that packages, if available,
   are always installed from internal indices instead of root/pypi.
-
-- when a project has no releases (only setup.py register ran) and it isn't
-  whitelisted, then upstream releases will now be blocked as expected.
 
 
 4.0.0 (2016-05-12)
