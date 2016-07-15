@@ -5,6 +5,11 @@
   concurrency/locking behaviour. This is officially supported with Python 3.4,
   but many systems allow it implicitly in older Python versions.
 
+- fix issue353: If an index inherits from a mirror with an empty cache and the
+  mirror is returning errors, there would be an error returned by devpi. Now
+  this situation is treated like the mirror has no releases and just the
+  releases from the index are returned.
+
 - fix issue352: When there was an issue during commit or rollback, the thread
   local info got into an inconsistent state. This caused an AttributeError
   whenever that thread was used. Eventually this could exhaust all worker

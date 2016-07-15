@@ -340,16 +340,27 @@ def test_upstream_not_reachable_but_cache_still_returned(pypistage, mapp, testap
     version = '1.0'
     mapp.create_and_use(index_name, indexconfig=dict(bases=["root/pypi"]))
     mapp.upload_file_pypi(
-        '{name}-{version}-2.6.tgz'.format(name=name, version=version),
+        '{name}-{version}.tgz'.format(name=name, version=version),
         b'123',
         name=name,
         version=version,
         indexname=index_name,
         register=True)
-
+    # first we check what happens if the cache is empty
     pypistage.mock_simple(name, '', status_code=502)
     r = testapp.get('/{index_name}/{name}'.format(index_name=index_name, name=name), accept="application/json")
     assert r.status_code == 200
+    assert set(r.json['result']) == set(['1.0'])
+    # then we simulate that the mirror is available to fill the cache
+    pypistage.mock_simple(name, '<a href="/%s-1.1.zip" />' % name)
+    r = testapp.get('/{index_name}/{name}'.format(index_name=index_name, name=name), accept="application/json")
+    assert r.status_code == 200
+    assert set(r.json['result']) == set(['1.0', '1.1'])
+    # and check once more with the filled cache
+    pypistage.mock_simple(name, '', status_code=502)
+    r = testapp.get('/{index_name}/{name}'.format(index_name=index_name, name=name), accept="application/json")
+    assert r.status_code == 200
+    assert set(r.json['result']) == set(['1.0', '1.1'])
 
 
 def test_pkgserv(httpget, pypistage, testapp):
