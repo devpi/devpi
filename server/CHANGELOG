@@ -14,6 +14,10 @@
   to appear before the installer user agent string so redirects for setuptools
   versions which had that work.
 
+- fix issue214: change the order in which indices are searched to fix the
+  mirror whitelisting and also make sure that packages, if available,
+  are always installed from internal indices instead of root/pypi.
+
 
 4.0.0 (2016-05-12)
 ------------------
