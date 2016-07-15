@@ -142,29 +142,40 @@ class BaseStorage:
         self.ensure_tables_exist()
 
     def _get_sqlconn_uri_kw(self, uri, isolation_level):
-        # the uri keyword is only supported from Python 3.4 onwards and
-        # possibly other Python implementation, we will try and switch to
-        # other methods if needed
+        return sqlite3.connect(
+            uri, timeout=60, isolation_level=isolation_level, uri=True)
+
+    def _get_sqlconn_uri(self, uri, isolation_level):
+        return sqlite3.connect(
+            uri, timeout=60, isolation_level=isolation_level)
+
+    def _get_sqlconn_path(self, uri, isolation_level):
+        return sqlite3.connect(
+            self.sqlpath.strpath, timeout=60, isolation_level=isolation_level)
+
+    def _get_sqlconn(self, uri, isolation_level):
+        # we will try different connection methods and overwrite _get_sqlconn
+        # with the first successful one
         try:
-            return sqlite3.connect(
-                uri, timeout=60, isolation_level=isolation_level, uri=True)
+            # the uri keyword is only supported from Python 3.4 onwards and
+            # possibly other Python implementations
+            conn = self._get_sqlconn_uri_kw(uri, isolation_level)
+            # remember for next time
+            self._get_sqlconn = self._get_sqlconn_uri_kw
+            return conn
         except TypeError as e:
             if e.args and 'uri' in e.args[0] and 'keyword argument' in e.args[0]:
                 threadlog.warn(
                     "Can't open sqlite3 db with uri keyword. Python 3.4 is "
                     "the first version to support it.")
-                # remember for next time
-                self._get_sqlconn = self._get_sqlconn_uri
-                return self._get_sqlconn_uri(uri, isolation_level)
-            raise
-
-    def _get_sqlconn_uri(self, uri, isolation_level):
-        # sqlite3 might be compiled with default URI support
-        # we will know when we try and possibly switch the _get_sqlconn_path
-        # method if needed
+            else:
+                raise
         try:
-            return sqlite3.connect(
-                uri, timeout=60, isolation_level=isolation_level)
+            # sqlite3 might be compiled with default URI support
+            conn = self._get_sqlconn_uri(uri, isolation_level)
+            # remember for next time
+            self._get_sqlconn = self._get_sqlconn_uri
+            return conn
         except sqlite3.OperationalError as e:
             # log the error and switch to using the path
             threadlog.warn("%s" % e)
@@ -172,16 +183,10 @@ class BaseStorage:
                 "Can't open sqlite3 db with options in URI. There is a "
                 "higher possibility of read/write conflicts between "
                 "threads, causing slowdowns due to retries.")
+            conn = self._get_sqlconn_path(uri, isolation_level)
             # remember for next time
             self._get_sqlconn = self._get_sqlconn_path
-            return self._get_sqlconn_path(uri, isolation_level)
-
-    def _get_sqlconn_path(self, uri, isolation_level):
-        return sqlite3.connect(
-            self.sqlpath.strpath, timeout=60, isolation_level=isolation_level)
-
-    # first connection method to try, might change if the method is not working
-    _get_sqlconn = _get_sqlconn_uri_kw
+            return conn
 
     def get_connection(self, closing=True, write=False):
         # we let the database serialize all writers at connection time
