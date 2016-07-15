@@ -25,6 +25,9 @@ class BaseConnection:
     def commit(self):
         self._sqlconn.commit()
 
+    def rollback(self):
+        self._sqlconn.rollback()
+
     @cached_property
     def last_changelog_serial(self):
         return self.db_read_last_changelog_serial()
@@ -138,13 +141,78 @@ class BaseStorage:
         self.last_commit_timestamp = time.time()
         self.ensure_tables_exist()
 
+    def _get_sqlconn_uri_kw(self, uri, isolation_level):
+        return sqlite3.connect(
+            uri, timeout=60, isolation_level=isolation_level, uri=True)
+
+    def _get_sqlconn_uri(self, uri, isolation_level):
+        return sqlite3.connect(
+            uri, timeout=60, isolation_level=isolation_level)
+
+    def _get_sqlconn_path(self, uri, isolation_level):
+        return sqlite3.connect(
+            self.sqlpath.strpath, timeout=60, isolation_level=isolation_level)
+
+    def _get_sqlconn(self, uri, isolation_level):
+        # we will try different connection methods and overwrite _get_sqlconn
+        # with the first successful one
+        try:
+            # the uri keyword is only supported from Python 3.4 onwards and
+            # possibly other Python implementations
+            conn = self._get_sqlconn_uri_kw(uri, isolation_level)
+            # remember for next time
+            self._get_sqlconn = self._get_sqlconn_uri_kw
+            return conn
+        except TypeError as e:
+            if e.args and 'uri' in e.args[0] and 'keyword argument' in e.args[0]:
+                threadlog.warn(
+                    "Can't open sqlite3 db with uri keyword. Python 3.4 is "
+                    "the first version to support it.")
+            else:
+                raise
+        try:
+            # sqlite3 might be compiled with default URI support
+            conn = self._get_sqlconn_uri(uri, isolation_level)
+            # remember for next time
+            self._get_sqlconn = self._get_sqlconn_uri
+            return conn
+        except sqlite3.OperationalError as e:
+            # log the error and switch to using the path
+            threadlog.warn("%s" % e)
+            threadlog.warn(
+                "Can't open sqlite3 db with options in URI. There is a "
+                "higher possibility of read/write conflicts between "
+                "threads, causing slowdowns due to retries.")
+            conn = self._get_sqlconn_path(uri, isolation_level)
+            # remember for next time
+            self._get_sqlconn = self._get_sqlconn_path
+            return conn
 
     def get_connection(self, closing=True, write=False):
         # we let the database serialize all writers at connection time
         # to play it very safe (we don't have massive amounts of writes).
-        sqlconn = sqlite3.connect(str(self.sqlpath), timeout=60, isolation_level="DEFERRED")
+        mode = "ro"
+        isolation_level = "DEFERRED"
         if write:
-            sqlconn.execute("begin immediate")
+            mode = "rw"
+            isolation_level = "IMMEDIATE"
+        if not self.sqlpath.exists():
+            mode = "rwc"
+            isolation_level = "IMMEDIATE"
+        uri = "file:%s?mode=%s" % (self.sqlpath, mode)
+        sqlconn = self._get_sqlconn(uri, isolation_level)
+        if write:
+            start_time = time.time()
+            while 1:
+                try:
+                    sqlconn.execute("begin immediate")
+                    break
+                except sqlite3.OperationalError:
+                    # another thread may be writing, give it a chance to finish
+                    time.sleep(0)
+                    if time.time() - start_time > 5:
+                        # if it takes this long, something is wrong
+                        raise
         conn = self.Connection(sqlconn, self.basedir, self)
         if closing:
             return contextlib.closing(conn)
@@ -160,7 +228,7 @@ class Storage(BaseStorage):
     def ensure_tables_exist(self):
         if self.sqlpath.exists():
             return
-        with self.get_connection() as conn:
+        with self.get_connection(write=True) as conn:
             threadlog.info("DB: Creating schema")
             c = conn._sqlconn.cursor()
             c.execute("""
@@ -183,6 +251,7 @@ class Storage(BaseStorage):
                     data BLOB NOT NULL
                 )
             """)
+            conn.commit()
 
 
 def devpiserver_storage_backend(settings):
@@ -229,4 +298,5 @@ class Writer:
 
             self.storage._notify_on_commit(commit_serial)
         else:
+            self.conn.rollback()
             self.log.info("roll back at %s" %(self.next_serial))

@@ -327,14 +327,13 @@ class FileEntry(object):
             # when streaming we won't be in a transaction anymore, so we need
             # to open a new one below
             tx = None
-        if tx is not None:
+        if tx is not None and tx.write:
             self.tx.conn.io_file_set(self._storepath, content)
         else:
-            # we need a new transaction, but since we can't create a new serial
-            # on a replica and we wouldn't want one, it is read only, which
-            # still allows us to use the io_file_* methods
-            with self.key.keyfs.transaction(write=False):
-                self.tx.conn.io_file_set(self._storepath, content)
+            # we need a direct write connection to use the io_file_* methods
+            with self.key.keyfs._storage.get_connection(write=True) as conn:
+                conn.io_file_set(self._storepath, content)
+                conn.commit()
         # in case there were errors before, we can now remove them
         replication_errors.remove(self)
 

@@ -80,6 +80,27 @@ that the ``/+status`` url is routed to a main instance because workers
 will not be able to represent the status.
 
 
+sqlite performance
+------------------
+
+.. versionadded: 3.1
+
+Sqlite can be used with a single writer and multiple readers without blocking.
+Unfortunately that behaviour isn't available in all setups.
+
+With Python 3.4 it is possible to explicitly request that behaviour when
+opening the database. So it is recommended that you run devpi-server
+using Python 3.4.
+
+Some setups compile sqlite in a way which allows to implicitly use the non
+blocking behaviour. It seems like OS X and FreeBSD have that by default. Most
+Linux setups lack that setting.
+
+You can check the devpi-server log to see if there are sqlite related warnings
+shortly after startup. If there are none, then the non blocking behaviour is
+used.
+
+
 storage backend selection
 -------------------------
 

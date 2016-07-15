@@ -134,7 +134,7 @@ class KeyFS(object):
         self._storage.perform_crash_recovery()
 
     def import_changes(self, serial, changes):
-        with self._storage.get_connection() as conn:
+        with self._storage.get_connection(write=True) as conn:
             with conn.write_transaction() as fswriter:
                 next_serial = conn.last_changelog_serial + 1
                 assert next_serial == serial, (next_serial, serial)
