@@ -287,13 +287,11 @@ class TestStage:
         assert e1.basename == "py.zip"
         assert e2.basename == "master"
 
-    def test_inheritance_error(self, pypistage, stage):
+    def test_inheritance_error_are_nop(self, pypistage, stage):
         stage.modify(bases=("root/pypi",), mirror_whitelist=['someproject'])
         pypistage.mock_simple("someproject", status_code = -1)
-        with pytest.raises(stage.UpstreamError):
-            stage.get_releaselinks("someproject")
-        with pytest.raises(stage.UpstreamError):
-            stage.list_versions("someproject")
+        assert stage.get_releaselinks("someproject") == []
+        assert stage.list_versions("someproject") == set([])
 
     def test_get_versiondata_inherited(self, pypistage, stage):
         stage.modify(bases=("root/pypi",), mirror_whitelist=['someproject'])
