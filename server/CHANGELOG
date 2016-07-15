@@ -1,5 +1,9 @@
-4.0.1 (Unreleased)
+4.1.0 (Unreleased)
 ------------------
+
+- Try opening read only transactions in SQLite read only mode for better
+  concurrency/locking behaviour. This is officially supported with Python 3.4,
+  but many systems allow it implicitly in older Python versions.
 
 - fix issue352: When there was an issue during commit or rollback, the thread
   local info got into an inconsistent state. This caused an AttributeError
