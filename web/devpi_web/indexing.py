@@ -29,8 +29,8 @@ def preprocess_project(stage, name_input):
     versions = get_sorted_versions(stage.list_versions_perstage(name))
     result = dict(name=name)
     for i, version in enumerate(versions):
-        verdata = stage.get_versiondata(name, version)
-        if not i:
+        if i == 0:
+            verdata = stage.get_versiondata_perstage(name, version)
             result.update(verdata)
         links = stage.get_linkstore_perstage(name, version).get_links(rel="doczip")
         if links:

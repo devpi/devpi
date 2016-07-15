@@ -1,3 +1,9 @@
+3.0.1 (2016-07-07)
+------------------
+
+- fix issue355: accept PyPy version numbers in package filenames
+
+
 3.0.0 (2016-05-12)
 ------------------
 

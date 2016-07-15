@@ -306,10 +306,12 @@ class Exported:
         setup_py = self.rootpath.join("setup.py")
         if not setup_py.check():
             self.hub.fatal("no setup.py file")
-        name = self.hub.popen_output([self.python, setup_py, "--name"],
-                                     report=False).strip()
+        name = self.hub.popen_output(
+            [self.python, setup_py, "--name"],
+            report=False).splitlines()[-1].strip()
         version = self.hub.popen_output(
-            [self.python, setup_py, "--version"], report=False).strip()
+            [self.python, setup_py, "--version"],
+            report=False).splitlines()[-1].strip()
         self.hub.debug("name, version = %s, %s" %(name, version))
         return name, version
 

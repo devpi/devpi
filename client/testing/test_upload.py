@@ -139,6 +139,8 @@ class TestCheckout:
         checkout = Checkout(uploadhub, setupdir)
         setupdir.join("setup.py").write(dedent("""
             from setuptools import setup
+            # some packages like numpy produce output during build, simulate:
+            print("* foo, bar")
             setup(name="xyz", version="1.2.3")
         """))
         exported = checkout.export(tmpdir)
