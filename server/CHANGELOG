@@ -23,6 +23,9 @@
   mirror whitelisting and also make sure that packages, if available,
   are always installed from internal indices instead of root/pypi.
 
+- when a project has no releases (only setup.py register ran) and it isn't
+  whitelisted, then upstream releases will now be blocked as expected.
+
 
 4.0.0 (2016-05-12)
 ------------------
