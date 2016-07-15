@@ -84,7 +84,7 @@ def test_error_html_only(mapp, testapp, monkeypatch):
     r = testapp.get("/", headers=dict(accept="application/json"))
     assert r.status_code == 502
     assert r.content_type != "text/html"
-    assert "502 Bad Gateway" in r.text.splitlines()
+    assert b"502 Bad Gateway" in r.body
 
 
 @pytest.mark.parametrize("url, headers, selector, expected", [

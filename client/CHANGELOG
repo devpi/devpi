@@ -1,4 +1,4 @@
-2.6.4 (Unreleased)
+2.6.4 (2016-07-15)
 ------------------
 
 - fix issue337: ``devpi upload`` for packages that produce output during build

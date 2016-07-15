@@ -1,4 +1,4 @@
-4.1.0 (Unreleased)
+4.1.0 (2016-07-15)
 ------------------
 
 - Try opening read only transactions in SQLite read only mode for better
