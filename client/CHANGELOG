@@ -1,7 +1,8 @@
 2.6.4 (Unreleased)
 ------------------
 
-- fix issue337: ``devpi upload`` for packages that produce output during build.
+- fix issue337: ``devpi upload`` for packages that produce output during build
+  now works.
 
 
 2.6.3 (2016-05-13)
