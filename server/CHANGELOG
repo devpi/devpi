@@ -1,7 +1,10 @@
 4.0.1 (Unreleased)
 ------------------
 
-- fix issue352: AttributeError during rollback.
+- fix issue352: When there was an issue during commit or rollback, the thread
+  local info got into an inconsistent state. This caused an AttributeError
+  whenever that thread was used. Eventually this could exhaust all worker
+  threads and make devpi unresponsive.
 
 - fix issue354: allow more general agent versions, such as 'Python-urllib/3.5'
   to appear before the installer user agent string so redirects for setuptools
