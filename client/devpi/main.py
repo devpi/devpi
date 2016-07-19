@@ -6,6 +6,7 @@ import argparse
 import subprocess
 import devpi
 from base64 import b64encode
+from contextlib import closing
 from devpi_common.types import lazydecorator, cached_property
 from devpi_common.url import URL
 from devpi_common.proc import check_output
@@ -27,7 +28,8 @@ def main(argv=None):
     if argv is None:
         argv = list(sys.argv)
     hub, method = initmain(argv)
-    return method(hub, hub.args)
+    with closing(hub):
+        return method(hub, hub.args)
 
 def initmain(argv):
     args = parse_args(argv)
@@ -55,6 +57,9 @@ class Hub:
         self.quiet = False
         self._last_http_stati = []
         self.http = new_requests_session(agent=("client", client_version))
+
+    def close(self):
+        self.http.close()
 
     @property
     def _last_http_status(self):
@@ -393,8 +398,8 @@ def parse_args(argv):
     try:
         args = parser.parse_args(argv[1:])
         if sys.version_info >= (3,) and args.version:
-            hub = Hub(args)
-            print_version(hub)
+            with closing(Hub(args)) as hub:
+                print_version(hub)
             parser.exit()
         if args.command is None:
             raise parser.ArgumentError(

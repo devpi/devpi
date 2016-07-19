@@ -292,6 +292,7 @@ def out_devpi(devpi):
                 devpi(*args, **kwargs)
             finally:
                 out, err = cap.reset()
+                del cap
         except:
             print_(out)
             print_(err)
@@ -324,6 +325,8 @@ def cmd_devpi(tmpdir, monkeypatch):
                 pass
             else:
                 raise
+        finally:
+            hub.close()
         if expected is not None:
             if expected == -2:  # failed-to-start
                 assert hasattr(hub, "sysex")
