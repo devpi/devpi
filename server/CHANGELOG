@@ -1,3 +1,13 @@
+4.1.1 (Unreleased)
+------------------
+
+- Adjust event processing status messages and the times when they are shown:
+  After 5 minutes of no event processing there will be a warning.
+  After 30 minutes this will turn into a fatal status.
+  After 1 hour of not being in sync there will be a warning.
+  After 6 hours of desync the status turns fatal.
+
+
 4.1.0 (2016-07-15)
 ------------------
 
