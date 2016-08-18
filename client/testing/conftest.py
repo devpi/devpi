@@ -54,6 +54,7 @@ class PopenFactory:
         def fin():
             try:
                 popen.kill()
+                popen.wait()
             except OSError:
                 print ("could not kill %s" % popen.pid)
         self.addfinalizer(fin)
