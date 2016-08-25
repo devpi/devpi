@@ -942,8 +942,8 @@ def call_devpi_in_dir():
 
     def devpi(server_dir, args):
         from devpi_server.main import main
-        from _pytest.monkeypatch import monkeypatch
-        m = monkeypatch()
+        from _pytest.monkeypatch import MonkeyPatch
+        m = MonkeyPatch()
         m.setenv("DEVPI_SERVERDIR", server_dir)
         m.setattr("sys.argv", [devpiserver])
         try:
