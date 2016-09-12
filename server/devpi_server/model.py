@@ -527,6 +527,8 @@ class BaseStage(object):
                 whitelist = set(stage.ixconfig["mirror_whitelist"])
                 if '*' in whitelist or project in whitelist:
                     whitelisted = stage
+                else:
+                    private_hit = True
 
             try:
                 res = getattr(stage, opname)(**kw)

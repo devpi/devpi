@@ -366,6 +366,16 @@ class TestStage:
         assert links[0].entrypath.endswith("someproject-1.1.zip")
         assert links[1].entrypath.endswith("someproject-1.0.zip")
 
+    def test_project_whitelist_empty_project(self, pypistage, stage):
+        stage.modify(bases=("root/pypi",))
+        pypistage.mock_simple("someproject",
+            "<a href='someproject-1.1.zip' /a>")
+        stage.set_versiondata(udict(name="someproject", version="1.0"))
+        links = stage.get_releaselinks("someproject")
+        # because the whitelist doesn't include "someproject" we get
+        # no releases, because we only registered, but didn't upload
+        assert len(links) == 0
+
     def test_project_whitelist_inheritance(self, pypistage, stage, user):
         user.create_stage(index="dev2", bases=("root/pypi",))
         stage_dev2 = user.getstage("dev2")
