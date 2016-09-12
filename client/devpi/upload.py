@@ -193,14 +193,49 @@ def get_archive_files(path):
                 yield x
 
 
-def get_name_version_doczip(path):
-    path = str(path)
+# this regexp is taken from pip 8.1.2 (from the vendored packaging)
+VERSION_PATTERN = r"""
+    v?
+    (?:
+        (?:(?P<epoch>[0-9]+)!)?                           # epoch
+        (?P<release>[0-9]+(?:\.[0-9]+)*)                  # release segment
+        (?P<pre>                                          # pre-release
+            [-_\.]?
+            (?P<pre_l>(a|b|c|rc|alpha|beta|pre|preview))
+            [-_\.]?
+            (?P<pre_n>[0-9]+)?
+        )?
+        (?P<post>                                         # post release
+            (?:-(?P<post_n1>[0-9]+))
+            |
+            (?:
+                [-_\.]?
+                (?P<post_l>post|rev|r)
+                [-_\.]?
+                (?P<post_n2>[0-9]+)?
+            )
+        )?
+        (?P<dev>                                          # dev release
+            [-_\.]?
+            (?P<dev_l>dev)
+            [-_\.]?
+            (?P<dev_n>[0-9]+)?
+        )?
+    )
+    (?:\+(?P<local>[a-z0-9]+(?:[-_\.][a-z0-9]+)*))?       # local version
+"""
+
+
+name_version_regex = re.compile(
+    "(.*)-(" + VERSION_PATTERN + ")",
+    re.VERBOSE | re.IGNORECASE)
+
+
+def get_name_version_doczip(basename):
     DOCZIPSUFFIX = ".doc.zip"
-    assert path.endswith(DOCZIPSUFFIX)
-    fn = path[:-len(DOCZIPSUFFIX)]
-    # for documentation we presume that versions do not contain "-"
-    # TODO: use packaging.version.VERSION_STRING like pip does
-    name, version = re.match("(.*)-([a-zA-Z0-9\.!]+)", fn).groups()
+    assert basename.endswith(DOCZIPSUFFIX)
+    fn = basename[:-len(DOCZIPSUFFIX)]
+    name, version = name_version_regex.match(fn).groups()[:2]
     return name, version
 
 

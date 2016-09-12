@@ -345,9 +345,18 @@ class TestUploadFunctional:
             vv = ViewLinkStore(url, data["result"])
             assert vv.get_link(basename="hello-%s.zip" % ver)
 
-    def test_frompath(self, initproj, devpi, out_devpi, runproc):
+    @pytest.mark.parametrize("name_version, path", [
+        ("hello-1.3", "hello/1.3/"),
+        (("my-pkg-123", "1.3"), "my-pkg-123/1.3/"),
+        ("mypackage-1.7.3.dev304+ng04e6ea2", "mypackage/1.7.3.dev304+ng04e6ea2"),
+        (("my-pkg-123", "1.7.3.dev304+ng04e6ea2"), "my-pkg-123/1.7.3.dev304+ng04e6ea2")])
+    def test_frompath(self, initproj, devpi, name_version, out_devpi, path, runproc):
         from devpi_common.archive import zip_dir
-        initproj("hello-1.3", {"doc": {
+        if isinstance(name_version, tuple):
+            name_version_str = "%s-%s" % name_version
+        else:
+            name_version_str = name_version
+        initproj(name_version, {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
         tmpdir = py.path.local()
@@ -357,41 +366,16 @@ class TestUploadFunctional:
             tmpdir,
             "python setup.py build_sphinx -E --build-dir".split() + [bpath.strpath])
         dist = tmpdir.join("dist")
-        zip_dir(bpath.join('html'), dist.join("hello-1.3.doc.zip"))
+        zip_dir(bpath.join('html'), dist.join("%s.doc.zip" % name_version_str))
         assert len(dist.listdir()) == 2
         (p, dp) = sorted(dist.listdir(), key=lambda x: '.doc.zip' in x.basename)
         hub = devpi("upload", p, dp)
-        path = "hello/1.3/"
         url = hub.current.get_index_url().url + path
         out = out_devpi("getjson", url)
         data = json.loads(out.stdout.str())
         vv = ViewLinkStore(url, data["result"])
-        assert vv.get_link(basename="hello-1.3.zip")
-        assert vv.get_link(basename="hello-1.3.doc.zip")
-
-    def test_frompath_complex_name(self, initproj, devpi, out_devpi, runproc):
-        from devpi_common.archive import zip_dir
-        initproj(("my-pkg-123", "1.3"), {"doc": {
-            "conf.py": "",
-            "index.html": "<html/>"}})
-        tmpdir = py.path.local()
-        runproc(tmpdir, "python setup.py sdist --format=zip".split())
-        bpath = tmpdir.join('build')
-        out = runproc(
-            tmpdir,
-            "python setup.py build_sphinx -E --build-dir".split() + [bpath.strpath])
-        dist = tmpdir.join("dist")
-        zip_dir(bpath.join('html'), dist.join("my-pkg-123-1.3.doc.zip"))
-        assert len(dist.listdir()) == 2
-        (p, dp) = sorted(dist.listdir(), key=lambda x: '.doc.zip' in x.basename)
-        hub = devpi("upload", p, dp)
-        path = "my-pkg-123/1.3/"
-        url = hub.current.get_index_url().url + path
-        out = out_devpi("getjson", url)
-        data = json.loads(out.stdout.str())
-        vv = ViewLinkStore(url, data["result"])
-        assert vv.get_link(basename="my-pkg-123-1.3.zip")
-        assert vv.get_link(basename="my-pkg-123-1.3.doc.zip")
+        assert vv.get_link(basename="%s.zip" % name_version_str)
+        assert vv.get_link(basename="%s.doc.zip" % name_version_str)
 
 
 

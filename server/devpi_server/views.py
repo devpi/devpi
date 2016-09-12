@@ -783,7 +783,9 @@ class PyPIView:
                 try:
                     link = stage.store_doczip(project, version, doczip)
                 except stage.MissesRegistration:
-                    apireturn(400, "%s-%s is not registered" %(name, version))
+                    abort_submit(
+                        request, 400,
+                        "%s-%s is not registered" % (name, version))
                 except stage.NonVolatile as e:
                     if e.link.matches_checksum(doczip):
                         abort_submit(
