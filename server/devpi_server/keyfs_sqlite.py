@@ -170,6 +170,10 @@ class BaseStorage:
                     "the first version to support it.")
             else:
                 raise
+        except sqlite3.NotSupportedError:
+            threadlog.warn(
+                "Can't open sqlite3 db with uri. The installed version of "
+                "sqlite doesn't support it.")
         try:
             # sqlite3 might be compiled with default URI support
             conn = self._get_sqlconn_uri(uri, isolation_level)

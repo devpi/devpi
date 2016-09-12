@@ -4,6 +4,8 @@
 - when a project has no releases (only setup.py register ran) and it isn't
   whitelisted, then upstream releases will now be blocked as expected.
 
+- handle sqlite3.NotSupportedError when the installed sqlite doesn't support
+  URI filenames at all.
 
 4.1.0 (2016-07-15)
 ------------------
