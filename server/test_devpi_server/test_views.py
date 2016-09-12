@@ -455,29 +455,55 @@ class TestStatusInfoPlugin:
         import time
         now = time.time()
         request = self._xomrequest(xom)
-        # fatal if events never processed
-        result = plugin(request)
-        assert result == [dict(
-            status='fatal',
-            msg='Not all changes processed by plugins for more than 5 minutes')]
-        # fake first event processed
-        xom.keyfs.notifier.write_event_serial(0)
-        xom.keyfs.notifier.event_serial_in_sync_at = now
-        # no report in the first minute
+        # nothing if events never processed directly after startup
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 30)
         result = plugin(request)
         assert result == []
-        # warning after one minute
-        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 70)
-        result = plugin(request)
-        assert result == [dict(
-            status='warn',
-            msg='Not all changes processed by plugins for more than 1 minute')]
-        # fatal after five minutes
+        # fatal after 5 minutes
         monkeypatch.setattr(devpi_server.views, "time", lambda: now + 310)
         result = plugin(request)
         assert result == [dict(
             status='fatal',
-            msg='Not all changes processed by plugins for more than 5 minutes')]
+            msg="The event processing doesn't seem to start")]
+        # fake first event processed
+        xom.keyfs.notifier.write_event_serial(0)
+        xom.keyfs.notifier.event_serial_in_sync_at = now
+        # no report in the first minute
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 30)
+        result = plugin(request)
+        assert result == []
+        # warning after 5 minutes
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 310)
+        result = plugin(request)
+        assert result == [dict(
+            status='warn',
+            msg='No changes processed by plugins for more than 5 minutes')]
+        # fatal after 30 minutes
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 1810)
+        result = plugin(request)
+        assert result == [dict(
+            status='fatal',
+            msg='No changes processed by plugins for more than 30 minutes')]
+        # warning about sync after one hour
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 3610)
+        result = plugin(request)
+        assert result == [
+            dict(
+                status='warn',
+                msg="The event processing hasn't been in sync for more than 1 hour"),
+            dict(
+                status='fatal',
+                msg='No changes processed by plugins for more than 30 minutes')]
+        # fatal sync state after 6 hours
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 21610)
+        result = plugin(request)
+        assert result == [
+            dict(
+                status='fatal',
+                msg="The event processing hasn't been in sync for more than 6 hours"),
+            dict(
+                status='fatal',
+                msg='No changes processed by plugins for more than 30 minutes')]
 
     def test_replica_lagging(self, plugin, makexom, monkeypatch):
         from devpi_server.replica import ReplicaThread
