@@ -54,6 +54,7 @@ class PopenFactory:
         def fin():
             try:
                 popen.kill()
+                popen.wait()
             except OSError:
                 print ("could not kill %s" % popen.pid)
         self.addfinalizer(fin)
@@ -292,6 +293,7 @@ def out_devpi(devpi):
                 devpi(*args, **kwargs)
             finally:
                 out, err = cap.reset()
+                del cap
         except:
             print_(out)
             print_(err)
@@ -324,6 +326,8 @@ def cmd_devpi(tmpdir, monkeypatch):
                 pass
             else:
                 raise
+        finally:
+            hub.close()
         if expected is not None:
             if expected == -2:  # failed-to-start
                 assert hasattr(hub, "sysex")
