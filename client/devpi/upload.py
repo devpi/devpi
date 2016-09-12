@@ -193,6 +193,7 @@ def get_archive_files(path):
                 yield x
 
 
+# this regexp is taken from pip 8.1.2 (from the vendored packaging)
 VERSION_PATTERN = r"""
     v?
     (?:
