@@ -46,7 +46,7 @@ To export from devpi-server-2.X
 
 Upgrade to the latest devpi-server-2.X release:
 
-    pip install "devpi-server<3.0" devpi-common>=2.0.10
+    pip install "devpi-server<3.0" "devpi-common>=2.0.10"
 
 Here we force the devpi-common dependency to not accidentally
 be "devpi-common==2.0.9" which could lead to problems.
@@ -100,11 +100,11 @@ have experienced failures with pip-8.1.2.  The change from 8.1.1
 was that pip now asks for PEP503-normalized names when requesting
 the simple page from an index.  Previously "-" and "." would be
 allowed but with the new normalization "." is substituted with "-".
-Now "pip install zope.interface" triggers a request to 
-"+simple/zope-interface" and devpi in turns asks 
-pypi.python.org/simple/zope-interface and gets an answer
-with lots of "zope.interface-*.tar.gz" release links. But those
-are not matched because without PEP503 "zope.interface" and "zope-interface"
+Now ``pip install zope.interface`` triggers a request to 
+``+simple/zope-interface`` and devpi in turns asks 
+``pypi.python.org/simple/zope-interface`` and gets an answer
+with lots of ``zope.interface-*.tar.gz`` release links. But those
+are not matched because without PEP503 ``zope.interface`` and ``zope-interface``
 are different things.  Moreover, pypi.python.org used to redirect 
 to the "true" name but does not do this anymore which contributed
 to the eventual problem.
