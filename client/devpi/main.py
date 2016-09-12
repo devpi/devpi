@@ -765,6 +765,10 @@ def test(parser):
         help="(experimental) run tests concurrently in multiple processes using "
              "the detox tool (which must be installed)")
 
+    parser.add_argument("--no-upload", action="store_false",
+        dest="post_tox", default=True,
+        help="Skip upload of tox results")
+
     parser.add_argument("--index", default=None,
         help="index to get package from, defaults to current index. "
              "Either just the NAME, using the current user, USER/NAME using "
