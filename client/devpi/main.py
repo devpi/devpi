@@ -766,7 +766,7 @@ def test(parser):
              "the detox tool (which must be installed)")
 
     parser.add_argument("--no-upload", action="store_false",
-        dest="post_tox", default=True,
+        dest="upload_tox_results", default=True,
         help="Skip upload of tox results")
 
     parser.add_argument("--index", default=None,

@@ -72,7 +72,7 @@ class DevIndex:
                 continue
             return ViewLinkStore(projurl, r.result[version])
 
-    def runtox(self, link, pkg, sdist_pkg=None, post_tox=True):
+    def runtox(self, link, pkg, sdist_pkg=None, upload_tox_results=True):
         jsonreport = pkg.rootdir.join("toxreport.json")
         path_archive = pkg.path_archive
         toxargs = ["--installpkg", str(path_archive),
@@ -93,7 +93,7 @@ class DevIndex:
             except SystemExit as e:
                 ret = e.args[0]
 
-        if ret != 2 and post_tox:
+        if ret != 2 and upload_tox_results:
             jsondata = json.load(jsonreport.open("r"))
             url = URL(link.href)
             post_tox_json_report(self.hub, url.url_nofrag, jsondata)
@@ -220,7 +220,7 @@ def main(hub, args):
         toxrunargs = prepare_toxrun_args(devindex, versioninfo, sdist_links, wheel_links)
         all_ret = 0
         for toxargs in toxrunargs:
-            ret = devindex.runtox(*toxargs, post_tox=args.post_tox)
+            ret = devindex.runtox(*toxargs, upload_tox_results=args.upload_tox_results)
             if ret != 0:
                 all_ret = 1
     return all_ret
