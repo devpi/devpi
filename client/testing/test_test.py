@@ -230,6 +230,19 @@ class TestFunctional:
         assert result.ret == 0
         result.stdout.fnmatch_lines("""*tests passed*""")
 
+    def test_no_post(self, out_devpi, create_and_upload, monkeypatch):
+        def post(*args, **kwargs):
+            0 / 0
+
+        create_and_upload("exa-1.0", filedefs={
+            "tox.ini": """
+              [testenv]
+              commands = python -c "print('ok')"
+            """})
+        monkeypatch.setattr("devpi.test.post_tox_json_report", post)
+        result = out_devpi("test", "--no-upload", "exa")
+        assert result.ret == 0
+
     def test_specific_version(self, out_devpi, create_and_upload):
         create_and_upload("exa-1.0", filedefs={
            "tox.ini": """

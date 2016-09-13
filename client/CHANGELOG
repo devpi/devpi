@@ -5,6 +5,8 @@
 
 - fix issue362: close requests session, so all sockets are closed on exit
 
+- add ``--no-upload`` option to ``devpi test`` to skip upload of tox results
+
 
 2.6.4 (2016-07-15)
 ------------------
