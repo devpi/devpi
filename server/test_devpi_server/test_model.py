@@ -376,6 +376,16 @@ class TestStage:
         # no releases, because we only registered, but didn't upload
         assert len(links) == 0
 
+    def test_project_whitelist_nothing_in_stage(self, pypistage, stage):
+        stage.modify(bases=("root/pypi",))
+        pypistage.mock_simple("someproject",
+            "<a href='someproject-1.1.zip' /a>")
+        links = stage.get_releaselinks("someproject")
+        # because the whitelist doesn't include "someproject" we get
+        # no releases, because we only registered, but didn't upload
+        assert len(links) == 1
+        assert links[0].entrypath.endswith("someproject-1.1.zip")
+
     def test_project_whitelist_inheritance(self, pypistage, stage, user):
         user.create_stage(index="dev2", bases=("root/pypi",))
         stage_dev2 = user.getstage("dev2")

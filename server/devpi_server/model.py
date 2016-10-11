@@ -527,7 +527,7 @@ class BaseStage(object):
                 whitelist = set(stage.ixconfig["mirror_whitelist"])
                 if '*' in whitelist or project in whitelist:
                     whitelisted = stage
-                else:
+                elif stage.has_project_perstage(project):
                     private_hit = True
 
             try:
