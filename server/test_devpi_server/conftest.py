@@ -77,14 +77,14 @@ def Queue():
 @pytest.fixture()
 def caplog(caplog):
     """ enrich the pytest-capturelog funcarg. """
-    caplog.setLevel(logging.DEBUG)
+    caplog.set_level(logging.DEBUG)
     def getrecords(msgrex=None, minlevel="DEBUG"):
         if msgrex is not None:
             msgrex = re.compile(msgrex)
         minlevelno = {"DEBUG": 10, "INFO": 20, "WARNING": 30,
                       "ERROR": 40, "FATAL": 50}.get(minlevel)
         recs = []
-        for rec in caplog.records():
+        for rec in caplog.records:
             if rec.levelno < minlevelno:
                 continue
             if msgrex is not None and not msgrex.search(rec.getMessage()):

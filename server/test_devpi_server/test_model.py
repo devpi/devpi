@@ -724,7 +724,7 @@ class TestStage:
         stage.set_versiondata(udict(name="hello-World", version="1.0"))
         for name in ("Hello-World", "hello_world"):
             caplog.handler.records = []
-            caplog.setLevel(logging.WARNING)
+            caplog.set_level(logging.WARNING)
             stage.set_versiondata(udict(name=name, version="1.0"))
             rec = caplog.getrecords()
             assert not rec
