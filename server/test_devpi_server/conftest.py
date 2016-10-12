@@ -1,6 +1,5 @@
 from __future__ import print_function
 import re
-import logging
 from webtest.forms import Upload
 import webtest
 import mimetypes
