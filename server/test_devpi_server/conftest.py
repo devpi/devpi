@@ -75,7 +75,7 @@ def Queue():
 
 @pytest.fixture()
 def caplog(caplog):
-    """ enrich the pytest-capturelog funcarg. """
+    """ enrich the pytest-catchlog funcarg. """
     def getrecords(msgrex=None, minlevel="DEBUG"):
         if msgrex is not None:
             msgrex = re.compile(msgrex)
