@@ -46,7 +46,7 @@ if __name__ == "__main__":
                         "itsdangerous>=0.24",
                         "execnet>=1.2",
                         "pyramid>=1.5.1",
-                        "waitress>=0.8.9",
+                        "waitress>=0.8.9,<1",
                         "repoze.lru>=0.6",
                         "pluggy>=0.3.0,<1.0",
                         ]
@@ -62,7 +62,7 @@ if __name__ == "__main__":
       keywords="pypi realtime cache server",
       long_description="\n\n".join([README, CHANGELOG]),
       url="http://doc.devpi.net",
-      version='4.1.1.dev0',
+      version='4.1.1',
       maintainer="Holger Krekel, Florian Schulze",
       maintainer_email="holger@merlinux.eu",
       packages=find_packages(),

@@ -1,4 +1,4 @@
-4.1.1 (Unreleased)
+4.1.1 (2016-10-14)
 ------------------
 
 - when a project has no releases (only setup.py register ran) and it isn't
