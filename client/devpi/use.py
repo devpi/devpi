@@ -201,7 +201,7 @@ class Current(object):
         if client_cert:
             client_cert = os.path.abspath(os.path.expanduser(client_cert))
             if not os.path.exists(client_cert):
-                hub.fatal("The client certificate at '%s' doesn't exist.")
+                hub.fatal("The client certificate at '%s' doesn't exist." % client_cert)
         elif self.get_client_cert(url=url) is not None:
             hub.info("Using existing client cert for '%s'." % url.url)
         r = hub.http_api(
