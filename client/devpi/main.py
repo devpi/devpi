@@ -4,7 +4,6 @@ import sys
 import py
 import argparse
 import subprocess
-import devpi
 from base64 import b64encode
 from contextlib import closing
 from devpi_common.types import lazydecorator, cached_property
@@ -378,7 +377,7 @@ def print_version(hub):
         try:
             r = HTTPReply(hub.http.get(
                 url, headers=dict(accept='application/json')))
-        except hub.http.Errors as e:
+        except hub.http.Errors:
             pass
         else:
             status = r.json_get('result')
