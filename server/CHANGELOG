@@ -4,6 +4,19 @@
 - fix issue372: correctly set isolation_level for sqlite3 connections. This
   also fixes Python 3.6 compatibility.
 
+- fix issue334: The event handler for the simple page cache failed when an
+  index was deleted and a new replica tried to run the event hooks.
+
+-
+
+-
+
+-
+
+-
+
+-
+
 
 4.1.1 (2016-10-14)
 ------------------
