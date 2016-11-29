@@ -651,3 +651,13 @@ def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, replica_pypis
     replay(xom, replica_xom)
     assert len(ret) == 1
     assert ret[0].relpath == 'root/pypi/+e/https_pypi.python.org_pytest/pytest-1.1.zip'
+
+
+def test_replicate_deleted_user(mapp, replica_xom):
+    mapp.create_and_use("hello/dev")
+    content = mapp.makepkg("hello-1.0.tar.gz", b"content", "hello", "1.0")
+    mapp.upload_file_pypi("hello-1.0.tar.gz", content, "hello", "1.0")
+    mapp.delete_user("hello")
+
+    # replicate the state
+    replay(mapp.xom, replica_xom)

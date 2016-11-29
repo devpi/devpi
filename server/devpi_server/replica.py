@@ -265,7 +265,7 @@ class SimpleLinksChanged:
 
         with self.xom.keyfs.transaction(write=False):
             mirror_stage = self.xom.model.getstage(username, index)
-            if mirror_stage.ixconfig["type"] == "mirror":
+            if mirror_stage and mirror_stage.ixconfig["type"] == "mirror":
                 cache_projectnames = mirror_stage.cache_projectnames.get_inplace()
                 if cache is None:  # deleted
                     cache_projectnames.discard(project)
