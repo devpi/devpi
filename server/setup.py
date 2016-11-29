@@ -62,7 +62,7 @@ if __name__ == "__main__":
       keywords="pypi realtime cache server",
       long_description="\n\n".join([README, CHANGELOG]),
       url="http://doc.devpi.net",
-      version='4.1.1',
+      version='4.1.2.dev0',
       maintainer="Holger Krekel, Florian Schulze",
       maintainer_email="holger@merlinux.eu",
       packages=find_packages(),
@@ -80,7 +80,7 @@ if __name__ == "__main__":
         "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
         ] + [
             ("Programming Language :: Python :: %s" % x) for x in
-                "2.7 3.4".split()] + [
+                "2.7 3.4 3.5".split()] + [
             ("Programming Language :: Python :: Implementation :: PyPy")
         ],
       install_requires=install_requires,

@@ -1,3 +1,10 @@
+4.1.2 (Unreleased)
+------------------
+
+- fix issue372: correctly set isolation_level for sqlite3 connections. This
+  also fixes Python 3.6 compatibility.
+
+
 4.1.1 (2016-10-14)
 ------------------
 
