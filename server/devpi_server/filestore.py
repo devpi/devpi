@@ -301,8 +301,15 @@ class FileEntry(object):
             extra_headers={H_REPLICA_FILEREPL: str("YES")})
         if r.status_code != 200:
             msg = "%s: received %s from master" % (url, r.status_code)
-            threadlog.error(msg)
-            raise self.BadGateway(msg)
+            if not self.url:
+                threadlog.error(msg)
+                raise self.BadGateway(msg)
+            # try to get from original location
+            r = self.xom.httpget(self.url, allow_redirects=True)
+            if r.status_code != 200:
+                msg = "%s\n%s: received %s" % (msg, self.url, r.status_code)
+                threadlog.error(msg)
+                raise self.BadGateway(msg)
 
         yield self._headers_from_response(r)
 
