@@ -1,6 +1,15 @@
 4.2.0 (Unreleased)
 ------------------
 
+SECURITY NOTE:
+
+Before devpi-server 4.2.0 passwords were hashed with a very weak algorithm.
+It's strongly recommended to change any passwords created before 4.2.0
+after upgrading! The password salt and hashes are exposed via the /+changelog
+URL used for replication. If you don't use replication you should block that
+URL to avoid unnecessary exposure. If you use replication you should use client
+side certificates or https with basic authentication to secure /+changelog.
+
 - fix issue372: correctly set isolation_level for sqlite3 connections. This
   also fixes Python 3.6 compatibility.
 
@@ -10,7 +19,8 @@
 - fix issue314: Fetch external file on replica from original source if master
   is down.
 
--
+- fix issue363: Replace weak password hashing with argon2 using passlib.
+  Existing logins will be migrated on login.
 
 -
 

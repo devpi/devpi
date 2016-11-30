@@ -42,12 +42,13 @@ if __name__ == "__main__":
     CHANGELOG = get_changelog()
 
     install_requires = ["py>=1.4.23",
-                        "devpi_common<4,>=3dev",
+                        "devpi_common<4,>=3",
                         "itsdangerous>=0.24",
                         "execnet>=1.2",
                         "pyramid>=1.5.1",
                         "waitress>=0.8.9,<1",
                         "repoze.lru>=0.6",
+                        "passlib[argon2]",
                         "pluggy>=0.3.0,<1.0",
                         ]
     extras_require = {}

@@ -5,6 +5,8 @@ import hashlib
 import itsdangerous
 import py
 from .log import threadlog
+from passlib.context import CryptContext
+from passlib.utils.handlers import MinimalHandler
 
 
 class AuthException(Exception):
@@ -107,13 +109,49 @@ def getpwhash(password, salt):
 def newsalt():
     return py.builtin._totext(base64.b64encode(os.urandom(16)), "ascii")
 
-def verify_password(password, hash, salt):
-    if getpwhash(password, salt) == hash:
-        return True
-    return False
 
-def crypt_password(password):
-    salt = newsalt()
-    hash = getpwhash(password, salt)
-    return salt, hash
+class DevpiHandler(MinimalHandler):
+    name = "devpi"
+    setting_kwds = ()
+    context_kwds = ()
 
+    @classmethod
+    def _get_salt_and_hash(cls, hash):
+        salt = None
+        try:
+            (salt, hash) = hash.split(':', 1)
+        except ValueError:
+            pass
+        return (salt, hash)
+
+    @classmethod
+    def identify(cls, hash):
+        (salt, hash) = cls._get_salt_and_hash(hash)
+        return salt and hash
+
+    @classmethod
+    def hash(cls, secret, **kwds):
+        salt = newsalt()
+        hash = getpwhash(secret, salt)
+        return "%s:%s" % (salt, hash)
+
+    @classmethod
+    def verify(cls, secret, hash):
+        (salt, hash) = cls._get_salt_and_hash(hash)
+        return salt and hash and (getpwhash(secret, salt) == hash)
+
+
+pwd_context = CryptContext(schemes=["argon2", DevpiHandler], deprecated="auto")
+
+
+def verify_and_update_password_hash(password, hash, salt=None):
+    if salt is not None:
+        hash = "%s:%s" % (salt, hash)
+    (valid, newhash) = pwd_context.verify_and_update(password, hash)
+    if newhash:
+        newhash = py.builtin._totext(newhash)
+    return (valid, newhash)
+
+
+def hash_password(password):
+    return py.builtin._totext(pwd_context.hash(password))
