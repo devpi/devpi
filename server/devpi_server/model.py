@@ -11,7 +11,7 @@ from devpi_common.url import URL
 from devpi_common.validation import validate_metadata, normalize_name
 from devpi_common.types import ensure_unicode, cached_property, parse_hash_spec
 from time import gmtime
-from .auth import crypt_password, verify_password
+from .auth import hash_password, verify_and_update_password_hash
 from .filestore import FileEntry
 from .log import threadlog, thread_current_log
 from .readonly import get_mutable_deepcopy
@@ -275,14 +275,14 @@ class User:
                     userconfig[key] = value
                 elif key in userconfig:
                     del userconfig[key]
+                if key in ('pwsalt', 'pwhash') and value:
+                    value = "*******"
                 modified.append("%s=%s" % (key, value))
             threadlog.info("modified user %r: %s", self.name,
                            ", ".join(modified))
 
     def _setpassword(self, userconfig, password):
-        salt, hash = crypt_password(password)
-        userconfig["pwsalt"] = salt
-        userconfig["pwhash"] = hash
+        userconfig["pwhash"] = hash_password(password)
         threadlog.info("setting password for user %r", self.name)
 
     def delete(self):
@@ -299,11 +299,14 @@ class User:
         userconfig = self.key.get()
         if not userconfig:
             return False
-        salt = userconfig["pwsalt"]
+        salt = userconfig.get("pwsalt")
         pwhash = userconfig["pwhash"]
-        if verify_password(password, pwhash, salt):
-            return pwhash
-        return None
+        valid, newhash = verify_and_update_password_hash(password, pwhash, salt)
+        if valid:
+            if newhash:
+                self.modify(pwsalt=None, pwhash=newhash)
+            return True
+        return False
 
     def get(self, credentials=False):
         d = get_mutable_deepcopy(self.key.get())

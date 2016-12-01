@@ -873,6 +873,30 @@ class TestUsers:
         assert user.validate("password")
         assert not user.validate("password2")
 
+    def test_migrate_hash(self, caplog, model):
+        from devpi_server.auth import newsalt, getpwhash
+        user = model.create_user("user", "password", email="some@email.com")
+        userconfig = user.get(credentials=True)
+        assert 'pwsalt' not in userconfig
+        assert 'pwhash' in userconfig
+        salt = newsalt()
+        hash = getpwhash("password", salt)
+        user.modify(pwsalt=salt, pwhash=hash)
+        userconfig = user.get(credentials=True)
+        assert userconfig['pwsalt'] == salt
+        assert userconfig['pwhash'] == hash
+        # now validate and check for migration
+        recs = caplog.getrecords(".*modified user .*")
+        assert len(recs) == 1
+        assert "pwsalt=*******" in recs[0].getMessage()
+        assert user.validate("password")
+        recs = caplog.getrecords(".*modified user .*")
+        assert len(recs) == 2
+        assert "pwsalt=None" in recs[1].getMessage()
+        userconfig = user.get(credentials=True)
+        assert 'pwsalt' not in userconfig
+        assert userconfig['pwhash'].startswith("$argon2")
+
     def test_create_and_delete(self, model):
         user = model.create_user("user", password="password")
         user.delete()

@@ -51,10 +51,19 @@ def test_newsalt():
     assert newsalt() != newsalt()
 
 def test_hash_verification():
-    salt, hash = crypt_password("hello")
-    assert verify_password("hello", hash, salt)
-    assert not verify_password("xy", hash, salt)
-    assert not verify_password("hello", hash, newsalt())
+    hash = hash_password("hello")
+    assert verify_and_update_password_hash("hello", hash) == (True, None)
+    assert verify_and_update_password_hash("xy", hash) == (False, None)
+
+
+def test_hash_migration():
+    secret = "hello"
+    salt = newsalt()
+    hash = getpwhash(secret, salt)
+    (valid, newhash) = verify_and_update_password_hash(secret, hash, salt=salt)
+    assert valid
+    assert newhash != hash
+    assert newhash.startswith('$argon2')
 
 
 class TestAuthPlugin:
