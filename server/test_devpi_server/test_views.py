@@ -1168,6 +1168,8 @@ def test_upload_and_push_external(mapp, testapp, reqmock):
 
 
 def test_upload_and_push_warehouse(mapp, testapp, reqmock):
+    # the new PyPI backend "warehouse" changes some things and they already
+    # start to affect current PyPI behaviour
     from requests.adapters import HTTPAdapter
     from requests.packages.urllib3.response import HTTPResponse
     api = mapp.create_and_use()
@@ -1183,6 +1185,9 @@ def test_upload_and_push_warehouse(mapp, testapp, reqmock):
     r = testapp.xget(200, api.index)
 
     responses = [
+        # the "register" call isn't needed anymore. All the metadata is
+        # sent together with file_upload anyway. So we get a 410 with the
+        # following reason
         HTTPResponse(
             body=py.io.BytesIO(b"msg"),
             status=410, preload_content=False,
