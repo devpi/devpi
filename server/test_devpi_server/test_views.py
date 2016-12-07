@@ -1175,8 +1175,7 @@ def test_upload_and_push_warehouse(mapp, testapp, reqmock):
     zipcontent = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", zipcontent, "pkg1", "")
 
-    r = testapp.get(api.simpleindex + "pkg1")
-    assert r.status_code == 200
+    r = testapp.xget(200, api.simpleindex + "pkg1")
     a = getfirstlink(r.text)
     assert "pkg1-2.6.tgz" in a.get("href")
 
