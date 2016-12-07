@@ -1135,14 +1135,12 @@ def test_upload_and_push_external(mapp, testapp, reqmock):
     zipcontent = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", zipcontent, "pkg1", "")
 
-    r = testapp.get(api.simpleindex + "pkg1")
-    assert r.status_code == 200
+    r = testapp.xget(200, api.simpleindex + "pkg1")
     a = getfirstlink(r.text)
     assert "pkg1-2.6.tgz" in a.get("href")
 
     # get root index page
-    r = testapp.get(api.index)
-    assert r.status_code == 200
+    r = testapp.xget(200, api.index)
 
     # push OK
     req = dict(name="pkg1", version="2.6", posturl="http://whatever.com/",
@@ -1183,8 +1181,7 @@ def test_upload_and_push_warehouse(mapp, testapp, reqmock):
     assert "pkg1-2.6.tgz" in a.get("href")
 
     # get root index page
-    r = testapp.get(api.index)
-    assert r.status_code == 200
+    r = testapp.xget(200, api.index)
 
     responses = [
         HTTPResponse(
@@ -1230,8 +1227,7 @@ def test_upload_and_push_warehouse(mapp, testapp, reqmock):
 def test_upload_and_push_egg(mapp, testapp, reqmock):
     api = mapp.create_and_use()
     mapp.upload_file_pypi("pkg2-1.0-py27.egg", b"123", "pkg2", "1.0")
-    r = testapp.get(api.simpleindex + "pkg2")
-    assert r.status_code == 200
+    r = testapp.xget(200, api.simpleindex + "pkg2")
     a = getfirstlink(r.text)
     assert "pkg2-1.0-py27.egg" in a.get("href")
 
