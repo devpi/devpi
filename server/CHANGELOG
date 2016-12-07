@@ -10,6 +10,9 @@ URL used for replication. If you don't use replication you should block that
 URL to avoid unnecessary exposure. If you use replication you should use client
 side certificates or https with basic authentication to secure /+changelog.
 
+- fix push to PyPI by skipping failing "register" step and adding additional
+  fields in POST data on "file_upload".
+
 - fix issue372: correctly set isolation_level for sqlite3 connections. This
   also fixes Python 3.6 compatibility.
 

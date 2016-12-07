@@ -625,13 +625,17 @@ class PyPIView:
             pypiauth = (username, password)
             # prepare metadata for submission
             metadata[":action"] = "submit"
+            metadata["metadata_version"] = "1.2"
             self.log.info("registering %s-%s to %s", name, version, posturl)
             session = new_requests_session(agent=("server", server_version))
             r = session.post(posturl, data=metadata, auth=pypiauth)
             self.log.debug("register returned: %s", r.status_code)
-            ok_codes = (200, 201)
             results.append((r.status_code, "register", name, version))
-            if r.status_code in ok_codes:
+            ok_codes = (200, 201)
+            proceed = (
+                (r.status_code in ok_codes) or
+                (r.status_code == 410 and 'simply upload' in r.reason))
+            if proceed:
                 for link in links["releasefile"]:
                     entry = link.entry
                     file_metadata = metadata.copy()
@@ -640,6 +644,7 @@ class PyPIView:
                     pyver, filetype = get_pyversion_filetype(basename)
                     file_metadata["filetype"] = filetype
                     file_metadata["pyversion"] = pyver
+                    file_metadata["%s_digest" % link.hash_type] = link.hash_value
                     content = entry.file_get_content()
                     self.log.info("sending %s to %s, metadata %s",
                              basename, posturl, file_metadata)

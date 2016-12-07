@@ -1168,6 +1168,65 @@ def test_upload_and_push_external(mapp, testapp, reqmock):
     assert len(result) == 1
     assert result[0][0] == 500
 
+
+def test_upload_and_push_warehouse(mapp, testapp, reqmock):
+    from requests.adapters import HTTPAdapter
+    from requests.packages.urllib3.response import HTTPResponse
+    api = mapp.create_and_use()
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
+    zipcontent = zip_dict({"index.html": "<html/>"})
+    mapp.upload_doc("pkg1.zip", zipcontent, "pkg1", "")
+
+    r = testapp.get(api.simpleindex + "pkg1")
+    assert r.status_code == 200
+    a = getfirstlink(r.text)
+    assert "pkg1-2.6.tgz" in a.get("href")
+
+    # get root index page
+    r = testapp.get(api.index)
+    assert r.status_code == 200
+
+    responses = [
+        HTTPResponse(
+            body=py.io.BytesIO(b"msg"),
+            status=410, preload_content=False,
+            reason="This API is no longer supported, instead simply upload the file."),
+        HTTPResponse(
+            body=py.io.BytesIO(b"msg"),
+            status=200, preload_content=False),
+        HTTPResponse(
+            body=py.io.BytesIO(b"msg"),
+            status=200, preload_content=False)]
+    requests = []
+
+    def process_request(self, request, kwargs):
+        response = responses.pop(0)
+        r = HTTPAdapter().build_response(request, response)
+        requests.append(request)
+        return r
+    reqmock.process_request = process_request.__get__(reqmock)
+
+    # push OK
+    req = dict(name="pkg1", version="2.6", posturl="http://whatever.com/",
+               username="user", password="password")
+    body = json.dumps(req).encode("utf-8")
+    r = testapp.request(api.index, method="PUSH", body=body,
+                        expect_errors=True)
+    assert r.status_code == 200
+    assert len(requests) == 3
+    for i in range(3):
+        assert requests[i].url == req["posturl"]
+    req = requests[1]
+    assert b"metadata_version" in req.body
+    assert b"sha256_digest" in req.body
+    assert b"pkg1-2.6.tgz" in req.body
+    req = requests[2]
+    assert b"metadata_version" in req.body
+    # XXX properly decode www-url-encoded body and check zipcontent
+    assert b"pkg1.zip" in req.body
+    assert zipcontent in req.body
+
+
 def test_upload_and_push_egg(mapp, testapp, reqmock):
     api = mapp.create_and_use()
     mapp.upload_file_pypi("pkg2-1.0-py27.egg", b"123", "pkg2", "1.0")

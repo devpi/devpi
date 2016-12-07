@@ -798,6 +798,10 @@ class ELink(object):
     def hash_value(self):
         return self.hash_spec.split("=")[1]
 
+    @property
+    def hash_type(self):
+        return self.hash_spec.split("=")[0]
+
     def matches_checksum(self, content):
         hash_algo, hash_value = parse_hash_spec(self.hash_spec)
         if not hash_algo:
