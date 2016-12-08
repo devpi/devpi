@@ -981,13 +981,14 @@ def master_host_port(request, call_devpi_in_dir, server_directory):
 
 
 @pytest.yield_fixture(scope="module")
-def replica_host_port(request, call_devpi_in_dir, server_directory):
+def replica_host_port(request, call_devpi_in_dir, master_host_port, server_directory):
     host = 'localhost'
     port = get_open_port(host)
     replica_dir = server_directory.join("replica")
     args = [
         "devpi-server", "--start",
-        "--host", host, "--port", str(port)]
+        "--host", host, "--port", str(port),
+        "--master-url", "http://%s:%s" % master_host_port]
     if not replica_dir.join('.nodeinfo').exists():
         args.append("--init")
     call_devpi_in_dir(
