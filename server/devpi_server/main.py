@@ -85,7 +85,7 @@ def _main(pluginmanager, argv=None):
             fatal("The path '%s' already contains devpi-server data." % config.serverdir)
     else:
         if not config.path_nodeinfo.exists():
-            fatal("The path '%s' contains no devpi-server data." % config.serverdir)
+            fatal("The path '%s' contains no devpi-server data, use --init to initialize." % config.serverdir)
 
     # read/create node UUID and role of this server
     config.init_nodeinfo()
