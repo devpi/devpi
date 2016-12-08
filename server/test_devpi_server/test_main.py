@@ -1,6 +1,7 @@
 import pytest
 from devpi_server.main import *
 import devpi_server
+import os
 
 @pytest.fixture
 def ground_wsgi_run(monkeypatch):
@@ -84,7 +85,7 @@ def test_run_commands_called(tmpdir):
     pm = get_pluginmanager()
     pm.register(Plugin())
     result = _main(
-        argv=["devpi-server", "--serverdir", str(tmpdir)],
+        argv=["devpi-server", "--init", "--serverdir", str(tmpdir)],
         pluginmanager=pm)
     assert result == 1
     assert len(l) == 1
@@ -102,7 +103,7 @@ def test_main_starts_server_if_run_commands_returns_none(tmpdir):
     pm.register(Plugin())
     with pytest.raises(ZeroDivisionError):
         _main(
-            argv=["devpi-server", "--serverdir", str(tmpdir)],
+            argv=["devpi-server", "--init", "--serverdir", str(tmpdir)],
             pluginmanager=pm)
     assert len(l) == 1
     assert isinstance(l[0], XOM)
@@ -164,3 +165,41 @@ def test_no_root_pypi_option(makexom):
         stage = xom.model.getstage('root/pypi')
         assert stage is not None
         assert stage.name == 'root/pypi'
+
+
+def test_no_init_empty_directory(call_devpi_in_dir, tmpdir):
+    assert not len(os.listdir(tmpdir.strpath))
+    result = call_devpi_in_dir(tmpdir, [])
+    assert not len(os.listdir(tmpdir.strpath))
+    result.stderr.fnmatch_lines("*contains no devpi-server data*")
+
+
+def test_init_empty_directory(call_devpi_in_dir, monkeypatch, tmpdir):
+    monkeypatch.setattr("devpi_server.config.Config.init_nodeinfo", lambda x: 0/0)
+    assert not len(os.listdir(tmpdir.strpath))
+    with pytest.raises(ZeroDivisionError):
+        call_devpi_in_dir(tmpdir, ["devpi-server", "--init"])
+
+
+def test_no_init_no_server_directory(call_devpi_in_dir, tmpdir):
+    tmpdir.ensure("foo")
+    assert os.listdir(tmpdir.strpath) == ["foo"]
+    result = call_devpi_in_dir(tmpdir, [])
+    assert os.listdir(tmpdir.strpath) == ["foo"]
+    result.stderr.fnmatch_lines("*contains no devpi-server data*")
+
+
+def test_init_no_server_directory(call_devpi_in_dir, monkeypatch, tmpdir):
+    monkeypatch.setattr("devpi_server.config.Config.init_nodeinfo", lambda x: 0/0)
+    tmpdir.ensure("foo")
+    assert os.listdir(tmpdir.strpath) == ["foo"]
+    with pytest.raises(ZeroDivisionError):
+        call_devpi_in_dir(tmpdir, ["devpi-server", "--init"])
+
+
+def test_init_server_directory(call_devpi_in_dir, tmpdir):
+    tmpdir.ensure(".nodeinfo")
+    assert os.listdir(tmpdir.strpath) == [".nodeinfo"]
+    result = call_devpi_in_dir(tmpdir, ["devpi-server", "--init"])
+    assert os.listdir(tmpdir.strpath) == [".nodeinfo"]
+    result.stderr.fnmatch_lines("*already contains devpi-server data*")

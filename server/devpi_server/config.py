@@ -129,6 +129,9 @@ def addoptions(parser, pluginmanager):
                  "$DEVPI_SERVERDIR is used if it exists, "
                  "otherwise the default is '~/.devpi/server'")
 
+    deploy.addoption("--init", action="store_true",
+            help="initialize database in empty server directory")
+
     deploy.addoption("--restrict-modify", type=str, metavar="SPEC",
             action="store", default=None,
             help="specify which users/groups may create other users and their "
