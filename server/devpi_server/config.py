@@ -130,7 +130,8 @@ def addoptions(parser, pluginmanager):
                  "otherwise the default is '~/.devpi/server'")
 
     deploy.addoption("--init", action="store_true",
-            help="initialize database in empty server directory")
+            help="initialize devpi-server state in an empty directory "
+                 "(also see --serverdir)")
 
     deploy.addoption("--restrict-modify", type=str, metavar="SPEC",
             action="store", default=None,
