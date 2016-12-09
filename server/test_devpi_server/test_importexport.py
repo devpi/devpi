@@ -53,7 +53,7 @@ def test_empty_serverdir(tmpdir, capfd, monkeypatch):
     assert empty.listdir() == []
     assert ret == 1
     assert out == ''
-    assert ("The path '%s' contains no devpi-server data." % empty) in err
+    assert ("The path '%s' contains no devpi-server data" % empty) in err
 
 
 def test_import_on_existing_server_data(tmpdir, xom):
