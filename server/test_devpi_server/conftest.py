@@ -941,13 +941,21 @@ def call_devpi_in_dir():
     def devpi(server_dir, args):
         from devpi_server.main import main
         from _pytest.monkeypatch import MonkeyPatch
+        from _pytest.pytester import RunResult
         m = MonkeyPatch()
         m.setenv("DEVPI_SERVERDIR", server_dir)
         m.setattr("sys.argv", [devpiserver])
+        cap = py.io.StdCaptureFD()
+        cap.startall()
+        now = py.std.time.time()
         try:
             main(args)
         finally:
             m.undo()
+            out, err = cap.reset()
+            del cap
+        return RunResult(
+            0, out.split("\n"), err.split("\n"), py.std.time.time() - now)
 
     return devpi
 
@@ -956,33 +964,42 @@ def call_devpi_in_dir():
 def master_host_port(request, call_devpi_in_dir, server_directory):
     host = 'localhost'
     port = get_open_port(host)
-    master_dir = server_directory.join("master").strpath
+    master_dir = server_directory.join("master")
+    args = ["devpi-server", "--start", "--host", host, "--port", str(port)]
+    if not master_dir.join('.nodeinfo').exists():
+        args.append("--init")
     call_devpi_in_dir(
-        master_dir,
-        ["devpi-server", "--start", "--host", host, "--port", str(port)])
+        master_dir.strpath,
+        args)
     try:
         wait_for_port(host, port)
         yield (host, port)
     finally:
         call_devpi_in_dir(
-            master_dir,
+            master_dir.strpath,
             ["devpi-server", "--stop"])
 
 
 @pytest.yield_fixture(scope="module")
-def replica_host_port(request, call_devpi_in_dir, server_directory):
+def replica_host_port(request, call_devpi_in_dir, master_host_port, server_directory):
     host = 'localhost'
     port = get_open_port(host)
-    replica_dir = server_directory.join("replica").strpath
+    replica_dir = server_directory.join("replica")
+    args = [
+        "devpi-server", "--start",
+        "--host", host, "--port", str(port),
+        "--master-url", "http://%s:%s" % master_host_port]
+    if not replica_dir.join('.nodeinfo').exists():
+        args.append("--init")
     call_devpi_in_dir(
-        replica_dir,
-        ["devpi-server", "--start", "--host", host, "--port", str(port)])
+        replica_dir.strpath,
+        args)
     try:
         wait_for_port(host, port)
         yield (host, port)
     finally:
         call_devpi_in_dir(
-            replica_dir,
+            replica_dir.strpath,
             ["devpi-server", "--stop"])
 
 
@@ -1015,9 +1032,12 @@ def _nginx_host_port(host, port, call_devpi_in_dir, server_directory):
 
     orig_dir = server_directory.chdir()
     try:
+        args = ["devpi-server", "--gen-config", "--host", host, "--port", str(port)]
+        if not server_directory.join('.nodeinfo').exists():
+            args.append("--init")
         call_devpi_in_dir(
             server_directory.strpath,
-            ["devpi-server", "--gen-config", "--host", host, "--port", str(port)])
+            args)
     finally:
         orig_dir.chdir()
     nginx_directory = server_directory.join("gen-config")

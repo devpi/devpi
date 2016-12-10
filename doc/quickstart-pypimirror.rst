@@ -32,7 +32,7 @@ start background devpi-server process
 
 To start ``devpi-server`` in the background issue::
 
-    $ devpi-server --start
+    $ devpi-server --start --init
     2016-10-11 13:15:28,819 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
     2016-10-11 13:15:28,819 INFO  NOCTX generated uuid: 3f50f0fcf91d4110884e11cbd8b9e441
     2016-10-11 13:15:28,820 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo

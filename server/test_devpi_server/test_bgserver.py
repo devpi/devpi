@@ -22,7 +22,7 @@ def test_server_commands(tmpdir, monkeypatch):
 
     port = get_open_port('localhost')
     portopt = "--port=" + str(port)
-    main(["devpi-server", "--start", portopt])
+    main(["devpi-server", "--init", "--start", portopt])
     try:
         main(["devpi-server", "--status"])
         main(["devpi-server", "--log"])

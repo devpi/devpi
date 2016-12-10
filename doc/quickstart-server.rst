@@ -240,7 +240,7 @@ or indexes except for the root user and the ``root/pypi`` index
 and caches https://pypi.python.org packages.  Let's start a server
 for the purposes of this tutorial in the background::
 
-    $ devpi-server --port 4040 --start
+    $ devpi-server --port 4040 --start --init
     2016-10-11 13:20:11,898 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
     2016-10-11 13:20:11,899 INFO  NOCTX generated uuid: f0169843d71946af8b76f6e35f54e19a
     2016-10-11 13:20:11,901 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo

@@ -25,7 +25,8 @@ side certificates or https with basic authentication to secure /+changelog.
 - fix issue363: Replace weak password hashing with argon2 using passlib.
   Existing logins will be migrated on login.
 
--
+- fix issue377: Add new ``--init`` option required to initialize a server
+  directory. This prevents accidental use of wrong or empty ``--serverdir``.
 
 -
 
