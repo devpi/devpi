@@ -3,6 +3,7 @@ import json
 import contextlib
 import time
 from pyramid.httpexceptions import HTTPNotFound, HTTPAccepted, HTTPBadRequest
+from pyramid.httpexceptions import HTTPForbidden
 from pyramid.view import view_config
 from pyramid.response import Response
 from devpi_common.validation import normalize_name
@@ -65,6 +66,8 @@ class MasterChangelogRequest:
         #   never time out here, leading to more and more threads
         # if no commits happen.
 
+        if not self.xom.is_master():
+            raise HTTPForbidden("Replication protocol disabled")
         expected_uuid = self.request.headers.get(H_EXPECTED_MASTER_ID, None)
         master_uuid = self.xom.config.get_master_uuid()
         # we require the header but it is allowed to be empty

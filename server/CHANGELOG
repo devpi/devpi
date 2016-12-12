@@ -6,9 +6,17 @@ SECURITY NOTE:
 Before devpi-server 4.2.0 passwords were hashed with a very weak algorithm.
 It's strongly recommended to change any passwords created before 4.2.0
 after upgrading! The password salt and hashes are exposed via the /+changelog
-URL used for replication. If you don't use replication you should block that
-URL to avoid unnecessary exposure. If you use replication you should use client
+URL used for replication. If you use replication you should use client
 side certificates or https with basic authentication to secure /+changelog.
+
+UPGRADE NOTE:
+
+Starting with devpi-server 4.2.0 the replication protocol is disabled by
+default to prevent accidental information leaks, like password hashes. To
+enable the replication protocol, you have to use ``--role master`` when
+starting the master devpi-server instance.
+
+- fix issue378: the replication protocol is now disabled by default.
 
 - fix push to PyPI by skipping failing "register" step and adding additional
   fields in POST data on "file_upload".

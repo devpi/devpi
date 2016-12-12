@@ -89,9 +89,11 @@ def addoptions(parser, pluginmanager):
             help="show devpi_version (%s)" % devpi_server.__version__)
 
     deploy.addoption("--role", action="store", dest="role", default="auto",
-            choices=["master", "replica", "auto"],
-            help="set role of this instance."
-    )
+            choices=["master", "replica", "standalone", "auto"],
+            help="set role of this instance. The default 'auto' sets "
+                 "'standalone' by default and 'replica' if the --master-url "
+                 "option is used. To enable the replication protocol you have "
+                 "to explicitly set the 'master' role.")
 
     deploy.addoption("--master-url", action="store", dest="master_url",
             help="run as a replica of the specified master server",
@@ -285,7 +287,7 @@ class Config:
 
     def init_nodeinfo(self):
         log.info("Loading node info from %s", self.path_nodeinfo)
-        self._determine_roles()
+        self._determine_role()
         self._determine_uuid()
         self._determine_storage()
         self.write_nodeinfo()
@@ -306,7 +308,7 @@ class Config:
         self.write_nodeinfo()
 
     def set_master_uuid(self, uuid):
-        assert self.role != "master", "cannot set master uuid for master"
+        assert self.role == "replica", "can only set master uuid on replica"
         existing = self.nodeinfo.get("master-uuid")
         if existing and existing != uuid:
             raise ValueError("already have master id %r, got %r" % (
@@ -315,7 +317,7 @@ class Config:
         self.write_nodeinfo()
 
     def get_master_uuid(self):
-        if self.role == "master":
+        if self.role != "replica":
             return self.nodeinfo["uuid"]
         return self.nodeinfo.get("master-uuid")
 
@@ -330,28 +332,69 @@ class Config:
         self.path_nodeinfo.write(json.dumps(self.nodeinfo, indent=2))
         threadlog.info("wrote nodeinfo to: %s", self.path_nodeinfo)
 
-    def _determine_roles(self):
+    @property
+    def master_url(self):
+        if hasattr(self, '_master_url'):
+            return self._master_url
+        master_url = None
+        if self.args.master_url:
+            master_url = URL(self.args.master_url)
+        elif self.nodeinfo.get("masterurl"):
+            master_url = URL(self.nodeinfo["masterurl"])
+        self._master_url = master_url
+        return master_url
+
+    @master_url.setter
+    def master_url(self, value):
+        self._master_url = value
+
+    def _init_role(self):
+        if self.master_url:
+            self.nodeinfo["role"] = "replica"
+        else:
+            self.nodeinfo["role"] = "standalone"
+
+    def _automatic_role(self, role):
         from .main import fatal
-        args = self.args
+        if role == "replica" and not self.master_url:
+            fatal("configuration error, masterurl isn't set in nodeinfo, but "
+                  "role is set to replica")
+        if role != "replica" and self.master_url:
+            fatal("configuration error, masterurl set in nodeinfo, but role "
+                  "isn't set to replica")
+        if role != "replica":
+            self.master_url = None
+        if role == "master":
+            # we only allow explicit master role
+            self.nodeinfo["role"] = "standalone"
+
+    def _change_role(self, old_role, new_role):
+        from .main import fatal
+        if new_role == "replica":
+            if old_role and old_role != "replica":
+                fatal("cannot run as replica, was previously run "
+                      "as %s" % old_role)
+            if not self.master_url:
+                fatal("need to specify --master-url to run as replica")
+        else:
+            self.master_url = None
+        self.nodeinfo["role"] = new_role
+
+    def _determine_role(self):
         old_role = self.nodeinfo.get("role")
-        if args.master_url:
-            self.master_url = URL(args.master_url)
-            if old_role == "master":
-                fatal("cannot run as replica, was previously run as master")
-            if args.role == "master":
-                fatal("option conflict: --role=master and --master-url")
-            role = "replica"
+        if self.args.role == "auto" and not old_role:
+            self._init_role()
+        elif self.args.role == "auto":
+            self._automatic_role(old_role)
+        elif old_role != self.args.role:
+            self._change_role(old_role, self.args.role)
+        assert self.nodeinfo["role"]
+        if self.nodeinfo["role"] == "replica":
+            assert self.master_url
+        if self.master_url:
             self.nodeinfo["masterurl"] = self.master_url.url
         else:
-            if args.role == "replica":
-                fatal("need to specify --master-url to run as replica")
-            role = "master"
-        if role == "master" and old_role == "replica" and \
-           args.role != "master":
-            fatal("need to specify --role=master to run previous replica "
-                  "as a master")
-        self.nodeinfo["role"] = role
-        return
+            self.nodeinfo.pop("masterurl", None)
 
     def _storage_info_from_name(self, name, settings):
         from .main import fatal

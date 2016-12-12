@@ -391,6 +391,12 @@ def test_apiconfig(testapp):
     assert r.status_code == 200
     assert not "pypisubmit" in r.json["result"]
 
+
+def test_getchanges(testapp):
+    # the replica protocol should be disabled by default
+    testapp.xget(403, "/+changelog/0")
+
+
 class TestStatus:
     def test_status_master(self, testapp):
         r = testapp.get_json("/+status", status=200)

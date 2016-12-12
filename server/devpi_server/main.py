@@ -383,8 +383,11 @@ class XOM:
                 self.thread_pool.register(self.replica_thread)
         return OutsideURLMiddleware(app, self)
 
+    def is_master(self):
+        return self.config.role == "master"
+
     def is_replica(self):
-        return bool(self.config.args.master_url)
+        return self.config.role == "replica"
 
 
 class FatalResponse:

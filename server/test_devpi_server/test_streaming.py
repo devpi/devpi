@@ -47,6 +47,7 @@ def files_directory(server_directory):
 @pytest.mark.parametrize("length,pkg_version", [
     (None, '1.0'), (False, '1.1')])
 def test_streaming_download(content_digest, files_directory, length, pkg_version, server_url_session, simpypi):
+    from time import sleep
     (content, digest) = content_digest
     (url, s) = server_url_session
     pkgzip = "pkg-%s.zip" % pkg_version
@@ -68,6 +69,11 @@ def test_streaming_download(content_digest, files_directory, length, pkg_version
     assert data == content
     pkg_file = files_directory.join(
         'root', 'pypi', '+f', digest[:3], digest[3:16], pkgzip)
+    # this is sometimes delayed a bit, so we check for a while
+    for i in range(50):
+        if pkg_file.exists():
+            break
+        sleep(0.1)
     assert pkg_file.exists()
 
 
