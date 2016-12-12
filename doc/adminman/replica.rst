@@ -19,20 +19,22 @@ See also :ref:`serverstatus`.
 Usage
 ---------------------------------------------
 
-Any regular ``devpi-server`` instance can serve as a master.
+Any regular ``devpi-server`` instance can serve as a master. You just have to
+provide the ``--role master`` option to enable the replication protocol.
+
 In order to start a replica you need to provide the root master URL::
 
-    devpi-server --master http://url-of-master
+    devpi-server --master-url http://url-of-master
 
 If you are testing replication and run the master and replica on the
 same host make sure you specify different server directories and ports
 like this::
 
     # start master in one window
-    devpi-server --serverdir masterdir
+    devpi-server --serverdir masterdir --role master
 
     # start replica in another window
-    devpi-server --master http://localhost:3141 --port 4000 --serverdir replica
+    devpi-server --master-url http://localhost:3141 --port 4000 --serverdir replica
 
 You can now connect to ``http://localhost:3141`` or ``http://localhost:4000``
 interchangeably.  Specify ``--debug`` to see more output related to the

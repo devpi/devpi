@@ -13,6 +13,8 @@ pytestmark = [pytest.mark.notransaction]
 
 @pytest.fixture
 def testapp(testapp):
+    testapp.xom.config.nodeinfo["role"] = "master"
+    assert testapp.xom.config.role == "master"
     master_uuid = testapp.xom.config.get_master_uuid()
     assert master_uuid
     testapp.set_header_default(H_EXPECTED_MASTER_ID, master_uuid)

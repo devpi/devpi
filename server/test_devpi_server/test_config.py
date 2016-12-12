@@ -72,10 +72,25 @@ class TestConfig:
         config = make_config(["devpi-server"])
         assert config.serverdir == tmpdir
 
+    def test_role_permanence_standalone(self, tmpdir):
+        config = make_config(["devpi-server", "--serverdir", str(tmpdir)])
+        config.init_nodeinfo()
+        assert config.role == "standalone"
+        config = make_config(["devpi-server", "--role=standalone",
+                               "--serverdir", str(tmpdir)])
+        config.init_nodeinfo()
+        assert config.role == "standalone"
+        with pytest.raises(Fatal):
+            make_config(["devpi-server", "--role=replica",
+                          "--serverdir", str(tmpdir)]).init_nodeinfo()
+        config = make_config(["devpi-server", "--serverdir", str(tmpdir)])
+        config.init_nodeinfo()
+        assert config.role == "standalone"
+
     def test_role_permanence_master(self, tmpdir):
         config = make_config(["devpi-server", "--serverdir", str(tmpdir)])
         config.init_nodeinfo()
-        assert config.role == "master"
+        assert config.role == "standalone"
         config = make_config(["devpi-server", "--role=master",
                                "--serverdir", str(tmpdir)])
         config.init_nodeinfo()
@@ -83,6 +98,9 @@ class TestConfig:
         with pytest.raises(Fatal):
             make_config(["devpi-server", "--role=replica",
                           "--serverdir", str(tmpdir)]).init_nodeinfo()
+        config = make_config(["devpi-server", "--serverdir", str(tmpdir)])
+        config.init_nodeinfo()
+        assert config.role == "standalone"
 
     def test_role_permanence_replica(self, tmpdir):
         config = make_config(["devpi-server", "--master-url", "http://qwe",
@@ -90,9 +108,10 @@ class TestConfig:
         config.init_nodeinfo()
         assert config.role == "replica"
         assert not config.get_master_uuid()
-        with pytest.raises(Fatal) as excinfo:
-            make_config(["devpi-server", "--serverdir", str(tmpdir)]).init_nodeinfo()
-        assert "specify --role=master" in str(excinfo.value)
+        config = make_config(["devpi-server", "--serverdir", str(tmpdir)])
+        config.init_nodeinfo()
+        assert config.role == "replica"
+        assert not config.get_master_uuid()
         config = make_config(["devpi-server", "--serverdir", str(tmpdir),
                                "--role=master"])
         config.init_nodeinfo()

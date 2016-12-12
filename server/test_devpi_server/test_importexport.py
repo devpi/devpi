@@ -528,13 +528,16 @@ class TestImportExport:
         mapp1 = impexp.mapp1
         mapp1.create_and_login_user("exp", "pass")
         # fake it's a replica
-        mapp1.xom.config.init_nodeinfo()
+        # delete cached value
+        del mapp1.xom.config._master_url
         mapp1.xom.config.nodeinfo["role"] = "replica"
+        mapp1.xom.config.nodeinfo["masterurl"] = "http://xyz"
+        mapp1.xom.config.init_nodeinfo()
         mapp1.xom.config.set_master_uuid("mm")
         mapp1.xom.config.set_uuid("1111")
         impexp.export(initnodeinfo=False)
         mapp2 = impexp.new_import()
-        assert mapp2.xom.config.nodeinfo["role"] == "master"
+        assert mapp2.xom.config.nodeinfo["role"] == "standalone"
         assert mapp2.xom.config.get_master_uuid() == "mm"
         assert mapp2.xom.config.nodeinfo["uuid"] == "mm"
 

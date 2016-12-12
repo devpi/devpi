@@ -965,7 +965,7 @@ def master_host_port(request, call_devpi_in_dir, server_directory):
     host = 'localhost'
     port = get_open_port(host)
     master_dir = server_directory.join("master")
-    args = ["devpi-server", "--start", "--host", host, "--port", str(port)]
+    args = ["devpi-server", "--start", "--role", "master", "--host", host, "--port", str(port)]
     if not master_dir.join('.nodeinfo').exists():
         args.append("--init")
     call_devpi_in_dir(
