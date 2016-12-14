@@ -1,4 +1,4 @@
-4.2.0 (Unreleased)
+4.2.0 (2016-12-14)
 ------------------
 
 SECURITY NOTE:
@@ -37,8 +37,6 @@ starting the master devpi-server instance.
   directory. This prevents accidental use of wrong or empty ``--serverdir``.
 
 - fix issue285: require waitress >= 1.0.1 to enable IPv6 support.
-
--
 
 
 4.1.1 (2016-10-14)

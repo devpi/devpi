@@ -34,7 +34,7 @@ Install or upgrade ``devpi-server``::
 And let's check the version::
 
     $ devpi-server --version
-    4.1.1
+    4.2.0
 
 .. _genconfig:
 
@@ -220,16 +220,7 @@ Installing devpi server and client
 
 .. 
     $ devpi-server --stop
-    2016-10-11 13:20:10,940 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2016-10-11 13:20:10,941 INFO  NOCTX generated uuid: 28e3449225db40f5a59a3bcbf45e450f
-    2016-10-11 13:20:10,942 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2016-10-11 13:20:10,943 INFO  NOCTX DB: Creating schema
-    2016-10-11 13:20:10,958 INFO  [Wtx-1] setting password for user 'root'
-    2016-10-11 13:20:10,958 INFO  [Wtx-1] created user 'root' with email None
-    2016-10-11 13:20:10,958 INFO  [Wtx-1] created root user
-    2016-10-11 13:20:10,959 INFO  [Wtx-1] created root/pypi index
-    2016-10-11 13:20:10,963 INFO  [Wtx-1] fswriter0: committed: keys: 'root/.config','.config'
-    no server found
+    fatal: The path '/tmp/home/.devpi/server' contains no devpi-server data, use --init to initialize.
 
 ..
     $ rm -rf ~/.devpi/server
@@ -241,18 +232,18 @@ and caches https://pypi.python.org packages.  Let's start a server
 for the purposes of this tutorial in the background::
 
     $ devpi-server --port 4040 --start --init
-    2016-10-11 13:20:11,898 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2016-10-11 13:20:11,899 INFO  NOCTX generated uuid: f0169843d71946af8b76f6e35f54e19a
-    2016-10-11 13:20:11,901 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2016-10-11 13:20:11,903 INFO  NOCTX DB: Creating schema
-    2016-10-11 13:20:11,918 INFO  [Wtx-1] setting password for user 'root'
-    2016-10-11 13:20:11,918 INFO  [Wtx-1] created user 'root' with email None
-    2016-10-11 13:20:11,918 INFO  [Wtx-1] created root user
-    2016-10-11 13:20:11,918 INFO  [Wtx-1] created root/pypi index
-    2016-10-11 13:20:11,921 INFO  [Wtx-1] fswriter0: committed: keys: 'root/.config','.config'
+    2016-12-14 11:15:50,833 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2016-12-14 11:15:50,834 INFO  NOCTX generated uuid: e3cc1a2571f547429dbf7093979b2aef
+    2016-12-14 11:15:50,835 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    2016-12-14 11:15:50,836 INFO  NOCTX DB: Creating schema
+    2016-12-14 11:15:50,845 INFO  [Wtx-1] setting password for user 'root'
+    2016-12-14 11:15:50,845 INFO  [Wtx-1] created user 'root' with email None
+    2016-12-14 11:15:50,845 INFO  [Wtx-1] created root user
+    2016-12-14 11:15:50,846 INFO  [Wtx-1] created root/pypi index
+    2016-12-14 11:15:50,849 INFO  [Wtx-1] fswriter0: committed: keys: '.config','root/.config'
     starting background devpi-server at http://localhost:4040
     /tmp/home/.devpi/server/.xproc/devpi-server$ /home/devpi/devpi/bin/devpi-server --port 4040
-    process 'devpi-server' started pid=30536
+    process 'devpi-server' started pid=24257
     devpi-server process startup detected
     logfile is at /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
 
@@ -393,6 +384,6 @@ Stopping the server
 Let's not forget to stop our background tutorial server::
 
     $ devpi-server --stop
-    2016-10-11 13:20:20,401 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2016-10-11 13:20:20,403 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    killed server pid=30536
+    2016-12-14 11:15:59,532 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2016-12-14 11:15:59,534 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    killed server pid=24257
