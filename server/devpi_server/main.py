@@ -137,7 +137,8 @@ def wsgi_run(xom, app):
     log.info("serverdir: %s" % xom.config.serverdir)
     log.info("uuid: %s" % xom.config.nodeinfo["uuid"])
     hostaddr = "http://%s:%s" % (host, port)
-    log.info("serving at url: %s", hostaddr)
+    hostaddr6 = "http://[%s]:%s" % (host, port)
+    log.info("serving at url: %s (might be %s for IPv6)", hostaddr, hostaddr6)
     log.info("bug tracker: https://bitbucket.org/hpk42/devpi/issues")
     log.info("IRC: #devpi on irc.freenode.net")
     if "WEBTRACE" in os.environ and xom.config.args.debug:
