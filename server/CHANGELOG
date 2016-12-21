@@ -1,3 +1,11 @@
+4.2.1 (Unreleased)
+------------------
+
+- the new ``--init`` option now exits after done, so it can be used in
+  automation scripts. When using with ``--start`` it still starts the
+  background server immediately.
+
+
 4.2.0 (2016-12-14)
 ------------------
 

@@ -120,6 +120,9 @@ def _main(pluginmanager, argv=None):
         with xom.keyfs.transaction(write=True):
             return run_passwd(xom.model, config.args.passwd)
 
+    if args.init:
+        return
+
     return xom.main()
 
 
