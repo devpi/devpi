@@ -87,6 +87,9 @@ def test_run_commands_called(tmpdir):
     result = _main(
         argv=["devpi-server", "--init", "--serverdir", str(tmpdir)],
         pluginmanager=pm)
+    result = _main(
+        argv=["devpi-server", "--serverdir", str(tmpdir)],
+        pluginmanager=pm)
     assert result == 1
     assert len(l) == 1
     assert isinstance(l[0], XOM)
@@ -101,9 +104,12 @@ def test_main_starts_server_if_run_commands_returns_none(tmpdir):
             l.append(xom)
     pm = get_pluginmanager()
     pm.register(Plugin())
+    _main(
+        argv=["devpi-server", "--init", "--serverdir", str(tmpdir)],
+        pluginmanager=pm)
     with pytest.raises(ZeroDivisionError):
         _main(
-            argv=["devpi-server", "--init", "--serverdir", str(tmpdir)],
+            argv=["devpi-server", "--serverdir", str(tmpdir)],
             pluginmanager=pm)
     assert len(l) == 1
     assert isinstance(l[0], XOM)
