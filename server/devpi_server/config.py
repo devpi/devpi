@@ -41,6 +41,10 @@ def addoptions(parser, pluginmanager):
             default=3141,
             help="port to listen for http requests.")
 
+    web.addoption("--threads",  type=int,
+            default=50,
+            help="number of threads to start for serving clients.")
+
     web.addoption("--outside-url",  type=str, dest="outside_url",
             metavar="URL",
             default=None,
