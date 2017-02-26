@@ -52,7 +52,7 @@ will show how to:
    * test and upload test results to the devpi server 
      (:ref:`jump to <devpi_um_packages_doc>`)
 
-For this purpose will use a sample packahe which has the following structure:
+For this purpose will use a sample package which has the following structure:
 
    * :download:`pysober.py <./pysober/pysober.py>` The module to be released.
    * :download:`setup.py <./pysober/setup.py>` 
