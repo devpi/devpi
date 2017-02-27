@@ -213,6 +213,12 @@ class TestImportExport:
         indexlist = mapp2.getindexlist(api.user)
         assert indexlist[api.stagename]["mirror_whitelist"] == ["*"]
 
+    def test_bases_cycle(self, caplog, impexp):
+        mapp = impexp.import_testdata('basescycle')
+        with mapp.xom.keyfs.transaction(write=False):
+            stage = mapp.xom.model.getstage('root/dev')
+            assert stage.ixconfig['bases'] == ('root/dev',)
+
     def test_bad_username(self, caplog, impexp):
         with pytest.raises(SystemExit):
             impexp.import_testdata('badusername')

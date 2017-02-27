@@ -3,6 +3,8 @@
 
 - fix ``--import`` after ``--init`` option was added.
 
+- fix import when the export contains a bases cycle.
+
 
 4.2.1 (2016-12-22)
 ------------------
