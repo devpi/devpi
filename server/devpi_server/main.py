@@ -135,6 +135,7 @@ def wsgi_run(xom, app):
     from waitress import serve
     host = xom.config.args.host
     port = xom.config.args.port
+    threads = xom.config.args.threads
     log = xom.log
     log.info("devpi-server version: %s", server_version)
     log.info("serverdir: %s" % xom.config.serverdir)
@@ -142,6 +143,7 @@ def wsgi_run(xom, app):
     hostaddr = "http://%s:%s" % (host, port)
     hostaddr6 = "http://[%s]:%s" % (host, port)
     log.info("serving at url: %s (might be %s for IPv6)", hostaddr, hostaddr6)
+    log.info("using %s threads", threads)
     log.info("bug tracker: https://bitbucket.org/hpk42/devpi/issues")
     log.info("IRC: #devpi on irc.freenode.net")
     if "WEBTRACE" in os.environ and xom.config.args.debug:
@@ -149,7 +151,7 @@ def wsgi_run(xom, app):
         app = make_eval_exception(app, {})
     try:
         log.info("Hit Ctrl-C to quit.")
-        serve(app, host=host, port=port, threads=50)
+        serve(app, host=host, port=port, threads=threads)
     except KeyboardInterrupt:
         pass
     return 0

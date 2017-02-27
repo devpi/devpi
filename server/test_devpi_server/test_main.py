@@ -209,3 +209,11 @@ def test_init_server_directory(call_devpi_in_dir, tmpdir):
     result = call_devpi_in_dir(tmpdir, ["devpi-server", "--init"])
     assert os.listdir(tmpdir.strpath) == [".nodeinfo"]
     result.stderr.fnmatch_lines("*already contains devpi-server data*")
+
+
+def test_serve_threads(monkeypatch, tmpdir):
+    def check_threads(app, host, port, threads):
+        assert threads == 100
+    monkeypatch.setattr("waitress.serve", check_threads)
+    from devpi_server.main import main
+    main(["devpi-server", "--threads", "100"])
