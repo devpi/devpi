@@ -2,6 +2,7 @@ from __future__ import print_function
 # content of conftest.py
 import os
 import random
+import pkg_resources
 import pytest
 import textwrap
 import py
@@ -11,6 +12,7 @@ import json
 from _pytest.pytester import RunResult, LineMatcher
 from devpi.main import Hub, initmain, parse_args
 from devpi_common.url import URL
+from devpi_server import __version__ as devpi_server_version
 from test_devpi_server.conftest import reqmock  # noqa
 try:
     from test_devpi_server.conftest import simpypi, simpypiserver  # noqa
@@ -114,9 +116,13 @@ def _url_of_liveserver(clientdir):
     path = py.path.local.sysfind("devpi-server")
     assert path
     try:
-        subprocess.check_call([
+        args = [
             str(path), "--serverdir", str(clientdir), "--debug",
-            "--port", str(port), "--start"])
+            "--port", str(port), "--start"]
+        server_version = pkg_resources.parse_version(devpi_server_version)
+        if server_version >= pkg_resources.parse_version('4.2.0.dev'):
+            args.append('--init')
+        subprocess.check_output(args, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
         print(e.output, file=sys.stderr)
         raise

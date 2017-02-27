@@ -1,20 +1,32 @@
 """
 (deprecated) perform a quickstart initialization of devpi-server and devpi-client.
 """
+import pkg_resources
 import py
+import subprocess
+
 
 def main(hub, args):
     clientdir = py.path.local(args.clientdir)
-    if clientdir.check() or clientdir.dirpath("server").check():
-        hub.fatal("client state directory exists, cannot perform quickstart. "
+    if clientdir.dirpath("server").check():
+        hub.fatal("server state directory exists, cannot perform quickstart. "
                   "If you have a server running, please kill it with "
                   "e. g. `devpi-server --stop` and "
-                  "afterwards remove %s" %(clientdir.dirpath()))
+                  "afterwards remove %s" %(clientdir.dirpath("server")))
     #out = hub.popen_output(["devpi-server", "--status"])
     #if "no server" not in out:
     #    hub.fatal("devpi-server already running, stop it first")
-
-    hub.popen(["devpi-server", "--start"])
+    (ret, out, err) = hub.popen(
+        ["devpi-server", "--version"],
+        dryrun=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT)
+    devpi_server_version = out.decode('ascii').strip()
+    devpi_args = ["devpi-server", "--start"]
+    server_version = pkg_resources.parse_version(devpi_server_version)
+    if server_version >= pkg_resources.parse_version('4.2.0.dev'):
+        devpi_args.append('--init')
+    hub.popen(devpi_args)
     try:
         hub.popen(["devpi", "use", "http://localhost:3141"])
         hub.line("")
