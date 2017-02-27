@@ -168,3 +168,19 @@ Plugins can show server status messages in the web interface::
       Returns a list of dictionaries with keys ``status`` and ``msg``, where
       status is ``warn`` or ``fatal``.
       """
+
+
+
+devpi-client plugin hooks (experimental)
+============================================
+
+hook semantics for password prompt
+------------------------------------------------
+
+Plugins can return passwords based on username and server url::
+
+  def devpiclient_get_password(url, username):
+      """Called when password is needed for login.
+
+      Returns the password if there is one, or None if no match is found.
+      """
