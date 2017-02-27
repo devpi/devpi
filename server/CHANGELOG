@@ -1,4 +1,4 @@
-4.2.1 (Unreleased)
+4.2.1 (2016-12-22)
 ------------------
 
 - the new ``--init`` option now exits after done, so it can be used in
