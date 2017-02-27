@@ -1,3 +1,10 @@
+4.2.2 (Unreleased)
+------------------
+
+- fix issue350: use absolute path to devpi-server when starting
+  background process.
+
+
 4.2.1 (2016-12-22)
 ------------------
 
