@@ -65,7 +65,9 @@ def test_login_plugin(args, hub, login, mock_http_api):
     mock_http_api.set(hub.current.login, 200, result={
         "expiration": 36000,
         "password": "token"})
+    assert len(passwords) == 1
     login()
+    assert len(passwords) == 0
     out = hub._out.getvalue()
     assert "logged in 'user'" in out
     assert "credentials valid for 10.00 hours" in out
