@@ -73,6 +73,7 @@ class XProcessInfo:
                 return self._isrunning_win32(self.pid)
             try:
                 os.kill(self.pid, 0)
+                os.waitpid(self.pid, os.WNOHANG)
                 return True
             except OSError:
                 pass
