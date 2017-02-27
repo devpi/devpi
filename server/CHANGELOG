@@ -1,3 +1,9 @@
+4.2.2 (Unreleased)
+------------------
+
+- fix ``--import`` after ``--init`` option was added.
+
+
 4.2.1 (2016-12-22)
 ------------------
 

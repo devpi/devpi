@@ -72,7 +72,7 @@ def _main(pluginmanager, argv=None):
     # meta commmands
     if args.version:
         print(server_version)
-        return
+        return 0
 
     if args.genconfig:
         from devpi_server.genconfig import genconfig
@@ -83,7 +83,7 @@ def _main(pluginmanager, argv=None):
     if args.init:
         if config.path_nodeinfo.exists():
             fatal("The path '%s' already contains devpi-server data." % config.serverdir)
-    else:
+    elif not args.import_:
         if not config.path_nodeinfo.exists():
             fatal("The path '%s' contains no devpi-server data, use --init to initialize." % config.serverdir)
 
@@ -121,7 +121,7 @@ def _main(pluginmanager, argv=None):
             return run_passwd(xom.model, config.args.passwd)
 
     if args.init:
-        return
+        return 0
 
     return xom.main()
 
