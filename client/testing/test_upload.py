@@ -375,8 +375,10 @@ class TestUploadFunctional:
         out = out_devpi("getjson", url)
         data = json.loads(out.stdout.str())
         vv = ViewLinkStore(url, data["result"])
-        assert vv.get_link(basename="%s.zip" % name_version_str)
-        assert vv.get_link(basename="%s.doc.zip" % name_version_str)
+        assert len(vv.get_links()) == 2
+        links = dict((x.rel, x.basename.lower()) for x in vv.get_links())
+        assert links["releasefile"] == "%s.zip" % name_version_str
+        assert links["doczip"] == "%s.doc.zip" % name_version_str
 
 
 

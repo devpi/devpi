@@ -34,8 +34,6 @@ def pytest_addoption(parser):
                      action="store", dest="live_url")
 
 
-import subprocess as gsub
-
 def print_info(*args, **kwargs):
     kwargs.setdefault("file", sys.stderr)
     return py.builtin.print_(*args, **kwargs)
@@ -48,11 +46,11 @@ class PopenFactory:
         args = [str(x) for x in args]
         if pipe:
             print ("$ %s [piped]" %(" ".join(args),))
-            popen = gsub.Popen(args, stdout=gsub.PIPE, stderr=gsub.STDOUT)
+            popen = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         else:
             showkwargs = " ".join(["%s=%s"] % (x,y) for x,y in kwargs.items())
             print ("$ %s %s" %(" ".join(args), showkwargs))
-            popen = gsub.Popen(args, **kwargs)
+            popen = subprocess.Popen(args, **kwargs)
         def fin():
             try:
                 popen.kill()
@@ -115,6 +113,8 @@ def _url_of_liveserver(clientdir):
     port = random.randint(2001, 64000)
     path = py.path.local.sysfind("devpi-server")
     assert path
+    # Python 2.6 doesn't have check_output
+    run = getattr(subprocess, 'check_output', getattr(subprocess, 'check_call'))
     try:
         args = [
             str(path), "--serverdir", str(clientdir), "--debug",
@@ -122,9 +122,12 @@ def _url_of_liveserver(clientdir):
         server_version = pkg_resources.parse_version(devpi_server_version)
         if server_version >= pkg_resources.parse_version('4.2.0.dev'):
             args.append('--init')
-        subprocess.check_output(args, stderr=subprocess.STDOUT)
+        run(args, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
-        print(e.output, file=sys.stderr)
+        # this won't output anything on Python 2.6
+        print(
+            getattr(e, 'output', "Can't get process output on Python 2.6"),
+            file=sys.stderr)
         raise
     return URL("http://localhost:%s" % port)
 
