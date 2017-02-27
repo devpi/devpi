@@ -254,6 +254,7 @@ class TestUploadFunctional:
     def test_all(self, initproj, devpi, out_devpi, projname_version):
         initproj(projname_version.rsplit("-", 1), {"doc": {
             "conf.py": "#nothing",
+            "contents.rst": "",
             "index.html": "<html/>"}})
         assert py.path.local("setup.py").check()
         out = out_devpi("upload", "--dry-run")
