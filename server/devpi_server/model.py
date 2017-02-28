@@ -267,6 +267,7 @@ class User:
             if password is not None:
                 self._setpassword(userconfig, password)
                 modified.append("password=*******")
+                kwargs['pwsalt'] = None
             for key, value in kwargs.items():
                 key = ensure_unicode(key)
                 if key == 'username':
