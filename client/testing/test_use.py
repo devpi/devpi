@@ -398,6 +398,12 @@ class TestUnit:
         assert hub.current.always_setcfg
         hub = cmd_devpi("use", "--always-set-cfg=no")
         assert not hub.current.always_setcfg
+        # Now set the trusted-host
+        hub = cmd_devpi(
+            "use", "--set-cfg", '--set-trusted-host', "%s://%sworld" % (
+                scheme, basic_auth))
+        assert len(
+            re.findall("trusted-host\s*=\s*world", content)) == 1
 
 
 @pytest.mark.parametrize("input expected".split(), [
