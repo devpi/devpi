@@ -80,7 +80,7 @@ def addoptions(parser, pluginmanager):
                  "are checked for new releases.")
 
     mirror.addoption("--replica-max-retries", type=int, metavar="NUM",
-            default=5,
+            default=0,
             help="Number of retry attempts for replica connection failures "
                  "(such as aborted connections to pypi).")
 

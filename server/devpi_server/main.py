@@ -263,10 +263,9 @@ class XOM:
         return keyfs
 
     def new_http_session(self, component_name, max_retries=None):
-        try:
+        if max_retries:
             session = new_requests_session(agent=(component_name, server_version), max_retries=max_retries)
-        except TypeError:
-            # Backward compatability with older devpi-common
+        else:
             session = new_requests_session(agent=(component_name, server_version))
         session.cert = self.config.args.replica_cert
         return session

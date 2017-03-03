@@ -164,15 +164,14 @@ def test_offline_mode_httpget_returns_server_error(makexom, url, allowRedirect):
 @pytest.mark.nomocking
 def test_replica_max_retries_option(makexom, monkeypatch):
     from devpi_server.main import new_requests_session as orig_new_requests_session
-    max_retries = []
     def new_requests_session(*args, **kwargs):
         _max_retries = None
         if 'max_retries' in kwargs:
             _max_retries = kwargs['max_retries']
         elif len(args)>=2:
             _max_retries = args[1]
-        max_retries.append(_max_retries)
-        return orig_new_requests_session(*args, **kwargs)
+        assert _max_retries == 2
+        return orig_new_requests_session()
 
     xom = makexom(["--replica-max-retries=2"])
     monkeypatch.setenv("HTTP_PROXY", "http://this")
@@ -182,11 +181,6 @@ def test_replica_max_retries_option(makexom, monkeypatch):
     r = xom.httpget("http://example.com", allow_redirects=False,
                               timeout=1.2)
     assert r.status_code == -1
-
-    # It's possible that an older version of devpi_common doesn't support
-    # max_retries. In this case, the code will fall back to not passing
-    # max_retries. (max_retries = [2, None])
-    assert 2 in max_retries
 
 def test_no_root_pypi_option(makexom):
     xom = makexom(["--no-root-pypi"])
