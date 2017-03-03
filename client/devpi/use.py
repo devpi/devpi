@@ -399,6 +399,9 @@ def main(hub, args=None):
             PipCfg().write_indexserver(indexserver)
             PipCfg().write_searchindexserver(searchindexserver)
             BuildoutCfg().write_indexserver(indexserver)
+            if hub.args.settrusted:
+                PipCfg().write_trustedhost(indexserver)
+
 
     show_one_conf(hub, DistutilsCfg())
     show_one_conf(hub, PipCfg())
@@ -511,6 +514,31 @@ class PipCfg(BaseCfg):
         if not found:
             newlines.append(section + "\n")
             newlines.append("index = %s\n" % searchindexserver)
+        self.path.write("".join(newlines))
+
+    def write_trustedhost(self, indexserver):
+        self.ensure_backup_file()
+        if not self.path.exists():
+            return
+        newlines = []
+        found = False
+        insection = False
+        indexserver = URL(indexserver)
+        trustedhost = "trusted-host = %s\n" % indexserver.netloc
+        for line in self.path.readlines(cr=1):
+            if insection:
+                if line.strip().startswith('['):
+                    newlines.append(trustedhost)
+                    insection = False
+                    found = True
+            if not found and self.section_name in line.lower() and not insection:
+                insection = True
+            if not found and insection and re.match('trusted-host\s*=\s*%s' % indexserver.netloc, line):
+                found = True
+            newlines.append(line)
+        if not found:
+            newlines.append(self.section_name + "\n")
+            newlines.append(trustedhost)
         self.path.write("".join(newlines))
 
 

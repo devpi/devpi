@@ -508,6 +508,10 @@ def use(parser):
         dest="setcfg",
         help="create or modify pip/setuptools config files in home directory "
              "so pip/easy_install will pick up the current devpi index url")
+    parser.add_argument("-t", "--set-trusted", action="store_true", default=None,
+        dest="settrusted",
+        help="when used in conjunction with set-cfg, also set matching "
+             "trusted-host setting for the provided devpi index url")
     parser.add_argument("--always-set-cfg",
         choices=["yes", "no"], default=None,
         dest="always_setcfg",
