@@ -1,3 +1,14 @@
+4.2.2 (Unreleased)
+------------------
+
+- fix ``--import`` after ``--init`` option was added.
+
+- fix import when the export contains a bases cycle.
+
+- fix issue392: setting user password from command line when password hash
+  wasn't migrated yet failed.
+
+
 4.2.1 (2016-12-22)
 ------------------
 

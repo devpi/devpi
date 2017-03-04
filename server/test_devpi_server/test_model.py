@@ -951,6 +951,23 @@ class TestUsers:
         run_passwd(model, "root")
         assert model.get_user("root").validate("123")
 
+    def test_server_passwd_with_old_salt_hash(self, model, monkeypatch):
+        from devpi_server.auth import newsalt, getpwhash
+        secret = "hello"
+        new_secret = "123"
+        salt = newsalt()
+        hash = getpwhash(secret, salt)
+        user = model.get_user("root")
+        with user.key.update() as userconfig:
+            userconfig['pwsalt'] = salt
+            userconfig['pwhash'] = hash
+        userconfig = user.get(credentials=True)
+        assert userconfig['pwsalt'] is not None
+        assert userconfig['pwhash'] is not None
+        monkeypatch.setattr(py.std.getpass, "getpass", lambda x: new_secret)
+        run_passwd(model, "root")
+        assert model.get_user("root").validate(new_secret)
+
     def test_server_email(self, model):
         email_address = "root_" + str(id) + "@mydomain"
         user = model.get_user("root")

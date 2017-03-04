@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import os
 import sys
 import pkg_resources
 import py
@@ -40,7 +41,7 @@ def test_empty_export(tmpdir, xom):
         make_export(tmpdir, xom)
 
 
-def test_empty_serverdir(tmpdir, capfd, monkeypatch):
+def test_export_empty_serverdir(tmpdir, capfd, monkeypatch):
     from devpi_server.main import main
     empty = tmpdir.join("empty").ensure(dir=True)
     export = tmpdir.join("export")
@@ -54,6 +55,34 @@ def test_empty_serverdir(tmpdir, capfd, monkeypatch):
     assert ret == 1
     assert out == ''
     assert ("The path '%s' contains no devpi-server data" % empty) in err
+
+
+def test_export_import(tmpdir, capfd, monkeypatch):
+    from devpi_server.main import main
+    monkeypatch.setattr("devpi_server.main.configure_logging", lambda a: None)
+    clean = tmpdir.join("clean").ensure(dir=True)
+    ret = main([
+        "devpi-server",
+        "--serverdir", clean.strpath,
+        "--init"])
+    assert ret == 0
+    export = tmpdir.join("export")
+    ret = main([
+        "devpi-server",
+        "--serverdir", clean.strpath,
+        "--export", export.strpath])
+    assert ret == 0
+    import_ = tmpdir.join("import")
+    ret = main([
+        "devpi-server",
+        "--serverdir", import_.strpath,
+        "--no-events",
+        "--import", export.strpath])
+    assert ret == 0
+    out, err = capfd.readouterr()
+    assert os.listdir(clean.strpath) == os.listdir(import_.strpath)
+    assert 'import_all: importing finished' in out
+    assert err == ''
 
 
 def test_import_on_existing_server_data(tmpdir, xom):
@@ -183,6 +212,12 @@ class TestImportExport:
         assert api.user in mapp2.getuserlist()
         indexlist = mapp2.getindexlist(api.user)
         assert indexlist[api.stagename]["mirror_whitelist"] == ["*"]
+
+    def test_bases_cycle(self, caplog, impexp):
+        mapp = impexp.import_testdata('basescycle')
+        with mapp.xom.keyfs.transaction(write=False):
+            stage = mapp.xom.model.getstage('root/dev')
+            assert stage.ixconfig['bases'] == ('root/dev',)
 
     def test_bad_username(self, caplog, impexp):
         with pytest.raises(SystemExit):
