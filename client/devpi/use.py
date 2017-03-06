@@ -33,6 +33,7 @@ class Current(object):
     _basic_auth = currentproperty("basic_auth")
     _client_cert = currentproperty("client_cert")
     always_setcfg = currentproperty("always_setcfg")
+    settrusted = currentproperty("settrusted")
 
     def __init__(self):
         self._currentdict = {}
@@ -388,7 +389,8 @@ def main(hub, args=None):
     #    hub.line("no current install venv set")
     if hub.args.always_setcfg:
         always_setcfg = hub.args.always_setcfg == "yes"
-        hub.current.reconfigure(dict(always_setcfg=always_setcfg))
+        hub.current.reconfigure(dict(always_setcfg=always_setcfg,
+                                     settrusted=hub.args.settrusted))
     if hub.args.setcfg or hub.current.always_setcfg:
         if not hub.current.index:
             hub.error("no index configured: cannot set pip/easy_install index")
@@ -399,7 +401,7 @@ def main(hub, args=None):
             PipCfg().write_indexserver(indexserver)
             PipCfg().write_searchindexserver(searchindexserver)
             BuildoutCfg().write_indexserver(indexserver)
-            if hub.args.settrusted:
+            if hub.args.settrusted or hub.current.settrusted:
                 PipCfg().write_trustedhost(indexserver)
 
 
@@ -524,7 +526,7 @@ class PipCfg(BaseCfg):
         found = False
         insection = False
         indexserver = URL(indexserver)
-        trustedhost = "trusted-host = %s\n" % indexserver.netloc
+        trustedhost = "trusted-host = %s\n" % indexserver.hostname
         for line in self.path.readlines(cr=1):
             if insection:
                 if line.strip().startswith('['):
@@ -533,7 +535,7 @@ class PipCfg(BaseCfg):
                     found = True
             if not found and self.section_name in line.lower() and not insection:
                 insection = True
-            if not found and insection and re.match('trusted-host\s*=\s*%s' % indexserver.netloc, line):
+            if not found and insection and re.match('trusted-host\s*=\s*%s' % indexserver.hostname, line):
                 found = True
             newlines.append(line)
         if not found:
