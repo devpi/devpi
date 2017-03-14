@@ -185,10 +185,13 @@ class Current(object):
         url = self.get_index_url(url)
         if not url.is_valid_http_url():
             hub.fatal("invalid URL: %s" % url.url)
-        if not hub.args.settrusted and url.scheme == 'http' and \
-                        url.hostname not in ('localhost', '127.0.0.0'):
-            hub.line("Warning: insecure http host, trusted-host will be set for pip")
-            hub.args.settrusted = True
+        try:
+            if not hub.args.settrusted and url.scheme == 'http' and \
+                            url.hostname not in ('localhost', '127.0.0.0'):
+                hub.line("Warning: insecure http host, trusted-host will be set for pip")
+                hub.args.settrusted = True
+        except AttributeError:
+            pass  # Ignore for usages where hub.args.settrusted doesn't exist
         basic_auth = None
         if '@' in url.netloc:
             basic_auth, netloc = url.netloc.rsplit('@', 1)
@@ -214,7 +217,7 @@ class Current(object):
                 auth=self.get_auth(url=url),
                 basic_auth=basic_auth or self.get_basic_auth(url=url),
                 cert=client_cert or self.get_client_cert(url=url),
-                verify=not hub.args.settrusted)
+                verify=True)
         except hub.http.SSLError:
             # SSL certificate validation failed, set trusted will be needed
             hub.args.settrusted = True

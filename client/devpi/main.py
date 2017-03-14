@@ -81,7 +81,7 @@ class Hub:
 
     def http_api(self, method, url, kvdict=None, quiet=False,
                  auth=notset, basic_auth=notset, cert=notset,
-                 check_version=True, fatal=True, type=None, verify=True):
+                 check_version=True, fatal=True, type=None, verify=None):
         """ send a json request and return a HTTPReply object which
         adds some extra methods to the requests's Reply object.
 
@@ -110,10 +110,13 @@ class Hub:
                 cert = self.current.get_client_cert(url=url)
             r = self.http.request(method, url, data=data, headers=headers,
                                   auth=basic_auth, cert=cert, verify=verify)
-        except self.http.SSLError:
-            # Raise this so it can be handled and retried as appropriate
+        except self.http.SSLError as e:
+            # If verify was set, re-raise this so it can be handled and retried as appropriate
             self._last_http_stati.append(-1)
-            raise
+            if verify is not None:
+                raise
+            else:
+                self.fatal("SSL verification failed %r:\n%s" % (url, e))
         except self.http.Errors as e:
             self._last_http_stati.append(-1)
             self.fatal("could not connect to %r:\n%s" % (url, e))
