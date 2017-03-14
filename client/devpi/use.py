@@ -546,9 +546,10 @@ class PipCfg(BaseCfg):
         for line in self.path.readlines(cr=1):
             if insection:
                 if line.strip().startswith('['):
-                    newlines.append(trustedhost)
+                    if not found:
+                        newlines.append(trustedhost)
+                        found = True
                     insection = False
-                    found = True
             if not found and self.section_name in line.lower() and not insection:
                 insection = True
             if not found and insection and re.match('trusted-host\s*=\s*%s' % indexserver.hostname, line):
