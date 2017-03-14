@@ -407,7 +407,7 @@ class TestUnit:
             re.findall("trusted-host\s*=\s*world", content)) == 1
         hub = cmd_devpi("use", "--always-set-cfg=yes", "--set-trusted")
         assert hub.current.settrusted
-        hub = cmd_devpi("use", "--always-set-cfg=no")
+        hub = cmd_devpi("use", "--always-set-cfg=no", "--no-set-trusted")
         assert not hub.current.settrusted
 
 

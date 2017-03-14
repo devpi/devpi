@@ -406,6 +406,7 @@ def loghub(tmpdir):
         clientdir = tmpdir.join("clientdir")
         yes = False
         verbose = False
+        settrusted = False
     out = py.io.TextIO()
     hub = Hub(args, file=out)
     def _getmatcher():
@@ -446,7 +447,7 @@ def mock_http_api(monkeypatch):
 
         def __call__(self, method, url, kvdict=None, quiet=False,
                      auth=None, basic_auth=None, cert=None,
-                     fatal=True):
+                     fatal=True, verify=None):
             kwargs = dict(
                 kvdict=kvdict, quiet=quiet, auth=auth, basic_auth=basic_auth,
                 cert=cert, fatal=fatal)
