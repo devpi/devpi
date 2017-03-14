@@ -515,7 +515,12 @@ def use(parser):
     parser.add_argument("-t", "--set-trusted", action="store_true", default=None,
         dest="settrusted",
         help="when used in conjunction with set-cfg, also set matching "
-             "trusted-host setting for the provided devpi index url")
+             "pip trusted-host setting for the provided devpi index url. "
+             "Note: automatically enabled for http urls or hosts that "
+             "fail https ssl validation")
+    parser.add_argument("--no-set-trusted-host", action="store_true", default=None,
+        dest="nosettrusted",
+        help="will disable automatic setting of trusted-host pip setting")
     parser.add_argument("--always-set-cfg",
         choices=["yes", "no"], default=None,
         dest="always_setcfg",

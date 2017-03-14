@@ -405,7 +405,8 @@ def main(hub, args=None):
     if hub.args.always_setcfg:
         always_setcfg = hub.args.always_setcfg == "yes"
         hub.current.reconfigure(dict(always_setcfg=always_setcfg,
-                                     settrusted=hub.args.settrusted))
+                                     settrusted=hub.args.settrusted
+                                                and not hub.args.nosettrusted))
     if hub.args.setcfg or hub.current.always_setcfg:
         if not hub.current.index:
             hub.error("no index configured: cannot set pip/easy_install index")
@@ -416,9 +417,9 @@ def main(hub, args=None):
             PipCfg().write_indexserver(indexserver)
             PipCfg().write_searchindexserver(searchindexserver)
             BuildoutCfg().write_indexserver(indexserver)
-            if hub.args.settrusted or hub.current.settrusted:
+            if (hub.args.settrusted or hub.current.settrusted) \
+                    and not hub.args.nosettrusted:
                 PipCfg().write_trustedhost(indexserver)
-
 
     show_one_conf(hub, DistutilsCfg())
     show_one_conf(hub, PipCfg())
