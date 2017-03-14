@@ -29,6 +29,7 @@ Upon first initialization of ``devpi-server`` use ``--storage pg8000`` to select
 
 By default it'll use the ``devpi`` database on ``localhost`` port ``5432``.
 To change that, use ``storage pg8000:host=example.com,port=5433,database=devpi_prod``.
+The possible settings are: ``database``, ``host``, ``port``, ``unix_sock``, ``user`` and ``password``
 
 All user/index files and metadata of ``devpi-server`` are stored in the database.
 A few things and settings are still stored as files in the directory specified by ``--serverdir``.
