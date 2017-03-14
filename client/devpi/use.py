@@ -3,7 +3,6 @@ import os
 import sys
 import py
 import re
-
 import json
 
 from devpi_common.url import URL
@@ -186,6 +185,10 @@ class Current(object):
         url = self.get_index_url(url)
         if not url.is_valid_http_url():
             hub.fatal("invalid URL: %s" % url.url)
+        if not hub.args.settrusted and url.scheme == 'http' and \
+                        url.hostname not in ('localhost', '127.0.0.0'):
+            hub.line("Warning: insecure http host, trusted-host will be set for pip")
+            hub.args.settrusted = True
         basic_auth = None
         if '@' in url.netloc:
             basic_auth, netloc = url.netloc.rsplit('@', 1)
@@ -205,11 +208,23 @@ class Current(object):
                 hub.fatal("The client certificate at '%s' doesn't exist." % client_cert)
         elif self.get_client_cert(url=url) is not None:
             hub.info("Using existing client cert for '%s'." % url.url)
-        r = hub.http_api(
-            "get", url.addpath("+api"), quiet=True,
-            auth=self.get_auth(url=url),
-            basic_auth=basic_auth or self.get_basic_auth(url=url),
-            cert=client_cert or self.get_client_cert(url=url))
+        try:
+            r = hub.http_api(
+                "get", url.addpath("+api"), quiet=True,
+                auth=self.get_auth(url=url),
+                basic_auth=basic_auth or self.get_basic_auth(url=url),
+                cert=client_cert or self.get_client_cert(url=url),
+                verify=not hub.args.settrusted)
+        except hub.http.SSLError:
+            # SSL certificate validation failed, set trusted will be needed
+            hub.args.settrusted = True
+            r = hub.http_api(
+                "get", url.addpath("+api"), quiet=True,
+                auth=self.get_auth(url=url),
+                basic_auth=basic_auth or self.get_basic_auth(url=url),
+                cert=client_cert or self.get_client_cert(url=url),
+                verify=not hub.args.settrusted)
+            hub.line("Warning: https certificate validation failed (self signed?), trusted-host will be set for pip")
         self._configure_from_server_api(r.result, url)
         # at this point we know the root url to store the following data
         if basic_auth is not None:
