@@ -217,7 +217,7 @@ class Hub:
             self.report_popen(args, cwd)
         return check_output(args, cwd=str(cwd))
 
-    def popen(self, args, cwd=None):
+    def popen(self, args, cwd=None, dryrun=None, **popen_kwargs):
         if isinstance(args, str):
             args = std.shlex.split(args)
         assert args[0], args
@@ -225,13 +225,16 @@ class Hub:
         if cwd == None:
             cwd = self.cwd
         self.report_popen(args, cwd)
-        if self.args.dryrun:
+        if dryrun is None:
+            dryrun = self.args.dryrun
+        if dryrun:
             return
-        popen = subprocess.Popen(args, cwd=str(cwd))
+        popen = subprocess.Popen(args, cwd=str(cwd), **popen_kwargs)
         out, err = popen.communicate()
         ret = popen.wait()
         if ret:
             self.fatal("****** process returned %s" % ret)
+        return (ret, out, err)
 
     def report_popen(self, args, cwd=None, extraenv=None):
         base = cwd or self.cwd
