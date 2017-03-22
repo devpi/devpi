@@ -57,7 +57,7 @@ if __name__ == "__main__":
       description="devpi upload/install/... workflow commands for Python "
                   "developers",
       long_description="\n\n".join([README, CHANGELOG]),
-      version='2.7.0',
+      version='2.8.0.dev0',
       packages=find_packages(),
       install_requires=install_requires,
       extras_require=extras_require,
@@ -73,5 +73,9 @@ if __name__ == "__main__":
         ] + [
             ("Programming Language :: Python :: %s" % x) for x in
                 "2.7 3.3".split()],
-      entry_points = {'console_scripts': ["devpi = devpi.main:main"]},
+      entry_points = {
+        'console_scripts': [
+          "devpi = devpi.main:main"],
+        'devpi_client': [
+          "devpi-client-login = devpi.login"]}
       )

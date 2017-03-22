@@ -44,6 +44,8 @@ class BackgroundServer:
         session = new_requests_session()
         with no_proxy(urlparse(url).netloc):
             while count > 0:
+                if not self.xproc.getinfo("devpi-server").isrunning():
+                    return False
                 try:
                     session.get(url)
                 except session.Errors:

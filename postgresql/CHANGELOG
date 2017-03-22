@@ -1,3 +1,10 @@
+0.1.1 (Unreleased)
+------------------
+
+- Add ``unix_sock``, ``user`` and ``password`` to possible connection options.
+  Thanks to Szabolcs Rumi for the patch.
+
+
 0.1.0 (2016-02-11)
 ------------------
 
