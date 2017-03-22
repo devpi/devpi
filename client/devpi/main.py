@@ -6,13 +6,14 @@ import argparse
 import subprocess
 from base64 import b64encode
 from contextlib import closing
+from devpi import hookspecs
 from devpi_common.types import lazydecorator, cached_property
 from devpi_common.url import URL
 from devpi_common.proc import check_output
 from devpi.use import PersistentCurrent
 from devpi_common.request import new_requests_session
 from devpi import __version__ as client_version
-
+from pluggy import PluginManager
 import json
 std = py.std
 subcommand = lazydecorator()
@@ -39,7 +40,18 @@ def initmain(argv):
     mod = __import__(mod, None, None, ["__doc__"])
     return Hub(args), getattr(mod, func)
 
+
+def get_pluginmanager(load_entry_points=True):
+    pm = PluginManager("devpiclient", implprefix="devpiclient_")
+    pm.add_hookspecs(hookspecs)
+    if load_entry_points:
+        pm.load_setuptools_entrypoints("devpi_client")
+    pm.check_pending()
+    return pm
+
+
 notset = object()
+
 
 class Hub:
     class Popen(std.subprocess.Popen):
@@ -56,6 +68,11 @@ class Hub:
         self.quiet = False
         self._last_http_stati = []
         self.http = new_requests_session(agent=("client", client_version))
+        self.pm = get_pluginmanager()
+
+    @property
+    def hook(self):
+        return self.pm.hook
 
     def close(self):
         self.http.close()

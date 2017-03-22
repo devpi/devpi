@@ -1,3 +1,10 @@
+2.8.0 (Unreleased)
+------------------
+
+- add ``devpiclient_get_password`` hook which allows plugins to return a
+  password based on username and server url.
+
+
 2.7.0 (2016-10-14)
 ------------------
 
