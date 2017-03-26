@@ -1,5 +1,12 @@
-4.2.2 (Unreleased)
+4.3.0 (Unreleased)
 ------------------
+
+- add a new command line option ``--replica-max-retries``
+
+  Under certain network conditions, it's possible for a connection from devpi
+  to replicas (such as pypi) to be dropped, resulting in a 502 bad gateway
+  being returned from devpi. When replica-max-retries is set to a number > 0,
+  devpi will attempt to retry connections until the retry limit is reached.
 
 - fix ``--import`` after ``--init`` option was added.
 

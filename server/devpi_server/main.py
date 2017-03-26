@@ -263,10 +263,7 @@ class XOM:
         return keyfs
 
     def new_http_session(self, component_name, max_retries=None):
-        if max_retries:
-            session = new_requests_session(agent=(component_name, server_version), max_retries=max_retries)
-        else:
-            session = new_requests_session(agent=(component_name, server_version))
+        session = new_requests_session(agent=(component_name, server_version), max_retries=max_retries)
         session.cert = self.config.args.replica_cert
         return session
 
