@@ -79,6 +79,11 @@ def addoptions(parser, pluginmanager):
             help="(experimental) time after which projects in mirror indexes "
                  "are checked for new releases.")
 
+    mirror.addoption("--replica-max-retries", type=int, metavar="NUM",
+            default=0,
+            help="Number of retry attempts for replica connection failures "
+                 "(such as aborted connections to pypi).")
+
     mirror.addoption("--offline-mode", action="store_true",
             help="(experimental) prevents connections to any upstream server "
                  "(e.g. pypi) and only serves locally cached files through the "
