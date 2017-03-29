@@ -79,6 +79,10 @@ class URL:
         return self._parsed.netloc
 
     @property
+    def hostname(self):
+        return self._parsed.hostname
+
+    @property
     def scheme(self):
         return self._parsed.scheme
 

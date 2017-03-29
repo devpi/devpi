@@ -1,6 +1,6 @@
 import sys
 from requests import *  # noqa
-from requests.exceptions import ConnectionError, RequestException, BaseHTTPError
+from requests.exceptions import ConnectionError, RequestException, BaseHTTPError, SSLError
 
 def new_requests_session(agent=None):
     if agent is None:
@@ -13,4 +13,5 @@ def new_requests_session(agent=None):
     session.ConnectionError = ConnectionError
     session.RequestException = RequestException
     session.Errors = (RequestException, BaseHTTPError)
+    session.SSLError = SSLError
     return session
