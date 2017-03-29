@@ -9,3 +9,6 @@ Restart=always
 ExecStart={devpibin} {server_args} --start
 ExecStop={devpibin} {server_args} --stop
 User={user}
+
+[Install]
+WantedBy=multi-user.target

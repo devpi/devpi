@@ -309,7 +309,7 @@ class Importer:
                     if stage is not None:
                         continue
                 import_index = self.import_indexes[stagename]
-                indexconfig = import_index["indexconfig"]
+                indexconfig = dict(import_index["indexconfig"])
                 if 'uploadtrigger_jenkins' in indexconfig:
                     if not indexconfig['uploadtrigger_jenkins']:
                         # remove if not set, so if the trigger was never
@@ -322,7 +322,13 @@ class Importer:
                         indexconfig['mirror_whitelist'] = whitelist
                 user, index = stagename.split("/")
                 user = self.xom.model.get_user(user)
+                # due to possible circles we create without bases first
+                bases = indexconfig.pop('bases')
                 stage = user.create_stage(index, **indexconfig)
+                if "bases" in import_index["indexconfig"]:
+                    indexconfig = stage.ixconfig
+                    indexconfig["bases"] = bases
+                    stage.modify(**indexconfig)
                 stages.append(stage)
         del tree
 
@@ -432,7 +438,10 @@ class IndexTree:
         self.name2bases = {}
 
     def add(self, name, bases=None):
-        self.name2bases[name] = bases or []
+        bases = list(bases or [])
+        while name in bases:
+            bases.remove(name)
+        self.name2bases[name] = bases
         if not bases:
             self.name2children.setdefault(None, []).append(name)
         else:

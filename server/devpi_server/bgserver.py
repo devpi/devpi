@@ -44,6 +44,8 @@ class BackgroundServer:
         session = new_requests_session()
         with no_proxy(urlparse(url).netloc):
             while count > 0:
+                if not self.xproc.getinfo("devpi-server").isrunning():
+                    return False
                 try:
                     session.get(url)
                 except session.Errors:
@@ -58,6 +60,7 @@ class BackgroundServer:
         devpi_server = sys.argv[0]
         if devpi_server is None:
             self.fatal("cannot find devpi-server binary, no auto-start")
+        devpi_server = os.path.abspath(devpi_server)
         if devpi_server.endswith(".py") and sys.platform == "win32":
             devpi_server = str(py.path.local.sysfind("devpi-server"))
         if not (py.path.local(devpi_server).exists()

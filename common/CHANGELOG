@@ -1,3 +1,9 @@
+3.1.0 (Unreleased)
+------------------
+
+- add ``max_retries`` keyword option to ``new_requests_session``.
+
+
 3.0.1 (2016-07-07)
 ------------------
 

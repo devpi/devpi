@@ -72,7 +72,7 @@ def _main(pluginmanager, argv=None):
     # meta commmands
     if args.version:
         print(server_version)
-        return
+        return 0
 
     if args.genconfig:
         from devpi_server.genconfig import genconfig
@@ -83,7 +83,7 @@ def _main(pluginmanager, argv=None):
     if args.init:
         if config.path_nodeinfo.exists():
             fatal("The path '%s' already contains devpi-server data." % config.serverdir)
-    else:
+    elif not args.import_:
         if not config.path_nodeinfo.exists():
             fatal("The path '%s' contains no devpi-server data, use --init to initialize." % config.serverdir)
 
@@ -121,7 +121,7 @@ def _main(pluginmanager, argv=None):
             return run_passwd(xom.model, config.args.passwd)
 
     if args.init:
-        return
+        return 0
 
     return xom.main()
 
@@ -262,14 +262,14 @@ class XOM:
             self.thread_pool.register(keyfs.notifier)
         return keyfs
 
-    def new_http_session(self, component_name):
-        session = new_requests_session(agent=(component_name, server_version))
+    def new_http_session(self, component_name, max_retries=None):
+        session = new_requests_session(agent=(component_name, server_version), max_retries=max_retries)
         session.cert = self.config.args.replica_cert
         return session
 
     @cached_property
     def _httpsession(self):
-        return self.new_http_session("server")
+        return self.new_http_session("server", max_retries=self.config.args.replica_max_retries)
 
     def httpget(self, url, allow_redirects, timeout=30, extra_headers=None):
         if self.config.args.offline_mode:

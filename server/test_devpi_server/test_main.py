@@ -161,6 +161,27 @@ def test_offline_mode_httpget_returns_server_error(makexom, url, allowRedirect):
     assert r.status_code == 503
 
 
+@pytest.mark.nomocking
+def test_replica_max_retries_option(makexom, monkeypatch):
+    from devpi_server.main import new_requests_session as orig_new_requests_session
+    def new_requests_session(*args, **kwargs):
+        _max_retries = None
+        if 'max_retries' in kwargs:
+            _max_retries = kwargs['max_retries']
+        elif len(args)>=2:
+            _max_retries = args[1]
+        assert _max_retries == 2
+        return orig_new_requests_session()
+
+    xom = makexom(["--replica-max-retries=2"])
+    monkeypatch.setenv("HTTP_PROXY", "http://this")
+    monkeypatch.setenv("HTTPS_PROXY", "http://that")
+    monkeypatch.setattr("devpi_server.main.new_requests_session", new_requests_session)
+
+    r = xom.httpget("http://example.com", allow_redirects=False,
+                              timeout=1.2)
+    assert r.status_code == -1
+
 def test_no_root_pypi_option(makexom):
     xom = makexom(["--no-root-pypi"])
     with xom.keyfs.transaction(write=False):
