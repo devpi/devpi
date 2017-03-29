@@ -186,6 +186,8 @@ class Current(object):
         if not url.is_valid_http_url():
             hub.fatal("invalid URL: %s" % url.url)
         try:
+            # if the server is on http and not localhost, pip will show verbose warning
+            # every time you use devpi. set-trusted instead and inform user now just the once
             if not hub.args.settrusted and url.scheme == 'http' and \
                             url.hostname not in ('localhost', '127.0.0.0'):
                 hub.line("Warning: insecure http host, trusted-host will be set for pip")
@@ -211,22 +213,22 @@ class Current(object):
                 hub.fatal("The client certificate at '%s' doesn't exist." % client_cert)
         elif self.get_client_cert(url=url) is not None:
             hub.info("Using existing client cert for '%s'." % url.url)
+
+        def call_http_api(verify):
+            return hub.http_api(
+                "get", url.addpath("+api"), quiet=True,
+                auth=self.get_auth(url=url),
+                basic_auth=basic_auth or self.get_basic_auth(url=url),
+                cert=client_cert or self.get_client_cert(url=url),
+                verify=verify)
         try:
-            r = hub.http_api(
-                "get", url.addpath("+api"), quiet=True,
-                auth=self.get_auth(url=url),
-                basic_auth=basic_auth or self.get_basic_auth(url=url),
-                cert=client_cert or self.get_client_cert(url=url),
-                verify=True)
+            # Try calling http_api with ssl verification active
+            r = call_http_api(verify=True)
         except hub.http.SSLError:
-            # SSL certificate validation failed, set trusted will be needed
+            # SSL certificate validation failed, set-trusted will be needed
             hub.args.settrusted = True
-            r = hub.http_api(
-                "get", url.addpath("+api"), quiet=True,
-                auth=self.get_auth(url=url),
-                basic_auth=basic_auth or self.get_basic_auth(url=url),
-                cert=client_cert or self.get_client_cert(url=url),
-                verify=not hub.args.settrusted)
+            # re-run http_api call ignoring the failed verification
+            r = call_http_api(verify=False)
             hub.line("Warning: https certificate validation failed (self signed?), trusted-host will be set for pip")
         self._configure_from_server_api(r.result, url)
         # at this point we know the root url to store the following data
