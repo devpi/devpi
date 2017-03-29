@@ -400,14 +400,14 @@ class TestUnit:
         assert not hub.current.always_setcfg
         # Now set the trusted-host
         hub = cmd_devpi(
-            "use", "--set-cfg", "--set-trusted", "%s://%sworld" % (
+            "use", "--set-cfg", "--pip-set-trusted=yes", "%s://%sworld" % (
                 scheme, basic_auth))
         content = PipCfg.default_location.read()
         assert len(
             re.findall("trusted-host\s*=\s*world", content)) == 1
-        hub = cmd_devpi("use", "--always-set-cfg=yes", "--set-trusted")
+        hub = cmd_devpi("use", "--always-set-cfg=yes", "--pip-set-trusted=yes")
         assert hub.current.settrusted
-        hub = cmd_devpi("use", "--always-set-cfg=no", "--no-set-trusted")
+        hub = cmd_devpi("use", "--always-set-cfg=no", "--pip-set-trusted=no")
         assert not hub.current.settrusted
 
 
