@@ -515,15 +515,12 @@ def use(parser):
         dest="setcfg",
         help="create or modify pip/setuptools config files in home directory "
              "so pip/easy_install will pick up the current devpi index url")
-    parser.add_argument("-t", "--set-trusted", action="store_true", default=None,
+    parser.add_argument("-t", "--pip-set-trusted", choices=["yes", "no", "auto"], default="auto",
         dest="settrusted",
         help="when used in conjunction with set-cfg, also set matching "
              "pip trusted-host setting for the provided devpi index url. "
-             "Note: automatically enabled for http urls or hosts that "
-             "fail https ssl validation")
-    parser.add_argument("--no-set-trusted-host", action="store_true", default=None,
-        dest="nosettrusted",
-        help="will disable automatic setting of trusted-host pip setting")
+             "With 'auto', trusted will be set for http urls or hosts that "
+             "fail https ssl validation. 'no' will clear setting")
     parser.add_argument("--always-set-cfg",
         choices=["yes", "no"], default=None,
         dest="always_setcfg",

@@ -188,10 +188,10 @@ class Current(object):
         try:
             # if the server is on http and not localhost, pip will show verbose warning
             # every time you use devpi. set-trusted instead and inform user now just the once
-            if not hub.args.settrusted and url.scheme == 'http' and \
+            if hub.args.settrusted == 'auto' and url.scheme == 'http' and \
                             url.hostname not in ('localhost', '127.0.0.0'):
                 hub.line("Warning: insecure http host, trusted-host will be set for pip")
-                hub.args.settrusted = True
+                hub.args.settrusted = 'yes'
         except AttributeError:
             pass  # Ignore for usages where hub.args.settrusted doesn't exist
         basic_auth = None
@@ -226,7 +226,7 @@ class Current(object):
             r = call_http_api(verify=True)
         except hub.http.SSLError:
             # SSL certificate validation failed, set-trusted will be needed
-            hub.args.settrusted = True
+            hub.args.settrusted = 'yes'
             # re-run http_api call ignoring the failed verification
             r = call_http_api(verify=False)
             hub.line("Warning: https certificate validation failed (self signed?), trusted-host will be set for pip")
@@ -407,11 +407,11 @@ def main(hub, args=None):
         hub.info("venv for install command: %s" % current.venvdir)
     #else:
     #    hub.line("no current install venv set")
+    settrusted = hub.args.settrusted == 'yes'
     if hub.args.always_setcfg:
         always_setcfg = hub.args.always_setcfg == "yes"
         hub.current.reconfigure(dict(always_setcfg=always_setcfg,
-                                     settrusted=hub.args.settrusted
-                                                and not hub.args.nosettrusted))
+                                     settrusted=settrusted))
     if hub.args.setcfg or hub.current.always_setcfg:
         if not hub.current.index:
             hub.error("no index configured: cannot set pip/easy_install index")
@@ -422,9 +422,10 @@ def main(hub, args=None):
             PipCfg().write_indexserver(indexserver)
             PipCfg().write_searchindexserver(searchindexserver)
             BuildoutCfg().write_indexserver(indexserver)
-            if (hub.args.settrusted or hub.current.settrusted) \
-                    and not hub.args.nosettrusted:
+            if settrusted or hub.current.settrusted:
                 PipCfg().write_trustedhost(indexserver)
+            else:
+                PipCfg().clear_trustedhost(indexserver)
 
     show_one_conf(hub, DistutilsCfg())
     show_one_conf(hub, PipCfg())
@@ -563,6 +564,17 @@ class PipCfg(BaseCfg):
         if not found:
             newlines.append(self.section_name + "\n")
             newlines.append(trustedhost)
+        self.path.write("".join(newlines))
+
+    def clear_trustedhost(self, indexserver):
+        self.ensure_backup_file()
+        if not self.path.exists():
+            return
+        newlines = []
+        indexserver = URL(indexserver)
+        for line in self.path.readlines(cr=1):
+            if not re.match('trusted-host\s*=\s*%s' % indexserver.hostname, line):
+                newlines.append(line)
         self.path.write("".join(newlines))
 
 
