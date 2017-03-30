@@ -1,6 +1,12 @@
 devpi: PyPI server and packaging/testing/release tool
 ===================================================================
 
+
+.. warning::
+  Moving to GitHub on March 31st!
+  Please don't open new PRs and issues on the 31st.
+
+
 This repository contains three packages comprising the core devpi system 
 on the server and client side:
 
