@@ -1,5 +1,5 @@
 from __future__ import unicode_literals
-
+import hashlib
 import pytest
 from devpi_common.url import *
 

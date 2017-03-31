@@ -1,7 +1,6 @@
 
 import sys
 import posixpath
-import hashlib
 from devpi_common.types import cached_property, ensure_unicode, parse_hash_spec
 from requests.models import parse_url
 

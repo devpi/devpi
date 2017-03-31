@@ -1,5 +1,5 @@
 import sys
-from requests import *  # noqa
+from requests import Session
 from requests.adapters import HTTPAdapter
 from requests.exceptions import ConnectionError, RequestException, BaseHTTPError, SSLError
 
