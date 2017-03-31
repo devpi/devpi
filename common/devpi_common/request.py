@@ -1,7 +1,7 @@
 import sys
 from requests import *  # noqa
 from requests.adapters import HTTPAdapter
-from requests.exceptions import ConnectionError, RequestException, BaseHTTPError
+from requests.exceptions import ConnectionError, RequestException, BaseHTTPError, SSLError
 
 class RetrySession(Session):
     def __init__(self, max_retries):
@@ -21,4 +21,5 @@ def new_requests_session(agent=None, max_retries=None):
     session.ConnectionError = ConnectionError
     session.RequestException = RequestException
     session.Errors = (RequestException, BaseHTTPError)
+    session.SSLError = SSLError
     return session

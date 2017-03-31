@@ -3,7 +3,6 @@ import os
 import sys
 import py
 import re
-
 import json
 
 from devpi_common.url import URL
@@ -33,6 +32,7 @@ class Current(object):
     _basic_auth = currentproperty("basic_auth")
     _client_cert = currentproperty("client_cert")
     always_setcfg = currentproperty("always_setcfg")
+    settrusted = currentproperty("settrusted")
 
     def __init__(self):
         self._currentdict = {}
@@ -185,6 +185,15 @@ class Current(object):
         url = self.get_index_url(url)
         if not url.is_valid_http_url():
             hub.fatal("invalid URL: %s" % url.url)
+        try:
+            # if the server is on http and not localhost, pip will show verbose warning
+            # every time you use devpi. set-trusted instead and inform user now just the once
+            if hub.args.settrusted == 'auto' and url.scheme == 'http' and \
+                            url.hostname not in ('localhost', '127.0.0.0'):
+                hub.line("Warning: insecure http host, trusted-host will be set for pip")
+                hub.args.settrusted = 'yes'
+        except AttributeError:
+            pass  # Ignore for usages where hub.args.settrusted doesn't exist
         basic_auth = None
         if '@' in url.netloc:
             basic_auth, netloc = url.netloc.rsplit('@', 1)
@@ -204,11 +213,23 @@ class Current(object):
                 hub.fatal("The client certificate at '%s' doesn't exist." % client_cert)
         elif self.get_client_cert(url=url) is not None:
             hub.info("Using existing client cert for '%s'." % url.url)
-        r = hub.http_api(
-            "get", url.addpath("+api"), quiet=True,
-            auth=self.get_auth(url=url),
-            basic_auth=basic_auth or self.get_basic_auth(url=url),
-            cert=client_cert or self.get_client_cert(url=url))
+
+        def call_http_api(verify):
+            return hub.http_api(
+                "get", url.addpath("+api"), quiet=True,
+                auth=self.get_auth(url=url),
+                basic_auth=basic_auth or self.get_basic_auth(url=url),
+                cert=client_cert or self.get_client_cert(url=url),
+                verify=verify)
+        try:
+            # Try calling http_api with ssl verification active
+            r = call_http_api(verify=True)
+        except hub.http.SSLError:
+            # SSL certificate validation failed, set-trusted will be needed
+            hub.args.settrusted = 'yes'
+            # re-run http_api call ignoring the failed verification
+            r = call_http_api(verify=False)
+            hub.line("Warning: https certificate validation failed (self signed?), trusted-host will be set for pip")
         self._configure_from_server_api(r.result, url)
         # at this point we know the root url to store the following data
         if basic_auth is not None:
@@ -386,9 +407,11 @@ def main(hub, args=None):
         hub.info("venv for install command: %s" % current.venvdir)
     #else:
     #    hub.line("no current install venv set")
+    settrusted = hub.args.settrusted == 'yes'
     if hub.args.always_setcfg:
         always_setcfg = hub.args.always_setcfg == "yes"
-        hub.current.reconfigure(dict(always_setcfg=always_setcfg))
+        hub.current.reconfigure(dict(always_setcfg=always_setcfg,
+                                     settrusted=settrusted))
     if hub.args.setcfg or hub.current.always_setcfg:
         if not hub.current.index:
             hub.error("no index configured: cannot set pip/easy_install index")
@@ -399,6 +422,10 @@ def main(hub, args=None):
             PipCfg().write_indexserver(indexserver)
             PipCfg().write_searchindexserver(searchindexserver)
             BuildoutCfg().write_indexserver(indexserver)
+            if settrusted or hub.current.settrusted:
+                PipCfg().write_trustedhost(indexserver)
+            else:
+                PipCfg().clear_trustedhost(indexserver)
 
     show_one_conf(hub, DistutilsCfg())
     show_one_conf(hub, PipCfg())
@@ -511,6 +538,43 @@ class PipCfg(BaseCfg):
         if not found:
             newlines.append(section + "\n")
             newlines.append("index = %s\n" % searchindexserver)
+        self.path.write("".join(newlines))
+
+    def write_trustedhost(self, indexserver):
+        self.ensure_backup_file()
+        if not self.path.exists():
+            return
+        newlines = []
+        found = False
+        insection = False
+        indexserver = URL(indexserver)
+        trustedhost = "trusted-host = %s\n" % indexserver.hostname
+        for line in self.path.readlines(cr=1):
+            if insection:
+                if line.strip().startswith('['):
+                    if not found:
+                        newlines.append(trustedhost)
+                        found = True
+                    insection = False
+            if not found and self.section_name in line.lower() and not insection:
+                insection = True
+            if not found and insection and re.match('trusted-host\s*=\s*%s' % indexserver.hostname, line):
+                found = True
+            newlines.append(line)
+        if not found:
+            newlines.append(self.section_name + "\n")
+            newlines.append(trustedhost)
+        self.path.write("".join(newlines))
+
+    def clear_trustedhost(self, indexserver):
+        self.ensure_backup_file()
+        if not self.path.exists():
+            return
+        newlines = []
+        indexserver = URL(indexserver)
+        for line in self.path.readlines(cr=1):
+            if not re.match('trusted-host\s*=\s*%s' % indexserver.hostname, line):
+                newlines.append(line)
         self.path.write("".join(newlines))
 
 
