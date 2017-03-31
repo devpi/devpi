@@ -28,7 +28,7 @@ You are very welcome to report issues, discuss or help:
 
 * repository: https://github.com/devpi/devpi
 
-* mailing list: https://groups.google.com/d/forum/devpi-dev
+* mailing list: https://mail.python.org/mm3/mailman3/lists/devpi-dev.python.org/
 
 * business inquiries: holger at merlinux.eu.
 

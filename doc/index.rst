@@ -18,7 +18,8 @@ devpi: PyPI server and packaging/testing/release tool
 
 .. sidebar:: Links and contact
 
-   `issue tracker <https://github.com/devpi/devpi/issues>`_, `mailing list <https://groups.google.com/d/forum/devpi-dev>`_
+   `issue tracker <https://github.com/devpi/devpi/issues>`_,
+   `mailing list <https://mail.python.org/mm3/mailman3/lists/devpi-dev.python.org/>`_
 
    :ref:`tutorials and documentation <label_quickstart_section>`
    

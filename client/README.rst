@@ -10,7 +10,7 @@ See http://doc.devpi.net for quickstart and more documentation.
   <https://github.com/devpi/devpi>`_
 
 * IRC: #devpi on freenode, `mailing list
-  <https://groups.google.com/d/forum/devpi-dev>`_ 
+  <https://mail.python.org/mm3/mailman3/lists/devpi-dev.python.org/>`_ 
 
 * compatibility: {win,unix}-py{26,27,33}
 
