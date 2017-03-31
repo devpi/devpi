@@ -6,10 +6,10 @@ environment:
     - PROJECT: "client"
 
 install:
-  - choco install python.pypy > pypy-inst.log 2>&1 || (type pypy-inst.log & exit /b 1)
-  - set PATH=C:\tools\pypy\pypy;%PATH% # so tox can find pypy
-  - echo PyPy installed
-  - pypy --version
+#  - choco install python.pypy > pypy-inst.log 2>&1 || (type pypy-inst.log & exit /b 1)
+#  - set PATH=C:\tools\pypy\pypy;%PATH% # so tox can find pypy
+#  - echo PyPy installed
+#  - pypy --version
   - echo Installed Pythons
   - dir c:\Python*
   - C:\Python35\python -m pip install tox
@@ -18,4 +18,4 @@ build: false
 
 test_script:
   - cd "%PROJECT%"
-  - C:\Python35\python -m tox
+  - C:\Python35\python -m tox --skip-missing-interpreters

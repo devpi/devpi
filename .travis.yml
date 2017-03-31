@@ -5,7 +5,7 @@ python:
   - "3.4"
   - "3.5"
   - "3.6"
-  - "pypy"
+#  - "pypy"
 env:
   - PROJECT=client
   - PROJECT=common
