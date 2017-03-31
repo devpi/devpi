@@ -122,6 +122,8 @@ def sorted_sameproject_links(links):
     return [x.obj for x in s]
 
 def get_latest_version(seq, stable=False):
+    if not seq:
+        return
     versions = map(Version, seq)
     if stable:
         versions = [x for x in versions if not x.is_prerelease()]

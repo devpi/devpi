@@ -58,6 +58,20 @@ def test_splitext_archive(releasename, expected):
 
 
 @pytest.mark.parametrize(("expected", "versions"), [
+    (None, []),
+    ("1.0", ["1.0"]),
+    ("1.0", ["1.0", "0.9"]),
+    ("1.0.1.dev0", ["1.0", "1.0.1.dev0"]),
+    ("2.0-alpha1", ["1.0", "2.0a0", "2.0.a0", "2.0-alpha1"]),
+    ("2.0-beta1", ["1.0", "2.0b0", "2.0.b0", "2.0-beta1"]),
+    ("2.0-rc1", ["1.0", "2.0rc0", "2.0.rc0", "2.0-rc1"]),
+    ("2.0-pre1", ["1.0", "2.0pre0", "2.0.pre0", "2.0-pre1"]),
+])
+def test_get_latest_version(expected, versions):
+    assert get_latest_version(versions) == expected
+
+
+@pytest.mark.parametrize(("expected", "versions"), [
     (None, ["1.0rc1"]),
     ("1.0", ["1.0"]),
     ("1.0", ["1.0", "0.9"]),
