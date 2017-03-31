@@ -1,6 +1,10 @@
 3.1.0 (Unreleased)
 ------------------
 
+- add hostname property to URL objects
+
+- expose SSLError on Session object to allow checking for verification errors
+
 - add ``max_retries`` keyword option to ``new_requests_session``.
 
 

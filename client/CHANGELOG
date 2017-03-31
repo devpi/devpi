@@ -1,6 +1,12 @@
 2.8.0 (Unreleased)
 ------------------
 
+- add ``--pip-set-trusted=[yes|no|auto]`` option to ``devpi use`` to add or
+  remove ``trusted-host`` option to pip configuration when ``--set-cfg`` is
+  also given. ``auto`` is the default and sets it for http servers and https
+  which do not pass certificate validation.
+  Thanks to Andrew Leech for the PR.
+
 - add ``devpiclient_get_password`` hook which allows plugins to return a
   password based on username and server url.
 
