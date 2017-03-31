@@ -1,8 +1,8 @@
 devpi-server: pypi server for caching and private indexes
 =============================================================================
 
-* `issue tracker <https://bitbucket.org/hpk42/devpi/issues>`_, `repo
-  <https://bitbucket.org/hpk42/devpi>`_
+* `issue tracker <https://github.com/devpi/devpi/issues>`_, `repo
+  <https://github.com/devpi/devpi>`_
 
 * IRC: #devpi on freenode, `mailing list
   <https://groups.google.com/d/forum/devpi-dev>`_ 

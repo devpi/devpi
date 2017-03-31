@@ -51,7 +51,7 @@ running and deploying a devpi-server in your company or on your laptop.
 
 If you have improvements or additions to the example configs please
 share them with a 
-`Merge/Pull Request on the configuration template files <https://bitbucket.org/hpk42/devpi/src/15fd2b5b41f28ab3d980b093882945c5cbfde3cc/server/devpi_server/cfg/?at=default>`_ and `--gen-config implemenation <https://bitbucket.org/hpk42/devpi/src/15fd2b5b41f28ab3d980b093882945c5cbfde3cc/server/devpi_server/genconfig.py?at=default>`_ along with a little doc section.
+`Merge/Pull Request on the configuration template files <https://github.com/devpi/devpi/src/15fd2b5b41f28ab3d980b093882945c5cbfde3cc/server/devpi_server/cfg/?at=default>`_ and `--gen-config implemenation <https://github.com/devpi/devpi/src/15fd2b5b41f28ab3d980b093882945c5cbfde3cc/server/devpi_server/genconfig.py?at=default>`_ along with a little doc section.
 
 Here is an example run::
 

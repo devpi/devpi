@@ -232,7 +232,7 @@ Finally, you can also look at the logfile of the background server
     2016-12-14 11:15:13,265 INFO  NOCTX serverdir: /tmp/home/.devpi/server
     2016-12-14 11:15:13,265 INFO  NOCTX uuid: c3d6fcc35504482a863e4e1e70b082f0
     2016-12-14 11:15:13,265 INFO  NOCTX serving at url: http://localhost:3141 (might be http://[localhost]:3141 for IPv6)
-    2016-12-14 11:15:13,266 INFO  NOCTX bug tracker: https://bitbucket.org/hpk42/devpi/issues
+    2016-12-14 11:15:13,266 INFO  NOCTX bug tracker: https://github.com/devpi/devpi/issues
     2016-12-14 11:15:13,266 INFO  NOCTX IRC: #devpi on irc.freenode.net
     2016-12-14 11:15:13,266 INFO  NOCTX Hit Ctrl-C to quit.
     2016-12-14 11:15:13,373 INFO  [req0] GET /

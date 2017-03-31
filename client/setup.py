@@ -61,7 +61,7 @@ if __name__ == "__main__":
       packages=find_packages(),
       install_requires=install_requires,
       extras_require=extras_require,
-      url="https://bitbucket.org/hpk42/devpi",
+      url="https://github.com/devpi/devpi",
       maintainer="Holger Krekel",
       maintainer_email="holger@merlinux.eu",
       classifiers=[

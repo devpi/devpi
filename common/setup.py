@@ -28,7 +28,7 @@ if __name__ == "__main__":
       version='3.1.0.dev0',
       packages=find_packages(),
       install_requires=["requests>=2.3.0", "py>=1.4.20"],
-      url="https://bitbucket.org/hpk42/devpi",
+      url="https://github.com/devpi/devpi",
       maintainer="Holger Krekel",
       maintainer_email="holger@merlinux.eu",
       classifiers=[

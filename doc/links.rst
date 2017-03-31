@@ -8,7 +8,7 @@
 .. _merlinux: http://merlinux.eu
 .. _tox: http://tox.testrun.org
 .. _pypi: http://pypi.python.org/pypi
-.. _`devpi issue tracker`: https://bitbucket.org/hpk42/devpi/issues
+.. _`devpi issue tracker`: https://github.com/devpi/devpi/issues
 .. _supervisor: http://pypi.python.org/pypi/supervisor
 .. _launchd: http://en.wikipedia.org/wiki/Launchd
 .. _warehouse: http://pypi.python.org/pypi/warehouse

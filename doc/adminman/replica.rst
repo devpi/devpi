@@ -141,7 +141,7 @@ To remedy this, we may in the future consider implementing a per-server
 (and maybe also per-index) view on "recent changes", and also detailing
 the "local" serials and "remote serials" as well as the replica/master
 connection status, see `issue113
-<https://bitbucket.org/hpk42/devpi/issue/113/provide-devpi-url-status-to-retrieve>`_.
+<https://github.com/devpi/devpi/issue/113/provide-devpi-url-status-to-retrieve>`_.
 
 
 Transactional master state changes / SQL

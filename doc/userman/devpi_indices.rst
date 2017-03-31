@@ -564,7 +564,7 @@ information::
 .. rubric:: Footnotes
 
 .. [#f1] At the present time, it is not possible to issue ``devpi use -l <username>``
-         see `feature request #38 <https://bitbucket.org/hpk42/devpi/issue/38/>`_
+         see `feature request #38 <https://github.com/devpi/devpi/issue/38/>`_
 
 
 

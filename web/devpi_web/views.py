@@ -770,7 +770,7 @@ class SearchView:
                         "Couldn't access documentation files for %s "
                         "version %s on %s. This is a bug. If you find a way "
                         "to reproduce this, please file an issue at: "
-                        "https://bitbucket.org/hpk42/devpi/issues" % (
+                        "https://github.com/devpi/devpi/issues" % (
                             data['name'], data['doc_version'], stage.name))
                 else:
                     text = entry['text']
