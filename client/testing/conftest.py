@@ -114,7 +114,11 @@ def _url_of_liveserver(clientdir):
     path = py.path.local.sysfind("devpi-server")
     assert path
     # Python 2.6 doesn't have check_output
-    run = getattr(subprocess, 'check_output', getattr(subprocess, 'check_call'))
+    if sys.platform.startswith('win'):
+        # check_output hangs on Windows
+        run = subprocess.check_call
+    else:
+        run = getattr(subprocess, 'check_output', getattr(subprocess, 'check_call'))
     try:
         args = [
             str(path), "--serverdir", str(clientdir), "--debug",
