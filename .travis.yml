@@ -1,0 +1,15 @@
+language: python
+sudo: false
+python:
+  - "2.7"
+  - "3.4"
+  - "3.5"
+  - "3.6"
+#  - "pypy"
+env:
+  - PROJECT=client
+  - PROJECT=common
+  - PROJECT=server
+  - PROJECT=web
+install: pip install tox-travis
+script: cd $PROJECT && tox

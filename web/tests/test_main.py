@@ -58,11 +58,15 @@ def test_index_projects_arg(monkeypatch, tmpdir):
 
     monkeypatch.setattr(devpi_server.main, "XOM", MyXOM)
 
-    devpi_server.main.main(
+    result = devpi_server.main.main(
+        ["devpi-server", "--serverdir", str(tmpdir), "--init"])
+    assert not result
+    result = devpi_server.main.main(
         ["devpi-server", "--serverdir", str(tmpdir), "--recreate-search-index"])
+    assert result == 0
     assert tmpdir.join('.indices').check()
-    (xom,) = xom_container
-    ix = get_indexer(xom.config)
+    (xom1, xom2) = xom_container
+    ix = get_indexer(xom2.config)
     result = ix.query_projects('foo')
     assert result['info']['found'] == 1
     assert result['items'][0]['data'] == {
