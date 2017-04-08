@@ -343,6 +343,18 @@ def getvenv():
         return None
     return pip.dirpath().dirpath()
 
+def current_venv():
+    venv = None
+    if (hasattr(sys, 'real_prefix') or
+            (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix)):
+        venv = sys.prefix
+
+    elif "VIRTUAL_ENV" in os.environ:
+        venv = os.environ["VIRTUAL_ENV"]
+
+    return venv
+
+
 def main(hub, args=None):
     args = hub.args
     current = hub.current
@@ -366,7 +378,12 @@ def main(hub, args=None):
 
     if args.venv:
         if args.venv != "-":
-            venvname = args.venv
+            if args.venv == "yes":
+                venvname = current_venv()
+                if venvname is None:
+                    hub.fatal('Could not detect an activated virtualenv.')
+            else:
+                venvname = args.venv
             cand = hub.cwd.join(venvname, vbin, abs=True)
             if not cand.check():
                 cand = hub.path_venvbase.join(venvname, vbin)

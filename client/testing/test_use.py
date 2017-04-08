@@ -344,9 +344,14 @@ class TestUnit:
         res = out_devpi("use")
         res.stdout.fnmatch_lines("*venv*%s" % venvdir)
 
-        # test via env
+        # test via env for virtualenvwrapper
         monkeypatch.setenv("WORKON_HOME", venvdir.dirpath())
         hub = cmd_devpi("use", "--venv=%s" % venvdir.basename)
+        assert hub.current.venvdir == venvdir
+
+        # test via env for activated venv
+        monkeypatch.setenv("VIRTUAL_ENV", venvdir)
+        hub = cmd_devpi("use", "--venv=yes")
         assert hub.current.venvdir == venvdir
 
     @pytest.mark.parametrize(['scheme', 'basic_auth'], [
