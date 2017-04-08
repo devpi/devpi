@@ -354,13 +354,51 @@ class TestUnit:
         hub = cmd_devpi("use", "--venv=yes")
         assert hub.current.venvdir == venvdir
 
+    def test_venv_setcfg(self, mock_http_api, cmd_devpi, tmpdir, monkeypatch):
+        from devpi.use import vbin
+        monkeypatch.setenv("HOME", tmpdir.join('home'))
+        monkeypatch.setattr(PipCfg, "pip_conf_name", "pip.cfg")
+        monkeypatch.setattr(DistutilsCfg, "default_location",
+                            tmpdir.join("dist.cfg"))
+        monkeypatch.setattr(BuildoutCfg, "default_location",
+                            tmpdir.join("buildout.cfg"))
+        mock_http_api.set("http://world/simple/+api", 200,
+                    result=dict(
+                        pypisubmit="",
+                        simpleindex="/simple",
+                        index="/",
+                        bases="",
+                        login="/+login",
+                        authstatus=["noauth", ""],
+                   ))
+        venvdir = tmpdir
+        venvdir.ensure(vbin, dir=1)
+        monkeypatch.chdir(tmpdir)
+        index = "http://world/simple"
+        hub = cmd_devpi("use", "--venv=%s" % venvdir, "--set-cfg", index)
+
+        assert not PipCfg().path.exists()
+        assert not DistutilsCfg.default_location.exists()
+        assert not BuildoutCfg.default_location.exists()
+
+        venv_pip_config = venvdir.join("pip.cfg")
+        assert venv_pip_config.exists()
+        content = venv_pip_config.read()
+        assert len(re.findall("index_url\s*=\s*%s" % index, content)) == 1
+        result = re.findall(
+            "\[search\].*index\s*=\s*%s" % index.replace('simple', ''), content, flags=re.DOTALL)
+        assert len(result) == 1
+        result = result[0].splitlines()
+        assert len(result) == 2
+
     @pytest.mark.parametrize(['scheme', 'basic_auth'], [
         ('http', ''),
         ('https', ''),
         ('http', 'foo:bar@'),
         ('https', 'foo:bar@')])
     def test_main_setcfg(self, scheme, basic_auth, mock_http_api, cmd_devpi, tmpdir, monkeypatch):
-        monkeypatch.setattr(PipCfg, "default_location", tmpdir.join("pip.cfg"))
+        monkeypatch.setenv("HOME", tmpdir.join('home'))
+        monkeypatch.setattr(PipCfg, "pip_conf_name", "pip.cfg")
         monkeypatch.setattr(DistutilsCfg, "default_location",
                             tmpdir.join("dist.cfg"))
         monkeypatch.setattr(BuildoutCfg, "default_location",
@@ -378,8 +416,8 @@ class TestUnit:
         hub = cmd_devpi("use", "--set-cfg", "%s://%sworld" % (scheme, basic_auth))
         # run twice to find any issues where lines are added more than once
         hub = cmd_devpi("use", "--set-cfg", "%s://%sworld" % (scheme, basic_auth))
-        assert PipCfg.default_location.exists()
-        content = PipCfg.default_location.read()
+        assert PipCfg().default_location.exists()
+        content = PipCfg().default_location.read()
         assert len(
             re.findall("index_url\s*=\s*%s://%sworld/simple" % (
                 scheme, basic_auth), content)) == 1
