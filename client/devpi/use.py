@@ -376,26 +376,26 @@ def main(hub, args=None):
     if url or current.index:
         current.configure_fromurl(hub, url, client_cert=args.client_cert)
 
-    if args.venv:
-        if args.venv != "-":
-            if args.venv == "yes":
-                venvname = current_venv()
-                if venvname is None:
-                    hub.fatal('Could not detect an activated virtualenv.')
-            else:
-                venvname = args.venv
+    if args.venv == "-":
+        current.reconfigure(dict(venvdir=None))
+    else:
+        if args.venv:
+            venvname = args.venv
+        else:
+            venvname = current_venv()
+
+        if venvname:
             cand = hub.cwd.join(venvname, vbin, abs=True)
             if not cand.check():
                 cand = hub.path_venvbase.join(venvname, vbin)
                 if not cand.check():
                     hub.fatal("no virtualenv %r found" % venvname)
             current.reconfigure(dict(venvdir=cand.dirpath().strpath))
-        else:
-            current.reconfigure(dict(venvdir=None))
+
     if args.list:
-        if not hub.current.rooturl:
+        if not current.rooturl:
             hub.fatal("not connected to any server")
-        r = hub.http_api("GET", hub.current.rooturl, {}, quiet=True)
+        r = hub.http_api("GET", current.rooturl, {}, quiet=True)
         out_index_list(hub, r.result)
         return 0
 
@@ -422,28 +422,27 @@ def main(hub, args=None):
                  "pointing to a server or directly to an index.")
     if current.venvdir:
         hub.info("venv for install/set commands: %s" % current.venvdir)
-    #else:
-    #    hub.line("no current install venv set")
+
     settrusted = hub.args.settrusted == 'yes'
     if hub.args.always_setcfg:
         always_setcfg = hub.args.always_setcfg == "yes"
-        hub.current.reconfigure(dict(always_setcfg=always_setcfg,
+        current.reconfigure(dict(always_setcfg=always_setcfg,
                                      settrusted=settrusted))
     set_cfgs = []
-    if hub.args.setcfg or hub.current.always_setcfg:
+    if hub.args.setcfg or current.always_setcfg:
         if not hub.current.index:
             hub.error("no index configured: cannot set pip/easy_install index")
         else:
-            indexserver = hub.current.simpleindex_auth
-            searchindexserver = hub.current.searchindex_auth
-            if hub.args.venv:
+            indexserver = current.simpleindex_auth
+            searchindexserver = current.searchindex_auth
+            if current.venvdir:
                 hub.line("only setting venv pip cfg, no global configuration changed")
             else:
                 for cfg in DistutilsCfg(), BuildoutCfg():
                     cfg.write_indexserver(indexserver)
                     set_cfgs.append(cfg)
 
-            pipcfg = PipCfg(venv=hub.args.venv)
+            pipcfg = PipCfg(venv=current.venvdir)
             pipcfg.write_indexserver(indexserver)
             pipcfg.write_searchindexserver(searchindexserver)
             if settrusted or hub.current.settrusted:
@@ -454,8 +453,7 @@ def main(hub, args=None):
             set_cfgs.append(pipcfg)
     for cfg in set_cfgs:
         show_one_conf(hub, cfg)
-    hub.line("always-set-cfg: %s" % ("yes" if hub.current.always_setcfg else
-                                     "no"))
+    hub.line("always-set-cfg: %s" % ("yes" if current.always_setcfg else "no"))
 
 def show_one_conf(hub, cfg):
     if not cfg.exists():
