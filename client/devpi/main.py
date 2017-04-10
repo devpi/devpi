@@ -855,6 +855,8 @@ def install(parser):
     parser.add_argument("--venv", action="store", metavar="DIR",
         help="install into specified virtualenv (created on the fly "
              "if none exists).")
+    parser.add_argument("-r", "--requirement", action="store_true",
+        help="Install from the given requirements file.")
     parser.add_argument("pkgspecs", metavar="pkg", type=str,
         action="store", default=None, nargs="*",
         help="uri or package file for installation from current index. """
