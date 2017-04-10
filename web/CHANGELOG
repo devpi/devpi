@@ -1,3 +1,9 @@
+3.2.0 (Unreleased)
+------------------
+
+- version.pt: add "No releases" when there are none.
+
+
 3.1.1 (2016-07-15)
 ------------------
 
