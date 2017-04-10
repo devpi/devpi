@@ -345,12 +345,12 @@ def getvenv():
 
 def current_venv():
     venv = None
-    if (hasattr(sys, 'real_prefix') or
+    if "VIRTUAL_ENV" in os.environ:
+        venv = os.environ["VIRTUAL_ENV"]
+
+    elif (hasattr(sys, 'real_prefix') or
             (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix)):
         venv = sys.prefix
-
-    elif "VIRTUAL_ENV" in os.environ:
-        venv = os.environ["VIRTUAL_ENV"]
 
     return venv
 
