@@ -19,7 +19,7 @@ def get_changelog():
 
 if __name__ == "__main__":
     here = os.path.abspath(".")
-    README = open(os.path.join(here, 'README.rst')).read()
+    README = io.open(os.path.join(here, 'README.rst'), encoding='utf-8').read()
     CHANGELOG = get_changelog()
 
     install_requires = ["py>=1.4.23",
