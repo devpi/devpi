@@ -194,6 +194,19 @@ def test_project_not_found(mapp, testapp):
     assert 'The project pkg1 does not exist.' in compareable_text(content.text)
 
 
+@pytest.mark.with_notifier
+def test_project_view_docs_only(mapp, testapp):
+    api = mapp.create_and_use()
+    content = zip_dict({"index.html": "<html/>"})
+    mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
+    mapp.upload_doc(
+        "pkg1.zip", content, "pkg1", "2.6", code=200, waithooks=True)
+    r = testapp.xget(200, api.index + '/pkg1', headers=dict(accept="text/html"))
+    (content,) = r.html.select('#content')
+    assert [x.text for x in content.select('tr td')] == [
+        "user1/dev", "2.6", "pkg1-2.6"]
+
+
 def test_project_view_root_pypi(mapp, testapp, pypistage):
     pypistage.mock_simple("pkg1", text='''
             <a href="../../pkg/pkg1-2.7.zip" />
@@ -233,6 +246,29 @@ def test_project_view_root_pypi_external_link_bad_name(mapp, testapp, pypistage)
         ("2.7", "http://localhost/root/pypi/pkg1/2.7"),
         ("root/pypi", "http://localhost/root/pypi"),
         ("2.6", "http://localhost/root/pypi/pkg1/2.6")]
+
+
+@pytest.mark.with_notifier
+def test_project_view_root_and_docs(mapp, testapp, pypistage):
+    pypistage.mock_simple("pkg1", text='''
+            <a href="../../pkg/pkg1-2.7.zip" />
+            <a href="../../pkg/pkg1-2.6.zip" />
+        ''', pypiserial=10)
+    api = mapp.create_and_use(indexconfig=dict(
+        bases=["root/pypi"],
+        mirror_whitelist=["*"]))
+    content = zip_dict({"index.html": "<html/>"})
+    mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
+    mapp.upload_doc(
+        "pkg1.zip", content, "pkg1", "2.6", code=200, waithooks=True)
+    r = testapp.xget(200, api.index + '/pkg1', headers=dict(accept="text/html"))
+    links = r.html.select('#content a')
+    assert [(l.text, l.attrs['href']) for l in links] == [
+        ("root/pypi", "http://localhost/root/pypi"),
+        ("2.7", "http://localhost/root/pypi/pkg1/2.7"),
+        ("root/pypi", "http://localhost/root/pypi"),
+        ("2.6", "http://localhost/root/pypi/pkg1/2.6"),
+        ("pkg1-2.6", "http://localhost/user1/dev/pkg1/2.6/+d/index.html")]
 
 
 @pytest.mark.with_notifier
