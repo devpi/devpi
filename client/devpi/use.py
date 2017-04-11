@@ -343,7 +343,7 @@ def getvenv():
         return None
     return pip.dirpath().dirpath()
 
-def current_venv():
+def active_venv():
     venv = None
     if "VIRTUAL_ENV" in os.environ:
         venv = os.environ["VIRTUAL_ENV"]
@@ -352,7 +352,7 @@ def current_venv():
             (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix)):
         venv = sys.prefix
 
-    return venv
+    return py.path.local(venv).join(vbin, abs=True)
 
 
 def main(hub, args=None):
@@ -376,21 +376,21 @@ def main(hub, args=None):
     if url or current.index:
         current.configure_fromurl(hub, url, client_cert=args.client_cert)
 
+    venvdir = None
     if args.venv == "-":
         current.reconfigure(dict(venvdir=None))
     else:
         if args.venv:
             venvname = args.venv
-        else:
-            venvname = current_venv()
-
-        if venvname:
             cand = hub.cwd.join(venvname, vbin, abs=True)
             if not cand.check():
                 cand = hub.path_venvbase.join(venvname, vbin)
                 if not cand.check():
                     hub.fatal("no virtualenv %r found" % venvname)
-            current.reconfigure(dict(venvdir=cand.dirpath().strpath))
+            venvdir = cand.dirpath().strpath
+            current.reconfigure(dict(venvdir=venvdir))
+        else:
+            venvdir = current.venvdir or active_venv()
 
     if args.list:
         if not current.rooturl:
@@ -420,8 +420,8 @@ def main(hub, args=None):
     else:
         hub.line("no server: type 'devpi use URL' with a URL "
                  "pointing to a server or directly to an index.")
-    if current.venvdir:
-        hub.info("venv for install/set commands: %s" % current.venvdir)
+    if venvdir:
+        hub.info("venv for install/set commands: %s" % venvdir)
 
     settrusted = hub.args.settrusted == 'yes'
     if hub.args.always_setcfg:
@@ -435,14 +435,14 @@ def main(hub, args=None):
         else:
             indexserver = current.simpleindex_auth
             searchindexserver = current.searchindex_auth
-            if current.venvdir:
+            if venvdir:
                 hub.line("only setting venv pip cfg, no global configuration changed")
             else:
                 for cfg in DistutilsCfg(), BuildoutCfg():
                     cfg.write_indexserver(indexserver)
                     set_cfgs.append(cfg)
 
-            pipcfg = PipCfg(venv=current.venvdir)
+            pipcfg = PipCfg(venv=venvdir)
             pipcfg.write_indexserver(indexserver)
             pipcfg.write_searchindexserver(searchindexserver)
             if settrusted or hub.current.settrusted:

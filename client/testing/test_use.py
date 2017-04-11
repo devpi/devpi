@@ -2,6 +2,7 @@ from devpi.use import BuildoutCfg, DistutilsCfg, PipCfg
 from devpi.use import Current, PersistentCurrent
 from devpi.use import parse_keyvalue_spec, out_index_list
 from devpi_common.url import URL
+import devpi.use
 import pytest
 import re
 import requests.exceptions
@@ -295,7 +296,7 @@ class TestUnit:
                         authstatus=["noauth", ""],
                    ))
 
-        hub = cmd_devpi("use", "http://world/this")
+        hub = cmd_devpi("use", "--venv", "-", "http://world/this")
         newapi = hub.current
         assert newapi.pypisubmit == "http://world/post"
         assert newapi.simpleindex == "http://world/index/"
@@ -403,6 +404,7 @@ class TestUnit:
                             tmpdir.join("dist.cfg"))
         monkeypatch.setattr(BuildoutCfg, "default_location",
                             tmpdir.join("buildout.cfg"))
+        monkeypatch.setattr(devpi.use, "active_venv", lambda: None)
         mock_http_api.set("%s://world/+api" % scheme, 200,
                     result=dict(
                         pypisubmit="",
@@ -445,7 +447,7 @@ class TestUnit:
         hub = cmd_devpi(
             "use", "--set-cfg", "--pip-set-trusted=yes", "%s://%sworld" % (
                 scheme, basic_auth))
-        content = PipCfg.default_location.read()
+        content = PipCfg().default_location.read()
         assert len(
             re.findall("trusted-host\s*=\s*world", content)) == 1
         hub = cmd_devpi("use", "--always-set-cfg=yes", "--pip-set-trusted=yes")
