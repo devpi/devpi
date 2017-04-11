@@ -7,7 +7,7 @@ devpi-server: pypi server for caching and private indexes
 * IRC: #devpi on freenode, `mailing list
   <https://mail.python.org/mm3/mailman3/lists/devpi-dev.python.org/>`_ 
 
-* compatibility: {win,unix}-py{27,34}
+* compatibility: {win,unix}-py{27,34,35,36,py}
 
 consistent robust pypi-cache
 ----------------------------------------

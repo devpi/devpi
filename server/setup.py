@@ -56,11 +56,10 @@ if __name__ == "__main__":
         "Programming Language :: Python",
         "Topic :: Internet :: WWW/HTTP",
         "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
+        "Programming Language :: Python :: Implementation :: PyPy",
         ] + [
             ("Programming Language :: Python :: %s" % x) for x in
-                "2.7 3.4 3.5".split()] + [
-            ("Programming Language :: Python :: Implementation :: PyPy")
-        ],
+                "2.7 3.4 3.5 3.6".split()],
       install_requires=install_requires,
       extras_require=extras_require,
       entry_points = {

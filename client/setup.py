@@ -41,14 +41,15 @@ if __name__ == "__main__":
       maintainer="Holger Krekel",
       maintainer_email="holger@merlinux.eu",
       classifiers=[
-        "Development Status :: 4 - Beta",
+        "Development Status :: 5 - Production/Stable",
         "Environment :: Web Environment",
         "Intended Audience :: Developers",
         "Intended Audience :: System Administrators",
         "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python :: Implementation :: PyPy",
         ] + [
             ("Programming Language :: Python :: %s" % x) for x in
-                "2.7 3.3".split()],
+                "2.7 3.4 3.5 3.6".split()],
       entry_points = {
         'console_scripts': [
           "devpi = devpi.main:main"],
