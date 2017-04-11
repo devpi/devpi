@@ -19,12 +19,14 @@
                 <tr>
                     <th>Index</th>
                     <th>Version</th>
+                    <th>Documentation</th>
                 </tr>
             </thead>
             <tbody>
                 <tr tal:repeat="version versions">
                     <td><a href="${version.index_url}">${version.index_title}</a></td>
                     <td><a href="${version.url}">${version.title}</a></td>
+                    <td><a tal:condition="version.docs" href="${version.docs.url}">${version.docs.title}</a></td>
                 </tr>
             </tbody>
         </table>

@@ -1,6 +1,9 @@
 4.3.0 (Unreleased)
 ------------------
 
+- allow upload of documentation without first registering the project or
+  uploading releases.
+
 - add a new command line option ``--replica-max-retries``
 
   Under certain network conditions, it's possible for a connection from devpi

@@ -795,7 +795,6 @@ class TestSubmitValidation:
         # we now try to upload a different file which should fail
         r = submit.file("pkg5-2.6.tgz", b"1234", {"name": "Pkg5"}, code=409)
         assert '409 pkg5-2.6.tgz already exists in non-volatile index' in r.text
-        # import pdb; pdb.set_trace()
         r = mapp.upload_doc("pkg5-2.6.doc.zip", b"1234", "Pkg5", "2.6", code=409)
         assert '409 pkg5-2.6.doc.zip already exists in non-volatile index' in r.text
         # if we upload the same file as originally, then it's a no op
@@ -1023,10 +1022,11 @@ def test_push_from_pypi_fail(httpget, mapp, pypistage, testapp):
     assert r.json["message"] == "error 502 getting https://pypi.python.org/simple/hello/hello-1.0.tar.gz"
 
 
-def test_upload_docs_without_registration(mapp, testapp, monkeypatch):
+def test_upload_docs_for_version_without_release(mapp, testapp, monkeypatch):
     mapp.create_and_use()
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
-    mapp.upload_doc("pkg1-2.7.doc.zip", b'', "pkg1", "2.7", code=400)
+    mapp.upload_doc("pkg1-2.7.doc.zip", b'', "pkg1", "2.7")
+
 
 @proj
 def test_upload_and_push_internal(mapp, testapp, monkeypatch, proj):
@@ -1459,17 +1459,18 @@ def test_upload_docs_no_version(mapp, testapp, proj):
     archive = Archive(py.io.BytesIO(r.body))
     assert 'index.html' in archive.namelist()
 
-def test_upload_docs_no_project_ever_registered(mapp, testapp):
+
+def test_upload_docs_no_releases(mapp, testapp):
     mapp.create_and_use()
     content = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "", code=400)
+    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200)
+
 
 @proj
 def test_upload_docs(mapp, testapp, proj):
     api = mapp.create_and_use()
     content = zip_dict({"index.html": "<html/>"})
-    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=400)
-    mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200)
     vv = get_view_version_links(testapp, api.index, "pkg1", "2.6", proj=proj)
     link = vv.get_link(rel="doczip")

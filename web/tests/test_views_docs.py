@@ -16,7 +16,6 @@ def compareable_text(text):
 def test_docs_raw_view(mapp, testapp):
     api = mapp.create_and_use()
     content = zip_dict({"index.html": "<html/>"})
-    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=400)
     mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
                     waithooks=True)
@@ -37,7 +36,6 @@ def test_docs_raw_view(mapp, testapp):
 def test_docs_view(mapp, testapp):
     api = mapp.create_and_use()
     content = zip_dict({"index.html": "<html/>"})
-    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=400)
     mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
                     waithooks=True)

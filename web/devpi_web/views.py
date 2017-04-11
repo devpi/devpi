@@ -425,10 +425,11 @@ def project_get(context, request):
     context = ContextWrapper(context)
     try:
         releaselinks = context.stage.get_releaselinks(context.verified_project)
+        stage_versions = context.stage.list_versions_perstage(context.verified_project)
     except context.stage.UpstreamError as e:
         log.error(e.msg)
         raise HTTPBadGateway(e.msg)
-    versions = []
+    version_info = {}
     seen = set()
     for release in releaselinks:
         user, index = release.entrypath.split("/", 2)[:2]
@@ -438,15 +439,42 @@ def project_get(context, request):
         seen_key = (user, index, name, version)
         if seen_key in seen:
             continue
-        versions.append(dict(
+        version_info[version] = dict(
             index_title="%s/%s" % (user, index),
             index_url=request.stage_url(user, index),
             title=version,
             url=request.route_url(
                 "/{user}/{index}/{project}/{version}",
                 user=user, index=index, project=name, version=version),
-            _release=release))
+            docs=None,
+            _release=release)
         seen.add(seen_key)
+    user = context.username
+    index = context.stage.index
+    index_title = "%s/%s" % (user, index)
+    name = context.verified_project
+    index_url = request.stage_url(user, index)
+    for version in stage_versions:
+        verdata = context.stage.get_versiondata_perstage(name, version)
+        docs = get_docs_info(
+            request, context.stage, verdata)
+        if not docs:
+            continue
+        if version not in version_info:
+            version_info[version] = dict(
+                index_title=index_title,
+                index_url=index_url,
+                title=version,
+                url=request.route_url(
+                    "/{user}/{index}/{project}/{version}",
+                    user=user, index=index, project=name, version=version),
+                docs=docs,
+                _release=None)
+        else:
+            version_info[version]['docs'] = docs
+    versions = []
+    for version in get_sorted_versions(version_info):
+        versions.append(version_info[version])
     if hasattr(context.stage, 'get_mirror_whitelist_info'):
         whitelist_info = context.stage.get_mirror_whitelist_info(context.project)
     else:

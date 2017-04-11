@@ -748,12 +748,13 @@ class PyPIView:
             # version may be empty on plain doczip uploads
             version = ensure_unicode(request.POST.get("version") or "")
             project = normalize_name(name)
-            if not stage.has_project(name):
-                abort_submit(
-                    request, 400,
-                    "no project named %r was ever registered" % (name))
 
             if action == "file_upload":
+                if not stage.has_project(name):
+                    abort_submit(
+                        request, 400,
+                        "no project named %r was ever registered" % (name))
+
                 self.log.debug("metadata in form: %s",
                                list(request.POST.items()))
 
@@ -803,6 +804,10 @@ class PyPIView:
                 doczip = content.file.read()
                 try:
                     link = stage.store_doczip(project, version, doczip)
+                except stage.MissesVersion as e:
+                    abort_submit(
+                        request, 400,
+                        "%s" % e)
                 except stage.MissesRegistration:
                     abort_submit(
                         request, 400,

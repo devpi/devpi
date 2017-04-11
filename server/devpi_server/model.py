@@ -86,6 +86,10 @@ class MissesRegistration(ModelException):
     """ A prior registration of release metadata is required. """
 
 
+class MissesVersion(ModelException):
+    """ A version number is required. """
+
+
 class NonVolatile(ModelException):
     """ A release is overwritten on a non volatile index. """
     link = None  # the conflicting link
@@ -373,6 +377,7 @@ class BaseStage(object):
     NotFound = NotFound
     UpstreamError = UpstreamError
     MissesRegistration = MissesRegistration
+    MissesVersion = MissesVersion
     NonVolatile = NonVolatile
 
     def __init__(self, xom, username, index, ixconfig):
@@ -746,9 +751,17 @@ class PrivateStage(BaseStage):
         project = normalize_name(project)
         if not version:
             version = self.get_latest_version_perstage(project)
+            if not version:
+                raise MissesVersion(
+                    "doczip has no version and '%s' has no releases to "
+                    "derive one from", project)
             threadlog.info("store_doczip: derived version of %s is %s",
                            project, version)
         basename = "%s-%s.doc.zip" % (project, version)
+        verdata = self.get_versiondata_perstage(
+            project, version, readonly=False)
+        if not verdata:
+            self.set_versiondata({'name': project, 'version': version})
         linkstore = self.get_linkstore_perstage(project, version, readonly=False)
         link = linkstore.create_linked_entry(
                 rel="doczip",
