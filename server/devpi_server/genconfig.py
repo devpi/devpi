@@ -3,6 +3,7 @@ import os
 import py
 import sys
 import subprocess
+from collections import OrderedDict
 from devpi_common.url import URL
 
 from devpi_server.config import (
@@ -22,15 +23,6 @@ except ImportError:
         # python 2
         from plistlib import writePlistToString as write_plist_to_bytes
 
-try:
-    # python >= 2.7
-    # prefer ordered keys for the plist
-    from collections import OrderedDict as PossiblyOrderedDict
-except ImportError:
-    # python <= 2.6
-    # we don't have OrderedDict; the plist will still be fine, but the keys
-    # will be in arbitrary order
-    PossiblyOrderedDict = dict
 
 def gen_supervisor(tw, config, writer):
     import getpass
@@ -76,7 +68,7 @@ def gen_nginx(tw, config, writer):
 
 def gen_launchd(tw, config, writer):
     devpibin = py.path.local(sys.argv[0])
-    plist_content = write_plist_to_bytes(PossiblyOrderedDict([
+    plist_content = write_plist_to_bytes(OrderedDict([
         ("Label", "net.devpi"),
         ("ProgramArguments", [str(devpibin)] + config.args._raw),
         ("RunAtLoad", True),

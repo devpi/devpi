@@ -12,7 +12,7 @@ See http://doc.devpi.net for quickstart and more documentation.
 * IRC: #devpi on freenode, `mailing list
   <https://mail.python.org/mm3/mailman3/lists/devpi-dev.python.org/>`_ 
 
-* compatibility: {win,unix}-py{26,27,33}
+* compatibility: {win,unix}-py{27,33}
 
 
 

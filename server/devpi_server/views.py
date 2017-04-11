@@ -38,7 +38,7 @@ H_MASTER_UUID = str("X-DEVPI-MASTER-UUID")
 
 API_VERSION = "2"
 
-# we use str() here so that python2.6 gets bytes, python3.3 gets string
+# we use str() here so that Python 2 gets bytes, Python 3 gets string
 # so that wsgiref's parsing does not choke
 
 meta_headers = {str("X-DEVPI-API-VERSION"): str(API_VERSION),

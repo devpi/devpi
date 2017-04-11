@@ -113,12 +113,11 @@ def _url_of_liveserver(clientdir):
     port = random.randint(2001, 64000)
     path = py.path.local.sysfind("devpi-server")
     assert path
-    # Python 2.6 doesn't have check_output
     if sys.platform.startswith('win'):
         # check_output hangs on Windows
         run = subprocess.check_call
     else:
-        run = getattr(subprocess, 'check_output', getattr(subprocess, 'check_call'))
+        run = subprocess.check_output
     try:
         args = [
             str(path), "--serverdir", str(clientdir), "--debug",
@@ -128,9 +127,9 @@ def _url_of_liveserver(clientdir):
             args.append('--init')
         run(args, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
-        # this won't output anything on Python 2.6
+        # this won't output anything on Windows
         print(
-            getattr(e, 'output', "Can't get process output on Python 2.6"),
+            getattr(e, 'output', "Can't get process output on Windows"),
             file=sys.stderr)
         raise
     return URL("http://localhost:%s" % port)
