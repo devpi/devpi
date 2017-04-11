@@ -21,6 +21,8 @@
 - fix issue392: setting user password from command line when password hash
   wasn't migrated yet failed.
 
+- fix #381: indicate acceptable exit status for systemd.
+
 
 4.2.1 (2016-12-22)
 ------------------
