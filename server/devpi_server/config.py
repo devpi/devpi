@@ -68,12 +68,6 @@ def addoptions(parser, pluginmanager):
             default=None)
 
     mirror = parser.addgroup("mirroring options")
-    mirror.addoption("--bypass-cdn", action="store_true",
-            help="set this if you want to bypass pypi's CDN for access to "
-                 "simple pages and packages, in order to rule out cache-"
-                 "invalidation issues.  This will only work if you "
-                 "are not using a http proxy.")
-
     mirror.addoption("--mirror-cache-expiry", type=float, metavar="SECS",
             default=1800,
             help="(experimental) time after which projects in mirror indexes "

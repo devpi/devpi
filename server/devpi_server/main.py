@@ -279,21 +279,12 @@ class XOM:
         headers = {}
         if extra_headers:
             headers.update(extra_headers)
-        USE_FRONT = self.config.args.bypass_cdn
-        if USE_FRONT:
-            self.log.debug("bypassing pypi CDN for: %s", url)
-            if url.startswith("https://pypi.python.org/simple/"):
-                url = url.replace("https://pypi", "https://front")
-                headers["HOST"] = "pypi.python.org"
         try:
             resp = self._httpsession.get(
                         url, stream=True,
                         allow_redirects=allow_redirects,
                         headers=headers,
                         timeout=timeout)
-            if USE_FRONT and resp.url.startswith("https://front.python.org"):
-                resp.url = resp.url.replace("https://front.python.org",
-                                            "https://pypi.python.org")
             return resp
         except self._httpsession.Errors:
             return FatalResponse(sys.exc_info())
