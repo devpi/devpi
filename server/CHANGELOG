@@ -23,6 +23,8 @@
 
 - fix #381: indicate acceptable exit status for systemd.
 
+- remove broken ``--bypass-cdn`` option.
+
 
 4.2.1 (2016-12-22)
 ------------------
