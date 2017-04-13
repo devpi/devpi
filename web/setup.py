@@ -1,11 +1,12 @@
 from setuptools import setup
+import io
 import os
 import re
 
 
 def get_changelog():
     here = os.path.abspath(".")
-    text = open(os.path.join(here, 'CHANGELOG')).read()
+    text = io.open(os.path.join(here, 'CHANGELOG'), encoding='utf-8').read()
     header_matches = list(re.finditer('^-+$', text, re.MULTILINE))
     # until fifth header
     text = text[:header_matches[5].start()]
@@ -14,7 +15,7 @@ def get_changelog():
     return "Changelog\n=========\n\n" + "\n".join(lines)
 
 
-README = open(os.path.abspath('README.rst')).read()
+README = io.open(os.path.abspath('README.rst'), encoding='utf-8').read()
 CHANGELOG = get_changelog()
 
 
