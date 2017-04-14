@@ -341,7 +341,7 @@ class TestUnit:
         hub = cmd_devpi("use", "--venv=%s" % venvdir)
         current = PersistentCurrent(hub.current.path)
         assert current.venvdir == str(venvdir)
-        hub = cmd_devpi("use", "--venv=%s" % venvdir)
+        cmd_devpi("use", "--venv=%s" % venvdir)
         res = out_devpi("use")
         res.stdout.fnmatch_lines("*venv*%s" % venvdir)
 
@@ -376,7 +376,7 @@ class TestUnit:
         venvdir.ensure(vbin, dir=1)
         monkeypatch.chdir(tmpdir)
         index = "http://world/simple"
-        hub = cmd_devpi("use", "--venv=%s" % venvdir, "--set-cfg", index)
+        cmd_devpi("use", "--venv=%s" % venvdir, "--set-cfg", index)
 
         assert not PipCfg().path.exists()
         assert not DistutilsCfg.default_location.exists()
@@ -415,9 +415,9 @@ class TestUnit:
                         authstatus=["noauth", ""],
                    ))
 
-        hub = cmd_devpi("use", "--set-cfg", "%s://%sworld" % (scheme, basic_auth))
+        cmd_devpi("use", "--set-cfg", "%s://%sworld" % (scheme, basic_auth))
         # run twice to find any issues where lines are added more than once
-        hub = cmd_devpi("use", "--set-cfg", "%s://%sworld" % (scheme, basic_auth))
+        cmd_devpi("use", "--set-cfg", "%s://%sworld" % (scheme, basic_auth))
         assert PipCfg().default_location.exists()
         content = PipCfg().default_location.read()
         assert len(
@@ -444,7 +444,7 @@ class TestUnit:
         hub = cmd_devpi("use", "--always-set-cfg=no")
         assert not hub.current.always_setcfg
         # Now set the trusted-host
-        hub = cmd_devpi(
+        cmd_devpi(
             "use", "--set-cfg", "--pip-set-trusted=yes", "%s://%sworld" % (
                 scheme, basic_auth))
         content = PipCfg().default_location.read()
