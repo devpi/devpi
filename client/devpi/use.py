@@ -464,7 +464,7 @@ def show_one_conf(hub, cfg):
         status = cfg.indexserver
     hub.info("%-23s: %s" %(cfg.screen_name, status))
 
-class BaseCfg:
+class BaseCfg(object):
     config_name = "index_url"
     regex = re.compile(r"(index[_-]url)\s*=\s*(.*)")
 
