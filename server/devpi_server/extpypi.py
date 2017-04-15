@@ -395,8 +395,7 @@ class PyPIStage(BaseStage):
             threadlog.debug("get_simplelinks pypi: finished waiting for devpi_serial %r",
                             devpi_serial)
             # XXX raise TransactionRestart to get a consistent clean view
-            self.keyfs.commit_transaction_in_thread()
-            self.keyfs.begin_transaction_in_thread()
+            self.keyfs.restart_read_transaction()
             is_fresh, links, cache_serial = self._load_cache_links(project)
             if links is not None:
                 self.cache_link_updates.refresh(project)
