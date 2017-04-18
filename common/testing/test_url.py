@@ -1,7 +1,9 @@
 from __future__ import unicode_literals
 import hashlib
+import posixpath
 import pytest
-from devpi_common.url import *
+from devpi_common.url import URL
+
 
 class TestURL:
     def test_basename(self):
@@ -89,7 +91,6 @@ class TestURL:
         assert not URL()
         url = URL(None)
         assert url.url == ""
-
 
     def test_asdir(self):
         assert URL("http://heise.de").asdir().url == "http://heise.de/"
@@ -190,4 +191,3 @@ def test_canonical_url_path_mappings(url):
     assert posixpath.normpath(path) == path
     back_url = URL.fromrelpath(path)
     assert url == back_url
-
