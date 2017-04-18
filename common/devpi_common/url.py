@@ -78,8 +78,20 @@ class URL:
         return self._parsed.netloc
 
     @property
+    def username(self):
+        return self._parsed.username
+
+    @property
+    def password(self):
+        return self._parsed.password
+
+    @property
     def hostname(self):
         return self._parsed.hostname
+
+    @property
+    def port(self):
+        return self._parsed.port
 
     @property
     def scheme(self):
