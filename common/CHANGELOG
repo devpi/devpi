@@ -1,4 +1,4 @@
-3.1.0 (Unreleased)
+3.1.0 (2017-04-18)
 ------------------
 
 - add ``username``, ``password``, ``hostname`` and ``port`` properties to
