@@ -1,4 +1,4 @@
-3.0.0 (Unreleased)
+3.0.0 (2017-04-23)
 ------------------
 
 - add ``-r, --requirement`` option to `devpi install` to use requirements file.
