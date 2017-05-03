@@ -309,6 +309,22 @@ def test_simple_blocked_warning(mapp, pypistage, testapp):
     assert r.html.select('p') == []
 
 
+def test_simple_with_removed_base(caplog, mapp, testapp):
+    mapp.create_and_login_user("user1", "1")
+    mapp.create_index("prod")
+    mapp.create_index("dev", indexconfig=dict(bases=["user1/prod"]))
+    mapp.delete_index("prod")
+    mapp.set_versiondata(dict(name="pkg", version="1.0"), set_whitelist=False)
+    testapp.xget(200, "/user1/dev/+simple/")
+    assert len(caplog.getrecords('refers to non-existing')) == 1
+    testapp.xget(200, "/user1/dev/+simple/pkg")
+    records = caplog.getrecords('refers to non-existing')
+    assert [x.args for x in records] == [
+        ('user1/dev', 'user1/prod'),
+        ('user1/dev', 'user1/prod'),
+        ('user1/dev', 'user1/prod')]
+
+
 def test_indexroot(testapp, model):
     with model.keyfs.transaction(write=True):
         user = model.create_user("user", "123")
@@ -705,6 +721,21 @@ class TestSubmitValidation:
         assert "not a valid" in r.status
         r = submit.file("pkg5-2.7.tgz", b"123", {"name": "pkg5"}, code=200)
         mapp.get_release_paths("Pkg5")
+
+    def test_upload_with_removed_base(self, mapp, testapp):
+        mapp.create_and_login_user("user1", "1")
+        mapp.create_index("prod")
+        mapp.create_index("dev", indexconfig=dict(bases=["user1/prod"]))
+        mapp.delete_index("prod")
+        metadata = {"name": "Pkg5", "version": "1.0", ":action": "submit"}
+        testapp.post("/user1/dev/", metadata, code=200)
+        mapp.upload_file_pypi(
+            "Pkg5-1.0.tar.gz", b'123',
+            "Pkg5", "1.0",
+            indexname="user1/dev", register=False,
+            code=200)
+        (release,) = mapp.getreleaseslist("Pkg5")
+        assert release.endswith("Pkg5-1.0.tar.gz")
 
     def test_upload_file_version_not_in_filename(self, submit, mapp):
         metadata = {"name": "Pkg5", "version": "1.0", ":action": "submit"}
