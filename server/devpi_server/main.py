@@ -287,6 +287,7 @@ class XOM:
                         timeout=timeout)
             return resp
         except self._httpsession.Errors:
+            threadlog.exception("Error during httpget of %s", url)
             return FatalResponse(sys.exc_info())
 
     def create_app(self):
@@ -391,7 +392,15 @@ class FatalResponse:
     status_code = -1
 
     def __init__(self, excinfo=None):
-        self.excinfo = excinfo
+        self.reason = repr(excinfo[1])
+
+    @property
+    def status(self):
+        return "%s %s" % (self.status_code, self.reason)
+
+    def __repr__(self):
+        return "%s(%r)" % (self.__class__.__name__, self.reason)
+
 
 def get_remote_ip(request):
     return request.headers.get("X-REAL-IP", request.client_addr)

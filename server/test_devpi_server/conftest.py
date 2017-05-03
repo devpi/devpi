@@ -316,6 +316,11 @@ def httpget(pypiurls):
                     xself.allow_redirects = allow_redirects
                     if "content" in fakeresponse:
                         xself.raw = py.io.BytesIO(fakeresponse["content"])
+
+                @property
+                def status(xself):
+                    return "%s" % xself.status_code
+
                 def __repr__(xself):
                     return "<mockresponse %s url=%s>" % (xself.status_code,
                                                          xself.url)
