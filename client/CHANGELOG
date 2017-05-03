@@ -1,6 +1,7 @@
 3.0.1 (Unreleased)
 ------------------
 
+- fix issue227: add ``logout`` command as alias for ``logoff``.
 
 
 3.0.0 (2017-04-23)

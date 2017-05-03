@@ -679,6 +679,15 @@ def logoff(parser):
     This will erase the client-side login token (see "devpi login").
     """
 
+
+@subcommand("devpi.login:logoff")
+def logout(parser):
+    """ log out of the current devpi-server.
+
+    This will erase the client-side login token (see "devpi login").
+    """
+
+
 @subcommand("devpi.index")
 def index(parser):
     """ create, delete and manage indexes.
