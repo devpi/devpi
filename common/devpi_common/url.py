@@ -7,7 +7,7 @@ if sys.version_info >= (3, 0):
     from urllib.parse import urlparse, urlunsplit, urljoin, unquote
 else:
     from urlparse import urlparse, urlunsplit, urljoin
-    from urllib import unqote
+    from urllib import unquote
 
 
 def _joinpath(url, args, asdir=False):
@@ -123,11 +123,11 @@ class URL:
 
     @property
     def basename(self):
-        return posixpath.basename(unqote(self._parsed.path))
+        return posixpath.basename(unquote(self._parsed.path))
 
     @property
     def parentbasename(self):
-        return posixpath.basename(posixpath.dirname(unqote(self._parsed.path)))
+        return posixpath.basename(posixpath.dirname(unquote(self._parsed.path)))
 
     @property
     def eggfragment(self):
