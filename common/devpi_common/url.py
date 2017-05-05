@@ -1,13 +1,14 @@
-
 import sys
 import posixpath
 from devpi_common.types import cached_property, ensure_unicode, parse_hash_spec
 from requests.models import parse_url
 
 if sys.version_info >= (3, 0):
-    from urllib.parse import urlparse, urlunsplit, urljoin
+    from urllib.parse import urlparse, urlunsplit, urljoin, unquote
 else:
     from urlparse import urlparse, urlunsplit, urljoin
+    from urllib import unqote
+
 
 def _joinpath(url, args, asdir=False):
     new = url
@@ -17,6 +18,7 @@ def _joinpath(url, args, asdir=False):
     if asdir:
         new = new.rstrip("/") + "/"
     return new
+
 
 class URL:
     def __init__(self, url="", *args, **kwargs):
@@ -121,11 +123,11 @@ class URL:
 
     @property
     def basename(self):
-        return posixpath.basename(self._parsed.path)
+        return posixpath.basename(unqote(self._parsed.path))
 
     @property
     def parentbasename(self):
-        return posixpath.basename(posixpath.dirname(self._parsed.path))
+        return posixpath.basename(posixpath.dirname(unqote(self._parsed.path)))
 
     @property
     def eggfragment(self):
@@ -193,4 +195,3 @@ class URL:
         """ return url from canonical relative path. """
         scheme, netlocpath = relpath.split("/", 1)
         return cls(scheme + "://" + netlocpath)
-
