@@ -965,19 +965,22 @@ def master_host_port(request, call_devpi_in_dir, server_directory):
     host = 'localhost'
     port = get_open_port(host)
     master_dir = server_directory.join("master")
-    args = ["devpi-server", "--start", "--role", "master", "--host", host, "--port", str(port)]
+    args = [
+        "devpi-server",
+        "--serverdir", master_dir.strpath,
+        "--role", "master",
+        "--host", host,
+        "--port", str(port)]
     if not master_dir.join('.nodeinfo').exists():
-        args.append("--init")
-    call_devpi_in_dir(
-        master_dir.strpath,
-        args)
+        subprocess.check_call(
+            args + ["--init"])
+    p = subprocess.Popen(args)
     try:
         wait_for_port(host, port)
         yield (host, port)
     finally:
-        call_devpi_in_dir(
-            master_dir.strpath,
-            ["devpi-server", "--stop"])
+        p.terminate()
+        p.wait()
 
 
 @pytest.yield_fixture(scope="module")
