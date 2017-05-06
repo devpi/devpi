@@ -183,8 +183,13 @@ def url_of_liveserver2(request):
 
 
 @pytest.fixture
-def devpi(cmd_devpi, gen, url_of_liveserver):
-    user = gen.user()
+def devpi_username(gen):
+    return gen.user()
+
+
+@pytest.fixture
+def devpi(cmd_devpi, devpi_username, url_of_liveserver):
+    user = devpi_username
     cmd_devpi("use", url_of_liveserver.url, code=200)
     cmd_devpi("user", "-c", user, "password=123", "email=123")
     cmd_devpi("login", user, "--password", "123")
@@ -339,6 +344,9 @@ def out_devpi(devpi):
 @pytest.fixture
 def cmd_devpi(tmpdir, monkeypatch):
     """ execute devpi subcommand in-process (with fresh init) """
+    def ask_confirm(msg):
+        print("%s: yes" % msg)
+        return True
     clientdir = tmpdir.join("client")
     def run_devpi(*args, **kwargs):
         callargs = []
@@ -348,7 +356,7 @@ def cmd_devpi(tmpdir, monkeypatch):
             callargs.append(str(arg))
         print_info("*** inline$ %s" % " ".join(callargs))
         hub, method = initmain(callargs)
-        monkeypatch.setattr(hub, "ask_confirm", lambda msg: True)
+        monkeypatch.setattr(hub, "ask_confirm", ask_confirm)
         expected = kwargs.get("code", None)
         try:
             method(hub, hub.args)
