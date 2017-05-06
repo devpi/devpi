@@ -1,9 +1,10 @@
 from __future__ import print_function
-# content of conftest.py
+from contextlib import closing
+from time import sleep
 import os
-import random
 import pkg_resources
 import pytest
+import socket
 import textwrap
 import py
 import sys
@@ -109,35 +110,47 @@ def get_pypirc_patcher(devpi):
     return overwrite()
 
 
-def _url_of_liveserver(clientdir):
-    port = random.randint(2001, 64000)
+def get_open_port(host):
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+        s.bind((host, 0))
+        s.listen(1)
+        port = s.getsockname()[1]
+    return port
+
+
+def wait_for_port(host, port, timeout=60):
+    while timeout > 0:
+        with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+            s.settimeout(1)
+            if s.connect_ex((host, port)) == 0:
+                return
+        sleep(1)
+        timeout -= 1
+    raise RuntimeError(
+        "The port %s on host %s didn't become accessible" % (port, host))
+
+
+def _liveserver(clientdir):
+    host = 'localhost'
+    port = get_open_port(host)
     path = py.path.local.sysfind("devpi-server")
     assert path
-    if sys.platform.startswith('win'):
-        # check_output hangs on Windows
-        run = subprocess.check_call
-    else:
-        run = subprocess.check_output
     try:
         args = [
             str(path), "--serverdir", str(clientdir), "--debug",
-            "--port", str(port), "--start"]
+            "--host", host, "--port", str(port)]
         server_version = pkg_resources.parse_version(devpi_server_version)
         if server_version >= pkg_resources.parse_version('4.2.0.dev'):
-            args.append('--init')
-        run(args, stderr=subprocess.STDOUT)
+            subprocess.check_call(args + ['--init'])
     except subprocess.CalledProcessError as e:
         # this won't output anything on Windows
         print(
             getattr(e, 'output', "Can't get process output on Windows"),
             file=sys.stderr)
         raise
-    return URL("http://localhost:%s" % port)
-
-
-def _stop_liveserver(clientdir):
-    subprocess.check_call(["devpi-server", "--serverdir", str(clientdir),
-                           "--stop"])
+    p = subprocess.Popen(args)
+    wait_for_port(host, port)
+    return (p, URL("http://%s:%s" % (host, port)))
 
 
 @pytest.yield_fixture(scope="session")
@@ -148,8 +161,12 @@ def url_of_liveserver(request):
         yield URL(request.config.option.live_url)
         return
     clientdir = request.config._tmpdirhandler.mktemp("liveserver")
-    yield _url_of_liveserver(clientdir)
-    _stop_liveserver(clientdir)
+    (p, url) = _liveserver(clientdir)
+    try:
+        yield url
+    finally:
+        p.terminate()
+        p.wait()
 
 
 @pytest.yield_fixture(scope="session")
@@ -157,8 +174,12 @@ def url_of_liveserver2(request):
     if request.config.option.fast:
         pytest.skip("not running functional tests in --fast mode")
     clientdir = request.config._tmpdirhandler.mktemp("liveserver2")
-    yield _url_of_liveserver(clientdir)
-    _stop_liveserver(clientdir)
+    (p, url) = _liveserver(clientdir)
+    try:
+        yield url
+    finally:
+        p.terminate()
+        p.wait()
 
 
 @pytest.fixture
