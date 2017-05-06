@@ -1,10 +1,13 @@
+.. towncrier release notes start
+
+
 4.3.1 (Unreleased)
-------------------
+==================
 
 
 
 4.3.0 (2017-04-23)
-------------------
+==================
 
 - allow upload of documentation without first registering the project or
   uploading releases.
@@ -32,7 +35,7 @@
 
 
 4.2.1 (2016-12-22)
-------------------
+==================
 
 - the new ``--init`` option now exits after done, so it can be used in
   automation scripts. When using with ``--start`` it still starts the
@@ -40,7 +43,7 @@
 
 
 4.2.0 (2016-12-14)
-------------------
+==================
 
 SECURITY NOTE:
 
@@ -81,7 +84,7 @@ starting the master devpi-server instance.
 
 
 4.1.1 (2016-10-14)
-------------------
+==================
 
 - when a project has no releases (only setup.py register ran) and it isn't
   whitelisted, then upstream releases will now be blocked as expected.
@@ -97,7 +100,7 @@ starting the master devpi-server instance.
 
 
 4.1.0 (2016-07-15)
-------------------
+==================
 
 - Try opening read only transactions in SQLite read only mode for better
   concurrency/locking behaviour. This is officially supported with Python 3.4,
@@ -123,7 +126,7 @@ starting the master devpi-server instance.
 
 
 4.0.0 (2016-05-12)
-------------------
+==================
 
 .. note::
 
@@ -141,7 +144,7 @@ starting the master devpi-server instance.
 
 
 3.1.2 (2016-05-12)
-------------------
+==================
 
 - fix issue336: the mirror_whitelist setting got lost on import.
 
@@ -152,14 +155,14 @@ starting the master devpi-server instance.
 
 
 3.1.1 (2016-05-11)
-------------------
+==================
 
 - fix import of releases for packages with dots in their name after PEP-503
   fix in devpi-common 2.0.9.
 
 
 3.1.0 (2016-04-22)
-------------------
+==================
 
 - fix issue208: Uncached mirrored files (PyPI) are streamed to the client while
   downloading. This prevents timeouts in pip etc. The files are only cached if
@@ -200,7 +203,7 @@ starting the master devpi-server instance.
 
 
 3.0.2 (2016-03-03)
-------------------
+==================
 
 - fix setting of ``mirror_whitelist``.
 
@@ -213,14 +216,14 @@ starting the master devpi-server instance.
 
 
 3.0.1 (2016-02-12)
-------------------
+==================
 
 - fix importing of uploaded files. Only the last index from exported data
   was processed.
 
 
 3.0.0 (2016-02-12)
-------------------
+==================
 
 - dropped support for python2.6
 
@@ -284,7 +287,7 @@ starting the master devpi-server instance.
 
 
 2.6.1 (2016-03-03)
-------------------
+==================
 
 - add more info when importing data.  Thanks Marc Abramowitz for the PR.
 
@@ -293,7 +296,7 @@ starting the master devpi-server instance.
 
 
 2.6.0 (2016-01-29)
-------------------
+==================
 
 - fix issue262: new experimental option --offline-mode will prevent
   devpi-server from even trying to perform network requests and it
@@ -318,7 +321,7 @@ starting the master devpi-server instance.
 
 
 2.5.3 (2015-11-23)
-------------------
+==================
 
 - fix a bug that resulted from accessing a non-existing project on 
   root/pypi where upstream does not contain the X-PYPI-LAST-SERIAL
@@ -326,7 +329,7 @@ starting the master devpi-server instance.
 
 
 2.5.2 (2015-11-20)
-------------------
+==================
 
 - recognize "pex" for redirections of user/index/NAME to
   user/index/+simple/NAME just like we do with pip/setuptools.
@@ -336,13 +339,13 @@ starting the master devpi-server instance.
 
 
 2.5.1 (2015-11-20)
-------------------
+==================
 
 - fix issue289: fix simple page serving on replicas
 
 
 2.5.0 (2015-11-19)
-------------------
+==================
 
 - fix a regression of 2.3.0 which would cause many write-transactions
   for mirrored simple-page entries that didn't change.  Previous to the fix,
@@ -369,7 +372,7 @@ starting the master devpi-server instance.
 
 
 2.4.0 (2015-11-11)
-------------------
+==================
 
 - NOTE: devpi-server-2.4 is compatible to data from devpi-server-2.3 but
   not the other way round.  Once you run devpi-server-2.4 you can not go
@@ -409,7 +412,7 @@ starting the master devpi-server instance.
 
 
 2.3.1 (2015-09-14)
-------------------
+==================
 
 - fix issue272: require devpi-common >= 2.0.6
 
@@ -418,7 +421,7 @@ starting the master devpi-server instance.
 
 
 2.3.0 (2015-09-10)
-------------------
+==================
 
 - switched to semantic versioning. Only major revisions will ever require an
   export/import cycle.
@@ -449,7 +452,7 @@ starting the master devpi-server instance.
 
 
 2.2.2 (2015-07-09)
-------------------
+==================
 
 - make replica thread more robust by catching more exceptions
 
@@ -470,14 +473,14 @@ starting the master devpi-server instance.
 
 
 2.2.1 (2015-05-20)
-------------------
+==================
 
 - fix issue237: fix wrong initial replica setup which would prevent
   initialization.  Thanks Stephan Erb.
 
 
 2.2.0 (2015-05-13)
-------------------
+==================
 
 - add "--no-events" option to postpone running events after import
   to server start
@@ -542,7 +545,7 @@ starting the master devpi-server instance.
 
 
 2.1.5 (2015-03-16)
-------------------
+==================
 
 - fix devpi-ldap issue17: the push command directly used the username instead
   of using a general permission check, that caused groups in acl_upload to not
@@ -559,7 +562,7 @@ starting the master devpi-server instance.
 
 
 2.1.4
-----------------
+=====
 
 - fix issue214: the whitelisting code stopped inheritance too early.
 
@@ -580,7 +583,7 @@ starting the master devpi-server instance.
   the server name is not in DNS.
 
 2.1.3
-----------------
+=====
 
 - fix replication when files with identical name are later changed. This can
   happen with toxresults. These kind of errors are tracked and when a later
@@ -599,7 +602,7 @@ starting the master devpi-server instance.
   but rather use the existing one if the request comes from a replica.
 
 2.1.2
-----------------
+=====
 
 - fix issue172: avoid traceback when user/index/name/version is accessed.
 
@@ -615,7 +618,7 @@ starting the master devpi-server instance.
   it means the "last serial for which events have been processed"
 
 2.1.1
-----------------
+=====
 
 - fix replication issue reported by a customer: if a replica lags
   behind a master and a file was created and then deleted meanwhile,
@@ -636,7 +639,7 @@ starting the master devpi-server instance.
 - use newer version of virtualenv for jenkins trigger. Thank brunsgaard.
 
 2.1.0
-----------------
+=====
 
 - make replication more precise: if a file cannot be replicated,
   fail with an error log and try again in a few seconds.
@@ -711,12 +714,12 @@ starting the master devpi-server instance.
 - fix issue161: allow "{pkgversion}" to be part of a jenkins url
 
 2.0.6
-----------------
+=====
 
 - log version information of all found plugins on startup.
 
 2.0.5
-----------------
+=====
 
 - fix issue145: restrict devpi_common dependency so that a future
   "pip install 'devpi-server<2.0'" has a higher chance of working.
@@ -742,7 +745,7 @@ starting the master devpi-server instance.
   indexes and projects and files on each index.
 
 2.0.4
-----------------
+=====
 
 - fix issue139: adapt to a recent change in pypi which now serves
   under URLs using normalized project names instead of the "real" registered name
@@ -752,13 +755,13 @@ starting the master devpi-server instance.
   the one which pkg_resources sees (which gets it effectively from setup.py)
 
 2.0.3
-----------------
+=====
 
 - fix issue128: a basic auth challenge needs to be sent back on submit when no
   authorization headers are sent with the post request.
 
 2.0.2
-----------------
+=====
 
 - fix issue120: link to "upgrade" section from main index page.
 
@@ -783,7 +786,7 @@ starting the master devpi-server instance.
   and projects are served.
 
 2.0.1
-----------------
+=====
 
 - fix regression which prevented the basic authentication for the setuptools
   upload/register commands to fail. Thanks Florian Schulze.
@@ -792,7 +795,7 @@ starting the master devpi-server instance.
   And better allow auto-registration when uploading release files.
 
 2.0.0
-----------------
+=====
 
 - major revamp of the internal core of devpi to support
   replication (both master and server code), a plugin architecture
@@ -849,7 +852,7 @@ starting the master devpi-server instance.
   replica of a server running behind a proxy
 
 1.2.2
-----------------
+=====
 
 - fix issue78: create less directories for pypi package files by
   splitting the md5 part into two. Avoids TooManyLinks errors in
@@ -866,7 +869,7 @@ starting the master devpi-server instance.
   Alexey Sveshnikov.
 
 1.2.1
-----------------
+=====
 
 - fix an import issue for doc files which were wrongly tied to a newer
   version of a base index. now version "auto" detection for storing
@@ -899,7 +902,7 @@ starting the master devpi-server instance.
 - --upgrade-state will upgrade now between major.minor/major.minor+1 changes.
 
 1.2
-----------------
+===
 
 - serve links to files on simple pages and index root as relative
   paths so that it works more nicely with proxy-pass server setups.
@@ -941,7 +944,7 @@ starting the master devpi-server instance.
 - make devpi-server use a proper UserAgent string
 
 1.1
-----------------
+===
 
 - systematically test pypi/mirror code against all 34K pypi projects
   so that we know that all http/https installable archive links that pypi offers 
@@ -1005,7 +1008,7 @@ starting the master devpi-server instance.
 
 
 1.0
-----------------
+===
 
 - rename "--datadir" to "serverdir" to better match
   the also picked up DEVPI_SERVERDIR environment variable.
@@ -1067,13 +1070,13 @@ starting the master devpi-server instance.
 - don't require email setting for creating users
 
 0.9.4
-----------------
+=====
 
 - fix issue where lookups into subpages of the simple index
   (simple/NAME/VER) would not trigger a 404 as they should.
 
 0.9.3
-----------------
+=====
 
 - fixed issue9: caching of packages where upstream provides no
   last-modified header now works.
@@ -1087,14 +1090,14 @@ starting the master devpi-server instance.
   (thanks to Anthon van der Neut)
 
 0.9.2
-----------------
+=====
 
 - fix /USER/INDEXNAME root views to contain only latest in-stage packages
 
 - make +api calls return bases so that "devpi use" can show them
 
 0.9.1
-----------------
+=====
 
 - return 404 for submits to root/pypi
 
@@ -1108,7 +1111,7 @@ starting the master devpi-server instance.
 - fix root/pypi and root/dev page serving in various cases
 
 0.9.0
-----------------
+=====
 
 - implement more precise pypi.python.org CDN/caching invalidation
   technique, using the most recent PyPI API ("X-PYPI-LAST-SERIAL" 
@@ -1134,7 +1137,7 @@ starting the master devpi-server instance.
 
 
 0.8.5
-----------------
+=====
 
 - re-fix issue6: tests and fixes for django-debug-toolbar
   where recursive scraping was accidentally triggered
@@ -1153,7 +1156,7 @@ starting the master devpi-server instance.
   scraping bits directly to _pip.py
 
 0.8.4
-----------------
+=====
 
 - use pip's link parser rather than beautifulsoup
   to benefit from link parsing code tested out 
@@ -1166,7 +1169,7 @@ starting the master devpi-server instance.
 - release 0.8.3 is not useable
 
 0.8.2
-------------------------------
+=====
 
 - fix issue6 - some edge cases for link parsing uncovered
   by BeautifulSoup and CouchApp installs. Thanks Anton Baklanov.
@@ -1177,7 +1180,7 @@ starting the master devpi-server instance.
 
 
 0.8.1
-------------------------------
+=====
 
 - fix: change gendeployed supervisord.conf  to not autostart
   processes on "devpi-ctl" invocations.  "devpi-ctl help"
@@ -1192,7 +1195,7 @@ starting the master devpi-server instance.
   a note to the README.
 
 0.8
-------------------------------
+===
 
 - introduce "--gendeploy=TARGETDIR" for generating a virtualenv
   directory with supervisor-based configuration in TARGETDIR/etc
@@ -1207,7 +1210,7 @@ starting the master devpi-server instance.
 - fix python2.6 and simplify logging configuration
 
 0.7
----
+===
 
 -  Initial release
 

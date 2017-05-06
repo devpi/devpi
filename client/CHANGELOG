@@ -1,10 +1,13 @@
+.. towncrier release notes start
+
+
 3.0.1 (Unreleased)
-------------------
+==================
 
 
 
 3.0.0 (2017-04-23)
-------------------
+==================
 
 - add ``-r, --requirement`` option to `devpi install` to use requirements file.
 
@@ -23,7 +26,7 @@
 
 
 2.7.0 (2016-10-14)
-------------------
+==================
 
 - fix issue268: upload of docs with PEP440 version strings now works
 
@@ -33,34 +36,34 @@
 
 
 2.6.4 (2016-07-15)
-------------------
+==================
 
 - fix issue337: ``devpi upload`` for packages that produce output during build
   now works.
 
 
 2.6.3 (2016-05-13)
-------------------
+==================
 
 - update devpi-common requirement, so devpi-client can be installed in the same
   virtualenv as devpi-server 4.0.0.
 
 
 2.6.2 (2016-04-28)
-------------------
+==================
 
 - ``devpi upload`` failed to use basic authentication and client certificate
   information.
 
 
 2.6.1 (2016-04-27)
-------------------
+==================
 
 - fix issue340: basic authentication with ``devpi use`` didn't work anymore.
 
 
 2.6.0 (2016-04-22)
-------------------
+==================
 
 - switching to another server with ``devpi use`` now reuses an existing
   authentication token as well as previously set basic auth and client cert.
@@ -74,7 +77,7 @@
 
 
 2.5.0 (2016-02-08)
-------------------
+==================
 
 - the ``user`` command now behaves slightly more like ``index`` to show
   current user settings and modify them.
@@ -95,14 +98,14 @@
 
 
 2.4.1 (2016-02-01)
-------------------
+==================
 
 - fix issue308: properly handle index reconfiguration in the client API.
   thanks to Jacob Geiger for the report and an initial PR.
 
 
 2.4.0 (2016-01-29)
-------------------
+==================
 
 - fix issue291: transfer file modes with vcs exports.  Thanks Sergey
   Vasilyev for the report.
@@ -116,7 +119,7 @@
 
 
 2.3.2 (2015-11-11)
-------------------
+==================
 
 - fix git submodules for devpi upload. ``.git`` is a file not a folder for
   submodules. Before this fix the repository which contains the submodule was
@@ -129,13 +132,13 @@
 
 
 2.3.1 (2015-09-10)
-------------------
+==================
 
 - fix issue259: print server errors in client
 
 
 2.3.0 (2015-07-09)
-------------------
+==================
 
 - fix issue247: possible password leakage to log in devpi-client
 
@@ -159,7 +162,7 @@
 
 
 2.2.0 (2015-05-13)
-------------------
+==================
 
 - improve internal testing mechanics
 
@@ -183,7 +186,7 @@
 - show index configuration settings added by plugins in devpi-server >= 2.2.0.
 
 2.1.0 (2015-03-16)
-------------------
+==================
 
 - fix issue199: "devpi upload" and "devpi test" can now handle packages with
   dashes in their name.
@@ -194,14 +197,14 @@
   their name.
 
 2.0.5 (2015-02-24)
-------------------
+==================
 
 - fix issue209: argument default handling changed in argparse in Python 2.7.9.
 - fix issue163: use PIP_CONFIG_FILE environment variable if set.
 - fix issue191: provide return code !=0 for failures during push
 
 2.0.4
-----------------
+=====
 
 - fix issue181: provide Return code != 0 for failed upload POST requests.
 
@@ -209,7 +212,7 @@
   the valid subcommands.
  
 2.0.3
-----------------
+=====
 
 - use default "https://www.python.org/pypi" when no repository is set in .pypirc
   see https://docs.python.org/2/distutils/packageindex.html#the-pypirc-file
@@ -233,7 +236,7 @@
   didn't show newer results if the host, platform and environment were the same.
 
 2.0.2
-----------------
+=====
 
 - fix issue135: fix port mismatch for basic auth if port isn't explicitly given
   on https urls.
@@ -251,7 +254,7 @@
   Thanks Jürgen Hermann for initial PR and ideas.
 
 2.0.1
-----------------
+=====
 
 - fix a test to expect a 403 instead of a 401 from devpi server from
   unauthorized access 
@@ -262,7 +265,7 @@
 
 
 2.0
-----------------
+===
 
 - Compatibility with devpi-server >= 2.0.0
 
@@ -282,7 +285,7 @@
   "devpi use --client-cert"
 
 1.2.2
--------------------------------
+=====
 
 - depend on pkginfo>1.2b1 for wheel metadata reading support, 
   remove twine dependency. Thanks Tres Seaver.
@@ -291,7 +294,7 @@
   Thanks Christian Ullrich for the PR.
 
 1.2.1
--------------------------------
+=====
 
 - fix "python -m devpi" invocation. Thanks Sebastian Ralph.
 
@@ -303,7 +306,7 @@
   Thanks Sebastian Rahlf for the PR.
 
 1.2
--------------------------------
+===
 
 - "devpi list" and "devpi remove" now accept a pip/setuptools style
   requirement like "pkg>=1.0" instead of the former for limited "pkg-1.0".
@@ -358,7 +361,7 @@
 - make devpi-client use a proper UserAgent string
 
 1.1
--------------------------------
+===
 
 - detect "X-DEVPI-API-VERSION" header and check for compatibility.
   devpi-client currently supports version "1" and warns if
@@ -389,7 +392,7 @@
   a subprocess.
 
 1.0
--------------------------------
+===
 
 - removed ``server`` subcommand and options for controling background devpi-server
   processes to become options of ``devpi-server`` itself.
@@ -408,7 +411,8 @@
 
 - fix issue17: better reporting when "devpi use" does not operate on valid URL
 
-- test result upload and access: 
+- test result upload and access:
+
   - "devpi test" invokes "tox --result-json ..." and uploads 
     the test result log to devpi-server.  
   - "devpi list [-f] PKG" shows test result information.
@@ -445,7 +449,7 @@
   devpi-server)
 
 0.9.4
--------------------------------
+=====
 
 - fix uploading by adding setup.py's dir to sys.path:  setup.py 
   files that import modules/packages for obtaining versions etc.
@@ -454,7 +458,7 @@
 - fix automatic devpi-server startup on python26/windows 
 
 0.9.3
--------------------------------
+=====
 
 - new "devpi list" command to show projects of the in-use index or all
   release files of a project with "devpi list PROJECTNAME".
@@ -466,7 +470,7 @@
   (thanks to Anthon van der Neut)
 
 0.9.2
--------------------------------
+=====
 
 - introduce "devpi upload --from-dir" for uploading archives in bulk
   mode, thanks to Anthon van der Neut for helping with this!
@@ -484,7 +488,7 @@
   (thanks @hynek and others for pushing)
 
 0.9.1
--------------------------------
+=====
 
 - refined "python setup.py" calls from ``devpi upload`` with proper
   ``__file__`` attributes.  Thanks Andi Albrecht.
@@ -498,5 +502,5 @@
 - don't use --force-reinstall when using pip
 
 0.9 initial release
--------------------------------
+===================
 

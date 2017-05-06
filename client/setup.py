@@ -8,12 +8,12 @@ from setuptools import setup, find_packages
 
 def get_changelog():
     text = io.open(os.path.join(here, 'CHANGELOG'), encoding='utf-8').read()
-    header_matches = list(re.finditer('^-+$', text, re.MULTILINE))
+    header_matches = list(re.finditer('^=+$', text, re.MULTILINE))
     # until fifth header
     text = text[:header_matches[5].start()]
     # all lines without fifth release number
     lines = text.splitlines()[:-1]
-    return "Changelog\n=========\n\n" + "\n".join(lines)
+    return "=========\nChangelog\n=========\n\n" + "\n".join(lines)
 
 
 if __name__ == "__main__":
