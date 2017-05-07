@@ -533,8 +533,9 @@ def use(parser):
 
     parser.add_argument("--set-cfg", action="store_true", default=None,
         dest="setcfg",
-        help="create or modify pip/setuptools config files in home directory "
-             "so pip/easy_install will pick up the current devpi index url")
+        help="create or modify pip/setuptools config files so "
+             "pip/easy_install will pick up the current devpi index url. "
+             "If a virtualenv is activated, only its pip config will be set.")
     parser.add_argument("-t", "--pip-set-trusted", choices=["yes", "no", "auto"], default="auto",
         dest="settrusted",
         help="when used in conjunction with set-cfg, also set matching "
@@ -549,7 +550,8 @@ def use(parser):
              "config file and can be cleared with '--always-set-cfg=no'.")
     parser.add_argument("--venv", action="store", default=None,
         help="set virtual environment to use for install activities. "
-             "specify '-' to unset it.")
+             "specify '-' to unset it. "
+             "Note: an activated virtualenv will be used without needing this.")
     parser.add_argument("--urls", action="store_true",
         help="show remote endpoint urls")
     parser.add_argument("-l", action="store_true", dest="list",
