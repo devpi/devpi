@@ -355,6 +355,17 @@ class TestUnit:
         hub = cmd_devpi("use", "--venv=yes")
         assert hub.current.venvdir == venvdir
 
+    def test_new_venvsetting(self, out_devpi, cmd_devpi, tmpdir, monkeypatch):
+        venvdir = tmpdir.join('.venv')
+        assert not venvdir.exists()
+        monkeypatch.chdir(tmpdir)
+        hub = cmd_devpi("use", "--venv=%s" % venvdir)
+        current = PersistentCurrent(hub.current.path)
+        assert current.venvdir == str(venvdir)
+        cmd_devpi("use", "--venv=%s" % venvdir)
+        res = out_devpi("use")
+        res.stdout.fnmatch_lines("*venv*%s" % venvdir)
+
     def test_venv_setcfg(self, mock_http_api, cmd_devpi, tmpdir, monkeypatch):
         from devpi.use import vbin
         monkeypatch.setenv("HOME", tmpdir.join('home'))
