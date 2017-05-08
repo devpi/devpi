@@ -68,6 +68,9 @@ class Mapp(MappMixin):
     def logoff(self, code=None):
         self.devpi("logoff", code=code)
 
+    def logout(self, code=None):
+        self.devpi("logout", code=code)
+
     def use(self, indexname):
         assert indexname.count("/") == 1, indexname
         self.devpi("use", indexname)
@@ -229,6 +232,13 @@ def test_logoff(mapp):
     mapp.login()
     mapp.logoff()
     mapp.logoff()
+
+
+def test_logout(mapp):
+    mapp.login()
+    mapp.logout()
+    mapp.logout()
+
 
 def test_getjson(out_devpi):
     result = out_devpi("getjson", "/", "-v")
