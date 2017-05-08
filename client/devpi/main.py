@@ -220,11 +220,46 @@ class Hub:
         return p
 
     @property
-    def path_venvbase(self):
+    def venv(self):
+        venvdir = None
+        vbin = "Scripts" if sys.platform == "win32" else "bin"
+
+        if self.args.venv == "-":
+            self.current.reconfigure(dict(venvdir=None))
+        else:
+            if self.args.venv:
+                venvname = self.args.venv
+                cand = self.cwd.join(venvname, vbin, abs=True)
+                if not cand.check() and self.venvwrapper_home:
+                    cand = self.venvwrapper_home.join(venvname, vbin, abs=True)
+                if not cand.check():
+                    self.create_virtualenv(venvname)
+                venvdir = cand.dirpath().strpath
+                self.current.reconfigure(dict(venvdir=venvdir))
+            else:
+                venvdir = self.current.venvdir or self.active_venv()
+
+        return venvdir
+
+    @property
+    def venvwrapper_home(self):
         path = os.environ.get("WORKON_HOME", None)
         if path is None:
             return
         return py.path.local(path)
+
+    def active_venv(self):
+        """current activated virtualenv"""
+        path = os.environ.get("VIRTUAL_ENV", None)
+        if path is None:
+            return
+        return py.path.local(path)
+
+    def create_virtualenv(self, venv):
+        if self.venvwrapper_home:
+            self.popen_check(["mkvirtualenv", venv])
+        else:
+            self.popen_check(["virtualenv", "-q", venv])
 
     def popen_output(self, args, cwd=None, report=True):
         if isinstance(args, str):

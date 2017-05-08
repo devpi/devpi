@@ -345,15 +345,24 @@ class TestUnit:
         res = out_devpi("use")
         res.stdout.fnmatch_lines("*venv*%s" % venvdir)
 
+        # clean venv setting
+        cmd_devpi("use", "--venv=-")
+
         # test via env for virtualenvwrapper
         monkeypatch.setenv("WORKON_HOME", venvdir.dirpath())
         hub = cmd_devpi("use", "--venv=%s" % venvdir.basename)
         assert hub.current.venvdir == venvdir
 
+        # clean venv setting
+        cmd_devpi("use", "--venv=-")
+
         # test via env for activated venv
         monkeypatch.setenv("VIRTUAL_ENV", venvdir)
-        hub = cmd_devpi("use", "--venv=yes")
-        assert hub.current.venvdir == venvdir
+        hub = cmd_devpi("use")
+        assert hub.current.venvdir == None, \
+            "When --venv is not given, hub.current shouldn't be set"
+        res = out_devpi("use")
+        res.stdout.fnmatch_lines("*venv*%s" % venvdir)
 
     def test_new_venvsetting(self, out_devpi, cmd_devpi, tmpdir, monkeypatch):
         venvdir = tmpdir.join('.venv')
@@ -403,19 +412,49 @@ class TestUnit:
         result = result[0].splitlines()
         assert len(result) == 2
 
-    @pytest.mark.parametrize(['scheme', 'basic_auth'], [
-        ('http', ''),
-        ('https', ''),
-        ('http', 'foo:bar@'),
-        ('https', 'foo:bar@')])
-    def test_main_setcfg(self, scheme, basic_auth, mock_http_api, cmd_devpi, tmpdir, monkeypatch):
+    def test_active_venv_setcfg(self, mock_http_api, cmd_devpi, tmpdir, monkeypatch):
+        from devpi.use import vbin
         monkeypatch.setenv("HOME", tmpdir.join('home'))
         monkeypatch.setattr(PipCfg, "pip_conf_name", "pip.cfg")
         monkeypatch.setattr(DistutilsCfg, "default_location",
                             tmpdir.join("dist.cfg"))
         monkeypatch.setattr(BuildoutCfg, "default_location",
                             tmpdir.join("buildout.cfg"))
-        monkeypatch.setattr(devpi.use, "active_venv", lambda: None)
+        mock_http_api.set("http://world/simple/+api", 200,
+                    result=dict(
+                        pypisubmit="",
+                        simpleindex="/simple",
+                        index="/",
+                        bases="",
+                        login="/+login",
+                        authstatus=["noauth", ""],
+                   ))
+        venvdir = tmpdir
+        venvdir.ensure(vbin, dir=1)
+        monkeypatch.chdir(tmpdir)
+        monkeypatch.setenv("VIRTUAL_ENV", venvdir)
+        index = "http://world/simple"
+        cmd_devpi("use", "--set-cfg", index)
+
+        assert PipCfg(venv=venvdir).path.exists()
+
+        assert not PipCfg().path.exists()
+        assert not DistutilsCfg.default_location.exists()
+        assert not BuildoutCfg.default_location.exists()
+
+    @pytest.mark.parametrize(['scheme', 'basic_auth'], [
+        ('http', ''),
+        ('https', ''),
+        ('http', 'foo:bar@'),
+        ('https', 'foo:bar@')])
+    def test_main_setcfg(self, scheme, basic_auth, mock_http_api, cmd_devpi, tmpdir, monkeypatch):
+        monkeypatch.delenv("VIRTUAL_ENV", raising=False)
+        monkeypatch.setenv("HOME", tmpdir.join('home'))
+        monkeypatch.setattr(PipCfg, "pip_conf_name", "pip.cfg")
+        monkeypatch.setattr(DistutilsCfg, "default_location",
+                            tmpdir.join("dist.cfg"))
+        monkeypatch.setattr(BuildoutCfg, "default_location",
+                            tmpdir.join("buildout.cfg"))
         mock_http_api.set("%s://world/+api" % scheme, 200,
                     result=dict(
                         pypisubmit="",

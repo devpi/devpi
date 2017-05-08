@@ -5,14 +5,8 @@ import py
 def main(hub, args):
     current = hub.require_valid_current_with_index()
 
-    venv = args.venv
-    if not venv:
-        venv = current.venvdir
+    venv = hub.venv
     xopt = []  # not args.verbose and ["-q"] or []
-    if venv:
-        vpath = py.path.local(venv)
-        if not vpath.check():
-            hub.popen_check(["virtualenv", "-q", venv] + xopt)
     pip_path = current.getvenvbin("pip", venvdir=venv, glob=True)
     if not pip_path:
         hub.fatal("no pip binary found")

@@ -337,12 +337,6 @@ def out_index_list(hub, data):
                      ixconfig["volatile"]))
     return
 
-def getvenv():
-    pip = py.path.local.sysfind("pip")
-    if pip is None:
-        return None
-    return pip.dirpath().dirpath()
-
 def active_venv():
     venv = None
     if "VIRTUAL_ENV" in os.environ:
@@ -376,22 +370,6 @@ def main(hub, args=None):
     if url or current.index:
         current.configure_fromurl(hub, url, client_cert=args.client_cert)
 
-    venvdir = None
-    if args.venv == "-":
-        current.reconfigure(dict(venvdir=None))
-    else:
-        if args.venv:
-            venvname = args.venv
-            cand = hub.cwd.join(venvname, vbin, abs=True)
-            if not cand.check():
-                cand = hub.path_venvbase.join(venvname, vbin)
-                if not cand.check():
-                    hub.fatal("no virtualenv %r found" % venvname)
-            venvdir = cand.dirpath().strpath
-            current.reconfigure(dict(venvdir=venvdir))
-        else:
-            venvdir = current.venvdir or active_venv()
-
     if args.list:
         if not current.rooturl:
             hub.fatal("not connected to any server")
@@ -420,6 +398,8 @@ def main(hub, args=None):
     else:
         hub.line("no server: type 'devpi use URL' with a URL "
                  "pointing to a server or directly to an index.")
+
+    venvdir = hub.venv
     if venvdir:
         hub.info("venv for install/set commands: %s" % venvdir)
 
