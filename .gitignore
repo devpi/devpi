@@ -7,6 +7,7 @@ __pycache__
 
 # Distribution / packaging
 .Python
+/bin/
 env/
 build/
 develop-eggs/
@@ -14,8 +15,9 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/include/
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -45,7 +47,8 @@ coverage.xml
 *.pot
 
 # Sphinx documentation
-docs/_build/
+/doc/_build/
+/doc/gen-config/
 
 # PyBuilder
 target/
@@ -60,3 +63,9 @@ target/
 .venv
 venv/
 ENV/
+
+# other stuff
+/.hg/
+/etc/
+/tmp/
+
