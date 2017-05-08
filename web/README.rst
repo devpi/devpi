@@ -1,3 +1,4 @@
+================================================
 devpi-web: web interface plugin for devpi-server
 ================================================
 
@@ -7,7 +8,7 @@ This plugin adds a web interface with search for `devpi-server`_.
 
 
 Installation
-------------
+============
 
 ``devpi-web`` needs to be installed alongside ``devpi-server``.
 
