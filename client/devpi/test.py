@@ -162,7 +162,13 @@ class UnpackedPackage:
             inpkgdir = self.rootdir
         else:
             inpkgdir = self.rootdir.join("%s-%s" %(pkgname, version))
-        assert inpkgdir.check(), inpkgdir
+            if not inpkgdir.check():
+                # sometimes dashes are replaced by underscores,
+                # for example the source releases of argon2_cffi
+                inpkgdir = self.rootdir.join(
+                    "%s-%s" % (pkgname.replace('-', '_'), version))
+        if not inpkgdir.check():
+            self.hub.fatal("Couldn't find unpacked package in", inpkgdir)
         self.path_unpacked = inpkgdir
 
 
