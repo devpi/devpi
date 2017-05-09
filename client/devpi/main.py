@@ -662,7 +662,7 @@ def user(parser):
 
 @subcommand("devpi.user:passwd")
 def passwd(parser):
-    """ change user password. """
+    """ change password of specified user or current user if not specified. """
     parser.add_argument(
         "username", type=str, action="store", nargs="?", help="user name")
 
