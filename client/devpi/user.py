@@ -28,6 +28,7 @@ def user_modify(hub, user, kvdict):
     for name, val in kvdict.items():
         reply.result[name] = val
         if name == 'password':
+            # hide password from log output
             val = '********'
         hub.info("%s changing %s: %s" %(url.path, name, val))
 
