@@ -73,4 +73,4 @@ if __name__ == "__main__":
         'devpi_web': [
             "devpi-server-status = devpi_server.views"],
         'pytest11': [
-            "devpi_server_pytest = devpi_server_pytest"]})
+            "pytest_devpi_server = pytest_devpi_server"]})
