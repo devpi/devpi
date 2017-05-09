@@ -39,7 +39,8 @@ def postgresql():
             f.write(b"\n".join([
                 b"fsync = off",
                 b"full_page_writes = off",
-                b"synchronous_commit = off"]))
+                b"synchronous_commit = off",
+                b"unix_socket_directories = '" + tmpdir.strpath.encode('ascii') + b"'"]))
         host = 'localhost'
         port = get_open_port(host)
         p = subprocess.Popen([
