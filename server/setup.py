@@ -71,4 +71,6 @@ if __name__ == "__main__":
             "devpi-server-sqlite = devpi_server.keyfs_sqlite",
             "devpi-server-sqlite-fs = devpi_server.keyfs_sqlite_fs"],
         'devpi_web': [
-            "devpi-server-status = devpi_server.views"]})
+            "devpi-server-status = devpi_server.views"],
+        'pytest11': [
+            "devpi_server_pytest = devpi_server_pytest"]})

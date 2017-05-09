@@ -1,14 +1,32 @@
+from contextlib import closing
 from devpi_postgresql import main
-from test_devpi_server import conftest
+import getpass
 import py
 import pytest
+import socket
 import subprocess
 import tempfile
 import time
 
 
-# we need the --backend option here as well
-pytest_addoption = conftest.pytest_addoption
+def get_open_port(host):
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+        s.bind((host, 0))
+        s.listen(1)
+        port = s.getsockname()[1]
+    return port
+
+
+def wait_for_port(host, port, timeout=60):
+    while timeout > 0:
+        with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+            s.settimeout(1)
+            if s.connect_ex((host, port)) == 0:
+                return
+        time.sleep(1)
+        timeout -= 1
+    raise RuntimeError(
+        "The port %s on host %s didn't become accessible" % (port, host))
 
 
 @pytest.yield_fixture(scope="session")
@@ -23,14 +41,14 @@ def postgresql():
                 b"full_page_writes = off",
                 b"synchronous_commit = off"]))
         host = 'localhost'
-        port = conftest.get_open_port(host)
+        port = get_open_port(host)
         p = subprocess.Popen([
             'postgres', '-D', tmpdir.strpath, '-h', host, '-p', str(port)])
-        conftest.wait_for_port(host, port)
+        wait_for_port(host, port)
         try:
             subprocess.check_call([
                 'createdb', '-h', host, '-p', str(port), 'devpi'])
-            settings = dict(host=host, port=port)
+            settings = dict(host=host, port=port, user=getpass.getuser())
             main.Storage(
                 tmpdir, notify_on_commit=False,
                 cache_size=10000, settings=settings)
@@ -105,24 +123,9 @@ def devpiserver_storage_backend_mock(postgresql):
 
     def devpiserver_storage_backend(settings):
         result = old(settings)
-        Storage.host = postgresql['host']
-        Storage.port = postgresql['port']
+        for k, v in postgresql.items():
+            setattr(Storage, k, v)
         result['storage'] = Storage
         return result
 
     main.devpiserver_storage_backend = devpiserver_storage_backend
-
-
-old_storage_info = conftest.storage_info
-
-
-@pytest.fixture(scope="session")
-def storage_info(request, devpiserver_storage_backend_mock):
-    # we need this to trigger the devpiserver_storage_backend_mock fixture
-    return old_storage_info(request)
-
-
-conftest.db_cleanup = db_cleanup
-conftest.devpiserver_storage_backend_mock = devpiserver_storage_backend_mock
-conftest.postgresql = postgresql
-conftest.storage_info = storage_info
