@@ -54,7 +54,7 @@ class FileStore:
             # so let's take the first 3 bytes which gives
             # us a maximum of 16^3 = 4096 entries in the root dir
             a, b = make_splitdir(link.hash_spec)
-            key = self.keyfs.STAGEFILE(user="root", index="pypi",
+            key = self.keyfs.STAGEFILE(user=user, index=index,
                                        hashdir_a=a, hashdir_b=b,
                                        filename=link.basename)
         else:
