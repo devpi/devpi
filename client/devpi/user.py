@@ -7,6 +7,12 @@ def getnewpass(hub, username):
         password = py.std.getpass.getpass(basemessage)
         password2 = py.std.getpass.getpass("repeat " + basemessage)
         if password == password2:
+            if not password:
+                if not hub.ask_confirm("empty password, are you sure to use it?"):
+                    continue
+            elif len(password) < 8:
+                if not hub.ask_confirm("password with less than 8 characters, are you sure to use it?"):
+                    continue
             return password
         hub.error("passwords did not match")
 
@@ -21,6 +27,9 @@ def user_modify(hub, user, kvdict):
     reply = hub.http_api("get", url, type="userconfig")
     for name, val in kvdict.items():
         reply.result[name] = val
+        if name == 'password':
+            # hide password from log output
+            val = '********'
         hub.info("%s changing %s: %s" %(url.path, name, val))
 
     for name in ('indexes', 'username'):
@@ -76,3 +85,12 @@ def main(hub, args):
         return user_list(hub)
     else:
         return user_show(hub, username)
+
+
+def passwd(hub, args):
+    user = args.username
+    if not user:
+        user = hub.current.get_auth_user()
+    if not user:
+        hub.fatal("no user specified and no user currently active")
+    user_modify(hub, user, dict(password=getnewpass(hub, user)))

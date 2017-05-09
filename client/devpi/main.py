@@ -659,6 +659,14 @@ def user(parser):
         help="key=value configuration item.  Possible keys: "
              "email, password.")
 
+
+@subcommand("devpi.user:passwd")
+def passwd(parser):
+    """ change password of specified user or current user if not specified. """
+    parser.add_argument(
+        "username", type=str, action="store", nargs="?", help="user name")
+
+
 @subcommand("devpi.login")
 def login(parser):
     """ login to devpi-server with the specified user.
