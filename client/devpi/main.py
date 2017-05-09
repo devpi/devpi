@@ -815,6 +815,10 @@ def test(parser):
              "Either just the NAME, using the current user, USER/NAME using "
              "the current server or a full URL for another server.")
 
+    parser.add_argument(
+        "--list", "-l", action="store_true",
+        help="Just list the release files which would be tested.")
+
     parser.add_argument("pkgspec", metavar="pkgspec", type=str,
         default=None, action="store", nargs="+",
         help="package specification in pip/setuptools requirement-syntax, "

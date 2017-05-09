@@ -225,7 +225,12 @@ def main(hub, args):
         sdist_links, wheel_links = find_sdist_and_wheels(hub, links)
         toxrunargs = prepare_toxrun_args(devindex, versioninfo, sdist_links, wheel_links)
         all_ret = 0
+        if args.list:
+            hub.info("would test:")
         for toxargs in toxrunargs:
+            if args.list:
+                hub.info("  ", toxargs[0].href)
+                continue
             ret = devindex.runtox(*toxargs, upload_tox_results=args.upload_tox_results)
             if ret != 0:
                 all_ret = 1
