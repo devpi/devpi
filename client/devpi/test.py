@@ -183,7 +183,8 @@ def find_sdist_and_wheels(hub, links):
             sdist_links.append(link)
         elif bn.endswith(".whl"):
             if not bn.endswith("py2.py3-none-any.whl"):
-                hub.fatal("only universal wheels supported, found", bn)
+                hub.warn("only universal wheels supported, found", bn)
+                continue
             wheel_links.append(link)
     if not sdist_links:
         hub.fatal("need at least one sdist distribution")

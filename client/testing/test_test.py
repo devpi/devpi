@@ -145,12 +145,14 @@ class TestWheel:
 
     def test_find_wheels_not_universal(self, loghub):
         vl = ViewLinkStore("http://something/index", {"+links": [
+            {"href": "http://b/pytest-2.7.0.tar.gz", "rel": "releasefile"},
             {"href": "http://b/pytest-2.7.0-py26-none-any.whl", "rel": "releasefile"},
         ]})
         links = vl.get_links(rel="releasefile")
-        with pytest.raises(SystemExit):
-            find_sdist_and_wheels(loghub, links)
-
+        (sdist_links, wheel_links) = find_sdist_and_wheels(loghub, links)
+        assert len(sdist_links) == 1
+        assert sdist_links[0].basename.endswith(".tar.gz")
+        assert len(wheel_links) == 0
         loghub._getmatcher().fnmatch_lines("""
             *only universal wheels*
         """)
