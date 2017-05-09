@@ -4,6 +4,7 @@
 4.3.1 (Unreleased)
 ==================
 
+- fix issue401: fix traceback and inaccessible index by ignoring removed bases.
 
 
 4.3.0 (2017-04-23)

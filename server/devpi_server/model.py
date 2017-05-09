@@ -560,6 +560,11 @@ class BaseStage(object):
             seen.add(stage.name)
             for base in stage.ixconfig.get("bases", ()):
                 current_stage = self.model.getstage(base)
+                if current_stage is None:
+                    threadlog.warn(
+                        "Index %s refers to non-existing base %s.",
+                        self.name, base)
+                    continue
                 if base not in seen:
                     if current_stage.ixconfig['type'] == 'mirror':
                         todo_mirrors.append(current_stage)
