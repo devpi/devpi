@@ -1,6 +1,7 @@
 
 from __future__ import with_statement
 import os
+import re
 import sys
 import shlex
 import hashlib
@@ -172,7 +173,7 @@ class UnpackedPackage:
         self.path_unpacked = inpkgdir
 
 
-def find_sdist_and_wheels(hub, links):
+def find_sdist_and_wheels(hub, links, universal_only=True):
     sdist_links = []
     wheel_links = []
     for link in links:
@@ -182,7 +183,7 @@ def find_sdist_and_wheels(hub, links):
         elif bn.endswith(".zip"):
             sdist_links.append(link)
         elif bn.endswith(".whl"):
-            if not bn.endswith("py2.py3-none-any.whl"):
+            if universal_only and not bn.endswith("py2.py3-none-any.whl"):
                 hub.warn("only universal wheels supported, found", bn)
                 continue
             wheel_links.append(link)
@@ -191,7 +192,7 @@ def find_sdist_and_wheels(hub, links):
     return sdist_links, wheel_links
 
 
-def prepare_toxrun_args(dev_index, versioninfo, sdist_links, wheel_links):
+def prepare_toxrun_args(dev_index, versioninfo, sdist_links, wheel_links, select=None):
     toxrunargs = []
     for sdist_link in sdist_links:
         sdist_pkg = dev_index.download_and_unpack(versioninfo, sdist_link)
@@ -201,6 +202,11 @@ def prepare_toxrun_args(dev_index, versioninfo, sdist_links, wheel_links):
     for wheel_link in wheel_links:
         wheel_pkg = dev_index.download_and_unpack(versioninfo, wheel_link)
         toxrunargs.append((wheel_link, wheel_pkg, toxrunargs[0][1]))
+    if select:
+        toxrunargs = [
+            x
+            for x in toxrunargs
+            if re.search(select, x[0].basename)]
     return toxrunargs
 
 
@@ -223,8 +229,11 @@ def main(hub, args):
         if not links:
             hub.fatal("could not find/receive links for", pkgspec)
 
-        sdist_links, wheel_links = find_sdist_and_wheels(hub, links)
-        toxrunargs = prepare_toxrun_args(devindex, versioninfo, sdist_links, wheel_links)
+        universal_only = args.select is None
+        sdist_links, wheel_links = find_sdist_and_wheels(
+            hub, links, universal_only=universal_only)
+        toxrunargs = prepare_toxrun_args(
+            devindex, versioninfo, sdist_links, wheel_links, select=args.select)
         all_ret = 0
         if args.list:
             hub.info("would test:")

@@ -816,6 +816,15 @@ def test(parser):
              "the current server or a full URL for another server.")
 
     parser.add_argument(
+        "--select", "-s", metavar="SELECTOR",
+        type=str, default=None, action="store",
+        help="Selector for release files. "
+             "This is a regular expression to select release files for which "
+             "tests will be run. With this option it's possible to select "
+             "wheels that aren't universal, or run tests only for one "
+             "specific release file.")
+
+    parser.add_argument(
         "--list", "-l", action="store_true",
         help="Just list the release files which would be tested.")
 
