@@ -68,7 +68,7 @@ def test_streaming_download(content_digest, files_directory, length, pkg_version
         data = data + part
     assert data == content
     pkg_file = files_directory.join(
-        'root', 'pypi', '+f', digest[:3], digest[3:16], pkgzip)
+        'root', 'mirror', '+f', digest[:3], digest[3:16], pkgzip)
     # this is sometimes delayed a bit, so we check for a while
     for i in range(50):
         if pkg_file.exists():
