@@ -455,3 +455,18 @@ class TestMirrorIndexThings:
         base = simpypi.baseurl.replace('http://', 'http_').replace(':', '_')
         assert len(result) == 1
         assert result[0].endswith('/mirror9/mirror/+e/%s_pkg/pkg-1!2017.4+devpi.zip' % base)
+
+    def test_releases_urlquoting_hash(self, mapp, simpypi):
+        mapp.create_and_login_user('mirror10')
+        indexconfig = dict(
+            type="mirror",
+            mirror_url=simpypi.simpleurl,
+            mirror_cache_expiry=0)
+        mapp.create_index("mirror", indexconfig=indexconfig)
+        mapp.use("mirror10/mirror")
+        url_quoted_pkgver = "%s#sha256=1234" % url_quote('pkg-1!2017.4+devpi.zip')
+        assert url_quoted_pkgver == 'pkg-1%212017.4%2Bdevpi.zip#sha256=1234'
+        simpypi.add_release('pkg', pkgver=url_quoted_pkgver)
+        result = mapp.getreleaseslist("pkg")
+        assert len(result) == 1
+        assert result[0].endswith('/mirror10/mirror/+f/123/4/pkg-1!2017.4+devpi.zip')
