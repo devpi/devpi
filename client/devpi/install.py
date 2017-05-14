@@ -1,6 +1,4 @@
-
 import os
-import py
 
 def main(hub, args):
     current = hub.require_valid_current_with_index()

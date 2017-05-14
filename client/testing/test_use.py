@@ -2,7 +2,6 @@ from devpi.use import BuildoutCfg, DistutilsCfg, PipCfg
 from devpi.use import Current, PersistentCurrent
 from devpi.use import parse_keyvalue_spec, out_index_list
 from devpi_common.url import URL
-import devpi.use
 import pytest
 import re
 import requests.exceptions
