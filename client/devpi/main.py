@@ -586,6 +586,7 @@ def use(parser):
     parser.add_argument("--venv", action="store", default=None,
         help="set virtual environment to use for install activities. "
              "specify '-' to unset it. "
+             "venv be created if given name doesn't already exist. "
              "Note: an activated virtualenv will be used without needing this.")
     parser.add_argument("--urls", action="store_true",
         help="show remote endpoint urls")
