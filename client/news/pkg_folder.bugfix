@@ -1,0 +1,1 @@
+fix check for extracted path when testing packages where the package name contains a dash, but the extracted path has underscores.
