@@ -881,6 +881,7 @@ class LinkStore:
         del_links = self.get_links(rel=rel, basename=basename, for_entrypath=for_entrypath)
         was_deleted = []
         for link in del_links:
+            self.stage.xom.config.hook.devpiserver_on_remove(stage=self.stage, link=link)
             link.entry.delete()
             linkdicts.remove(link.linkdict)
             was_deleted.append(link.entrypath)

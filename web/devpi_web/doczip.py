@@ -9,6 +9,8 @@ from devpi_common.types import cached_property
 from devpi_common.validation import normalize_name
 from devpi_server.log import threadlog
 import json
+import os
+import shutil
 
 
 def get_unpack_path(stage, name, version):
@@ -39,6 +41,21 @@ def unpack_docs(stage, name, version, entry):
     threadlog.debug("%s: unpacked %s-%s docs to %s",
                     stage.name, name, version, unpack_path)
     return unpack_path
+
+
+def remove_docs(stage, link):
+    directory = str(stage.keyfs.basedir.join(
+        stage.user.name,
+        stage.index,
+        link.project,
+        link.version,
+        "+doc"
+    ))
+    if not os.path.isdir(directory):
+        threadlog.debug("ignoring lost unpacked docs: %s" % directory)
+    else:
+        threadlog.debug("removing unpacked docs: %s" % directory)
+        shutil.rmtree(directory)
 
 
 class Docs(DictMixin):

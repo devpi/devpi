@@ -64,6 +64,12 @@ def devpiserver_on_upload(stage, project, version, link):
     """
 
 
+@hookspec
+def devpiserver_on_remove(stage, link):
+    """ called when a link is removed from a private stage
+    """
+
+
 @hookspec(firstresult=True)
 def devpiserver_get_credentials(request):
     """Extracts username and password from request.
