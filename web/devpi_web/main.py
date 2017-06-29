@@ -3,7 +3,7 @@ from chameleon.config import AUTO_RELOAD
 from devpi_common.metadata import get_latest_version
 from devpi_web import hookspecs
 from devpi_web.description import render_description
-from devpi_web.doczip import unpack_docs
+from devpi_web.doczip import unpack_docs, remove_docs
 from devpi_web.indexing import iter_projects, preprocess_project
 from devpi_web.whoosh_index import Index
 from devpi_server.log import threadlog
@@ -301,3 +301,11 @@ def devpiserver_on_changed_versiondata(stage, project, version, metadata):
     if metadata:
         render_description(stage, metadata)
         index_project(stage, metadata['name'])
+
+
+def devpiserver_on_remove(stage, relpath):
+    if relpath.endswith(".doc.zip"):
+        project, version = (
+            os.path.basename(relpath).rsplit('.doc.zip')[0].rsplit('-', 1)
+        )
+        remove_docs(stage, project, version)
