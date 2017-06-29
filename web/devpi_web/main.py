@@ -283,7 +283,7 @@ def devpiserver_on_upload(stage, project, version, link):
 
 
 def devpiserver_on_remove(stage, link):
-    if link.rel == u'doczip':
+    if link.rel == "doczip":
         remove_docs(stage, link)
 
 
