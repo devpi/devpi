@@ -780,6 +780,36 @@ class TestStage:
             assert link.entry.file_exists()
 
 
+    @pytest.mark.start_threads
+    def test_doczip_remove_hook(self, stage, queue):
+        class Plugin:
+            def devpiserver_on_remove(self, stage, link):
+                queue.put((stage, link))
+        stage.xom.config.pluginmanager.register(Plugin())
+        stage.set_versiondata(udict(name="pkg1", version="1.0"))
+        content = zip_dict({"index.html": "<html/>",
+            "_static": {}, "_templ": {"x.css": ""}})
+        stage.store_doczip("pkg1", "1.0", content)
+        stage.xom.keyfs.commit_transaction_in_thread()
+        nstage, link = queue.get()
+        assert name == "pkg1"
+        assert version == "1.0"
+        with stage.xom.keyfs.transaction():
+            assert link.entry.file_get_content() == content
+        # delete, which shouldnt trigger devpiserver_on_remove
+        with stage.xom.keyfs.transaction(write=True):
+            linkstore = stage.get_linkstore_perstage("pkg1", "1.0", readonly=False)
+            linkstore.remove_links()
+
+        # now write again and check that we get something from the queue
+        with stage.xom.keyfs.transaction(write=True):
+            stage.store_doczip("pkg1", "1.0", content)
+        nstage, link = queue.get()
+        assert name == "pkg1" and version == "1.0"
+        with stage.xom.keyfs.transaction():
+            assert link.entry.file_exists()
+
+
     def test_get_existing_project(self, stage):
         assert not stage.get_versiondata("hello", "1.0")
         assert not stage.get_versiondata("This", "1.0")
