@@ -9,7 +9,7 @@ def stage(request, model):
     config = {"index": "world", "bases": (),
               "type": "stage", "volatile": True}
     if "bases" in request.fixturenames:
-        config["bases"] = request.getfuncargvalue("bases")
+        config["bases"] = request.getfixturevalue("bases")
     user = model.create_user("hello", password="123")
     return user.create_stage(**config)
 
