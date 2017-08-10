@@ -513,6 +513,20 @@ def test_testdata(mapp, testapp):
 
 
 @pytest.mark.with_notifier
+def test_testdata_notfound(mapp, testapp):
+    # make sure we have a user, index and package
+    mapp.create_and_use()
+    mapp.set_versiondata(
+        {"name": "pkg1", "version": "2.6", "description": "foo"})
+    # now get toxresults for another version
+    r = testapp.xget(
+        404,
+        '/user1/dev/pkg1/2.7/+toxresults/pkg1-2.7.tgz',
+        headers=dict(accept="text/html"))
+    assert 'pkg1-2.7 is not registered' in r.text
+
+
+@pytest.mark.with_notifier
 def test_testdata_corrupt(mapp, testapp):
     api = mapp.create_and_use()
     mapp.set_versiondata(
