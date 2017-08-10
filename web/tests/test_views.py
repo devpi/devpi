@@ -432,6 +432,31 @@ def test_version_view_description_errors(mapp, testapp):
     assert "Unexpected section title" in description.text
 
 
+def test_complex_name(mapp, testapp):
+    from devpi_common import __version__
+    import pkg_resources
+    if pkg_resources.parse_version(__version__) < pkg_resources.parse_version('3.2.0dev'):
+        pytest.skip("Only works with devpi-common >= 3.2.0")
+    api = mapp.create_and_use()
+    pkgname = "my-binary-package-name-1-4-3-yip"
+    mapp.upload_file_pypi(
+        "%s-0.9.tar.gz" % pkgname, b"content", pkgname, "0.9")
+    r = testapp.xget(200, api.index, headers=dict(accept="text/html"))
+    links = r.html.select('#content a')
+    assert [(compareable_text(l.text), l.attrs['href']) for l in links] == [
+        ('simple index', 'http://localhost/user1/dev/+simple/'),
+        ('%s-0.9' % pkgname, 'http://localhost/user1/dev/%s/0.9' % pkgname),
+        (
+            '%s-0.9.tar.gz' % pkgname,
+            'http://localhost/user1/dev/+f/ed7/002b439e9ac84/%s-0.9.tar.gz#sha256=ed7002b439e9ac845f22357d822bac1444730fbdb6016d3ec9432297b9ec9f73' % pkgname)]
+    r = testapp.xget(
+        200, api.index + '/%s' % pkgname, headers=dict(accept="text/html"))
+    links = r.html.select('#content a')
+    assert [(compareable_text(l.text), l.attrs['href']) for l in links] == [
+        ('user1/dev', 'http://localhost/user1/dev'),
+        ('0.9', 'http://localhost/user1/dev/%s/0.9' % pkgname)]
+
+
 @pytest.mark.with_notifier
 def test_whitelist(mapp, pypistage, testapp):
     pypistage.mock_simple(
