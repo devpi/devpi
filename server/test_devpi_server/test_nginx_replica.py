@@ -1,5 +1,6 @@
 from .functional import TestUserThings as BaseTestUserThings
 from .functional import TestIndexThings as BaseTestIndexThings
+from .functional import TestIndexPushThings as BaseTestIndexPushThings
 from .functional import TestMirrorIndexThings as BaseTestMirrorIndexThings
 import pytest
 
@@ -18,15 +19,6 @@ def mapp(makemapp, nginx_host_port):
         app.xom.thread_pool.shutdown()
 
 
-@pytest.fixture(autouse=True)
-def xfail_hanging_tests(request):
-    hanging_tests = set([
-        'test_push_existing_to_nonvolatile',
-        'test_push_existing_to_volatile'])
-    if request.function.__name__  in hanging_tests:
-        pytest.xfail(reason="test hanging with replica-setup")
-
-
 @pytest.mark.skipif("not config.option.slow")
 class TestUserThings(BaseTestUserThings):
     pass
@@ -34,6 +26,11 @@ class TestUserThings(BaseTestUserThings):
 
 @pytest.mark.skipif("not config.option.slow")
 class TestIndexThings(BaseTestIndexThings):
+    pass
+
+
+@pytest.mark.skipif("not config.option.slow")
+class TestIndexPushThings(BaseTestIndexPushThings):
     pass
 
 
