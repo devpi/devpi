@@ -965,7 +965,7 @@ def call_devpi_in_dir():
     return devpi
 
 
-@pytest.yield_fixture(scope="module")
+@pytest.yield_fixture(scope="class")
 def master_host_port(request, call_devpi_in_dir, server_directory):
     host = 'localhost'
     port = get_open_port(host)
@@ -989,7 +989,7 @@ def master_host_port(request, call_devpi_in_dir, server_directory):
         p.wait()
 
 
-@pytest.yield_fixture(scope="module")
+@pytest.yield_fixture(scope="class")
 def replica_host_port(request, call_devpi_in_dir, master_host_port, server_directory):
     host = 'localhost'
     port = get_open_port(host)
@@ -1073,7 +1073,7 @@ def _nginx_host_port(host, port, call_devpi_in_dir, server_directory):
     return (p, nginx_port)
 
 
-@pytest.yield_fixture(scope="module")
+@pytest.yield_fixture(scope="class")
 def nginx_host_port(request, call_devpi_in_dir, server_directory):
     if sys.platform.startswith("win"):
         pytest.skip("no nginx on windows")
@@ -1088,7 +1088,7 @@ def nginx_host_port(request, call_devpi_in_dir, server_directory):
         p.wait()
 
 
-@pytest.yield_fixture(scope="module")
+@pytest.yield_fixture(scope="class")
 def nginx_replica_host_port(replica_host_port, call_devpi_in_dir, server_directory):
     (host, port) = replica_host_port
     (p, nginx_port) = _nginx_host_port(
