@@ -975,7 +975,8 @@ def master_host_port(request, call_devpi_in_dir, server_directory):
         "--serverdir", master_dir.strpath,
         "--role", "master",
         "--host", host,
-        "--port", str(port)]
+        "--port", str(port),
+        "--requests-only"]
     if not master_dir.join('.nodeinfo').exists():
         subprocess.check_call(
             args + ["--init"])
