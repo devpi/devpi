@@ -1,0 +1,1 @@
+fix server error by returning 404 when a toxresult can't be found.

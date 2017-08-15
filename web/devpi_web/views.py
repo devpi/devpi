@@ -61,7 +61,11 @@ class ContextWrapper(object):
 
     @reify
     def linkstore(self):
-        return self.stage.get_linkstore_perstage(self.project, self.version)
+        try:
+            return self.stage.get_linkstore_perstage(self.project, self.version)
+        except self.stage.MissesRegistration:
+            raise HTTPNotFound(
+                "%s-%s is not registered" % (self.project, self.version))
 
 
 def get_doc_info(context, request):
