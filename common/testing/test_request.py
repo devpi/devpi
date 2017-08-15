@@ -1,50 +1,31 @@
-import logging
 import sys
 import requests
 import pytest
 from devpi_common.request import new_requests_session
 
-class CountRetryHandler(logging.Handler):
-    def __init__(self):
-        super(CountRetryHandler, self).__init__()
-        self.count = 0
-
-    def filter(self, record):
-        if record.msg.startswith('Retrying'):
-            return 1
-        return 0
-
-    def emit(self, record):
-        self.count += 1
-
-@pytest.fixture
-def retry_counter():
-    log = logging.getLogger('requests.packages.urllib3.connectionpool')
-    previous_level = log.getEffectiveLevel()
-
-    # Configure logging to report retry attempts
-    log.setLevel(logging.WARNING)
-    _retry_counter = CountRetryHandler()
-    log.addHandler(_retry_counter)
-    yield _retry_counter
-
-    # restore logging
-    log.removeHandler(_retry_counter)
-    log.setLevel(previous_level)
 
 @pytest.mark.parametrize('max_retries', [
     None,
     0,
     2,
 ])
-def test_env(monkeypatch, max_retries, retry_counter):
+def test_env(monkeypatch, max_retries):
+    from urllib3.util.retry import Retry
     monkeypatch.setenv("HTTP_PROXY", "http://this")
     monkeypatch.setenv("HTTPS_PROXY", "http://that")
+    orig_increment = Retry.increment
+    increment_retry_totals = []
+
+    def increment(self, *args, **kwargs):
+        increment_retry_totals.append(self.total)
+        return orig_increment(self, *args, **kwargs)
+
+    monkeypatch.setattr(Retry, "increment", increment)
     session = new_requests_session(max_retries=max_retries)
     with pytest.raises(requests.exceptions.RequestException):
         session.get("http://example.com")
+    assert tuple(increment_retry_totals) in ((0,), (2, 1, 0))
 
-    assert retry_counter.count == (max_retries or 0)
 
 def test_useragent():
     s = new_requests_session(agent=("hello", "1.2"))
