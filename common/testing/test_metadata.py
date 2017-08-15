@@ -25,6 +25,9 @@ from devpi_common.metadata import *
     ("Twisted-12.0.0.win32-py2.7.msi",
         ("Twisted", "12.0.0", ".win32-py2.7.msi")),
     ("django_ipware-0.0.8-py3-none-any.whl", ("django_ipware", "0.0.8", "-py3-none-any.whl")),
+    ("my-binary-package-name-1-4-3-yip-0.9.tar.gz", ("my-binary-package-name-1-4-3-yip", "0.9", ".tar.gz")),
+    ("my-binary-package-name-1-4-3-yip-0.9+deadbeef.tar.gz", ("my-binary-package-name-1-4-3-yip", "0.9+deadbeef", ".tar.gz")),
+    ("cffi-1.6.0-pp251-pypy_41-macosx_10_11_x86_64.whl", ("cffi", "1.6.0", "-pp251-pypy_41-macosx_10_11_x86_64.whl")),
 ])
 def test_splitbasename(releasename, expected):
     result = splitbasename(releasename)

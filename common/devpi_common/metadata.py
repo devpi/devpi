@@ -28,11 +28,34 @@ _pyversion_type_rex = re.compile(
 _ext2type = dict(exe="bdist_wininst", egg="bdist_egg", msi="bdist_msi",
                  whl="bdist_wheel")
 
-#wheel_file_re = re.compile(
-#                r"""^(?P<namever>(?P<name>.+?)(-(?P<ver>\d.+?))?)
-#                ((-(?P<build>\d.*?))?-(?P<pyver>.+?)-(?P<abi>.+?)-(?P<plat>.+?)
-#                \.whl|\.dist-info)$""",
-#                re.VERBOSE)
+_wheel_file_re = re.compile(
+    r"""^(?P<namever>(?P<name>.+?)-(?P<ver>.*?))
+    ((-(?P<build>\d.*?))?-(?P<pyver>.+?)-(?P<abi>.+?)-(?P<plat>.+?)
+    \.whl|\.dist-info)$""",
+    re.VERBOSE)
+
+_pep404_nameversion_re = re.compile(
+    r"^(?P<name>[^.]+?)-(?P<ver>"
+    r"(?:[1-9]\d*!)?"              # [N!]
+    r"(?:0|[1-9]\d*)"             # N
+    r"(?:\.(?:0|[1-9]\d*))*"        # (.N)*
+    r"(?:(?:a|b|rc)(?:0|[1-9]\d*))?"  # [{a|b|rc}N]
+    r"(?:\.post(?:0|[1-9]\d*))?"    # [.postN]
+    r"(?:\.dev(?:0|[1-9]\d*))?"     # [.devN]
+    r"(?:\+(?:[a-z0-9]+(?:[-_\.][a-z0-9]+)*))?"  # local version
+    r")$")
+
+_legacy_nameversion_re = re.compile(
+    r"^(?P<name>[^.]+?)-(?P<ver>"
+    r"(?:[1-9]\d*!)?"              # [N!]
+    r"(?:0|[1-9]\d*)"             # N
+    r"(?:\.(?:0|[1-9]\d*))*"        # (.N)*
+    r"(?:(?:a|b|rc|alpha|beta)(?:0|[1-9]\d*))?"  # [{a|b|rc}N]
+    r"(?:\.post(?:0|[1-9]\d*))?"    # [.postN]
+    r"(?:\.dev(?:0|[1-9]\d*))?"     # [.devN]
+    r"(?:\-(?:[a-z0-9]+(?:[-_\.][a-z0-9]+)*))?"  # local version
+    r")$")
+
 
 def get_pyversion_filetype(basename):
     _,_,suffix = splitbasename(basename)
@@ -52,22 +75,36 @@ def get_pyversion_filetype(basename):
 
 def splitbasename(path, checkarch=True):
     nameversion, ext = splitext_archive(path)
-    parts = re.split(r'-\d+', nameversion)
-    projectname = parts[0]
-    if not projectname:
-        raise ValueError("could not identify projectname in path: %s" %
-                         path)
+    if ext == '.whl':
+        m = _wheel_file_re.match(path)
+        if m:
+            info = m.groupdict()
+            return (
+                info['name'],
+                info['ver'],
+                '-%s-%s-%s.whl' % (info['pyver'], info['abi'], info['plat']))
     if checkarch and ext.lower() not in ALLOWED_ARCHIVE_EXTS:
-        raise ValueError("invalid archive type %r in: %s" %(ext, path))
-    if len(parts) == 1:  # no version
-        return projectname, "", ext
-    non_projectname = nameversion[len(projectname)+1:] + ext
-    # now version might contain platform specifiers
-    m = _releasefile_suffix_rx.search(non_projectname)
-    assert m, (path, non_projectname)
-    suffix = m.group(1)
-    version = non_projectname[:-len(suffix)]
-    return projectname, version, suffix
+        raise ValueError("invalid archive type %r in: %s" % (ext, path))
+    m = _releasefile_suffix_rx.search(path)
+    if m:
+        ext = m.group(1)
+    if len(ext):
+        nameversion = path[:-len(ext)]
+    else:
+        nameversion = path
+    if '-' not in nameversion:  # no version
+        return nameversion, "", ext
+    m = _pep404_nameversion_re.match(nameversion)
+    if m:
+        (projectname, version) = m.groups()
+        return projectname, version, ext
+    m = _legacy_nameversion_re.match(nameversion)
+    if m:
+        (projectname, version) = m.groups()
+        return projectname, version, ext
+    (projectname, version) = nameversion.rsplit('-', 1)
+    return projectname, version, ext
+
 
 DOCZIPSUFFIX = ".doc.zip"
 def splitext_archive(basename):
