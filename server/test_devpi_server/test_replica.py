@@ -686,3 +686,18 @@ def test_replicate_deleted_user(mapp, replica_xom):
 
     # replicate the state
     replay(mapp.xom, replica_xom)
+
+
+def test_auth_status_master_down(maketestapp, replica_xom, mock):
+    from devpi_server.model import UpstreamError
+    testapp = maketestapp(replica_xom)
+    calls = []
+    with mock.patch('devpi_server.replica.proxy_request_to_master') as prtm:
+        def proxy_request_to_master(*args, **kwargs):
+            calls.append((args, kwargs))
+            raise UpstreamError("foo")
+        prtm.side_effect = proxy_request_to_master
+        r = testapp.get('/+api')
+    assert len(calls) == 1
+    assert calls[0][0][1].url == 'http://localhost/+api'
+    assert r.json['result']['authstatus'] == ['fail', '', []]

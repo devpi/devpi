@@ -24,6 +24,7 @@ from devpi_common.validation import normalize_name, is_valid_archive_name
 
 from .filestore import BadGateway
 from .model import InvalidIndex, InvalidIndexconfig, InvalidUser
+from .model import UpstreamError
 from .model import get_ixconfigattrs
 from .readonly import get_mutable_deepcopy
 from .log import thread_push_log, thread_pop_log, threadlog
@@ -327,9 +328,12 @@ class PyPIView:
     def get_auth_status(self):
         if self.xom.is_replica():
             from .replica import proxy_request_to_master
-            r = proxy_request_to_master(self.xom, self.request)
-            if r.status_code == 200:
-                return r.json()["result"]["authstatus"]
+            try:
+                r = proxy_request_to_master(self.xom, self.request)
+                if r.status_code == 200:
+                    return r.json()["result"]["authstatus"]
+            except UpstreamError:
+                pass
             threadlog.error("could not obtain master authentication status")
             return ["fail", "", []]
         # this is accessing some pyramid internals, but they are pretty likely
