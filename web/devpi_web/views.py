@@ -960,14 +960,13 @@ class SearchView:
         for name, stage in name2stage.items():
             data = name2data[name]
             version = data['version']
+            summary = '[%s]' % stage.name
             if version and is_project_cached(stage, name):
                 metadata = stage.get_versiondata(name, version)
                 version = metadata.get('version', version)
-                summary = metadata.get('summary', '')
-            else:
-                summary = ''
+                summary += ' %s' % metadata.get('summary', '')
             hits.append(dict(
-                name="/%s/%s" % (stage.name, name), summary=summary,
+                name=name, summary=summary,
                 version=version, _pypi_ordering=data['score']))
         return hits
 
