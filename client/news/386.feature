@@ -1,1 +1,0 @@
-fix #386: add ``passwd`` command to enable password setting with interactive input.

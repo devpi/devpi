@@ -1,1 +1,0 @@
-fix remote file url for mirrors not named "root/pypi" which provide file hashes.

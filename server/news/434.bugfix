@@ -1,2 +1,0 @@
-fix issue434: ``--status`` didn't work anymore.
-The background server functionality is now deprecated, see --gen-config to use a process manager from your OS.

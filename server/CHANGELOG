@@ -1,8 +1,34 @@
+
+
 .. towncrier release notes start
 
+4.3.1rc1 (2017-09-08)
+=====================
 
-4.3.1 (Unreleased)
-==================
+Bug Fixes
+---------
+
+- fix issue345: remove ``expires -1`` option in example nginx proxy config for
+  devpi. When there are no ``Expires`` and ``Cache-Control`` headers, then pip
+  does not cache the simple pages, the headers set by ``expires -1`` caused pip
+  to cache for 5 minutes.
+
+- fix issue402: the redirect to simple index didn't take X-Outside-Url into
+  account.
+
+- fix for url decoding issue with mirrors. When package filenames contain
+  characters such as `!` or `+`, these get URL encoded to `%21` and `%2B` in
+  the remote simple index. This fix ensures that in the filename saved to the
+  disk cache these are decoded back to `!` or `+`.
+
+- fix issue434: ``--status`` didn't work anymore. The background server
+  functionality is now deprecated, see --gen-config to use a process manager
+  from your OS.
+
+- fix issue449: push to pypi broke again due to a changed reply.
+
+- fix remote file url for mirrors not named "root/pypi" which provide file
+  hashes.
 
 - fix issue401: fix traceback and inaccessible index by ignoring removed bases.
 
