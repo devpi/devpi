@@ -195,7 +195,9 @@ def addoptions(parser, pluginmanager):
                  "index and documentation will gradually update until the "
                  "server has caught up with all events.")
 
-    bg = parser.addgroup("background server")
+    bg = parser.addgroup(
+        "background server (DEPRECATED, see --gen-config to use a process "
+        "manager from your OS)")
     bg.addoption("--start", action="store_true",
             help="start the background devpi-server")
     bg.addoption("--stop", action="store_true",
