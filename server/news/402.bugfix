@@ -1,0 +1,1 @@
+fix issue402: the redirect to simple index didn't take X-Outside-Url into account.
