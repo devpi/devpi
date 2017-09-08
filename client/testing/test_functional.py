@@ -14,6 +14,14 @@ except ImportError:
         def test_mirror_things(self):
             pytest.skip(
                 "Couldn't import TestMirrorIndexThings from devpi server tests.")
+try:
+    from test_devpi_server.functional import TestIndexPushThings  # noqa
+except ImportError:
+    # when testing with older devpi-server
+    class TestIndexPushThings:
+        def test_mirror_things(self):
+            pytest.skip(
+                "Couldn't import TestIndexPushThings from devpi server tests.")
 from test_devpi_server.functional import MappMixin
 
 @pytest.fixture
