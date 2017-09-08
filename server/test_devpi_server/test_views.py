@@ -1184,7 +1184,7 @@ def test_upload_and_push_external(mapp, testapp, reqmock):
                username="user", password="password")
     rec = reqmock.mockresponse(url=None, code=200, method="POST", data="msg")
     body = json.dumps(req).encode("utf-8")
-    r = testapp.request(api.index, method="PUSH", body=body,
+    r = testapp.request(api.index, method="POST", body=body,
                         expect_errors=True)
     assert r.status_code == 200
     assert len(rec.requests) == 3
@@ -1197,7 +1197,7 @@ def test_upload_and_push_external(mapp, testapp, reqmock):
 
     # push with error
     reqmock.mockresponse(url=None, code=500, method="POST")
-    r = testapp.request(api.index, method="PUSH", body=body, expect_errors=True)
+    r = testapp.request(api.index, method="POST", body=body, expect_errors=True)
     assert r.status_code == 502
     result = r.json["result"]
     assert len(result) == 1
@@ -1248,7 +1248,7 @@ def test_upload_and_push_warehouse(mapp, testapp, reqmock):
     req = dict(name="pkg1", version="2.6", posturl="http://whatever.com/",
                username="user", password="password")
     body = json.dumps(req).encode("utf-8")
-    r = testapp.request(api.index, method="PUSH", body=body,
+    r = testapp.request(api.index, method="POST", body=body,
                         expect_errors=True)
     assert r.status_code == 200
     assert len(requests) == 3
