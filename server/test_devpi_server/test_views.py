@@ -1234,7 +1234,7 @@ def test_upload_and_push_warehouse(mapp, testapp, reqmock):
         HTTPResponse(
             body=py.io.BytesIO(b"msg"),
             status=410, preload_content=False,
-            reason="This API is no longer supported, instead simply upload the file."),
+            reason="Project pre-registration is no longer required or supported, so continue directly to uploading files."),
         HTTPResponse(
             body=py.io.BytesIO(b"msg"),
             status=200, preload_content=False),

@@ -627,10 +627,8 @@ class PyPIView:
             r = session.post(posturl, data=metadata, auth=pypiauth)
             self.log.debug("register returned: %s", r.status_code)
             results.append((r.status_code, "register", name, version))
-            ok_codes = (200, 201)
-            proceed = (
-                (r.status_code in ok_codes) or
-                (r.status_code == 410 and 'simply upload' in r.reason))
+            ok_codes = (200, 201, 410)
+            proceed = (r.status_code in ok_codes)
             if proceed:
                 for link in links["releasefile"]:
                     entry = link.entry
