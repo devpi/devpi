@@ -207,6 +207,60 @@ class TestIndexThings:
         mapp.delete_index("dev", code=403)
         mapp.delete_user("cuser4", code=403)
 
+    def test_custom_data(self, mapp):
+        mapp.create_and_login_user("cuser5")
+        mapp.create_index("dev")
+        mapp.use("cuser5/dev")
+        res = mapp.getjson("/cuser5/dev")
+        assert "custom_data" not in res["result"]
+        mapp.set_key_value("custom_data", "foo")
+        res = mapp.getjson("/cuser5/dev")
+        assert res["result"]["custom_data"] == "foo"
+
+    def test_title_description(self, mapp):
+        mapp.create_and_login_user("cuser6")
+        mapp.create_index("dev")
+        mapp.use("cuser6/dev")
+        res = mapp.getjson("/cuser6/dev")
+        assert "title" not in res["result"]
+        assert "description" not in res["result"]
+        mapp.set_key_value("title", "foo")
+        mapp.set_key_value("description", "bar")
+        res = mapp.getjson("/cuser6/dev")
+        assert res["result"]["title"] == "foo"
+        assert res["result"]["description"] == "bar"
+
+    def test_whitelist_setting(self, mapp):
+        mapp.create_and_login_user("cuser7")
+        mapp.create_index("dev")
+        mapp.use("cuser7/dev")
+        res = mapp.getjson("/cuser7/dev")['result']
+        assert res['pypi_whitelist'] == []
+        assert res['mirror_whitelist'] == []
+        mapp.set_mirror_whitelist("foo")
+        res = mapp.getjson("/cuser7/dev")['result']
+        assert res['pypi_whitelist'] == []
+        assert res['mirror_whitelist'] == ['foo']
+        mapp.set_mirror_whitelist("foo,bar")
+        res = mapp.getjson("/cuser7/dev")['result']
+        assert res['pypi_whitelist'] == []
+        assert res['mirror_whitelist'] == ['foo', 'bar']
+        mapp.set_mirror_whitelist("he_llo")
+        res = mapp.getjson("/cuser7/dev")['result']
+        assert res['pypi_whitelist'] == []
+        assert res['mirror_whitelist'] == ['he-llo']
+        mapp.set_mirror_whitelist("he_llo,Django")
+        res = mapp.getjson("/cuser7/dev")['result']
+        assert res['pypi_whitelist'] == []
+        assert res['mirror_whitelist'] == ['he-llo', 'django']
+        mapp.set_mirror_whitelist("*")
+        res = mapp.getjson("/cuser7/dev")['result']
+        assert res['pypi_whitelist'] == []
+        assert res['mirror_whitelist'] == ['*']
+
+
+@pytest.mark.nomocking
+class TestIndexPushThings:
     def test_push_existing_to_volatile(self, mapp):
         username = 'puser1'
         mapp.create_and_login_user("%s" % username)
@@ -258,57 +312,6 @@ class TestIndexThings:
         assert len(link['log']) == 1
         assert link['log'][0]['what'] == 'upload'
         assert link['log'][0]['dst'] == '%s/dev' % username
-
-    def test_custom_data(self, mapp):
-        mapp.create_and_login_user("cuser5")
-        mapp.create_index("dev")
-        mapp.use("cuser5/dev")
-        res = mapp.getjson("/cuser5/dev")
-        assert "custom_data" not in res["result"]
-        mapp.set_key_value("custom_data", "foo")
-        res = mapp.getjson("/cuser5/dev")
-        assert res["result"]["custom_data"] == "foo"
-
-    def test_title_description(self, mapp):
-        mapp.create_and_login_user("cuser6")
-        mapp.create_index("dev")
-        mapp.use("cuser6/dev")
-        res = mapp.getjson("/cuser6/dev")
-        assert "title" not in res["result"]
-        assert "description" not in res["result"]
-        mapp.set_key_value("title", "foo")
-        mapp.set_key_value("description", "bar")
-        res = mapp.getjson("/cuser6/dev")
-        assert res["result"]["title"] == "foo"
-        assert res["result"]["description"] == "bar"
-
-    def test_whitelist_setting(self, mapp):
-        mapp.create_and_login_user("cuser7")
-        mapp.create_index("dev")
-        mapp.use("cuser7/dev")
-        res = mapp.getjson("/cuser7/dev")['result']
-        assert res['pypi_whitelist'] == []
-        assert res['mirror_whitelist'] == []
-        mapp.set_mirror_whitelist("foo")
-        res = mapp.getjson("/cuser7/dev")['result']
-        assert res['pypi_whitelist'] == []
-        assert res['mirror_whitelist'] == ['foo']
-        mapp.set_mirror_whitelist("foo,bar")
-        res = mapp.getjson("/cuser7/dev")['result']
-        assert res['pypi_whitelist'] == []
-        assert res['mirror_whitelist'] == ['foo', 'bar']
-        mapp.set_mirror_whitelist("he_llo")
-        res = mapp.getjson("/cuser7/dev")['result']
-        assert res['pypi_whitelist'] == []
-        assert res['mirror_whitelist'] == ['he-llo']
-        mapp.set_mirror_whitelist("he_llo,Django")
-        res = mapp.getjson("/cuser7/dev")['result']
-        assert res['pypi_whitelist'] == []
-        assert res['mirror_whitelist'] == ['he-llo', 'django']
-        mapp.set_mirror_whitelist("*")
-        res = mapp.getjson("/cuser7/dev")['result']
-        assert res['pypi_whitelist'] == []
-        assert res['mirror_whitelist'] == ['*']
 
 
 @pytest.mark.nomocking

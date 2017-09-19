@@ -342,9 +342,12 @@ def proxy_write_to_master(xom, request):
     the change is replicated back.
     """
     r = proxy_request_to_master(xom, request, stream=True)
-    body = r.raw.read()
-    #threadlog.debug("relay status_code: %s", r.status_code)
-    #threadlog.debug("relay headers: %s", r.headers)
+    # for redirects, the body is already read and stored in the ``next``
+    # attribute (see requests.sessions.send)
+    if r.raw.closed and r.next:
+        body = r.next.body
+    else:
+        body = r.raw.read()
     if r.status_code < 400:
         commit_serial = int(r.headers["X-DEVPI-SERIAL"])
         xom.keyfs.wait_tx_serial(commit_serial)

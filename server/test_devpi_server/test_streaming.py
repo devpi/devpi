@@ -2,6 +2,12 @@ import base64
 import json
 import pytest
 import requests
+import sys
+
+
+pytestmark = pytest.mark.skipif(
+    sys.platform == "windows",
+    reason="issues with process management on Windows")
 
 
 @pytest.fixture
