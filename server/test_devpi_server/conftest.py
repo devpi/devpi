@@ -803,7 +803,7 @@ class MyTestApp(TApp):
 
     def push(self, url, params=None, **kw):
         kw.setdefault("expect_errors", True)
-        return self._gen_request("PUSH", url, params=params, **kw)
+        return self._gen_request("POST", url, params=params, **kw)
 
     def get(self, *args, **kwargs):
         kwargs.setdefault("expect_errors", True)

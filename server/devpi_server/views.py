@@ -567,7 +567,7 @@ class PyPIView:
         stage.delete()
         apireturn(201, "index %s deleted" % stage.name)
 
-    @view_config(route_name="/{user}/{index}", request_method="PUSH")
+    @view_config(route_name="/{user}/{index}", request_method=("POST", "PUSH"))
     def pushrelease(self):
         request = self.request
         stage = self.context.stage
