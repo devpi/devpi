@@ -1,9 +1,20 @@
+
+
 .. towncrier release notes start
 
+3.2.0rc1 (2017-09-08)
+=====================
 
-3.2.0 (Unreleased)
-==================
+Bug Fixes
+---------
 
+- fix issue343: enhanced ``splitbasename`` to split the name and version
+  correctly in more cases.
+
+- fix for url decoding issue with mirrors. When package filenames contain
+  characters such as `!` or `+`, these get URL encoded to `%21` and `%2B` in
+  the remote simple index. This fix ensures that in the filename saved to the
+  disk cache these are decoded back to `!` or `+`.
 
 
 3.1.0 (2017-04-18)

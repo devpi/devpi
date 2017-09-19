@@ -1,4 +1,0 @@
-fix for url decoding issue with mirrors.
-
-When package filenames contain characters such as `!` or `+`, these get URL encoded to `%21` and `%2B`
-in the remote simple index. This fix ensures that in the filename saved to the disk cache these are decoded back to `!` or `+`.

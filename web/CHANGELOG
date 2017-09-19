@@ -1,9 +1,16 @@
+
+
 .. towncrier release notes start
 
+3.2.1rc1 (2017-09-08)
+=====================
 
-3.2.1 (Unreleased)
-==================
+Bug Fixes
+---------
 
+- make search results compatible with pip showing INSTALLED/LATEST info.
+
+- fix server error by returning 404 when a toxresult can't be found.
 
 
 3.2.0 (2017-04-23)

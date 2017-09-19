@@ -1,1 +1,0 @@
-fix issue343: enhanced ``splitbasename`` to split the name and version correctly in more cases.
