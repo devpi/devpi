@@ -93,10 +93,6 @@ class HTTPResponse(HTTPSuccessful):
         Exception.__init__(self)
 
 
-def redirect(location):
-    raise HTTPFound(location=location)
-
-
 def apireturn(code, message=None, result=None, type=None):
     d = dict() # status=code)
     if result is not None:
@@ -505,7 +501,7 @@ class PyPIView:
                 continue
             stage.clear_simplelinks_cache(context.project)
             stage.get_simplelinks_perstage(context.project)
-        redirect(self.request.route_url(
+        return HTTPFound(location=self.request.route_url(
             "/{user}/{index}/+simple/{project}",
             user=context.username, index=context.index, project=context.project))
 
@@ -855,8 +851,11 @@ class PyPIView:
 
     @view_config(route_name="simple_redirect")
     def simple_redirect(self):
-        stage, name = self.context.stage, self.context.project
-        redirect("/%s/+simple/%s" % (stage.name, name))
+        return HTTPFound(location=self.request.route_url(
+            "/{user}/{index}/+simple/{project}",
+            user=self.context.username,
+            index=self.context.index,
+            project=self.context.project))
 
     @view_config(route_name="/{user}/{index}/{project}",
                  accept="application/json", request_method="GET")

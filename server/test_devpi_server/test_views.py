@@ -160,6 +160,12 @@ def test_project_redirect(pypistage, testapp, user_agent):
     r = testapp.get("/root/pypi/%s/" % name, headers=headers, follow=False)
     assert r.status_code == 302
     assert r.headers["location"].endswith("/root/pypi/+simple/%s" % name)
+    # check with x-outside-url
+    headers['X-Outside-Url'] = str('http://example.com/path')
+    r = testapp.get("/root/pypi/%s/" % name, headers=headers, follow=False)
+    assert r.status_code == 302
+    assert r.headers["location"] == "http://example.com/path/root/pypi/+simple/%s" % name
+
 
 def test_simple_project_unicode_rejected(pypistage, testapp, dummyrequest):
     from devpi_server.view_auth import RootFactory
