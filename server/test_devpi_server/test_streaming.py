@@ -6,7 +6,7 @@ import sys
 
 
 pytestmark = pytest.mark.skipif(
-    sys.platform == "windows",
+    sys.platform == "win32",
     reason="issues with process management on Windows")
 
 
