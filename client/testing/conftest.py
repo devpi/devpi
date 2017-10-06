@@ -294,18 +294,20 @@ class Gen:
         return pkgname+"-1.0.tar.gz"
 
 
-def pytest_runtest_makereport(__multicall__, item, call):
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    outcome = yield
     logfiles = getattr(item.config, "_extlogfiles", None)
     if logfiles is None:
         return
-    report = __multicall__.execute()
+    report = outcome.get_result()
     for name in sorted(logfiles):
         content = logfiles[name].read()
         if content:
             longrepr = getattr(report, "longrepr", None)
             if hasattr(longrepr, "addsection"):
                 longrepr.addsection("%s log" %name, content)
-    return report
+
 
 @pytest.fixture
 def ext_devpi(request, tmpdir, devpi):

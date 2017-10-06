@@ -117,7 +117,7 @@ def auto_transact(request):
         request.node.get_marker("notransaction")):
         yield
         return
-    keyfs = request.getfuncargvalue("keyfs")
+    keyfs = request.getfixturevalue("keyfs")
 
     write = True if request.node.get_marker("writetransaction") else False
     keyfs.begin_transaction_in_thread(write=write)
@@ -1078,7 +1078,7 @@ def nginx_host_port(request, call_devpi_in_dir, server_directory):
     if sys.platform.startswith("win"):
         pytest.skip("no nginx on windows")
     # we need the skip above before master_host_port is called
-    (host, port) = request.getfuncargvalue("master_host_port")
+    (host, port) = request.getfixturevalue("master_host_port")
     (p, nginx_port) = _nginx_host_port(
         host, port, call_devpi_in_dir, server_directory)
     try:

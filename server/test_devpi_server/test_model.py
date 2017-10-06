@@ -48,7 +48,7 @@ def test_is_empty(model, keyfs):
 def stage(request, user):
     config = udict(index="world", bases=(), type="stage", volatile=True)
     if "bases" in request.fixturenames:
-        config["bases"] = request.getfuncargvalue("bases")
+        config["bases"] = request.getfixturevalue("bases")
     return user.create_stage(**config)
 
 @pytest.fixture
