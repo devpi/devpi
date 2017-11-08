@@ -43,7 +43,7 @@ if __name__ == "__main__":
       version='4.3.1rc1',
       maintainer="Holger Krekel, Florian Schulze",
       maintainer_email="holger@merlinux.eu",
-      packages=find_packages(),
+      packages=find_packages(exclude=["test_*"]),
       include_package_data=True,
       zip_safe=False,
       license="MIT",
