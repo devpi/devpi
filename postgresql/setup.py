@@ -42,10 +42,12 @@ setup(
             for x in "2.7 3.3".split()],
     entry_points={
         'devpi_server': [
-            "devpi-postgresql = devpi_postgresql.main"]},
+            "devpi-postgresql = devpi_postgresql.main"],
+        'pytest11': [
+            "pytest_devpi_postgresql = pytest_devpi_postgresql"]},
     install_requires=[
         'devpi-server>=3.0.0.dev2',
         'pg8000'],
     include_package_data=True,
     zip_safe=False,
-    packages=['devpi_postgresql'])
+    packages=['devpi_postgresql', 'pytest_devpi_postgresql'])
