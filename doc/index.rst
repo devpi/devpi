@@ -28,7 +28,7 @@ devpi: PyPI server and packaging/testing/release tool
    #devpi on freenode
 
 The MIT-licensed devpi system features a powerful PyPI-compatible server
-and a complimentary command line tool to drive packaging, testing and
+and a complementary command line tool to drive packaging, testing and
 release activities with Python.  Main features and usage scenarios:
 
 - **fast PyPI mirror**: use a local self-updating pypi.python.org 
