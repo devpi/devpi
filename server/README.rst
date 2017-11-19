@@ -44,7 +44,7 @@ including pre-configured templates for ``nginx`` and cron.
 separate tool for Packaging/Testing activities
 ==============================================
 
-The complimentary `devpi-client <http://pypi.python.org/devpi-client>`_ tool
+The complementary `devpi-client <http://pypi.python.org/devpi-client>`_ tool
 helps to manage users, indexes, logins and typical setup.py-based upload and
 installation workflows.
 
