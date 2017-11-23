@@ -2,6 +2,7 @@
 #
 
 VERSION       = $(shell python -c "import conf ; print(conf.version)")
+DOCZIP        = devpi-$(VERSION).doc.zip
 # You can set these variables from the command line.
 SPHINXOPTS    =
 SPHINXBUILD   = sphinx-build
@@ -74,10 +75,8 @@ clean:
 version:
 	@echo "version $(VERSION)"
 
-install: html
-	@echo "installing to http://devpi.net"
-	rsync -avz $(BUILDDIR)/html/ doc.devpi.net:/www/doc.devpi.net/$(VERSION)/
-
+doczip: html
+	python doczip.py $(DOCZIP) _build/html
 
 html:
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
