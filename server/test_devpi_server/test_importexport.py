@@ -85,6 +85,49 @@ def test_export_import(tmpdir, capfd, monkeypatch):
     assert err == ''
 
 
+def test_export_import_no_root_pypi(tmpdir, capfd, monkeypatch):
+    from devpi_server.main import main
+    monkeypatch.setattr("devpi_server.main.configure_logging", lambda a: None)
+    clean = tmpdir.join("clean").ensure(dir=True)
+    ret = main([
+        "devpi-server",
+        "--serverdir", clean.strpath,
+        "--no-root-pypi",
+        "--init"])
+    assert ret == 0
+    export = tmpdir.join("export")
+    ret = main([
+        "devpi-server",
+        "--serverdir", clean.strpath,
+        "--export", export.strpath])
+    assert ret == 0
+    # first we test regular import
+    import_ = tmpdir.join("import")
+    ret = main([
+        "devpi-server",
+        "--serverdir", import_.strpath,
+        "--no-events",
+        "--import", export.strpath])
+    assert ret == 0
+    out, err = capfd.readouterr()
+    assert os.listdir(clean.strpath) == os.listdir(import_.strpath)
+    assert 'import_all: importing finished' in out
+    assert err == ''
+    # now we add --no-root-pypi
+    import_.remove()
+    ret = main([
+        "devpi-server",
+        "--serverdir", import_.strpath,
+        "--no-events",
+        "--no-root-pypi",
+        "--import", export.strpath])
+    assert ret == 0
+    out, err = capfd.readouterr()
+    assert os.listdir(clean.strpath) == os.listdir(import_.strpath)
+    assert 'import_all: importing finished' in out
+    assert err == ''
+
+
 def test_import_on_existing_server_data(tmpdir, xom):
     with xom.keyfs.transaction(write=True):
         xom.model.create_user("someuser", password="qwe")
