@@ -1,7 +1,7 @@
 # Makefile for Sphinx documentation
 #
 
-VERSION       = $(shell python -c "import conf ; print conf.version")
+VERSION       = $(shell python -c "import conf ; print(conf.version)")
 # You can set these variables from the command line.
 SPHINXOPTS    =
 SPHINXBUILD   = sphinx-build
