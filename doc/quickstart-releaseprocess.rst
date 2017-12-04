@@ -159,7 +159,7 @@ to our ``testuser/dev`` index::
 
 There are three triggered actions:
 
-- detection of a mercurial repository, leading to copying all versioned
+- detection of a VCS (git/hg/svn/bazaar) repository, leading to copying all versioned
   files to a temporary work dir.  If you are not using mercurial,
   the copy-step is skipped and the upload operates directly on your source
   tree.
