@@ -576,17 +576,24 @@ class BaseStage(object):
 
 class PrivateStage(BaseStage):
 
-    metadata_keys = """
-        name version summary home_page author author_email
-        license description keywords platform classifiers download_url
-    """.split()
-    # taken from distlib.metadata (6th October)
-    metadata_list_fields = ('platform', 'classifier', 'classifiers',
-               'obsoletes',
-               'requires', 'provides', 'obsoletes-Dist',
-               'provides-dist', 'requires-dist', 'requires-external',
-               'project-url', 'supported-platform', 'setup-requires-Dist',
-               'provides-extra', 'extension')
+    metadata_keys = (
+        'name', 'version',
+        # additional meta-data
+        'metadata_version', 'summary', 'home_page', 'author', 'author_email',
+        'maintainer', 'maintainer_email', 'license', 'description',
+        'keywords', 'platform', 'classifiers', 'download_url',
+        'supported_platform', 'comment',
+        # PEP 314
+        'provides', 'requires', 'obsoletes',
+        # Metadata 1.2
+        'project_urls', 'provides_dist', 'obsoletes_dist',
+        'requires_dist', 'requires_external', 'requires_python')
+    metadata_list_fields = (
+        'platform', 'classifiers', 'obsoletes',
+        'requires', 'provides', 'obsoletes_dist',
+        'provides_dist', 'requires_dist', 'requires_external',
+        'project_url', 'supported_platform', 'setup_requires_dist',
+        'provides_extra', 'extension')
 
     def __init__(self, xom, username, index, ixconfig):
         super(PrivateStage, self).__init__(xom, username, index, ixconfig)
