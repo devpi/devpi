@@ -1210,6 +1210,37 @@ def test_upload_and_push_external(mapp, testapp, reqmock):
     assert result[0][0] == 500
 
 
+def test_upload_and_push_external_metadata12(mapp, reqmock, testapp):
+    from webob.request import cgi_FieldStorage
+    from io import BytesIO
+    api = mapp.create_and_use()
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
+    mapp.set_versiondata(dict(
+        name="pkg1", version="2.6",
+        requires_python=">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"))
+    result = mapp.getjson(api.index + "/pkg1", code=200)
+    verdata = result['result']['2.6']
+    assert 'requires_python' in verdata
+    assert verdata['requires_python'] == ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+    req = dict(name="pkg1", version="2.6", posturl="http://whatever.com/",
+               username="user", password="password")
+    rec = reqmock.mockresponse(url=None, code=200, method="POST", data="msg")
+    body = json.dumps(req).encode("utf-8")
+    r = testapp.request(api.index, method="POST", body=body,
+                        expect_errors=True)
+    assert r.status_code == 200
+    assert len(rec.requests) == 2
+    for i in range(2):
+        assert rec.requests[i].url == req["posturl"]
+    req = rec.requests[1]
+    fs = cgi_FieldStorage(
+        fp=BytesIO(req.body),
+        headers=req.headers,
+        environ={
+            'REQUEST_METHOD': 'POST'})
+    assert fs.getvalue('requires_python') == ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+
+
 def test_upload_and_push_warehouse(mapp, testapp, reqmock):
     # the new PyPI backend "warehouse" changes some things and they already
     # start to affect current PyPI behaviour

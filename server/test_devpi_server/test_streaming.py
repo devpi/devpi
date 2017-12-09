@@ -5,9 +5,11 @@ import requests
 import sys
 
 
-pytestmark = pytest.mark.skipif(
-    sys.platform == "win32",
-    reason="issues with process management on Windows")
+pytestmark = [
+    pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="issues with process management on Windows"),
+    pytest.mark.skipif("not config.option.slow")]
 
 
 @pytest.fixture
