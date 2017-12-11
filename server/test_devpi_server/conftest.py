@@ -627,7 +627,7 @@ class Mapp(MappMixin):
         if not isinstance(users, list):
             users = users.split(",")
         assert isinstance(users, list)
-        result["acl_upload"] = users
+        result["acl_" + acltype] = users
         r = self.testapp.patch_json("/%s" % (indexname,), result)
         assert r.status_code == 200
 

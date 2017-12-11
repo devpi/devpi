@@ -374,7 +374,8 @@ class PyPIView:
     #
 
     @view_config(route_name="/{user}/{index}/+f/{relpath:.*}",
-                 request_method="POST")
+        request_method="POST",
+        permission="toxresult_upload")
     def post_toxresult(self):
         stage = self.context.stage
         relpath = self.request.path_info.strip("/")

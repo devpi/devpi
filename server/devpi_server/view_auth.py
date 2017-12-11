@@ -22,6 +22,11 @@ class StageACL(object):
             acl.append((Allow, principal, 'pypi_submit'))
             acl.append((Allow, principal, 'del_verdata'))
             acl.append((Allow, principal, 'del_project'))
+        for principal in self.stage.ixconfig.get(
+                "acl_toxresult_upload", [':ANONYMOUS:']):
+            if principal == ':ANONYMOUS:':
+                principal = Everyone
+            acl.append((Allow, principal, 'toxresult_upload'))
         if self.restrict_modify is None:
             acl.extend([
                 (Allow, self.stage.username, 'index_modify'),

@@ -1125,6 +1125,32 @@ def test_upload_and_push_internal(mapp, testapp, monkeypatch, proj):
     assert link.href.endswith("/pkg1-2.6.tgz")
 
 
+def test_acl_toxresults_upload(mapp, testapp):
+    from test_devpi_server.example import tox_result_data
+    mapp.create_and_login_user("user1", "1")
+    mapp.create_index("prod")
+    mapp.create_index("dev")
+    mapp.use("user1/dev")
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200)
+    path, = mapp.get_release_paths("pkg1")
+    headers={str('X-outside-url'): str('')}
+    r = testapp.post(path, json.dumps(tox_result_data), headers=headers)
+    assert r.status_code == 200
+    mapp.set_acl(['user2'], acltype="toxresult_upload")
+    r = testapp.post(
+        path, json.dumps(tox_result_data), headers=headers, expect_errors=True)
+    assert r.status_code == 403
+    # check that stage created before introduction of acl_toxresult_upload
+    # still allow upload to anonymous
+    with mapp.xom.keyfs.transaction(write=True):
+        stage = mapp.xom.model.getstage('user1/dev')
+        with stage.user.key.update() as userconfig:
+            del userconfig['indexes']['dev']['acl_toxresult_upload']
+            stage.ixconfig = userconfig['indexes']['dev']
+    r = testapp.post(path, json.dumps(tox_result_data), headers=headers)
+    assert r.status_code == 200
+
+
 @pytest.mark.parametrize("outside_url", ['', 'http://localhost/devpi'])
 def test_upload_and_push_with_toxresults(mapp, testapp, outside_url):
     from test_devpi_server.example import tox_result_data
