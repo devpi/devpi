@@ -17,6 +17,7 @@ def xom(request, xom, themedir):
 
 
 def test_macro_overwrite(testapp, themedir):
+    from devpi_web import __version__
     themedir.join('templates', 'macros.pt').write("""
 <metal:head define-macro="headcss" use-macro="request.macros['original-headcss']">
     <metal:mycss fill-slot="headcss">
@@ -26,8 +27,8 @@ def test_macro_overwrite(testapp, themedir):
     """)
     r = testapp.get('/')
     styles = [x.attrs.get('href') for x in r.html.findAll('link')]
-    assert 'http://localhost/+static/style.css' in styles
-    assert 'http://localhost/+theme-static/style.css' in styles
+    assert 'http://localhost/+static-%s/style.css' % __version__ in styles
+    assert 'http://localhost/+theme-static-%s/style.css' % __version__ in styles
 
 
 def test_template_overwrite(testapp, themedir):
@@ -37,6 +38,7 @@ def test_template_overwrite(testapp, themedir):
 
 
 def test_theme_style(testapp, themedir):
+    from devpi_web import __version__
     themedir.join('static', 'style.css').write("Foo Style!")
-    r = testapp.get('/+theme-static/style.css')
+    r = testapp.get('/+theme-static-%s/style.css' % __version__)
     assert r.text == 'Foo Style!'

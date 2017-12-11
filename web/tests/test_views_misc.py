@@ -145,10 +145,11 @@ def test_url_rewriting(url, headers, selector, expected, mapp, testapp):
 
 
 def test_static_404(testapp):
-    r = testapp.xget(404, '/+static/foo.png')
+    from devpi_web import __version__
+    r = testapp.xget(404, '/+static-%s/foo.png' % __version__)
     assert [x.text for x in r.html.select('#content p')] == [
         u'The following resource could not be found:',
-        u'http://localhost/+static/foo.png']
+        u'http://localhost/+static-%s/foo.png' % __version__]
 
 
 class TestStatusView:

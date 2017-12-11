@@ -133,13 +133,14 @@ def get_pluginmanager(load_entry_points=True):
 
 
 def includeme(config):
+    from devpi_web import __version__
     from pyramid_chameleon.interfaces import IChameleonLookup
     from pyramid_chameleon.zpt import ZPTTemplateRenderer
     config.include('pyramid_chameleon')
     # we overwrite the template lookup to allow theming
     lookup = ThemeChameleonRendererLookup(ZPTTemplateRenderer, config.registry)
     config.registry.registerUtility(lookup, IChameleonLookup, name='.pt')
-    config.add_static_view('+static', 'static')
+    config.add_static_view('+static-%s' % __version__, 'static')
     theme_path = config.registry['theme_path']
     if theme_path:
         # if a theme is used, we set the path on the lookup instance
@@ -148,7 +149,7 @@ def includeme(config):
         # method 'theme_static_url' on the request
         static_path = os.path.join(theme_path, 'static')
         if os.path.exists(static_path):
-            config.add_static_view('+theme-static', static_path)
+            config.add_static_view('+theme-static-%s' % __version__, static_path)
             config.add_request_method(theme_static_url)
     config.add_route('root', '/', accept='text/html')
     config.add_route('search', '/+search', accept='text/html')
