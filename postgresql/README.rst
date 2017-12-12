@@ -24,6 +24,10 @@ Usage
 
 When using the PostgreSQL storage, ``devpi-server`` expects an empty database.
 You have to create one like this: ``createdb devpi``
+Depending on your PostgreSQL setup you have to create a user and grant it permissions on the new database like this::
+
+    CREATE ROLE devpi WITH LOGIN;
+    GRANT CREATE, CONNECT ON DATABASE devpi TO devpi;
 
 Upon first initialization of ``devpi-server`` use ``--storage pg8000`` to select the PostgreSQL backend.
 

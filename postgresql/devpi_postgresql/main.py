@@ -184,11 +184,11 @@ class Storage:
 
     def get_connection(self, closing=True, write=False):
         sqlconn = pg8000.connect(
+            user=self.user,
             database=self.database,
             host=self.host,
             port=int(self.port),
             unix_sock=self.unix_sock,
-            user=self.user,
             password=self.password,
             timeout=60)
         sqlconn.text_factory = bytes
