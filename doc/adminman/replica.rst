@@ -89,7 +89,7 @@ The text below is useful for a developer that needs to get more information abou
 .. _`http relaying`:
 
 HTTP relaying of replica server to master
-===============================================================
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 devpi-server in replica mode serves the same API and endpoints 
 as the master server.  In general any state-changing
@@ -103,7 +103,7 @@ may or may not have synchronized the same change.
 .. _`laptop replication`:
 
 Laptop replication (frequent disconnects)
-===============================================================
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 The primary user story for replication as of version 2.0 is maintaining
 a per-organisation multi-server install of devpi-server.  In principle,
@@ -122,7 +122,7 @@ b) only retrieving archive or documentation files into the replica
 
 
 Handling concurrency within the replica server
-===============================================================
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Both master and replica servers can handle multiple concurrent requests.
 HTTP requests are run in threads and we thus need to insure that the
@@ -155,7 +155,7 @@ connection status, see `issue113
 
 
 Transactional master state changes / SQL
-===============================================================
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Every change on the devpi-server master side happens
 with `ACID guarantees <http://en.wikipedia.org/wiki/ACID>`_
@@ -166,7 +166,7 @@ filesystem outside of the SQL database.
 
 
 SSL support (experimental)
-===============================================================
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 A replica can send a client certificate with the ``--replica-cert`` option.
 You need to provide a pem file which contains the certificate and the key.
