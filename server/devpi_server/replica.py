@@ -427,8 +427,19 @@ class ImportFileReplica:
                            relpath)
             return
 
+        if r.status_code == 502:
+            stagename = '/'.join(relpath.split('/')[:2])
+            with key.keyfs.transaction(write=False):
+                stage = self.xom.model.getstage(stagename)
+            if stage.ixconfig['type'] == 'mirror':
+                threadlog.warn(
+                    "ignoring file which couldn't be retrieved from mirror index '%s': %s" % (
+                        stagename, relpath))
+                return
+
         if r.status_code != 200:
             raise FileReplicationError(r, relpath)
+
         err = entry.check_checksum(r.content)
         if err:
             # the file we got is different, it may have changed later.

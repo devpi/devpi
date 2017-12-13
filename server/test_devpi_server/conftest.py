@@ -7,6 +7,7 @@ import subprocess
 
 import pytest
 import py
+import requests
 import socket
 import sys
 from bs4 import BeautifulSoup
@@ -250,6 +251,15 @@ def replica_xom(request, makexom):
     xom = makexom(["--master", master_url])
     register_key_subscribers(xom)
     return xom
+
+
+@pytest.fixture
+def makefunctionaltestapp(request):
+    def makefunctionaltestapp(host_port):
+        mt = MyFunctionalTestApp(host_port)
+        mt.xom = None
+        return mt
+    return makefunctionaltestapp
 
 
 @pytest.fixture
@@ -833,6 +843,47 @@ class MyTestApp(TApp):
         return self.get(*args, **kwargs)
 
 
+class FunctionalResponseWrapper(object):
+    def __init__(self, response):
+        self.res = response
+
+    @property
+    def status_code(self):
+        return self.res.status_code
+
+    @property
+    def body(self):
+        return self.res.content
+
+    @property
+    def json(self):
+        return self.res.json()
+
+
+class MyFunctionalTestApp(MyTestApp):
+    def __init__(self, host_port):
+        import json
+        self.base_url = "http://%s:%s" % host_port
+        self.headers = {}
+        self.JSONEncoder = json.JSONEncoder
+
+    def _gen_request(self, method, url, params=None,
+                     headers=None, extra_environ=None, status=None,
+                     upload_files=None, expect_errors=False,
+                     content_type=None):
+        headers = {} if headers is None else headers.copy()
+        if self.auth:
+            headers["X-Devpi-Auth"] = b64encode("%s:%s" % self.auth)
+
+        # fill headers with defaults
+        for name, val in self.headers.items():
+            headers.setdefault(name, val)
+
+        meth = getattr(requests, method.lower())
+        if '://' not in url:
+            url = self.base_url + url
+        r = meth(url, params, headers=headers)
+        return FunctionalResponseWrapper(r)
 
 
 @pytest.fixture
@@ -959,19 +1010,23 @@ def call_devpi_in_dir():
     return devpi
 
 
+@pytest.fixture(scope="class")
+def master_serverdir(server_directory):
+    return server_directory.join("master")
+
+
 @pytest.yield_fixture(scope="class")
-def master_host_port(request, call_devpi_in_dir, server_directory):
+def master_host_port(request, call_devpi_in_dir, master_serverdir):
     host = 'localhost'
     port = get_open_port(host)
-    master_dir = server_directory.join("master")
     args = [
         "devpi-server",
-        "--serverdir", master_dir.strpath,
+        "--serverdir", master_serverdir.strpath,
         "--role", "master",
         "--host", host,
         "--port", str(port),
         "--requests-only"]
-    if not master_dir.join('.nodeinfo').exists():
+    if not master_serverdir.join('.nodeinfo').exists():
         subprocess.check_call(
             args + ["--init"])
     p = subprocess.Popen(args)
@@ -983,26 +1038,30 @@ def master_host_port(request, call_devpi_in_dir, server_directory):
         p.wait()
 
 
+@pytest.fixture(scope="class")
+def replica_serverdir(server_directory):
+    return server_directory.join("replica")
+
+
 @pytest.yield_fixture(scope="class")
-def replica_host_port(request, call_devpi_in_dir, master_host_port, server_directory):
+def replica_host_port(request, call_devpi_in_dir, master_host_port, replica_serverdir):
     host = 'localhost'
     port = get_open_port(host)
-    replica_dir = server_directory.join("replica")
     args = [
         "devpi-server", "--start",
         "--host", host, "--port", str(port),
         "--master-url", "http://%s:%s" % master_host_port]
-    if not replica_dir.join('.nodeinfo').exists():
+    if not replica_serverdir.join('.nodeinfo').exists():
         args.append("--init")
     call_devpi_in_dir(
-        replica_dir.strpath,
+        replica_serverdir.strpath,
         args)
     try:
         wait_for_port(host, port)
         yield (host, port)
     finally:
         call_devpi_in_dir(
-            replica_dir.strpath,
+            replica_serverdir.strpath,
             ["devpi-server", "--stop"])
 
 
@@ -1158,6 +1217,9 @@ class SimPyPI:
         if length is not False:
             info['length'] = length
         self.files[relpath] = info
+
+    def remove_file(self, relpath):
+        del self.files[relpath]
 
 
 @pytest.fixture
