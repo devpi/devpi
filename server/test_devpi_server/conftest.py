@@ -283,7 +283,7 @@ def make_simple_pkg_info(name, text="", pkgver=None, hash_type=None,
             hash_value = getattr(hashlib, hash_type)(hv).hexdigest()
             ret.hash_spec = "%s=%s" %(hash_type, hash_value)
             pkgver += "#" + ret.hash_spec
-        text = '<a href="../../{name}/{pkgver}" />'.format(name=name, pkgver=pkgver)
+        text = '<a href="../../{name}/{pkgver}">{pkgver}</a>'.format(name=name, pkgver=pkgver)
     elif text and "{md5}" in text:
         text = text.format(md5=getmd5(text))
     elif text and "{sha256}" in text:
@@ -863,10 +863,10 @@ class SimPyPIRequestHandler(httpserver.BaseHTTPRequestHandler):
                 start_response(200, headers)
                 self.wfile.write(b'\n'.join(releases))
                 return
-        elif p == ['', 'simple', '']:
+        elif p == ['', 'simple', ''] or p == ['', 'simple']:
             # root listing
             projects = [
-                '<a href="%s">%s</a>' % (k, v['title'])
+                '<a href="/simple/%s/">%s</a>' % (k, v['title'])
                 for k, v in simpypi.projects.items()]
             simpypi.add_log("do_GET", self.path, "found", list(simpypi.projects))
             start_response(200, headers)
