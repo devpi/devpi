@@ -592,7 +592,7 @@ class PrivateStage(BaseStage):
         'platform', 'classifiers', 'obsoletes',
         'requires', 'provides', 'obsoletes_dist',
         'provides_dist', 'requires_dist', 'requires_external',
-        'project_url', 'supported_platform', 'setup_requires_dist',
+        'project_urls', 'supported_platform', 'setup_requires_dist',
         'provides_extra', 'extension')
 
     def __init__(self, xom, username, index, ixconfig):
