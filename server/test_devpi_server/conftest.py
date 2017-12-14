@@ -499,8 +499,12 @@ class Mapp(MappMixin):
         return sorted(links)
 
     def downloadrelease(self, code, url):
-        r = self.testapp.xget(code, url)
-        if code < 300:
+        r = self.testapp.get(url, expect_errors=True)
+        if isinstance(code, tuple):
+            assert r.status_code in code
+        else:
+            assert r.status_code == code
+        if r.status_code < 300:
             return r.body
         return r.json
 

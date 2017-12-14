@@ -112,7 +112,10 @@ class Mapp(MappMixin):
 
     def downloadrelease(self, code, url):
         r = requests.get(url)
-        assert r.status_code == code
+        if isinstance(code, tuple):
+            assert r.status_code in code
+        else:
+            assert r.status_code == code
         if r.status_code < 300:
             return r.content
         return r.json()

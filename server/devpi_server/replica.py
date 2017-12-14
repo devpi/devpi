@@ -427,7 +427,7 @@ class ImportFileReplica:
                            relpath)
             return
 
-        if r.status_code == 502:
+        if r.status_code in (404, 502):
             stagename = '/'.join(relpath.split('/')[:2])
             with key.keyfs.transaction(write=False):
                 stage = self.xom.model.getstage(stagename)

@@ -116,7 +116,10 @@ def metaprop(name):
 
 
 class BadGateway(Exception):
-    pass
+    def __init__(self, msg, code=None, url=None):
+        super(BadGateway, self).__init__(msg)
+        self.code = code
+        self.url = url
 
 
 class FileEntry(object):
@@ -253,7 +256,7 @@ class FileEntry(object):
         if r.status_code != 200:
             msg = "error %s getting %s" % (r.status_code, self.url)
             threadlog.error(msg)
-            raise self.BadGateway(msg)
+            raise self.BadGateway(msg, code=r.status_code, url=self.url)
         log.info("reading remote: %s, target %s", r.url, self.relpath)
         content_size = r.headers.get("content-length")
         err = None

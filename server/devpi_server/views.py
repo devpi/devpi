@@ -961,6 +961,8 @@ class PyPIView:
                 headers = next(app_iter)
                 return Response(app_iter=app_iter, headers=headers)
         except entry.BadGateway as e:
+            if e.code == 404:
+                return apireturn(404, e.args[0])
             return apireturn(502, e.args[0])
 
         headers = entry.gethttpheaders()
