@@ -82,6 +82,7 @@ so that all of pypi.python.org packages will appear on that index::
       bases=root/pypi
       volatile=True
       acl_upload=testuser
+      acl_toxresult_upload=:ANONYMOUS:
       mirror_whitelist=
       pypi_whitelist=
 
@@ -271,6 +272,7 @@ Let's create another ``staging`` index::
       bases=
       volatile=False
       acl_upload=testuser
+      acl_toxresult_upload=:ANONYMOUS:
       mirror_whitelist=
       pypi_whitelist=
 
@@ -347,6 +349,7 @@ index, we can reconfigure the inheritance
       bases=testuser/staging
       volatile=True
       acl_upload=testuser
+      acl_toxresult_upload=:ANONYMOUS:
       mirror_whitelist=
       pypi_whitelist=
 
