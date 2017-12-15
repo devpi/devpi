@@ -384,6 +384,9 @@ It is also possible to allow anonymous uploads if you have a controlled environm
      mirror_whitelist=
      pypi_whitelist=
 
+The ``acl_toxresult_upload`` option determines who can upload test results via ``devpi test``.
+By default anyone is allowed to do that.
+
 Modifying the mirror whitelist
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
