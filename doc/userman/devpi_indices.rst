@@ -336,8 +336,8 @@ which now has the ``/emilie/dev`` as a base only::
      mirror_whitelist=
      pypi_whitelist=
    
-Modifying the ACL
-^^^^^^^^^^^^^^^^^
+Modifying the Access Control Lists
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To modify the ACLs, you have to set the whole list of allowed users.
 Emilie may allow sophie to upload to her dev index:
