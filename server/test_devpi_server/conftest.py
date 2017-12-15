@@ -883,10 +883,16 @@ class MyFunctionalTestApp(MyTestApp):
         for name, val in self.headers.items():
             headers.setdefault(name, val)
 
+        kw = dict(headers=headers)
+        if params and params is not webtest.utils.NoDefault:
+            if method.lower() in ('post', 'put', 'patch'):
+                kw['data'] = params
+            else:
+                kw['params'] = params
         meth = getattr(requests, method.lower())
         if '://' not in url:
             url = self.base_url + url
-        r = meth(url, params, headers=headers)
+        r = meth(url, **kw)
         return FunctionalResponseWrapper(r)
 
 

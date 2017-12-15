@@ -145,7 +145,8 @@ class KeyFS(object):
                     meth = self._import_subscriber.get(keyname)
                     if meth is not None:
                         threadlog.debug("calling import subscriber %r", meth)
-                        meth(fswriter, typedkey, val, back_serial)
+                        with self.transaction(write=False, at_serial=serial):
+                            meth(fswriter, typedkey, val, back_serial)
 
     def subscribe_on_import(self, key, subscriber):
         assert key.name not in self._import_subscriber

@@ -77,6 +77,7 @@ def test_replicating_deleted_pypi_release(
     relpath = URL(result[0]).path[1:]
     master_serverdir.join('+files').join(relpath).remove()
     simpypi.remove_file('/pkg/pkg-1.0.zip')
+    mapp.delete_index("mirror")
     # now start the replication thread
     master_serial = mapp.getjson('/+status')['result']['serial']
     replica_mapp.xom.thread_pool.start_one(replica_mapp.xom.replica_thread)
