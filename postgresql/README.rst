@@ -1,3 +1,4 @@
+===============================================================
 devpi-postgresql: a PostgreSQL storage backend for devpi-server
 ===============================================================
 
@@ -10,7 +11,7 @@ This plugin adds a PostgreSQL storage backend for `devpi-server`_.
 
 
 Installation
-------------
+============
 
 ``devpi-postgresql`` needs to be installed alongside ``devpi-server``.
 
@@ -20,7 +21,7 @@ You can install it with::
 
 
 Usage
------
+=====
 
 When using the PostgreSQL storage, ``devpi-server`` expects an empty database.
 You have to create one like this: ``createdb devpi``
