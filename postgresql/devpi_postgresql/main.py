@@ -193,6 +193,10 @@ class Storage:
             timeout=60)
         sqlconn.text_factory = bytes
         conn = Connection(sqlconn, self)
+        if write:
+            q = 'SELECT pg_advisory_xact_lock(1);'
+            c = conn._sqlconn.cursor()
+            c.execute(q)
         if closing:
             return contextlib.closing(conn)
         return conn
