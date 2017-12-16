@@ -70,10 +70,10 @@ Or inspect the server configuration::
    $ devpi getjson /emilie 
    {
        "result": {
-           "email": "edoe@mydomain.net", 
-           "indexes": {}, 
+           "email": "edoe@mydomain.net",
+           "indexes": {},
            "username": "emilie"
-       }, 
+       },
        "type": "userconfig"
    }
    

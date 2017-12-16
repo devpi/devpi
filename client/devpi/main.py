@@ -418,7 +418,7 @@ def print_version(hub):
 
 def parse_args(argv):
     argv = [str(x) for x in argv]
-    parser = getbaseparser(argv[0])
+    parser = getbaseparser('devpi')
     add_subparsers(parser)
     try_argcomplete(parser)
     try:

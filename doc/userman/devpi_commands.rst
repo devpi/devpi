@@ -17,9 +17,8 @@ getjson
 ::
 
     $ devpi getjson -h
-    usage: /home/hpk/venv/0/bin/devpi getjson [-h] [--version] [--debug] [-y] [-v]
-                                              [--clientdir DIR]
-                                              path_or_url
+    usage: devpi getjson [-h] [--version] [--debug] [-y] [-v] [--clientdir DIR]
+                         path_or_url
     
     show remote server and index configuration. A low-level command to show json-
     formatted configuration data from remote resources. This will always query the
@@ -47,10 +46,9 @@ index
 ::
 
     $ devpi index -h
-    usage: /home/hpk/venv/0/bin/devpi index [-h] [--version] [--debug] [-y] [-v]
-                                            [--clientdir DIR] [-c | --delete | -l]
-                                            [indexname]
-                                            [keyvalues [keyvalues ...]]
+    usage: devpi index [-h] [--version] [--debug] [-y] [-v] [--clientdir DIR]
+                       [-c | --delete | -l]
+                       [indexname] [keyvalues [keyvalues ...]]
     
     create, delete and manage indexes. This is the central command to create and
     manipulate indexes. The index is always created under the currently logged in
@@ -85,32 +83,33 @@ install
 ::
 
     $ devpi install -h
-    usage: /home/hpk/venv/0/bin/devpi install [-h] [--version] [--debug] [-y] [-v]
-                                              [--clientdir DIR] [--index INDEX]
-                                              [-l] [-e ARG] [--venv DIR]
-                                              [pkg [pkg ...]]
+    usage: devpi install [-h] [--version] [--debug] [-y] [-v] [--clientdir DIR]
+                         [--index INDEX] [-l] [-e ARG] [--venv DIR] [-r]
+                         [pkg [pkg ...]]
     
     install packages through current devpi index. This is convenience wrapper
     which configures and invokes ``pip install`` commands for you, using the
     current index.
     
     positional arguments:
-      pkg              uri or package file for installation from current index.
+      pkg                uri or package file for installation from current index.
     
     optional arguments:
-      -h, --help       show this help message and exit
-      --index INDEX    index to get package from (defaults to current index)
-      -l               print list of currently installed packages.
-      -e ARG           install a project in editable mode.
-      --venv DIR       install into specified virtualenv (created on the fly if
-                       none exists).
+      -h, --help         show this help message and exit
+      --index INDEX      index to get package from (defaults to current index)
+      -l                 print list of currently installed packages.
+      -e ARG             install a project in editable mode.
+      --venv DIR         install into specified virtualenv (created on the fly if
+                         none exists).
+      -r, --requirement  Install from the given requirements file.
     
     generic options:
-      --version        show program's version number and exit
-      --debug          show debug messages including more info on server requests
-      -y               assume 'yes' on confirmation questions
-      -v, --verbose    increase verbosity
-      --clientdir DIR  directory for storing login and other state
+      --version          show program's version number and exit
+      --debug            show debug messages including more info on server
+                         requests
+      -y                 assume 'yes' on confirmation questions
+      -v, --verbose      increase verbosity
+      --clientdir DIR    directory for storing login and other state
 
 .. _cmdref_list:
 
@@ -120,10 +119,9 @@ list
 ::
 
     $ devpi list -h
-    usage: /home/hpk/venv/0/bin/devpi list [-h] [--version] [--debug] [-y] [-v]
-                                           [--clientdir DIR] [-f] [--all]
-                                           [--index INDEX]
-                                           [spec]
+    usage: devpi list [-h] [--version] [--debug] [-y] [-v] [--clientdir DIR] [-f]
+                      [--all] [--index INDEX]
+                      [spec]
     
     list project versions and files for the current index. Without a spec argument
     this command will show the names of all projects which have releases on the
@@ -157,10 +155,9 @@ login
 ::
 
     $ devpi login -h
-    usage: /home/hpk/venv/0/bin/devpi login [-h] [--version] [--debug] [-y] [-v]
-                                            [--clientdir DIR]
-                                            [--password PASSWORD]
-                                            username
+    usage: devpi login [-h] [--version] [--debug] [-y] [-v] [--clientdir DIR]
+                       [--password PASSWORD]
+                       username
     
     login to devpi-server with the specified user. This command performs the login
     protocol with the remove server which typically results in a cached auth token
@@ -190,8 +187,7 @@ logoff
 ::
 
     $ devpi logoff -h
-    usage: /home/hpk/venv/0/bin/devpi logoff [-h] [--version] [--debug] [-y] [-v]
-                                             [--clientdir DIR]
+    usage: devpi logoff [-h] [--version] [--debug] [-y] [-v] [--clientdir DIR]
     
     log out of the current devpi-server. This will erase the client-side login
     token (see "devpi login").
@@ -214,10 +210,9 @@ push
 ::
 
     $ devpi push -h
-    usage: /home/hpk/venv/0/bin/devpi push [-h] [--version] [--debug] [-y] [-v]
-                                           [--clientdir DIR] [--index INDEX]
-                                           [--pypirc path]
-                                           pkgspec TARGETSPEC
+    usage: devpi push [-h] [--version] [--debug] [-y] [-v] [--clientdir DIR]
+                      [--index INDEX] [--pypirc path]
+                      pkgspec TARGETSPEC
     
     push a release and releasefiles to an internal or external index. You can push
     a release with all its release files either to an external pypi server
@@ -253,9 +248,9 @@ remove
 ::
 
     $ devpi remove -h
-    usage: /home/hpk/venv/0/bin/devpi remove [-h] [--version] [--debug] [-y] [-v]
-                                             [--clientdir DIR] [--index INDEX]
-                                             spec
+    usage: devpi remove [-h] [--version] [--debug] [-y] [-v] [--clientdir DIR]
+                        [--index INDEX]
+                        spec
     
     remove project info/files from current index. This command allows to remove
     projects or releases from your current index (see "devpi use"). It will ask
@@ -285,44 +280,51 @@ test
 ::
 
     $ devpi test -h
-    usage: /home/hpk/venv/0/bin/devpi test [-h] [--version] [--debug] [-y] [-v]
-                                           [--clientdir DIR] [-e ENVNAME]
-                                           [-c PATH] [--fallback-ini PATH]
-                                           [--tox-args toxargs] [--detox]
-                                           [--index INDEX]
-                                           pkgspec [pkgspec ...]
+    usage: devpi test [-h] [--version] [--debug] [-y] [-v] [--clientdir DIR]
+                      [-e ENVNAME] [-c PATH] [--fallback-ini PATH]
+                      [--tox-args toxargs] [--detox] [--no-upload] [--index INDEX]
+                      [--select SELECTOR] [--list]
+                      pkgspec [pkgspec ...]
     
     download and test a package against tox environments. Download a package and
     run tests as configured by the tox.ini file (which must be contained in the
     package).
     
     positional arguments:
-      pkgspec              package specification in pip/setuptools requirement-
-                           syntax, e.g. 'pytest' or 'pytest==2.4.2'
+      pkgspec               package specification in pip/setuptools requirement-
+                            syntax, e.g. 'pytest' or 'pytest==2.4.2'
     
     optional arguments:
-      -h, --help           show this help message and exit
-      -e ENVNAME           tox test environment to run from the tox.ini
-      -c PATH              tox configuration file to use with unpacked package
-      --fallback-ini PATH  tox ini file to be used if the downloaded package has
-                           none
-      --tox-args toxargs   extra command line arguments for tox. e.g.
-                           --toxargs="-c othertox.ini"
-      --detox, -d          (experimental) run tests concurrently in multiple
-                           processes using the detox tool (which must be
-                           installed)
-      --index INDEX        index to get package from, defaults to current index.
-                           Either just the NAME, using the current user, USER/NAME
-                           using the current server or a full URL for another
-                           server.
+      -h, --help            show this help message and exit
+      -e ENVNAME            tox test environment to run from the tox.ini
+      -c PATH               tox configuration file to use with unpacked package
+      --fallback-ini PATH   tox ini file to be used if the downloaded package has
+                            none
+      --tox-args toxargs    extra command line arguments for tox. e.g.
+                            --toxargs="-c othertox.ini"
+      --detox, -d           (experimental) run tests concurrently in multiple
+                            processes using the detox tool (which must be
+                            installed)
+      --no-upload           Skip upload of tox results
+      --index INDEX         index to get package from, defaults to current index.
+                            Either just the NAME, using the current user,
+                            USER/NAME using the current server or a full URL for
+                            another server.
+      --select SELECTOR, -s SELECTOR
+                            Selector for release files. This is a regular
+                            expression to select release files for which tests
+                            will be run. With this option it's possible to select
+                            wheels that aren't universal, or run tests only for
+                            one specific release file.
+      --list, -l            Just list the release files which would be tested.
     
     generic options:
-      --version            show program's version number and exit
-      --debug              show debug messages including more info on server
-                           requests
-      -y                   assume 'yes' on confirmation questions
-      -v, --verbose        increase verbosity
-      --clientdir DIR      directory for storing login and other state
+      --version             show program's version number and exit
+      --debug               show debug messages including more info on server
+                            requests
+      -y                    assume 'yes' on confirmation questions
+      -v, --verbose         increase verbosity
+      --clientdir DIR       directory for storing login and other state
 
 .. _cmdref_upload:
 
@@ -332,13 +334,11 @@ upload
 ::
 
     $ devpi upload -h
-    usage: /home/hpk/venv/0/bin/devpi upload [-h] [--version] [--debug] [-y] [-v]
-                                             [--clientdir DIR] [--no-vcs]
-                                             [--setupdir-only] [--formats FORMATS]
-                                             [--with-docs] [--only-docs]
-                                             [--index INDEX] [--from-dir]
-                                             [--only-latest] [--dry-run]
-                                             [path [path ...]]
+    usage: devpi upload [-h] [--version] [--debug] [-y] [-v] [--clientdir DIR]
+                        [--no-vcs] [--setupdir-only] [--formats FORMATS]
+                        [--with-docs] [--only-docs] [--index INDEX] [--from-dir]
+                        [--only-latest] [--dry-run]
+                        [path [path ...]]
     
     (build and) upload packages to the current devpi-server index. You can
     directly upload existing release files by specifying their file system path as
@@ -390,12 +390,11 @@ use
 ::
 
     $ devpi use -h
-    usage: /home/hpk/venv/0/bin/devpi use [-h] [--version] [--debug] [-y] [-v]
-                                          [--clientdir DIR] [--set-cfg]
-                                          [--always-set-cfg {yes,no}]
-                                          [--venv VENV] [--urls] [-l] [--delete]
-                                          [--client-cert pem_file]
-                                          [url]
+    usage: devpi use [-h] [--version] [--debug] [-y] [-v] [--clientdir DIR]
+                     [--set-cfg] [-t {yes,no,auto}] [--always-set-cfg {yes,no}]
+                     [--venv VENV] [--urls] [-l] [--delete]
+                     [--client-cert pem_file]
+                     [url]
     
     show/configure current index and target venv for install activities. This
     shows client-side state, relevant for server interactions, including login
@@ -417,6 +416,12 @@ use
       --set-cfg             create or modify pip/setuptools config files in home
                             directory so pip/easy_install will pick up the current
                             devpi index url
+      -t {yes,no,auto}, --pip-set-trusted {yes,no,auto}
+                            when used in conjunction with set-cfg, also set
+                            matching pip trusted-host setting for the provided
+                            devpi index url. With 'auto', trusted will be set for
+                            http urls or hosts that fail https ssl validation.
+                            'no' will clear setting
       --always-set-cfg {yes,no}
                             on 'yes', all subsequent 'devpi use' will implicitely
                             use --set-cfg. The setting is stored with the devpi
@@ -447,10 +452,9 @@ user
 ::
 
     $ devpi user -h
-    usage: /home/hpk/venv/0/bin/devpi user [-h] [--version] [--debug] [-y] [-v]
-                                           [--clientdir DIR]
-                                           [-c | --delete | -m | -l]
-                                           [username] [keyvalues [keyvalues ...]]
+    usage: devpi user [-h] [--version] [--debug] [-y] [-v] [--clientdir DIR]
+                      [-c | --delete | -m | -l]
+                      [username] [keyvalues [keyvalues ...]]
     
     add, remove, modify, list user configuration. This is the central command for
     performing remote user configuration and manipulation. Each indexes (created
@@ -485,18 +489,19 @@ devpi command reference (server)
 ::
 
     $ devpi-server -h
-    usage: devpi-server [-h] [--host HOST] [--port PORT] [--outside-url URL]
-                        [--debug] [--profile-requests NUM]
-                        [--logger-cfg LOGGER_CFG] [--bypass-cdn]
-                        [--mirror-cache-expiry SECS] [--offline-mode]
+    usage: devpi-server [-h] [--host HOST] [--port PORT] [--threads THREADS]
+                        [--outside-url URL] [--debug] [--profile-requests NUM]
+                        [--logger-cfg LOGGER_CFG] [--mirror-cache-expiry SECS]
+                        [--replica-max-retries NUM] [--offline-mode]
                         [--no-root-pypi] [--version]
-                        [--role {master,replica,auto}] [--master-url MASTER_URL]
-                        [--replica-cert pem_file] [--gen-config]
-                        [--secretfile path] [--requests-only] [--passwd USER]
-                        [--serverdir DIR] [--restrict-modify SPEC]
-                        [--keyfs-cache-size NUM] [--storage NAME] [--export PATH]
-                        [--hard-links] [--import PATH] [--no-events] [--start]
-                        [--stop] [--status] [--log] [--theme THEME]
+                        [--role {master,replica,standalone,auto}]
+                        [--master-url MASTER_URL] [--replica-cert pem_file]
+                        [--gen-config] [--secretfile path] [--requests-only]
+                        [--passwd USER] [--serverdir DIR] [--init]
+                        [--restrict-modify SPEC] [--keyfs-cache-size NUM]
+                        [--storage NAME] [--export PATH] [--hard-links]
+                        [--import PATH] [--no-events] [--start] [--stop]
+                        [--status] [--log] [--theme THEME]
                         [--recreate-search-index]
     
     Start a server which serves multiple users and indices. The special root/pypi
@@ -512,6 +517,7 @@ devpi command reference (server)
                             you want to accept connections from anywhere.
                             [localhost]
       --port PORT           port to listen for http requests. [3141]
+      --threads THREADS     number of threads to start for serving clients. [50]
       --outside-url URL     the outside URL where this server will be reachable.
                             Set this if you proxy devpi-server through a web
                             server and the web server does not set or you want to
@@ -529,22 +535,24 @@ devpi command reference (server)
                             web interface
     
     mirroring options:
-      --bypass-cdn          set this if you want to bypass pypi's CDN for access
-                            to simple pages and packages, in order to rule out
-                            cache-invalidation issues. This will only work if you
-                            are not using a http proxy.
       --mirror-cache-expiry SECS
                             (experimental) time after which projects in mirror
                             indexes are checked for new releases. [1800]
+      --replica-max-retries NUM
+                            Number of retry attempts for replica connection
+                            failures (such as aborted connections to pypi).
       --offline-mode        (experimental) prevents connections to any upstream
                             server (e.g. pypi) and only serves locally cached
                             files through the simple index used by pip.
       --no-root-pypi        don't create root/pypi on server initialization.
     
     deployment and data options:
-      --version             show devpi_version (4.0.0)
-      --role {master,replica,auto}
-                            set role of this instance. [auto]
+      --version             show devpi_version (4.3.2.dev0)
+      --role {master,replica,standalone,auto}
+                            set role of this instance. The default 'auto' sets
+                            'standalone' by default and 'replica' if the --master-
+                            url option is used. To enable the replication protocol
+                            you have to explicitly set the 'master' role. [auto]
       --master-url MASTER_URL
                             run as a replica of the specified master server
       --replica-cert pem_file
@@ -565,6 +573,8 @@ devpi command reference (server)
       --serverdir DIR       directory for server data. By default,
                             $DEVPI_SERVERDIR is used if it exists, otherwise the
                             default is '~/.devpi/server'
+      --init                initialize devpi-server state in an empty directory
+                            (also see --serverdir)
       --restrict-modify SPEC
                             specify which users/groups may create other users and
                             their indices. Multiple users and groups are separated
@@ -581,10 +591,10 @@ devpi command reference (server)
                             improve performance. Each entry uses 1kb of memory on
                             average. So by default about 10MB are used. [10000]
       --storage NAME        the storage backend to use. This choice will be stored
-                            in your '--serverdir' upon initialization. "sqlite":
-                            SQLite backend with files on the filesystem,
-                            "sqlite_db_files": SQLite backend with files in DB for
-                            testing only
+                            in your '--serverdir' upon initialization. "pg8000":
+                            Postgresql backend, "sqlite": SQLite backend with
+                            files on the filesystem, "sqlite_db_files": SQLite
+                            backend with files in DB for testing only
     
     serverstate export / import options:
       --export PATH         export devpi-server database state into PATH. This
@@ -607,7 +617,7 @@ devpi command reference (server)
                             gradually update until the server has caught up with
                             all events. [True]
     
-    background server:
+    background server (DEPRECATED, see --gen-config to use a process manager from your OS):
       --start               start the background devpi-server
       --stop                stop the background devpi-server
       --status              show status of background devpi-server
