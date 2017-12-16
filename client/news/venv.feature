@@ -1,0 +1,1 @@
+CHANGED BEHAVIOR! If an activated virtualenv is detected, it is used by default for ``devpi install`` and ``devpi use --set-cfg`` now.
