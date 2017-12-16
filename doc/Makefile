@@ -215,16 +215,16 @@ regen.sample_undo:
 	-hg revert --all ./userman/pysober
 
 regen.server-fresh: regen.server-clean
-	devpi-server --start
-    
-regen.server-restart:	
-	-devpi-server --stop	
-	devpi-server --start
+	devpi-server --start --serverdir=$(TESTHOME)/.devpi/server --init
+
+regen.server-restart:
+	-devpi-server --stop --serverdir=$(TESTHOME)/.devpi/server
+	devpi-server --start --serverdir=$(TESTHOME)/.devpi/server
 
 regen.server-clean: regen.sample_undo
 	@echo stopping server
-	-devpi-server --stop
-	@echo deleting $TESTHOME/.devpi state
+	-devpi-server --stop --serverdir=$(TESTHOME)/.devpi/server
+	@echo deleting $(TESTHOME)/.devpi state
 	-rm -rf $(TESTHOME)/.devpi
 	@echo deleting pysober/dist
 	-rm -rf userman/pysober/dist
