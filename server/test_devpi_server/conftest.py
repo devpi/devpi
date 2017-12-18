@@ -7,6 +7,7 @@ import subprocess
 
 import pytest
 import py
+import requests
 import socket
 import sys
 from bs4 import BeautifulSoup
@@ -253,6 +254,15 @@ def replica_xom(request, makexom):
 
 
 @pytest.fixture
+def makefunctionaltestapp(request):
+    def makefunctionaltestapp(host_port):
+        mt = MyFunctionalTestApp(host_port)
+        mt.xom = None
+        return mt
+    return makefunctionaltestapp
+
+
+@pytest.fixture
 def maketestapp(request):
     def maketestapp(xom):
         app = xom.create_app()
@@ -283,7 +293,7 @@ def make_simple_pkg_info(name, text="", pkgver=None, hash_type=None,
             hash_value = getattr(hashlib, hash_type)(hv).hexdigest()
             ret.hash_spec = "%s=%s" %(hash_type, hash_value)
             pkgver += "#" + ret.hash_spec
-        text = '<a href="../../{name}/{pkgver}" />'.format(name=name, pkgver=pkgver)
+        text = '<a href="../../{name}/{pkgver}">{pkgver}</a>'.format(name=name, pkgver=pkgver)
     elif text and "{md5}" in text:
         text = text.format(md5=getmd5(text))
     elif text and "{sha256}" in text:
@@ -489,8 +499,12 @@ class Mapp(MappMixin):
         return sorted(links)
 
     def downloadrelease(self, code, url):
-        r = self.testapp.xget(code, url)
-        if code < 300:
+        r = self.testapp.get(url, expect_errors=True)
+        if isinstance(code, tuple):
+            assert r.status_code in code
+        else:
+            assert r.status_code == code
+        if r.status_code < 300:
             return r.body
         return r.json
 
@@ -833,6 +847,53 @@ class MyTestApp(TApp):
         return self.get(*args, **kwargs)
 
 
+class FunctionalResponseWrapper(object):
+    def __init__(self, response):
+        self.res = response
+
+    @property
+    def status_code(self):
+        return self.res.status_code
+
+    @property
+    def body(self):
+        return self.res.content
+
+    @property
+    def json(self):
+        return self.res.json()
+
+
+class MyFunctionalTestApp(MyTestApp):
+    def __init__(self, host_port):
+        import json
+        self.base_url = "http://%s:%s" % host_port
+        self.headers = {}
+        self.JSONEncoder = json.JSONEncoder
+
+    def _gen_request(self, method, url, params=None,
+                     headers=None, extra_environ=None, status=None,
+                     upload_files=None, expect_errors=False,
+                     content_type=None):
+        headers = {} if headers is None else headers.copy()
+        if self.auth:
+            headers["X-Devpi-Auth"] = b64encode("%s:%s" % self.auth)
+
+        # fill headers with defaults
+        for name, val in self.headers.items():
+            headers.setdefault(name, val)
+
+        kw = dict(headers=headers)
+        if params and params is not webtest.utils.NoDefault:
+            if method.lower() in ('post', 'put', 'patch'):
+                kw['data'] = params
+            else:
+                kw['params'] = params
+        meth = getattr(requests, method.lower())
+        if '://' not in url:
+            url = self.base_url + url
+        r = meth(url, **kw)
+        return FunctionalResponseWrapper(r)
 
 
 @pytest.fixture
@@ -863,10 +924,10 @@ class SimPyPIRequestHandler(httpserver.BaseHTTPRequestHandler):
                 start_response(200, headers)
                 self.wfile.write(b'\n'.join(releases))
                 return
-        elif p == ['', 'simple', '']:
+        elif p == ['', 'simple', ''] or p == ['', 'simple']:
             # root listing
             projects = [
-                '<a href="%s">%s</a>' % (k, v['title'])
+                '<a href="/simple/%s/">%s</a>' % (k, v['title'])
                 for k, v in simpypi.projects.items()]
             simpypi.add_log("do_GET", self.path, "found", list(simpypi.projects))
             start_response(200, headers)
@@ -959,19 +1020,23 @@ def call_devpi_in_dir():
     return devpi
 
 
+@pytest.fixture(scope="class")
+def master_serverdir(server_directory):
+    return server_directory.join("master")
+
+
 @pytest.yield_fixture(scope="class")
-def master_host_port(request, call_devpi_in_dir, server_directory):
+def master_host_port(request, call_devpi_in_dir, master_serverdir):
     host = 'localhost'
     port = get_open_port(host)
-    master_dir = server_directory.join("master")
     args = [
         "devpi-server",
-        "--serverdir", master_dir.strpath,
+        "--serverdir", master_serverdir.strpath,
         "--role", "master",
         "--host", host,
         "--port", str(port),
         "--requests-only"]
-    if not master_dir.join('.nodeinfo').exists():
+    if not master_serverdir.join('.nodeinfo').exists():
         subprocess.check_call(
             args + ["--init"])
     p = subprocess.Popen(args)
@@ -983,26 +1048,30 @@ def master_host_port(request, call_devpi_in_dir, server_directory):
         p.wait()
 
 
+@pytest.fixture(scope="class")
+def replica_serverdir(server_directory):
+    return server_directory.join("replica")
+
+
 @pytest.yield_fixture(scope="class")
-def replica_host_port(request, call_devpi_in_dir, master_host_port, server_directory):
+def replica_host_port(request, call_devpi_in_dir, master_host_port, replica_serverdir):
     host = 'localhost'
     port = get_open_port(host)
-    replica_dir = server_directory.join("replica")
     args = [
         "devpi-server", "--start",
         "--host", host, "--port", str(port),
         "--master-url", "http://%s:%s" % master_host_port]
-    if not replica_dir.join('.nodeinfo').exists():
+    if not replica_serverdir.join('.nodeinfo').exists():
         args.append("--init")
     call_devpi_in_dir(
-        replica_dir.strpath,
+        replica_serverdir.strpath,
         args)
     try:
         wait_for_port(host, port)
         yield (host, port)
     finally:
         call_devpi_in_dir(
-            replica_dir.strpath,
+            replica_serverdir.strpath,
             ["devpi-server", "--stop"])
 
 
@@ -1158,6 +1227,9 @@ class SimPyPI:
         if length is not False:
             info['length'] = length
         self.files[relpath] = info
+
+    def remove_file(self, relpath):
+        del self.files[relpath]
 
 
 @pytest.fixture
