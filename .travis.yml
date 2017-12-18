@@ -11,10 +11,39 @@ python:
   - "pypy"
   - "pypy3"
 env:
-  - PROJECT=client
-  - PROJECT=common
-  - PROJECT=server
-  - PROJECT=web
-  - PROJECT=postgresql
-install: pip install tox-travis
-script: cd $PROJECT && tox
+  global:
+    - DEVPI_INDEX="devpi-travis/${TRAVIS_REPO_SLUG/\//_}_${TRAVIS_BRANCH/\//_}"
+  matrix:
+    - PROJECT=common
+    - PROJECT=server
+    - PROJECT=web
+    - PROJECT=client
+    - PROJECT=postgresql
+install: pip install tox-travis devpi-client
+script:
+  - devpi use https://devpi.net/devpi-travis
+  - devpi use "${DEVPI_INDEX}" --set-cfg
+  - cd $PROJECT
+  - tox --pre
+stages:
+  - create packages
+  - test
+jobs:
+  include:
+    - stage: create packages
+      addons: []
+      install: pip install devpi-client
+      python: "2.7"
+      env: []
+      script:
+        - devpi use https://devpi.net/devpi-travis
+        - devpi login devpi-travis --password ${DEVPI_TRAVIS_PASSWD}
+        - yes yes | devpi index --delete "${DEVPI_INDEX}" || true
+        - devpi index -c "${DEVPI_INDEX}" bases=root/pypi
+        - devpi use "${DEVPI_INDEX}"
+        - devpi push --index root/pypi devpi-server==4.0.0 "${DEVPI_INDEX}"
+        - cd ${TRAVIS_BUILD_DIR}/common && devpi upload
+        - cd ${TRAVIS_BUILD_DIR}/server && devpi upload
+        - cd ${TRAVIS_BUILD_DIR}/web && devpi upload
+        - cd ${TRAVIS_BUILD_DIR}/client && devpi upload
+        - cd ${TRAVIS_BUILD_DIR}/postgresql && devpi upload
