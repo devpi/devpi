@@ -21,12 +21,13 @@ env:
     - PROJECT=postgresql
 install: pip install tox-travis devpi-client
 script:
-  - devpi use https://devpi.net/devpi-travis
-  - devpi use "${DEVPI_INDEX}" --set-cfg
+  - test "${DEVPI_INDEX}" =! "" && devpi use https://devpi.net/devpi-travis || true
+  - test "${DEVPI_INDEX}" =! "" && devpi use "${DEVPI_INDEX}" --set-cfg || true
   - cd $PROJECT
   - tox --pre
 stages:
-  - create packages
+  - name: create packages
+    if: type IN (push, api, cron)
   - test
 jobs:
   include:
