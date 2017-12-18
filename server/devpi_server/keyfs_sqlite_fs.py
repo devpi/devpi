@@ -67,6 +67,22 @@ class Connection(BaseConnection):
     def write_transaction(self):
         return FSWriter(self.storage, self)
 
+    def commit_files_without_increasing_serial(self):
+        pending_renames = write_dirty_files(self.dirty_files)
+        basedir = str(self.storage.basedir)
+        rel_renames = list(make_rel_renames(basedir, pending_renames))
+        files_commit, files_del = commit_renames(basedir, rel_renames)
+        message = "wrote files without increasing serial: "
+        args = []
+        if files_commit:
+            message += "%s"
+            args.append(",".join(files_commit))
+        if files_del:
+            message += ", files_del: %s"
+            args.append(",".join(files_del))
+        if args:
+            threadlog.info(message, *args)
+
 
 class Storage(BaseStorage):
     Connection = Connection
@@ -137,16 +153,8 @@ class FSWriter:
 
     def __exit__(self, cls, val, tb):
         thread_pop_log("fswriter%s:" % self.next_serial)
-        pending_renames = []
         if cls is None:
-            for path, content in self.conn.dirty_files.items():
-                if content is None:
-                    pending_renames.append((None, path))
-                else:
-                    tmppath = path + "-tmp"
-                    with get_write_file_ensure_dir(tmppath) as f:
-                        f.write(content)
-                    pending_renames.append((tmppath, path))
+            pending_renames = write_dirty_files(self.conn.dirty_files)
 
             changed_keys, files_commit, files_del = \
                 self.commit_to_filesystem(pending_renames)
@@ -184,6 +192,19 @@ class FSWriter:
         files_commit, files_del = commit_renames(basedir, rel_renames)
         self.storage.last_commit_timestamp = time.time()
         return list(self.changes), files_commit, files_del
+
+
+def write_dirty_files(dirty_files):
+    pending_renames = []
+    for path, content in dirty_files.items():
+        if content is None:
+            pending_renames.append((None, path))
+        else:
+            tmppath = path + "-tmp"
+            with get_write_file_ensure_dir(tmppath) as f:
+                f.write(content)
+            pending_renames.append((tmppath, path))
+    return pending_renames
 
 
 def check_pending_renames(basedir, pending_relnames):

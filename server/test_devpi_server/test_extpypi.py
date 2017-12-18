@@ -620,3 +620,39 @@ def test_ProjectUpdateCache(monkeypatch):
     x.refresh("y")
     assert x.get_timestamp("y") == t
 
+
+@pytest.mark.notransaction
+@pytest.mark.with_notifier
+@pytest.mark.nomocking
+def test_redownload_locally_removed_release(mapp, simpypi):
+    from devpi_common.url import URL
+    mapp.create_and_login_user('mirror')
+    indexconfig = dict(
+        type="mirror",
+        mirror_url=simpypi.simpleurl,
+        mirror_cache_expiry=0)
+    mapp.create_index("mirror", indexconfig=indexconfig)
+    mapp.use("mirror/mirror")
+    content = b'14'
+    simpypi.add_release('pkg', pkgver='pkg-1.0.zip')
+    simpypi.add_file('/pkg/pkg-1.0.zip', content)
+    result = mapp.getreleaseslist("pkg")
+    file_relpath = '+files' + URL(result[0]).path
+    assert len(result) == 1
+    r = mapp.downloadrelease(200, result[0])
+    assert r == content
+    with mapp.xom.keyfs.transaction(write=False) as tx:
+        assert tx.conn.io_file_exists(file_relpath)
+    # now remove the local copy
+    with mapp.xom.keyfs.transaction(write=True) as tx:
+        tx.conn.io_file_delete(file_relpath)
+    with mapp.xom.keyfs.transaction(write=False) as tx:
+        assert not tx.conn.io_file_exists(file_relpath)
+    serial = mapp.xom.keyfs.get_current_serial()
+    # and download again
+    r = mapp.downloadrelease(200, result[0])
+    assert r == content
+    with mapp.xom.keyfs.transaction(write=False) as tx:
+        assert tx.conn.io_file_exists(file_relpath)
+    # the serial should not have increased
+    assert serial == mapp.xom.keyfs.get_current_serial()

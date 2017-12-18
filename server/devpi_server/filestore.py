@@ -7,7 +7,6 @@ from __future__ import unicode_literals
 import hashlib
 import mimetypes
 from wsgiref.handlers import format_date_time
-import os
 import py
 import re
 import sys
@@ -160,9 +159,9 @@ class FileEntry(object):
         self.relpath = key.relpath
         self.basename = self.relpath.split("/")[-1]
         self.readonly = readonly
-        self._storepath = os.path.join(
+        self._storepath = "/".join((
             self.xom.filestore.rel_storedir,
-            str(self.relpath))
+            str(self.relpath)))
         if meta is not _nodefault:
             self.meta = meta or {}
 
@@ -279,6 +278,9 @@ class FileEntry(object):
             headers[str("content-length")] = str(r.headers["content-length"])
         return headers
 
+    def has_existing_metadata(self):
+        return self.hash_spec and self.last_modified
+
     def iter_cache_remote_file(self):
         # we get and cache the file and some http headers from remote
         r = self.xom.httpget(self.url, allow_redirects=True)
@@ -320,11 +322,20 @@ class FileEntry(object):
             # when streaming we won't be in a transaction anymore, so we need
             # to open a new one below
             tx = None
-        if tx is not None:
-            self.file_set_content(content, r.headers.get("last-modified", None))
-        else:
-            with self.key.keyfs.transaction(write=True):
+        if not self.has_existing_metadata():
+            if tx is not None:
                 self.file_set_content(content, r.headers.get("last-modified", None))
+            else:
+                with self.key.keyfs.transaction(write=True):
+                    self.file_set_content(content, r.headers.get("last-modified", None))
+        else:
+            # the file was downloaded before but locally removed, so put
+            # it back in place without creating a new serial
+            # we need a direct write connection to use the io_file_* methods
+            with self.key.keyfs._storage.get_connection(write=True) as conn:
+                conn.io_file_set(self._storepath, content)
+                log.debug("put missing file back into place: %s", self._storepath)
+                conn.commit_files_without_increasing_serial()
 
     def iter_remote_file_replica(self):
         from .replica import H_REPLICA_FILEREPL, ReplicationErrors

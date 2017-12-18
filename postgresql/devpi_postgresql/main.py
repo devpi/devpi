@@ -154,6 +154,9 @@ class Connection:
     def write_transaction(self):
         return Writer(self.storage, self)
 
+    def commit_files_without_increasing_serial(self):
+        self.commit()
+
 
 class Storage:
     database = "devpi"
