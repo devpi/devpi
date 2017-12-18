@@ -583,6 +583,7 @@ class TestFileReplication:
         # first we try to return something wrong
         master_url = replica_xom.config.master_url
         (path,) = mapp.get_release_paths('hello')
+        file_relpath = '+files' + path
         master_file_url = master_url.joinpath(path).url
         replica_xom.httpget.mockresponse(master_file_url, code=200, content=b'13')
         replay(xom, replica_xom)
@@ -598,9 +599,13 @@ class TestFileReplication:
                    "X-DEVPI-SERIAL": str(xom.keyfs.get_current_serial())}
         reqmock.mockresponse(master_file_url, code=200, headers=headers)
         replica_xom.httpget.mockresponse(master_file_url, code=200, content=content1, headers=headers)
+        with replica_xom.keyfs.transaction(write=False) as tx:
+            assert not tx.conn.io_file_exists(file_relpath)
         r = r_app.get(path)
         assert r.status_code == 200
         assert r.body == content1
+        with replica_xom.keyfs.transaction(write=False) as tx:
+            assert tx.conn.io_file_exists(file_relpath)
         replication_errors = ReplicationErrors(replica_xom.config.serverdir)
         assert list(replication_errors.errors.keys()) == []
 

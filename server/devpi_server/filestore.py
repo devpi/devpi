@@ -390,7 +390,8 @@ class FileEntry(object):
             # we need a direct write connection to use the io_file_* methods
             with self.key.keyfs._storage.get_connection(write=True) as conn:
                 conn.io_file_set(self._storepath, content)
-                conn.commit()
+                log.debug("put missing file back into place: %s", self._storepath)
+                conn.commit_files_without_increasing_serial()
         # in case there were errors before, we can now remove them
         replication_errors.remove(self)
 
