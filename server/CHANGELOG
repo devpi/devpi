@@ -2,6 +2,18 @@
 
 .. towncrier release notes start
 
+4.3.2 (2017-12-19)
+==================
+
+Bug Fixes
+---------
+
+- fix issue480: store additional metadata for packages.
+
+- fix issue489: ignore download errors in replica thread for mirrored files
+  that were removed from the filesystem on master and from the mirrored source.
+
+
 4.3.1 (2017-11-23)
 ==================
 

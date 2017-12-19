@@ -1,1 +1,0 @@
-fix issue489: ignore download errors in replica thread for mirrored files that were removed from the filesystem on master and from the mirrored source.
