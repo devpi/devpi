@@ -33,7 +33,7 @@ jobs:
   include:
     - stage: create packages
       addons: []
-      install: pip install devpi-client
+      install: pip install devpi-client towncrier
       python: "2.7"
       env: []
       script:
@@ -43,8 +43,18 @@ jobs:
         - devpi index -c "${DEVPI_INDEX}" bases=root/pypi
         - devpi use "${DEVPI_INDEX}"
         - devpi push --index root/pypi devpi-server==4.0.0 "${DEVPI_INDEX}"
-        - cd ${TRAVIS_BUILD_DIR}/common && devpi upload
-        - cd ${TRAVIS_BUILD_DIR}/server && devpi upload
-        - cd ${TRAVIS_BUILD_DIR}/web && devpi upload
-        - cd ${TRAVIS_BUILD_DIR}/client && devpi upload
-        - cd ${TRAVIS_BUILD_DIR}/postgresql && devpi upload
+        - cd ${TRAVIS_BUILD_DIR}/common
+        - yes | towncrier
+        - devpi upload
+        - cd ${TRAVIS_BUILD_DIR}/server
+        - yes | towncrier
+        - devpi upload
+        - cd ${TRAVIS_BUILD_DIR}/web
+        - yes | towncrier
+        - devpi upload
+        - cd ${TRAVIS_BUILD_DIR}/client
+        - yes | towncrier
+        - devpi upload
+        - cd ${TRAVIS_BUILD_DIR}/postgresql
+        - yes | towncrier
+        - devpi upload
