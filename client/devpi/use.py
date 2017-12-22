@@ -408,21 +408,23 @@ def main(hub, args=None):
         always_setcfg = hub.args.always_setcfg == "yes"
         current.reconfigure(dict(always_setcfg=always_setcfg,
                                      settrusted=settrusted))
-    set_cfgs = []
+    pipcfg = PipCfg(venv=venvdir)
+
+    if venvdir:
+        hub.line("only setting venv pip cfg, no global configuration changed")
+        extra_cfgs = []
+    else:
+        extra_cfgs = [DistutilsCfg(), BuildoutCfg()]
+
     if hub.args.setcfg or current.always_setcfg:
         if not hub.current.index:
             hub.error("no index configured: cannot set pip/easy_install index")
         else:
             indexserver = current.simpleindex_auth
             searchindexserver = current.searchindex_auth
-            if venvdir:
-                hub.line("only setting venv pip cfg, no global configuration changed")
-            else:
-                for cfg in DistutilsCfg(), BuildoutCfg():
-                    cfg.write_indexserver(indexserver)
-                    set_cfgs.append(cfg)
+            for cfg in extra_cfgs:
+                cfg.write_indexserver(indexserver)
 
-            pipcfg = PipCfg(venv=venvdir)
             pipcfg.write_indexserver(indexserver)
             pipcfg.write_searchindexserver(searchindexserver)
             if settrusted or hub.current.settrusted:
@@ -430,8 +432,8 @@ def main(hub, args=None):
             else:
                 pipcfg.clear_trustedhost(indexserver)
 
-            set_cfgs.append(pipcfg)
-    for cfg in set_cfgs:
+            extra_cfgs.append(pipcfg)
+    for cfg in [pipcfg, *extra_cfgs]:
         show_one_conf(hub, cfg)
     hub.line("always-set-cfg: %s" % ("yes" if current.always_setcfg else "no"))
 
