@@ -433,7 +433,7 @@ def main(hub, args=None):
                 pipcfg.clear_trustedhost(indexserver)
 
             extra_cfgs.append(pipcfg)
-    for cfg in [pipcfg, *extra_cfgs]:
+    for cfg in [pipcfg] + extra_cfgs:
         show_one_conf(hub, cfg)
     hub.line("always-set-cfg: %s" % ("yes" if current.always_setcfg else "no"))
 
