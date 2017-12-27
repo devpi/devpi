@@ -220,11 +220,46 @@ class Hub:
         return p
 
     @property
-    def path_venvbase(self):
+    def venv(self):
+        venvdir = None
+        vbin = "Scripts" if sys.platform == "win32" else "bin"
+
+        if self.args.venv == "-":
+            self.current.reconfigure(dict(venvdir=None))
+        else:
+            if self.args.venv:
+                venvname = self.args.venv
+                cand = self.cwd.join(venvname, vbin, abs=True)
+                if not cand.check() and self.venvwrapper_home:
+                    cand = self.venvwrapper_home.join(venvname, vbin, abs=True)
+                if not cand.check():
+                    self.create_virtualenv(venvname)
+                venvdir = cand.dirpath().strpath
+                self.current.reconfigure(dict(venvdir=venvdir))
+            else:
+                venvdir = self.current.venvdir or self.active_venv()
+
+        return venvdir
+
+    @property
+    def venvwrapper_home(self):
         path = os.environ.get("WORKON_HOME", None)
         if path is None:
             return
         return py.path.local(path)
+
+    def active_venv(self):
+        """current activated virtualenv"""
+        path = os.environ.get("VIRTUAL_ENV", None)
+        if path is None:
+            return
+        return py.path.local(path)
+
+    def create_virtualenv(self, venv):
+        if self.venvwrapper_home:
+            self.popen_check(["mkvirtualenv", venv])
+        else:
+            self.popen_check(["virtualenv", "-q", venv])
 
     def popen_output(self, args, cwd=None, report=True):
         if isinstance(args, str):
@@ -533,8 +568,9 @@ def use(parser):
 
     parser.add_argument("--set-cfg", action="store_true", default=None,
         dest="setcfg",
-        help="create or modify pip/setuptools config files in home directory "
-             "so pip/easy_install will pick up the current devpi index url")
+        help="create or modify pip/setuptools config files so "
+             "pip/easy_install will pick up the current devpi index url. "
+             "If a virtualenv is activated, only its pip config will be set.")
     parser.add_argument("-t", "--pip-set-trusted", choices=["yes", "no", "auto"], default="auto",
         dest="settrusted",
         help="when used in conjunction with set-cfg, also set matching "
@@ -549,7 +585,9 @@ def use(parser):
              "config file and can be cleared with '--always-set-cfg=no'.")
     parser.add_argument("--venv", action="store", default=None,
         help="set virtual environment to use for install activities. "
-             "specify '-' to unset it.")
+             "specify '-' to unset it. "
+             "venv be created if given name doesn't already exist. "
+             "Note: an activated virtualenv will be used without needing this.")
     parser.add_argument("--urls", action="store_true",
         help="show remote endpoint urls")
     parser.add_argument("-l", action="store_true", dest="list",

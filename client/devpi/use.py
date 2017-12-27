@@ -337,11 +337,17 @@ def out_index_list(hub, data):
                      ixconfig["volatile"]))
     return
 
-def getvenv():
-    pip = py.path.local.sysfind("pip")
-    if pip is None:
-        return None
-    return pip.dirpath().dirpath()
+def active_venv():
+    venv = None
+    if "VIRTUAL_ENV" in os.environ:
+        venv = os.environ["VIRTUAL_ENV"]
+
+    elif (hasattr(sys, 'real_prefix') or
+            (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix)):
+        venv = sys.prefix
+
+    return py.path.local(venv).join(vbin, abs=True)
+
 
 def main(hub, args=None):
     args = hub.args
@@ -364,21 +370,10 @@ def main(hub, args=None):
     if url or current.index:
         current.configure_fromurl(hub, url, client_cert=args.client_cert)
 
-    if args.venv:
-        if args.venv != "-":
-            venvname = args.venv
-            cand = hub.cwd.join(venvname, vbin, abs=True)
-            if not cand.check():
-                cand = hub.path_venvbase.join(venvname, vbin)
-                if not cand.check():
-                    hub.fatal("no virtualenv %r found" % venvname)
-            current.reconfigure(dict(venvdir=cand.dirpath().strpath))
-        else:
-            current.reconfigure(dict(venvdir=None))
     if args.list:
-        if not hub.current.rooturl:
+        if not current.rooturl:
             hub.fatal("not connected to any server")
-        r = hub.http_api("GET", hub.current.rooturl, {}, quiet=True)
+        r = hub.http_api("GET", current.rooturl, {}, quiet=True)
         out_index_list(hub, r.result)
         return 0
 
@@ -403,35 +398,44 @@ def main(hub, args=None):
     else:
         hub.line("no server: type 'devpi use URL' with a URL "
                  "pointing to a server or directly to an index.")
-    if current.venvdir:
-        hub.info("venv for install command: %s" % current.venvdir)
-    #else:
-    #    hub.line("no current install venv set")
+
+    venvdir = hub.venv
+    if venvdir:
+        hub.info("venv for install/set commands: %s" % venvdir)
+
     settrusted = hub.args.settrusted == 'yes'
     if hub.args.always_setcfg:
         always_setcfg = hub.args.always_setcfg == "yes"
-        hub.current.reconfigure(dict(always_setcfg=always_setcfg,
+        current.reconfigure(dict(always_setcfg=always_setcfg,
                                      settrusted=settrusted))
-    if hub.args.setcfg or hub.current.always_setcfg:
+    pipcfg = PipCfg(venv=venvdir)
+
+    if venvdir:
+        hub.line("only setting venv pip cfg, no global configuration changed")
+        extra_cfgs = []
+    else:
+        extra_cfgs = [DistutilsCfg(), BuildoutCfg()]
+
+    if hub.args.setcfg or current.always_setcfg:
         if not hub.current.index:
             hub.error("no index configured: cannot set pip/easy_install index")
         else:
-            indexserver = hub.current.simpleindex_auth
-            searchindexserver = hub.current.searchindex_auth
-            DistutilsCfg().write_indexserver(indexserver)
-            PipCfg().write_indexserver(indexserver)
-            PipCfg().write_searchindexserver(searchindexserver)
-            BuildoutCfg().write_indexserver(indexserver)
-            if settrusted or hub.current.settrusted:
-                PipCfg().write_trustedhost(indexserver)
-            else:
-                PipCfg().clear_trustedhost(indexserver)
+            indexserver = current.simpleindex_auth
+            searchindexserver = current.searchindex_auth
+            for cfg in extra_cfgs:
+                cfg.write_indexserver(indexserver)
 
-    show_one_conf(hub, DistutilsCfg())
-    show_one_conf(hub, PipCfg())
-    show_one_conf(hub, BuildoutCfg())
-    hub.line("always-set-cfg: %s" % ("yes" if hub.current.always_setcfg else
-                                     "no"))
+            pipcfg.write_indexserver(indexserver)
+            pipcfg.write_searchindexserver(searchindexserver)
+            if settrusted or hub.current.settrusted:
+                pipcfg.write_trustedhost(indexserver)
+            else:
+                pipcfg.clear_trustedhost(indexserver)
+
+            extra_cfgs.append(pipcfg)
+    for cfg in [pipcfg, *extra_cfgs]:
+        show_one_conf(hub, cfg)
+    hub.line("always-set-cfg: %s" % ("yes" if current.always_setcfg else "no"))
 
 def show_one_conf(hub, cfg):
     if not cfg.exists():
@@ -442,7 +446,7 @@ def show_one_conf(hub, cfg):
         status = cfg.indexserver
     hub.info("%-23s: %s" %(cfg.screen_name, status))
 
-class BaseCfg:
+class BaseCfg(object):
     config_name = "index_url"
     regex = re.compile(r"(index[_-]url)\s*=\s*(.*)")
 
@@ -511,11 +515,25 @@ class DistutilsCfg(BaseCfg):
 class PipCfg(BaseCfg):
     section_name = "[global]"
 
+    def __init__(self, path=None, venv=None):
+        self.venv = venv
+        super(PipCfg, self).__init__(path=path)
+
     @property
     def default_location(self):
-        default_location = ("~/.pip/pip.conf" if sys.platform != "win32"
-                            else "~/pip/pip.ini")
-        return os.environ.get('PIP_CONFIG_FILE', default_location)
+        if self.venv:
+            default_location = py.path.local(self.venv, expanduser=True).join(self.pip_conf_name)
+        elif 'PIP_CONFIG_FILE' in os.environ:
+            default_location = os.environ.get('PIP_CONFIG_FILE')
+        else:
+            confdir = py.path.local("~/.pip" if sys.platform != "win32" else "~/pip",
+                                    expanduser=True)
+            default_location = confdir.join(self.pip_conf_name)
+        return default_location
+
+    @property
+    def pip_conf_name(self):
+        return "pip.conf" if sys.platform != "win32" else "pip.ini"
 
     def write_searchindexserver(self, searchindexserver):
         self.ensure_backup_file()
