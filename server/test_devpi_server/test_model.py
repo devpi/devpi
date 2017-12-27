@@ -31,18 +31,6 @@ def register_and_store(stage, basename, content=b"123", name=None):
     res = stage.store_releasefile(name, version, basename, content)
     return res
 
-def test_is_empty(model, keyfs):
-    assert model.is_empty()
-    user = model.create_user("user", "password", email="some@email.com")
-    assert not model.is_empty()
-    stage = model.getstage("user", "dev")
-    assert stage is None
-    user.create_stage("dev", bases=(), type="stage", volatile=False)
-    assert not model.is_empty()
-    stage = model.getstage("user/dev")
-    stage.delete()
-    user.delete()
-    assert model.is_empty()
 
 @pytest.fixture
 def stage(request, user):
