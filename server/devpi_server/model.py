@@ -544,7 +544,7 @@ class BaseStage(object):
                     has_mirror_base=has_mirror_base,
                     blocked_by_mirror_whitelist=stage.name if blocked_by_mirror_whitelist else None)
             private_hit = private_hit or in_index
-            whitelist = set(stage.ixconfig["mirror_whitelist"])
+            whitelist = set(stage.ixconfig.get("mirror_whitelist", set()))
             whitelisted = whitelisted or '*' in whitelist or project in whitelist
         return dict(
             has_mirror_base=False,
@@ -576,7 +576,7 @@ class BaseStage(object):
                     threadlog.debug("private package %r whitelisted at stage %s",
                                     project, whitelisted.name)
             else:
-                whitelist = set(stage.ixconfig["mirror_whitelist"])
+                whitelist = set(stage.ixconfig.get("mirror_whitelist", set()))
                 if '*' in whitelist or project in whitelist:
                     whitelisted = stage
                 elif stage.has_project_perstage(project):

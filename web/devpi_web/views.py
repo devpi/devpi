@@ -374,7 +374,7 @@ def index_get(context, request):
         return result
 
     if hasattr(stage, "ixconfig"):
-        whitelist.extend(sorted(stage.ixconfig['mirror_whitelist']))
+        whitelist.extend(sorted(stage.ixconfig.get('mirror_whitelist', [])))
         for base in stage.ixconfig["bases"]:
             bases.append(dict(
                 title=base,
