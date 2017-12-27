@@ -124,9 +124,17 @@ def test_index_view_permissions(mapp, testapp):
     mapp.set_acl([api.user, ':developers', ':ANONYMOUS:'])
     r = testapp.xget(200, api.index, headers=dict(accept="text/html"))
     elements = r.html.select('#content dl.permissions > *')
-    text = [compareable_text(x.text) for x in elements]
-    assert text == [
-        'upload', 'Users: user1', 'Groups: developers', 'Special: ANONYMOUS']
+    current_group = None
+    grouped = {}
+    for elem in elements:
+        if elem.name.lower() == 'dt':
+            current_group = compareable_text(elem.text)
+            continue
+        grouped.setdefault(current_group, []).append(
+            compareable_text(elem.text))
+    assert 'upload' in grouped
+    assert grouped['upload'] == [
+        'Users: user1', 'Groups: developers', 'Special: ANONYMOUS']
 
 
 def test_title_description(mapp, testapp):
