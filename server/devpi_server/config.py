@@ -225,6 +225,9 @@ def addoptions(parser, pluginmanager):
                  "using the same or an earlier devpi-server version. "
                  "Note that you can only import into a fresh server "
                  "state directory (positional argument to devpi-server).")
+    expimp.addoption("--skip-import-type", action="append", metavar="TYPE",
+            help="skip the given index type during import. "
+                 "Used when the corresponding plugin isn't installed anymore.")
 
     expimp.addoption("--no-events", action="store_false",
             default=True, dest="wait_for_events",

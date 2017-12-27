@@ -11,6 +11,7 @@ from devpi_common.metadata import BasenameMeta
 from devpi_common.types import parse_hash_spec
 from devpi_server import __version__ as server_version
 from devpi_server.model import is_valid_name
+from devpi_server.model import get_stage_customizer_classes
 from .fileutil import BytesForHardlink
 from .main import fatal
 from .readonly import get_mutable_deepcopy, ReadonlyView
@@ -224,6 +225,8 @@ class Importer:
         self.xom = xom
         self.filestore = xom.filestore
         self.tw = tw
+        self.index_customizers = get_stage_customizer_classes(self.xom)
+        self.types_to_skip = set(self.xom.config.args.skip_import_type or [])
 
     def read_json(self, path):
         self.tw.line("reading json: %s" %(path,))
@@ -251,7 +254,8 @@ class Importer:
         self.tw.line('Total number of projects: %d' % total_num_projects)
         self.tw.line('Total number of files: %d' % total_num_files)
 
-    def check_names(self, json_path):
+    def validate(self, json_path):
+        known_types = set(self.index_customizers).union(self.types_to_skip)
         errors = False
         for name in self.import_users:
             if is_valid_name(name):
@@ -261,6 +265,18 @@ class Importer:
                 "Any ascii symbol besides -.@_ is blocked." % name)
             errors = True
         for index in self.import_indexes:
+            config = self.import_indexes[index]['indexconfig']
+            index_type = config['type']
+            if index_type not in known_types:
+                errors = True
+                self.xom.log.error(
+                    "Unknown index type '%s'. "
+                    "Did you forget to install the necessary plugin? "
+                    "You can also skip these with '--skip-import-type %s'.",
+                    index_type, index_type)
+                continue
+            if index_type in self.types_to_skip:
+                continue
             user, name = index.split('/')
             if is_valid_name(name):
                 continue
@@ -270,7 +286,7 @@ class Importer:
             errors = True
         if errors:
             self.xom.log.warn(
-                "You should edit %s manually to fix the above errors." % json_path)
+                "You could also try to edit %s manually to fix the above errors." % json_path)
             raise SystemExit(1)
 
     def iter_projects_normalized(self, projects):
@@ -296,7 +312,7 @@ class Importer:
         self.import_users = self.import_data["users"]
         self.import_indexes = self.import_data["indexes"]
         self.display_import_header(path)
-        self.check_names(json_path)
+        self.validate(json_path)
 
         # first create all users
         with self.xom.keyfs.transaction(write=True):
@@ -327,6 +343,8 @@ class Importer:
                         continue
                 import_index = self.import_indexes[stagename]
                 indexconfig = dict(import_index["indexconfig"])
+                if indexconfig['type'] in self.types_to_skip:
+                    continue
                 if 'uploadtrigger_jenkins' in indexconfig:
                     if not indexconfig['uploadtrigger_jenkins']:
                         # remove if not set, so if the trigger was never
