@@ -213,6 +213,23 @@ class TestImportExport:
         indexlist = mapp2.getindexlist(api.user)
         assert indexlist[api.stagename]["mirror_whitelist"] == ["*"]
 
+    @pytest.mark.parametrize('acltype', ('upload', 'toxresult_upload'))
+    def test_indexes_acl(self, impexp, acltype):
+        mapp1 = impexp.mapp1
+        api = mapp1.create_and_use()
+        mapp1.set_acl(['user1'], acltype=acltype)
+        impexp.export()
+        mapp2 = impexp.new_import()
+        assert api.user in mapp2.getuserlist()
+        indexlist = mapp2.getindexlist(api.user)
+        assert indexlist[api.stagename]["acl_" + acltype] == ['user1']
+
+    def test_acl_toxresults_upload_default(self, impexp):
+        mapp = impexp.import_testdata('toxresult_upload_default')
+        with mapp.xom.keyfs.transaction(write=False):
+            stage = mapp.xom.model.getstage('root/dev')
+            assert stage.ixconfig['acl_toxresult_upload'] == [u':ANONYMOUS:']
+
     def test_bases_cycle(self, caplog, impexp):
         mapp = impexp.import_testdata('basescycle')
         with mapp.xom.keyfs.transaction(write=False):

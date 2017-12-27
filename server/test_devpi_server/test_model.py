@@ -1013,17 +1013,26 @@ def test_get_indexconfig_lists(key, value, result):
 @pytest.mark.parametrize(["input", "expected"], [
     ({},
      dict(type="stage")),
+
     ({"volatile": "foo"},
      dict(type="stage", volatile=True)),
+
     ({"volatile": "False"},
      dict(type="stage", volatile=False)),
+
     ({"volatile": "False", "bases": "root/pypi"},
      dict(type="stage", volatile=False, bases=["root/pypi"])),
+
     ({"volatile": "False", "bases": ["root/pypi"]},
      dict(type="stage", volatile=False, bases=["root/pypi"])),
+
     ({"volatile": "False", "bases": ["root/pypi"], "acl_upload": ["hello"]},
      dict(type="stage", volatile=False, bases=["root/pypi"],
           acl_upload=["hello"])),
+
+     ({"volatile": "False", "bases": ["root/pypi"], "acl_toxresult_upload": ["hello"]},
+     dict(type="stage", volatile=False, bases=["root/pypi"],
+          acl_toxresult_upload=["hello"])),
 ])
 def test_get_indexconfig_values(xom, input, expected):
     class hooks:

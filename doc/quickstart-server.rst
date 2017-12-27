@@ -328,6 +328,7 @@ Alice can now create her new ``dev`` index::
       bases=root/pypi
       volatile=True
       acl_upload=alice
+      acl_toxresult_upload=:ANONYMOUS:
       mirror_whitelist=
       pypi_whitelist=
 

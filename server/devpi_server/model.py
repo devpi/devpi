@@ -43,7 +43,7 @@ def get_ixconfigattrs(hooks, index_type):
             "mirror_url", "mirror_cache_expiry",
             "mirror_web_url_fmt"))
     elif index_type == 'stage':
-        base.update(("bases", "acl_upload", "mirror_whitelist"))
+        base.update(("bases", "acl_upload", "acl_toxresult_upload", "mirror_whitelist"))
     # XXX backward compatibility with devpi-client <= 2.4.1
     base.update(("pypi_whitelist",))
     for defaults in hooks.devpiserver_indexconfig_defaults(index_type=index_type):
@@ -186,6 +186,12 @@ def get_indexconfig(hooks, type, **kwargs):
                 if name.upper() == ':ANONYMOUS:':
                     acl_upload[index] = name.upper()
             ixconfig["acl_upload"] = acl_upload
+        if "acl_toxresult_upload" in kwargs:
+            acl_toxresult_upload = ensure_list(kwargs.pop("acl_toxresult_upload"))
+            for index, name in enumerate(acl_toxresult_upload):
+                if name.upper() == ':ANONYMOUS:':
+                    acl_toxresult_upload[index] = name.upper()
+            ixconfig["acl_toxresult_upload"] = acl_toxresult_upload
         if "bases" in kwargs:
             ixconfig["bases"] = ensure_list(kwargs.pop("bases"))
         if "mirror_whitelist" in kwargs and kwargs.get("pypi_whitelist", []) != []:
@@ -334,6 +340,8 @@ class User:
         if type == "stage":
             if ixconfig.get("acl_upload") is None:
                 ixconfig["acl_upload"] = [self.name]
+            if ixconfig.get("acl_toxresult_upload") is None:
+                ixconfig["acl_toxresult_upload"] = [":ANONYMOUS:"]
             ixconfig["bases"] = tuple(normalize_bases(
                 self.xom.model, ixconfig.get("bases", [])))
             ixconfig["mirror_whitelist"] = ixconfig.get("mirror_whitelist", [])

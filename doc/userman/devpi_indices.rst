@@ -336,8 +336,8 @@ which now has the ``/emilie/dev`` as a base only::
      mirror_whitelist=
      pypi_whitelist=
    
-Modifying the ACL
-^^^^^^^^^^^^^^^^^
+Modifying the Access Control Lists
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To modify the ACLs, you have to set the whole list of allowed users.
 Emilie may allow sophie to upload to her dev index:
@@ -383,6 +383,9 @@ It is also possible to allow anonymous uploads if you have a controlled environm
      acl_upload=:ANONYMOUS:
      mirror_whitelist=
      pypi_whitelist=
+
+The ``acl_toxresult_upload`` option determines who can upload test results via ``devpi test``.
+By default anyone is allowed to do that.
 
 Modifying the mirror whitelist
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

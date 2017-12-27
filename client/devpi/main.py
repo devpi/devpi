@@ -707,6 +707,9 @@ def index(parser):
     You can also view the configuration of any index with
     ``devpi index USER/INDEX`` or list all indexes of the
     in-use index with ``devpi index -l``.
+
+    For the ``keyvalues`` option CSV means "Comma Separated Value", in other
+    words, a list of values separated by commas.
     """
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-c", "--create", action="store_true",
