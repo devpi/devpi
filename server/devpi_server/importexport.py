@@ -15,11 +15,11 @@ from .main import fatal
 from .readonly import get_mutable_deepcopy, ReadonlyView
 
 
-def no_existing_data(xom):
+def has_users_or_stages(xom):
     userlist = xom.model.get_userlist()
     if len(userlist) == 0:
         # no data at all
-        return True
+        return False
     if len(userlist) == 1:
         # we got one user, check to see if it's the default root user
         user, = userlist
@@ -27,10 +27,11 @@ def no_existing_data(xom):
             rootindexes = list(user.get().get("indexes", []))
             if not rootindexes:
                 # the root user has no indexes
-                return True
+                return False
             # it's fine if only the default pypi index exists
-            return rootindexes == ["pypi"]
-    return False
+            if rootindexes == ["pypi"]:
+                return False
+    return True
 
 
 def do_export(path, xom):
@@ -54,7 +55,7 @@ def do_import(path, xom):
         fatal("path for importing not found: %s" %(path))
 
     with xom.keyfs.transaction(write=False):
-        if not no_existing_data(xom):
+        if has_users_or_stages(xom):
             fatal("serverdir must not contain users or stages: %s" %
                   xom.config.serverdir)
     importer = Importer(tw, xom)

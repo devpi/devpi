@@ -20,26 +20,26 @@ def make_export(tmpdir, xom):
 pytestmark = [pytest.mark.notransaction]
 
 
-def test_no_existing_data(xom):
-    from devpi_server.importexport import no_existing_data
+def test_has_users_or_stages(xom):
+    from devpi_server.importexport import has_users_or_stages
     with xom.keyfs.transaction(write=True):
-        assert no_existing_data(xom)
+        assert not has_users_or_stages(xom)
         user = xom.model.create_user("user", "password", email="some@email.com")
-        assert not no_existing_data(xom)
+        assert has_users_or_stages(xom)
         stage = xom.model.getstage("user", "dev")
         assert stage is None
         user.create_stage("dev", bases=(), type="stage", volatile=False)
-        assert not no_existing_data(xom)
+        assert has_users_or_stages(xom)
         stage = xom.model.getstage("user/dev")
         stage.delete()
         user.delete()
-        assert no_existing_data(xom)
+        assert not has_users_or_stages(xom)
         stage = xom.model.getstage("root", "pypi")
         stage.delete()
-        assert no_existing_data(xom)
+        assert not has_users_or_stages(xom)
         (root,) = xom.model.get_userlist()
         root.delete()
-        assert no_existing_data(xom)
+        assert not has_users_or_stages(xom)
         assert xom.model.get_userlist() == []
 
 
