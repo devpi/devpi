@@ -132,15 +132,6 @@ class RootModel:
         if user is not None:
             return user.getstage(index)
 
-    def is_empty(self):
-        userlist = self.get_userlist()
-        if len(userlist) == 1:
-            user, = userlist
-            if user.name == "root":
-                rootindexes = user.get().get("indexes", [])
-                return list(rootindexes) == ["pypi"]
-        return False
-
 
 def ensure_list(data):
     if isinstance(data, (list, tuple, set)):
