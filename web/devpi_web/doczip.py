@@ -43,21 +43,6 @@ def unpack_docs(stage, name, version, entry):
     return unpack_path
 
 
-def remove_docs(stage, link):
-    directory = str(stage.keyfs.basedir.join(
-        stage.user.name,
-        stage.index,
-        link.project,
-        link.version,
-        "+doc"
-    ))
-    if not os.path.isdir(directory):
-        threadlog.debug("ignoring lost unpacked docs: %s" % directory)
-    else:
-        threadlog.debug("removing unpacked docs: %s" % directory)
-        shutil.rmtree(directory)
-
-
 class Docs(DictMixin):
     def __init__(self, stage, name, version):
         self.stage = stage
@@ -129,3 +114,18 @@ class Docs(DictMixin):
                 title=title,
                 text=body.text,
                 path=name)
+
+
+def remove_docs(stage, project, version):
+    directory = str(stage.keyfs.basedir.join(
+        stage.user.name,
+        stage.index,
+        project,
+        version,
+        "+doc"
+    ))
+    if not os.path.isdir(directory):
+        threadlog.debug("ignoring lost unpacked docs: %s" % directory)
+    else:
+        threadlog.debug("removing unpacked docs: %s" % directory)
+        shutil.rmtree(directory)

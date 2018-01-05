@@ -282,11 +282,6 @@ def devpiserver_on_upload(stage, project, version, link):
         index_project(stage, project)
 
 
-def devpiserver_on_remove(stage, link):
-    if link.rel == "doczip":
-        remove_docs(stage, link)
-
-
 def devpiserver_on_changed_versiondata(stage, project, version, metadata):
     if stage is None:
         # TODO we don't have enough info to delete the project
@@ -305,3 +300,11 @@ def devpiserver_on_changed_versiondata(stage, project, version, metadata):
     if metadata:
         render_description(stage, metadata)
         index_project(stage, metadata['name'])
+
+
+def devpiserver_on_remove(stage, relpath):
+    if relpath.endswith(".doc.zip"):
+        project, version = (
+            os.path.basename(relpath).rsplit('.doc.zip')[0].rsplit('-', 1)
+        )
+        remove_docs(stage, project, version)

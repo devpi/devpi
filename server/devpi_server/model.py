@@ -881,7 +881,6 @@ class LinkStore:
         del_links = self.get_links(rel=rel, basename=basename, for_entrypath=for_entrypath)
         was_deleted = []
         for link in del_links:
-            self.stage.xom.config.hook.devpiserver_on_remove(stage=self.stage, link=link)
             link.entry.delete()
             linkdicts.remove(link.linkdict)
             was_deleted.append(link.entrypath)
@@ -1058,6 +1057,10 @@ class EventSubscribers:
             entry = FileEntry(self.xom, ev.typedkey, meta=ev.value)
             if not entry.project or not entry.version:
                 # the entry was deleted
+                self.xom.config.hook.devpiserver_on_remove(
+                    stage=stage,
+                    relpath=ev.typedkey.relpath
+                )
                 return
             name = entry.project
             assert name == normalize_name(name)

@@ -64,12 +64,6 @@ def devpiserver_on_upload(stage, project, version, link):
     """
 
 
-@hookspec
-def devpiserver_on_remove(stage, link):
-    """ called when a link is removed from a private stage
-    """
-
-
 @hookspec(firstresult=True)
 def devpiserver_get_credentials(request):
     """Extracts username and password from request.
@@ -111,4 +105,10 @@ def devpiserver_on_upload_sync(log, application_url, stage, project, version):
 
     Mainly to implement plugins which trigger external services like
     Jenkins to do something upon upload.
+    """
+
+
+@hookspec
+def devpiserver_on_remove(stage, relpath):
+    """ called when a relpath is removed from a private stage
     """
