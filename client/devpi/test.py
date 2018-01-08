@@ -40,7 +40,9 @@ class DevIndex:
 
     def download_and_unpack(self, versioninfo, link):
         url = link.href
-        r = self.hub.http.get(url)
+        r = self.hub.http.get(url,
+                              auth=self.hub.current.get_basic_auth(url),
+                              cert=self.hub.current.get_client_cert(url))
         if r.status_code != 200:
             self.hub.fatal("could not receive", url)
         content = r.content
@@ -77,7 +79,7 @@ class DevIndex:
         jsonreport = pkg.rootdir.join("toxreport.json")
         path_archive = pkg.path_archive
         toxargs = ["--installpkg", str(path_archive),
-                   "-i ALL=%s" % str(self.current.simpleindex),
+                   "-i ALL=%s" % str(self.current.simpleindex_auth),
                    "--recreate",
                    "--result-json", str(jsonreport),
         ]
