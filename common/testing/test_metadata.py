@@ -28,6 +28,7 @@ from devpi_common.metadata import *
     ("my-binary-package-name-1-4-3-yip-0.9.tar.gz", ("my-binary-package-name-1-4-3-yip", "0.9", ".tar.gz")),
     ("my-binary-package-name-1-4-3-yip-0.9+deadbeef.tar.gz", ("my-binary-package-name-1-4-3-yip", "0.9+deadbeef", ".tar.gz")),
     ("cffi-1.6.0-pp251-pypy_41-macosx_10_11_x86_64.whl", ("cffi", "1.6.0", "-pp251-pypy_41-macosx_10_11_x86_64.whl")),
+    ("argon2_cffi-18.2.0.dev0.0-pp2510-pypy_41-macosx_10_13_x86_64.whl", ("argon2_cffi", "18.2.0.dev0.0", "-pp2510-pypy_41-macosx_10_13_x86_64.whl")),
 ])
 def test_splitbasename(releasename, expected):
     result = splitbasename(releasename)
@@ -42,7 +43,8 @@ def test_splitbasename(releasename, expected):
     ("greenlet-0.4.0-py3.3-win-amd64.egg", ("3.3", "bdist_egg")),
     ("greenlet-0.4.0.linux-x86_64.tar.gz", ("any", "bdist_dumb")),
     ("cffi-1.6.0-pp251-pypy_41-macosx_10_11_x86_64.whl", ("2.5.1", "bdist_wheel")),
-    ("cryptography-1.4-pp253-pypy_41-linux_x86_64.whl", ("2.5.3", "bdist_wheel"))
+    ("cryptography-1.4-pp253-pypy_41-linux_x86_64.whl", ("2.5.3", "bdist_wheel")),
+    ("argon2_cffi-18.2.0.dev0.0-pp2510-pypy_41-macosx_10_13_x86_64.whl", ("2.5.1.0", "bdist_wheel")),
 ])
 def test_get_pyversion_filetype(releasename, expected):
     result = get_pyversion_filetype(releasename)
