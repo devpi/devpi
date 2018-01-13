@@ -40,7 +40,9 @@ class DevIndex:
 
     def download_and_unpack(self, versioninfo, link):
         url = link.href
-        r = self.hub.http.get(url)
+        r = self.hub.http.get(url,
+                              auth=self.hub.current.get_basic_auth(url),
+                              cert=self.hub.current.get_client_cert(url))
         if r.status_code != 200:
             self.hub.fatal("could not receive", url)
         content = r.content
@@ -76,18 +78,24 @@ class DevIndex:
     def runtox(self, link, pkg, sdist_pkg=None, upload_tox_results=True):
         jsonreport = pkg.rootdir.join("toxreport.json")
         path_archive = pkg.path_archive
-        toxargs = ["--installpkg", str(path_archive),
-                   "-i ALL=%s" % str(self.current.simpleindex),
-                   "--recreate",
-                   "--result-json", str(jsonreport),
+        toxargs = [
+            "--installpkg", str(path_archive),
+            "-i ALL=%s" % str(self.current.simpleindex_auth),
+            "--recreate",
+            "--result-json", str(jsonreport),
         ]
+        if self.current.simpleindex != self.current.simpleindex_auth:
+            self.hub.info("Using existing basic auth for '%s'." %
+                          self.current.simpleindex)
+            self.hub.warn("The password will be available unencrypted in the "
+                          "JSON report!")
 
         if sdist_pkg is None:
             sdist_pkg = pkg
         toxargs.extend(self.get_tox_args(unpack_path=sdist_pkg.path_unpacked))
 
         with sdist_pkg.path_unpacked.as_cwd():
-            self.hub.info("%s$ tox %s" %(os.getcwd(), " ".join(toxargs)))
+            self.hub.info("%s$ tox %s" % (os.getcwd(), " ".join(toxargs)))
             toxrunner = self.get_tox_runner()
             try:
                 ret = toxrunner(toxargs)

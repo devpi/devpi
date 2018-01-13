@@ -1,0 +1,2 @@
+devpi test: if basic auth is configured, correctly pass credentials when downloading packages and submitting JSON reports.
+Thanks to Vytautas Liuolia for the PR.
