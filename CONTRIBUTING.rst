@@ -17,7 +17,7 @@ Pull Requests
 - If you are unsure on how to write a test, please ask and we will point you to
   existing tests which should help you writing new ones.
 - Embrace ``git rebase`` to create "nice" commits and history.
-- We strife for PEP8 compliance. New code should comply, old code must only
+- We strive for PEP8 compliance. New code should comply, old code must only
   comply when it's changed anyway. No unnecessary cleanups which would only
   make the PR harder to read.
 - Add a changelog entry in the ``news`` folder of touched packages as a new file.
