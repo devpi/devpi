@@ -78,6 +78,61 @@ def test_index_option(create_and_upload, devpi, monkeypatch, out_devpi):
         Mocked tests ...*""" % user)
 
 
+@pytest.mark.parametrize('basic_auth', [None, ('root', 'verysecret')])
+def test_download_and_unpack(makehub, tmpdir, pseudo_current, monkeypatch,
+                             basic_auth):
+    class FakeHTTP(object):
+        class Response(object):
+            def __init__(self, content=b'archive'):
+                self.status_code = 200
+                self.content = content
+
+        def __init__(self):
+                self.last_get = None
+
+        def get(self, *args, **kwargs):
+            self.last_get = (args, kwargs)
+            return self.Response()
+
+    class FakeUnpack(object):
+        def __init__(self):
+            self.called = False
+
+        def unpack(self):
+            self.called = True
+
+    hub = makehub(['test', '-epy27', 'somepkg'])
+    hub.current.reconfigure(dict(
+        index='http://dev/foo/bar',
+        login='http://dev/+login',
+        pypisubmit='http://dev/foo/bar'))
+    if basic_auth:
+        hub.current.set_basic_auth(*basic_auth)
+    index = DevIndex(hub, tmpdir, pseudo_current)
+
+    fake_http = FakeHTTP()
+    hub.http.get = fake_http.get
+    fake_unpack = FakeUnpack()
+    monkeypatch.setattr('devpi.test.UnpackedPackage.unpack',
+                        fake_unpack.unpack)
+
+    links = [
+        {'href': 'http://dev/foo/bar/prep1-1.0.tar.gz', 'rel': 'releasefile'},
+    ]
+    store = ViewLinkStore('http://something/index',
+                          {'+links': links, 'name': 'prep1', 'version': '1.0'})
+    link = store.get_link(rel='releasefile')
+
+    index.download_and_unpack('1.0', link)
+    assert fake_unpack.called
+    args, kwargs = fake_http.last_get
+    assert args[0] == 'http://dev/foo/bar/prep1-1.0.tar.gz'
+    if basic_auth:
+        assert kwargs['auth'] == basic_auth
+    else:
+        assert kwargs.get('auth') is None
+
+
 def test_toxini(makehub, tmpdir, pseudo_current):
     toxini = tmpdir.ensure("new-tox.ini")
     hub = makehub(["test", "-c", toxini, "somepkg"])
@@ -300,6 +355,25 @@ class TestFunctional:
         result = out_devpi("list", "-f", "exa")
         assert result.ret == 0
         result.stdout.fnmatch_lines("""*tests passed*""")
+
+    def test_main_example_with_basic_auth(self, initproj, devpi, out_devpi):
+        initproj('exa-1.0', {
+            'tox.ini': """
+            [testenv]
+            commands = python -c "print('ok')"
+            """,
+        })
+        hub = devpi('upload')
+        hub.current.set_basic_auth('root', 'verysecret')
+
+        result = out_devpi('test', 'exa')
+        assert result.ret == 0
+        expected_output = (
+            'Using existing basic auth*',
+            '*password*available unencrypted*',
+            '*//root:verysecret@*',
+        )
+        result.stdout.fnmatch_lines(expected_output)
 
     def test_no_post(self, out_devpi, create_and_upload, monkeypatch):
         def post(*args, **kwargs):
