@@ -2,6 +2,18 @@
 
 .. towncrier release notes start
 
+3.2.2 (2018-01-17)
+==================
+
+Bug Fixes
+---------
+
+- fix issue482: let external links in documentation open outside of iframe.
+
+- Prevent stale static resources from browser caching by adding devpi-web
+  version to their URLs.
+
+
 3.2.1 (2017-11-23)
 ==================
 

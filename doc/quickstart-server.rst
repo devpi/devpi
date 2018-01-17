@@ -34,7 +34,7 @@ Install or upgrade ``devpi-server``::
 And let's check the version::
 
     $ devpi-server --version
-    4.3.1
+    4.4.0
 
 .. _genconfig:
 
@@ -135,7 +135,7 @@ and just drop the include config file into a directory like
     
     [program:devpi-server]
     command=/home/devpi/devpi/bin/devpi-server --port 4040 --serverdir /tmp/home/mydevpiserver
-    user = devpi
+    user = fschulze
     priority = 999
     startsecs = 5
     redirect_stderr = True
@@ -231,18 +231,18 @@ and caches https://pypi.python.org packages.  Let's start a server
 for the purposes of this tutorial in the background::
 
     $ devpi-server --port 4040 --start --init
-    2017-11-23 14:32:36,868 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2017-11-23 14:32:36,868 INFO  NOCTX generated uuid: 4869991265bb4b40b88b9cbae2af1127
-    2017-11-23 14:32:36,869 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2017-11-23 14:32:36,871 INFO  NOCTX DB: Creating schema
-    2017-11-23 14:32:36,877 INFO  [Wtx-1] setting password for user 'root'
-    2017-11-23 14:32:36,877 INFO  [Wtx-1] created user 'root' with email None
-    2017-11-23 14:32:36,877 INFO  [Wtx-1] created root user
-    2017-11-23 14:32:36,877 INFO  [Wtx-1] created root/pypi index
-    2017-11-23 14:32:36,879 INFO  [Wtx-1] fswriter0: committed: keys: 'root/.config','.config'
+    2018-01-17 15:57:22,625 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2018-01-17 15:57:22,626 INFO  NOCTX generated uuid: 7b58c6d02fd64fee98b928220b7685ce
+    2018-01-17 15:57:22,627 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    2018-01-17 15:57:22,630 INFO  NOCTX DB: Creating schema
+    2018-01-17 15:57:22,636 INFO  [Wtx-1] setting password for user 'root'
+    2018-01-17 15:57:22,636 INFO  [Wtx-1] created user 'root' with email None
+    2018-01-17 15:57:22,637 INFO  [Wtx-1] created root user
+    2018-01-17 15:57:22,637 INFO  [Wtx-1] created root/pypi index
+    2018-01-17 15:57:22,639 INFO  [Wtx-1] fswriter0: committed: keys: '.config','root/.config'
     starting background devpi-server at http://localhost:4040
     /tmp/home/.devpi/server/.xproc/devpi-server$ /home/devpi/devpi/bin/devpi-server --port 4040
-    process 'devpi-server' started pid=43913
+    process 'devpi-server' started pid=70523
     devpi-server process startup detected
     logfile is at /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
 
@@ -273,9 +273,9 @@ For purposes of this tutorial, we use the URL
     $ devpi use http://localhost:4040
     using server: http://localhost:4040/ (not logged in)
     no current index: type 'devpi use -l' to discover indices
-    ~/.pydistutils.cfg     : no config file exists
-    ~/.pip/pip.conf        : no config file exists
-    ~/.buildout/default.cfg: no config file exists
+    venv for install/set commands: /tmp/docenv
+    only setting venv pip cfg, no global configuration changed
+    /tmp/docenv/pip.conf   : no config file exists
     always-set-cfg: no
 
 At this point we are not connected to any index, just to the
@@ -336,9 +336,9 @@ and use it ::
 
     $ devpi use alice/dev
     current devpi index: http://localhost:4040/alice/dev (logged in as alice)
-    ~/.pydistutils.cfg     : no config file exists
-    ~/.pip/pip.conf        : no config file exists
-    ~/.buildout/default.cfg: no config file exists
+    venv for install/set commands: /tmp/docenv
+    only setting venv pip cfg, no global configuration changed
+    /tmp/docenv/pip.conf   : no config file exists
     always-set-cfg: no
 
 Our ``alice/dev`` index derives from ``root/pypi``
@@ -353,9 +353,10 @@ cause ``pip`` and ``easy_install`` to use our in-use index server::
 
     $ devpi use --set-cfg alice/dev
     current devpi index: http://localhost:4040/alice/dev (logged in as alice)
-    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
+    venv for install/set commands: /tmp/docenv
+    only setting venv pip cfg, no global configuration changed
+    /tmp/docenv/pip.conf   : http://localhost:4040/alice/dev/+simple/
+    /tmp/docenv/pip.conf   : http://localhost:4040/alice/dev/+simple/
     always-set-cfg: no
 
 This will modify or create common configuration files in your home directory
@@ -365,9 +366,10 @@ this configuration modification::
 
     $ devpi use --always-set-cfg=yes
     current devpi index: http://localhost:4040/alice/dev (logged in as alice)
-    ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-    ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-    ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
+    venv for install/set commands: /tmp/docenv
+    only setting venv pip cfg, no global configuration changed
+    /tmp/docenv/pip.conf   : http://localhost:4040/alice/dev/+simple/
+    /tmp/docenv/pip.conf   : http://localhost:4040/alice/dev/+simple/
     always-set-cfg: yes
 
 This will imply ``--set-cfg`` on all subsequent ``devpi use ...`` operations.
@@ -384,6 +386,6 @@ Stopping the server
 Let's not forget to stop our background tutorial server::
 
     $ devpi-server --stop
-    2017-11-23 14:32:50,669 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2017-11-23 14:32:50,669 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    killed server pid=43913
+    2018-01-17 15:57:39,371 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    2018-01-17 15:57:39,373 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    killed server pid=70523

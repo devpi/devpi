@@ -1,1 +1,0 @@
-fix issue477: importing with --no-root-pypi failed.

@@ -28,7 +28,7 @@ setup(
     description="devpi-postgresql: a PostgreSQL storage backend for devpi-server",
     long_description="\n\n".join([README, CHANGELOG]),
     url="http://doc.devpi.net",
-    version='0.1.1',
+    version='0.2.0',
     maintainer="Florian Schulze, Holger Krekel",
     maintainer_email="florian.schulze@gmx.net",
     license="MIT",

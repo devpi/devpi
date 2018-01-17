@@ -2,6 +2,21 @@
 
 .. towncrier release notes start
 
+4.4.0 (2018-01-17)
+==================
+
+Features
+--------
+
+- fix issue469: Add ``acl_toxresult_upload`` to index configuration.
+
+
+Bug Fixes
+---------
+
+- fix issue477: importing with --no-root-pypi failed.
+
+
 4.3.2 (2017-12-19)
 ==================
 

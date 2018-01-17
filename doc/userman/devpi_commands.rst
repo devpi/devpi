@@ -54,7 +54,9 @@ index
     manipulate indexes. The index is always created under the currently logged in
     user with a command like this: ``devpi index -c newindex``. You can also view
     the configuration of any index with ``devpi index USER/INDEX`` or list all
-    indexes of the in-use index with ``devpi index -l``.
+    indexes of the in-use index with ``devpi index -l``. For the ``keyvalues``
+    option CSV means "Comma Separated Value", in other words, a list of values
+    separated by commas.
     
     positional arguments:
       indexname        index name, specified as NAME or USER/NAME. If no index is
@@ -413,9 +415,10 @@ use
     
     optional arguments:
       -h, --help            show this help message and exit
-      --set-cfg             create or modify pip/setuptools config files in home
-                            directory so pip/easy_install will pick up the current
-                            devpi index url
+      --set-cfg             create or modify pip/setuptools config files so
+                            pip/easy_install will pick up the current devpi index
+                            url. If a virtualenv is activated, only its pip config
+                            will be set.
       -t {yes,no,auto}, --pip-set-trusted {yes,no,auto}
                             when used in conjunction with set-cfg, also set
                             matching pip trusted-host setting for the provided
@@ -428,7 +431,9 @@ use
                             client config file and can be cleared with '--always-
                             set-cfg=no'.
       --venv VENV           set virtual environment to use for install activities.
-                            specify '-' to unset it.
+                            specify '-' to unset it. venv be created if given name
+                            doesn't already exist. Note: an activated virtualenv
+                            will be used without needing this.
       --urls                show remote endpoint urls
       -l                    show all available indexes at the remote server
       --delete              delete current association with server
@@ -547,7 +552,7 @@ devpi command reference (server)
       --no-root-pypi        don't create root/pypi on server initialization.
     
     deployment and data options:
-      --version             show devpi_version (4.3.2.dev0)
+      --version             show devpi_version (4.4.0)
       --role {master,replica,standalone,auto}
                             set role of this instance. The default 'auto' sets
                             'standalone' by default and 'replica' if the --master-

@@ -1,1 +1,0 @@
-Prevent stale static resources from browser caching by adding devpi-web version to their URLs.
