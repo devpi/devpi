@@ -2,6 +2,17 @@
 
 .. towncrier release notes start
 
+3.2.1 (2018-01-18)
+==================
+
+Bug Fixes
+---------
+
+- fix issue496: PyPy 5.10 wheel upload failed because the version in the
+  filename is longer again, the check for it is now removed, because it's
+  pointless.
+
+
 3.2.0 (2017-11-23)
 ==================
 
