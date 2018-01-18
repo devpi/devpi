@@ -69,7 +69,6 @@ def get_pyversion_filetype(basename):
         pyversion = "2.7"  # arbitrary but pypi/devpi makes no special use
                            # of "pyversion" anyway?!
     elif "." not in pyversion:
-        assert len(pyversion) in (1, 2, 3)  # TODO: do we really care?
         pyversion = ".".join(pyversion)
     return (pyversion, _ext2type[ext])
 
