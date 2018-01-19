@@ -328,9 +328,12 @@ class XOM:
         pyramid_config.add_route("/+login", "/+login", accept="application/json")
         pyramid_config.add_route("/{user}/{index}/+e/{relpath:.*}", "/{user}/{index}/+e/{relpath:.*}")
         pyramid_config.add_route("/{user}/{index}/+f/{relpath:.*}", "/{user}/{index}/+f/{relpath:.*}")
+        pyramid_config.add_route("/{user}/{index}/+simple", "/{user}/{index}/+simple")
         pyramid_config.add_route("/{user}/{index}/+simple/", "/{user}/{index}/+simple/")
         pyramid_config.add_route("/{user}/{index}/+simple/{project}",
-                                 "/{user}/{index}/+simple/{project:[^/]+/?}")
+                                 "/{user}/{index}/+simple/{project}")
+        pyramid_config.add_route("/{user}/{index}/+simple/{project}/",
+                                 "/{user}/{index}/+simple/{project}/")
         pyramid_config.add_route("/{user}/{index}/+simple/{project}/refresh",
                                  "/{user}/{index}/+simple/{project}/refresh")
         pyramid_config.add_route("/{user}/{index}/{project}/{version}",

@@ -394,6 +394,21 @@ class PyPIView:
     #
 
     @view_config(route_name="/{user}/{index}/+simple/{project}")
+    def simple_list_project_redirect(self):
+        """
+        PEP 503:
+        the repository SHOULD redirect the URLs without a /
+        to add a / to the end
+        """
+        request = self.request
+        abort_if_invalid_project(request, request.matchdict["project"])
+        return HTTPFound(location=self.request.route_url(
+            "/{user}/{index}/+simple/{project}/",
+            user=self.context.username,
+            index=self.context.index,
+            project=self.context.project))
+
+    @view_config(route_name="/{user}/{index}/+simple/{project}/")
     def simple_list_project(self):
         request = self.request
         abort_if_invalid_project(request, request.matchdict["project"])
@@ -433,7 +448,7 @@ class PyPIView:
         response.content_type = "text/html ; charset=utf-8"
 
         title = "%s: links for %s" % (stage.name, project)
-        yield ("<html><head><title>%s</title></head><body><h1>%s</h1>\n" %
+        yield ("<!DOCTYPE html><html><head><title>%s</title></head><body><h1>%s</h1>\n" %
                (title, title)).encode("utf-8")
 
         if embed_form:
@@ -463,6 +478,18 @@ class PyPIView:
         submit = '<input name="refresh" type="submit" value="%s"/>' % title
         return '<form action="%s" method="post">%s</form>' % (url, submit)
 
+    @view_config(route_name="/{user}/{index}/+simple")
+    def simple_list_all_redirect(self):
+        """
+        PEP 503:
+        the repository SHOULD redirect the URLs without a /
+        to add a / to the end
+        """
+        return HTTPFound(location=self.request.route_url(
+            "/{user}/{index}/+simple/",
+            user=self.context.username,
+            index=self.context.index))
+
     @view_config(route_name="/{user}/{index}/+simple/")
     def simple_list_all(self):
         self.log.info("starting +simple")
@@ -481,7 +508,7 @@ class PyPIView:
         response.content_type = "text/html ; charset=utf-8"
         title =  "%s: simple list (including inherited indices)" %(
                  stage.name)
-        yield ("<html><head><title>%s</title></head><body><h1>%s</h1>" %(
+        yield ("<!DOCTYPE html><html><head><title>%s</title></head><body><h1>%s</h1>" %(
               title, title)).encode("utf-8")
         all_names = set()
         for stage, names in stage_results:
@@ -492,10 +519,10 @@ class PyPIView:
             yield ("<h2>" + h2 + "</h2>").encode("utf-8")
             for name in sorted(names):
                 if name not in all_names:
-                    anchor = '<a href="%s">%s</a><br/>\n' % (name, name)
+                    anchor = '<a href="%s/">%s</a><br/>\n' % (name, name)
                     yield anchor.encode("utf-8")
                     all_names.add(name)
-        yield "</body>".encode("utf-8")
+        yield "</body></html>".encode("utf-8")
 
     @view_config(
         route_name="/{user}/{index}/+simple/{project}/refresh", request_method="POST")
@@ -507,7 +534,7 @@ class PyPIView:
             stage.clear_simplelinks_cache(context.project)
             stage.get_simplelinks_perstage(context.project)
         return HTTPFound(location=self.request.route_url(
-            "/{user}/{index}/+simple/{project}",
+            "/{user}/{index}/+simple/{project}/",
             user=context.username, index=context.index, project=context.project))
 
     @view_config(
@@ -856,8 +883,13 @@ class PyPIView:
 
     @view_config(route_name="simple_redirect")
     def simple_redirect(self):
+        """
+        PEP 503:
+        the repository SHOULD redirect the URLs without a /
+        to add a / to the end
+        """
         return HTTPFound(location=self.request.route_url(
-            "/{user}/{index}/+simple/{project}",
+            "/{user}/{index}/+simple/{project}/",
             user=self.context.username,
             index=self.context.index,
             project=self.context.project))

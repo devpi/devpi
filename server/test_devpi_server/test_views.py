@@ -103,7 +103,7 @@ def test_make_uuid_headers(nodeinfo, expected):
 
 def test_simple_project(pypistage, testapp):
     name = "qpwoei"
-    r = testapp.get("/root/pypi/+simple/" + name)
+    r = testapp.get("/root/pypi/+simple/%s/" % name)
     assert r.status_code == 404
     assert r.headers["X-DEVPI-SERIAL"]
     # easy_install fails if the result isn't html
@@ -112,11 +112,22 @@ def test_simple_project(pypistage, testapp):
 
     path = "/%s-1.0.zip" % name
     pypistage.mock_simple(name, text='<a href="%s"/>' % path)
-    r = testapp.get("/root/pypi/+simple/%s" % name)
+    r = testapp.get("/root/pypi/+simple/%s/" % name)
     assert r.status_code == 200
     links = BeautifulSoup(r.text, "html.parser").findAll("a")
     assert len(links) == 1
     assert links[0].get("href").endswith(path)
+
+def test_simple_list_all_redirect(pypistage, testapp):
+    r = testapp.get("/root/pypi/+simple", follow=False)
+    assert r.status_code == 302
+    assert r.headers["location"].endswith("/root/pypi/+simple/")
+
+def test_simple_project_redirect(pypistage, testapp):
+    project = "py"
+    r = testapp.get("/root/pypi/+simple/" + project, follow=False)
+    assert r.status_code == 302
+    assert r.headers["location"].endswith("/root/pypi/+simple/%s/" % project)
 
 @pytest.mark.parametrize("outside_url", ['', 'http://localhost/devpi'])
 def test_simple_project_outside_url_subpath(mapp, outside_url, pypistage, testapp):
@@ -125,17 +136,17 @@ def test_simple_project_outside_url_subpath(mapp, outside_url, pypistage, testap
         "qpwoei-1.0.tar.gz", b'123', "qpwoei", "1.0", indexname=api.stagename)
     pypistage.mock_simple("qpwoei", text='<a href="/qpwoei-1.0.zip"/>')
     headers={str('X-outside-url'): str(outside_url)}
-    r = testapp.get("/%s/+simple/qpwoei" % api.stagename, headers=headers)
+    r = testapp.get("/%s/+simple/qpwoei/" % api.stagename, headers=headers)
     assert r.status_code == 200
     links = sorted(x["href"] for x in BeautifulSoup(r.text, "html.parser").findAll("a"))
     assert len(links) == 2
     hash_spec = get_default_hash_spec(b'123')
     hashdir = "/".join(make_splitdir(hash_spec))
     assert links == [
-        '../+f/%s/qpwoei-1.0.tar.gz#%s' % (hashdir, hash_spec),
-        '../../../root/pypi/+e/https_pypi.python.org/qpwoei-1.0.zip']
+        '../../+f/%s/qpwoei-1.0.tar.gz#%s' % (hashdir, hash_spec),
+        '../../../../root/pypi/+e/https_pypi.python.org/qpwoei-1.0.zip']
     testapp.xget(
-        200, URL("/%s/+simple/qpwoei" % api.stagename).joinpath(links[0]).path,
+        200, URL("/%s/+simple/qpwoei/" % api.stagename).joinpath(links[0]).path,
         headers=headers)
 
 
@@ -155,16 +166,15 @@ def test_project_redirect(pypistage, testapp, user_agent):
 
     r = testapp.get("/root/pypi/%s" % name, headers=headers, follow=False)
     assert r.status_code == 302
-    assert r.headers["location"].endswith("/root/pypi/+simple/%s" % name)
-    # trailing slash will redirect to non trailing slash first
+    assert r.headers["location"].endswith("/root/pypi/+simple/%s/" % name)
     r = testapp.get("/root/pypi/%s/" % name, headers=headers, follow=False)
     assert r.status_code == 302
-    assert r.headers["location"].endswith("/root/pypi/+simple/%s" % name)
+    assert r.headers["location"].endswith("/root/pypi/+simple/%s/" % name)
     # check with x-outside-url
     headers['X-Outside-Url'] = str('http://example.com/path')
     r = testapp.get("/root/pypi/%s/" % name, headers=headers, follow=False)
     assert r.status_code == 302
-    assert r.headers["location"] == "http://example.com/path/root/pypi/+simple/%s" % name
+    assert r.headers["location"] == "http://example.com/path/root/pypi/+simple/%s/" % name
 
 
 def test_simple_project_unicode_rejected(pypistage, testapp, dummyrequest):
@@ -187,7 +197,7 @@ def test_simple_url_longer_triggers_404(testapp):
 def test_simple_project_pypi_egg(pypistage, testapp):
     pypistage.mock_simple("py",
         """<a href="http://bb.org/download/py.zip#egg=py-dev" />""")
-    r = testapp.get("/root/pypi/+simple/py")
+    r = testapp.get("/root/pypi/+simple/py/")
     assert r.status_code == 200
     links = BeautifulSoup(r.text, "html.parser").findAll("a")
     assert len(links) == 1
@@ -199,12 +209,12 @@ def test_simple_list(pypistage, testapp):
     pypistage.mock_simple_projects(["hello1", "hello2"])
     pypistage.mock_simple("hello1", "<html/>")
     pypistage.mock_simple("hello2", "<html/>")
-    r = testapp.get("/root/pypi/+simple/hello1", expect_errors=False)
+    r = testapp.get("/root/pypi/+simple/hello1/", expect_errors=False)
     serial = int(r.headers["X-DEVPI-SERIAL"])
-    r2 = testapp.get("/root/pypi/+simple/hello2", expect_errors=False)
+    r2 = testapp.get("/root/pypi/+simple/hello2/", expect_errors=False)
     assert int(r2.headers["X-DEVPI-SERIAL"]) == serial + 1
 
-    r = testapp.get("/root/pypi/+simple/hello3")
+    r = testapp.get("/root/pypi/+simple/hello3/")
     assert r.status_code == 404
     # easy_install fails if the result isn't html
     assert "html" in r.headers['content-type']
@@ -215,7 +225,7 @@ def test_simple_list(pypistage, testapp):
     links = BeautifulSoup(r.text, "html.parser").findAll("a")
     assert len(links) == 2
     hrefs = [a.get("href") for a in links]
-    assert hrefs == ["hello1", "hello2"]
+    assert hrefs == ["hello1/", "hello2/"]
 
 def test_correct_resolution_order(pypistage, mapp, testapp):
     pypistage.mock_simple("hello", pkgver="hello-1.0.tar.gz")
@@ -233,16 +243,16 @@ def test_correct_resolution_order(pypistage, mapp, testapp):
 
 def test_simple_page_pypi_serial(pypistage, testapp):
     pypistage.mock_simple("hello1", text="qwe", pypiserial=None)
-    r = testapp.get("/root/pypi/+simple/hello1", expect_errors=False)
+    r = testapp.get("/root/pypi/+simple/hello1/", expect_errors=False)
     assert "X-PYPI-LAST-SERIAL" not in r.headers
     pypistage.mock_simple("hello2", pkgver="hello2-1.0.zip")
-    r = testapp.get("/root/pypi/+simple/hello2", expect_errors=False)
+    r = testapp.get("/root/pypi/+simple/hello2/", expect_errors=False)
     assert r.headers.get("X-PYPI-LAST-SERIAL") == '10000'
     assert '/hello2-1.0.zip">hello2-1.0.zip</a>' in r.unicode_body
 
 def test_simple_refresh(mapp, model, pypistage, testapp):
     pypistage.mock_simple("hello", "<html/>")
-    r = testapp.xget(200, "/root/pypi/+simple/hello")
+    r = testapp.xget(200, "/root/pypi/+simple/hello/")
     input, = r.html.select('form input')
     assert input.attrs['name'] == 'refresh'
     assert input.attrs['value'] == 'Refresh'
@@ -251,7 +261,7 @@ def test_simple_refresh(mapp, model, pypistage, testapp):
     assert info != {}
     r = testapp.post("/root/pypi/+simple/hello/refresh")
     assert r.status_code == 302
-    assert r.location.endswith("/root/pypi/+simple/hello")
+    assert r.location.endswith("/root/pypi/+simple/hello/")
     with model.keyfs.transaction(write=False):
         info = pypistage.key_projsimplelinks("hello").get()
     assert info["links"] == []
@@ -277,7 +287,7 @@ def test_simple_refresh_inherited(mapp, model, pypistage, testapp, project,
         api = mapp.use(stagename)
     stagename = api.stagename
 
-    r = testapp.xget(200, "/%s/+simple/%s" % (stagename, project))
+    r = testapp.xget(200, "/%s/+simple/%s/" % (stagename, project))
     input, = r.html.select('form input')
     assert input.attrs['name'] == 'refresh'
     #assert input.attrs['value'] == 'Refresh PyPI links'
@@ -288,7 +298,7 @@ def test_simple_refresh_inherited(mapp, model, pypistage, testapp, project,
                           serial=200)
     r = testapp.post("/%s/+simple/%s/refresh" % (stagename, project))
     assert r.status_code == 302
-    assert r.location.endswith("/%s/+simple/%s" % (stagename, project))
+    assert r.location.endswith("/%s/+simple/%s/" % (stagename, project))
     with model.keyfs.transaction(write=False):
         info = pypistage.key_projsimplelinks(project).get()
     elist = info["links"]
@@ -307,11 +317,11 @@ def test_simple_blocked_warning(mapp, pypistage, testapp):
     pypistage.mock_simple('pkg', '<a href="/pkg-1.0.zip" />', serial=100)
     api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
     mapp.set_versiondata(dict(name="pkg", version="1.0"), set_whitelist=False)
-    r = testapp.xget(200, "/%s/+simple/pkg" % api.stagename)
+    r = testapp.xget(200, "/%s/+simple/pkg/" % api.stagename)
     (paragraph,) = r.html.select('p')
     assert paragraph.text == "INFO: Because this project isn't in the mirror_whitelist, no releases from root/pypi are included."
     mapp.set_versiondata(dict(name="pkg", version="1.1"), set_whitelist=True)
-    r = testapp.xget(200, "/%s/+simple/pkg" % api.stagename)
+    r = testapp.xget(200, "/%s/+simple/pkg/" % api.stagename)
     assert r.html.select('p') == []
 
 
@@ -323,7 +333,7 @@ def test_simple_with_removed_base(caplog, mapp, testapp):
     mapp.set_versiondata(dict(name="pkg", version="1.0"), set_whitelist=False)
     testapp.xget(200, "/user1/dev/+simple/")
     assert len(caplog.getrecords('refers to non-existing')) == 1
-    testapp.xget(200, "/user1/dev/+simple/pkg")
+    testapp.xget(200, "/user1/dev/+simple/pkg/")
     records = caplog.getrecords('refers to non-existing')
     assert [x.args for x in records] == [
         ('user1/dev', 'user1/prod'),
@@ -346,7 +356,7 @@ def test_indexroot_root_pypi(testapp, xom):
 @pytest.mark.parametrize("url", [
     '/root/pypi/{name}',
     '/root/pypi/{name}/2.6',
-    '/root/pypi/+simple/{name}',
+    '/root/pypi/+simple/{name}/',
 ])
 @pytest.mark.parametrize("code", [-1, 500, 501, 502, 503])
 def test_upstream_not_reachable(reqmock, pypistage, testapp, code, url):
@@ -388,7 +398,7 @@ def test_upstream_not_reachable_but_cache_still_returned(pypistage, mapp, testap
 def test_pkgserv(httpget, pypistage, testapp):
     pypistage.mock_simple("package", '<a href="/package-1.0.zip" />')
     pypistage.mock_extfile("/package-1.0.zip", b"123")
-    r = testapp.get("/root/pypi/+simple/package")
+    r = testapp.get("/root/pypi/+simple/package/")
     assert r.status_code == 200
     href = getfirstlink(r.text).get("href")
     assert not posixpath.isabs(href)
@@ -398,7 +408,7 @@ def test_pkgserv(httpget, pypistage, testapp):
 
 def test_pkgserv_remote_failure(httpget, pypistage, testapp):
     pypistage.mock_simple("package", '<a href="/package-1.0.zip" />')
-    r = testapp.get("/root/pypi/+simple/package")
+    r = testapp.get("/root/pypi/+simple/package/")
     assert r.status_code == 200
     href = getfirstlink(r.text).get("href")
     url = URL(r.request.url).joinpath(href).url
@@ -1204,7 +1214,7 @@ def test_upload_and_push_external(mapp, testapp, reqmock):
     zipcontent = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", zipcontent, "pkg1", "")
 
-    r = testapp.xget(200, api.simpleindex + "pkg1")
+    r = testapp.xget(200, api.simpleindex + "pkg1/")
     a = getfirstlink(r.text)
     assert "pkg1-2.6.tgz" in a.get("href")
 
@@ -1277,7 +1287,7 @@ def test_upload_and_push_warehouse(mapp, testapp, reqmock):
     zipcontent = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", zipcontent, "pkg1", "")
 
-    r = testapp.xget(200, api.simpleindex + "pkg1")
+    r = testapp.xget(200, api.simpleindex + "pkg1/")
     a = getfirstlink(r.text)
     assert "pkg1-2.6.tgz" in a.get("href")
 
@@ -1331,7 +1341,7 @@ def test_upload_and_push_warehouse(mapp, testapp, reqmock):
 def test_upload_and_push_egg(mapp, testapp, reqmock):
     api = mapp.create_and_use()
     mapp.upload_file_pypi("pkg2-1.0-py27.egg", b"123", "pkg2", "1.0")
-    r = testapp.xget(200, api.simpleindex + "pkg2")
+    r = testapp.xget(200, api.simpleindex + "pkg2/")
     a = getfirstlink(r.text)
     assert "pkg2-1.0-py27.egg" in a.get("href")
 
@@ -1653,7 +1663,7 @@ class TestOfflineMode:
 
     def test_file_not_available(self, mapp, model, testapp, pypistage, stagename):
         stagename = self._prepare(mapp, pypistage, stagename)
-        testapp.xget(200, "/%s/+simple/package" % stagename)
+        testapp.xget(200, "/%s/+simple/package/" % stagename)
         with model.keyfs.transaction(write=False):
             is_fresh, links, serial = pypistage._load_cache_links("package")
 
@@ -1662,7 +1672,7 @@ class TestOfflineMode:
     def test_file_available(self, mapp, model, testapp, pypistage, monkeypatch, stagename):
         stagename = self._prepare(mapp, pypistage, stagename)
         monkeypatch.setattr(devpi_server.filestore.FileEntry, "file_exists", lambda a: True)
-        testapp.xget(200, "/%s/+simple/package" % stagename)
+        testapp.xget(200, "/%s/+simple/package/" % stagename)
         with model.keyfs.transaction(write=False):
             is_fresh, links, serial = pypistage._load_cache_links("package")
 
