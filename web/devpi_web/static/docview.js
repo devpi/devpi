@@ -36,6 +36,7 @@ function onIFrameLoad(event) {
 
     // fixup link target, so external links are opened outside the window
     var base_url = $('iframe').data('base_url');
+    var baseview_url = $(iframe).data('baseview_url');
     var $docBase = $doc.find('base');
     if ($docBase.length == 0) {
         var $docHead = $doc.find('head');
@@ -44,6 +45,7 @@ function onIFrameLoad(event) {
         }
         $docBase = $('<base>').prependTo($docHead);
     }
+
     // we add only a target attribute to the base tag, so by default links open
     // outside the iframe
     $docBase.attr('target', '_top');
@@ -52,15 +54,17 @@ function onIFrameLoad(event) {
     $docHtml.on('click', 'a[href]', function(e) {
         var link = this;
         if (link.href.indexOf(base_url) == 0) {
-            // let internal links still open inside the iframe
-            link.target = '_self';
+            // let rewrite internal links to update browser url
+            // rather than stay into iframe
+            link.href = link.href.replace(base_url, baseview_url);
         }
     });
     $docHtml.on('submit', 'form', function(e) {
         var form = this;
         if (form.action.indexOf(base_url) == 0) {
-            // let internal forms still open inside the iframe
-            form.target = '_self';
+            // let rewrite internal forms to update browser url
+            // rather than stay into iframe
+            form.action = form.action.replace(base_url, baseview_url);
         }
     });
 
