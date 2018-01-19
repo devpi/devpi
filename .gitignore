@@ -65,6 +65,7 @@ venv/
 ENV/
 
 # other stuff
+/devpi-travis.passwd
 /.hg/
 /etc/
 /tmp/
