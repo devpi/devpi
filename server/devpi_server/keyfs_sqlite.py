@@ -141,25 +141,25 @@ class BaseStorage:
         self.last_commit_timestamp = time.time()
         self.ensure_tables_exist()
 
-    def _get_sqlconn_uri_kw(self, uri, isolation_level):
+    def _get_sqlconn_uri_kw(self, uri):
         return sqlite3.connect(
-            uri, timeout=60, isolation_level=isolation_level, uri=True)
+            uri, timeout=60, isolation_level=None, uri=True)
 
-    def _get_sqlconn_uri(self, uri, isolation_level):
+    def _get_sqlconn_uri(self, uri):
         return sqlite3.connect(
-            uri, timeout=60, isolation_level=isolation_level)
+            uri, timeout=60, isolation_level=None)
 
-    def _get_sqlconn_path(self, uri, isolation_level):
+    def _get_sqlconn_path(self, uri):
         return sqlite3.connect(
-            self.sqlpath.strpath, timeout=60, isolation_level=isolation_level)
+            self.sqlpath.strpath, timeout=60, isolation_level=None)
 
-    def _get_sqlconn(self, uri, isolation_level):
+    def _get_sqlconn(self, uri):
         # we will try different connection methods and overwrite _get_sqlconn
         # with the first successful one
         try:
             # the uri keyword is only supported from Python 3.4 onwards and
             # possibly other Python implementations
-            conn = self._get_sqlconn_uri_kw(uri, isolation_level)
+            conn = self._get_sqlconn_uri_kw(uri)
             # remember for next time
             self._get_sqlconn = self._get_sqlconn_uri_kw
             return conn
@@ -170,9 +170,13 @@ class BaseStorage:
                     "the first version to support it.")
             else:
                 raise
+        except sqlite3.NotSupportedError:
+            threadlog.warn(
+                "Can't open sqlite3 db with uri. The installed version of "
+                "sqlite doesn't support it.")
         try:
             # sqlite3 might be compiled with default URI support
-            conn = self._get_sqlconn_uri(uri, isolation_level)
+            conn = self._get_sqlconn_uri(uri)
             # remember for next time
             self._get_sqlconn = self._get_sqlconn_uri
             return conn
@@ -183,7 +187,7 @@ class BaseStorage:
                 "Can't open sqlite3 db with options in URI. There is a "
                 "higher possibility of read/write conflicts between "
                 "threads, causing slowdowns due to retries.")
-            conn = self._get_sqlconn_path(uri, isolation_level)
+            conn = self._get_sqlconn_path(uri)
             # remember for next time
             self._get_sqlconn = self._get_sqlconn_path
             return conn
@@ -192,15 +196,12 @@ class BaseStorage:
         # we let the database serialize all writers at connection time
         # to play it very safe (we don't have massive amounts of writes).
         mode = "ro"
-        isolation_level = "DEFERRED"
         if write:
             mode = "rw"
-            isolation_level = "IMMEDIATE"
         if not self.sqlpath.exists():
             mode = "rwc"
-            isolation_level = "IMMEDIATE"
         uri = "file:%s?mode=%s" % (self.sqlpath, mode)
-        sqlconn = self._get_sqlconn(uri, isolation_level)
+        sqlconn = self._get_sqlconn(uri)
         if write:
             start_time = time.time()
             while 1:

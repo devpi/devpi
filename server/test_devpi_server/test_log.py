@@ -42,20 +42,20 @@ def test_taglogger_exception(taglogger, caplog):
 def test_taglogger_push(caplog):
     log = thread_push_log("hello")
     log.info("42")
-    assert caplog.records()[0].msg == "hello 42"
+    assert caplog.records[0].msg == "hello 42"
 
     log = thread_push_log("world")
     log.info("17")
-    assert caplog.records()[1].msg == "hello world 17"
+    assert caplog.records[1].msg == "hello world 17"
     thread_pop_log()
     log = thread_current_log()
     log.info("10")
-    assert caplog.records()[2].msg == "hello 10"
+    assert caplog.records[2].msg == "hello 10"
 
 def test_taglogger_default(caplog):
     log = TagLogger(prefix="hello")
     log.info("this")
-    assert caplog.records()[0].msg == "hello this"
+    assert caplog.records[0].msg == "hello this"
 
 def test_taglogger_wrong_prefix(caplog):
     thread_push_log("hello")
@@ -65,19 +65,19 @@ def test_taglogger_wrong_prefix(caplog):
 def test_taglogger_context_empty(caplog):
     log = thread_current_log()
     log.info("hello")
-    assert caplog.records()[0].msg == "NOCTX hello"
+    assert caplog.records[0].msg == "NOCTX hello"
 
 def test_threadlog(caplog):
     threadlog.info("hello")
-    assert caplog.records()[0].msg == "NOCTX hello"
+    assert caplog.records[0].msg == "NOCTX hello"
     thread_push_log("this")
     threadlog.info("hello")
-    assert caplog.records()[1].msg == "this hello"
+    assert caplog.records[1].msg == "this hello"
 
 def test_threadlog_around(caplog):
     with threadlog.around("info", "hello") as log:
         log.info("inner")
-    recs = caplog.records()
+    recs = caplog.records
     assert len(recs) == 3
     assert recs[0].msg == "NOCTX hello"
     assert recs[1].msg == "NOCTX inner"

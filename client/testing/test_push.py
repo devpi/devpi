@@ -86,7 +86,7 @@ def test_push_devpi_index_option(loghub, monkeypatch, mock_http_api):
 def test_main_push_pypi(monkeypatch, tmpdir, spec):
     from devpi.push import main
     l = []
-    def mypost(method, url, data, headers, auth=None, cert=None):
+    def mypost(method, url, data, headers, auth=None, cert=None, verify=None):
         l.append((method, url, data))
         class r:
             status_code = 201
@@ -138,7 +138,7 @@ def test_main_push_pypi(monkeypatch, tmpdir, spec):
 def test_fail_push(monkeypatch, tmpdir):
     from devpi.push import main
     l = []
-    def mypost(method, url, data, headers, auth=None, cert=None):
+    def mypost(method, url, data, headers, auth=None, cert=None, verify=None):
         l.append((method, url, data))
         class r:
             status_code = 500

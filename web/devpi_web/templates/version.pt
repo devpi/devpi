@@ -26,7 +26,7 @@
             no releases from <strong>${blocked_by_mirror_whitelist}</strong> are included.
         </p>
 
-        <table class="files" tal:condition="files">
+        <table class="files">
             <thead>
                 <tr>
                     <th>File</th>
@@ -35,7 +35,10 @@
                 </tr>
             </thead>
             <tbody>
-                <tr tal:repeat="file files">
+                <tr tal:condition="not files">
+                    <td colspan="3">No releases</td>
+                </tr>
+                <tr tal:condition="files" tal:repeat="file files">
                     <td title="${file.hash_spec}">
                         <a href="${file.url}">${file.title}</a>
                         <dl>

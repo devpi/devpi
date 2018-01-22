@@ -306,11 +306,11 @@ def test_pip_search(mapp, pypistage, testapp):
     items = sorted(data[0], key=itemgetter('_pypi_ordering', 'name'))
     assert len(items) == 2
     # we only use cached data, so the version is empty
-    assert items[0]['name'] == '/root/pypi/pkg1'
-    assert items[0]['summary'] == ''
+    assert items[0]['name'] == 'pkg1'
+    assert items[0]['summary'] == '[root/pypi]'
     assert items[0]['version'] == ''
-    assert items[1]['name'] == '/user1/dev/pkg2'
-    assert items[1]['summary'] == 'foo'
+    assert items[1]['name'] == 'pkg2'
+    assert items[1]['summary'] == '[user1/dev] foo'
     assert items[1]['version'] == '2.7'
     # without root/pypi, we only get data from the private index
     r = mapp.modify_index(api.stagename, indexconfig=dict(bases=()))
@@ -320,4 +320,4 @@ def test_pip_search(mapp, pypistage, testapp):
     assert method is None
     items = data[0]
     assert len(items) == 1
-    assert items[0]['name'] == '/user1/dev/pkg2'
+    assert items[0]['name'] == 'pkg2'

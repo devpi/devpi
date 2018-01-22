@@ -1,6 +1,7 @@
 from subprocess import Popen, PIPE
 import py
 import pytest
+import sys
 from devpi_common.archive import *
 datadir = py.path.local(__file__).dirpath("data")
 
@@ -23,6 +24,8 @@ def create_tarfile_fromdict(tmpdir, contentdict):
     tar = py.path.local.sysfind("tar")
     if not tar:
         pytest.skip("tar command not found")
+    if sys.platform.startswith('win'):
+        pytest.skip("tar command not working properly on Windows")
     tardir = tmpdir.join("create")
     _writedir(tardir, contentdict)
     files = [x.relto(tardir) for x in tardir.visit(lambda x: x.isfile())]

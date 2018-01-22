@@ -10,8 +10,15 @@ from wsgiref.handlers import format_date_time
 import os
 import py
 import re
+import sys
 from devpi_common.types import cached_property, parse_hash_spec
 from .log import threadlog
+
+
+if sys.version_info >= (3, 0):
+    from urllib.parse import unquote
+else:
+    from urllib import unquote
 
 log = threadlog
 _nodefault = object()
@@ -47,7 +54,7 @@ class FileStore:
             # so let's take the first 3 bytes which gives
             # us a maximum of 16^3 = 4096 entries in the root dir
             a, b = make_splitdir(link.hash_spec)
-            key = self.keyfs.STAGEFILE(user="root", index="pypi",
+            key = self.keyfs.STAGEFILE(user=user, index=index,
                                        hashdir_a=a, hashdir_b=b,
                                        filename=link.basename)
         else:
@@ -57,8 +64,8 @@ class FileStore:
             dirname = re.sub('[^a-zA-Z0-9_.-]', '_', dirname)
             key = self.keyfs.PYPIFILE_NOMD5(
                 user=user, index=index,
-                dirname=dirname,
-                basename=parts[-1])
+                dirname=unquote(dirname),
+                basename=unquote(parts[-1]))
         entry = FileEntry(self.xom, key, readonly=False)
         entry.url = link.geturl_nofragment().url
         entry.eggfragment = link.eggfragment
@@ -109,7 +116,10 @@ def metaprop(name):
 
 
 class BadGateway(Exception):
-    pass
+    def __init__(self, msg, code=None, url=None):
+        super(BadGateway, self).__init__(msg)
+        self.code = code
+        self.url = url
 
 
 class FileEntry(object):
@@ -246,7 +256,7 @@ class FileEntry(object):
         if r.status_code != 200:
             msg = "error %s getting %s" % (r.status_code, self.url)
             threadlog.error(msg)
-            raise self.BadGateway(msg)
+            raise self.BadGateway(msg, code=r.status_code, url=self.url)
         log.info("reading remote: %s, target %s", r.url, self.relpath)
         content_size = r.headers.get("content-length")
         err = None
@@ -301,8 +311,15 @@ class FileEntry(object):
             extra_headers={H_REPLICA_FILEREPL: str("YES")})
         if r.status_code != 200:
             msg = "%s: received %s from master" % (url, r.status_code)
-            threadlog.error(msg)
-            raise self.BadGateway(msg)
+            if not self.url:
+                threadlog.error(msg)
+                raise self.BadGateway(msg)
+            # try to get from original location
+            r = self.xom.httpget(self.url, allow_redirects=True)
+            if r.status_code != 200:
+                msg = "%s\n%s: received %s" % (msg, self.url, r.status_code)
+                threadlog.error(msg)
+                raise self.BadGateway(msg)
 
         yield self._headers_from_response(r)
 

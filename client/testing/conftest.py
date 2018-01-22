@@ -1,8 +1,10 @@
 from __future__ import print_function
-# content of conftest.py
+from contextlib import closing
+from time import sleep
 import os
-import random
+import pkg_resources
 import pytest
+import socket
 import textwrap
 import py
 import sys
@@ -11,6 +13,7 @@ import json
 from _pytest.pytester import RunResult, LineMatcher
 from devpi.main import Hub, initmain, parse_args
 from devpi_common.url import URL
+from devpi_server import __version__ as devpi_server_version
 from test_devpi_server.conftest import reqmock  # noqa
 try:
     from test_devpi_server.conftest import simpypi, simpypiserver  # noqa
@@ -32,8 +35,6 @@ def pytest_addoption(parser):
                      action="store", dest="live_url")
 
 
-import subprocess as gsub
-
 def print_info(*args, **kwargs):
     kwargs.setdefault("file", sys.stderr)
     return py.builtin.print_(*args, **kwargs)
@@ -46,14 +47,15 @@ class PopenFactory:
         args = [str(x) for x in args]
         if pipe:
             print ("$ %s [piped]" %(" ".join(args),))
-            popen = gsub.Popen(args, stdout=gsub.PIPE, stderr=gsub.STDOUT)
+            popen = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         else:
             showkwargs = " ".join(["%s=%s"] % (x,y) for x,y in kwargs.items())
             print ("$ %s %s" %(" ".join(args), showkwargs))
-            popen = gsub.Popen(args, **kwargs)
+            popen = subprocess.Popen(args, **kwargs)
         def fin():
             try:
                 popen.kill()
+                popen.wait()
             except OSError:
                 print ("could not kill %s" % popen.pid)
         self.addfinalizer(fin)
@@ -108,23 +110,47 @@ def get_pypirc_patcher(devpi):
     return overwrite()
 
 
-def _url_of_liveserver(clientdir):
-    port = random.randint(2001, 64000)
+def get_open_port(host):
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+        s.bind((host, 0))
+        s.listen(1)
+        port = s.getsockname()[1]
+    return port
+
+
+def wait_for_port(host, port, timeout=60):
+    while timeout > 0:
+        with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+            s.settimeout(1)
+            if s.connect_ex((host, port)) == 0:
+                return
+        sleep(1)
+        timeout -= 1
+    raise RuntimeError(
+        "The port %s on host %s didn't become accessible" % (port, host))
+
+
+def _liveserver(clientdir):
+    host = 'localhost'
+    port = get_open_port(host)
     path = py.path.local.sysfind("devpi-server")
     assert path
     try:
-        subprocess.check_call([
+        args = [
             str(path), "--serverdir", str(clientdir), "--debug",
-            "--port", str(port), "--start"])
+            "--host", host, "--port", str(port)]
+        server_version = pkg_resources.parse_version(devpi_server_version)
+        if server_version >= pkg_resources.parse_version('4.2.0.dev'):
+            subprocess.check_call(args + ['--init'])
     except subprocess.CalledProcessError as e:
-        print(e.output, file=sys.stderr)
+        # this won't output anything on Windows
+        print(
+            getattr(e, 'output', "Can't get process output on Windows"),
+            file=sys.stderr)
         raise
-    return URL("http://localhost:%s" % port)
-
-
-def _stop_liveserver(clientdir):
-    subprocess.check_call(["devpi-server", "--serverdir", str(clientdir),
-                           "--stop"])
+    p = subprocess.Popen(args)
+    wait_for_port(host, port)
+    return (p, URL("http://%s:%s" % (host, port)))
 
 
 @pytest.yield_fixture(scope="session")
@@ -135,8 +161,12 @@ def url_of_liveserver(request):
         yield URL(request.config.option.live_url)
         return
     clientdir = request.config._tmpdirhandler.mktemp("liveserver")
-    yield _url_of_liveserver(clientdir)
-    _stop_liveserver(clientdir)
+    (p, url) = _liveserver(clientdir)
+    try:
+        yield url
+    finally:
+        p.terminate()
+        p.wait()
 
 
 @pytest.yield_fixture(scope="session")
@@ -144,13 +174,22 @@ def url_of_liveserver2(request):
     if request.config.option.fast:
         pytest.skip("not running functional tests in --fast mode")
     clientdir = request.config._tmpdirhandler.mktemp("liveserver2")
-    yield _url_of_liveserver(clientdir)
-    _stop_liveserver(clientdir)
+    (p, url) = _liveserver(clientdir)
+    try:
+        yield url
+    finally:
+        p.terminate()
+        p.wait()
 
 
 @pytest.fixture
-def devpi(cmd_devpi, gen, url_of_liveserver):
-    user = gen.user()
+def devpi_username(gen):
+    return gen.user()
+
+
+@pytest.fixture
+def devpi(cmd_devpi, devpi_username, url_of_liveserver):
+    user = devpi_username
     cmd_devpi("use", url_of_liveserver.url, code=200)
     cmd_devpi("user", "-c", user, "password=123", "email=123")
     cmd_devpi("login", user, "--password", "123")
@@ -255,18 +294,20 @@ class Gen:
         return pkgname+"-1.0.tar.gz"
 
 
-def pytest_runtest_makereport(__multicall__, item, call):
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    outcome = yield
     logfiles = getattr(item.config, "_extlogfiles", None)
     if logfiles is None:
         return
-    report = __multicall__.execute()
+    report = outcome.get_result()
     for name in sorted(logfiles):
         content = logfiles[name].read()
         if content:
             longrepr = getattr(report, "longrepr", None)
             if hasattr(longrepr, "addsection"):
                 longrepr.addsection("%s log" %name, content)
-    return report
+
 
 @pytest.fixture
 def ext_devpi(request, tmpdir, devpi):
@@ -292,6 +333,7 @@ def out_devpi(devpi):
                 devpi(*args, **kwargs)
             finally:
                 out, err = cap.reset()
+                del cap
         except:
             print_(out)
             print_(err)
@@ -304,6 +346,9 @@ def out_devpi(devpi):
 @pytest.fixture
 def cmd_devpi(tmpdir, monkeypatch):
     """ execute devpi subcommand in-process (with fresh init) """
+    def ask_confirm(msg):
+        print("%s: yes" % msg)
+        return True
     clientdir = tmpdir.join("client")
     def run_devpi(*args, **kwargs):
         callargs = []
@@ -313,7 +358,7 @@ def cmd_devpi(tmpdir, monkeypatch):
             callargs.append(str(arg))
         print_info("*** inline$ %s" % " ".join(callargs))
         hub, method = initmain(callargs)
-        monkeypatch.setattr(hub, "ask_confirm", lambda msg: True)
+        monkeypatch.setattr(hub, "ask_confirm", ask_confirm)
         expected = kwargs.get("code", None)
         try:
             method(hub, hub.args)
@@ -324,6 +369,8 @@ def cmd_devpi(tmpdir, monkeypatch):
                 pass
             else:
                 raise
+        finally:
+            hub.close()
         if expected is not None:
             if expected == -2:  # failed-to-start
                 assert hasattr(hub, "sysex")
@@ -402,6 +449,7 @@ def loghub(tmpdir):
         clientdir = tmpdir.join("clientdir")
         yes = False
         verbose = False
+        settrusted = False
     out = py.io.TextIO()
     hub = Hub(args, file=out)
     def _getmatcher():
@@ -442,7 +490,7 @@ def mock_http_api(monkeypatch):
 
         def __call__(self, method, url, kvdict=None, quiet=False,
                      auth=None, basic_auth=None, cert=None,
-                     fatal=True):
+                     fatal=True, verify=None):
             kwargs = dict(
                 kvdict=kvdict, quiet=quiet, auth=auth, basic_auth=basic_auth,
                 cert=cert, fatal=fatal)

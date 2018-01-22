@@ -1,11 +1,60 @@
+
+
+.. towncrier release notes start
+
+3.2.1 (2018-01-18)
+==================
+
+Bug Fixes
+---------
+
+- fix issue496: PyPy 5.10 wheel upload failed because the version in the
+  filename is longer again, the check for it is now removed, because it's
+  pointless.
+
+
+3.2.0 (2017-11-23)
+==================
+
+No significant changes.
+
+
+3.2.0rc1 (2017-09-08)
+=====================
+
+Bug Fixes
+---------
+
+- fix issue343: enhanced ``splitbasename`` to split the name and version
+  correctly in more cases.
+
+- fix for url decoding issue with mirrors. When package filenames contain
+  characters such as `!` or `+`, these get URL encoded to `%21` and `%2B` in
+  the remote simple index. This fix ensures that in the filename saved to the
+  disk cache these are decoded back to `!` or `+`.
+
+
+3.1.0 (2017-04-18)
+==================
+
+- add ``username``, ``password``, ``hostname`` and ``port`` properties to
+  URL objects
+
+- expose SSLError on Session object to allow checking for verification errors
+
+- add ``max_retries`` keyword option to ``new_requests_session``.
+
+- fix ``get_latest_version`` when there are no versions.
+
+
 3.0.1 (2016-07-07)
-------------------
+==================
 
 - fix issue355: accept PyPy version numbers in package filenames
 
 
 3.0.0 (2016-05-12)
-------------------
+==================
 
 - fully implement normalization from PEP-503 to allow pip 8.1.2 to install
   packages with dots in their name
@@ -14,33 +63,33 @@
 
 
 2.0.10 (2016-05-11)
--------------------
+===================
 
 - revert the normalization change, as it causes other issues
 
 
 2.0.9 (2016-05-11)
-------------------
+==================
 
 - fix issue343 and issue344: fully implement normalization from PEP-503 to
   allow pip 8.1.2 to install packages with dots in their name
 
 
 2.0.8 (2015-11-11)
-------------------
+==================
 
 - fix URL.joinpath to not add double slashes
 
 
 2.0.7 (2015-09-14)
-------------------
+==================
 
 - fix issue272: added __ne__ to URL class, so comparisons work correctly with
   Python 2.x
 
 
 2.0.6 (2015-05-13)
-------------------
+==================
 
 - add devpi_common.type.parse_hash_spec helper for parsing 
   "HASH_TYPE=VALUE" strings into an callable algorithm and the value
@@ -49,26 +98,26 @@
 
 
 2.0.5 (2015-02-24)
-------------------
+==================
 
 - added code to allow filtering on stable version numbers.
 
 
 2.0.4 (2014-11-27)
-------------------
+==================
 
 - gracefully handle missing toxresult files. They can be missing on replicas
   while it's catching up with the master.
 
 
 2.0.3 (2014-09-22)
-------------------
+==================
 
 - added code to iterate over toxresults handling all the details.
 
 
 2.0.2
--------------
+=====
 
 - fix issue144: offer session.Errors for catching the possible
   exceptions that requests can throw (RequestException and urllib3..HTTPError
@@ -76,14 +125,14 @@
 
 
 2.0.1
--------------
+=====
 
 - fix issue145: re-introduce propmapping so that devpi-common
   has higher chances to work for devpi-server<2.0
 
 
 2.0
--------------
+===
 
 - avoid depending on requests-2.0.1 which does not support SNI.
   addresses issue21
@@ -95,7 +144,7 @@
 
 
 1.2
--------------
+===
 
 - initial release, shifted functionality from devpi-server and
   devpi-client

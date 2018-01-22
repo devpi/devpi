@@ -18,7 +18,7 @@ import devpi_server.views
 from devpi_server.views import tween_keyfs_transaction, make_uuid_headers
 from devpi_server.extpypi import parse_index
 
-from .functional import TestUserThings, TestIndexThings  # noqa
+from .functional import TestUserThings, TestIndexThings, TestIndexPushThings  # noqa
 from .functional import TestMirrorIndexThings  # noqa
 
 import devpi_server.filestore
@@ -28,7 +28,7 @@ proj = pytest.mark.parametrize("proj", [True, False])
 pytestmark = [pytest.mark.notransaction]
 
 def getfirstlink(text):
-    return BeautifulSoup(text).findAll("a")[0]
+    return BeautifulSoup(text, "html.parser").findAll("a")[0]
 
 def hash_spec_matches(hash_spec, content):
     hash_type, hash_value = hash_spec.split("=")
@@ -114,7 +114,7 @@ def test_simple_project(pypistage, testapp):
     pypistage.mock_simple(name, text='<a href="%s"/>' % path)
     r = testapp.get("/root/pypi/+simple/%s" % name)
     assert r.status_code == 200
-    links = BeautifulSoup(r.text).findAll("a")
+    links = BeautifulSoup(r.text, "html.parser").findAll("a")
     assert len(links) == 1
     assert links[0].get("href").endswith(path)
 
@@ -127,7 +127,7 @@ def test_simple_project_outside_url_subpath(mapp, outside_url, pypistage, testap
     headers={str('X-outside-url'): str(outside_url)}
     r = testapp.get("/%s/+simple/qpwoei" % api.stagename, headers=headers)
     assert r.status_code == 200
-    links = sorted(x["href"] for x in BeautifulSoup(r.text).findAll("a"))
+    links = sorted(x["href"] for x in BeautifulSoup(r.text, "html.parser").findAll("a"))
     assert len(links) == 2
     hash_spec = get_default_hash_spec(b'123')
     hashdir = "/".join(make_splitdir(hash_spec))
@@ -160,6 +160,12 @@ def test_project_redirect(pypistage, testapp, user_agent):
     r = testapp.get("/root/pypi/%s/" % name, headers=headers, follow=False)
     assert r.status_code == 302
     assert r.headers["location"].endswith("/root/pypi/+simple/%s" % name)
+    # check with x-outside-url
+    headers['X-Outside-Url'] = str('http://example.com/path')
+    r = testapp.get("/root/pypi/%s/" % name, headers=headers, follow=False)
+    assert r.status_code == 302
+    assert r.headers["location"] == "http://example.com/path/root/pypi/+simple/%s" % name
+
 
 def test_simple_project_unicode_rejected(pypistage, testapp, dummyrequest):
     from devpi_server.view_auth import RootFactory
@@ -183,7 +189,7 @@ def test_simple_project_pypi_egg(pypistage, testapp):
         """<a href="http://bb.org/download/py.zip#egg=py-dev" />""")
     r = testapp.get("/root/pypi/+simple/py")
     assert r.status_code == 200
-    links = BeautifulSoup(r.text).findAll("a")
+    links = BeautifulSoup(r.text, "html.parser").findAll("a")
     assert len(links) == 1
     r = testapp.get("/root/pypi")
     assert r.status_code == 200
@@ -309,6 +315,22 @@ def test_simple_blocked_warning(mapp, pypistage, testapp):
     assert r.html.select('p') == []
 
 
+def test_simple_with_removed_base(caplog, mapp, testapp):
+    mapp.create_and_login_user("user1", "1")
+    mapp.create_index("prod")
+    mapp.create_index("dev", indexconfig=dict(bases=["user1/prod"]))
+    mapp.delete_index("prod")
+    mapp.set_versiondata(dict(name="pkg", version="1.0"), set_whitelist=False)
+    testapp.xget(200, "/user1/dev/+simple/")
+    assert len(caplog.getrecords('refers to non-existing')) == 1
+    testapp.xget(200, "/user1/dev/+simple/pkg")
+    records = caplog.getrecords('refers to non-existing')
+    assert [x.args for x in records] == [
+        ('user1/dev', 'user1/prod'),
+        ('user1/dev', 'user1/prod'),
+        ('user1/dev', 'user1/prod')]
+
+
 def test_indexroot(testapp, model):
     with model.keyfs.transaction(write=True):
         user = model.create_user("user", "123")
@@ -391,6 +413,12 @@ def test_apiconfig(testapp):
     assert r.status_code == 200
     assert not "pypisubmit" in r.json["result"]
 
+
+def test_getchanges(testapp):
+    # the replica protocol should be disabled by default
+    testapp.xget(403, "/+changelog/0")
+
+
 class TestStatus:
     def test_status_master(self, testapp):
         r = testapp.get_json("/+status", status=200)
@@ -455,29 +483,55 @@ class TestStatusInfoPlugin:
         import time
         now = time.time()
         request = self._xomrequest(xom)
-        # fatal if events never processed
-        result = plugin(request)
-        assert result == [dict(
-            status='fatal',
-            msg='Not all changes processed by plugins for more than 5 minutes')]
-        # fake first event processed
-        xom.keyfs.notifier.write_event_serial(0)
-        xom.keyfs.notifier.event_serial_in_sync_at = now
-        # no report in the first minute
+        # nothing if events never processed directly after startup
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 30)
         result = plugin(request)
         assert result == []
-        # warning after one minute
-        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 70)
-        result = plugin(request)
-        assert result == [dict(
-            status='warn',
-            msg='Not all changes processed by plugins for more than 1 minute')]
-        # fatal after five minutes
+        # fatal after 5 minutes
         monkeypatch.setattr(devpi_server.views, "time", lambda: now + 310)
         result = plugin(request)
         assert result == [dict(
             status='fatal',
-            msg='Not all changes processed by plugins for more than 5 minutes')]
+            msg="The event processing doesn't seem to start")]
+        # fake first event processed
+        xom.keyfs.notifier.write_event_serial(0)
+        xom.keyfs.notifier.event_serial_in_sync_at = now
+        # no report in the first minute
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 30)
+        result = plugin(request)
+        assert result == []
+        # warning after 5 minutes
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 310)
+        result = plugin(request)
+        assert result == [dict(
+            status='warn',
+            msg='No changes processed by plugins for more than 5 minutes')]
+        # fatal after 30 minutes
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 1810)
+        result = plugin(request)
+        assert result == [dict(
+            status='fatal',
+            msg='No changes processed by plugins for more than 30 minutes')]
+        # warning about sync after one hour
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 3610)
+        result = plugin(request)
+        assert result == [
+            dict(
+                status='warn',
+                msg="The event processing hasn't been in sync for more than 1 hour"),
+            dict(
+                status='fatal',
+                msg='No changes processed by plugins for more than 30 minutes')]
+        # fatal sync state after 6 hours
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 21610)
+        result = plugin(request)
+        assert result == [
+            dict(
+                status='fatal',
+                msg="The event processing hasn't been in sync for more than 6 hours"),
+            dict(
+                status='fatal',
+                msg='No changes processed by plugins for more than 30 minutes')]
 
     def test_replica_lagging(self, plugin, makexom, monkeypatch):
         from devpi_server.replica import ReplicaThread
@@ -674,6 +728,21 @@ class TestSubmitValidation:
         r = submit.file("pkg5-2.7.tgz", b"123", {"name": "pkg5"}, code=200)
         mapp.get_release_paths("Pkg5")
 
+    def test_upload_with_removed_base(self, mapp, testapp):
+        mapp.create_and_login_user("user1", "1")
+        mapp.create_index("prod")
+        mapp.create_index("dev", indexconfig=dict(bases=["user1/prod"]))
+        mapp.delete_index("prod")
+        metadata = {"name": "Pkg5", "version": "1.0", ":action": "submit"}
+        testapp.post("/user1/dev/", metadata, code=200)
+        mapp.upload_file_pypi(
+            "Pkg5-1.0.tar.gz", b'123',
+            "Pkg5", "1.0",
+            indexname="user1/dev", register=False,
+            code=200)
+        (release,) = mapp.getreleaseslist("Pkg5")
+        assert release.endswith("Pkg5-1.0.tar.gz")
+
     def test_upload_file_version_not_in_filename(self, submit, mapp):
         metadata = {"name": "Pkg5", "version": "1.0", ":action": "submit"}
         submit.metadata(metadata, code=200)
@@ -763,7 +832,6 @@ class TestSubmitValidation:
         # we now try to upload a different file which should fail
         r = submit.file("pkg5-2.6.tgz", b"1234", {"name": "Pkg5"}, code=409)
         assert '409 pkg5-2.6.tgz already exists in non-volatile index' in r.text
-        # import pdb; pdb.set_trace()
         r = mapp.upload_doc("pkg5-2.6.doc.zip", b"1234", "Pkg5", "2.6", code=409)
         assert '409 pkg5-2.6.doc.zip already exists in non-volatile index' in r.text
         # if we upload the same file as originally, then it's a no op
@@ -991,10 +1059,11 @@ def test_push_from_pypi_fail(httpget, mapp, pypistage, testapp):
     assert r.json["message"] == "error 502 getting https://pypi.python.org/simple/hello/hello-1.0.tar.gz"
 
 
-def test_upload_docs_without_registration(mapp, testapp, monkeypatch):
+def test_upload_docs_for_version_without_release(mapp, testapp, monkeypatch):
     mapp.create_and_use()
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
-    mapp.upload_doc("pkg1-2.7.doc.zip", b'', "pkg1", "2.7", code=400)
+    mapp.upload_doc("pkg1-2.7.doc.zip", b'', "pkg1", "2.7")
+
 
 @proj
 def test_upload_and_push_internal(mapp, testapp, monkeypatch, proj):
@@ -1056,6 +1125,32 @@ def test_upload_and_push_internal(mapp, testapp, monkeypatch, proj):
     assert link.href.endswith("/pkg1-2.6.tgz")
 
 
+def test_acl_toxresults_upload(mapp, testapp):
+    from test_devpi_server.example import tox_result_data
+    mapp.create_and_login_user("user1", "1")
+    mapp.create_index("prod")
+    mapp.create_index("dev")
+    mapp.use("user1/dev")
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200)
+    path, = mapp.get_release_paths("pkg1")
+    headers={str('X-outside-url'): str('')}
+    r = testapp.post(path, json.dumps(tox_result_data), headers=headers)
+    assert r.status_code == 200
+    mapp.set_acl(['user2'], acltype="toxresult_upload")
+    r = testapp.post(
+        path, json.dumps(tox_result_data), headers=headers, expect_errors=True)
+    assert r.status_code == 403
+    # check that stage created before introduction of acl_toxresult_upload
+    # still allow upload to anonymous
+    with mapp.xom.keyfs.transaction(write=True):
+        stage = mapp.xom.model.getstage('user1/dev')
+        with stage.user.key.update() as userconfig:
+            del userconfig['indexes']['dev']['acl_toxresult_upload']
+            stage.ixconfig = userconfig['indexes']['dev']
+    r = testapp.post(path, json.dumps(tox_result_data), headers=headers)
+    assert r.status_code == 200
+
+
 @pytest.mark.parametrize("outside_url", ['', 'http://localhost/devpi'])
 def test_upload_and_push_with_toxresults(mapp, testapp, outside_url):
     from test_devpi_server.example import tox_result_data
@@ -1109,21 +1204,19 @@ def test_upload_and_push_external(mapp, testapp, reqmock):
     zipcontent = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", zipcontent, "pkg1", "")
 
-    r = testapp.get(api.simpleindex + "pkg1")
-    assert r.status_code == 200
+    r = testapp.xget(200, api.simpleindex + "pkg1")
     a = getfirstlink(r.text)
     assert "pkg1-2.6.tgz" in a.get("href")
 
     # get root index page
-    r = testapp.get(api.index)
-    assert r.status_code == 200
+    r = testapp.xget(200, api.index)
 
     # push OK
     req = dict(name="pkg1", version="2.6", posturl="http://whatever.com/",
                username="user", password="password")
     rec = reqmock.mockresponse(url=None, code=200, method="POST", data="msg")
     body = json.dumps(req).encode("utf-8")
-    r = testapp.request(api.index, method="PUSH", body=body,
+    r = testapp.request(api.index, method="POST", body=body,
                         expect_errors=True)
     assert r.status_code == 200
     assert len(rec.requests) == 3
@@ -1136,17 +1229,109 @@ def test_upload_and_push_external(mapp, testapp, reqmock):
 
     # push with error
     reqmock.mockresponse(url=None, code=500, method="POST")
-    r = testapp.request(api.index, method="PUSH", body=body, expect_errors=True)
+    r = testapp.request(api.index, method="POST", body=body, expect_errors=True)
     assert r.status_code == 502
     result = r.json["result"]
     assert len(result) == 1
     assert result[0][0] == 500
 
+
+def test_upload_and_push_external_metadata12(mapp, reqmock, testapp):
+    from webob.request import cgi_FieldStorage
+    from io import BytesIO
+    api = mapp.create_and_use()
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
+    mapp.set_versiondata(dict(
+        name="pkg1", version="2.6",
+        requires_python=">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"))
+    result = mapp.getjson(api.index + "/pkg1", code=200)
+    verdata = result['result']['2.6']
+    assert 'requires_python' in verdata
+    assert verdata['requires_python'] == ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+    req = dict(name="pkg1", version="2.6", posturl="http://whatever.com/",
+               username="user", password="password")
+    rec = reqmock.mockresponse(url=None, code=200, method="POST", data="msg")
+    body = json.dumps(req).encode("utf-8")
+    r = testapp.request(api.index, method="POST", body=body,
+                        expect_errors=True)
+    assert r.status_code == 200
+    assert len(rec.requests) == 2
+    for i in range(2):
+        assert rec.requests[i].url == req["posturl"]
+    req = rec.requests[1]
+    fs = cgi_FieldStorage(
+        fp=BytesIO(req.body),
+        headers=req.headers,
+        environ={
+            'REQUEST_METHOD': 'POST'})
+    assert fs.getvalue('requires_python') == ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+
+
+def test_upload_and_push_warehouse(mapp, testapp, reqmock):
+    # the new PyPI backend "warehouse" changes some things and they already
+    # start to affect current PyPI behaviour
+    from requests.adapters import HTTPAdapter
+    from requests.packages.urllib3.response import HTTPResponse
+    api = mapp.create_and_use()
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
+    zipcontent = zip_dict({"index.html": "<html/>"})
+    mapp.upload_doc("pkg1.zip", zipcontent, "pkg1", "")
+
+    r = testapp.xget(200, api.simpleindex + "pkg1")
+    a = getfirstlink(r.text)
+    assert "pkg1-2.6.tgz" in a.get("href")
+
+    # get root index page
+    r = testapp.xget(200, api.index)
+
+    responses = [
+        # the "register" call isn't needed anymore. All the metadata is
+        # sent together with file_upload anyway. So we get a 410 with the
+        # following reason
+        HTTPResponse(
+            body=py.io.BytesIO(b"msg"),
+            status=410, preload_content=False,
+            reason="Project pre-registration is no longer required or supported, so continue directly to uploading files."),
+        HTTPResponse(
+            body=py.io.BytesIO(b"msg"),
+            status=200, preload_content=False),
+        HTTPResponse(
+            body=py.io.BytesIO(b"msg"),
+            status=200, preload_content=False)]
+    requests = []
+
+    def process_request(self, request, kwargs):
+        response = responses.pop(0)
+        r = HTTPAdapter().build_response(request, response)
+        requests.append(request)
+        return r
+    reqmock.process_request = process_request.__get__(reqmock)
+
+    # push OK
+    req = dict(name="pkg1", version="2.6", posturl="http://whatever.com/",
+               username="user", password="password")
+    body = json.dumps(req).encode("utf-8")
+    r = testapp.request(api.index, method="POST", body=body,
+                        expect_errors=True)
+    assert r.status_code == 200
+    assert len(requests) == 3
+    for i in range(3):
+        assert requests[i].url == req["posturl"]
+    req = requests[1]
+    assert b"metadata_version" in req.body
+    assert b"sha256_digest" in req.body
+    assert b"pkg1-2.6.tgz" in req.body
+    req = requests[2]
+    assert b"metadata_version" in req.body
+    # XXX properly decode www-url-encoded body and check zipcontent
+    assert b"pkg1.zip" in req.body
+    assert zipcontent in req.body
+
+
 def test_upload_and_push_egg(mapp, testapp, reqmock):
     api = mapp.create_and_use()
     mapp.upload_file_pypi("pkg2-1.0-py27.egg", b"123", "pkg2", "1.0")
-    r = testapp.get(api.simpleindex + "pkg2")
-    assert r.status_code == 200
+    r = testapp.xget(200, api.simpleindex + "pkg2")
     a = getfirstlink(r.text)
     assert "pkg2-1.0-py27.egg" in a.get("href")
 
@@ -1368,17 +1553,18 @@ def test_upload_docs_no_version(mapp, testapp, proj):
     archive = Archive(py.io.BytesIO(r.body))
     assert 'index.html' in archive.namelist()
 
-def test_upload_docs_no_project_ever_registered(mapp, testapp):
+
+def test_upload_docs_no_releases(mapp, testapp):
     mapp.create_and_use()
     content = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "", code=400)
+    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200)
+
 
 @proj
 def test_upload_docs(mapp, testapp, proj):
     api = mapp.create_and_use()
     content = zip_dict({"index.html": "<html/>"})
-    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=400)
-    mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200)
     vv = get_view_version_links(testapp, api.index, "pkg1", "2.6", proj=proj)
     link = vv.get_link(rel="doczip")

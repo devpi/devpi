@@ -53,7 +53,7 @@ class TagLogger:
         self._logout.info(self._prefix + msg, *args)
 
     def warn(self, msg, *args):
-        self._logout.warn(self._prefix + msg, *args)
+        self._logout.warning(self._prefix + msg, *args)
 
     def error(self, msg, *args):
         self._logout.error(self._prefix + msg, *args)

@@ -1,5 +1,9 @@
 import pytest
 
+try:
+    from urllib import quote as url_quote
+except ImportError:
+    from urllib.parse import quote as url_quote
 
 class API:
     def __init__(self, d):
@@ -203,6 +207,60 @@ class TestIndexThings:
         mapp.delete_index("dev", code=403)
         mapp.delete_user("cuser4", code=403)
 
+    def test_custom_data(self, mapp):
+        mapp.create_and_login_user("cuser5")
+        mapp.create_index("dev")
+        mapp.use("cuser5/dev")
+        res = mapp.getjson("/cuser5/dev")
+        assert "custom_data" not in res["result"]
+        mapp.set_key_value("custom_data", "foo")
+        res = mapp.getjson("/cuser5/dev")
+        assert res["result"]["custom_data"] == "foo"
+
+    def test_title_description(self, mapp):
+        mapp.create_and_login_user("cuser6")
+        mapp.create_index("dev")
+        mapp.use("cuser6/dev")
+        res = mapp.getjson("/cuser6/dev")
+        assert "title" not in res["result"]
+        assert "description" not in res["result"]
+        mapp.set_key_value("title", "foo")
+        mapp.set_key_value("description", "bar")
+        res = mapp.getjson("/cuser6/dev")
+        assert res["result"]["title"] == "foo"
+        assert res["result"]["description"] == "bar"
+
+    def test_whitelist_setting(self, mapp):
+        mapp.create_and_login_user("cuser7")
+        mapp.create_index("dev")
+        mapp.use("cuser7/dev")
+        res = mapp.getjson("/cuser7/dev")['result']
+        assert res['pypi_whitelist'] == []
+        assert res['mirror_whitelist'] == []
+        mapp.set_mirror_whitelist("foo")
+        res = mapp.getjson("/cuser7/dev")['result']
+        assert res['pypi_whitelist'] == []
+        assert res['mirror_whitelist'] == ['foo']
+        mapp.set_mirror_whitelist("foo,bar")
+        res = mapp.getjson("/cuser7/dev")['result']
+        assert res['pypi_whitelist'] == []
+        assert res['mirror_whitelist'] == ['foo', 'bar']
+        mapp.set_mirror_whitelist("he_llo")
+        res = mapp.getjson("/cuser7/dev")['result']
+        assert res['pypi_whitelist'] == []
+        assert res['mirror_whitelist'] == ['he-llo']
+        mapp.set_mirror_whitelist("he_llo,Django")
+        res = mapp.getjson("/cuser7/dev")['result']
+        assert res['pypi_whitelist'] == []
+        assert res['mirror_whitelist'] == ['he-llo', 'django']
+        mapp.set_mirror_whitelist("*")
+        res = mapp.getjson("/cuser7/dev")['result']
+        assert res['pypi_whitelist'] == []
+        assert res['mirror_whitelist'] == ['*']
+
+
+@pytest.mark.nomocking
+class TestIndexPushThings:
     def test_push_existing_to_volatile(self, mapp):
         username = 'puser1'
         mapp.create_and_login_user("%s" % username)
@@ -254,57 +312,6 @@ class TestIndexThings:
         assert len(link['log']) == 1
         assert link['log'][0]['what'] == 'upload'
         assert link['log'][0]['dst'] == '%s/dev' % username
-
-    def test_custom_data(self, mapp):
-        mapp.create_and_login_user("cuser5")
-        mapp.create_index("dev")
-        mapp.use("cuser5/dev")
-        res = mapp.getjson("/cuser5/dev")
-        assert "custom_data" not in res["result"]
-        mapp.set_key_value("custom_data", "foo")
-        res = mapp.getjson("/cuser5/dev")
-        assert res["result"]["custom_data"] == "foo"
-
-    def test_title_description(self, mapp):
-        mapp.create_and_login_user("cuser6")
-        mapp.create_index("dev")
-        mapp.use("cuser6/dev")
-        res = mapp.getjson("/cuser6/dev")
-        assert "title" not in res["result"]
-        assert "description" not in res["result"]
-        mapp.set_key_value("title", "foo")
-        mapp.set_key_value("description", "bar")
-        res = mapp.getjson("/cuser6/dev")
-        assert res["result"]["title"] == "foo"
-        assert res["result"]["description"] == "bar"
-
-    def test_whitelist_setting(self, mapp):
-        mapp.create_and_login_user("cuser7")
-        mapp.create_index("dev")
-        mapp.use("cuser7/dev")
-        res = mapp.getjson("/cuser7/dev")['result']
-        assert res['pypi_whitelist'] == []
-        assert res['mirror_whitelist'] == []
-        mapp.set_mirror_whitelist("foo")
-        res = mapp.getjson("/cuser7/dev")['result']
-        assert res['pypi_whitelist'] == []
-        assert res['mirror_whitelist'] == ['foo']
-        mapp.set_mirror_whitelist("foo,bar")
-        res = mapp.getjson("/cuser7/dev")['result']
-        assert res['pypi_whitelist'] == []
-        assert res['mirror_whitelist'] == ['foo', 'bar']
-        mapp.set_mirror_whitelist("he_llo")
-        res = mapp.getjson("/cuser7/dev")['result']
-        assert res['pypi_whitelist'] == []
-        assert res['mirror_whitelist'] == ['he-llo']
-        mapp.set_mirror_whitelist("he_llo,Django")
-        res = mapp.getjson("/cuser7/dev")['result']
-        assert res['pypi_whitelist'] == []
-        assert res['mirror_whitelist'] == ['he-llo', 'django']
-        mapp.set_mirror_whitelist("*")
-        res = mapp.getjson("/cuser7/dev")['result']
-        assert res['pypi_whitelist'] == []
-        assert res['mirror_whitelist'] == ['*']
 
 
 @pytest.mark.nomocking
@@ -373,9 +380,12 @@ class TestMirrorIndexThings:
         simpypi.add_release('pkg', pkgver='pkg-1.0.zip')
         result = mapp.getreleaseslist("pkg")
         assert len(result) == 1
-        r = mapp.downloadrelease(502, result[0])
+        r = mapp.downloadrelease((404, 502), result[0])
         msg = r['message']
-        assert 'error 404 getting' in msg or 'received 502 from master' in msg
+        assert (
+            'error 404 getting' in msg or
+            'received 404 from master' in msg or
+            'received 502 from master' in msg)
 
     def test_download_release(self, mapp, simpypi):
         mapp.create_and_login_user('mirror6')
@@ -435,3 +445,34 @@ class TestMirrorIndexThings:
         mapp.upload_file_pypi("pkg-1.0.tar.gz", content, "pkg", "1.0")
         r = mapp.get_simple("pkg")
         assert b'ed7/002b439e9ac84/pkg-1.0.tar.gz' in r.body
+
+    def test_releases_urlquoting(self, mapp, simpypi):
+        mapp.create_and_login_user('mirror9')
+        indexconfig = dict(
+            type="mirror",
+            mirror_url=simpypi.simpleurl,
+            mirror_cache_expiry=0)
+        mapp.create_index("mirror", indexconfig=indexconfig)
+        mapp.use("mirror9/mirror")
+        url_quoted_pkgver = url_quote('pkg-1!2017.4+devpi.zip')
+        assert url_quoted_pkgver == 'pkg-1%212017.4%2Bdevpi.zip'
+        simpypi.add_release('pkg', pkgver=url_quoted_pkgver)
+        result = mapp.getreleaseslist("pkg")
+        base = simpypi.baseurl.replace('http://', 'http_').replace(':', '_')
+        assert len(result) == 1
+        assert result[0].endswith('/mirror9/mirror/+e/%s_pkg/pkg-1!2017.4+devpi.zip' % base)
+
+    def test_releases_urlquoting_hash(self, mapp, simpypi):
+        mapp.create_and_login_user('mirror10')
+        indexconfig = dict(
+            type="mirror",
+            mirror_url=simpypi.simpleurl,
+            mirror_cache_expiry=0)
+        mapp.create_index("mirror", indexconfig=indexconfig)
+        mapp.use("mirror10/mirror")
+        url_quoted_pkgver = "%s#sha256=1234" % url_quote('pkg-1!2017.4+devpi.zip')
+        assert url_quoted_pkgver == 'pkg-1%212017.4%2Bdevpi.zip#sha256=1234'
+        simpypi.add_release('pkg', pkgver=url_quoted_pkgver)
+        result = mapp.getreleaseslist("pkg")
+        assert len(result) == 1
+        assert result[0].endswith('/mirror10/mirror/+f/123/4/pkg-1!2017.4+devpi.zip')

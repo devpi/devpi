@@ -153,11 +153,14 @@ class Storage:
     database = "devpi"
     host = "localhost"
     port = "5432"
+    unix_sock = None
+    user = "devpi"
+    password = None
 
     def __init__(self, basedir, notify_on_commit, cache_size, settings=None):
         if settings is None:
             settings = {}
-        for key in ("database", "host", "port"):
+        for key in ("database", "host", "port", "unix_sock", "user", "password"):
             if key in settings:
                 setattr(self, key, settings[key])
         self.basedir = basedir
@@ -181,12 +184,19 @@ class Storage:
 
     def get_connection(self, closing=True, write=False):
         sqlconn = pg8000.connect(
+            user=self.user,
+            database=self.database,
             host=self.host,
             port=int(self.port),
-            database=self.database,
+            unix_sock=self.unix_sock,
+            password=self.password,
             timeout=60)
         sqlconn.text_factory = bytes
         conn = Connection(sqlconn, self)
+        if write:
+            q = 'SELECT pg_advisory_xact_lock(1);'
+            c = conn._sqlconn.cursor()
+            c.execute(q)
         if closing:
             return contextlib.closing(conn)
         return conn

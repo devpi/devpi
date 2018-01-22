@@ -14,6 +14,14 @@ except ImportError:
         def test_mirror_things(self):
             pytest.skip(
                 "Couldn't import TestMirrorIndexThings from devpi server tests.")
+try:
+    from test_devpi_server.functional import TestIndexPushThings  # noqa
+except ImportError:
+    # when testing with older devpi-server
+    class TestIndexPushThings:
+        def test_mirror_things(self):
+            pytest.skip(
+                "Couldn't import TestIndexPushThings from devpi server tests.")
 from test_devpi_server.functional import MappMixin
 
 @pytest.fixture
@@ -68,6 +76,9 @@ class Mapp(MappMixin):
     def logoff(self, code=None):
         self.devpi("logoff", code=code)
 
+    def logout(self, code=None):
+        self.devpi("logout", code=code)
+
     def use(self, indexname):
         assert indexname.count("/") == 1, indexname
         self.devpi("use", indexname)
@@ -101,7 +112,10 @@ class Mapp(MappMixin):
 
     def downloadrelease(self, code, url):
         r = requests.get(url)
-        assert r.status_code == code
+        if isinstance(code, tuple):
+            assert r.status_code in code
+        else:
+            assert r.status_code == code
         if r.status_code < 300:
             return r.content
         return r.json()
@@ -229,6 +243,13 @@ def test_logoff(mapp):
     mapp.login()
     mapp.logoff()
     mapp.logoff()
+
+
+def test_logout(mapp):
+    mapp.login()
+    mapp.logout()
+    mapp.logout()
+
 
 def test_getjson(out_devpi):
     result = out_devpi("getjson", "/", "-v")

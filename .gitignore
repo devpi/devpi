@@ -1,0 +1,72 @@
+# Created by .ignore support plugin (hsz.mobi)
+### Python template
+# Byte-compiled / optimized / DLL files
+__pycache__
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+.Python
+/bin/
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+/include/
+/lib/
+/lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+*.egg-info
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*,cover
+.hypothesis/
+
+# Translations
+*.mo
+*.pot
+
+# Sphinx documentation
+/doc/_build/
+/doc/gen-config/
+
+# PyBuilder
+target/
+
+# pyenv
+.python-version
+
+# dotenv
+.env
+
+# virtualenv
+.venv
+venv/
+ENV/
+
+# other stuff
+/devpi-travis.passwd
+/.hg/
+/etc/
+/tmp/
+

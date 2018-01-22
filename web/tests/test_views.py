@@ -124,9 +124,17 @@ def test_index_view_permissions(mapp, testapp):
     mapp.set_acl([api.user, ':developers', ':ANONYMOUS:'])
     r = testapp.xget(200, api.index, headers=dict(accept="text/html"))
     elements = r.html.select('#content dl.permissions > *')
-    text = [compareable_text(x.text) for x in elements]
-    assert text == [
-        'upload', 'Users: user1', 'Groups: developers', 'Special: ANONYMOUS']
+    current_group = None
+    grouped = {}
+    for elem in elements:
+        if elem.name.lower() == 'dt':
+            current_group = compareable_text(elem.text)
+            continue
+        grouped.setdefault(current_group, []).append(
+            compareable_text(elem.text))
+    assert 'upload' in grouped
+    assert grouped['upload'] == [
+        'Users: user1', 'Groups: developers', 'Special: ANONYMOUS']
 
 
 def test_title_description(mapp, testapp):
@@ -194,6 +202,19 @@ def test_project_not_found(mapp, testapp):
     assert 'The project pkg1 does not exist.' in compareable_text(content.text)
 
 
+@pytest.mark.with_notifier
+def test_project_view_docs_only(mapp, testapp):
+    api = mapp.create_and_use()
+    content = zip_dict({"index.html": "<html/>"})
+    mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
+    mapp.upload_doc(
+        "pkg1.zip", content, "pkg1", "2.6", code=200, waithooks=True)
+    r = testapp.xget(200, api.index + '/pkg1', headers=dict(accept="text/html"))
+    (content,) = r.html.select('#content')
+    assert [x.text for x in content.select('tr td')] == [
+        "user1/dev", "2.6", "pkg1-2.6"]
+
+
 def test_project_view_root_pypi(mapp, testapp, pypistage):
     pypistage.mock_simple("pkg1", text='''
             <a href="../../pkg/pkg1-2.7.zip" />
@@ -233,6 +254,29 @@ def test_project_view_root_pypi_external_link_bad_name(mapp, testapp, pypistage)
         ("2.7", "http://localhost/root/pypi/pkg1/2.7"),
         ("root/pypi", "http://localhost/root/pypi"),
         ("2.6", "http://localhost/root/pypi/pkg1/2.6")]
+
+
+@pytest.mark.with_notifier
+def test_project_view_root_and_docs(mapp, testapp, pypistage):
+    pypistage.mock_simple("pkg1", text='''
+            <a href="../../pkg/pkg1-2.7.zip" />
+            <a href="../../pkg/pkg1-2.6.zip" />
+        ''', pypiserial=10)
+    api = mapp.create_and_use(indexconfig=dict(
+        bases=["root/pypi"],
+        mirror_whitelist=["*"]))
+    content = zip_dict({"index.html": "<html/>"})
+    mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
+    mapp.upload_doc(
+        "pkg1.zip", content, "pkg1", "2.6", code=200, waithooks=True)
+    r = testapp.xget(200, api.index + '/pkg1', headers=dict(accept="text/html"))
+    links = r.html.select('#content a')
+    assert [(l.text, l.attrs['href']) for l in links] == [
+        ("root/pypi", "http://localhost/root/pypi"),
+        ("2.7", "http://localhost/root/pypi/pkg1/2.7"),
+        ("root/pypi", "http://localhost/root/pypi"),
+        ("2.6", "http://localhost/root/pypi/pkg1/2.6"),
+        ("pkg1-2.6", "http://localhost/user1/dev/pkg1/2.6/+d/index.html")]
 
 
 @pytest.mark.with_notifier
@@ -396,6 +440,31 @@ def test_version_view_description_errors(mapp, testapp):
     assert "Unexpected section title" in description.text
 
 
+def test_complex_name(mapp, testapp):
+    from devpi_common import __version__
+    import pkg_resources
+    if pkg_resources.parse_version(__version__) < pkg_resources.parse_version('3.2.0dev'):
+        pytest.skip("Only works with devpi-common >= 3.2.0")
+    api = mapp.create_and_use()
+    pkgname = "my-binary-package-name-1-4-3-yip"
+    mapp.upload_file_pypi(
+        "%s-0.9.tar.gz" % pkgname, b"content", pkgname, "0.9")
+    r = testapp.xget(200, api.index, headers=dict(accept="text/html"))
+    links = r.html.select('#content a')
+    assert [(compareable_text(l.text), l.attrs['href']) for l in links] == [
+        ('simple index', 'http://localhost/user1/dev/+simple/'),
+        ('%s-0.9' % pkgname, 'http://localhost/user1/dev/%s/0.9' % pkgname),
+        (
+            '%s-0.9.tar.gz' % pkgname,
+            'http://localhost/user1/dev/+f/ed7/002b439e9ac84/%s-0.9.tar.gz#sha256=ed7002b439e9ac845f22357d822bac1444730fbdb6016d3ec9432297b9ec9f73' % pkgname)]
+    r = testapp.xget(
+        200, api.index + '/%s' % pkgname, headers=dict(accept="text/html"))
+    links = r.html.select('#content a')
+    assert [(compareable_text(l.text), l.attrs['href']) for l in links] == [
+        ('user1/dev', 'http://localhost/user1/dev'),
+        ('0.9', 'http://localhost/user1/dev/%s/0.9' % pkgname)]
+
+
 @pytest.mark.with_notifier
 def test_whitelist(mapp, pypistage, testapp):
     pypistage.mock_simple(
@@ -474,6 +543,20 @@ def test_testdata(mapp, testapp):
     assert rows == [
         ("pkg1-2.6.tgz.toxresult0", "foo", "linux2", "py27",
          "", "No setup performed Tests")]
+
+
+@pytest.mark.with_notifier
+def test_testdata_notfound(mapp, testapp):
+    # make sure we have a user, index and package
+    mapp.create_and_use()
+    mapp.set_versiondata(
+        {"name": "pkg1", "version": "2.6", "description": "foo"})
+    # now get toxresults for another version
+    r = testapp.xget(
+        404,
+        '/user1/dev/pkg1/2.7/+toxresults/pkg1-2.7.tgz',
+        headers=dict(accept="text/html"))
+    assert 'pkg1-2.7 is not registered' in r.text
 
 
 @pytest.mark.with_notifier

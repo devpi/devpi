@@ -45,9 +45,9 @@ in the ``setup.cfg`` file.
 Uploading Sphinx docs
 ---------------------
 
-If you have `Sphinx-based documentation <http://sphinx-doc.org/>`_ you can
-upload the rendered HTML documentation to your devpi server with the following
-command::
+If you have `Sphinx-based documentation <http://sphinx-doc.org/>`_ and you have
+devpi-web installed, you can upload the rendered HTML documentation to your
+devpi server with the following command::
 
     devpi upload --with-docs
 
@@ -62,8 +62,8 @@ documentation to that index simply by executing::
 
     python setup.py upload_docs
 
-Once uploaded the documentation will be linked to from the index overview page.
-Documentation URLs have the following form::
+If you have devpi-web installed, then the uploaded documentation will be linked
+to from the index overview page. Documentation URLs have the following form::
 
     http://$DEVPI_URL/$USER/$INDEX/$PACKAGE/$VERSION/+doc/index.html
 

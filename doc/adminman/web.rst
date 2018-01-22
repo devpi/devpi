@@ -92,7 +92,7 @@ Themes
 It is possible to overwrite templates and macros to customize the look of your
 devpi instance.
 
-You have to create a folder containing two subfolders ``static`` and
+You have to create a folder somewhere containing two subfolders ``static`` and
 ``templates``. You then have to start devpi-server with the ``--theme`` option
 and point it to your theme folder. While working on your theme, it is useful
 to set the ``CHAMELEON_RELOAD`` environment variable to ``true``, so templates
@@ -129,6 +129,15 @@ and add the following macro in ``macros.pt``:
       </metal:mycss>
   </metal:head>
 
+The folder structure should now look like this::
+
+  /path/to/your/theme
+  ├── static
+  │   ├── logo.gif
+  │   └── style.css
+  └── templates
+      └── macros.pt
+
 In this example we reuse the original ``headcss`` macro, which is available as
 ``original-headcss`` and only fill it's predefined ``headcss`` slot.
 
@@ -149,4 +158,4 @@ in a future devpi-web release, you have to adjust your modified copy accordingly
 For reference you can see the whole ``macro.pt`` file here:
 
 .. literalinclude:: ../../web/devpi_web/templates/macros.pt
-  :language: xml
+  :language: html

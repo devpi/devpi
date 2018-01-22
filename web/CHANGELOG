@@ -1,11 +1,52 @@
+
+
+.. towncrier release notes start
+
+3.2.2 (2018-01-17)
+==================
+
+Bug Fixes
+---------
+
+- fix issue482: let external links in documentation open outside of iframe.
+
+- Prevent stale static resources from browser caching by adding devpi-web
+  version to their URLs.
+
+
+3.2.1 (2017-11-23)
+==================
+
+No significant changes.
+
+
+3.2.1rc1 (2017-09-08)
+=====================
+
+Bug Fixes
+---------
+
+- make search results compatible with pip showing INSTALLED/LATEST info.
+
+- fix server error by returning 404 when a toxresult can't be found.
+
+
+3.2.0 (2017-04-23)
+==================
+
+- version.pt: add "No releases" when there are none.
+
+- project.pt: add "Documentation" column with link to documentation per version.
+
+
 3.1.1 (2016-07-15)
-------------------
+==================
 
 - removed unnecessary fetching of mirror data during indexing.
 
 
 3.1.0 (2016-04-22)
-------------------
+==================
 
 - use readme-renderer like PyPI does.
 
@@ -30,7 +71,7 @@
 
 
 3.0.0 (2016-02-12)
-------------------
+==================
 
 - dropped support for python2.6
 
@@ -59,7 +100,7 @@
 
 
 2.6.0 (2016-01-29)
-------------------
+==================
 
 - fix issue305: read documentation html files in binary and let BeautifulSoup
                 detect the encoding.
@@ -70,7 +111,7 @@
 
 
 2.5.0 (2015-11-19)
-------------------
+==================
 
 - fix issue288: classifiers rendering wrong with read only data views
 
@@ -81,7 +122,7 @@
 
 
 2.4.2 (2015-11-11)
-------------------
+==================
 
 - log exceptions during search index updates.
 
@@ -89,14 +130,14 @@
 
 
 2.4.1 (2015-10-09)
-------------------
+==================
 
 - fix issue255: close and discard whoosh searchers after each use, they use too
   much memory if stored in a thread local for reuse.
 
 
 2.4.0 (2015-07-09)
-------------------
+==================
 
 - macros.pt: Add autofocus attribute to search field
 
@@ -114,7 +155,7 @@
 
 
 2.3.0 (2015-05-13)
-------------------
+==================
 
 - toxresults.pt: use just one line for result status indicator
 
@@ -129,19 +170,19 @@
 
 
 2.2.3 (2015-02-24)
-------------------
+==================
 
 - fix issue207: added documentation url for latest stable release of a package.
 
 
 2.2.2 (2014-11-27)
-------------------
+==================
 
 - fix issue184: better height calculation of documentation iframe.
 
 
 2.2.1
----------------
+=====
 
 - require devpi-server>=2.1.2
 
@@ -177,7 +218,7 @@
 
 
 2.2.0
----------------
+=====
 
 - require devpi-server >= 2.1.0
 
@@ -202,7 +243,7 @@
 
 
 2.1.1
----------------
+=====
 
 - better exception handling/reporting while indexing.
 
@@ -210,7 +251,7 @@
 
 
 2.1.0
----------------
+=====
 
 - allow overwriting of templates for theming.
 
@@ -222,7 +263,7 @@
 
 
 2.0.1
----------------
+=====
 
 - fix issue125: javascript for embedded doc view didn't work correctly.
 
@@ -230,7 +271,7 @@
 
 
 2.0.0
----------------
+=====
 
 - initial release
 

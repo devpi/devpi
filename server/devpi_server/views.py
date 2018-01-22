@@ -24,6 +24,7 @@ from devpi_common.validation import normalize_name, is_valid_archive_name
 
 from .filestore import BadGateway
 from .model import InvalidIndex, InvalidIndexconfig, InvalidUser
+from .model import UpstreamError
 from .model import get_ixconfigattrs
 from .readonly import get_mutable_deepcopy
 from .log import thread_push_log, thread_pop_log, threadlog
@@ -38,7 +39,7 @@ H_MASTER_UUID = str("X-DEVPI-MASTER-UUID")
 
 API_VERSION = "2"
 
-# we use str() here so that python2.6 gets bytes, python3.3 gets string
+# we use str() here so that Python 2 gets bytes, Python 3 gets string
 # so that wsgiref's parsing does not choke
 
 meta_headers = {str("X-DEVPI-API-VERSION"): str(API_VERSION),
@@ -91,10 +92,6 @@ class HTTPResponse(HTTPSuccessful):
     def __init__(self, **kw):
         Response.__init__(self, **kw)
         Exception.__init__(self)
-
-
-def redirect(location):
-    raise HTTPFound(location=location)
 
 
 def apireturn(code, message=None, result=None, type=None):
@@ -295,10 +292,26 @@ def devpiweb_get_status_info(request):
             elif (now - last_update) > 60:
                 msgs.append(dict(status="warn", msg="No update from master for more than 1 minute"))
     if status["serial"] > status["event-serial"]:
-        if status["event-serial-in-sync-at"] is None or (now - status["event-serial-in-sync-at"]) > 300:
-            msgs.append(dict(status="fatal", msg="Not all changes processed by plugins for more than 5 minutes"))
-        elif (now - status["event-serial-in-sync-at"]) > 60:
-            msgs.append(dict(status="warn", msg="Not all changes processed by plugins for more than 1 minute"))
+        if status["event-serial-in-sync-at"] is None:
+            sync_at = None
+        else:
+            sync_at = now - status["event-serial-in-sync-at"]
+        if status["event-serial-timestamp"] is None:
+            last_processed = None
+        else:
+            last_processed = now - status["event-serial-timestamp"]
+        if sync_at is None and last_processed is None and (now - status["last-commit-timestamp"]) <= 300:
+            pass
+        elif sync_at is None and last_processed is None and (now - status["last-commit-timestamp"]) > 300:
+            msgs.append(dict(status="fatal", msg="The event processing doesn't seem to start"))
+        elif sync_at is None or (sync_at > 21600):
+            msgs.append(dict(status="fatal", msg="The event processing hasn't been in sync for more than 6 hours"))
+        elif sync_at > 3600:
+            msgs.append(dict(status="warn", msg="The event processing hasn't been in sync for more than 1 hour"))
+        if sync_at is not None and (last_processed is None or (last_processed > 1800)):
+            msgs.append(dict(status="fatal", msg="No changes processed by plugins for more than 30 minutes"))
+        elif sync_at is not None and (last_processed > 300):
+            msgs.append(dict(status="warn", msg="No changes processed by plugins for more than 5 minutes"))
     return msgs
 
 
@@ -315,9 +328,12 @@ class PyPIView:
     def get_auth_status(self):
         if self.xom.is_replica():
             from .replica import proxy_request_to_master
-            r = proxy_request_to_master(self.xom, self.request)
-            if r.status_code == 200:
-                return r.json()["result"]["authstatus"]
+            try:
+                r = proxy_request_to_master(self.xom, self.request)
+                if r.status_code == 200:
+                    return r.json()["result"]["authstatus"]
+            except UpstreamError:
+                pass
             threadlog.error("could not obtain master authentication status")
             return ["fail", "", []]
         # this is accessing some pyramid internals, but they are pretty likely
@@ -358,7 +374,8 @@ class PyPIView:
     #
 
     @view_config(route_name="/{user}/{index}/+f/{relpath:.*}",
-                 request_method="POST")
+        request_method="POST",
+        permission="toxresult_upload")
     def post_toxresult(self):
         stage = self.context.stage
         relpath = self.request.path_info.strip("/")
@@ -489,7 +506,7 @@ class PyPIView:
                 continue
             stage.clear_simplelinks_cache(context.project)
             stage.get_simplelinks_perstage(context.project)
-        redirect(self.request.route_url(
+        return HTTPFound(location=self.request.route_url(
             "/{user}/{index}/+simple/{project}",
             user=context.username, index=context.index, project=context.project))
 
@@ -551,7 +568,7 @@ class PyPIView:
         stage.delete()
         apireturn(201, "index %s deleted" % stage.name)
 
-    @view_config(route_name="/{user}/{index}", request_method="PUSH")
+    @view_config(route_name="/{user}/{index}", request_method=("POST", "PUSH"))
     def pushrelease(self):
         request = self.request
         stage = self.context.stage
@@ -609,13 +626,15 @@ class PyPIView:
             pypiauth = (username, password)
             # prepare metadata for submission
             metadata[":action"] = "submit"
+            metadata["metadata_version"] = "1.2"
             self.log.info("registering %s-%s to %s", name, version, posturl)
             session = new_requests_session(agent=("server", server_version))
             r = session.post(posturl, data=metadata, auth=pypiauth)
             self.log.debug("register returned: %s", r.status_code)
-            ok_codes = (200, 201)
             results.append((r.status_code, "register", name, version))
-            if r.status_code in ok_codes:
+            ok_codes = (200, 201, 410)
+            proceed = (r.status_code in ok_codes)
+            if proceed:
                 for link in links["releasefile"]:
                     entry = link.entry
                     file_metadata = metadata.copy()
@@ -624,6 +643,7 @@ class PyPIView:
                     pyver, filetype = get_pyversion_filetype(basename)
                     file_metadata["filetype"] = filetype
                     file_metadata["pyversion"] = pyver
+                    file_metadata["%s_digest" % link.hash_type] = link.hash_value
                     content = entry.file_get_content()
                     self.log.info("sending %s to %s, metadata %s",
                              basename, posturl, file_metadata)
@@ -727,12 +747,13 @@ class PyPIView:
             # version may be empty on plain doczip uploads
             version = ensure_unicode(request.POST.get("version") or "")
             project = normalize_name(name)
-            if not stage.has_project(name):
-                abort_submit(
-                    request, 400,
-                    "no project named %r was ever registered" % (name))
 
             if action == "file_upload":
+                if not stage.has_project(name):
+                    abort_submit(
+                        request, 400,
+                        "no project named %r was ever registered" % (name))
+
                 self.log.debug("metadata in form: %s",
                                list(request.POST.items()))
 
@@ -782,8 +803,14 @@ class PyPIView:
                 doczip = content.file.read()
                 try:
                     link = stage.store_doczip(project, version, doczip)
+                except stage.MissesVersion as e:
+                    abort_submit(
+                        request, 400,
+                        "%s" % e)
                 except stage.MissesRegistration:
-                    apireturn(400, "%s-%s is not registered" %(name, version))
+                    abort_submit(
+                        request, 400,
+                        "%s-%s is not registered" % (name, version))
                 except stage.NonVolatile as e:
                     if e.link.matches_checksum(doczip):
                         abort_submit(
@@ -829,8 +856,11 @@ class PyPIView:
 
     @view_config(route_name="simple_redirect")
     def simple_redirect(self):
-        stage, name = self.context.stage, self.context.project
-        redirect("/%s/+simple/%s" % (stage.name, name))
+        return HTTPFound(location=self.request.route_url(
+            "/{user}/{index}/+simple/{project}",
+            user=self.context.username,
+            index=self.context.index,
+            project=self.context.project))
 
     @view_config(route_name="/{user}/{index}/{project}",
                  accept="application/json", request_method="GET")
@@ -932,6 +962,8 @@ class PyPIView:
                 headers = next(app_iter)
                 return Response(app_iter=app_iter, headers=headers)
         except entry.BadGateway as e:
+            if e.code == 404:
+                return apireturn(404, e.args[0])
             return apireturn(502, e.args[0])
 
         headers = entry.gethttpheaders()

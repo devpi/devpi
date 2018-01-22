@@ -25,6 +25,10 @@ from devpi_common.metadata import *
     ("Twisted-12.0.0.win32-py2.7.msi",
         ("Twisted", "12.0.0", ".win32-py2.7.msi")),
     ("django_ipware-0.0.8-py3-none-any.whl", ("django_ipware", "0.0.8", "-py3-none-any.whl")),
+    ("my-binary-package-name-1-4-3-yip-0.9.tar.gz", ("my-binary-package-name-1-4-3-yip", "0.9", ".tar.gz")),
+    ("my-binary-package-name-1-4-3-yip-0.9+deadbeef.tar.gz", ("my-binary-package-name-1-4-3-yip", "0.9+deadbeef", ".tar.gz")),
+    ("cffi-1.6.0-pp251-pypy_41-macosx_10_11_x86_64.whl", ("cffi", "1.6.0", "-pp251-pypy_41-macosx_10_11_x86_64.whl")),
+    ("argon2_cffi-18.2.0.dev0.0-pp2510-pypy_41-macosx_10_13_x86_64.whl", ("argon2_cffi", "18.2.0.dev0.0", "-pp2510-pypy_41-macosx_10_13_x86_64.whl")),
 ])
 def test_splitbasename(releasename, expected):
     result = splitbasename(releasename)
@@ -39,7 +43,8 @@ def test_splitbasename(releasename, expected):
     ("greenlet-0.4.0-py3.3-win-amd64.egg", ("3.3", "bdist_egg")),
     ("greenlet-0.4.0.linux-x86_64.tar.gz", ("any", "bdist_dumb")),
     ("cffi-1.6.0-pp251-pypy_41-macosx_10_11_x86_64.whl", ("2.5.1", "bdist_wheel")),
-    ("cryptography-1.4-pp253-pypy_41-linux_x86_64.whl", ("2.5.3", "bdist_wheel"))
+    ("cryptography-1.4-pp253-pypy_41-linux_x86_64.whl", ("2.5.3", "bdist_wheel")),
+    ("argon2_cffi-18.2.0.dev0.0-pp2510-pypy_41-macosx_10_13_x86_64.whl", ("2.5.1.0", "bdist_wheel")),
 ])
 def test_get_pyversion_filetype(releasename, expected):
     result = get_pyversion_filetype(releasename)
@@ -55,6 +60,20 @@ def test_get_pyversion_filetype(releasename, expected):
 ])
 def test_splitext_archive(releasename, expected):
     assert splitext_archive(releasename) == expected
+
+
+@pytest.mark.parametrize(("expected", "versions"), [
+    (None, []),
+    ("1.0", ["1.0"]),
+    ("1.0", ["1.0", "0.9"]),
+    ("1.0.1.dev0", ["1.0", "1.0.1.dev0"]),
+    ("2.0-alpha1", ["1.0", "2.0a0", "2.0.a0", "2.0-alpha1"]),
+    ("2.0-beta1", ["1.0", "2.0b0", "2.0.b0", "2.0-beta1"]),
+    ("2.0-rc1", ["1.0", "2.0rc0", "2.0.rc0", "2.0-rc1"]),
+    ("2.0-pre1", ["1.0", "2.0pre0", "2.0.pre0", "2.0-pre1"]),
+])
+def test_get_latest_version(expected, versions):
+    assert get_latest_version(versions) == expected
 
 
 @pytest.mark.parametrize(("expected", "versions"), [

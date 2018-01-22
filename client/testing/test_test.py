@@ -1,5 +1,6 @@
 import subprocess
 import pytest
+import sys
 import tox
 from devpi.test import *
 
@@ -77,6 +78,61 @@ def test_index_option(create_and_upload, devpi, monkeypatch, out_devpi):
         Mocked tests ...*""" % user)
 
 
+@pytest.mark.parametrize('basic_auth', [None, ('root', 'verysecret')])
+def test_download_and_unpack(makehub, tmpdir, pseudo_current, monkeypatch,
+                             basic_auth):
+    class FakeHTTP(object):
+        class Response(object):
+            def __init__(self, content=b'archive'):
+                self.status_code = 200
+                self.content = content
+
+        def __init__(self):
+                self.last_get = None
+
+        def get(self, *args, **kwargs):
+            self.last_get = (args, kwargs)
+            return self.Response()
+
+    class FakeUnpack(object):
+        def __init__(self):
+            self.called = False
+
+        def unpack(self):
+            self.called = True
+
+    hub = makehub(['test', '-epy27', 'somepkg'])
+    hub.current.reconfigure(dict(
+        index='http://dev/foo/bar',
+        login='http://dev/+login',
+        pypisubmit='http://dev/foo/bar'))
+    if basic_auth:
+        hub.current.set_basic_auth(*basic_auth)
+    index = DevIndex(hub, tmpdir, pseudo_current)
+
+    fake_http = FakeHTTP()
+    hub.http.get = fake_http.get
+    fake_unpack = FakeUnpack()
+    monkeypatch.setattr('devpi.test.UnpackedPackage.unpack',
+                        fake_unpack.unpack)
+
+    links = [
+        {'href': 'http://dev/foo/bar/prep1-1.0.tar.gz', 'rel': 'releasefile'},
+    ]
+    store = ViewLinkStore('http://something/index',
+                          {'+links': links, 'name': 'prep1', 'version': '1.0'})
+    link = store.get_link(rel='releasefile')
+
+    index.download_and_unpack('1.0', link)
+    assert fake_unpack.called
+    args, kwargs = fake_http.last_get
+    assert args[0] == 'http://dev/foo/bar/prep1-1.0.tar.gz'
+    if basic_auth:
+        assert kwargs['auth'] == basic_auth
+    else:
+        assert kwargs.get('auth') is None
+
+
 def test_toxini(makehub, tmpdir, pseudo_current):
     toxini = tmpdir.ensure("new-tox.ini")
     hub = makehub(["test", "-c", toxini, "somepkg"])
@@ -145,17 +201,32 @@ class TestWheel:
 
     def test_find_wheels_not_universal(self, loghub):
         vl = ViewLinkStore("http://something/index", {"+links": [
+            {"href": "http://b/pytest-2.7.0.tar.gz", "rel": "releasefile"},
             {"href": "http://b/pytest-2.7.0-py26-none-any.whl", "rel": "releasefile"},
         ]})
         links = vl.get_links(rel="releasefile")
-        with pytest.raises(SystemExit):
-            find_sdist_and_wheels(loghub, links)
-
+        (sdist_links, wheel_links) = find_sdist_and_wheels(loghub, links)
+        assert len(sdist_links) == 1
+        assert sdist_links[0].basename.endswith(".tar.gz")
+        assert len(wheel_links) == 0
         loghub._getmatcher().fnmatch_lines("""
             *only universal wheels*
         """)
 
-    @pytest.mark.skipif("sys.version_info < (2,7)")
+    def test_find_wheels_non_universal(self, loghub):
+        vl = ViewLinkStore("http://something/index", {"+links": [
+            {"href": "http://b/pytest-2.7.0.tar.gz", "rel": "releasefile"},
+            {"href": "http://b/pytest-2.7.0-py2-none-any.whl", "rel": "releasefile"},
+        ]})
+        links = vl.get_links(rel="releasefile")
+        (sdist_links, wheel_links) = find_sdist_and_wheels(
+            loghub, links, universal_only=False)
+        assert len(sdist_links) == 1
+        assert sdist_links[0].basename.endswith(".tar.gz")
+        assert len(wheel_links) == 1
+        assert wheel_links[0].basename.endswith("py2-none-any.whl")
+        assert 'only universal wheels' not in '\n'.join(loghub._getmatcher().lines)
+
     def test_prepare_toxrun_args(self, loghub, pseudo_current, tmpdir, reqmock, initproj):
         # XXX this test was a bit hard to setup and is also somewhat covered by
         # the below wheel functional test so unclear if it's worth to
@@ -164,6 +235,7 @@ class TestWheel:
             {"href": "http://b/prep1-1.0.zip", "rel": "releasefile"},
             {"href": "http://b/prep1-1.0.tar.gz", "rel": "releasefile"},
             {"href": "http://b/prep1-1.0-py2.py3-none-any.whl", "rel": "releasefile"},
+            {"href": "http://b/prep1-1.0-py2-none-any.whl", "rel": "releasefile"},
         ], "name": "prep1", "version": "1.0"})
         links = vl.get_links(rel="releasefile")
         sdist_links, wheel_links = find_sdist_and_wheels(loghub, links)
@@ -183,6 +255,60 @@ class TestWheel:
         assert sdist2[0].basename == "prep1-1.0.zip"
         assert sdist2[1].path_unpacked.strpath.endswith("zip" + os.sep + "prep1-1.0")
         assert wheel1[0].basename == "prep1-1.0-py2.py3-none-any.whl"
+        assert str(wheel1[1].path_unpacked).endswith(wheel1[0].basename)
+
+    def test_prepare_toxrun_args2(self, loghub, pseudo_current, tmpdir, reqmock, initproj):
+        # basically the same test as above, but it's testing the unpack
+        # path for packages that have an underscore in the name
+        vl = ViewLinkStore("http://something/index", {"+links": [
+            {"href": "http://b/prep_under-1.0.zip", "rel": "releasefile"},
+            {"href": "http://b/prep_under-1.0.tar.gz", "rel": "releasefile"},
+            {"href": "http://b/prep_under-1.0-py2.py3-none-any.whl", "rel": "releasefile"},
+            {"href": "http://b/prep_under-1.0-py2-none-any.whl", "rel": "releasefile"},
+        ], "name": "prep-under", "version": "1.0"})
+        links = vl.get_links(rel="releasefile")
+        sdist_links, wheel_links = find_sdist_and_wheels(loghub, links)
+        dev_index = DevIndex(loghub, tmpdir, pseudo_current)
+
+        initproj("prep_under-1.0", filedefs={})
+        subprocess.check_call(["python", "setup.py", "sdist", "--formats=gztar,zip"])
+        subprocess.check_call(["python", "setup.py", "bdist_wheel", "--universal"])
+        for p in py.path.local("dist").listdir():
+            reqmock.mockresponse("http://b/" + p.basename, code=200, method="GET",
+                                 data=p.read("rb"))
+        toxrunargs = prepare_toxrun_args(dev_index, vl, sdist_links, wheel_links)
+        assert len(toxrunargs) == 3
+        sdist1, sdist2, wheel1 = toxrunargs
+        assert sdist1[0].basename == "prep_under-1.0.tar.gz"
+        assert sdist1[1].path_unpacked.strpath.endswith("targz" + os.sep + "prep_under-1.0")
+        assert sdist2[0].basename == "prep_under-1.0.zip"
+        assert sdist2[1].path_unpacked.strpath.endswith("zip" + os.sep + "prep_under-1.0")
+        assert wheel1[0].basename == "prep_under-1.0-py2.py3-none-any.whl"
+        assert str(wheel1[1].path_unpacked).endswith(wheel1[0].basename)
+
+    def test_prepare_toxrun_args_select(self, loghub, pseudo_current, tmpdir, reqmock, initproj):
+        # test that we can explicitly select a non universal wheel
+        pyver = "py%s" % sys.version_info[0]
+        vl = ViewLinkStore("http://something/index", {"+links": [
+            {"href": "http://b/prep_under-1.0.tar.gz", "rel": "releasefile"},
+            {"href": "http://b/prep_under-1.0-%s-none-any.whl" % pyver, "rel": "releasefile"},
+        ], "name": "prep-under", "version": "1.0"})
+        links = vl.get_links(rel="releasefile")
+        sdist_links, wheel_links = find_sdist_and_wheels(
+            loghub, links, universal_only=False)
+        dev_index = DevIndex(loghub, tmpdir, pseudo_current)
+
+        initproj("prep_under-1.0", filedefs={})
+        subprocess.check_call(["python", "setup.py", "sdist", "--formats=gztar"])
+        subprocess.check_call(["python", "setup.py", "bdist_wheel"])
+        for p in py.path.local("dist").listdir():
+            reqmock.mockresponse("http://b/" + p.basename, code=200, method="GET",
+                                 data=p.read("rb"))
+        toxrunargs = prepare_toxrun_args(
+            dev_index, vl, sdist_links, wheel_links, select=pyver)
+        assert len(toxrunargs) == 1
+        (wheel1,) = toxrunargs
+        assert wheel1[0].basename == "prep_under-1.0-%s-none-any.whl" % pyver
         assert str(wheel1[1].path_unpacked).endswith(wheel1[0].basename)
 
     def test_wheels_and_sdist(self, out_devpi, create_and_upload):
@@ -229,6 +355,38 @@ class TestFunctional:
         result = out_devpi("list", "-f", "exa")
         assert result.ret == 0
         result.stdout.fnmatch_lines("""*tests passed*""")
+
+    def test_main_example_with_basic_auth(self, initproj, devpi, out_devpi):
+        initproj('exa-1.0', {
+            'tox.ini': """
+            [testenv]
+            commands = python -c "print('ok')"
+            """,
+        })
+        hub = devpi('upload')
+        hub.current.set_basic_auth('root', 'verysecret')
+
+        result = out_devpi('test', 'exa')
+        assert result.ret == 0
+        expected_output = (
+            'Using existing basic auth*',
+            '*password*available unencrypted*',
+            '*//root:verysecret@*',
+        )
+        result.stdout.fnmatch_lines(expected_output)
+
+    def test_no_post(self, out_devpi, create_and_upload, monkeypatch):
+        def post(*args, **kwargs):
+            0 / 0
+
+        create_and_upload("exa-1.0", filedefs={
+            "tox.ini": """
+              [testenv]
+              commands = python -c "print('ok')"
+            """})
+        monkeypatch.setattr("devpi.test.post_tox_json_report", post)
+        result = out_devpi("test", "--no-upload", "exa")
+        assert result.ret == 0
 
     def test_specific_version(self, out_devpi, create_and_upload):
         create_and_upload("exa-1.0", filedefs={

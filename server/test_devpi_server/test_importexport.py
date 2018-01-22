@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import os
 import sys
 import pkg_resources
 import py
@@ -17,6 +18,30 @@ def make_export(tmpdir, xom):
     return do_export(tmpdir, xom)
 
 pytestmark = [pytest.mark.notransaction]
+
+
+def test_has_users_or_stages(xom):
+    from devpi_server.importexport import has_users_or_stages
+    with xom.keyfs.transaction(write=True):
+        assert not has_users_or_stages(xom)
+        user = xom.model.create_user("user", "password", email="some@email.com")
+        assert has_users_or_stages(xom)
+        stage = xom.model.getstage("user", "dev")
+        assert stage is None
+        user.create_stage("dev", bases=(), type="stage", volatile=False)
+        assert has_users_or_stages(xom)
+        stage = xom.model.getstage("user/dev")
+        stage.delete()
+        user.delete()
+        assert not has_users_or_stages(xom)
+        stage = xom.model.getstage("root", "pypi")
+        stage.delete()
+        assert not has_users_or_stages(xom)
+        (root,) = xom.model.get_userlist()
+        root.delete()
+        assert not has_users_or_stages(xom)
+        assert xom.model.get_userlist() == []
+
 
 def test_not_exists(tmpdir, xom):
     p = tmpdir.join("hello")
@@ -40,7 +65,7 @@ def test_empty_export(tmpdir, xom):
         make_export(tmpdir, xom)
 
 
-def test_empty_serverdir(tmpdir, capfd, monkeypatch):
+def test_export_empty_serverdir(tmpdir, capfd, monkeypatch):
     from devpi_server.main import main
     empty = tmpdir.join("empty").ensure(dir=True)
     export = tmpdir.join("export")
@@ -53,7 +78,78 @@ def test_empty_serverdir(tmpdir, capfd, monkeypatch):
     assert empty.listdir() == []
     assert ret == 1
     assert out == ''
-    assert ("The path '%s' contains no devpi-server data." % empty) in err
+    assert ("The path '%s' contains no devpi-server data" % empty) in err
+
+
+def test_export_import(tmpdir, capfd, monkeypatch):
+    from devpi_server.main import main
+    monkeypatch.setattr("devpi_server.main.configure_logging", lambda a: None)
+    clean = tmpdir.join("clean").ensure(dir=True)
+    ret = main([
+        "devpi-server",
+        "--serverdir", clean.strpath,
+        "--init"])
+    assert ret == 0
+    export = tmpdir.join("export")
+    ret = main([
+        "devpi-server",
+        "--serverdir", clean.strpath,
+        "--export", export.strpath])
+    assert ret == 0
+    import_ = tmpdir.join("import")
+    ret = main([
+        "devpi-server",
+        "--serverdir", import_.strpath,
+        "--no-events",
+        "--import", export.strpath])
+    assert ret == 0
+    out, err = capfd.readouterr()
+    assert os.listdir(clean.strpath) == os.listdir(import_.strpath)
+    assert 'import_all: importing finished' in out
+    assert err == ''
+
+
+def test_export_import_no_root_pypi(tmpdir, capfd, monkeypatch):
+    from devpi_server.main import main
+    monkeypatch.setattr("devpi_server.main.configure_logging", lambda a: None)
+    clean = tmpdir.join("clean").ensure(dir=True)
+    ret = main([
+        "devpi-server",
+        "--serverdir", clean.strpath,
+        "--no-root-pypi",
+        "--init"])
+    assert ret == 0
+    export = tmpdir.join("export")
+    ret = main([
+        "devpi-server",
+        "--serverdir", clean.strpath,
+        "--export", export.strpath])
+    assert ret == 0
+    # first we test regular import
+    import_ = tmpdir.join("import")
+    ret = main([
+        "devpi-server",
+        "--serverdir", import_.strpath,
+        "--no-events",
+        "--import", export.strpath])
+    assert ret == 0
+    out, err = capfd.readouterr()
+    assert os.listdir(clean.strpath) == os.listdir(import_.strpath)
+    assert 'import_all: importing finished' in out
+    assert err == ''
+    # now we add --no-root-pypi
+    import_.remove()
+    ret = main([
+        "devpi-server",
+        "--serverdir", import_.strpath,
+        "--no-events",
+        "--no-root-pypi",
+        "--import", export.strpath])
+    assert ret == 0
+    out, err = capfd.readouterr()
+    assert os.listdir(clean.strpath) == os.listdir(import_.strpath)
+    assert 'import_all: importing finished' in out
+    assert err == ''
 
 
 def test_import_on_existing_server_data(tmpdir, xom):
@@ -183,6 +279,29 @@ class TestImportExport:
         assert api.user in mapp2.getuserlist()
         indexlist = mapp2.getindexlist(api.user)
         assert indexlist[api.stagename]["mirror_whitelist"] == ["*"]
+
+    @pytest.mark.parametrize('acltype', ('upload', 'toxresult_upload'))
+    def test_indexes_acl(self, impexp, acltype):
+        mapp1 = impexp.mapp1
+        api = mapp1.create_and_use()
+        mapp1.set_acl(['user1'], acltype=acltype)
+        impexp.export()
+        mapp2 = impexp.new_import()
+        assert api.user in mapp2.getuserlist()
+        indexlist = mapp2.getindexlist(api.user)
+        assert indexlist[api.stagename]["acl_" + acltype] == ['user1']
+
+    def test_acl_toxresults_upload_default(self, impexp):
+        mapp = impexp.import_testdata('toxresult_upload_default')
+        with mapp.xom.keyfs.transaction(write=False):
+            stage = mapp.xom.model.getstage('root/dev')
+            assert stage.ixconfig['acl_toxresult_upload'] == [u':ANONYMOUS:']
+
+    def test_bases_cycle(self, caplog, impexp):
+        mapp = impexp.import_testdata('basescycle')
+        with mapp.xom.keyfs.transaction(write=False):
+            stage = mapp.xom.model.getstage('root/dev')
+            assert stage.ixconfig['bases'] == ('root/dev',)
 
     def test_bad_username(self, caplog, impexp):
         with pytest.raises(SystemExit):
@@ -528,13 +647,16 @@ class TestImportExport:
         mapp1 = impexp.mapp1
         mapp1.create_and_login_user("exp", "pass")
         # fake it's a replica
-        mapp1.xom.config.init_nodeinfo()
+        # delete cached value
+        del mapp1.xom.config._master_url
         mapp1.xom.config.nodeinfo["role"] = "replica"
+        mapp1.xom.config.nodeinfo["masterurl"] = "http://xyz"
+        mapp1.xom.config.init_nodeinfo()
         mapp1.xom.config.set_master_uuid("mm")
         mapp1.xom.config.set_uuid("1111")
         impexp.export(initnodeinfo=False)
         mapp2 = impexp.new_import()
-        assert mapp2.xom.config.nodeinfo["role"] == "master"
+        assert mapp2.xom.config.nodeinfo["role"] == "standalone"
         assert mapp2.xom.config.get_master_uuid() == "mm"
         assert mapp2.xom.config.nodeinfo["uuid"] == "mm"
 

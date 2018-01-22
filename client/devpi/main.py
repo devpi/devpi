@@ -4,15 +4,16 @@ import sys
 import py
 import argparse
 import subprocess
-import devpi
 from base64 import b64encode
+from contextlib import closing
+from devpi import hookspecs
 from devpi_common.types import lazydecorator, cached_property
 from devpi_common.url import URL
 from devpi_common.proc import check_output
 from devpi.use import PersistentCurrent
 from devpi_common.request import new_requests_session
 from devpi import __version__ as client_version
-
+from pluggy import PluginManager
 import json
 std = py.std
 subcommand = lazydecorator()
@@ -27,7 +28,8 @@ def main(argv=None):
     if argv is None:
         argv = list(sys.argv)
     hub, method = initmain(argv)
-    return method(hub, hub.args)
+    with closing(hub):
+        return method(hub, hub.args)
 
 def initmain(argv):
     args = parse_args(argv)
@@ -38,7 +40,18 @@ def initmain(argv):
     mod = __import__(mod, None, None, ["__doc__"])
     return Hub(args), getattr(mod, func)
 
+
+def get_pluginmanager(load_entry_points=True):
+    pm = PluginManager("devpiclient", implprefix="devpiclient_")
+    pm.add_hookspecs(hookspecs)
+    if load_entry_points:
+        pm.load_setuptools_entrypoints("devpi_client")
+    pm.check_pending()
+    return pm
+
+
 notset = object()
+
 
 class Hub:
     class Popen(std.subprocess.Popen):
@@ -55,6 +68,14 @@ class Hub:
         self.quiet = False
         self._last_http_stati = []
         self.http = new_requests_session(agent=("client", client_version))
+        self.pm = get_pluginmanager()
+
+    @property
+    def hook(self):
+        return self.pm.hook
+
+    def close(self):
+        self.http.close()
 
     @property
     def _last_http_status(self):
@@ -77,7 +98,7 @@ class Hub:
 
     def http_api(self, method, url, kvdict=None, quiet=False,
                  auth=notset, basic_auth=notset, cert=notset,
-                 check_version=True, fatal=True, type=None):
+                 check_version=True, fatal=True, type=None, verify=None):
         """ send a json request and return a HTTPReply object which
         adds some extra methods to the requests's Reply object.
 
@@ -105,7 +126,14 @@ class Hub:
             if cert is notset:
                 cert = self.current.get_client_cert(url=url)
             r = self.http.request(method, url, data=data, headers=headers,
-                                  auth=basic_auth, cert=cert)
+                                  auth=basic_auth, cert=cert, verify=verify)
+        except self.http.SSLError as e:
+            # If verify was set, re-raise this so it can be handled and retried as appropriate
+            self._last_http_stati.append(-1)
+            if verify is not None:
+                raise
+            else:
+                self.fatal("SSL verification failed %r:\n%s" % (url, e))
         except self.http.Errors as e:
             self._last_http_stati.append(-1)
             self.fatal("could not connect to %r:\n%s" % (url, e))
@@ -192,11 +220,46 @@ class Hub:
         return p
 
     @property
-    def path_venvbase(self):
+    def venv(self):
+        venvdir = None
+        vbin = "Scripts" if sys.platform == "win32" else "bin"
+
+        if self.args.venv == "-":
+            self.current.reconfigure(dict(venvdir=None))
+        else:
+            if self.args.venv:
+                venvname = self.args.venv
+                cand = self.cwd.join(venvname, vbin, abs=True)
+                if not cand.check() and self.venvwrapper_home:
+                    cand = self.venvwrapper_home.join(venvname, vbin, abs=True)
+                if not cand.check():
+                    self.create_virtualenv(venvname)
+                venvdir = cand.dirpath().strpath
+                self.current.reconfigure(dict(venvdir=venvdir))
+            else:
+                venvdir = self.current.venvdir or self.active_venv()
+
+        return venvdir
+
+    @property
+    def venvwrapper_home(self):
         path = os.environ.get("WORKON_HOME", None)
         if path is None:
             return
         return py.path.local(path)
+
+    def active_venv(self):
+        """current activated virtualenv"""
+        path = os.environ.get("VIRTUAL_ENV", None)
+        if path is None:
+            return
+        return py.path.local(path)
+
+    def create_virtualenv(self, venv):
+        if self.venvwrapper_home:
+            self.popen_check(["mkvirtualenv", venv])
+        else:
+            self.popen_check(["virtualenv", "-q", venv])
 
     def popen_output(self, args, cwd=None, report=True):
         if isinstance(args, str):
@@ -213,7 +276,7 @@ class Hub:
             self.report_popen(args, cwd)
         return check_output(args, cwd=str(cwd))
 
-    def popen(self, args, cwd=None):
+    def popen(self, args, cwd=None, dryrun=None, **popen_kwargs):
         if isinstance(args, str):
             args = std.shlex.split(args)
         assert args[0], args
@@ -221,13 +284,16 @@ class Hub:
         if cwd == None:
             cwd = self.cwd
         self.report_popen(args, cwd)
-        if self.args.dryrun:
+        if dryrun is None:
+            dryrun = self.args.dryrun
+        if dryrun:
             return
-        popen = subprocess.Popen(args, cwd=str(cwd))
+        popen = subprocess.Popen(args, cwd=str(cwd), **popen_kwargs)
         out, err = popen.communicate()
         ret = popen.wait()
         if ret:
             self.fatal("****** process returned %s" % ret)
+        return (ret, out, err)
 
     def report_popen(self, args, cwd=None, extraenv=None):
         base = cwd or self.cwd
@@ -373,7 +439,7 @@ def print_version(hub):
         try:
             r = HTTPReply(hub.http.get(
                 url, headers=dict(accept='application/json')))
-        except hub.http.Errors as e:
+        except hub.http.Errors:
             pass
         else:
             status = r.json_get('result')
@@ -387,14 +453,14 @@ def print_version(hub):
 
 def parse_args(argv):
     argv = [str(x) for x in argv]
-    parser = getbaseparser(argv[0])
+    parser = getbaseparser('devpi')
     add_subparsers(parser)
     try_argcomplete(parser)
     try:
         args = parser.parse_args(argv[1:])
         if sys.version_info >= (3,) and args.version:
-            hub = Hub(args)
-            print_version(hub)
+            with closing(Hub(args)) as hub:
+                print_version(hub)
             parser.exit()
         if args.command is None:
             raise parser.ArgumentError(
@@ -502,8 +568,15 @@ def use(parser):
 
     parser.add_argument("--set-cfg", action="store_true", default=None,
         dest="setcfg",
-        help="create or modify pip/setuptools config files in home directory "
-             "so pip/easy_install will pick up the current devpi index url")
+        help="create or modify pip/setuptools config files so "
+             "pip/easy_install will pick up the current devpi index url. "
+             "If a virtualenv is activated, only its pip config will be set.")
+    parser.add_argument("-t", "--pip-set-trusted", choices=["yes", "no", "auto"], default="auto",
+        dest="settrusted",
+        help="when used in conjunction with set-cfg, also set matching "
+             "pip trusted-host setting for the provided devpi index url. "
+             "With 'auto', trusted will be set for http urls or hosts that "
+             "fail https ssl validation. 'no' will clear setting")
     parser.add_argument("--always-set-cfg",
         choices=["yes", "no"], default=None,
         dest="always_setcfg",
@@ -512,7 +585,9 @@ def use(parser):
              "config file and can be cleared with '--always-set-cfg=no'.")
     parser.add_argument("--venv", action="store", default=None,
         help="set virtual environment to use for install activities. "
-             "specify '-' to unset it.")
+             "specify '-' to unset it. "
+             "venv be created if given name doesn't already exist. "
+             "Note: an activated virtualenv will be used without needing this.")
     parser.add_argument("--urls", action="store_true",
         help="show remote endpoint urls")
     parser.add_argument("-l", action="store_true", dest="list",
@@ -622,6 +697,14 @@ def user(parser):
         help="key=value configuration item.  Possible keys: "
              "email, password.")
 
+
+@subcommand("devpi.user:passwd")
+def passwd(parser):
+    """ change password of specified user or current user if not specified. """
+    parser.add_argument(
+        "username", type=str, action="store", nargs="?", help="user name")
+
+
 @subcommand("devpi.login")
 def login(parser):
     """ login to devpi-server with the specified user.
@@ -642,6 +725,15 @@ def logoff(parser):
     This will erase the client-side login token (see "devpi login").
     """
 
+
+@subcommand("devpi.login:logoff")
+def logout(parser):
+    """ log out of the current devpi-server.
+
+    This will erase the client-side login token (see "devpi login").
+    """
+
+
 @subcommand("devpi.index")
 def index(parser):
     """ create, delete and manage indexes.
@@ -653,6 +745,9 @@ def index(parser):
     You can also view the configuration of any index with
     ``devpi index USER/INDEX`` or list all indexes of the
     in-use index with ``devpi index -l``.
+
+    For the ``keyvalues`` option CSV means "Comma Separated Value", in other
+    words, a list of values separated by commas.
     """
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-c", "--create", action="store_true",
@@ -760,10 +855,27 @@ def test(parser):
         help="(experimental) run tests concurrently in multiple processes using "
              "the detox tool (which must be installed)")
 
+    parser.add_argument("--no-upload", action="store_false",
+        dest="upload_tox_results", default=True,
+        help="Skip upload of tox results")
+
     parser.add_argument("--index", default=None,
         help="index to get package from, defaults to current index. "
              "Either just the NAME, using the current user, USER/NAME using "
              "the current server or a full URL for another server.")
+
+    parser.add_argument(
+        "--select", "-s", metavar="SELECTOR",
+        type=str, default=None, action="store",
+        help="Selector for release files. "
+             "This is a regular expression to select release files for which "
+             "tests will be run. With this option it's possible to select "
+             "wheels that aren't universal, or run tests only for one "
+             "specific release file.")
+
+    parser.add_argument(
+        "--list", "-l", action="store_true",
+        help="Just list the release files which would be tested.")
 
     parser.add_argument("pkgspec", metavar="pkgspec", type=str,
         default=None, action="store", nargs="+",
@@ -814,6 +926,8 @@ def install(parser):
     parser.add_argument("--venv", action="store", metavar="DIR",
         help="install into specified virtualenv (created on the fly "
              "if none exists).")
+    parser.add_argument("-r", "--requirement", action="store_true",
+        help="Install from the given requirements file.")
     parser.add_argument("pkgspecs", metavar="pkg", type=str,
         action="store", default=None, nargs="*",
         help="uri or package file for installation from current index. """

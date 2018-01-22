@@ -31,24 +31,12 @@ def register_and_store(stage, basename, content=b"123", name=None):
     res = stage.store_releasefile(name, version, basename, content)
     return res
 
-def test_is_empty(model, keyfs):
-    assert model.is_empty()
-    user = model.create_user("user", "password", email="some@email.com")
-    assert not model.is_empty()
-    stage = model.getstage("user", "dev")
-    assert stage is None
-    user.create_stage("dev", bases=(), type="stage", volatile=False)
-    assert not model.is_empty()
-    stage = model.getstage("user/dev")
-    stage.delete()
-    user.delete()
-    assert model.is_empty()
 
 @pytest.fixture
 def stage(request, user):
     config = udict(index="world", bases=(), type="stage", volatile=True)
     if "bases" in request.fixturenames:
-        config["bases"] = request.getfuncargvalue("bases")
+        config["bases"] = request.getfixturevalue("bases")
     return user.create_stage(**config)
 
 @pytest.fixture
@@ -205,7 +193,7 @@ class TestStage:
         assert stage.list_projects_perstage() == set()
         assert stage_dev2.list_projects_perstage() == set(["someproject"])
 
-    def test_inheritance_complex_issue_214(self, pypistage, model):
+    def test_inheritance_complex_issue_214(self, model):
         prov_user = model.create_user('provider', password="123")
         prov_a = prov_user.create_stage(index='A', bases=[])
         prov_b = prov_user.create_stage(index='B', bases=['provider/A'])
@@ -230,6 +218,39 @@ class TestStage:
         assert cons_index.list_versions('pkg') == set(['1.0', '2.0', '3.0'])
         assert extagg_index1.list_versions('pkg') == set([])
         assert extagg_index2.list_versions('pkg') == set(['1.0', '2.0', '3.0'])
+
+    def test_inheritance_complex_issue_214_pypi(self, pypistage, model):
+        pypi = model.getstage('root/pypi')
+        pypistage.mock_simple("pkg", """
+            <a href='pkg-2.0.zip' /a>
+            <a href='pkg-2.0.tar.gz' /a>
+        """)
+        prov_user = model.create_user('provider', password="123")
+        prov_a = prov_user.create_stage(index='A', bases=[])
+        prov_b = prov_user.create_stage(index='B', bases=['provider/A'])
+        aggr_user = model.create_user('aggregator', password="123")
+        aggr_index = aggr_user.create_stage(index='index', bases=['provider/B'])
+        cons_user = model.create_user('consumer', password="123")
+        cons_index = cons_user.create_stage(index='index', bases=['aggregator/index'])
+        extagg_user = model.create_user('extagg', password="123")
+        extagg_index1 = extagg_user.create_stage(index='index1', bases=['root/pypi'])
+        extagg_index2 = extagg_user.create_stage(index='index2', bases=['aggregator/index', 'extagg/index1'])
+        content = b"123"
+        register_and_store(prov_a, "pkg-1.0.zip", content)
+        assert pypi.list_versions_perstage('pkg') == set(['2.0'])
+        assert prov_a.list_versions_perstage('pkg') == set(['1.0'])
+        assert prov_b.list_versions_perstage('pkg') == set([])
+        assert aggr_index.list_versions_perstage('pkg') == set([])
+        assert cons_index.list_versions_perstage('pkg') == set([])
+        assert extagg_index1.list_versions_perstage('pkg') == set([])
+        assert extagg_index2.list_versions_perstage('pkg') == set([])
+        assert pypi.list_versions('pkg') == set(['2.0'])
+        assert prov_a.list_versions('pkg') == set(['1.0'])
+        assert prov_b.list_versions('pkg') == set(['1.0'])
+        assert aggr_index.list_versions('pkg') == set(['1.0'])
+        assert cons_index.list_versions('pkg') == set(['1.0'])
+        assert extagg_index1.list_versions('pkg') == set(['2.0'])
+        assert extagg_index2.list_versions('pkg') == set(['1.0'])
 
     def test_inheritance_normalize_multipackage(self, pypistage, stage):
         stage.modify(bases=("root/pypi",), mirror_whitelist=['some-project'])
@@ -365,6 +386,26 @@ class TestStage:
         assert len(links) == 2
         assert links[0].entrypath.endswith("someproject-1.1.zip")
         assert links[1].entrypath.endswith("someproject-1.0.zip")
+
+    def test_project_whitelist_empty_project(self, pypistage, stage):
+        stage.modify(bases=("root/pypi",))
+        pypistage.mock_simple("someproject",
+            "<a href='someproject-1.1.zip' /a>")
+        stage.set_versiondata(udict(name="someproject", version="1.0"))
+        links = stage.get_releaselinks("someproject")
+        # because the whitelist doesn't include "someproject" we get
+        # no releases, because we only registered, but didn't upload
+        assert len(links) == 0
+
+    def test_project_whitelist_nothing_in_stage(self, pypistage, stage):
+        stage.modify(bases=("root/pypi",))
+        pypistage.mock_simple("someproject",
+            "<a href='someproject-1.1.zip' /a>")
+        links = stage.get_releaselinks("someproject")
+        # because the whitelist doesn't include "someproject" we get
+        # no releases, because we only registered, but didn't upload
+        assert len(links) == 1
+        assert links[0].entrypath.endswith("someproject-1.1.zip")
 
     def test_project_whitelist_inheritance(self, pypistage, stage, user):
         user.create_stage(index="dev2", bases=("root/pypi",))
@@ -704,7 +745,7 @@ class TestStage:
         stage.set_versiondata(udict(name="hello-World", version="1.0"))
         for name in ("Hello-World", "hello_world"):
             caplog.handler.records = []
-            caplog.setLevel(logging.WARNING)
+            caplog.set_level(logging.WARNING)
             stage.set_versiondata(udict(name=name, version="1.0"))
             rec = caplog.getrecords()
             assert not rec
@@ -882,6 +923,30 @@ class TestUsers:
         assert user.validate("password")
         assert not user.validate("password2")
 
+    def test_migrate_hash(self, caplog, model):
+        from devpi_server.auth import newsalt, getpwhash
+        user = model.create_user("user", "password", email="some@email.com")
+        userconfig = user.get(credentials=True)
+        assert 'pwsalt' not in userconfig
+        assert 'pwhash' in userconfig
+        salt = newsalt()
+        hash = getpwhash("password", salt)
+        user.modify(pwsalt=salt, pwhash=hash)
+        userconfig = user.get(credentials=True)
+        assert userconfig['pwsalt'] == salt
+        assert userconfig['pwhash'] == hash
+        # now validate and check for migration
+        recs = caplog.getrecords(".*modified user .*")
+        assert len(recs) == 1
+        assert "pwsalt=*******" in recs[0].getMessage()
+        assert user.validate("password")
+        recs = caplog.getrecords(".*modified user .*")
+        assert len(recs) == 2
+        assert "pwsalt=None" in recs[1].getMessage()
+        userconfig = user.get(credentials=True)
+        assert 'pwsalt' not in userconfig
+        assert userconfig['pwhash'].startswith("$argon2")
+
     def test_create_and_delete(self, model):
         user = model.create_user("user", password="password")
         user.delete()
@@ -902,6 +967,23 @@ class TestUsers:
         monkeypatch.setattr(py.std.getpass, "getpass", lambda x: "123")
         run_passwd(model, "root")
         assert model.get_user("root").validate("123")
+
+    def test_server_passwd_with_old_salt_hash(self, model, monkeypatch):
+        from devpi_server.auth import newsalt, getpwhash
+        secret = "hello"
+        new_secret = "123"
+        salt = newsalt()
+        hash = getpwhash(secret, salt)
+        user = model.get_user("root")
+        with user.key.update() as userconfig:
+            userconfig['pwsalt'] = salt
+            userconfig['pwhash'] = hash
+        userconfig = user.get(credentials=True)
+        assert userconfig['pwsalt'] is not None
+        assert userconfig['pwhash'] is not None
+        monkeypatch.setattr(py.std.getpass, "getpass", lambda x: new_secret)
+        run_passwd(model, "root")
+        assert model.get_user("root").validate(new_secret)
 
     def test_server_email(self, model):
         email_address = "root_" + str(id) + "@mydomain"
@@ -948,17 +1030,26 @@ def test_get_indexconfig_lists(key, value, result):
 @pytest.mark.parametrize(["input", "expected"], [
     ({},
      dict(type="stage")),
+
     ({"volatile": "foo"},
      dict(type="stage", volatile=True)),
+
     ({"volatile": "False"},
      dict(type="stage", volatile=False)),
+
     ({"volatile": "False", "bases": "root/pypi"},
      dict(type="stage", volatile=False, bases=["root/pypi"])),
+
     ({"volatile": "False", "bases": ["root/pypi"]},
      dict(type="stage", volatile=False, bases=["root/pypi"])),
+
     ({"volatile": "False", "bases": ["root/pypi"], "acl_upload": ["hello"]},
      dict(type="stage", volatile=False, bases=["root/pypi"],
           acl_upload=["hello"])),
+
+     ({"volatile": "False", "bases": ["root/pypi"], "acl_toxresult_upload": ["hello"]},
+     dict(type="stage", volatile=False, bases=["root/pypi"],
+          acl_toxresult_upload=["hello"])),
 ])
 def test_get_indexconfig_values(xom, input, expected):
     class hooks:

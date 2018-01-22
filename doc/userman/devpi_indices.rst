@@ -108,23 +108,23 @@ which leads to the following::
    $ devpi getjson /emilie
    {
        "result": {
-           "description": "Has final say", 
-           "email": "emilienew@gmail.com", 
+           "description": "Has final say",
+           "email": "emilienew@gmail.com",
            "indexes": {
                "prod": {
                    "acl_upload": [
                        "emilie"
-                   ], 
-                   "bases": [], 
-                   "mirror_whitelist": [], 
-                   "pypi_whitelist": [], 
-                   "type": "stage", 
+                   ],
+                   "bases": [],
+                   "mirror_whitelist": [],
+                   "pypi_whitelist": [],
+                   "type": "stage",
                    "volatile": false
                }
-           }, 
-           "title": "CTO", 
+           },
+           "title": "CTO",
            "username": "emilie"
-       }, 
+       },
        "type": "userconfig"
    }
    
@@ -154,16 +154,16 @@ which has the following definition on the server side::
        "result": {
            "acl_upload": [
                "emilie"
-           ], 
+           ],
            "bases": [
                "emilie/prod"
-           ], 
-           "mirror_whitelist": [], 
-           "projects": [], 
-           "pypi_whitelist": [], 
-           "type": "stage", 
+           ],
+           "mirror_whitelist": [],
+           "projects": [],
+           "pypi_whitelist": [],
+           "type": "stage",
            "volatile": true
-       }, 
+       },
        "type": "indexconfig"
    }
 
@@ -181,8 +181,8 @@ which has the following definition on the server side::
 Once her indexes are created::
 
    $ devpi index -l 
-   emilie/prod
    emilie/dev
+   emilie/prod
 
 She can start using them (short endpoint)::
 
@@ -336,8 +336,8 @@ which now has the ``/emilie/dev`` as a base only::
      mirror_whitelist=
      pypi_whitelist=
    
-Modifying the ACL
-^^^^^^^^^^^^^^^^^
+Modifying the Access Control Lists
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To modify the ACLs, you have to set the whole list of allowed users.
 Emilie may allow sophie to upload to her dev index:
@@ -384,6 +384,9 @@ It is also possible to allow anonymous uploads if you have a controlled environm
      mirror_whitelist=
      pypi_whitelist=
 
+The ``acl_toxresult_upload`` option determines who can upload test results via ``devpi test``.
+By default anyone is allowed to do that.
+
 Modifying the mirror whitelist
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -427,8 +430,8 @@ An index can have a title and description which is used in ``devpi-web``.
 .. code-block:: console
 
    $ devpi index wheelindex "title=Wheel Index" "description=Used for pip wheels"
-   /emilie/wheelindex changing description: Used for pip wheels
    /emilie/wheelindex changing title: Wheel Index
+   /emilie/wheelindex changing description: Used for pip wheels
    http://localhost:3141/emilie/wheelindex:
      type=stage
      bases=
@@ -505,16 +508,16 @@ here is the bad index::
        "result": {
            "acl_upload": [
                "emilie"
-           ], 
+           ],
            "bases": [
                "emilie/prod"
-           ], 
-           "mirror_whitelist": [], 
-           "projects": [], 
-           "pypi_whitelist": [], 
-           "type": "stage", 
+           ],
+           "mirror_whitelist": [],
+           "projects": [],
+           "pypi_whitelist": [],
+           "type": "stage",
            "volatile": true
-       }, 
+       },
        "type": "indexconfig"
    }
  
@@ -540,10 +543,10 @@ The **devpi** :ref:`cmdref_index` command show the existing indexes for a
 given user::
 
    $ devpi index -l
-   emilie/prod
-   emilie/pypi
    emilie/someindex
    emilie/dev
+   emilie/prod
+   emilie/pypi
    emilie/wheelindex
    
 However, it is sometimes useful to see all indexes present on the server. This 
@@ -554,17 +557,17 @@ information::
    $ devpi use -l
    sophie/prod     bases=                volatile=False
    sophie/dev      bases=sophie/prod     volatile=True
-   root/pypi       bases=                volatile=False
-   emilie/prod     bases=                volatile=False
-   emilie/pypi     bases=                volatile=True
    emilie/someindex bases=                volatile=True
-   emilie/dev      bases=emilie/prod     volatile=True
    emilie/wheelindex bases=                volatile=True
+   emilie/pypi     bases=                volatile=True
+   emilie/prod     bases=                volatile=False
+   emilie/dev      bases=emilie/prod     volatile=True
+   root/pypi       bases=                volatile=False
 
 .. rubric:: Footnotes
 
 .. [#f1] At the present time, it is not possible to issue ``devpi use -l <username>``
-         see `feature request #38 <https://bitbucket.org/hpk42/devpi/issue/38/>`_
+         see `feature request #38 <https://github.com/devpi/devpi/issue/38/>`_
 
 
 

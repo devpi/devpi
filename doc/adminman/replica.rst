@@ -19,20 +19,25 @@ See also :ref:`serverstatus`.
 Usage
 ---------------------------------------------
 
-Any regular ``devpi-server`` instance can serve as a master.
+Any regular ``devpi-server`` instance can serve as a master. 
+To turn a server into a master, enable the replication protocol by
+providing the ``--role master`` option at startup::
+
+    devpi-server --serverdir masterdir --role master
+
 In order to start a replica you need to provide the root master URL::
 
-    devpi-server --master http://url-of-master
+    devpi-server --master-url http://url-of-master
 
 If you are testing replication and run the master and replica on the
 same host make sure you specify different server directories and ports
 like this::
 
-    # start master in one window
-    devpi-server --serverdir masterdir
+    # start master in a shell
+    devpi-server --serverdir masterdir --role master
 
-    # start replica in another window
-    devpi-server --master http://localhost:3141 --port 4000 --serverdir replica
+    # start replica in another shell
+    devpi-server --master-url http://localhost:3141 --port 4000 --serverdir replica
 
 You can now connect to ``http://localhost:3141`` or ``http://localhost:4000``
 interchangeably.  Specify ``--debug`` to see more output related to the
@@ -74,10 +79,17 @@ the following user stories in mind:
   changes.
 
 
+.. _`Developer notes`:
+
+Developer notes
+-----------------------------------------------------------
+
+The text below is useful for a developer that needs to get more information about the status of the implementation of the replica protocol.
+
 .. _`http relaying`:
 
 HTTP relaying of replica server to master
------------------------------------------------------------
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 devpi-server in replica mode serves the same API and endpoints 
 as the master server.  In general any state-changing
@@ -91,7 +103,7 @@ may or may not have synchronized the same change.
 .. _`laptop replication`:
 
 Laptop replication (frequent disconnects)
-------------------------------------------------
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 The primary user story for replication as of version 2.0 is maintaining
 a per-organisation multi-server install of devpi-server.  In principle,
@@ -110,7 +122,7 @@ b) only retrieving archive or documentation files into the replica
 
 
 Handling concurrency within the replica server
--------------------------------------------------
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Both master and replica servers can handle multiple concurrent requests.
 HTTP requests are run in threads and we thus need to insure that the
@@ -139,14 +151,14 @@ To remedy this, we may in the future consider implementing a per-server
 (and maybe also per-index) view on "recent changes", and also detailing
 the "local" serials and "remote serials" as well as the replica/master
 connection status, see `issue113
-<https://bitbucket.org/hpk42/devpi/issue/113/provide-devpi-url-status-to-retrieve>`_.
+<https://github.com/devpi/devpi/issue/113/provide-devpi-url-status-to-retrieve>`_.
 
 
 Transactional master state changes / SQL
--------------------------------------------------------
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Every change on the devpi-server master side happens
-with `ACID guruantees <http://en.wikipedia.org/wiki/ACID>`_
+with `ACID guarantees <http://en.wikipedia.org/wiki/ACID>`_
 and is associated with an incrementing serial number.  
 All changes to meta information happen in a transaction
 carried out via ``sqlite3``.  Files are stored in the
@@ -154,7 +166,7 @@ filesystem outside of the SQL database.
 
 
 SSL support (experimental)
---------------------------
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 A replica can send a client certificate with the ``--replica-cert`` option.
 You need to provide a pem file which contains the certificate and the key.

@@ -72,7 +72,7 @@ def _main(pluginmanager, argv=None):
     # meta commmands
     if args.version:
         print(server_version)
-        return
+        return 0
 
     if args.genconfig:
         from devpi_server.genconfig import genconfig
@@ -80,8 +80,12 @@ def _main(pluginmanager, argv=None):
 
     configure_logging(config.args)
 
-    if args.export and not config.path_nodeinfo.exists():
-        fatal("The path '%s' contains no devpi-server data." % config.serverdir)
+    if args.init:
+        if config.path_nodeinfo.exists():
+            fatal("The path '%s' already contains devpi-server data." % config.serverdir)
+    elif not args.import_:
+        if not config.path_nodeinfo.exists():
+            fatal("The path '%s' contains no devpi-server data, use --init to initialize." % config.serverdir)
 
     # read/create node UUID and role of this server
     config.init_nodeinfo()
@@ -116,6 +120,9 @@ def _main(pluginmanager, argv=None):
         with xom.keyfs.transaction(write=True):
             return run_passwd(xom.model, config.args.passwd)
 
+    if args.init:
+        return 0
+
     return xom.main()
 
 
@@ -128,20 +135,23 @@ def wsgi_run(xom, app):
     from waitress import serve
     host = xom.config.args.host
     port = xom.config.args.port
+    threads = xom.config.args.threads
     log = xom.log
     log.info("devpi-server version: %s", server_version)
     log.info("serverdir: %s" % xom.config.serverdir)
     log.info("uuid: %s" % xom.config.nodeinfo["uuid"])
     hostaddr = "http://%s:%s" % (host, port)
-    log.info("serving at url: %s", hostaddr)
-    log.info("bug tracker: https://bitbucket.org/hpk42/devpi/issues")
+    hostaddr6 = "http://[%s]:%s" % (host, port)
+    log.info("serving at url: %s (might be %s for IPv6)", hostaddr, hostaddr6)
+    log.info("using %s threads", threads)
+    log.info("bug tracker: https://github.com/devpi/devpi/issues")
     log.info("IRC: #devpi on irc.freenode.net")
     if "WEBTRACE" in os.environ and xom.config.args.debug:
         from weberror.evalexception import make_eval_exception
         app = make_eval_exception(app, {})
     try:
         log.info("Hit Ctrl-C to quit.")
-        serve(app, host=host, port=port, threads=50)
+        serve(app, host=host, port=port, threads=threads)
     except KeyboardInterrupt:
         pass
     return 0
@@ -252,14 +262,14 @@ class XOM:
             self.thread_pool.register(keyfs.notifier)
         return keyfs
 
-    def new_http_session(self, component_name):
-        session = new_requests_session(agent=(component_name, server_version))
+    def new_http_session(self, component_name, max_retries=None):
+        session = new_requests_session(agent=(component_name, server_version), max_retries=max_retries)
         session.cert = self.config.args.replica_cert
         return session
 
     @cached_property
     def _httpsession(self):
-        return self.new_http_session("server")
+        return self.new_http_session("server", max_retries=self.config.args.replica_max_retries)
 
     def httpget(self, url, allow_redirects, timeout=30, extra_headers=None):
         if self.config.args.offline_mode:
@@ -269,23 +279,15 @@ class XOM:
         headers = {}
         if extra_headers:
             headers.update(extra_headers)
-        USE_FRONT = self.config.args.bypass_cdn
-        if USE_FRONT:
-            self.log.debug("bypassing pypi CDN for: %s", url)
-            if url.startswith("https://pypi.python.org/simple/"):
-                url = url.replace("https://pypi", "https://front")
-                headers["HOST"] = "pypi.python.org"
         try:
             resp = self._httpsession.get(
                         url, stream=True,
                         allow_redirects=allow_redirects,
                         headers=headers,
                         timeout=timeout)
-            if USE_FRONT and resp.url.startswith("https://front.python.org"):
-                resp.url = resp.url.replace("https://front.python.org",
-                                            "https://pypi.python.org")
             return resp
         except self._httpsession.Errors:
+            threadlog.exception("Error during httpget of %s", url)
             return FatalResponse(sys.exc_info())
 
     def create_app(self):
@@ -379,15 +381,26 @@ class XOM:
                 self.thread_pool.register(self.replica_thread)
         return OutsideURLMiddleware(app, self)
 
+    def is_master(self):
+        return self.config.role == "master"
+
     def is_replica(self):
-        return bool(self.config.args.master_url)
+        return self.config.role == "replica"
 
 
 class FatalResponse:
     status_code = -1
 
     def __init__(self, excinfo=None):
-        self.excinfo = excinfo
+        self.reason = repr(excinfo[1])
+
+    @property
+    def status(self):
+        return "%s %s" % (self.status_code, self.reason)
+
+    def __repr__(self):
+        return "%s(%r)" % (self.__class__.__name__, self.reason)
+
 
 def get_remote_ip(request):
     return request.headers.get("X-REAL-IP", request.client_addr)

@@ -22,13 +22,13 @@ contact and contribution points
 
 You are very welcome to report issues, discuss or help:
 
-* issues: https://bitbucket.org/hpk42/devpi/issues
+* issues: https://github.com/devpi/devpi/issues
 
 * IRC: #devpi on irc.freenode.net.
 
-* repository: https://bitbucket.org/hpk42/devpi
+* repository: https://github.com/devpi/devpi
 
-* mailing list: https://groups.google.com/d/forum/devpi-dev
+* mailing list: https://mail.python.org/mm3/mailman3/lists/devpi-dev.python.org/
 
 * business inquiries: holger at merlinux.eu.
 

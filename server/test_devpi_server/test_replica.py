@@ -13,6 +13,8 @@ pytestmark = [pytest.mark.notransaction]
 
 @pytest.fixture
 def testapp(testapp):
+    testapp.xom.config.nodeinfo["role"] = "master"
+    assert testapp.xom.config.role == "master"
     master_uuid = testapp.xom.config.get_master_uuid()
     assert master_uuid
     testapp.set_header_default(H_EXPECTED_MASTER_ID, master_uuid)
@@ -501,9 +503,8 @@ class TestFileReplication:
             assert r_entry.file_exists()
             assert r_entry.file_get_content() == content1
 
-
     def test_cache_remote_file_fails(self, xom, replica_xom, gen,
-                                     monkeypatch, reqmock):
+                                     pypistage, monkeypatch, reqmock):
         l = []
         monkeypatch.setattr(xom.keyfs, "wait_tx_serial",
                             lambda x: l.append(x))
@@ -513,18 +514,42 @@ class TestFileReplication:
             assert entry.hash_spec and not entry.file_exists()
         replay(xom, replica_xom)
         with replica_xom.keyfs.transaction():
-            headers={"content-length": "3",
-                     "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
-                     "content-type": "application/zip",
-                     "X-DEVPI-SERIAL": "10"}
             entry = replica_xom.filestore.get_file_entry(entry.relpath)
             url = replica_xom.config.master_url.joinpath(entry.relpath).url
-            reqmock.mockresponse(url, code=500,
-                                 headers=headers, data=b'123')
-            with pytest.raises(entry.BadGateway):
+            pypistage.httpget.mockresponse(url, status_code=500)
+            with pytest.raises(entry.BadGateway) as e:
                 for part in entry.iter_remote_file_replica():
                     pass
+            e.match('received 500 from master')
+            e.match('pypi.python.org/package/some/pytest-1.8.zip: received 404')
 
+    def test_cache_remote_file_fetch_original(self, xom, replica_xom, gen,
+                                              pypistage, monkeypatch, reqmock):
+        l = []
+        monkeypatch.setattr(xom.keyfs, "wait_tx_serial",
+                            lambda x: l.append(x))
+        with xom.keyfs.transaction(write=True):
+            md5 = py.std.hashlib.md5()
+            md5.update(b'123')
+            link = gen.pypi_package_link(
+                "pytest-1.8.zip", md5=md5.hexdigest())
+            entry = xom.filestore.maplink(link, "root", "pypi")
+            assert entry.hash_spec and not entry.file_exists()
+        replay(xom, replica_xom)
+        with replica_xom.keyfs.transaction():
+            headers = {
+                "content-length": "3",
+                "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
+                "content-type": ("application/zip", None)}
+            entry = replica_xom.filestore.get_file_entry(entry.relpath)
+            url = replica_xom.config.master_url.joinpath(entry.relpath).url
+            pypistage.httpget.mockresponse(url, status_code=500)
+            pypistage.httpget.mockresponse(
+                entry.url, headers=headers, content=b'123')
+            result = entry.iter_remote_file_replica()
+            headers = next(result)
+            assert headers['content-length'] == '3'
+            assert b''.join(result) == b'123'
 
     def test_checksum_mismatch(self, xom, replica_xom, gen, maketestapp,
                                makemapp, reqmock):
@@ -651,3 +676,28 @@ def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, replica_pypis
     replay(xom, replica_xom)
     assert len(ret) == 1
     assert ret[0].relpath == 'root/pypi/+e/https_pypi.python.org_pytest/pytest-1.1.zip'
+
+
+def test_replicate_deleted_user(mapp, replica_xom):
+    mapp.create_and_use("hello/dev")
+    content = mapp.makepkg("hello-1.0.tar.gz", b"content", "hello", "1.0")
+    mapp.upload_file_pypi("hello-1.0.tar.gz", content, "hello", "1.0")
+    mapp.delete_user("hello")
+
+    # replicate the state
+    replay(mapp.xom, replica_xom)
+
+
+def test_auth_status_master_down(maketestapp, replica_xom, mock):
+    from devpi_server.model import UpstreamError
+    testapp = maketestapp(replica_xom)
+    calls = []
+    with mock.patch('devpi_server.replica.proxy_request_to_master') as prtm:
+        def proxy_request_to_master(*args, **kwargs):
+            calls.append((args, kwargs))
+            raise UpstreamError("foo")
+        prtm.side_effect = proxy_request_to_master
+        r = testapp.get('/+api')
+    assert len(calls) == 1
+    assert calls[0][0][1].url == 'http://localhost/+api'
+    assert r.json['result']['authstatus'] == ['fail', '', []]

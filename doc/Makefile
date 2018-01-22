@@ -1,7 +1,8 @@
 # Makefile for Sphinx documentation
 #
 
-VERSION       = $(shell python -c "import conf ; print conf.version")
+VERSION       = $(shell python -c "import conf ; print(conf.version)")
+DOCZIP        = devpi-$(VERSION).doc.zip
 # You can set these variables from the command line.
 SPHINXOPTS    =
 SPHINXBUILD   = sphinx-build
@@ -74,10 +75,8 @@ clean:
 version:
 	@echo "version $(VERSION)"
 
-install: html
-	@echo "installing to http://devpi.net"
-	rsync -avz $(BUILDDIR)/html/ doc.devpi.net:/www/doc.devpi.net/$(VERSION)/
-
+doczip: html
+	python doczip.py $(DOCZIP) _build/html
 
 html:
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
@@ -216,16 +215,16 @@ regen.sample_undo:
 	-hg revert --all ./userman/pysober
 
 regen.server-fresh: regen.server-clean
-	devpi-server --start
-    
-regen.server-restart:	
-	-devpi-server --stop	
-	devpi-server --start
+	devpi-server --start --serverdir=$(TESTHOME)/.devpi/server --init
+
+regen.server-restart:
+	-devpi-server --stop --serverdir=$(TESTHOME)/.devpi/server
+	devpi-server --start --serverdir=$(TESTHOME)/.devpi/server
 
 regen.server-clean: regen.sample_undo
 	@echo stopping server
-	-devpi-server --stop
-	@echo deleting $TESTHOME/.devpi state
+	-devpi-server --stop --serverdir=$(TESTHOME)/.devpi/server
+	@echo deleting $(TESTHOME)/.devpi state
 	-rm -rf $(TESTHOME)/.devpi
 	@echo deleting pysober/dist
 	-rm -rf userman/pysober/dist

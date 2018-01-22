@@ -18,16 +18,17 @@ devpi: PyPI server and packaging/testing/release tool
 
 .. sidebar:: Links and contact
 
-   `issue tracker <https://bitbucket.org/hpk42/devpi/issues>`_, `mailing list <https://groups.google.com/d/forum/devpi-dev>`_
+   `issue tracker <https://github.com/devpi/devpi/issues>`_,
+   `mailing list <https://mail.python.org/mm3/mailman3/lists/devpi-dev.python.org/>`_
 
    :ref:`tutorials and documentation <label_quickstart_section>`
    
-   `repo of server/web/client <https://bitbucket.org/hpk42/devpi/>`_
+   `repo of server/web/client <https://github.com/devpi/devpi/>`_
 
    #devpi on freenode
 
 The MIT-licensed devpi system features a powerful PyPI-compatible server
-and a complimentary command line tool to drive packaging, testing and
+and a complementary command line tool to drive packaging, testing and
 release activities with Python.  Main features and usage scenarios:
 
 - **fast PyPI mirror**: use a local self-updating pypi.python.org 

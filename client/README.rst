@@ -1,3 +1,4 @@
+===============================================================
 devpi-client: commands for python packaging and testing
 ===============================================================
 
@@ -6,13 +7,13 @@ with `devpi-server <http://pypi.python.org/pypi/devpi-server>`_.
 It allows to upload, test and install packages from devpi indexes.
 See http://doc.devpi.net for quickstart and more documentation.
 
-* `issue tracker <https://bitbucket.org/hpk42/devpi/issues>`_, `repo
-  <https://bitbucket.org/hpk42/devpi>`_
+* `issue tracker <https://github.com/devpi/devpi/issues>`_, `repo
+  <https://github.com/devpi/devpi>`_
 
 * IRC: #devpi on freenode, `mailing list
-  <https://groups.google.com/d/forum/devpi-dev>`_ 
+  <https://mail.python.org/mm3/mailman3/lists/devpi-dev.python.org/>`_ 
 
-* compatibility: {win,unix}-py{26,27,33}
+* compatibility: {win,unix}-py{27,34,35,36,py}
 
 
 

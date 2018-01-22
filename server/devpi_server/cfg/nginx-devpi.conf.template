@@ -36,6 +36,5 @@ server {
         proxy_pass http://localhost:%(port)s;
         proxy_set_header X-outside-url $scheme://$host:$server_port;
         proxy_set_header X-Real-IP $remote_addr;
-        expires -1;  # no-cache
     }
 } 

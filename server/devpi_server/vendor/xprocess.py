@@ -1,3 +1,4 @@
+import errno
 import sys
 import os
 import py
@@ -73,6 +74,11 @@ class XProcessInfo:
                 return self._isrunning_win32(self.pid)
             try:
                 os.kill(self.pid, 0)
+                try:
+                    os.waitpid(self.pid, os.WNOHANG)
+                except OSError as exc:
+                    if exc.errno != errno.ECHILD:
+                        raise
                 return True
             except OSError:
                 pass

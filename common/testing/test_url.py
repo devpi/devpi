@@ -1,7 +1,9 @@
 from __future__ import unicode_literals
-
+import hashlib
+import posixpath
 import pytest
-from devpi_common.url import *
+from devpi_common.url import URL
+
 
 class TestURL:
     def test_basename(self):
@@ -90,7 +92,6 @@ class TestURL:
         url = URL(None)
         assert url.url == ""
 
-
     def test_asdir(self):
         assert URL("http://heise.de").asdir().url == "http://heise.de/"
         assert URL("http://py.org/path").asdir().url == "http://py.org/path/"
@@ -173,6 +174,39 @@ class TestURL:
         assert base == url
         assert not (base != url)
 
+    def test_username(self):
+        assert URL('http://example.com').username is None
+        assert URL('http://user@example.com').username == 'user'
+        assert URL('http://user:password@example.com').username == 'user'
+        assert URL('https://example.com:443').username is None
+        assert URL('https://user@example.com:443').username == 'user'
+        assert URL('https://user:password@example.com:443').username == 'user'
+
+    def test_password(self):
+        assert URL('http://example.com').password is None
+        assert URL('http://user@example.com').password is None
+        assert URL('http://user:password@example.com').password == 'password'
+        assert URL('https://example.com:443').password is None
+        assert URL('https://user@example.com:443').password is None
+        assert URL('https://user:password@example.com:443').password == 'password'
+
+    def test_hostname(self):
+        assert URL('http://example.com').hostname == 'example.com'
+        assert URL('http://user@example.com').hostname == 'example.com'
+        assert URL('http://user:password@example.com').hostname == 'example.com'
+        assert URL('https://example.com:443').hostname == 'example.com'
+        assert URL('https://user@example.com:443').hostname == 'example.com'
+        assert URL('https://user:password@example.com:443').hostname == 'example.com'
+
+    def test_port(self):
+        assert URL('http://example.com').port is None
+        assert URL('http://user@example.com').port is None
+        assert URL('http://user:password@example.com').port is None
+        assert URL('https://example.com:443').port == 443
+        assert URL('https://user@example.com:443').port == 443
+        assert URL('https://user:password@example.com:443').port == 443
+
+
 #
 # test torelpath/fromrelpath
 #
@@ -190,4 +224,3 @@ def test_canonical_url_path_mappings(url):
     assert posixpath.normpath(path) == path
     back_url = URL.fromrelpath(path)
     assert url == back_url
-

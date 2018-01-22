@@ -11,7 +11,7 @@ from devpi_common.url import URL
 from devpi_common.validation import validate_metadata, normalize_name
 from devpi_common.types import ensure_unicode, cached_property, parse_hash_spec
 from time import gmtime
-from .auth import crypt_password, verify_password
+from .auth import hash_password, verify_and_update_password_hash
 from .filestore import FileEntry
 from .log import threadlog, thread_current_log
 from .readonly import get_mutable_deepcopy
@@ -43,7 +43,7 @@ def get_ixconfigattrs(hooks, index_type):
             "mirror_url", "mirror_cache_expiry",
             "mirror_web_url_fmt"))
     elif index_type == 'stage':
-        base.update(("bases", "acl_upload", "mirror_whitelist"))
+        base.update(("bases", "acl_upload", "acl_toxresult_upload", "mirror_whitelist"))
     # XXX backward compatibility with devpi-client <= 2.4.1
     base.update(("pypi_whitelist",))
     for defaults in hooks.devpiserver_indexconfig_defaults(index_type=index_type):
@@ -84,6 +84,10 @@ class UpstreamError(ModelException):
 
 class MissesRegistration(ModelException):
     """ A prior registration of release metadata is required. """
+
+
+class MissesVersion(ModelException):
+    """ A version number is required. """
 
 
 class NonVolatile(ModelException):
@@ -127,15 +131,6 @@ class RootModel:
         user = self.get_user(username)
         if user is not None:
             return user.getstage(index)
-
-    def is_empty(self):
-        userlist = self.get_userlist()
-        if len(userlist) == 1:
-            user, = userlist
-            if user.name == "root":
-                rootindexes = user.get().get("indexes", [])
-                return list(rootindexes) == ["pypi"]
-        return False
 
 
 def ensure_list(data):
@@ -182,6 +177,12 @@ def get_indexconfig(hooks, type, **kwargs):
                 if name.upper() == ':ANONYMOUS:':
                     acl_upload[index] = name.upper()
             ixconfig["acl_upload"] = acl_upload
+        if "acl_toxresult_upload" in kwargs:
+            acl_toxresult_upload = ensure_list(kwargs.pop("acl_toxresult_upload"))
+            for index, name in enumerate(acl_toxresult_upload):
+                if name.upper() == ':ANONYMOUS:':
+                    acl_toxresult_upload[index] = name.upper()
+            ixconfig["acl_toxresult_upload"] = acl_toxresult_upload
         if "bases" in kwargs:
             ixconfig["bases"] = ensure_list(kwargs.pop("bases"))
         if "mirror_whitelist" in kwargs and kwargs.get("pypi_whitelist", []) != []:
@@ -267,6 +268,7 @@ class User:
             if password is not None:
                 self._setpassword(userconfig, password)
                 modified.append("password=*******")
+                kwargs['pwsalt'] = None
             for key, value in kwargs.items():
                 key = ensure_unicode(key)
                 if key == 'username':
@@ -275,14 +277,14 @@ class User:
                     userconfig[key] = value
                 elif key in userconfig:
                     del userconfig[key]
+                if key in ('pwsalt', 'pwhash') and value:
+                    value = "*******"
                 modified.append("%s=%s" % (key, value))
             threadlog.info("modified user %r: %s", self.name,
                            ", ".join(modified))
 
     def _setpassword(self, userconfig, password):
-        salt, hash = crypt_password(password)
-        userconfig["pwsalt"] = salt
-        userconfig["pwhash"] = hash
+        userconfig["pwhash"] = hash_password(password)
         threadlog.info("setting password for user %r", self.name)
 
     def delete(self):
@@ -299,11 +301,14 @@ class User:
         userconfig = self.key.get()
         if not userconfig:
             return False
-        salt = userconfig["pwsalt"]
+        salt = userconfig.get("pwsalt")
         pwhash = userconfig["pwhash"]
-        if verify_password(password, pwhash, salt):
-            return pwhash
-        return None
+        valid, newhash = verify_and_update_password_hash(password, pwhash, salt)
+        if valid:
+            if newhash:
+                self.modify(pwsalt=None, pwhash=newhash)
+            return True
+        return False
 
     def get(self, credentials=False):
         d = get_mutable_deepcopy(self.key.get())
@@ -326,6 +331,8 @@ class User:
         if type == "stage":
             if ixconfig.get("acl_upload") is None:
                 ixconfig["acl_upload"] = [self.name]
+            if ixconfig.get("acl_toxresult_upload") is None:
+                ixconfig["acl_toxresult_upload"] = [":ANONYMOUS:"]
             ixconfig["bases"] = tuple(normalize_bases(
                 self.xom.model, ixconfig.get("bases", [])))
             ixconfig["mirror_whitelist"] = ixconfig.get("mirror_whitelist", [])
@@ -369,6 +376,7 @@ class BaseStage(object):
     NotFound = NotFound
     UpstreamError = UpstreamError
     MissesRegistration = MissesRegistration
+    MissesVersion = MissesVersion
     NonVolatile = NonVolatile
 
     def __init__(self, xom, username, index, ixconfig):
@@ -527,6 +535,8 @@ class BaseStage(object):
                 whitelist = set(stage.ixconfig["mirror_whitelist"])
                 if '*' in whitelist or project in whitelist:
                     whitelisted = stage
+                elif stage.has_project_perstage(project):
+                    private_hit = True
 
             try:
                 res = getattr(stage, opname)(**kw)
@@ -549,6 +559,11 @@ class BaseStage(object):
             seen.add(stage.name)
             for base in stage.ixconfig.get("bases", ()):
                 current_stage = self.model.getstage(base)
+                if current_stage is None:
+                    threadlog.warn(
+                        "Index %s refers to non-existing base %s.",
+                        self.name, base)
+                    continue
                 if base not in seen:
                     if current_stage.ixconfig['type'] == 'mirror':
                         todo_mirrors.append(current_stage)
@@ -560,17 +575,24 @@ class BaseStage(object):
 
 class PrivateStage(BaseStage):
 
-    metadata_keys = """
-        name version summary home_page author author_email
-        license description keywords platform classifiers download_url
-    """.split()
-    # taken from distlib.metadata (6th October)
-    metadata_list_fields = ('platform', 'classifier', 'classifiers',
-               'obsoletes',
-               'requires', 'provides', 'obsoletes-Dist',
-               'provides-dist', 'requires-dist', 'requires-external',
-               'project-url', 'supported-platform', 'setup-requires-Dist',
-               'provides-extra', 'extension')
+    metadata_keys = (
+        'name', 'version',
+        # additional meta-data
+        'metadata_version', 'summary', 'home_page', 'author', 'author_email',
+        'maintainer', 'maintainer_email', 'license', 'description',
+        'keywords', 'platform', 'classifiers', 'download_url',
+        'supported_platform', 'comment',
+        # PEP 314
+        'provides', 'requires', 'obsoletes',
+        # Metadata 1.2
+        'project_urls', 'provides_dist', 'obsoletes_dist',
+        'requires_dist', 'requires_external', 'requires_python')
+    metadata_list_fields = (
+        'platform', 'classifiers', 'obsoletes',
+        'requires', 'provides', 'obsoletes_dist',
+        'provides_dist', 'requires_dist', 'requires_external',
+        'project_urls', 'supported_platform', 'setup_requires_dist',
+        'provides_extra', 'extension')
 
     def __init__(self, xom, username, index, ixconfig):
         super(PrivateStage, self).__init__(xom, username, index, ixconfig)
@@ -740,9 +762,17 @@ class PrivateStage(BaseStage):
         project = normalize_name(project)
         if not version:
             version = self.get_latest_version_perstage(project)
+            if not version:
+                raise MissesVersion(
+                    "doczip has no version and '%s' has no releases to "
+                    "derive one from", project)
             threadlog.info("store_doczip: derived version of %s is %s",
                            project, version)
         basename = "%s-%s.doc.zip" % (project, version)
+        verdata = self.get_versiondata_perstage(
+            project, version, readonly=False)
+        if not verdata:
+            self.set_versiondata({'name': project, 'version': version})
         linkstore = self.get_linkstore_perstage(project, version, readonly=False)
         link = linkstore.create_linked_entry(
                 rel="doczip",
@@ -792,6 +822,10 @@ class ELink(object):
     @property
     def hash_value(self):
         return self.hash_spec.split("=")[1]
+
+    @property
+    def hash_type(self):
+        return self.hash_spec.split("=")[0]
 
     def matches_checksum(self, content):
         hash_algo, hash_value = parse_hash_spec(self.hash_spec)

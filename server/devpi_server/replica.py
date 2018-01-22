@@ -3,6 +3,7 @@ import json
 import contextlib
 import time
 from pyramid.httpexceptions import HTTPNotFound, HTTPAccepted, HTTPBadRequest
+from pyramid.httpexceptions import HTTPForbidden
 from pyramid.view import view_config
 from pyramid.response import Response
 from devpi_common.validation import normalize_name
@@ -65,6 +66,8 @@ class MasterChangelogRequest:
         #   never time out here, leading to more and more threads
         # if no commits happen.
 
+        if not self.xom.is_master():
+            raise HTTPForbidden("Replication protocol disabled")
         expected_uuid = self.request.headers.get(H_EXPECTED_MASTER_ID, None)
         master_uuid = self.xom.config.get_master_uuid()
         # we require the header but it is allowed to be empty
@@ -265,7 +268,7 @@ class SimpleLinksChanged:
 
         with self.xom.keyfs.transaction(write=False):
             mirror_stage = self.xom.model.getstage(username, index)
-            if mirror_stage.ixconfig["type"] == "mirror":
+            if mirror_stage and mirror_stage.ixconfig["type"] == "mirror":
                 cache_projectnames = mirror_stage.cache_projectnames.get_inplace()
                 if cache is None:  # deleted
                     cache_projectnames.discard(project)
@@ -339,9 +342,12 @@ def proxy_write_to_master(xom, request):
     the change is replicated back.
     """
     r = proxy_request_to_master(xom, request, stream=True)
-    body = r.raw.read()
-    #threadlog.debug("relay status_code: %s", r.status_code)
-    #threadlog.debug("relay headers: %s", r.headers)
+    # for redirects, the body is already read and stored in the ``next``
+    # attribute (see requests.sessions.send)
+    if r.raw.closed and r.next:
+        body = r.next.body
+    else:
+        body = r.raw.read()
     if r.status_code < 400:
         commit_serial = int(r.headers["X-DEVPI-SERIAL"])
         xom.keyfs.wait_tx_serial(commit_serial)
@@ -421,8 +427,18 @@ class ImportFileReplica:
                            relpath)
             return
 
+        if r.status_code in (404, 502):
+            stagename = '/'.join(relpath.split('/')[:2])
+            stage = self.xom.model.getstage(stagename)
+            if stage.ixconfig['type'] == 'mirror':
+                threadlog.warn(
+                    "ignoring file which couldn't be retrieved from mirror index '%s': %s" % (
+                        stagename, relpath))
+                return
+
         if r.status_code != 200:
             raise FileReplicationError(r, relpath)
+
         err = entry.check_checksum(r.content)
         if err:
             # the file we got is different, it may have changed later.

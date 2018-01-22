@@ -1,6 +1,7 @@
 
 from __future__ import with_statement
 import os
+import re
 import sys
 import shlex
 import hashlib
@@ -39,7 +40,9 @@ class DevIndex:
 
     def download_and_unpack(self, versioninfo, link):
         url = link.href
-        r = self.hub.http.get(url)
+        r = self.hub.http.get(url,
+                              auth=self.hub.current.get_basic_auth(url),
+                              cert=self.hub.current.get_client_cert(url))
         if r.status_code != 200:
             self.hub.fatal("could not receive", url)
         content = r.content
@@ -72,28 +75,34 @@ class DevIndex:
                 continue
             return ViewLinkStore(projurl, r.result[version])
 
-    def runtox(self, link, pkg, sdist_pkg=None):
+    def runtox(self, link, pkg, sdist_pkg=None, upload_tox_results=True):
         jsonreport = pkg.rootdir.join("toxreport.json")
         path_archive = pkg.path_archive
-        toxargs = ["--installpkg", str(path_archive),
-                   "-i ALL=%s" % str(self.current.simpleindex),
-                   "--recreate",
-                   "--result-json", str(jsonreport),
+        toxargs = [
+            "--installpkg", str(path_archive),
+            "-i ALL=%s" % str(self.current.simpleindex_auth),
+            "--recreate",
+            "--result-json", str(jsonreport),
         ]
+        if self.current.simpleindex != self.current.simpleindex_auth:
+            self.hub.info("Using existing basic auth for '%s'." %
+                          self.current.simpleindex)
+            self.hub.warn("The password will be available unencrypted in the "
+                          "JSON report!")
 
         if sdist_pkg is None:
             sdist_pkg = pkg
         toxargs.extend(self.get_tox_args(unpack_path=sdist_pkg.path_unpacked))
 
         with sdist_pkg.path_unpacked.as_cwd():
-            self.hub.info("%s$ tox %s" %(os.getcwd(), " ".join(toxargs)))
+            self.hub.info("%s$ tox %s" % (os.getcwd(), " ".join(toxargs)))
             toxrunner = self.get_tox_runner()
             try:
                 ret = toxrunner(toxargs)
             except SystemExit as e:
                 ret = e.args[0]
 
-        if ret != 2:
+        if ret != 2 and upload_tox_results:
             jsondata = json.load(jsonreport.open("r"))
             url = URL(link.href)
             post_tox_json_report(self.hub, url.url_nofrag, jsondata)
@@ -162,11 +171,17 @@ class UnpackedPackage:
             inpkgdir = self.rootdir
         else:
             inpkgdir = self.rootdir.join("%s-%s" %(pkgname, version))
-        assert inpkgdir.check(), inpkgdir
+            if not inpkgdir.check():
+                # sometimes dashes are replaced by underscores,
+                # for example the source releases of argon2_cffi
+                inpkgdir = self.rootdir.join(
+                    "%s-%s" % (pkgname.replace('-', '_'), version))
+        if not inpkgdir.check():
+            self.hub.fatal("Couldn't find unpacked package in", inpkgdir)
         self.path_unpacked = inpkgdir
 
 
-def find_sdist_and_wheels(hub, links):
+def find_sdist_and_wheels(hub, links, universal_only=True):
     sdist_links = []
     wheel_links = []
     for link in links:
@@ -176,15 +191,16 @@ def find_sdist_and_wheels(hub, links):
         elif bn.endswith(".zip"):
             sdist_links.append(link)
         elif bn.endswith(".whl"):
-            if not bn.endswith("py2.py3-none-any.whl"):
-                hub.fatal("only universal wheels supported, found", bn)
+            if universal_only and not bn.endswith("py2.py3-none-any.whl"):
+                hub.warn("only universal wheels supported, found", bn)
+                continue
             wheel_links.append(link)
     if not sdist_links:
         hub.fatal("need at least one sdist distribution")
     return sdist_links, wheel_links
 
 
-def prepare_toxrun_args(dev_index, versioninfo, sdist_links, wheel_links):
+def prepare_toxrun_args(dev_index, versioninfo, sdist_links, wheel_links, select=None):
     toxrunargs = []
     for sdist_link in sdist_links:
         sdist_pkg = dev_index.download_and_unpack(versioninfo, sdist_link)
@@ -194,6 +210,11 @@ def prepare_toxrun_args(dev_index, versioninfo, sdist_links, wheel_links):
     for wheel_link in wheel_links:
         wheel_pkg = dev_index.download_and_unpack(versioninfo, wheel_link)
         toxrunargs.append((wheel_link, wheel_pkg, toxrunargs[0][1]))
+    if select:
+        toxrunargs = [
+            x
+            for x in toxrunargs
+            if re.search(select, x[0].basename)]
     return toxrunargs
 
 
@@ -216,11 +237,19 @@ def main(hub, args):
         if not links:
             hub.fatal("could not find/receive links for", pkgspec)
 
-        sdist_links, wheel_links = find_sdist_and_wheels(hub, links)
-        toxrunargs = prepare_toxrun_args(devindex, versioninfo, sdist_links, wheel_links)
+        universal_only = args.select is None
+        sdist_links, wheel_links = find_sdist_and_wheels(
+            hub, links, universal_only=universal_only)
+        toxrunargs = prepare_toxrun_args(
+            devindex, versioninfo, sdist_links, wheel_links, select=args.select)
         all_ret = 0
-        for args in toxrunargs:
-            ret = devindex.runtox(*args)
+        if args.list:
+            hub.info("would test:")
+        for toxargs in toxrunargs:
+            if args.list:
+                hub.info("  ", toxargs[0].href)
+                continue
+            ret = devindex.runtox(*toxargs, upload_tox_results=args.upload_tox_results)
             if ret != 0:
                 all_ret = 1
     return all_ret
