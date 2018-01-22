@@ -749,7 +749,6 @@ class TestStage:
             user.create_stage("hello2")
         assert queue.get(timeout=10).name == "user/hello2"
 
-
     @pytest.mark.start_threads
     def test_doczip_uploaded_hook(self, stage, queue):
         class Plugin:
@@ -779,36 +778,36 @@ class TestStage:
         with stage.xom.keyfs.transaction():
             assert link.entry.file_exists()
 
-
     @pytest.mark.start_threads
     def test_doczip_remove_hook(self, stage, queue):
         class Plugin:
-            def devpiserver_on_remove(self, stage, link):
-                queue.put((stage, link))
+            def devpiserver_on_upload(self, stage, project, version, link):
+                queue.put((stage, project, version, link))
         stage.xom.config.pluginmanager.register(Plugin())
-        stage.set_versiondata(udict(name="pkg1", version="1.0"))
+        class Plugin:
+            def devpiserver_on_remove(self, stage, relpath):
+                queue.put((stage, relpath))
+        stage.xom.config.pluginmanager.register(Plugin())
+
+        # upload, should trigger devpiserver_on_upload
+        stage.set_versiondata(udict(name="pkg2", version="1.0"))
         content = zip_dict({"index.html": "<html/>",
             "_static": {}, "_templ": {"x.css": ""}})
-        stage.store_doczip("pkg1", "1.0", content)
+        stage.store_doczip("pkg2", "1.0", content)
         stage.xom.keyfs.commit_transaction_in_thread()
-        nstage, link = queue.get()
-        assert name == "pkg1"
+        nstage, name, version, link = queue.get()
+        assert name == "pkg2"
         assert version == "1.0"
         with stage.xom.keyfs.transaction():
             assert link.entry.file_get_content() == content
-        # delete, which shouldnt trigger devpiserver_on_remove
+
+        # remove, should trigger devpiserver_on_remove
         with stage.xom.keyfs.transaction(write=True):
-            linkstore = stage.get_linkstore_perstage("pkg1", "1.0", readonly=False)
+            linkstore = stage.get_linkstore_perstage("pkg2", "1.0", readonly=False)
             linkstore.remove_links()
-
-        # now write again and check that we get something from the queue
-        with stage.xom.keyfs.transaction(write=True):
-            stage.store_doczip("pkg1", "1.0", content)
-        nstage, link = queue.get()
-        assert name == "pkg1" and version == "1.0"
-        with stage.xom.keyfs.transaction():
-            assert link.entry.file_exists()
-
+        nstage, relpath = queue.get()
+        assert relpath.startswith('hello/world/+')
+        assert relpath.endswith('/pkg2-1.0.doc.zip')
 
     def test_get_existing_project(self, stage):
         assert not stage.get_versiondata("hello", "1.0")

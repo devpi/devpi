@@ -1,3 +1,6 @@
+- add devpiserver_on_remove hook to remove unpacked docs when doczips are
+  removed.
+
 4.1.0 (2016-07-15)
 ------------------
 
