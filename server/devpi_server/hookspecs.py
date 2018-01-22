@@ -106,3 +106,9 @@ def devpiserver_on_upload_sync(log, application_url, stage, project, version):
     Mainly to implement plugins which trigger external services like
     Jenkins to do something upon upload.
     """
+
+
+@hookspec
+def devpiserver_on_remove(stage, relpath):
+    """ called when a relpath is removed from a private stage
+    """

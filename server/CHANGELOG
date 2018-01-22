@@ -1,6 +1,7 @@
-
-
 .. towncrier release notes start
+
+- add devpiserver_on_remove hook to remove unpacked docs when doczips are
+  removed.
 
 4.4.0 (2018-01-17)
 ==================
