@@ -21,6 +21,6 @@ template = "news/_template.rst"
   showcontent = true
 
   [[tool.towncrier.type]]
-  directory = "trivial"
-  name = "Trivial Changes"
-  showcontent = false
+  directory = "other"
+  name = "Other Changes"
+  showcontent = true
