@@ -109,6 +109,6 @@ def devpiserver_on_upload_sync(log, application_url, stage, project, version):
 
 
 @hookspec
-def devpiserver_on_remove(stage, relpath):
+def devpiserver_on_remove_file(stage, relpath):
     """ called when a relpath is removed from a private stage
     """

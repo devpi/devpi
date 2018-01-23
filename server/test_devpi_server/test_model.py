@@ -826,7 +826,7 @@ class TestStage:
                 queue.put((stage, project, version, link))
         stage.xom.config.pluginmanager.register(Plugin())
         class Plugin:
-            def devpiserver_on_remove(self, stage, relpath):
+            def devpiserver_on_remove_file(self, stage, relpath):
                 queue.put((stage, relpath))
         stage.xom.config.pluginmanager.register(Plugin())
 
@@ -842,7 +842,7 @@ class TestStage:
         with stage.xom.keyfs.transaction():
             assert link.entry.file_get_content() == content
 
-        # remove, should trigger devpiserver_on_remove
+        # remove, should trigger devpiserver_on_remove_file
         with stage.xom.keyfs.transaction(write=True):
             linkstore = stage.get_linkstore_perstage("pkg2", "1.0", readonly=False)
             linkstore.remove_links()

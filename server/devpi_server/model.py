@@ -1091,7 +1091,7 @@ class EventSubscribers:
             entry = FileEntry(self.xom, ev.typedkey, meta=ev.value)
             if not entry.project or not entry.version:
                 # the entry was deleted
-                self.xom.config.hook.devpiserver_on_remove(
+                self.xom.config.hook.devpiserver_on_remove_file(
                     stage=stage,
                     relpath=ev.typedkey.relpath
                 )
