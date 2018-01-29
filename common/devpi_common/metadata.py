@@ -127,6 +127,9 @@ class Version(CompareMixin):
         return self.string
 
     def is_prerelease(self):
+        if hasattr(self.cmpval, 'is_prerelease'):
+            return self.cmpval.is_prerelease
+        # backward compatibility
         for x in self.cmpval:
             if x.startswith('*') and x < '*final':
                 return True
