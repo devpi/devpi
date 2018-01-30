@@ -77,7 +77,7 @@ Or inspect the server configuration::
        "type": "userconfig"
    }
    
-.. note:: Once logged in, Emilie will need to create a index as none are 
+.. note:: Once logged in, Emilie will need to create an index as none are 
           automatically created. Index creation is covered in the next chapter 
           (:ref:`devpi_um_indices_chapter`)
 
