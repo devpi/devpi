@@ -170,6 +170,11 @@ class BaseStorage:
                     "this Python version.")
             else:
                 raise
+        except sqlite3.OperationalError as e:
+            threadlog.warn("%s" % e)
+            threadlog.warn(
+                "The installed version of sqlite3 doesn't seem to support "
+                "the uri keyword for 'sqlite3.connect'.")
         except sqlite3.NotSupportedError:
             threadlog.warn(
                 "The installed version of sqlite3 doesn't support the uri "
