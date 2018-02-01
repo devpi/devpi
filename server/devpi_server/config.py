@@ -240,7 +240,8 @@ def try_argcomplete(parser):
     else:
         argcomplete.autocomplete(parser)
 
-def parseoptions(pluginmanager, argv, addoptions=addoptions):
+
+def get_parser(pluginmanager):
     parser = MyArgumentParser(
         description="Start a server which serves multiple users and "
                     "indices. The special root/pypi index is a cached "
@@ -250,7 +251,11 @@ def parseoptions(pluginmanager, argv, addoptions=addoptions):
     )
     addoptions(parser, pluginmanager)
     pluginmanager.hook.devpiserver_add_parser_options(parser=parser)
+    return parser
 
+
+def parseoptions(pluginmanager, argv):
+    parser = get_parser(pluginmanager)
     try_argcomplete(parser)
     args = parser.parse_args(argv[1:])
     config = Config(args, pluginmanager=pluginmanager)
