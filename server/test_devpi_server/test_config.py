@@ -52,7 +52,7 @@ class TestConfig:
         config = make_config(["devpi-server", "--secretfile=%s" % p])
         assert config.secretfile == str(p)
         assert config.secret == secret
-        config = make_config(["devpi-server", "--serverdir", tmpdir])
+        config = make_config(["devpi-server", "--serverdir", tmpdir.strpath])
         assert config.secretfile == tmpdir.join(".secret")
         config.secretfile.write(secret)
         assert config.secret == config.secretfile.read()

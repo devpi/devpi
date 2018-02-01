@@ -252,9 +252,7 @@ def parseoptions(pluginmanager, argv, addoptions=addoptions):
     pluginmanager.hook.devpiserver_add_parser_options(parser=parser)
 
     try_argcomplete(parser)
-    raw = [str(x) for x in argv[1:]]
-    args = parser.parse_args(raw)
-    args._raw = raw
+    args = parser.parse_args(argv[1:])
     config = Config(args, pluginmanager=pluginmanager)
     return config
 
