@@ -70,6 +70,7 @@ def Queue():
 
 @pytest.fixture()
 def caplog(caplog):
+    import logging
     """ enrich the pytest-catchlog funcarg. """
     def getrecords(msgrex=None, minlevel="DEBUG"):
         if msgrex is not None:
@@ -85,6 +86,7 @@ def caplog(caplog):
             recs.append(rec)
         return recs
     caplog.getrecords = getrecords
+    caplog.set_level(logging.NOTSET)
     return caplog
 
 @pytest.fixture
