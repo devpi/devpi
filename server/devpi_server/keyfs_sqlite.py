@@ -166,14 +166,19 @@ class BaseStorage:
         except TypeError as e:
             if e.args and 'uri' in e.args[0] and 'keyword argument' in e.args[0]:
                 threadlog.warn(
-                    "Can't open sqlite3 db with uri keyword. Python 3.4 is "
-                    "the first version to support it.")
+                    "The uri keyword for 'sqlite3.connect' isn't supported by "
+                    "this Python version.")
             else:
                 raise
+        except sqlite3.OperationalError as e:
+            threadlog.warn("%s" % e)
+            threadlog.warn(
+                "The installed version of sqlite3 doesn't seem to support "
+                "the uri keyword for 'sqlite3.connect'.")
         except sqlite3.NotSupportedError:
             threadlog.warn(
-                "Can't open sqlite3 db with uri. The installed version of "
-                "sqlite doesn't support it.")
+                "The installed version of sqlite3 doesn't support the uri "
+                "keyword for 'sqlite3.connect'.")
         try:
             # sqlite3 might be compiled with default URI support
             conn = self._get_sqlconn_uri(uri)
@@ -184,7 +189,7 @@ class BaseStorage:
             # log the error and switch to using the path
             threadlog.warn("%s" % e)
             threadlog.warn(
-                "Can't open sqlite3 db with options in URI. There is a "
+                "Opening the sqlite3 db without options in URI. There is a "
                 "higher possibility of read/write conflicts between "
                 "threads, causing slowdowns due to retries.")
             conn = self._get_sqlconn_path(uri)
