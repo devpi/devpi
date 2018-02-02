@@ -22,6 +22,11 @@ def main(hub, args):
 
     if args.pkgspecs:
         os.environ.pop("PYTHONDONTWRITEBYTECODE", None)
+        # macOS only fix, the environment variable is used to lookup the
+        # Python executable and messes with pip installations in virtualenvs
+        # where the installed scripts will use the global Python instead of
+        # the virtualenv one if this is set
+        os.environ.pop("__PYVENV_LAUNCHER__", None)
         cmd = [
             pip_path, "install",
             "-U",
