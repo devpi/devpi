@@ -1,1 +1,0 @@
-fix #508: on macOS the ``__PYVENV_LAUNCHER__`` environment variable needs to be removed when calling pip, otherwise the generated scripts use the wrong Python executable.

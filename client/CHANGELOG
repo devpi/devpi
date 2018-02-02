@@ -2,6 +2,17 @@
 
 .. towncrier release notes start
 
+4.0.1 (2018-02-02)
+==================
+
+Bug Fixes
+---------
+
+- fix #508: on macOS the ``__PYVENV_LAUNCHER__`` environment variable needs to
+  be removed when calling pip, otherwise the generated scripts use the wrong
+  Python executable.
+
+
 4.0.0 (2018-01-17)
 ==================
 
