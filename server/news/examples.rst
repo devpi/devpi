@@ -1,6 +1,6 @@
 file ``469.bugfix``::
 
-    fix issue469: Add ``acl_toxresult_upload`` to index configuration.
+    fix #469: Add ``acl_toxresult_upload`` to index configuration.
 
 file ``on_remove_hook.feature``::
 
