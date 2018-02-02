@@ -1,10 +1,10 @@
 import os
 
+
 def main(hub, args):
     current = hub.require_valid_current_with_index()
 
     venv = hub.venv
-    xopt = []  # not args.verbose and ["-q"] or []
     pip_path = current.getvenvbin("pip", venvdir=venv, glob=True)
     if not pip_path:
         hub.fatal("no pip binary found")
@@ -21,19 +21,16 @@ def main(hub, args):
     simpleindex = current.get_simpleindex_url(args.index).url
 
     if args.pkgspecs:
-        try:
-            del os.environ["PYTHONDONTWRITEBYTECODE"]
-        except KeyError:
-            pass
-        req = []
+        os.environ.pop("PYTHONDONTWRITEBYTECODE", None)
+        cmd = [
+            pip_path, "install",
+            "-U",
+            "-i", simpleindex]
         if args.requirement:
-            req.append('--requirement')
-        hub.popen_check([pip_path, "install"] + xopt + [
-            "-U", #"--force-reinstall",
-            "-i", simpleindex] + req + list(args.pkgspecs),
+            cmd.append('--requirement')
+        cmd.extend(args.pkgspecs)
+        hub.popen_check(
+            cmd,
             # normalize pip<1.4 and pip>=1.4 behaviour
             extraenv={"PIP_PRE": "1", "PIP_USE_WHEEL": "1"},
         )
-
-
-
