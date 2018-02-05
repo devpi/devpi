@@ -745,7 +745,7 @@ class Mapp(MappMixin):
         return r
 
     def get_simple(self, project, code=200):
-        r = self.testapp.get(self.api.simpleindex + project,
+        r = self.testapp.get(self.api.simpleindex + project + '/',
                              expect_errors=True)
         assert r.status_code == code
         return r
