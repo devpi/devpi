@@ -3,25 +3,91 @@
     <head>
         <metal:head use-macro="request.macros['head']" />
         <title>Serial ${serial}</title>
+        <style>
+            body {
+                margin: 1em;
+            }
+            ul.nav {
+                list-style: none;
+                padding: 0;
+                margin: 0;
+            }
+            ul.nav li {
+                display: inline-block;
+                padding: 0;
+                margin: 0.5em;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            table tr:nth-child(even) {
+                background: #f4f4f4;
+            }
+            table td {
+                vertical-align: top;
+                padding: 0.5em;
+            }
+            table div.serial span {
+                text-align: right;
+                padding-right: 2em;
+            }
+            table div.serial span,
+            table div.serial a {
+                display: block;
+                width: 100%;
+            }
+            table td pre {
+                margin: 0;
+            }
+            table td pre span.remove {
+                background: #ffdddd;
+            }
+            table td pre span.insert {
+                background: #ddffdd;
+            }
+            :target {
+                background-color: #ffa;
+            }
+        </style>
     </head>
     <body>
-        <p><a href="${request.route_url('keyfs', _query=dict(query=query))}">Back</a></p>
+        <h1>Serial ${serial}</h1>
+        <ul class="nav">
+            <li><a href="${request.route_url('keyfs', _query=dict(query=query))}">Back to search</a></li>
+            <li><a tal:omit-tag="serial - 1 < 0" href="${request.route_url('keyfs_changelog', serial=serial - 1,_query=dict(query=query))}">Previous serial</a></li>
+            <li><a tal:omit-tag="serial +1 > last_changelog_serial" href="${request.route_url('keyfs_changelog', serial=serial + 1,_query=dict(query=query))}">Next serial</a></li>
+        </ul>
         <h3>Renames</h3>
-        <pre>${pformat(rel_renames)}</pre>
+        <ul>
+            <li tal:repeat="rename rel_renames"><code>${rename}<code></li>
+        </ul>
         <h3>Changes</h3>
         <ul>
-            <li tal:repeat="change enumerate(changes)"><a href="#${change[0]}">${change[1]}</a></li>
+            <li tal:repeat="change sorted(changes)"><a href="#${change}">${change}</a></li>
         </ul>
-        <dl>
-            <tal:changes repeat="change enumerate(changes.items())">
-            <dt tal:define="index change[0];
-                            key change[1][0]">
-                <a name="${index}"><strong>${key}</strong></a>
-            </dt>
-            <dd tal:define="data change[1][1]">
-                <pre>${pformat(data)}</pre>
-            </dd>
-            </tal:changes>
-        </dl>
+        <table>
+            <thead>
+                <tr>
+                    <th>Key</th>
+                    <th>Data</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr tal:repeat="change sorted(changes.items())">
+                    <td tal:define="key change[0];
+                                    change change[1];">
+                        <div><a name="${key}"><strong>${key}</strong>&nbsp;<code>${change.type}</code></a></div>
+                        <div class="serial">Previous serial<span><a href="${request.route_url('keyfs_changelog', serial=change.previous_serial, _query=dict(query=query)) + '#' + key}" tal:omit-tag="change.previous_serial < 0">${change.previous_serial}</a></span></div>
+                        <div class="serial">Latest serial<span><a href="${request.route_url('keyfs_changelog', serial=change.latest_serial, _query=dict(query=query)) + '#' + key}" tal:omit-tag="change.latest_serial < 0">${change.latest_serial}</a></span></div>
+                    </td>
+                    <td>
+                        <pre>
+<span tal:repeat="diff change[1]['diffed']" tal:attributes="class diff[0]">${diff[1]}</span>
+                        </pre>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
     </body>
 </html>
