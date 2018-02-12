@@ -2,7 +2,7 @@
 <html>
     <head>
         <metal:head use-macro="request.macros['head']" />
-        <title>Serial ${serial}</title>
+        <title>Serial ${serial}/${last_changelog_serial}</title>
         <style>
             body {
                 margin: 1em;
@@ -52,11 +52,12 @@
         </style>
     </head>
     <body>
-        <h1>Serial ${serial}</h1>
+        <h1>Serial ${serial}/${last_changelog_serial}</h1>
         <ul class="nav">
             <li><a href="${request.route_url('keyfs', _query=dict(query=query))}">Back to search</a></li>
             <li><a tal:omit-tag="serial - 1 < 0" href="${request.route_url('keyfs_changelog', serial=serial - 1,_query=dict(query=query))}">Previous serial</a></li>
             <li><a tal:omit-tag="serial +1 > last_changelog_serial" href="${request.route_url('keyfs_changelog', serial=serial + 1,_query=dict(query=query))}">Next serial</a></li>
+            <li><a tal:omit-tag="serial == last_changelog_serial" href="${request.route_url('keyfs_changelog', serial=last_changelog_serial,_query=dict(query=query))}">Latest serial</a></li>
         </ul>
         <h3>Renames</h3>
         <ul>
