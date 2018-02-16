@@ -18,16 +18,19 @@ class TestParser:
     def test_addoption_default_added_to_help(self):
         parser = MyArgumentParser()
         opt = parser.addoption("--hello", type=str, help="x", default="world")
+        parser.post_process_actions()
         assert "[world]" in opt.help
 
     def test_addoption_getdefault(self):
         def getter(name):
             return dict(hello="world2")[name]
-        parser = MyArgumentParser(defaultget=getter)
+        parser = MyArgumentParser()
         opt = parser.addoption("--hello", default="world", type=str, help="x")
+        parser.post_process_actions(defaultget=getter)
         assert opt.default == "world2"
         assert "[world2]" in opt.help
         opt = parser.addoption("--hello2", default="world", type=str, help="x")
+        parser.post_process_actions(defaultget=getter)
         assert opt.default == "world"
         assert "[world]" in opt.help
 
@@ -35,6 +38,7 @@ class TestParser:
         parser = MyArgumentParser()
         group = parser.addgroup("hello")
         opt = group.addoption("--hello", default="world", type=str, help="x")
+        parser.post_process_actions()
         assert opt.default == "world"
         assert "[world]" in opt.help
 

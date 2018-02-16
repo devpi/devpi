@@ -257,38 +257,61 @@ def get_parser(pluginmanager):
 def parseoptions(pluginmanager, argv):
     parser = get_parser(pluginmanager)
     try_argcomplete(parser)
+    parser.post_process_actions()
     args = parser.parse_args(argv[1:])
     config = Config(args, pluginmanager=pluginmanager)
     return config
 
+
+def get_action_long_name(action):
+    """ extract long name of action
+
+        Looks for the first option string that is long enough and
+        starts with two ``prefix_chars``.
+        For example ``--no-events`` would return ``no-events``.
+    """
+    for option_string in action.option_strings:
+        if not len(option_string) > 2:
+            continue
+        if option_string[0] not in action.container.prefix_chars:
+            continue
+        if option_string[1] not in action.container.prefix_chars:
+            continue
+        return option_string[2:]
+
+
 class MyArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args, **kwargs):
-        if "defaultget" in kwargs:
-            self._defaultget = kwargs.pop("defaultget")
-        else:
-            self._defaultget = {}.__getitem__
+        self.addoption = self.add_argument
         super(MyArgumentParser, self).__init__(*args, **kwargs)
 
-    def addoption(self, *args, **kwargs):
-        opt = super(MyArgumentParser, self).add_argument(*args, **kwargs)
-        self._processopt(opt)
-        return opt
+    def post_process_actions(self, defaultget=None):
+        """ update default values for actions
 
-    def _processopt(self, opt):
-        try:
-            opt.default = self._defaultget(opt.dest)
-        except KeyError:
-            pass
-        if opt.help and opt.default:
-            opt.help += " [%s]" % opt.default
+            The passed in defaultget function is used with the long name
+            of the action to look up the default value. This is used to
+            get the current value if a global or user config file is loaded.
+        """
+        for action in self._actions:
+            if defaultget is not None:
+                try:
+                    action.default = defaultget(get_action_long_name(action))
+                except KeyError:
+                    pass
+                else:
+                    if isinstance(action, argparse._StoreTrueAction):
+                        action.default = bool(strtobool(action.default))
+                    elif isinstance(action, argparse._StoreFalseAction):
+                        action.default = not bool(strtobool(action.default))
+            default = action.default
+            if isinstance(action, argparse._StoreFalseAction):
+                default = not default
+            if action.help and action.default != '==SUPPRESS==':
+                action.help += " [%s]" % default
 
     def addgroup(self, *args, **kwargs):
         grp = super(MyArgumentParser, self).add_argument_group(*args, **kwargs)
-        def group_addoption(*args2, **kwargs2):
-            opt = grp.add_argument(*args2, **kwargs2)
-            self._processopt(opt)
-            return opt
-        grp.addoption = group_addoption
+        grp.addoption = grp.add_argument
         return grp
 
 
