@@ -3,12 +3,15 @@ import base64
 import os.path
 import argparse
 import stat
+import sys
 import uuid
 from operator import itemgetter
 
 from pluggy import HookimplMarker, PluginManager
 import py
 from devpi_common.types import cached_property
+from distutils.util import strtobool
+from functools import partial
 from .log import threadlog
 from . import hookspecs
 import json
@@ -38,6 +41,14 @@ def get_default_serverdir():
 
 
 def addoptions(parser, pluginmanager):
+    parser.addoption(
+        "-h", "--help",
+        action='store_true', default='==SUPPRESS==',
+        help="Show this help message and exit.")
+    parser.addoption(
+        "-c", "--configfile",
+        type=str, default=None,
+        help="Config file to use.")
     web = parser.addgroup("web serving options")
     web.addoption("--host",  type=str,
             default="localhost",
@@ -247,18 +258,91 @@ def get_parser(pluginmanager):
                     "indices. The special root/pypi index is a cached "
                     "mirror of pypi.org and is created by default. "
                     "All indices are suitable for pip or easy_install usage "
-                    "and setup.py upload ... invocations."
-    )
+                    "and setup.py upload ... invocations.",
+        add_help=False)
     addoptions(parser, pluginmanager)
     pluginmanager.hook.devpiserver_add_parser_options(parser=parser)
     return parser
 
 
+def find_config_file():
+    import appdirs
+    config_dirs = appdirs.site_config_dir(
+        'devpi-server', 'devpi', multipath=True)
+    config_dirs = config_dirs.split(os.pathsep)
+    config_dirs.append(
+        appdirs.user_config_dir('devpi-server', 'devpi'))
+    config_files = []
+    for config_dir in config_dirs:
+        config_file = os.path.join(config_dir, 'devpi-server.yml')
+        if os.path.exists(config_file):
+            config_files.append(config_file)
+    if len(config_files) > 1:
+        log.warn("Multiple configuration files found:\n%s", "\n".join(config_files))
+    if len(config_files):
+        return config_files[-1]
+
+
+class InvalidConfigError(ValueError):
+    pass
+
+
+def load_config_file(config_file):
+    import strictyaml
+    if not config_file:
+        return {}
+    with open(config_file, 'rb') as f:
+        content = f.read().decode('utf-8')
+        config = strictyaml.load(content)
+        if config.is_scalar():
+            return {}
+        elif config.is_sequence():
+            raise InvalidConfigError(
+                "The config file must be a mapping, not a sequence.")
+        if 'devpi-server' not in config:
+            return {}
+        config = config['devpi-server']
+        if config.is_scalar():
+            return {}
+        elif config.is_sequence():
+            raise InvalidConfigError(
+                "The 'devpi-server' section must be a mapping, not a sequence.")
+        return config.data
+
+
+def default_getter(name, config_options, environ):
+    envname = "DEVPISERVER_%s" % name.replace('-', '_').upper()
+    if envname in environ:
+        value = environ[envname]
+        if value:
+            return value
+    return config_options[name]
+
+
 def parseoptions(pluginmanager, argv):
     parser = get_parser(pluginmanager)
     try_argcomplete(parser)
-    parser.post_process_actions()
     args = parser.parse_args(argv[1:])
+    config_file = None
+    if args.configfile:
+        config_file = args.configfile
+    else:
+        config_file = find_config_file()
+    try:
+        config_options = load_config_file(config_file)
+    except InvalidConfigError as e:
+        log.error("Error in config file '%s':\n  %s" % (
+            config_file, e))
+        sys.exit(4)
+    defaultget = partial(
+        default_getter,
+        config_options=config_options,
+        environ=os.environ)
+    parser.post_process_actions(defaultget=defaultget)
+    args = parser.parse_args(argv[1:])
+    if args.help is True:
+        parser.print_help()
+        parser.exit()
     config = Config(args, pluginmanager=pluginmanager)
     return config
 
