@@ -119,11 +119,15 @@ def db_cleanup():
 
 
 @pytest.fixture(autouse=True, scope="session")
-def devpiserver_storage_backend_mock(postgresql):
+def devpiserver_storage_backend_mock(request):
+    backend = getattr(request.config.option, 'backend', None)
+    if backend is None:
+        return
     old = main.devpiserver_storage_backend
 
     def devpiserver_storage_backend(settings):
         result = old(settings)
+        postgresql = request.getfixturevalue("postgresql")
         for k, v in postgresql.items():
             setattr(Storage, k, v)
         result['storage'] = Storage
