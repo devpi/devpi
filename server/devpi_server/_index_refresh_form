@@ -393,6 +393,7 @@ class PyPIView:
     # index serving and upload
     #
 
+    @view_config(route_name="/{user}/{index}/simple/{project}")
     @view_config(route_name="/{user}/{index}/+simple/{project}")
     def simple_list_project_redirect(self):
         """
@@ -408,6 +409,7 @@ class PyPIView:
             index=self.context.index,
             project=self.context.project))
 
+    @view_config(route_name="/{user}/{index}/simple/{project}/")
     @view_config(route_name="/{user}/{index}/+simple/{project}/")
     def simple_list_project(self):
         request = self.request
@@ -478,6 +480,7 @@ class PyPIView:
         submit = '<input name="refresh" type="submit" value="%s"/>' % title
         return '<form action="%s" method="post">%s</form>' % (url, submit)
 
+    @view_config(route_name="/{user}/{index}/simple")
     @view_config(route_name="/{user}/{index}/+simple")
     def simple_list_all_redirect(self):
         """
@@ -490,6 +493,7 @@ class PyPIView:
             user=self.context.username,
             index=self.context.index))
 
+    @view_config(route_name="/{user}/{index}/simple")
     @view_config(route_name="/{user}/{index}/+simple/")
     def simple_list_all(self):
         self.log.info("starting +simple")
