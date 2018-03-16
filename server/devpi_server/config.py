@@ -232,10 +232,7 @@ def addoptions(parser, pluginmanager):
             help="show status of background devpi-server")
     bg.addoption("--log", action="store_true",
             help="show logfile content of background server")
-    #group.addoption("--pidfile", action="store",
-    #        help="set pid file location")
-    #group.addoption("--logfile", action="store",
-    #        help="set log file file location")
+
 
 def try_argcomplete(parser):
     try:
