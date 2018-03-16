@@ -7,7 +7,7 @@ from collections import OrderedDict
 from devpi_common.url import URL
 
 from devpi_server.config import (
-    render, parseoptions, get_default_serverdir, get_pluginmanager
+    render, parseoptions, get_pluginmanager
 )
 
 try:
@@ -81,8 +81,6 @@ def gen_systemd(tw, config, argv, writer):
     devpibin = py.path.local(sys.argv[0])
     assert devpibin.exists()
     serverdir = config.args.serverdir
-    if serverdir is None:
-        serverdir = get_default_serverdir()
     pid_file = os.path.join(os.path.expanduser(serverdir),
                             '.xproc/devpi-server/xprocess.PID')
     content = render(

@@ -30,7 +30,7 @@ USER_MAN_CHAPTERS = commands\
           
                                  
 #export DEVPI_CLIENTDIR=$(CURDIR)/.tmp_devpi_user_man/client
-#export DEVPI_SERVERDIR=$(CURDIR)/.tmp_devpi_user_man/server
+#export DEVPISERVER_SERVERDIR=$(CURDIR)/.tmp_devpi_user_man/server
 
 chapter = commands
 

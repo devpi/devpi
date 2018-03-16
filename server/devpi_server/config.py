@@ -36,10 +36,6 @@ def get_pluginmanager(load_entrypoints=True):
     return pm
 
 
-def get_default_serverdir():
-    return os.environ.get("DEVPI_SERVERDIR", "~/.devpi/server")
-
-
 def addoptions(parser, pluginmanager):
     parser.addoption(
         "-h", "--help",
@@ -161,10 +157,8 @@ def addoptions(parser, pluginmanager):
             help="set password for user USER (interactive)")
 
     deploy.addoption("--serverdir", type=str, metavar="DIR", action="store",
-            default=None,
-            help="directory for server data.  By default, "
-                 "$DEVPI_SERVERDIR is used if it exists, "
-                 "otherwise the default is '~/.devpi/server'")
+            default='~/.devpi/server',
+            help="directory for server data.")
 
     deploy.addoption("--init", action="store_true",
             help="initialize devpi-server state in an empty directory "
@@ -311,6 +305,12 @@ def load_config_file(config_file):
 
 
 def default_getter(name, config_options, environ):
+    if name == "serverdir":
+        if "DEVPI_SERVERDIR" in environ:
+            log.warn(
+                "Using deprecated DEVPI_SERVERDIR environment variable. "
+                "You should switch to use DEVPISERVER_SERVERDIR.")
+            return environ["DEVPI_SERVERDIR"]
     envname = "DEVPISERVER_%s" % name.replace('-', '_').upper()
     if envname in environ:
         value = environ[envname]
@@ -408,10 +408,7 @@ class Config:
         self.args = args
         self.pluginmanager = pluginmanager
         self.hook = pluginmanager.hook
-        serverdir = args.serverdir
-        if serverdir is None:
-            serverdir = get_default_serverdir()
-        self.serverdir = py.path.local(os.path.expanduser(serverdir))
+        self.serverdir = py.path.local(os.path.expanduser(self.args.serverdir))
 
         if args.secretfile == "{serverdir}/.secret":
             self.secretfile = self.serverdir.join(".secret")

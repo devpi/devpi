@@ -9,7 +9,7 @@ from devpi_server.bgserver import no_proxy
 
 @pytest.mark.skipif("not config.option.slow")
 def test_server_commands(tmpdir, monkeypatch):
-    monkeypatch.setenv("DEVPI_SERVERDIR", tmpdir)
+    monkeypatch.setenv("DEVPISERVER_SERVERDIR", tmpdir)
     monkeypatch.setattr(sys, "argv",
                         [str(py.path.local.sysfind("devpi-server"))])
     if sys.platform == "win32":

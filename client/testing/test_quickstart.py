@@ -10,7 +10,7 @@ def test_dryrun(cmd_devpi):
 
 @pytest.mark.skipif("config.option.fast")
 def test_functional(cmd_devpi, monkeypatch, tmpdir):
-    monkeypatch.setenv("DEVPI_SERVERDIR", tmpdir.join("server"))
+    monkeypatch.setenv("DEVPISERVER_SERVERDIR", tmpdir.join("server"))
     monkeypatch.setenv("DEVPI_CLIENTDIR", tmpdir.join("client"))
     cmd_devpi("quickstart")
     try:

@@ -79,6 +79,11 @@ class TestConfig:
         config = make_config(["devpi-server"])
         assert config.serverdir == tmpdir
 
+    def test_devpiserver_serverdir_env(self, tmpdir, monkeypatch):
+        monkeypatch.setenv("DEVPISERVER_SERVERDIR", tmpdir)
+        config = make_config(["devpi-server"])
+        assert config.serverdir == tmpdir
+
     def test_role_permanence_standalone(self, tmpdir):
         config = make_config(["devpi-server", "--serverdir", str(tmpdir)])
         config.init_nodeinfo()
