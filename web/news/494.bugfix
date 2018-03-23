@@ -1,0 +1,1 @@
+fix #494: fix redirect for +simple pages after PEP 503 fixes in devpi-server.
