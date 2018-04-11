@@ -23,7 +23,7 @@ if __name__ == "__main__":
 
     install_requires=["tox>=1.7.1,!=3.0.0rc1",
                       "devpi_common<4,>=3.1.0",
-                      "pkginfo>=1.2b1",
+                      "pkginfo>=1.4.2",
                       "check-manifest>=0.28",
                       "py>=1.4.31"]
 
