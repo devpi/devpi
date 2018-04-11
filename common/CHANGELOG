@@ -2,6 +2,15 @@
 
 .. towncrier release notes start
 
+3.2.2 (2018-04-11)
+==================
+
+Other Changes
+-------------
+
+- fix deprecation warning from pkg_resources.
+
+
 3.2.1 (2018-01-18)
 ==================
 

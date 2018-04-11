@@ -26,7 +26,7 @@ if __name__ == "__main__":
       name="devpi-common",
       description="utilities jointly used by devpi-server and devpi-client",
       long_description="\n\n".join([README, CHANGELOG]),
-      version='3.2.1',
+      version='3.2.2',
       packages=find_packages(),
       install_requires=["requests>=2.3.0", "py>=1.4.20"],
       url="https://github.com/devpi/devpi",
