@@ -1,1 +1,1 @@
-fix issue510: catch another possible error when trying to open sqlite db with uri keyword.
+fix #510: catch another possible error when trying to open sqlite db with uri keyword.
