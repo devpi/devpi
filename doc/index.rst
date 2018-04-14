@@ -31,7 +31,7 @@ The MIT-licensed devpi system features a powerful PyPI-compatible server
 and a complementary command line tool to drive packaging, testing and
 release activities with Python.  Main features and usage scenarios:
 
-- **fast PyPI mirror**: use a local self-updating pypi.python.org 
+- **fast PyPI mirror**: use a local self-updating pypi.org
   caching mirror which works with ``pip`` and ``easy_install``.  
   After files are first requested can work off-line and will 
   try to re-check with pypi every 30 minutes by default.
@@ -43,7 +43,7 @@ release activities with Python.  Main features and usage scenarios:
   with tox_ and record them with each release file.  When ready push your
   successfully tested release files and documentation
   to another index (staging) or to pypirc-configured external 
-  indexes such as https://pypi.python.org . See :doc:`quickstart-releaseprocess`.
+  indexes such as https://pypi.org . See :doc:`quickstart-releaseprocess`.
 
 - **index inheritance**: Each index can inherit packages from another
   index, including the pypi cache ``root/pypi``.  This allows to 

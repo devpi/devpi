@@ -392,12 +392,10 @@ def test_version_view_root_pypi(mapp, testapp, pypistage):
                      headers=dict(accept="text/html"))
     filesinfo = [tuple(compareable_text(t.text) for t in x.findAll('td')[:3]) for x in r.html.select('.files tbody tr')]
     assert filesinfo == [('pkg1-2.6.zip Type Source', '')]
-    links = r.html.select('#content a')
-    assert [(l.text, l.attrs['href']) for l in links] == [
-        ("Simple index", "http://localhost/root/pypi/+simple/pkg1"),
-        ("PyPI page", "https://pypi.python.org/pypi/pkg1"),
-        ("pkg1-2.6.zip", "http://localhost/root/pypi/+e/https_pypi.python.org_pkg/pkg1-2.6.zip"),
-        ("https://pypi.python.org/pypi/pkg1/2.6/", "https://pypi.python.org/pypi/pkg1/2.6/")]
+    links = {l.text: l.attrs['href'] for l in r.html.select('#content a')}
+    assert links["Simple index"] == "http://localhost/root/pypi/+simple/pkg1"
+    assert links["pkg1-2.6.zip"].startswith("http://localhost/root/pypi/+e")
+    assert "/pkg1" in links["PyPI page"]
 
 
 def test_version_view_root_pypi_external_files(mapp, testapp, pypistage):
@@ -412,11 +410,11 @@ def test_version_view_root_pypi_external_files(mapp, testapp, pypistage):
     assert silink.text == "Simple index"
     assert silink.attrs["href"] == "http://localhost/root/pypi/+simple/pkg1"
     assert pypi_link.text == "PyPI page"
-    assert pypi_link.attrs["href"] == "https://pypi.python.org/pypi/pkg1"
+    assert "/pkg1" in pypi_link.attrs["href"]
     assert link1.text == "pkg1-2.7.zip"
     assert link1.attrs["href"].endswith("pkg1-2.7.zip")
-    assert link2.text == "https://pypi.python.org/pypi/pkg1/2.7/"
-    assert link2.attrs["href"] == "https://pypi.python.org/pypi/pkg1/2.7/"
+    assert link2.text.endswith("/pkg1/2.7/")
+    assert link2.attrs["href"].endswith("/pkg1/2.7/")
 
 
 @pytest.mark.with_notifier

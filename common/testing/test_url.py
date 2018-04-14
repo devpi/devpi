@@ -169,8 +169,8 @@ class TestURL:
         assert new_url.url == url.url
 
     def test_comparison(self):
-        base = URL('https://pypi.python.org')
-        url = URL('https://pypi.python.org/simple/foo').replace(path='')
+        base = URL('https://pypi.org')
+        url = URL('https://pypi.org/simple/foo').replace(path='')
         assert base == url
         assert not (base != url)
 

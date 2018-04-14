@@ -375,7 +375,7 @@ class Index(object):
     def _query_parser_help(self):
         field_docs = dict(
             classifiers="""
-                The <a href="https://pypi.python.org/pypi?%3Aaction=list_classifiers" target="_blank">trove classifiers</a> of a package.
+                The <a href="https://pypi.org/pypi?%3Aaction=list_classifiers" target="_blank">trove classifiers</a> of a package.
                 Use single quotes to specify a classifier, as they contain spaces:
                 <code>classifiers:'Programming Language :: Python :: 3'</code>""",
             index="The name of the index. This is only the name part, without the user. For example: <code>index:pypi</code>",

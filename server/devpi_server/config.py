@@ -223,7 +223,7 @@ def parseoptions(pluginmanager, argv, addoptions=addoptions):
     parser = MyArgumentParser(
         description="Start a server which serves multiple users and "
                     "indices. The special root/pypi index is a cached "
-                    "mirror of pypi.python.org and is created by default. "
+                    "mirror of pypi.org and is created by default. "
                     "All indices are suitable for pip or easy_install usage "
                     "and setup.py upload ... invocations."
     )

@@ -9,7 +9,7 @@ from test_devpi_server.conftest import getmd5
 
 
 class TestIndexParsing:
-    simplepy = URL("http://pypi.python.org/simple/py/")
+    simplepy = URL("https://pypi.org/simple/py/")
 
     @pytest.mark.parametrize("hash_type,hash_value", [
         ("sha256", "090123"),
@@ -37,7 +37,7 @@ class TestIndexParsing:
         assert link.url.endswith("/~user/py-1.4.12.zip#md5=12ab")
 
     def test_parse_index_simple_nocase(self):
-        simplepy = URL("http://pypi.python.org/simple/Py/")
+        simplepy = URL("https://pypi.org/simple/Py/")
         result = parse_index(simplepy,
             """<a href="../../pkg/py-1.4.12.zip#md5=12ab">qwe</a>
                <a href="../../pkg/PY-1.4.13.zip">qwe</a>
@@ -46,7 +46,7 @@ class TestIndexParsing:
         assert len(result.releaselinks) == 3
 
     def test_parse_index_simple_dir_egg_issue63(self):
-        simplepy = URL("http://pypi.python.org/simple/py/")
+        simplepy = URL("https://pypi.org/simple/py/")
         result = parse_index(simplepy,
             """<a href="../../pkg/py-1.4.12.zip#md5=12ab">qwe</a>
                <a href="../../pkg/#egg=py-dev">qwe</a>
@@ -66,7 +66,7 @@ class TestIndexParsing:
             import urlparse
         monkeypatch.setattr(urlparse, "uses_fragment",
                             urlparse.uses_fragment + ["svn"])
-        simplepy = URL("https://pypi.python.org/simple/zope.sqlalchemy/")
+        simplepy = URL("https://pypi.org/simple/zope.sqlalchemy/")
         result = parse_index(simplepy,
             '<a href="svn://svn.zope.org/repos/main/'
             'zope.sqlalchemy/trunk#egg=zope.sqlalchemy-dev" />'
@@ -76,7 +76,7 @@ class TestIndexParsing:
         #assert 0, (result.releaselinks, result.egglinks)
 
     def test_parse_index_normalized_name(self):
-        simplepy = URL("http://pypi.python.org/simple/ndg-httpsclient/")
+        simplepy = URL("https://pypi.org/simple/ndg-httpsclient/")
         result = parse_index(simplepy, """
                <a href="../../pkg/ndg_httpsclient-1.0.tar.gz" />
         """)
@@ -84,7 +84,7 @@ class TestIndexParsing:
         assert result.releaselinks[0].url.endswith("ndg_httpsclient-1.0.tar.gz")
 
     def test_parse_index_two_eggs_same_url(self):
-        simplepy = URL("http://pypi.python.org/simple/Py/")
+        simplepy = URL("https://pypi.org/simple/Py/")
         result = parse_index(simplepy,
             """<a href="../../pkg/pyzip#egg=py-dev">qwe2</a>
                <a href="../../pkg/pyzip#egg=py-dev">qwe</a>
@@ -113,9 +113,10 @@ class TestIndexParsing:
 
     def test_parse_index_invalid_link(self, pypistage):
         result = parse_index(self.simplepy, '''
-                <a rel="download" href="http:/host.com/123" />
+                <a rel="download" href="https:/host.com/123" />
         ''')
-        assert result.crawllinks
+        assert result.crawllinks == {
+            URL('https://pypi.org/host.com/123')}
 
     def test_parse_index_with_egg(self):
         result = parse_index(self.simplepy,
@@ -155,13 +156,13 @@ class TestIndexParsing:
         assert link.basename == basename
 
     def test_parse_index_with_num_in_project(self):
-        simple = URL("http://pypi.python.org/simple/py-4chan/")
+        simple = URL("https://pypi.org/simple/py-4chan/")
         result = parse_index(simple, '<a href="pkg/py-4chan-1.0.zip"/>')
         assert len(result.releaselinks) == 1
         assert result.releaselinks[0].basename == "py-4chan-1.0.zip"
 
     def test_parse_index_unparseable_url(self):
-        simple = URL("http://pypi.python.org/simple/x123/")
+        simple = URL("https://pypi.org/simple/x123/")
         result = parse_index(simple, '<a href="http:" />')
         assert len(result.releaselinks) == 0
 
@@ -219,8 +220,7 @@ class TestIndexParsing:
         assert len(result.crawllinks) == 2
         assert len(result.releaselinks) == 2
         links = list(result.releaselinks)
-        assert links[0].url == \
-                "http://pypi.python.org/pkg/py-1.4.12.zip#md5=12ab"
+        assert links[0].url == "https://pypi.org/pkg/py-1.4.12.zip#md5=12ab"
         assert links[1].url == "http://pylib.org/py-1.1-py27.egg"
 
     def test_releasefile_and_scrape_no_ftp(self):
@@ -252,12 +252,9 @@ class TestIndexParsing:
         assert len(result.crawllinks) == 2
         assert len(result.releaselinks) == 3
         link1, link2, link3 = result.releaselinks
-        assert link1.url == \
-                "http://pypi.python.org/pkg/py-1.4.12.zip#md5=12ab"
-        assert link2.url == \
-                "http://pylib.org/py-1.4.11.zip#md5=1111"
-        assert link3.url == \
-                "http://pypi.python.org/pkg/py-1.4.10.zip#md5=2222"
+        assert link1.url == "https://pypi.org/pkg/py-1.4.12.zip#md5=12ab"
+        assert link2.url == "http://pylib.org/py-1.4.11.zip#md5=1111"
+        assert link3.url == "https://pypi.org/pkg/py-1.4.10.zip#md5=2222"
 
 def test_get_updated(pypistage):
     c = pypistage.cache_link_updates
@@ -270,7 +267,7 @@ class TestExtPYPIDB:
         links = pypistage.get_releaselinks("pytest")
         link, = links
         assert link.version == "1.0"
-        assert link.entry.url == "https://pypi.python.org/pytest/pytest-1.0.zip"
+        assert link.entry.url == "https://pypi.org/pytest/pytest-1.0.zip"
         assert not link.hash_spec
         assert link.entrypath.endswith("/pytest-1.0.zip")
         assert link.entrypath == link.entry.relpath
@@ -350,7 +347,7 @@ class TestExtPYPIDB:
             '''.format(md5=md5, hashdir_b=hashdir_b), pypiserial=25)
         links = pypistage.get_releaselinks("pytest")
         assert len(links) == 3
-        assert links[1].entry.url == "https://pypi.python.org/pkg/pytest-1.0.1.zip"
+        assert links[1].entry.url == "https://pypi.org/pkg/pytest-1.0.1.zip"
         assert links[1].entrypath.endswith("/pytest-1.0.1.zip")
 
     def test_parse_and_scrape_non_html_ignored(self, pypistage):
@@ -409,7 +406,7 @@ class TestExtPYPIDB:
         links = pypistage.get_releaselinks("pytest")
         assert len(links) == 1
         assert links[0].entry.url == \
-                "https://pypi.python.org/pkg/pytest-1.0.zip"
+                "https://pypi.org/pkg/pytest-1.0.zip"
 
     def test_scrape_not_recursive(self, pypistage):
         pypistage.mock_simple("pytest", text='''
@@ -434,7 +431,7 @@ class TestExtPYPIDB:
         links = pypistage.get_releaselinks("pytest")
         assert len(links) == 1
 
-        # make pypi.python.org unreachable
+        # make pypi.org unreachable
         pypistage.mock_simple("pytest", status_code=-1)
         links2 = pypistage.get_releaselinks("pytest")
         assert links2[0].linkdict == links[0].linkdict and len(links2) == 1
@@ -442,14 +439,14 @@ class TestExtPYPIDB:
         assert len(recs) == 1
 
     def test_pypi_mirror_redirect_to_canonical_issue139(self, pypistage):
-        # GET http://pypi.python.org/simple/Hello_World
+        # GET https://pypi.org/simple/Hello_World
         # will result in the request response to have a "real" URL of
-        # http://pypi.python.org/simple/hello-world because of the
+        # https://pypi.org/simple/hello-world because of the
         # new pypi normalization code
         pypistage.httpget.mock_simple("hello-world",
                 '<a href="Hello_World-1.0.tar.gz" /a>',
                 code=200,
-                url="http://pypi.python.org/simple/hello-world",)
+                url="https://pypi.org/simple/hello-world",)
         l = pypistage.get_releaselinks("Hello_World")
         assert len(l) == 1
 
@@ -483,7 +480,7 @@ class TestPyPIStageprojects:
         assert pypistage.list_projects_perstage() == set(["django"])
         pypistage.mock_simple("proj1", pkgver="proj1-1.0.zip")
         pypistage.mock_simple("proj2", pkgver="proj2-1.0.zip")
-        pypistage.url2response["https://pypi.python.org/simple/proj3/"] = dict(
+        pypistage.url2response["https://pypi.org/simple/proj3/"] = dict(
             status_code=404)
         assert len(pypistage.get_releaselinks("proj1")) == 1
         assert len(pypistage.get_releaselinks("proj2")) == 1

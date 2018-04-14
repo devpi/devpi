@@ -23,7 +23,7 @@ if __name__ == "__main__":
     CHANGELOG = get_changelog()
 
     install_requires = ["py>=1.4.23",
-                        "devpi_common<4,>=3.2.0rc1",
+                        "devpi_common<4,>=3.2.0",
                         "itsdangerous>=0.24",
                         "execnet>=1.2",
                         "pyramid>=1.5.1",
@@ -36,7 +36,7 @@ if __name__ == "__main__":
 
     setup(
       name="devpi-server",
-      description="devpi-server: reliable private and pypi.python.org caching server",
+      description="devpi-server: reliable private and pypi.org caching server",
       keywords="pypi realtime cache server",
       long_description="\n\n".join([README, CHANGELOG]),
       url="http://doc.devpi.net",

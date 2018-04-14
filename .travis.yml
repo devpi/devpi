@@ -21,7 +21,7 @@ env:
     - PROJECT=postgresql
 install: pip install tox-travis devpi-client
 script:
-  - export DEVPI_INDEX_URL="https://pypi.python.org/simple/"
+  - export DEVPI_INDEX_URL="https://pypi.org/simple/"
   - test "${DEVPI_TRAVIS_PASSWD}" != "" && export DEVPI_INDEX_URL="https://m.devpi.net/${DEVPI_INDEX}" || true
   - echo "${DEVPI_INDEX_URL}"
   - cd $PROJECT

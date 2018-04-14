@@ -15,9 +15,9 @@ A list of all devpi-server options::
                         [--host HOST] [--refresh SECS] [--gendeploy DIR]
                         [--secretfile path] [--bottleserver TYPE] [--debug]
     
-    Start an index server acting as a cache for pypi.python.org, suitable for
+    Start an index server acting as a cache for pypi.org, suitable for
     pip/easy_install usage. The server automatically refreshes the cache of all
-    indexes which have changed on the pypi.python.org side.
+    indexes which have changed on the pypi.org side.
     
     optional arguments:
       -h, --help           show this help message and exit
@@ -30,7 +30,7 @@ A list of all devpi-server options::
       --port PORT          port to listen for http requests [3141]
       --host HOST          domain/ip address to listen on [localhost]
       --refresh SECS       interval for consulting changelog api of
-                           pypi.python.org [60]
+                           pypi.org [60]
     
     deploy:
       deployment options

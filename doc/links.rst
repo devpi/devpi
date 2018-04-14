@@ -1,15 +1,15 @@
 
 .. _nginx: http://nginx.com/
-.. _pip: http://pypi.python.org/pypi/pip
-.. _easy_install: http://pypi.python.org/pypi/setuptools
-.. _virtualenv: http://pypi.python.org/pypi/virtualenv
-.. _supervisord: http://pypi.python.org/pypi/supervisor
-.. _devpi: http://pypi.python.org/pypi/devpi/
+.. _pip: http://pypi.org/project/pip/
+.. _easy_install: http://pypi.org/project/setuptools/
+.. _virtualenv: http://pypi.org/project/virtualenv/
+.. _supervisord: http://pypi.org/project/supervisor/
+.. _devpi: http://pypi.org/project/devpi/
 .. _merlinux: http://merlinux.eu
 .. _tox: http://tox.testrun.org
-.. _pypi: http://pypi.python.org/pypi
+.. _pypi: http://pypi.org/
 .. _`devpi issue tracker`: https://github.com/devpi/devpi/issues
-.. _supervisor: http://pypi.python.org/pypi/supervisor
+.. _supervisor: http://pypi.org/project/supervisor/
 .. _launchd: http://en.wikipedia.org/wiki/Launchd
-.. _warehouse: http://pypi.python.org/pypi/warehouse
-.. _twine: http://pypi.python.org/pypi/twine
+.. _warehouse: http://pypi.org/project/warehouse/
+.. _twine: http://pypi.org/project/twine/

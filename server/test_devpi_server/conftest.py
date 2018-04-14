@@ -1342,7 +1342,7 @@ class Gen:
         self._md5 = py.std.hashlib.md5()
 
     def pypi_package_link(self, pkgname, md5=True):
-        link = "https://pypi.python.org/package/some/%s" % pkgname
+        link = "https://pypi.org/package/some/%s" % pkgname
         if md5 == True:
             self._md5.update(link.encode("utf8"))  # basically random
             link += "#md5=%s" % self._md5.hexdigest()

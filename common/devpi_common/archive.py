@@ -1,5 +1,5 @@
 """
-remotely based on some code from https://pypi.python.org/pypi/Archive/0.3
+remotely based on some code from https://pypi.org/project/Archive/0.3/
 """
 import os
 import tarfile

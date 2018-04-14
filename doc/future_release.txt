@@ -13,7 +13,7 @@ The push operation is replaced by the more powerful and convenient
     devpi release name gti/dev
 
     # move a specific release to the upstream pypi index (effectively
-    # moving it to the external pypi.python.org side)
+    # moving it to the external pypi.org side)
     # this operation will fail if root/pypi is not an upstream index
     devpi release name==1.0 root/pypi
 

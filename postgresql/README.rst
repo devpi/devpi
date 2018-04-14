@@ -7,7 +7,7 @@ devpi-postgresql: a PostgreSQL storage backend for devpi-server
 
 This plugin adds a PostgreSQL storage backend for `devpi-server`_.
 
-.. _devpi-server: http://pypi.python.org/pypi/devpi-server
+.. _devpi-server: https://pypi.org/project/devpi-server/
 
 
 Installation
