@@ -139,7 +139,7 @@ def notfound(request):
     path = decode_path_info(request.environ['PATH_INFO'] or '/')
     registry = request.registry
     mapper = registry.queryUtility(IRoutesMapper)
-    if mapper is not None and path.endswith('/'):
+    if mapper is not None and path.endswith('/') and '+simple' not in path:
         # redirect URLs with a trailing slash to URLs without one, if there
         # is a matching route
         nonslashpath = path.rstrip('/')
