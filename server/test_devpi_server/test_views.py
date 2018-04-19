@@ -144,7 +144,7 @@ def test_simple_project_outside_url_subpath(mapp, outside_url, pypistage, testap
     hashdir = "/".join(make_splitdir(hash_spec))
     assert links == [
         '../../+f/%s/qpwoei-1.0.tar.gz#%s' % (hashdir, hash_spec),
-        '../../../../root/pypi/+e/https_pypi.python.org/qpwoei-1.0.zip']
+        '../../../../root/pypi/+e/https_pypi.org/qpwoei-1.0.zip']
     testapp.xget(
         200, URL("/%s/+simple/qpwoei/" % api.stagename).joinpath(links[0]).path,
         headers=headers)
@@ -1066,7 +1066,7 @@ def test_push_from_pypi_fail(httpget, mapp, pypistage, testapp):
     req = dict(name="hello", version="1.0", targetindex="foo/newindex1")
     r = testapp.push("/root/pypi", json.dumps(req))
     assert r.status_code == 502
-    assert r.json["message"] == "error 502 getting https://pypi.python.org/simple/hello/hello-1.0.tar.gz"
+    assert r.json["message"] == "error 502 getting https://pypi.org/simple/hello/hello-1.0.tar.gz"
 
 
 def test_upload_docs_for_version_without_release(mapp, testapp, monkeypatch):

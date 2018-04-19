@@ -160,7 +160,7 @@ class PyPIStage(BaseStage):
     @property
     def cache_projectnames(self):
         """ filesystem-persistent cache for full list of projectnames. """
-        # we could keep this info inside keyfs but pypi.python.org
+        # we could keep this info inside keyfs but pypi.org
         # produces a 3MB list of names and it changes often which
         # would spam the database.
         try:
@@ -325,10 +325,10 @@ class PyPIStage(BaseStage):
             raise self.UpstreamError("%s status on GET %s" %
                                      (response.status, url))
 
-        # pypi.python.org provides X-PYPI-LAST-SERIAL header in case of 200 returns.
+        # pypi.org provides X-PYPI-LAST-SERIAL header in case of 200 returns.
         # devpi-master may provide a 200 but not supply the header
         # (it's really a 404 in disguise and we should change
-        # devpi-server behaviour since pypi.python.org serves 404
+        # devpi-server behaviour since pypi.org serves 404
         # on non-existing projects for a longer time now).
         # Returning a 200 with "no such project" was originally meant to
         # provide earlier versions of easy_install/pip to request the full

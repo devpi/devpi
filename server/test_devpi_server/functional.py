@@ -126,8 +126,8 @@ class TestIndexThings:
             "type": "mirror",
             "volatile": False,
             "title": "PyPI",
-            "mirror_url": "https://pypi.python.org/simple/",
-            "mirror_web_url_fmt": "https://pypi.python.org/pypi/{name}"}
+            "mirror_url": "https://pypi.org/simple/",
+            "mirror_web_url_fmt": "https://pypi.org/project/{name}/"}
 
     def test_create_index_base_empty(self, mapp):
         indexconfig = dict(bases="")

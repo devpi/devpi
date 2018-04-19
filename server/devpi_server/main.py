@@ -1,7 +1,7 @@
 # PYTHON_ARGCOMPLETE_OK
 """
 a WSGI server to serve PyPI compatible indexes and a full
-recursive cache of pypi.python.org packages.
+recursive cache of pypi.org packages.
 """
 from __future__ import unicode_literals
 
@@ -449,8 +449,8 @@ def set_default_indexes(model):
 _pypi_ixconfig_default = {
     "type": "mirror", "volatile": False,
     "title": "PyPI",
-    "mirror_url": "https://pypi.python.org/simple/",
-    "mirror_web_url_fmt": "https://pypi.python.org/pypi/{name}"}
+    "mirror_url": "https://pypi.org/simple/",
+    "mirror_web_url_fmt": "https://pypi.org/project/{name}/"}
 
 
 def tween_request_profiling(handler, registry):

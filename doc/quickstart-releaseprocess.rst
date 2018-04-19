@@ -74,7 +74,7 @@ Then we login::
     logged in 'testuser', credentials valid for 10.00 hours
 
 And create a "dev" index, telling it to use the ``root/pypi`` cache as a base
-so that all of pypi.python.org packages will appear on that index::
+so that all of pypi.org packages will appear on that index::
 
     $ devpi index -c dev bases=root/pypi
     http://localhost:3141/testuser/dev:

@@ -86,10 +86,10 @@ invokes ``tox -e py27`` for your convenience.
 
 .. ::
 
-	Pushing a package to pypi.python.org
+	Pushing a package to pypi.org
 	----------------------------------------
 
 	Once you determine that a release is ready, you can
-	push it to ``pypi.python.org``::
+	push it to ``pypi.org``::
 
 		$ devpi push PROJ-VERSION 

@@ -493,7 +493,7 @@ class TestFileReplication:
                                          content=b'')
         with pytest.raises(FileReplicationError) as e:
             replay(xom, replica_xom)
-        assert str(e.value) == 'FileReplicationError with http://localhost/root/pypi/+e/https_pypi.python.org_package_some/some-1.8.zip, code=500, relpath=root/pypi/+e/https_pypi.python.org_package_some/some-1.8.zip, message=failed'
+        assert str(e.value) == 'FileReplicationError with http://localhost/root/pypi/+e/https_pypi.org_package_some/some-1.8.zip, code=500, relpath=root/pypi/+e/https_pypi.org_package_some/some-1.8.zip, message=failed'
 
         # now get the real thing
         replica_xom.httpget.mockresponse(master_file_path, status_code=200,
@@ -521,7 +521,7 @@ class TestFileReplication:
                 for part in entry.iter_remote_file_replica():
                     pass
             e.match('received 500 from master')
-            e.match('pypi.python.org/package/some/pytest-1.8.zip: received 404')
+            e.match('pypi.org/package/some/pytest-1.8.zip: received 404')
 
     def test_cache_remote_file_fetch_original(self, xom, replica_xom, gen,
                                               pypistage, monkeypatch, reqmock):
@@ -636,12 +636,12 @@ def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, replica_pypis
     serial = xom.keyfs.get_current_serial()
     httpget.mock_simple(
         'pytest',
-        text='<a href="https://pypi.python.org/pytest/pytest-1.0.zip">pytest-1.0.zip</a>',
+        text='<a href="https://pypi.org/pytest/pytest-1.0.zip">pytest-1.0.zip</a>',
         headers={'X-DEVPI-SERIAL': str(serial)})
     with replica_xom.keyfs.transaction():
         ret = replica_pypistage.get_releaselinks("pytest")
     assert len(ret) == 1
-    assert ret[0].relpath == 'root/pypi/+e/https_pypi.python.org_pytest/pytest-1.0.zip'
+    assert ret[0].relpath == 'root/pypi/+e/https_pypi.org_pytest/pytest-1.0.zip'
 
     # now we change the links and expire the cache
     pypiurls.simple = orig_simple
@@ -664,7 +664,7 @@ def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, replica_pypis
     pypiurls.simple = 'http://localhost:3111/root/pypi/+simple/'
     httpget.mock_simple(
         'pytest',
-        text='<a href="https://pypi.python.org/pkg/pytest-1.1.zip">pytest-1.1.zip</a>',
+        text='<a href="https://pypi.org/pkg/pytest-1.1.zip">pytest-1.1.zip</a>',
         pypiserial=10001,
         headers={'X-DEVPI-SERIAL': str(xom.keyfs.get_current_serial())})
     with replica_xom.keyfs.transaction():
@@ -675,7 +675,7 @@ def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, replica_pypis
     assert called == [True]
     replay(xom, replica_xom)
     assert len(ret) == 1
-    assert ret[0].relpath == 'root/pypi/+e/https_pypi.python.org_pytest/pytest-1.1.zip'
+    assert ret[0].relpath == 'root/pypi/+e/https_pypi.org_pytest/pytest-1.1.zip'
 
 
 def test_replicate_deleted_user(mapp, replica_xom):

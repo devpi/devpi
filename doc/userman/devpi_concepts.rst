@@ -194,7 +194,7 @@ Mirror Indexes
 ++++++++++++++
 
 These indexes mirror externally stored packages. By default *root/pypi* is such
-an index, which mirrors https://pypi.python.org/simple.
+an index, which mirrors https://pypi.org/simple/.
 
 You can't upload or push any packages to mirror indexes. They update themselves
 whenever they are used. For example when you try to install a package via pip.
@@ -219,8 +219,8 @@ The default settings of *root/pypi* look like this::
         volatile=False
         custom_data=
         mirror_cache_expiry=1800
-        mirror_url=https://pypi.python.org/simple/
-        mirror_web_url_fmt=https://pypi.python.org/pypi/{name}
+        mirror_url=https://pypi.org/simple/
+        mirror_web_url_fmt=https://pypi.org/project/{name}/
         title=PyPI
 
 .. _um_concept_server_end_points:

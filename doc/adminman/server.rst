@@ -160,4 +160,4 @@ updating the search index, unpacking docs and rendering package descriptions
 etc. If all instances would run them, they would cause write conflicts in the
 shared storage.
 
-.. _devpi-postgresql: http://pypi.python.org/pypi/devpi-postgresql
+.. _devpi-postgresql: http://pypi.org/project/devpi-postgresql/

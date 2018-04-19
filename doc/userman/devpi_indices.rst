@@ -228,18 +228,18 @@ Creating a mirror index
 A mirroring index can be created by using ``type=mirror`` and setting the
 ``mirror_url`` option::
 
-   $ devpi index -c pypi type=mirror mirror_url=https://pypi.python.org/simple/
+   $ devpi index -c pypi type=mirror mirror_url=https://pypi.org/simple/
    http://localhost:3141/emilie/pypi:
      type=mirror
      bases=
      volatile=True
      acl_upload=
-     mirror_url=https://pypi.python.org/simple/
+     mirror_url=https://pypi.org/simple/
      pypi_whitelist=
 
 Additionally you can set ``mirror_web_url_fmt`` if you want links to the
 original mirror in the web interface. For *root/pypi* the default
-for ``mirror_web_url_fmt`` is ``https://pypi.python.org/pypi/{name}``. That is
+for ``mirror_web_url_fmt`` is ``https://pypi.org/project/{name}/``. That is
 a Python format string, so the ``{name}`` part is replaced by the project name.
 
 .. _devpi_um_indices_modify:

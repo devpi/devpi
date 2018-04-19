@@ -16,10 +16,14 @@ def get_description_file(stage, name, version):
 
 def get_description(stage, name, version):
     is_mirror = (stage.ixconfig['type'] == 'mirror')
-    mirror_url = stage.ixconfig.get('mirror_url', '')
-    if is_mirror and (stage.name == 'root/pypi' or 'pypi.python.org' in mirror_url):
+    mirror_web_url_fmt = stage.ixconfig.get('mirror_web_url_fmt')
+    if is_mirror and mirror_web_url_fmt is not None:
         html = py.xml.html
-        link = "https://pypi.python.org/pypi/%s/%s/" % (name, version)
+        link = mirror_web_url_fmt.format(name=name)
+        if link.endswith('/'):
+            link = link + "%s/" % version
+        else:
+            link = link + "/%s/" % version
         return html.div(
             "please refer to description on remote server ",
             html.a(link, href=link)).unicode(indent=2)

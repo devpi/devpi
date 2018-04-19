@@ -41,7 +41,7 @@ def parse_target(hub, args):
         auth = pypirc.Auth(pypirc_path)
         posturl, (user, password) = auth.get_url_auth(posturl)
         if posturl is None:
-            posturl = "https://www.python.org/pypi"
+            posturl = "https://upload.pypi.org/legacy/"
             hub.info("using default pypi url %s" % posturl)
         return PyPIPush(posturl, user, password)
     if args.target.count("/") != 1:

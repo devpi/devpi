@@ -102,7 +102,7 @@ Feel free to install any other package.  If you encounter lookup/download
 issues when installing a public pypi package, please report the offending
 package name to the `devpi issue tracker`_, at best including
 the output of ``devpi-server --log``.  We constantly aim to get the
-mirroring 100% bug free and compatible to pypi.python.org.
+mirroring 100% bug free and compatible to pypi.org.
 
 .. _`pip search`:
 
@@ -155,7 +155,7 @@ We can now use search with pip::
 
 .. note::
 
-   Currently devpi-web does not support showing the description of pypi.python.org packages
+   Currently devpi-web does not support showing the description of pypi.org packages
    (the right hand site of the "-") but it will show the description for projects which you
    uploaded to your own private indexes.
 

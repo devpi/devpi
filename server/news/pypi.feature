@@ -1,0 +1,1 @@
+Use ``pypi.org`` as new default for ``root/pypi`` mirror index.

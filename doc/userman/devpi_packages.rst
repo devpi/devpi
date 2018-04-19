@@ -8,7 +8,7 @@ Uploading, testing and pushing packages
 .. sidebar:: Summary
     
     This chapter ilustrates how to :term:`upload`, test and :term:`push` a package 
-    between indexes or to an external index server such as https://pypi.python.org.
+    between indexes or to an external index server such as https://pypi.org.
 
     *related commands*:
       * :ref:`cmdref_upload`
@@ -20,7 +20,7 @@ Overview
 --------
 
 As explained in the :ref:`label_userman_concepts_chapter` chapter, the **/root/pypi** is 
-a special cache to http://pypi.python.org. 
+a special cache to https://pypi.org. 
 
 Using the indexes created in the :ref:`previous chapter <devpi_um_indices_chapter>`, we
 will show how to:
@@ -73,7 +73,7 @@ Installing from PyPI
 --------------------
 
 While this topic has been mentioned in many parts of the documentation, we would like 
-to reiterate that the `devpi`_ server acts as a http://pypi.python.org cache::
+to reiterate that the `devpi`_ server acts as a https://pypi.org cache::
 
    $ devpi install jsontree
    -->  /home/hpk/p/devpi/doc/userman$ /home/hpk/venv/0/bin/pip install -U -i http://localhost:3141/emilie/dev/+simple/ jsontree  [PIP_USE_WHEEL=1,PIP_PRE=1]

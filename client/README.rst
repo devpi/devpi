@@ -3,7 +3,7 @@ devpi-client: commands for python packaging and testing
 ===============================================================
 
 The "devpi" command line tool is typically used in conjunction
-with `devpi-server <http://pypi.python.org/pypi/devpi-server>`_.
+with `devpi-server <https://pypi.org/project/devpi-server/>`_.
 It allows to upload, test and install packages from devpi indexes.
 See http://doc.devpi.net for quickstart and more documentation.
 

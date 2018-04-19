@@ -227,7 +227,7 @@ Installing devpi server and client
 When started afresh, ``devpi-server`` will not contain any users
 or indexes except for the root user and the ``root/pypi`` index
 (see :ref:`using root/pypi index <install_first>`) which represents
-and caches https://pypi.python.org packages.  Let's start a server
+and caches https://pypi.org packages.  Let's start a server
 for the purposes of this tutorial in the background::
 
     $ devpi-server --port 4040 --start --init
@@ -342,7 +342,7 @@ and use it ::
     always-set-cfg: no
 
 Our ``alice/dev`` index derives from ``root/pypi``
-which makes all pypi.python.org releases available.
+which makes all pypi.org releases available.
 
 
 automatically setting pip/easy_install config files
