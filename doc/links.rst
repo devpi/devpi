@@ -6,7 +6,7 @@
 .. _supervisord: http://pypi.org/project/supervisor/
 .. _devpi: http://pypi.org/project/devpi/
 .. _merlinux: http://merlinux.eu
-.. _tox: http://tox.testrun.org
+.. _tox: https://tox.readthedocs.io/
 .. _pypi: http://pypi.org/
 .. _`devpi issue tracker`: https://github.com/devpi/devpi/issues
 .. _supervisor: http://pypi.org/project/supervisor/
