@@ -145,13 +145,15 @@ def confirm_delete(hub, index_url, reply, req):
             vv = ViewLinkStore(basepath, verdata)
             files_to_delete = [link for link in vv.get_links()
                                if link.href.startswith(index_url.url)]
-            if files_to_delete:  # XXX need to delete metadata without files
-                ver_to_delete.append((version, files_to_delete))
+            ver_to_delete.append((version, files_to_delete))
     if ver_to_delete:
         hub.info("About to remove the following releases and distributions")
         for ver, links in ver_to_delete:
             hub.info("version: " + ver)
-            for link in links:
-                hub.info("  - " + link.href)
+            if links:
+                for link in links:
+                    hub.info("  - " + link.href)
+            else:
+                hub.info("  - No releases")
         if hub.ask_confirm("Are you sure"):
             return ver_to_delete
