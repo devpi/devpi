@@ -1,1 +1,0 @@
-Update default upload location to ``https://upload.pypi.org/legacy/`` for external ``devpi push``.

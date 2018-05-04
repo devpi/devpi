@@ -2,6 +2,29 @@
 
 .. towncrier release notes start
 
+4.5.0 (2018-05-04)
+==================
+
+Features
+--------
+
+- add ``devpiserver_on_remove_file`` hook to handle removal of files in
+  plugins. Thanks to Dr Colin Kong for the PR.
+
+- Use ``pypi.org`` as new default for ``root/pypi`` mirror index.
+
+
+Bug Fixes
+---------
+
+- adjust minimum version of pyramid to 1.8 (related to #430)
+
+- fix #494: PEP 503 compliance, html and redirect fixes.
+
+- fix #510: catch another possible error when trying to open sqlite db with uri
+  keyword.
+
+
 4.4.0 (2018-01-17)
 ==================
 

@@ -1,1 +1,0 @@
-fix #532: add missing pluggy dependency to setup.py.

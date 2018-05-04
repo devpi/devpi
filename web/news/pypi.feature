@@ -1,1 +1,0 @@
-Use ``mirror_web_url_fmt`` in ``get_description`` for mirror indexes.

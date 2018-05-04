@@ -2,6 +2,28 @@
 
 .. towncrier release notes start
 
+3.3.0 (2018-05-04)
+==================
+
+Features
+--------
+
+- add ``devpiserver_on_remove_file`` hook implementation to handle removal of
+  unpacked documentation. Thanks to Dr Colin Kong for the PR.
+
+- Use ``mirror_web_url_fmt`` in ``get_description`` for mirror indexes.
+
+
+Bug Fixes
+---------
+
+- fix #487: rewrite internal links in order to update browser history/URL
+
+- fix #494: fix redirect for +simple pages after PEP 503 fixes in devpi-server.
+
+- fix scroll for anchors on internal links of documentation
+
+
 3.2.2 (2018-01-17)
 ==================
 

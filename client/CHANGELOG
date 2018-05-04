@@ -2,6 +2,22 @@
 
 .. towncrier release notes start
 
+4.0.2 (2018-05-04)
+==================
+
+Bug Fixes
+---------
+
+- fix #361: allow deletion of versions with no releases.
+
+- fix #524: require at least pkginfo 1.4.2 to support metadata 2.1.
+
+- fix #532: add missing pluggy dependency to setup.py.
+
+- Update default upload location to ``https://upload.pypi.org/legacy/`` for
+  external ``devpi push``.
+
+
 4.0.1 (2018-02-02)
 ==================
 
