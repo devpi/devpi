@@ -1,0 +1,1 @@
+Fix cumulating log tags for request numbers by wrapping the responsible code in a try/finally block to always remove the tag, even when there was an exception.

@@ -160,26 +160,28 @@ def tween_request_logging(handler, registry):
     def request_log_handler(request):
         tag = "[req%s]" %(next(req_count))
         log = thread_push_log(tag)
-        request.log = log
-        log.info("%s %s" % (request.method, request.path,))
-        now = time()
-        response = handler(request)
-        duration = time() - now
-        rheaders = response.headers
-        serial = rheaders.get("X-DEVPI-SERIAL")
-        rheaders.update(meta_headers)
-        uuid, master_uuid = make_uuid_headers(nodeinfo)
-        rheaders[str("X-DEVPI-UUID")] = str(uuid)
-        rheaders[H_MASTER_UUID] = str(master_uuid)
+        try:
+            request.log = log
+            log.info("%s %s" % (request.method, request.path,))
+            now = time()
+            response = handler(request)
+            duration = time() - now
+            rheaders = response.headers
+            serial = rheaders.get("X-DEVPI-SERIAL")
+            rheaders.update(meta_headers)
+            uuid, master_uuid = make_uuid_headers(nodeinfo)
+            rheaders[str("X-DEVPI-UUID")] = str(uuid)
+            rheaders[H_MASTER_UUID] = str(master_uuid)
 
-        log.debug("%s %.3fs serial=%s length=%s type=%s",
-                  response.status_code,
-                  duration,
-                  serial,
-                  rheaders.get("content-length"),
-                  rheaders.get("content-type"),
-        )
-        thread_pop_log(tag)
+            log.debug("%s %.3fs serial=%s length=%s type=%s",
+                      response.status_code,
+                      duration,
+                      serial,
+                      rheaders.get("content-length"),
+                      rheaders.get("content-type"),
+            )
+        finally:
+            thread_pop_log(tag)
         return response
     return request_log_handler
 
