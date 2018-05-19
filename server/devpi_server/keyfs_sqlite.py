@@ -1,4 +1,5 @@
 from devpi_common.types import cached_property
+from .config import hookimpl
 from .fileutil import dumps, loads
 from .log import threadlog, thread_push_log, thread_pop_log
 from .readonly import ReadonlyView
@@ -260,6 +261,7 @@ class Storage(BaseStorage):
             conn.commit()
 
 
+@hookimpl
 def devpiserver_storage_backend(settings):
     return dict(
         storage=Storage,

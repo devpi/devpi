@@ -1,3 +1,4 @@
+from .config import hookimpl
 from .keyfs_sqlite import BaseConnection
 from .keyfs_sqlite import BaseStorage
 from .log import threadlog, thread_push_log, thread_pop_log
@@ -101,6 +102,7 @@ class Storage(BaseStorage):
             conn.commit()
 
 
+@hookimpl
 def devpiserver_storage_backend(settings):
     return dict(
         storage=Storage,

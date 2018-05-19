@@ -1,3 +1,4 @@
+from devpi_server.config import hookimpl
 import pytest
 
 
@@ -11,6 +12,7 @@ class TestCredentialPlugin:
     @pytest.fixture
     def plugin(self):
         class Plugin:
+            @hookimpl
             def devpiserver_get_credentials(self, request):
                 return self.results.pop()
         return Plugin()
@@ -35,6 +37,7 @@ class TestCredentialPlugins:
     @pytest.fixture
     def plugin1(self):
         class Plugin:
+            @hookimpl
             def devpiserver_get_credentials(self, request):
                 return self.results.pop()
         return Plugin()
@@ -42,6 +45,7 @@ class TestCredentialPlugins:
     @pytest.fixture
     def plugin2(self):
         class Plugin:
+            @hookimpl
             def devpiserver_get_credentials(self, request):
                 return self.results.pop()
         return Plugin()
@@ -84,6 +88,7 @@ class TestHeaderCredentialPlugin:
     @pytest.fixture
     def plugin(self):
         class Plugin:
+            @hookimpl
             def devpiserver_get_credentials(self, request):
                 if 'X-Devpi-User' in request.headers:
                     return (request.headers['X-Devpi-User'], '')

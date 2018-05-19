@@ -1,5 +1,6 @@
 from contextlib import closing
 from devpi_postgresql import main
+from pluggy import HookimplMarker
 import getpass
 import py
 import pytest
@@ -7,6 +8,9 @@ import socket
 import subprocess
 import tempfile
 import time
+
+
+devpiserver_hookimpl = HookimplMarker("devpiserver")
 
 
 def get_open_port(host):
@@ -125,6 +129,7 @@ def devpiserver_storage_backend_mock(request):
         return
     old = main.devpiserver_storage_backend
 
+    @devpiserver_hookimpl
     def devpiserver_storage_backend(settings):
         result = old(settings)
         postgresql = request.getfixturevalue("postgresql")

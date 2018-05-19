@@ -6,6 +6,7 @@ import pkg_resources
 import py
 import pytest
 import json
+from devpi_server.config import hookimpl
 from devpi_server.importexport import *
 from devpi_server.main import Fatal
 from devpi_common.archive import Archive, zip_dict
@@ -779,6 +780,7 @@ class TestImportExport:
 
     def test_plugin_index_config(self, impexp):
         class Plugin:
+            @hookimpl
             def devpiserver_indexconfig_defaults(self, index_type):
                 return {"foo_plugin": index_type}
         mapp1 = impexp.mapp1

@@ -1,8 +1,5 @@
-from pluggy import HookimplMarker
+from devpi.main import hookimpl
 import py
-
-
-hookimpl = HookimplMarker("devpiclient")
 
 
 def main(hub, args):

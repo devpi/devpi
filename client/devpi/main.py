@@ -13,6 +13,7 @@ from devpi_common.proc import check_output
 from devpi.use import PersistentCurrent
 from devpi_common.request import new_requests_session
 from devpi import __version__ as client_version
+from pluggy import HookimplMarker
 from pluggy import PluginManager
 import json
 std = py.std
@@ -23,6 +24,9 @@ The devpi commands (installed via devpi-client) wrap common Python
 packaging, uploading, installation and testing activities, using a remote
 devpi-server managed index.  For more information see http://doc.devpi.net
 """
+
+hookimpl = HookimplMarker("devpiclient")
+
 
 def main(argv=None):
     if argv is None:
@@ -42,7 +46,9 @@ def initmain(argv):
 
 
 def get_pluginmanager(load_entry_points=True):
-    pm = PluginManager("devpiclient", implprefix="devpiclient_")
+    pm = PluginManager("devpiclient")
+    # support old plugins, but emit deprecation warnings
+    pm._implprefix="devpiclient_"
     pm.add_hookspecs(hookspecs)
     if load_entry_points:
         pm.load_setuptools_entrypoints("devpi_client")

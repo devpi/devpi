@@ -9,6 +9,7 @@ from devpi_common.types import ensure_unicode
 from devpi_common.url import URL
 from devpi_common.metadata import get_pyversion_filetype
 import devpi_server
+from pluggy import HookimplMarker
 from pyramid.compat import urlparse
 from pyramid.interfaces import IAuthenticationPolicy
 from pyramid.httpexceptions import HTTPException, HTTPFound, HTTPSuccessful
@@ -31,6 +32,7 @@ from .log import thread_push_log, thread_pop_log, threadlog
 
 from .auth import Auth
 
+devpiweb_hookimpl = HookimplMarker("devpiweb")
 server_version = devpi_server.__version__
 
 
@@ -268,6 +270,7 @@ class StatusView:
         apireturn(200, type="status", result=self._status())
 
 
+@devpiweb_hookimpl
 def devpiweb_get_status_info(request):
     msgs = []
     status = StatusView(request)._status()

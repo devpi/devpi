@@ -4,12 +4,16 @@ from devpi_server.log import threadlog, thread_push_log, thread_pop_log
 from devpi_server.readonly import ReadonlyView
 from devpi_server.readonly import ensure_deeply_readonly, get_mutable_deepcopy
 from functools import partial
+from pluggy import HookimplMarker
 from repoze.lru import LRUCache
 import contextlib
 import os
 import pg8000
 import py
 import time
+
+
+devpiserver_hookimpl = HookimplMarker("devpiserver")
 
 
 class Connection:
@@ -286,6 +290,7 @@ class Storage:
                 c.close()
 
 
+@devpiserver_hookimpl
 def devpiserver_storage_backend(settings):
     return dict(
         storage=partial(Storage, settings=settings),

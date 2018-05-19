@@ -5,7 +5,7 @@ import argparse
 import uuid
 from operator import itemgetter
 
-from pluggy import PluginManager
+from pluggy import HookimplMarker, PluginManager
 import py
 from devpi_common.types import cached_property
 from .log import threadlog
@@ -16,8 +16,14 @@ from devpi_common.url import URL
 
 log = threadlog
 
+
+hookimpl = HookimplMarker("devpiserver")
+
+
 def get_pluginmanager(load_entrypoints=True):
-    pm = PluginManager("devpiserver", implprefix="devpiserver_")
+    pm = PluginManager("devpiserver")
+    # support old plugins, but emit deprecation warnings
+    pm._implprefix = "devpiserver_"
     pm.add_hookspecs(hookspecs)
     # XXX load internal plugins here
     if load_entrypoints:

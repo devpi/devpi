@@ -6,6 +6,7 @@ import json
 
 from devpi_common.metadata import splitbasename
 from devpi_common.archive import Archive, zip_dict
+from devpi_server.config import hookimpl
 from devpi_server.model import *  # noqa
 from py.io import BytesIO
 
@@ -753,6 +754,7 @@ class TestStage:
     @pytest.mark.start_threads
     def test_set_versiondata_hook(self, stage, queue):
         class Plugin:
+            @hookimpl
             def devpiserver_on_changed_versiondata(self,
                     stage, project, version, metadata):
                 queue.put((stage, metadata))
@@ -773,6 +775,7 @@ class TestStage:
     @pytest.mark.notransaction
     def test_stage_created_hook(self, xom, queue):
         class Plugin:
+            @hookimpl
             def devpiserver_stage_created(self, stage):
                 queue.put(stage)
         xom.config.pluginmanager.register(Plugin())
@@ -793,6 +796,7 @@ class TestStage:
     @pytest.mark.start_threads
     def test_doczip_uploaded_hook(self, stage, queue):
         class Plugin:
+            @hookimpl
             def devpiserver_on_upload(self, stage, project, version, link):
                 queue.put((stage, project, version, link))
         stage.xom.config.pluginmanager.register(Plugin())
@@ -822,10 +826,12 @@ class TestStage:
     @pytest.mark.start_threads
     def test_doczip_remove_hook(self, stage, queue):
         class Plugin:
+            @hookimpl
             def devpiserver_on_upload(self, stage, project, version, link):
                 queue.put((stage, project, version, link))
         stage.xom.config.pluginmanager.register(Plugin())
         class Plugin:
+            @hookimpl
             def devpiserver_on_remove_file(self, stage, relpath):
                 queue.put((stage, relpath))
         stage.xom.config.pluginmanager.register(Plugin())
@@ -1018,6 +1024,7 @@ def test_setdefault_indexes(xom, model):
     ("", []), ("x,y", ["x", "y"]), ("x,,y", ["x", "y"])))
 def test_get_indexconfig_lists(key, value, result):
     class hooks:
+        @hookimpl
         def devpiserver_indexconfig_defaults(self, index_type):
             return {}
     kvdict = get_indexconfig(hooks(), type="stage", **{key: value})
@@ -1053,6 +1060,7 @@ def test_get_indexconfig_lists(key, value, result):
 ])
 def test_get_indexconfig_values(xom, input, expected):
     class hooks:
+        @hookimpl
         def devpiserver_indexconfig_defaults(self, index_type):
             return {}
     result = get_indexconfig(hooks(), type="stage", **input)

@@ -1,4 +1,5 @@
 import pytest
+from devpi_server.config import hookimpl
 from devpi_server.main import *
 import devpi_server
 import os
@@ -55,6 +56,7 @@ def test_check_incompatible_version_raises(xom):
 def test_pyramid_configure_called(makexom):
     l = []
     class Plugin:
+        @hookimpl
         def devpiserver_pyramid_configure(self, config, pyramid_config):
             l.append((config, pyramid_config))
     xom = makexom(plugins=[Plugin()])
@@ -79,6 +81,7 @@ def test_run_commands_called(tmpdir):
     from devpi_server.main import _main, get_pluginmanager
     l = []
     class Plugin:
+        @hookimpl
         def devpiserver_cmdline_run(self, xom):
             l.append(xom)
             return 1
@@ -100,6 +103,7 @@ def test_main_starts_server_if_run_commands_returns_none(tmpdir):
     from devpi_server.main import _main, get_pluginmanager
     l = []
     class Plugin:
+        @hookimpl
         def devpiserver_cmdline_run(self, xom):
             l.append(xom)
     pm = get_pluginmanager()

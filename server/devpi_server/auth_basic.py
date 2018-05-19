@@ -1,7 +1,9 @@
+from devpi_server.config import hookimpl
 from pyramid.authentication import b64decode
 import binascii
 
 
+@hookimpl
 def devpiserver_get_credentials(request):
     """Extracts username and password from Authentication header.
 

@@ -1,3 +1,4 @@
+from devpi_web.main import hookimpl
 from test_devpi_server.conftest import make_file_url
 import pytest
 import re
@@ -173,6 +174,7 @@ class TestStatusView:
     @pytest.fixture
     def plugin(self):
         class Plugin:
+            @hookimpl
             def devpiweb_get_status_info(self, request):
                 result = self.results.pop()
                 if isinstance(result, Exception):

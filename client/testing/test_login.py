@@ -1,4 +1,4 @@
-from devpi.main import Hub
+from devpi.main import Hub, hookimpl
 from devpi.login import main
 from functools import partial
 import py
@@ -57,6 +57,7 @@ def test_login_plugin(args, hub, login, mock_http_api):
     passwords = ["foo"]
 
     class Plugin:
+        @hookimpl
         def devpiclient_get_password(self, url, username):
             return passwords.pop()
 

@@ -1,4 +1,5 @@
 from devpi_server.config import MyArgumentParser, parseoptions, get_pluginmanager
+from devpi_server.config import hookimpl
 from devpi_server.main import Fatal
 import pytest
 
@@ -147,6 +148,7 @@ class TestConfig:
     def test_add_parser_options_called(self):
         l = []
         class Plugin:
+            @hookimpl
             def devpiserver_add_parser_options(self, parser):
                 l.append(parser)
         pm = get_pluginmanager()
@@ -198,6 +200,7 @@ class TestConfig:
     @pytest.mark.no_storage_option
     def test_storage_backend_options(self, makexom):
         class Plugin:
+            @hookimpl
             def devpiserver_storage_backend(self, settings):
                 from devpi_server import keyfs_sqlite_fs
                 self.settings = settings

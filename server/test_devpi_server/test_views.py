@@ -15,6 +15,7 @@ from devpi_common.archive import Archive, zip_dict
 from devpi_common.viewhelp import ViewLinkStore
 
 import devpi_server.views
+from devpi_server.config import hookimpl
 from devpi_server.views import tween_keyfs_transaction, make_uuid_headers
 from devpi_server.extpypi import parse_index
 
@@ -1460,6 +1461,7 @@ class TestPluginPermissions:
     def plugin(self):
         class Plugin:
             groups = ['plugingroup']
+            @hookimpl
             def devpiserver_auth_user(self, userdict, username, password):
                 if username == 'pluginuser':
                     return dict(status="ok", groups=self.groups)
@@ -1502,6 +1504,7 @@ class TestPluginPermissions:
 
 def test_upload_trigger(mapp):
     class Plugin:
+        @hookimpl
         def devpiserver_on_upload_sync(self, log, application_url,
                                        stage, project, version):
             self.results.append(
@@ -1931,6 +1934,7 @@ class TestRestrictModify:
     @pytest.fixture
     def plugin(self):
         class Plugin:
+            @hookimpl
             def devpiserver_auth_user(self, userdict, username, password):
                 if username == "regular" and password == "regular":
                     return dict(status="ok", groups=["regulars"])

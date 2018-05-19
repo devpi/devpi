@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+from devpi_server.config import hookimpl
 import pytest
 
 pytestmark = [pytest.mark.writetransaction]
@@ -31,6 +32,7 @@ def permissionrequest(dummyrequest, model):
 @pytest.fixture
 def plugin():
     class Plugin:
+        @hookimpl
         def devpiserver_auth_user(self, userdict, username, password):
             if username == 'external':
                 return dict(

@@ -1,6 +1,7 @@
 import py
 import pytest
 from devpi_server.auth import *
+from devpi_server.config import hookimpl
 
 pytestmark = [pytest.mark.writetransaction]
 
@@ -70,6 +71,7 @@ class TestAuthPlugin:
     @pytest.fixture
     def plugin(self):
         class Plugin:
+            @hookimpl
             def devpiserver_auth_user(self, userdict, username, password):
                 return self.results.pop()
         return Plugin()
@@ -133,6 +135,7 @@ class TestAuthPlugins:
     @pytest.fixture
     def plugin1(self):
         class Plugin:
+            @hookimpl
             def devpiserver_auth_user(self, userdict, username, password):
                 return self.results.pop()
         return Plugin()
@@ -140,6 +143,7 @@ class TestAuthPlugins:
     @pytest.fixture
     def plugin2(self):
         class Plugin:
+            @hookimpl
             def devpiserver_auth_user(self, userdict, username, password):
                 return self.results.pop()
         return Plugin()

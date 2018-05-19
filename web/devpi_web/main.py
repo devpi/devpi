@@ -15,7 +15,8 @@ import os
 import sys
 
 
-hookimpl = HookimplMarker("devpiserver")
+hookimpl = HookimplMarker("devpiweb")
+devpiserver_hookimpl = HookimplMarker("devpiserver")
 
 
 def theme_static_url(request, path):
@@ -127,7 +128,9 @@ class ThemeChameleonRendererLookup(ChameleonRendererLookup):
 
 
 def get_pluginmanager(load_entry_points=True):
-    pm = PluginManager("devpiweb", implprefix="devpiweb_")
+    pm = PluginManager("devpiweb")
+    # support old plugins, but emit deprecation warnings
+    pm._implprefix = "devpiclient_"
     pm.add_hookspecs(hookspecs)
     if load_entry_points:
         pm.load_setuptools_entrypoints("devpi_web")
@@ -183,7 +186,7 @@ def get_indexer(config):
     return Index(indices_dir.strpath)
 
 
-@hookimpl
+@devpiserver_hookimpl
 def devpiserver_pyramid_configure(config, pyramid_config):
     # make the theme path absolute if it exists and make it available via the
     # pyramid registry
@@ -218,7 +221,7 @@ def devpiserver_pyramid_configure(config, pyramid_config):
         threadlog.debug("monkeypatched mimetypes.guess_type to return bytes")
 
 
-@hookimpl
+@devpiserver_hookimpl
 def devpiserver_add_parser_options(parser):
     web = None
     for action in parser._actions:
@@ -236,7 +239,7 @@ def devpiserver_add_parser_options(parser):
              "without a full devpi-server import/export.")
 
 
-@hookimpl
+@devpiserver_hookimpl
 def devpiserver_mirror_initialnames(stage, projectnames):
     xom = stage.xom
     ix = get_indexer(xom.config)
@@ -247,14 +250,14 @@ def devpiserver_mirror_initialnames(stage, projectnames):
     threadlog.info("finished initial indexing op")
 
 
-@hookimpl
+@devpiserver_hookimpl
 def devpiserver_stage_created(stage):
     if stage.ixconfig["type"] == "mirror":
         threadlog.info("triggering load of initial projectnames for %s", stage.name)
         stage.list_projects_perstage()
 
 
-@hookimpl
+@devpiserver_hookimpl
 def devpiserver_cmdline_run(xom):
     ix = get_indexer(xom.config)
     if xom.config.args.recreate_search_index:
@@ -281,7 +284,7 @@ def index_project(stage, name):
     ix.update_projects([preprocess_project(stage, name)])
 
 
-@hookimpl
+@devpiserver_hookimpl
 def devpiserver_on_upload(stage, project, version, link):
     if not link.entry.file_exists():
         # on replication or import we might be at a lower than
@@ -292,7 +295,7 @@ def devpiserver_on_upload(stage, project, version, link):
         index_project(stage, project)
 
 
-@hookimpl
+@devpiserver_hookimpl
 def devpiserver_on_changed_versiondata(stage, project, version, metadata):
     if stage is None:
         # TODO we don't have enough info to delete the project
@@ -313,7 +316,7 @@ def devpiserver_on_changed_versiondata(stage, project, version, metadata):
         index_project(stage, metadata['name'])
 
 
-@hookimpl(optionalhook=True)
+@devpiserver_hookimpl(optionalhook=True)
 def devpiserver_on_remove_file(stage, relpath):
     if relpath.endswith(".doc.zip"):
         project, version = (
