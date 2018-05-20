@@ -69,4 +69,5 @@ ENV/
 /.hg/
 /etc/
 /tmp/
-
+*.sw[po]
+**/tags
