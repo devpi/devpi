@@ -546,6 +546,9 @@ devpi command reference (server)
       --replica-max-retries NUM
                             Number of retry attempts for replica connection
                             failures (such as aborted connections to pypi).
+      --request-timeout     NUM
+                            Number of seconds before request being terminated
+                            (such as connections to pypi, etc.). [30]
       --offline-mode        (experimental) prevents connections to any upstream
                             server (e.g. pypi) and only serves locally cached
                             files through the simple index used by pip.
