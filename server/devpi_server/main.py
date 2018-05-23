@@ -271,7 +271,7 @@ class XOM:
     def _httpsession(self):
         return self.new_http_session("server", max_retries=self.config.args.replica_max_retries)
 
-    def httpget(self, url, allow_redirects, timeout=30, extra_headers=None):
+    def httpget(self, url, allow_redirects, timeout=None, extra_headers=None):
         if self.config.args.offline_mode:
             resp = Response()
             resp.status_code = 503  # service unavailable
@@ -284,7 +284,7 @@ class XOM:
                         url, stream=True,
                         allow_redirects=allow_redirects,
                         headers=headers,
-                        timeout=timeout)
+                        timeout=timeout or self.config.args.request_timeout)
             return resp
         except self._httpsession.Errors:
             threadlog.exception("Error during httpget of %s", url)

@@ -182,6 +182,22 @@ def test_replica_max_retries_option(makexom, monkeypatch):
                               timeout=1.2)
     assert r.status_code == -1
 
+
+@pytest.mark.nomocking
+@pytest.mark.parametrize("input_set", [
+    {'timeout': 30, 'arg': [], 'kwarg': None},
+    {'timeout': 42, 'arg': ["--request-timeout=42"], 'kwarg': None},
+    {'timeout': 123, 'arg': [], 'kwarg': 123}
+])
+def test_request_args_timeout_handover(makexom, input_set):
+    def mock_http_get(*args, **kwargs):
+        assert kwargs["timeout"] == input_set['timeout']
+    xom = makexom(input_set['arg'])
+    xom._httpsession.get = mock_http_get
+
+    xom.httpget("http://whatever", allow_redirects=False, timeout=input_set['kwarg'])
+
+
 def test_no_root_pypi_option(makexom):
     xom = makexom(["--no-root-pypi"])
     with xom.keyfs.transaction(write=False):

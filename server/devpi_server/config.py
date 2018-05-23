@@ -78,6 +78,11 @@ def addoptions(parser, pluginmanager):
             help="Number of retry attempts for replica connection failures "
                  "(such as aborted connections to pypi).")
 
+    mirror.addoption("--request-timeout", type=int, metavar="NUM",
+            default=30,
+            help="Number of seconds before request being terminated "
+                 "(such as connections to pypi, etc.).")
+
     mirror.addoption("--offline-mode", action="store_true",
             help="(experimental) prevents connections to any upstream server "
                  "(e.g. pypi) and only serves locally cached files through the "
