@@ -1,5 +1,13 @@
 import pytest
+import sys
 from . import test_streaming
+
+
+pytestmark = [
+    pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="issues with process management on Windows"),
+    pytest.mark.skipif("not config.option.slow")]
 
 
 @pytest.fixture
