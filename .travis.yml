@@ -1,6 +1,9 @@
 language: python
 sudo: false
 addons:
+  apt:
+    packages:
+      - nginx
   postgresql: "9.4"
 python:
   - "2.7"
