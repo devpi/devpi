@@ -517,6 +517,7 @@ def test_apiconfig_features(testapp):
     r = testapp.get_json("/+api")
     assert r.status_code == 200
     assert "features" in r.json["result"]
+    assert "server-keyvalue-parsing" in r.json["result"]["features"]
 
 
 def test_apiconfig_features_plugin(maketestapp, makexom):
