@@ -58,6 +58,10 @@ def addoptions(parser, pluginmanager):
                  "and the web server does not set or you want to override "
                  "the custom X-outside-url header.")
 
+    web.addoption("--absolute-urls", action="store_true",
+            help="use absolute URLs everywhere. "
+                 "This will become the default at some point.")
+
     web.addoption("--debug", action="store_true",
             help="run wsgi application with debug logging")
 
