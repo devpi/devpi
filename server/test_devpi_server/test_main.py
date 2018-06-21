@@ -185,7 +185,7 @@ def test_replica_max_retries_option(makexom, monkeypatch):
 
 @pytest.mark.nomocking
 @pytest.mark.parametrize("input_set", [
-    {'timeout': 30, 'arg': [], 'kwarg': None},
+    {'timeout': 5, 'arg': [], 'kwarg': None},
     {'timeout': 42, 'arg': ["--request-timeout=42"], 'kwarg': None},
     {'timeout': 123, 'arg': [], 'kwarg': 123}
 ])

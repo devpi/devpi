@@ -79,7 +79,7 @@ def addoptions(parser, pluginmanager):
                  "(such as aborted connections to pypi).")
 
     mirror.addoption("--request-timeout", type=int, metavar="NUM",
-            default=30,
+            default=5,
             help="Number of seconds before request being terminated "
                  "(such as connections to pypi, etc.).")
 
