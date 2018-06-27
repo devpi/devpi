@@ -406,6 +406,20 @@ def test_pkgserv(httpget, pypistage, testapp):
     r = testapp.get(url)
     assert r.body == b"123"
 
+
+def test_pkgserv_caching(mapp, testapp):
+    api = mapp.create_and_use()
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
+    r = testapp.get(api.simpleindex + "pkg1/")
+    assert r.status_code == 200
+    href = getfirstlink(r.text).get("href")
+    url = URL(r.request.url).joinpath(href).url
+    r = testapp.get(url)
+    assert r.cache_control.max_age == 365000000
+    assert r.cache_control.public
+    assert r.cache_control.private is None
+
+
 def test_pkgserv_remote_failure(httpget, pypistage, testapp):
     pypistage.mock_simple("package", '<a href="/package-1.0.zip" />')
     r = testapp.get("/root/pypi/+simple/package/")

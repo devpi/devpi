@@ -220,6 +220,7 @@ class FileEntry(object):
         m = mimetypes.guess_type(self.basename)[0]
         headers[str("content-type")] = str(m)
         headers[str("content-length")] = str(self.file_size())
+        headers[str("cache-control")] = str("max-age=365000000, immutable, public")
         return headers
 
     def __eq__(self, other):
