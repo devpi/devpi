@@ -357,6 +357,7 @@ class PyPIView:
         api = {
             "login": request.route_url('/+login'),
             "authstatus": self.get_auth_status(),
+            "features": self.xom.supported_features,
         }
         if path:
             parts = path.split("/")

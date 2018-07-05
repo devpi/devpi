@@ -20,6 +20,15 @@ def devpiserver_cmdline_run(xom):
 
 
 @hookspec
+def devpiserver_get_features():
+    """ return set containing strings with ids of supported features.
+
+    This is returned in the result of /+api to allow devpi-client to use
+    functionality provided by newer devpi-server versions or added by plugins.
+    """
+
+
+@hookspec
 def devpiserver_storage_backend(settings):
     """ return dict containing storage backend info.
 
