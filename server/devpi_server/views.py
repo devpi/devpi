@@ -609,7 +609,7 @@ class PyPIView:
         if isinstance(json, list):
             patch = JsonPatch(json)
             for op in patch:
-                if op.get('op') == 'remove':
+                if op.get('op') == 'remove' and len(op.get('path').split('/')) == 2:
                     abort(
                         self.request, 400,
                         "Bad request: 'remove' operation not supported")
@@ -1107,7 +1107,7 @@ class PyPIView:
         if isinstance(json, list):
             patch = JsonPatch(json)
             for op in patch:
-                if op.get('op') == 'remove':
+                if op.get('op') == 'remove' and len(op.get('path').split('/')) == 2:
                     op['op'] = 'replace'
                     op['value'] = None
                 if op.get('op') == 'move':
