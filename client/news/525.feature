@@ -1,0 +1,1 @@
+Use server side operations for modifying indexes if the devpi-server version supports it. This prevents overwriting changes if two clients modify the same index concurrently.
