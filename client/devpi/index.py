@@ -12,12 +12,19 @@ def index_modify(hub, url, keyvalues):
     reply = hub.http_api("get", url, type="indexconfig")
     if 'server-jsonpatch' in features:
         # the server supports JSON patch
-        patch = json_patch_from_keyvalues(keyvalues, reply.result)
+        try:
+            patch = json_patch_from_keyvalues(keyvalues, reply.result)
+        except ValueError as e:
+            hub.fatal(e)
         for op in patch:
             hub.info("%s %s %s %s" % (url.path, op['op'], op['path'], op['value']))
     else:
         patch = reply.result
-        for name, val in keyvalues.kvdict.items():
+        try:
+            kvdict = keyvalues.kvdict
+        except ValueError as e:
+            hub.fatal(e)
+        for name, val in kvdict.items():
             patch[name] = val
             hub.info("%s changing %s: %s" %(url.path, name, val))
 

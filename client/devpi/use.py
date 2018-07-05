@@ -663,9 +663,22 @@ def json_patch_from_keyvalues(keyvalues, existing):
                     op = 'replace'
                 else:
                     op = 'add'
+            path = '/%s' % key
             if op == 'remove':
+                container = existing.get(key)
+                if isinstance(container, list) and value:
+                    try:
+                        index = container.index(value)
+                    except ValueError:
+                        raise ValueError("'%s' is not in '%s'" % (value, key))
+                    patch.append(dict(
+                        op='test', path='/%s/%s' % (key, index), value=value))
+                    value = index
                 path = '/%s/%s' % (key, value)
-            else:
-                path = '/%s' % key
+                value = ''
+            elif op == 'add':
+                container = existing.get(key)
+                if isinstance(container, list):
+                    path = '/%s/-' % key
         patch.append(dict(op=op, path=path, value=value))
     return patch

@@ -31,7 +31,10 @@ def user_modify(hub, user, keyvalues):
     reply = hub.http_api("get", url, type="userconfig")
     if 'server-jsonpatch' in features:
         # the server supports JSON patch
-        patch = json_patch_from_keyvalues(keyvalues, reply.result)
+        try:
+            patch = json_patch_from_keyvalues(keyvalues, reply.result)
+        except ValueError as e:
+            hub.fatal(e)
         for op in patch:
             value = op['value']
             if op['path'] == '/password':
