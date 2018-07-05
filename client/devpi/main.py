@@ -111,7 +111,7 @@ class Hub:
         If type is specified and the json result type does not match,
         bail out fatally (unless fatal = False)
         """
-        assert kvdict is None or isinstance(kvdict, dict)
+        assert kvdict is None or isinstance(kvdict, (dict, list))
         if isinstance(url, URL):
             url = url.url
         jsontype = "application/json"

@@ -1,0 +1,1 @@
+implement #525: use JSON Patch for modifying users/indexes if server supports it.
