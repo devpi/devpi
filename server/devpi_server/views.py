@@ -9,6 +9,7 @@ from devpi_common.types import ensure_unicode
 from devpi_common.url import URL
 from devpi_common.metadata import get_pyversion_filetype
 from jsonpatch import JsonPatch, JsonPatchException
+from jsonpointer import JsonPointerException
 import devpi_server
 from pyramid.compat import urlparse
 from pyramid.interfaces import IAuthenticationPolicy
@@ -619,7 +620,7 @@ class PyPIView:
             ixconfig = stage.get()
             try:
                 json = patch.apply(ixconfig)
-            except JsonPatchException as e:
+            except (JsonPatchException, JsonPointerException) as e:
                 abort(self.request, 400, "Bad request: %s: %s" % (
                     e.__class__.__name__, e))
         kvdict = getkvdict_index(self.xom.config.hook, json)
@@ -1116,7 +1117,7 @@ class PyPIView:
             userconfig = user.get()
             try:
                 json = patch.apply(userconfig)
-            except JsonPatchException as e:
+            except (JsonPatchException, JsonPointerException) as e:
                 abort(request, 400, "Bad request: %s: %s" % (
                     e.__class__.__name__, e))
         ignored_keys = set(('indexes', 'username'))
