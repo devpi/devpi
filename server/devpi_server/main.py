@@ -204,6 +204,13 @@ class XOM:
         self._stagecache.pop(indexpath, None)
 
     @cached_property
+    def supported_features(self):
+        results = set()
+        for features in self.config.hook.devpiserver_get_features():
+            results.update(features)
+        return tuple(sorted(results))
+
+    @cached_property
     def model(self):
         """ root model object. """
         from devpi_server.model import RootModel
