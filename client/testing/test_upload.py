@@ -56,9 +56,13 @@ class TestCheckout:
         setupdir = repo.ensure_dir(setupdir_rel)
         file = setupdir.join("file")
         file.write("hello")
+        link = setupdir.join("link")
         setup_path = setupdir.ensure("setup.py")
         if not sys.platform.startswith("win"):
             setup_path.chmod(int("0777", 8))
+            link.mksymlinkto(py.path.local(".."), absolute=False)
+        else:
+            link.write("no symlinks on windows")
 
         # this is a test for issue154 although we actually don't really
         # need to test the vcs-exporting code much since we started
@@ -72,7 +76,7 @@ class TestCheckout:
                 pytest.skip("'hg' command not found")
             with repo.as_cwd():
                 runproc("hg init")
-                runproc("hg add {0}/file {0}/setup.py".format(setupdir_rel))
+                runproc("hg add {0}/file {0}/link {0}/setup.py".format(setupdir_rel))
                 runproc("hg add {0}/file {0}/{1}".format(setupdir_rel,
                                                          unicode_fn))
                 runproc("hg commit --config ui.username=whatever -m message")
@@ -83,7 +87,7 @@ class TestCheckout:
             runproc("git init")
             runproc("git config user.email 'you@example.com'")
             runproc("git config user.name 'you'")
-            runproc("git add {0}/file {0}/setup.py".format(setupdir_rel))
+            runproc("git add {0}/file {0}/link {0}/setup.py".format(setupdir_rel))
             runproc("git add {0}/file {0}/{1}".format(setupdir_rel,
                                                       unicode_fn))
             runproc("git commit -m message")
@@ -95,6 +99,7 @@ class TestCheckout:
         newrepo = tmpdir.mkdir("newrepo")
         result = checkout.export(newrepo)
         assert result.rootpath.join("file").check()
+        assert result.rootpath.join("link").check()
         assert result.rootpath == newrepo.join(repo.basename).join(
             repo.bestrelpath(setupdir))
         # ensure we also copied repo meta info
@@ -111,10 +116,12 @@ class TestCheckout:
         newrepo = tmpdir.mkdir("newrepo")
         result = checkout.export(newrepo)
         assert result.rootpath.join("file").check()
+        assert result.rootpath.join("link").check()
         p = result.rootpath.join("setup.py")
         assert p.exists()
         if not sys.platform.startswith("win"):
             assert p.stat().mode & int("0777", 8) == int("0777", 8)
+            assert result.rootpath.join("link").isdir()
         assert result.rootpath == newrepo.join(setupdir.basename)
 
     def test_vcs_export_disabled(self, uploadhub, setupdir,
