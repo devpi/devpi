@@ -60,7 +60,7 @@ class TestCheckout:
         setup_path = setupdir.ensure("setup.py")
         if not sys.platform.startswith("win"):
             setup_path.chmod(int("0777", 8))
-            link.mksymlinkto(py.path.local(".."), absolute=False)
+            link.mksymlinkto("..", absolute=True)
         else:
             link.write("no symlinks on windows")
 
@@ -100,6 +100,8 @@ class TestCheckout:
         result = checkout.export(newrepo)
         assert result.rootpath.join("file").check()
         assert result.rootpath.join("link").check()
+        if not sys.platform.startswith("win"):
+            assert result.rootpath.join("link").readlink() == ".."
         assert result.rootpath == newrepo.join(repo.basename).join(
             repo.bestrelpath(setupdir))
         # ensure we also copied repo meta info
@@ -121,7 +123,7 @@ class TestCheckout:
         assert p.exists()
         if not sys.platform.startswith("win"):
             assert p.stat().mode & int("0777", 8) == int("0777", 8)
-            assert result.rootpath.join("link").isdir()
+            assert result.rootpath.join("link").readlink() == '..'
         assert result.rootpath == newrepo.join(setupdir.basename)
 
     def test_vcs_export_disabled(self, uploadhub, setupdir,

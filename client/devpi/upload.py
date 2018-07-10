@@ -304,7 +304,11 @@ class Checkout:
         newrepo = basetemp.join(self.rootpath.basename)
         for fn in files:
             source = self.rootpath.join(fn)
-            if source.isfile() or source.islink():
+            if source.islink():
+                dest = newrepo.join(fn)
+                dest.dirpath().ensure(dir=1)
+                dest.mksymlinkto(source.readlink(), absolute=True)
+            elif source.isfile():
                 dest = newrepo.join(fn)
                 dest.dirpath().ensure(dir=1)
                 source.copy(dest, mode=True)
