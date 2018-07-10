@@ -200,7 +200,11 @@ def devpi(cmd_devpi, devpi_username, url_of_liveserver):
 
 @pytest.fixture
 def initproj(request, tmpdir):
+    from pkg_resources import get_distribution, parse_version
     from tox._pytestplugin import initproj
+    tox_version = get_distribution('tox').parsed_version
+    if tox_version >= parse_version('3.1.0a1'):
+        return initproj(tmpdir)
     return initproj(request, tmpdir)
 
 @pytest.fixture
