@@ -47,7 +47,8 @@ def addoptions(parser, pluginmanager):
 
     web.addoption("--max-request-body-size",  type=int,
             default=1073741824,
-            help="maximum number of bytes in request body.")
+            help="maximum number of bytes in request body. "
+                 "This controls the max size of package that can be uploaded.")
 
     web.addoption("--outside-url",  type=str, dest="outside_url",
             metavar="URL",
