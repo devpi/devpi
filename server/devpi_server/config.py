@@ -45,6 +45,10 @@ def addoptions(parser, pluginmanager):
             default=50,
             help="number of threads to start for serving clients.")
 
+    web.addoption("--max-request-body-size",  type=int,
+            default=1073741824,
+            help="maximum number of bytes in request body.")
+
     web.addoption("--outside-url",  type=str, dest="outside_url",
             metavar="URL",
             default=None,
