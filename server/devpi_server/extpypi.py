@@ -19,6 +19,7 @@ from devpi_common.types import cached_property
 from devpi_common.validation import normalize_name
 from functools import partial
 from .model import BaseStage, make_key_and_href, SimplelinkMeta
+from .model import join_requires
 from .model import InvalidIndexconfig, get_indexconfig
 from .readonly import ensure_deeply_readonly
 from .log import threadlog
@@ -294,11 +295,12 @@ class PyPIStage(BaseStage):
         """ return True if we have some cached simpelinks information. """
         return self.key_projsimplelinks(project).exists()
 
-    def _save_cache_links(self, project, links, serial):
+    def _save_cache_links(self, project, links, requires_python, serial):
         assert links != ()  # we don't store the old "Not Found" marker anymore
         assert isinstance(serial, int)
         assert project == normalize_name(project), project
-        data = {"serial": serial, "links": links}
+        data = {"serial": serial, "links": links, 
+            "requires_python": requires_python}
         key = self.key_projsimplelinks(project)
         old = key.get()
         if old != data:
@@ -324,7 +326,17 @@ class PyPIStage(BaseStage):
             if self.offline and links:
                 links = ensure_deeply_readonly(list(filter(self._is_file_cached, links)))
 
-        return is_expired, links, serial
+        if links is None:
+            links_with_require_python = None
+        else:
+            links_with_require_python = []
+            for link in links:
+                if len(link) == 2:
+                    key, href = link
+                    links_with_require_python.append((key, href, None))
+                else:
+                    links_with_require_python.append(link)
+        return is_expired, links_with_require_python, serial
 
     def _entry_from_href(self, href):
         # extract relpath from href by cutting of the hash
@@ -429,13 +441,15 @@ class PyPIStage(BaseStage):
                 user=self.user.name, index=self.index, project=project)
             entries = [maplink(link) for link in releaselinks]
             links = [make_key_and_href(entry) for entry in entries]
-            self._save_cache_links(project, links, serial)
+            #TODO actual values
+            requires_python = [u">=3.4"] * len(links)
+            self._save_cache_links(project, links, requires_python, serial)
 
             # make project appear in projects list even
             # before we next check up the full list with remote
             threadlog.info("setting projects cache for %r", project)
             self.cache_projectnames.get_inplace().add(project)
-            return links
+            return join_requires(links, requires_python)
 
         try:
             return map_and_dump()

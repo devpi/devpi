@@ -132,6 +132,22 @@ def test_simple_project(pypistage, testapp):
     links = getlinks(r.text)
     assert len(links) == 1
     assert links[0].get("href").endswith(path)
+    assert links[0].get("data-requires-python") == ">=3.4"
+
+def test_simple_project_requires_python(mapp, pypistage, testapp):
+    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
+    name = "qpwoei"
+    metadata = dict(name=name, version="1.0")
+    mapp.set_versiondata(metadata)
+
+    path = "/%s-1.0.zip" % name
+    pypistage.mock_simple(name, text='<a href="%s"/>' % path)
+    r = testapp.get("/%s/+simple/qpwoei/" % api.stagename)
+    assert r.status_code == 200
+    links = BeautifulSoup(r.text, "html.parser").findAll("a")
+    assert len(links) == 1
+    assert links[0].get("href").endswith(path)
+    assert links[0].get("data-requires-python") == ">=3.4"
 
 def test_simple_list_all_redirect(pypistage, testapp):
     r = testapp.get("/root/pypi/+simple", follow=False)

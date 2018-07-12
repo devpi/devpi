@@ -18,6 +18,15 @@ from .log import threadlog, thread_current_log
 from .readonly import get_mutable_deepcopy
 
 
+def join_requires(links, requires_python):
+    # build list of (key, href, require_python) tuples
+    result = []
+    for link, require_python in zip(links, requires_python):
+        key, href = link
+        result.append((key, href, require_python))
+    return result
+
+
 def run_passwd(root, username):
     user = root.get_user(username)
     log = thread_current_log()
@@ -412,21 +421,21 @@ class BaseStage(object):
         # compatibility access method used by devpi-web and tests
         project = normalize_name(project)
         try:
-            return [self._make_elink(project, key, href)
-                    for key, href in self.get_simplelinks(project)]
+            return [self._make_elink(project, key, href, require_python)
+                    for key, href, require_python in self.get_simplelinks(project)]
         except self.UpstreamNotFoundError:
             return []
 
     def get_releaselinks_perstage(self, project):
         # compatibility access method for devpi-findlinks and possibly other plugins
         project = normalize_name(project)
-        return [self._make_elink(project, key, href)
-                for key, href in self.get_simplelinks_perstage(project)]
+        return [self._make_elink(project, key, href, require_python)
+                for key, href, require_python in self.get_simplelinks_perstage(project)]
 
-    def _make_elink(self, project, key, href):
-        rp = SimplelinkMeta((key, href))
+    def _make_elink(self, project, key, href, require_python):
+        rp = SimplelinkMeta((key, href, require_python))
         linkdict = {"entrypath": rp._url.path, "hash_spec": rp._url.hash_spec,
-                    "eggfragment": rp.eggfragment}
+                "eggfragment": rp.eggfragment, "require_python": require_python}
         return ELink(self.filestore, linkdict, project, rp.version)
 
     def get_linkstore_perstage(self, name, version, readonly=True):
@@ -494,17 +503,19 @@ class BaseStage(object):
         """
         all_links = []
         seen = set()
+
         try:
             for stage, res in self.op_sro_check_mirror_whitelist(
-                "get_simplelinks_perstage", project=project):
-                for key, href in res:
+                    "get_simplelinks_perstage", project=project):
+                for key, href, require_python in res:
                     if key not in seen:
                         seen.add(key)
-                        all_links.append((key, href))
+                        all_links.append((key, href, require_python))
         except self.UpstreamNotFoundError:
             return []
+
         if sorted_links:
-           all_links = [(v.key, v.href)
+            all_links = [(v.key, v.href, v.require_python)
                         for v in sorted(map(SimplelinkMeta, all_links), reverse=True)]
         return all_links
 
@@ -751,15 +762,24 @@ class PrivateStage(BaseStage):
         return self.key_projversion(project, version).get(readonly=readonly)
 
     def get_simplelinks_perstage(self, project):
-        return self.key_projsimplelinks(project).get().get("links", [])
+        data = self.key_projsimplelinks(project).get()
+        links = data.get("links", [])
+        requires_python = data.get("requires_python", [])
+        return join_requires(links, requires_python)
 
     def _regen_simplelinks(self, project_input):
         project = normalize_name(project_input)
         links = []
+        requires_python = []
         for version in self.list_versions_perstage(project):
             linkstore = self.get_linkstore_perstage(project, version)
-            links.extend(map(make_key_and_href, linkstore.get_links("releasefile")))
-        self.key_projsimplelinks(project).set({"links": links})
+            releases = linkstore.get_links("releasefile")
+            links.extend(map(make_key_and_href, releases))
+            require_python = self.get_versiondata_perstage(project,
+                    version).get('requires_python')
+            requires_python.extend([require_python] * len(releases))
+        data_dict = {u"links":links, u"requires_python":requires_python}
+        self.key_projsimplelinks(project).set(data_dict)
 
     def list_projects_perstage(self):
         return self.key_projects.get()
@@ -1002,7 +1022,7 @@ class LinkStore:
 class SimplelinkMeta(CompareMixin):
     """ helper class to provide information for items from get_simplelinks() """
     def __init__(self, key_href):
-        self.key, self.href = key_href
+        self.key, self.href, self.require_python = key_href
         self._url = URL(self.href)
         self.name, self.version, self.ext = splitbasename(self._url.basename, checkarch=False)
         self.eggfragment = self._url.eggfragment
