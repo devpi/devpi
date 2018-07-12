@@ -1028,6 +1028,29 @@ class PyPIView:
             content = entry.file_get_content()
             return Response(body=content, headers=headers)
 
+    @view_config(route_name="/{user}/{index}/+e/{relpath:.*}",
+                 permission="del_entry",
+                 request_method="DELETE")
+    @view_config(route_name="/{user}/{index}/+f/{relpath:.*}",
+                 permission="del_entry",
+                 request_method="DELETE")
+    def del_pkg(self):
+        stage = self.context.stage
+        if stage.ixconfig["type"] == "mirror":
+            abort(self.request, 405, "cannot delete on mirror index")
+        if not stage.ixconfig["volatile"]:
+            abort(self.request, 403, "cannot delete version on non-volatile index")
+        relpath = self.request.path_info.strip("/")
+        filestore = self.xom.filestore
+        entry = filestore.get_file_entry(relpath)
+        if entry is None:
+            abort(self.request, 404, "package %r doesn't exist" % relpath)
+        try:
+            stage.del_entry(entry)
+        except stage.NotFound as e:
+            abort(self.request, 404, e.msg)
+        apireturn(200, "package %r deleted" % relpath)
+
     @view_config(route_name="/{user}/{index}", accept="application/json", request_method="GET")
     def index_get(self):
         stage = self.context.stage

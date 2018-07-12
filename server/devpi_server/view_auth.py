@@ -21,6 +21,7 @@ class StageACL(object):
                 principal = Everyone
             acl.append((Allow, principal, 'pypi_submit'))
             acl.append((Allow, principal, 'del_verdata'))
+            acl.append((Allow, principal, 'del_entry'))
             acl.append((Allow, principal, 'del_project'))
         for principal in self.stage.ixconfig.get(
                 "acl_toxresult_upload", [':ANONYMOUS:']):
@@ -32,6 +33,7 @@ class StageACL(object):
                 (Allow, self.stage.username, 'index_modify'),
                 (Allow, self.stage.username, 'index_delete'),
                 (Allow, self.stage.username, 'del_verdata'),
+                (Allow, self.stage.username, 'del_entry'),
                 (Allow, self.stage.username, 'del_project')])
         return acl
 
@@ -67,6 +69,7 @@ class RootFactory(object):
                 (Allow, 'root', 'index_create'),
                 (Allow, 'root', 'index_modify'),
                 (Allow, 'root', 'index_delete'),
+                (Allow, 'root', 'del_entry'),
                 (Allow, 'root', 'del_project'),
                 (Allow, 'root', 'del_verdata')])
             if self.username == 'root':
@@ -86,6 +89,7 @@ class RootFactory(object):
                     (Allow, principal, 'index_modify'),
                     (Allow, principal, 'index_delete'),
                     (Allow, principal, 'del_verdata'),
+                    (Allow, principal, 'del_entry'),
                     (Allow, principal, 'del_project')])
         stage = None
         if self.username and self.index:

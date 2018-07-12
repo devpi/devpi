@@ -1601,6 +1601,133 @@ def test_delete_with_acl_upload(mapp, restrict_modify, volatile, xom):
     mapp.delete_project('pkg5', code=result_code)
 
 
+def test_delete_package(mapp, testapp):
+    mapp.login_root()
+    mapp.create_index("test")
+    mapp.use("root/test")
+    mapp.upload_file_pypi("pkg5-2.6.tgz", b"123", "pkg5", "2.6")
+    vv = get_view_version_links(testapp, "/root/test", "pkg5", "2.6")
+    # store the link of the tarball
+    (link,) = vv.get_links()
+    (path,) = mapp.get_release_paths("pkg5")
+    with testapp.xom.keyfs.transaction():
+        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
+        assert entry.file_exists()
+    mapp.upload_file_pypi("pkg5-2.6.zip", b"456", "pkg5", "2.6")
+    vv = get_view_version_links(testapp, "/root/test", "pkg5", "2.6")
+    assert len(vv.get_links()) == 2
+    # now delete the tarball link from above
+    testapp.delete(link.href)
+    testapp.xget(410, link.href)
+    with testapp.xom.keyfs.transaction():
+        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
+        assert not entry.file_exists()
+    vv = get_view_version_links(testapp, "/root/test", "pkg5", "2.6")
+    # the zip file should still be there
+    (link,) = vv.get_links()
+    assert link.href.endswith(".zip")
+
+
+def test_delete_package_with_doczip(mapp, testapp):
+    mapp.login_root()
+    mapp.create_index("test")
+    mapp.use("root/test")
+    mapp.upload_file_pypi("pkg5-2.6.zip", b"123", "pkg5", "2.6")
+    content = zip_dict({"index.html": "<html/>"})
+    mapp.upload_doc("pkg5.zip", content, "pkg5", "2.6")
+    vv = get_view_version_links(testapp, "/root/test", "pkg5", "2.6")
+    assert len(vv.get_links()) == 2
+    # store the link of the package zip
+    (link,) = vv.get_links(rel="releasefile")
+    (path,) = mapp.get_release_paths("pkg5")
+    with testapp.xom.keyfs.transaction():
+        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
+        assert entry.file_exists()
+    # now delete the zip link from above
+    testapp.delete(link.href)
+    testapp.xget(410, link.href)
+    with testapp.xom.keyfs.transaction():
+        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
+        assert not entry.file_exists()
+    vv = get_view_version_links(testapp, "/root/test", "pkg5", "2.6")
+    # the doczip should still be there
+    (link,) = vv.get_links()
+    assert link.rel == "doczip"
+    assert link.href.endswith("pkg5-2.6.doc.zip")
+
+
+def test_delete_doczip(mapp, testapp):
+    mapp.login_root()
+    mapp.create_index("test")
+    mapp.use("root/test")
+    mapp.upload_file_pypi("pkg5-2.6.zip", b"123", "pkg5", "2.6")
+    content = zip_dict({"index.html": "<html/>"})
+    mapp.upload_doc("pkg5.zip", content, "pkg5", "2.6")
+    vv = get_view_version_links(testapp, "/root/test", "pkg5", "2.6")
+    assert len(vv.get_links()) == 2
+    # store the link to the doczip
+    (link,) = vv.get_links(rel="doczip")
+    path = URL(link.href).path
+    with testapp.xom.keyfs.transaction():
+        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
+        assert entry.file_exists()
+    # delet the doczip
+    testapp.delete(link.href)
+    testapp.xget(410, link.href)
+    with testapp.xom.keyfs.transaction():
+        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
+        assert not entry.file_exists()
+    vv = get_view_version_links(testapp, "/root/test", "pkg5", "2.6")
+    # the package zip should still be there
+    (link,) = vv.get_links()
+    assert link.rel == "releasefile"
+    assert link.href.endswith("pkg5-2.6.zip")
+
+
+def test_delete_non_existing_package(mapp, testapp):
+    mapp.login_root()
+    mapp.create_index("test")
+    mapp.use("root/test")
+    mapp.upload_file_pypi("pkg5-2.6.tgz", b"123", "pkg5", "2.6")
+    vv = get_view_version_links(testapp, "/root/test", "pkg5", "2.6")
+    (link,) = vv.get_links()
+    # replace tgz with foo to get a non existing link
+    testapp.xdel(404, link.href.replace('tgz', 'foo'))
+
+
+def test_delete_package_from_mirror_fails(mapp, pypistage, testapp):
+    mapp.login_root()
+    mapp.use("root/pypi")
+    name = "pkg5"
+    mirrorpath = "/%s-2.6.zip" % name
+    pypistage.mock_simple(name, text='<a href="%s"/>' % mirrorpath)
+    pypistage.mock_extfile(mirrorpath, b"123")
+    vv = get_view_version_links(testapp, "/root/pypi", "pkg5", "2.6")
+    (link,) = vv.get_links()
+    (path,) = mapp.get_release_paths("pkg5")
+    with testapp.xom.keyfs.transaction():
+        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
+        assert not entry.file_exists()
+    assert '/+e/' in link.href
+    testapp.get(link.href)
+    with testapp.xom.keyfs.transaction():
+        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
+        assert entry.file_exists()
+    vv = get_view_version_links(testapp, "/root/pypi", "pkg5", "2.6")
+    (link,) = vv.get_links()
+    testapp.xdel(405, link.href)
+
+
+def test_delete_package_volatile_fails(mapp, testapp):
+    mapp.login_root()
+    mapp.create_index("test", indexconfig=dict(volatile=False))
+    mapp.use("root/test")
+    mapp.upload_file_pypi("pkg5-2.6.tgz", b"123", "pkg5", "2.6")
+    vv = get_view_version_links(testapp, "/root/test", "pkg5", "2.6")
+    (link,) = vv.get_links()
+    testapp.xdel(403, link.href)
+
+
 @proj
 def test_upload_docs_no_version(mapp, testapp, proj):
     api = mapp.create_and_use()
