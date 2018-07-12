@@ -395,6 +395,14 @@ class PyPIView:
     # index serving and upload
     #
 
+    @property
+    def _use_absolute_urls(self):
+        if self.xom.config.args.absolute_urls:
+            return True
+        if 'HTTP_X_DEVPI_ABSOLUTE_URLS' in self.request.environ:
+            return True
+        return False
+
     @view_config(route_name="/{user}/{index}/+simple/{project}")
     def simple_list_project_redirect(self):
         """
@@ -462,11 +470,26 @@ class PyPIView:
                    "<strong>%s</strong> are included.</p>"
                    % blocked_index).encode('utf-8')
 
-        url = URL(self.request.path_info)
+        if self._use_absolute_urls:
+            # for joinpath we need the root url
+            application_url = self.request.application_url
+            if not application_url.endswith("/"):
+                application_url = application_url + "/"
+            url = URL(application_url)
+
+            def make_url(href):
+                return url.joinpath(href).url
+        else:
+            # for relpath we need the path of the current page
+            url = URL(self.request.path_info)
+
+            def make_url(href):
+                return url.relpath("/" + href)
+
         for key, href in result:
             yield ('%s <a href="%s">%s</a><br/>\n' %
                    ("/".join(href.split("/", 2)[:2]),
-                    url.relpath("/" + href),
+                    make_url(href),
                     key)).encode("utf-8")
 
         yield "</body></html>".encode("utf-8")

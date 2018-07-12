@@ -145,8 +145,45 @@ def test_simple_project_outside_url_subpath(mapp, outside_url, pypistage, testap
     assert links == [
         '../../+f/%s/qpwoei-1.0.tar.gz#%s' % (hashdir, hash_spec),
         '../../../../root/pypi/+e/https_pypi.org/qpwoei-1.0.zip']
+    # the internal url is always without the "devpi" part, as that is removed
+    # by the webserver in front
     testapp.xget(
         200, URL("/%s/+simple/qpwoei/" % api.stagename).joinpath(links[0]).path,
+        headers=headers)
+
+
+def test_simple_project_absolute_url(mapp, pypistage, testapp):
+    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
+    mapp.upload_file_pypi(
+        "qpwoei-1.0.tar.gz", b'123', "qpwoei", "1.0", indexname=api.stagename)
+    pypistage.mock_simple("qpwoei", text='<a href="/qpwoei-1.0.zip"/>')
+    headers={str('X-devpi-absolute-urls'): str("")}
+    r = testapp.get("/%s/+simple/qpwoei/" % api.stagename, headers=headers)
+    assert r.status_code == 200
+    links = sorted(x["href"] for x in BeautifulSoup(r.text, "html.parser").findAll("a"))
+    assert len(links) == 2
+    hash_spec = get_default_hash_spec(b'123')
+    hashdir = "/".join(make_splitdir(hash_spec))
+    assert links == [
+        'http://localhost/root/pypi/+e/https_pypi.org/qpwoei-1.0.zip',
+        'http://localhost/user1/dev/+f/%s/qpwoei-1.0.tar.gz#%s' % (hashdir, hash_spec)]
+    testapp.xget(200, links[1], headers=headers)
+    # we also test in combination with X-outside-url where devpi is "mounted"
+    # in a sub path
+    headers.update({str('X-outside-url'): str("http://localhost/devpi")})
+    r = testapp.get("/%s/+simple/qpwoei/" % api.stagename, headers=headers)
+    assert r.status_code == 200
+    links = sorted(x["href"] for x in BeautifulSoup(r.text, "html.parser").findAll("a"))
+    assert len(links) == 2
+    hash_spec = get_default_hash_spec(b'123')
+    hashdir = "/".join(make_splitdir(hash_spec))
+    assert links == [
+        'http://localhost/devpi/root/pypi/+e/https_pypi.org/qpwoei-1.0.zip',
+        'http://localhost/devpi/user1/dev/+f/%s/qpwoei-1.0.tar.gz#%s' % (hashdir, hash_spec)]
+    # the internal url is always without the "devpi" part, as that is removed
+    # by the webserver in front
+    testapp.xget(
+        200, links[1].replace("http://localhost/devpi", "http://localhost"),
         headers=headers)
 
 
