@@ -136,6 +136,7 @@ def wsgi_run(xom, app):
     host = xom.config.args.host
     port = xom.config.args.port
     threads = xom.config.args.threads
+    max_body = xom.config.args.max_request_body_size
     log = xom.log
     log.info("devpi-server version: %s", server_version)
     log.info("serverdir: %s" % xom.config.serverdir)
@@ -151,7 +152,7 @@ def wsgi_run(xom, app):
         app = make_eval_exception(app, {})
     try:
         log.info("Hit Ctrl-C to quit.")
-        serve(app, host=host, port=port, threads=threads)
+        serve(app, host=host, port=port, threads=threads, max_request_body_size=max_body)
     except KeyboardInterrupt:
         pass
     return 0
