@@ -548,7 +548,7 @@ devpi command reference (server)
                             failures (such as aborted connections to pypi).
       --request-timeout     NUM
                             Number of seconds before request being terminated
-                            (such as connections to pypi, etc.). [30]
+                            (such as connections to pypi, etc.). [5]
       --offline-mode        (experimental) prevents connections to any upstream
                             server (e.g. pypi) and only serves locally cached
                             files through the simple index used by pip.
