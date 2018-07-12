@@ -168,6 +168,8 @@ def test_simple_project_absolute_url(mapp, pypistage, testapp):
         'http://localhost/root/pypi/+e/https_pypi.org/qpwoei-1.0.zip',
         'http://localhost/user1/dev/+f/%s/qpwoei-1.0.tar.gz#%s' % (hashdir, hash_spec)]
     testapp.xget(200, links[1], headers=headers)
+    # we also test in combination with X-outside-url where devpi is "mounted"
+    # in a sub path
     headers.update({str('X-outside-url'): str("http://localhost/devpi")})
     r = testapp.get("/%s/+simple/qpwoei/" % api.stagename, headers=headers)
     assert r.status_code == 200

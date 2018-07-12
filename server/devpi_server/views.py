@@ -471,16 +471,21 @@ class PyPIView:
                    % blocked_index).encode('utf-8')
 
         if self._use_absolute_urls:
+            # for joinpath we need the root url
             application_url = self.request.application_url
             if not application_url.endswith("/"):
                 application_url = application_url + "/"
             url = URL(application_url)
+
             def make_url(href):
                 return url.joinpath(href).url
         else:
+            # for relpath we need the path of the current page
             url = URL(self.request.path_info)
+
             def make_url(href):
                 return url.relpath("/" + href)
+
         for key, href in result:
             yield ('%s <a href="%s">%s</a><br/>\n' %
                    ("/".join(href.split("/", 2)[:2]),
