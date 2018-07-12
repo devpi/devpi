@@ -35,8 +35,6 @@ class IndexParser:
     def __init__(self, project):
         self.project = normalize_name(project)
         self.basename2link = {}
-        self.crawllinks = set()
-        self.egglinks = []
 
     def _mergelink_ifbetter(self, newlink):
         """
@@ -61,31 +59,14 @@ class IndexParser:
         """ return sorted releaselinks list """
         l = sorted(map(BasenameMeta, self.basename2link.values()),
                    reverse=True)
-        return self.egglinks + [x.obj for x in l]
+        return [x.obj for x in l]
 
-    def parse_index(self, disturl, html, scrape=True):
+    def parse_index(self, disturl, html):
         p = HTMLPage(html, disturl.url)
         seen = set()
         for link in p.links:
             newurl = Link(link.url, requires_python=link.requires_python)
             if not newurl.is_valid_http_url():
-                continue
-            eggfragment = newurl.eggfragment
-            if scrape and eggfragment:
-                if not normalize_name(eggfragment).startswith(self.project):
-                    threadlog.debug("skip egg link %s (project: %s)",
-                              newurl, self.project)
-                    continue
-                if newurl.basename:
-                    # XXX seems we have to maintain a particular
-                    # order to keep pip/easy_install happy with some
-                    # packages (e.g. nose)
-                    if newurl not in self.egglinks:
-                        self.egglinks.insert(0, newurl)
-                else:
-                    threadlog.warn("cannot handle egg directory link (svn?) "
-                                   "skipping: %s (project: %s)",
-                                   newurl, self.project)
                 continue
             if is_archive_of_project(newurl, self.project):
                 if not newurl.is_valid_http_url():
@@ -94,40 +75,15 @@ class IndexParser:
                     seen.add(newurl.url)
                     self._mergelink_ifbetter(newurl)
                     continue
-        if scrape:
-            for link in p.rel_links():
-                if link.url not in seen:
-                    disturl = URL(link.url)
-                    if disturl.is_valid_http_url():
-                        self.crawllinks.add(disturl)
 
-def parse_index(disturl, html, scrape=True):
+
+def parse_index(disturl, html):
     if not isinstance(disturl, URL):
         disturl = URL(disturl)
     project = disturl.basename or disturl.parentbasename
     parser = IndexParser(project)
-    parser.parse_index(disturl, html, scrape=scrape)
+    parser.parse_index(disturl, html)
     return parser
-
-
-def perform_crawling(pypistage, result, numthreads=10):
-    pending = set(result.crawllinks)
-    while pending:
-        try:
-            crawlurl = pending.pop()
-        except KeyError:
-            break
-        threadlog.info("visiting crawlurl %s", crawlurl)
-        response = pypistage.httpget(crawlurl.url, allow_redirects=True)
-        threadlog.info("crawlurl %s %s", crawlurl, response)
-        assert hasattr(response, "status_code")
-        if not isinstance(response, int) and response.status_code == 200:
-            ct = response.headers.get("content-type", "").lower()
-            if ct.startswith("text/html"):
-                result.parse_index(
-                    URL(response.url), response.text, scrape=False)
-                continue
-        threadlog.warn("crawlurl %s status %s", crawlurl, response)
 
 
 class PyPIStage(BaseStage):
@@ -368,9 +324,8 @@ class PyPIStage(BaseStage):
         threadlog.debug("cleared cache for %s", project)
 
     def get_simplelinks_perstage(self, project):
-        """ return all releaselinks from the index and referenced scrape
-        pages, returning cached entries if we have a recent enough
-        request stored locally.
+        """ return all releaselinks from the index, returning cached entries
+        if we have a recent enough request stored locally.
 
         Raise UpstreamError if the pypi server cannot be reached or
         does not return a fresh enough page although we know it must
@@ -439,10 +394,9 @@ class PyPIStage(BaseStage):
         assert project == normalize_name(ret_project)
 
 
-        # parse simple index's link and perform crawling
+        # parse simple index's link
         assert response.text is not None, response.text
         result = parse_index(response.url, response.text)
-        perform_crawling(self, result)
         releaselinks = list(result.releaselinks)
 
         # first we try to process mirror links without an explicit write transaction.
@@ -510,7 +464,7 @@ class PyPIStage(BaseStage):
 
     def list_versions_perstage(self, project):
         try:
-            return set(x.get_eggfragment_or_version()
+            return set(x.version
                        for x in map(SimplelinkMeta, self.get_simplelinks_perstage(project)))
         except self.UpstreamNotFoundError:
             return []
@@ -519,7 +473,7 @@ class PyPIStage(BaseStage):
         project = normalize_name(project)
         verdata = {}
         for sm in map(SimplelinkMeta, self.get_simplelinks_perstage(project)):
-            link_version = sm.get_eggfragment_or_version()
+            link_version = sm.version
             if version == link_version:
                 if not verdata:
                     verdata['name'] = project

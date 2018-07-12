@@ -141,30 +141,6 @@ class TestFileStore:
         entry1.file_delete()
         assert not entry1.file_exists()
 
-    def test_maplink_egg(self, filestore, gen):
-        link = gen.pypi_package_link("master#egg=pytest-dev", md5=False)
-        entry1 = filestore.maplink(link, "root", "pypi", "pytest")
-        entry2 = filestore.maplink(link, "root", "pypi", "pytest")
-        assert entry1 == entry2
-        assert not entry1 != entry2
-        assert entry1.relpath.endswith("/master")
-        assert entry1.eggfragment == "pytest-dev"
-        assert entry1.version == "dev"
-        assert not entry1.hash_spec
-        assert entry1.url == link.url_nofrag
-        assert entry2.eggfragment == "pytest-dev"
-        assert entry2.version == "dev"
-
-    def test_maplink_egg_version(self, filestore, gen):
-        link = gen.pypi_package_link("master#egg=pytest-1.0", md5=False)
-        entry1 = filestore.maplink(link, "root", "pypi", "pytest")
-        assert entry1.version == '1.0'
-
-    def test_maplink_egg_no_version(self, filestore, gen):
-        link = gen.pypi_package_link("master#egg=pytest", md5=False)
-        entry2 = filestore.maplink(link, "root", "pypi", "pytest")
-        assert entry2.version == ''
-
     def test_relpathentry(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.7.zip", md5=False)
         entry = filestore.maplink(link, "root", "pypi", "pytest")
@@ -297,29 +273,6 @@ class TestFileStore:
                 pass
         assert link.md5 in str(excinfo.value)
         assert not entry.file_exists()
-
-    @pytest.mark.notransaction
-    def test_iterfile_eggfragment(self, filestore, httpget, gen):
-        link = gen.pypi_package_link("master#egg=pytest-dev", md5=False)
-        with filestore.keyfs.transaction(write=True):
-            entry = filestore.maplink(link, "root", "pypi", "pytest")
-        assert entry.eggfragment
-        assert entry.url
-        headers={"content-length": "4",
-                 "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
-                 "content-type": "application/zip"}
-
-        httpget.mockresponse(link.url_nofrag, headers=headers,
-                             raw=BytesIO(b"1234"))
-        for part in entry.iter_cache_remote_file():
-            pass
-        with filestore.keyfs.transaction(write=False):
-            assert entry.file_get_content() == b"1234"
-        httpget.mockresponse(entry.url, headers=headers, raw=BytesIO(b"3333"))
-        for part in entry.iter_cache_remote_file():
-            pass
-        with filestore.keyfs.transaction(write=False):
-            assert entry.file_get_content() == b"3333"
 
     def test_store_and_iter(self, filestore):
         content = b"hello"

@@ -716,18 +716,6 @@ class TestFileReplication:
         assert list(replication_errors.errors.keys()) == []
 
 
-def test_should_fetch_remote_file():
-    from devpi_server.views import should_fetch_remote_file
-    from devpi_server.replica import H_REPLICA_FILEREPL
-    class Entry:
-        eggfragment = "some"
-        def file_exists(self):
-            return True
-    assert should_fetch_remote_file(Entry(), {})
-    assert not \
-           should_fetch_remote_file(Entry(), {H_REPLICA_FILEREPL: str("YES")})
-
-
 def test_simplelinks_update_updates_projectname(httpget, monkeypatch,
     pypistage, replica_pypistage, pypiurls, replica_xom, xom):
 

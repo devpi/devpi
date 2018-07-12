@@ -297,20 +297,6 @@ class TestStage:
         assert len(links) == 1
         assert links[0].entrypath.endswith("someproject-1.0.zip")
 
-    def test_get_releaselinks_inheritance_shadow_egg(self, pypistage, stage):
-        stage.modify(bases=("root/pypi",), mirror_whitelist=['py'])
-        pypistage.mock_simple("py",
-        """<a href="http://bb.org/download/py.zip#egg=py-dev" />
-           <a href="http://bb.org/download/master#egg=py-dev2" />
-        """)
-        register_and_store(stage, "py-1.0.tar.gz", b"123")
-        links = stage.get_releaselinks("py")
-        assert len(links) == 3
-        e0, e1, e2 = links
-        assert e0.basename == "py-1.0.tar.gz"
-        assert e1.basename == "py.zip"
-        assert e2.basename == "master"
-
     def test_inheritance_error_are_nop(self, pypistage, stage):
         stage.modify(bases=("root/pypi",), mirror_whitelist=['someproject'])
         pypistage.mock_simple("someproject", status_code = -1)

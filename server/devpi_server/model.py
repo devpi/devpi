@@ -451,7 +451,7 @@ class BaseStage(object):
     def _make_elink(self, project, key, href, require_python):
         rp = SimplelinkMeta((key, href, require_python))
         linkdict = {"entrypath": rp._url.path, "hash_spec": rp._url.hash_spec,
-                "eggfragment": rp.eggfragment, "require_python": require_python}
+                    "require_python": require_python}
         return ELink(self.filestore, linkdict, project, rp.version)
 
     def get_linkstore_perstage(self, name, version, readonly=True):
@@ -897,7 +897,7 @@ class ELink(object):
         try:
             return self.linkdict[name]
         except KeyError:
-            if name in ("for_entrypath", "eggfragment", "rel"):
+            if name in ("for_entrypath", "rel"):
                 return None
             raise AttributeError(name)
 
@@ -1042,20 +1042,10 @@ class SimplelinkMeta(CompareMixin):
         self.key, self.href, self.require_python = key_href
         self._url = URL(self.href)
         self.name, self.version, self.ext = splitbasename(self._url.basename, checkarch=False)
-        self.eggfragment = self._url.eggfragment
 
     @cached_property
     def cmpval(self):
         return parse_version(self.version), normalize_name(self.name), self.ext
-
-    def get_eggfragment_or_version(self):
-        """ return the egg-identifier (link ending in #egg=ID)
-        or the version of the basename
-        """
-        if self.eggfragment:
-            return "egg=" + self.eggfragment
-        else:
-            return self.version
 
 
 def make_key_and_href(entry):
@@ -1064,9 +1054,6 @@ def make_key_and_href(entry):
     href = entry.relpath
     if entry.hash_spec:
         href += "#" + entry.hash_spec
-    elif entry.eggfragment:
-        href += "#egg=%s" % entry.eggfragment
-        return entry.eggfragment, href
     return entry.basename, href
 
 

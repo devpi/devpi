@@ -70,7 +70,6 @@ class FileStore:
                 basename=basename)
         entry = FileEntry(self.xom, key, readonly=False)
         entry.url = link.geturl_nofragment().url
-        entry.eggfragment = link.eggfragment
         # verify checksum if the entry is fresh, a file exists
         # and the link specifies a checksum.  It's a situation
         # that shouldn't happen unless some manual file system
@@ -84,13 +83,10 @@ class FileStore:
         entry.hash_spec = unicode_if_bytes(link.hash_spec)
         entry.project = project
         version = None
-        if link.eggfragment:
-            version = link.eggfragment[len(project) + 1:]
-        else:
-            try:
-                (projectname, version, ext) = splitbasename(basename)
-            except ValueError:
-                pass
+        try:
+            (projectname, version, ext) = splitbasename(basename)
+        except ValueError:
+            pass
         # only store version on entry if we can determine it
         # since version is a meta property of FileEntry, it will return None
         # if not set, if we set it explicitly, it would waste space in the
@@ -148,6 +144,9 @@ class BadGateway(Exception):
 class FileEntry(object):
     BadGateway = BadGateway
     hash_spec = metaprop("hash_spec")  # e.g. "md5=120938012"
+    # BBB keep this until devpi-server 6.0.0,
+    # it was required for devpi-web <= 3.5.1
+    # it was used for the old scraping/crawling code
     eggfragment = metaprop("eggfragment")
     last_modified = metaprop("last_modified")
     url = metaprop("url")
@@ -310,7 +309,7 @@ class FileEntry(object):
             err = ValueError(
                       "%s: got %s bytes of %r from remote, expected %s" % (
                       self.relpath, filesize, r.url, content_size))
-        if not err and not self.eggfragment:
+        if not err:
             err = self.check_checksum(content)
 
         if err is not None:
