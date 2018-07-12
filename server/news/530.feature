@@ -1,0 +1,1 @@
+implement #530: set caching headers for release files to expire far in the future.

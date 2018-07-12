@@ -1002,16 +1002,14 @@ class PyPIView:
             relpath = relpath.split("#", 1)[0]
         filestore = self.xom.filestore
         entry = filestore.get_file_entry(relpath)
+        if entry is None:
+            abort(request, 404, "no such file")
+        elif not entry.meta:
+            abort(request, 410, "file existed, deleted in later serial")
+
         if json_preferred(request):
-            if not entry or not entry.meta:
-                apireturn(404, "no such release file")
             entry_data = get_mutable_deepcopy(entry.meta)
             apireturn(200, type="releasefilemeta", result=entry_data)
-        if not entry or not entry.meta:
-            if entry is None:
-                abort(request, 404, "no such file")
-            else:
-                abort(request, 410, "file existed, deleted in later serial")
 
         try:
             if should_fetch_remote_file(entry, request.headers):
