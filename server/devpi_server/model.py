@@ -713,16 +713,11 @@ class PrivateStage(BaseStage):
             self._regen_simplelinks(project)
 
     def del_entry(self, entry, cleanup=True):
+        # we need to store project and version for use in cleanup part below
         project = entry.project
         version = entry.version
-        if not self.has_project_perstage(project):
-            raise self.NotFound("project %r not found on stage %r" %
-                                (project, self.name))
-        versions = self.key_projversions(project).get(readonly=False)
-        if version not in versions:
-            raise self.NotFound("version %r of project %r not found on stage %r" %
-                                (version, project, self.name))
-        linkstore = self.get_linkstore_perstage(project, version, readonly=False)
+        linkstore = self.get_linkstore_perstage(
+            project, version, readonly=False)
         linkstore.remove_links(basename=entry.basename)
         entry.delete()
         if cleanup:
