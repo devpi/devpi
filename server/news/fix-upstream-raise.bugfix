@@ -1,1 +1,0 @@
-fix raising of UpstreamError by using correct ``status_code`` attribute of response instead of not existing ``status``.

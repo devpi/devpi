@@ -1,1 +1,0 @@
-implement #535: Generate absolute URLs on project simple index pages when ``--absolute-urls`` option is used or ``X-DEVPI-ABSOLUTE-URLS`` header is set.

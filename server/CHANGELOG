@@ -2,6 +2,40 @@
 
 .. towncrier release notes start
 
+4.6.0 (2018-07-13)
+==================
+
+Features
+--------
+
+- implement #448: allow deletion of single release files.
+
+- implement #530: set caching headers for release files to expire far in the
+  future.
+
+- implement #535: Generate absolute URLs on project simple index pages when
+  ``--absolute-urls`` option is used or ``X-DEVPI-ABSOLUTE-URLS`` header is
+  set.
+
+- add `--max-request-body-size` option to control maximum upload size
+
+- add `--request-timeout` option to provide adjustable request timeout
+
+
+Bug Fixes
+---------
+
+- fix #549: reduce timeout for requests to PyPI etc from 30 to 5 seconds. This
+  can be changed with the ``--request-timeout`` option.
+
+- fix raising of UpstreamError by using correct ``status_code`` attribute of
+  response instead of not existing ``status``.
+
+- Fix cumulating log tags for request numbers by wrapping the responsible code
+  in a try/finally block to always remove the tag, even when there was an
+  exception.
+
+
 4.5.0 (2018-05-04)
 ==================
 

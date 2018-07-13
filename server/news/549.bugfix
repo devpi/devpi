@@ -1,2 +1,0 @@
-fix #549: reduce timeout for requests to PyPI etc from 30 to 5 seconds.
-This can be changed with the ``--request-timeout`` option.

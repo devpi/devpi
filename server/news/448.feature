@@ -1,1 +1,0 @@
-implement #448: allow deletion of single release files.
