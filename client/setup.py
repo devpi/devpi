@@ -56,5 +56,6 @@ if __name__ == "__main__":
         'console_scripts': [
           "devpi = devpi.main:main"],
         'devpi_client': [
-          "devpi-client-login = devpi.login"]}
+          "devpi-client-login = devpi.login",
+          "devpi-client-subcommands = devpi.main"]}
       )

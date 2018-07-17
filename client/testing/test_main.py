@@ -31,6 +31,45 @@ class TestVerifyAPIVersion:
         matcher = loghub._getmatcher()
         matcher.fnmatch_lines("*got*0*acceptable*")
 
+
+def test_subcommands_hook(capsys):
+    from devpi.main import get_pluginmanager, parse_args
+    from pluggy import HookimplMarker
+
+    calls = []
+
+    class Plugin:
+        @HookimplMarker("devpiclient")
+        def devpiclient_subcommands(self):
+            def myplugincmd_arguments(parser):
+                """ myplugindescription """
+                calls.append(('myplugincmd_arguments',))
+
+            return [(myplugincmd_arguments, 'myplugincmd', 'mypluginlocation')]
+
+    pm = get_pluginmanager()
+    with pytest.raises(SystemExit) as e:
+        parse_args(['devpi', '-h'], pm)
+    assert e.value.args == (0,)
+    (out, err) = capsys.readouterr()
+    assert 'patchjson' in out
+    assert 'myplugincmd' not in out
+    assert 'myplugindescription' not in out
+    assert calls == []
+    pm.register(Plugin())
+    with pytest.raises(SystemExit) as e:
+        parse_args(['devpi', '-h'], pm)
+    assert e.value.args == (0,)
+    (out, err) = capsys.readouterr()
+    assert 'patchjson' in out
+    assert 'myplugincmd' in out
+    assert 'myplugindescription' in out
+    assert calls == [('myplugincmd_arguments',)]
+    args = parse_args(['devpi', 'myplugincmd'], pm)
+    assert args.command == 'myplugincmd'
+    assert args.mainloc == 'mypluginlocation'
+
+
 @pytest.mark.skipif("sys.version_info < (2,7)")
 def test_main_devpi_invocation():
     import sys, subprocess

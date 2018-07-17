@@ -12,7 +12,7 @@ import json
 import time
 
 from _pytest.pytester import RunResult, LineMatcher
-from devpi.main import Hub, initmain, parse_args
+from devpi.main import Hub, get_pluginmanager, initmain, parse_args
 from devpi_common.url import URL
 from devpi_server import __version__ as devpi_server_version
 from test_devpi_server.conftest import reqmock  # noqa
@@ -559,7 +559,8 @@ def makehub(request):
                 break
         else:
             arglist.append("--clientdir=%s" % tmp)
-        args = parse_args(["devpi_"] + arglist)
+        pm = get_pluginmanager()
+        args = parse_args(["devpi_"] + arglist, pm)
         with tmp.as_cwd():
             return Hub(args)
     return mkhub
