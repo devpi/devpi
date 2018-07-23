@@ -4,6 +4,7 @@ from devpi_common.types import cached_property
 from devpi_server.log import threadlog as log
 from devpi_server.readonly import get_mutable_deepcopy
 from functools import partial
+from pluggy import HookimplMarker
 from whoosh import fields
 from whoosh.analysis import Filter, LowercaseFilter, RegexTokenizer
 from whoosh.analysis import Token, Tokenizer
@@ -18,6 +19,9 @@ from whoosh.util.text import rcompile
 from whoosh.writing import CLEAR
 import itertools
 import shutil
+
+
+hookimpl = HookimplMarker("devpiweb")
 
 
 try:
@@ -183,8 +187,10 @@ class SearchUnavailableException(Exception):
 class Index(object):
     SearchUnavailableException = SearchUnavailableException
 
-    def __init__(self, index_path):
-        self.index_path = index_path
+    def __init__(self, config, settings):
+        index_path = config.serverdir.join('.indices')
+        index_path.ensure_dir()
+        self.index_path = index_path.strpath
 
     def ix(self, name):
         schema = getattr(self, '%s_schema' % name)
@@ -490,3 +496,11 @@ class Index(object):
         formatter = HtmlFormatter()
         analyzer = self.project_schema['text'].analyzer
         return highlight(text, words, analyzer, fragmenter, formatter, top=1)
+
+
+@hookimpl
+def devpiweb_indexer_backend():
+    return dict(
+        indexer=Index,
+        name="whoosh",
+        description="Whoosh indexer backend")
