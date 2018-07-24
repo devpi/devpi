@@ -3,6 +3,7 @@ from collections import defaultdict
 from devpi_common.types import cached_property
 from devpi_server.log import threadlog as log
 from devpi_server.readonly import get_mutable_deepcopy
+from devpi_web.indexing import is_project_cached
 from functools import partial
 from pluggy import HookimplMarker
 from whoosh import fields
@@ -475,6 +476,71 @@ class Index(object):
         else:
             searcher.close()
             return result
+
+    def _search_packages(self, query, sro):
+        result = self.query_projects(query, page=None)
+        # first gather basic info and only get most relevant info based on
+        # stage resolution order
+        stagename2order = {x.name: i for i, x in enumerate(sro)}
+        stagename2stage = {x.name: x for x in sro}
+        name2stage = {}
+        name2data = {}
+        for item in result['items']:
+            data = item['data']
+            (user, index, name) = data['path'][1:].split('/')
+            stage = stagename2stage.get('%s/%s' % (user, index))
+            if stage is None:
+                continue
+            current_stage = name2stage.get(name)
+            if current_stage is None or stagename2order[stage.name] < stagename2order[current_stage.name]:
+                name2stage[name] = stage
+                try:
+                    score = item['score']
+                except KeyError:
+                    score = False
+                    sub_hits = item.get('sub_hits')
+                    if sub_hits:
+                        score = sub_hits[0].get('score', False)
+                name2data[name] = dict(
+                    version=data.get('version', ''),
+                    score=score)
+        # then gather more info if available and build results
+        hits = []
+        for name, stage in name2stage.items():
+            data = name2data[name]
+            version = data['version']
+            summary = '[%s]' % stage.name
+            if version and is_project_cached(stage, name):
+                metadata = stage.get_versiondata(name, version)
+                version = metadata.get('version', version)
+                summary += ' %s' % metadata.get('summary', '')
+            hits.append(dict(
+                name=name, summary=summary,
+                version=version, _pypi_ordering=data['score']))
+        return hits
+
+    def _querystring(self, searchinfo):
+        fields = searchinfo['fields']
+        operator = searchinfo['operator'].upper()
+        if operator not in ('AND', 'OR', 'ANDNOT', 'ANDMAYBE', 'NOT'):
+            raise ValueError("Unknown operator '%s'." % operator)
+        if set(fields.keys()).difference(['name', 'summary']):
+            raise ValueError("Only 'name' and 'summary' allowed in query.")
+        parts = []
+        for key, field in (('name', 'project'), ('summary', 'summary')):
+            value = fields.get(key, [])
+            if len(value) == 0:
+                continue
+            elif len(value) == 1:
+                parts.append('(type:%s "%s")' % (field, value[0].replace('"', '')))
+            else:
+                raise ValueError("Only one value allowed for query.")
+        querystring = (" %s " % operator).join(parts)
+        log.debug("_querystring {0}".format(querystring))
+        return querystring
+
+    def query_packages(self, searchinfo, sro):
+        return self._search_packages(self._querystring(searchinfo), sro)
 
     def get_query_parser_html_help(self):
         result = []
