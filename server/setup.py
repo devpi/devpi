@@ -1,8 +1,7 @@
 #! /usr/bin/env python
 
-import os, re, sys
+import os, re
 import io
-import setuptools
 from setuptools import setup, find_packages
 
 
