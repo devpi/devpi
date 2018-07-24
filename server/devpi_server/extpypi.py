@@ -137,14 +137,6 @@ class PyPIStage(BaseStage):
         # only few methods need the user object.
         return self.model.get_user(self.username)
 
-    def delete(self):
-        with self.user.key.update() as userconfig:
-            indexes = userconfig.get("indexes", {})
-            if self.index not in indexes:
-                threadlog.info("index %s not exists" % self.index)
-                return False
-            del indexes[self.index]
-
     def modify(self, index=None, **kw):
         if 'type' in kw and self.ixconfig["type"] != kw['type']:
             raise InvalidIndexconfig(

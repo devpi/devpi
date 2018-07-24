@@ -391,6 +391,14 @@ class BaseStage(object):
         self.keyfs = xom.keyfs
         self.filestore = xom.filestore
 
+    def delete(self):
+        with self.user.key.update() as userconfig:
+            indexes = userconfig.get("indexes", {})
+            if self.index not in indexes:
+                threadlog.info("index %s not exists" % self.index)
+                return False
+            del indexes[self.index]
+
     def key_projsimplelinks(self, project):
         return self.keyfs.PROJSIMPLELINKS(user=self.username,
             index=self.index, project=normalize_name(project))
@@ -630,13 +638,7 @@ class PrivateStage(BaseStage):
         # delete all projects on this index
         for name in self.list_projects_perstage():
             self.del_project(name)
-        with self.user.key.update() as userconfig:
-            indexes = userconfig.get("indexes", {})
-            if self.index not in indexes:
-                threadlog.info("index %s not exists" % self.index)
-                return False
-            del indexes[self.index]
-
+        BaseStage.delete(self)
 
     #
     # registering project and version metadata
