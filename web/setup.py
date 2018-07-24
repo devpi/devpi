@@ -44,6 +44,7 @@ setup(
         'devpi_server': [
             "devpi-web = devpi_web.main"],
         'devpi_web': [
+            "devpi-web-null = devpi_web.null_index",
             "devpi-web-whoosh = devpi_web.whoosh_index"]},
     install_requires=[
         'Whoosh<3',
