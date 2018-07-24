@@ -95,7 +95,7 @@ def gentmp(request):
     cache = []
     def gentmp(name=None):
         if not cache:
-            prefix = re.sub("[\W]", "_", request.node.name)
+            prefix = re.sub(r"[\W]", "_", request.node.name)
             basedir = tmpdirhandler.mktemp(prefix, numbered=True)
             cache.append(basedir)
         else:

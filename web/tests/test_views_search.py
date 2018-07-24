@@ -5,7 +5,7 @@ import re
 
 
 def compareable_text(text):
-    return re.sub('\s+', ' ', text.strip())
+    return re.sub(r'\s+', ' ', text.strip())
 
 
 def test_search_nothing(testapp):

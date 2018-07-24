@@ -57,7 +57,7 @@ def test_index_option(create_and_upload, devpi, monkeypatch, out_devpi):
     # remember username
     out = out_devpi("use")
     (url, user) = re.search(
-        '(https?://.+?)\s+\(logged in as (.+?)\)', out.stdout.str()).groups()
+        r'(https?://.+?)\s+\(logged in as (.+?)\)', out.stdout.str()).groups()
 
     # go to other index
     devpi("use", "root/pypi")

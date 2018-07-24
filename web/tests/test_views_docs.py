@@ -9,7 +9,7 @@ pytestmark = pytest.mark.xfail(sys.platform.startswith("win"), run=False, reason
 
 
 def compareable_text(text):
-    return re.sub('\s+', ' ', text.strip())
+    return re.sub(r'\s+', ' ', text.strip())
 
 
 @pytest.mark.with_notifier

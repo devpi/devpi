@@ -53,7 +53,7 @@ def test_simple_install_venv_workflow_index_option(create_and_upload,
 
     # remember username
     out = out_devpi("use")
-    user = re.search('\(logged in as (.+?)\)', out.stdout.str()).group(1)
+    user = re.search(r'\(logged in as (.+?)\)', out.stdout.str()).group(1)
 
     # go to other index
     devpi("use", "root/pypi")
@@ -75,7 +75,7 @@ def test_requirement_install_venv_workflow_index_option(create_and_upload,
 
     # remember username
     out = out_devpi("use")
-    user = re.search('\(logged in as (.+?)\)', out.stdout.str()).group(1)
+    user = re.search(r'\(logged in as (.+?)\)', out.stdout.str()).group(1)
 
     # go to other index
     devpi("use", "root/pypi")

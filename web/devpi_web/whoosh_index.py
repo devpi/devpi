@@ -28,7 +28,7 @@ except NameError:
 
 class ProjectNameTokenizer(Tokenizer):
     def __init__(self):
-        self.expression = rcompile('(\W|_)')
+        self.expression = rcompile(r'(\W|_)')
 
     def __eq__(self, other):
         if self.__class__ is other.__class__:

@@ -549,7 +549,7 @@ class PipCfg(BaseCfg):
                     insection = False
             if section in line.lower() and not insection:
                 insection = True
-            if insection and re.match('index\s*=.*', line):
+            if insection and re.match(r'index\s*=.*', line):
                 line = "index = %s\n" % searchindexserver
                 found = True
             newlines.append(line)
@@ -576,7 +576,7 @@ class PipCfg(BaseCfg):
                     insection = False
             if not found and self.section_name in line.lower() and not insection:
                 insection = True
-            if not found and insection and re.match('trusted-host\s*=\s*%s' % indexserver.hostname, line):
+            if not found and insection and re.match(r'trusted-host\s*=\s*%s' % indexserver.hostname, line):
                 found = True
             newlines.append(line)
         if not found:
@@ -591,7 +591,7 @@ class PipCfg(BaseCfg):
         newlines = []
         indexserver = URL(indexserver)
         for line in self.path.readlines(cr=1):
-            if not re.match('trusted-host\s*=\s*%s' % indexserver.hostname, line):
+            if not re.match(r'trusted-host\s*=\s*%s' % indexserver.hostname, line):
                 newlines.append(line)
         self.path.write("".join(newlines))
 

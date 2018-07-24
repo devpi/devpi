@@ -404,9 +404,9 @@ class TestUnit:
         venv_pip_config = venvdir.join("pip.cfg")
         assert venv_pip_config.exists()
         content = venv_pip_config.read()
-        assert len(re.findall("index_url\s*=\s*%s" % index, content)) == 1
+        assert len(re.findall(r"index_url\s*=\s*%s" % index, content)) == 1
         result = re.findall(
-            "\[search\].*index\s*=\s*%s" % index.replace('simple', ''), content, flags=re.DOTALL)
+            r"\[search\].*index\s*=\s*%s" % index.replace('simple', ''), content, flags=re.DOTALL)
         assert len(result) == 1
         result = result[0].splitlines()
         assert len(result) == 2
@@ -470,10 +470,10 @@ class TestUnit:
         assert PipCfg().default_location.exists()
         content = PipCfg().default_location.read()
         assert len(
-            re.findall("index_url\s*=\s*%s://%sworld/simple" % (
+            re.findall(r"index_url\s*=\s*%s://%sworld/simple" % (
                 scheme, basic_auth), content)) == 1
         result = re.findall(
-            "\[search\].*index\s*=\s*%s://%sworld/" % (
+            r"\[search\].*index\s*=\s*%s://%sworld/" % (
                 scheme, basic_auth), content, flags=re.DOTALL)
         assert len(result) == 1
         result = result[0].splitlines()
@@ -481,12 +481,12 @@ class TestUnit:
         assert DistutilsCfg.default_location.exists()
         content = DistutilsCfg.default_location.read()
         assert len(
-            re.findall("index_url\s*=\s*%s://%sworld/simple" % (
+            re.findall(r"index_url\s*=\s*%s://%sworld/simple" % (
                 scheme, basic_auth), content)) == 1
         assert BuildoutCfg.default_location.exists()
         content = BuildoutCfg.default_location.read()
         assert len(
-            re.findall("index\s*=\s*%s://%sworld/simple" % (
+            re.findall(r"index\s*=\s*%s://%sworld/simple" % (
                 scheme, basic_auth), content)) == 1
         hub = cmd_devpi("use", "--always-set-cfg=yes")
         assert hub.current.always_setcfg
@@ -498,7 +498,7 @@ class TestUnit:
                 scheme, basic_auth))
         content = PipCfg().default_location.read()
         assert len(
-            re.findall("trusted-host\s*=\s*world", content)) == 1
+            re.findall(r"trusted-host\s*=\s*world", content)) == 1
         hub = cmd_devpi("use", "--always-set-cfg=yes", "--pip-set-trusted=yes")
         assert hub.current.settrusted
         hub = cmd_devpi("use", "--always-set-cfg=no", "--pip-set-trusted=no")

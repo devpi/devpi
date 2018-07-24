@@ -260,22 +260,22 @@ def test_switch_preserves_auth(out_devpi, url_of_liveserver, url_of_liveserver2)
     import re
     result1 = out_devpi("use", url_of_liveserver)
     (url1, user1) = re.search(
-        '(https?://.+?)\s+\(logged in as (.+?)\)', result1.stdout.str()).groups()
+        r'(https?://.+?)\s+\(logged in as (.+?)\)', result1.stdout.str()).groups()
     result2 = out_devpi("use", url_of_liveserver2)
     url2 = re.search(
-        '(https?://.+?)\s+\(not logged in\)', result2.stdout.str()).group(1)
+        r'(https?://.+?)\s+\(not logged in\)', result2.stdout.str()).group(1)
     assert url2 != url1
     out_devpi("user", "-c", user1, "password=123", "email=123")
     out_devpi("login", user1, "--password", "123")
     out_devpi("index", "-c", "dev")
     result3 = out_devpi("use", "dev")
     (url3, user3) = re.search(
-        '(https?://.+?)\s+\(logged in as (.+?)\)', result3.stdout.str()).groups()
+        r'(https?://.+?)\s+\(logged in as (.+?)\)', result3.stdout.str()).groups()
     assert user3 == user1
     assert url3.startswith(url2)
     result4 = out_devpi("use", url_of_liveserver)
     (url4, user4) = re.search(
-        '(https?://.+?)\s+\(logged in as (.+?)\)', result4.stdout.str()).groups()
+        r'(https?://.+?)\s+\(logged in as (.+?)\)', result4.stdout.str()).groups()
     assert user4 == user1
     assert url4 == url1
 

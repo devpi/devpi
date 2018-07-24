@@ -11,16 +11,17 @@ ALLOWED_ARCHIVE_EXTS = set(
     ".tar.bz2 .tar .tgz .zip .doc.zip".split())
 
 
-_releasefile_suffix_rx = re.compile(r"(\.zip|\.tar\.gz|\.tgz|\.tar\.bz2|"
-    "\.doc\.zip|"
-    "\.macosx-\d+.*|"
-    "\.linux-.*|"
-    "\.[^\.]*\.rpm|"
-    "\.win-amd68-py[23]\.\d\..*|"
-    "\.win32-py[23]\.\d\..*|"
-    "\.win.*\..*|"
-    "-(?:py|cp|ip|pp|jy)[23][\d\.]*.*\..*|"
-    ")$", re.IGNORECASE)
+_releasefile_suffix_rx = re.compile(
+    r"(\.zip|\.tar\.gz|\.tgz|\.tar\.bz2|"
+    r"\.doc\.zip|"
+    r"\.macosx-\d+.*|"
+    r"\.linux-.*|"
+    r"\.[^\.]*\.rpm|"
+    r"\.win-amd68-py[23]\.\d\..*|"
+    r"\.win32-py[23]\.\d\..*|"
+    r"\.win.*\..*|"
+    r"-(?:py|cp|ip|pp|jy)[23][\d\.]*.*\..*|"
+    r")$", re.IGNORECASE)
 
 # see also PEP425 for supported "python tags"
 _pyversion_type_rex = re.compile(

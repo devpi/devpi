@@ -13,7 +13,7 @@ devpi_server_version = parse_version(devpi_server_version)
 
 
 def compareable_text(text):
-    return re.sub('\s+', ' ', text.strip())
+    return re.sub(r'\s+', ' ', text.strip())
 
 
 def test_root_view(testapp):

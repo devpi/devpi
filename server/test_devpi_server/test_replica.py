@@ -143,7 +143,7 @@ class TestReplicaThread:
         # run
         with pytest.raises(ZeroDivisionError):
             rt.thread_run()
-        msgs = [x.msg for x in caplog.getrecords(".*http://localhost/\+changelog/0")]
+        msgs = [x.msg for x in caplog.getrecords(r".*http://localhost/\+changelog/0")]
         assert msgs == [
             '[REP] fetching %s',
             '[REP] error fetching %s: %s',
