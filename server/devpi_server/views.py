@@ -940,8 +940,6 @@ class PyPIView:
         permission="del_project")
     def del_project(self):
         stage = self.context.stage
-        if stage.ixconfig["type"] == "mirror":
-            abort(self.request, 405, "cannot delete on mirror index")
         project = self.context.project
         if not stage.ixconfig["volatile"]:
             apireturn(403, "project %r is on non-volatile index %s" %(
@@ -1039,8 +1037,6 @@ class PyPIView:
                  request_method="DELETE")
     def del_pkg(self):
         stage = self.context.stage
-        if stage.ixconfig["type"] == "mirror":
-            abort(self.request, 405, "cannot delete on mirror index")
         if not stage.ixconfig["volatile"]:
             abort(self.request, 403, "cannot delete version on non-volatile index")
         relpath = self.request.path_info.strip("/")

@@ -167,6 +167,42 @@ class PyPIStage(BaseStage):
             projects.add(project)
             self.key_projects.set(projects)
 
+    def del_project(self, project):
+        if not self.is_project_cached(project):
+            raise KeyError("project not found")
+        (is_fresh, links, cache_serial) = self._load_cache_links(project)
+        if links is None:
+            links = ()
+        entries = list(
+            x
+            for x in map(self._entry_from_cache_link, links)
+            if x.file_exists())
+        if not entries:
+            raise KeyError("no releases found")
+        for entry in entries:
+            entry.delete()
+        projects = self.key_projects.get(readonly=False)
+        if project in projects:
+            projects.remove(project)
+            self.key_projects.set(projects)
+
+    def del_entry(self, entry, cleanup=True):
+        project = entry.project
+        if project is None:
+            raise self.NotFound("no project set on entry %r" % entry)
+        if not entry.file_exists():
+            raise self.NotFound("entry has no file data %r" % entry)
+        entry.delete()
+        (is_fresh, links, cache_serial) = self._load_cache_links(project)
+        if links is None:
+            links = ()
+        links = ensure_deeply_readonly(list(filter(self._is_file_cached, links)))
+        if not links and cleanup:
+            projects = self.key_projects.get(readonly=False)
+            if project in projects:
+                projects.remove(project)
+                self.key_projects.set(projects)
+
     @property
     def cache_projectnames(self):
         """ filesystem-persistent cache for full list of projectnames. """
@@ -279,9 +315,12 @@ class PyPIStage(BaseStage):
 
         return is_fresh, links, serial
 
+    def _entry_from_cache_link(self, cache_link):
+        relpath = re.sub(r"#.*$", "", cache_link[1])
+        return self.filestore.get_file_entry(relpath)
+
     def _is_file_cached(self, dumplistentry):
-        relpath = re.sub(r"#.*$", "", dumplistentry[1])
-        entry = self.filestore.get_file_entry(relpath)
+        entry = self._entry_from_cache_link(dumplistentry)
         return entry is not None and entry.file_exists()
 
     def clear_simplelinks_cache(self, project):
