@@ -3,7 +3,7 @@ from difflib import SequenceMatcher
 from functools import partial
 from itertools import chain
 from pyramid.view import view_config
-import pprint
+import json
 
 
 @view_config(
@@ -59,7 +59,7 @@ def diff(prev, current):
     request_method="GET",
     renderer="templates/keyfs_changelog.pt")
 def keyfs_changelog_view(request):
-    pformat = partial(pprint.pformat, width=100)
+    pformat = partial(json.dumps, indent=4, default=list)
     storage = request.registry['xom'].keyfs._storage
     serial = request.matchdict['serial']
     query = request.params.get('query')
