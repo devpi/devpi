@@ -28,8 +28,14 @@ from devpi_server.filestore import get_default_hash_spec, make_splitdir
 proj = pytest.mark.parametrize("proj", [True, False])
 pytestmark = [pytest.mark.notransaction]
 
+
+def getlinks(text):
+    return BeautifulSoup(text, "html.parser").findAll("a")
+
+
 def getfirstlink(text):
-    return BeautifulSoup(text, "html.parser").findAll("a")[0]
+    return getlinks(text)[0]
+
 
 def hash_spec_matches(hash_spec, content):
     hash_type, hash_value = hash_spec.split("=")
@@ -115,7 +121,7 @@ def test_simple_project(pypistage, testapp):
     pypistage.mock_simple(name, text='<a href="%s"/>' % path)
     r = testapp.get("/root/pypi/+simple/%s/" % name)
     assert r.status_code == 200
-    links = BeautifulSoup(r.text, "html.parser").findAll("a")
+    links = getlinks(r.text)
     assert len(links) == 1
     assert links[0].get("href").endswith(path)
 
@@ -139,7 +145,7 @@ def test_simple_project_outside_url_subpath(mapp, outside_url, pypistage, testap
     headers={str('X-outside-url'): str(outside_url)}
     r = testapp.get("/%s/+simple/qpwoei/" % api.stagename, headers=headers)
     assert r.status_code == 200
-    links = sorted(x["href"] for x in BeautifulSoup(r.text, "html.parser").findAll("a"))
+    links = sorted(x["href"] for x in getlinks(r.text))
     assert len(links) == 2
     hash_spec = get_default_hash_spec(b'123')
     hashdir = "/".join(make_splitdir(hash_spec))
@@ -161,7 +167,7 @@ def test_simple_project_absolute_url(mapp, pypistage, testapp):
     headers={str('X-devpi-absolute-urls'): str("")}
     r = testapp.get("/%s/+simple/qpwoei/" % api.stagename, headers=headers)
     assert r.status_code == 200
-    links = sorted(x["href"] for x in BeautifulSoup(r.text, "html.parser").findAll("a"))
+    links = sorted(x["href"] for x in getlinks(r.text))
     assert len(links) == 2
     hash_spec = get_default_hash_spec(b'123')
     hashdir = "/".join(make_splitdir(hash_spec))
@@ -174,7 +180,7 @@ def test_simple_project_absolute_url(mapp, pypistage, testapp):
     headers.update({str('X-outside-url'): str("http://localhost/devpi")})
     r = testapp.get("/%s/+simple/qpwoei/" % api.stagename, headers=headers)
     assert r.status_code == 200
-    links = sorted(x["href"] for x in BeautifulSoup(r.text, "html.parser").findAll("a"))
+    links = sorted(x["href"] for x in getlinks(r.text))
     assert len(links) == 2
     hash_spec = get_default_hash_spec(b'123')
     hashdir = "/".join(make_splitdir(hash_spec))
@@ -237,7 +243,7 @@ def test_simple_project_pypi_egg(pypistage, testapp):
         """<a href="http://bb.org/download/py.zip#egg=py-dev" />""")
     r = testapp.get("/root/pypi/+simple/py/")
     assert r.status_code == 200
-    links = BeautifulSoup(r.text, "html.parser").findAll("a")
+    links = getlinks(r.text)
     assert len(links) == 1
     r = testapp.get("/root/pypi")
     assert r.status_code == 200
@@ -260,7 +266,7 @@ def test_simple_list(pypistage, testapp):
     # get the full projects page and see what is in
     r = testapp.get("/root/pypi/+simple/")
     assert r.status_code == 200
-    links = BeautifulSoup(r.text, "html.parser").findAll("a")
+    links = getlinks(r.text)
     assert len(links) == 2
     hrefs = [a.get("href") for a in links]
     assert hrefs == ["hello1/", "hello2/"]
