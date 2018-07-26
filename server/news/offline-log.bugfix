@@ -1,0 +1,1 @@
+In offline mode no bogus 503 responses show up in the log anymore.

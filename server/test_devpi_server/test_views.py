@@ -1835,32 +1835,61 @@ def test_outside_url_middleware(headers, environ, outsideurl, expected, testapp)
     assert r.json['result']['login'] == "%s/+login" % expected
 
 
-@pytest.mark.parametrize("stagename", [None, "root/pypi"])
+@pytest.mark.nomockprojectsremote
 class TestOfflineMode:
     @pytest.fixture
     def xom(self, makexom):
         return makexom(["--offline-mode"])
 
-    def _prepare(self, mapp, pypistage, stagename):
-        pypistage.mock_simple("package", '<a href="/package-1.0.zip" />', serial=100)
-        if stagename is None:
+    @pytest.fixture(params=[None, "root/pypi"])
+    def stagename(self, request, gen, mapp, pypistage, testapp, xom):
+        # we expect offline mode
+        assert xom.config.args.offline_mode
+        # turn of offline mode for preparations
+        xom.config.args.offline_mode = False
+        # mock two packages and one release
+        pypistage.mock_extfile("/package/package-1.0.zip", b"123")
+        pypistage.mock_simple("package", pkgver="package-1.0.zip", serial=100)
+        pypistage.mock_simple("other_package", '<a href="/other_package-2.0.zip" />', serial=100)
+        pypistage.mock_simple_projects(["package", "other_package"])
+        # either create a stage with root/pypi as base, or return root/pypi directly
+        if request.param is None:
             api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
         else:
-            api = mapp.use(stagename)
+            api = mapp.use(request.param)
+        # fetch package to update caches
+        r = testapp.xget(200, "/%s/+simple/package/" % api.stagename)
+        href = getfirstlink(r.text).get("href")
+        url = URL(r.request.url).joinpath(href).url
+        testapp.xget(200, url)
+        r = testapp.xget(200, "/%s/+simple/" % api.stagename)
+        links = getlinks(r.text)
+        assert len(links) == 2
+        hrefs = [a.get("href") for a in links]
+        assert hrefs == ["other_package/", "package/"]
+        # turn offline mode back on
+        xom.config.args.offline_mode = True
+        assert xom.config.args.offline_mode
         return api.stagename
 
-    def test_file_not_available(self, mapp, model, testapp, pypistage, stagename):
-        stagename = self._prepare(mapp, pypistage, stagename)
-        testapp.xget(200, "/%s/+simple/package/" % stagename)
+    def test_project_names(self, testapp, stagename):
+        r = testapp.xget(200, "/%s/+simple/" % stagename)
+        (link,) = getlinks(r.text)
+        assert link.get("href") == "package/"
+
+    def test_file_not_available(self, model, monkeypatch, testapp, pypistage, stagename):
+        monkeypatch.setattr(devpi_server.filestore.FileEntry, "file_exists", lambda a: False)
+        r = testapp.xget(200, "/%s/+simple/package/" % stagename)
+        assert getlinks(r.text) == []
         with model.keyfs.transaction(write=False):
             is_fresh, links, serial = pypistage._load_cache_links("package")
 
         assert len(links) == 0
 
-    def test_file_available(self, mapp, model, testapp, pypistage, monkeypatch, stagename):
-        stagename = self._prepare(mapp, pypistage, stagename)
-        monkeypatch.setattr(devpi_server.filestore.FileEntry, "file_exists", lambda a: True)
-        testapp.xget(200, "/%s/+simple/package/" % stagename)
+    def test_file_available(self, model, testapp, pypistage, stagename):
+        r = testapp.xget(200, "/%s/+simple/package/" % stagename)
+        (link,) = getlinks(r.text)
+        assert '/package-1.0.zip' in link.get("href")
         with model.keyfs.transaction(write=False):
             is_fresh, links, serial = pypistage._load_cache_links("package")
 

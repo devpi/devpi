@@ -122,6 +122,7 @@ class PyPIStage(BaseStage):
         self.cache_expiry = self.ixconfig.get(
             'mirror_cache_expiry', xom.config.args.mirror_cache_expiry)
         self.xom = xom
+        self.offline = self.xom.config.args.offline_mode
         # list of locally mirrored projects
         self.key_projects = self.keyfs.PROJNAMES(user=username, index=index)
         if xom.is_replica():
@@ -216,17 +217,19 @@ class PyPIStage(BaseStage):
 
     def list_projects_perstage(self):
         """ return set of all projects served through the mirror. """
+        if self.offline:
+            threadlog.warn("offline mode: using stale projects list")
+            return self.key_projects.get()
         if self.cache_projectnames.is_fresh(self.cache_expiry):
             projects = self.cache_projectnames.get()
         else:
             # no fresh projects or None at all, let's go remote
             try:
                 projects = self._get_remote_projects()
-            except self.UpstreamError:
-                if not self.cache_projectnames.exists():
-                    raise
-                threadlog.warn("using stale projects list")
-                projects = self.cache_projectnames.get()
+            except self.UpstreamError as e:
+                threadlog.warn(
+                    "upstream error (%s): using stale projects list" % e)
+                return self.key_projects.get()
             else:
                 old = self.cache_projectnames.get()
                 if not self.cache_projectnames.exists() or old != projects:
@@ -271,7 +274,7 @@ class PyPIStage(BaseStage):
         if cache:
             is_fresh = self.cache_link_updates.is_fresh(project, self.cache_expiry)
             links, serial = cache["links"], cache["serial"]
-            if self.xom.config.args.offline_mode and links:
+            if self.offline and links:
                 links = ensure_deeply_readonly(list(filter(self._is_file_cached, links)))
 
         return is_fresh, links, serial
@@ -298,7 +301,9 @@ class PyPIStage(BaseStage):
         """
         project = normalize_name(project)
         is_fresh, links, cache_serial = self._load_cache_links(project)
-        if is_fresh:
+        if is_fresh or self.offline:
+            if self.offline and links is None:
+                links = ()
             return links
 
         # get the simple page for the project
