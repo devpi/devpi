@@ -363,7 +363,8 @@ class PyPIStage(BaseStage):
             # storage if there are no changes so they operate fine within a
             # read-transaction if nothing changed.
             maplink = partial(
-                self.filestore.maplink, user=self.user.name, index=self.index)
+                self.filestore.maplink,
+                user=self.user.name, index=self.index, project=project)
             entries = [maplink(link) for link in releaselinks]
             links = [make_key_and_href(entry) for entry in entries]
             self._save_cache_links(project, links, serial)

@@ -48,7 +48,7 @@ class FileStore:
         self.rel_storedir = "+files"
         self.storedir = self.keyfs.basedir.join(self.rel_storedir)
 
-    def maplink(self, link, user, index):
+    def maplink(self, link, user, index, project):
         if link.hash_spec:
             # we can only create 32K entries per directory
             # so let's take the first 3 bytes which gives
@@ -80,6 +80,7 @@ class FileStore:
                 threadlog.error(err)
                 entry.file_delete()
         entry.hash_spec = unicode_if_bytes(link.hash_spec)
+        entry.project = project
         return entry
 
     def get_file_entry(self, relpath, readonly=True):

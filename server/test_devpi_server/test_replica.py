@@ -406,7 +406,7 @@ class TestFileReplication:
         md5 = hashlib.md5(content1).hexdigest()
         link = gen.pypi_package_link("pytest-1.8.zip#md5=%s" % md5, md5=False)
         with xom.keyfs.transaction(write=True):
-            entry = xom.filestore.maplink(link, "root", "pypi")
+            entry = xom.filestore.maplink(link, "root", "pypi", "pytest")
             assert not entry.file_exists()
 
         replay(xom, replica_xom)
@@ -458,7 +458,7 @@ class TestFileReplication:
         md5 = hashlib.md5(content1).hexdigest()
         link = gen.pypi_package_link("pytest-1.8.zip#md5=%s" % md5, md5=False)
         with xom.keyfs.transaction(write=True):
-            entry = xom.filestore.maplink(link, "root", "pypi")
+            entry = xom.filestore.maplink(link, "root", "pypi", "pytest")
             assert not entry.file_exists()
 
         master_url = replica_xom.config.master_url
@@ -489,7 +489,7 @@ class TestFileReplication:
         content1 = b'hello'
         link = gen.pypi_package_link("some-1.8.zip", md5=False)
         with xom.keyfs.transaction(write=True):
-            entry = xom.filestore.maplink(link, "root", "pypi")
+            entry = xom.filestore.maplink(link, "root", "pypi", "some")
             assert not entry.file_exists()
             assert not entry.hash_spec
 
@@ -527,7 +527,7 @@ class TestFileReplication:
                             lambda x: l.append(x))
         with xom.keyfs.transaction(write=True):
             link = gen.pypi_package_link("pytest-1.8.zip", md5=True)
-            entry = xom.filestore.maplink(link, "root", "pypi")
+            entry = xom.filestore.maplink(link, "root", "pypi", "pytest")
             assert entry.hash_spec and not entry.file_exists()
         replay(xom, replica_xom)
         with replica_xom.keyfs.transaction():
@@ -550,7 +550,7 @@ class TestFileReplication:
             md5.update(b'123')
             link = gen.pypi_package_link(
                 "pytest-1.8.zip", md5=md5.hexdigest())
-            entry = xom.filestore.maplink(link, "root", "pypi")
+            entry = xom.filestore.maplink(link, "root", "pypi", "pytest")
             assert entry.hash_spec and not entry.file_exists()
         replay(xom, replica_xom)
         with replica_xom.keyfs.transaction():
