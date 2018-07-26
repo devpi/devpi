@@ -679,6 +679,10 @@ class PrivateStage(BaseStage):
         if version not in versions:
             versions.add(version)
             self.key_projversions(project).set(versions)
+        self.add_project_name(project)
+
+    def add_project_name(self, project):
+        project = normalize_name(project)
         projects = self.key_projects.get(readonly=False)
         if project not in projects:
             projects.add(project)

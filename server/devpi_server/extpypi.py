@@ -122,6 +122,8 @@ class PyPIStage(BaseStage):
         self.cache_expiry = self.ixconfig.get(
             'mirror_cache_expiry', xom.config.args.mirror_cache_expiry)
         self.xom = xom
+        # list of locally mirrored projects
+        self.key_projects = self.keyfs.PROJNAMES(user=username, index=index)
         if xom.is_replica():
             url = xom.config.master_url
             self.mirror_url = url.joinpath("%s/+simple/" % self.name).url
@@ -156,6 +158,13 @@ class PyPIStage(BaseStage):
             threadlog.info("modified index %s: %s", self.name, ixconfig)
             self.ixconfig = newconfig
             return newconfig
+
+    def add_project_name(self, project):
+        project = normalize_name(project)
+        projects = self.key_projects.get(readonly=False)
+        if project not in projects:
+            projects.add(project)
+            self.key_projects.set(projects)
 
     @property
     def cache_projectnames(self):
@@ -245,6 +254,9 @@ class PyPIStage(BaseStage):
         if old != data:
             threadlog.debug("saving changed simplelinks for %s: %s", project, data)
             key.set(data)
+            # maintain list of currently cached project names to enable
+            # deletion and offline mode
+            self.add_project_name(project)
         # XXX if the transaction fails the links are still marked
         # as refreshed but the data was not persisted.  It's a rare
         # enough event (tm) to not worry too much, though.

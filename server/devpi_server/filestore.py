@@ -229,6 +229,11 @@ class FileEntry(object):
         # end up only committing file content without any keys
         # changed which will not replay correctly at a replica.
         self.key.set(self.meta)
+        stage = self.xom.model.getstage(
+            self.key.params['user'],
+            self.key.params['index'])
+        if self.project:
+            stage.add_project_name(self.project)
 
     def gethttpheaders(self):
         assert self.file_exists()
