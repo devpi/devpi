@@ -138,6 +138,37 @@ class TestIndexParsing:
         link, = result.releaselinks
         assert link.basename == "py-1.0-cp27-none-linux_x86_64.whl"
 
+    def test_parse_index_with_requires_python(self):
+        result = parse_index(self.simplepy,
+            """<a href="pkg/py-1.0.zip" data-requires-python="&lt;3" />
+        """)
+        assert len(result.releaselinks) == 1
+        link, = result.releaselinks
+        assert link.basename == "py-1.0.zip"
+        assert link.requires_python == "<3"
+
+    def test_parse_index_with_requires_python_hash_spec_is_better(self):
+        result = parse_index(self.simplepy,
+            """<a href="pkg/py-1.0.zip" data-requires-python="&lt;3" />
+               <a href="pkg/py-1.0.zip#md5=pony"/>
+        """)
+        assert len(result.releaselinks) == 1
+        link, = result.releaselinks
+        assert link.basename == "py-1.0.zip"
+        assert link.hash_spec == "md5=pony"
+        assert link.requires_python is None
+
+    def test_parse_index_with_requires_python_first_with_hash_spec_kept(self):
+        result = parse_index(self.simplepy,
+            """<a href="pkg/py-1.0.zip#md5=pony"/>
+               <a href="pkg/py-1.0.zip#md5=pony" data-requires-python="&lt;3" />
+        """)
+        assert len(result.releaselinks) == 1
+        link, = result.releaselinks
+        assert link.basename == "py-1.0.zip"
+        assert link.hash_spec == "md5=pony"
+        assert link.requires_python is None
+
     @pytest.mark.parametrize("basename", [
         "py-1.3.1.tar.gz",
         "py-1.3.1-1.fc12.src.rpm",

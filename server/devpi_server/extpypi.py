@@ -25,6 +25,12 @@ from .readonly import ensure_deeply_readonly
 from .log import threadlog
 
 
+class Link(URL):
+    def __init__(self, url="", *args, **kwargs):
+        self.requires_python = kwargs.pop('requires_python', None)
+        URL.__init__(self, url, *args, **kwargs)
+
+
 class IndexParser:
 
     def __init__(self, project):
@@ -33,13 +39,23 @@ class IndexParser:
         self.crawllinks = set()
         self.egglinks = []
 
-    def _mergelink_ifbetter(self, newurl):
-        entry = self.basename2link.get(newurl.basename)
-        if entry is None or (not entry.hash_spec and newurl.hash_spec):
-            self.basename2link[newurl.basename] = newurl
-            threadlog.debug("indexparser: adding link %s", newurl)
+    def _mergelink_ifbetter(self, newlink):
+        """
+        Stores a link given it's better fit than an existing one (if any).
+
+        A link with hash_spec replaces one w/o it, even if the latter got other
+        non-empty attributes (like requires_python), unlike the former.
+        As soon as the first link with hash_spec is encountered, those that
+        appear later are ignored.
+        """
+        entry = self.basename2link.get(newlink.basename)
+        if entry is None or not entry.hash_spec and (newlink.hash_spec or (
+            not entry.requires_python and newlink.requires_python
+        )):
+            self.basename2link[newlink.basename] = newlink
+            threadlog.debug("indexparser: adding link %s", newlink)
         else:
-            threadlog.debug("indexparser: ignoring candidate link %s", newurl)
+            threadlog.debug("indexparser: ignoring candidate link %s", newlink)
 
     @property
     def releaselinks(self):
@@ -52,7 +68,7 @@ class IndexParser:
         p = HTMLPage(html, disturl.url)
         seen = set()
         for link in p.links:
-            newurl = URL(link.url)
+            newurl = Link(link.url, requires_python=link.requires_python)
             if not newurl.is_valid_http_url():
                 continue
             eggfragment = newurl.eggfragment
@@ -441,10 +457,8 @@ class PyPIStage(BaseStage):
                 user=self.user.name, index=self.index, project=project)
             entries = [maplink(link) for link in releaselinks]
             links = [make_key_and_href(entry) for entry in entries]
-            #TODO actual values
-            requires_python = [u">=3.4"] * len(links)
+            requires_python = [link.requires_python for link in releaselinks]
             self._save_cache_links(project, links, requires_python, serial)
-
             # make project appear in projects list even
             # before we next check up the full list with remote
             threadlog.info("setting projects cache for %r", project)

@@ -156,7 +156,9 @@ class BasenameMeta(CompareMixin):
     def __repr__(self):
         return "<BasenameMeta name=%r version=%r>" %(self.name, self.version)
 
+
 def sorted_sameproject_links(links):
+    # XXX does not seem to be used anywhere
     s = sorted((BasenameMeta(link, sameproject=True)
                      for link in links), reverse=True)
     return [x.obj for x in s]
