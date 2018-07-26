@@ -46,6 +46,46 @@ class TestFileStore:
         assert entry1.hash_spec == link.hash_spec
         assert entry1.project == "pytest"
 
+    @pytest.mark.parametrize(("releasename", "project", "version"), [
+        ("pytest-2.3.4.zip", "pytest", "2.3.4"),
+        ("pytest-2.3.4-py27.egg", "pytest", "2.3.4"),
+        ("dddttt-0.1.dev38-py2.7.egg", "dddttt", "0.1.dev38"),
+        ("devpi-0.9.5.dev1-cp26-none-linux_x86_64.whl", "devpi", "0.9.5.dev1"),
+        ("wheel-0.21.0-py2.py3-none-any.whl", "wheel", "0.21.0"),
+        ("green-0.4.0-py2.5-win32.egg", "green", "0.4.0"),
+        ("Candela-0.2.1.macosx-10.4-x86_64.exe", "Candela", "0.2.1"),
+        ("Cambiatuscromos-0.1.1alpha.linux-x86_64.exe", "Cambiatuscromos", "0.1.1alpha"),
+        ("Aesthete-0.4.2.win32.exe", "Aesthete", "0.4.2"),
+        ("DTL-1.0.5.win-amd64.exe", "DTL", "1.0.5"),
+        ("Cheetah-2.2.2-1.x86_64.rpm", "Cheetah", "2.2.2-1"),
+        ("Cheetah-2.2.2-1.src.rpm", "Cheetah", "2.2.2-1"),
+        ("Cheetah-2.2.2-1.x85.rpm", "Cheetah", "2.2.2-1"),
+        ("Cheetah-2.2.2.dev1.x85.rpm", "Cheetah", "2.2.2.dev1"),
+        ("Cheetah-2.2.2.dev1.noarch.rpm", "Cheetah", "2.2.2.dev1"),
+        ("deferargs.tar.gz", "", ""),
+        ("hello-1.0.doc.zip", "hello", "1.0"),
+        ("Twisted-12.0.0.win32-py2.7.msi", "Twisted", "12.0.0"),
+        ("django_ipware-0.0.8-py3-none-any.whl", "django_ipware", "0.0.8"),
+        ("my-binary-package-name-1-4-3-yip-0.9.tar.gz", "my-binary-package-name-1-4-3-yip", "0.9"),
+        ("my-binary-package-name-1-4-3-yip-0.9+deadbeef.tar.gz", "my-binary-package-name-1-4-3-yip", "0.9+deadbeef"),
+        ("cffi-1.6.0-pp251-pypy_41-macosx_10_11_x86_64.whl", "cffi", "1.6.0"),
+        ("argon2_cffi-18.2.0.dev0.0-pp2510-pypy_41-macosx_10_13_x86_64.whl", "argon2_cffi", "18.2.0.dev0.0"),
+    ])
+    def test_maplink_project_version(self, filestore, gen, releasename, project, version):
+        link = gen.pypi_package_link(releasename)
+        entry = filestore.maplink(link, "root", "pypi", project)
+        assert entry.relpath.endswith("/" + releasename)
+        assert entry.project == project
+        assert entry.version == version
+
+    def test_maplink_project_bad_archive(self, filestore, gen):
+        link = gen.pypi_package_link("pytest-1.0.foo")
+        entry = filestore.maplink(link, "root", "pypi", "pytest")
+        assert entry.relpath.endswith("/pytest-1.0.foo")
+        assert entry.project == "pytest"
+        # the unknown file type prevents us from getting the version
+        assert entry.version is None
+
     def test_maplink_replaced_release_not_cached_yet(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.2.zip")
         entry1 = filestore.maplink(link, "root", "pypi", "pytest")
@@ -109,9 +149,21 @@ class TestFileStore:
         assert not entry1 != entry2
         assert entry1.relpath.endswith("/master")
         assert entry1.eggfragment == "pytest-dev"
+        assert entry1.version == "dev"
         assert not entry1.hash_spec
         assert entry1.url == link.url_nofrag
-        assert entry1.eggfragment == "pytest-dev"
+        assert entry2.eggfragment == "pytest-dev"
+        assert entry2.version == "dev"
+
+    def test_maplink_egg_version(self, filestore, gen):
+        link = gen.pypi_package_link("master#egg=pytest-1.0", md5=False)
+        entry1 = filestore.maplink(link, "root", "pypi", "pytest")
+        assert entry1.version == '1.0'
+
+    def test_maplink_egg_no_version(self, filestore, gen):
+        link = gen.pypi_package_link("master#egg=pytest", md5=False)
+        entry2 = filestore.maplink(link, "root", "pypi", "pytest")
+        assert entry2.version == ''
 
     def test_relpathentry(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.7.zip", md5=False)

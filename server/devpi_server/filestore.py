@@ -11,6 +11,7 @@ import os
 import py
 import re
 import sys
+from devpi_common.metadata import splitbasename
 from devpi_common.types import cached_property, parse_hash_spec
 from .log import threadlog
 
@@ -49,6 +50,9 @@ class FileStore:
         self.storedir = self.keyfs.basedir.join(self.rel_storedir)
 
     def maplink(self, link, user, index, project):
+        parts = link.torelpath().split("/")
+        assert parts
+        basename = unquote(parts[-1])
         if link.hash_spec:
             # we can only create 32K entries per directory
             # so let's take the first 3 bytes which gives
@@ -58,14 +62,12 @@ class FileStore:
                                        hashdir_a=a, hashdir_b=b,
                                        filename=link.basename)
         else:
-            parts = link.torelpath().split("/")
-            assert parts
             dirname = "_".join(parts[:-1])
             dirname = re.sub('[^a-zA-Z0-9_.-]', '_', dirname)
             key = self.keyfs.PYPIFILE_NOMD5(
                 user=user, index=index,
                 dirname=unquote(dirname),
-                basename=unquote(parts[-1]))
+                basename=basename)
         entry = FileEntry(self.xom, key, readonly=False)
         entry.url = link.geturl_nofragment().url
         entry.eggfragment = link.eggfragment
@@ -81,6 +83,20 @@ class FileStore:
                 entry.file_delete()
         entry.hash_spec = unicode_if_bytes(link.hash_spec)
         entry.project = project
+        version = None
+        if link.eggfragment:
+            version = link.eggfragment[len(project) + 1:]
+        else:
+            try:
+                (projectname, version, ext) = splitbasename(basename)
+            except ValueError:
+                pass
+        # only store version on entry if we can determine it
+        # since version is a meta property of FileEntry, it will return None
+        # if not set, if we set it explicitly, it would waste space in the
+        # database
+        if version is not None:
+            entry.version = version
         return entry
 
     def get_file_entry(self, relpath, readonly=True):
