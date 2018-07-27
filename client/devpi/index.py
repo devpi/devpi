@@ -1,16 +1,34 @@
 from devpi.use import parse_keyvalue_spec
+from devpi.use import json_patch_from_keyvalues
+
 
 def index_create(hub, url, kvdict):
     hub.http_api("put", url, kvdict)
     index_show(hub, url)
 
-def index_modify(hub, url, kvdict):
-    reply = hub.http_api("get", url, type="indexconfig")
-    for name, val in kvdict.items():
-        reply.result[name] = val
-        hub.info("%s changing %s: %s" %(url.path, name, val))
 
-    hub.http_api("patch", url, reply.result)
+def index_modify(hub, url, keyvalues):
+    features = hub.current.features or set()
+    reply = hub.http_api("get", url, type="indexconfig")
+    if 'server-jsonpatch' in features:
+        # the server supports JSON patch
+        try:
+            patch = json_patch_from_keyvalues(keyvalues, reply.result)
+        except ValueError as e:
+            hub.fatal(e)
+        for op in patch:
+            hub.info("%s %s %s %s" % (url.path, op['op'], op['path'], op['value']))
+    else:
+        patch = reply.result
+        try:
+            kvdict = keyvalues.kvdict
+        except ValueError as e:
+            hub.fatal(e)
+        for name, val in kvdict.items():
+            patch[name] = val
+            hub.info("%s changing %s: %s" %(url.path, name, val))
+
+    hub.http_api("patch", url, patch)
     index_show(hub, url)
 
 def index_delete(hub, url):
@@ -48,13 +66,14 @@ def parse_posargs(hub, args):
     indexname = args.indexname
     keyvalues = list(args.keyvalues)
     if indexname and "=" in indexname:
-        keyvalues.append(indexname)
+        keyvalues.insert(0, indexname)
         indexname = None
-    kvdict = parse_keyvalue_spec_index(hub, keyvalues)
-    return indexname, kvdict
+    keyvalues = parse_keyvalue_spec_index(hub, keyvalues)
+    return indexname, keyvalues
+
 
 def main(hub, args):
-    indexname, kvdict = parse_posargs(hub, args)
+    indexname, keyvalues = parse_posargs(hub, args)
 
     if args.list:
         return index_list(hub, indexname)
@@ -68,20 +87,14 @@ def main(hub, args):
             hub.fatal("cannot delete if you specify key=values")
         return index_delete(hub, url)
     if args.create:
-        return index_create(hub, url, kvdict)
-    if kvdict:
-        return index_modify(hub, url, kvdict)
+        return index_create(hub, url, keyvalues.kvdict)
+    if keyvalues:
+        return index_modify(hub, url, keyvalues)
     else:
         return index_show(hub, url)
 
 def parse_keyvalue_spec_index(hub, keyvalues):
     try:
-        kvdict = parse_keyvalue_spec(keyvalues)
+        return parse_keyvalue_spec(keyvalues)
     except ValueError:
-        hub.fatal("arguments must be format NAME=VALUE: %r" %( keyvalues,))
-    # XXX devpi-server 3.0.0 handles the splitting on it's own, this is for
-    # compatibility with older devpi-server
-    for key in ("acl_upload", "bases", "pypi_whitelist"):
-        if key in kvdict:
-            kvdict[key] = [x for x in kvdict[key].split(",") if x]
-    return kvdict
+        hub.fatal("arguments must be format NAME[+-]=VALUE: %r" % (keyvalues,))

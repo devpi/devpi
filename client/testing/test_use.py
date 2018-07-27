@@ -505,16 +505,42 @@ class TestUnit:
         assert not hub.current.settrusted
 
 
+def test_parse_keyvalue_spec_invalid():
+    with pytest.raises(ValueError):
+        parse_keyvalue_spec(["hello123"])
+
+
 @pytest.mark.parametrize("input expected".split(), [
     (["hello=123", "world=42"], dict(hello="123", world="42")),
-    (["hello=123=1"], dict(hello="123=1"))
-    ])
-def test_parse_keyvalue_spec(input, expected):
-    result = parse_keyvalue_spec(input, "hello world".split())
-    assert result == expected
+    (["hello=123=1"], dict(hello="123=1")),
+    (["hello=1", "hello=2"], dict(hello="2"))])
+def test_parse_keyvalue_spec_kvdict(input, expected):
+    result = parse_keyvalue_spec(input)
+    assert result.kvdict == expected
 
-def test_parse_keyvalue_spec_unknown_key():
-    pytest.raises(KeyError, lambda: parse_keyvalue_spec(["hello=3"], ["some"]))
+
+@pytest.mark.parametrize(["input"], [
+    (["hello+=123"],),
+    (["hello-=123"],)])
+def test_parse_keyvalue_spec_kvdict_invalid(input):
+    result = parse_keyvalue_spec(input)
+    with pytest.raises(ValueError):
+        result.kvdict
+
+
+@pytest.mark.parametrize("input expected".split(), [
+    (["hello=123", "world=42"], [("default", "hello", "123"), ("default", "world", "42")]),
+    (["hello=123=1"], [("default", "hello", "123=1")]),
+    (["hello=1", "hello=2"], [("default", "hello", "1"), ("default", "hello", "2")]),
+    (["hello:=1"], [("replace", "hello", "1")]),
+    (["hello+=1"], [("add", "hello", "1")]),
+    (["hello-=1"], [("remove", "hello", "1")]),
+    (["hello?=1"], [("test", "hello", "1")]),
+    (["hello+=1", "hello-=2"], [("add", "hello", "1"), ("remove", "hello", "2")])])
+def test_parse_keyvalue_spec_actions(input, expected):
+    result = parse_keyvalue_spec(input)
+    assert result.operations == expected
+
 
 def test_user_no_index(loghub):
     out_index_list(loghub, {"user": {"username": "user"}})

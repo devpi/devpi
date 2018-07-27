@@ -23,6 +23,9 @@ def test_passwd_no_username(devpi_username, monkeypatch, out_devpi):
     assert res.outlines == [
         '/%s changing password: ********' % devpi_username,
         'user modified: %s' % devpi_username,
+        ''] or res.outlines == [
+        '/%s add /password ********' % devpi_username,
+        'user modified: %s' % devpi_username,
         '']
 
 
@@ -33,6 +36,9 @@ def test_passwd(devpi_username, monkeypatch, out_devpi):
     assert not res.errlines
     assert res.outlines == [
         '/%s changing password: ********' % devpi_username,
+        'user modified: %s' % devpi_username,
+        ''] or res.outlines == [
+        '/%s add /password ********' % devpi_username,
         'user modified: %s' % devpi_username,
         '']
 
@@ -45,6 +51,10 @@ def test_passwd_empty(devpi_username, monkeypatch, out_devpi):
         'empty password, are you sure to use it?: yes',
         '/%s changing password: ********' % devpi_username,
         'user modified: %s' % devpi_username,
+        ''] or res.outlines == [
+        'empty password, are you sure to use it?: yes',
+        '/%s add /password ********' % devpi_username,
+        'user modified: %s' % devpi_username,
         '']
 
 
@@ -55,5 +65,9 @@ def test_passwd_short(devpi_username, monkeypatch, out_devpi):
     assert res.outlines == [
         'password with less than 8 characters, are you sure to use it?: yes',
         '/%s changing password: ********' % devpi_username,
+        'user modified: %s' % devpi_username,
+        ''] or res.outlines == [
+        'password with less than 8 characters, are you sure to use it?: yes',
+        '/%s add /password ********' % devpi_username,
         'user modified: %s' % devpi_username,
         '']

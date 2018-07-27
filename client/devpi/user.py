@@ -1,5 +1,7 @@
 import py
-from devpi.use import parse_keyvalue_spec
+from devpi.use import KeyValueOperations, parse_keyvalue_spec
+from devpi.use import json_patch_from_keyvalues
+
 
 def getnewpass(hub, username):
     for i in range(3):
@@ -22,21 +24,41 @@ def user_create(hub, user, kvdict):
     hub.http_api("put", hub.current.get_user_url(user), kvdict)
     hub.info("user created: %s" % user)
 
-def user_modify(hub, user, kvdict):
+
+def user_modify(hub, user, keyvalues):
     url = hub.current.get_user_url(user)
+    features = hub.current.features or set()
     reply = hub.http_api("get", url, type="userconfig")
-    for name, val in kvdict.items():
-        reply.result[name] = val
-        if name == 'password':
-            # hide password from log output
-            val = '********'
-        hub.info("%s changing %s: %s" %(url.path, name, val))
+    if 'server-jsonpatch' in features:
+        # the server supports JSON patch
+        try:
+            patch = json_patch_from_keyvalues(keyvalues, reply.result)
+        except ValueError as e:
+            hub.fatal(e)
+        for op in patch:
+            value = op['value']
+            if op['path'] == '/password':
+                # hide password from log output
+                value = '********'
+            hub.info("%s %s %s %s" % (url.path, op['op'], op['path'], value))
+    else:
+        try:
+            kvdict = keyvalues.kvdict
+        except ValueError as e:
+            hub.fatal(e)
+        patch = reply.result
+        for name, val in kvdict.items():
+            patch[name] = val
+            if name == 'password':
+                # hide password from log output
+                val = '********'
+            hub.info("%s changing %s: %s" %(url.path, name, val))
 
-    for name in ('indexes', 'username'):
-        # pre devpi-server 3.0.0 can't handle these
-        reply.result.pop(name, None)
+        for name in ('indexes', 'username'):
+            # pre devpi-server 3.0.0 can't handle these
+            patch.pop(name, None)
 
-    hub.http_api("patch", url, reply.result)
+    hub.http_api("patch", url, patch)
     hub.info("user modified: %s" % user)
 
 def user_delete(hub, user):
@@ -74,13 +96,13 @@ def main(hub, args):
     username = args.username
     if (args.delete or args.create) and not username:
         hub.fatal("need to specify a username")
-    kvdict = parse_keyvalue_spec(args.keyvalues)
+    keyvalues = parse_keyvalue_spec(args.keyvalues)
     if args.create:
-        return user_create(hub, username, kvdict)
+        return user_create(hub, username, keyvalues.kvdict)
     elif args.delete:
         return user_delete(hub, username)
-    elif kvdict or args.modify:
-        return user_modify(hub, username, kvdict)
+    elif keyvalues or args.modify:
+        return user_modify(hub, username, keyvalues)
     elif args.list:
         return user_list(hub)
     else:
@@ -93,4 +115,5 @@ def passwd(hub, args):
         user = hub.current.get_auth_user()
     if not user:
         hub.fatal("no user specified and no user currently active")
-    user_modify(hub, user, dict(password=getnewpass(hub, user)))
+    user_modify(hub, user, KeyValueOperations([
+        ("default", "password", getnewpass(hub, user))]))

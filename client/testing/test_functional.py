@@ -1,4 +1,5 @@
 from io import BytesIO
+from pkg_resources import get_distribution, parse_version
 import py
 import pytest
 import requests
@@ -280,28 +281,29 @@ def test_switch_preserves_auth(out_devpi, url_of_liveserver, url_of_liveserver2)
     assert url4 == url1
 
 
+@pytest.fixture
+def new_user_id(gen, mapp):
+    user_id = "tmp_%s_%s" % (gen.user(), str(time.time()))
+    yield user_id
+    try:
+        mapp.delete_user(user=user_id, code=201)
+    except:
+        pass
+
+
+@pytest.fixture
+def existing_user_id(new_user_id, mapp):
+    """ Create a temporary user - will be deleted when the
+    fixture is finalized"""
+    mapp.create_user(
+        user=new_user_id, password=1234,
+        email=new_user_id + "@example.com")
+    return new_user_id
+
+
 class TestUserManagement:
     """ This class tests the user sub command of devpi
     """
-
-    @pytest.fixture
-    def new_user_id(self, request, gen, mapp):
-        user_id = "tmp_%s_%s"  %(gen.user(), str(time.time()))
-        def del_tmp_user():
-            try:
-                mapp.delete_user(user = user_id, code=201)
-            except:
-                pass
-        request.addfinalizer(del_tmp_user)
-        return user_id
-
-    @pytest.fixture
-    def existing_user_id(self, request, new_user_id, mapp):
-        """ Create a temporary user - will be deleted when the
-        fixture is finalized"""
-        mapp.create_user(user=new_user_id, password=1234,
-                         email=new_user_id + "@example.com", code=201)
-        return new_user_id
 
     @pytest.fixture
     def user_list(self, mapp, url_of_liveserver):
@@ -384,3 +386,49 @@ class TestUserManagement:
         """
         mapp.login_root()
         mapp.delete_user(user="root", code=403)
+
+
+devpi_version = get_distribution("devpi-server").parsed_version
+jsonpatch_devpi_version = parse_version("4.6dev")
+
+
+@pytest.mark.skipif(
+    devpi_version < jsonpatch_devpi_version,
+    reason="devpi-server without JSON patch support")
+class TestAddRemoveSettings:
+    def test_add_user_setting(self, mapp, existing_user_id, url_of_liveserver):
+        mapp.login(user=existing_user_id, password="1234")
+        # verify title isn't there
+        json = mapp.getjson(url_of_liveserver)
+        assert 'title' not in json['result'][existing_user_id]
+        mapp.devpi("user", existing_user_id, "title+=foo", code=200)
+        # verify that the title was added
+        json = mapp.getjson(url_of_liveserver)
+        assert json['result'][existing_user_id]['title'] == 'foo'
+
+    def test_add_index_setting(self, mapp, existing_user_id, url_of_liveserver):
+        mapp.login(user=existing_user_id, password="1234")
+        indexname = '%s/dev' % existing_user_id
+        indexurl = url_of_liveserver.joinpath(indexname)
+        mapp.create_index(indexname)
+        # verify title isn't there
+        json = mapp.getjson(indexurl)
+        assert 'title' not in json['result']
+        mapp.devpi("index", indexname, "title+=foo")
+        # verify that the title was added
+        json = mapp.getjson(indexurl)
+        assert json['result']['title'] == 'foo'
+
+    def test_add_remove_index_list_setting(self, mapp, existing_user_id, url_of_liveserver):
+        mapp.login(user=existing_user_id, password="1234")
+        indexname = '%s/dev' % existing_user_id
+        indexurl = url_of_liveserver.joinpath(indexname)
+        mapp.create_index(indexname)
+        json = mapp.getjson(indexurl)
+        assert json['result']['acl_upload'] == [existing_user_id]
+        mapp.devpi("index", indexname, "acl_upload+=foo")
+        json = mapp.getjson(indexurl)
+        assert 'foo' in json['result']['acl_upload']
+        mapp.devpi("index", indexname, "acl_upload-=foo")
+        json = mapp.getjson(indexurl)
+        assert json['result']['acl_upload'] == [existing_user_id]

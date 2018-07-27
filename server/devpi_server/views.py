@@ -8,6 +8,8 @@ from time import time
 from devpi_common.types import ensure_unicode
 from devpi_common.url import URL
 from devpi_common.metadata import get_pyversion_filetype
+from jsonpatch import JsonPatch, JsonPatchException
+from jsonpointer import JsonPointerException
 import devpi_server
 from pluggy import HookimplMarker
 from pyramid.compat import urlparse
@@ -359,6 +361,7 @@ class PyPIView:
         api = {
             "login": request.route_url('/+login'),
             "authstatus": self.get_auth_status(),
+            "features": self.xom.supported_features,
         }
         if path:
             parts = path.split("/")
@@ -605,7 +608,25 @@ class PyPIView:
         permission="index_modify")
     def index_modify(self):
         stage = self.context.stage
-        kvdict = getkvdict_index(self.xom.config.hook, getjson(self.request))
+        json = _getjson(self.request)
+        if isinstance(json, list):
+            patch = JsonPatch(json)
+            for op in patch:
+                if op.get('op') == 'remove' and len(op.get('path').split('/')) == 2:
+                    abort(
+                        self.request, 400,
+                        "Bad request: 'remove' operation not supported")
+                if op.get('op') == 'move':
+                    abort(
+                        self.request, 400,
+                        "Bad request: 'move' operation not supported")
+            ixconfig = stage.get()
+            try:
+                json = patch.apply(ixconfig)
+            except (JsonPatchException, JsonPointerException) as e:
+                abort(self.request, 400, "Bad request: %s: %s" % (
+                    e.__class__.__name__, e))
+        kvdict = getkvdict_index(self.xom.config.hook, json)
         try:
             ixconfig = stage.modify(**kvdict)
         except InvalidIndexconfig as e:
@@ -1084,16 +1105,34 @@ class PyPIView:
         permission="user_modify")
     def user_patch(self):
         request = self.request
+        user = self.context.user
+        json = _getjson(self.request)
+        if isinstance(json, list):
+            patch = JsonPatch(json)
+            for op in patch:
+                if op.get('op') == 'remove' and len(op.get('path').split('/')) == 2:
+                    op['op'] = 'replace'
+                    op['value'] = None
+                if op.get('op') == 'move':
+                    abort(
+                        request, 400,
+                        "Bad request: 'move' operation not supported")
+            userconfig = user.get()
+            try:
+                json = patch.apply(userconfig)
+            except (JsonPatchException, JsonPointerException) as e:
+                abort(request, 400, "Bad request: %s: %s" % (
+                    e.__class__.__name__, e))
         ignored_keys = set(('indexes', 'username'))
         allowed_keys = set((
             "email", "password", "title", "description", "custom_data"))
-        result = getjson(request, allowed_keys=allowed_keys.union(ignored_keys))
+        _check_allowed_keys(
+            request, json, allowed_keys=allowed_keys.union(ignored_keys))
         kvdict = dict()
         for key in allowed_keys:
-            if key not in result:
+            if key not in json:
                 continue
-            kvdict[key] = result[key]
-        user = self.context.user
+            kvdict[key] = json[key]
         password = kvdict.get("password")
         user.modify(**kvdict)
         if password is not None:
@@ -1189,16 +1228,25 @@ def url_for_entrypath(request, entrypath):
         route_name, user=user, index=index, relpath=relpath)
 
 
-def getjson(request, allowed_keys=None):
+def _getjson(request):
     try:
-        dict = request.json_body
+        d = request.json_body
     except ValueError:
         abort(request, 400, "Bad request: could not decode json")
+    return d
+
+
+def _check_allowed_keys(request, d, allowed_keys):
+    diff = set(d).difference(allowed_keys)
+    if diff:
+        abort(request, 400, "json keys not recognized: %s" % ",".join(diff))
+
+
+def getjson(request, allowed_keys=None):
+    d = _getjson(request)
     if allowed_keys is not None:
-        diff = set(dict).difference(allowed_keys)
-        if diff:
-            abort(request, 400, "json keys not recognized: %s" % ",".join(diff))
-    return dict
+        _check_allowed_keys(request, d, allowed_keys)
+    return d
 
 
 def abort_if_invalid_filename(request, name, filename):
