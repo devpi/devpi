@@ -7,7 +7,8 @@ from devpi.upload import *
 from textwrap import dedent
 from devpi_common.metadata import splitbasename
 from devpi_common.viewhelp import ViewLinkStore
-from devpi.main import check_output
+from subprocess import check_output
+
 
 @pytest.fixture
 def datadir():

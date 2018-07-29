@@ -10,7 +10,6 @@ from contextlib import closing
 from devpi import hookspecs
 from devpi_common.types import lazydecorator, cached_property
 from devpi_common.url import URL
-from devpi_common.proc import check_output
 from devpi.use import PersistentCurrent
 from devpi_common.request import new_requests_session
 from devpi import __version__ as client_version
@@ -280,7 +279,7 @@ class Hub:
         args[0] = str(cmd)
         if report:
             self.report_popen(args, cwd)
-        return check_output(args, cwd=str(cwd))
+        return subprocess.check_output(args, cwd=str(cwd)).decode('utf-8')
 
     def popen(self, args, cwd=None, dryrun=None, **popen_kwargs):
         if isinstance(args, str):

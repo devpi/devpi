@@ -1,8 +1,10 @@
 import pytest
 import json
 import textwrap
-from devpi.main import Hub, check_output
+from devpi.main import Hub
 from devpi.push import parse_target, PyPIPush, DevpiPush
+from subprocess import check_output
+
 
 def runproc(cmd):
     args = cmd.split()
