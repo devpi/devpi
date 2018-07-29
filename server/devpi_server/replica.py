@@ -53,19 +53,7 @@ class MasterChangelogRequest:
         else:  # just a regular request
             yield
 
-    @view_config(route_name="/+changelog/{serial}")
-    def get_changes(self):
-        # this method is called from all replica servers
-        # and either returns changelog entry content for {serial} or,
-        # if it points to the "next" serial, will block and wait
-        # until that serial is committed.  However, after
-        # MAX_REPLICA_BLOCK_TIME, we return 202 Accepted to indicate
-        # the replica should try again.  The latter has two benefits:
-        # - nginx' timeout would otherwise return 504 (Gateway Timeout)
-        # - if the replica is not waiting anymore we would otherwise
-        #   never time out here, leading to more and more threads
-        # if no commits happen.
-
+    def verify_master(self):
         if not self.xom.is_master():
             raise HTTPForbidden("Replication protocol disabled")
         expected_uuid = self.request.headers.get(H_EXPECTED_MASTER_ID, None)
@@ -82,6 +70,21 @@ class MasterChangelogRequest:
                       expected_uuid)
             raise HTTPBadRequest("expected %s as master_uuid, replica sent %s" %
                                  (master_uuid, expected_uuid))
+
+    @view_config(route_name="/+changelog/{serial}")
+    def get_changes(self):
+        # this method is called from all replica servers
+        # and either returns changelog entry content for {serial} or,
+        # if it points to the "next" serial, will block and wait
+        # until that serial is committed.  However, after
+        # MAX_REPLICA_BLOCK_TIME, we return 202 Accepted to indicate
+        # the replica should try again.  The latter has two benefits:
+        # - nginx' timeout would otherwise return 504 (Gateway Timeout)
+        # - if the replica is not waiting anymore we would otherwise
+        #   never time out here, leading to more and more threads
+        # if no commits happen.
+
+        self.verify_master()
 
         serial = int(self.request.matchdict["serial"])
 
