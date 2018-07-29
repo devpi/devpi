@@ -32,7 +32,7 @@ def hub(args):
 
 @pytest.fixture
 def login(args, hub, monkeypatch):
-    monkeypatch.setattr("py.std.getpass.getpass", getpass)
+    monkeypatch.setattr("getpass.getpass", getpass)
     return partial(main, hub, args)
 
 

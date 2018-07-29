@@ -1,11 +1,12 @@
-import py
 from devpi.use import parse_keyvalue_spec
+import getpass
+
 
 def getnewpass(hub, username):
     for i in range(3):
         basemessage = "new password for user %s:" %(username)
-        password = py.std.getpass.getpass(basemessage)
-        password2 = py.std.getpass.getpass("repeat " + basemessage)
+        password = getpass.getpass(basemessage)
+        password2 = getpass.getpass("repeat " + basemessage)
         if password == password2:
             if not password:
                 if not hub.ask_confirm("empty password, are you sure to use it?"):

@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 import base64
 import os.path
 import argparse
+import stat
 import uuid
 from operator import itemgetter
 
@@ -468,8 +469,7 @@ class Config:
         if not self.secretfile.check():
             self.secretfile.dirpath().ensure(dir=1)
             self.secretfile.write(base64.b64encode(os.urandom(32)))
-            s = py.std.stat
-            self.secretfile.chmod(s.S_IRUSR|s.S_IWUSR)
+            self.secretfile.chmod(stat.S_IRUSR|stat.S_IWUSR)
         return self.secretfile.read()
 
 def getpath(path):

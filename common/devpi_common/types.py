@@ -1,10 +1,9 @@
-from __future__ import unicode_literals
-
+from __future__ import absolute_import, unicode_literals
+from types import FunctionType
 import hashlib
 import operator
 import py
 
-FunctionType = py.std.types.FunctionType
 
 # re-introduced for 2.0 series but not used anymore
 def propmapping(name, convert=None):

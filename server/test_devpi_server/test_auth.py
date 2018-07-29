@@ -1,4 +1,4 @@
-import py
+import itsdangerous
 import pytest
 from devpi_server.auth import *
 from devpi_server.config import hookimpl
@@ -29,7 +29,7 @@ class TestAuth:
         model.create_user(username, password=password)
         proxy = auth.new_proxy_auth(username, password)
 
-        def r(*args, **kw): raise py.std.itsdangerous.SignatureExpired("123")
+        def r(*args, **kw): raise itsdangerous.SignatureExpired("123")
         monkeypatch.setattr(auth.serializer, "loads", r)
 
         assert auth._get_auth_status(username, proxy["password"]) == dict(status="expired")

@@ -3,6 +3,7 @@ import os
 import sys
 import py
 import argparse
+import shlex
 import subprocess
 from base64 import b64encode
 from contextlib import closing
@@ -16,7 +17,6 @@ from devpi import __version__ as client_version
 from pluggy import HookimplMarker
 from pluggy import PluginManager
 import json
-std = py.std
 subcommand = lazydecorator()
 
 main_description = """
@@ -60,12 +60,12 @@ notset = object()
 
 
 class Hub:
-    class Popen(std.subprocess.Popen):
-        STDOUT = std.subprocess.STDOUT
-        PIPE = std.subprocess.PIPE
+    class Popen(subprocess.Popen):
+        STDOUT = subprocess.STDOUT
+        PIPE = subprocess.PIPE
         def __init__(self, cmds, *args, **kwargs):
             cmds = [str(x) for x in cmds]
-            std.subprocess.Popen.__init__(self, cmds, *args, **kwargs)
+            subprocess.Popen.__init__(self, cmds, *args, **kwargs)
 
     def __init__(self, args, file=None):
         self._tw = py.io.TerminalWriter(file=file)
@@ -269,7 +269,7 @@ class Hub:
 
     def popen_output(self, args, cwd=None, report=True):
         if isinstance(args, str):
-            args = std.shlex.split(args)
+            args = shlex.split(args)
         assert args[0], args
         args = [str(x) for x in args]
         if cwd == None:
@@ -284,7 +284,7 @@ class Hub:
 
     def popen(self, args, cwd=None, dryrun=None, **popen_kwargs):
         if isinstance(args, str):
-            args = std.shlex.split(args)
+            args = shlex.split(args)
         assert args[0], args
         args = [str(x) for x in args]
         if cwd == None:

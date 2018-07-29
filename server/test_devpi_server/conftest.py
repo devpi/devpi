@@ -1,6 +1,7 @@
 from __future__ import print_function
 import re
 from webtest.forms import Upload
+import json
 import webtest
 import mimetypes
 import subprocess
@@ -10,6 +11,7 @@ import py
 import requests
 import socket
 import sys
+import time
 from bs4 import BeautifulSoup
 from contextlib import closing
 from devpi_server import extpypi
@@ -19,7 +21,6 @@ from devpi_common.url import URL
 from devpi_server.extpypi import PyPIStage
 from devpi_server.log import threadlog, thread_clear_log
 from pyramid.authentication import b64encode
-from time import sleep
 
 import hashlib
 try:
@@ -308,7 +309,7 @@ def httpget(pypiurls):
     class MockHTTPGet:
         def __init__(self):
             self.url2response = {}
-            self._md5 = py.std.hashlib.md5()
+            self._md5 = hashlib.md5()
 
         def __call__(self, url, allow_redirects=False, extra_headers=None):
             class mockresponse:
@@ -709,7 +710,7 @@ class Mapp(MappMixin):
         indexname = self._getindexname(indexname)
         req = dict(name=name, version=version, targetindex=index)
         r = self.testapp.push(
-            '/%s' % indexname, py.std.json.dumps(req), expect_errors=True)
+            '/%s' % indexname, json.dumps(req), expect_errors=True)
         assert r.status_code == code
         return r
 
@@ -976,7 +977,7 @@ def wait_for_port(host, port, timeout=60):
             s.settimeout(1)
             if s.connect_ex((host, port)) == 0:
                 return
-        sleep(1)
+        time.sleep(1)
         timeout -= 1
     raise RuntimeError(
         "The port %s on host %s didn't become accessible" % (port, host))
@@ -1005,7 +1006,7 @@ def call_devpi_in_dir():
         m.setattr("sys.argv", [devpiserver])
         cap = py.io.StdCaptureFD()
         cap.startall()
-        now = py.std.time.time()
+        now = time.time()
         try:
             main(args)
         finally:
@@ -1013,7 +1014,7 @@ def call_devpi_in_dir():
             out, err = cap.reset()
             del cap
         return RunResult(
-            0, out.split("\n"), err.split("\n"), py.std.time.time() - now)
+            0, out.split("\n"), err.split("\n"), time.time() - now)
 
     return devpi
 
@@ -1335,7 +1336,7 @@ def gen():
 
 class Gen:
     def __init__(self):
-        self._md5 = py.std.hashlib.md5()
+        self._md5 = hashlib.md5()
 
     def pypi_package_link(self, pkgname, md5=True):
         link = "https://pypi.org/package/some/%s" % pkgname

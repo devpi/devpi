@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+import getpass
 import posixpath
 import sys
 import py
@@ -24,8 +25,8 @@ def run_passwd(root, username):
         log.error("user %r not found" % username)
         return 1
     for i in range(3):
-        pwd = py.std.getpass.getpass("enter password for %s: " % user.name)
-        pwd2 = py.std.getpass.getpass("repeat password for %s: " % user.name)
+        pwd = getpass.getpass("enter password for %s: " % user.name)
+        pwd2 = getpass.getpass("repeat password for %s: " % user.name)
         if pwd != pwd2:
             log.error("password don't match")
         else:

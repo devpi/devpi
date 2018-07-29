@@ -1,6 +1,6 @@
-import py
 import pytest
 import json
+import textwrap
 from devpi.main import Hub, check_output
 from devpi.push import parse_target, PyPIPush, DevpiPush
 
@@ -17,7 +17,7 @@ def test_parse_target_devpi(loghub):
 
 def test_parse_target_pypi(tmpdir, loghub):
     p = tmpdir.join("pypirc")
-    p.write(py.std.textwrap.dedent("""
+    p.write(textwrap.dedent("""
         [distutils]
         index-servers = whatever
 
@@ -39,7 +39,7 @@ def test_parse_target_pypi(tmpdir, loghub):
 
 def test_parse_target_pypi_default_repository(tmpdir, loghub):
     p = tmpdir.join("pypirc")
-    p.write(py.std.textwrap.dedent("""
+    p.write(textwrap.dedent("""
         [distutils]
         index-servers = whatever
 
@@ -108,7 +108,7 @@ def test_main_push_pypi(monkeypatch, tmpdir, spec):
     monkeypatch.setattr(hub.http, "request", mypost)
     hub.current.reconfigure(dict(index="/some/index"))
     p = tmpdir.join("pypirc")
-    p.write(py.std.textwrap.dedent("""
+    p.write(textwrap.dedent("""
         [distutils]
         index-servers = whatever
 
@@ -127,7 +127,7 @@ def test_main_push_pypi(monkeypatch, tmpdir, spec):
     assert len(l) == 1
     method, url, data = l[0]
     assert url == hub.current.index
-    req = py.std.json.loads(data)
+    req = json.loads(data)
     assert req["name"] == "pkg"
     assert req["version"] == "1.0"
     assert req["posturl"] == "http://anotherserver"
@@ -163,7 +163,7 @@ def test_fail_push(monkeypatch, tmpdir):
     monkeypatch.setattr(hub.http, "request", mypost)
     hub.current.reconfigure(dict(index="/some/index"))
     p = tmpdir.join("pypirc")
-    p.write(py.std.textwrap.dedent("""
+    p.write(textwrap.dedent("""
         [distutils]
         index-servers = whatever
 

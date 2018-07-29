@@ -1,6 +1,6 @@
 from __future__ import print_function
 from contextlib import closing
-from time import sleep
+import codecs
 import os
 import pkg_resources
 import pytest
@@ -9,6 +9,7 @@ import textwrap
 import py
 import sys
 import json
+import time
 
 from _pytest.pytester import RunResult, LineMatcher
 from devpi.main import Hub, initmain, parse_args
@@ -24,7 +25,6 @@ except ImportError:
 import subprocess
 
 print_ = py.builtin.print_
-std = py.std
 
 pytest_plugins = "pytester"
 
@@ -124,7 +124,7 @@ def wait_for_port(host, port, timeout=60):
             s.settimeout(1)
             if s.connect_ex((host, port)) == 0:
                 return
-        sleep(1)
+        time.sleep(1)
         timeout -= 1
     raise RuntimeError(
         "The port %s on host %s didn't become accessible" % (port, host))
@@ -331,7 +331,7 @@ def out_devpi(devpi):
     def out_devpi_func(*args, **kwargs):
         cap = py.io.StdCaptureFD()
         cap.startall()
-        now = std.time.time()
+        now = time.time()
         try:
             try:
                 devpi(*args, **kwargs)
@@ -344,7 +344,7 @@ def out_devpi(devpi):
             raise
         print_(out)
         print_(err, file=sys.stderr)
-        return RunResult(0, out.split("\n"), None, std.time.time()-now)
+        return RunResult(0, out.split("\n"), None, time.time()-now)
     return out_devpi_func
 
 @pytest.fixture
@@ -398,15 +398,15 @@ def runprocess(tmpdir, cmdargs):
     cmdargs = [str(x) for x in cmdargs]
     p1 = tmpdir.join("stdout")
     print_info("running", cmdargs, "curdir=", py.path.local())
-    with std.codecs.open(str(p1), "w", encoding="utf8") as f1:
-        now = std.time.time()
+    with codecs.open(str(p1), "w", encoding="utf8") as f1:
+        now = time.time()
         popen = subprocess.Popen(
                     cmdargs, stdout=f1, stderr=subprocess.STDOUT,
                     close_fds=(sys.platform != "win32"))
         ret = popen.wait()
-    with std.codecs.open(str(p1), "r", encoding="utf8") as f1:
+    with codecs.open(str(p1), "r", encoding="utf8") as f1:
         outerr = f1.read().splitlines()
-    return RunResult(ret, outerr, None, std.time.time()-now)
+    return RunResult(ret, outerr, None, time.time()-now)
 
 
 @pytest.fixture

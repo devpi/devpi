@@ -1,8 +1,10 @@
 
 # original copy of this file in repo
 # https://bitbucket.org/RonnyPfannschmidt/regendoc
+import pprint
 import py
 import pytest
+import textwrap
 from regendoc import blocks, correct_content
 from regendoc import classify, _main
 from regendoc import check_file, actions_of
@@ -48,7 +50,7 @@ def test_blocks():
         (0, 11, ['.. directive:: test\n']),
         (4, 12, [':param: test\n', '\n', 'text\n']),
     ]
-    py.std.pprint.pprint(result)
+    pprint.pprint(result)
     assert result == expected
 
 
@@ -107,7 +109,7 @@ def test_classify_chdir_shell():
 @pytest.fixture
 def example(tmpdir):
     p = tmpdir.join("example.txt")
-    p.write(py.std.textwrap.dedent("""\
+    p.write(textwrap.dedent("""\
         a simple test function call with one argument factory
         ==============================================================
 
@@ -242,7 +244,7 @@ def test_docfile_chdir(tmpdir):
     assert action == excpected_action
 
     needed_updates = check_file(example, tmpdir)
-    py.std.pprint.pprint(needed_updates)
+    pprint.pprint(needed_updates)
     assert needed_updates
 
 

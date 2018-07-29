@@ -529,7 +529,7 @@ class TestFileReplication:
         monkeypatch.setattr(xom.keyfs, "wait_tx_serial",
                             lambda x: l.append(x))
         with xom.keyfs.transaction(write=True):
-            md5 = py.std.hashlib.md5()
+            md5 = hashlib.md5()
             md5.update(b'123')
             link = gen.pypi_package_link(
                 "pytest-1.8.zip", md5=md5.hexdigest())

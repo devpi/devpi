@@ -1,9 +1,11 @@
 import errno
 import sys
 import os
-import py
+import re
+import signal
 import subprocess
-std = py.std
+import time
+
 
 def do_xkill(info):
     # return codes:
@@ -16,8 +18,8 @@ def do_xkill(info):
     if sys.platform == "win32":
         # send a break event to all processes in the process group
         # (taskkill only kills the setuptools wrapper process)
-        if hasattr(std.signal, "CTRL_BREAK_EVENT"):
-            os.kill(info.pid, std.signal.CTRL_BREAK_EVENT)
+        if hasattr(signal, "CTRL_BREAK_EVENT"):
+            os.kill(info.pid, signal.CTRL_BREAK_EVENT)
             return 1
         else:
             subprocess.check_call("taskkill /F /PID %s" % info.pid)
@@ -175,9 +177,9 @@ class XProcess:
         while 1:
             line = f.readline()
             if not line:
-                std.time.sleep(0.1)
+                time.sleep(0.1)
             self.log.debug(line)
-            if std.re.search(pattern, line):
+            if re.search(pattern, line):
                 return True
             count -= 1
             if count < 0:

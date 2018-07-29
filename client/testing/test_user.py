@@ -7,7 +7,7 @@ def failing_getpass(msg):
 
 
 def test_passwd_no_user(monkeypatch, out_devpi):
-    monkeypatch.setattr("py.std.getpass.getpass", failing_getpass)
+    monkeypatch.setattr("getpass.getpass", failing_getpass)
     out_devpi("logoff")
     res = out_devpi("passwd")
     assert not res.errlines
@@ -17,7 +17,7 @@ def test_passwd_no_user(monkeypatch, out_devpi):
 
 
 def test_passwd_no_username(devpi_username, monkeypatch, out_devpi):
-    monkeypatch.setattr("py.std.getpass.getpass", lambda msg: "password")
+    monkeypatch.setattr("getpass.getpass", lambda msg: "password")
     res = out_devpi("passwd")
     assert not res.errlines
     assert res.outlines == [
@@ -27,7 +27,7 @@ def test_passwd_no_username(devpi_username, monkeypatch, out_devpi):
 
 
 def test_passwd(devpi_username, monkeypatch, out_devpi):
-    monkeypatch.setattr("py.std.getpass.getpass", lambda msg: "password")
+    monkeypatch.setattr("getpass.getpass", lambda msg: "password")
     res = out_devpi("use")
     res = out_devpi("passwd", devpi_username)
     assert not res.errlines
@@ -38,7 +38,7 @@ def test_passwd(devpi_username, monkeypatch, out_devpi):
 
 
 def test_passwd_empty(devpi_username, monkeypatch, out_devpi):
-    monkeypatch.setattr("py.std.getpass.getpass", lambda msg: "")
+    monkeypatch.setattr("getpass.getpass", lambda msg: "")
     res = out_devpi("passwd")
     assert not res.errlines
     assert res.outlines == [
@@ -49,7 +49,7 @@ def test_passwd_empty(devpi_username, monkeypatch, out_devpi):
 
 
 def test_passwd_short(devpi_username, monkeypatch, out_devpi):
-    monkeypatch.setattr("py.std.getpass.getpass", lambda msg: "foo")
+    monkeypatch.setattr("getpass.getpass", lambda msg: "foo")
     res = out_devpi("passwd")
     assert not res.errlines
     assert res.outlines == [

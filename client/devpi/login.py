@@ -1,5 +1,5 @@
 from devpi.main import hookimpl
-import py
+import getpass
 
 
 def main(hub, args):
@@ -23,7 +23,7 @@ def main(hub, args):
 
 @hookimpl(trylast=True)
 def devpiclient_get_password(url, username):
-    return py.std.getpass.getpass("password for user %s: " % username)
+    return getpass.getpass("password for user %s: " % username)
 
 
 def logoff(hub, args):

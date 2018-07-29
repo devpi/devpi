@@ -129,7 +129,7 @@ def zip_dir(basedir, dest=None):
         f = py.io.BytesIO()
     else:
         f = open(str(dest), "wb")
-    zip = py.std.zipfile.ZipFile(f, "w")
+    zip = zipfile.ZipFile(f, "w")
     try:
         _writezip(zip, basedir)
     finally:
@@ -142,7 +142,7 @@ def _writezip(zip, basedir):
         if p.check(dir=1):
             if not p.listdir():
                 path = p.relto(basedir) + "/"
-                zipinfo = py.std.zipfile.ZipInfo(path)
+                zipinfo = zipfile.ZipInfo(path)
                 zip.writestr(zipinfo, "")
         else:
             path = p.relto(basedir)
@@ -150,7 +150,7 @@ def _writezip(zip, basedir):
 
 def zip_dict(contentdict):
     f = py.io.BytesIO()
-    zip = py.std.zipfile.ZipFile(f, "w")
+    zip = zipfile.ZipFile(f, "w")
     _writezip_fromdict(zip, contentdict)
     zip.close()
     return f.getvalue()
@@ -161,7 +161,7 @@ def _writezip_fromdict(zip, contentdict, prefixes=()):
             newprefixes = prefixes + (name,)
             if not val:
                 path = os.sep.join(newprefixes) + os.sep
-                zipinfo = py.std.zipfile.ZipInfo(path)
+                zipinfo = zipfile.ZipInfo(path)
                 zip.writestr(zipinfo, "")
             else:
                 _writezip_fromdict(zip, val, newprefixes)

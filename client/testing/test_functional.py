@@ -1,4 +1,5 @@
 from io import BytesIO
+import json
 import py
 import pytest
 import requests
@@ -96,7 +97,7 @@ class Mapp(MappMixin):
     def getjson(self, path, code=200):
         result = self.out_devpi("getjson", path, code=code)
         if code == 200:
-            return py.std.json.loads(result.stdout.str())
+            return json.loads(result.stdout.str())
 
     def getindexlist(self):
         result = self.out_devpi("index", "-l")

@@ -1,5 +1,5 @@
 from __future__ import unicode_literals
-
+import getpass
 import py
 import pytest
 import json
@@ -970,7 +970,7 @@ class TestUsers:
         assert newusers == set("user1 user2".split())
 
     def test_server_passwd(self, model, monkeypatch):
-        monkeypatch.setattr(py.std.getpass, "getpass", lambda x: "123")
+        monkeypatch.setattr(getpass, "getpass", lambda x: "123")
         run_passwd(model, "root")
         assert model.get_user("root").validate("123")
 
@@ -987,7 +987,7 @@ class TestUsers:
         userconfig = user.get(credentials=True)
         assert userconfig['pwsalt'] is not None
         assert userconfig['pwhash'] is not None
-        monkeypatch.setattr(py.std.getpass, "getpass", lambda x: new_secret)
+        monkeypatch.setattr(getpass, "getpass", lambda x: new_secret)
         run_passwd(model, "root")
         assert model.get_user("root").validate(new_secret)
 
