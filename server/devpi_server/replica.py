@@ -90,7 +90,9 @@ class MasterChangelogRequest:
 
         with self.update_replica_status(serial):
             keyfs = self.xom.keyfs
-            raw_entry = self._wait_for_entry(serial)
+            self._wait_for_serial(serial)
+
+            raw_entry = keyfs.tx.conn.get_raw_changelog_entry(serial)
 
             devpi_serial = keyfs.get_current_serial()
             r = Response(body=raw_entry, status=200, headers={
@@ -99,7 +101,7 @@ class MasterChangelogRequest:
             })
             return r
 
-    def _wait_for_entry(self, serial):
+    def _wait_for_serial(self, serial):
         keyfs = self.xom.keyfs
         next_serial = keyfs.get_next_serial()
         if serial > next_serial:
@@ -110,7 +112,7 @@ class MasterChangelogRequest:
                 raise HTTPAccepted("no new transaction yet",
                     headers={str("X-DEVPI-SERIAL"):
                              str(keyfs.get_current_serial())})
-        return keyfs.tx.conn.get_raw_changelog_entry(serial)
+        return serial
 
 
 class ReplicaThread:

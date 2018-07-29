@@ -78,16 +78,16 @@ class TestChangelog:
         assert r.status_code == 202
         assert int(r.headers["X-DEVPI-SERIAL"]) == latest_serial
 
-    def test_wait_entry_succeeds(self, blank_request, xom, mapp):
+    def test_wait_serial_succeeds(self, blank_request, xom, mapp):
         mapp.create_user("this", password="p")
         req = blank_request()
         req.registry = {"xom": xom}
         mcr = MasterChangelogRequest(req)
         with xom.keyfs.transaction():
             with pytest.raises(HTTPNotFound):
-                mcr._wait_for_entry(xom.keyfs.get_current_serial() + 10)
-            entry = mcr._wait_for_entry(xom.keyfs.get_current_serial())
-        assert entry
+                mcr._wait_for_serial(xom.keyfs.get_current_serial() + 10)
+            serial = mcr._wait_for_serial(xom.keyfs.get_current_serial())
+        assert serial == 1
 
     def test_master_id_mismatch(self, testapp):
         testapp.xget(400, "/+changelog/0", headers={H_EXPECTED_MASTER_ID:str("123")})
