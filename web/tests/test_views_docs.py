@@ -57,7 +57,7 @@ def test_docs_view(mapp, testapp):
 @pytest.mark.with_notifier
 def test_docs_raw_projectname(mapp, testapp):
     api = mapp.create_and_use()
-    content = zip_dict({"index.html": "<html><body>foo</body></"})
+    content = zip_dict({"index.html": "<html><body>foo</body></html>"})
     mapp.set_versiondata({
         "name": "pkg_hello", "version": "1.0"})
     mapp.upload_doc(
@@ -83,7 +83,7 @@ def test_docs_raw_projectname(mapp, testapp):
 @pytest.mark.with_notifier
 def test_docs_show_projectname(mapp, testapp):
     api = mapp.create_and_use()
-    content = zip_dict({"index.html": "<html><body>foo</body></"})
+    content = zip_dict({"index.html": "<html><body>foo</body></html>"})
     mapp.set_versiondata({
         "name": "pkg_hello", "version": "1.0"})
     mapp.upload_doc(
