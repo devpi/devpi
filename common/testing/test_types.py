@@ -1,5 +1,7 @@
+from devpi_common.types import CompareMixin
+from devpi_common.types import parse_hash_spec
+import hashlib
 
-from devpi_common.types import *
 
 def test_CompareMixin():
     class A(CompareMixin):

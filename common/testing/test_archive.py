@@ -1,8 +1,13 @@
+from devpi_common.archive import Archive
+from devpi_common.archive import UnsupportedArchive
+from devpi_common.archive import zip_dict
+from devpi_common.archive import zip_dir
 from subprocess import Popen, PIPE
 import py
 import pytest
 import sys
-from devpi_common.archive import *
+
+
 datadir = py.path.local(__file__).dirpath("data")
 
 def check_files(tmpdir):

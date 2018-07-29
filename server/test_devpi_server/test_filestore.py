@@ -1,6 +1,6 @@
+import hashlib
 import pytest
 import py
-from devpi_server.filestore import *
 
 
 zip_types = ("application/zip", "application/x-zip-compressed")

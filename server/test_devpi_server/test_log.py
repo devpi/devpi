@@ -1,7 +1,11 @@
 import pytest
 import logging
 import textwrap
-from devpi_server.log import *
+from devpi_server.log import TagLogger
+from devpi_server.log import configure_logging
+from devpi_server.log import thread_current_log
+from devpi_server.log import thread_pop_log, thread_push_log
+from devpi_server.log import threadlog
 from .test_config import make_config
 
 pytestmark = pytest.mark.notransaction

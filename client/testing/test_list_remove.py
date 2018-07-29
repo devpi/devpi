@@ -1,7 +1,10 @@
+from devpi_common.metadata import parse_requirement
+from devpi.list_remove import confirm_delete
+from devpi.list_remove import out_index
+from devpi.list_remove import out_project
+from devpi.list_remove import show_commands
 import py
 import pytest
-from devpi.list_remove import *
-from devpi import list_remove
 
 
 def linkver(index, basename, d=None, rel="releasefile"):
@@ -31,6 +34,7 @@ def test_out_index(loghub, input, output):
     #["*dev*p1-1.0.tar.gz*", "*prod*p1-1.0.tar.gz"]),
 ])
 def test_out_project(loghub, input, output, monkeypatch):
+    from devpi import list_remove
     loghub.current.reconfigure(dict(
                 simpleindex="/index",
                 index="/root/dev/",

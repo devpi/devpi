@@ -1,6 +1,11 @@
 import pytest
+from devpi_server import mythread
 from devpi_server.config import hookimpl
-from devpi_server.main import *
+from devpi_server.main import Fatal
+from devpi_server.main import XOM
+from devpi_server.main import check_compatible_version
+from devpi_server.main import main
+from devpi_server.main import tween_request_profiling
 import devpi_server
 import os
 

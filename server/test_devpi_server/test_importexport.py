@@ -7,7 +7,9 @@ import py
 import pytest
 import json
 from devpi_server.config import hookimpl
-from devpi_server.importexport import *
+from devpi_server.importexport import Exporter
+from devpi_server.importexport import IndexTree
+from devpi_server.importexport import do_export, do_import
 from devpi_server.main import Fatal
 from devpi_common.archive import Archive, zip_dict
 from devpi_common.metadata import Version

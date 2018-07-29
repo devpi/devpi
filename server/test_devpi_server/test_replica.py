@@ -1,10 +1,21 @@
 # -*- coding: utf-8 -*-
 import hashlib
+import json
 import pytest
 import py
 from devpi_server.log import thread_pop_log
 from devpi_server.fileutil import load
-from devpi_server.replica import *  # noqa
+from devpi_server.log import threadlog, thread_push_log
+from devpi_server.replica import H_EXPECTED_MASTER_ID, H_MASTER_UUID
+from devpi_server.replica import H_REPLICA_UUID, H_REPLICA_OUTSIDE_URL
+from devpi_server.replica import FileReplicationError
+from devpi_server.replica import ImportFileReplica
+from devpi_server.replica import MasterChangelogRequest
+from devpi_server.replica import ReplicaThread
+from devpi_server.replica import tween_replica_proxy
+from pyramid.httpexceptions import HTTPNotFound
+from pyramid.response import Response
+
 
 def loads(bytestring):
     return load(py.io.BytesIO(bytestring))

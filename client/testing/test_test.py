@@ -1,8 +1,15 @@
+import os
 import subprocess
+import py
 import pytest
 import sys
 import tox
-from devpi.test import *
+from devpi_common.viewhelp import ViewLinkStore
+from devpi.test import DevIndex
+from devpi.test import find_sdist_and_wheels
+from devpi.test import prepare_toxrun_args
+from devpi.test import post_tox_json_report
+
 
 pytest_plugins = "pytester"
 

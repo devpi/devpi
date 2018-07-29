@@ -1,6 +1,9 @@
 import itsdangerous
 import pytest
-from devpi_server.auth import *
+from devpi_server.auth import getpwhash
+from devpi_server.auth import hash_password
+from devpi_server.auth import newsalt
+from devpi_server.auth import verify_and_update_password_hash
 from devpi_server.config import hookimpl
 
 pytestmark = [pytest.mark.writetransaction]

@@ -1,6 +1,9 @@
+from devpi_server.readonly import ensure_deeply_readonly
+from devpi_server.readonly import get_mutable_deepcopy
+from devpi_server.readonly import is_deeply_readonly
+from devpi_server.readonly import is_sequence
 import pytest
 
-from devpi_server.readonly import *
 
 class TestDictReadonlyView:
     def test_nonzero(self):

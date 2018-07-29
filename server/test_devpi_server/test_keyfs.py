@@ -3,7 +3,7 @@ import py
 import pytest
 from devpi_server.mythread import ThreadPool
 
-from devpi_server.keyfs import *  # noqa
+from devpi_server.keyfs import KeyFS, Transaction
 from devpi_server.readonly import is_deeply_readonly
 
 notransaction = pytest.mark.notransaction

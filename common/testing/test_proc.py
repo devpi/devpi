@@ -1,6 +1,7 @@
 import pytest
 import py
-from devpi_common.proc import *
+from devpi_common.proc import CalledProcessError
+from devpi_common.proc import check_output
 
 @pytest.fixture
 def hg():

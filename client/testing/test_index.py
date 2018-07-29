@@ -1,6 +1,6 @@
-
+from devpi.index import index_show
 import pytest
-from devpi.index import *
+
 
 def test_index_show_empty(loghub):
     with pytest.raises(SystemExit):

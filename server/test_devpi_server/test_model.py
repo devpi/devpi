@@ -7,7 +7,9 @@ import json
 from devpi_common.metadata import splitbasename
 from devpi_common.archive import Archive, zip_dict
 from devpi_server.config import hookimpl
-from devpi_server.model import *  # noqa
+from devpi_server.model import InvalidIndexconfig
+from devpi_server.model import get_indexconfig
+from devpi_server.model import run_passwd
 from py.io import BytesIO
 
 pytestmark = [pytest.mark.writetransaction]

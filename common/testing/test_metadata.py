@@ -1,5 +1,13 @@
+from devpi_common.metadata import BasenameMeta
+from devpi_common.metadata import Version
+from devpi_common.metadata import get_pyversion_filetype
+from devpi_common.metadata import get_latest_version
+from devpi_common.metadata import parse_requirement
+from devpi_common.metadata import sorted_sameproject_links
+from devpi_common.metadata import splitbasename
+from devpi_common.metadata import splitext_archive
 import pytest
-from devpi_common.metadata import *
+
 
 @pytest.mark.parametrize(("releasename", "expected"), [
     ("pytest-2.3.4.zip", ("pytest", "2.3.4", ".zip")),

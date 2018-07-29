@@ -3,7 +3,13 @@ import os, sys
 import json
 import py
 import pytest
-from devpi.upload import *
+import re
+from devpi.upload import Checkout
+from devpi.upload import find_parent_subpath
+from devpi.upload import filter_latest
+from devpi.upload import get_pkginfo
+from devpi.upload import main
+from devpi.upload import read_setupcfg
 from textwrap import dedent
 from devpi_common.metadata import splitbasename
 from devpi_common.viewhelp import ViewLinkStore
