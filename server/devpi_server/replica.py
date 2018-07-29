@@ -149,12 +149,9 @@ class ReplicaThread:
         self._master_serial = serial
         self._master_serial_timestamp = now
 
-    def tick(self):
+    def fetch(self, serial):
         log = self.log
-        keyfs = self.xom.keyfs
         config = self.xom.config
-        self.thread.exit_if_shutdown()
-        serial = keyfs.get_next_serial()
         url = self.master_url.joinpath("+changelog", str(serial)).url
         log.info("fetching %s", url)
         uuid, master_uuid = make_uuid_headers(config.nodeinfo)
@@ -182,7 +179,7 @@ class ReplicaThread:
                           "<devpi-server-2.1?"
                           " headers were: %s", H_MASTER_UUID, r.headers)
                 self.thread.sleep(self.ERROR_SLEEP)
-                return
+                return True
             if master_uuid and remote_master_uuid != master_uuid:
                 # we got a master_uuid and it is not the one we
                 # expect, we are replicating for -- it's unlikely this heals
@@ -196,7 +193,7 @@ class ReplicaThread:
             if r.status_code == 200:
                 try:
                     changes, rel_renames = loads(r.content)
-                    keyfs.import_changes(serial, changes)
+                    self.xom.keyfs.import_changes(serial, changes)
                 except Exception:
                     log.exception("could not process: %s", r.url)
                 else:
@@ -206,16 +203,23 @@ class ReplicaThread:
                         self.xom.config.set_master_uuid(remote_master_uuid)
                     # also record the current master serial for status info
                     self.update_master_serial(remote_serial)
-                    return
+                    return True
             elif r.status_code == 202:
                 log.debug("%s: trying again %s\n", r.status_code, url)
                 # also record the current master serial for status info
                 self.update_master_serial(remote_serial)
-                return
+                return True
             else:
                 log.error("%s: failed fetching %s", r.status_code, url)
+        return False
+
+    def tick(self):
+        self.thread.exit_if_shutdown()
+        serial = self.xom.keyfs.get_next_serial()
+        result = self.fetch(serial)
         # we got an error, let's wait a bit
-        self.thread.sleep(5.0)
+        if not result:
+            self.thread.sleep(5.0)
 
     def thread_run(self):
         # within a devpi replica server this thread is the only writer
