@@ -3,6 +3,7 @@ import pytest
 import subprocess
 
 
+@pytest.mark.skipif("config.option.fast")
 def test_dryrun(cmd_devpi):
     cmd_devpi("quickstart", "--dry-run")
 

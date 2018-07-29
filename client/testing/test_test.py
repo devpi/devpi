@@ -234,6 +234,7 @@ class TestWheel:
         assert wheel_links[0].basename.endswith("py2-none-any.whl")
         assert 'only universal wheels' not in '\n'.join(loghub._getmatcher().lines)
 
+    @pytest.mark.skipif("config.option.fast")
     def test_prepare_toxrun_args(self, loghub, pseudo_current, tmpdir, reqmock, initproj):
         # XXX this test was a bit hard to setup and is also somewhat covered by
         # the below wheel functional test so unclear if it's worth to
@@ -264,6 +265,7 @@ class TestWheel:
         assert wheel1[0].basename == "prep1-1.0-py2.py3-none-any.whl"
         assert str(wheel1[1].path_unpacked).endswith(wheel1[0].basename)
 
+    @pytest.mark.skipif("config.option.fast")
     def test_prepare_toxrun_args2(self, loghub, pseudo_current, tmpdir, reqmock, initproj):
         # basically the same test as above, but it's testing the unpack
         # path for packages that have an underscore in the name
@@ -293,6 +295,7 @@ class TestWheel:
         assert wheel1[0].basename == "prep_under-1.0-py2.py3-none-any.whl"
         assert str(wheel1[1].path_unpacked).endswith(wheel1[0].basename)
 
+    @pytest.mark.skipif("config.option.fast")
     def test_prepare_toxrun_args_select(self, loghub, pseudo_current, tmpdir, reqmock, initproj):
         # test that we can explicitly select a non universal wheel
         pyver = "py%s" % sys.version_info[0]

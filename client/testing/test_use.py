@@ -58,6 +58,7 @@ class TestUnit:
         assert current.always_setcfg
         assert current.simpleindex == "/index2"
 
+    @pytest.mark.skipif("config.option.fast")
     def test_use_list_doesnt_write(self, tmpdir, cmd_devpi, mock_http_api):
         import time
         mock_http_api.set(

@@ -983,6 +983,7 @@ class TestSubmitValidation:
         assert log2['dst'] == 'user/prod'
         assert log2['src'] == 'user/dev'
 
+    @pytest.mark.skipif("not config.option.slow")
     def test_last_modified_preserved_on_push(self, submit, testapp, mapp):
         import time
         metadata = {"name": "Pkg5", "version": "2.6", ":action": "submit"}

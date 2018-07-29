@@ -43,6 +43,7 @@ def uploadhub(request, tmpdir):
 #    monkeypatch.setattr(extpypi.ExtDB, "get_releaselinks", lambda *args: 404)
 
 
+@pytest.mark.skipif("config.option.fast")
 class TestCheckout:
     @pytest.fixture(autouse=True)
     def no_sys_executable(self, monkeypatch):
@@ -222,6 +223,7 @@ def test_parent_subpath(tmpdir):
     pytest.raises(ValueError, lambda: find_parent_subpath(tmpdir, "poiqel123"))
 
 
+@pytest.mark.skipif("config.option.fast")
 def test_post_includes_auth_info(initproj, monkeypatch, uploadhub):
     class Session:
         posts = []
