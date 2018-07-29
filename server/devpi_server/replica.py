@@ -10,7 +10,7 @@ from devpi_common.validation import normalize_name
 from webob.headers import EnvironHeaders, ResponseHeaders
 
 from . import mythread
-from .fileutil import loads, rename
+from .fileutil import dumps, loads, rename
 from .log import thread_push_log, threadlog
 from .views import is_mutating_http_method, H_MASTER_UUID, make_uuid_headers
 from .model import UpstreamError
@@ -21,10 +21,15 @@ H_REPLICA_FILEREPL = str("X-DEVPI-REPLICA-FILEREPL")
 H_EXPECTED_MASTER_ID = str("X-DEVPI-EXPECTED-MASTER-ID")
 
 MAX_REPLICA_BLOCK_TIME = 30.0
+REPLICA_REQUEST_TIMEOUT = MAX_REPLICA_BLOCK_TIME * 1.25
+REPLICA_MULTIPLE_TIMEOUT = REPLICA_REQUEST_TIMEOUT / 2
+MAX_REPLICA_CHANGES_SIZE = 5 * 1024 * 1024
 
 
 class MasterChangelogRequest:
     MAX_REPLICA_BLOCK_TIME = MAX_REPLICA_BLOCK_TIME
+    MAX_REPLICA_CHANGES_SIZE = MAX_REPLICA_CHANGES_SIZE
+    REPLICA_MULTIPLE_TIMEOUT = REPLICA_MULTIPLE_TIMEOUT
 
     def __init__(self, request):
         self.request = request
@@ -101,6 +106,38 @@ class MasterChangelogRequest:
             })
             return r
 
+    @view_config(route_name="/+changelog/{serial}-")
+    def get_multiple_changes(self):
+        self.verify_master()
+
+        start_serial = int(self.request.matchdict["serial"])
+
+        with self.update_replica_status(start_serial):
+            keyfs = self.xom.keyfs
+            self._wait_for_serial(start_serial)
+            devpi_serial = keyfs.get_current_serial()
+            all_changes = []
+            raw_size = 0
+            start_time = time.time()
+            for serial in range(start_serial, devpi_serial + 1):
+                raw_entry = keyfs.tx.conn.get_raw_changelog_entry(serial)
+                raw_size += len(raw_entry)
+                (changes, rel_renames) = loads(raw_entry)
+                all_changes.append((serial, changes))
+                now = time.time()
+                if raw_size > self.MAX_REPLICA_CHANGES_SIZE:
+                    threadlog.debug('Changelog raw size %s' % raw_size)
+                    break
+                if (now - start_time) > (self.REPLICA_MULTIPLE_TIMEOUT):
+                    threadlog.debug('Changelog timeout %s' % raw_size)
+                    break
+            raw_entry = dumps(all_changes)
+            r = Response(body=raw_entry, status=200, headers={
+                str("Content-Type"): str("application/octet-stream"),
+                str("X-DEVPI-SERIAL"): str(devpi_serial),
+            })
+            return r
+
     def _wait_for_serial(self, serial):
         keyfs = self.xom.keyfs
         next_serial = keyfs.get_next_serial()
@@ -116,7 +153,7 @@ class MasterChangelogRequest:
 
 
 class ReplicaThread:
-    REPLICA_REQUEST_TIMEOUT = MAX_REPLICA_BLOCK_TIME * 1.25
+    REPLICA_REQUEST_TIMEOUT = REPLICA_REQUEST_TIMEOUT
     ERROR_SLEEP = 50
 
     def __init__(self, xom):

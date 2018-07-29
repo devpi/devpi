@@ -541,6 +541,7 @@ def test_apiconfig_features_plugin(maketestapp, makexom):
 def test_getchanges(testapp):
     # the replica protocol should be disabled by default
     testapp.xget(403, "/+changelog/0")
+    testapp.xget(403, "/+changelog/0-")
 
 
 class TestStatus:

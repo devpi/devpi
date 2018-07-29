@@ -42,13 +42,16 @@ class TestChangelog:
     replica_uuid = "111"
     replica_url = "http://qwe"
 
-    @pytest.fixture
-    def reqchangelog(self, testapp):
+    @pytest.fixture(params=[False, True])
+    def reqchangelog(self, request, testapp):
         def reqchangelog(serial):
             req_headers = {H_REPLICA_UUID: self.replica_uuid,
                            H_REPLICA_OUTSIDE_URL: self.replica_url}
-            return testapp.get("/+changelog/%s" % serial, expect_errors=False,
-                                headers=req_headers)
+            url = "/+changelog/%s" % serial
+            use_multi_endpoint = request.param
+            if use_multi_endpoint:
+                url = url + "-"
+            return testapp.get(url, expect_errors=False, headers=req_headers)
         return reqchangelog
 
     def get_latest_serial(self, testapp):
@@ -95,6 +98,50 @@ class TestChangelog:
         assert r.headers[H_MASTER_UUID]
         del testapp.headers[H_EXPECTED_MASTER_ID]
         testapp.xget(400, "/+changelog/0")
+
+
+class TestMultiChangelog:
+    replica_uuid = "111"
+    replica_url = "http://qwe"
+
+    @pytest.fixture
+    def reqchangelogs(self, request, testapp):
+        def reqchangelogs(serial):
+            req_headers = {H_REPLICA_UUID: self.replica_uuid,
+                           H_REPLICA_OUTSIDE_URL: self.replica_url}
+            url = "/+changelog/%s-" % serial
+            return testapp.get(url, expect_errors=False, headers=req_headers)
+        return reqchangelogs
+
+    def get_latest_serial(self, testapp):
+        r = testapp.get("/+api", expect_errors=False)
+        return int(r.headers["X-DEVPI-SERIAL"])
+
+    def test_multiple_changes(self, mapp, noiter, reqchangelogs, testapp):
+        mapp.create_user("this", password="p")
+        mapp.create_user("that", password="p")
+        latest_serial = self.get_latest_serial(testapp)
+        assert latest_serial > 1
+        r = reqchangelogs(0)
+        body = b''.join(r.app_iter)
+        data = loads(body)
+        assert isinstance(data, list)
+        assert len(data) == (latest_serial + 1)
+        assert "this/.config" in str(data[-2])
+        assert "that/.config" in str(data[-1])
+
+    def test_size_limit(self, mapp, monkeypatch, noiter, reqchangelogs, testapp):
+        monkeypatch.setattr(MasterChangelogRequest, "MAX_REPLICA_CHANGES_SIZE", 1024)
+        mapp.create_and_login_user("this", password="p")
+        for i in range(10):
+            mapp.create_index("this/dev%s" % i)
+        latest_serial = self.get_latest_serial(testapp)
+        assert latest_serial > 1
+        r = reqchangelogs(0)
+        body = b''.join(r.app_iter)
+        data = loads(body)
+        assert isinstance(data, list)
+        assert len(data) < latest_serial
 
 
 def get_raw_changelog_entry(xom, serial):

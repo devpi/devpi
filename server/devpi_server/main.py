@@ -353,6 +353,8 @@ class XOM:
 
         pyramid_config.add_route("/+changelog/{serial}",
                                  r"/+changelog/{serial:\d+}")
+        pyramid_config.add_route("/+changelog/{serial}-",
+                                 r"/+changelog/{serial:\d+}-")
         pyramid_config.add_route("/+status", "/+status")
         pyramid_config.add_route("/+api", "/+api", accept="application/json")
         pyramid_config.add_route("{path:.*}/+api", "{path:.*}/+api", accept="application/json")
