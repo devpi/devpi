@@ -1,4 +1,7 @@
-from devpi_server.config import hookimpl
+from pluggy import HookimplMarker
+
+
+hookimpl = HookimplMarker("devpiserver")
 
 
 @hookimpl
