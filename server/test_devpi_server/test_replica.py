@@ -52,7 +52,7 @@ class TestChangelog:
         return reqchangelog
 
     def get_latest_serial(self, testapp):
-        r = testapp.get("/+changelog/nop", expect_errors=False)
+        r = testapp.get("/+api", expect_errors=False)
         return int(r.headers["X-DEVPI-SERIAL"])
 
     def test_get_latest_serial(self, testapp, mapp):

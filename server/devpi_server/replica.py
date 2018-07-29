@@ -83,18 +83,11 @@ class MasterChangelogRequest:
             raise HTTPBadRequest("expected %s as master_uuid, replica sent %s" %
                                  (master_uuid, expected_uuid))
 
-        serial = self.request.matchdict["serial"]
+        serial = int(self.request.matchdict["serial"])
 
         with self.update_replica_status(serial):
             keyfs = self.xom.keyfs
-            if serial.lower() == "nop":
-                raw_entry = b""
-            else:
-                try:
-                    serial = int(serial)
-                except ValueError:
-                    raise HTTPNotFound("serial needs to be int")
-                raw_entry = self._wait_for_entry(serial)
+            raw_entry = self._wait_for_entry(serial)
 
             devpi_serial = keyfs.get_current_serial()
             r = Response(body=raw_entry, status=200, headers={
