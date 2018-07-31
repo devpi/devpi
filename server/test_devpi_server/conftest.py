@@ -368,15 +368,11 @@ def keyfs(xom):
 def model(xom):
     return xom.model
 
-@pytest.fixture
-def pypistage(xom):
-    from devpi_server.main import _pypi_ixconfig_default
-    return PyPIStage(xom, username="root", index="pypi",
-                     ixconfig=_pypi_ixconfig_default)
 
 @pytest.fixture
-def replica_pypistage(replica_xom):
-    return pypistage(replica_xom)
+def pypistage(devpiserver_makepypistage, xom):
+    return devpiserver_makepypistage(xom)
+
 
 def add_pypistage_mocks(monkeypatch, httpget):
     # add some mocking helpers

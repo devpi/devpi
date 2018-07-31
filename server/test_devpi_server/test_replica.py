@@ -22,6 +22,12 @@ def loads(bytestring):
 
 pytestmark = [pytest.mark.notransaction]
 
+
+@pytest.fixture
+def replica_pypistage(devpiserver_makepypistage, replica_xom):
+    return devpiserver_makepypistage(replica_xom)
+
+
 @pytest.fixture
 def testapp(testapp):
     testapp.xom.config.nodeinfo["role"] = "master"
