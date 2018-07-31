@@ -1,10 +1,5 @@
 language: python
 sudo: false
-addons:
-  apt:
-    packages:
-      - nginx
-  postgresql: "9.4"
 python:
   - "2.7"
   - "3.4"
@@ -17,10 +12,8 @@ env:
     - DEVPI_INDEX="devpi-travis/${TRAVIS_REPO_SLUG/\//_}_${TRAVIS_BRANCH/\//_}"
   matrix:
     - PROJECT=common
-    - PROJECT=server
     - PROJECT=web
     - PROJECT=client
-    - PROJECT=postgresql
 install: pip install tox-travis devpi-client
 script:
   - export DEVPI_INDEX_URL="https://pypi.org/simple/"
@@ -62,3 +55,98 @@ jobs:
         - cd ${TRAVIS_BUILD_DIR}/postgresql
         - yes | towncrier
         - devpi upload
+
+    #########################
+    #
+    # server
+    #
+    #########################
+    - stage: test
+      python: "2.7"
+      env: PROJECT=server
+      addons:
+        apt:
+          packages:
+            - nginx
+
+    - stage: test
+      python: "3.4"
+      env: PROJECT=server
+      addons:
+        apt:
+          packages:
+            - nginx
+
+    - stage: test
+      python: "3.6"
+      env: PROJECT=server
+      addons:
+        apt:
+          packages:
+            - nginx
+
+    - stage: test
+      python: "nightly"
+      env: PROJECT=server
+      addons:
+        apt:
+          packages:
+            - nginx
+
+    - stage: test
+      python: "pypy"
+      env: PROJECT=server
+      addons:
+        apt:
+          packages:
+            - nginx
+
+    - stage: test
+      python: "pypy3"
+      env: PROJECT=server
+      addons:
+        apt:
+          packages:
+            - nginx
+
+    - stage: test
+      python: "2.7"
+      env: PROJECT=postgresql
+      addons:
+        apt:
+          packages:
+            - nginx
+        postgresql: "9.4"
+
+    #########################
+    #
+    # postgresql
+    #
+    #########################
+
+    - stage: test
+      python: "3.4"
+      env: PROJECT=postgresql
+      addons:
+        apt:
+          packages:
+            - nginx
+        postgresql: "9.4"
+
+    - stage: test
+      python: "pypy"
+      env: PROJECT=postgresql
+      addons:
+        apt:
+          packages:
+            - nginx
+        postgresql: "9.4"
+
+    - stage: test
+      python: "pypy3"
+      env: PROJECT=postgresql
+      addons:
+        apt:
+          packages:
+            - nginx
+        postgresql: "9.4"
