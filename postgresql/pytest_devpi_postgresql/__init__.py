@@ -34,7 +34,7 @@ def wait_for_port(host, port, timeout=60):
 
 
 @pytest.yield_fixture(scope="session")
-def postgresql():
+def devpipostgresql_postgresql():
     tmpdir = py.path.local(
         tempfile.mkdtemp(prefix='test-', suffix='-devpi-postgresql'))
     try:
@@ -101,7 +101,7 @@ class Storage(main.Storage):
 
 
 @pytest.yield_fixture(autouse=True)
-def db_cleanup():
+def devpipostgresql_db_cleanup():
     # this fixture is doing cleanups after tests, so it doesn't yield anything
     yield
     dbs_to_skip = set()
@@ -123,7 +123,7 @@ def db_cleanup():
 
 
 @pytest.fixture(autouse=True, scope="session")
-def devpiserver_storage_backend_mock(request):
+def devpipostgresql_devpiserver_storage_backend_mock(request):
     backend = getattr(request.config.option, 'backend', None)
     if backend is None:
         return
@@ -132,7 +132,7 @@ def devpiserver_storage_backend_mock(request):
     @devpiserver_hookimpl
     def devpiserver_storage_backend(settings):
         result = old(settings)
-        postgresql = request.getfixturevalue("postgresql")
+        postgresql = request.getfixturevalue("devpipostgresql_postgresql")
         for k, v in postgresql.items():
             setattr(Storage, k, v)
         result['storage'] = Storage
