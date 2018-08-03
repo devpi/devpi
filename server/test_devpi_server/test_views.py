@@ -1578,6 +1578,65 @@ def test_upload_to_mirror_fails(mapp):
             indexname="root/pypi")
 
 
+@pytest.mark.nomocking
+def test_delete_mirror(mapp, simpypi, testapp, xom):
+    indexconfig = dict(
+        type="mirror",
+        mirror_url=simpypi.simpleurl,
+        mirror_cache_expiry=0,
+        volatile=True)
+    api = mapp.create_and_use(indexconfig=indexconfig)
+    name = "pytest"
+    pkgver = "%s-2.6.zip" % name
+    simpypi.add_release(name, pkgver=pkgver)
+    simpypi.add_file('/%s/%s' % (name, pkgver), b'123')
+    r = testapp.get(api.index + '/+simple/%s' % name)
+    (link,) = sorted(
+        x.get('href').replace('../../', '/%s/' % api.stagename)
+        for x in getlinks(r.text))
+    path = link[1:]
+    assert '2.6' in path
+    r = testapp.xget(200, link)
+    with testapp.xom.keyfs.transaction():
+        stage = testapp.xom.model.getstage(api.stagename)
+        assert stage.key_projects.get() == set([name])
+        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
+        assert entry.file_exists()
+    # remove
+    mapp.delete_index(api.stagename)
+    with testapp.xom.keyfs.transaction():
+        stage = testapp.xom.model.getstage(api.stagename)
+        assert stage is None
+        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
+        assert not entry.file_exists()
+        key = testapp.xom.filestore.get_key_from_relpath(path.strip("/"))
+        assert not key.exists()
+
+    # patch httpget to simulate broken PyPI
+    def httpget(url, **kwargs):
+        class Response:
+            status_code = 503
+        return Response()
+    xom.httpget = httpget
+
+    # to prove that all metadata is gone when deleting the stage,
+    # we recreate the stage, block access to PyPI
+    # and check that nothing shows in the new index
+    newapi = mapp.create_index(api.stagename, indexconfig=indexconfig)
+    # the file shouldn't be available anymore
+    r = testapp.xget(404, link)
+    # the simple page should be empty
+    r = testapp.get(newapi.index + '/+simple/%s' % name)
+    assert getlinks(r.text) == []
+    with testapp.xom.keyfs.transaction():
+        stage = testapp.xom.model.getstage(api.stagename)
+        assert stage.key_projects.get() == set()
+        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
+        assert not entry.file_exists()
+        key = testapp.xom.filestore.get_key_from_relpath(path.strip("/"))
+        assert not key.exists()
+
+
 def test_delete_from_mirror(mapp, pypistage, testapp):
     mapp.login_root()
     mapp.use("root/pypi")
@@ -1607,7 +1666,7 @@ def test_delete_from_mirror(mapp, pypistage, testapp):
     res = mapp.getjson("/root/pypi")["result"]
     mapp.modify_index("root/pypi", indexconfig=dict(res, volatile=True))
     mapp.delete_project("pytest/2.6", code=405)
-    mapp.delete_project("pytest", code=404)
+    mapp.delete_project("pytest", code=200)
     r = testapp.get(link)
     with testapp.xom.keyfs.transaction():
         stage = testapp.xom.model.getstage('root/pypi')
@@ -1629,6 +1688,8 @@ def test_delete_from_mirror(mapp, pypistage, testapp):
         assert stage.key_projects.get() == set()
         entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
         assert not entry.file_exists()
+        key = testapp.xom.filestore.get_key_from_relpath(path.strip("/"))
+        assert not key.exists()
         other_entry = testapp.xom.filestore.get_file_entry(other_path.strip("/"))
         assert not other_entry.file_exists()
 

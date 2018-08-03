@@ -402,7 +402,7 @@ class ImportFileReplica:
     def __call__(self, fswriter, key, val, back_serial):
         threadlog.debug("ImportFileReplica for %s, %s", key, val)
         relpath = key.relpath
-        entry = self.xom.filestore.get_file_entry_raw(key, val)
+        entry = self.xom.filestore.get_file_entry_from_key(key, meta=val)
         file_exists = fswriter.conn.io_file_exists(entry._storepath)
         if val is None:
             if back_serial >= 0:

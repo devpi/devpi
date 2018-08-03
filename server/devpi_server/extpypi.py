@@ -137,6 +137,13 @@ class PyPIStage(BaseStage):
         # only few methods need the user object.
         return self.model.get_user(self.username)
 
+    def delete(self):
+        # delete all projects on this index
+        for name in self.key_projects.get():
+            self.del_project(name)
+        self.key_projects.delete()
+        BaseStage.delete(self)
+
     def modify(self, index=None, **kw):
         if 'type' in kw and self.ixconfig["type"] != kw['type']:
             raise InvalidIndexconfig(
@@ -166,10 +173,9 @@ class PyPIStage(BaseStage):
         if links is not None:
             entries = (self._entry_from_href(x[1]) for x in links)
             entries = (x for x in entries if x.file_exists())
-        if not entries:
-            raise KeyError("no releases found")
             for entry in entries:
                 entry.delete()
+        self.key_projsimplelinks(project).delete()
         projects = self.key_projects.get(readonly=False)
         if project in projects:
             projects.remove(project)

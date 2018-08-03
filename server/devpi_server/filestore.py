@@ -99,15 +99,21 @@ class FileStore:
             entry.version = version
         return entry
 
-    def get_file_entry(self, relpath, readonly=True):
+    def get_key_from_relpath(self, relpath):
         try:
             key = self.keyfs.tx.derive_key(relpath)
         except KeyError:
             return None
-        return FileEntry(self.xom, key, readonly=readonly)
+        return key
 
-    def get_file_entry_raw(self, key, meta):
-        return FileEntry(self.xom, key, meta=meta)
+    def get_file_entry(self, relpath, readonly=True):
+        key = self.get_key_from_relpath(relpath)
+        if key is None:
+            return None
+        return self.get_file_entry_from_key(key, readonly=readonly)
+
+    def get_file_entry_from_key(self, key, meta=_nodefault, readonly=True):
+        return FileEntry(self.xom, key, meta=meta, readonly=readonly)
 
     def store(self, user, index, basename, file_content, dir_hash_spec=None):
         if dir_hash_spec is None:
