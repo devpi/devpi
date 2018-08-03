@@ -52,7 +52,8 @@ def out_project_version_files(hub, url, verdata, version, index):
         else:
             hub.line(origin)
         toxlinks = vv.get_links(rel="toxresult", for_href=link.href)
-        if toxlinks:
+        show_toxresults = hub.args.toxresults or hub.args.failures
+        if show_toxresults and toxlinks:
             show_test_status(hub, toxlinks)
     return bool(release_links)
 
