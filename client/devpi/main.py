@@ -47,7 +47,7 @@ def initmain(argv):
 def get_pluginmanager(load_entry_points=True):
     pm = PluginManager("devpiclient")
     # support old plugins, but emit deprecation warnings
-    pm._implprefix="devpiclient_"
+    pm._implprefix = "devpiclient_"
     pm.add_hookspecs(hookspecs)
     if load_entry_points:
         pm.load_setuptools_entrypoints("devpi_client")

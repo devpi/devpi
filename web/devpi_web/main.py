@@ -130,7 +130,7 @@ class ThemeChameleonRendererLookup(ChameleonRendererLookup):
 def get_pluginmanager(load_entry_points=True):
     pm = PluginManager("devpiweb")
     # support old plugins, but emit deprecation warnings
-    pm._implprefix = "devpiclient_"
+    pm._implprefix = "devpiweb_"
     pm.add_hookspecs(hookspecs)
     if load_entry_points:
         pm.load_setuptools_entrypoints("devpi_web")
