@@ -38,6 +38,30 @@ And let's check the version::
 
 .. _genconfig:
 
+
+Using a configuration file for devpi-server
+-------------------------------------------
+
+A `strict YAML`_ conform configuration file can be used in place of the command line options.
+
+The configuration file will be looked for in your systems and your users default configuration location using the `appdirs`_ library.
+
+With the `-c/--configfile` option the location can be provided explicitly.
+
+The configuration file must start with a mapping and all devpi-server settings must be placed below the `devpi-server` key.
+For example:
+
+.. code-block:: yaml
+
+    devpi-server:
+      serverdir: /var/db/devpi-server
+      host: localhost
+      port: 8080
+
+.. _`strict YAML`: https://pypi.org/project/strictyaml/
+.. _`appdirs`: https://pypi.org/project/appdirs/
+
+
 generating example config files for supervisor/nginx/cron/launchd
 -----------------------------------------------------------------
 
