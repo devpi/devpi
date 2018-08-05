@@ -27,6 +27,7 @@ hookimpl = HookimplMarker("devpiserver")
 DEFAULT_MIRROR_CACHE_EXPIRY = 1800
 DEFAULT_PROXY_TIMEOUT = 30
 DEFAULT_REQUEST_TIMEOUT = 5
+DEFAULT_FILE_REPLICATION_THREADS = 5
 
 
 def get_pluginmanager(load_entrypoints=True):
@@ -178,6 +179,11 @@ def add_replica_options(parser, pluginmanager):
              "SSL client certificate to authenticate to the server "
              "(EXPERIMENTAL)",
         default=None)
+
+    parser.addoption(
+        "--file-replication-threads", type=int, metavar="NUM",
+        default=DEFAULT_FILE_REPLICATION_THREADS,
+        help="number of threads for file download from master")
 
     parser.addoption(
         "--proxy-timeout", type=int, metavar="NUM",
@@ -604,8 +610,22 @@ class Config(object):
         return getattr(self.args, 'offline_mode', False)
 
     @property
+    def file_replication_threads(self):
+        return getattr(
+            self.args,
+            'file_replication_threads', DEFAULT_FILE_REPLICATION_THREADS)
+
+    @property
+    def hard_links(self):
+        return getattr(self.args, 'hard_links', False)
+
+    @property
     def replica_cert(self):
         return getattr(self.args, 'replica_cert', None)
+
+    @property
+    def replica_file_search_path(self):
+        return getattr(self.args, 'replica_file_search_path', None)
 
     @property
     def replica_max_retries(self):
@@ -637,6 +657,10 @@ class Config(object):
         if rm is not None:
             rm = set(x.strip() for x in rm.split(','))
         return rm
+
+    @property
+    def wait_for_events(self):
+        return getattr(self.args, 'wait_for_events', False)
 
     def _init_role(self):
         if self.master_url:

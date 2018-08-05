@@ -1,20 +1,29 @@
 import os
-import json
 import contextlib
+import threading
 import time
+import traceback
 from functools import partial
+from pluggy import HookimplMarker
 from pyramid.httpexceptions import HTTPNotFound, HTTPAccepted, HTTPBadRequest
 from pyramid.httpexceptions import HTTPForbidden
 from pyramid.view import view_config
 from pyramid.response import Response
+from repoze.lru import LRUCache
 from devpi_common.validation import normalize_name
 from webob.headers import EnvironHeaders, ResponseHeaders
 
 from . import mythread
-from .fileutil import BytesForHardlink, dumps, loads, rename
+from .config import hookimpl
+from .filestore import FileEntry
+from .fileutil import BytesForHardlink, dumps, loads
 from .log import thread_push_log, threadlog
 from .views import H_MASTER_UUID, make_uuid_headers
 from .model import UpstreamError
+
+
+devpiweb_hookimpl = HookimplMarker("devpiweb")
+
 
 H_REPLICA_UUID = str("X-DEVPI-REPLICA-UUID")
 H_REPLICA_OUTSIDE_URL = str("X-DEVPI-REPLICA-OUTSIDE-URL")
@@ -25,6 +34,9 @@ MAX_REPLICA_BLOCK_TIME = 30.0
 REPLICA_REQUEST_TIMEOUT = MAX_REPLICA_BLOCK_TIME * 1.25
 REPLICA_MULTIPLE_TIMEOUT = REPLICA_REQUEST_TIMEOUT / 2
 MAX_REPLICA_CHANGES_SIZE = 5 * 1024 * 1024
+
+
+notset = object()
 
 
 class MasterChangelogRequest:
@@ -159,6 +171,19 @@ class ReplicaThread:
 
     def __init__(self, xom):
         self.xom = xom
+        self.shared_data = FileReplicationSharedData(xom)
+        keyfs = self.xom.keyfs
+        for key in (keyfs.STAGEFILE, keyfs.PYPIFILE_NOMD5):
+            keyfs.subscribe_on_import(key, self.shared_data.on_import)
+        self.file_replication_threads = []
+        num_threads = xom.config.file_replication_threads
+        threadlog.info("Using %s file download threads." % num_threads)
+        for i in range(num_threads):
+            frt = FileReplicationThread(xom, self.shared_data)
+            self.file_replication_threads.append(frt)
+            xom.thread_pool.register(frt)
+        self.initial_queue_thread = InitialQueueThread(xom, self.shared_data)
+        xom.thread_pool.register(self.initial_queue_thread)
         self.master_auth = xom.config.master_auth
         self.master_url = xom.config.master_url
         self._master_serial = None
@@ -184,7 +209,9 @@ class ReplicaThread:
         # information about the connection to master
         self.update_from_master_at = now
         if self.xom.keyfs.get_current_serial() == serial:
-            self.replica_in_sync_at = now
+            with self.shared_data._replica_in_sync_cv:
+                self.replica_in_sync_at = now
+                self.shared_data._replica_in_sync_cv.notify_all()
         if self._master_serial is not None and serial <= self._master_serial:
             if serial < self._master_serial:
                 self.log.error(
@@ -294,13 +321,15 @@ class ReplicaThread:
         # within a devpi replica server this thread is the only writer
         self.started_at = time.time()
         self.log = thread_push_log("[REP]")
-        keyfs = self.xom.keyfs
-        errors = ReplicationErrors(self.xom.config.serverdir)
-        for key in (keyfs.STAGEFILE, keyfs.PYPIFILE_NOMD5):
-            keyfs.subscribe_on_import(key, ImportFileReplica(self.xom, errors))
+        last_time = time.time()
         while 1:
             try:
                 self.tick()
+                if time.time() - last_time > 10:
+                    last_time = time.time()
+                    qsize = self.shared_data.queue.qsize()
+                    if qsize:
+                        threadlog.info("File download queue size ~ %s" % qsize)
             except mythread.Shutdown:
                 raise
             except:
@@ -308,9 +337,308 @@ class ReplicaThread:
                     "Unhandled exception in replica thread.")
                 self.thread.sleep(1.0)
 
+    def wait(self, error_queue=False):
+        self.shared_data.wait(error_queue=error_queue)
+
 
 def register_key_subscribers(xom):
     xom.keyfs.PROJSIMPLELINKS.on_key_change(SimpleLinksChanged(xom))
+
+
+class FileReplicationSharedData(object):
+    QUEUE_TIMEOUT = 1
+    ERROR_QUEUE_DELAY_MULTIPLIER = 1.5
+    ERROR_QUEUE_REPORT_DELAY = 2 * 60
+    ERROR_QUEUE_MAX_DELAY = 60 * 60
+
+    def __init__(self, xom):
+        from queue import Empty, PriorityQueue
+        self.Empty = Empty
+        self.xom = xom
+        self.queue = PriorityQueue()
+        self.error_queue = PriorityQueue()
+        self.deleted = LRUCache(100)
+        self.index_types = LRUCache(1000)
+        self.errors = ReplicationErrors()
+        self.importer = ImportFileReplica(self.xom, self.errors)
+        self._replica_in_sync_cv = threading.Condition()
+        self.last_added = None
+        self.last_errored = None
+        self.last_processed = None
+
+    def on_import(self, conn, serial, key, val, back_serial):
+        # Do not queue anything until we have been in sync for the first
+        # time. The InitialQueueThread will queue in one go on initial sync
+        with self._replica_in_sync_cv:
+            if self.xom.replica_thread.replica_in_sync_at is None:
+                return
+        try:
+            is_from_mirror = self.is_from_mirror(key)
+        except KeyError:
+            stage = self.xom.model.getstage(
+                key.params['user'], key.params['index'])
+            self.index_types.put(stage.name, stage.ixconfig['type'])
+            is_from_mirror = self.is_from_mirror(key)
+        # note the negated serial for the PriorityQueue
+        self.queue.put((
+            is_from_mirror, -serial, key.relpath, key.name, val, back_serial))
+        self.last_added = time.time()
+
+    def next_ts(self, delay):
+        return time.time() + delay
+
+    def add_errored(self, is_from_mirror, serial, key, keyname, value, back_serial, ts=None, delay=11):
+        if ts is None:
+            ts = self.next_ts(min(delay, self.ERROR_QUEUE_MAX_DELAY))
+        # this priority queue is ordered by time stamp
+        self.error_queue.put(
+            (ts, delay, is_from_mirror, serial, key, keyname, value, back_serial))
+        self.last_errored = time.time()
+
+    def is_from_mirror(self, key, default=notset):
+        index_name = "%s/%s" % (key.params['user'], key.params['index'])
+        result = self.index_types.get(index_name)
+        if result is None:
+            if default is notset:
+                raise KeyError
+            return default
+        return result == 'mirror'
+
+    def is_in_future(self, ts):
+        return ts > time.time()
+
+    def process_next_errored(self, handler):
+        try:
+            # it seems like without the timeout this isn't triggered frequent
+            # enough, the thread was waiting a long time even though there
+            # were already/still items in the queue
+            info = self.error_queue.get(timeout=self.QUEUE_TIMEOUT)
+        except self.Empty:
+            return
+        (ts, delay, is_from_mirror, serial, key, keyname, value, back_serial) = info
+        try:
+            if self.is_in_future(ts):
+                # not current yet, so re-add it
+                self.add_errored(
+                    is_from_mirror, serial, key, keyname, value, back_serial,
+                    ts=ts, delay=delay)
+                return
+            handler(is_from_mirror, serial, key, keyname, value, back_serial)
+        except Exception:
+            # another failure, re-add with longer delay
+            self.add_errored(
+                is_from_mirror, serial, key, keyname, value, back_serial,
+                delay=delay * self.ERROR_QUEUE_DELAY_MULTIPLIER)
+            if delay > self.ERROR_QUEUE_REPORT_DELAY:
+                threadlog.exception(
+                    "There repeatedly has been an error during file download.")
+        finally:
+            self.error_queue.task_done()
+            self.last_processed = time.time()
+
+    def process_next(self, handler):
+        try:
+            # it seems like without the timeout this isn't triggered frequent
+            # enough, the thread was waiting a long time even though there
+            # were already/still items in the queue
+            info = self.queue.get(timeout=self.QUEUE_TIMEOUT)
+        except self.Empty:
+            # when the regular queue is empty, we retry previously errored ones
+            return self.process_next_errored(handler)
+        (is_from_mirror, serial, key, keyname, value, back_serial) = info
+        # negate again, because it was negated for the PriorityQueue
+        serial = -serial
+        try:
+            handler(is_from_mirror, serial, key, keyname, value, back_serial)
+        except Exception as e:
+            threadlog.warn(
+                "Error during file replication: %s" % ''.join(
+                    traceback.format_exception_only(e.__class__, e)).strip())
+            self.add_errored(is_from_mirror, serial, key, keyname, value, back_serial)
+        finally:
+            self.queue.task_done()
+            self.last_processed = time.time()
+
+    def wait(self, error_queue=False):
+        self.queue.join()
+        if error_queue:
+            self.error_queue.join()
+
+
+@hookimpl
+def devpiserver_metrics(request):
+    result = []
+    xom = request.registry["xom"]
+    replica_thread = getattr(xom, 'replica_thread', None)
+    if not isinstance(replica_thread, ReplicaThread):
+        return result
+    shared_data = getattr(replica_thread, 'shared_data', None)
+    if not isinstance(shared_data, FileReplicationSharedData):
+        return result
+    deleted_cache = shared_data.deleted
+    indextypes_cache = shared_data.index_types
+    result.extend([
+        ('devpi_server_replica_file_download_queue_size', 'gauge', shared_data.queue.qsize()),
+        ('devpi_server_replica_file_download_error_queue_size', 'gauge', shared_data.error_queue.qsize()),
+        ('devpi_server_replica_deleted_cache_evictions', 'counter', deleted_cache.evictions),
+        ('devpi_server_replica_deleted_cache_hits', 'counter', deleted_cache.hits),
+        ('devpi_server_replica_deleted_cache_lookups', 'counter', deleted_cache.lookups),
+        ('devpi_server_replica_deleted_cache_misses', 'counter', deleted_cache.misses),
+        ('devpi_server_replica_deleted_cache_size', 'gauge', deleted_cache.size),
+        ('devpi_server_replica_indextypes_cache_evictions', 'counter', indextypes_cache.evictions),
+        ('devpi_server_replica_indextypes_cache_hits', 'counter', indextypes_cache.hits),
+        ('devpi_server_replica_indextypes_cache_lookups', 'counter', indextypes_cache.lookups),
+        ('devpi_server_replica_indextypes_cache_misses', 'counter', indextypes_cache.misses),
+        ('devpi_server_replica_indextypes_cache_size', 'gauge', indextypes_cache.size)])
+    return result
+
+
+@devpiweb_hookimpl
+def devpiweb_get_status_info(request):
+    xom = request.registry['xom']
+    replica_thread = getattr(xom, 'replica_thread', None)
+    shared_data = getattr(replica_thread, 'shared_data', None)
+    msgs = []
+    if isinstance(shared_data, FileReplicationSharedData):
+        now = time.time()
+        qsize = shared_data.queue.qsize()
+        if qsize:
+            last_activity_seconds = 0
+            if shared_data.last_processed is None and shared_data.last_added:
+                last_activity_seconds = (now - shared_data.last_added)
+            elif shared_data.last_processed:
+                last_activity_seconds = (now - shared_data.last_processed)
+            if last_activity_seconds > 300:
+                msgs.append(dict(status="fatal", msg="No files downloaded for more than 5 minutes"))
+            elif last_activity_seconds > 60:
+                msgs.append(dict(status="warn", msg="No files downloaded for more than 1 minute"))
+            if qsize > 10:
+                msgs.append(dict(status="warn", msg="%s items in file download queue" % qsize))
+        error_qsize = shared_data.error_queue.qsize()
+        if error_qsize:
+            msgs.append(dict(status="warn", msg="Errors during file downloads"))
+    return msgs
+
+
+class FileReplicationThread:
+    def __init__(self, xom, shared_data):
+        self.xom = xom
+        self.shared_data = shared_data
+        self.session = self.xom.new_http_session("replica")
+
+    def handler(self, is_from_mirror, serial, key, keyname, value, back_serial):
+        keyfs = self.xom.keyfs
+        if value is None:
+            self.shared_data.deleted.put(key, serial)
+        else:
+            deleted_serial = self.shared_data.deleted.get(key)
+            if deleted_serial is not None:
+                if serial <= deleted_serial:
+                    return
+                else:
+                    self.shared_data.deleted.invalidate(key)
+        typedkey = keyfs.get_key_instance(keyname, key)
+        with keyfs._storage.get_connection(write=True) as conn:
+            self.shared_data.importer(
+                conn, serial, typedkey, value, back_serial, self.session)
+            conn.commit_files_without_increasing_serial()
+        entry = self.xom.filestore.get_file_entry_from_key(typedkey, meta=value)
+        if not entry.project or not entry.version:
+            return
+        with keyfs.transaction(write=False, at_serial=serial):
+            user = entry.key.params['user']
+            index = entry.key.params['index']
+            stage = self.xom.model.getstage(user, index)
+            if stage is None:
+                return
+            stage.offline = True
+            name = normalize_name(entry.project)
+            try:
+                linkstore = stage.get_linkstore_perstage(name, entry.version)
+            except stage.UpstreamError:
+                if is_from_mirror:
+                    return
+                raise
+            links = linkstore.get_links(basename=entry.basename)
+            for link in links:
+                self.xom.config.hook.devpiserver_on_replicated_file(
+                    stage=stage, project=name, version=entry.version, link=link,
+                    serial=serial, back_serial=back_serial,
+                    is_from_mirror=is_from_mirror)
+
+    def tick(self):
+        self.shared_data.process_next(self.handler)
+
+    def thread_run(self):
+        thread_push_log("[FREP]")
+        last_time = time.time()
+        master_serial = None
+        serial = -1
+        while 1:
+            try:
+                self.tick()
+                if time.time() - last_time > 5:
+                    last_time = time.time()
+                    master_serial = self.xom.replica_thread.get_master_serial()
+                    serial = self.xom.keyfs.get_current_serial()
+                if master_serial is not None and serial < master_serial:
+                    # be nice to get metadata in sync first
+                    self.thread.sleep(5)
+            except mythread.Shutdown:
+                raise
+            except Exception:
+                threadlog.exception(
+                    "Unhandled exception in file replication thread.")
+                self.thread.sleep(1.0)
+
+
+class InitialQueueThread(object):
+    def __init__(self, xom, shared_data):
+        self.xom = xom
+        self.shared_data = shared_data
+
+    def thread_run(self):
+        thread_push_log("[FREPQ]")
+        keyfs = self.xom.keyfs
+        threadlog.info("Queuing files for possible download from master")
+        keys = (keyfs.get_key('PYPIFILE_NOMD5'), keyfs.get_key('STAGEFILE'))
+        last_time = time.time()
+        processed = 0
+        queued = 0
+        # wait until we are in sync for the first time
+        with self.shared_data._replica_in_sync_cv:
+            self.shared_data._replica_in_sync_cv.wait()
+        with keyfs.transaction(write=False) as tx:
+            for user in self.xom.model.get_userlist():
+                for stage in user.getstages():
+                    self.shared_data.index_types.put(stage.name, stage.ixconfig['type'])
+            relpaths = tx.iter_relpaths_at(keys, tx.at_serial)
+            for item in relpaths:
+                if item.value is None:
+                    continue
+                while self.shared_data.queue.qsize() > 1000:
+                    # let the queue be processed before filling it further
+                    self.thread.sleep(5)
+                if time.time() - last_time > 5:
+                    last_time = time.time()
+                    threadlog.info(
+                        "Processed a total of %s files and queued %s so far."
+                        % (processed, queued))
+                processed = processed + 1
+                key = keyfs.get_key_instance(item.keyname, item.relpath)
+                entry = FileEntry(key, item.value)
+                if entry.file_exists() or not entry.last_modified:
+                    continue
+                is_from_mirror = self.shared_data.is_from_mirror(key, False)
+                # note the negated serial for the PriorityQueue
+                # the index_type boolean will prioritize non mirrors
+                self.shared_data.queue.put((
+                    is_from_mirror, -item.serial, item.relpath,
+                    item.keyname, item.value, item.back_serial))
+                queued = queued + 1
+        threadlog.info(
+            "Queued %s of %s files for possible download from master"
+            % (queued, processed))
 
 
 class SimpleLinksChanged:
@@ -320,7 +648,7 @@ class SimpleLinksChanged:
         self.xom = xom
 
     def __call__(self, ev):
-        threadlog.info("SimpleLinksChanged %s", ev.typedkey)
+        threadlog.debug("SimpleLinksChanged %s", ev.typedkey)
         cache = ev.value
         # get the normalized project (PYPILINKS uses it)
         username = ev.typedkey.params["user"]
@@ -444,41 +772,22 @@ def proxy_view_to_master(context, request):
 
 
 class ReplicationErrors:
-    def __init__(self, serverdir):
-        self.errorsfn = serverdir.join(".replicationerrors")
+    def __init__(self):
         self.errors = dict()
-        self._read()
-
-    def _read(self):
-        if not self.errorsfn.exists():
-            return
-        with self.errorsfn.open() as f:
-            try:
-                self.errors = json.load(f)
-            except ValueError:
-                pass
-
-    def _write(self):
-        tmppath = self.errorsfn.strpath + "-tmp"
-        with open(tmppath, 'w') as f:
-            json.dump(self.errors, f)
-        rename(tmppath, self.errorsfn.strpath)
 
     def remove(self, entry):
-        if self.errors.pop(entry.relpath, None) is not None:
-            self._write()
+        self.errors.pop(entry.relpath, None)
 
     def add(self, error):
         self.errors[error['relpath']] = error
-        self._write()
 
 
 class ImportFileReplica:
     def __init__(self, xom, errors):
         self.xom = xom
         self.errors = errors
-        self.file_search_path = self.xom.config.args.replica_file_search_path
-        self.use_hard_links = self.xom.config.args.hard_links
+        self.file_search_path = self.xom.config.replica_file_search_path
+        self.use_hard_links = self.xom.config.hard_links
 
     def find_pre_existing_file(self, key, val):
         if self.file_search_path is None:
@@ -500,60 +809,87 @@ class ImportFileReplica:
         else:
             threadlog.info("path for existing file not found: %s", path)
 
-    def __call__(self, fswriter, key, val, back_serial):
+    def __call__(self, conn, serial, key, val, back_serial, session):
         threadlog.debug("ImportFileReplica for %s, %s", key, val)
         relpath = key.relpath
         entry = self.xom.filestore.get_file_entry_from_key(key, meta=val)
-        file_exists = fswriter.conn.io_file_exists(entry._storepath)
+        file_exists = conn.io_file_exists(entry._storepath)
         if val is None:
             if back_serial >= 0:
                 # file was deleted, still might never have been replicated
                 if file_exists:
                     threadlog.debug("mark for deletion: %s", entry._storepath)
-                    fswriter.conn.io_file_delete(entry._storepath)
+                    conn.io_file_delete(entry._storepath)
+            self.errors.remove(entry)
             return
         if file_exists or entry.last_modified is None:
             # we have a file or there is no remote file
+            self.errors.remove(entry)
             return
 
         content = self.find_pre_existing_file(key, val)
         if content is not None:
             err = entry.check_checksum(content)
             if not err:
-                fswriter.conn.io_file_set(entry._storepath, content)
+                conn.io_file_set(entry._storepath, content)
+                self.errors.remove(entry)
                 return
             else:
                 threadlog.error(str(err))
 
-        threadlog.info("retrieving file from master: %s", relpath)
+        threadlog.info(
+            "retrieving file from master for serial %s: %s", serial, relpath)
         url = self.xom.config.master_url.joinpath(relpath).url
         # we perform the request with a special header so that
         # the master can avoid -getting "volatile" links
-        r = self.xom.httpget(
-            url, allow_redirects=True,
-            extra_headers={H_REPLICA_FILEREPL: str("YES")})
+        r = session.get(
+            url, allow_redirects=False,
+            headers={H_REPLICA_FILEREPL: str("YES")},
+            timeout=self.xom.config.args.request_timeout)
+        if r.status_code == 302:
+            # mirrors might redirect to external file when
+            # mirror_use_external_urls is set
+            threadlog.warn("ignoring because of redirection to external URL: %s",
+                           relpath)
+            self.errors.remove(entry)
+            return
         if r.status_code == 410:
             # master indicates Gone for files which were later deleted
             threadlog.warn("ignoring because of later deletion: %s",
                            relpath)
+            self.errors.remove(entry)
             return
 
         if r.status_code in (404, 502):
             stagename = '/'.join(relpath.split('/')[:2])
-            stage = self.xom.model.getstage(stagename)
+            with self.xom.keyfs.transaction(write=False):
+                stage = self.xom.model.getstage(stagename)
             if stage.ixconfig['type'] == 'mirror':
                 threadlog.warn(
                     "ignoring file which couldn't be retrieved from mirror index '%s': %s" % (
                         stagename, relpath))
+                self.errors.remove(entry)
                 return
 
         if r.status_code != 200:
+            threadlog.error(
+                "error downloading '%s' from master, will be retried later: "
+                "%s" % (relpath, r.reason))
+            # add the error for the UI
+            self.errors.add(dict(
+                url=r.url,
+                message=r.reason,
+                relpath=entry.relpath))
+            # and raise for retrying later
             raise FileReplicationError(r, relpath)
 
         err = entry.check_checksum(r.content)
         if err:
             # the file we got is different, it may have changed later.
             # we remember the error and move on
+            threadlog.error(
+                "checksum mismatch for '%s', will be retried later: "
+                "%s" % (relpath, r.reason))
             self.errors.add(dict(
                 url=r.url,
                 message=str(err),
@@ -561,7 +897,7 @@ class ImportFileReplica:
             return
         # in case there were errors before, we can now remove them
         self.errors.remove(entry)
-        fswriter.conn.io_file_set(entry._storepath, r.content)
+        conn.io_file_set(entry._storepath, r.content)
 
 
 class FileReplicationError(Exception):

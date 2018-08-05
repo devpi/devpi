@@ -480,7 +480,7 @@ class TestTransactionIsolation:
         with keyfs.transaction() as tx:
             changes = tx.conn.get_changes(0)
         new_keyfs.import_changes(0, changes)
-        assert l[0][1:] == (new_keyfs.NAME(name="world"), {1:1}, -1)
+        assert l[0][2:] == (new_keyfs.NAME(name="world"), {1:1}, -1)
 
     def test_import_changes_subscriber_error(self, keyfs, storage, tmpdir):
         pkey = keyfs.add_key("NAME", "hello/{name}", dict)

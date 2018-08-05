@@ -18,6 +18,19 @@ def reqmock(monkeypatch):
     return mr
 
 
+@pytest.fixture
+def patch_reqsessionmock(monkeypatch):
+    def patch_reqsessionmock(session):
+        mr = mocked_request()
+
+        def get_adapter(self, url):
+            return MockAdapter(mr, url)
+
+        monkeypatch.setattr(session, "get_adapter", get_adapter.__get__(session))
+        return mr
+    return patch_reqsessionmock
+
+
 class MockAdapter:
     def __init__(self, mock_request, url):
         self.url = url

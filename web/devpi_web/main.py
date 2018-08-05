@@ -338,3 +338,11 @@ def devpiserver_on_remove_file(stage, relpath):
             os.path.basename(relpath).rsplit('.doc.zip')[0].rsplit('-', 1)
         )
         remove_docs(stage, project, version)
+
+
+@devpiserver_hookimpl(optionalhook=True)
+def devpiserver_on_replicated_file(stage, project, version, link, serial, back_serial, is_from_mirror):
+    if is_from_mirror:
+        return
+    elif link.rel == "doczip":
+        index_project(stage, project)

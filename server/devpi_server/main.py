@@ -190,6 +190,21 @@ class XOM:
         self.log = threadlog
         self.polling_replicas = {}
         self._stagecache = {}
+        if self.is_replica():
+            from devpi_server.replica import ReplicaThread
+            from devpi_server.replica import register_key_subscribers
+            search_path = self.config.replica_file_search_path
+            if search_path and not os.path.exists(search_path):
+                fatal(
+                    "search path for existing replica files doesn't "
+                    "exist: %s" % search_path)
+            register_key_subscribers(self)
+            # the replica thread replays keyfs changes
+            # and project-specific changes are discovered
+            # and replayed through the PypiProjectChange event
+            if not self.config.requests_only:
+                self.replica_thread = ReplicaThread(self)
+                self.thread_pool.register(self.replica_thread)
 
     def get_singleton(self, indexpath, key):
         """ return a per-xom singleton for the given indexpath and key
@@ -422,20 +437,6 @@ class XOM:
         # XXX end hack
         pyramid_config.scan()
         app = pyramid_config.make_wsgi_app()
-        if self.is_replica():
-            from devpi_server.replica import ReplicaThread, register_key_subscribers
-            search_path = self.config.args.replica_file_search_path
-            if search_path and not os.path.exists(search_path):
-                fatal(
-                    "search path for existing replica files doesn't "
-                    "exist: %s" % search_path)
-            register_key_subscribers(self)
-            self.replica_thread = ReplicaThread(self)
-            # the replica thread replays keyfs changes
-            # and project-specific changes are discovered
-            # and replayed through the PypiProjectChange event
-            if not self.config.requests_only:
-                self.thread_pool.register(self.replica_thread)
         return OutsideURLMiddleware(app, self)
 
     def is_master(self):

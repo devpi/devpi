@@ -15,6 +15,7 @@ from .fileutil import loads
 from .log import threadlog, thread_push_log, thread_pop_log
 from .readonly import get_mutable_deepcopy, ensure_deeply_readonly, \
                       is_deeply_readonly
+from .filestore import FileEntry
 from .fileutil import read_int_from_file, write_int_to_file
 import attr
 import time
@@ -23,6 +24,14 @@ from devpi_common.types import cached_property
 
 
 notset = object()
+
+
+class MissingFileException(Exception):
+    def __init__(self, relpath, serial):
+        msg = "missing file '%s' at serial %s" % (relpath, serial)
+        super(MissingFileException, self).__init__(msg)
+        self.relpath = relpath
+        self.serial = serial
 
 
 class TxNotificationThread:
@@ -34,8 +43,9 @@ class TxNotificationThread:
         self._on_key_change = {}
 
     def on_key_change(self, key, subscriber):
-        assert not mythread.has_active_thread(self), (
-               "cannot register handlers after thread has started")
+        if mythread.has_active_thread(self):
+            raise RuntimeError(
+                "cannot register handlers after thread has started")
         keyname = getattr(key, "name", key)
         assert py.builtin._istext(keyname) or py.builtin._isbytes(keyname)
         self._on_key_change.setdefault(keyname, []).append(subscriber)
@@ -88,15 +98,91 @@ class TxNotificationThread:
                 self.tick()
             except mythread.Shutdown:
                 raise
-            except:
+            except MissingFileException as e:
+                self.log.warn("Waiting for file %s in event serial %s" % (
+                    e.relpath, e.serial))
+                self.thread.sleep(5)
+            except Exception:
                 self.log.exception(
                     "Unhandled exception in notification thread.")
                 self.thread.sleep(1.0)
+
+    def get_ixconfig(self, entry, event_serial):
+        user = entry.key.params['user']
+        index = entry.key.params['index']
+        if getattr(self, '_get_ixconfig_cache_serial', None) != event_serial:
+            self._get_ixconfig_cache = {}
+            self._get_ixconfig_cache_serial = event_serial
+        cache_key = (user, index)
+        if cache_key in self._get_ixconfig_cache:
+            return self._get_ixconfig_cache[cache_key]
+        with self.keyfs.transaction(write=False):
+            key = self.keyfs.get_key('USER')(user=user)
+            value = key.get()
+        if value is None:
+            # the user doesn't exist anymore
+            self._get_ixconfig_cache[cache_key] = None
+            return None
+        ixconfig = value.get('indexes', {}).get(index)
+        if ixconfig is None:
+            # the index doesn't exist anymore
+            self._get_ixconfig_cache[cache_key] = None
+            return None
+        self._get_ixconfig_cache[cache_key] = ixconfig
+        return ixconfig
 
     def _execute_hooks(self, event_serial, log, raising=False):
         log.debug("calling hooks for tx%s", event_serial)
         with self.keyfs._storage.get_connection() as conn:
             changes = conn.get_changes(event_serial)
+            # we first check for missing files before we call subscribers
+            for relpath, (keyname, back_serial, val) in changes.items():
+                if keyname in ('STAGEFILE', 'PYPIFILE_NOMD5'):
+                    key = self.keyfs.get_key_instance(keyname, relpath)
+                    entry = FileEntry(key, val)
+                    if entry.meta == {} or entry.last_modified is None:
+                        # the file was removed
+                        continue
+                    ixconfig = self.get_ixconfig(entry, event_serial)
+                    if ixconfig is None:
+                        # the index doesn't exist (anymore)
+                        continue
+                    elif ixconfig.get('type') == 'mirror' and ixconfig.get('mirror_use_external_urls', False):
+                        # the index uses external URLs now
+                        continue
+                    if conn.io_file_exists(entry._storepath):
+                        # all good
+                        continue
+                    # the file is missing, check whether we can ignore it
+                    serial = self.keyfs.get_current_serial()
+                    if event_serial < serial:
+                        # there are newer serials existing
+                        with self.keyfs.transaction(write=False) as tx:
+                            current_val = tx.get(key)
+                        if current_val is None:
+                            # entry was deleted
+                            continue
+                        current_entry = FileEntry(key, current_val)
+                        if current_entry.meta == {} or current_entry.last_modified is None:
+                            # the file was removed at some point
+                            continue
+                        current_ixconfig = self.get_ixconfig(entry, serial)
+                        if current_ixconfig is None:
+                            # the index doesn't exist (anymore)
+                            continue
+                        if current_ixconfig.get('type') == 'mirror':
+                            if current_ixconfig.get('mirror_use_external_urls', False):
+                                # the index uses external URLs now
+                                continue
+                            if current_entry.project is None:
+                                # this is an old mirror entry with no
+                                # project info, so this can be ignored
+                                continue
+                        log.debug("missing current_entry.meta %r" % current_entry.meta)
+                    log.debug("missing entry.meta %r" % entry.meta)
+                    raise MissingFileException(relpath, event_serial)
+            # all files exist or are deleted in a later serial,
+            # call subscribers now
             for relpath, (keyname, back_serial, val) in changes.items():
                 subscribers = self._on_key_change.get(keyname, [])
                 if not subscribers:
@@ -166,7 +252,7 @@ class KeyFS(object):
                     with self.transaction(write=False, at_serial=serial):
                         for meth, typedkey, val, back_serial in subscriber_task_infos:
                             threadlog.debug("calling import subscriber %r", meth)
-                            meth(fswriter, typedkey, val, back_serial)
+                            meth(fswriter.conn, serial, typedkey, val, back_serial)
 
     def subscribe_on_import(self, key, subscriber):
         assert key.name not in self._import_subscriber
