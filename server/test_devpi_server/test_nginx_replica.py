@@ -7,12 +7,8 @@ import pytest
 
 @pytest.yield_fixture
 def mapp(makemapp, nginx_host_port):
-    from devpi_server.replica import ReplicaThread
     app = makemapp(options=['--master', 'http://%s:%s' % nginx_host_port])
-    rt = ReplicaThread(app.xom)
-    app.xom.replica_thread = rt
-    app.xom.thread_pool.register(rt)
-    app.xom.thread_pool.start_one(rt)
+    app.xom.thread_pool.start_one(app.xom.replica_thread)
     try:
         yield app
     finally:

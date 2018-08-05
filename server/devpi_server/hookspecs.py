@@ -133,6 +133,11 @@ def devpiserver_on_remove_file(stage, relpath):
 
 
 @hookspec
+def devpiserver_on_replicated_file(stage, project, version, link, serial, back_serial, is_from_mirror):
+    """Called when a file was downloaded from master on replica."""
+
+
+@hookspec
 def devpiserver_metrics(request):
     """ called for status view.
 

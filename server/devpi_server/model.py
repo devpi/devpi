@@ -347,6 +347,12 @@ class User:
             return None
         return self._getstage(indexname, ixconfig["type"], ixconfig)
 
+    def getstages(self):
+        stages = []
+        for index in self.get()["indexes"]:
+            stages.append(self.getstage(index))
+        return stages
+
 
 class InvalidIndexconfig(Exception):
     def __init__(self, messages):

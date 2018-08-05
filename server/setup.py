@@ -92,9 +92,11 @@ if __name__ == "__main__":
             "devpi-server-auth-devpi = devpi_server.auth_devpi",
             "devpi-server-extpypi = devpi_server.extpypi",
             "devpi-server-model = devpi_server.model",
+            "devpi-server-replica = devpi_server.replica",
             "devpi-server-sqlite = devpi_server.keyfs_sqlite",
             "devpi-server-sqlite-fs = devpi_server.keyfs_sqlite_fs"],
         'devpi_web': [
+            "devpi-server-replica-status = devpi_server.replica",
             "devpi-server-status = devpi_server.views"],
         'pytest11': [
             "pytest_devpi_server = pytest_devpi_server"]})
