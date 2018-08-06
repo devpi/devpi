@@ -31,6 +31,7 @@ def test_doc_unpack_cleanup(mapp, testapp):
     with mapp.xom.keyfs.transaction(write=False):
         stage = mapp.xom.model.getstage(api.stagename)
         path = get_unpack_path(stage, 'pkg1', '2.6')
+    testapp.xget(200, api.index + '/pkg1/2.6/+doc/foo.html')
     assert path.join('foo.html').exists()
     content = zip_dict({
         "index.html": "<html><body>2.6</body></html>"})
@@ -39,4 +40,5 @@ def test_doc_unpack_cleanup(mapp, testapp):
     with mapp.xom.keyfs.transaction(write=False):
         stage = mapp.xom.model.getstage(api.stagename)
         path = get_unpack_path(stage, 'pkg1', '2.6')
+    testapp.xget(404, api.index + '/pkg1/2.6/+doc/foo.html')
     assert not path.join('foo.html').exists()

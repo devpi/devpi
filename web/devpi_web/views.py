@@ -9,7 +9,7 @@ from devpi_server.log import threadlog as log
 from devpi_server.readonly import SeqViewReadonly
 from devpi_server.views import StatusView, url_for_entrypath
 from devpi_web.description import get_description
-from devpi_web.doczip import Docs, get_unpack_path
+from devpi_web.doczip import Docs, unpack_docs
 from devpi_web.indexing import is_project_cached
 from devpi_web.main import navigation_version
 from email.utils import parsedate
@@ -80,11 +80,19 @@ def get_doc_info(context, request):
         versions = context.stable_versions
     else:
         versions = [version]
+    doc_path = None
     for doc_version in versions:
-        doc_path = get_unpack_path(context.stage, name, doc_version)
+        try:
+            linkstore = context.stage.get_linkstore_perstage(name, doc_version)
+        except context.stage.MissesRegistration:
+            continue
+        links = linkstore.get_links(rel='doczip')
+        if not links:
+            continue
+        doc_path = unpack_docs(context.stage, name, doc_version, links[0].entry)
         if doc_path.check():
             break
-    if not doc_path.check():
+    if doc_path is None or not doc_path.check():
         if version == 'stable':
             raise HTTPNotFound("No stable documentation available.")
         raise HTTPNotFound("No documentation available.")
@@ -294,11 +302,14 @@ def get_toxresults_info(linkstore, for_link, newest=True):
     return result
 
 
-def get_docs_info(request, stage, metadata):
+def get_docs_info(request, stage, linkstore):
     if stage.ixconfig['type'] == 'mirror':
         return
-    name, ver = normalize_name(metadata["name"]), metadata["version"]
-    doc_path = get_unpack_path(stage, name, ver)
+    links = linkstore.get_links(rel='doczip')
+    if not links:
+        return
+    name, ver = normalize_name(linkstore.project), linkstore.version
+    doc_path = unpack_docs(stage, name, ver, links[0].entry)
     if doc_path.exists():
         return dict(
             title="%s-%s" % (name, ver),
@@ -414,7 +425,7 @@ def index_get(context, request):
                 user=stage.user.name, index=stage.index,
                 project=name, version=ver),
             files=get_files_info(request, linkstore, show_toxresults),
-            docs=get_docs_info(request, stage, verdata),
+            docs=get_docs_info(request, stage, linkstore),
             _version_data=verdata))
     packages.sort(key=lambda x: x["info"]["title"])
 
@@ -459,9 +470,8 @@ def project_get(context, request):
     name = context.verified_project
     index_url = request.stage_url(user, index)
     for version in stage_versions:
-        verdata = context.stage.get_versiondata_perstage(name, version)
-        docs = get_docs_info(
-            request, context.stage, verdata)
+        linkstore = context.stage.get_linkstore_perstage(name, version)
+        docs = get_docs_info(request, context.stage, linkstore)
         if not docs:
             continue
         if version not in version_info:
@@ -523,7 +533,7 @@ def version_get(context, request):
     show_toxresults = (stage.ixconfig['type'] != 'mirror')
     linkstore = stage.get_linkstore_perstage(name, version)
     files = get_files_info(request, linkstore, show_toxresults)
-    docs = get_docs_info(request, stage, verdata)
+    docs = get_docs_info(request, stage, linkstore)
     home_page = verdata.get("home_page")
     nav_links = []
     if docs:
@@ -795,18 +805,9 @@ class SearchView:
                 continue
             elif text_type in ('title', 'page'):
                 docs = self.get_docs(stage, data)
-                try:
-                    entry = docs[sub_data['text_path']]
-                except KeyError:
-                    highlight = (
-                        "Couldn't access documentation files for %s "
-                        "version %s on %s. This is a bug. If you find a way "
-                        "to reproduce this, please file an issue at: "
-                        "https://github.com/devpi/devpi/issues" % (
-                            data['name'], data['doc_version'], stage.name))
-                else:
-                    text = entry['text']
-                    highlight = search_index.highlight(text, sub_hit.get('words'))
+                entry = docs[sub_data['text_path']]
+                text = entry['text']
+                highlight = search_index.highlight(text, sub_hit.get('words'))
                 title = sub_data.get('text_title', title)
                 text_path = sub_data.get('text_path')
                 if text_path:

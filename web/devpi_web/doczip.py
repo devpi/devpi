@@ -27,9 +27,6 @@ def unpack_docs(stage, name, version, entry):
     if hash_path.exists():
         with hash_path.open() as f:
             if f.read().strip() == entry.hash_spec:
-                threadlog.debug(
-                    "%s: returning existing docs with hash_spec %s",
-                    stage.name, entry.hash_spec)
                 return unpack_path
     if unpack_path.exists():
         unpack_path.remove()
@@ -48,10 +45,15 @@ class Docs(DictMixin):
         self.stage = stage
         self.name = name
         self.version = version
-        self.unpack_path = get_unpack_path(stage, name, version)
+        self.entry = None
+        if version is not None:
+            linkstore = stage.get_linkstore_perstage(name, version)
+            links = linkstore.get_links(rel='doczip')
+            if links:
+                self.entry = links[0].entry
 
     def exists(self):
-        return self.unpack_path.exists()
+        return self.entry is not None and self.entry.file_exists()
 
     @cached_property
     def _entries(self):
@@ -60,22 +62,21 @@ class Docs(DictMixin):
             # aren't uploaded yet
             threadlog.warn("Tried to access %s, but it doesn't exist.", self.unpack_path)
             return {}
+        unpack_path = unpack_docs(self.stage, self.name, self.version, self.entry)
         html = []
         fjson = []
-        for entry in self.unpack_path.visit():
-            if entry.basename.endswith('.fjson'):
+        for entry in unpack_path.visit():
+            basename = entry.basename
+            if basename.endswith('.fjson'):
                 fjson.append(entry)
-            elif entry.basename.endswith('.html'):
+            elif basename.endswith('.html'):
                 html.append(entry)
         if fjson:
-            entries = dict(
-                (x.relto(self.unpack_path)[:-6], x)
-                for x in fjson)
+            # if there is fjson, then we get structured data
+            # see http://www.sphinx-doc.org/en/master/usage/builders/index.html#serialization-builder-details
+            return {x.relto(unpack_path)[:-6]: x for x in fjson}
         else:
-            entries = dict(
-                (x.relto(self.unpack_path)[:-5], x)
-                for x in html)
-        return entries
+            return {x.relto(unpack_path)[:-5]: x for x in html}
 
     def keys(self):
         return self._entries.keys()

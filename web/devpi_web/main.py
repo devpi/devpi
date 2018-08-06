@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 from chameleon.config import AUTO_RELOAD
 from devpi_common.metadata import get_latest_version
 from devpi_web import hookspecs
-from devpi_web.doczip import unpack_docs, remove_docs
+from devpi_web.doczip import remove_docs
 from devpi_web.indexing import iter_projects, preprocess_project
 from devpi_web.whoosh_index import Index
 from devpi_server.log import threadlog
@@ -290,7 +290,6 @@ def devpiserver_on_upload(stage, project, version, link):
         # current revision and the file might have been deleted already
         threadlog.debug("ignoring lost upload: %s", link)
     elif link.rel == "doczip":
-        unpack_docs(stage, project, version, link.entry)
         index_project(stage, project)
 
 
