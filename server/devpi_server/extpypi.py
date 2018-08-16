@@ -18,7 +18,6 @@ from devpi_common.metadata import is_archive_of_project
 from devpi_common.types import cached_property
 from devpi_common.validation import normalize_name
 from functools import partial
-
 from .model import BaseStage, make_key_and_href, SimplelinkMeta
 from .model import InvalidIndexconfig, get_indexconfig
 from .readonly import ensure_deeply_readonly
@@ -179,6 +178,7 @@ class PyPIStage(BaseStage):
         projects = self.key_projects.get(readonly=False)
         if project in projects:
             projects.remove(project)
+            self.cache_retrieve_times.expire(project)
             self.key_projects.set(projects)
 
     def del_entry(self, entry, cleanup=True):
@@ -212,7 +212,7 @@ class PyPIStage(BaseStage):
             return cache_projectnames
 
     @property
-    def cache_link_updates(self):
+    def cache_retrieve_times(self):
         """ per-xom RAM cache for keeping track when we last updated simplelinks. """
         # we could keep this info in keyfs but it would lead to a write
         # for each remote check.
@@ -280,6 +280,7 @@ class PyPIStage(BaseStage):
         return self.key_projsimplelinks(project).exists()
 
     def _save_cache_links(self, project, links, serial):
+        assert links != ()  # we don't store the old "Not Found" marker anymore
         assert isinstance(serial, int)
         assert project == normalize_name(project), project
         data = {"serial": serial, "links": links}
@@ -296,14 +297,14 @@ class PyPIStage(BaseStage):
         # enough event (tm) to not worry too much, though.
         # (we can, however, easily add a
         # keyfs.tx.on_commit_success(callback) method.
-        self.cache_link_updates.refresh(project)
+        self.cache_retrieve_times.refresh(project)
 
     def _load_cache_links(self, project):
         is_expired, links, serial = True, None, -1
 
         cache = self.key_projsimplelinks(project).get()
         if cache:
-            is_expired = self.cache_link_updates.is_expired(project, self.cache_expiry)
+            is_expired = self.cache_retrieve_times.is_expired(project, self.cache_expiry)
             links, serial = cache["links"], cache["serial"]
             if self.offline and links:
                 links = ensure_deeply_readonly(list(filter(self._is_file_cached, links)))
@@ -322,6 +323,7 @@ class PyPIStage(BaseStage):
     def clear_simplelinks_cache(self, project):
         # we have to set to an empty dict instead of removing the key, so
         # replicas behave correctly
+        self.cache_retrieve_times.expire(project)
         self.key_projsimplelinks(project).set({})
         threadlog.debug("cleared cache for %s", project)
 
@@ -336,10 +338,17 @@ class PyPIStage(BaseStage):
         """
         project = normalize_name(project)
         is_expired, links, cache_serial = self._load_cache_links(project)
-        if (not is_expired) or self.offline:
-            if self.offline and links is None:
-                links = ()
+        if self.offline and links is None:
+            raise self.UpstreamError("offline mode")
+        if not is_expired:
             return links
+
+        is_retrieval_expired = self.cache_retrieve_times.is_expired(
+            project, self.cache_expiry)
+
+        if links is None and not is_retrieval_expired:
+            raise self.UpstreamNotFoundError(
+                "cached not found for project %s" % project)
 
         # get the simple page for the project
         url = self.mirror_url + project + "/"
@@ -349,29 +358,15 @@ class PyPIStage(BaseStage):
             # if we have and old result, return it. While this will
             # miss the rare event of actual project deletions it allows
             # to stay resilient against server misconfigurations.
-            if links is not None and links != ():
+            if links is not None:
                 threadlog.warn(
                     "serving stale links for %r, url %r responded %r",
                     project, url, response.status_code)
                 return links
             if response.status_code == 404:
-                # We get a 404 if a project does not exist.
-                if self.xom.is_replica():
-                    # We triggered master above, so we just go on, since we
-                    # know we won't get anything else than a 404 and the
-                    # master will persist this information and pass it on to
-                    # the replicas
-                    pass
-                else:
-                    # We persist this result so replicas see it as well.
-                    # After the dump cache expires new requests will retry
-                    # and thus detect new projects and their releases.
-                    self.keyfs.restart_as_write_transaction()
-                    self._save_cache_links(project, (), -1)
-                # Note that we use an empty tuple (instead of the usual
-                # list) so has_project_per_stage() can determine it as a
-                # non-existing project.
-                return ()
+                self.cache_retrieve_times.refresh(project)
+                raise self.UpstreamNotFoundError(
+                    "not found on GET %s" % url)
 
             # we don't have an old result and got a non-404 code.
             raise self.UpstreamError("%s status on GET %s" %
@@ -451,7 +446,7 @@ class PyPIStage(BaseStage):
             self.keyfs.restart_read_transaction()
             is_expired, links, cache_serial = self._load_cache_links(project)
             if links is not None:
-                self.cache_link_updates.refresh(project)
+                self.cache_retrieve_times.refresh(project)
                 return links
             raise self.UpstreamError("no cache links from master for %s" %
                                      project)
@@ -463,14 +458,18 @@ class PyPIStage(BaseStage):
             return map_and_dump()
 
     def has_project_perstage(self, project):
-        links = self.get_simplelinks_perstage(project)
-        if links == ():  # marker for non-existing project, see get_simplelinks_perstage
+        try:
+            self.get_simplelinks_perstage(project)
+        except self.UpstreamNotFoundError:
             return False
         return True
 
     def list_versions_perstage(self, project):
-        return set(x.get_eggfragment_or_version()
-                   for x in map(SimplelinkMeta, self.get_simplelinks_perstage(project)))
+        try:
+            return set(x.get_eggfragment_or_version()
+                       for x in map(SimplelinkMeta, self.get_simplelinks_perstage(project)))
+        except self.UpstreamNotFoundError:
+            return []
 
     def get_versiondata_perstage(self, project, version, readonly=True):
         project = normalize_name(project)

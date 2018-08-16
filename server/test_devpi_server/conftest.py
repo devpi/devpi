@@ -378,7 +378,7 @@ def add_pypistage_mocks(monkeypatch, httpget):
     # add some mocking helpers
     PyPIStage.url2response = httpget.url2response
     def mock_simple(self, name, text=None, pypiserial=10000, **kw):
-        self.cache_link_updates.expire(name)
+        self.cache_retrieve_times.expire(name)
         return self.httpget.mock_simple(name,
                  text=text, pypiserial=pypiserial, **kw)
     monkeypatch.setattr(PyPIStage, "mock_simple", mock_simple, raising=False)

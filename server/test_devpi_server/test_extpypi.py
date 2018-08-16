@@ -257,8 +257,8 @@ class TestIndexParsing:
         assert link3.url == "https://pypi.org/pkg/py-1.4.10.zip#md5=2222"
 
 def test_get_updated(pypistage):
-    c = pypistage.cache_link_updates
-    c2 = pypistage.cache_link_updates
+    c = pypistage.cache_retrieve_times
+    c2 = pypistage.cache_retrieve_times
     return c == c2
 
 class TestExtPYPIDB:
@@ -278,7 +278,7 @@ class TestExtPYPIDB:
         links = pypistage.get_releaselinks("pytest")
         assert links[0].eggfragment == "pytest-dev1"
 
-        pypistage.cache_link_updates.expire("pytest")
+        pypistage.cache_retrieve_times.expire("pytest")
         pypistage.mock_simple("pytest", pypiserial=11,
             pkgver="pytest-1.0.zip#egg=pytest-dev2")
         threadlog.info("hello")
@@ -387,7 +387,7 @@ class TestExtPYPIDB:
         pypistage.keyfs.commit_transaction_in_thread()
         pypistage.keyfs.begin_transaction_in_thread()
         # pretend the last mirror check is very old
-        pypistage.cache_link_updates.expire("pytest")
+        pypistage.cache_retrieve_times.expire("pytest")
 
         # now make sure that we don't cause writes
         commit_serial = pypistage.keyfs.get_current_serial()
@@ -520,7 +520,7 @@ def test_requests_httpget_timeout(xom, monkeypatch):
 def test_is_project_cached(httpget, pypistage):
     assert not pypistage.is_project_cached("xyz")
     assert not pypistage.has_project("xyz")
-    assert pypistage.is_project_cached("xyz")
+    assert not pypistage.is_project_cached("xyz")
 
     httpget.mock_simple("abc", text="")
     assert not pypistage.is_project_cached("abc")
@@ -529,7 +529,9 @@ def test_is_project_cached(httpget, pypistage):
 
 
 def test_404_on_pypi_cached(httpget, pypistage):
-    retrieve_times = pypistage.cache_link_updates
+    # remember current serial to check later
+    serial = pypistage.keyfs.get_current_serial()
+    retrieve_times = pypistage.cache_retrieve_times
     retrieve_times.expire('foo')
     assert not pypistage.has_project_perstage("foo")
     updated_at = retrieve_times.get_timestamp("foo")
@@ -542,10 +544,13 @@ def test_404_on_pypi_cached(httpget, pypistage):
     pypistage.keyfs.commit_transaction_in_thread()
     pypistage.keyfs.begin_transaction_in_thread()
 
-    # we trigger a fresh check and verify that no new commit takes place
-    serial = pypistage.keyfs.get_current_serial()
+    # we trigger a fresh check
     retrieve_times.expire('foo')
     assert not pypistage.has_project_perstage("foo")
+
+    # verify that no new commit took place
+    pypistage.keyfs.commit_transaction_in_thread()
+    pypistage.keyfs.begin_transaction_in_thread()
     assert serial == pypistage.keyfs.get_current_serial()
     updated_at = retrieve_times.get_timestamp('foo')
     assert updated_at > 0
@@ -566,6 +571,10 @@ def test_404_on_pypi_cached(httpget, pypistage):
     assert pypistage.has_project_perstage("foo")
     assert len(pypistage.get_releaselinks('foo')) == 0
     assert retrieve_times.get_timestamp('foo') > updated_at
+
+    # verify that there was a write this time
+    pypistage.keyfs.commit_transaction_in_thread()
+    assert pypistage.keyfs.get_current_serial() == (serial + 1)
 
 
 class TestProjectNamesCache:
