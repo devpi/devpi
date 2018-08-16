@@ -171,16 +171,15 @@ class PyPIStage(BaseStage):
         if not self.is_project_cached(project):
             raise KeyError("project not found")
         (is_fresh, links, cache_serial) = self._load_cache_links(project)
-        if links is None:
-            links = ()
-        entries = list(
-            x
-            for x in map(self._entry_from_cache_link, links)
-            if x.file_exists())
+        if links is not None:
+            entries = list(
+                x
+                for x in map(self._entry_from_cache_link, links)
+                if x.file_exists())
         if not entries:
             raise KeyError("no releases found")
-        for entry in entries:
-            entry.delete()
+            for entry in entries:
+                entry.delete()
         projects = self.key_projects.get(readonly=False)
         if project in projects:
             projects.remove(project)
@@ -194,9 +193,9 @@ class PyPIStage(BaseStage):
             raise self.NotFound("entry has no file data %r" % entry)
         entry.delete()
         (is_fresh, links, cache_serial) = self._load_cache_links(project)
-        if links is None:
-            links = ()
-        links = ensure_deeply_readonly(list(filter(self._is_file_cached, links)))
+        if links is not None:
+            links = ensure_deeply_readonly(
+                list(filter(self._is_file_cached, links)))
         if not links and cleanup:
             projects = self.key_projects.get(readonly=False)
             if project in projects:
