@@ -28,8 +28,14 @@ from devpi_server.filestore import get_default_hash_spec, make_splitdir
 proj = pytest.mark.parametrize("proj", [True, False])
 pytestmark = [pytest.mark.notransaction]
 
+
+def getlinks(text):
+    return BeautifulSoup(text, "html.parser").findAll("a")
+
+
 def getfirstlink(text):
-    return BeautifulSoup(text, "html.parser").findAll("a")[0]
+    return getlinks(text)[0]
+
 
 def hash_spec_matches(hash_spec, content):
     hash_type, hash_value = hash_spec.split("=")
@@ -115,7 +121,7 @@ def test_simple_project(pypistage, testapp):
     pypistage.mock_simple(name, text='<a href="%s"/>' % path)
     r = testapp.get("/root/pypi/+simple/%s/" % name)
     assert r.status_code == 200
-    links = BeautifulSoup(r.text, "html.parser").findAll("a")
+    links = getlinks(r.text)
     assert len(links) == 1
     assert links[0].get("href").endswith(path)
 
@@ -139,7 +145,7 @@ def test_simple_project_outside_url_subpath(mapp, outside_url, pypistage, testap
     headers={str('X-outside-url'): str(outside_url)}
     r = testapp.get("/%s/+simple/qpwoei/" % api.stagename, headers=headers)
     assert r.status_code == 200
-    links = sorted(x["href"] for x in BeautifulSoup(r.text, "html.parser").findAll("a"))
+    links = sorted(x["href"] for x in getlinks(r.text))
     assert len(links) == 2
     hash_spec = get_default_hash_spec(b'123')
     hashdir = "/".join(make_splitdir(hash_spec))
@@ -161,7 +167,7 @@ def test_simple_project_absolute_url(mapp, pypistage, testapp):
     headers={str('X-devpi-absolute-urls'): str("")}
     r = testapp.get("/%s/+simple/qpwoei/" % api.stagename, headers=headers)
     assert r.status_code == 200
-    links = sorted(x["href"] for x in BeautifulSoup(r.text, "html.parser").findAll("a"))
+    links = sorted(x["href"] for x in getlinks(r.text))
     assert len(links) == 2
     hash_spec = get_default_hash_spec(b'123')
     hashdir = "/".join(make_splitdir(hash_spec))
@@ -174,7 +180,7 @@ def test_simple_project_absolute_url(mapp, pypistage, testapp):
     headers.update({str('X-outside-url'): str("http://localhost/devpi")})
     r = testapp.get("/%s/+simple/qpwoei/" % api.stagename, headers=headers)
     assert r.status_code == 200
-    links = sorted(x["href"] for x in BeautifulSoup(r.text, "html.parser").findAll("a"))
+    links = sorted(x["href"] for x in getlinks(r.text))
     assert len(links) == 2
     hash_spec = get_default_hash_spec(b'123')
     hashdir = "/".join(make_splitdir(hash_spec))
@@ -237,7 +243,7 @@ def test_simple_project_pypi_egg(pypistage, testapp):
         """<a href="http://bb.org/download/py.zip#egg=py-dev" />""")
     r = testapp.get("/root/pypi/+simple/py/")
     assert r.status_code == 200
-    links = BeautifulSoup(r.text, "html.parser").findAll("a")
+    links = getlinks(r.text)
     assert len(links) == 1
     r = testapp.get("/root/pypi")
     assert r.status_code == 200
@@ -260,7 +266,7 @@ def test_simple_list(pypistage, testapp):
     # get the full projects page and see what is in
     r = testapp.get("/root/pypi/+simple/")
     assert r.status_code == 200
-    links = BeautifulSoup(r.text, "html.parser").findAll("a")
+    links = getlinks(r.text)
     assert len(links) == 2
     hrefs = [a.get("href") for a in links]
     assert hrefs == ["hello1/", "hello2/"]
@@ -1571,11 +1577,122 @@ def test_upload_to_mirror_fails(mapp):
             "pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=404,
             indexname="root/pypi")
 
-def test_delete_from_mirror_fails(mapp):
+
+@pytest.mark.nomocking
+def test_delete_mirror(mapp, simpypi, testapp, xom):
+    indexconfig = dict(
+        type="mirror",
+        mirror_url=simpypi.simpleurl,
+        mirror_cache_expiry=0,
+        volatile=True)
+    api = mapp.create_and_use(indexconfig=indexconfig)
+    name = "pytest"
+    pkgver = "%s-2.6.zip" % name
+    simpypi.add_release(name, pkgver=pkgver)
+    simpypi.add_file('/%s/%s' % (name, pkgver), b'123')
+    r = testapp.get(api.index + '/+simple/%s' % name)
+    (link,) = sorted(
+        x.get('href').replace('../../', '/%s/' % api.stagename)
+        for x in getlinks(r.text))
+    path = link[1:]
+    assert '2.6' in path
+    r = testapp.xget(200, link)
+    with testapp.xom.keyfs.transaction():
+        stage = testapp.xom.model.getstage(api.stagename)
+        assert stage.key_projects.get() == set([name])
+        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
+        assert entry.file_exists()
+    # remove
+    mapp.delete_index(api.stagename)
+    with testapp.xom.keyfs.transaction():
+        stage = testapp.xom.model.getstage(api.stagename)
+        assert stage is None
+        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
+        assert not entry.file_exists()
+        key = testapp.xom.filestore.get_key_from_relpath(path.strip("/"))
+        assert not key.exists()
+
+    # patch httpget to simulate broken PyPI
+    def httpget(url, **kwargs):
+        class Response:
+            status_code = 503
+        return Response()
+    xom.httpget = httpget
+
+    # to prove that all metadata is gone when deleting the stage,
+    # we recreate the stage, block access to PyPI
+    # and check that nothing shows in the new index
+    newapi = mapp.create_index(api.stagename, indexconfig=indexconfig)
+    # the file shouldn't be available anymore
+    r = testapp.xget(404, link)
+    # the simple page should be empty
+    r = testapp.get(newapi.index + '/+simple/%s' % name)
+    assert getlinks(r.text) == []
+    with testapp.xom.keyfs.transaction():
+        stage = testapp.xom.model.getstage(api.stagename)
+        assert stage.key_projects.get() == set()
+        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
+        assert not entry.file_exists()
+        key = testapp.xom.filestore.get_key_from_relpath(path.strip("/"))
+        assert not key.exists()
+
+
+def test_delete_from_mirror(mapp, pypistage, testapp):
     mapp.login_root()
     mapp.use("root/pypi")
-    mapp.delete_project("pytest/2.3.5", code=405)
-    mapp.delete_project("pytest", code=405)
+    name = "pytest"
+    other_mirrorpath = "/%s-2.5.zip" % name
+    pypistage.mock_extfile(other_mirrorpath, b"123")
+    mirrorpath = "/%s-2.6.zip" % name
+    pypistage.mock_simple(name, text='<a href="%s"/>\n<a href="%s"/>' % (other_mirrorpath, mirrorpath))
+    pypistage.mock_extfile(mirrorpath, b"123")
+    r = testapp.get('/root/pypi/+simple/%s' % name)
+    (other_link, link) = sorted(
+        x.get('href').replace('../../', '/root/pypi/')
+        for x in getlinks(r.text))
+    other_path = other_link[1:]
+    path = link[1:]
+    assert '2.5' in other_path
+    assert '2.6' in path
+    with testapp.xom.keyfs.transaction():
+        stage = testapp.xom.model.getstage('root/pypi')
+        assert stage.key_projects.get() == set([name])
+        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
+        assert not entry.file_exists()
+    assert '/+e/' in link
+    mapp.delete_project("pytest/2.6", code=405)
+    mapp.delete_project("pytest", code=403)
+    # make non volatile
+    res = mapp.getjson("/root/pypi")["result"]
+    mapp.modify_index("root/pypi", indexconfig=dict(res, volatile=True))
+    mapp.delete_project("pytest/2.6", code=405)
+    mapp.delete_project("pytest", code=200)
+    r = testapp.get(link)
+    with testapp.xom.keyfs.transaction():
+        stage = testapp.xom.model.getstage('root/pypi')
+        assert stage.key_projects.get() == set([name])
+        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
+        assert entry.file_exists()
+        other_entry = testapp.xom.filestore.get_file_entry(other_path.strip("/"))
+        assert not other_entry.file_exists()
+    r = testapp.get('/root/pypi/+simple/%s' % name)
+    (other_link, link) = sorted(
+        x.get('href').replace('../../', '/root/pypi/')
+        for x in getlinks(r.text))
+    assert '2.5' in other_link
+    assert '2.6' in link
+    mapp.delete_project("pytest/2.6", code=405)
+    mapp.delete_project("pytest", code=200)
+    with testapp.xom.keyfs.transaction():
+        stage = testapp.xom.model.getstage('root/pypi')
+        assert stage.key_projects.get() == set()
+        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
+        assert not entry.file_exists()
+        key = testapp.xom.filestore.get_key_from_relpath(path.strip("/"))
+        assert not key.exists()
+        other_entry = testapp.xom.filestore.get_file_entry(other_path.strip("/"))
+        assert not other_entry.file_exists()
+
 
 def test_delete_volatile_fails(mapp):
     mapp.login_root()
@@ -1699,27 +1816,83 @@ def test_delete_non_existing_package(mapp, testapp):
     testapp.xdel(404, link.href.replace('tgz', 'foo'))
 
 
-def test_delete_package_from_mirror_fails(mapp, pypistage, testapp):
+def test_delete_package_from_mirror(mapp, pypistage, testapp):
     mapp.login_root()
     mapp.use("root/pypi")
-    name = "pkg5"
-    mirrorpath = "/%s-2.6.zip" % name
-    pypistage.mock_simple(name, text='<a href="%s"/>' % mirrorpath)
+    other_name = "otherpackage"
+    mirrorpath = "/%s-2.6.zip" % other_name
+    pypistage.mock_simple(other_name, text='<a href="%s"/>' % mirrorpath)
     pypistage.mock_extfile(mirrorpath, b"123")
-    vv = get_view_version_links(testapp, "/root/pypi", "pkg5", "2.6")
-    (link,) = vv.get_links()
-    (path,) = mapp.get_release_paths("pkg5")
+    vv = get_view_version_links(testapp, "/root/pypi", other_name, "2.6")
+    # get otherpackage to prime caches and files
+    (other_link,) = vv.get_links()
+    (other_path,) = mapp.get_release_paths(other_name)
+    testapp.get(other_link.href)
+    name = "pkg5"
+    mirrorpath1 = "/%s-2.5.zip" % name
+    mirrorpath2 = "/%s-2.6.zip" % name
+    pypistage.mock_simple(name, text='<a href="%s"/>\n<a href="%s"/>' % (mirrorpath1, mirrorpath2))
+    pypistage.mock_extfile(mirrorpath1, b"123")
+    pypistage.mock_extfile(mirrorpath2, b"1234")
+    vv = get_view_version_links(testapp, "/root/pypi", name, "2.6")
+    r = testapp.get('/root/pypi/+simple/%s' % name)
+    (link1, link2) = sorted(
+        x.get('href').replace('../../', '/root/pypi/')
+        for x in getlinks(r.text))
+    path1 = link1[1:]
+    path2 = link2[1:]
     with testapp.xom.keyfs.transaction():
-        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
-        assert not entry.file_exists()
-    assert '/+e/' in link.href
-    testapp.get(link.href)
+        stage = testapp.xom.model.getstage('root/pypi')
+        assert stage.key_projects.get() == set([name, other_name])
+        entry1 = testapp.xom.filestore.get_file_entry(path1.strip("/"))
+        assert not entry1.file_exists()
+        entry2 = testapp.xom.filestore.get_file_entry(path2.strip("/"))
+        assert not entry2.file_exists()
+        other_entry = testapp.xom.filestore.get_file_entry(other_path.strip("/"))
+        assert other_entry.file_exists()
+    assert '/+e/' in link1
+    testapp.xdel(403, link1)
+    # make non volatile
+    res = mapp.getjson("/root/pypi")["result"]
+    mapp.modify_index("root/pypi", indexconfig=dict(res, volatile=True))
+    testapp.xdel(404, link1)
+    testapp.get(link1)
+    testapp.get(link2)
     with testapp.xom.keyfs.transaction():
-        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
-        assert entry.file_exists()
-    vv = get_view_version_links(testapp, "/root/pypi", "pkg5", "2.6")
-    (link,) = vv.get_links()
-    testapp.xdel(405, link.href)
+        stage = testapp.xom.model.getstage('root/pypi')
+        assert stage.key_projects.get() == set([name, other_name])
+        entry1 = testapp.xom.filestore.get_file_entry(path1.strip("/"))
+        assert entry1.file_exists()
+        entry2 = testapp.xom.filestore.get_file_entry(path2.strip("/"))
+        assert entry2.file_exists()
+        other_entry = testapp.xom.filestore.get_file_entry(other_path.strip("/"))
+        assert other_entry.file_exists()
+    r = testapp.get('/root/pypi/+simple/%s' % name)
+    (link1, link2) = sorted(
+        x.get('href').replace('../../', '/root/pypi/')
+        for x in getlinks(r.text))
+    path1 = link1[1:]
+    path2 = link2[1:]
+    testapp.xdel(200, link1)
+    with testapp.xom.keyfs.transaction():
+        stage = testapp.xom.model.getstage('root/pypi')
+        assert stage.key_projects.get() == set([name, other_name])
+        entry1 = testapp.xom.filestore.get_file_entry(path1.strip("/"))
+        assert not entry1.file_exists()
+        entry2 = testapp.xom.filestore.get_file_entry(path2.strip("/"))
+        assert entry2.file_exists()
+        other_entry = testapp.xom.filestore.get_file_entry(other_path.strip("/"))
+        assert other_entry.file_exists()
+    testapp.xdel(200, link2)
+    with testapp.xom.keyfs.transaction():
+        stage = testapp.xom.model.getstage('root/pypi')
+        assert stage.key_projects.get() == set([other_name])
+        entry1 = testapp.xom.filestore.get_file_entry(path1.strip("/"))
+        assert not entry1.file_exists()
+        entry2 = testapp.xom.filestore.get_file_entry(path2.strip("/"))
+        assert not entry2.file_exists()
+        other_entry = testapp.xom.filestore.get_file_entry(other_path.strip("/"))
+        assert other_entry.file_exists()
 
 
 def test_delete_package_volatile_fails(mapp, testapp):
@@ -1829,34 +2002,63 @@ def test_outside_url_middleware(headers, environ, outsideurl, expected, testapp)
     assert r.json['result']['login'] == "%s/+login" % expected
 
 
-@pytest.mark.parametrize("stagename", [None, "root/pypi"])
+@pytest.mark.nomockprojectsremote
 class TestOfflineMode:
     @pytest.fixture
     def xom(self, makexom):
         return makexom(["--offline-mode"])
 
-    def _prepare(self, mapp, pypistage, stagename):
-        pypistage.mock_simple("package", '<a href="/package-1.0.zip" />', serial=100)
-        if stagename is None:
+    @pytest.fixture(params=[None, "root/pypi"])
+    def stagename(self, request, gen, mapp, pypistage, testapp, xom):
+        # we expect offline mode
+        assert xom.config.args.offline_mode
+        # turn of offline mode for preparations
+        xom.config.args.offline_mode = False
+        # mock two packages and one release
+        pypistage.mock_extfile("/package/package-1.0.zip", b"123")
+        pypistage.mock_simple("package", pkgver="package-1.0.zip", serial=100)
+        pypistage.mock_simple("other_package", '<a href="/other_package-2.0.zip" />', serial=100)
+        pypistage.mock_simple_projects(["package", "other_package"])
+        # either create a stage with root/pypi as base, or return root/pypi directly
+        if request.param is None:
             api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
         else:
-            api = mapp.use(stagename)
+            api = mapp.use(request.param)
+        # fetch package to update caches
+        r = testapp.xget(200, "/%s/+simple/package/" % api.stagename)
+        href = getfirstlink(r.text).get("href")
+        url = URL(r.request.url).joinpath(href).url
+        testapp.xget(200, url)
+        r = testapp.xget(200, "/%s/+simple/" % api.stagename)
+        links = getlinks(r.text)
+        assert len(links) == 2
+        hrefs = [a.get("href") for a in links]
+        assert hrefs == ["other_package/", "package/"]
+        # turn offline mode back on
+        xom.config.args.offline_mode = True
+        assert xom.config.args.offline_mode
         return api.stagename
 
-    def test_file_not_available(self, mapp, model, testapp, pypistage, stagename):
-        stagename = self._prepare(mapp, pypistage, stagename)
-        testapp.xget(200, "/%s/+simple/package/" % stagename)
+    def test_project_names(self, testapp, stagename):
+        r = testapp.xget(200, "/%s/+simple/" % stagename)
+        (link,) = getlinks(r.text)
+        assert link.get("href") == "package/"
+
+    def test_file_not_available(self, model, monkeypatch, testapp, pypistage, stagename):
+        monkeypatch.setattr(devpi_server.filestore.FileEntry, "file_exists", lambda a: False)
+        r = testapp.xget(200, "/%s/+simple/package/" % stagename)
+        assert getlinks(r.text) == []
         with model.keyfs.transaction(write=False):
-            is_fresh, links, serial = pypistage._load_cache_links("package")
+            is_expired, links, serial = pypistage._load_cache_links("package")
 
         assert len(links) == 0
 
-    def test_file_available(self, mapp, model, testapp, pypistage, monkeypatch, stagename):
-        stagename = self._prepare(mapp, pypistage, stagename)
-        monkeypatch.setattr(devpi_server.filestore.FileEntry, "file_exists", lambda a: True)
-        testapp.xget(200, "/%s/+simple/package/" % stagename)
+    def test_file_available(self, model, testapp, pypistage, stagename):
+        r = testapp.xget(200, "/%s/+simple/package/" % stagename)
+        (link,) = getlinks(r.text)
+        assert '/package-1.0.zip' in link.get("href")
         with model.keyfs.transaction(write=False):
-            is_fresh, links, serial = pypistage._load_cache_links("package")
+            is_expired, links, serial = pypistage._load_cache_links("package")
 
         assert links[0][0] == "package-1.0.zip"
 

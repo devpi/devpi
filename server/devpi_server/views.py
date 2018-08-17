@@ -940,8 +940,6 @@ class PyPIView:
         permission="del_project")
     def del_project(self):
         stage = self.context.stage
-        if stage.ixconfig["type"] == "mirror":
-            abort(self.request, 405, "cannot delete on mirror index")
         project = self.context.project
         if not stage.ixconfig["volatile"]:
             apireturn(403, "project %r is on non-volatile index %s" %(
@@ -996,15 +994,14 @@ class PyPIView:
             abort(self.request, 404, e.msg)
         apireturn(200, "project %r version %r deleted" % (name, version))
 
-    @view_config(route_name="/{user}/{index}/+e/{relpath:.*}")
-    @view_config(route_name="/{user}/{index}/+f/{relpath:.*}")
-    def pkgserv(self):
-        request = self.request
-        relpath = request.path_info.strip("/")
+    def _relpath_from_request(self):
+        relpath = self.request.path_info.strip("/")
         if "#" in relpath:   # XXX unclear how this happens (did with bottle)
             relpath = relpath.split("#", 1)[0]
-        filestore = self.xom.filestore
-        entry = filestore.get_file_entry(relpath)
+        return relpath
+
+    def _pkgserv(self, entry):
+        request = self.request
         if entry is None:
             abort(request, 404, "no such file")
         elif not entry.meta:
@@ -1031,6 +1028,26 @@ class PyPIView:
             content = entry.file_get_content()
             return Response(body=content, headers=headers)
 
+    @view_config(route_name="/{user}/{index}/+e/{relpath:.*}")
+    def mirror_pkgserv(self):
+        relpath = self._relpath_from_request()
+        # when a release is deleted from a mirror, we update the metadata,
+        # hence the key won't exist anymore, but we don't delete the file.
+        # We want people to notice that condition by returning a 404, but
+        # they can still recover the deleted release from the filesystem
+        # manually in case they need it.
+        key = self.xom.filestore.get_key_from_relpath(relpath)
+        if not key.exists():
+            abort(self.request, 404, "no such file")
+        entry = self.xom.filestore.get_file_entry_from_key(key)
+        return self._pkgserv(entry)
+
+    @view_config(route_name="/{user}/{index}/+f/{relpath:.*}")
+    def stage_pkgserv(self):
+        relpath = self._relpath_from_request()
+        entry = self.xom.filestore.get_file_entry(relpath)
+        return self._pkgserv(entry)
+
     @view_config(route_name="/{user}/{index}/+e/{relpath:.*}",
                  permission="del_entry",
                  request_method="DELETE")
@@ -1039,8 +1056,6 @@ class PyPIView:
                  request_method="DELETE")
     def del_pkg(self):
         stage = self.context.stage
-        if stage.ixconfig["type"] == "mirror":
-            abort(self.request, 405, "cannot delete on mirror index")
         if not stage.ixconfig["volatile"]:
             abort(self.request, 403, "cannot delete version on non-volatile index")
         relpath = self.request.path_info.strip("/")

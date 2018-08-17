@@ -83,6 +83,10 @@ class UpstreamError(ModelException):
     """ If an upstream could not be reached or didn't respond correctly. """
 
 
+class UpstreamNotFoundError(UpstreamError):
+    """ If upstream returned a not found error. """
+
+
 class MissesRegistration(ModelException):
     """ A prior registration of release metadata is required. """
 
@@ -376,6 +380,7 @@ class BaseStage(object):
     InvalidUser = InvalidUser
     NotFound = NotFound
     UpstreamError = UpstreamError
+    UpstreamNotFoundError = UpstreamNotFoundError
     MissesRegistration = MissesRegistration
     MissesVersion = MissesVersion
     NonVolatile = NonVolatile
@@ -391,6 +396,14 @@ class BaseStage(object):
         self.keyfs = xom.keyfs
         self.filestore = xom.filestore
 
+    def delete(self):
+        with self.user.key.update() as userconfig:
+            indexes = userconfig.get("indexes", {})
+            if self.index not in indexes:
+                threadlog.info("index %s not exists" % self.index)
+                return False
+            del indexes[self.index]
+
     def key_projsimplelinks(self, project):
         return self.keyfs.PROJSIMPLELINKS(user=self.username,
             index=self.index, project=normalize_name(project))
@@ -398,8 +411,11 @@ class BaseStage(object):
     def get_releaselinks(self, project):
         # compatibility access method used by devpi-web and tests
         project = normalize_name(project)
-        return [self._make_elink(project, key, href)
-                for key, href in self.get_simplelinks(project)]
+        try:
+            return [self._make_elink(project, key, href)
+                    for key, href in self.get_simplelinks(project)]
+        except self.UpstreamNotFoundError:
+            return []
 
     def get_releaselinks_perstage(self, project):
         # compatibility access method for devpi-findlinks and possibly other plugins
@@ -478,12 +494,15 @@ class BaseStage(object):
         """
         all_links = []
         seen = set()
-        for stage, res in self.op_sro_check_mirror_whitelist(
-            "get_simplelinks_perstage", project=project):
-            for key, href in res:
-                if key not in seen:
-                    seen.add(key)
-                    all_links.append((key, href))
+        try:
+            for stage, res in self.op_sro_check_mirror_whitelist(
+                "get_simplelinks_perstage", project=project):
+                for key, href in res:
+                    if key not in seen:
+                        seen.add(key)
+                        all_links.append((key, href))
+        except self.UpstreamNotFoundError:
+            return []
         if sorted_links:
            all_links = [(v.key, v.href)
                         for v in sorted(map(SimplelinkMeta, all_links), reverse=True)]
@@ -543,7 +562,7 @@ class BaseStage(object):
                 res = getattr(stage, opname)(**kw)
                 private_hit = private_hit or res
                 yield stage, res
-            except UpstreamError as exc:
+            except self.UpstreamError as exc:
                 # If we are currently checking ourself raise the error, it is fatal
                 if stage is self:
                     raise
@@ -630,13 +649,7 @@ class PrivateStage(BaseStage):
         # delete all projects on this index
         for name in self.list_projects_perstage():
             self.del_project(name)
-        with self.user.key.update() as userconfig:
-            indexes = userconfig.get("indexes", {})
-            if self.index not in indexes:
-                threadlog.info("index %s not exists" % self.index)
-                return False
-            del indexes[self.index]
-
+        BaseStage.delete(self)
 
     #
     # registering project and version metadata
@@ -679,6 +692,10 @@ class PrivateStage(BaseStage):
         if version not in versions:
             versions.add(version)
             self.key_projversions(project).set(versions)
+        self.add_project_name(project)
+
+    def add_project_name(self, project):
+        project = normalize_name(project)
         projects = self.key_projects.get(readonly=False)
         if project not in projects:
             projects.add(project)

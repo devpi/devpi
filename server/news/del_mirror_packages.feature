@@ -1,0 +1,1 @@
+Allow deletion of mirrored package releases.

@@ -1,0 +1,1 @@
+Better handling of 404s in mirror indexes. Every project not found would create an entry in the database which would grow it unnecessarily.
