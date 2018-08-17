@@ -583,30 +583,30 @@ class TestProjectNamesCache:
         s2.add(5)
         assert 5 in cache.get()
 
-    def test_is_fresh(self, cache, monkeypatch):
+    def test_is_expired(self, cache, monkeypatch):
         expiry_time = 100
         s = set([1,2,3])
         cache.set(s)
-        assert cache.is_fresh(expiry_time)
+        assert not cache.is_expired(expiry_time)
         t = time.time() + expiry_time + 1
         monkeypatch.setattr("time.time", lambda: t)
-        assert not cache.is_fresh(expiry_time)
+        assert cache.is_expired(expiry_time)
         assert cache.get() == s
 
 
 def test_ProjectUpdateCache(monkeypatch):
     x = ProjectUpdateCache()
     expiry_time = 30
-    assert not x.is_fresh("x", expiry_time)
+    assert x.is_expired("x", expiry_time)
     x.refresh("x")
-    assert x.is_fresh("x", expiry_time)
+    assert not x.is_expired("x", expiry_time)
     t = time.time() + 35
     monkeypatch.setattr("time.time", lambda: t)
-    assert not x.is_fresh("x", expiry_time)
+    assert x.is_expired("x", expiry_time)
     x.refresh("x")
-    assert x.is_fresh("x", expiry_time)
+    assert not x.is_expired("x", expiry_time)
     x.expire("x")
-    assert not x.is_fresh("x", expiry_time)
+    assert x.is_expired("x", expiry_time)
 
     x.refresh("y")
     assert x.get_timestamp("y") == t

@@ -169,7 +169,7 @@ class PyPIStage(BaseStage):
     def del_project(self, project):
         if not self.is_project_cached(project):
             raise KeyError("project not found")
-        (is_fresh, links, cache_serial) = self._load_cache_links(project)
+        (is_expired, links, cache_serial) = self._load_cache_links(project)
         if links is not None:
             entries = (self._entry_from_href(x[1]) for x in links)
             entries = (x for x in entries if x.file_exists())
@@ -188,7 +188,7 @@ class PyPIStage(BaseStage):
         if not entry.file_exists():
             raise self.NotFound("entry has no file data %r" % entry)
         entry.delete()
-        (is_fresh, links, cache_serial) = self._load_cache_links(project)
+        (is_expired, links, cache_serial) = self._load_cache_links(project)
         if links is not None:
             links = ensure_deeply_readonly(
                 list(filter(self._is_file_cached, links)))
@@ -251,7 +251,7 @@ class PyPIStage(BaseStage):
         if self.offline:
             threadlog.warn("offline mode: using stale projects list")
             return self.key_projects.get()
-        if self.cache_projectnames.is_fresh(self.cache_expiry):
+        if not self.cache_projectnames.is_expired(self.cache_expiry):
             projects = self.cache_projectnames.get()
         else:
             # no fresh projects or None at all, let's go remote
@@ -299,16 +299,16 @@ class PyPIStage(BaseStage):
         self.cache_link_updates.refresh(project)
 
     def _load_cache_links(self, project):
-        is_fresh, links, serial = False, None, -1
+        is_expired, links, serial = True, None, -1
 
         cache = self.key_projsimplelinks(project).get()
         if cache:
-            is_fresh = self.cache_link_updates.is_fresh(project, self.cache_expiry)
+            is_expired = self.cache_link_updates.is_expired(project, self.cache_expiry)
             links, serial = cache["links"], cache["serial"]
             if self.offline and links:
                 links = ensure_deeply_readonly(list(filter(self._is_file_cached, links)))
 
-        return is_fresh, links, serial
+        return is_expired, links, serial
 
     def _entry_from_href(self, href):
         # extract relpath from href by cutting of the hash
@@ -335,8 +335,8 @@ class PyPIStage(BaseStage):
         exist.
         """
         project = normalize_name(project)
-        is_fresh, links, cache_serial = self._load_cache_links(project)
-        if is_fresh or self.offline:
+        is_expired, links, cache_serial = self._load_cache_links(project)
+        if (not is_expired) or self.offline:
             if self.offline and links is None:
                 links = ()
             return links
@@ -449,7 +449,7 @@ class PyPIStage(BaseStage):
                             devpi_serial)
             # XXX raise TransactionRestart to get a consistent clean view
             self.keyfs.restart_read_transaction()
-            is_fresh, links, cache_serial = self._load_cache_links(project)
+            is_expired, links, cache_serial = self._load_cache_links(project)
             if links is not None:
                 self.cache_link_updates.refresh(project)
                 return links
@@ -498,8 +498,8 @@ class ProjectNamesCache:
     def exists(self):
         return self._timestamp != -1
 
-    def is_fresh(self, expiry_time):
-        return (time.time() - self._timestamp) < expiry_time
+    def is_expired(self, expiry_time):
+        return (time.time() - self._timestamp) >= expiry_time
 
     def get(self):
         """ Get a copy of the cached data. """
@@ -521,12 +521,11 @@ class ProjectUpdateCache:
     def __init__(self):
         self._project2time = {}
 
-    def is_fresh(self, project, expiry_time):
+    def is_expired(self, project, expiry_time):
         t = self._project2time.get(project)
         if t is not None:
-            if (time.time() - t) < expiry_time:
-                return True
-        return False
+            return (time.time() - t) >= expiry_time
+        return True
 
     def get_timestamp(self, project):
         return self._project2time.get(project, 0)
