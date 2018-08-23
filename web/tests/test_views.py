@@ -345,7 +345,7 @@ def test_version_view(mapp, testapp, monkeypatch):
 
 
 @pytest.mark.with_notifier
-def test_version_projectname_redirect(mapp, testapp):
+def test_version_projectname(mapp, testapp):
     api = mapp.create_and_use()
     mapp.set_versiondata({
         "name": "pkg_hello", "version": "1.0", "description": "foo"})
