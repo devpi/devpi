@@ -649,10 +649,13 @@ def list_(parser):
     """
     parser.add_argument("-f", "--failures", action="store_true",
         dest="failures",
-        help="show test setup/failure logs")
+        help="show test setup/failure logs (implies -t)")
 
     parser.add_argument("--all", action="store_true",
         help="show all versions instead of just the newest")
+
+    parser.add_argument("-t", "--toxresults", action="store_true",
+        help="show toxresults for the releases")
 
     parser.add_argument("--index", default=None,
         help="index to look at (defaults to current index)")

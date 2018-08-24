@@ -42,6 +42,8 @@ def test_out_project(loghub, input, output, monkeypatch):
                 ))
     loghub.args.status = False
     loghub.args.all = True
+    loghub.args.failures = None
+    loghub.args.toxresults = None
     monkeypatch.setattr(list_remove, "show_test_status", lambda *args: None)
     class reply:
         url = ""
