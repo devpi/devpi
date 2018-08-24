@@ -2,7 +2,6 @@ from __future__ import unicode_literals
 from chameleon.config import AUTO_RELOAD
 from devpi_common.metadata import get_latest_version
 from devpi_web import hookspecs
-from devpi_web.description import render_description
 from devpi_web.doczip import unpack_docs, remove_docs
 from devpi_web.indexing import iter_projects, preprocess_project
 from devpi_web.whoosh_index import Index
@@ -312,7 +311,6 @@ def devpiserver_on_changed_versiondata(stage, project, version, metadata):
                     project, version))
                 metadata = stage.get_versiondata(project, version)
     if metadata:
-        render_description(stage, metadata)
         index_project(stage, metadata['name'])
 
 

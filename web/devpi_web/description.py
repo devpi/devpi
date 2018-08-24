@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 from devpi_common.validation import normalize_name
-from devpi_server.log import threadlog
 import io
 import py
 import readme_renderer.rst
@@ -27,19 +26,16 @@ def get_description(stage, name, version):
         return html.div(
             "please refer to description on remote server ",
             html.a(link, href=link)).unicode(indent=2)
-    desc_file = get_description_file(stage, name, version)
-    if not desc_file.exists():
-        verdata = stage.get_versiondata(name, version)
-        return '<p class="infonote">The description hasn\'t been rendered yet.</p>\n<pre>%s</pre>' % verdata.get('description', '')
-    return py.builtin._totext(desc_file.read(mode='rb'), "utf-8")
-
-
-def render_description(stage, metadata):
+    metadata = stage.get_versiondata(name, version)
     desc = metadata.get("description")
-    name = metadata.get("name")
-    version = metadata.get("version")
-    if stage is None or desc is None or name is None or version is None:
-        return
+    if desc is None:
+        html = '<p>No description in metadata</p>'
+    else:
+        html = render_description(stage, desc)
+    return py.builtin._totext(html, "utf-8")
+
+
+def render_description(stage, desc):
     warnings = io.StringIO()
     html = readme_renderer.rst.render(desc, stream=warnings)
     warnings = warnings.getvalue()
@@ -49,7 +45,4 @@ def render_description(stage, metadata):
         html = readme_renderer.txt.render(desc)
     if py.builtin._istext(html):
         html = html.encode("utf8")
-    desc_file = get_description_file(stage, name, version)
-    desc_file.dirpath().ensure_dir()
-    desc_file.write(html, mode='wb')
-    threadlog.debug("wrote description file: %s", desc_file)
+    return html
