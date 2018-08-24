@@ -34,7 +34,6 @@ def preprocess_project(stage, name_input):
             result.update(verdata)
         links = stage.get_linkstore_perstage(name, version).get_links(rel="doczip")
         if links:
-            # we assume it has been unpacked
             result['doc_version'] = version
             result['+doczip'] = Docs(stage, name, version)
             break

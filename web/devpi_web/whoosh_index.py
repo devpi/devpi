@@ -281,7 +281,7 @@ class Index(object):
                 if '+doczip' not in project:
                     continue
                 if not project['+doczip'].exists():
-                    log.debug("documentation not unpacked for %s", data['path'])
+                    log.error("documentation zip file is missing %s", data['path'])
                     continue
                 for page in project['+doczip'].values():
                     if page is None:

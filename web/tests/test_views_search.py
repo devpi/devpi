@@ -52,38 +52,6 @@ def test_search_docs(mapp, testapp):
 
 
 @pytest.mark.with_notifier
-def test_search_deleted_docs(mapp, testapp):
-    from devpi_web.doczip import get_unpack_path
-    api = mapp.create_and_use()
-    mapp.set_versiondata({
-        "name": "pkg1",
-        "version": "2.6",
-        "description": "foo"}, waithooks=True)
-    mapp.upload_file_pypi(
-        "pkg1-2.6.tar.gz", b"content", "pkg1", "2.6")
-    content = zip_dict(
-        {"index.html": "\n".join([
-            "<html>",
-            "<head><title>Foo</title></head>",
-            "<body>Bar</body>",
-            "</html>"])})
-    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
-                    waithooks=True)
-    with mapp.xom.keyfs.transaction():
-        stage = mapp.xom.model.getstage(api.stagename)
-        path = get_unpack_path(stage, "pkg1", "2.6")
-        path.remove()
-    r = testapp.get('/+search?query=bar')
-    assert r.status_code == 200
-    highlights = r.html.select('.packageinfo dd')
-    text = [compareable_text(h.text) for h in highlights]
-    assert len(text) == 1
-    assert text[0].startswith(
-        "Couldn't access documentation files for pkg1 "
-        "version 2.6 on %s." % api.stagename)
-
-
-@pytest.mark.with_notifier
 def test_search_deleted_stage(mapp, testapp):
     api = mapp.create_and_use()
     mapp.set_versiondata({
