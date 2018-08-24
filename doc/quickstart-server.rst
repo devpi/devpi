@@ -62,6 +62,23 @@ For example:
 .. _`appdirs`: https://pypi.org/project/appdirs/
 
 
+Using environment variables for devpi-server configuration
+----------------------------------------------------------
+
+Environment variables can now be used for configuration.
+
+The command line option name needs to be changed to uppercase, prefixed with DEVPISERVER_ and dashes replaced by underscores.
+For example ``--restrict-modify`` becomes ``DEVPISERVER_RESTRICT_MODIFY``.
+
+
+Priority of configuration options
+---------------------------------
+
+Values from configuration files have the lowest priority.
+Next are the environment variables.
+The command line options have the highest priority and overwrite all of the above.
+
+
 generating example config files for supervisor/nginx/cron/launchd
 -----------------------------------------------------------------
 
