@@ -1,0 +1,1 @@
+Add possibility for plugins to implement search backends as replacement for the default whoosh based backend.

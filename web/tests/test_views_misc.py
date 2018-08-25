@@ -187,7 +187,7 @@ class TestStatusView:
         from devpi_web.main import get_pluginmanager
         dummyrequest.registry = pyramidconfig.registry
         dummyrequest.registry['devpi_version_info'] = []
-        pm = get_pluginmanager(load_entry_points=False)
+        pm = get_pluginmanager(xom.config, load_entry_points=False)
         pm.register(plugin)
         dummyrequest.registry['devpiweb-pluginmanager'] = pm
         dummyrequest.registry['xom'] = xom

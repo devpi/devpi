@@ -24,7 +24,7 @@ setup(
     description="devpi-web: a web view for devpi-server",
     long_description="\n\n".join([README, CHANGELOG]),
     url="http://doc.devpi.net",
-    version='3.3.1.dev0',
+    version='3.4.0.dev0',
     maintainer="Holger Krekel, Florian Schulze",
     maintainer_email="holger@merlinux.eu",
     license="MIT",
@@ -42,7 +42,10 @@ setup(
             for x in "2.7 3.4 3.5 3.6".split()],
     entry_points={
         'devpi_server': [
-            "devpi-web = devpi_web.main"]},
+            "devpi-web = devpi_web.main"],
+        'devpi_web': [
+            "devpi-web-null = devpi_web.null_index",
+            "devpi-web-whoosh = devpi_web.whoosh_index"]},
     install_requires=[
         'Whoosh<3',
         'beautifulsoup4>=4.3.2',
