@@ -2,6 +2,8 @@ from devpi_server.config import MyArgumentParser, parseoptions, get_pluginmanage
 from devpi_server.config import hookimpl
 from devpi_server.main import Fatal
 import pytest
+import textwrap
+
 
 def make_config(args):
     return parseoptions(get_pluginmanager(), args)
@@ -18,16 +20,19 @@ class TestParser:
     def test_addoption_default_added_to_help(self):
         parser = MyArgumentParser()
         opt = parser.addoption("--hello", type=str, help="x", default="world")
+        parser.post_process_actions()
         assert "[world]" in opt.help
 
     def test_addoption_getdefault(self):
         def getter(name):
             return dict(hello="world2")[name]
-        parser = MyArgumentParser(defaultget=getter)
+        parser = MyArgumentParser()
         opt = parser.addoption("--hello", default="world", type=str, help="x")
+        parser.post_process_actions(defaultget=getter)
         assert opt.default == "world2"
         assert "[world2]" in opt.help
         opt = parser.addoption("--hello2", default="world", type=str, help="x")
+        parser.post_process_actions(defaultget=getter)
         assert opt.default == "world"
         assert "[world]" in opt.help
 
@@ -35,6 +40,7 @@ class TestParser:
         parser = MyArgumentParser()
         group = parser.addgroup("hello")
         opt = group.addoption("--hello", default="world", type=str, help="x")
+        parser.post_process_actions()
         assert opt.default == "world"
         assert "[world]" in opt.help
 
@@ -52,7 +58,7 @@ class TestConfig:
         config = make_config(["devpi-server", "--secretfile=%s" % p])
         assert config.secretfile == str(p)
         assert config.secret == secret
-        config = make_config(["devpi-server", "--serverdir", tmpdir])
+        config = make_config(["devpi-server", "--serverdir", tmpdir.strpath])
         assert config.secretfile == tmpdir.join(".secret")
         config.secretfile.write(secret)
         assert config.secret == config.secretfile.read()
@@ -70,6 +76,11 @@ class TestConfig:
 
     def test_devpi_serverdir_env(self, tmpdir, monkeypatch):
         monkeypatch.setenv("DEVPI_SERVERDIR", tmpdir)
+        config = make_config(["devpi-server"])
+        assert config.serverdir == tmpdir
+
+    def test_devpiserver_serverdir_env(self, tmpdir, monkeypatch):
+        monkeypatch.setenv("DEVPISERVER_SERVERDIR", tmpdir)
         config = make_config(["devpi-server"])
         assert config.serverdir == tmpdir
 
@@ -214,3 +225,57 @@ class TestConfig:
         plugin = Plugin()
         makexom(plugins=(plugin,), opts=options)
         assert plugin.settings == {"bar": "ham"}
+
+
+class TestConfigFile:
+    @pytest.fixture(params=(True, False))
+    def make_yaml_config(self, request, tmpdir):
+        def make_yaml_config(content):
+            yaml = tmpdir.join('devpi.yaml')
+            if request.param is True:
+                content = "---\n" + content
+            yaml.write(content)
+            return yaml.strpath
+
+        return make_yaml_config
+
+    @pytest.fixture
+    def load_yaml_config(self, make_yaml_config):
+        from devpi_server.config import load_config_file
+
+        def load_yaml_config(content):
+            return load_config_file(make_yaml_config(content))
+
+        return load_yaml_config
+
+    def test_empty(self, load_yaml_config):
+        assert load_yaml_config("") == {}
+
+    def test_no_server_section(self, load_yaml_config):
+        assert load_yaml_config("devpi-ldap:") == {}
+
+    def test_invalid(self, load_yaml_config):
+        from devpi_server.config import InvalidConfigError
+        with pytest.raises(InvalidConfigError):
+            assert load_yaml_config("- foo") == {}
+        with pytest.raises(InvalidConfigError):
+            assert load_yaml_config("devpi-server:\n  - foo") == {}
+
+    def test_empty_key(self, load_yaml_config):
+        assert load_yaml_config("devpi-server:") == {}
+
+    def test_port(self, make_yaml_config):
+        yaml_path = make_yaml_config(textwrap.dedent("""\
+            devpi-server:
+              port: 3142"""))
+        config = make_config(["devpi-server", "-c", yaml_path])
+        assert config.args.port == 3142
+
+    def test_invalid_port(self, capsys, make_yaml_config):
+        yaml_path = make_yaml_config(textwrap.dedent("""\
+            devpi-server:
+              port: foo"""))
+        with pytest.raises(SystemExit):
+            make_config(["devpi-server", "-c", yaml_path])
+        (out, err) = capsys.readouterr()
+        assert "argument --port: invalid int value: 'foo'" in err

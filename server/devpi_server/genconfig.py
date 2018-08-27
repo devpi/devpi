@@ -7,7 +7,7 @@ from collections import OrderedDict
 from devpi_common.url import URL
 
 from devpi_server.config import (
-    render, parseoptions, get_default_serverdir, get_pluginmanager
+    render, parseoptions, get_pluginmanager
 )
 
 try:
@@ -24,30 +24,30 @@ except ImportError:
         from plistlib import writePlistToString as write_plist_to_bytes
 
 
-def gen_supervisor(tw, config, writer):
+def gen_supervisor(tw, config, argv, writer):
     import getpass
     devpibin = py.path.local(sys.argv[0])
     assert devpibin.exists()
     content = render(
             tw, "supervisord.conf",
-            server_args=subprocess.list2cmdline(config.args._raw),
+            server_args=subprocess.list2cmdline(argv),
             user=getpass.getuser(),
             devpibin=devpibin,
     )
     writer("supervisor-devpi.conf", content)
 
 
-def gen_cron(tw, config, writer):
+def gen_cron(tw, config, argv, writer):
     devpibin = py.path.local(sys.argv[0])
     newcrontab = "@reboot %s --start %s\n" % (
            devpibin,
-           subprocess.list2cmdline(config.args._raw))
+           subprocess.list2cmdline(argv))
 
     writer("crontab", newcrontab)
     return
 
 
-def gen_nginx(tw, config, writer):
+def gen_nginx(tw, config, argv, writer):
     outside_url = config.args.outside_url
     if outside_url is None: # default
         outside_url = "http://localhost:80"
@@ -66,28 +66,26 @@ def gen_nginx(tw, config, writer):
     writer("nginx-devpi.conf", nginxconf)
 
 
-def gen_launchd(tw, config, writer):
+def gen_launchd(tw, config, argv, writer):
     devpibin = py.path.local(sys.argv[0])
     plist_content = write_plist_to_bytes(OrderedDict([
         ("Label", "net.devpi"),
-        ("ProgramArguments", [str(devpibin)] + config.args._raw),
+        ("ProgramArguments", [str(devpibin)] + argv),
         ("RunAtLoad", True),
     ]))
     writer("net.devpi.plist", plist_content)
 
 
-def gen_systemd(tw, config, writer):
+def gen_systemd(tw, config, argv, writer):
     import getpass
     devpibin = py.path.local(sys.argv[0])
     assert devpibin.exists()
     serverdir = config.args.serverdir
-    if serverdir is None:
-        serverdir = get_default_serverdir()
     pid_file = os.path.join(os.path.expanduser(serverdir),
                             '.xproc/devpi-server/xprocess.PID')
     content = render(
         tw, "devpi.service",
-        server_args=subprocess.list2cmdline(config.args._raw),
+        server_args=subprocess.list2cmdline(argv),
         pid_file=pid_file,
         user=getpass.getuser(),
         devpibin=devpibin,
@@ -95,21 +93,18 @@ def gen_systemd(tw, config, writer):
     writer("devpi.service", content)
 
 
-def reparse_without_genconfig(config):
-    new_args = [x for x in config.args._raw if x != "--gen-config"]
-    return parseoptions(get_pluginmanager(), ["devpi-server"] + new_args)
-
-def genconfig(config):
+def genconfig(config, argv):
     tw = py.io.TerminalWriter()
     tw.cwd = py.path.local()
 
     destdir = tw.cwd.ensure("gen-config", dir=1)
 
-    new_config =  reparse_without_genconfig(config)
+    new_argv = [x for x in argv if x != "--gen-config"]
+    new_args = parseoptions(get_pluginmanager(), ["devpi-server"] + new_argv)
     for cfg_type in ["supervisor", "nginx", "cron", "launchd", "systemd"]:
         def writer(basename, content):
             p = destdir.join(basename)
             p.write(content)
             tw.line("wrote %s" % p.relto(tw.cwd), bold=True)
         name = "gen_" + cfg_type
-        globals()[name](tw, new_config, writer)
+        globals()[name](tw, new_args, new_argv, writer)

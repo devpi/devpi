@@ -1,0 +1,1 @@
+fix #502: add support for YAML config files.

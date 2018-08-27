@@ -76,7 +76,7 @@ def _main(pluginmanager, argv=None):
 
     if args.genconfig:
         from devpi_server.genconfig import genconfig
-        return genconfig(config)
+        return genconfig(config, argv[1:])
 
     configure_logging(config.args)
 
@@ -102,7 +102,7 @@ def _main(pluginmanager, argv=None):
         tw = py.io.TerminalWriter()
         bgserver = BackgroundServer(tw, xprocdir)
         if args.start:
-            return bgserver.start(args)
+            return bgserver.start(args, argv[1:])
         elif args.stop:
             return bgserver.stop()
         elif args.log:

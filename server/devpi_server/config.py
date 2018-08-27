@@ -3,12 +3,15 @@ import base64
 import os.path
 import argparse
 import stat
+import sys
 import uuid
 from operator import itemgetter
 
 from pluggy import HookimplMarker, PluginManager
 import py
 from devpi_common.types import cached_property
+from distutils.util import strtobool
+from functools import partial
 from .log import threadlog
 from . import hookspecs
 import json
@@ -33,11 +36,15 @@ def get_pluginmanager(load_entrypoints=True):
     return pm
 
 
-def get_default_serverdir():
-    return os.environ.get("DEVPI_SERVERDIR", "~/.devpi/server")
-
-
 def addoptions(parser, pluginmanager):
+    parser.addoption(
+        "-h", "--help",
+        action='store_true', default='==SUPPRESS==',
+        help="Show this help message and exit.")
+    parser.addoption(
+        "-c", "--configfile",
+        type=str, default=None,
+        help="Config file to use.")
     web = parser.addgroup("web serving options")
     web.addoption("--host",  type=str,
             default="localhost",
@@ -150,10 +157,8 @@ def addoptions(parser, pluginmanager):
             help="set password for user USER (interactive)")
 
     deploy.addoption("--serverdir", type=str, metavar="DIR", action="store",
-            default=None,
-            help="directory for server data.  By default, "
-                 "$DEVPI_SERVERDIR is used if it exists, "
-                 "otherwise the default is '~/.devpi/server'")
+            default='~/.devpi/server',
+            help="directory for server data.")
 
     deploy.addoption("--init", action="store_true",
             help="initialize devpi-server state in an empty directory "
@@ -227,10 +232,7 @@ def addoptions(parser, pluginmanager):
             help="show status of background devpi-server")
     bg.addoption("--log", action="store_true",
             help="show logfile content of background server")
-    #group.addoption("--pidfile", action="store",
-    #        help="set pid file location")
-    #group.addoption("--logfile", action="store",
-    #        help="set log file file location")
+
 
 def try_argcomplete(parser):
     try:
@@ -240,52 +242,157 @@ def try_argcomplete(parser):
     else:
         argcomplete.autocomplete(parser)
 
-def parseoptions(pluginmanager, argv, addoptions=addoptions):
+
+def get_parser(pluginmanager):
     parser = MyArgumentParser(
         description="Start a server which serves multiple users and "
                     "indices. The special root/pypi index is a cached "
                     "mirror of pypi.org and is created by default. "
                     "All indices are suitable for pip or easy_install usage "
-                    "and setup.py upload ... invocations."
-    )
+                    "and setup.py upload ... invocations.",
+        add_help=False)
     addoptions(parser, pluginmanager)
     pluginmanager.hook.devpiserver_add_parser_options(parser=parser)
+    return parser
 
+
+def find_config_file():
+    import appdirs
+    config_dirs = appdirs.site_config_dir(
+        'devpi-server', 'devpi', multipath=True)
+    config_dirs = config_dirs.split(os.pathsep)
+    config_dirs.append(
+        appdirs.user_config_dir('devpi-server', 'devpi'))
+    config_files = []
+    for config_dir in config_dirs:
+        config_file = os.path.join(config_dir, 'devpi-server.yml')
+        if os.path.exists(config_file):
+            config_files.append(config_file)
+    if len(config_files) > 1:
+        log.warn("Multiple configuration files found:\n%s", "\n".join(config_files))
+    if len(config_files):
+        return config_files[-1]
+
+
+class InvalidConfigError(ValueError):
+    pass
+
+
+def load_config_file(config_file):
+    import strictyaml
+    if not config_file:
+        return {}
+    with open(config_file, 'rb') as f:
+        content = f.read().decode('utf-8')
+        config = strictyaml.load(content)
+        if config.is_scalar():
+            return {}
+        elif config.is_sequence():
+            raise InvalidConfigError(
+                "The config file must be a mapping, not a sequence.")
+        if 'devpi-server' not in config:
+            return {}
+        config = config['devpi-server']
+        if config.is_scalar():
+            return {}
+        elif config.is_sequence():
+            raise InvalidConfigError(
+                "The 'devpi-server' section must be a mapping, not a sequence.")
+        return config.data
+
+
+def default_getter(name, config_options, environ):
+    if name == "serverdir":
+        if "DEVPI_SERVERDIR" in environ:
+            log.warn(
+                "Using deprecated DEVPI_SERVERDIR environment variable. "
+                "You should switch to use DEVPISERVER_SERVERDIR.")
+            return environ["DEVPI_SERVERDIR"]
+    envname = "DEVPISERVER_%s" % name.replace('-', '_').upper()
+    if envname in environ:
+        value = environ[envname]
+        if value:
+            return value
+    return config_options[name]
+
+
+def parseoptions(pluginmanager, argv):
+    parser = get_parser(pluginmanager)
     try_argcomplete(parser)
-    raw = [str(x) for x in argv[1:]]
-    args = parser.parse_args(raw)
-    args._raw = raw
+    args = parser.parse_args(argv[1:])
+    config_file = None
+    if args.configfile:
+        config_file = args.configfile
+    else:
+        config_file = find_config_file()
+    try:
+        config_options = load_config_file(config_file)
+    except InvalidConfigError as e:
+        log.error("Error in config file '%s':\n  %s" % (
+            config_file, e))
+        sys.exit(4)
+    defaultget = partial(
+        default_getter,
+        config_options=config_options,
+        environ=os.environ)
+    parser.post_process_actions(defaultget=defaultget)
+    args = parser.parse_args(argv[1:])
+    if args.help is True:
+        parser.print_help()
+        parser.exit()
     config = Config(args, pluginmanager=pluginmanager)
     return config
 
+
+def get_action_long_name(action):
+    """ extract long name of action
+
+        Looks for the first option string that is long enough and
+        starts with two ``prefix_chars``.
+        For example ``--no-events`` would return ``no-events``.
+    """
+    for option_string in action.option_strings:
+        if not len(option_string) > 2:
+            continue
+        if option_string[0] not in action.container.prefix_chars:
+            continue
+        if option_string[1] not in action.container.prefix_chars:
+            continue
+        return option_string[2:]
+
+
 class MyArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args, **kwargs):
-        if "defaultget" in kwargs:
-            self._defaultget = kwargs.pop("defaultget")
-        else:
-            self._defaultget = {}.__getitem__
+        self.addoption = self.add_argument
         super(MyArgumentParser, self).__init__(*args, **kwargs)
 
-    def addoption(self, *args, **kwargs):
-        opt = super(MyArgumentParser, self).add_argument(*args, **kwargs)
-        self._processopt(opt)
-        return opt
+    def post_process_actions(self, defaultget=None):
+        """ update default values for actions
 
-    def _processopt(self, opt):
-        try:
-            opt.default = self._defaultget(opt.dest)
-        except KeyError:
-            pass
-        if opt.help and opt.default:
-            opt.help += " [%s]" % opt.default
+            The passed in defaultget function is used with the long name
+            of the action to look up the default value. This is used to
+            get the current value if a global or user config file is loaded.
+        """
+        for action in self._actions:
+            if defaultget is not None:
+                try:
+                    action.default = defaultget(get_action_long_name(action))
+                except KeyError:
+                    pass
+                else:
+                    if isinstance(action, argparse._StoreTrueAction):
+                        action.default = bool(strtobool(action.default))
+                    elif isinstance(action, argparse._StoreFalseAction):
+                        action.default = not bool(strtobool(action.default))
+            default = action.default
+            if isinstance(action, argparse._StoreFalseAction):
+                default = not default
+            if action.help and action.default != '==SUPPRESS==':
+                action.help += " [%s]" % default
 
     def addgroup(self, *args, **kwargs):
         grp = super(MyArgumentParser, self).add_argument_group(*args, **kwargs)
-        def group_addoption(*args2, **kwargs2):
-            opt = grp.add_argument(*args2, **kwargs2)
-            self._processopt(opt)
-            return opt
-        grp.addoption = group_addoption
+        grp.addoption = grp.add_argument
         return grp
 
 
@@ -298,10 +405,7 @@ class Config:
         self.args = args
         self.pluginmanager = pluginmanager
         self.hook = pluginmanager.hook
-        serverdir = args.serverdir
-        if serverdir is None:
-            serverdir = get_default_serverdir()
-        self.serverdir = py.path.local(os.path.expanduser(serverdir))
+        self.serverdir = py.path.local(os.path.expanduser(self.args.serverdir))
 
         if args.secretfile == "{serverdir}/.secret":
             self.secretfile = self.serverdir.join(".secret")

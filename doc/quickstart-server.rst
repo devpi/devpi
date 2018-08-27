@@ -38,6 +38,47 @@ And let's check the version::
 
 .. _genconfig:
 
+
+Using a configuration file for devpi-server
+-------------------------------------------
+
+A `strict YAML`_ conform configuration file can be used in place of the command line options.
+
+The configuration file will be looked for in your systems and your users default configuration location using the `appdirs`_ library.
+
+With the `-c/--configfile` option the location can be provided explicitly.
+
+The configuration file must start with a mapping and all devpi-server settings must be placed below the `devpi-server` key.
+For example:
+
+.. code-block:: yaml
+
+    devpi-server:
+      serverdir: /var/db/devpi-server
+      host: localhost
+      port: 8080
+
+.. _`strict YAML`: https://pypi.org/project/strictyaml/
+.. _`appdirs`: https://pypi.org/project/appdirs/
+
+
+Using environment variables for devpi-server configuration
+----------------------------------------------------------
+
+Environment variables can now be used for configuration.
+
+The command line option name needs to be changed to uppercase, prefixed with DEVPISERVER_ and dashes replaced by underscores.
+For example ``--restrict-modify`` becomes ``DEVPISERVER_RESTRICT_MODIFY``.
+
+
+Priority of configuration options
+---------------------------------
+
+Values from configuration files have the lowest priority.
+Next are the environment variables.
+The command line options have the highest priority and overwrite all of the above.
+
+
 generating example config files for supervisor/nginx/cron/launchd
 -----------------------------------------------------------------
 

@@ -7,7 +7,7 @@ export PATH=$LOC/bin:$PATH
 
 pip install devpi-server==1.0 devpi-client==1.0
 
-export DEVPI_SERVERDIR=$LOC/data
+export DEVPISERVER_SERVERDIR=$LOC/data
 
 devpi-server --start --port 3999  || exit 1
 
@@ -28,7 +28,7 @@ pip install -U 'devpi-server>=1.1.dev2'
 
 devpi-server --export $LOC/export
 
-export DEVPI_SERVERDIR=$LOC/data2
+export DEVPISERVER_SERVERDIR=$LOC/data2
 devpi-server --import $LOC/export
 
 devpi-server --start --port 3999  || exit 1
