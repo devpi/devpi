@@ -19,7 +19,8 @@ def main(hub, args):
 
     current = hub.require_valid_current_with_index()
     if not args.index and not current.pypisubmit:
-        hub.fatal("no pypisubmit endpoint available for: %s" % current.index)
+        hub.fatal("The current index %s does not support upload."
+            "\nMost likely, it is a mirror." % current.index)
 
     if args.path:
         return main_fromfiles(hub, args)

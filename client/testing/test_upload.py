@@ -326,7 +326,8 @@ class TestUploadFunctional:
         out = out_devpi("use", "root/pypi")
         out.stdout.fnmatch_lines_random("current devpi index*/root/pypi*")
         out = out_devpi("upload", "--dry-run")
-        out.stdout.fnmatch_lines_random("no pypisubmit endpoint available for*")
+        out.stdout.fnmatch_lines_random("*does not support upload.")
+        out.stdout.fnmatch_lines_random("*it is a mirror.")
 
         # --index option
         out = out_devpi("upload", "--index", "%s/dev" % user, "--dry-run")
