@@ -1661,12 +1661,10 @@ def test_delete_from_mirror(mapp, pypistage, testapp):
         assert get_pypi_project_names(testapp) == set([name])
         assert not getentry(testapp, path).file_exists()
     assert '/+e/' in link
-    mapp.delete_project("pytest/2.6", code=405)
     mapp.delete_project("pytest", code=403)
     # make non volatile
     res = mapp.getjson("/root/pypi")["result"]
     mapp.modify_index("root/pypi", indexconfig=dict(res, volatile=True))
-    mapp.delete_project("pytest/2.6", code=405)
     mapp.delete_project("pytest", code=200)
     r = testapp.get(link)
     with testapp.xom.keyfs.transaction():
@@ -1679,7 +1677,6 @@ def test_delete_from_mirror(mapp, pypistage, testapp):
         for x in getlinks(r.text))
     assert '2.5' in other_link
     assert '2.6' in link
-    mapp.delete_project("pytest/2.6", code=405)
     mapp.delete_project("pytest", code=200)
     with testapp.xom.keyfs.transaction():
         assert get_pypi_project_names(testapp) == set()
@@ -1687,6 +1684,71 @@ def test_delete_from_mirror(mapp, pypistage, testapp):
         key = testapp.xom.filestore.get_key_from_relpath(path.strip("/"))
         assert not key.exists()
         assert not getentry(testapp, other_path).file_exists()
+
+
+def test_delete_version_from_mirror(mapp, pypistage, testapp):
+    mapp.login_root()
+    mapp.use("root/pypi")
+    name = "pytest"
+    mirrorpath25 = "/%s-2.5.zip" % name
+    mirrorpath26 = "/%s-2.6.zip" % name
+    pypistage.mock_simple(name, text='<a href="%s"/>\n<a href="%s"/>' % (mirrorpath25, mirrorpath26))
+    pypistage.mock_extfile(mirrorpath25, b"123")
+    pypistage.mock_extfile(mirrorpath26, b"456")
+    # now we have pytest-2.5 and pytest-2.6 releases mocked
+    # get the links to extract the paths
+    r = testapp.get('/root/pypi/+simple/%s' % name)
+    (link25, link26) = sorted(
+        x.get('href').replace('../../', '/root/pypi/')
+        for x in getlinks(r.text))
+    path25 = link25[1:]
+    path26 = link26[1:]
+    assert '2.5' in path25
+    assert '2.6' in path26
+    # download pytest-2.5
+    r = testapp.get(link25)
+    with testapp.xom.keyfs.transaction():
+        assert not getentry(testapp, path26).file_exists()
+        assert getentry(testapp, path25).file_exists()
+    assert '/+e/' in link26
+    # test that the delete fails, since the index is not volatile by default
+    mapp.delete_project("pytest/2.6", code=403)
+    # make volatile
+    res = mapp.getjson("/root/pypi")["result"]
+    mapp.modify_index("root/pypi", indexconfig=dict(res, volatile=True))
+    # check that deleting the not yet downloaded 2.6 doesn't cause an error
+    # and also doesn't change anything in the db
+    mapp.delete_project("pytest/2.6", code=200)
+    with testapp.xom.keyfs.transaction():
+        assert not getentry(testapp, path26).file_exists()
+        assert getentry(testapp, path25).file_exists()
+    # now download pytest-2.6
+    r = testapp.get(link26)
+    with testapp.xom.keyfs.transaction():
+        assert getentry(testapp, path26).file_exists()
+        assert getentry(testapp, path25).file_exists()
+    # update links after download by explicitly expiring the cache
+    pypistage.cache_retrieve_times.expire("pytest")
+    r = testapp.get('/root/pypi/+simple/%s' % name)
+    (link25, link26) = sorted(
+        x.get('href').replace('../../', '/root/pypi/')
+        for x in getlinks(r.text))
+    assert '2.5' in link25
+    assert '2.6' in link26
+    # delete again, now pytest-2.6 should be removed, but pytest-2.5
+    # should still be there
+    mapp.delete_project("pytest/2.6", code=200)
+    with testapp.xom.keyfs.transaction():
+        assert not getentry(testapp, path26).file_exists()
+        # only the file is deleted, the key for it still exists
+        key = testapp.xom.filestore.get_key_from_relpath(path26.strip("/"))
+        assert key.exists()
+        assert getentry(testapp, path25).file_exists()
+    # make sure download still works after deletion
+    r = testapp.xget(200, link26)
+    with testapp.xom.keyfs.transaction():
+        assert getentry(testapp, path26).file_exists()
+        assert getentry(testapp, path25).file_exists()
 
 
 def test_delete_volatile_fails(mapp):
