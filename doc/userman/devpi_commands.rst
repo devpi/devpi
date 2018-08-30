@@ -5,9 +5,10 @@ devpi command reference (client)
 
 .. include:: ../links.rst
 
-.. sidebar:: Summary
+Summary
+-------
 
-      Complete devpi command reference.
+Complete devpi command reference.
 
 .. _cmdref_getjson:
 

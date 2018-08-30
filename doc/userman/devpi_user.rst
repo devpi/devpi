@@ -5,14 +5,18 @@ Authentication and User management
 
 .. include:: ../links.rst
 
-.. sidebar:: Summary
+Summary
+-------
 
-    This section shows how to register a user of a `devpi`_ server and login
-    
-    *related commands*:
-      * :ref:`cmdref_use`
-      * :ref:`cmdref_user` 
-      * :ref:`cmdref_login`
+This section shows how to register a user of a `devpi`_ server and login
+
+*related commands*:
+  * :ref:`cmdref_use`
+  * :ref:`cmdref_user` 
+  * :ref:`cmdref_login`
+
+Overview
+--------
 
 In order to access a devpi server, a user must authenticate against it. 
 

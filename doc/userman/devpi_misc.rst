@@ -5,9 +5,10 @@ Miscellaneous
 
 .. include:: ../links.rst
 
-.. sidebar:: Summary
+Summary
+-------
 
-    Placeholder for miscellaneous information such a debugging techniques, tricks, and perhaps FAQ.
+Placeholder for miscellaneous information such a debugging techniques, tricks, and perhaps FAQ.
 
 .. _`jenkins integration`:
 
