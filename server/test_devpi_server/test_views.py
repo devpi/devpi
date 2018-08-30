@@ -37,6 +37,10 @@ def getfirstlink(text):
     return getlinks(text)[0]
 
 
+def getentry(testapp, path):
+    return testapp.xom.filestore.get_file_entry(path.strip("/"))
+
+
 def hash_spec_matches(hash_spec, content):
     hash_type, hash_value = hash_spec.split("=")
     digest = getattr(hashlib, hash_type)(content).hexdigest()
@@ -861,8 +865,7 @@ class TestSubmitValidation:
         for path in paths:
             testapp.xget(200, path)
             with testapp.xom.keyfs.transaction():
-                entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
-                assert entry.file_exists()
+                assert getentry(testapp, path).file_exists()
         # try a slightly different path and see if it fails
         testapp.xget(404, path[:-2])
 
@@ -870,8 +873,7 @@ class TestSubmitValidation:
         for path in paths:
             testapp.xget(410, path)
             with testapp.xom.keyfs.transaction():
-                entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
-                assert not entry.file_exists()
+                assert not getentry(testapp, path).file_exists()
 
     def test_delete_verdata_noacl_issue179(self, submit, testapp, mapp):
         metadata = {"name": "pkg5", "version": "2.6", ":action": "submit"}
@@ -1600,15 +1602,13 @@ def test_delete_mirror(mapp, simpypi, testapp, xom):
     with testapp.xom.keyfs.transaction():
         stage = testapp.xom.model.getstage(api.stagename)
         assert stage.key_projects.get() == set([name])
-        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
-        assert entry.file_exists()
+        assert getentry(testapp, path).file_exists()
     # remove
     mapp.delete_index(api.stagename)
     with testapp.xom.keyfs.transaction():
         stage = testapp.xom.model.getstage(api.stagename)
         assert stage is None
-        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
-        assert not entry.file_exists()
+        assert not getentry(testapp, path).file_exists()
         key = testapp.xom.filestore.get_key_from_relpath(path.strip("/"))
         assert not key.exists()
 
@@ -1631,8 +1631,7 @@ def test_delete_mirror(mapp, simpypi, testapp, xom):
     with testapp.xom.keyfs.transaction():
         stage = testapp.xom.model.getstage(api.stagename)
         assert stage.key_projects.get() == set()
-        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
-        assert not entry.file_exists()
+        assert not getentry(testapp, path).file_exists()
         key = testapp.xom.filestore.get_key_from_relpath(path.strip("/"))
         assert not key.exists()
 
@@ -1657,8 +1656,7 @@ def test_delete_from_mirror(mapp, pypistage, testapp):
     with testapp.xom.keyfs.transaction():
         stage = testapp.xom.model.getstage('root/pypi')
         assert stage.key_projects.get() == set([name])
-        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
-        assert not entry.file_exists()
+        assert not getentry(testapp, path).file_exists()
     assert '/+e/' in link
     mapp.delete_project("pytest/2.6", code=405)
     mapp.delete_project("pytest", code=403)
@@ -1671,10 +1669,8 @@ def test_delete_from_mirror(mapp, pypistage, testapp):
     with testapp.xom.keyfs.transaction():
         stage = testapp.xom.model.getstage('root/pypi')
         assert stage.key_projects.get() == set([name])
-        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
-        assert entry.file_exists()
-        other_entry = testapp.xom.filestore.get_file_entry(other_path.strip("/"))
-        assert not other_entry.file_exists()
+        assert getentry(testapp, path).file_exists()
+        assert not getentry(testapp, other_path).file_exists()
     r = testapp.get('/root/pypi/+simple/%s' % name)
     (other_link, link) = sorted(
         x.get('href').replace('../../', '/root/pypi/')
@@ -1686,12 +1682,10 @@ def test_delete_from_mirror(mapp, pypistage, testapp):
     with testapp.xom.keyfs.transaction():
         stage = testapp.xom.model.getstage('root/pypi')
         assert stage.key_projects.get() == set()
-        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
-        assert not entry.file_exists()
+        assert not getentry(testapp, path).file_exists()
         key = testapp.xom.filestore.get_key_from_relpath(path.strip("/"))
         assert not key.exists()
-        other_entry = testapp.xom.filestore.get_file_entry(other_path.strip("/"))
-        assert not other_entry.file_exists()
+        assert not getentry(testapp, other_path).file_exists()
 
 
 def test_delete_volatile_fails(mapp):
@@ -1732,8 +1726,7 @@ def test_delete_package(mapp, testapp):
     (link,) = vv.get_links()
     (path,) = mapp.get_release_paths("pkg5")
     with testapp.xom.keyfs.transaction():
-        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
-        assert entry.file_exists()
+        assert getentry(testapp, path).file_exists()
     mapp.upload_file_pypi("pkg5-2.6.zip", b"456", "pkg5", "2.6")
     vv = get_view_version_links(testapp, "/root/test", "pkg5", "2.6")
     assert len(vv.get_links()) == 2
@@ -1741,8 +1734,7 @@ def test_delete_package(mapp, testapp):
     testapp.delete(link.href)
     testapp.xget(410, link.href)
     with testapp.xom.keyfs.transaction():
-        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
-        assert not entry.file_exists()
+        assert not getentry(testapp, path).file_exists()
     vv = get_view_version_links(testapp, "/root/test", "pkg5", "2.6")
     # the zip file should still be there
     (link,) = vv.get_links()
@@ -1762,14 +1754,12 @@ def test_delete_package_with_doczip(mapp, testapp):
     (link,) = vv.get_links(rel="releasefile")
     (path,) = mapp.get_release_paths("pkg5")
     with testapp.xom.keyfs.transaction():
-        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
-        assert entry.file_exists()
+        assert getentry(testapp, path).file_exists()
     # now delete the zip link from above
     testapp.delete(link.href)
     testapp.xget(410, link.href)
     with testapp.xom.keyfs.transaction():
-        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
-        assert not entry.file_exists()
+        assert not getentry(testapp, path).file_exists()
     vv = get_view_version_links(testapp, "/root/test", "pkg5", "2.6")
     # the doczip should still be there
     (link,) = vv.get_links()
@@ -1790,14 +1780,12 @@ def test_delete_doczip(mapp, testapp):
     (link,) = vv.get_links(rel="doczip")
     path = URL(link.href).path
     with testapp.xom.keyfs.transaction():
-        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
-        assert entry.file_exists()
+        assert getentry(testapp, path).file_exists()
     # delet the doczip
     testapp.delete(link.href)
     testapp.xget(410, link.href)
     with testapp.xom.keyfs.transaction():
-        entry = testapp.xom.filestore.get_file_entry(path.strip("/"))
-        assert not entry.file_exists()
+        assert not getentry(testapp, path).file_exists()
     vv = get_view_version_links(testapp, "/root/test", "pkg5", "2.6")
     # the package zip should still be there
     (link,) = vv.get_links()
@@ -1844,12 +1832,9 @@ def test_delete_package_from_mirror(mapp, pypistage, testapp):
     with testapp.xom.keyfs.transaction():
         stage = testapp.xom.model.getstage('root/pypi')
         assert stage.key_projects.get() == set([name, other_name])
-        entry1 = testapp.xom.filestore.get_file_entry(path1.strip("/"))
-        assert not entry1.file_exists()
-        entry2 = testapp.xom.filestore.get_file_entry(path2.strip("/"))
-        assert not entry2.file_exists()
-        other_entry = testapp.xom.filestore.get_file_entry(other_path.strip("/"))
-        assert other_entry.file_exists()
+        assert not getentry(testapp, path1).file_exists()
+        assert not getentry(testapp, path2).file_exists()
+        assert getentry(testapp, other_path).file_exists()
     assert '/+e/' in link1
     testapp.xdel(403, link1)
     # make non volatile
@@ -1861,12 +1846,9 @@ def test_delete_package_from_mirror(mapp, pypistage, testapp):
     with testapp.xom.keyfs.transaction():
         stage = testapp.xom.model.getstage('root/pypi')
         assert stage.key_projects.get() == set([name, other_name])
-        entry1 = testapp.xom.filestore.get_file_entry(path1.strip("/"))
-        assert entry1.file_exists()
-        entry2 = testapp.xom.filestore.get_file_entry(path2.strip("/"))
-        assert entry2.file_exists()
-        other_entry = testapp.xom.filestore.get_file_entry(other_path.strip("/"))
-        assert other_entry.file_exists()
+        assert getentry(testapp, path1).file_exists()
+        assert getentry(testapp, path2).file_exists()
+        assert getentry(testapp, other_path).file_exists()
     r = testapp.get('/root/pypi/+simple/%s' % name)
     (link1, link2) = sorted(
         x.get('href').replace('../../', '/root/pypi/')
@@ -1877,22 +1859,16 @@ def test_delete_package_from_mirror(mapp, pypistage, testapp):
     with testapp.xom.keyfs.transaction():
         stage = testapp.xom.model.getstage('root/pypi')
         assert stage.key_projects.get() == set([name, other_name])
-        entry1 = testapp.xom.filestore.get_file_entry(path1.strip("/"))
-        assert not entry1.file_exists()
-        entry2 = testapp.xom.filestore.get_file_entry(path2.strip("/"))
-        assert entry2.file_exists()
-        other_entry = testapp.xom.filestore.get_file_entry(other_path.strip("/"))
-        assert other_entry.file_exists()
+        assert not getentry(testapp, path1).file_exists()
+        assert getentry(testapp, path2).file_exists()
+        assert getentry(testapp, other_path).file_exists()
     testapp.xdel(200, link2)
     with testapp.xom.keyfs.transaction():
         stage = testapp.xom.model.getstage('root/pypi')
         assert stage.key_projects.get() == set([other_name])
-        entry1 = testapp.xom.filestore.get_file_entry(path1.strip("/"))
-        assert not entry1.file_exists()
-        entry2 = testapp.xom.filestore.get_file_entry(path2.strip("/"))
-        assert not entry2.file_exists()
-        other_entry = testapp.xom.filestore.get_file_entry(other_path.strip("/"))
-        assert other_entry.file_exists()
+        assert not getentry(testapp, path1).file_exists()
+        assert not getentry(testapp, path2).file_exists()
+        assert getentry(testapp, other_path).file_exists()
 
 
 def test_delete_package_volatile_fails(mapp, testapp):
