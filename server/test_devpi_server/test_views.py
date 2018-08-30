@@ -1867,6 +1867,26 @@ def test_delete_non_existing_package(mapp, testapp):
     testapp.xdel(404, link.href.replace('tgz', 'foo'))
 
 
+def test_delete_package_where_file_was_deleted(mapp, testapp):
+    # see issue 445 where someone removed a file and couldn't easily recover
+    # by deleting the whole release
+    mapp.login_root()
+    mapp.create_index("test")
+    api = mapp.use("root/test")
+    mapp.upload_file_pypi("pkg5-2.6.tgz", b"123", "pkg5", "2.6")
+    vv = get_view_version_links(testapp, "/root/test", "pkg5", "2.6")
+    (link,) = vv.get_links()
+    path = link.href.replace(api.index, '/' + api.stagename)
+    with testapp.xom.keyfs.transaction(write=True):
+        # simulate removal of the file from file system outside of devpi
+        getentry(testapp, path).file_delete()
+    # delete the whole release
+    testapp.xdel(200, api.index + "/pkg5/2.6")
+    # check that there are no more releases listed
+    r = testapp.get(api.index + '/+simple/%s' % "pkg5")
+    assert len(getlinks(r.text)) == 0
+
+
 def test_delete_package_from_mirror(mapp, pypistage, testapp):
     mapp.login_root()
     mapp.use("root/pypi")

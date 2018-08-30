@@ -1,0 +1,1 @@
+Allow deleting releases even if the file was removed from the filesystem outside of devpi.

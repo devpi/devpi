@@ -141,7 +141,6 @@ class FSWriter:
         if cls is None:
             for path, content in self.conn.dirty_files.items():
                 if content is None:
-                    assert os.path.exists(path)
                     pending_renames.append((None, path))
                 else:
                     tmppath = path + "-tmp"
