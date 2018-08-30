@@ -1,4 +1,5 @@
 from devpi_common.metadata import parse_requirement
+from devpi.list_remove import get_versions_to_delete
 from devpi.list_remove import confirm_delete
 from devpi.list_remove import out_index
 from devpi.list_remove import out_project
@@ -70,7 +71,8 @@ def test_confirm_delete(loghub, monkeypatch):
                 "1.1": linkver("root/dev", "x-1.1.tar.gz")}
         type = "projectconfig"
     req = parse_requirement("x>=1.1")
-    assert confirm_delete(loghub, loghub.current.get_index_url(), r, req)
+    ver_to_delete = get_versions_to_delete(loghub.current.get_index_url(), r, req)
+    assert confirm_delete(loghub, ver_to_delete)
     m = loghub._getmatcher()
     m.fnmatch_lines("""
         *x-1.1.tar.gz*
