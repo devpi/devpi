@@ -97,6 +97,7 @@ class Connection(BaseConnection):
         q = "INSERT OR REPLACE INTO files (path, size, data) VALUES (?, ?, ?)"
         c.execute(q, (path, len(content), sqlite3.Binary(content)))
         c.close()
+        self.dirty_files[path] = content
 
     def io_file_open(self, path):
         return py.io.BytesIO(self.io_file_get(path))
@@ -128,6 +129,7 @@ class Connection(BaseConnection):
         q = "DELETE FROM files WHERE path = ?"
         c.execute(q, (path,))
         c.close()
+        self.dirty_files[path] = None
 
     def write_transaction(self):
         return Writer(self.storage, self)
