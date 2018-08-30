@@ -511,18 +511,18 @@ def add_subparsers(parser):
 
 def getbaseparser(prog):
     parser = MyArgumentParser(prog=prog, description=main_description)
+    if sys.version_info < (3,):
+        # workaround old argparse which doesn't support optional sub commands
+        parser.add_argument("--version", action="version",
+            version="devpi-client %s" % client_version)
+    else:
+        parser.add_argument("--version", action="store_true",
+            help="show program's version number and exit")
     add_generic_options(parser, defaults=True)
     return parser
 
 def add_generic_options(parser, defaults=False):
     group = parser.add_argument_group("generic options")
-    if sys.version_info < (3,):
-        # workaround old argparse which doesn't support optional sub commands
-        group.add_argument("--version", action="version",
-            version="devpi-client %s" % client_version)
-    else:
-        group.add_argument("--version", action="store_true",
-            help="show program's version number and exit")
     group.add_argument("--debug", action="store_true",
         help="show debug messages including more info on server requests")
     group.add_argument("-y", action="store_true", dest="yes",
