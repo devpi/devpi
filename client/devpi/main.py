@@ -5,6 +5,7 @@ import py
 import argparse
 import shlex
 import subprocess
+import textwrap
 from base64 import b64encode
 from contextlib import closing
 from devpi import hookspecs
@@ -667,19 +668,29 @@ def list_(parser):
 
 @subcommand("devpi.list_remove:main_remove")
 def remove(parser):
-    """ remove project info/files from current index.
+    """\
+    removes project info/files from current index.
 
-    This command allows to remove projects or releases from your
-    current index (see "devpi use").  It will ask interactively
-    for confirmation before performing the actual removals.
+    This command allows to remove projects or releases from your current index
+    (see "devpi use").
+    It will ask interactively for confirmation before performing the actual removals.
     """
     parser.add_argument("--index", default=None,
         help="index to remove from (defaults to current index)")
     parser.add_argument("spec_or_url",
-        help="remove info/files for a project/version/release file from the "
-             "current index. If the spec starts with 'http://' or 'https://',"
-             "it is considered as a request to delete a single file."
-             "Example specs: 'pytest' or 'pytest>=2.3.5'")
+        help="""\
+        describes project/version/release file(s) to release from the current index. 
+        If the spec starts with 'http://' or 'https://',
+        it is considered as a request to delete a single file.""")
+    parser.formatter_class = argparse.RawDescriptionHelpFormatter
+    parser.description = textwrap.dedent(remove.__doc__)
+    parser.epilog = textwrap.dedent("""\
+        examples:
+          devpi remove pytest
+
+          devpi remove pytest>=2.3.5
+
+          devpi remove https://mydevpi.org/dev/+f/1cf/3d6eaa6cbc5fa/pytest-1.0.zip""")
 
 @subcommand("devpi.user")
 def user(parser):
