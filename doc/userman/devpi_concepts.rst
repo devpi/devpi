@@ -5,9 +5,10 @@ Concepts
 
 .. include:: ../links.rst
 
-.. sidebar:: Summary
+Summary
+-------
 
-      Overview of the main `devpi`_ design goals and concepts.     
+Overview of the main `devpi`_ design goals and concepts.
 
 Goals
 -----

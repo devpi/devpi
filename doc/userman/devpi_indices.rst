@@ -5,13 +5,14 @@ Creating, configuring and using indices
 
 .. include:: ../links.rst
 
-.. sidebar:: Summary
-    
-    This chapter covers index manipulation such as creation, deletion
-    and use.
-    
-    :Pre-requisite: You must have logged in to a devpi server 
-                    (see :ref:`devpi_um_authentication_chapter` for details)
+Summary
+-------
+
+This chapter covers index manipulation such as creation, deletion
+and use.
+
+:Pre-requisite: You must have logged in to a devpi server 
+                (see :ref:`devpi_um_authentication_chapter` for details)
 
 .. _devpi_um_indices_use_section:
 

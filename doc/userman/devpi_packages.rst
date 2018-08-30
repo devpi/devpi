@@ -5,16 +5,17 @@ Uploading, testing and pushing packages
 
 .. include:: ../links.rst
 
-.. sidebar:: Summary
-    
-    This chapter ilustrates how to :term:`upload`, test and :term:`push` a package 
-    between indexes or to an external index server such as https://pypi.org.
+Summary
+-------
 
-    *related commands*:
-      * :ref:`cmdref_upload`
-      * :ref:`cmdref_push` 
-      * :ref:`cmdref_test`
-      * :ref:`cmdref_install`
+This chapter ilustrates how to :term:`upload`, test and :term:`push` a package 
+between indexes or to an external index server such as https://pypi.org.
+
+*related commands*:
+  * :ref:`cmdref_upload`
+  * :ref:`cmdref_push` 
+  * :ref:`cmdref_test`
+  * :ref:`cmdref_install`
 
 Overview
 --------
