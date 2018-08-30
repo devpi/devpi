@@ -41,6 +41,10 @@ def getentry(testapp, path):
     return testapp.xom.filestore.get_file_entry(path.strip("/"))
 
 
+def get_pypi_project_names(testapp):
+    return testapp.xom.model.getstage('root/pypi').key_projects.get()
+
+
 def hash_spec_matches(hash_spec, content):
     hash_type, hash_value = hash_spec.split("=")
     digest = getattr(hashlib, hash_type)(content).hexdigest()
@@ -1654,8 +1658,7 @@ def test_delete_from_mirror(mapp, pypistage, testapp):
     assert '2.5' in other_path
     assert '2.6' in path
     with testapp.xom.keyfs.transaction():
-        stage = testapp.xom.model.getstage('root/pypi')
-        assert stage.key_projects.get() == set([name])
+        assert get_pypi_project_names(testapp) == set([name])
         assert not getentry(testapp, path).file_exists()
     assert '/+e/' in link
     mapp.delete_project("pytest/2.6", code=405)
@@ -1667,8 +1670,7 @@ def test_delete_from_mirror(mapp, pypistage, testapp):
     mapp.delete_project("pytest", code=200)
     r = testapp.get(link)
     with testapp.xom.keyfs.transaction():
-        stage = testapp.xom.model.getstage('root/pypi')
-        assert stage.key_projects.get() == set([name])
+        assert get_pypi_project_names(testapp) == set([name])
         assert getentry(testapp, path).file_exists()
         assert not getentry(testapp, other_path).file_exists()
     r = testapp.get('/root/pypi/+simple/%s' % name)
@@ -1680,8 +1682,7 @@ def test_delete_from_mirror(mapp, pypistage, testapp):
     mapp.delete_project("pytest/2.6", code=405)
     mapp.delete_project("pytest", code=200)
     with testapp.xom.keyfs.transaction():
-        stage = testapp.xom.model.getstage('root/pypi')
-        assert stage.key_projects.get() == set()
+        assert get_pypi_project_names(testapp) == set()
         assert not getentry(testapp, path).file_exists()
         key = testapp.xom.filestore.get_key_from_relpath(path.strip("/"))
         assert not key.exists()
@@ -1830,8 +1831,7 @@ def test_delete_package_from_mirror(mapp, pypistage, testapp):
     path1 = link1[1:]
     path2 = link2[1:]
     with testapp.xom.keyfs.transaction():
-        stage = testapp.xom.model.getstage('root/pypi')
-        assert stage.key_projects.get() == set([name, other_name])
+        assert get_pypi_project_names(testapp) == set([name, other_name])
         assert not getentry(testapp, path1).file_exists()
         assert not getentry(testapp, path2).file_exists()
         assert getentry(testapp, other_path).file_exists()
@@ -1844,8 +1844,7 @@ def test_delete_package_from_mirror(mapp, pypistage, testapp):
     testapp.get(link1)
     testapp.get(link2)
     with testapp.xom.keyfs.transaction():
-        stage = testapp.xom.model.getstage('root/pypi')
-        assert stage.key_projects.get() == set([name, other_name])
+        assert get_pypi_project_names(testapp) == set([name, other_name])
         assert getentry(testapp, path1).file_exists()
         assert getentry(testapp, path2).file_exists()
         assert getentry(testapp, other_path).file_exists()
@@ -1857,15 +1856,13 @@ def test_delete_package_from_mirror(mapp, pypistage, testapp):
     path2 = link2[1:]
     testapp.xdel(200, link1)
     with testapp.xom.keyfs.transaction():
-        stage = testapp.xom.model.getstage('root/pypi')
-        assert stage.key_projects.get() == set([name, other_name])
+        assert get_pypi_project_names(testapp) == set([name, other_name])
         assert not getentry(testapp, path1).file_exists()
         assert getentry(testapp, path2).file_exists()
         assert getentry(testapp, other_path).file_exists()
     testapp.xdel(200, link2)
     with testapp.xom.keyfs.transaction():
-        stage = testapp.xom.model.getstage('root/pypi')
-        assert stage.key_projects.get() == set([other_name])
+        assert get_pypi_project_names(testapp) == set([other_name])
         assert not getentry(testapp, path1).file_exists()
         assert not getentry(testapp, path2).file_exists()
         assert getentry(testapp, other_path).file_exists()
