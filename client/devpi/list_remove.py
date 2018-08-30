@@ -122,7 +122,16 @@ def main_list(hub, args):
 def main_remove(hub, args):
     hub.require_valid_current_with_index()
     args = hub.args
-    req = parse_requirement(args.spec)
+    spec_or_url = args.spec_or_url
+    if spec_or_url.startswith(('http://', 'https://')):
+        # delete specified file
+        url = spec_or_url
+        if confirm_delete_file(hub, url):
+            hub.http_api("delete", url)
+        return
+
+    # else delete project, release or distribution
+    req = parse_requirement(args.spec_or_url)
     if args.index and args.index.count("/") > 1:
         hub.fatal("index %r not of form USER/NAME or NAME" % args.index)
     index_url = hub.current.get_index_url(indexname=args.index)
@@ -140,6 +149,12 @@ def main_remove(hub, args):
             hub.http_api("delete", proj_url.addpath(ver))
     else:
         hub.error("not deleting anything")
+
+
+def confirm_delete_file(hub, url):
+    hub.info("About to remove the following file:")
+    hub.info(url)
+    return hub.ask_confirm("Are you sure")
 
 
 def get_versions_to_delete(index_url, response, requirement):

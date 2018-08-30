@@ -124,6 +124,30 @@ class TestListRemove:
         out = out_devpi("list", "-v")
         assert len([x for x in out.stdout.lines if x.strip()]) == 0
 
+    def test_remove_file(self, initproj, devpi, out_devpi, url_of_liveserver):
+        initproj("hello-1.0", {"doc": {
+            "conf.py": "",
+            "index.html": "<html/>"}})
+        assert py.path.local("setup.py").check()
+        devpi("upload", "--formats", "sdist.zip")
+        devpi("upload", "--formats", "sdist.zip,bdist_dumb")
+        initproj("hello-1.1", {"doc": {
+            "conf.py": "",
+            "index.html": "<html/>"}})
+        devpi("upload", "--formats", "sdist.zip")
+        out = out_devpi("list", "hello")
+        out.stdout.fnmatch_lines_random("""
+            */hello-1.1.zip
+            */hello-1.0*
+            */hello-1.1.zip""")
+        url = out.stdout.lines[0]
+        out = out_devpi("remove", "-y", url, code=200)
+        out.stdout.fnmatch_lines_random("""
+           *About to remove the following file:
+           """ + url)
+        out = out_devpi("list", "hello")
+        assert url not in out.stdout.str()
+
     def test_all_index_option(self, initproj, devpi, out_devpi):
         import re
         initproj("hello-1.0", {"doc": {

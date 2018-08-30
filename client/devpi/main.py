@@ -675,9 +675,10 @@ def remove(parser):
     """
     parser.add_argument("--index", default=None,
         help="index to remove from (defaults to current index)")
-    parser.add_argument("spec",
+    parser.add_argument("spec_or_url",
         help="remove info/files for a project/version/release file from the "
-             "current index. "
+             "current index. If the spec starts with 'http://' or 'https://',"
+             "it is considered as a request to delete a single file."
              "Example specs: 'pytest' or 'pytest>=2.3.5'")
 
 @subcommand("devpi.user")
