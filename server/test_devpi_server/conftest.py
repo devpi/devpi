@@ -396,7 +396,7 @@ def add_pypistage_mocks(monkeypatch, httpget):
                    "content-type": mimetypes.guess_type(path),
                    "last-modified": "today",}
         url = URL(self.mirror_url).joinpath(path)
-        return self.httpget.mockresponse(url.url, raw=py.io.BytesIO(content),
+        return self.httpget.mockresponse(url.url, content=content,
                                          headers=headers, **kw)
     monkeypatch.setattr(PyPIStage, "mock_extfile", mock_extfile, raising=False)
 

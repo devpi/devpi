@@ -181,6 +181,21 @@ class PyPIStage(BaseStage):
             self.cache_retrieve_times.expire(project)
             self.key_projects.set(projects)
 
+    def del_versiondata(self, project, version, cleanup=True):
+        project = normalize_name(project)
+        if not self.has_project_perstage(project):
+            raise self.NotFound("project %r not found on stage %r" %
+                                (project, self.name))
+        # since this is a mirror, we only have the simple links and no
+        # metadata, so only delete the files and keep the simple links
+        # for the possibility to re-download a release
+        (is_expired, links, cache_serial) = self._load_cache_links(project)
+        if links is not None:
+            entries = list(self._entry_from_href(x[1]) for x in links)
+            entries = list(x for x in entries if x.version == version and x.file_exists())
+            for entry in entries:
+                entry.file_delete()
+
     def del_entry(self, entry, cleanup=True):
         project = entry.project
         if project is None:
