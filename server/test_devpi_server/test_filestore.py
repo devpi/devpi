@@ -298,9 +298,11 @@ class TestFileStore:
         assert link.md5 in str(excinfo.value)
         assert not entry.file_exists()
 
+    @pytest.mark.notransaction
     def test_iterfile_eggfragment(self, filestore, httpget, gen):
         link = gen.pypi_package_link("master#egg=pytest-dev", md5=False)
-        entry = filestore.maplink(link, "root", "pypi", "pytest")
+        with filestore.keyfs.transaction(write=True):
+            entry = filestore.maplink(link, "root", "pypi", "pytest")
         assert entry.eggfragment
         assert entry.url
         headers={"content-length": "4",
@@ -311,11 +313,13 @@ class TestFileStore:
                              raw=BytesIO(b"1234"))
         for part in entry.iter_cache_remote_file():
             pass
-        assert entry.file_get_content() == b"1234"
+        with filestore.keyfs.transaction(write=False):
+            assert entry.file_get_content() == b"1234"
         httpget.mockresponse(entry.url, headers=headers, raw=BytesIO(b"3333"))
         for part in entry.iter_cache_remote_file():
             pass
-        assert entry.file_get_content() == b"3333"
+        with filestore.keyfs.transaction(write=False):
+            assert entry.file_get_content() == b"3333"
 
     def test_store_and_iter(self, filestore):
         content = b"hello"
