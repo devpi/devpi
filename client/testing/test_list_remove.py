@@ -1,9 +1,11 @@
 from devpi_common.metadata import parse_requirement
+from devpi_server import __version__ as devpi_server_version
 from devpi.list_remove import get_versions_to_delete
 from devpi.list_remove import confirm_delete
 from devpi.list_remove import out_index
 from devpi.list_remove import out_project
 from devpi.list_remove import show_commands
+from pkg_resources import parse_version
 import py
 import pytest
 
@@ -124,6 +126,9 @@ class TestListRemove:
         out = out_devpi("list", "-v")
         assert len([x for x in out.stdout.lines if x.strip()]) == 0
 
+    @pytest.mark.skipif(
+        parse_version(devpi_server_version) < parse_version("4.6.0"),
+        reason="devpi-server before 4.6.0 didn't support deleting single release files.")
     def test_remove_file(self, initproj, devpi, out_devpi, url_of_liveserver):
         initproj("hello-1.0", {"doc": {
             "conf.py": "",
