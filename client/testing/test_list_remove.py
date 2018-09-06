@@ -1,8 +1,11 @@
 from devpi_common.metadata import parse_requirement
+from devpi_server import __version__ as devpi_server_version
+from devpi.list_remove import get_versions_to_delete
 from devpi.list_remove import confirm_delete
 from devpi.list_remove import out_index
 from devpi.list_remove import out_project
 from devpi.list_remove import show_commands
+from pkg_resources import parse_version
 import py
 import pytest
 
@@ -70,7 +73,8 @@ def test_confirm_delete(loghub, monkeypatch):
                 "1.1": linkver("root/dev", "x-1.1.tar.gz")}
         type = "projectconfig"
     req = parse_requirement("x>=1.1")
-    assert confirm_delete(loghub, loghub.current.get_index_url(), r, req)
+    ver_to_delete = get_versions_to_delete(loghub.current.get_index_url(), r, req)
+    assert confirm_delete(loghub, ver_to_delete)
     m = loghub._getmatcher()
     m.fnmatch_lines("""
         *x-1.1.tar.gz*
@@ -121,6 +125,33 @@ class TestListRemove:
         assert len([x for x in out.stdout.lines if x.strip()]) == 0
         out = out_devpi("list", "-v")
         assert len([x for x in out.stdout.lines if x.strip()]) == 0
+
+    @pytest.mark.skipif(
+        parse_version(devpi_server_version) < parse_version("4.6.0"),
+        reason="devpi-server before 4.6.0 didn't support deleting single release files.")
+    def test_remove_file(self, initproj, devpi, out_devpi, url_of_liveserver):
+        initproj("hello-1.0", {"doc": {
+            "conf.py": "",
+            "index.html": "<html/>"}})
+        assert py.path.local("setup.py").check()
+        devpi("upload", "--formats", "sdist.zip")
+        devpi("upload", "--formats", "sdist.zip,bdist_dumb")
+        initproj("hello-1.1", {"doc": {
+            "conf.py": "",
+            "index.html": "<html/>"}})
+        devpi("upload", "--formats", "sdist.zip")
+        out = out_devpi("list", "hello")
+        out.stdout.fnmatch_lines_random("""
+            */hello-1.1.zip
+            */hello-1.0*
+            */hello-1.1.zip""")
+        url = out.stdout.lines[0]
+        out = out_devpi("remove", "-y", url, code=200)
+        out.stdout.fnmatch_lines_random("""
+           *About to remove the following file:
+           """ + url)
+        out = out_devpi("list", "hello")
+        assert url not in out.stdout.str()
 
     def test_all_index_option(self, initproj, devpi, out_devpi):
         import re

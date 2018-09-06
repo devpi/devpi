@@ -118,43 +118,64 @@ def main_list(hub, args):
         reply = hub.http_api("get", index, type="indexconfig")
         out_index(hub, reply.result["projects"])
 
+
 def main_remove(hub, args):
     hub.require_valid_current_with_index()
     args = hub.args
-    req = parse_requirement(args.spec)
+    spec_or_url = args.spec_or_url
+    if spec_or_url.startswith(('http://', 'https://')):
+        # delete specified file
+        url = spec_or_url
+        if confirm_delete_file(hub, url):
+            hub.http_api("delete", url)
+        return
+
+    # else delete project, release or distribution
+    req = parse_requirement(args.spec_or_url)
     if args.index and args.index.count("/") > 1:
         hub.fatal("index %r not of form USER/NAME or NAME" % args.index)
     index_url = hub.current.get_index_url(indexname=args.index)
     proj_url = hub.current.get_project_url(
         req.project_name, indexname=args.index)
     reply = hub.http_api("get", proj_url, type="projectconfig")
-    ver_to_delete = confirm_delete(hub, index_url, reply, req)
+    ver_to_delete = get_versions_to_delete(index_url, reply, req)
     if not ver_to_delete:
-        hub.error("not deleting anything")
+        hub.error(
+            "No releases or distributions found matching '%s'." % args.spec)
         return 1
-    else:
+    if confirm_delete(hub, ver_to_delete):
         for ver, links in ver_to_delete:
             hub.info("deleting release %s of %s" % (ver, req.project_name))
             hub.http_api("delete", proj_url.addpath(ver))
+    else:
+        hub.error("not deleting anything")
 
 
-def confirm_delete(hub, index_url, reply, req):
+def confirm_delete_file(hub, url):
+    hub.info("About to remove the following file:")
+    hub.info(url)
+    return hub.ask_confirm("Are you sure")
+
+
+def get_versions_to_delete(index_url, response, requirement):
     basepath = index_url.path.lstrip("/")
     ver_to_delete = []
-    for version, verdata in reply.result.items():
-        if version in req:
+    for version, verdata in response.result.items():
+        if version in requirement:
             vv = ViewLinkStore(basepath, verdata)
             files_to_delete = [link for link in vv.get_links()
                                if link.href.startswith(index_url.url)]
             ver_to_delete.append((version, files_to_delete))
-    if ver_to_delete:
-        hub.info("About to remove the following releases and distributions")
-        for ver, links in ver_to_delete:
-            hub.info("version: " + ver)
-            if links:
-                for link in links:
-                    hub.info("  - " + link.href)
-            else:
-                hub.info("  - No releases")
-        if hub.ask_confirm("Are you sure"):
-            return ver_to_delete
+    return ver_to_delete
+
+
+def confirm_delete(hub, ver_to_delete):
+    hub.info("About to remove the following releases and distributions")
+    for ver, links in ver_to_delete:
+        hub.info("version: " + ver)
+        if links:
+            for link in links:
+                hub.info("  - " + link.href)
+        else:
+            hub.info("  - No releases")
+    return hub.ask_confirm("Are you sure")
