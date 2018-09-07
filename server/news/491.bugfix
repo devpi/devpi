@@ -1,0 +1,1 @@
+fix #491: when a file was previously fetched in a mirror index, but is now missing and needs to be fetched again then skip writing an empty changeset with new serial.
