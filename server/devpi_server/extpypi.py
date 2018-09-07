@@ -333,25 +333,18 @@ class PyPIStage(BaseStage):
         self.cache_retrieve_times.refresh(project)
 
     def _load_cache_links(self, project):
-        is_expired, links, serial = True, None, -1
+        is_expired, links_with_require_python, serial = True, None, -1
 
         cache = self.key_projsimplelinks(project).get()
         if cache:
             is_expired = self.cache_retrieve_times.is_expired(project, self.cache_expiry)
-            links, serial = cache["links"], cache["serial"]
-            if self.offline and links:
-                links = ensure_deeply_readonly(list(filter(self._is_file_cached, links)))
+            serial = cache["serial"]
+            links_with_require_python = join_requires(
+                cache["links"], cache["requires_python"])
+            if self.offline and links_with_require_python:
+                links_with_require_python = ensure_deeply_readonly(list(
+                    filter(self._is_file_cached, links_with_require_python)))
 
-        if links is None:
-            links_with_require_python = None
-        else:
-            links_with_require_python = []
-            for link in links:
-                if len(link) == 2:
-                    key, href = link
-                    links_with_require_python.append((key, href, None))
-                else:
-                    links_with_require_python.append(link)
         return is_expired, links_with_require_python, serial
 
     def _entry_from_href(self, href):
