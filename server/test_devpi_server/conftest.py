@@ -21,6 +21,7 @@ from devpi_common.url import URL
 from devpi_server.extpypi import PyPIStage
 from devpi_server.log import threadlog, thread_clear_log
 from pyramid.authentication import b64encode
+from pyramid.compat import escape
 
 import hashlib
 try:
@@ -286,9 +287,13 @@ def makemapp(request, maketestapp, makexom):
 
 
 def make_simple_pkg_info(name, text="", pkgver=None, hash_type=None,
-                         pypiserial=None):
+                         pypiserial=None, requires_python=None):
     class ret:
         hash_spec = ""
+    if requires_python:
+        requires_python = ' data-requires-python="%s"' % escape(requires_python)
+    else:
+        requires_python = ''
     if pkgver is not None:
         assert not text
         if hash_type and "#" not in pkgver:
@@ -296,7 +301,8 @@ def make_simple_pkg_info(name, text="", pkgver=None, hash_type=None,
             hash_value = getattr(hashlib, hash_type)(hv).hexdigest()
             ret.hash_spec = "%s=%s" %(hash_type, hash_value)
             pkgver += "#" + ret.hash_spec
-        text = '<a href="../../{name}/{pkgver}">{pkgver}</a>'.format(name=name, pkgver=pkgver)
+        text = '<a href="../../{name}/{pkgver}"{requires_python}>{pkgver}</a>'.format(
+            name=name, pkgver=pkgver, requires_python=requires_python)
     elif text and "{md5}" in text:
         text = text.format(md5=getmd5(text))
     elif text and "{sha256}" in text:
@@ -338,10 +344,11 @@ def httpget(pypiurls):
             self.url2response[mockurl] = kw
 
         def mock_simple(self, name, text="", pkgver=None, hash_type=None,
-                        pypiserial=10000, remoteurl=None, **kw):
+                        pypiserial=10000, remoteurl=None, requires_python=None,
+                        **kw):
             ret, text = make_simple_pkg_info(
                 name, text=text, pkgver=pkgver, hash_type=hash_type,
-                pypiserial=pypiserial)
+                pypiserial=pypiserial, requires_python=requires_python)
             if remoteurl is None:
                 remoteurl = pypiurls.simple
             headers = kw.setdefault("headers", {})
@@ -1202,11 +1209,11 @@ class SimPyPI:
         self.projects.pop(name)
 
     def add_release(self, name, title=None, text="", pkgver=None, hash_type=None,
-                    pypiserial=None, **kw):
+                    pypiserial=None, requires_python=None, **kw):
         project = self.add_project(name, title=title)
         ret, text = make_simple_pkg_info(
             name, text=text, pkgver=pkgver, hash_type=hash_type,
-            pypiserial=pypiserial)
+            pypiserial=pypiserial, requires_python=requires_python)
         assert text
         project['releases'].add(text.encode('utf-8'))
 

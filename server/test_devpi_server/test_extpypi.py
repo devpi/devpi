@@ -8,6 +8,11 @@ from devpi_server.extpypi import ProjectNamesCache, ProjectUpdateCache
 from test_devpi_server.conftest import getmd5
 
 
+def getlinks(text):
+    from bs4 import BeautifulSoup
+    return BeautifulSoup(text, "html.parser").findAll("a")
+
+
 class TestIndexParsing:
     simplepy = URL("https://pypi.org/simple/py/")
 
@@ -137,6 +142,37 @@ class TestIndexParsing:
         assert len(result.releaselinks) == 1
         link, = result.releaselinks
         assert link.basename == "py-1.0-cp27-none-linux_x86_64.whl"
+
+    def test_parse_index_with_requires_python(self):
+        result = parse_index(self.simplepy,
+            """<a href="pkg/py-1.0.zip" data-requires-python="&lt;3" />
+        """)
+        assert len(result.releaselinks) == 1
+        link, = result.releaselinks
+        assert link.basename == "py-1.0.zip"
+        assert link.requires_python == "<3"
+
+    def test_parse_index_with_requires_python_hash_spec_is_better(self):
+        result = parse_index(self.simplepy,
+            """<a href="pkg/py-1.0.zip" data-requires-python="&lt;3" />
+               <a href="pkg/py-1.0.zip#md5=pony"/>
+        """)
+        assert len(result.releaselinks) == 1
+        link, = result.releaselinks
+        assert link.basename == "py-1.0.zip"
+        assert link.hash_spec == "md5=pony"
+        assert link.requires_python is None
+
+    def test_parse_index_with_requires_python_first_with_hash_spec_kept(self):
+        result = parse_index(self.simplepy,
+            """<a href="pkg/py-1.0.zip#md5=pony"/>
+               <a href="pkg/py-1.0.zip#md5=pony" data-requires-python="&lt;3" />
+        """)
+        assert len(result.releaselinks) == 1
+        link, = result.releaselinks
+        assert link.basename == "py-1.0.zip"
+        assert link.hash_spec == "md5=pony"
+        assert link.requires_python is None
 
     @pytest.mark.parametrize("basename", [
         "py-1.3.1.tar.gz",
@@ -454,6 +490,40 @@ class TestExtPYPIDB:
         assert not pypistage.has_project_perstage("foo")
         pypistage.mock_simple("foo", text='<a href="foo-1.0.tar.gz"</a>')
         assert pypistage.has_project_perstage("foo")
+
+    def test_requires_python_caching(self, pypistage):
+        pypistage.mock_simple("foo", text='<a href="foo-1.0.tar.gz" data-requires-python="&lt;3"></a>')
+        (link,) = pypistage.get_releaselinks("foo")
+        assert link.require_python == '<3'
+        # make sure we get the cached data, if not throw an error
+        pypistage.httpget = None
+        (link,) = pypistage.get_releaselinks("foo")
+        assert link.require_python == '<3'
+
+    @pytest.mark.nomocking
+    @pytest.mark.notransaction
+    def test_offline_requires_python(self, mapp, simpypi, testapp, xom):
+        mapp.login('root')
+        mapp.modify_index("root/pypi", indexconfig=dict(type='mirror', mirror_url=simpypi.simpleurl))
+        # turn off offline mode for preparations
+        xom.config.args.offline_mode = False
+        content = b'13'
+        simpypi.add_release('pkg', pkgver='pkg-0.5.zip', requires_python='<3')
+        simpypi.add_release('pkg', pkgver='pkg-1.0.zip')
+        simpypi.add_file('/pkg/pkg-0.5.zip', content)
+        r = testapp.xget(200, '/root/pypi/+simple/pkg/')
+        (link0, link1) = getlinks(r.text)
+        assert link0.text == 'pkg-1.0.zip'
+        assert link0.get('data-requires-python') is None
+        assert link1.text == 'pkg-0.5.zip'
+        assert link1.get('data-requires-python') == '<3'
+        testapp.xget(200, link1['href'].replace('../../', '/root/pypi/'))
+        # turn on offline mode for test
+        xom.config.args.offline_mode = True
+        r = testapp.get('/root/pypi/+simple/pkg/')
+        (link,) = getlinks(r.text)
+        assert link.text == 'pkg-0.5.zip'
+        assert link.get('data-requires-python') == '<3'
 
 
 @pytest.mark.nomockprojectsremote

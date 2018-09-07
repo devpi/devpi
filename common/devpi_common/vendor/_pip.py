@@ -6,6 +6,12 @@ note XXX for changes:
 
 """
 import re
+
+try:
+    import HTMLParser as html_parser
+except ImportError:
+    import html.parser as html_parser
+
 from devpi_common.url import urljoin
 
 class HTMLPage(object):
@@ -41,14 +47,39 @@ class HTMLPage(object):
     @property
     def links(self):
         """Yields all links in the page"""
-        for match in self._href_re.finditer(self.content):
-            url = match.group(1) or match.group(2) or match.group(3)
+
+        # CHANGED from PIP original:
+        # use HTMLParser instead of re
+        # and store data-requires-python
+        class AnchorParser(html_parser.HTMLParser, object):
+            def __init__(self, *args, **kwargs):
+                super(AnchorParser, self).__init__(*args, **kwargs)
+                self.anchors = []
+
+            def handle_starttag(self, tag, attrs):
+                if not tag == 'a':
+                    return
+
+                for key, value in attrs:
+                    if key == 'href':
+                        self.anchors.append(dict(attrs))
+                        break
+
+        parser = AnchorParser()
+        parser.feed(self.content)
+        parser.close()
+
+        for anchor in parser.anchors:
+            url = anchor['href']
+
             # CHANGED from PIP original: catch parsing errors
             try:
                 url = self.clean_link(urljoin(self.base_url, url))
             except ValueError:
                 continue
-            yield Link(url, self)
+
+            pyrequire = anchor.get('data-requires-python')
+            yield Link(url, self, requires_python=pyrequire)
 
     def rel_links(self, rels=('homepage', 'download')):
         for url in self.explicit_rel_links(rels):
@@ -100,13 +131,19 @@ class HTMLPage(object):
 
 class Link(object):
 
-    def __init__(self, url, comes_from=None):
+    # CHANGED from PIP original: store requires_python
+    def __init__(self, url, comes_from=None, requires_python=None):
         self.url = url
         self.comes_from = comes_from
+        self.requires_python = requires_python if requires_python else None
 
     def __str__(self):
+        if self.requires_python:
+            rp = ' (requires-python:%s)' % self.requires_python
+        else:
+            rp = ''
         if self.comes_from:
-            return '%s (from %s)' % (self.url, self.comes_from)
+            return '%s (from %s)%s' % (self.url, self.comes_from, rp)
         else:
             return str(self.url)
 

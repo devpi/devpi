@@ -132,6 +132,29 @@ def test_simple_project(pypistage, testapp):
     links = getlinks(r.text)
     assert len(links) == 1
     assert links[0].get("href").endswith(path)
+    assert links[0].get("data-requires-python") == None
+
+def test_simple_project_requires_python(pypistage, testapp):
+    name = "django"
+    path = "/%s-2.0.tar.gz" % name
+    pypistage.mock_simple(name, text='<a href="%s" data-requires-python="&gt;=3.4" />' % path)
+    r = testapp.get("/root/pypi/+simple/%s/" % name)
+    assert r.status_code == 200
+    links = BeautifulSoup(r.text, "html.parser").findAll("a")
+    assert len(links) == 1
+    assert links[0].get("href").endswith(path)
+    assert links[0].get("data-requires-python") == '>=3.4'
+
+def test_simple_project_requires_python_empty(pypistage, testapp):
+    name = "django"
+    path = "/%s-2.0.tar.gz" % name
+    pypistage.mock_simple(name, text='<a href="%s" data-requires-python="" />' % path)
+    r = testapp.get("/root/pypi/+simple/%s/" % name)
+    assert r.status_code == 200
+    links = BeautifulSoup(r.text, "html.parser").findAll("a")
+    assert len(links) == 1
+    assert links[0].get("href").endswith(path)
+    assert links[0].get("data-requires-python") is None
 
 def test_simple_list_all_redirect(pypistage, testapp):
     r = testapp.get("/root/pypi/+simple", follow=False)

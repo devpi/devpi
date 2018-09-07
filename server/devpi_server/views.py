@@ -10,6 +10,7 @@ from devpi_common.url import URL
 from devpi_common.metadata import get_pyversion_filetype
 import devpi_server
 from pluggy import HookimplMarker
+from pyramid.compat import escape
 from pyramid.compat import urlparse
 from pyramid.interfaces import IAuthenticationPolicy
 from pyramid.httpexceptions import HTTPException, HTTPFound, HTTPSuccessful
@@ -489,11 +490,22 @@ class PyPIView:
             def make_url(href):
                 return url.relpath("/" + href)
 
-        for key, href in result:
-            yield ('%s <a href="%s">%s</a><br/>\n' %
-                   ("/".join(href.split("/", 2)[:2]),
-                    make_url(href),
-                    key)).encode("utf-8")
+        for key, href, require_python in result:
+            stage = "/".join(href.split("/", 2)[:2])
+            relurl = make_url(href)
+            if require_python is None:
+                data = dict(stage=stage, url=relurl, key=key)
+                yield ('{stage} <a href="{url}">{key}</a><br/>\n'
+                    .format(**data).encode('utf-8')
+                    )
+            else:
+                require_python = escape(require_python)
+                data = dict(stage=stage, url=relurl, key=key,
+                    require_python=require_python)
+                yield ('{stage} <a data-requires-python="{require_python}" '
+                    'href="{url}">{key}</a><br/>\n'
+                    .format(**data).encode('utf-8')
+                    )
 
         yield "</body></html>".encode("utf-8")
 
