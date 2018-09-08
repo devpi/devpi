@@ -141,7 +141,7 @@ def main_remove(hub, args):
     ver_to_delete = get_versions_to_delete(index_url, reply, req)
     if not ver_to_delete:
         hub.error(
-            "No releases or distributions found matching '%s'." % args.spec)
+            "No releases or distributions found matching '%s'." % args.spec_or_url)
         return 1
     if confirm_delete(hub, ver_to_delete):
         for ver, links in ver_to_delete:
