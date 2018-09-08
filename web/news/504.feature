@@ -1,1 +1,0 @@
-implement #504: the documentation is unpacked and cached on demand instead of relying on event processing.

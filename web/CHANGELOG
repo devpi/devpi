@@ -2,6 +2,19 @@
 
 .. towncrier release notes start
 
+3.4.0 (2018-09-08)
+==================
+
+Features
+--------
+
+- implement #503: the package description is rendered on demand instead of by event handling.
+
+- implement #504: the documentation is unpacked and cached on demand instead of relying on event processing.
+
+- Add possibility for plugins to implement search backends as replacement for the default whoosh based backend.
+
+
 3.3.0 (2018-05-04)
 ==================
 
