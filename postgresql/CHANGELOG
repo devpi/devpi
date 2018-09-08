@@ -2,6 +2,15 @@
 
 .. towncrier release notes start
 
+0.3.0 (2018-09-08)
+==================
+
+Bug Fixes
+---------
+
+- Fixes required for bug fixes devpi-server 4.7.0.
+
+
 0.2.0 (2018-01-17)
 ==================
 
