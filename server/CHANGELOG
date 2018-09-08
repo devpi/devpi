@@ -2,6 +2,51 @@
 
 .. towncrier release notes start
 
+4.7.0 (2018-09-08)
+==================
+
+Deprecations and Removals
+-------------------------
+
+- Deprecated DEVPI_SERVERDIR environment variable in favor of DEVPISERVER_SERVERDIR to be consistent with the other option overwrites.
+
+
+Features
+--------
+
+- fix #502: add support for YAML config files.
+
+- environment variables can now be used for configuration.
+  The option name needs to be changed to uppercase, prefixed with ``DEVPISERVER_`` and dashes replaced by underscores.
+  For example ``--restrict-modify`` becomes ``DEVPISERVER_RESTRICT_MODIFY``.
+
+- fix #511: support PEP508 requires-python attribute on links. Thanks to Sergey Kolosov for the parsing parts.
+
+- Allow deletion of mirrored package releases.
+
+- Allow deletion of mirrored projects and their releases.
+
+- Allow deletion of specific package versions on a mirror. Only the downloaded files will be removed. The file will be fetched again from the mirror source on request.
+
+
+Bug Fixes
+---------
+
+- Allow deleting releases even if the file was removed from the filesystem outside of devpi.
+
+- fix #491: when a file was previously fetched in a mirror index, but is now missing and needs to be fetched again then skip writing an empty changeset with new serial.
+
+- When deleting a mirror, delete all it's data as well. Previously deleting a mirror and recreating it would result in old entries showing up.
+
+- In offline mode the full project list returns all projects with locally stored releases.
+
+- In offline mode no bogus 503 responses show up in the log anymore.
+
+- when a file was missing on a replica and has to be fetched from master, it is now written to disk, so it doesn't have to be fetched again.
+
+- Only projects with locally stored releases show up in the full project list of mirrors if upstream can't be reached.
+
+
 4.6.0 (2018-07-13)
 ==================
 

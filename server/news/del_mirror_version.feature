@@ -1,1 +1,0 @@
-Allow deletion of specific package versions on a mirror. Only the downloaded files will be removed. The file will be fetched again from the mirror source on request.

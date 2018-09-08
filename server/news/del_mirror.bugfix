@@ -1,1 +1,0 @@
-When deleting a mirror, delete all it's data as well. Previously deleting a mirror and recreating it would result in old entries showing up.

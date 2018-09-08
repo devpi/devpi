@@ -1,1 +1,0 @@
-Deprecated DEVPI_SERVERDIR environment variable in favor of DEVPISERVER_SERVERDIR to be consistent with the other option overwrites.
