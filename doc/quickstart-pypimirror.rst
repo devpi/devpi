@@ -17,7 +17,7 @@ Install the ``devpi-server`` package on our machine::
 Show version::
 
     $ devpi-server --version
-    4.4.0
+    4.7.0
 
 .. note::
 
@@ -61,6 +61,7 @@ an index server url.  We use it to point installers to a special
 Let's install the ``simplejson`` package as a test from our cache::
 
     $ pip install -i http://localhost:3141/root/pypi/+simple/ simplejson
+    Looking in indexes: http://localhost:3141/root/pypi/+simple/
     Collecting simplejson
       Downloading http://localhost:3141/root/pypi/+f/870/bf6257465ce2e/simplejson-3.13.2.tar.gz (79kB)
     Building wheels for collected packages: simplejson

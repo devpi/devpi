@@ -304,6 +304,7 @@ can modify her ``dev`` index to use ``/emilie/prod`` index as a base::
      bases=emilie/prod,sophie/prod
      volatile=True
      acl_upload=sophie
+     acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=
      pypi_whitelist=
    

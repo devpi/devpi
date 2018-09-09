@@ -101,6 +101,7 @@ example below, we create the **emilie/prod** production index::
      bases=
      volatile=False
      acl_upload=emilie
+     acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=
      pypi_whitelist=
    
@@ -113,6 +114,9 @@ which leads to the following::
            "email": "emilienew@gmail.com",
            "indexes": {
                "prod": {
+                   "acl_toxresult_upload": [
+                       ":ANONYMOUS:"
+                   ],
                    "acl_upload": [
                        "emilie"
                    ],
@@ -145,6 +149,7 @@ specifying her ``prod`` index as follow::
      bases=emilie/prod
      volatile=True
      acl_upload=emilie
+     acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=
      pypi_whitelist=
    
@@ -153,6 +158,9 @@ which has the following definition on the server side::
    $ devpi getjson /emilie/dev
    {
        "result": {
+           "acl_toxresult_upload": [
+               ":ANONYMOUS:"
+           ],
            "acl_upload": [
                "emilie"
            ],
@@ -267,6 +275,7 @@ Assuming that Sophie has both index types as well::
      bases=
      volatile=False
      acl_upload=sophie
+     acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=
      pypi_whitelist=
    
@@ -278,6 +287,7 @@ Assuming that Sophie has both index types as well::
      bases=sophie/prod
      volatile=True
      acl_upload=sophie
+     acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=
      pypi_whitelist=
 
@@ -303,6 +313,7 @@ bases::
      bases=emilie/prod,sophie/dev
      volatile=True
      acl_upload=emilie
+     acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=
      pypi_whitelist=
    
@@ -321,6 +332,7 @@ When the work is done, this relationship can be revoked by doing::
      bases=emilie/prod
      volatile=True
      acl_upload=emilie
+     acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=
      pypi_whitelist=
 
@@ -334,6 +346,7 @@ which now has the ``/emilie/dev`` as a base only::
      bases=emilie/prod
      volatile=True
      acl_upload=emilie
+     acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=
      pypi_whitelist=
    
@@ -352,6 +365,7 @@ Emilie may allow sophie to upload to her dev index:
      bases=emilie/prod
      volatile=True
      acl_upload=emilie,sophie
+     acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=
      pypi_whitelist=
 
@@ -368,6 +382,7 @@ Suppose you want to allow all users in the "developers" group to upload packages
      bases=emilie/prod
      volatile=True
      acl_upload=emilie,:developers
+     acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=
      pypi_whitelist=
 
@@ -382,6 +397,7 @@ It is also possible to allow anonymous uploads if you have a controlled environm
      bases=emilie/prod
      volatile=True
      acl_upload=:ANONYMOUS:
+     acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=
      pypi_whitelist=
 
@@ -403,6 +419,7 @@ To allow uploads on PyPI or another mirror to be visible on your index, you have
      bases=
      volatile=True
      acl_upload=emilie
+     acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=mypkg
      pypi_whitelist=
 
@@ -416,6 +433,7 @@ You can also whitelist all packages on an index by setting mirror_whitelist to a
      bases=
      volatile=True
      acl_upload=emilie
+     acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=*
      pypi_whitelist=
 
@@ -438,6 +456,7 @@ An index can have a title and description which is used in ``devpi-web``.
      bases=
      volatile=True
      acl_upload=emilie
+     acl_toxresult_upload=:ANONYMOUS:
      description=Used for pip wheels
      mirror_whitelist=*
      pypi_whitelist=
@@ -499,6 +518,7 @@ In the example below, we create a "bad" index and delete it::
      bases=emilie/prod
      volatile=True
      acl_upload=emilie
+     acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=
      pypi_whitelist=
 
@@ -507,6 +527,9 @@ here is the bad index::
    $ devpi getjson /emilie/oups
    {
        "result": {
+           "acl_toxresult_upload": [
+               ":ANONYMOUS:"
+           ],
            "acl_upload": [
                "emilie"
            ],

@@ -18,8 +18,7 @@ getjson
 ::
 
     $ devpi getjson -h
-    usage: devpi getjson [-h] [--version] [--debug] [-y] [-v] [--clientdir DIR]
-                         path_or_url
+    usage: devpi getjson [-h] [--debug] [-y] [-v] [--clientdir DIR] path_or_url
     
     show remote server and index configuration. A low-level command to show json-
     formatted configuration data from remote resources. This will always query the
@@ -33,7 +32,6 @@ getjson
       -h, --help       show this help message and exit
     
     generic options:
-      --version        show program's version number and exit
       --debug          show debug messages including more info on server requests
       -y               assume 'yes' on confirmation questions
       -v, --verbose    increase verbosity
@@ -47,7 +45,7 @@ index
 ::
 
     $ devpi index -h
-    usage: devpi index [-h] [--version] [--debug] [-y] [-v] [--clientdir DIR]
+    usage: devpi index [-h] [--debug] [-y] [-v] [--clientdir DIR]
                        [-c | --delete | -l]
                        [indexname] [keyvalues [keyvalues ...]]
     
@@ -72,7 +70,6 @@ index
       -l, --list       list indexes for the logged in user
     
     generic options:
-      --version        show program's version number and exit
       --debug          show debug messages including more info on server requests
       -y               assume 'yes' on confirmation questions
       -v, --verbose    increase verbosity
@@ -86,7 +83,7 @@ install
 ::
 
     $ devpi install -h
-    usage: devpi install [-h] [--version] [--debug] [-y] [-v] [--clientdir DIR]
+    usage: devpi install [-h] [--debug] [-y] [-v] [--clientdir DIR]
                          [--index INDEX] [-l] [-e ARG] [--venv DIR] [-r]
                          [pkg [pkg ...]]
     
@@ -107,7 +104,6 @@ install
       -r, --requirement  Install from the given requirements file.
     
     generic options:
-      --version          show program's version number and exit
       --debug            show debug messages including more info on server
                          requests
       -y                 assume 'yes' on confirmation questions
@@ -122,8 +118,8 @@ list
 ::
 
     $ devpi list -h
-    usage: devpi list [-h] [--version] [--debug] [-y] [-v] [--clientdir DIR] [-f]
-                      [--all] [--index INDEX]
+    usage: devpi list [-h] [--debug] [-y] [-v] [--clientdir DIR] [-f] [--all] [-t]
+                      [--index INDEX]
                       [spec]
     
     list project versions and files for the current index. Without a spec argument
@@ -133,22 +129,22 @@ list
     version which is shadowed by an inheriting index.
     
     positional arguments:
-      spec             show info for a project or a specific release. Example
-                       specs: pytest or 'pytest>=2.3.5' (Quotes are needed to
-                       prevent shell redirection)
+      spec              show info for a project or a specific release. Example
+                        specs: pytest or 'pytest>=2.3.5' (Quotes are needed to
+                        prevent shell redirection)
     
     optional arguments:
-      -h, --help       show this help message and exit
-      -f, --failures   show test setup/failure logs
-      --all            show all versions instead of just the newest
-      --index INDEX    index to look at (defaults to current index)
+      -h, --help        show this help message and exit
+      -f, --failures    show test setup/failure logs (implies -t)
+      --all             show all versions instead of just the newest
+      -t, --toxresults  show toxresults for the releases
+      --index INDEX     index to look at (defaults to current index)
     
     generic options:
-      --version        show program's version number and exit
-      --debug          show debug messages including more info on server requests
-      -y               assume 'yes' on confirmation questions
-      -v, --verbose    increase verbosity
-      --clientdir DIR  directory for storing login and other state
+      --debug           show debug messages including more info on server requests
+      -y                assume 'yes' on confirmation questions
+      -v, --verbose     increase verbosity
+      --clientdir DIR   directory for storing login and other state
 
 .. _cmdref_login:
 
@@ -158,7 +154,7 @@ login
 ::
 
     $ devpi login -h
-    usage: devpi login [-h] [--version] [--debug] [-y] [-v] [--clientdir DIR]
+    usage: devpi login [-h] [--debug] [-y] [-v] [--clientdir DIR]
                        [--password PASSWORD]
                        username
     
@@ -175,7 +171,6 @@ login
       --password PASSWORD  password to use for login (prompt if not set)
     
     generic options:
-      --version            show program's version number and exit
       --debug              show debug messages including more info on server
                            requests
       -y                   assume 'yes' on confirmation questions
@@ -190,7 +185,7 @@ logoff
 ::
 
     $ devpi logoff -h
-    usage: devpi logoff [-h] [--version] [--debug] [-y] [-v] [--clientdir DIR]
+    usage: devpi logoff [-h] [--debug] [-y] [-v] [--clientdir DIR]
     
     log out of the current devpi-server. This will erase the client-side login
     token (see "devpi login").
@@ -199,7 +194,6 @@ logoff
       -h, --help       show this help message and exit
     
     generic options:
-      --version        show program's version number and exit
       --debug          show debug messages including more info on server requests
       -y               assume 'yes' on confirmation questions
       -v, --verbose    increase verbosity
@@ -213,8 +207,8 @@ push
 ::
 
     $ devpi push -h
-    usage: devpi push [-h] [--version] [--debug] [-y] [-v] [--clientdir DIR]
-                      [--index INDEX] [--pypirc path]
+    usage: devpi push [-h] [--debug] [-y] [-v] [--clientdir DIR] [--index INDEX]
+                      [--pypirc path]
                       pkgspec TARGETSPEC
     
     push a release and releasefiles to an internal or external index. You can push
@@ -237,7 +231,6 @@ push
       --pypirc path    path to pypirc
     
     generic options:
-      --version        show program's version number and exit
       --debug          show debug messages including more info on server requests
       -y               assume 'yes' on confirmation questions
       -v, --verbose    increase verbosity
@@ -251,29 +244,37 @@ remove
 ::
 
     $ devpi remove -h
-    usage: devpi remove [-h] [--version] [--debug] [-y] [-v] [--clientdir DIR]
-                        [--index INDEX]
-                        spec
+    usage: devpi remove [-h] [--debug] [-y] [-v] [--clientdir DIR] [--index INDEX]
+                        spec_or_url
     
-    remove project info/files from current index. This command allows to remove
-    projects or releases from your current index (see "devpi use"). It will ask
-    interactively for confirmation before performing the actual removals.
+    removes project info/files from current index.
+    
+    This command allows to remove projects or releases from your current index
+    (see "devpi use").
+    It will ask interactively for confirmation before performing the actual removals.
     
     positional arguments:
-      spec             remove info/files for a project/version/release file from
-                       the current index. Example specs: 'pytest' or
-                       'pytest>=2.3.5'
+      spec_or_url      describes project/version/release file(s) to release from
+                       the current index. If the spec starts with 'http://' or
+                       'https://', it is considered as a request to delete a
+                       single file.
     
     optional arguments:
       -h, --help       show this help message and exit
       --index INDEX    index to remove from (defaults to current index)
     
     generic options:
-      --version        show program's version number and exit
       --debug          show debug messages including more info on server requests
       -y               assume 'yes' on confirmation questions
       -v, --verbose    increase verbosity
       --clientdir DIR  directory for storing login and other state
+    
+    examples:
+      devpi remove pytest
+    
+      devpi remove pytest>=2.3.5
+    
+      devpi remove https://mydevpi.org/dev/+f/1cf/3d6eaa6cbc5fa/pytest-1.0.zip
 
 .. _cmdref_test:
 
@@ -283,10 +284,10 @@ test
 ::
 
     $ devpi test -h
-    usage: devpi test [-h] [--version] [--debug] [-y] [-v] [--clientdir DIR]
-                      [-e ENVNAME] [-c PATH] [--fallback-ini PATH]
-                      [--tox-args toxargs] [--detox] [--no-upload] [--index INDEX]
-                      [--select SELECTOR] [--list]
+    usage: devpi test [-h] [--debug] [-y] [-v] [--clientdir DIR] [-e ENVNAME]
+                      [-c PATH] [--fallback-ini PATH] [--tox-args toxargs]
+                      [--detox] [--no-upload] [--index INDEX] [--select SELECTOR]
+                      [--list]
                       pkgspec [pkgspec ...]
     
     download and test a package against tox environments. Download a package and
@@ -322,7 +323,6 @@ test
       --list, -l            Just list the release files which would be tested.
     
     generic options:
-      --version             show program's version number and exit
       --debug               show debug messages including more info on server
                             requests
       -y                    assume 'yes' on confirmation questions
@@ -337,10 +337,10 @@ upload
 ::
 
     $ devpi upload -h
-    usage: devpi upload [-h] [--version] [--debug] [-y] [-v] [--clientdir DIR]
-                        [--no-vcs] [--setupdir-only] [--formats FORMATS]
-                        [--with-docs] [--only-docs] [--index INDEX] [--from-dir]
-                        [--only-latest] [--dry-run]
+    usage: devpi upload [-h] [--debug] [-y] [-v] [--clientdir DIR] [--no-vcs]
+                        [--setupdir-only] [--formats FORMATS] [--with-docs]
+                        [--only-docs] [--index INDEX] [--from-dir] [--only-latest]
+                        [--dry-run]
                         [path [path ...]]
     
     (build and) upload packages to the current devpi-server index. You can
@@ -356,7 +356,6 @@ upload
       -h, --help         show this help message and exit
     
     generic options:
-      --version          show program's version number and exit
       --debug            show debug messages including more info on server
                          requests
       -y                 assume 'yes' on confirmation questions
@@ -393,10 +392,9 @@ use
 ::
 
     $ devpi use -h
-    usage: devpi use [-h] [--version] [--debug] [-y] [-v] [--clientdir DIR]
-                     [--set-cfg] [-t {yes,no,auto}] [--always-set-cfg {yes,no}]
-                     [--venv VENV] [--urls] [-l] [--delete]
-                     [--client-cert pem_file]
+    usage: devpi use [-h] [--debug] [-y] [-v] [--clientdir DIR] [--set-cfg]
+                     [-t {yes,no,auto}] [--always-set-cfg {yes,no}] [--venv VENV]
+                     [--urls] [-l] [--delete] [--client-cert pem_file]
                      [url]
     
     show/configure current index and target venv for install activities. This
@@ -443,7 +441,6 @@ use
                             to authenticate to the server (EXPERIMENTAL)
     
     generic options:
-      --version             show program's version number and exit
       --debug               show debug messages including more info on server
                             requests
       -y                    assume 'yes' on confirmation questions
@@ -458,7 +455,7 @@ user
 ::
 
     $ devpi user -h
-    usage: devpi user [-h] [--version] [--debug] [-y] [-v] [--clientdir DIR]
+    usage: devpi user [-h] [--debug] [-y] [-v] [--clientdir DIR]
                       [-c | --delete | -m | -l]
                       [username] [keyvalues [keyvalues ...]]
     
@@ -481,7 +478,6 @@ user
       -l, --list       list user names
     
     generic options:
-      --version        show program's version number and exit
       --debug          show debug messages including more info on server requests
       -y               assume 'yes' on confirmation questions
       -v, --verbose    increase verbosity
@@ -495,12 +491,14 @@ devpi command reference (server)
 ::
 
     $ devpi-server -h
-    usage: devpi-server [-h] [--host HOST] [--port PORT] [--threads THREADS]
-                        [--outside-url URL] [--debug] [--profile-requests NUM]
-                        [--logger-cfg LOGGER_CFG] [--mirror-cache-expiry SECS]
-                        [--replica-max-retries NUM] [--offline-mode]
-                        [--no-root-pypi] [--version]
-                        [--role {master,replica,standalone,auto}]
+    usage: devpi-server [-h] [-c CONFIGFILE] [--host HOST] [--port PORT]
+                        [--threads THREADS]
+                        [--max-request-body-size MAX_REQUEST_BODY_SIZE]
+                        [--outside-url URL] [--absolute-urls] [--debug]
+                        [--profile-requests NUM] [--logger-cfg LOGGER_CFG]
+                        [--mirror-cache-expiry SECS] [--replica-max-retries NUM]
+                        [--request-timeout NUM] [--offline-mode] [--no-root-pypi]
+                        [--version] [--role {master,replica,standalone,auto}]
                         [--master-url MASTER_URL] [--replica-cert pem_file]
                         [--gen-config] [--secretfile path] [--requests-only]
                         [--passwd USER] [--serverdir DIR] [--init]
@@ -508,15 +506,17 @@ devpi command reference (server)
                         [--storage NAME] [--export PATH] [--hard-links]
                         [--import PATH] [--no-events] [--start] [--stop]
                         [--status] [--log] [--theme THEME]
-                        [--recreate-search-index]
+                        [--recreate-search-index] [--indexer-backend NAME]
     
     Start a server which serves multiple users and indices. The special root/pypi
-    index is a cached mirror of pypi.org and is created by default. All
-    indices are suitable for pip or easy_install usage and setup.py upload ...
+    index is a cached mirror of pypi.org and is created by default. All indices
+    are suitable for pip or easy_install usage and setup.py upload ...
     invocations.
     
     optional arguments:
-      -h, --help            show this help message and exit
+      -h, --help            Show this help message and exit.
+      -c CONFIGFILE, --configfile CONFIGFILE
+                            Config file to use. [None]
     
     web serving options:
       --host HOST           domain/ip address to listen on. Use --host=0.0.0.0 if
@@ -524,21 +524,28 @@ devpi command reference (server)
                             [localhost]
       --port PORT           port to listen for http requests. [3141]
       --threads THREADS     number of threads to start for serving clients. [50]
+      --max-request-body-size MAX_REQUEST_BODY_SIZE
+                            maximum number of bytes in request body. This controls
+                            the max size of package that can be uploaded.
+                            [1073741824]
       --outside-url URL     the outside URL where this server will be reachable.
                             Set this if you proxy devpi-server through a web
                             server and the web server does not set or you want to
-                            override the custom X-outside-url header.
-      --debug               run wsgi application with debug logging
+                            override the custom X-outside-url header. [None]
+      --absolute-urls       use absolute URLs everywhere. This will become the
+                            default at some point. [False]
+      --debug               run wsgi application with debug logging [False]
       --profile-requests NUM
                             profile NUM requests and print out cumulative stats.
                             After print profiling is restarted. By default no
-                            profiling is performed.
+                            profiling is performed. [0]
       --logger-cfg LOGGER_CFG
                             path to .json or .yaml logger configuration file,
                             requires at least python2.7. If you specify a yaml
                             file you need to have the pyyaml package installed.
+                            [None]
       --theme THEME         folder with template and resource overwrites for the
-                            web interface
+                            web interface [None]
     
     mirroring options:
       --mirror-cache-expiry SECS
@@ -546,44 +553,43 @@ devpi command reference (server)
                             indexes are checked for new releases. [1800]
       --replica-max-retries NUM
                             Number of retry attempts for replica connection
-                            failures (such as aborted connections to pypi).
-      --request-timeout     NUM
+                            failures (such as aborted connections to pypi). [0]
+      --request-timeout NUM
                             Number of seconds before request being terminated
                             (such as connections to pypi, etc.). [5]
       --offline-mode        (experimental) prevents connections to any upstream
                             server (e.g. pypi) and only serves locally cached
-                            files through the simple index used by pip.
+                            files through the simple index used by pip. [False]
       --no-root-pypi        don't create root/pypi on server initialization.
+                            [False]
     
     deployment and data options:
-      --version             show devpi_version (4.4.0)
+      --version             show devpi_version (4.7.0) [False]
       --role {master,replica,standalone,auto}
                             set role of this instance. The default 'auto' sets
                             'standalone' by default and 'replica' if the --master-
                             url option is used. To enable the replication protocol
                             you have to explicitly set the 'master' role. [auto]
       --master-url MASTER_URL
-                            run as a replica of the specified master server
+                            run as a replica of the specified master server [None]
       --replica-cert pem_file
                             when running as a replica, use the given .pem file as
                             the SSL client certificate to authenticate to the
-                            server (EXPERIMENTAL)
+                            server (EXPERIMENTAL) [None]
       --gen-config          (unix only ) generate example config files for
                             nginx/supervisor/crontab/systemd, taking other passed
-                            options into account (e.g. port, host, etc.)
+                            options into account (e.g. port, host, etc.) [False]
       --secretfile path     file containing the server side secret used for user
                             validation. If it does not exist, a random secret is
                             generated on start up and used subsequently.
                             [{serverdir}/.secret]
       --requests-only       only start as a worker which handles read/write web
                             requests but does not run an event processing or
-                            replication thread.
-      --passwd USER         set password for user USER (interactive)
-      --serverdir DIR       directory for server data. By default,
-                            $DEVPI_SERVERDIR is used if it exists, otherwise the
-                            default is '~/.devpi/server'
+                            replication thread. [False]
+      --passwd USER         set password for user USER (interactive) [None]
+      --serverdir DIR       directory for server data. [~/.devpi/server]
       --init                initialize devpi-server state in an empty directory
-                            (also see --serverdir)
+                            (also see --serverdir) [False]
       --restrict-modify SPEC
                             specify which users/groups may create other users and
                             their indices. Multiple users and groups are separated
@@ -594,6 +600,7 @@ devpi command reference (server)
                             can do anything. When this option is set, only the
                             specified users/groups can create and modify users and
                             indices. You have to add root explicitely if wanted.
+                            [None]
       --keyfs-cache-size NUM
                             size of keyfs cache. If your devpi-server installation
                             gets a lot of writes, then increasing this might
@@ -603,34 +610,34 @@ devpi command reference (server)
                             in your '--serverdir' upon initialization. "pg8000":
                             Postgresql backend, "sqlite": SQLite backend with
                             files on the filesystem, "sqlite_db_files": SQLite
-                            backend with files in DB for testing only
+                            backend with files in DB for testing only [None]
     
     serverstate export / import options:
       --export PATH         export devpi-server database state into PATH. This
                             will export all users, indices, release files (except
-                            for mirrors), test results and documentation.
+                            for mirrors), test results and documentation. [None]
       --hard-links          use hard links during export instead of copying files.
                             All limitations for hard links on your OS apply. USE
-                            AT YOUR OWN RISK
+                            AT YOUR OWN RISK [False]
       --import PATH         import devpi-server database from PATH where PATH is a
                             directory which was created by a 'devpi-server
                             --export PATH' operation, using the same or an earlier
                             devpi-server version. Note that you can only import
                             into a fresh server state directory (positional
-                            argument to devpi-server).
+                            argument to devpi-server). [None]
       --no-events           no events will be run during import, instead they
                             arepostponed to run on server start. This allows much
                             faster start of the server after import, when devpi-
                             web is used. When you start the server after the
                             import, the search index and documentation will
                             gradually update until the server has caught up with
-                            all events. [True]
+                            all events. [False]
     
     background server (DEPRECATED, see --gen-config to use a process manager from your OS):
-      --start               start the background devpi-server
-      --stop                stop the background devpi-server
-      --status              show status of background devpi-server
-      --log                 show logfile content of background server
+      --start               start the background devpi-server [False]
+      --stop                stop the background devpi-server [False]
+      --status              show status of background devpi-server [False]
+      --log                 show logfile content of background server [False]
     
     search indexing:
       --recreate-search-index
@@ -638,4 +645,6 @@ devpi command reference (server)
                             documentation. This is only needed if there where
                             indexing related errors in a devpi-web release and you
                             want to upgrade only devpi-web without a full devpi-
-                            server import/export.
+                            server import/export. [False]
+      --indexer-backend NAME
+                            the indexer backend to use [whoosh]

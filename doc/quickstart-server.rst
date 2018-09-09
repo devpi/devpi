@@ -34,7 +34,7 @@ Install or upgrade ``devpi-server``::
 And let's check the version::
 
     $ devpi-server --version
-    4.4.0
+    4.7.0
 
 .. _genconfig:
 
