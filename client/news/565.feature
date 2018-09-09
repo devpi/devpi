@@ -1,1 +1,0 @@
-implement #565: To show toxresults with ``devpi list`` the new ``-t/--toxresults`` option is now required, the toxresults aren't shown by default anymore.

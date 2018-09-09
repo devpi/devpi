@@ -2,6 +2,23 @@
 
 .. towncrier release notes start
 
+4.1.0 (2018-09-09)
+==================
+
+Features
+--------
+
+- implement #565: To show toxresults with ``devpi list`` the new ``-t/--toxresults`` option is now required, the toxresults aren't shown by default anymore.
+
+- implement #579: client can remove specific file with ``devpi remove url_to_file``. This requires at least devpi-server 4.6.0
+
+
+Bug Fixes
+---------
+
+- fix #523: better error message when index does not support upload.
+
+
 4.0.3 (2018-07-12)
 ==================
 
