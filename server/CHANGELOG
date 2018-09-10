@@ -2,6 +2,17 @@
 
 .. towncrier release notes start
 
+4.7.1 (2018-09-10)
+==================
+
+Bug Fixes
+---------
+
+- Fix missing releases in simple pages for data from previous devpi-server versions.
+
+- Fixed key error 'requires_python' for data from previous devpi-server versions.
+
+
 4.7.0 (2018-09-08)
 ==================
 
@@ -27,6 +38,8 @@ Features
 - Allow deletion of mirrored projects and their releases.
 
 - Allow deletion of specific package versions on a mirror. Only the downloaded files will be removed. The file will be fetched again from the mirror source on request.
+
+- Better handling of 404s in mirror indexes. Every project not found would create an entry in the database which would grow it unnecessarily.
 
 
 Bug Fixes

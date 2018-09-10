@@ -340,7 +340,7 @@ class PyPIStage(BaseStage):
             is_expired = self.cache_retrieve_times.is_expired(project, self.cache_expiry)
             serial = cache["serial"]
             links_with_require_python = join_requires(
-                cache["links"], cache["requires_python"])
+                cache["links"], cache.get("requires_python", []))
             if self.offline and links_with_require_python:
                 links_with_require_python = ensure_deeply_readonly(list(
                     filter(self._is_file_cached, links_with_require_python)))

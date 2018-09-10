@@ -11,6 +11,10 @@ from devpi_common.metadata import splitbasename, parse_version
 from devpi_common.url import URL
 from devpi_common.validation import validate_metadata, normalize_name
 from devpi_common.types import ensure_unicode, cached_property, parse_hash_spec
+try:
+    from itertools import zip_longest
+except ImportError:
+    from itertools import izip_longest as zip_longest
 from time import gmtime
 from .auth import hash_password, verify_and_update_password_hash
 from .filestore import FileEntry
@@ -21,7 +25,7 @@ from .readonly import get_mutable_deepcopy
 def join_requires(links, requires_python):
     # build list of (key, href, require_python) tuples
     result = []
-    for link, require_python in zip(links, requires_python):
+    for link, require_python in zip_longest(links, requires_python, fillvalue=None):
         key, href = link
         result.append((key, href, require_python))
     return result
