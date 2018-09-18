@@ -372,6 +372,16 @@ def test_description_updated(mapp, testapp):
     assert '<p>bar</p>' == py.builtin._totext(description.renderContents().strip(), 'utf-8')
 
 
+@pytest.mark.with_notifier
+def test_description_empty(mapp, testapp):
+    api = mapp.create_and_use()
+    mapp.set_versiondata({
+        "name": "pkg-hello", "version": "1.0"})
+    r = testapp.xget(200, api.index + "/pkg-hello/1.0", headers=dict(accept="text/html"))
+    description, = r.html.select('#description')
+    assert '<p>No description in metadata</p>' == py.builtin._totext(description.renderContents().strip(), 'utf-8')
+
+
 def test_version_not_found(mapp, testapp):
     api = mapp.create_and_use()
     mapp.upload_file_pypi(

@@ -1,16 +1,8 @@
 from __future__ import unicode_literals
-from devpi_common.validation import normalize_name
 import io
 import py
 import readme_renderer.rst
 import readme_renderer.txt
-
-
-def get_description_file(stage, name, version):
-    config = stage.xom.config
-    name = normalize_name(name)
-    return config.serverdir.join(
-        '.web', stage.user.name, stage.index, name, version, 'description.html')
 
 
 def get_description(stage, name, version):
@@ -28,11 +20,13 @@ def get_description(stage, name, version):
             html.a(link, href=link)).unicode(indent=2)
     metadata = stage.get_versiondata(name, version)
     desc = metadata.get("description")
-    if desc is None:
-        html = '<p>No description in metadata</p>'
-    else:
+    if desc:
         html = render_description(stage, desc)
-    return py.builtin._totext(html, "utf-8")
+    else:
+        html = '<p>No description in metadata</p>'
+    if not py.builtin._istext(html):
+        html = py.builtin._totext(html, "utf-8")
+    return html
 
 
 def render_description(stage, desc):
