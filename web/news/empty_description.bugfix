@@ -1,0 +1,1 @@
+Fix rendering of empty description which caused a traceback on Python 2.7.

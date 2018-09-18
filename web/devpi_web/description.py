@@ -20,11 +20,13 @@ def get_description(stage, name, version):
             html.a(link, href=link)).unicode(indent=2)
     metadata = stage.get_versiondata(name, version)
     desc = metadata.get("description")
-    if desc is None:
-        html = '<p>No description in metadata</p>'
-    else:
+    if desc:
         html = render_description(stage, desc)
-    return py.builtin._totext(html, "utf-8")
+    else:
+        html = '<p>No description in metadata</p>'
+    if not py.builtin._istext(html):
+        html = py.builtin._totext(html, "utf-8")
+    return html
 
 
 def render_description(stage, desc):
