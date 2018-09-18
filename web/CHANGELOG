@@ -2,6 +2,15 @@
 
 .. towncrier release notes start
 
+3.4.1 (2018-09-18)
+==================
+
+Bug Fixes
+---------
+
+- Fix rendering of empty description which caused a traceback on Python 2.7.
+
+
 3.4.0 (2018-09-08)
 ==================
 
