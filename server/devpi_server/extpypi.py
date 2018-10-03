@@ -263,19 +263,8 @@ class PyPIStage(BaseStage):
                                 self.mirror_url, response.status_code)
         page = HTMLPage(response.text, response.url)
         projects = set()
-        baseurl = URL(response.url)
-        basehost = baseurl.replace(path='')
         for link in page.links:
-            newurl = URL(link.url)
-            # remove trailing slashes, so basename works correctly
-            newurl = newurl.asfile()
-            if not newurl.is_valid_http_url():
-                continue
-            if not newurl.path.startswith(baseurl.path):
-                continue
-            if basehost != newurl.replace(path=''):
-                continue
-            projects.add(newurl.basename)
+            projects.add(link.name)
         return projects
 
     def list_projects_perstage(self):
@@ -425,11 +414,6 @@ class PyPIStage(BaseStage):
             return links
 
         threadlog.debug("%s: got response with serial %s", project, serial)
-
-        # check returned url has the same normalized name
-        ret_project = response.url.strip("/").split("/")[-1]
-        assert project == normalize_name(ret_project)
-
 
         # parse simple index's link and perform crawling
         assert response.text is not None, response.text

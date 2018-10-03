@@ -503,7 +503,9 @@ class Index(object):
                         score = sub_hits[0].get('score', False)
                 name2data[name] = dict(
                     version=data.get('version', ''),
-                    score=score)
+                    score=score,
+                    proper_case_name=data['name'],
+                )
         # then gather more info if available and build results
         hits = []
         for name, stage in name2stage.items():
@@ -514,8 +516,9 @@ class Index(object):
                 metadata = stage.get_versiondata(name, version)
                 version = metadata.get('version', version)
                 summary += ' %s' % metadata.get('summary', '')
+            proper_case_name = data['proper_case_name']
             hits.append(dict(
-                name=name, summary=summary,
+                name=proper_case_name, summary=summary,
                 version=version, _pypi_ordering=data['score']))
         return hits
 

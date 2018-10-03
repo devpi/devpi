@@ -15,7 +15,7 @@ def normalize_name(name):
     Any runs of non-alphanumeric/. characters are replaced with a single '-'.
     """
     name = ensure_unicode(name)
-    return safe_name_rex.sub('-', name).lower()
+    return safe_name_rex.sub('-', name)
 
 def safe_version(version):
     """Convert an arbitrary string to a standard version string

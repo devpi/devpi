@@ -49,12 +49,14 @@ class HTMLPage(object):
         """Yields all links in the page"""
 
         # CHANGED from PIP original:
-        # use HTMLParser instead of re
-        # and store data-requires-python
+        # * use HTMLParser instead of re
+        # * and store data-requires-python
+        # * and store package name and not only the url
         class AnchorParser(html_parser.HTMLParser, object):
             def __init__(self, *args, **kwargs):
                 super(AnchorParser, self).__init__(*args, **kwargs)
-                self.anchors = []
+                self.anchors = {}
+                self.last_href = None
 
             def handle_starttag(self, tag, attrs):
                 if not tag == 'a':
@@ -62,15 +64,25 @@ class HTMLPage(object):
 
                 for key, value in attrs:
                     if key == 'href':
-                        self.anchors.append(dict(attrs))
+                        self.anchors[value] = (None, dict(attrs))
+                        self.last_href = value
                         break
+
+            def handle_data(self, data):
+                if data.strip() == '':
+                    return
+
+                if self.last_href:
+                    _, attrs = self.anchors[self.last_href]
+                    self.anchors[self.last_href] = (data, attrs)
 
         parser = AnchorParser()
         parser.feed(self.content)
         parser.close()
 
-        for anchor in parser.anchors:
-            url = anchor['href']
+        for key in parser.anchors.keys():
+            name, attrs = parser.anchors[key]
+            url = attrs['href']
 
             # CHANGED from PIP original: catch parsing errors
             try:
@@ -78,8 +90,8 @@ class HTMLPage(object):
             except ValueError:
                 continue
 
-            pyrequire = anchor.get('data-requires-python')
-            yield Link(url, self, requires_python=pyrequire)
+            pyrequire = attrs.get('data-requires-python')
+            yield Link(url, self, requires_python=pyrequire, name=name)
 
     def rel_links(self, rels=('homepage', 'download')):
         for url in self.explicit_rel_links(rels):
@@ -131,11 +143,14 @@ class HTMLPage(object):
 
 class Link(object):
 
-    # CHANGED from PIP original: store requires_python
-    def __init__(self, url, comes_from=None, requires_python=None):
+    # CHANGED from PIP original:
+    # * store requires_python
+    # * store package name and not only the url
+    def __init__(self, url, comes_from=None, requires_python=None, name=None):
         self.url = url
         self.comes_from = comes_from
         self.requires_python = requires_python if requires_python else None
+        self.name = name
 
     def __str__(self):
         if self.requires_python:
