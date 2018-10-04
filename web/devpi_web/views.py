@@ -732,6 +732,9 @@ class SearchView:
             return
         result_info = self.search_result['info']
         batch = batch_list(result_info['pagecount'], result_info['pagenum'] - 1)
+        # if params['page'] is not in batching range,
+        # URL is broken, then let's go back to first page of batching
+        current = 0
         for index, item in enumerate(batch):
             if item is None:
                 batch_links.append(dict(

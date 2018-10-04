@@ -211,6 +211,28 @@ def test_search_batch_links(dummyrequest, pagecount, pagenum, expected):
         "%s=%s" % x for x in sorted(kw['_query'].items()))
     assert view.batch_links == expected
 
+@pytest.mark.parametrize("pagecount, pagenum, expected", [
+    (1, 1, [
+        {'class': 'prev'}, 
+        {'title': 1, 'url': u'search?page=1&query='},
+        {'class': 'next'}]),
+    (2, 1, [
+        {'class': 'prev'},
+        {'title': 1, 'url': u'search?page=1&query='},
+        {'title': 2, 'url': u'search?page=2&query='},
+        {'class': 'next', 'title': 'Next', 'url': 'search?page=2&query='}])])
+def test_search_batch_links_page_too_big(dummyrequest, pagecount, pagenum, expected):
+    from devpi_web.views import SearchView
+    view = SearchView(dummyrequest)
+    items = [dict()]
+    view.__dict__['search_result'] = dict(items=items, info=dict(
+        pagecount=pagecount, pagenum=pagenum))
+    dummyrequest.params['page'] = str(132)
+    dummyrequest.route_url = lambda r, **kw: "search?%s" % "&".join(
+        "%s=%s" % x for x in sorted(kw['_query'].items()))
+    assert view.batch_links == expected
+
+
 
 def get_xmlrpc_data(body):
     from devpi_web.views import DefusedExpatParser, Unmarshaller
