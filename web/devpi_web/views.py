@@ -868,10 +868,10 @@ class SearchView:
                 item['title'] = data['name']
             item['sub_hits'] = self.process_sub_hits(
                 stage, item['sub_hits'], data)
-            more_results = result['info']['collapsed_counts'][data['path']]
+            path = data['path']
+            more_results = result['info']['collapsed_counts'][path]
             if more_results:
-                new_params = dict(self.params)
-                new_params['query'] = "%s path:%s" % (self.params['query'], data['path'])
+                new_params = make_more_url_params(self.params, path)
                 item['more_url'] = self.request.route_url(
                     'search',
                     _query=new_params)
@@ -928,3 +928,11 @@ class SearchView:
             log.exception("Error in xmlrpc_search")
             response = dumps(Fault(1, repr(e)), encoding='utf-8')
         return Response(response)
+
+
+def make_more_url_params(params, path):
+    new_params = dict(params)
+    if 'page' in new_params:
+        del new_params['page']
+    new_params['query'] = "%s path:%s" % (params['query'], path)
+    return new_params
