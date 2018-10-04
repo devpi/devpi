@@ -55,8 +55,15 @@ class HTMLPage(object):
         class AnchorParser(html_parser.HTMLParser, object):
             def __init__(self, *args, **kwargs):
                 super(AnchorParser, self).__init__(*args, **kwargs)
+                # dict of pairs: (a_tag_data, a_tag_attributes)
                 self.anchors = {}
                 self.last_href = None
+
+            # thanks to implementing 2 below methods we go through <a> starting tags (to get href parameter from them)
+            # and the data inside <a></a> tags (which contains the original case package name).
+
+            # as HTMLParser does it sequentially we can match them together by using reference to the href found in the
+            # last read <a> tag (last_href)
 
             def handle_starttag(self, tag, attrs):
                 if not tag == 'a':
@@ -81,7 +88,9 @@ class HTMLPage(object):
         parser.close()
 
         for key in parser.anchors.keys():
-            name, attrs = parser.anchors[key]
+            data, attrs = parser.anchors[key]
+
+            name = data
             url = attrs['href']
 
             # CHANGED from PIP original: catch parsing errors
