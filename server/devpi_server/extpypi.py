@@ -416,7 +416,10 @@ class PyPIStage(BaseStage):
         # Returning a 200 with "no such project" was originally meant to
         # provide earlier versions of easy_install/pip to request the full
         # simple page.
-        serial = int(response.headers.get(str("X-PYPI-LAST-SERIAL"), "-1"))
+        try:
+            serial = int(response.headers.get(str("X-PYPI-LAST-SERIAL")))
+        except:
+            serial = -1
 
         if serial < cache_serial:
             threadlog.warn("serving cached links for %s "
