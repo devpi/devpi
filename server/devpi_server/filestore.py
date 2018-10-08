@@ -294,13 +294,15 @@ class FileEntry(object):
 
         yield self._headers_from_response(r)
 
-        content = b''
+        contents = []
         while 1:
             data = r.raw.read(10240)
             if not data:
                 break
-            content = content + data
+            contents.append(data)
             yield data
+
+        content = b''.join(contents)
 
         filesize = len(content)
         if content_size and int(content_size) != filesize:
@@ -363,13 +365,15 @@ class FileEntry(object):
 
         yield self._headers_from_response(r)
 
-        content = b''
+        contents = []
         while 1:
             data = r.raw.read(10240)
             if not data:
                 break
-            content = content + data
+            contents.append(data)
             yield data
+
+        content = b''.join(contents)
 
         err = self.check_checksum(content)
         if err:
