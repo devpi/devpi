@@ -1,0 +1,3 @@
+fix #598: streaming download now uses BytesIO to avoid performance issues for downloads with more than a few MB.
+
+Thanks to Dom Hudson from http://www.thoughtriver.com for the report and initial benchmark code.
