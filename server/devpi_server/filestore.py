@@ -4,6 +4,7 @@ for all indexes.
 
 """
 from __future__ import unicode_literals
+from io import BytesIO
 import hashlib
 import mimetypes
 from wsgiref.handlers import format_date_time
@@ -294,15 +295,15 @@ class FileEntry(object):
 
         yield self._headers_from_response(r)
 
-        contents = []
+        content = BytesIO()
         while 1:
             data = r.raw.read(10240)
             if not data:
                 break
-            contents.append(data)
+            content.write(data)
             yield data
 
-        content = b''.join(contents)
+        content = content.getvalue()
 
         filesize = len(content)
         if content_size and int(content_size) != filesize:
@@ -365,15 +366,15 @@ class FileEntry(object):
 
         yield self._headers_from_response(r)
 
-        contents = []
+        content = BytesIO()
         while 1:
             data = r.raw.read(10240)
             if not data:
                 break
-            contents.append(data)
+            content.write(data)
             yield data
 
-        content = b''.join(contents)
+        content = content.getvalue()
 
         err = self.check_checksum(content)
         if err:
