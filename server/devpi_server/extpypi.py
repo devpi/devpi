@@ -418,7 +418,8 @@ class PyPIStage(BaseStage):
         # simple page.
         try:
             serial = int(response.headers.get(str("X-PYPI-LAST-SERIAL")))
-        except:
+        except (TypeError, ValueError):
+            # handle missing or invalid X-PYPI-LAST-SERIAL header
             serial = -1
 
         if serial < cache_serial:
