@@ -54,7 +54,7 @@ setup(
         'devpi-common>=3.2.0',
         'docutils>=0.11',
         'pygments>=1.6',
-        'pyramid',
+        'pyramid!=1.10a1',
         'pyramid-chameleon',
         'readme-renderer'],
     include_package_data=True,
