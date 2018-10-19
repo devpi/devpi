@@ -222,6 +222,23 @@ def set_header_devpi_serial(response, tx):
 def is_mutating_http_method(method):
     return method in ("PUT", "POST", "PATCH", "DELETE", "PUSH")
 
+
+def get_actions(json):
+    result = []
+    for item in json:
+        key, sep, value = item.partition('=')
+        if key.endswith('+'):
+            op = 'add'
+            key = key[:-1]
+        elif key.endswith('-'):
+            op = 'del'
+            key = key[:-1]
+        else:
+            op = 'set'
+        result.append((op, key, value))
+    return result
+
+
 class StatusView:
     def __init__(self, request):
         self.request = request
@@ -360,6 +377,7 @@ class PyPIView:
         api = {
             "login": request.route_url('/+login'),
             "authstatus": self.get_auth_status(),
+            "features": self.xom.supported_features,
         }
         if path:
             parts = path.split("/")
@@ -617,7 +635,28 @@ class PyPIView:
         permission="index_modify")
     def index_modify(self):
         stage = self.context.stage
-        kvdict = getkvdict_index(self.xom.config.hook, getjson(self.request))
+        json = _getjson(self.request)
+        if isinstance(json, list):
+            ixconfig = stage.get()
+            for op, key, value in get_actions(json):
+                if op == 'del':
+                    if value not in ixconfig[key]:
+                        apireturn(
+                            400, "The '%s' setting doesn't have value '%s'" % (key, value))
+                    if isinstance(ixconfig[key], tuple):
+                        ixconfig[key] = tuple(
+                            x for x in ixconfig[key] if x != value)
+                    else:
+                        ixconfig[key].remove(value)
+                elif op == 'add':
+                    if isinstance(ixconfig[key], tuple):
+                        ixconfig[key] += (value,)
+                    else:
+                        ixconfig[key].append(value)
+                elif op == 'set':
+                    ixconfig[key] = value
+            json = ixconfig
+        kvdict = getkvdict_index(self.xom.config.hook, json)
         try:
             ixconfig = stage.modify(**kvdict)
         except InvalidIndexconfig as e:
@@ -1214,16 +1253,25 @@ def url_for_entrypath(request, entrypath):
         route_name, user=user, index=index, relpath=relpath)
 
 
-def getjson(request, allowed_keys=None):
+def _getjson(request):
     try:
-        dict = request.json_body
+        d = request.json_body
     except ValueError:
         abort(request, 400, "Bad request: could not decode json")
+    return d
+
+
+def _check_allowed_keys(request, d, allowed_keys):
+    diff = set(d).difference(allowed_keys)
+    if diff:
+        abort(request, 400, "json keys not recognized: %s" % ",".join(diff))
+
+
+def getjson(request, allowed_keys=None):
+    d = _getjson(request)
     if allowed_keys is not None:
-        diff = set(dict).difference(allowed_keys)
-        if diff:
-            abort(request, 400, "json keys not recognized: %s" % ",".join(diff))
-    return dict
+        _check_allowed_keys(request, d, allowed_keys)
+    return d
 
 
 def abort_if_invalid_filename(request, name, filename):

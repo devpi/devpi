@@ -13,6 +13,8 @@ else:
     vbin = "bin"
 
 devpi_endpoints = "index simpleindex pypisubmit login".split()
+devpi_data_keys = ["features"]
+
 
 def currentproperty(name):
     def propget(self):
@@ -33,6 +35,7 @@ class Current(object):
     _client_cert = currentproperty("client_cert")
     always_setcfg = currentproperty("always_setcfg")
     settrusted = currentproperty("settrusted")
+    features = currentproperty("features")
 
     def __init__(self):
         self._currentdict = {}
@@ -249,6 +252,9 @@ class Current(object):
             if val is not None:
                 val = rooturl.joinpath(val).url
             data[name] = val
+        for name in devpi_data_keys:
+            val = result.get(name, None)
+            data[name] = val
         self.reconfigure(data)
         status = result.get("authstatus", None)
         if status and status[0] not in ["ok", "noauth"]:
@@ -391,6 +397,8 @@ def main(hub, args=None):
                     hub.info("%16s: %s" %(name, getattr(current, name)))
             else:
                 hub.info("current devpi index: %s (%s)" % (current.index, login_status))
+                if current.features:
+                    hub.info("supported features: %s" % ", ".join(sorted(current.features)))
         else:
             hub.info("using server: %s (%s)" % (current.rooturl, login_status))
             hub.error("no current index: type 'devpi use -l' "
@@ -603,11 +611,18 @@ class BuildoutCfg(BaseCfg):
     default_location = "~/.buildout/default.cfg"
 
 
-def parse_keyvalue_spec(keyvaluelist, keyset=None):
-    d = {}
-    for x in keyvaluelist:
-        key, val = x.split("=", 1)
-        if keyset and key not in keyset:
-            raise KeyError("invalid key: %s, allowed: %s" % (key, keyset))
-        d[key] = val
-    return d
+class KeyValues(list):
+    @property
+    def kvdict(self):
+        kvdict = {}
+        for keyvalue in self:
+            key, value = keyvalue.split("=", 1)
+            kvdict[key] = value
+        return kvdict
+
+
+def get_keyvalues(keyvaluelist):
+    for keyvalue in keyvaluelist:
+        if '=' not in keyvalue:
+            raise ValueError('No equal sign in argument')
+    return KeyValues(keyvaluelist)

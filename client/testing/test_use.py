@@ -1,6 +1,6 @@
 from devpi.use import BuildoutCfg, DistutilsCfg, PipCfg
 from devpi.use import Current, PersistentCurrent
-from devpi.use import parse_keyvalue_spec, out_index_list
+from devpi.use import get_keyvalues, out_index_list
 from devpi_common.url import URL
 import pytest
 import re
@@ -506,16 +506,21 @@ class TestUnit:
         assert not hub.current.settrusted
 
 
+def test_getparse_keyvalues_invalid():
+    with pytest.raises(ValueError):
+        get_keyvalues(["hello123"])
+
+
 @pytest.mark.parametrize("input expected".split(), [
     (["hello=123", "world=42"], dict(hello="123", world="42")),
-    (["hello=123=1"], dict(hello="123=1"))
-    ])
-def test_parse_keyvalue_spec(input, expected):
-    result = parse_keyvalue_spec(input, "hello world".split())
-    assert result == expected
+    (["hello=123=1"], dict(hello="123=1")),
+    (["hello=1", "hello=2"], dict(hello="2")),
+    (["hello+=1"], {"hello+": "1"}),
+    (["hello-=1"], {"hello-": "1"})])
+def test_getparse_keyvalues_kvdict(input, expected):
+    result = get_keyvalues(input)
+    assert result.kvdict == expected
 
-def test_parse_keyvalue_spec_unknown_key():
-    pytest.raises(KeyError, lambda: parse_keyvalue_spec(["hello=3"], ["some"]))
 
 def test_user_no_index(loghub):
     out_index_list(loghub, {"user": {"username": "user"}})

@@ -1,0 +1,1 @@
+The PATCH method of indexes supports a list of arguments with operations in the form of ``key=value`` for setting values and for lists in the form of ``key+=value`` and ``key-=value`` to add and remove items. This prevents undoing changes sent in concurrent PATCH requests.

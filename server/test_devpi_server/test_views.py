@@ -519,6 +519,24 @@ def test_apiconfig(testapp):
     assert not "pypisubmit" in r.json["result"]
 
 
+def test_apiconfig_features(testapp):
+    r = testapp.get_json("/+api")
+    assert r.status_code == 200
+    assert "features" in r.json["result"]
+    assert "server-keyvalue-parsing" in r.json["result"]["features"]
+
+
+def test_apiconfig_features_plugin(maketestapp, makexom):
+    class Plugin:
+        def devpiserver_get_features(self):
+            return set(['bar'])
+    xom = makexom(plugins=[Plugin()])
+    testapp = maketestapp(xom)
+    r = testapp.get_json("/+api")
+    assert r.status_code == 200
+    assert "bar" in r.json["result"]["features"]
+
+
 def test_getchanges(testapp):
     # the replica protocol should be disabled by default
     testapp.xget(403, "/+changelog/0")

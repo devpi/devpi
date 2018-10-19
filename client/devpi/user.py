@@ -1,4 +1,4 @@
-from devpi.use import parse_keyvalue_spec
+from devpi.use import get_keyvalues
 import getpass
 
 
@@ -75,7 +75,7 @@ def main(hub, args):
     username = args.username
     if (args.delete or args.create) and not username:
         hub.fatal("need to specify a username")
-    kvdict = parse_keyvalue_spec(args.keyvalues)
+    kvdict = get_keyvalues(args.keyvalues).kvdict
     if args.create:
         return user_create(hub, username, kvdict)
     elif args.delete:
