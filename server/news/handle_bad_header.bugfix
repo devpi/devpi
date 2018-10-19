@@ -1,0 +1,1 @@
+handle mirrors that don't return a correct X-PYPI-LAST-SERIAL header.

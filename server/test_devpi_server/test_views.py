@@ -317,13 +317,19 @@ def test_correct_resolution_order(pypistage, mapp, testapp):
     assert index1.stagename in r.text
 
 def test_simple_page_pypi_serial(pypistage, testapp):
+    # test with no header
     pypistage.mock_simple("hello1", text="qwe", pypiserial=None)
     r = testapp.get("/root/pypi/+simple/hello1/", expect_errors=False)
     assert "X-PYPI-LAST-SERIAL" not in r.headers
+    # test with default serial (10000)
     pypistage.mock_simple("hello2", pkgver="hello2-1.0.zip")
     r = testapp.get("/root/pypi/+simple/hello2/", expect_errors=False)
     assert r.headers.get("X-PYPI-LAST-SERIAL") == '10000'
     assert '/hello2-1.0.zip">hello2-1.0.zip</a>' in r.unicode_body
+    # test with invalid serial
+    pypistage.mock_simple("hello3", text="qwe", pypiserial='foo')
+    r = testapp.get("/root/pypi/+simple/hello3/", expect_errors=False)
+    assert "X-PYPI-LAST-SERIAL" not in r.headers
 
 def test_simple_refresh(mapp, model, pypistage, testapp):
     pypistage.mock_simple("hello", "<html/>")
