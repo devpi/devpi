@@ -345,6 +345,48 @@ def test_version_view(mapp, testapp, monkeypatch):
 
 
 @pytest.mark.with_notifier
+def test_markdown_description_without_content_type(mapp, testapp, monkeypatch):
+    api = mapp.create_and_use()
+    mapp.upload_file_pypi(
+        "pkg1-2.6.tar.gz", b"content", "pkg1", "2.6").file_url
+    mapp.set_versiondata({
+        "name": "pkg1",
+        "version": "2.6",
+        "author": "Foo Bear",
+        "description": u'# Description'.encode('utf-8')},
+        waithooks=True)
+    r = testapp.get(api.index + '/pkg1/2.6', headers=dict(accept="text/html"))
+
+    description = r.html.select('#description')
+    assert len(description) == 1
+    assert '#' in py.builtin._totext(
+        description[0].renderContents().strip(),
+        'utf-8')
+
+
+@pytest.mark.with_notifier
+@pytest.mark.skipif(devpi_server_version < parse_version("4.7.2dev"), reason="Needs Metadata 2.1 support")
+def test_markdown_description_with_content_type(mapp, testapp, monkeypatch):
+    api = mapp.create_and_use()
+    mapp.upload_file_pypi(
+        "pkg1-2.6.tar.gz", b"content", "pkg1", "2.6").file_url
+    mapp.set_versiondata({
+        "name": "pkg1",
+        "version": "2.6",
+        "author": "Foo Bear",
+        "description": u'# Description'.encode('utf-8'),
+        "description_content_type": 'text/markdown'},
+        waithooks=True)
+    r = testapp.get(api.index + '/pkg1/2.6', headers=dict(accept="text/html"))
+
+    description = r.html.select('#description')
+    assert len(description) == 1
+    assert py.builtin._totext(
+        description[0].renderContents().strip(),
+        'utf-8') == u'<h1>Description</h1>'
+
+
+@pytest.mark.with_notifier
 def test_version_projectname(mapp, testapp):
     api = mapp.create_and_use()
     mapp.set_versiondata({
