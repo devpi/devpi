@@ -4,7 +4,7 @@ for i in common client server web ; do
     pip uninstall -y devpi-$i
 done
 for i in common client server web ; do
-    (cd $i ; pip install -e .)
+    (cd $i ; pip install -U -e .)
 done
 
 # install some deps for testing
