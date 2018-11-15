@@ -56,7 +56,7 @@ setup(
         'pygments>=1.6',
         'pyramid!=1.10a1',
         'pyramid-chameleon',
-        'readme-renderer[md]'],
+        'readme-renderer[md]>=23.0'],
     include_package_data=True,
     zip_safe=False,
     packages=['devpi_web'])
