@@ -422,11 +422,10 @@ def mockhtml(monkeypatch):
     return mockhtml
 
 @pytest.fixture
-def create_venv(request, testdir, monkeypatch):
+def create_venv(request, testdir, tmpdir_factory, monkeypatch):
     monkeypatch.delenv("PYTHONDONTWRITEBYTECODE", raising=False)
-    th = request.config._tmpdirhandler
-    backupenv = th.ensuretemp("venvbackup")
-    venvdir = th.ensuretemp("venv")
+    backupenv = tmpdir_factory.mktemp("venvbackup")
+    venvdir = tmpdir_factory.mktemp("venv")
     def do_create_venv():
         if not venvdir.listdir():
             assert not backupenv.listdir()
