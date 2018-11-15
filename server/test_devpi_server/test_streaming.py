@@ -86,7 +86,7 @@ def test_streaming_download(content_digest, files_directory, length, pkg_version
 
 
 @pytest.mark.parametrize("size_factor,pkg_version", [
-    pytest.mark.xfail(reason="nginx 1.4 on linux")((2, '1.2')), (0.5, '1.3')])
+    (2, '1.2'), (0.5, '1.3')])
 def test_streaming_differing_content_size(content_digest, files_directory, pkg_version, server_url_session, simpypi, size_factor):
     (content, digest) = content_digest
     (url, s) = server_url_session
