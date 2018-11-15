@@ -21,7 +21,7 @@ if __name__ == "__main__":
     README = io.open(os.path.join(here, 'README.rst'), encoding='utf-8').read()
     CHANGELOG = get_changelog()
 
-    install_requires=["tox>=1.7.1,!=3.0.0rc1",
+    install_requires=["tox>=3.1.0",
                       "devpi_common<4,>=3.1.0",
                       "pkginfo>=1.4.2",
                       "check-manifest>=0.28",
