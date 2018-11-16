@@ -2,6 +2,15 @@
 
 .. towncrier release notes start
 
+4.2.0 (2018-11-16)
+==================
+
+Features
+--------
+
+- Use server side operations for modifying indexes if the devpi-server version supports it. This prevents overwriting changes if two clients modify the same index concurrently.
+
+
 4.1.0 (2018-09-09)
 ==================
 
