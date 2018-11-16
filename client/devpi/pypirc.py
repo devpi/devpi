@@ -40,5 +40,3 @@ class Auth:
         repo = section.get("repository")
         auth = (section["username"], section["password"])
         return repo, auth
-
-

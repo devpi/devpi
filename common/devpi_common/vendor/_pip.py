@@ -149,4 +149,3 @@ class Link(object):
 
     def __repr__(self):
         return '<Link %s>' % self
-

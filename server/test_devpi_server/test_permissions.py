@@ -107,7 +107,7 @@ class TestStage:
         assert indexconfig["acl_toxresult_upload"] == [":ANONYMOUS:"]
 
         stage = model.getstage("hello/world")
-        
+
         # anonymous may upload tests
         assert with_user(permissionrequest, None).has_permission(
             'toxresult_upload', StageACL(stage, False))

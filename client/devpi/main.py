@@ -679,7 +679,7 @@ def remove(parser):
         help="index to remove from (defaults to current index)")
     parser.add_argument("spec_or_url",
         help="""\
-        describes project/version/release file(s) to release from the current index. 
+        describes project/version/release file(s) to release from the current index.
         If the spec starts with 'http://' or 'https://',
         it is considered as a request to delete a single file.""")
     parser.formatter_class = argparse.RawDescriptionHelpFormatter
@@ -983,5 +983,3 @@ def verify_reply_version(hub, reply):
     hub.fatal("devpi-client-%s got a reply with API-VERSION %s, "
               "acceptable are: %s" %(client_version, version,
                                      ",".join(acceptable_api_version)))
-
-

@@ -253,4 +253,3 @@ def make_rel_renames(basedir, pending_renames):
         else:
             assert dest.startswith(basedir)
             yield dest[len(basedir)+1:]
-

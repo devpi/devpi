@@ -56,4 +56,3 @@ class TestRenameFileLogic:
         check_pending_renames(str(tmpdir), rel_renames)
         assert not file1.exists()
         assert len(caplog.getrecords(".*completed.*file-del.*")) == 1
-

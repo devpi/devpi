@@ -134,4 +134,3 @@ class TestLoggerConfiguration:
 
         assert logging.getLogger().getEffectiveLevel() == logging.WARNING
         assert not logging.getLogger().handlers
-

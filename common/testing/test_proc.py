@@ -16,4 +16,3 @@ def test_check_output(hg):
 def test_checkoutput_error(hg):
     with pytest.raises(CalledProcessError):
         check_output([hg, "qlwkje"])
-

@@ -648,4 +648,3 @@ def mock_http_api(monkeypatch):
     mockapi = MockHTTPAPI()
     monkeypatch.setattr(main.Hub, "http_api", mockapi)
     return mockapi
-

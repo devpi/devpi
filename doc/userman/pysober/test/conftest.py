@@ -7,7 +7,7 @@ def pytest_addoption(parser):
                     default = pysober.__version__,
                     dest='vstring',
                     help='expected project version - default %s' % pysober.__version__)
-    
+
 @pytest.fixture()
 def pysober_expected_version(request):
     return request.config.getvalue('vstring')

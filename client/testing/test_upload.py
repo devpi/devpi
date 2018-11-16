@@ -424,5 +424,3 @@ def test_filter_latest():
     filtered = d[path]
     assert filtered.name == 'test-abc'
     assert filtered.version == u'0.10'
-
-

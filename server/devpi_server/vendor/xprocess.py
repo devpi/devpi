@@ -184,4 +184,3 @@ class XProcess:
             count -= 1
             if count < 0:
                 return False
-

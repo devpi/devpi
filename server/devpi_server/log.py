@@ -103,6 +103,3 @@ def thread_current_log():
     if taglogger is None:
         taglogger = TagLogger(prefix="NOCTX")
     return taglogger
-
-
-

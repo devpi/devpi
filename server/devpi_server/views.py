@@ -1306,4 +1306,3 @@ def get_pure_metadata(somedict):
         if n[0] != "+":
             metadata[n] = v
     return metadata
-

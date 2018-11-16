@@ -315,7 +315,7 @@ class PyPIStage(BaseStage):
         assert links != ()  # we don't store the old "Not Found" marker anymore
         assert isinstance(serial, int)
         assert project == normalize_name(project), project
-        data = {"serial": serial, "links": links, 
+        data = {"serial": serial, "links": links,
             "requires_python": requires_python}
         key = self.key_projsimplelinks(project)
         old = key.get()

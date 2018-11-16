@@ -68,4 +68,3 @@ def get_write_file_ensure_dir(path):
             raise
         os.makedirs(dirname)
         return open(path, "wb")
-

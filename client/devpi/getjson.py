@@ -46,4 +46,3 @@ def main_patchjson(hub, args=None):
     hub.line("PATCH REQUEST sent to %s" % url.url)
     hub.out_json(r._json)
     return
-

@@ -12,4 +12,3 @@ def test_gen_config_all(tmpdir):
     assert b.join("nginx-devpi.conf").check()
     assert b.join("crontab").check()
     assert b.join("net.devpi.plist").check()
-

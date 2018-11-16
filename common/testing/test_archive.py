@@ -129,4 +129,3 @@ def test_zip_dir(tmpdir):
         archive.extract(newdest)
     assert newdest.join("file").isfile()
     assert newdest.join("sub", "subfile").isfile()
-

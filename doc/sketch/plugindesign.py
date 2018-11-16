@@ -22,5 +22,3 @@ def get_tox_ini(hub, unpack_path):
         return hub.get_existing_file(hub.args.fallback_ini)
     hub.fatal("no tox.ini found in %s, no fallback/toxini defined on commandline"
               % unpack_path))
-
-

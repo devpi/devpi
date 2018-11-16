@@ -113,4 +113,3 @@ def validate_metadata(data):
 #            if d.has_key(entry):
 #                continue
 #            raise ValueError, 'Invalid classifier "%s"'%entry
-

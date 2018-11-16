@@ -88,4 +88,3 @@ def test_simpler_mod(testdir):
     mod.dec.discover_and_call(mod, anotherdec)
     assert len(l) == 2
     assert l == [("hello", mod.f), ("world", mod.f)]
-
