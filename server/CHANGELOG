@@ -2,6 +2,29 @@
 
 .. towncrier release notes start
 
+4.8.0 (2018-11-16)
+==================
+
+Features
+--------
+
+- feature #193: ensuring that the `description_content_type` and `provides_extras` fields are handled.
+
+  This is used to add support for using alternative content types in the package descriptions such as `text/markdown`.
+
+- The PATCH method of indexes supports a list of arguments with operations in the form of ``key=value`` for setting values and for lists in the form of ``key+=value`` and ``key-=value`` to add and remove items. This prevents undoing changes sent in concurrent PATCH requests.
+
+
+Bug Fixes
+---------
+
+- fix #598: streaming download now uses BytesIO to avoid performance issues for downloads with more than a few MB.
+
+  Thanks to Dom Hudson from http://www.thoughtriver.com for the report and initial benchmark code.
+
+- handle mirrors that don't return a correct X-PYPI-LAST-SERIAL header.
+
+
 4.7.1 (2018-09-10)
 ==================
 
