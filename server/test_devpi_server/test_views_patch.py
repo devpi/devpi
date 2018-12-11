@@ -49,3 +49,32 @@ def test_index_patch(testapp):
     r = testapp.patch_json("/foo/dev", ["mirror_whitelist-=foo"], expect_errors=True)
     assert r.status_code == 400
     assert r.json['message'] == "The 'mirror_whitelist' setting doesn't have value 'foo'"
+
+
+def test_mirror_index_patch(testapp):
+    # add and login user
+    testapp.put_json("/foo", dict(password="123"))
+    testapp.set_auth('foo', '123')
+    # add mirror index
+    testapp.put_json("/foo/dev", dict(
+        type='mirror',
+        mirror_url='https://pypi.org/simple/'))
+    r = testapp.get("/foo/dev")
+    # check defaults
+    assert r.json['result'] == {
+        'acl_upload': [],
+        'bases': [],
+        'mirror_url': 'https://pypi.org/simple/',
+        'projects': [],
+        'pypi_whitelist': [],
+        'type': 'mirror',
+        'volatile': True}
+    # set volatile
+    r = testapp.patch_json("/foo/dev", ["volatile=False"])
+    assert r.json['result'] == {
+        'acl_upload': [],
+        'bases': [],
+        'mirror_url': 'https://pypi.org/simple/',
+        'pypi_whitelist': [],
+        'type': 'mirror',
+        'volatile': False}

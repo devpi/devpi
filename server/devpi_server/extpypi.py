@@ -15,7 +15,6 @@ from devpi_common.vendor._pip import HTMLPage
 from devpi_common.url import URL
 from devpi_common.metadata import BasenameMeta
 from devpi_common.metadata import is_archive_of_project
-from devpi_common.types import cached_property
 from devpi_common.validation import normalize_name
 from functools import partial
 from .model import BaseStage, make_key_and_href, SimplelinkMeta
@@ -147,11 +146,6 @@ class PyPIStage(BaseStage):
         else:
             url = URL(self.ixconfig['mirror_url'])
             self.mirror_url = url.asdir().url
-
-    @cached_property
-    def user(self):
-        # only few methods need the user object.
-        return self.model.get_user(self.username)
 
     def delete(self):
         # delete all projects on this index
