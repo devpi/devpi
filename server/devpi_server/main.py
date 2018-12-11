@@ -8,7 +8,7 @@ from __future__ import unicode_literals
 import os, sys
 import py
 
-from requests import Response
+from requests import Response, exceptions
 from devpi_common.metadata import Version
 from devpi_common.types import cached_property
 from devpi_common.request import new_requests_session
@@ -296,7 +296,10 @@ class XOM:
                         headers=headers,
                         timeout=timeout or self.config.args.request_timeout)
             return resp
-        except ConnectionError:
+        except OSError:
+            threadlog.exception("OS error during httpget of %s", url)
+            return FatalResponse(sys.exc_info())
+        except exceptions.ConnectionError:
             threadlog.exception("Connection error during httpget of %s", url)
             return FatalResponse(sys.exc_info())
         except self._httpsession.Errors:
