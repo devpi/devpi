@@ -587,6 +587,16 @@ def test_requests_httpget_timeout(xom, monkeypatch):
     assert r.status_code == -1
 
 
+@pytest.mark.nomocking
+def test_requests_httpget_connectionerror(xom, monkeypatch):
+    def httpget(url, **kw):
+        raise ConnectionResetError()
+
+    monkeypatch.setattr(xom._httpsession, "get", httpget)
+    r = xom.httpget("http://notexists.qwe", allow_redirects=False)
+    assert r.status_code == -1
+
+
 def test_is_project_cached(httpget, pypistage):
     assert not pypistage.is_project_cached("xyz")
     assert not pypistage.has_project("xyz")
