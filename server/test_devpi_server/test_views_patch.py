@@ -18,7 +18,6 @@ def test_index_patch(testapp):
         'bases': [],
         'mirror_whitelist': [],
         'projects': [],
-        'pypi_whitelist': [],
         'type': 'stage',
         'volatile': True}
     # add to acl_upload
@@ -62,19 +61,13 @@ def test_mirror_index_patch(testapp):
     r = testapp.get("/foo/dev")
     # check defaults
     assert r.json['result'] == {
-        'acl_upload': [],
-        'bases': [],
         'mirror_url': 'https://pypi.org/simple/',
         'projects': [],
-        'pypi_whitelist': [],
         'type': 'mirror',
         'volatile': True}
     # set volatile
     r = testapp.patch_json("/foo/dev", ["volatile=False"])
     assert r.json['result'] == {
-        'acl_upload': [],
-        'bases': [],
         'mirror_url': 'https://pypi.org/simple/',
-        'pypi_whitelist': [],
         'type': 'mirror',
         'volatile': False}

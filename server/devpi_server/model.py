@@ -58,8 +58,6 @@ def get_ixconfigattrs(hooks, index_type):
             "mirror_web_url_fmt"))
     elif index_type == 'stage':
         base.update(("bases", "acl_upload", "acl_toxresult_upload", "mirror_whitelist"))
-    # XXX backward compatibility with devpi-client <= 2.4.1
-    base.update(("pypi_whitelist",))
     for defaults in hooks.devpiserver_indexconfig_defaults(index_type=index_type):
         conflicting = base.intersection(defaults)
         if conflicting:
@@ -181,13 +179,9 @@ def get_indexconfig(hooks, type, **kwargs):
             expiry = kwargs.pop("mirror_cache_expiry")
             if expiry or expiry == 0:  # None or empty string are ignored
                 ixconfig["mirror_cache_expiry"] = int(expiry)
-        # XXX backward compatibility with devpi-client <= 2.4.1
-        # it always sends these
-        for key in ("bases", "acl_upload", "mirror_whitelist", "pypi_whitelist"):
-            value = kwargs.pop(key, [])
-            if len(ixconfig.get(key, [])):
-                raise InvalidIndexconfig(
-                    ["%s not allowed on mirror indexes" % key])
+        # XXX backward compatibility for old exports
+        for key in ("bases", "acl_upload", "mirror_whitelist"):
+            kwargs.pop(key, None)
     elif type == "stage":
         if "acl_upload" in kwargs:
             acl_upload = ensure_list(kwargs.pop("acl_upload"))
@@ -203,13 +197,6 @@ def get_indexconfig(hooks, type, **kwargs):
             ixconfig["acl_toxresult_upload"] = acl_toxresult_upload
         if "bases" in kwargs:
             ixconfig["bases"] = ensure_list(kwargs.pop("bases"))
-        if "mirror_whitelist" in kwargs and kwargs.get("pypi_whitelist", []) != []:
-            raise InvalidIndexconfig(
-                ["pypi_whitelist is deprecated, use mirror_whitelist instead"])
-        if "pypi_whitelist" in kwargs:
-            ixconfig["mirror_whitelist"] = [
-                normalize_whitelist_name(x)
-                for x in ensure_list(kwargs.pop("pypi_whitelist"))]
         if "mirror_whitelist" in kwargs:
             ixconfig["mirror_whitelist"] = [
                 normalize_whitelist_name(x)
@@ -357,10 +344,6 @@ class User:
             ixconfig["bases"] = tuple(normalize_bases(
                 self.xom.model, ixconfig.get("bases", [])))
             ixconfig["mirror_whitelist"] = ixconfig.get("mirror_whitelist", [])
-        # XXX backward compatibility with devpi-client <= 2.4.1
-        # it always expects these
-        for key in ("bases", "acl_upload", "pypi_whitelist"):
-            ixconfig.setdefault(key, [])
         # modify user/indexconfig
         with self.key.update() as userconfig:
             indexes = userconfig.setdefault("indexes", {})

@@ -506,16 +506,11 @@ class TestStage:
         from devpi_server.model import InvalidIndexconfig
         stage.modify(mirror_whitelist=setting)
         ixconfig = stage.get()
-        assert ixconfig['pypi_whitelist'] == []
+        # BBB old devpi versions had pypi_whitelist, here we check that it's gone
+        assert 'pypi_whitelist' not in ixconfig
         assert ixconfig['mirror_whitelist'] == expected
-        stage.modify(pypi_whitelist=setting)
-        ixconfig = stage.get()
-        assert ixconfig['pypi_whitelist'] == []
-        assert ixconfig['mirror_whitelist'] == expected
-        stage.modify(pypi_whitelist=[], mirror_whitelist=setting)
-        ixconfig = stage.get()
-        assert ixconfig['pypi_whitelist'] == []
-        assert ixconfig['mirror_whitelist'] == expected
+        with pytest.raises(InvalidIndexconfig):
+            stage.modify(pypi_whitelist=setting)
         with pytest.raises(InvalidIndexconfig):
             stage.modify(pypi_whitelist=setting, mirror_whitelist=[])
         with pytest.raises(InvalidIndexconfig):
@@ -1031,7 +1026,7 @@ def test_setdefault_indexes(xom, model):
             assert py.builtin._istext(key)
 
 
-@pytest.mark.parametrize("key", ("acl_upload", "bases", "mirror_whitelist", "pypi_whitelist"))
+@pytest.mark.parametrize("key", ("acl_upload", "bases", "mirror_whitelist"))
 @pytest.mark.parametrize("value, result", (
     ("", []), ("x,y", ["x", "y"]), ("x,,y", ["x", "y"])))
 def test_get_indexconfig_lists(key, value, result):
@@ -1040,9 +1035,6 @@ def test_get_indexconfig_lists(key, value, result):
         def devpiserver_indexconfig_defaults(self, index_type):
             return {}
     kvdict = get_indexconfig(hooks(), type="stage", **{key: value})
-    if key == "pypi_whitelist":
-        # check behaviour of older devpi-client
-        key = "mirror_whitelist"
     assert kvdict[key] == result
 
 

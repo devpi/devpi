@@ -1,0 +1,1 @@
+removed support for long deprecated ``acl_upload`` and ``bases`` mirror index option. They were only kept for compatibility with devpi-client <= 2.4.1.
