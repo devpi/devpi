@@ -338,6 +338,13 @@ class TypedKey:
     def get(self, readonly=True):
         return self.keyfs.tx.get(self, readonly=readonly)
 
+    @property
+    def last_serial(self):
+        try:
+            return self.keyfs.tx.last_serial(self)
+        except KeyError:
+            return None
+
     def is_dirty(self):
         return self.keyfs.tx.is_dirty(self)
 
@@ -375,7 +382,7 @@ class Transaction(object):
         self.dirty = set()
         self.closed = False
 
-    def get_value_at(self, typedkey, at_serial):
+    def _get_value_at(self, typedkey, at_serial):
         relpath = typedkey.relpath
         keyname, last_serial = self.conn.db_read_typedkey(relpath)
         while last_serial >= 0:
@@ -386,12 +393,20 @@ class Transaction(object):
                 last_serial = back_serial
                 continue
             if val is not None:
-                return val
+                return (last_serial, val)
             raise KeyError(relpath)  # was deleted
 
         # we could not find any change below at_serial which means
         # the key didn't exist at that point in time
         raise KeyError(relpath)
+
+    def get_value_at(self, typedkey, at_serial):
+        (last_serial, val) = self._get_value_at(typedkey, at_serial)
+        return val
+
+    def last_serial(self, typedkey):
+        (last_serial, val) = self._get_value_at(typedkey, self.at_serial)
+        return last_serial
 
     def derive_key(self, relpath):
         """ return key instance for a given key path."""
