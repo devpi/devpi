@@ -108,7 +108,8 @@ class Hub:
 
     def http_api(self, method, url, kvdict=None, quiet=False,
                  auth=notset, basic_auth=notset, cert=notset,
-                 check_version=True, fatal=True, type=None, verify=None):
+                 check_version=True, fatal=True, type=None,
+                 verify=None, headers=None):
         """ send a json request and return a HTTPReply object which
         adds some extra methods to the requests's Reply object.
 
@@ -125,7 +126,10 @@ class Hub:
         if isinstance(url, URL):
             url = url.url
         jsontype = "application/json"
-        headers = {"Accept": jsontype, "content-type": jsontype}
+        if headers is None:
+            headers = {}
+        headers["Accept"] = jsontype
+        headers["content-type"] = jsontype
         try:
             data = json.dumps(kvdict) if kvdict is not None else None
             if auth is notset:
