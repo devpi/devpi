@@ -702,7 +702,7 @@ class PyPIView:
             apireturn(404, message="no release/files found for %s-%s" %(
                       name, version))
 
-        metadata = get_pure_metadata(linkstore.verdata)
+        metadata = linkstore.metadata
 
         results = []
         targetindex = pushdata.get("targetindex", None)
@@ -1302,11 +1302,4 @@ def getkvdict_index(hook, req):
         if key in req:
             kvdict[key] = req[key]
     return kvdict
-
-def get_pure_metadata(somedict):
-    metadata = {}
-    for n, v in somedict.items():
-        if n[0] != "+":
-            metadata[n] = v
-    return metadata
 

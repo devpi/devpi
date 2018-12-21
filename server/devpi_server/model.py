@@ -931,6 +931,14 @@ class LinkStore:
             raise MissesRegistration("%s-%s on stage %s",
                                      project, version, stage.name)
 
+    @property
+    def metadata(self):
+        metadata = {}
+        for k, v in get_mutable_deepcopy(self.verdata).items():
+            if not k.startswith("+"):
+                metadata[k] = v
+        return metadata
+
     def get_file_entry(self, relpath):
         return self.filestore.get_file_entry(relpath)
 
