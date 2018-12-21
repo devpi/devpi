@@ -1111,6 +1111,29 @@ def test_submit_authorization(mapp, testapp):
     assert r.status_code == 200
 
 
+def test_submit_without_trailing_slash(mapp, testapp):
+    # the regular target URL for uploads ends in a slash, the target
+    # without a slash was only meant for pushing a release. This test
+    # checks that an upload is now working without a slash as well.
+    from webtest.forms import Upload
+    api = mapp.create_and_use()
+    assert api.pypisubmit.endswith('/')
+    url = api.pypisubmit.rstrip('/')
+    name = "pkg"
+    version = "1.0"
+    basename = "%s-%s.tar.gz" % (name, version)
+    content = b"a"
+    mapp.set_versiondata(
+        dict(name=name, version=version))
+    assert mapp.get_release_paths('pkg') == []
+    r = testapp.post(url,
+        {":action": "file_upload", "name": name, "version": version,
+         "content": Upload(basename, content)}, expect_errors=True)
+    assert r.status_int == 200
+    assert mapp.get_release_paths('pkg') == [
+        '/%s/+f/ca9/78112ca1bbdca/%s' % (api.stagename, basename)]
+
+
 def test_push_non_existent(mapp, testapp, monkeypatch):
     req = dict(name="pkg5", version="2.6", targetindex="user2/dev")
     # check redirection/404 (depending on if devpi-web is installed,
