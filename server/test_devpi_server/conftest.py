@@ -113,12 +113,12 @@ def gentmp(request):
 def auto_transact(request):
     names = request.fixturenames
     if ("xom" not in names and "keyfs" not in names) or (
-        request.node.get_marker("notransaction")):
+        request.node.get_closest_marker("notransaction")):
         yield
         return
     keyfs = request.getfixturevalue("keyfs")
 
-    write = True if request.node.get_marker("writetransaction") else False
+    write = True if request.node.get_closest_marker("writetransaction") else False
     keyfs.begin_transaction_in_thread(write=write)
     yield
     try:
@@ -204,27 +204,27 @@ def makexom(request, gentmp, httpget, monkeypatch, storage_info):
             pm.register(plugin)
         serverdir = gentmp()
         fullopts = ["devpi-server", "--serverdir", serverdir] + list(opts)
-        if request.node.get_marker("with_replica_thread"):
+        if request.node.get_closest_marker("with_replica_thread"):
             fullopts.append("--master=http://localhost")
-        if not request.node.get_marker("no_storage_option"):
+        if not request.node.get_closest_marker("no_storage_option"):
             if storage_info["name"] != "sqlite":
                 fullopts.append("--storage=%s" % storage_info["name"])
         fullopts = [str(x) for x in fullopts]
         config = parseoptions(pm, fullopts)
         config.init_nodeinfo()
         for marker in ("storage_with_filesystem",):
-            if request.node.get_marker(marker):
+            if request.node.get_closest_marker(marker):
                 info = config._storage_info()
                 markers = info.get("_test_markers", [])
                 if marker not in markers:
                     pytest.skip("The storage doesn't have marker '%s'." % marker)
-        if not request.node.get_marker("no_storage_option"):
+        if not request.node.get_closest_marker("no_storage_option"):
             assert storage_info["storage"] is config.storage
-        if request.node.get_marker("nomocking"):
+        if request.node.get_closest_marker("nomocking"):
             xom = XOM(config)
         else:
             xom = XOM(config, httpget=httpget)
-            if not request.node.get_marker("nomockprojectsremote"):
+            if not request.node.get_closest_marker("nomockprojectsremote"):
                 monkeypatch.setattr(extpypi.PyPIStage, "_get_remote_projects",
                     lambda self: set())
             add_pypistage_mocks(monkeypatch, httpget)
@@ -233,15 +233,15 @@ def makexom(request, gentmp, httpget, monkeypatch, storage_info):
         if not xom.config.args.master_url:
             with xom.keyfs.transaction(write=True):
                 set_default_indexes(xom.model)
-        if request.node.get_marker("with_replica_thread"):
+        if request.node.get_closest_marker("with_replica_thread"):
             from devpi_server.replica import ReplicaThread
             rt = ReplicaThread(xom)
             xom.replica_thread = rt
             xom.thread_pool.register(rt)
             xom.thread_pool.start_one(rt)
-        if request.node.get_marker("start_threads"):
+        if request.node.get_closest_marker("start_threads"):
             xom.thread_pool.start()
-        elif request.node.get_marker("with_notifier"):
+        elif request.node.get_closest_marker("with_notifier"):
             xom.thread_pool.start_one(xom.keyfs.notifier)
         request.addfinalizer(xom.thread_pool.shutdown)
         return xom
