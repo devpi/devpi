@@ -34,6 +34,7 @@ def index_delete(hub, url):
         hub.info("index deleted: %s" % url)
 
 def index_list(hub, indexname):
+    hub.requires_login()
     url = hub.current.get_user_url()
     res = hub.http_api("get", url.url, None)
     name = res.result['username']
