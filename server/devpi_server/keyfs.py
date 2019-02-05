@@ -381,6 +381,7 @@ class Transaction(object):
         self.cache = {}
         self.dirty = set()
         self.closed = False
+        self.doomed = False
 
     def _get_value_at(self, typedkey, at_serial):
         relpath = typedkey.relpath
@@ -464,7 +465,6 @@ class Transaction(object):
         else:
             return True
 
-
     def delete(self, typedkey):
         if not self.write:
             raise self.keyfs.ReadOnly()
@@ -482,6 +482,9 @@ class Transaction(object):
         self.dirty.add(typedkey)
 
     def commit(self):
+        if self.doomed:
+            threadlog.debug("closing doomed transaction")
+            return self._close()
         if not self.write:
             return self._close()
         if not self.dirty and not self.conn.dirty_files:
@@ -525,6 +528,10 @@ class Transaction(object):
             "write" if write else "read")
         newtx = self.__class__(self.keyfs, write=write)
         self.__dict__ = newtx.__dict__
+
+    def doom(self):
+        """ mark as doomed to automatically rollback any changes """
+        self.doomed = True
 
 
 def check_unicode_keys(d):
