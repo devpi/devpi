@@ -470,7 +470,9 @@ def apifatal(request, *args, **kwargs):
 def set_default_indexes(model):
     root_user = model.get_user("root")
     if not root_user:
-        root_user = model.create_user("root", "")
+        root_user = model.create_user(
+            "root",
+            model.xom.config.args.root_passwd)
         threadlog.info("created root user")
     userconfig = root_user.key.get(readonly=False)
     indexes = userconfig["indexes"]

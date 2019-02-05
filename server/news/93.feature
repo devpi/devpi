@@ -1,0 +1,1 @@
+implement #93: allow setting root user password during initialization with ``--root-passwd`` option. Thanks to Andreas Palsson.
