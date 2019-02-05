@@ -15,6 +15,7 @@ from devpi_common.request import new_requests_session
 from .config import parseoptions, get_pluginmanager
 from .log import configure_logging, threadlog
 from .model import BaseStage
+from .views import apireturn
 from . import mythread
 from . import __version__ as server_version
 
@@ -396,6 +397,7 @@ class XOM:
         pyramid_config.add_request_method(get_remote_ip)
         pyramid_config.add_request_method(stage_url)
         pyramid_config.add_request_method(simpleindex_url)
+        pyramid_config.add_request_method(apifatal)
 
         # overwrite route_url method with our own
         pyramid_config.add_request_method(route_url)
@@ -458,6 +460,11 @@ def simpleindex_url(request, *args):
     if stage is not None:
         return request.route_url(
             "/{user}/{index}/+simple/", user=stage.username, index=stage.index)
+
+
+def apifatal(request, *args, **kwargs):
+    request.registry["xom"].keyfs.tx.doom()
+    apireturn(*args, **kwargs)
 
 
 def set_default_indexes(model):
