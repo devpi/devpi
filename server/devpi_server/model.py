@@ -119,8 +119,8 @@ class RootModel:
         self.xom = xom
         self.keyfs = xom.keyfs
 
-    def create_user(self, username, password, email=None):
-        return User.create(self, username, password, email)
+    def create_user(self, username, password, email=None, pwhash=None):
+        return User.create(self, username, password, email, pwhash=pwhash)
 
     def get_user(self, name):
         user = User(self, name)
@@ -255,7 +255,7 @@ class User:
         return self.keyfs.USER(user=self.name)
 
     @classmethod
-    def create(cls, model, username, password, email):
+    def create(cls, model, username, password, email, pwhash=None):
         userlist = model.keyfs.USERLIST.get(readonly=False)
         if username in userlist:
             raise InvalidUser("username '%s' already exists" % username)
@@ -265,8 +265,8 @@ class User:
                 "Any ascii symbol besides -.@_ is blocked." % username)
         user = cls(model, username)
         with user.key.update() as userconfig:
-            if password is not None:
-                user._setpassword(userconfig, password)
+            if password is not None or pwhash:
+                user._setpassword(userconfig, password, pwhash=pwhash)
             if email:
                 userconfig["email"] = email
             userconfig.setdefault("indexes", {})
@@ -301,8 +301,11 @@ class User:
             threadlog.info("modified user %r: %s", self.name,
                            ", ".join(modified))
 
-    def _setpassword(self, userconfig, password):
-        userconfig["pwhash"] = hash_password(password)
+    def _setpassword(self, userconfig, password, pwhash=None):
+        if pwhash:
+            userconfig["pwhash"] = ensure_unicode(pwhash)
+        else:
+            userconfig["pwhash"] = hash_password(password)
         threadlog.info("setting password for user %r", self.name)
 
     def delete(self):

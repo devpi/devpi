@@ -472,7 +472,8 @@ def set_default_indexes(model):
     if not root_user:
         root_user = model.create_user(
             "root",
-            model.xom.config.args.root_passwd)
+            model.xom.config.args.root_passwd,
+            pwhash=model.xom.config.args.root_passwd_hash)
         threadlog.info("created root user")
     userconfig = root_user.key.get(readonly=False)
     indexes = userconfig["indexes"]
