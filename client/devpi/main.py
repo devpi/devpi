@@ -36,13 +36,14 @@ def main(argv=None):
         return method(hub, hub.args)
 
 def initmain(argv):
-    args = parse_args(argv)
+    pm = get_pluginmanager()
+    args = parse_args(argv, pm)
     mod = args.mainloc
     func = "main"
     if ":" in mod:
         mod, func = mod.split(":")
     mod = __import__(mod, None, None, ["__doc__"])
-    return Hub(args), getattr(mod, func)
+    return Hub(args, pm=pm), getattr(mod, func)
 
 
 def get_pluginmanager(load_entry_points=True):
@@ -67,14 +68,17 @@ class Hub:
             cmds = [str(x) for x in cmds]
             subprocess.Popen.__init__(self, cmds, *args, **kwargs)
 
-    def __init__(self, args, file=None):
+    def __init__(self, args, file=None, pm=None):
         self._tw = py.io.TerminalWriter(file=file)
         self.args = args
         self.cwd = py.path.local()
         self.quiet = False
         self._last_http_stati = []
         self.http = new_requests_session(agent=("client", client_version))
-        self.pm = get_pluginmanager()
+        if pm is None:
+            self.pm = get_pluginmanager()
+        else:
+            self.pm = pm
 
     @property
     def hook(self):
@@ -104,7 +108,8 @@ class Hub:
 
     def http_api(self, method, url, kvdict=None, quiet=False,
                  auth=notset, basic_auth=notset, cert=notset,
-                 check_version=True, fatal=True, type=None, verify=None):
+                 check_version=True, fatal=True, type=None,
+                 verify=None, headers=None):
         """ send a json request and return a HTTPReply object which
         adds some extra methods to the requests's Reply object.
 
@@ -121,7 +126,10 @@ class Hub:
         if isinstance(url, URL):
             url = url.url
         jsontype = "application/json"
-        headers = {"Accept": jsontype, "content-type": jsontype}
+        if headers is None:
+            headers = {}
+        headers["Accept"] = jsontype
+        headers["content-type"] = jsontype
         try:
             data = json.dumps(kvdict) if kvdict is not None else None
             if auth is notset:
@@ -457,10 +465,10 @@ def print_version(hub):
                     hub.line("    %s %s" % (name, version))
 
 
-def parse_args(argv):
+def parse_args(argv, pm):
     argv = [str(x) for x in argv]
     parser = getbaseparser('devpi')
-    add_subparsers(parser)
+    add_subparsers(parser, pm)
     try_argcomplete(parser)
     try:
         args = parser.parse_args(argv[1:])
@@ -487,26 +495,36 @@ def parse_docstring(txt):
         doc = txt[:i+1]
     return doc, description
 
-def add_subparsers(parser):
+
+@hookimpl
+def devpiclient_subcommands():
+    subcommands = []
+    for add_arguments, args, kwargs in subcommand.discover(globals()):
+        if len(args) > 1:
+            name = args[1]
+        else:
+            name = add_arguments.__name__
+        mainloc = args[0]
+        subcommands.append((add_arguments, name, mainloc))
+    return subcommands
+
+
+def add_subparsers(parser, pm):
     subparsers = parser.add_subparsers()
     # see http://stackoverflow.com/questions/18282403/
     # for the following two lines (py3 compat)
     subparsers.required = False
     subparsers.dest = "command"
 
-    for func, args, kwargs in subcommand.discover(globals()):
-        if len(args) > 1:
-            name = args[1]
-        else:
-            name = func.__name__
-        doc, description = parse_docstring(func.__doc__)
+    subcommands = sum(pm.hook.devpiclient_subcommands(), [])
+    for (add_arguments, name, mainloc) in subcommands:
+        doc, description = parse_docstring(add_arguments.__doc__)
         subparser = subparsers.add_parser(name,
                                           description=description,
                                           help=doc)
         subparser.Action = argparse.Action
         add_generic_options(subparser)
-        func(subparser)
-        mainloc = args[0]
+        add_arguments(subparser)
         subparser.set_defaults(mainloc=mainloc)
 
 

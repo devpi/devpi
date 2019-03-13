@@ -12,7 +12,7 @@ import json
 import time
 
 from _pytest.pytester import RunResult, LineMatcher
-from devpi.main import Hub, initmain, parse_args
+from devpi.main import Hub, get_pluginmanager, initmain, parse_args
 from devpi_common.url import URL
 from devpi_server import __version__ as devpi_server_version
 from test_devpi_server.conftest import reqmock  # noqa
@@ -79,42 +79,6 @@ def Popen_module(request):
 @pytest.fixture(scope="function")
 def Popen(request):
     return PopenFactory(request.addfinalizer)
-
-def get_pypirc_patcher(devpi):
-    hub = devpi("use")
-    user, password = hub.current.get_auth()
-    pypisubmit = hub.current.pypisubmit
-    class overwrite:
-        def __enter__(self):
-            try:
-                homedir = py.path.local._gethomedir()
-            except Exception:
-                pytest.skip("this test requires a home directory")
-            self.pypirc = pypirc = homedir.join(".pypirc")
-            if pypirc.check():
-                save = pypirc.new(basename=pypirc.basename+".save")
-                pypirc.copy(save)
-                self.saved = save
-            else:
-                self.saved = None
-            content = textwrap.dedent("""
-                [distutils]
-                index-servers = testrepo
-                [testrepo]
-                repository: %s
-                username: %s
-                password: %s
-            """ % (pypisubmit, user, password))
-            print ("patching .pypirc content:\n%s" % content)
-            pypirc.write(content)
-            return "testrepo"
-
-        def __exit__(self, *args):
-            if self.saved is None:
-                self.pypirc.remove()
-            else:
-                self.saved.copy(self.pypirc)
-    return overwrite()
 
 
 def get_open_port(host):
@@ -202,7 +166,6 @@ def devpi(cmd_devpi, devpi_username, url_of_liveserver):
     cmd_devpi("login", user, "--password", "123")
     cmd_devpi("index", "-c", "dev")
     cmd_devpi("use", "dev")
-    cmd_devpi.patched_pypirc = get_pypirc_patcher(cmd_devpi)
     return cmd_devpi
 
 
@@ -345,16 +308,6 @@ def initproj(tmpdir):
 def create_and_upload(request, devpi, initproj, Popen):
     def upload(name, filedefs=None, opts=()):
         initproj(name, filedefs)
-        # we need to patch .pypirc
-        #with devpi.patched_pypirc as reponame:
-        #    popen = Popen([sys.executable, "setup.py",
-        #                   "register", "-r", reponame])
-        #    popen.communicate()
-        #    assert popen.returncode == 0
-        #    popen = Popen([sys.executable, "setup.py", "sdist", "upload",
-        #                   "-r", reponame])
-        #    popen.communicate()
-        #    assert popen.returncode == 0
         devpi("upload", *opts)
     return upload
 
@@ -606,7 +559,8 @@ def makehub(request):
                 break
         else:
             arglist.append("--clientdir=%s" % tmp)
-        args = parse_args(["devpi_"] + arglist)
+        pm = get_pluginmanager()
+        args = parse_args(["devpi_"] + arglist, pm)
         with tmp.as_cwd():
             return Hub(args)
     return mkhub

@@ -1,0 +1,1 @@
+support for additional commands added by plugins via ``devpiclient_subcommands`` hook.
