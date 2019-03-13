@@ -162,11 +162,11 @@ def test_no_detox(makehub, tmpdir, pseudo_current):
     assert runner == tox.cmdline
 
 def test_detox(makehub, tmpdir, pseudo_current):
-    detox_main = pytest.importorskip("detox.main")
+    pytest.importorskip("detox")
     hub = makehub(["test", "--detox", "-epy27", "somepkg"])
     index = DevIndex(hub, tmpdir, pseudo_current)
     runner = index.get_tox_runner()
-    assert runner == detox_main.main
+    assert 'detox' in runner.__module__
 
 
 def test_fallback_ini(makehub, tmpdir, pseudo_current):
