@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+import requests.exceptions
 import time
 import hashlib
 import pytest
@@ -565,7 +566,6 @@ def raise_ValueError():
 
 @pytest.mark.nomocking
 def test_requests_httpget_negative_status_code(xom, monkeypatch):
-    import requests.exceptions
     l = []
     def r(*a, **k):
         l.append(1)
@@ -576,7 +576,6 @@ def test_requests_httpget_negative_status_code(xom, monkeypatch):
 
 @pytest.mark.nomocking
 def test_requests_httpget_timeout(xom, monkeypatch):
-    import requests.exceptions
     def httpget(url, **kw):
         assert kw["timeout"] == 1.2
         raise requests.exceptions.Timeout()
@@ -584,6 +583,19 @@ def test_requests_httpget_timeout(xom, monkeypatch):
     monkeypatch.setattr(xom._httpsession, "get", httpget)
     r = xom.httpget("http://notexists.qwe", allow_redirects=False,
                               timeout=1.2)
+    assert r.status_code == -1
+
+
+@pytest.mark.nomocking
+@pytest.mark.parametrize("exc", [
+    OSError,
+    requests.exceptions.ConnectionError])
+def test_requests_httpget_error(exc, xom, monkeypatch):
+    def httpget(url, **kw):
+        raise exc()
+
+    monkeypatch.setattr(xom._httpsession, "get", httpget)
+    r = xom.httpget("http://notexists.qwe", allow_redirects=False)
     assert r.status_code == -1
 
 
