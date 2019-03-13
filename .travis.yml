@@ -109,15 +109,6 @@ jobs:
           packages:
             - nginx
 
-    - stage: test
-      python: "2.7"
-      env: PROJECT=postgresql
-      addons:
-        apt:
-          packages:
-            - nginx
-        postgresql: "9.4"
-
     #########################
     #
     # postgresql
@@ -126,15 +117,6 @@ jobs:
 
     - stage: test
       python: "3.4"
-      env: PROJECT=postgresql
-      addons:
-        apt:
-          packages:
-            - nginx
-        postgresql: "9.4"
-
-    - stage: test
-      python: "pypy"
       env: PROJECT=postgresql
       addons:
         apt:
