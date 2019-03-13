@@ -677,6 +677,9 @@ class PyPIView:
     @view_config(route_name="/{user}/{index}", request_method=("POST", "PUSH"))
     def pushrelease(self):
         request = self.request
+        if request.POST.get(':action'):
+            # this is actually a submit
+            return self.submit()
         stage = self.context.stage
         pushdata = getjson(request)
         try:
