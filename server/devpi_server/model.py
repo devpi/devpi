@@ -409,6 +409,15 @@ class BaseStage(object):
         self.keyfs = xom.keyfs
         self.filestore = xom.filestore
 
+    @cached_property
+    def user(self):
+        # only few methods need the user object.
+        return self.model.get_user(self.username)
+
+    def get(self):
+        userconfig = self.user.get()
+        return userconfig.get("indexes", {}).get(self.index)
+
     def delete(self):
         with self.user.key.update() as userconfig:
             indexes = userconfig.get("indexes", {})
@@ -635,11 +644,6 @@ class PrivateStage(BaseStage):
         super(PrivateStage, self).__init__(xom, username, index, ixconfig)
         self.key_projects = self.keyfs.PROJNAMES(user=username, index=index)
 
-    @cached_property
-    def user(self):
-        # only few methods need the user object.
-        return self.model.get_user(self.username)
-
     def modify(self, index=None, **kw):
         if 'type' in kw and self.ixconfig["type"] != kw['type']:
             raise InvalidIndexconfig(
@@ -657,10 +661,6 @@ class PrivateStage(BaseStage):
             threadlog.info("modified index %s: %s", self.name, ixconfig)
             self.ixconfig = newconfig
             return newconfig
-
-    def get(self):
-        userconfig = self.user.get()
-        return userconfig.get("indexes", {}).get(self.index)
 
     def delete(self):
         # delete all projects on this index
