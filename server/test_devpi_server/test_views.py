@@ -1690,6 +1690,7 @@ def test_delete_mirror(mapp, simpypi, testapp, xom):
     def httpget(url, **kwargs):
         class Response:
             status_code = 503
+            reason = "Service Unavailable"
         return Response()
     xom.httpget = httpget
 

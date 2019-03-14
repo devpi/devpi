@@ -4,7 +4,7 @@ a WSGI server to serve PyPI compatible indexes and a full
 recursive cache of pypi.org packages.
 """
 from __future__ import unicode_literals
-
+import inspect
 import os, sys
 import py
 
@@ -158,6 +158,17 @@ def wsgi_run(xom, app):
     return 0
 
 
+def get_caller_location():
+    frame = inspect.currentframe()
+    if frame is None:
+        return 'unknown (no current frame)'
+    caller_frame = frame.f_back.f_back
+    return "%s:%s::%s" % (
+        caller_frame.f_code.co_filename,
+        caller_frame.f_lineno,
+        caller_frame.f_code.co_name)
+
+
 class XOM:
     class Exiting(SystemExit):
         pass
@@ -297,14 +308,17 @@ class XOM:
                         timeout=timeout or self.config.args.request_timeout)
             return resp
         except OSError:
-            threadlog.exception("OS error during httpget of %s", url)
-            return FatalResponse(sys.exc_info())
+            location = get_caller_location()
+            threadlog.warn("OS error during httpget of %s at %s", url, location)
+            return FatalResponse(repr(sys.exc_info()[1]))
         except exceptions.ConnectionError:
-            threadlog.exception("Connection error during httpget of %s", url)
-            return FatalResponse(sys.exc_info())
+            location = get_caller_location()
+            threadlog.warn("Connection error during httpget of %s at %s", url, location)
+            return FatalResponse(repr(sys.exc_info()[1]))
         except self._httpsession.Errors:
-            threadlog.exception("Error during httpget of %s", url)
-            return FatalResponse(sys.exc_info())
+            location = get_caller_location()
+            threadlog.warn("HTTPError during httpget of %s at %s", url, location)
+            return FatalResponse(repr(sys.exc_info()[1]))
 
     def create_app(self):
         from devpi_server.view_auth import DevpiAuthenticationPolicy
@@ -410,12 +424,8 @@ class XOM:
 class FatalResponse:
     status_code = -1
 
-    def __init__(self, excinfo=None):
-        self.reason = repr(excinfo[1])
-
-    @property
-    def status(self):
-        return "%s %s" % (self.status_code, self.reason)
+    def __init__(self, reason):
+        self.reason = reason
 
     def __repr__(self):
         return "%s(%r)" % (self.__class__.__name__, self.reason)

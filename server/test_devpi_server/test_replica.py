@@ -510,7 +510,7 @@ class TestFileReplication:
                                          content=b'')
         with pytest.raises(FileReplicationError) as e:
             replay(xom, replica_xom)
-        assert str(e.value) == 'FileReplicationError with http://localhost/root/pypi/+e/https_pypi.org_package_some/some-1.8.zip, code=500, relpath=root/pypi/+e/https_pypi.org_package_some/some-1.8.zip, message=failed'
+        assert str(e.value) == 'FileReplicationError with http://localhost/root/pypi/+e/https_pypi.org_package_some/some-1.8.zip, code=500, reason=Internal Server Error, relpath=root/pypi/+e/https_pypi.org_package_some/some-1.8.zip, message=failed'
 
         # now get the real thing
         replica_xom.httpget.mockresponse(master_file_path, status_code=200,

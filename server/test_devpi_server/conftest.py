@@ -22,6 +22,7 @@ from devpi_server.extpypi import PyPIStage
 from devpi_server.log import threadlog, thread_clear_log
 from pyramid.authentication import b64encode
 from pyramid.compat import escape
+from pyramid.httpexceptions import status_map
 
 import hashlib
 try:
@@ -338,8 +339,11 @@ def httpget(pypiurls):
             return r
 
         def mockresponse(self, mockurl, **kw):
-            if "status_code" not in kw:
-                kw["status_code"] = 200
+            kw.setdefault("status_code", 200)
+            kw.setdefault("reason", getattr(
+                status_map.get(kw["status_code"]),
+                "title",
+                "Devpi Mock Error"))
             log.debug("set mocking response %s %s", mockurl, kw)
             self.url2response[mockurl] = kw
 
