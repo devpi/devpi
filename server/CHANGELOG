@@ -2,6 +2,19 @@
 
 .. towncrier release notes start
 
+4.8.1 (2019-03-14)
+==================
+
+Bug Fixes
+---------
+
+- fix #520: uploads work with and without a trailing slash for the index url.
+
+- fix #597: handle ConnectionError in httpget
+
+- fix #615: setting of mirror index options with server side patching didn't work
+
+
 4.8.0 (2018-11-16)
 ==================
 

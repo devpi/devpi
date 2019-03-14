@@ -35,7 +35,7 @@ if __name__ == "__main__":
       description="devpi upload/install/... workflow commands for Python "
                   "developers",
       long_description="\n\n".join([README, CHANGELOG]),
-      version='4.2.1.dev0',
+      version='4.3.0',
       packages=find_packages(),
       install_requires=install_requires,
       extras_require=extras_require,

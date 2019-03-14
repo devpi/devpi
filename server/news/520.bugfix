@@ -1,1 +1,0 @@
-fix #520: uploads work with and without a trailing slash for the index url.

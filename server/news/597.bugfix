@@ -1,1 +1,0 @@
-fix #597: handle ConnectionError in httpget

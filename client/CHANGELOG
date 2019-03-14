@@ -2,6 +2,21 @@
 
 .. towncrier release notes start
 
+4.3.0 (2019-03-14)
+==================
+
+Features
+--------
+
+- support for additional commands added by plugins via ``devpiclient_subcommands`` hook.
+
+
+Bug Fixes
+---------
+
+- Update import location for detox 0.18.
+
+
 4.2.0 (2018-11-16)
 ==================
 
