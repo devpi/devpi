@@ -177,7 +177,7 @@ def tween_request_logging(handler, registry):
             rheaders[H_MASTER_UUID] = str(master_uuid)
 
             log.debug("%s %.3fs serial=%s length=%s type=%s",
-                      response.status_code,
+                      response.status,
                       duration,
                       serial,
                       rheaders.get("content-length"),

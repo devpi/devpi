@@ -253,8 +253,8 @@ class PyPIStage(BaseStage):
         headers = {"Accept": "text/html"}
         response = self.httpget(self.mirror_url, allow_redirects=True, extra_headers=headers)
         if response.status_code != 200:
-            raise self.UpstreamError("URL %r returned %s",
-                                self.mirror_url, response.status_code)
+            raise self.UpstreamError("URL %r returned %s %s",
+                self.mirror_url, response.status_code, response.reason)
         page = HTMLPage(response.text, response.url)
         projects = set()
         baseurl = URL(response.url)
@@ -390,8 +390,8 @@ class PyPIStage(BaseStage):
             # to stay resilient against server misconfigurations.
             if links is not None:
                 threadlog.warn(
-                    "serving stale links for %r, url %r responded %r",
-                    project, url, response.status_code)
+                    "serving stale links for %r, url %r responded %s %s",
+                    project, url, response.status_code, response.reason)
                 return links
             if response.status_code == 404:
                 self.cache_retrieve_times.refresh(project)
@@ -399,8 +399,8 @@ class PyPIStage(BaseStage):
                     "not found on GET %s" % url)
 
             # we don't have an old result and got a non-404 code.
-            raise self.UpstreamError("%s status on GET %s" %
-                                     (response.status_code, url))
+            raise self.UpstreamError("%s status on GET %s" % (
+                response.status_code, url))
 
         # pypi.org provides X-PYPI-LAST-SERIAL header in case of 200 returns.
         # devpi-master may provide a 200 but not supply the header

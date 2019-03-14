@@ -458,9 +458,10 @@ class FileReplicationError(Exception):
     def __init__(self, response, relpath, message=None):
         self.url = response.url
         self.status_code = response.status_code
+        self.reason = response.reason
         self.relpath = relpath
         self.message = message or "failed"
 
     def __str__(self):
-        return "FileReplicationError with %s, code=%s, relpath=%s, message=%s" % (
-               self.url, self.status_code, self.relpath, self.message)
+        return "FileReplicationError with %s, code=%s, reason=%s, relpath=%s, message=%s" % (
+               self.url, self.status_code, self.reason, self.relpath, self.message)
