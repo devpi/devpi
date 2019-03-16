@@ -338,6 +338,8 @@ class User:
         return d
 
     def create_stage(self, index, type="stage", **kwargs):
+        if index in self.get().get("indexes", {}):
+            raise InvalidIndex("indexname '%s' already exists" % index)
         if not is_valid_name(index):
             raise InvalidIndex(
                 "indexname '%s' contains characters that aren't allowed. "
@@ -348,35 +350,27 @@ class User:
             kwargs.setdefault("acl_toxresult_upload", [":ANONYMOUS:"])
             kwargs.setdefault("bases", [])
             kwargs.setdefault("mirror_whitelist", [])
-        ixconfig = get_indexconfig(
-            self.xom.config.hook,
-            type=type, **kwargs)
-        if "bases" in ixconfig:
-            ixconfig["bases"] = tuple(normalize_bases(
-                self.xom.model, ixconfig["bases"]))
-        # modify user/indexconfig
-        with self.key.update() as userconfig:
-            indexes = userconfig.setdefault("indexes", {})
-            if index in indexes:
-                raise InvalidIndex("indexname '%s' already exists" % index)
-            indexes[index] = ixconfig
-        stage = self.getstage(index)
+        stage = self._getstage(index, type, {"type": type})
+        stage._modify(**kwargs)
         threadlog.info("created index %s: %s", stage.name, stage.ixconfig)
         return stage
+
+    def _getstage(self, indexname, index_type, ixconfig):
+        if index_type == "mirror":
+            from .extpypi import PyPIStage
+            cls = PyPIStage
+        else:
+            cls = PrivateStage
+        return cls(
+            self.xom,
+            username=self.name, index=indexname,
+            ixconfig=ixconfig)
 
     def getstage(self, indexname):
         ixconfig = self.get()["indexes"].get(indexname, {})
         if not ixconfig:
             return None
-        if ixconfig["type"] == "stage":
-            Stage = PrivateStage
-        elif ixconfig["type"] == "mirror":
-            from .extpypi import PyPIStage
-            Stage = PyPIStage
-        else:
-            raise ValueError("unknown index type %r" % ixconfig["type"])
-        return Stage(self.xom, username=self.name, index=indexname,
-                     ixconfig=ixconfig)
+        return self._getstage(indexname, ixconfig["type"], ixconfig)
 
 
 class InvalidIndexconfig(Exception):
@@ -555,7 +549,7 @@ class BaseStage(object):
                 return True
         return False
 
-    def modify(self, **kw):
+    def _modify(self, **kw):
         if 'type' in kw and self.ixconfig["type"] != kw['type']:
             raise InvalidIndexconfig(
                 ["the 'type' of an index can't be changed"])
@@ -567,11 +561,15 @@ class BaseStage(object):
                 self.xom.model, ixconfig["bases"]))
         # modify user/indexconfig
         with self.user.key.update() as userconfig:
-            newconfig = userconfig["indexes"][self.index]
+            newconfig = userconfig["indexes"].setdefault(self.index, {})
             newconfig.update(ixconfig)
-            threadlog.info("modified index %s: %s", self.name, ixconfig)
             self.ixconfig = newconfig
             return newconfig
+
+    def modify(self, index=None, **kw):
+        newconfig = self._modify(**kw)
+        threadlog.info("modified index %s: %s", self.name, newconfig)
+        return newconfig
 
     def op_sro(self, opname, **kw):
         for stage in self.sro():

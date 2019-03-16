@@ -89,19 +89,25 @@ class PyPIStage(BaseStage):
     def __init__(self, xom, username, index, ixconfig):
         super(PyPIStage, self).__init__(xom, username, index, ixconfig)
         self.httpget = self.xom.httpget  # XXX is requests/httpget multi-thread safe?
-        self.cache_expiry = self.ixconfig.get(
-            'mirror_cache_expiry', xom.config.args.mirror_cache_expiry)
         self.xom = xom
         self.offline = self.xom.config.args.offline_mode
         self.timeout = xom.config.args.request_timeout
         # list of locally mirrored projects
         self.key_projects = self.keyfs.PROJNAMES(user=username, index=index)
-        if xom.is_replica():
-            url = xom.config.master_url
-            self.mirror_url = url.joinpath("%s/+simple/" % self.name).url
+
+    @property
+    def cache_expiry(self):
+        return self.ixconfig.get(
+            'mirror_cache_expiry', self.xom.config.args.mirror_cache_expiry)
+
+    @property
+    def mirror_url(self):
+        if self.xom.is_replica():
+            url = self.xom.config.master_url
+            return url.joinpath("%s/+simple/" % self.name).url
         else:
             url = URL(self.ixconfig['mirror_url'])
-            self.mirror_url = url.asdir().url
+            return url.asdir().url
 
     def delete(self):
         # delete all projects on this index

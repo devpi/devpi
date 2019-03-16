@@ -15,6 +15,8 @@ def pytest_addoption(parser):
 def devpiserver_makepypistage():
     def makepypistage(xom):
         from devpi_server.main import _pypi_ixconfig_default
+        # we copy _pypi_ixconfig_default, otherwise the defaults will
+        # be modified during config updates later on
         return PyPIStage(xom, username="root", index="pypi",
-                         ixconfig=_pypi_ixconfig_default)
+                         ixconfig=dict(_pypi_ixconfig_default))
     return makepypistage

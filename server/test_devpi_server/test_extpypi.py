@@ -451,7 +451,7 @@ class TestPyPIStageprojects:
             <body>
                 <a href='django'>Django</a><br/>
             </body>""")
-        pypistage.cache_expiry = 0
+        pypistage.ixconfig['mirror_cache_expiry'] = 0
         projectnames = pypistage.cache_projectnames
         assert not projectnames.exists()
         pypistage.list_projects_perstage()
