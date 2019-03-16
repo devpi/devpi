@@ -17,6 +17,7 @@ from devpi_common.metadata import BasenameMeta
 from devpi_common.metadata import is_archive_of_project
 from devpi_common.validation import normalize_name
 from functools import partial
+from .config import hookimpl
 from .model import BaseStageCustomizer
 from .model import BaseStage, make_key_and_href, SimplelinkMeta
 from .model import ensure_boolean
@@ -508,6 +509,13 @@ class PyPIStage(BaseStage):
 
 class PyPICustomizer(BaseStageCustomizer):
     pass
+
+
+@hookimpl
+def devpiserver_get_stage_customizer_classes():
+    # prevent plugins from installing their own under the reserved names
+    return [
+        ("mirror", PyPICustomizer)]
 
 
 class ProjectNamesCache:

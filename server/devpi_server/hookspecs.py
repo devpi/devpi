@@ -100,6 +100,15 @@ def devpiserver_auth_user(userdict, username, password):
 
 
 @hookspec
+def devpiserver_get_stage_customizer_classes():
+    """EXPERIMENTAL!
+
+    Returns a list of tuples of index type and customization class.
+
+    The index type string must be unique."""
+
+
+@hookspec
 def devpiserver_indexconfig_defaults(index_type):
     """Returns a dictionary with keys and their defaults for the index
     configuration dictionary.

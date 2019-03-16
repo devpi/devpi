@@ -369,6 +369,21 @@ class XOM:
         version_info.sort()
         pyramid_config.registry['devpi_version_info'] = version_info
         pyramid_config.registry['xom'] = self
+        index_classes = {}
+        customizer_classes = sum(
+            self.config.hook.devpiserver_get_stage_customizer_classes(),
+            [])
+        for ixtype, ixclass in customizer_classes:
+            index_classes.setdefault(ixtype, []).append(ixclass)
+        for ixtype, ixclasses in index_classes.items():
+            if len(ixclasses) > 1:
+                fatal(
+                    "multiple implementation classes for index type '%s':\n%s"
+                    % (
+                        ixtype,
+                        "\n".join(
+                            "%s.%s" % (x.__module__, x.__name__)
+                            for x in ixclasses)))
         self.config.hook.devpiserver_pyramid_configure(
                 config=self.config,
                 pyramid_config=pyramid_config)

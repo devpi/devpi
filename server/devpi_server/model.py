@@ -17,6 +17,7 @@ except ImportError:
     from itertools import izip_longest as zip_longest
 from time import gmtime
 from .auth import hash_password, verify_and_update_password_hash
+from .config import hookimpl
 from .filestore import FileEntry
 from .log import threadlog, thread_current_log
 from .readonly import get_mutable_deepcopy
@@ -166,9 +167,10 @@ def normalize_whitelist_name(name):
 
 
 def get_stage_customizer_classes(xom):
-    return dict(
-        mirror=BaseStageCustomizer,
-        stage=BaseStageCustomizer)
+    customizer_classes = sum(
+        xom.config.hook.devpiserver_get_stage_customizer_classes(),
+        [])
+    return dict(customizer_classes)
 
 
 def get_stage_customizer_class(xom, index_type):
@@ -887,6 +889,13 @@ class PrivateStage(BaseStage):
 
 class StageCustomizer(BaseStageCustomizer):
     pass
+
+
+@hookimpl
+def devpiserver_get_stage_customizer_classes():
+    # prevent plugins from installing their own under the reserved names
+    return [
+        ("stage", StageCustomizer)]
 
 
 class ELink(object):
