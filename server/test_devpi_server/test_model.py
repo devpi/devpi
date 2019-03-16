@@ -1,5 +1,7 @@
 from __future__ import unicode_literals
 import getpass
+import inspect
+import itertools
 import py
 import pytest
 import json
@@ -9,6 +11,7 @@ from devpi_common.archive import Archive, zip_dict
 from devpi_server.config import hookimpl
 from devpi_server.model import InvalidIndexconfig
 from devpi_server.model import get_indexconfig
+from devpi_server.model import ensure_boolean
 from devpi_server.model import run_passwd
 from py.io import BytesIO
 
@@ -1024,14 +1027,52 @@ def test_get_indexconfig_lists(key, value, result):
     assert kvdict[key] == result
 
 
+def test_ensure_boolean():
+    def upper_lower_case_permutations(value):
+        return tuple(
+            "".join(x)
+            for x in itertools.product(*zip(value.lower(), value.upper())))
+    assert ensure_boolean(True) is True
+    for s in upper_lower_case_permutations("yes"):
+        assert ensure_boolean(s) is True
+    for s in upper_lower_case_permutations("true"):
+        assert ensure_boolean(s) is True
+    assert ensure_boolean(False) is False
+    for s in upper_lower_case_permutations("no"):
+        assert ensure_boolean(s) is False
+    for s in upper_lower_case_permutations("false"):
+        assert ensure_boolean(s) is False
+    with pytest.raises(InvalidIndexconfig):
+        ensure_boolean(None)
+        ensure_boolean("")
+        ensure_boolean("foo")
+        ensure_boolean([])
+        ensure_boolean(["foo"])
+
+
 @pytest.mark.parametrize(["input", "expected"], [
     ({},
      dict(type="stage")),
 
     ({"volatile": "foo"},
+     InvalidIndexconfig),
+
+    ({"volatile": True},
      dict(type="stage", volatile=True)),
 
+    ({"volatile": "true"},
+     dict(type="stage", volatile=True)),
+
+    ({"volatile": "Yes"},
+     dict(type="stage", volatile=True)),
+
+    ({"volatile": False},
+     dict(type="stage", volatile=False)),
+
     ({"volatile": "False"},
+     dict(type="stage", volatile=False)),
+
+    ({"volatile": "no"},
      dict(type="stage", volatile=False)),
 
     ({"volatile": "False", "bases": "root/pypi"},
@@ -1053,5 +1094,9 @@ def test_get_indexconfig_values(xom, input, expected):
         @hookimpl
         def devpiserver_indexconfig_defaults(self, index_type):
             return {}
-    result = get_indexconfig(hooks(), type="stage", **input)
-    assert result == expected
+    if inspect.isclass(expected) and issubclass(expected, Exception):
+        with pytest.raises(expected):
+            get_indexconfig(hooks(), type="stage", **input)
+    else:
+        result = get_indexconfig(hooks(), type="stage", **input)
+        assert result == expected

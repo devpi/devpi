@@ -149,6 +149,18 @@ class RootModel:
             return user.getstage(index)
 
 
+def ensure_boolean(value):
+    if isinstance(value, bool):
+        return value
+    if not hasattr(value, "lower"):
+        raise InvalidIndexconfig("Unknown boolean value %r." % value)
+    if value.lower() in ["false", "no"]:
+        return False
+    if value.lower() in ["true", "yes"]:
+        return True
+    raise InvalidIndexconfig("Unknown boolean value '%s'." % value)
+
+
 def ensure_list(data):
     if isinstance(data, (list, tuple, set)):
         return list(data)
@@ -165,12 +177,7 @@ def normalize_whitelist_name(name):
 def get_indexconfig(hooks, type, **kwargs):
     ixconfig = {"type": type}
     if "volatile" in kwargs:
-        volatile = kwargs.pop("volatile")
-        if volatile is False or (
-                volatile is not True and volatile.lower() in ["false", "no"]):
-            ixconfig["volatile"] = False
-        else:
-            ixconfig["volatile"] = True
+        ixconfig["volatile"] = ensure_boolean(kwargs.pop("volatile"))
     if type == "mirror":
         if not kwargs.get("mirror_url"):
             raise InvalidIndexconfig(
