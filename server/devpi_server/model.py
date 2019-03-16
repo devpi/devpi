@@ -343,17 +343,17 @@ class User:
                 "indexname '%s' contains characters that aren't allowed. "
                 "Any ascii symbol besides -.@_ is blocked." % index)
         kwargs.setdefault("volatile", True)
+        if type == "stage":
+            kwargs.setdefault("acl_upload", [self.name])
+            kwargs.setdefault("acl_toxresult_upload", [":ANONYMOUS:"])
+            kwargs.setdefault("bases", [])
+            kwargs.setdefault("mirror_whitelist", [])
         ixconfig = get_indexconfig(
             self.xom.config.hook,
             type=type, **kwargs)
-        if type == "stage":
-            if ixconfig.get("acl_upload") is None:
-                ixconfig["acl_upload"] = [self.name]
-            if ixconfig.get("acl_toxresult_upload") is None:
-                ixconfig["acl_toxresult_upload"] = [":ANONYMOUS:"]
+        if "bases" in ixconfig:
             ixconfig["bases"] = tuple(normalize_bases(
-                self.xom.model, ixconfig.get("bases", [])))
-            ixconfig["mirror_whitelist"] = ixconfig.get("mirror_whitelist", [])
+                self.xom.model, ixconfig["bases"]))
         # modify user/indexconfig
         with self.key.update() as userconfig:
             indexes = userconfig.setdefault("indexes", {})
