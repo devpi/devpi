@@ -19,7 +19,6 @@ from devpi_common.validation import normalize_name
 from functools import partial
 from .model import BaseStage, make_key_and_href, SimplelinkMeta
 from .model import join_requires
-from .model import InvalidIndexconfig, get_indexconfig
 from .readonly import ensure_deeply_readonly
 from .log import threadlog
 
@@ -110,21 +109,6 @@ class PyPIStage(BaseStage):
             self.del_project(name)
         self.key_projects.delete()
         BaseStage.delete(self)
-
-    def modify(self, index=None, **kw):
-        if 'type' in kw and self.ixconfig["type"] != kw['type']:
-            raise InvalidIndexconfig(
-                ["the 'type' of an index can't be changed"])
-        kw.pop("type", None)
-        ixconfig = get_indexconfig(
-            self.xom.config.hook, type=self.ixconfig["type"], **kw)
-        # modify user/indexconfig
-        with self.user.key.update() as userconfig:
-            newconfig = userconfig["indexes"][self.index]
-            newconfig.update(ixconfig)
-            threadlog.info("modified index %s: %s", self.name, ixconfig)
-            self.ixconfig = newconfig
-            return newconfig
 
     def add_project_name(self, project):
         project = normalize_name(project)

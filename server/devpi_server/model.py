@@ -554,6 +554,24 @@ class BaseStage(object):
                 return True
         return False
 
+    def modify(self, **kw):
+        if 'type' in kw and self.ixconfig["type"] != kw['type']:
+            raise InvalidIndexconfig(
+                ["the 'type' of an index can't be changed"])
+        kw.pop("type", None)
+        ixconfig = get_indexconfig(
+            self.xom.config.hook, type=self.ixconfig["type"], **kw)
+        if "bases" in ixconfig:
+            ixconfig["bases"] = tuple(normalize_bases(
+                self.xom.model, ixconfig["bases"]))
+        # modify user/indexconfig
+        with self.user.key.update() as userconfig:
+            newconfig = userconfig["indexes"][self.index]
+            newconfig.update(ixconfig)
+            threadlog.info("modified index %s: %s", self.name, ixconfig)
+            self.ixconfig = newconfig
+            return newconfig
+
     def op_sro(self, opname, **kw):
         for stage in self.sro():
             yield stage, getattr(stage, opname)(**kw)
@@ -638,24 +656,6 @@ class PrivateStage(BaseStage):
     def __init__(self, xom, username, index, ixconfig):
         super(PrivateStage, self).__init__(xom, username, index, ixconfig)
         self.key_projects = self.keyfs.PROJNAMES(user=username, index=index)
-
-    def modify(self, index=None, **kw):
-        if 'type' in kw and self.ixconfig["type"] != kw['type']:
-            raise InvalidIndexconfig(
-                ["the 'type' of an index can't be changed"])
-        kw.pop("type", None)
-        ixconfig = get_indexconfig(
-            self.xom.config.hook, type=self.ixconfig["type"], **kw)
-        if "bases" in ixconfig:
-            ixconfig["bases"] = tuple(normalize_bases(
-                self.xom.model, ixconfig["bases"]))
-        # modify user/indexconfig
-        with self.user.key.update() as userconfig:
-            newconfig = userconfig["indexes"][self.index]
-            newconfig.update(ixconfig)
-            threadlog.info("modified index %s: %s", self.name, ixconfig)
-            self.ixconfig = newconfig
-            return newconfig
 
     def delete(self):
         # delete all projects on this index
