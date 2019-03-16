@@ -27,7 +27,6 @@ from devpi_common.validation import normalize_name, is_valid_archive_name
 from .filestore import BadGateway
 from .model import InvalidIndex, InvalidIndexconfig, InvalidUser
 from .model import UpstreamError
-from .model import get_ixconfigattrs
 from .readonly import get_mutable_deepcopy
 from .log import thread_push_log, thread_pop_log, threadlog
 
@@ -620,9 +619,9 @@ class PyPIView:
         if not self.request.has_permission("index_create"):
             apireturn(403, "no permission to create index %s/%s" % (
                 self.context.username, self.context.index))
-        kvdict = getkvdict_index(self.xom.config.hook, getjson(self.request))
+        json = getjson(self.request)
         try:
-            stage = self.context.user.create_stage(self.context.index, **kvdict)
+            stage = self.context.user.create_stage(self.context.index, **json)
             ixconfig = stage.ixconfig
         except InvalidIndex as e:
             apireturn(400, "%s" % e)
@@ -656,9 +655,8 @@ class PyPIView:
                 elif op == 'set':
                     ixconfig[key] = value
             json = ixconfig
-        kvdict = getkvdict_index(self.xom.config.hook, json)
         try:
-            ixconfig = stage.modify(**kvdict)
+            ixconfig = stage.modify(**json)
         except InvalidIndexconfig as e:
             apireturn(400, message=", ".join(e.messages))
         apireturn(200, type="indexconfig", result=ixconfig)
@@ -1275,13 +1273,3 @@ def abort_if_invalid_project(request, project):
             project.encode("ascii")
     except (UnicodeEncodeError, UnicodeDecodeError):
         abort(request, 400, "unicode project names not allowed")
-
-
-def getkvdict_index(hook, req):
-    kvdict = {}
-    ixconfigattrs = get_ixconfigattrs(hook, req.get("type", "stage"))
-    for key in ixconfigattrs:
-        if key in req:
-            kvdict[key] = req[key]
-    return kvdict
-

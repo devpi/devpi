@@ -50,25 +50,6 @@ def run_passwd(root, username):
     user.modify(password=pwd)
 
 
-def get_ixconfigattrs(hooks, index_type):
-    base = set(("type", "volatile", "title", "description", "custom_data"))
-    if index_type == 'mirror':
-        base.update((
-            "mirror_url", "mirror_cache_expiry",
-            "mirror_web_url_fmt"))
-    elif index_type == 'stage':
-        base.update(("bases", "acl_upload", "acl_toxresult_upload", "mirror_whitelist"))
-    for defaults in hooks.devpiserver_indexconfig_defaults(index_type=index_type):
-        conflicting = base.intersection(defaults)
-        if conflicting:
-            raise ValueError(
-                "A plugin returned the following keys which conflict with "
-                "existing index configuration keys: %s"
-                % ", ".join(sorted(conflicting)))
-        base.update(defaults)
-    return base
-
-
 class ModelException(Exception):
     """ Base Exception. """
     def __init__(self, msg, *args):
@@ -300,12 +281,6 @@ class User:
             raise InvalidIndex(
                 "indexname '%s' contains characters that aren't allowed. "
                 "Any ascii symbol besides -.@_ is blocked." % index)
-        kwargs.setdefault("volatile", True)
-        if type == "stage":
-            kwargs.setdefault("acl_upload", [self.name])
-            kwargs.setdefault("acl_toxresult_upload", [":ANONYMOUS:"])
-            kwargs.setdefault("bases", [])
-            kwargs.setdefault("mirror_whitelist", [])
         stage = self._getstage(index, type, {"type": type})
         stage._modify(**kwargs)
         threadlog.info("created index %s: %s", stage.name, stage.ixconfig)
@@ -317,6 +292,9 @@ class User:
             cls = PyPIStage
         else:
             cls = PrivateStage
+        if index_type not in ("mirror", "stage"):
+            raise InvalidIndexconfig(
+                ["indexconfig has invalid index type: %s" % index_type])
         return cls(
             self.xom,
             username=self.name, index=indexname,
@@ -336,6 +314,8 @@ class InvalidIndexconfig(Exception):
 
 
 class BaseStage(object):
+    InvalidIndex = InvalidIndex
+    InvalidIndexconfig = InvalidIndexconfig
     InvalidUser = InvalidUser
     NotFound = NotFound
     UpstreamError = UpstreamError
@@ -355,50 +335,49 @@ class BaseStage(object):
         self.keyfs = xom.keyfs
         self.filestore = xom.filestore
 
-    def get_indexconfig(self, **kwargs):
-        type = self.ixconfig['type']
+    def get_indexconfig_from_kwargs(self, **kwargs):
+        """Normalizes values and validates keys.
+
+        Returns the parts touched by kwargs as dict.
+        This is not the complete index configuration."""
+        index_type = self.ixconfig['type']
         ixconfig = {}
-        if "volatile" in kwargs:
-            ixconfig["volatile"] = ensure_boolean(kwargs.pop("volatile"))
-        if type == "mirror":
-            if not kwargs.get("mirror_url"):
-                raise InvalidIndexconfig(
-                    ["create_stage() requires a mirror_url for type: %s" % type])
-            if "mirror_cache_expiry" in kwargs:
-                expiry = kwargs.pop("mirror_cache_expiry")
-                if expiry or expiry == 0:  # None or empty string are ignored
-                    ixconfig["mirror_cache_expiry"] = int(expiry)
-            # XXX backward compatibility for old exports
-            for key in ("bases", "acl_upload", "mirror_whitelist"):
-                kwargs.pop(key, None)
-        elif type == "stage":
-            if "acl_upload" in kwargs:
-                ixconfig["acl_upload"] = ensure_acl_list(kwargs.pop("acl_upload"))
-            if "acl_toxresult_upload" in kwargs:
-                ixconfig["acl_toxresult_upload"] = ensure_acl_list(kwargs.pop("acl_toxresult_upload"))
-            if "bases" in kwargs:
-                ixconfig["bases"] = ensure_list(kwargs.pop("bases"))
-            if "mirror_whitelist" in kwargs:
-                ixconfig["mirror_whitelist"] = [
-                    normalize_whitelist_name(x)
-                    for x in ensure_list(kwargs.pop("mirror_whitelist"))]
-        else:
-            raise InvalidIndexconfig(
-                ["indexconfig has invalid index type: %s" % type])
-        if "custom_data" in kwargs:
-            ixconfig["custom_data"] = kwargs["custom_data"]
+        # get known keys and validate them
+        stage_keys = set(self.get_possible_indexconfig_keys())
+        # get default values from the stage class
+        for key, value in self.get_default_config_items():
+            # if current ixconfig already has the value, use that
+            value = self.ixconfig.get(key, value)
+            kwargs.setdefault(key, value)
+        # now process any key known by the stage class
+        for key in stage_keys:
+            if key not in kwargs:
+                continue
+            value = self.normalize_indexconfig_value(key, kwargs.pop(key))
+            if value is None:
+                raise ValueError(
+                    "The key '%s' wasn't processed."
+                    % (key))
+            ixconfig[key] = value
+        # lastly we get additional default from the hook
         hooks = self.xom.config.hook
-        for defaults in hooks.devpiserver_indexconfig_defaults(index_type=type):
+        for defaults in hooks.devpiserver_indexconfig_defaults(index_type=index_type):
+            conflicting = stage_keys.intersection(defaults)
+            if conflicting:
+                raise ValueError(
+                    "A plugin returned the following keys which conflict with "
+                    "existing index configuration keys for '%s': %s"
+                    % (index_type, ", ".join(sorted(conflicting))))
             for key, value in defaults.items():
-                ixconfig[key] = kwargs.pop(key, value)
-        attrs = get_ixconfigattrs(hooks, type)
-        diff = list(set(kwargs).difference(attrs))
-        if diff:
+                ixconfig.setdefault(key, kwargs.pop(key, value))
+        # XXX backward compatibility for old exports
+        for key in ("bases", "acl_upload", "mirror_whitelist"):
+            kwargs.pop(key, None)
+        if kwargs:
             raise InvalidIndexconfig(
-                ["indexconfig has unexpected keyword arguments: %s"
-                 % ", ".join(kwargs)])
-        ixconfig.update(kwargs)
-        ixconfig["type"] = type
+                ["indexconfig got unexpected keyword arguments: %s"
+                 % ", ".join("%s=%s" % x for x in kwargs.items())])
+        ixconfig["type"] = index_type
         return ixconfig
 
     @cached_property
@@ -556,10 +535,8 @@ class BaseStage(object):
             raise InvalidIndexconfig(
                 ["the 'type' of an index can't be changed"])
         kw.pop("type", None)
-        ixconfig = self.get_indexconfig(**kw)
-        if "bases" in ixconfig:
-            ixconfig["bases"] = tuple(normalize_bases(
-                self.xom.model, ixconfig["bases"]))
+        kw.pop("projects", None)  # we never modify this from the outside
+        ixconfig = self.get_indexconfig_from_kwargs(**kw)
         # modify user/indexconfig
         with self.user.key.update() as userconfig:
             newconfig = userconfig["indexes"].setdefault(self.index, {})
@@ -656,6 +633,35 @@ class PrivateStage(BaseStage):
     def __init__(self, xom, username, index, ixconfig):
         super(PrivateStage, self).__init__(xom, username, index, ixconfig)
         self.key_projects = self.keyfs.PROJNAMES(user=username, index=index)
+
+    def get_possible_indexconfig_keys(self):
+        return tuple(dict(self.get_default_config_items())) + (
+            "custom_data", "description", "title")
+
+    def get_default_config_items(self):
+        return [
+            ("volatile", True),
+            ("acl_upload", [self.username]),
+            ("acl_toxresult_upload", [":ANONYMOUS:"]),
+            ("bases", ()),
+            ("mirror_whitelist", [])]
+
+    def normalize_indexconfig_value(self, key, value):
+        if key == "volatile":
+            return ensure_boolean(value)
+        if key == "bases":
+            return normalize_bases(
+                self.xom.model, ensure_list(value))
+        if key == "acl_upload":
+            return ensure_acl_list(value)
+        if key == "acl_toxresult_upload":
+            return ensure_acl_list(value)
+        if key == "mirror_whitelist":
+            return [
+                normalize_whitelist_name(x)
+                for x in ensure_list(value)]
+        if key in ("custom_data", "description", "title"):
+            return value
 
     def delete(self):
         # delete all projects on this index
@@ -1065,7 +1071,7 @@ def normalize_bases(model, bases):
                 newbases.append(stage_base.name)
     if messages:
         raise InvalidIndexconfig(messages)
-    return newbases
+    return tuple(newbases)
 
 
 def add_keys(xom, keyfs):

@@ -1017,13 +1017,13 @@ def test_setdefault_indexes(xom, model):
             assert py.builtin._istext(key)
 
 
-@pytest.mark.parametrize("key", ("acl_upload", "bases", "mirror_whitelist"))
+@pytest.mark.parametrize("key", ("acl_upload", "acl_toxresult_upload", "mirror_whitelist"))
 @pytest.mark.parametrize("value, result", (
     ("", []), ("x,y", ["x", "y"]), ("x,,y", ["x", "y"])))
 def test_get_indexconfig_lists(xom, key, value, result):
     stage = PrivateStage(
         xom, "user", "index", {"type": "stage"})
-    kvdict = stage.get_indexconfig(**{key: value})
+    kvdict = stage.get_indexconfig_from_kwargs(**{key: value})
     assert kvdict[key] == result
 
 
@@ -1103,17 +1103,17 @@ def test_ensure_acl_list():
      dict(type="stage", volatile=False)),
 
     ({"volatile": "False", "bases": "root/pypi"},
-     dict(type="stage", volatile=False, bases=["root/pypi"])),
+     dict(type="stage", volatile=False, bases=("root/pypi",))),
 
     ({"volatile": "False", "bases": ["root/pypi"]},
-     dict(type="stage", volatile=False, bases=["root/pypi"])),
+     dict(type="stage", volatile=False, bases=("root/pypi",))),
 
     ({"volatile": "False", "bases": ["root/pypi"], "acl_upload": ["hello"]},
-     dict(type="stage", volatile=False, bases=["root/pypi"],
+     dict(type="stage", volatile=False, bases=("root/pypi",),
           acl_upload=["hello"])),
 
      ({"volatile": "False", "bases": ["root/pypi"], "acl_toxresult_upload": ["hello"]},
-     dict(type="stage", volatile=False, bases=["root/pypi"],
+     dict(type="stage", volatile=False, bases=("root/pypi",),
           acl_toxresult_upload=["hello"])),
 ])
 def test_get_indexconfig_values(xom, input, expected):
@@ -1121,7 +1121,12 @@ def test_get_indexconfig_values(xom, input, expected):
         xom, "user", "index", {"type": "stage"})
     if inspect.isclass(expected) and issubclass(expected, Exception):
         with pytest.raises(expected):
-            stage.get_indexconfig(**input)
+            stage.get_indexconfig_from_kwargs(**input)
     else:
-        result = stage.get_indexconfig(**input)
+        expected.setdefault("acl_upload", ["user"])
+        expected.setdefault("acl_toxresult_upload", [":ANONYMOUS:"])
+        expected.setdefault("bases", ())
+        expected.setdefault("mirror_whitelist", [])
+        expected.setdefault("volatile", True)
+        result = stage.get_indexconfig_from_kwargs(**input)
         assert result == expected

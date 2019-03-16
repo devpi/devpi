@@ -18,6 +18,7 @@ from devpi_common.metadata import is_archive_of_project
 from devpi_common.validation import normalize_name
 from functools import partial
 from .model import BaseStage, make_key_and_href, SimplelinkMeta
+from .model import ensure_boolean
 from .model import join_requires
 from .readonly import ensure_deeply_readonly
 from .log import threadlog
@@ -108,6 +109,33 @@ class PyPIStage(BaseStage):
         else:
             url = URL(self.ixconfig['mirror_url'])
             return url.asdir().url
+
+    def get_possible_indexconfig_keys(self):
+        return tuple(dict(self.get_default_config_items())) + (
+            "custom_data", "description",
+            "mirror_url", "mirror_cache_expiry",
+            "mirror_web_url_fmt", "title")
+
+    def get_default_config_items(self):
+        return [("volatile", True)]
+
+    def normalize_indexconfig_value(self, key, value):
+        if key == "volatile":
+            return ensure_boolean(value)
+        if key == "mirror_url":
+            if not value.startswith(("http://", "https://")):
+                raise self.InvalidIndexconfig([
+                    "'mirror_url' option must be a URL."])
+            return value
+        if key == "mirror_cache_expiry":
+            try:
+                value = int(value)
+            except (TypeError, ValueError):
+                raise self.InvalidIndexconfig([
+                    "'mirror_cache_expiry' option must be an integer"])
+            return value
+        if key in ("custom_data", "description", "mirror_web_url_fmt", "title"):
+            return value
 
     def delete(self):
         # delete all projects on this index
