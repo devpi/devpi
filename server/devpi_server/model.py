@@ -417,6 +417,12 @@ class BaseStageCustomizer(object):
             """
         return ()
 
+    def validate_config(self, oldconfig, newconfig):
+        """ Validates the index config.
+
+            Can raise InvalidIndexconfig."""
+        pass
+
 
 class UnknownCustomizer(BaseStageCustomizer):
     readonly = True
@@ -687,8 +693,10 @@ class BaseStage(object):
         ixconfig = self.get_indexconfig_from_kwargs(**kw)
         # modify user/indexconfig
         with self.user.key.update() as userconfig:
+            oldconfig = dict(self.ixconfig)
             newconfig = userconfig["indexes"].setdefault(self.index, {})
             newconfig.update(ixconfig)
+            self.customizer.validate_config(oldconfig, newconfig)
             self.ixconfig = newconfig
             return newconfig
 

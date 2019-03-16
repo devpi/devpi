@@ -53,12 +53,21 @@ def test_indexconfig_items(makemapp, maketestapp, makexom):
             if key == "ham":
                 return value
 
+        def validate_config(self, oldconfig, newconfig):
+            if "bar" not in newconfig:
+                raise self.InvalidIndexconfig(["requires bar"])
+
     xom = makexom(plugins=[make_stage_plugin(MyStageCustomizer)])
     testapp = maketestapp(xom)
     mapp = makemapp(testapp)
     user = 'user'
     password = '123'
     mapp.create_and_login_user(user, password=password)
+    # test missing setting
+    mapp.create_index(
+        'user/foo',
+        indexconfig=dict(type='mystage'),
+        code=400)
     # test list conversion
     api = mapp.create_index(
         'user/foo',
@@ -80,3 +89,34 @@ def test_indexconfig_items(makemapp, maketestapp, makexom):
     result = mapp.getjson(api.index)
     assert result['result']['bar'] == ['dev']
     assert result['result']['ham'] == 'something'
+
+
+def test_validate_config(makemapp, maketestapp, makexom):
+    class MyStageCustomizer(object):
+        def validate_config(self, oldconfig, newconfig):
+            errors = []
+            if len(oldconfig.get('bases', [])) > len(newconfig.get('bases', [])):
+                errors.append("You can't have fewer bases than before.")
+            if errors:
+                raise self.InvalidIndexconfig(errors)
+
+    xom = makexom(plugins=[make_stage_plugin(MyStageCustomizer)])
+    testapp = maketestapp(xom)
+    mapp = makemapp(testapp)
+    user = 'user'
+    password = '123'
+    mapp.create_and_login_user(user, password=password)
+    api = mapp.create_index('user/foo')
+    api = mapp.create_index('user/dev', indexconfig=dict(type='mystage'))
+    result = mapp.getjson(api.index)
+    assert result['result']['bases'] == []
+    # add a base
+    testapp.patch_json(api.index, ['bases+=user/foo'])
+    result = mapp.getjson(api.index)
+    assert result['result']['bases'] == ['user/foo']
+    # try to remove a base
+    r = testapp.patch_json(api.index, ['bases-=user/foo'], expect_errors=True)
+    assert r.status_code == 400
+    assert r.json['message'] == "You can't have fewer bases than before."
+    result = mapp.getjson(api.index)
+    assert result['result']['bases'] == ['user/foo']
