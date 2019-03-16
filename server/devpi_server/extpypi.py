@@ -87,8 +87,9 @@ def parse_index(disturl, html):
 
 
 class PyPIStage(BaseStage):
-    def __init__(self, xom, username, index, ixconfig):
-        super(PyPIStage, self).__init__(xom, username, index, ixconfig)
+    def __init__(self, xom, username, index, ixconfig, customizer_cls):
+        super(PyPIStage, self).__init__(
+            xom, username, index, ixconfig, customizer_cls)
         self.httpget = self.xom.httpget  # XXX is requests/httpget multi-thread safe?
         self.xom = xom
         self.offline = self.xom.config.args.offline_mode

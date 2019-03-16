@@ -165,6 +165,28 @@ def normalize_whitelist_name(name):
     return normalize_name(name)
 
 
+def get_stage_customizer_classes(xom):
+    return dict(
+        mirror=BaseStageCustomizer,
+        stage=BaseStageCustomizer)
+
+
+def get_stage_customizer_class(xom, index_type):
+    index_customizers = get_stage_customizer_classes(xom)
+    cls = index_customizers.get(index_type)
+    if cls is None:
+        raise InvalidIndexconfig("unknown index type %r" % index_type)
+    if not issubclass(cls, BaseStageCustomizer):
+        # we add the BaseStageCustomizer here to keep plugins simpler
+        cls = type(
+            cls.__name__,
+            (cls, BaseStageCustomizer),
+            dict(cls.__dict__))
+    cls.InvalidIndex = InvalidIndex
+    cls.InvalidIndexconfig = InvalidIndexconfig
+    return cls
+
+
 name_char_blocklist_regexp = re.compile(
     r'[\x00\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\x0c\r\x0e\x0f'
     r'\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f'
@@ -292,13 +314,12 @@ class User:
             cls = PyPIStage
         else:
             cls = PrivateStage
-        if index_type not in ("mirror", "stage"):
-            raise InvalidIndexconfig(
-                ["indexconfig has invalid index type: %s" % index_type])
+        customizer_cls = get_stage_customizer_class(self.xom, index_type)
         return cls(
             self.xom,
             username=self.name, index=indexname,
-            ixconfig=ixconfig)
+            ixconfig=ixconfig,
+            customizer_cls=customizer_cls)
 
     def getstage(self, indexname):
         ixconfig = self.get()["indexes"].get(indexname, {})
@@ -313,6 +334,11 @@ class InvalidIndexconfig(Exception):
         Exception.__init__(self, messages)
 
 
+class BaseStageCustomizer(object):
+    def __init__(self, stage):
+        self.stage = stage
+
+
 class BaseStage(object):
     InvalidIndex = InvalidIndex
     InvalidIndexconfig = InvalidIndexconfig
@@ -324,12 +350,13 @@ class BaseStage(object):
     MissesVersion = MissesVersion
     NonVolatile = NonVolatile
 
-    def __init__(self, xom, username, index, ixconfig):
+    def __init__(self, xom, username, index, ixconfig, customizer_cls):
         self.xom = xom
         self.username = username
         self.index = index
         self.name = username + "/" + index
         self.ixconfig = ixconfig
+        self.customizer = customizer_cls(self)
         # the following attributes are per-xom singletons
         self.model = xom.model
         self.keyfs = xom.keyfs
@@ -630,8 +657,9 @@ class PrivateStage(BaseStage):
         'project_urls', 'supported_platform', 'setup_requires_dist',
         'provides_extra', 'extension')
 
-    def __init__(self, xom, username, index, ixconfig):
-        super(PrivateStage, self).__init__(xom, username, index, ixconfig)
+    def __init__(self, xom, username, index, ixconfig, customizer_cls):
+        super(PrivateStage, self).__init__(
+            xom, username, index, ixconfig, customizer_cls)
         self.key_projects = self.keyfs.PROJNAMES(user=username, index=index)
 
     def get_possible_indexconfig_keys(self):

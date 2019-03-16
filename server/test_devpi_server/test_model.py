@@ -15,6 +15,7 @@ from devpi_server.model import ensure_boolean
 from devpi_server.model import ensure_acl_list
 from devpi_server.model import ensure_list
 from devpi_server.model import run_passwd
+from devpi_server.model import BaseStageCustomizer
 from py.io import BytesIO
 
 pytestmark = [pytest.mark.writetransaction]
@@ -1022,7 +1023,7 @@ def test_setdefault_indexes(xom, model):
     ("", []), ("x,y", ["x", "y"]), ("x,,y", ["x", "y"])))
 def test_get_indexconfig_lists(xom, key, value, result):
     stage = PrivateStage(
-        xom, "user", "index", {"type": "stage"})
+        xom, "user", "index", {"type": "stage"}, BaseStageCustomizer)
     kvdict = stage.get_indexconfig_from_kwargs(**{key: value})
     assert kvdict[key] == result
 
@@ -1118,7 +1119,7 @@ def test_ensure_acl_list():
 ])
 def test_get_indexconfig_values(xom, input, expected):
     stage = PrivateStage(
-        xom, "user", "index", {"type": "stage"})
+        xom, "user", "index", {"type": "stage"}, BaseStageCustomizer)
     if inspect.isclass(expected) and issubclass(expected, Exception):
         with pytest.raises(expected):
             stage.get_indexconfig_from_kwargs(**input)
