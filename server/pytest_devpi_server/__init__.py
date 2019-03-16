@@ -1,5 +1,5 @@
 from devpi_server.extpypi import PyPIStage
-from devpi_server.model import BaseStageCustomizer
+from devpi_server.extpypi import PyPICustomizer
 import pytest
 
 
@@ -20,5 +20,5 @@ def devpiserver_makepypistage():
         # be modified during config updates later on
         return PyPIStage(xom, username="root", index="pypi",
                          ixconfig=dict(_pypi_ixconfig_default),
-                         customizer_cls=BaseStageCustomizer)
+                         customizer_cls=PyPICustomizer)
     return makepypistage

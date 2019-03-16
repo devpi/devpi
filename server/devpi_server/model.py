@@ -885,6 +885,10 @@ class PrivateStage(BaseStage):
             return entry.file_get_content()
 
 
+class StageCustomizer(BaseStageCustomizer):
+    pass
+
+
 class ELink(object):
     """ model Link using entrypathes for referencing. """
     def __init__(self, filestore, linkdict, project, version):
