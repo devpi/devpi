@@ -393,6 +393,30 @@ class BaseStageCustomizer(object):
     get_principals_for_del_project = get_principals_for_del_entry
     get_principals_for_del_verdata = get_principals_for_del_entry
 
+    def get_possible_indexconfig_keys(self):
+        """ Returns all possible custom index config keys.
+
+        These are in addition to the existing keys of a regular private index.
+        """
+        return ()
+
+    def get_default_config_items(self):
+        """ Returns a list of defaults as key/value tuples.
+
+        Only applies to new keys, not existing options of a private index.
+        """
+        return ()
+
+    def normalize_indexconfig_value(self, key, value):
+        """ Returns value normalized to the type stored in the database.
+
+            A return value of None is treated as an error.
+            Can raise InvalidIndexconfig.
+            Will only be called for custom options, not for existing options
+            of a private index.
+            """
+        return ()
+
 
 class UnknownCustomizer(BaseStageCustomizer):
     readonly = True
@@ -440,6 +464,13 @@ class BaseStage(object):
         ixconfig = {}
         # get known keys and validate them
         stage_keys = set(self.get_possible_indexconfig_keys())
+        customizer_keys = set(self.customizer.get_possible_indexconfig_keys())
+        conflicting = stage_keys.intersection(customizer_keys)
+        if conflicting:
+            raise ValueError(
+                "The stage customizer for '%s' defines keys which conflict "
+                "with existing index configuration keys: %s"
+                % (index_type, ", ".join(sorted(conflicting))))
         # get default values from the stage class
         for key, value in self.get_default_config_items():
             # if current ixconfig already has the value, use that
@@ -450,6 +481,22 @@ class BaseStage(object):
             if key not in kwargs:
                 continue
             value = self.normalize_indexconfig_value(key, kwargs.pop(key))
+            if value is None:
+                raise ValueError(
+                    "The key '%s' wasn't processed."
+                    % (key))
+            ixconfig[key] = value
+        # next get defaults from the customizer class
+        for key, value in self.customizer.get_default_config_items():
+            # if current ixconfig already has the value, use that
+            value = self.ixconfig.get(key, value)
+            kwargs.setdefault(key, value)
+        # and process any key known by the customizer class
+        for key in customizer_keys:
+            if key not in kwargs:
+                continue
+            value = self.customizer.normalize_indexconfig_value(
+                key, kwargs.pop(key))
             if value is None:
                 raise ValueError(
                     "The key '%s' wasn't processed."
@@ -466,7 +513,8 @@ class BaseStage(object):
                     % (index_type, ", ".join(sorted(conflicting))))
             for key, value in defaults.items():
                 ixconfig.setdefault(key, kwargs.pop(key, value))
-        # XXX backward compatibility for old exports
+        # XXX backward compatibility for old exports where these could appear
+        # on mirror indexes
         for key in ("bases", "acl_upload", "mirror_whitelist"):
             kwargs.pop(key, None)
         if kwargs:

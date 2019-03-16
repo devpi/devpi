@@ -38,3 +38,45 @@ def test_permissions_for_unknown_index(mapp, xom):
     # full deletion should work
     mapp.delete_index(api.stagename)
     assert 'dev' not in mapp.getjson('/%s' % api.user)['result']['indexes']
+
+
+def test_indexconfig_items(makemapp, maketestapp, makexom):
+    from devpi_server.model import ensure_list
+
+    class MyStageCustomizer(object):
+        def get_possible_indexconfig_keys(self):
+            return ("bar", "ham")
+
+        def normalize_indexconfig_value(self, key, value):
+            if key == "bar":
+                return ensure_list(value)
+            if key == "ham":
+                return value
+
+    xom = makexom(plugins=[make_stage_plugin(MyStageCustomizer)])
+    testapp = maketestapp(xom)
+    mapp = makemapp(testapp)
+    user = 'user'
+    password = '123'
+    mapp.create_and_login_user(user, password=password)
+    # test list conversion
+    api = mapp.create_index(
+        'user/foo',
+        indexconfig=dict(type='mystage', bar="foo"))
+    result = mapp.getjson(api.index)
+    assert result['result']['bar'] == ['foo']
+    assert 'ham' not in result['result']
+    # test passing list directly
+    api = mapp.create_index(
+        'user/dev',
+        indexconfig=dict(type='mystage', bar=["dev"]))
+    result = mapp.getjson(api.index)
+    assert result['result']['bar'] == ['dev']
+    assert 'ham' not in result['result']
+    # test optional setting
+    api = mapp.create_index(
+        'user/ham',
+        indexconfig=dict(type='mystage', bar=["dev"], ham="something"))
+    result = mapp.getjson(api.index)
+    assert result['result']['bar'] == ['dev']
+    assert result['result']['ham'] == 'something'
