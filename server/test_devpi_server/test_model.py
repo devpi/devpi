@@ -10,7 +10,7 @@ from devpi_common.metadata import splitbasename
 from devpi_common.archive import Archive, zip_dict
 from devpi_server.config import hookimpl
 from devpi_server.model import InvalidIndexconfig
-from devpi_server.model import get_indexconfig
+from devpi_server.model import PrivateStage
 from devpi_server.model import ensure_boolean
 from devpi_server.model import ensure_acl_list
 from devpi_server.model import ensure_list
@@ -1020,12 +1020,10 @@ def test_setdefault_indexes(xom, model):
 @pytest.mark.parametrize("key", ("acl_upload", "bases", "mirror_whitelist"))
 @pytest.mark.parametrize("value, result", (
     ("", []), ("x,y", ["x", "y"]), ("x,,y", ["x", "y"])))
-def test_get_indexconfig_lists(key, value, result):
-    class hooks:
-        @hookimpl
-        def devpiserver_indexconfig_defaults(self, index_type):
-            return {}
-    kvdict = get_indexconfig(hooks(), type="stage", **{key: value})
+def test_get_indexconfig_lists(xom, key, value, result):
+    stage = PrivateStage(
+        xom, "user", "index", {"type": "stage"})
+    kvdict = stage.get_indexconfig(**{key: value})
     assert kvdict[key] == result
 
 
@@ -1119,13 +1117,11 @@ def test_ensure_acl_list():
           acl_toxresult_upload=["hello"])),
 ])
 def test_get_indexconfig_values(xom, input, expected):
-    class hooks:
-        @hookimpl
-        def devpiserver_indexconfig_defaults(self, index_type):
-            return {}
+    stage = PrivateStage(
+        xom, "user", "index", {"type": "stage"})
     if inspect.isclass(expected) and issubclass(expected, Exception):
         with pytest.raises(expected):
-            get_indexconfig(hooks(), type="stage", **input)
+            stage.get_indexconfig(**input)
     else:
-        result = get_indexconfig(hooks(), type="stage", **input)
+        result = stage.get_indexconfig(**input)
         assert result == expected
