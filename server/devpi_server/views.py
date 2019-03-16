@@ -387,7 +387,7 @@ class PyPIView:
                     "index": request.stage_url(stage),
                     "simpleindex": request.simpleindex_url(stage)
                 })
-                if stage.ixconfig["type"] == "stage":
+                if stage.ixconfig["type"] != "mirror":
                     api["pypisubmit"] = request.route_url(
                         "/{user}/{index}/", user=user, index=index)
         apireturn(200, type="apiconfig", result=api)
