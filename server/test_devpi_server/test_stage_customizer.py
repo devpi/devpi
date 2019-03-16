@@ -120,3 +120,51 @@ def test_validate_config(makemapp, maketestapp, makexom):
     assert r.json['message'] == "You can't have fewer bases than before."
     result = mapp.getjson(api.index)
     assert result['result']['bases'] == ['user/foo']
+
+
+def test_on_modified(makemapp, maketestapp, makexom):
+    class MyStageCustomizer(object):
+        def on_modified(self, request, oldconfig):
+            if request.headers.get('X-Fail'):
+                request.apifatal(400, request.headers['X-Fail'])
+
+    xom = makexom(plugins=[make_stage_plugin(MyStageCustomizer)])
+    testapp = maketestapp(xom)
+    mapp = makemapp(testapp)
+    user = 'user'
+    password = '123'
+    mapp.create_and_login_user(user, password=password)
+    api = mapp.create_index('user/dev', indexconfig=dict(type='mystage'))
+    r = testapp.patch_json(
+        api.index, ['bases+=user/dev'],
+        headers={'X-Fail': str('foo')}, expect_errors=True)
+    assert r.status_code == 400
+    assert r.json['message'] == "foo"
+    result = mapp.getjson(api.index)
+    assert result['result']['bases'] == []
+    r = testapp.patch_json(
+        api.index, ['bases+=user/dev'])
+    assert r.status_code == 200
+    result = mapp.getjson(api.index)
+    assert result['result']['bases'] == ['user/dev']
+
+
+def test_on_modified_http_exception(makemapp, maketestapp, makexom):
+    from pyramid.httpexceptions import HTTPClientError
+
+    class MyStageCustomizer(object):
+        def on_modified(self, request, oldconfig):
+            raise HTTPClientError
+
+    xom = makexom(plugins=[make_stage_plugin(MyStageCustomizer)])
+    testapp = maketestapp(xom)
+    mapp = makemapp(testapp)
+    user = 'user'
+    password = '123'
+    mapp.create_and_login_user(user, password=password)
+    api = mapp.create_index('user/dev', indexconfig=dict(type='mystage'))
+    r = testapp.patch_json(
+        api.index, ['bases+=user/dev'],
+        headers={'X-Fail': str('foo')}, expect_errors=True)
+    assert r.status_code == 500
+    assert "request.apifatal instead" in r.json['message']

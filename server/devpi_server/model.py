@@ -423,6 +423,17 @@ class BaseStageCustomizer(object):
             Can raise InvalidIndexconfig."""
         pass
 
+    def on_modified(self, request, oldconfig):
+        """ Called after index was modified via a request.
+
+            Can do further changes in the current transaction.
+
+            Must use request.apifatal method to indicate errors instead
+            of raising HTTPException responses.
+
+            Other exceptions will be handled."""
+        pass
+
 
 class UnknownCustomizer(BaseStageCustomizer):
     readonly = True
