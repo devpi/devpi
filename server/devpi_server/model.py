@@ -337,14 +337,15 @@ class User:
         d["username"] = self.name
         return d
 
-    def create_stage(self, index, type="stage", volatile=True, **kwargs):
+    def create_stage(self, index, type="stage", **kwargs):
         if not is_valid_name(index):
             raise InvalidIndex(
                 "indexname '%s' contains characters that aren't allowed. "
                 "Any ascii symbol besides -.@_ is blocked." % index)
+        kwargs.setdefault("volatile", True)
         ixconfig = get_indexconfig(
             self.xom.config.hook,
-            type=type, volatile=volatile, **kwargs)
+            type=type, **kwargs)
         if type == "stage":
             if ixconfig.get("acl_upload") is None:
                 ixconfig["acl_upload"] = [self.name]
