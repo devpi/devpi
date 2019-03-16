@@ -68,6 +68,10 @@ class InvalidIndex(ModelException):
     """ If a indexname is invalid or already in use. """
 
 
+class ReadonlyIndex(ModelException):
+    """ If a indexname is invalid or already in use. """
+
+
 class NotFound(ModelException):
     """ If a project or version cannot be found. """
 
@@ -177,7 +181,8 @@ def get_stage_customizer_class(xom, index_type):
     index_customizers = get_stage_customizer_classes(xom)
     cls = index_customizers.get(index_type)
     if cls is None:
-        raise InvalidIndexconfig("unknown index type %r" % index_type)
+        threadlog.warn("unknown index type %r" % index_type)
+        cls = UnknownCustomizer
     if not issubclass(cls, BaseStageCustomizer):
         # we add the BaseStageCustomizer here to keep plugins simpler
         cls = type(
@@ -186,6 +191,7 @@ def get_stage_customizer_class(xom, index_type):
             dict(cls.__dict__))
     cls.InvalidIndex = InvalidIndex
     cls.InvalidIndexconfig = InvalidIndexconfig
+    cls.ReadonlyIndex = ReadonlyIndex
     return cls
 
 
@@ -306,6 +312,8 @@ class User:
                 "indexname '%s' contains characters that aren't allowed. "
                 "Any ascii symbol besides -.@_ is blocked." % index)
         stage = self._getstage(index, type, {"type": type})
+        if isinstance(stage.customizer, UnknownCustomizer):
+            raise InvalidIndexconfig("unknown index type %r" % type)
         stage._modify(**kwargs)
         threadlog.info("created index %s: %s", stage.name, stage.ixconfig)
         return stage
@@ -349,6 +357,8 @@ def get_principals(value):
 
 
 class BaseStageCustomizer(object):
+    readonly = False
+
     def __init__(self, stage):
         self.stage = stage
 
@@ -382,6 +392,20 @@ class BaseStageCustomizer(object):
 
     get_principals_for_del_project = get_principals_for_del_entry
     get_principals_for_del_verdata = get_principals_for_del_entry
+
+
+class UnknownCustomizer(BaseStageCustomizer):
+    readonly = True
+
+    # prevent uploads and deletions besides complete index removal
+    def get_principals_for_index_modify(self, restrict_modify=None):
+        return []
+
+    get_principals_for_pypi_submit = get_principals_for_index_modify
+    get_principals_for_toxresult_upload = get_principals_for_index_modify
+    get_principals_for_del_entry = get_principals_for_index_modify
+    get_principals_for_del_project = get_principals_for_index_modify
+    get_principals_for_del_verdata = get_principals_for_index_modify
 
 
 class BaseStage(object):
@@ -495,6 +519,8 @@ class BaseStage(object):
         return ELink(self.filestore, linkdict, project, rp.version)
 
     def get_linkstore_perstage(self, name, version, readonly=True):
+        if self.customizer.readonly and not readonly:
+            threadlog.warn("index is marked read only")
         return LinkStore(self, name, version, readonly=readonly)
 
     def get_link_from_entrypath(self, entrypath):
@@ -508,6 +534,8 @@ class BaseStage(object):
         return links[0] if links else None
 
     def store_toxresult(self, link, toxresultdata):
+        if self.customizer.readonly:
+            raise ReadonlyIndex("index is marked read only")
         assert isinstance(toxresultdata, dict), toxresultdata
         linkstore = self.get_linkstore_perstage(link.project, link.version, readonly=False)
         return linkstore.new_reflink(
@@ -620,6 +648,9 @@ class BaseStage(object):
         newconfig = self._modify(**kw)
         threadlog.info("modified index %s: %s", self.name, newconfig)
         return newconfig
+
+        if self.customizer.readonly:
+            raise ReadonlyIndex("index is marked read only")
 
     def op_sro(self, opname, **kw):
         for stage in self.sro():
@@ -768,6 +799,8 @@ class PrivateStage(BaseStage):
     def set_versiondata(self, metadata):
         """ register metadata.  Raises ValueError in case of metadata
         errors. """
+        if self.customizer.readonly:
+            raise ReadonlyIndex("index is marked read only")
         validate_metadata(metadata)
         self._set_versiondata(metadata)
 
@@ -808,6 +841,8 @@ class PrivateStage(BaseStage):
         project = normalize_name(project)
         projects = self.key_projects.get(readonly=False)
         if project not in projects:
+            if self.customizer.readonly:
+                raise ReadonlyIndex("index is marked read only")
             projects.add(project)
             self.key_projects.set(projects)
 
@@ -888,6 +923,8 @@ class PrivateStage(BaseStage):
 
     def store_releasefile(self, project, version, filename, content,
                           last_modified=None):
+        if self.customizer.readonly:
+            raise ReadonlyIndex("index is marked read only")
         project = normalize_name(project)
         filename = ensure_unicode(filename)
         if not self.get_versiondata_perstage(project, version):
@@ -909,6 +946,8 @@ class PrivateStage(BaseStage):
         return link
 
     def store_doczip(self, project, version, content):
+        if self.customizer.readonly:
+            raise ReadonlyIndex("index is marked read only")
         project = normalize_name(project)
         if not version:
             version = self.get_latest_version_perstage(project)

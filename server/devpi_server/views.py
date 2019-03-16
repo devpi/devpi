@@ -18,6 +18,7 @@ from pyramid.httpexceptions import HTTPUnauthorized
 from pyramid.httpexceptions import exception_response
 from pyramid.response import Response
 from pyramid.security import forget
+from pyramid.view import exception_view_config
 from pyramid.view import view_config
 import itertools
 import json
@@ -26,6 +27,7 @@ from devpi_common.validation import normalize_name, is_valid_archive_name
 
 from .filestore import BadGateway
 from .model import InvalidIndex, InvalidIndexconfig, InvalidUser
+from .model import ReadonlyIndex
 from .model import UpstreamError
 from .readonly import get_mutable_deepcopy
 from .log import thread_push_log, thread_pop_log, threadlog
@@ -236,6 +238,13 @@ def get_actions(json):
             op = 'set'
         result.append((op, key, value))
     return result
+
+
+@exception_view_config(ReadonlyIndex)
+def readonly_index_view(exc, request):
+    response = Response("%s" % exc)
+    response.status = "405 %s" % exc
+    return response
 
 
 class StatusView:
