@@ -10,8 +10,8 @@ def test_dryrun(cmd_devpi):
 
 @pytest.mark.skipif("config.option.fast")
 def test_functional(cmd_devpi, monkeypatch, tmpdir):
-    monkeypatch.setenv("DEVPISERVER_SERVERDIR", tmpdir.join("server"))
-    monkeypatch.setenv("DEVPI_CLIENTDIR", tmpdir.join("client"))
+    monkeypatch.setenv("DEVPISERVER_SERVERDIR", tmpdir.join("server").strpath)
+    monkeypatch.setenv("DEVPI_CLIENTDIR", tmpdir.join("client").strpath)
     cmd_devpi("quickstart")
     try:
         hub = cmd_devpi("quickstart", code=-2)

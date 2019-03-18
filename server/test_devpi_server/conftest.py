@@ -1009,7 +1009,7 @@ def call_devpi_in_dir():
         from _pytest.monkeypatch import MonkeyPatch
         from _pytest.pytester import RunResult
         m = MonkeyPatch()
-        m.setenv("DEVPISERVER_SERVERDIR", server_dir)
+        m.setenv("DEVPISERVER_SERVERDIR", getattr(server_dir, 'strpath', server_dir))
         m.setattr("sys.argv", [devpiserver])
         cap = py.io.StdCaptureFD()
         cap.startall()

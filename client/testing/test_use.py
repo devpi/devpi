@@ -349,7 +349,7 @@ class TestUnit:
         cmd_devpi("use", "--venv=-")
 
         # test via env for virtualenvwrapper
-        monkeypatch.setenv("WORKON_HOME", venvdir.dirpath())
+        monkeypatch.setenv("WORKON_HOME", venvdir.dirpath().strpath)
         hub = cmd_devpi("use", "--venv=%s" % venvdir.basename)
         assert hub.current.venvdir == venvdir
 
@@ -357,7 +357,7 @@ class TestUnit:
         cmd_devpi("use", "--venv=-")
 
         # test via env for activated venv
-        monkeypatch.setenv("VIRTUAL_ENV", venvdir)
+        monkeypatch.setenv("VIRTUAL_ENV", venvdir.strpath)
         hub = cmd_devpi("use")
         assert hub.current.venvdir == None, \
             "When --venv is not given, hub.current shouldn't be set"
@@ -377,7 +377,7 @@ class TestUnit:
 
     def test_venv_setcfg(self, mock_http_api, cmd_devpi, tmpdir, monkeypatch):
         from devpi.use import vbin
-        monkeypatch.setenv("HOME", tmpdir.join('home'))
+        monkeypatch.setenv("HOME", tmpdir.join('home').strpath)
         monkeypatch.setattr(PipCfg, "pip_conf_name", "pip.cfg")
         monkeypatch.setattr(DistutilsCfg, "default_location",
                             tmpdir.join("dist.cfg"))
@@ -414,7 +414,7 @@ class TestUnit:
 
     def test_active_venv_setcfg(self, mock_http_api, cmd_devpi, tmpdir, monkeypatch):
         from devpi.use import vbin
-        monkeypatch.setenv("HOME", tmpdir.join('home'))
+        monkeypatch.setenv("HOME", tmpdir.join('home').strpath)
         monkeypatch.setattr(PipCfg, "pip_conf_name", "pip.cfg")
         monkeypatch.setattr(DistutilsCfg, "default_location",
                             tmpdir.join("dist.cfg"))
@@ -432,7 +432,7 @@ class TestUnit:
         venvdir = tmpdir
         venvdir.ensure(vbin, dir=1)
         monkeypatch.chdir(tmpdir)
-        monkeypatch.setenv("VIRTUAL_ENV", venvdir)
+        monkeypatch.setenv("VIRTUAL_ENV", venvdir.strpath)
         index = "http://world/simple"
         cmd_devpi("use", "--set-cfg", index)
 
@@ -449,7 +449,7 @@ class TestUnit:
         ('https', 'foo:bar@')])
     def test_main_setcfg(self, scheme, basic_auth, mock_http_api, cmd_devpi, tmpdir, monkeypatch):
         monkeypatch.delenv("VIRTUAL_ENV", raising=False)
-        monkeypatch.setenv("HOME", tmpdir.join('home'))
+        monkeypatch.setenv("HOME", tmpdir.join('home').strpath)
         monkeypatch.setattr(PipCfg, "pip_conf_name", "pip.cfg")
         monkeypatch.setattr(DistutilsCfg, "default_location",
                             tmpdir.join("dist.cfg"))
@@ -527,7 +527,7 @@ def test_user_no_index(loghub):
 
 def test_pipcfg_default_location(tmpdir, monkeypatch):
     path = PipCfg().path
-    monkeypatch.setenv('PIP_CONFIG_FILE', tmpdir.join("cfg"))
+    monkeypatch.setenv('PIP_CONFIG_FILE', tmpdir.join("cfg").strpath)
     assert path != PipCfg().path
 
 class TestCfgParsing:

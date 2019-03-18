@@ -528,6 +528,7 @@ def test_apiconfig_features(testapp):
 
 def test_apiconfig_features_plugin(maketestapp, makexom):
     class Plugin:
+        @hookimpl
         def devpiserver_get_features(self):
             return set(['bar'])
     xom = makexom(plugins=[Plugin()])

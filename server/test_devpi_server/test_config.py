@@ -75,12 +75,12 @@ class TestConfig:
         #recs = caplog.getrecords()
 
     def test_devpi_serverdir_env(self, tmpdir, monkeypatch):
-        monkeypatch.setenv("DEVPI_SERVERDIR", tmpdir)
+        monkeypatch.setenv("DEVPI_SERVERDIR", tmpdir.strpath)
         config = make_config(["devpi-server"])
         assert config.serverdir == tmpdir
 
     def test_devpiserver_serverdir_env(self, tmpdir, monkeypatch):
-        monkeypatch.setenv("DEVPISERVER_SERVERDIR", tmpdir)
+        monkeypatch.setenv("DEVPISERVER_SERVERDIR", tmpdir.strpath)
         config = make_config(["devpi-server"])
         assert config.serverdir == tmpdir
 

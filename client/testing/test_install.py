@@ -17,7 +17,7 @@ def test_simple_install_activated_venv_workflow(create_and_upload,
                                       create_venv, out_devpi, monkeypatch):
     create_and_upload("example-1.2.3")
     venvdir = create_venv()
-    monkeypatch.setenv("VIRTUAL_ENV", venvdir)
+    monkeypatch.setenv("VIRTUAL_ENV", venvdir.strpath)
     res = out_devpi("install", "example")
     assert res.ret == 0
     res = out_devpi("install", "-l")
