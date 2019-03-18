@@ -336,9 +336,49 @@ class InvalidIndexconfig(Exception):
         Exception.__init__(self, messages)
 
 
+def get_principals(value):
+    from pyramid.security import Everyone
+    principals = set(value)
+    if ':ANONYMOUS:' in principals:
+        principals.remove(':ANONYMOUS:')
+        principals.add(Everyone)
+    return principals
+
+
 class BaseStageCustomizer(object):
     def __init__(self, stage):
         self.stage = stage
+
+    # get_principals_for_* methods for each of the following permissions:
+    # pypi_submit, toxresult_upload, index_delete, index_modify,
+    # del_entry, del_project, del_verdata
+    # also see __acl__ method of BaseStage
+
+    def get_principals_for_pypi_submit(self, restrict_modify=None):
+        return self.stage.ixconfig.get("acl_upload", [])
+
+    def get_principals_for_toxresult_upload(self, restrict_modify=None):
+        return self.stage.ixconfig.get("acl_toxresult_upload", [':ANONYMOUS:'])
+
+    def get_principals_for_index_delete(self, restrict_modify=None):
+        if restrict_modify is None:
+            modify_principals = set(['root', self.stage.username])
+        else:
+            modify_principals = restrict_modify
+        return modify_principals
+
+    get_principals_for_index_modify = get_principals_for_index_delete
+
+    def get_principals_for_del_entry(self, restrict_modify=None):
+        modify_principals = set(self.stage.ixconfig.get("acl_upload", []))
+        if restrict_modify is None:
+            modify_principals.update(['root', self.stage.username])
+        else:
+            modify_principals.update(restrict_modify)
+        return modify_principals
+
+    get_principals_for_del_project = get_principals_for_del_entry
+    get_principals_for_del_verdata = get_principals_for_del_entry
 
 
 class BaseStage(object):
@@ -634,6 +674,25 @@ class BaseStage(object):
                         todo.append(current_stage)
         for stage in todo_mirrors:
             yield stage
+
+    def __acl__(self):
+        from pyramid.security import Allow
+
+        permissions = (
+            'pypi_submit',
+            'toxresult_upload',
+            'index_delete',
+            'index_modify',
+            'del_entry',
+            'del_project',
+            'del_verdata')
+        restrict_modify = self.xom.config.restrict_modify
+        acl = []
+        for permission in permissions:
+            method = getattr(self.customizer, 'get_principals_for_%s' % permission)
+            for principal in get_principals(method(restrict_modify=restrict_modify)):
+                acl.append((Allow, principal, permission))
+        return acl
 
 
 class PrivateStage(BaseStage):

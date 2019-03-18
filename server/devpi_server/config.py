@@ -488,6 +488,13 @@ class Config:
     def master_url(self, value):
         self._master_url = value
 
+    @property
+    def restrict_modify(self):
+        rm = self.args.restrict_modify
+        if rm is not None:
+            rm = set(x.strip() for x in rm.split(','))
+        return rm
+
     def _init_role(self):
         if self.master_url:
             self.nodeinfo["role"] = "replica"

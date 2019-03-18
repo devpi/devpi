@@ -63,45 +63,43 @@ def with_user(request, user):
 
 class TestStage:
     def test_set_and_get_acl_upload(self, xom, model, plugin, stage, permissionrequest):
-        from devpi_server.view_auth import StageACL
         indexconfig = stage.ixconfig
         # check that "hello" was included in acl_upload by default
         assert indexconfig["acl_upload"] == ["hello"]
         stage = model.getstage("hello/world")
         # root cannot upload
-        assert not with_user(permissionrequest, 'root').has_permission('pypi_submit', StageACL(stage, False))
+        assert not with_user(permissionrequest, 'root').has_permission('pypi_submit', stage)
         # but hello can upload
-        assert with_user(permissionrequest, 'hello').has_permission('pypi_submit', StageACL(stage, False))
+        assert with_user(permissionrequest, 'hello').has_permission('pypi_submit', stage)
         # anonymous can't
-        assert not with_user(permissionrequest, None).has_permission('pypi_submit', StageACL(stage, False))
+        assert not with_user(permissionrequest, None).has_permission('pypi_submit', stage)
         # external can't
-        assert not with_user(permissionrequest, 'external').has_permission('pypi_submit', StageACL(stage, False))
+        assert not with_user(permissionrequest, 'external').has_permission('pypi_submit', stage)
 
         # and we remove 'hello' from acl_upload ...
         stage.modify(acl_upload=[])
         # ... now it cannot upload either
-        assert not with_user(permissionrequest, 'hello').has_permission('pypi_submit', StageACL(stage, False))
+        assert not with_user(permissionrequest, 'hello').has_permission('pypi_submit', stage)
 
         # and we set the special :ANONYMOUS: for acl_upload ...
         stage.modify(acl_upload=[':anonymous:'])
         # which is always changed to uppercase
         assert stage.ixconfig['acl_upload'] == [':ANONYMOUS:']
         # and now anyone can upload
-        assert with_user(permissionrequest, 'hello').has_permission('pypi_submit', StageACL(stage, False))
-        assert with_user(permissionrequest, 'root').has_permission('pypi_submit', StageACL(stage, False))
-        assert with_user(permissionrequest, None).has_permission('pypi_submit', StageACL(stage, False))
+        assert with_user(permissionrequest, 'hello').has_permission('pypi_submit', stage)
+        assert with_user(permissionrequest, 'root').has_permission('pypi_submit', stage)
+        assert with_user(permissionrequest, None).has_permission('pypi_submit', stage)
 
         # and we set the group :developer for acl_upload ...
         stage.modify(acl_upload=[':developer'])
         # no one ...
-        assert not with_user(permissionrequest, 'hello').has_permission('pypi_submit', StageACL(stage, False))
-        assert not with_user(permissionrequest, 'root').has_permission('pypi_submit', StageACL(stage, False))
-        assert not with_user(permissionrequest, None).has_permission('pypi_submit', StageACL(stage, False))
+        assert not with_user(permissionrequest, 'hello').has_permission('pypi_submit', stage)
+        assert not with_user(permissionrequest, 'root').has_permission('pypi_submit', stage)
+        assert not with_user(permissionrequest, None).has_permission('pypi_submit', stage)
         # except external can upload
-        assert with_user(permissionrequest, 'external').has_permission('pypi_submit', StageACL(stage, False))
+        assert with_user(permissionrequest, 'external').has_permission('pypi_submit', stage)
 
     def test_set_and_get_acl_toxresult_upload(self, xom, model, plugin, stage, permissionrequest):
-        from devpi_server.view_auth import StageACL
         indexconfig = stage.ixconfig
         # check that "hello" was included in acl_upload by default
         assert indexconfig["acl_toxresult_upload"] == [":ANONYMOUS:"]
@@ -110,34 +108,34 @@ class TestStage:
         
         # anonymous may upload tests
         assert with_user(permissionrequest, None).has_permission(
-            'toxresult_upload', StageACL(stage, False))
+            'toxresult_upload', stage)
 
         stage.modify(acl_toxresult_upload=['hello'])
         # hello may upload
         assert with_user(permissionrequest, 'hello').has_permission(
-            'toxresult_upload', StageACL(stage, False))
+            'toxresult_upload', stage)
         # but anonymous may not
         assert not with_user(permissionrequest, None).has_permission(
-            'toxresult_upload', StageACL(stage, False))
+            'toxresult_upload', stage)
         # neither may external
         assert not with_user(permissionrequest, 'external').has_permission(
-            'toxresult_upload', StageACL(stage, False))
+            'toxresult_upload', stage)
 
         # and we remove 'hello' from acl_upload ...
         stage.modify(acl_toxresult_upload=[])
         # ... now he may not upload either
         assert not with_user(permissionrequest, 'hello').has_permission(
-            'toxresult_upload', StageACL(stage, False))
+            'toxresult_upload', stage)
 
         # and we set the group :developer for acl_upload ...
         stage.modify(acl_toxresult_upload=[':developer'])
         # no one ...
         assert not with_user(permissionrequest, 'hello').has_permission(
-            'toxresult_upload', StageACL(stage, False))
+            'toxresult_upload', stage)
         assert not with_user(permissionrequest, 'root').has_permission(
-            'toxresult_upload', StageACL(stage, False))
+            'toxresult_upload', stage)
         assert not with_user(permissionrequest, None).has_permission(
-            'toxresult_upload', StageACL(stage, False))
+            'toxresult_upload', stage)
         # except external can upload
         assert with_user(permissionrequest, 'external').has_permission(
-            'toxresult_upload', StageACL(stage, False))
+            'toxresult_upload', stage)
