@@ -1071,8 +1071,8 @@ def test_ensure_acl_list():
     assert ensure_acl_list("foo,bar") == ["foo", "bar"]
     assert ensure_acl_list(" foo , bar ") == ["foo", "bar"]
     assert ensure_acl_list(" foo , bar ") == ["foo", "bar"]
-    assert ensure_acl_list(" :anonymous: , FOO ") == [
-        ":ANONYMOUS:", "FOO"]
+    assert ensure_acl_list(" :anonymous: , FOO ,:AuTheNTicated: ") == [
+        ":ANONYMOUS:", "FOO", ":AUTHENTICATED:"]
     with pytest.raises(InvalidIndexconfig):
         assert isinstance(ensure_acl_list(None), list)
         assert isinstance(ensure_acl_list(dict()), list)

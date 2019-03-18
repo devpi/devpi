@@ -1,0 +1,1 @@
+support ``:AUTHENTICATED:`` for permissions. This resolves to any user which is logged in, regardless of username or groups.

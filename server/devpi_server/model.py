@@ -155,7 +155,7 @@ def ensure_list(data):
 def ensure_acl_list(data):
     data = ensure_list(data)
     for index, name in enumerate(data):
-        if name.upper() in (':ANONYMOUS:',):
+        if name.upper() in (':ANONYMOUS:', ':AUTHENTICATED:'):
             data[index] = name.upper()
     return data
 
@@ -337,8 +337,11 @@ class InvalidIndexconfig(Exception):
 
 
 def get_principals(value):
-    from pyramid.security import Everyone
+    from pyramid.security import Authenticated, Everyone
     principals = set(value)
+    if ':AUTHENTICATED:' in principals:
+        principals.remove(':AUTHENTICATED:')
+        principals.add(Authenticated)
     if ':ANONYMOUS:' in principals:
         principals.remove(':ANONYMOUS:')
         principals.add(Everyone)
