@@ -11,7 +11,6 @@ import sys
 import json
 import time
 
-from _pytest.pytester import RunResult, LineMatcher
 from devpi.main import Hub, get_pluginmanager, initmain, parse_args
 from devpi_common.url import URL
 from devpi_server import __version__ as devpi_server_version
@@ -416,6 +415,7 @@ def ext_devpi(request, tmpdir, devpi):
 @pytest.fixture
 def out_devpi(devpi):
     def out_devpi_func(*args, **kwargs):
+        from _pytest.pytester import RunResult
         cap = py.io.StdCaptureFD()
         cap.startall()
         now = time.time()
@@ -482,6 +482,7 @@ def runproc():
     return runprocess
 
 def runprocess(tmpdir, cmdargs):
+    from _pytest.pytester import RunResult
     cmdargs = [str(x) for x in cmdargs]
     p1 = tmpdir.join("stdout")
     print_info("running", cmdargs, "curdir=", py.path.local())
@@ -534,6 +535,7 @@ def create_venv(request, testdir, tmpdir_factory, monkeypatch):
 
 @pytest.fixture
 def loghub(tmpdir):
+    from _pytest.pytester import LineMatcher
     class args:
         debug = True
         clientdir = tmpdir.join("clientdir")
