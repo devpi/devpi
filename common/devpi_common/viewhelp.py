@@ -40,6 +40,13 @@ class ViewLink:
             self.__class__.__name__, self.rel, self.href)
 
 
+def try_int(value):
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return value
+
+
 class ToxResultEnv:
     def __init__(self, result, envname):
         self.host = result["host"]
@@ -58,11 +65,11 @@ class ToxResultEnv:
 
     def _get_commands_info(self, commands):
         result = dict(
-            failed=any(x["retcode"] != "0" for x in commands),
+            failed=any(try_int(x["retcode"]) != 0 for x in commands),
             commands=[])
         for command in commands:
             result["commands"].append(dict(
-                failed=command["retcode"] != "0",
+                failed=try_int(command["retcode"]) != 0,
                 command=" ".join(command.get("command", [])),
                 output=command.get("output", [])))
         return result
