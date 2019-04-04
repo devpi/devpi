@@ -1,1 +1,0 @@
-Fix #641: support change of return code from string to integer in tox 3.8.x.
