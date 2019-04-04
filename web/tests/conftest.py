@@ -23,3 +23,14 @@ def xom(request, makexom):
     with xom.keyfs.transaction(write=True):
         set_default_indexes(xom.model)
     return xom
+
+
+@pytest.fixture(params=[None, "tox38"])
+def tox_result_data(request):
+    from test_devpi_server.example import tox_result_data
+    import copy
+    tox_result_data = copy.deepcopy(tox_result_data)
+    if request.param == "tox38":
+        retcode = int(tox_result_data['testenvs']['py27']['test'][0]['retcode'])
+        tox_result_data['testenvs']['py27']['test'][0]['retcode'] = retcode
+    return tox_result_data

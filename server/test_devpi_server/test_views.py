@@ -1271,8 +1271,7 @@ def test_upload_and_push_internal(mapp, testapp, monkeypatch, proj):
     assert link.href.endswith("/pkg1-2.6.tgz")
 
 
-def test_acl_toxresults_upload(mapp, testapp):
-    from test_devpi_server.example import tox_result_data
+def test_acl_toxresults_upload(mapp, testapp, tox_result_data):
     mapp.create_and_login_user("user1", "1")
     mapp.create_index("prod")
     mapp.create_index("dev")
@@ -1298,8 +1297,7 @@ def test_acl_toxresults_upload(mapp, testapp):
 
 
 @pytest.mark.parametrize("outside_url", ['', 'http://localhost/devpi'])
-def test_upload_and_push_with_toxresults(mapp, testapp, outside_url):
-    from test_devpi_server.example import tox_result_data
+def test_upload_and_push_with_toxresults(mapp, testapp, outside_url, tox_result_data):
     mapp.create_and_login_user("user1", "1")
     mapp.create_index("prod")
     mapp.create_index("dev")
@@ -1602,8 +1600,7 @@ def test_upload_trigger(mapp):
         ('http://localhost', 'user1/dev', 'pkg1', '2.6')]
 
 
-def test_upload_and_testdata(mapp, testapp):
-    from test_devpi_server.example import tox_result_data
+def test_upload_and_testdata(mapp, testapp, tox_result_data):
     api = mapp.create_and_use()
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200)
     path, = mapp.get_release_paths("pkg1")

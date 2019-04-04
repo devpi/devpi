@@ -349,8 +349,7 @@ class TestImportExport:
             link = stage.get_link_from_entrypath(links[1].entrypath)
             assert link.entry.file_get_content() == b"content2"
 
-    def test_upload_releasefile_with_toxresult(self, impexp):
-        from test_devpi_server.example import tox_result_data
+    def test_upload_releasefile_with_toxresult(self, impexp, tox_result_data):
         mapp1 = impexp.mapp1
         api = mapp1.create_and_use()
         content = b'content'
@@ -383,8 +382,7 @@ class TestImportExport:
             assert history_log[0]['who'] == 'user1'
             assert history_log[0]['dst'] == 'user1/dev'
 
-    def test_import_without_history_log(self, impexp):
-        from test_devpi_server.example import tox_result_data
+    def test_import_without_history_log(self, impexp, tox_result_data):
         DUMP_FILE = {
           "users": {
             "root": {

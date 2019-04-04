@@ -572,8 +572,7 @@ def test_whitelist(mapp, pypistage, testapp):
 
 
 @pytest.mark.with_notifier
-def test_testdata(mapp, testapp):
-    from test_devpi_server.example import tox_result_data
+def test_testdata(mapp, testapp, tox_result_data):
     api = mapp.create_and_use()
     mapp.set_versiondata(
         {"name": "pkg1", "version": "2.6", "description": "foo"})
@@ -639,8 +638,7 @@ def test_testdata_corrupt(mapp, testapp):
 
 
 @pytest.mark.with_notifier
-def test_testdata_missing(mapp, testapp):
-    from test_devpi_server.example import tox_result_data
+def test_testdata_missing(mapp, testapp, tox_result_data):
     api = mapp.create_and_use()
     mapp.set_versiondata(
         {"name": "pkg1", "version": "2.6", "description": "foo"})
