@@ -19,7 +19,7 @@ Glossary
       
    volatile index
    
-      A index that can be modified and deleted at will be its owner.  
+      A index that can be modified and deleted at will by its owner.  
       On upload, release files will overwrite existing release files.
       A Development index is an example of volatile indexes. A volatile 
       index normally pertains to a single user. 
