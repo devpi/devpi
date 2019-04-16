@@ -1,0 +1,1 @@
+fix updating time stamp of mirror project name cache when no project names have changed. This makes subsequent fetches actually use the cache instead of always fetching the data again from the mirror.

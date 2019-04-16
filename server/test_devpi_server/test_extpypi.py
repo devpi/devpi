@@ -559,6 +559,24 @@ class TestPyPIStageprojects:
         assert not pypistage.get_releaselinks("proj3")
         assert pypistage.list_projects_perstage() == set(["proj1", "proj2", "django"])
 
+    def test_name_cache_expiration_updated_when_no_names_changed(self, httpget, pypistage):
+        pypistage.httpget.mockresponse(pypistage.mirror_url, code=200, text="""
+            <body>
+                <a href='django'>Django</a><br/>
+            </body>""")
+        pypistage.cache_expiry = 0
+        projectnames = pypistage.cache_projectnames
+        assert not projectnames.exists()
+        pypistage.list_projects_perstage()
+        assert projectnames.exists()
+        ts = projectnames._timestamp
+        # force a context switch and some time difference
+        time.sleep(0)
+        # fetch again
+        pypistage.list_projects_perstage()
+        # now the timestamp should differ
+        assert projectnames._timestamp > ts
+
 
 def raise_ValueError():
     raise ValueError(42)
