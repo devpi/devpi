@@ -4,7 +4,7 @@ sudo: false
 python:
   - "2.7"
   - "3.4"
-  - "3.6"
+  - "3.7"
   - "nightly"
   - "pypy2.7-6.0"
   - "pypy3.5-6.0"
@@ -79,7 +79,7 @@ jobs:
             - nginx
 
     - stage: test
-      python: "3.6"
+      python: "3.7"
       env: PROJECT=server
       addons:
         apt:
