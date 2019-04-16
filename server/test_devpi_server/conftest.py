@@ -318,7 +318,7 @@ def httpget(pypiurls):
             self.url2response = {}
             self._md5 = hashlib.md5()
 
-        def __call__(self, url, allow_redirects=False, extra_headers=None):
+        def __call__(self, url, allow_redirects=False, extra_headers=None, **kw):
             class mockresponse:
                 def __init__(xself, url):
                     fakeresponse = self.url2response.get(url)

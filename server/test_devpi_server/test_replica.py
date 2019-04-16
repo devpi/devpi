@@ -722,12 +722,13 @@ def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, replica_pypis
 
     # we patch wait_tx_serial so we can check and replay
     called = []
-    def wait_tx_serial(serial):
+    def wait_tx_serial(serial, timeout=None):
         called.append(True)
         assert xom.keyfs.get_current_serial() == serial
         assert replica_xom.keyfs.get_current_serial() < serial
         replay(xom, replica_xom, events=False)
         assert replica_xom.keyfs.get_current_serial() == serial
+        return True
 
     monkeypatch.setattr(replica_xom.keyfs, 'wait_tx_serial', wait_tx_serial)
     pypiurls.simple = 'http://localhost:3111/root/pypi/+simple/'
