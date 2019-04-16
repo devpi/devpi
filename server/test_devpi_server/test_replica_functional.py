@@ -46,6 +46,7 @@ class TestMirrorIndexThings(BaseTestMirrorIndexThings):
 
 @pytest.mark.skipif("not config.option.slow")
 @pytest.mark.nomocking
+@pytest.mark.storage_with_filesystem
 def test_replicating_deleted_pypi_release(
         caplog, makemapp, makefunctionaltestapp,
         master_host_port, master_serverdir,
