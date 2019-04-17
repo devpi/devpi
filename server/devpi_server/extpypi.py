@@ -226,9 +226,9 @@ class PyPIStage(BaseStage):
 
     @property
     def cache_projectnames(self):
-        """ filesystem-persistent cache for full list of projectnames. """
+        """ cache for full list of projectnames. """
         # we could keep this info inside keyfs but pypi.org
-        # produces a 3MB list of names and it changes often which
+        # produces a several MB list of names and it changes often which
         # would spam the database.
         try:
             return self.xom.get_singleton(self.name, "projectnames")
@@ -298,6 +298,9 @@ class PyPIStage(BaseStage):
                         if k.get() == 0:
                             self.keyfs.restart_as_write_transaction()
                             k.set(1)
+                else:
+                    # mark current without updating contents
+                    self.cache_projectnames.mark_current()
 
         return projects
 
@@ -543,9 +546,12 @@ class ProjectNamesCache:
         return self._data
 
     def set(self, data):
-        """ Set data, updating timestamp and writing to local file"""
+        """ Set data and update timestamp. """
         if data is not self._data:
             self._data = data.copy()
+        self.mark_current()
+
+    def mark_current(self):
         self._timestamp = time.time()
 
 
