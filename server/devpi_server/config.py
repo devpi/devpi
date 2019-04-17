@@ -183,6 +183,15 @@ def addoptions(parser, pluginmanager):
                  "improve performance. Each entry uses 1kb of memory on "
                  "average. So by default about 10MB are used.")
 
+    deploy.addoption("--root-passwd", type=str, default="",
+            help="initial password for the root user. This option has no "
+                 "effect if the user 'root' already exist.")
+
+    deploy.addoption("--root-passwd-hash", type=str, default=None,
+            help="initial password hash for the root user. "
+                 "This option has no effect if the user 'root' already "
+                 "exist.")
+
     backends = sorted(
         pluginmanager.hook.devpiserver_storage_backend(settings=None),
         key=itemgetter("name"))

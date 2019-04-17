@@ -271,3 +271,33 @@ def test_serve_max_body(monkeypatch, tmpdir):
     monkeypatch.setattr("waitress.serve", check_max_body)
     from devpi_server.main import main
     main(["devpi-server", "--max-request-body-size", "42"])
+
+
+def test_root_passwd_option(makexom):
+    # by default the password is empty
+    xom = makexom()
+    with xom.keyfs.transaction(write=False):
+        user = xom.model.get_user('root')
+        assert user.validate("")
+        assert not user.validate("foobar")
+    # the password can be set from the command line
+    xom = makexom(["--root-passwd", "foobar"])
+    with xom.keyfs.transaction(write=False):
+        user = xom.model.get_user('root')
+        assert not user.validate("")
+        assert user.validate("foobar")
+
+
+def test_root_passwd_hash_option(makexom):
+    # by default the password is empty
+    xom = makexom()
+    with xom.keyfs.transaction(write=False):
+        user = xom.model.get_user('root')
+        assert user.validate("")
+        assert not user.validate("foobar")
+    # the password hash can be directly set from the command line
+    xom = makexom(["--root-passwd-hash", "$argon2i$v=19$m=102400,t=2,p=8$j9G6V8o5B0Co9f4fQ6gVIg$WzcG2C5Bv0LwtzPWeBcz0g"])
+    with xom.keyfs.transaction(write=False):
+        user = xom.model.get_user('root')
+        assert not user.validate("")
+        assert user.validate("foobar")

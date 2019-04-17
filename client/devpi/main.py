@@ -733,7 +733,7 @@ def user(parser):
         help="user name")
     parser.add_argument("keyvalues", nargs="*", type=str,
         help="key=value configuration item.  Possible keys: "
-             "email, password.")
+             "email, password and pwhash.")
 
 
 @subcommand("devpi.user:passwd")

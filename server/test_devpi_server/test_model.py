@@ -955,6 +955,16 @@ class TestUsers:
         assert 'pwsalt' not in userconfig
         assert userconfig['pwhash'].startswith("$argon2")
 
+    def test_create_with_hash(self, model):
+        user = model.get_user("user")
+        assert not user
+        user = model.create_user(
+            "user", None,
+            pwhash="$argon2i$v=19$m=102400,t=2,p=8$F2JMqVVKSSnFGEPIGQOAsA$RXW/kJM94gq00l9QWDG0OA")
+        assert user
+        assert user.validate("password")
+        assert not user.validate("password2")
+
     def test_create_and_delete(self, model):
         user = model.create_user("user", password="password")
         user.delete()

@@ -18,7 +18,7 @@ def getnewpass(hub, username):
         hub.error("passwords did not match")
 
 def user_create(hub, user, kvdict):
-    if "password" not in kvdict:
+    if "password" not in kvdict and "pwhash" not in kvdict:
         kvdict["password"] = getnewpass(hub, user)
     hub.http_api("put", hub.current.get_user_url(user), kvdict)
     hub.info("user created: %s" % user)
