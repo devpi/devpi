@@ -569,9 +569,9 @@ class TestPyPIStageprojects:
         assert not projectnames.exists()
         pypistage.list_projects_perstage()
         assert projectnames.exists()
+        # simulate some time difference
+        projectnames._timestamp = projectnames._timestamp - 1
         ts = projectnames._timestamp
-        # force a context switch and some time difference
-        time.sleep(0.1)
         # fetch again
         pypistage.list_projects_perstage()
         # now the timestamp should differ
