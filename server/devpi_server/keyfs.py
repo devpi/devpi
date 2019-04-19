@@ -134,6 +134,7 @@ class KeyFS(object):
         self._storage.perform_crash_recovery()
 
     def import_changes(self, serial, changes):
+        subscriber_task_infos = []
         with self._storage.get_connection(write=True) as conn:
             with conn.write_transaction() as fswriter:
                 next_serial = conn.last_changelog_serial + 1
@@ -144,8 +145,12 @@ class KeyFS(object):
                     fswriter.record_set(typedkey, get_mutable_deepcopy(val))
                     meth = self._import_subscriber.get(keyname)
                     if meth is not None:
-                        threadlog.debug("calling import subscriber %r", meth)
-                        with self.transaction(write=False, at_serial=serial):
+                        subscriber_task_infos.append(
+                            (meth, typedkey, val, back_serial))
+                if subscriber_task_infos:
+                    with self.transaction(write=False, at_serial=serial):
+                        for meth, typedkey, val, back_serial in subscriber_task_infos:
+                            threadlog.debug("calling import subscriber %r", meth)
                             meth(fswriter, typedkey, val, back_serial)
 
     def subscribe_on_import(self, key, subscriber):
