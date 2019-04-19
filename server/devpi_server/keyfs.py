@@ -142,7 +142,17 @@ class KeyFS(object):
                 for relpath, tup in changes.items():
                     keyname, back_serial, val = tup
                     typedkey = self.get_key_instance(keyname, relpath)
-                    fswriter.record_set(typedkey, get_mutable_deepcopy(val))
+                    try:
+                        fswriter.record_set(
+                            typedkey, get_mutable_deepcopy(val),
+                            back_serial=back_serial)
+                    except TypeError as e:
+                        # for backward compatibility with storage backends
+                        # which didn't support the back_serial keyword
+                        if not len(e.args) or 'back_serial' not in e.args[0]:
+                            raise
+                        fswriter.record_set(
+                            typedkey, get_mutable_deepcopy(val))
                     meth = self._import_subscriber.get(keyname)
                     if meth is not None:
                         subscriber_task_infos.append(
