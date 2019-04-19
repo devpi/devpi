@@ -703,7 +703,7 @@ class TestImportExport:
     @pytest.mark.storage_with_filesystem
     @pytest.mark.skipif(not hasattr(os, 'link'),
                         reason="OS doesn't support hard links")
-    def test_hard_links(self, makeimpexp):
+    def test_export_hard_links(self, makeimpexp):
         impexp = makeimpexp(options=('--hard-links',))
         mapp1 = impexp.mapp1
         api = mapp1.create_and_use()
@@ -712,8 +712,10 @@ class TestImportExport:
         content = zip_dict({"index.html": "<html/>"})
         mapp1.upload_doc("he-llo.zip", content, "he-llo", "")
 
+        # export the data
         impexp.export()
 
+        # check the number of links of the files in the exported data
         assert impexp.exportdir.join(
           'dataindex.json').stat().nlink == 1
         assert impexp.exportdir.join(
@@ -721,8 +723,10 @@ class TestImportExport:
         assert impexp.exportdir.join(
           'user1', 'dev', 'he-llo', '1.0', 'he-llo-1.0.tar.gz').stat().nlink == 2
 
+        # now import the data
         mapp2 = impexp.new_import()
 
+        # and check that the files have the expected content
         with mapp2.xom.keyfs.transaction():
             stage = mapp2.xom.model.getstage(api.stagename)
             verdata = stage.get_versiondata_perstage("he_llo", "1.0")
@@ -735,6 +739,55 @@ class TestImportExport:
             assert 'index.html' in archive.namelist()
             assert py.builtin._totext(
                 archive.read("index.html"), 'utf-8') == "<html/>"
+
+    @pytest.mark.storage_with_filesystem
+    @pytest.mark.skipif(not hasattr(os, 'link'),
+                        reason="OS doesn't support hard links")
+    def test_import_hard_links(self, makeimpexp):
+        impexp = makeimpexp()
+        mapp1 = impexp.mapp1
+        api = mapp1.create_and_use()
+        content = b'content'
+        mapp1.upload_file_pypi("he-llo-1.0.tar.gz", content, "he_llo", "1.0")
+        content = zip_dict({"index.html": "<html/>"})
+        mapp1.upload_doc("he-llo.zip", content, "he-llo", "")
+
+        # export the data
+        impexp.export()
+
+        # check the number of links of the files in the exported data
+        assert impexp.exportdir.join(
+            'dataindex.json').stat().nlink == 1
+        assert impexp.exportdir.join(
+            'user1', 'dev', 'he_llo-1.0.doc.zip').stat().nlink == 1
+        assert impexp.exportdir.join(
+            'user1', 'dev', 'he-llo', '1.0', 'he-llo-1.0.tar.gz').stat().nlink == 1
+
+        # now import the data
+        mapp2 = impexp.new_import(options=('--hard-links',))
+
+        # check that the files have the expected content
+        with mapp2.xom.keyfs.transaction():
+            stage = mapp2.xom.model.getstage(api.stagename)
+            verdata = stage.get_versiondata_perstage("he_llo", "1.0")
+            assert verdata["version"] == "1.0"
+            links = stage.get_releaselinks("he_llo")
+            assert len(links) == 1
+            assert links[0].entry.file_get_content() == b'content'
+            # assert os.stat(links[0].entry.file_os_path()).st_nlink == 2
+            doczip = stage.get_doczip("he_llo", "1.0")
+            archive = Archive(py.io.BytesIO(doczip))
+            assert 'index.html' in archive.namelist()
+            assert py.builtin._totext(
+                archive.read("index.html"), 'utf-8') == "<html/>"
+
+        # and the exported files should now have additional links
+        assert impexp.exportdir.join(
+            'dataindex.json').stat().nlink == 1
+        assert impexp.exportdir.join(
+            'user1', 'dev', 'he_llo-1.0.doc.zip').stat().nlink == 2
+        assert impexp.exportdir.join(
+            'user1', 'dev', 'he-llo', '1.0', 'he-llo-1.0.tar.gz').stat().nlink == 2
 
     def test_uploadtrigger_jenkins_removed_if_not_set(self, impexp):
         mapp1 = impexp.mapp1

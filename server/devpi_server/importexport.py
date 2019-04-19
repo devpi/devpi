@@ -11,6 +11,7 @@ from devpi_common.metadata import BasenameMeta
 from devpi_common.types import parse_hash_spec
 from devpi_server import __version__ as server_version
 from devpi_server.model import is_valid_name
+from .fileutil import BytesForHardlink
 from .main import fatal
 from .readonly import get_mutable_deepcopy, ReadonlyView
 
@@ -406,6 +407,11 @@ class Importer:
         project = filedesc["projectname"]
         p = self.import_rootdir.join(rel)
         assert p.check(), p
+        data = p.read("rb")
+        if self.xom.config.args.hard_links:
+            # wrap the data for additional attribute
+            data = BytesForHardlink(data)
+            data.devpi_srcpath = p.strpath
         if filedesc["type"] == "releasefile":
             mapping = filedesc["entrymapping"]
             if self.dumpversion == "1":
@@ -415,7 +421,7 @@ class Importer:
                 version = filedesc["version"]
 
             link = stage.store_releasefile(project, version,
-                                           p.basename, p.read("rb"),
+                                           p.basename, data,
                                            last_modified=mapping["last_modified"])
             # devpi-server-2.1 exported with md5 checksums
             if "md5" in mapping:
@@ -430,7 +436,7 @@ class Importer:
             # determined here but in store_releasefile/store_doczip/store_toxresult etc
         elif filedesc["type"] == "doczip":
             version = filedesc["version"]
-            link = stage.store_doczip(project, version, p.read("rb"))
+            link = stage.store_doczip(project, version, data)
         elif filedesc["type"] == "toxresult":
             linkstore = stage.get_linkstore_perstage(filedesc["projectname"],
                                            filedesc["version"])
@@ -438,7 +444,7 @@ class Importer:
             # it might use a different checksum
             basename = posixpath.basename(filedesc["for_entrypath"])
             link, = linkstore.get_links(basename=basename)
-            link = stage.store_toxresult(link, json.loads(p.read("rb").decode("utf8")))
+            link = stage.store_toxresult(link, json.loads(data.decode("utf8")))
         else:
             fatal("unknown file type: %s" % (type,))
         history_log = filedesc.get('log')
