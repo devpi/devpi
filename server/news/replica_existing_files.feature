@@ -1,0 +1,1 @@
+add option ``--replica-file-search-path`` to point to existing files. If a match is found it will be copied locally instead of fetched from the master. These files could be from a previous replication attempt or separately copied/restored.

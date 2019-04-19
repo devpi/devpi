@@ -114,6 +114,12 @@ def addoptions(parser, pluginmanager):
     mirror.addoption("--no-root-pypi", action="store_true",
             help="don't create root/pypi on server initialization.")
 
+    mirror.addoption("--replica-file-search-path", metavar="PATH",
+            help="path to existing files to try before downloading "
+                 "from master. These could be from a previous "
+                 "replication attempt or downloaded separately. "
+                 "Expects the structure from inside +files.")
+
     deploy = parser.addgroup("deployment and data options")
 
     deploy.addoption("--version", action="store_true",
