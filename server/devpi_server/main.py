@@ -345,6 +345,7 @@ class XOM:
                 version_info.append(key)
         version_info.sort()
         pyramid_config.registry['devpi_version_info'] = version_info
+        pyramid_config.registry['xom'] = self
         self.config.hook.devpiserver_pyramid_configure(
                 config=self.config,
                 pyramid_config=pyramid_config)
@@ -405,7 +406,6 @@ class XOM:
         pyramid_config.add_request_method(route_url)
         # XXX end hack
         pyramid_config.scan()
-        pyramid_config.registry['xom'] = self
         app = pyramid_config.make_wsgi_app()
         if self.is_replica():
             from devpi_server.replica import ReplicaThread, register_key_subscribers
