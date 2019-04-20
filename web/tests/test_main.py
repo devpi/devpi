@@ -87,9 +87,9 @@ def test_index_projects_arg(monkeypatch, tmpdir):
     result = devpi_server.main.main([
         "devpi-server", "--serverdir", str(tmpdir),
         "--indexer-backend", "null",
-        "--recreate-search-index", "--offline"])
+        "--recreate-search-index"])
     assert result == 0
-    assert calls == ['delete_index', 'update_projects']
+    assert calls == ['delete_index']
     (xom1, xom2) = xom_container
 
 
@@ -131,7 +131,7 @@ class TestConfig:
         assert config.args.indexer_backend == "foo:bar=ham"
         plugin = Plugin()
         main.get_pluginmanager(config).register(plugin)
-        indexer = main.get_indexer(config)
+        indexer = main.get_indexer_from_config(config)
         assert isinstance(indexer, Index)
         assert indexer.settings == {"bar": "ham"}
 
@@ -162,6 +162,6 @@ class TestConfig:
         assert isinstance(config.args.indexer_backend, dict)
         plugin = Plugin()
         main.get_pluginmanager(config).register(plugin)
-        indexer = main.get_indexer(config)
+        indexer = main.get_indexer_from_config(config)
         assert isinstance(indexer, Index)
         assert indexer.settings == {"bar": "ham"}

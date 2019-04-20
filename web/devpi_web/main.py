@@ -4,7 +4,6 @@ from devpi_common.metadata import get_latest_version
 from devpi_web.config import get_pluginmanager
 from devpi_web.doczip import remove_docs
 from devpi_web.indexing import ProjectIndexingInfo
-from devpi_web.indexing import iter_projects
 from devpi_server.log import threadlog
 from devpi_server.main import fatal
 from pkg_resources import resource_filename
@@ -172,7 +171,7 @@ def includeme(config):
     config.scan()
 
 
-def get_indexer(config):
+def get_indexer_from_config(config):
     pm = get_pluginmanager(config)
     indexers = {
         x['name']: x
@@ -188,7 +187,15 @@ def get_indexer(config):
             for item in setting_str.split(','):
                 (key, value) = item.split('=', 1)
                 settings[key] = value
-    return indexers[name]['indexer'](config=config, settings=settings)
+    indexer = indexers[name]['indexer'](config=config, settings=settings)
+    return indexer
+
+
+def get_indexer(xom):
+    indexer = get_indexer_from_config(xom.config)
+    if hasattr(indexer, 'runtime_setup'):
+        indexer.runtime_setup(xom)
+    return indexer
 
 
 @devpiserver_hookimpl
@@ -211,7 +218,8 @@ def devpiserver_pyramid_configure(config, pyramid_config):
     # for registrations of static views etc
     pyramid_config.include('devpi_web.main')
     pyramid_config.registry['devpiweb-pluginmanager'] = get_pluginmanager(config)
-    pyramid_config.registry['search_index'] = get_indexer(config)
+    xom = pyramid_config.registry['xom']
+    pyramid_config.registry['search_index'] = get_indexer(xom)
 
     # monkeypatch mimetypes.guess_type on because pyramid-1.5.1/webob
     # choke on mimtypes.guess_type on windows with python2.7
@@ -244,8 +252,7 @@ def devpiserver_add_parser_options(parser):
         help="Recreate search index for all projects and their documentation. "
              "This is only needed if there where indexing related errors in a "
              "devpi-web release and you want to upgrade only devpi-web "
-             "without a full devpi-server import/export. Requires "
-             "--offline option.")
+             "without a full devpi-server import/export.")
     indexing.addoption(
         "--indexer-backend", type=str, metavar="NAME", default="whoosh",
         action="store",
@@ -254,7 +261,7 @@ def devpiserver_add_parser_options(parser):
 
 @devpiserver_hookimpl
 def devpiserver_mirror_initialnames(stage, projectnames):
-    ix = get_indexer(stage.xom.config)
+    ix = get_indexer(stage.xom)
     threadlog.info(
         "indexing '%s' mirror with %s projects",
         stage.name,
@@ -278,11 +285,9 @@ def devpiserver_cmdline_run(xom):
     if docs_path is not None and not os.path.isabs(docs_path):
         fatal("The path for unzipped documentation must be absolute.")
     if xom.config.args.recreate_search_index:
-        if not xom.config.args.offline_mode:
-            fatal("The --recreate-search-index option requires the --offline option.")
-        ix = get_indexer(xom.config)
+        ix = get_indexer(xom)
         ix.delete_index()
-        ix.update_projects(iter_projects(xom), clear=True)
+        threadlog.info("Index deleted, start devpi-server normally to let it rebuild automatically.")
         # only exit when indexing explicitly
         return 0
     # allow devpi-server to run
@@ -292,14 +297,14 @@ def devpiserver_cmdline_run(xom):
 def delete_project(stage, name):
     if stage is None:
         return
-    ix = get_indexer(stage.xom.config)
+    ix = get_indexer(stage.xom)
     ix.delete_projects([ProjectIndexingInfo(stage=stage, name=name)])
 
 
 def index_project(stage, name):
     if stage is None:
         return
-    ix = get_indexer(stage.xom.config)
+    ix = get_indexer(stage.xom)
     ix.update_projects([ProjectIndexingInfo(stage=stage, name=name)])
 
 

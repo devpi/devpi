@@ -46,7 +46,8 @@ setup(
             for x in "3.4 3.5 3.6 3.7".split()],
     entry_points={
         'devpi_server': [
-            "devpi-web = devpi_web.main"],
+            "devpi-web = devpi_web.main",
+            "devpi-web-whoosh = devpi_web.whoosh_index"],
         'devpi_web': [
             "devpi-web-null = devpi_web.null_index",
             "devpi-web-whoosh = devpi_web.whoosh_index"]},

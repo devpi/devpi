@@ -1,0 +1,1 @@
+The search indexing is now performed in a separate thread. Indexing prioritizes private indexes, then projects downloaded from mirrors and lastly never downloaded projects from mirrors.

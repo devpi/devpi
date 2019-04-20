@@ -147,17 +147,6 @@ We now need to stop the server, we do that using supervisorctl::
     $ supervisorctl -c gen-config/supervisord.conf stop devpi-server
     devpi-server: stopped
 
-and then recreate the search index::
-
-    $ devpi-server --recreate-search-index --offline
-    2018-01-17 15:40:52,780 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2018-01-17 15:40:52,781 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2018-01-17 15:40:52,804 INFO  [Rtx3] Search-Indexing root/pypi:
-    2018-01-17 15:41:18,898 INFO  [Wtx3] setting projects cache for 'simplejson'
-    2018-01-17 15:42:23,387 INFO  [Wtx3] Committing 126895 new documents to search index.
-    2018-01-17 15:56:25,687 INFO  [Wtx3] Finished committing 126895 documents to search index.
-    2018-01-17 15:56:25,760 INFO  [Wtx3] fswriter4: committed: keys: 'root/pypi/+f/870/bf6257465ce2e/simplejson-3.13.2.tar.gz'
-
 and then start the server again::
 
     $ supervisorctl -c gen-config/supervisord.conf start devpi-server
