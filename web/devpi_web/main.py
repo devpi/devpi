@@ -253,11 +253,10 @@ def devpiserver_add_parser_options(parser):
 
 @devpiserver_hookimpl
 def devpiserver_mirror_initialnames(stage, projectnames):
-    xom = stage.xom
-    indexer = get_indexer(xom.config)
-    # directly use projectnames?
-    indexer.update_projects(iter_projects(xom), clear=True)
-    threadlog.info("finished initial indexing op")
+    ix = get_indexer(stage.xom.config)
+    indexname = stage.name
+    ix.update_projects([(indexname, name) for name in projectnames])
+    threadlog.info("finished mirror indexing operation")
 
 
 @devpiserver_hookimpl

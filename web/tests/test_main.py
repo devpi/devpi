@@ -12,15 +12,14 @@ def test_pkgresources_version_matches_init():
     assert pkg_resources.get_distribution("devpi_web").version == ver
 
 
-def test_devpi_mirror_initialnames(monkeypatch, pypistage, mock):
-    import devpi_web.main
+def test_devpi_mirror_initialnames(caplog, pypistage):
+    import logging
+    caplog.set_level(logging.NOTSET)
     from devpi_web.main import devpiserver_mirror_initialnames
-    iter_projects = mock.MagicMock()
-    iter_projects.return_value = iter([])
-    monkeypatch.setattr(devpi_web.main, "iter_projects", iter_projects)
     with pypistage.keyfs.transaction():
         devpiserver_mirror_initialnames(pypistage, pypistage.list_projects_perstage())
-    assert iter_projects.called
+    logs = [x for x in caplog.messages if 'finished mirror indexing operation' in x]
+    assert len(logs) == 1
 
 
 def test_devpi_stage_created(monkeypatch, pypistage, mock):

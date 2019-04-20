@@ -1,0 +1,1 @@
+when mirror names are indexed a full reindex was triggered, now only the project names of the mirror are indexed.
