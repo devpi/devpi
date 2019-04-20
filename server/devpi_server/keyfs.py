@@ -504,9 +504,11 @@ class RelpathInfo(object):
 class Transaction(object):
     def __init__(self, keyfs, at_serial=None, write=False):
         self.keyfs = keyfs
-        self.conn = keyfs._storage.get_connection(write=write, closing=False)
         self.commit_serial = None
         self.write = write
+        if self.write:
+            # open connection immediately
+            self.conn
         if at_serial is None:
             at_serial = self.conn.last_changelog_serial
         self.at_serial = at_serial
@@ -515,6 +517,11 @@ class Transaction(object):
         self.dirty = set()
         self.closed = False
         self.doomed = False
+
+    @cached_property
+    def conn(self):
+        return self.keyfs._storage.get_connection(
+            write=self.write, closing=False)
 
     def iter_relpaths_at(self, typedkeys, at_serial):
         keynames = frozenset(k.name for k in typedkeys)
