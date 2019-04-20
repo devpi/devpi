@@ -14,6 +14,7 @@ from requests import Response, exceptions
 from devpi_common.types import cached_property
 from devpi_common.request import new_requests_session
 from .config import parseoptions, get_pluginmanager
+from .events import EventListeners
 from .log import configure_logging, threadlog
 from .model import BaseStage
 from .views import apireturn
@@ -173,6 +174,13 @@ class XOM:
 
     def __init__(self, config, httpget=None):
         self.config = config
+        self.event_listeners = EventListeners()
+        for listeners in self.config.hook.devpiserver_get_event_listeners():
+            for listener in listeners:
+                self.event_listeners.register(
+                    listener['event_type'],
+                    listener['handler'],
+                    context=listener.get('context', 'request'))
         self.thread_pool = mythread.ThreadPool()
         if httpget is not None:
             self.httpget = httpget
@@ -336,6 +344,7 @@ class XOM:
     view_deriver.options = ('is_mutating',)
 
     def create_app(self):
+        from devpi_server.middleware import EventMiddleware
         from devpi_server.middleware import OutsideURLMiddleware
         from devpi_server.view_auth import DevpiSecurityPolicy
         from devpi_server.views import ContentTypePredicate
@@ -421,6 +430,7 @@ class XOM:
             under="devpi_server.views.tween_request_logging")
         if self.config.args.profile_requests:
             pyramid_config.add_tween("devpi_server.main.tween_request_profiling")
+        pyramid_config.add_request_method(event_queue, reify=True)
         pyramid_config.add_request_method(get_remote_ip)
         pyramid_config.add_request_method(stage_url)
         pyramid_config.add_request_method(simpleindex_url)
@@ -432,7 +442,9 @@ class XOM:
         # XXX end hack
         pyramid_config.scan("devpi_server.views")
         app = pyramid_config.make_wsgi_app()
-        return OutsideURLMiddleware(app, self)
+        app = OutsideURLMiddleware(app, self)
+        app = EventMiddleware(app, self)
+        return app
 
     def is_master(self):
         return self.config.role == "master"
@@ -450,6 +462,13 @@ class FatalResponse:
 
     def __repr__(self):
         return "%s(%r)" % (self.__class__.__name__, self.reason)
+
+
+def event_queue(request):
+    event_queue = request.environ.get('devpi.event_queue')
+    if event_queue is not None:
+        event_queue.request = request
+    return event_queue
 
 
 def get_remote_ip(request):

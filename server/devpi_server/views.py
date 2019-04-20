@@ -201,7 +201,8 @@ def tween_keyfs_transaction(handler, registry):
 
     def request_tx_handler(request):
         write = is_mutating_http_method(request.method) and not is_replica
-        with keyfs.transaction(write=write) as tx:
+        event_queue = getattr(request, 'event_queue', None)
+        with keyfs.transaction(write=write, event_queue=event_queue) as tx:
             threadlog.debug("in-transaction %s", tx.at_serial)
             response = handler(request)
         set_header_devpi_serial(response, tx)

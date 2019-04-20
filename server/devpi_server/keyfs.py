@@ -337,17 +337,28 @@ class KeyFS(object):
             key = key(**key.extract_params(relpath))
         return key
 
-    def begin_transaction_in_thread(self, write=False, at_serial=None):
+    def begin_transaction_in_thread(self, write=False, at_serial=None, event_queue=None):
         if write and self._readonly:
             raise self.ReadOnly()
         assert not hasattr(self._threadlocal, "tx")
-        tx = Transaction(self, write=write, at_serial=at_serial)
+        tx = Transaction(self, write=write, at_serial=at_serial, event_queue=event_queue)
         self._threadlocal.tx = tx
         thread_push_log("[%stx%s]" %("W" if write else "R", tx.at_serial))
         return tx
 
     def clear_transaction(self):
         thread_pop_log()
+        tx = self._threadlocal.tx
+        event_queue = tx.event_queue
+        if event_queue is not None:
+            event_queue.commited = tx.commit_serial is not None
+            if event_queue.commited:
+                assert tx.write
+            if tx.commit_serial is not None:
+                event_queue.serial = tx.commit_serial
+            else:
+                event_queue.serial = tx.at_serial
+        del tx
         del self._threadlocal.tx
 
     def restart_as_write_transaction(self):
@@ -381,8 +392,9 @@ class KeyFS(object):
             self.clear_transaction()
 
     @contextlib.contextmanager
-    def transaction(self, write=False, at_serial=None):
-        tx = self.begin_transaction_in_thread(write=write, at_serial=at_serial)
+    def transaction(self, write=False, at_serial=None, event_queue=None):
+        tx = self.begin_transaction_in_thread(
+            write=write, at_serial=at_serial, event_queue=event_queue)
         try:
             yield tx
         except:
@@ -502,7 +514,8 @@ class RelpathInfo(object):
 
 
 class Transaction(object):
-    def __init__(self, keyfs, at_serial=None, write=False):
+    def __init__(self, keyfs, at_serial=None, write=False, event_queue=None):
+        self.event_queue = event_queue
         self.keyfs = keyfs
         self.commit_serial = None
         self.write = write

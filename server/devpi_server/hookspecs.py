@@ -83,6 +83,22 @@ def devpiserver_pyramid_configure(config, pyramid_config):
 
 
 @hookspec
+def devpiserver_get_event_listeners():
+    """ called after request was handled and sent to the client.
+
+    Preferred method to send notifications to external systems.
+
+    The hook is called within a read only transaction.
+
+    When no change was commited to the database, then commited is False.
+
+    The exception argument is set when there was an error sending the response
+    to the client. Most often this happens when the client closed the
+    connection or there was a network failure. In almost all cases this can
+    be ignored."""
+
+
+@hookspec
 def devpiserver_mirror_initialnames(stage, projectnames):
     """ called when projectnames are first loaded into a mirror
     (both for replica and a master)
