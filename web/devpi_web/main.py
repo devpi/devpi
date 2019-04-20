@@ -5,6 +5,7 @@ from devpi_web import hookspecs
 from devpi_web.doczip import remove_docs
 from devpi_web.indexing import iter_projects, preprocess_project
 from devpi_server.log import threadlog
+from devpi_server.main import fatal
 from pkg_resources import resource_filename
 from pluggy import PluginManager, HookimplMarker
 from pyramid.renderers import get_renderer
@@ -242,7 +243,8 @@ def devpiserver_add_parser_options(parser):
         help="Recreate search index for all projects and their documentation. "
              "This is only needed if there where indexing related errors in a "
              "devpi-web release and you want to upgrade only devpi-web "
-             "without a full devpi-server import/export.")
+             "without a full devpi-server import/export. Requires "
+             "--offline option.")
     indexing.addoption(
         "--indexer-backend", type=str, metavar="NAME", default="whoosh",
         action="store",
@@ -267,8 +269,10 @@ def devpiserver_stage_created(stage):
 
 @devpiserver_hookimpl
 def devpiserver_cmdline_run(xom):
-    ix = get_indexer(xom.config)
     if xom.config.args.recreate_search_index:
+        if not xom.config.args.offline_mode:
+            fatal("The --recreate-search-index option requires the --offline option.")
+        ix = get_indexer(xom.config)
         ix.delete_index()
         indexer = get_indexer(xom.config)
         indexer.update_projects(iter_projects(xom), clear=True)

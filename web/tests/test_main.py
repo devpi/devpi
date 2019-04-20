@@ -34,7 +34,7 @@ def test_devpi_stage_created(monkeypatch, pypistage, mock):
 
 
 def test_index_projects_arg(monkeypatch, tmpdir):
-    from devpi_web.main import get_indexer
+    from devpi_web.null_index import Index as NullIndex
     import devpi_server.main
     XOM = devpi_server.main.XOM
     xom_container = []
@@ -56,22 +56,26 @@ def test_index_projects_arg(monkeypatch, tmpdir):
             # if the webserver is started, we fail
             0 / 0
 
-    monkeypatch.setattr(devpi_server.main, "XOM", MyXOM)
+    calls = []
 
-    result = devpi_server.main.main(
-        ["devpi-server", "--serverdir", str(tmpdir), "--init"])
+    monkeypatch.setattr(devpi_server.main, "XOM", MyXOM)
+    monkeypatch.setattr(
+        NullIndex, "delete_index",
+        lambda s: calls.append("delete_index"))
+    monkeypatch.setattr(
+        NullIndex, "update_projects",
+        lambda s, x, clear=True: calls.append("update_projects"))
+
+    result = devpi_server.main.main([
+        "devpi-server", "--serverdir", str(tmpdir),
+        "--indexer-backend", "null",
+        "--init"])
+    assert calls == []
     assert not result
-    result = devpi_server.main.main(
-        ["devpi-server", "--serverdir", str(tmpdir), "--recreate-search-index"])
+    result = devpi_server.main.main([
+        "devpi-server", "--serverdir", str(tmpdir),
+        "--indexer-backend", "null",
+        "--recreate-search-index", "--offline"])
     assert result == 0
-    assert tmpdir.join('.indices').check()
+    assert calls == ['delete_index', 'update_projects']
     (xom1, xom2) = xom_container
-    ix = get_indexer(xom2.config)
-    result = ix.query_projects('foo')
-    assert result['info']['found'] == 1
-    assert result['items'][0]['data'] == {
-        u'index': u'pypi',
-        u'name': u'foo',
-        u'path': u'/root/pypi/foo',
-        u'type': u'project',
-        u'user': u'root'}

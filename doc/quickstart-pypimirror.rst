@@ -128,7 +128,7 @@ We now need to stop the server::
 
 and then recreate the search index::
 
-    $ devpi-server --recreate-search-index
+    $ devpi-server --recreate-search-index --offline
     2018-01-17 15:40:52,780 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
     2018-01-17 15:40:52,781 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
     2018-01-17 15:40:52,804 INFO  [Rtx3] Search-Indexing root/pypi:

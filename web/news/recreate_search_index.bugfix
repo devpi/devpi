@@ -1,0 +1,1 @@
+require --offline mode when using --recreate-search-index option. Otherwise reindexing may hang when trying to index a mirror.
