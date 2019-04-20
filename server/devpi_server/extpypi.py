@@ -294,6 +294,10 @@ class PyPIStage(BaseStage):
 
                     # trigger an initial-load event on master
                     if not self.xom.is_replica():
+                        # make sure we are at the current serial
+                        # this avoids setting the value again when
+                        # called from the notification thread
+                        self.keyfs.restart_read_transaction()
                         k = self.keyfs.MIRRORNAMESINIT(user=self.username, index=self.index)
                         if k.get() == 0:
                             self.keyfs.restart_as_write_transaction()
