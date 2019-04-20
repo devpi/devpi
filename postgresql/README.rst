@@ -20,6 +20,12 @@ You can install it with::
     pip install devpi-postgresql
 
 
+Requirements
+============
+
+At least PostgreSQL 9.5 is required for ``ON CONFLICT`` support.
+
+
 Usage
 =====
 

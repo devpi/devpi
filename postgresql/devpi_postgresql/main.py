@@ -59,7 +59,11 @@ class Connection:
         return tuple(row[:2])
 
     def db_write_typedkey(self, relpath, name, next_serial):
-        q = "SELECT set_kv(%s, %s, %s)"
+        q = """
+            INSERT INTO kv(key, keyname, serial)
+                VALUES (%s, %s, %s)
+            ON CONFLICT (key) DO UPDATE
+                SET keyname = EXCLUDED.keyname, serial = EXCLUDED.serial;"""
         c = self._sqlconn.cursor()
         c.execute(q, (relpath, name, next_serial))
         c.close()
@@ -89,7 +93,11 @@ class Connection:
         assert not os.path.isabs(path)
         assert not path.endswith("-tmp")
         c = self._sqlconn.cursor()
-        q = "SELECT set_files(%s, %s, %s)"
+        q = """
+            INSERT INTO files(path, size, data)
+                VALUES (%s, %s, %s)
+            ON CONFLICT (path) DO UPDATE
+                SET size = EXCLUDED.size, data = EXCLUDED.data;"""
         c.execute(q, (path, len(content), pg8000.Binary(content)))
         c.close()
         self.dirty_files[path] = content
@@ -241,54 +249,6 @@ class Storage:
                         size INTEGER NOT NULL,
                         data BYTEA NOT NULL
                     )
-                """)
-                c.execute("""
-                    CREATE FUNCTION set_kv(_key TEXT, _keyname TEXT, _serial INT) RETURNS VOID AS
-                    $$
-                    BEGIN
-                        LOOP
-                            -- first try to update the key
-                            UPDATE kv SET keyname = _keyname, serial = _serial WHERE key = _key;
-                            IF found THEN
-                                RETURN;
-                            END IF;
-                            -- not there, so try to insert the key
-                            -- if someone else inserts the same key concurrently,
-                            -- we could get a unique-key failure
-                            BEGIN
-                                INSERT INTO kv(key, keyname, serial) VALUES (_key, _keyname, _serial);
-                                RETURN;
-                            EXCEPTION WHEN unique_violation THEN
-                                -- Do nothing, and loop to try the UPDATE again.
-                            END;
-                        END LOOP;
-                    END;
-                    $$
-                    LANGUAGE plpgsql;
-                """)
-                c.execute("""
-                    CREATE FUNCTION set_files(_path TEXT, _size INTEGER, _data BYTEA) RETURNS VOID AS
-                    $$
-                    BEGIN
-                        LOOP
-                            -- first try to update the key
-                            UPDATE files SET size = _size, data = _data WHERE path = _path;
-                            IF found THEN
-                                RETURN;
-                            END IF;
-                            -- not there, so try to insert the key
-                            -- if someone else inserts the same key concurrently,
-                            -- we could get a unique-key failure
-                            BEGIN
-                                INSERT INTO files(path, size, data) VALUES (_path, _size, _data);
-                                RETURN;
-                            EXCEPTION WHEN unique_violation THEN
-                                -- Do nothing, and loop to try the UPDATE again.
-                            END;
-                        END LOOP;
-                    END;
-                    $$
-                    LANGUAGE plpgsql;
                 """)
                 sqlconn.commit()
             finally:

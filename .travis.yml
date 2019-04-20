@@ -123,7 +123,7 @@ jobs:
         apt:
           packages:
             - nginx
-        postgresql: "9.4"
+        postgresql: "9.5"
 
     - stage: test
       python: "pypy3.5-6.0"
@@ -132,4 +132,4 @@ jobs:
         apt:
           packages:
             - nginx
-        postgresql: "9.4"
+        postgresql: "9.5"
