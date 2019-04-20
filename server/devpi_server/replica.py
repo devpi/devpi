@@ -10,7 +10,7 @@ from devpi_common.validation import normalize_name
 from webob.headers import EnvironHeaders, ResponseHeaders
 
 from . import mythread
-from .fileutil import dumps, loads, rename
+from .fileutil import BytesForHardlink, dumps, loads, rename
 from .log import thread_push_log, threadlog
 from .views import is_mutating_http_method, H_MASTER_UUID, make_uuid_headers
 from .model import UpstreamError
@@ -438,6 +438,7 @@ class ImportFileReplica:
         self.xom = xom
         self.errors = errors
         self.file_search_path = self.xom.config.args.replica_file_search_path
+        self.use_hard_links = self.xom.config.args.hard_links
 
     def find_pre_existing_file(self, key, val):
         if self.file_search_path is None:
@@ -450,7 +451,12 @@ class ImportFileReplica:
         if os.path.exists(path):
             threadlog.info("checking existing file: %s", path)
             with open(path, "rb") as f:
-                return f.read()
+                data = f.read()
+            if self.use_hard_links:
+                # wrap the data for additional attribute
+                data = BytesForHardlink(data)
+                data.devpi_srcpath = path
+            return data
         else:
             threadlog.info("path for existing file not found: %s", path)
 
