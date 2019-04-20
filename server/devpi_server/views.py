@@ -41,6 +41,8 @@ from devpi_common.request import new_requests_session
 from devpi_common.validation import normalize_name, is_valid_archive_name
 
 from .config import hookimpl
+from .events import DocumentationUploadEvent
+from .events import FileUploadEvent
 from .filestore import BadGateway
 from .model import InvalidIndex, InvalidIndexconfig, InvalidUser, InvalidUserconfig
 from .model import ReadonlyIndex
@@ -68,6 +70,11 @@ meta_headers = {str("X-DEVPI-API-VERSION"): str(API_VERSION),
 
 INSTALLER_USER_AGENT = r"([^ ]* )*(distribute|setuptools|pip|pex)/.*"
 INSTALLER_USER_AGENT_REGEXP = re.compile(INSTALLER_USER_AGENT)
+
+
+upload_event_types = dict(
+    doc_upload=DocumentationUploadEvent,
+    file_upload=FileUploadEvent)
 
 
 def abort(request, code, body):
@@ -1020,14 +1027,6 @@ class PyPIView:
                         request, 409,
                         "%s already exists in non-volatile index" % (
                             content.filename,))
-                try:
-                    self.xom.config.hook.devpiserver_on_upload_sync(
-                        log=request.log, application_url=request.application_url,
-                        stage=stage, project=project, version=version)
-                except Exception as e:
-                    abort_submit(
-                        request, 200,
-                        "OK, but a trigger plugin failed: %s" % e, level="warn")
             else:
                 if "version" in request.POST:
                     self._update_versiondata_form(stage, request.POST)
@@ -1050,6 +1049,12 @@ class PyPIView:
                             content.filename,))
             link.add_log(
                 'upload', request.authenticated_userid, dst=stage.name)
+            metadata = stage.get_versiondata_perstage(link.project, link.version)
+            request.event_queue.notify(
+                upload_event_types[action],
+                relpath=link.relpath,
+                index=stage.name,
+                metadata=metadata)
         else:
             abort_submit(request, 400, "action %r not supported" % action)
         return Response("")
@@ -1609,3 +1614,21 @@ def abort_if_invalid_project(request, project):
             project.encode("ascii")
     except (UnicodeEncodeError, UnicodeDecodeError):
         abort(request, 400, "unicode project names not allowed")
+
+
+def file_upload_handler(event, commited, request, serial):
+    if not commited:
+        return
+    xom = request.registry['xom']
+    stage = xom.model.getstage(event.index)
+    metadata = event.metadata
+    xom.config.hook.devpiserver_on_upload_sync(
+        log=request.log, application_url=request.application_url,
+        stage=stage, project=metadata['name'], version=metadata['version'])
+
+
+@hookimpl
+def devpiserver_get_event_listeners():
+    return [dict(
+        event_type=FileUploadEvent,
+        handler=file_upload_handler)]

@@ -85,3 +85,18 @@ class EventQueue:
 @attr.s(frozen=True)
 class Event:
     pass
+
+
+@attr.s(frozen=True)
+class UploadEvent(Event):
+    relpath = attr.ib()
+    index = attr.ib()
+    metadata = attr.ib()
+
+
+class DocumentationUploadEvent(UploadEvent):
+    pass
+
+
+class FileUploadEvent(UploadEvent):
+    pass
