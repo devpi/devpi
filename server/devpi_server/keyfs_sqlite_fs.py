@@ -134,13 +134,14 @@ class FSWriter:
         self.changes = {}
         self.next_serial = conn.last_changelog_serial + 1
 
-    def record_set(self, typedkey, value=None):
+    def record_set(self, typedkey, value=None, back_serial=None):
         """ record setting typedkey to value (None means it's deleted) """
         assert not isinstance(value, ReadonlyView), value
-        try:
-            _, back_serial = self.conn.db_read_typedkey(typedkey.relpath)
-        except KeyError:
-            back_serial = -1
+        if back_serial is None:
+            try:
+                _, back_serial = self.conn.db_read_typedkey(typedkey.relpath)
+            except KeyError:
+                back_serial = -1
         self.conn.db_write_typedkey(typedkey.relpath, typedkey.name, self.next_serial)
         # at __exit__ time we write out changes to the _changelog_cache
         # so we protect here against the caller modifying the value later

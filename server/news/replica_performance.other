@@ -1,0 +1,1 @@
+slightly improved replica performance by removing unnecessary DB read and using fewer transactions.
