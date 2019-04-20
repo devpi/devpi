@@ -88,6 +88,41 @@ class Event:
 
 
 @attr.s(frozen=True)
+class ChangedKeysEvent(Event):
+    keys = attr.ib()
+
+
+@attr.s(frozen=True)
+class ChangedProjectVersion(Event):
+    pass
+
+
+@attr.s(frozen=True)
+class ChangedUser(Event):
+    pass
+
+
+@attr.s(frozen=True)
+class ChangedReleaseFile(Event):
+    pass
+
+
+@attr.s(frozen=True)
+class NewProjectVersion(Event):
+    pass
+
+
+@attr.s(frozen=True)
+class NewReleaseFile(Event):
+    pass
+
+
+@attr.s(frozen=True)
+class NewUser(Event):
+    user = attr.ib()
+
+
+@attr.s(frozen=True)
 class UploadEvent(Event):
     relpath = attr.ib()
     index = attr.ib()

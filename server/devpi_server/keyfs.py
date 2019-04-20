@@ -11,6 +11,7 @@ import re
 import contextlib
 import py
 from . import mythread
+from .events import ChangedKeysEvent
 from .fileutil import loads
 from .log import threadlog, thread_push_log, thread_pop_log
 from .readonly import get_mutable_deepcopy, ensure_deeply_readonly, \
@@ -704,6 +705,8 @@ class Transaction(object):
             threadlog.debug("nothing to commit, just closing tx")
             return self._close()
         try:
+            if self.event_queue is not None:
+                self.event_queue.notify(ChangedKeysEvent, keys=self.dirty)
             with self.conn.write_transaction() as fswriter:
                 for typedkey in self.dirty:
                     val = self.cache.get(typedkey)

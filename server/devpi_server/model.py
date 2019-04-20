@@ -23,12 +23,20 @@ except ImportError:
 from time import gmtime, strftime
 from .auth import hash_password, verify_and_update_password_hash
 from .config import hookimpl
+from .events import ChangedKeysEvent
+from .events import ChangedProjectVersion
+from .events import ChangedReleaseFile
+from .events import ChangedUser
+from .events import NewProjectVersion
+from .events import NewReleaseFile
+from .events import NewUser
 from .filestore import FileEntry
 from .log import threadlog, thread_current_log
 from .readonly import get_mutable_deepcopy
 
 
 notset = object()
+Redacted = object()
 
 
 def join_links_data(links, requires_python, yanked):
@@ -1751,3 +1759,80 @@ class EventSubscribers:
                 if name not in old_indexes:
                     stage = user.getstage(name)
                     self.xom.config.hook.devpiserver_stage_created(stage=stage)
+
+
+def changed_keys_handler(event, commited, request, serial):
+    xom = request.registry['xom']
+    model = xom.model
+    tx = xom.keyfs.tx
+    event_queue = tx.event_queue
+    changes = tx.conn.get_changes(tx.at_serial)
+    for typedkey in event.keys:
+        current = get_mutable_deepcopy(typedkey.get())
+        back_serial = changes[typedkey.relpath][1]
+        try:
+            old = tx.get_value_at(typedkey, back_serial)
+        except KeyError:
+            old = None
+        old = get_mutable_deepcopy(old)
+        if typedkey.name == 'USER':
+            if old is None:
+                if event_queue.has_listeners_for(NewUser):
+                    user = model.get_user(typedkey.params['user'])
+                    event_queue.unsafe_notify(NewUser, user=user)
+            elif current is None:
+                import pdb; pdb.set_trace() # noqa
+            else:
+                if event_queue.has_listeners_for(ChangedUser):
+                    user = model.get_user(typedkey.params['user'])
+                    diff = {}
+                    for key in user.modification_update_keys:
+                        current_value = current.get(key, notset)
+                        old_value = old.get(key, notset)
+                        if current_value != old_value:
+                            if key in user.hidden_keys:
+                                if current_value is not notset:
+                                    current_value = Redacted
+                                if old_value is not notset:
+                                    old_value = Redacted
+                            diff[key] = (old_value, current_value)
+                    if diff:
+                        event_queue.unsafe_notify(
+                            ChangedUser, user=user, diff=diff)
+        elif typedkey.name == 'PROJVERSION':
+            if old is None:
+                if event_queue.has_listeners_for(NewProjectVersion):
+                    import pdb; pdb.set_trace() # noqa
+                    pass
+            elif current is None:
+                import pdb; pdb.set_trace() # noqa
+            else:
+                if event_queue.has_listeners_for(ChangedProjectVersion):
+                    import pdb; pdb.set_trace() # noqa
+                    pass
+        elif typedkey.name == 'STAGEFILE':
+            if old is None:
+                if event_queue.has_listeners_for(NewReleaseFile):
+                    import pdb; pdb.set_trace() # noqa
+                    pass
+            elif current is None:
+                import pdb; pdb.set_trace() # noqa
+            else:
+                if event_queue.has_listeners_for(ChangedReleaseFile):
+                    import pdb; pdb.set_trace() # noqa
+                    pass
+
+
+def test_handler(event, commited, request, serial):
+    import pdb; pdb.set_trace() # noqa
+
+
+@hookimpl
+def devpiserver_get_event_listeners():
+    return [
+        dict(
+            event_type=ChangedKeysEvent,
+            handler=changed_keys_handler),
+        dict(
+            event_type=ChangedUser,
+            handler=test_handler)]
