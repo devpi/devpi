@@ -107,6 +107,8 @@ def main_list(hub, args):
         req = parse_requirement(hub.args.spec)
         url = hub.current.get_project_url(
             req.project_name, indexname=args.index)
+        if args.ignore_bases:
+            url = url.replace(query=dict(ignore_bases=""))
         reply = hub.http_api("get", url, type="projectconfig")
         out_project(hub, reply, req)
     else:

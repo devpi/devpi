@@ -982,11 +982,14 @@ class PyPIView:
         if not json_preferred(self.request):
             apireturn(415, "unsupported media type %s" %
                       self.request.headers.items())
+        perstage = 'ignore_bases' in self.request.GET
         context = self.context
         view_metadata = {}
-        for version in context.list_versions():
-            view_metadata[version] = self._make_view_verdata(
-                context.get_versiondata(version=version))
+        versions = context.list_versions(perstage=perstage)
+        for version in versions:
+            versiondata = context.get_versiondata(
+                version=version, perstage=perstage)
+            view_metadata[version] = self._make_view_verdata(versiondata)
         apireturn(200, type="projectconfig", result=view_metadata)
 
     @view_config(

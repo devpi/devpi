@@ -128,11 +128,14 @@ class RootFactory(object):
                                (self.version, project, msg))
         return verdata
 
-    def list_versions(self, project=None):
+    def list_versions(self, project=None, perstage=False):
         if project is None:
             project = self.project
         try:
-            res = self.stage.list_versions(project)
+            if perstage:
+                res = self.stage.list_versions_perstage(project)
+            else:
+                res = self.stage.list_versions(project)
         except UpstreamError as e:
             abort(self.request, 502, str(e))
         if not res and not self.stage.has_project(project):

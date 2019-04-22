@@ -661,6 +661,11 @@ def list_(parser):
     parser.add_argument("--index", default=None,
         help="index to look at (defaults to current index)")
 
+    parser.add_argument(
+        "--ignore-bases", action="store_true", default=False,
+        help="ignore releases from inherited bases. "
+             "Requires devpi-server >= 5.0.0.")
+
     parser.add_argument("spec", nargs="?",
         help="show info for a project or a specific release. "
              "Example specs: pytest or 'pytest>=2.3.5'"
