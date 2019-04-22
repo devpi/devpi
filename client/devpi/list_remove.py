@@ -146,7 +146,8 @@ def main_remove(hub, args):
     if confirm_delete(hub, ver_to_delete):
         for ver, links in ver_to_delete:
             hub.info("deleting release %s of %s" % (ver, req.project_name))
-            hub.http_api("delete", proj_url.addpath(ver))
+            if links:
+                hub.http_api("delete", proj_url.addpath(ver))
     else:
         hub.error("not deleting anything")
 
