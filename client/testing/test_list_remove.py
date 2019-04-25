@@ -190,3 +190,31 @@ class TestListRemove:
         assert len([x for x in out.stdout.lines if x.strip()]) == 0
         out = out_devpi("list", "--index", "%s/dev" % user, "-v")
         assert len([x for x in out.stdout.lines if x.strip()]) == 0
+
+    def test_delete_version_with_inheritance(self, initproj, devpi, out_devpi, simpypi):
+        devpi("index", "bases=root/pypi", "mirror_whitelist=*")
+        initproj("dddttt-0.666", {"doc": {
+            "conf.py": "",
+            "index.html": "<html/>"}})
+        assert py.path.local("setup.py").check()
+        devpi("upload", "--formats", "sdist.zip")
+        out = out_devpi("list", "dddttt", "--all")
+        out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
+        out = out_devpi("remove", "dddttt==0.666", code=200)
+        out = out_devpi("list", "dddttt", "--all")
+        with pytest.raises(ValueError):
+            out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
+
+    def test_delete_project_with_inheritance(self, initproj, devpi, out_devpi, simpypi):
+        devpi("index", "bases=root/pypi", "mirror_whitelist=*")
+        initproj("dddttt-0.666", {"doc": {
+            "conf.py": "",
+            "index.html": "<html/>"}})
+        assert py.path.local("setup.py").check()
+        devpi("upload", "--formats", "sdist.zip")
+        out = out_devpi("list", "dddttt", "--all")
+        out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
+        out = out_devpi("remove", "dddttt", code=200)
+        out = out_devpi("list", "dddttt", "--all")
+        with pytest.raises(ValueError):
+            out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")

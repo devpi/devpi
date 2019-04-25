@@ -144,9 +144,14 @@ def main_remove(hub, args):
             "No releases or distributions found matching '%s'." % args.spec_or_url)
         return 1
     if confirm_delete(hub, ver_to_delete):
-        for ver, links in ver_to_delete:
-            hub.info("deleting release %s of %s" % (ver, req.project_name))
-            hub.http_api("delete", proj_url.addpath(ver))
+        if req.specs:
+            # delete specific versions
+            for ver, links in ver_to_delete:
+                hub.info("deleting release %s of %s" % (ver, req.project_name))
+                hub.http_api("delete", proj_url.addpath(ver))
+        else:
+            # delete whole project
+            hub.http_api("delete", proj_url)
     else:
         hub.error("not deleting anything")
 
