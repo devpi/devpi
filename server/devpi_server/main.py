@@ -408,6 +408,11 @@ class XOM:
         app = pyramid_config.make_wsgi_app()
         if self.is_replica():
             from devpi_server.replica import ReplicaThread, register_key_subscribers
+            search_path = self.config.args.replica_file_search_path
+            if search_path and not os.path.exists(search_path):
+                fatal(
+                    "search path for existing replica files doesn't "
+                    "exist: %s" % search_path)
             register_key_subscribers(self)
             self.replica_thread = ReplicaThread(self)
             # the replica thread replays keyfs changes

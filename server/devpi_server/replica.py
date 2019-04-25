@@ -10,7 +10,7 @@ from devpi_common.validation import normalize_name
 from webob.headers import EnvironHeaders, ResponseHeaders
 
 from . import mythread
-from .fileutil import dumps, loads, rename
+from .fileutil import BytesForHardlink, dumps, loads, rename
 from .log import thread_push_log, threadlog
 from .views import is_mutating_http_method, H_MASTER_UUID, make_uuid_headers
 from .model import UpstreamError
@@ -437,6 +437,28 @@ class ImportFileReplica:
     def __init__(self, xom, errors):
         self.xom = xom
         self.errors = errors
+        self.file_search_path = self.xom.config.args.replica_file_search_path
+        self.use_hard_links = self.xom.config.args.hard_links
+
+    def find_pre_existing_file(self, key, val):
+        if self.file_search_path is None:
+            return
+        if not os.path.exists(self.file_search_path):
+            threadlog.error(
+                "path for existing files doesn't exist: %s",
+                self.file_search_path)
+        path = os.path.join(self.file_search_path, key.relpath)
+        if os.path.exists(path):
+            threadlog.info("checking existing file: %s", path)
+            with open(path, "rb") as f:
+                data = f.read()
+            if self.use_hard_links:
+                # wrap the data for additional attribute
+                data = BytesForHardlink(data)
+                data.devpi_srcpath = path
+            return data
+        else:
+            threadlog.info("path for existing file not found: %s", path)
 
     def __call__(self, fswriter, key, val, back_serial):
         threadlog.debug("ImportFileReplica for %s, %s", key, val)
@@ -453,6 +475,15 @@ class ImportFileReplica:
         if file_exists or entry.last_modified is None:
             # we have a file or there is no remote file
             return
+
+        content = self.find_pre_existing_file(key, val)
+        if content is not None:
+            err = entry.check_checksum(content)
+            if not err:
+                fswriter.conn.io_file_set(entry._storepath, content)
+                return
+            else:
+                threadlog.error(str(err))
 
         threadlog.info("retrieving file from master: %s", relpath)
         url = self.xom.config.master_url.joinpath(relpath).url

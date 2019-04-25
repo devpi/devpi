@@ -410,17 +410,73 @@ def replay(xom, replica_xom, events=True):
         thread_pop_log("NOTI")
 
 
-class TestFileReplication:
-    @pytest.fixture
-    def replica_xom(self, makexom):
+@pytest.fixture
+def make_replica_xom(makexom):
+    def make_replica_xom(options=()):
         from devpi_server.replica import ReplicationErrors
-        replica_xom = makexom(["--master", "http://localhost"])
+        replica_xom = makexom(["--master", "http://localhost"] + list(options))
         keyfs = replica_xom.keyfs
         replica_xom.errors = ReplicationErrors(replica_xom.config.serverdir)
         for key in (keyfs.STAGEFILE, keyfs.PYPIFILE_NOMD5):
             keyfs.subscribe_on_import(
                 key, ImportFileReplica(replica_xom, replica_xom.errors))
         return replica_xom
+    return make_replica_xom
+
+
+class TestUseExistingFiles:
+    def test_use_existing_files(self, caplog, make_replica_xom, mapp, monkeypatch, tmpdir, xom):
+        # this will be the folder to find existing files in the replica
+        existing_base = tmpdir.join('existing').ensure_dir()
+        # prepare data on master
+        mapp.create_and_use()
+        content1 = mapp.makepkg("hello-1.0.zip", b"content1", "hello", "1.0")
+        mapp.upload_file_pypi("hello-1.0.zip", content1, "hello", "1.0")
+        # get the path of the release
+        (path,) = mapp.get_release_paths('hello')
+        # create the file
+        existing_path = existing_base.join(path)
+        existing_path.dirpath().ensure_dir()
+        existing_path.write_binary(content1)
+        # create the replica with the path to existing files
+        replica_xom = make_replica_xom(options=[
+            '--replica-file-search-path', existing_base.strpath])
+        # now sync the replica, if the file is not found there will be an error
+        # because httpget is mocked
+        replay(xom, replica_xom)
+        assert len(caplog.getrecords('checking existing file')) == 1
+
+    @pytest.mark.storage_with_filesystem
+    def test_hardlink(self, caplog, make_replica_xom, mapp, monkeypatch, tmpdir, xom):
+        # this will be the folder to find existing files in the replica
+        existing_base = tmpdir.join('existing').ensure_dir()
+        # prepare data on master
+        mapp.create_and_use()
+        content1 = mapp.makepkg("hello-1.0.zip", b"content1", "hello", "1.0")
+        mapp.upload_file_pypi("hello-1.0.zip", content1, "hello", "1.0")
+        # get the path of the release
+        (path,) = mapp.get_release_paths('hello')
+        # create the file
+        existing_path = existing_base.join(path)
+        existing_path.dirpath().ensure_dir()
+        existing_path.write_binary(content1)
+        assert existing_path.stat().nlink == 1
+        # create the replica with the path to existing files and using hard links
+        replica_xom = make_replica_xom(options=[
+            '--replica-file-search-path', existing_base.strpath,
+            '--hard-links'])
+        # now sync the replica, if the file is not found there will be an error
+        # because httpget is mocked
+        replay(xom, replica_xom)
+        assert len(caplog.getrecords('checking existing file')) == 1
+        # check the number of links of the file
+        assert existing_path.stat().nlink == 2
+
+
+class TestFileReplication:
+    @pytest.fixture
+    def replica_xom(self, make_replica_xom):
+        return make_replica_xom()
 
     def test_no_set_default_indexes(self, replica_xom):
         assert replica_xom.keyfs.get_current_serial() == -1
