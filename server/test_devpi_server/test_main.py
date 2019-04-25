@@ -1,6 +1,7 @@
 import pytest
 from devpi_server import mythread
 from devpi_server.config import hookimpl
+from devpi_server.config import parseoptions, get_pluginmanager
 from devpi_server.main import Fatal
 from devpi_server.main import XOM
 from devpi_server.main import check_compatible_version
@@ -16,6 +17,15 @@ def ground_wsgi_run(monkeypatch):
 wsgi_run_throws = pytest.mark.usefixtures("ground_wsgi_run")
 
 
+@pytest.fixture
+def config(gentmp):
+    serverdir = gentmp()
+    pluginmanager = get_pluginmanager()
+    return parseoptions(
+        pluginmanager,
+        ["devpi-server", "--serverdir", serverdir.strpath])
+
+
 def test_pkgresources_version_matches_init():
     import pkg_resources
     ver = devpi_server.__version__
@@ -27,36 +37,44 @@ def test_version(capfd):
     assert not err  # not logging output
     assert devpi_server.__version__ in out.strip()
 
-def test_check_compatible_version_earlier(xom, monkeypatch):
-    monkeypatch.setattr(xom, "get_state_version", lambda: "1.0")
+def test_check_compatible_version_earlier(config, monkeypatch):
+    monkeypatch.setattr("devpi_server.main.get_state_version", lambda cfg: "1.0")
     with pytest.raises(Fatal):
-        check_compatible_version(xom)
+        check_compatible_version(config)
 
-def test_check_compatible_version_self(xom):
-    check_compatible_version(xom)
 
-def test_check_compatible_dev_version(xom, monkeypatch):
-    monkeypatch.setattr(xom, "get_state_version", lambda: "2.3.0.dev1")
-    monkeypatch.setattr("devpi_server.main.server_version", "2.3.0.dev2")
-    check_compatible_version(xom)
+@pytest.mark.parametrize("version", ["4", "4.8.1"])
+def test_check_compatible_version(config, version):
+    versionfile = config.serverdir.join(".serverversion")
+    versionfile.write(version)
+    check_compatible_version(config)
 
-def test_check_compatible_minor_version(xom, monkeypatch):
-    monkeypatch.setattr(xom, "get_state_version", lambda: "2.2.0")
-    monkeypatch.setattr("devpi_server.main.server_version", "2.3.0")
-    check_compatible_version(xom)
+
+def test_check_compatible_dev_version(config, monkeypatch):
+    monkeypatch.setattr("devpi_server.main.get_state_version", lambda cfg: "2.3.0.dev1")
+    monkeypatch.setattr("devpi_server.main.DATABASE_VERSION", "2")
+    check_compatible_version(config)
+
+
+def test_check_compatible_minor_version(config, monkeypatch):
+    monkeypatch.setattr("devpi_server.main.get_state_version", lambda cfg: "2.2.0")
+    monkeypatch.setattr("devpi_server.main.DATABASE_VERSION", "2")
+    check_compatible_version(config)
+
 
 @pytest.mark.parametrize("version", ["2.0.1", "2.1.9"])
-def test_check_incompatible_minor_version_raises(xom, monkeypatch, version):
-    monkeypatch.setattr(xom, "get_state_version", lambda: version)
-    monkeypatch.setattr("devpi_server.main.server_version", "2.3.0")
+def test_check_incompatible_minor_version_raises(config, monkeypatch, version):
+    monkeypatch.setattr("devpi_server.main.get_state_version", lambda cfg: version)
     with pytest.raises(Fatal):
-        check_compatible_version(xom)
+        check_compatible_version(config)
 
-def test_check_incompatible_version_raises(xom):
-    versionfile = xom.config.serverdir.join(".serverversion")
+
+def test_check_incompatible_version_raises(config):
+    versionfile = config.serverdir.join(".serverversion")
     versionfile.write("5.0.4")
     with pytest.raises(Fatal):
-        check_compatible_version(xom)
+        check_compatible_version(config)
+
 
 def test_pyramid_configure_called(makexom):
     l = []

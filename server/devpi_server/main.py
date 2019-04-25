@@ -9,7 +9,6 @@ import os, sys
 import py
 
 from requests import Response, exceptions
-from devpi_common.metadata import Version
 from devpi_common.types import cached_property
 from devpi_common.request import new_requests_session
 from .config import parseoptions, get_pluginmanager
@@ -26,28 +25,39 @@ class Fatal(Exception):
 def fatal(msg):
     raise Fatal(msg)
 
-def check_compatible_version(xom):
-    args = xom.config.args
+
+DATABASE_VERSION = "4"
+
+
+def check_compatible_version(config):
+    args = config.args
     if args.export:
         return
-    state_version = xom.get_state_version()
+    state_version = get_state_version(config)
     if server_version != state_version:
         state_ver = tuple(state_version.split("."))
-        server_ver = tuple(server_version.split("."))
-        incompatible = (
-            state_ver[:1] != server_ver[:1] or
-            Version(state_version) < Version("2.2.dev0"))
-        if incompatible:
+        if state_ver[0] != DATABASE_VERSION:
             fatal("Incompatible state: server %s cannot run serverdir "
-                  "%s created by %s.\n"
+                  "%s created at database version %s.\n"
                   "Use --export from older version, then --import with newer "
                   "version."
-                  %(server_version, xom.config.serverdir, state_version))
+                  % (server_version, config.serverdir, state_ver[0]))
 
-        xom.set_state_version(server_version)
-        tw = py.io.TerminalWriter(sys.stderr)
-        tw.line("minor version upgrade: setting serverstate to %s from %s" %(
-                server_version, state_version), bold=True)
+
+def get_state_version(config):
+    versionfile = config.serverdir.join(".serverversion")
+    if not versionfile.exists():
+        fatal(
+            "serverdir %s is non-empty and misses devpi-server meta information. "
+            "You need to specify an empty directory or a directory that was "
+            "previously managed by devpi-server>=1.2" % config.serverdir)
+    return versionfile.read()
+
+
+def set_state_version(config, version):
+    versionfile = config.serverdir.join(".serverversion")
+    versionfile.dirpath().ensure(dir=1)
+    versionfile.write(version)
 
 
 def main(argv=None):
@@ -88,6 +98,13 @@ def _main(pluginmanager, argv=None):
         if not config.path_nodeinfo.exists():
             fatal("The path '%s' contains no devpi-server data, use --init to initialize." % config.serverdir)
 
+    if args.init or args.import_:
+        sdir = config.serverdir
+        if not (sdir.exists() and len(sdir.listdir()) >= 2):
+            set_state_version(config, DATABASE_VERSION)
+    else:
+        check_compatible_version(config)
+
     # read/create node UUID and role of this server
     config.init_nodeinfo()
 
@@ -95,7 +112,6 @@ def _main(pluginmanager, argv=None):
     if not xom.is_replica() and xom.keyfs.get_current_serial() == -1:
         with xom.keyfs.transaction(write=True):
             set_default_indexes(xom.model)
-    check_compatible_version(xom)
 
     if args.start or args.stop or args.log or args.status:
         xprocdir = config.serverdir.join(".xproc")
@@ -179,26 +195,9 @@ class XOM:
         self.thread_pool = mythread.ThreadPool()
         if httpget is not None:
             self.httpget = httpget
-        sdir = config.serverdir
-        if not (sdir.exists() and len(sdir.listdir()) >= 2):
-            self.set_state_version(server_version)
         self.log = threadlog
         self.polling_replicas = {}
         self._stagecache = {}
-
-    def get_state_version(self):
-        versionfile = self.config.serverdir.join(".serverversion")
-        if not versionfile.exists():
-            fatal(
-            "serverdir %s is non-empty and misses devpi-server meta information. "
-            "You need to specify an empty directory or a directory that was "
-            "previously managed by devpi-server>=1.2" % self.config.serverdir)
-        return versionfile.read()
-
-    def set_state_version(self, version):
-        versionfile = self.config.serverdir.join(".serverversion")
-        versionfile.dirpath().ensure(dir=1)
-        versionfile.write(version)
 
     def get_singleton(self, indexpath, key):
         """ return a per-xom singleton for the given indexpath and key
