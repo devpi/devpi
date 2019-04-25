@@ -21,6 +21,8 @@ def preprocess_project(stage, name_input):
         index = stage.index
     except AttributeError:
         user, index = stage.name.split('/')
+    user = ensure_unicode(user)
+    index = ensure_unicode(index)
     if not is_project_cached(stage, name):
         return dict(name=name, user=user, index=index)
     setuptools_metadata = frozenset((
