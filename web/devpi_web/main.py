@@ -254,8 +254,7 @@ def devpiserver_add_parser_options(parser):
 @devpiserver_hookimpl
 def devpiserver_mirror_initialnames(stage, projectnames):
     ix = get_indexer(stage.xom.config)
-    indexname = stage.name
-    ix.update_projects([(indexname, name) for name in projectnames])
+    ix.update_projects([preprocess_project(stage, name) for name in projectnames])
     threadlog.info("finished mirror indexing operation")
 
 

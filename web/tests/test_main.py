@@ -1,3 +1,4 @@
+import pytest
 
 
 def test_importable():
@@ -12,12 +13,19 @@ def test_pkgresources_version_matches_init():
     assert pkg_resources.get_distribution("devpi_web").version == ver
 
 
+@pytest.mark.nomockprojectsremote
 def test_devpi_mirror_initialnames(caplog, pypistage):
     import logging
     caplog.set_level(logging.NOTSET)
     from devpi_web.main import devpiserver_mirror_initialnames
+    pypistage.mock_simple_projects(["pytest"])
+    pypistage.mock_simple(
+        "pytest", pypiserial=10,
+        pkgver="pytest-1.0.zip#egg=pytest-dev1")
     with pypistage.keyfs.transaction():
         devpiserver_mirror_initialnames(pypistage, pypistage.list_projects_perstage())
+    logs = [x for x in caplog.messages if 'after exception' in x]
+    assert len(logs) == 0
     logs = [x for x in caplog.messages if 'finished mirror indexing operation' in x]
     assert len(logs) == 1
 
