@@ -138,6 +138,7 @@ class PyPIStage(BaseStage):
             'mirror_cache_expiry', xom.config.args.mirror_cache_expiry)
         self.xom = xom
         self.offline = self.xom.config.args.offline_mode
+        self.timeout = xom.config.args.request_timeout
         # list of locally mirrored projects
         self.key_projects = self.keyfs.PROJNAMES(user=username, index=index)
         if xom.is_replica():
@@ -251,7 +252,9 @@ class PyPIStage(BaseStage):
 
     def _get_remote_projects(self):
         headers = {"Accept": "text/html"}
-        response = self.httpget(self.mirror_url, allow_redirects=True, extra_headers=headers)
+        response = self.httpget(
+            self.mirror_url, allow_redirects=True, extra_headers=headers,
+            timeout=self.timeout)
         if response.status_code != 200:
             raise self.UpstreamError("URL %r returned %s %s",
                 self.mirror_url, response.status_code, response.reason)
@@ -390,7 +393,7 @@ class PyPIStage(BaseStage):
         # get the simple page for the project
         url = self.mirror_url + project + "/"
         threadlog.debug("reading index %s", url)
-        response = self.httpget(url, allow_redirects=True)
+        response = self.httpget(url, allow_redirects=True, timeout=self.timeout)
         if response.status_code != 200:
             # if we have and old result, return it. While this will
             # miss the rare event of actual project deletions it allows
@@ -480,12 +483,12 @@ class PyPIStage(BaseStage):
             devpi_serial = int(response.headers["X-DEVPI-SERIAL"])
             threadlog.debug("get_simplelinks pypi: waiting for devpi_serial %r",
                             devpi_serial)
-            self.keyfs.wait_tx_serial(devpi_serial)
-            threadlog.debug("get_simplelinks pypi: finished waiting for devpi_serial %r",
-                            devpi_serial)
-            # XXX raise TransactionRestart to get a consistent clean view
-            self.keyfs.restart_read_transaction()
-            is_expired, links, cache_serial = self._load_cache_links(project)
+            if self.keyfs.wait_tx_serial(devpi_serial, timeout=self.timeout):
+                threadlog.debug("get_simplelinks pypi: finished waiting for devpi_serial %r",
+                                devpi_serial)
+                # XXX raise TransactionRestart to get a consistent clean view
+                self.keyfs.restart_read_transaction()
+                is_expired, links, cache_serial = self._load_cache_links(project)
             if links is not None:
                 self.cache_retrieve_times.refresh(project)
                 return links
