@@ -69,3 +69,7 @@ def get_write_file_ensure_dir(path):
         os.makedirs(dirname)
         return open(path, "wb")
 
+
+class BytesForHardlink(bytes):
+    """ to allow hard links we have to pass the src path of the content """
+    devpi_srcpath = None

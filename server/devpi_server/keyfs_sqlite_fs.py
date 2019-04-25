@@ -1,4 +1,5 @@
 from .config import hookimpl
+from .fileutil import BytesForHardlink
 from .keyfs_sqlite import BaseConnection
 from .keyfs_sqlite import BaseStorage
 from .log import threadlog, thread_push_log, thread_pop_log
@@ -202,8 +203,14 @@ def write_dirty_files(dirty_files):
             pending_renames.append((None, path))
         else:
             tmppath = path + "-tmp"
-            with get_write_file_ensure_dir(tmppath) as f:
-                f.write(content)
+            if isinstance(content, BytesForHardlink):
+                dirname = os.path.dirname(tmppath)
+                if not os.path.exists(dirname):
+                    os.makedirs(dirname)
+                os.link(content.devpi_srcpath, tmppath)
+            else:
+                with get_write_file_ensure_dir(tmppath) as f:
+                    f.write(content)
             pending_renames.append((tmppath, path))
     return pending_renames
 
