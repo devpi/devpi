@@ -53,5 +53,6 @@ setup(
         'devpi-server>=3.0.0.dev2',
         'pg8000'],
     include_package_data=True,
+    python_requires='>=3.4',
     zip_safe=False,
     packages=['devpi_postgresql', 'pytest_devpi_postgresql'])
