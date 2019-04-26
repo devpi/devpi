@@ -1,1 +1,0 @@
-add ``--hard-links`` support for replicas together with the ``--replica-file-search-path`` option. When a matching file is found it's hard linked instead of writing a copy.

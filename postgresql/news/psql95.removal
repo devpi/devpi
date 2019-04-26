@@ -1,1 +1,0 @@
-Requires at least PostgreSQL 9.5 for ``ON CONFLICT`` support.

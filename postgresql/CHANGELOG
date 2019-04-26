@@ -2,6 +2,17 @@
 
 .. towncrier release notes start
 
+1.0.0 (2019-04-26)
+==================
+
+Deprecations and Removals
+-------------------------
+
+- Requires at least PostgreSQL 9.5 for ``ON CONFLICT`` support.
+
+- Dropped support for Python 2.x and PyPy2.
+
+
 0.3.0 (2018-09-08)
 ==================
 

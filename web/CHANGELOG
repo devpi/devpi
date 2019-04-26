@@ -2,6 +2,17 @@
 
 .. towncrier release notes start
 
+3.5.1 (2019-04-26)
+==================
+
+Bug Fixes
+---------
+
+- when mirror names are indexed a full reindex was triggered, now only the project names of the mirror are indexed.
+
+- require --offline mode when using --recreate-search-index option. Otherwise reindexing may hang when trying to index a mirror.
+
+
 3.5.0 (2018-11-16)
 ==================
 

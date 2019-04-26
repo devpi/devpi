@@ -1,1 +1,0 @@
-implement #93: When creating a user, the password hash can be set directly with ``pwhash``. Upon database initialization allow setting root user password with ``--root-passwd`` and the password hash with ``--root-passwd-hash`` options. Thanks to Andreas Palsson.

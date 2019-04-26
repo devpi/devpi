@@ -2,6 +2,41 @@
 
 .. towncrier release notes start
 
+4.9.0 (2019-04-26)
+==================
+
+Features
+--------
+
+- implement #93: When creating a user, the password hash can be set directly with ``pwhash``. Upon database initialization allow setting root user password with ``--root-passwd`` and the password hash with ``--root-passwd-hash`` options. Thanks to Andreas Palsson.
+
+- decouple devpi server version from database version to enable major releases that do not require export import of data
+
+- support ``--hard-links`` option during import for releases and doc zips.
+
+- added new endpoint to download multiple changelog entries at once. This will be used for faster replication in the future.
+
+- add option ``--replica-file-search-path`` to point to existing files. If a match is found it will be copied locally instead of fetched from the master. These files could be from a previous replication attempt or separately copied/restored.
+
+- add ``--hard-links`` support for replicas together with the ``--replica-file-search-path`` option. When a matching file is found it's hard linked instead of writing a copy.
+
+
+Bug Fixes
+---------
+
+- fix multiple triggering of mirror project names initialization.
+
+- fix updating time stamp of mirror project name cache when no project names have changed. This makes subsequent fetches actually use the cache instead of always fetching the data again from the mirror.
+
+- use timeout when waiting for data from master in replica on mirror simple pages.
+
+
+Other Changes
+-------------
+
+- slightly improved replica performance by removing unnecessary DB read and using fewer transactions.
+
+
 4.8.1 (2019-03-14)
 ==================
 

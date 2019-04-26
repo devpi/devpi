@@ -1,1 +1,0 @@
-use timeout when waiting for data from master in replica on mirror simple pages.

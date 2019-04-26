@@ -1,1 +1,0 @@
-added new endpoint to download multiple changelog entries at once. This will be used for faster replication in the future.

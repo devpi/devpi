@@ -2,6 +2,21 @@
 
 .. towncrier release notes start
 
+4.4.0 (2019-04-26)
+==================
+
+Features
+--------
+
+- implement #93: support setting password hash with devpi-server 4.9.0.
+
+
+Bug Fixes
+---------
+
+- fix #622: deletion of package with inherited versions failed.
+
+
 4.3.0 (2019-03-14)
 ==================
 
