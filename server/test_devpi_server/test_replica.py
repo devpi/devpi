@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import hashlib
 import json
+import os
 import pytest
 import py
 from devpi_server.log import thread_pop_log
@@ -447,6 +448,8 @@ class TestUseExistingFiles:
         assert len(caplog.getrecords('checking existing file')) == 1
 
     @pytest.mark.storage_with_filesystem
+    @pytest.mark.skipif(not hasattr(os, 'link'),
+                        reason="OS doesn't support hard links")
     def test_hardlink(self, caplog, make_replica_xom, mapp, monkeypatch, tmpdir, xom):
         # this will be the folder to find existing files in the replica
         existing_base = tmpdir.join('existing').ensure_dir()
