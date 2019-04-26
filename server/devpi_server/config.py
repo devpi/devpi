@@ -214,7 +214,9 @@ def addoptions(parser, pluginmanager):
                  "(except for mirrors), test results and documentation.")
 
     expimp.addoption("--hard-links", action="store_true",
-            help="use hard links during export instead of copying files. "
+            help="use hard links during export, import or with "
+                 " --replica-file-search-path instead of copying "
+                 "or downloading files. "
                  "All limitations for hard links on your OS apply. "
                  "USE AT YOUR OWN RISK"
     )
