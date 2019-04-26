@@ -2,9 +2,6 @@
 devpi-postgresql: a PostgreSQL storage backend for devpi-server
 ===============================================================
 
-.. warning::
-    This plugin is considered experimental!
-
 This plugin adds a PostgreSQL storage backend for `devpi-server`_.
 
 .. _devpi-server: https://pypi.org/project/devpi-server/
