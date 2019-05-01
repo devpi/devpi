@@ -60,6 +60,7 @@ def test_replicating_deleted_pypi_release(
     # - the master tries to download it from pypi and gets a 404
     # - the master replies with a 502 and the replica stops at this point
     from devpi_common.url import URL
+    import time
     mapp = makemapp(makefunctionaltestapp(master_host_port))
     content = b'13'
     simpypi.add_release('pkg', pkgver='pkg-1.0.zip')
@@ -77,7 +78,12 @@ def test_replicating_deleted_pypi_release(
     assert r == content
     # remove files
     relpath = URL(result[0]).path[1:]
-    master_serverdir.join('+files').join(relpath).remove()
+    path = master_serverdir.join('+files').join(relpath)
+    tries = 0
+    while not path.exists() and tries < 10:
+        time.sleep(.1)
+        tries += 1
+    path.remove()
     simpypi.remove_file('/pkg/pkg-1.0.zip')
     mapp.delete_index("mirror")
     # now start the replication thread
