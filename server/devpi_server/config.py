@@ -203,8 +203,7 @@ def addoptions(parser, pluginmanager):
         key=itemgetter("name"))
     deploy.addoption("--storage", type=str, metavar="NAME",
             action="store",
-            help="the storage backend to use. This choice will be stored in "
-                 "your '--serverdir' upon initialization.\n" + ", ".join(
+            help="the storage backend to use.\n" + ", ".join(
                  '"%s": %s' % (x['name'], x['description']) for x in backends))
 
     expimp = parser.addgroup("serverstate export / import options")
@@ -552,8 +551,8 @@ class Config:
         fatal("The backend '%s' can't be found, is the plugin not installed?" % name)
 
     def _storage_info(self):
-        name = self.nodeinfo["storage"]["name"]
-        settings = self.nodeinfo["storage"]["settings"]
+        name = self.storage_info["name"]
+        settings = self.storage_info["settings"]
         return self._storage_info_from_name(name, settings)
 
     @property
@@ -561,9 +560,6 @@ class Config:
         return self._storage_info()["storage"]
 
     def _determine_storage(self):
-        from .main import fatal
-        old_storage_info = self.nodeinfo.get("storage", {})
-        old_name = old_storage_info.get("name")
         if self.args.storage:
             name, sep, setting_str = self.args.storage.partition(':')
             settings = {}
@@ -571,17 +567,11 @@ class Config:
                 for item in setting_str.split(','):
                     key, value = item.split('=', 1)
                     settings[key] = value
-            storage_info = self._storage_info_from_name(name, settings)
-            if old_name is not None and storage_info["name"] != old_name:
-                fatal("cannot change storage type after initialization")
         else:
-            if old_name is None:
-                name = "sqlite"
-            else:
-                name = old_name
-            settings = old_storage_info.get("settings")
-            storage_info = self._storage_info_from_name(name, settings)
-        self.nodeinfo["storage"] = dict(
+            name = "sqlite"
+            settings = {}
+        storage_info = self._storage_info_from_name(name, settings)
+        self.storage_info = dict(
             name=storage_info['name'],
             settings=settings)
 

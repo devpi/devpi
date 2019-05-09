@@ -191,23 +191,6 @@ class TestConfig:
         xom = makexom(plugins=(keyfs_sqlite, keyfs_sqlite_fs))
         assert xom.config.storage is keyfs_sqlite_fs.Storage
 
-    def test_storage_backend_persisted(self, tmpdir):
-        from devpi_server import keyfs_sqlite
-        config = make_config(["devpi-server",
-                              "--serverdir", str(tmpdir),
-                              "--storage", "sqlite_db_files"])
-        config.init_nodeinfo()
-        assert config.storage is keyfs_sqlite.Storage
-        config = make_config(["devpi-server",
-                              "--serverdir", str(tmpdir)])
-        config.init_nodeinfo()
-        assert config.storage is keyfs_sqlite.Storage
-        config = make_config(["devpi-server",
-                              "--serverdir", str(tmpdir),
-                              "--storage", "sqlite"])
-        with pytest.raises(Fatal):
-            config.init_nodeinfo()
-
     @pytest.mark.no_storage_option
     def test_storage_backend_options(self, makexom):
         class Plugin:
