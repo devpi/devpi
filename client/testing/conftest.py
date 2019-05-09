@@ -11,15 +11,10 @@ import sys
 import json
 import time
 
+from .reqmock import reqmock  # noqa
 from devpi.main import Hub, get_pluginmanager, initmain, parse_args
 from devpi_common.url import URL
 from devpi_server import __version__ as devpi_server_version
-from test_devpi_server.conftest import reqmock  # noqa
-try:
-    from test_devpi_server.conftest import simpypi, simpypiserver  # noqa
-except ImportError:
-    # when testing with older devpi-server
-    pass
 
 import subprocess
 
@@ -78,6 +73,28 @@ def Popen_module(request):
 @pytest.fixture(scope="function")
 def Popen(request):
     return PopenFactory(request.addfinalizer)
+
+
+@pytest.fixture(scope="session")
+def simpypiserver():
+    from .simpypi import httpserver, SimPyPIRequestHandler
+    import threading
+    host = 'localhost'
+    port = get_open_port(host)
+    server = httpserver.HTTPServer((host, port), SimPyPIRequestHandler)
+    thread = threading.Thread(target=server.serve_forever)
+    thread.daemon = True
+    thread.start()
+    wait_for_port(host, port, 5)
+    print("Started simpypi server %s:%s" % server.server_address)
+    return server
+
+
+@pytest.fixture
+def simpypi(simpypiserver):
+    from .simpypi import SimPyPI
+    simpypiserver.simpypi = SimPyPI(simpypiserver.server_address)
+    return simpypiserver.simpypi
 
 
 def get_open_port(host):

@@ -12,6 +12,7 @@ import requests
 import socket
 import sys
 import time
+from .reqmock import reqmock  # noqa
 from bs4 import BeautifulSoup
 from contextlib import closing
 from devpi_server import extpypi
@@ -21,7 +22,6 @@ from devpi_common.url import URL
 from devpi_server.extpypi import PyPIStage
 from devpi_server.log import threadlog, thread_clear_log
 from pyramid.authentication import b64encode
-from pyramid.compat import escape
 from pyramid.httpexceptions import status_map
 
 import hashlib
@@ -29,11 +29,6 @@ try:
     from queue import Queue as BaseQueue
 except ImportError:
     from Queue import Queue as BaseQueue
-
-try:
-    import http.server as httpserver
-except ImportError:
-    import BaseHTTPServer as httpserver
 
 
 def make_file_url(basename, content, stagename=None, baseurl="http://localhost/"):
@@ -287,32 +282,9 @@ def makemapp(request, maketestapp, makexom):
     return makemapp
 
 
-def make_simple_pkg_info(name, text="", pkgver=None, hash_type=None,
-                         pypiserial=None, requires_python=None):
-    class ret:
-        hash_spec = ""
-    if requires_python:
-        requires_python = ' data-requires-python="%s"' % escape(requires_python)
-    else:
-        requires_python = ''
-    if pkgver is not None:
-        assert not text
-        if hash_type and "#" not in pkgver:
-            hv = (pkgver + str(pypiserial)).encode("ascii")
-            hash_value = getattr(hashlib, hash_type)(hv).hexdigest()
-            ret.hash_spec = "%s=%s" %(hash_type, hash_value)
-            pkgver += "#" + ret.hash_spec
-        text = '<a href="../../{name}/{pkgver}"{requires_python}>{pkgver}</a>'.format(
-            name=name, pkgver=pkgver, requires_python=requires_python)
-    elif text and "{md5}" in text:
-        text = text.format(md5=getmd5(text))
-    elif text and "{sha256}" in text:
-        text = text.format(sha256=getsha256(text))
-    return ret, text
-
-
 @pytest.fixture
 def httpget(pypiurls):
+    from .simpypi import make_simple_pkg_info
     class MockHTTPGet:
         def __init__(self):
             self.url2response = {}
@@ -907,69 +879,6 @@ def testapp(request, maketestapp, xom):
     return maketestapp(xom)
 
 
-class SimPyPIRequestHandler(httpserver.BaseHTTPRequestHandler):
-    def do_GET(self):
-        def start_response(status, headers):
-            self.send_response(status)
-            for key, value in headers.items():
-                self.send_header(key, value)
-            self.end_headers()
-
-        simpypi = self.server.simpypi
-        headers = {
-            'X-Simpypi-Method': 'GET'}
-        p = self.path.split('/')
-        if len(p) == 4 and p[0] == '' and p[1] == 'simple' and p[3] == '':
-            # project listing
-            project = simpypi.projects.get(p[2])
-            if project is not None:
-                releases = project['releases']
-                simpypi.add_log(
-                    "do_GET", self.path, "found",
-                    project['title'], "with", list(releases))
-                start_response(200, headers)
-                self.wfile.write(b'\n'.join(releases))
-                return
-        elif p == ['', 'simple', ''] or p == ['', 'simple']:
-            # root listing
-            projects = [
-                '<a href="/simple/%s/">%s</a>' % (k, v['title'])
-                for k, v in simpypi.projects.items()]
-            simpypi.add_log("do_GET", self.path, "found", list(simpypi.projects))
-            start_response(200, headers)
-            self.wfile.write(b'\n'.join(x.encode('utf-8') for x in projects))
-            return
-        elif self.path in simpypi.files:
-            # file serving
-            f = simpypi.files[self.path]
-            content = f['content']
-            if 'length' in f:
-                headers['Content-Length'] = f['length']
-                content = content[:f['length']]
-            start_response(200, headers)
-            simpypi.add_log("do_GET", self.path, "sending")
-            if not f['stream']:
-                self.wfile.write(content)
-                simpypi.add_log("do_GET", self.path, "sent")
-                return
-            else:
-                chunksize = f['chunksize']
-                callback = f.get('callback')
-                for i in range(len(content) // chunksize):
-                    data = content[i * chunksize:(i + 1) * chunksize]
-                    if not data:
-                        break
-                    self.wfile.write(data)
-                    if callback:
-                        callback(i * chunksize)
-                    simpypi.add_log(
-                        "do_GET", self.path,
-                        "streamed %i bytes" % (i * chunksize))
-                return
-        simpypi.add_log("do_GET", self.path, "not found")
-        start_response(404, headers)
-
-
 def get_open_port(host):
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
         s.bind((host, 0))
@@ -1171,6 +1080,7 @@ def nginx_replica_host_port(replica_host_port, call_devpi_in_dir, server_directo
 
 @pytest.fixture(scope="session")
 def simpypiserver():
+    from .simpypi import httpserver, SimPyPIRequestHandler
     import threading
     host = 'localhost'
     port = get_open_port(host)
@@ -1183,63 +1093,9 @@ def simpypiserver():
     return server
 
 
-class SimPyPI:
-    def __init__(self, address):
-        self.baseurl = "http://%s:%s" % address
-        self.simpleurl = "%s/simple" % self.baseurl
-        self.projects = {}
-        self.files = {}
-        self.clear_log()
-
-    def clear_log(self):
-        self.log = []
-
-    def add_log(self, *args):
-        msg = ' '.join(str(x) for x in args)
-        print(msg, file=sys.stderr)
-        self.log.append(msg)
-
-    def add_project(self, name, title=None):
-        if title is None:
-            title = name
-        self.projects.setdefault(
-            name, dict(
-                title=title,
-                releases=set(),
-                pypiserial=None))
-        return self.projects[name]
-
-    def remove_project(self, name):
-        self.projects.pop(name)
-
-    def add_release(self, name, title=None, text="", pkgver=None, hash_type=None,
-                    pypiserial=None, requires_python=None, **kw):
-        project = self.add_project(name, title=title)
-        ret, text = make_simple_pkg_info(
-            name, text=text, pkgver=pkgver, hash_type=hash_type,
-            pypiserial=pypiserial, requires_python=requires_python)
-        assert text
-        project['releases'].add(text.encode('utf-8'))
-
-    def add_file(self, relpath, content, stream=False, chunksize=1024,
-                 length=None, callback=None):
-        if length is None:
-            length = len(content)
-        info = dict(
-            content=content,
-            stream=stream,
-            chunksize=chunksize,
-            callback=callback)
-        if length is not False:
-            info['length'] = length
-        self.files[relpath] = info
-
-    def remove_file(self, relpath):
-        del self.files[relpath]
-
-
 @pytest.fixture
 def simpypi(simpypiserver):
+    from .simpypi import SimPyPI
     simpypiserver.simpypi = SimPyPI(simpypiserver.server_address)
     return simpypiserver.simpypi
 
@@ -1258,84 +1114,6 @@ def pytest_runtest_setup(item):
         if previousfailed is not None:
             pytest.xfail("previous test failed (%s)" %previousfailed.name)
 
-#
-#  various requests related mocking functionality
-#  (XXX consolidate, release a plugin?)
-#
-from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.response import HTTPResponse
-import fnmatch
-
-
-@pytest.fixture
-def reqmock(monkeypatch):
-    mr = mocked_request()
-    def get_adapter(self, url):
-        return MockAdapter(mr, url)
-    monkeypatch.setattr("requests.sessions.Session.get_adapter", get_adapter)
-    return mr
-
-class MockAdapter:
-    def __init__(self, mock_request, url):
-        self.url = url
-        self.mock_request = mock_request
-
-    def send(self, request, **kwargs):
-        return self.mock_request.process_request(request, kwargs)
-
-
-class mocked_request:
-    def __init__(self):
-        self.url2reply = {}
-
-    def process_request(self, request, kwargs):
-        url = request.url
-        response = self.url2reply.get((url, request.method))
-        if response is None:
-            response = self.url2reply.get((url, None))
-            if response is None:
-                for (name, method), response in self.url2reply.items():
-                    if method is None or method == request.method:
-                        if fnmatch.fnmatch(request.url, name):
-                            break
-                else:
-                    raise Exception("not mocked call to %s" % url)
-        response.add_request(request)
-        r = HTTPAdapter().build_response(request, response)
-        return r
-
-    def mockresponse(self, url, code, method=None, data=None, headers=None,
-                     on_request=None, reason=None):
-        if not url:
-            url = "*"
-        r = ReqReply(code=code, data=data, headers=headers,
-                     on_request=on_request, reason=reason)
-        if method is not None:
-            method = method.upper()
-        self.url2reply[(url, method)] = r
-        return r
-    mock = mockresponse
-
-class ReqReply(HTTPResponse):
-    def __init__(self, code, data, headers, on_request, reason=None):
-        if py.builtin._istext(data):
-            data = data.encode("utf-8")
-        super(ReqReply, self).__init__(body=py.io.BytesIO(data),
-                                       status=code,
-                                       headers=headers,
-                                       reason=reason,
-                                       preload_content=False)
-        self.requests = []
-        self.on_request = on_request
-
-    def add_request(self, request):
-        if self.on_request:
-            self.on_request(request)
-        self.requests.append(request)
-
-#
-#  end requests related mocking functionality
-#
 
 @pytest.fixture
 def gen():
@@ -1353,12 +1131,6 @@ class Gen:
         elif md5:
             link += "#md5=%s" % md5
         return URL(link)
-
-def getmd5(s):
-    return hashlib.md5(s.encode("utf8")).hexdigest()
-
-def getsha256(s):
-    return hashlib.sha256(s.encode("utf8")).hexdigest()
 
 
 @pytest.yield_fixture

@@ -6,7 +6,7 @@ import pytest
 
 from devpi_server.extpypi import URL, parse_index, threadlog
 from devpi_server.extpypi import ProjectNamesCache, ProjectUpdateCache
-from test_devpi_server.conftest import getmd5
+from test_devpi_server.simpypi import getmd5
 
 
 def getlinks(text):
