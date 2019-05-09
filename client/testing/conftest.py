@@ -14,7 +14,6 @@ import time
 from .reqmock import reqmock  # noqa
 from devpi.main import Hub, get_pluginmanager, initmain, parse_args
 from devpi_common.url import URL
-from devpi_server import __version__ as devpi_server_version
 
 import subprocess
 
@@ -118,20 +117,32 @@ def wait_for_port(host, port, timeout=60):
 
 
 @pytest.fixture(scope="session")
-def server_version():
-    return pkg_resources.parse_version(devpi_server_version)
-
-
-def _liveserver(clientdir):
-    host = 'localhost'
-    port = get_open_port(host)
+def server_executable(request):
     path = py.path.local.sysfind("devpi-server")
     assert path
+    return str(path)
+
+
+@pytest.fixture(scope="session")
+def server_version(server_executable):
+    try:
+        output = subprocess.check_output([server_executable, "--version"])
+        return pkg_resources.parse_version(output.decode('ascii').strip())
+    except subprocess.CalledProcessError as e:
+        # this won't output anything on Windows
+        print(
+            getattr(e, 'output', "Can't get process output on Windows"),
+            file=sys.stderr)
+        raise
+
+
+def _liveserver(clientdir, server_executable, server_version):
+    host = 'localhost'
+    port = get_open_port(host)
     try:
         args = [
-            str(path), "--serverdir", str(clientdir), "--debug",
+            server_executable, "--serverdir", str(clientdir), "--debug",
             "--host", host, "--port", str(port)]
-        server_version = pkg_resources.parse_version(devpi_server_version)
         if server_version >= pkg_resources.parse_version('4.2.0.dev'):
             subprocess.check_call(args + ['--init'])
     except subprocess.CalledProcessError as e:
@@ -146,14 +157,14 @@ def _liveserver(clientdir):
 
 
 @pytest.yield_fixture(scope="session")
-def url_of_liveserver(request):
+def url_of_liveserver(request, server_executable, server_version):
     if request.config.option.fast:
         pytest.skip("not running functional tests in --fast mode")
     if request.config.option.live_url:
         yield URL(request.config.option.live_url)
         return
     clientdir = request.config._tmpdirhandler.mktemp("liveserver")
-    (p, url) = _liveserver(clientdir)
+    (p, url) = _liveserver(clientdir, server_executable, server_version)
     try:
         yield url
     finally:
@@ -162,11 +173,11 @@ def url_of_liveserver(request):
 
 
 @pytest.yield_fixture(scope="session")
-def url_of_liveserver2(request):
+def url_of_liveserver2(request, server_executable, server_version):
     if request.config.option.fast:
         pytest.skip("not running functional tests in --fast mode")
     clientdir = request.config._tmpdirhandler.mktemp("liveserver2")
-    (p, url) = _liveserver(clientdir)
+    (p, url) = _liveserver(clientdir, server_executable, server_version)
     try:
         yield url
     finally:

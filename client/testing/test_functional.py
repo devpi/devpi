@@ -1,5 +1,4 @@
 from io import BytesIO
-from pkg_resources import get_distribution, parse_version
 import json
 import py
 import pytest
@@ -396,15 +395,12 @@ class TestUserManagement:
         mapp.delete_user(user="root", code=403)
 
 
-devpi_version = get_distribution("devpi-server").parsed_version
-jsonpatch_devpi_version = parse_version("4.7.2dev")
-
-
-@pytest.mark.skipif(
-    devpi_version < jsonpatch_devpi_version,
-    reason="devpi-server without key value parsing support")
 class TestAddRemoveSettings:
-    def test_add_remove_index_list_setting(self, mapp, existing_user_id, url_of_liveserver):
+    def test_add_remove_index_list_setting(self, mapp, existing_user_id, server_version, url_of_liveserver):
+        from pkg_resources import parse_version
+        jsonpatch_devpi_version = parse_version("4.7.2dev")
+        if server_version < jsonpatch_devpi_version:
+            pytest.skip("devpi-server without key value parsing support")
         mapp.login(user=existing_user_id, password="1234")
         indexname = '%s/dev' % existing_user_id
         indexurl = url_of_liveserver.joinpath(indexname)
