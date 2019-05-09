@@ -31,6 +31,13 @@ except ImportError:
     from Queue import Queue as BaseQueue
 
 
+@pytest.fixture(scope="session")
+def server_version():
+    from devpi_server import __version__
+    from pkg_resources import parse_version
+    return parse_version(__version__)
+
+
 def make_file_url(basename, content, stagename=None, baseurl="http://localhost/"):
     from devpi_server.filestore import get_default_hash_spec, make_splitdir
     hash_spec = get_default_hash_spec(content)

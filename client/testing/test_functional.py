@@ -7,9 +7,9 @@ import requests
 import tarfile
 import time
 
-from test_devpi_server.functional import TestUserThings, TestIndexThings # noqa
+from .functional import TestUserThings, TestIndexThings # noqa
 try:
-    from test_devpi_server.functional import TestMirrorIndexThings  # noqa
+    from .functional import TestMirrorIndexThings  # noqa
 except ImportError:
     # when testing with older devpi-server
     class TestMirrorIndexThings:
@@ -17,14 +17,14 @@ except ImportError:
             pytest.skip(
                 "Couldn't import TestMirrorIndexThings from devpi server tests.")
 try:
-    from test_devpi_server.functional import TestIndexPushThings  # noqa
+    from .functional import TestIndexPushThings  # noqa
 except ImportError:
     # when testing with older devpi-server
     class TestIndexPushThings:
         def test_mirror_things(self):
             pytest.skip(
                 "Couldn't import TestIndexPushThings from devpi server tests.")
-from test_devpi_server.functional import MappMixin
+from .functional import MappMixin
 
 @pytest.fixture
 def mapp(request, devpi, out_devpi, tmpdir):

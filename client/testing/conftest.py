@@ -117,6 +117,11 @@ def wait_for_port(host, port, timeout=60):
         "The port %s on host %s didn't become accessible" % (port, host))
 
 
+@pytest.fixture(scope="session")
+def server_version():
+    return pkg_resources.parse_version(devpi_server_version)
+
+
 def _liveserver(clientdir):
     host = 'localhost'
     port = get_open_port(host)
