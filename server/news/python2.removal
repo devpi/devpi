@@ -1,0 +1,1 @@
+deprecated Python 2.7 support. This is the last major version supporting Python 2.7. For upgrading to Python 3.x you have to export your data using your current setup with Python 2.7 and import it in a new installation with Python 3.x.

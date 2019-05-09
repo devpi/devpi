@@ -60,8 +60,22 @@ def set_state_version(config, version):
     versionfile.write(version)
 
 
+def check_python_version():
+    if sys.version_info.major < 4:
+        import warnings
+        warnings.warn(
+            "DEPRECATION: Python 2.7 will reach the end of its life on "
+            "January 1st, 2020. Please upgrade your Python as Python 2.7 "
+            "won't be maintained after that date.\n"
+            "The recommended way for upgrading devpi-server to Python 3.x "
+            "is to first use the --export option with your existing "
+            "Python 2.7 setup. Then use --import in a new Python 3.x "
+            "environment.")
+
+
 def main(argv=None):
     """ devpi-server command line entry point. """
+    check_python_version()
     pluginmanager = get_pluginmanager()
     try:
         return _main(pluginmanager, argv=argv)
