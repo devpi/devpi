@@ -575,6 +575,14 @@ class Config:
             name=storage_info['name'],
             settings=settings)
 
+    def sqlite_file_needed_but_missing(self):
+        return (
+            not self.args.init
+            and not self.args.import_
+            and self.storage_info['name'] == 'sqlite'
+            and not self.serverdir.join(".sqlite").exists()
+        )
+
     @cached_property
     def secret(self):
         if not self.secretfile.check():
