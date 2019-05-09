@@ -116,11 +116,80 @@ def wait_for_port(host, port, timeout=60):
         "The port %s on host %s didn't become accessible" % (port, host))
 
 
+def find_python3():
+    locations = [
+        "C:\\Python34-x64\\python.exe",
+        "C:\\Python34\\python.exe",
+        "C:\\Python35-x64\\python.exe",
+        "C:\\Python35\\python.exe",
+        "C:\\Python36-x64\\python.exe",
+        "C:\\Python36\\python.exe",
+        "C:\\Python37-x64\\python.exe",
+        "C:\\Python37\\python.exe"]
+    for location in locations:
+        if not os.path.exists(location):
+            continue
+        try:
+            output = subprocess.check_output([location, '--version'])
+            if output.strip().startswith('Python 3'):
+                return location
+        except subprocess.CalledProcessError:
+            continue
+    names = [
+        'python3',
+        'python3.4',
+        'python3.5',
+        'python3.6',
+        'python3.7']
+    for name in names:
+        path = py.path.local.sysfind(name)
+        if not path:
+            continue
+        path = str(path)
+        try:
+            output = subprocess.check_output([path, '--version'])
+            if output.strip().startswith('Python 3'):
+                return path
+        except subprocess.CalledProcessError:
+            continue
+    raise RuntimeError("Can't find a Python 3 executable.")
+
+
+def get_venv_script(venv_path, script_names):
+    for bindir in ('Scripts', 'bin'):
+        for script_name in script_names:
+            script = venv_path.join(bindir, script_name)
+            if script.exists():
+                return str(script)
+    else:
+        raise RuntimeError("Can't find %s in %s." % (script_names, venv_path))
+
+
 @pytest.fixture(scope="session")
 def server_executable(request):
+    # first try installed devpi-server for quick runs during development
     path = py.path.local.sysfind("devpi-server")
-    assert path
-    return str(path)
+    if path:
+        return str(path)
+    # there is no devpi-server installed
+    python3 = find_python3()
+    # prepare environment for subprocess call
+    env = dict(os.environ)
+    env.pop("VIRTUALENV_PYTHON", None)
+    env.pop("VIRTUAL_ENV", None)
+    if sys.platform != "win32":
+        env.pop("PATH", None)
+    # create a virtualenv with Python 3
+    venv_path = request.config._tmpdirhandler.mktemp("server_venv")
+    subprocess.check_call(
+        [sys.executable, '-m', 'virtualenv', '-p', python3, str(venv_path)],
+        env=env)
+    # install devpi-server
+    venv_pip = get_venv_script(venv_path, ('pip', 'pip.exe'))
+    subprocess.check_call(
+        [venv_pip, 'install', 'devpi-server'],
+        env=env)
+    return get_venv_script(venv_path, ('devpi-server', 'devpi-server.exe'))
 
 
 @pytest.fixture(scope="session")
