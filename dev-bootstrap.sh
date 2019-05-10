@@ -8,4 +8,4 @@ for i in common client server web ; do
 done
 
 # install some deps for testing
-pip install -U PdbEditorSupport Sphinx pytest mock webtest pytest-cov pytest-flakes pytest-pdb pytest-pep8 pytest-timeout beautifulsoup4 tox towncrier wheel
+pip install -U PdbEditorSupport Sphinx pytest mock webtest pytest-cov pytest-flake8 pytest-pdb pytest-timeout beautifulsoup4 tox towncrier wheel
