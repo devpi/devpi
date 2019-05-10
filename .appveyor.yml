@@ -6,6 +6,8 @@ environment:
     - PROJECT: "client"
 
 install:
+  - git config core.symlinks true
+  - git reset --hard
 #  - choco install python.pypy > pypy-inst.log 2>&1 || (type pypy-inst.log & exit /b 1)
 #  - set PATH=C:\tools\pypy\pypy;%PATH% # so tox can find pypy
 #  - echo PyPy installed

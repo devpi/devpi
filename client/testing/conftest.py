@@ -11,15 +11,9 @@ import sys
 import json
 import time
 
+from .reqmock import reqmock  # noqa
 from devpi.main import Hub, get_pluginmanager, initmain, parse_args
 from devpi_common.url import URL
-from devpi_server import __version__ as devpi_server_version
-from test_devpi_server.conftest import reqmock  # noqa
-try:
-    from test_devpi_server.conftest import simpypi, simpypiserver  # noqa
-except ImportError:
-    # when testing with older devpi-server
-    pass
 
 import subprocess
 
@@ -80,6 +74,28 @@ def Popen(request):
     return PopenFactory(request.addfinalizer)
 
 
+@pytest.fixture(scope="session")
+def simpypiserver():
+    from .simpypi import httpserver, SimPyPIRequestHandler
+    import threading
+    host = 'localhost'
+    port = get_open_port(host)
+    server = httpserver.HTTPServer((host, port), SimPyPIRequestHandler)
+    thread = threading.Thread(target=server.serve_forever)
+    thread.daemon = True
+    thread.start()
+    wait_for_port(host, port, 5)
+    print("Started simpypi server %s:%s" % server.server_address)
+    return server
+
+
+@pytest.fixture
+def simpypi(simpypiserver):
+    from .simpypi import SimPyPI
+    simpypiserver.simpypi = SimPyPI(simpypiserver.server_address)
+    return simpypiserver.simpypi
+
+
 def get_open_port(host):
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
         s.bind((host, 0))
@@ -100,16 +116,102 @@ def wait_for_port(host, port, timeout=60):
         "The port %s on host %s didn't become accessible" % (port, host))
 
 
-def _liveserver(clientdir):
+def find_python3():
+    locations = [
+        "C:\\Python34-x64\\python.exe",
+        "C:\\Python34\\python.exe",
+        "C:\\Python35-x64\\python.exe",
+        "C:\\Python35\\python.exe",
+        "C:\\Python36-x64\\python.exe",
+        "C:\\Python36\\python.exe",
+        "C:\\Python37-x64\\python.exe",
+        "C:\\Python37\\python.exe"]
+    for location in locations:
+        if not os.path.exists(location):
+            continue
+        try:
+            output = subprocess.check_output([location, '--version'])
+            if output.strip().startswith('Python 3'):
+                return location
+        except subprocess.CalledProcessError:
+            continue
+    names = [
+        'python3',
+        'python3.4',
+        'python3.5',
+        'python3.6',
+        'python3.7']
+    for name in names:
+        path = py.path.local.sysfind(name)
+        if not path:
+            continue
+        path = str(path)
+        try:
+            output = subprocess.check_output([path, '--version'])
+            if output.strip().startswith('Python 3'):
+                return path
+        except subprocess.CalledProcessError:
+            continue
+    raise RuntimeError("Can't find a Python 3 executable.")
+
+
+def get_venv_script(venv_path, script_names):
+    for bindir in ('Scripts', 'bin'):
+        for script_name in script_names:
+            script = venv_path.join(bindir, script_name)
+            if script.exists():
+                return str(script)
+    else:
+        raise RuntimeError("Can't find %s in %s." % (script_names, venv_path))
+
+
+@pytest.fixture(scope="session")
+def server_executable(request):
+    # first try installed devpi-server for quick runs during development
+    path = py.path.local.sysfind("devpi-server")
+    if path:
+        return str(path)
+    # there is no devpi-server installed
+    python3 = find_python3()
+    # prepare environment for subprocess call
+    env = dict(os.environ)
+    env.pop("VIRTUALENV_PYTHON", None)
+    env.pop("VIRTUAL_ENV", None)
+    if sys.platform != "win32":
+        env.pop("PATH", None)
+    # create a virtualenv with Python 3
+    venv_path = request.config._tmpdirhandler.mktemp("server_venv")
+    subprocess.check_call(
+        [sys.executable, '-m', 'virtualenv', '-p', python3, str(venv_path)],
+        env=env)
+    # install devpi-server
+    venv_pip = get_venv_script(venv_path, ('pip', 'pip.exe'))
+    subprocess.check_call(
+        [venv_pip, 'install', 'devpi-server'],
+        env=env)
+    return get_venv_script(venv_path, ('devpi-server', 'devpi-server.exe'))
+
+
+@pytest.fixture(scope="session")
+def server_version(server_executable):
+    try:
+        output = subprocess.check_output([server_executable, "--version"])
+        return pkg_resources.parse_version(output.decode('ascii').strip())
+    except subprocess.CalledProcessError as e:
+        # this won't output anything on Windows
+        print(
+            getattr(e, 'output', "Can't get process output on Windows"),
+            file=sys.stderr)
+        raise
+
+
+def _liveserver(clientdir, server_executable, server_version):
     host = 'localhost'
     port = get_open_port(host)
-    path = py.path.local.sysfind("devpi-server")
-    assert path
     try:
         args = [
-            str(path), "--serverdir", str(clientdir), "--debug",
+            server_executable, "--serverdir", str(clientdir), "--debug",
             "--host", host, "--port", str(port)]
-        server_version = pkg_resources.parse_version(devpi_server_version)
         if server_version >= pkg_resources.parse_version('4.2.0.dev'):
             subprocess.check_call(args + ['--init'])
     except subprocess.CalledProcessError as e:
@@ -124,14 +226,14 @@ def _liveserver(clientdir):
 
 
 @pytest.yield_fixture(scope="session")
-def url_of_liveserver(request):
+def url_of_liveserver(request, server_executable, server_version):
     if request.config.option.fast:
         pytest.skip("not running functional tests in --fast mode")
     if request.config.option.live_url:
         yield URL(request.config.option.live_url)
         return
     clientdir = request.config._tmpdirhandler.mktemp("liveserver")
-    (p, url) = _liveserver(clientdir)
+    (p, url) = _liveserver(clientdir, server_executable, server_version)
     try:
         yield url
     finally:
@@ -140,11 +242,11 @@ def url_of_liveserver(request):
 
 
 @pytest.yield_fixture(scope="session")
-def url_of_liveserver2(request):
+def url_of_liveserver2(request, server_executable, server_version):
     if request.config.option.fast:
         pytest.skip("not running functional tests in --fast mode")
     clientdir = request.config._tmpdirhandler.mktemp("liveserver2")
-    (p, url) = _liveserver(clientdir)
+    (p, url) = _liveserver(clientdir, server_executable, server_version)
     try:
         yield url
     finally:

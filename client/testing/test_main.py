@@ -18,9 +18,8 @@ class TestVerifyAPIVersion:
         assert matcher.str().count("assuming") == 1
 
     def test_version_ok(self, loghub):
-        from devpi_server.views import API_VERSION
         class reply:
-            headers = {"X-DEVPI-API-VERSION": API_VERSION}
+            headers = {"X-DEVPI-API-VERSION": "2"}
         verify_reply_version(loghub, reply)
 
     def test_version_wrong(self, loghub):

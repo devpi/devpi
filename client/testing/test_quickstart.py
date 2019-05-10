@@ -3,17 +3,15 @@ import pytest
 import subprocess
 
 
-@pytest.mark.skipif("config.option.fast")
+@pytest.mark.skipif("config.option.fast or sys.version_info.major < 3")
 def test_dryrun(cmd_devpi):
     cmd_devpi("quickstart", "--dry-run")
 
 
-@pytest.mark.skipif("config.option.fast")
-def test_functional(cmd_devpi, monkeypatch, tmpdir):
-    from devpi_server import __version__ as devpi_server_version
-    import pkg_resources
-    server_version = pkg_resources.parse_version(devpi_server_version)
-    if server_version >= pkg_resources.parse_version('4.7.0.dev'):
+@pytest.mark.skipif("config.option.fast or sys.version_info.major < 3")
+def test_functional(cmd_devpi, monkeypatch, server_version, tmpdir):
+    from pkg_resources import parse_version
+    if server_version >= parse_version('4.7.0.dev'):
         monkeypatch.setenv("DEVPISERVER_SERVERDIR", tmpdir.join("server").strpath)
     else:
         monkeypatch.setenv("DEVPI_SERVERDIR", tmpdir.join("server").strpath)
