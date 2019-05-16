@@ -980,21 +980,21 @@ def replica_host_port(request, call_devpi_in_dir, master_host_port, replica_serv
     host = 'localhost'
     port = get_open_port(host)
     args = [
-        "devpi-server", "--start",
+        "devpi-server",
+        "--serverdir", replica_serverdir.strpath,
+        "--role", "replica",
         "--host", host, "--port", str(port),
         "--master-url", "http://%s:%s" % master_host_port]
     if not replica_serverdir.join('.nodeinfo').exists():
-        args.append("--init")
-    call_devpi_in_dir(
-        replica_serverdir.strpath,
-        args)
+        subprocess.check_call(
+            args + ["--init"])
+    p = subprocess.Popen(args)
     try:
         wait_for_port(host, port)
         yield (host, port)
     finally:
-        call_devpi_in_dir(
-            replica_serverdir.strpath,
-            ["devpi-server", "--stop"])
+        p.terminate()
+        p.wait()
 
 
 nginx_conf_content = """
