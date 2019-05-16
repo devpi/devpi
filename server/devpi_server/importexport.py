@@ -343,7 +343,10 @@ class Importer:
                 user, index = stagename.split("/")
                 user = self.xom.model.get_user(user)
                 # due to possible circles we create without bases first
-                bases = indexconfig.pop('bases')
+                # BBB older versions of devpi had bases for mirror indices,
+                # newer versions don't. To support exports from both we
+                # have the default None value
+                bases = indexconfig.pop('bases', None)
                 stage = user.create_stage(index, **indexconfig)
                 if "bases" in import_index["indexconfig"]:
                     indexconfig = stage.ixconfig
