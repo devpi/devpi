@@ -25,5 +25,5 @@ content_digest = test_streaming.content_digest
 
 
 for attr in dir(test_streaming):
-    if attr.startswith('test_'):
+    if attr.startswith(('test_', 'Test')):
         globals()[attr] = getattr(test_streaming, attr)
