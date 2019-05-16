@@ -31,6 +31,7 @@ if __name__ == "__main__":
                         "repoze.lru>=0.6",
                         "passlib[argon2]",
                         "pluggy>=0.6.0,<1.0",
+                        'ruamel.yaml<=0.15.94;python_version=="3.4"',
                         "strictyaml",
                         ]
     extras_require = {}
