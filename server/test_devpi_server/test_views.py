@@ -123,7 +123,7 @@ def test_simple_project(pypistage, testapp):
     assert r.headers["X-DEVPI-SERIAL"]
     # easy_install fails if the result isn't html
     assert "html" in r.headers['content-type']
-    assert not parse_index("http://localhost", r.text, scrape=False).releaselinks
+    assert not parse_index("http://localhost", r.text).releaselinks
 
     path = "/%s-1.0.zip" % name
     pypistage.mock_simple(name, text='<a href="%s"/>' % path)

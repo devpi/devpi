@@ -4,7 +4,7 @@ import time
 import hashlib
 import pytest
 
-from devpi_server.extpypi import URL, parse_index, threadlog
+from devpi_server.extpypi import URL, parse_index
 from devpi_server.extpypi import ProjectNamesCache, ProjectUpdateCache
 from test_devpi_server.simpypi import getmd5
 
@@ -47,39 +47,8 @@ class TestIndexParsing:
         result = parse_index(simplepy,
             """<a href="../../pkg/py-1.4.12.zip#md5=12ab">qwe</a>
                <a href="../../pkg/PY-1.4.13.zip">qwe</a>
-               <a href="../../pkg/pyzip#egg=py-dev">qwe</a>
         """)
-        assert len(result.releaselinks) == 3
-
-    def test_parse_index_simple_dir_egg_issue63(self):
-        simplepy = URL("https://pypi.org/simple/py/")
-        result = parse_index(simplepy,
-            """<a href="../../pkg/py-1.4.12.zip#md5=12ab">qwe</a>
-               <a href="../../pkg/#egg=py-dev">qwe</a>
-        """)
-        assert len(result.releaselinks) == 1
-
-    def test_parse_index_egg_svnurl(self, monkeypatch):
-        # strange case reported by fschulze/witsch where
-        # urlparsing will yield a fragment for svn urls.
-        # it's not exactly clear how urlparse.uses_fragment
-        # sometimes contains "svn" but it's good to check
-        # that we are not sensitive to the issue.
-        try:
-            import urllib.parse as urlparse
-        except ImportError:
-            # PY2
-            import urlparse
-        monkeypatch.setattr(urlparse, "uses_fragment",
-                            urlparse.uses_fragment + ["svn"])
-        simplepy = URL("https://pypi.org/simple/zope.sqlalchemy/")
-        result = parse_index(simplepy,
-            '<a href="svn://svn.zope.org/repos/main/'
-            'zope.sqlalchemy/trunk#egg=zope.sqlalchemy-dev" />'
-        )
-        assert len(result.releaselinks) == 0
-        assert len(result.egglinks) == 0
-        #assert 0, (result.releaselinks, result.egglinks)
+        assert len(result.releaselinks) == 2
 
     def test_parse_index_normalized_name(self):
         simplepy = URL("https://pypi.org/simple/ndg-httpsclient/")
@@ -88,14 +57,6 @@ class TestIndexParsing:
         """)
         assert len(result.releaselinks) == 1
         assert result.releaselinks[0].url.endswith("ndg_httpsclient-1.0.tar.gz")
-
-    def test_parse_index_two_eggs_same_url(self):
-        simplepy = URL("https://pypi.org/simple/Py/")
-        result = parse_index(simplepy,
-            """<a href="../../pkg/pyzip#egg=py-dev">qwe2</a>
-               <a href="../../pkg/pyzip#egg=py-dev">qwe</a>
-        """)
-        assert len(result.releaselinks) == 1
 
     def test_parse_index_simple_nomatch(self):
         result = parse_index(self.simplepy,
@@ -113,28 +74,12 @@ class TestIndexParsing:
         assert len(result.releaselinks) == 1
         link, = result.releaselinks
         assert link == "http://pylib2.org/py-1.0.zip"
-        assert len(result.crawllinks) == 2
-        assert result.crawllinks == \
-                    set(["http://pylib.org", "http://pylib2.org"])
 
     def test_parse_index_invalid_link(self, pypistage):
         result = parse_index(self.simplepy, '''
                 <a rel="download" href="https:/host.com/123" />
         ''')
-        assert result.crawllinks == {
-            URL('https://pypi.org/host.com/123')}
-
-    def test_parse_index_with_egg(self):
-        result = parse_index(self.simplepy,
-            """<a href="http://bb.org/download/py.zip#egg=py-dev" />
-               <a href="http://bb.org/download/py-1.0.zip" />
-               <a href="http://bb.org/download/py.zip#egg=something-dev" />
-        """)
-        assert len(result.releaselinks) == 2
-        link, link2 = result.releaselinks
-        assert link.basename == "py.zip"
-        assert link.eggfragment == "py-dev"
-        assert link2.basename == "py-1.0.zip"
+        assert result.releaselinks == []
 
     def test_parse_index_with_wheel(self):
         result = parse_index(self.simplepy,
@@ -214,22 +159,6 @@ class TestIndexParsing:
         link, = result.releaselinks
         assert link.basename == "py-1.0.zip"
 
-    def test_parse_index_with_two_eggs_ordering(self):
-        # it seems that pip/easy_install in some cases
-        # rely on the exact ordering of eggs in the html page
-        # for example with nose, there are two eggs and the second/last
-        # one is chosen due to the internal pip/easy_install algorithm
-        result = parse_index(self.simplepy,
-            """<a href="http://bb.org/download/py.zip#egg=py-dev" />
-               <a href="http://other/master#egg=py-dev" />
-        """)
-        assert len(result.releaselinks) == 2
-        link1, link2 = result.releaselinks
-        assert link1.basename == "master"
-        assert link1.eggfragment == "py-dev"
-        assert link2.basename == "py.zip"
-        assert link2.eggfragment == "py-dev"
-
     def test_parse_index_with_matchingproject_no_version(self):
         result = parse_index(self.simplepy,
             """<a href="http://bb.org/download/p.zip" />
@@ -249,12 +178,10 @@ class TestIndexParsing:
                <a href="http://pylib2.org" rel="download">whatever2</a>
         """)
         assert len(result.releaselinks) == 1
-        assert len(result.crawllinks) == 2
         result.parse_index(URL("http://pylib.org"), """
                <a href="http://pylib.org/py-1.1-py27.egg" />
                <a href="http://pylib.org/other" rel="download" />
-        """, scrape=False)
-        assert len(result.crawllinks) == 2
+        """)
         assert len(result.releaselinks) == 2
         links = list(result.releaselinks)
         assert links[0].url == "https://pypi.org/pkg/py-1.4.12.zip#md5=12ab"
@@ -265,7 +192,6 @@ class TestIndexParsing:
             """<a href="ftp://pylib2.org/py-1.0.tar.gz"
                   rel="download">whatever2</a> """)
         assert len(result.releaselinks) == 0
-        assert len(result.crawllinks) == 0
 
 
     def test_releasefile_md5_matching_and_ordering(self):
@@ -280,13 +206,11 @@ class TestIndexParsing:
                <a href="http://pylib2.org" rel="download">whatever2</a>
         """)
         assert len(result.releaselinks) == 3
-        assert len(result.crawllinks) == 2
         result.parse_index(URL("http://pylib.org"), """
                <a href="http://pylib.org/py-1.4.12.zip" />
                <a href="http://pylib.org/py-1.4.11.zip#md5=1111" />
                <a href="http://pylib.org/py-1.4.10.zip#md5=12ab" />
-        """, scrape=False)
-        assert len(result.crawllinks) == 2
+        """)
         assert len(result.releaselinks) == 3
         link1, link2, link3 = result.releaselinks
         assert link1.url == "https://pypi.org/pkg/py-1.4.12.zip#md5=12ab"
@@ -308,19 +232,6 @@ class TestExtPYPIDB:
         assert not link.hash_spec
         assert link.entrypath.endswith("/pytest-1.0.zip")
         assert link.entrypath == link.entry.relpath
-
-    def test_parse_project_replaced_eggfragment(self, pypistage):
-        pypistage.mock_simple("pytest", pypiserial=10,
-            pkgver="pytest-1.0.zip#egg=pytest-dev1")
-        links = pypistage.get_releaselinks("pytest")
-        assert links[0].eggfragment == "pytest-dev1"
-
-        pypistage.cache_retrieve_times.expire("pytest")
-        pypistage.mock_simple("pytest", pypiserial=11,
-            pkgver="pytest-1.0.zip#egg=pytest-dev2")
-        threadlog.info("hello")
-        links = pypistage.get_releaselinks("pytest")
-        assert links[0].eggfragment == "pytest-dev2"
 
     @pytest.mark.parametrize("hash_type", ["md5", "sha256"])
     def test_parse_project_replaced_md5(self, pypistage, hash_type):
@@ -348,26 +259,18 @@ class TestExtPYPIDB:
         assert data["version"] == "1.0"
         assert pypistage.has_project_perstage("pytest")
 
-    def test_get_versiondata_with_egg(self, pypistage):
-        pypistage.mock_simple("pytest", text='''
-            <a href="../../pkg/tip.zip#egg=pytest-dev" />''')
-        data = pypistage.get_versiondata("Pytest", "egg=pytest-dev")
-        assert data["+elinks"]
-
-    def test_parse_and_scrape(self, pypistage):
+    def test_parse_with_external_link(self, pypistage):
         md5 = getmd5("123")
         pypistage.mock_simple("pytest", text='''
                 <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
                 <a rel="download" href="https://download.com/index.html" />
             '''.format(md5=md5), pypiserial=20)
-        pypistage.url2response["https://download.com/index.html"] = dict(
-            status_code=200, text = '''
-                <a href="pytest-1.1.tar.gz" /> ''',
-            headers = {"content-type": "text/html"})
         links = pypistage.get_releaselinks("pytest")
-        assert len(links) == 2
-        assert links[0].entry.url == "https://download.com/pytest-1.1.tar.gz"
-        assert links[0].entrypath.endswith("/pytest-1.1.tar.gz")
+        # the rel="download" link is just ignored,
+        # originally it was scraped/crawled
+        assert len(links) == 1
+        assert links[0].entry.url == "https://pypi.org/pkg/pytest-1.0.zip"
+        assert links[0].entrypath.endswith("/pytest-1.0.zip")
 
         links = pypistage.get_linkstore_perstage("pytest", "1.0").get_links()
         assert len(links) == 1
@@ -383,9 +286,11 @@ class TestExtPYPIDB:
                 <a rel="download" href="https://download.com/index.html" />
             '''.format(md5=md5, hashdir_b=hashdir_b), pypiserial=25)
         links = pypistage.get_releaselinks("pytest")
-        assert len(links) == 3
-        assert links[1].entry.url == "https://pypi.org/pkg/pytest-1.0.1.zip"
-        assert links[1].entrypath.endswith("/pytest-1.0.1.zip")
+        assert len(links) == 2
+        assert links[0].entry.url == "https://pypi.org/pkg/pytest-1.0.1.zip"
+        assert links[0].entrypath.endswith("/pytest-1.0.1.zip")
+        assert links[1].entry.url == "https://pypi.org/pkg/pytest-1.0.zip"
+        assert links[1].entrypath.endswith("/pytest-1.0.zip")
 
     def test_parse_and_scrape_non_html_ignored(self, pypistage):
         pypistage.mock_simple("pytest", text='''
@@ -444,24 +349,6 @@ class TestExtPYPIDB:
         assert len(links) == 1
         assert links[0].entry.url == \
                 "https://pypi.org/pkg/pytest-1.0.zip"
-
-    def test_scrape_not_recursive(self, pypistage):
-        pypistage.mock_simple("pytest", text='''
-                <a rel="download" href="https://download.com/index.html" />
-            ''')
-        md5=getmd5("hello")
-        pypistage.url2response["https://download.com/index.html"] = dict(
-            status_code=200, text = '''
-                <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
-                <a rel="download" href="http://whatever.com" />'''.format(
-                md5=md5),
-            headers = {"content-type": "text/html"},
-        )
-        pypistage.url2response["https://whatever.com"] = dict(
-            status_code=200, text = '<a href="pytest-1.1.zip#md5={md5}" />'
-                             .format(md5=md5))
-        links = pypistage.get_releaselinks("pytest")
-        assert len(links) == 1
 
     def test_parse_with_outdated_links_issue165(self, pypistage, caplog):
         pypistage.mock_simple("pytest", pypiserial=10, pkgver="pytest-1.0.zip")

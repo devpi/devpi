@@ -239,7 +239,11 @@ def get_files_info(request, linkstore, show_toxresults=False):
     for link in sorted(filedata, key=attrgetter('basename')):
         url = url_for_entrypath(request, link.entrypath)
         entry = link.entry
-        if entry.eggfragment:
+        if getattr(entry, 'eggfragment', None):
+            # BBB for older devpi-server (<5.0.0)
+            # before 5.0.0, eggfragment value was the result of searching for
+            # downloads outside PyPI via scraping
+            # can be removed once devpi-web requires devpi-server >= 5.0.0
             url += "#egg=%s" % entry.eggfragment
         elif entry.hash_spec:
             url += "#" + entry.hash_spec

@@ -1224,12 +1224,7 @@ class PyPIView:
 
 
 def should_fetch_remote_file(entry, headers):
-    from .replica import H_REPLICA_FILEREPL
     should_fetch = not entry.file_exists()
-    # if we are asked for an "egg" development link we cause
-    # refetching it unless we are called within file replication context
-    if entry.eggfragment and not headers.get(H_REPLICA_FILEREPL):
-        should_fetch = True
     return should_fetch
 
 
