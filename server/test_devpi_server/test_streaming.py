@@ -54,8 +54,10 @@ def files_directory(server_directory):
 
 @pytest.mark.parametrize("length,pkg_version", [
     (None, '1.0'), (False, '1.1')])
-def test_streaming_download(content_digest, files_directory, length, pkg_version, server_url_session, simpypi):
+def test_streaming_download(content_digest, files_directory, length, pkg_version, server_url_session, simpypi, storage_info):
     from time import sleep
+    if "storage_with_filesystem" not in storage_info.get('_test_markers', []):
+        pytest.skip("The storage doesn't have marker 'storage_with_filesystem'.")
     (content, digest) = content_digest
     (url, s) = server_url_session
     pkgzip = "pkg-%s.zip" % pkg_version
@@ -87,7 +89,9 @@ def test_streaming_download(content_digest, files_directory, length, pkg_version
 
 @pytest.mark.parametrize("size_factor,pkg_version", [
     (2, '1.2'), (0.5, '1.3')])
-def test_streaming_differing_content_size(content_digest, files_directory, pkg_version, server_url_session, simpypi, size_factor):
+def test_streaming_differing_content_size(content_digest, files_directory, pkg_version, server_url_session, simpypi, size_factor, storage_info):
+    if "storage_with_filesystem" not in storage_info.get('_test_markers', []):
+        pytest.skip("The storage doesn't have marker 'storage_with_filesystem'.")
     (content, digest) = content_digest
     (url, s) = server_url_session
     pkgzip = "pkg-%s.zip" % pkg_version

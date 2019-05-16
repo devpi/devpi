@@ -948,7 +948,7 @@ def master_serverdir(server_directory):
 
 
 @pytest.yield_fixture(scope="class")
-def master_host_port(request, call_devpi_in_dir, master_serverdir):
+def master_host_port(request, call_devpi_in_dir, master_serverdir, storage_info):
     host = 'localhost'
     port = get_open_port(host)
     args = [
@@ -958,6 +958,8 @@ def master_host_port(request, call_devpi_in_dir, master_serverdir):
         "--host", host,
         "--port", str(port),
         "--requests-only"]
+    if storage_info["name"] != "sqlite":
+        args.append("--storage=%s" % storage_info["name"])
     if not master_serverdir.join('.nodeinfo').exists():
         subprocess.check_call(
             args + ["--init"])
@@ -976,7 +978,7 @@ def replica_serverdir(server_directory):
 
 
 @pytest.yield_fixture(scope="class")
-def replica_host_port(request, call_devpi_in_dir, master_host_port, replica_serverdir):
+def replica_host_port(request, call_devpi_in_dir, master_host_port, replica_serverdir, storage_info):
     host = 'localhost'
     port = get_open_port(host)
     args = [
@@ -985,6 +987,8 @@ def replica_host_port(request, call_devpi_in_dir, master_host_port, replica_serv
         "--role", "replica",
         "--host", host, "--port", str(port),
         "--master-url", "http://%s:%s" % master_host_port]
+    if storage_info["name"] != "sqlite":
+        args.append("--storage=%s" % storage_info["name"])
     if not replica_serverdir.join('.nodeinfo').exists():
         subprocess.check_call(
             args + ["--init"])
