@@ -234,32 +234,53 @@ class TestIndexThings:
         assert res["result"]["title"] == "foo"
         assert res["result"]["description"] == "bar"
 
-    def test_whitelist_setting(self, mapp):
+    def test_whitelist_setting(self, mapp, server_version):
+        from pkg_resources import parse_version
+        # pypi_whilelist was removed in 5.0.0
+        pypi_whitelist_version = parse_version("5dev")
         mapp.create_and_login_user("cuser7")
         mapp.create_index("dev")
         mapp.use("cuser7/dev")
         res = mapp.getjson("/cuser7/dev")['result']
-        assert 'pypi_whitelist' not in res
+        if server_version < pypi_whitelist_version:
+            assert res['pypi_whitelist'] == []
+        else:
+            assert 'pypi_whitelist' not in res
         assert res['mirror_whitelist'] == []
         mapp.set_mirror_whitelist("foo")
         res = mapp.getjson("/cuser7/dev")['result']
-        assert 'pypi_whitelist' not in res
+        if server_version < pypi_whitelist_version:
+            assert res['pypi_whitelist'] == []
+        else:
+            assert 'pypi_whitelist' not in res
         assert res['mirror_whitelist'] == ['foo']
         mapp.set_mirror_whitelist("foo,bar")
         res = mapp.getjson("/cuser7/dev")['result']
-        assert 'pypi_whitelist' not in res
+        if server_version < pypi_whitelist_version:
+            assert res['pypi_whitelist'] == []
+        else:
+            assert 'pypi_whitelist' not in res
         assert res['mirror_whitelist'] == ['foo', 'bar']
         mapp.set_mirror_whitelist("he_llo")
         res = mapp.getjson("/cuser7/dev")['result']
-        assert 'pypi_whitelist' not in res
+        if server_version < pypi_whitelist_version:
+            assert res['pypi_whitelist'] == []
+        else:
+            assert 'pypi_whitelist' not in res
         assert res['mirror_whitelist'] == ['he-llo']
         mapp.set_mirror_whitelist("he_llo,Django")
         res = mapp.getjson("/cuser7/dev")['result']
-        assert 'pypi_whitelist' not in res
+        if server_version < pypi_whitelist_version:
+            assert res['pypi_whitelist'] == []
+        else:
+            assert 'pypi_whitelist' not in res
         assert res['mirror_whitelist'] == ['he-llo', 'django']
         mapp.set_mirror_whitelist("*")
         res = mapp.getjson("/cuser7/dev")['result']
-        assert 'pypi_whitelist' not in res
+        if server_version < pypi_whitelist_version:
+            assert res['pypi_whitelist'] == []
+        else:
+            assert 'pypi_whitelist' not in res
         assert res['mirror_whitelist'] == ['*']
 
 
