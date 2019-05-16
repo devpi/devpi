@@ -1,0 +1,1 @@
+The selection of the Python interpreter used for ``devpi upload`` has changed. If used the new ``-p/--python`` option has priority, then a currently activated virtualenv, lastly the ``sys.executable`` under which devpi is running.

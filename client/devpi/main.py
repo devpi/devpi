@@ -824,6 +824,9 @@ def upload(parser):
     #    help="retrieve max remove version, increment and set it like --ver")
     build = parser.add_argument_group("build options")
 
+    build.add_argument(
+        "-p", "--python", default=None, metavar="PYTHON_EXE",
+        help="Specify which Python interpreter to use.")
     build.add_argument("--no-vcs", action="store_true", dest="novcs",
         help="don't VCS-export to a fresh dir, just execute setup.py scripts "
              "directly using their dirname as current dir. By default "

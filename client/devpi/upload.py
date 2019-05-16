@@ -334,10 +334,25 @@ class Exported:
         self.rootpath = rootpath
         self.origrepo = origrepo
         self.target_distdir = origrepo.join("dist")
-        python = py.path.local.sysfind("python")
-        if not python:
-            raise ValueError("could not find 'python' executable")
-        self.python = str(python)
+
+    @property
+    def python(self):
+        """
+        Find the best Python executable for invoking builds and uploads.
+        Command line option if used has priority, then a virtualenv if one
+        is activated, but otherwise falls back to sys.executable, the Python
+        under which devpi client is running.
+        """
+        python = self.hub.args.python
+        if python is None:
+            python = self._virtualenv_python()
+        if python is None:
+            python = sys.executable
+        return python
+
+    def _virtualenv_python(self):
+        if 'VIRTUAL_ENV' in os.environ:
+            return py.path.local.sysfind("python")
 
     def __str__(self):
         return "<Exported %s>" % self.rootpath
