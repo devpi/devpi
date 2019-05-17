@@ -1,0 +1,1 @@
+the --storage option is now required when a storage plugin like devpi-postgresql is in use. It's recommended to use a configuration file for devpi-server to have everything in one place.
