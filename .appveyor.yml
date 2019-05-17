@@ -14,7 +14,7 @@ install:
 #  - pypy --version
   - echo Installed Pythons
   - dir c:\Python*
-  - C:\Python35\python -m pip install tox
+  - C:\Python35\python -m pip install tox -U --force-reinstall
 
 build: false
 
