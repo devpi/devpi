@@ -122,6 +122,31 @@ def test_run_commands_called(tmpdir):
 
 
 @wsgi_run_throws
+def test_fatal_if_no_storage_and_no_sqlite_file(tmpdir):
+    from devpi_server.main import _main, get_pluginmanager
+
+    class Plugin:
+        @hookimpl
+        def devpiserver_cmdline_run(self, xom):
+            return 1
+    pm = get_pluginmanager()
+    pm.register(Plugin())
+    _main(
+        argv=["devpi-server", "--init", "--serverdir", str(tmpdir)],
+        pluginmanager=pm)
+    _main(
+        argv=["devpi-server", "--serverdir", str(tmpdir)],
+        pluginmanager=pm)
+    tmpdir.join('.sqlite').remove()
+    with pytest.raises(Fatal) as excinfo:
+        _main(
+            argv=["devpi-server", "--serverdir", str(tmpdir)],
+            pluginmanager=pm
+        )
+    assert "you first need to run with --init or --import" in str(excinfo)
+
+
+@wsgi_run_throws
 def test_main_starts_server_if_run_commands_returns_none(tmpdir):
     from devpi_server.main import _main, get_pluginmanager
     l = []

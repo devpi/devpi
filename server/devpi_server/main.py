@@ -108,6 +108,14 @@ def _main(pluginmanager, argv=None):
     # read/create node UUID and role of this server
     config.init_nodeinfo()
 
+    if config.sqlite_file_needed_but_missing():
+        fatal(
+            "No sqlite storage found in serverdir."
+            " Or you need to run with --storage to specify the storage type,"
+            " or you first need to run with --init or --import"
+            " in order to create the sqlite database."
+        )
+
     xom = XOM(config)
     if not xom.is_replica() and xom.keyfs.get_current_serial() == -1:
         with xom.keyfs.transaction(write=True):
