@@ -80,17 +80,30 @@ class Storage(main.Storage):
     _dbs_created = set()
     _connections = []
 
-    @property
-    def database(self):
+    @classmethod
+    def _get_test_db(cls, basedir):
         import hashlib
         db = hashlib.md5(
-            self.basedir.strpath.encode('ascii', errors='ignore')).hexdigest()
-        if db not in self._dbs_created:
+            basedir.strpath.encode('ascii', errors='ignore')).hexdigest()
+        if db not in cls._dbs_created:
             subprocess.call([
-                'createdb', '-h', self.host, '-p', str(self.port),
+                'createdb', '-h', cls.host, '-p', str(cls.port),
                 '-T', 'devpi', db])
-            self._dbs_created.add(db)
-        self.__dict__["database"] = db
+            cls._dbs_created.add(db)
+        return db
+
+    @classmethod
+    def _get_test_storage_options(cls, basedir):
+        cls._db = cls._get_test_db(basedir)
+        return ":host=%s,port=%s,user=%s,database=%s" % (
+            cls.host, cls.port, cls.user, cls._db)
+
+    @property
+    def database(self):
+        db = getattr(self, '_db', None)
+        if db is None:
+            db = self._get_test_db(self.basedir)
+        self.__dict__['database'] = db
         return db
 
     def get_connection(self, *args, **kwargs):
@@ -100,7 +113,7 @@ class Storage(main.Storage):
         return result
 
 
-@pytest.yield_fixture(autouse=True)
+@pytest.yield_fixture(autouse=True, scope="class")
 def devpipostgresql_db_cleanup():
     # this fixture is doing cleanups after tests, so it doesn't yield anything
     yield
@@ -120,6 +133,8 @@ def devpipostgresql_db_cleanup():
             pass
         else:
             Storage._dbs_created.remove(db)
+            if hasattr(Storage, '_db'):
+                del Storage._db
 
 
 @pytest.fixture(autouse=True, scope="session")

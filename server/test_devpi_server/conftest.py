@@ -959,7 +959,13 @@ def master_host_port(request, call_devpi_in_dir, master_serverdir, storage_info)
         "--port", str(port),
         "--requests-only"]
     if storage_info["name"] != "sqlite":
-        args.append("--storage=%s" % storage_info["name"])
+        storage_option = "--storage=%s" % storage_info["name"]
+        _get_test_storage_options = getattr(
+            storage_info["storage"], "_get_test_storage_options", None)
+        if _get_test_storage_options:
+            storage_options = _get_test_storage_options(master_serverdir)
+            storage_option = storage_option + storage_options
+        args.append(storage_option)
     if not master_serverdir.join('.nodeinfo').exists():
         subprocess.check_call(
             args + ["--init"])
@@ -988,7 +994,13 @@ def replica_host_port(request, call_devpi_in_dir, master_host_port, replica_serv
         "--host", host, "--port", str(port),
         "--master-url", "http://%s:%s" % master_host_port]
     if storage_info["name"] != "sqlite":
-        args.append("--storage=%s" % storage_info["name"])
+        storage_option = "--storage=%s" % storage_info["name"]
+        _get_test_storage_options = getattr(
+            storage_info["storage"], "_get_test_storage_options", None)
+        if _get_test_storage_options:
+            storage_options = _get_test_storage_options(replica_serverdir)
+            storage_option = storage_option + storage_options
+        args.append(storage_option)
     if not replica_serverdir.join('.nodeinfo').exists():
         subprocess.check_call(
             args + ["--init"])
