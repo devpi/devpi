@@ -26,6 +26,14 @@ def getnetloc(url, scheme=False):
 
 class BackgroundServer:
     def __init__(self, tw, xprocdir):
+        import warnings
+        warnings.warn(
+            "Use of --start, --stop, --status and --log is deprecated. "
+            "You should use a process manager of your OS, for example: "
+            "systemd for Linux, Windows Services, launchd for macOS or "
+            "http://supervisord.org/\n"
+            "Also see the --gen-config option to create example "
+            "configuration files for such services.")
         self.tw = tw
         self._extlogfiles = {}
         self.xproc = XProcess(config=self, rootdir=xprocdir)
