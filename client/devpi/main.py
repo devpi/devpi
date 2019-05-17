@@ -560,24 +560,6 @@ def add_generic_options(parser, defaults=False):
         default=clientdir_default,
         help="directory for storing login and other state")
 
-@subcommand("devpi.quickstart")
-def quickstart(parser):
-    """ (deprecated) start a server, create a user and login, then create a USER/dev
-    index and then connect to this index, so that subsequent devpi
-    commands can work with it.
-    """
-    parser.add_argument("--user", action="store",
-        default=os.environ.get("USER", "test"),
-        help="set initial user name to create and login")
-    parser.add_argument("--password", action="store",
-        default="",
-        help="initial password (default is empty)")
-    parser.add_argument("--index", action="store",
-        default="dev",
-        help="initial index name for the user.")
-    parser.add_argument("--dry-run", action="store_true", dest="dryrun",
-        default=False,
-        help="don't perform any actions, just show them")
 
 @subcommand("devpi.use")
 def use(parser):
