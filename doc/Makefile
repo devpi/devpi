@@ -212,7 +212,7 @@ $(USER_MAN_CHAPTERS):
 	USER=testuser python regendoc.py --update userman/devpi_$@.rst
 
 regen.sample_undo:
-	-hg revert --all ./userman/pysober
+	-git checkout userman/pysober
 
 regen.server-fresh: regen.server-clean
 	devpi-server --start --serverdir=$(TESTHOME)/.devpi/server --init
@@ -228,12 +228,12 @@ regen.server-clean: regen.sample_undo
 	-rm -rf $(TESTHOME)/.devpi
 	@echo deleting pysober/dist
 	-rm -rf userman/pysober/dist
-	hg revert --all userman/pysober
+	git checkout userman/pysober
 
     
 
 regen.uman-all : regen.server-fresh $(USER_MAN_CHAPTERS)
-	hg revert --all userman/pysober
+	git checkout userman/pysober
 	rm -rf userman/pysober/dist
 
 regen.uman: regen.server-restart $(chapter)
