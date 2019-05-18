@@ -102,7 +102,28 @@ def genconfig(config, argv):
 
     destdir = tw.cwd.ensure("gen-config", dir=1)
 
-    new_argv = [x for x in argv if x != "--gen-config"]
+    new_argv = []
+    argv_iter = iter(argv)
+    for arg in argv_iter:
+        if arg == "--gen-config":
+            continue
+        if arg.startswith("--serverdir"):
+            if '=' not in arg:
+                next(argv_iter)  # remove path
+            # replace with absolute path
+            new_argv.extend([
+                "--serverdir",
+                config.serverdir.strpath])
+            continue
+        if arg == "-c" or arg.startswith(("--configfile", "-c=")):
+            if '=' not in arg:
+                next(argv_iter)  # remove path
+            # replace with absolute path
+            new_argv.extend([
+                "--configfile",
+                py.path.local(config.args.configfile).strpath])
+            continue
+        new_argv.append(arg)
     new_args = parseoptions(get_pluginmanager(), ["devpi-server"] + new_argv)
     cfg_types = [
         "cron",
