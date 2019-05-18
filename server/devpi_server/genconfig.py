@@ -38,13 +38,11 @@ def gen_supervisor(tw, config, argv, writer):
 
 
 def gen_cron(tw, config, argv, writer):
-    devpibin = py.path.local(sys.argv[0])
-    newcrontab = "@reboot %s --start %s\n" % (
-           devpibin,
-           subprocess.list2cmdline(argv))
-
-    writer("crontab", newcrontab)
-    return
+    import getpass
+    content = render(
+        tw, "crontab",
+        user=getpass.getuser())
+    writer("crontab", content)
 
 
 def gen_nginx(tw, config, argv, writer):

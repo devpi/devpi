@@ -1,0 +1,3 @@
+# as an example you can use the @reboot special target to start the
+# http://supervisord.org process manager to manage devpi-server:
+# @reboot /usr/local/sbin/supervisord -c /home/{user}/etc/supervisor-devpi.conf
