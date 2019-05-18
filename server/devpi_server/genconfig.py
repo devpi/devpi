@@ -71,6 +71,9 @@ def gen_launchd(tw, config, argv, writer):
         ("RunAtLoad", True),
     ]))
     writer("net.devpi.plist", plist_content)
+    content = render(
+        tw, "launchd-macos.txt")
+    writer("launchd-macos.txt", content)
 
 
 def gen_systemd(tw, config, argv, writer):
