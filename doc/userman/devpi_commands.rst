@@ -468,7 +468,7 @@ user
     positional arguments:
       username         user name
       keyvalues        key=value configuration item. Possible keys: email,
-                       password.
+                       password and pwhash.
     
     optional arguments:
       -h, --help       show this help message and exit
@@ -498,15 +498,18 @@ devpi command reference (server)
                         [--profile-requests NUM] [--logger-cfg LOGGER_CFG]
                         [--mirror-cache-expiry SECS] [--replica-max-retries NUM]
                         [--request-timeout NUM] [--offline-mode] [--no-root-pypi]
-                        [--version] [--role {master,replica,standalone,auto}]
+                        [--replica-file-search-path PATH] [--version]
+                        [--role {master,replica,standalone,auto}]
                         [--master-url MASTER_URL] [--replica-cert pem_file]
                         [--gen-config] [--secretfile path] [--requests-only]
                         [--passwd USER] [--serverdir DIR] [--init]
                         [--restrict-modify SPEC] [--keyfs-cache-size NUM]
-                        [--storage NAME] [--export PATH] [--hard-links]
-                        [--import PATH] [--no-events] [--start] [--stop]
-                        [--status] [--log] [--theme THEME]
-                        [--recreate-search-index] [--indexer-backend NAME]
+                        [--root-passwd ROOT_PASSWD]
+                        [--root-passwd-hash ROOT_PASSWD_HASH] [--storage NAME]
+                        [--export PATH] [--hard-links] [--import PATH]
+                        [--no-events] [--start] [--stop] [--status] [--log]
+                        [--theme THEME] [--recreate-search-index]
+                        [--indexer-backend NAME]
     
     Start a server which serves multiple users and indices. The special root/pypi
     index is a cached mirror of pypi.org and is created by default. All indices
@@ -562,9 +565,14 @@ devpi command reference (server)
                             files through the simple index used by pip. [False]
       --no-root-pypi        don't create root/pypi on server initialization.
                             [False]
+      --replica-file-search-path PATH
+                            path to existing files to try before downloading from
+                            master. These could be from a previous replication
+                            attempt or downloaded separately. Expects the
+                            structure from inside +files. [None]
     
     deployment and data options:
-      --version             show devpi_version (4.8.1) [False]
+      --version             show devpi_version (4.9.0) [False]
       --role {master,replica,standalone,auto}
                             set role of this instance. The default 'auto' sets
                             'standalone' by default and 'replica' if the --master-
@@ -606,6 +614,12 @@ devpi command reference (server)
                             gets a lot of writes, then increasing this might
                             improve performance. Each entry uses 1kb of memory on
                             average. So by default about 10MB are used. [10000]
+      --root-passwd ROOT_PASSWD
+                            initial password for the root user. This option has no
+                            effect if the user 'root' already exist. []
+      --root-passwd-hash ROOT_PASSWD_HASH
+                            initial password hash for the root user. This option
+                            has no effect if the user 'root' already exist. [None]
       --storage NAME        the storage backend to use. This choice will be stored
                             in your '--serverdir' upon initialization. "pg8000":
                             Postgresql backend, "sqlite": SQLite backend with
@@ -616,9 +630,10 @@ devpi command reference (server)
       --export PATH         export devpi-server database state into PATH. This
                             will export all users, indices, release files (except
                             for mirrors), test results and documentation. [None]
-      --hard-links          use hard links during export instead of copying files.
-                            All limitations for hard links on your OS apply. USE
-                            AT YOUR OWN RISK [False]
+      --hard-links          use hard links during export, import or with
+                            --replica-file-search-path instead of copying or
+                            downloading files. All limitations for hard links on
+                            your OS apply. USE AT YOUR OWN RISK [False]
       --import PATH         import devpi-server database from PATH where PATH is a
                             directory which was created by a 'devpi-server
                             --export PATH' operation, using the same or an earlier
@@ -645,6 +660,7 @@ devpi command reference (server)
                             documentation. This is only needed if there where
                             indexing related errors in a devpi-web release and you
                             want to upgrade only devpi-web without a full devpi-
-                            server import/export. [False]
+                            server import/export. Requires --offline option.
+                            [False]
       --indexer-backend NAME
                             the indexer backend to use [whoosh]
