@@ -1,5 +1,4 @@
 from __future__ import unicode_literals
-import os
 import py
 import sys
 import subprocess
@@ -78,13 +77,9 @@ def gen_systemd(tw, config, argv, writer):
     import getpass
     devpibin = py.path.local(sys.argv[0])
     assert devpibin.exists()
-    serverdir = config.args.serverdir
-    pid_file = os.path.join(os.path.expanduser(serverdir),
-                            '.xproc/devpi-server/xprocess.PID')
     content = render(
         tw, "devpi.service",
         server_args=subprocess.list2cmdline(argv),
-        pid_file=pid_file,
         user=getpass.getuser(),
         devpibin=devpibin,
     )
