@@ -1,0 +1,46 @@
+Adapted from
+https://support.microsoft.com/en-us/help/137890/how-to-create-a-user-defined-service
+look there for more detailed information.
+
+This requires the SRVANY.EXE tool,
+you might have to download it via the "Windows Server 2003 Resource Kit Tools" at
+https://www.microsoft.com/en-us/download/details.aspx?id=17657
+
+1. [path]\INSTSRV.EXE Devpi-Server [path]\SRVANY.EXE
+
+   where [path] is the drive and directory of the Windows NT Resource Kit (i.e., C:\RESKIT)
+
+   NOTE: To verify that the service was created correctly,
+   check the registry to verify that the ImagePath value under:
+
+      HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Devpi-Server
+
+   is set to point to SRVANY.EXE.
+   If this is not set correctly,
+   the service will stop shortly after it starts and return an Event ID 7000 "The service name failed to start."
+
+   WARNING: Using Registry Editor incorrectly can cause serious problems that may require you to reinstall your operating system.
+   Microsoft cannot guarantee that problems resulting from the incorrect use of Registry Editor can be solved.
+   Use Registry Editor at your own risk.
+
+   NOTE: You should back up the registry before you edit it.
+
+2. Run Registry Editor (Regedt32.exe)and locate the following subkey:
+
+      HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Devpi-Server
+
+3. From the Edit menu, click Add Key. Type the following and click OK:
+
+      Key Name: Parameters
+      Class : <leave blank>
+
+4. Select the Parameters key.
+
+5. From the Edit menu, click Add Value.
+   Type the following and click OK:
+
+      Value Name: Application
+      Data Type : REG_SZ
+      String : {devpibin} {server_args}
+
+6. Close Registry Editor.

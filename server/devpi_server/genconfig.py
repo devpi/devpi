@@ -86,6 +86,16 @@ def gen_systemd(tw, config, argv, writer):
     writer("devpi.service", content)
 
 
+def gen_windows_service(tw, config, argv, writer):
+    devpibin = py.path.local(sys.argv[0])
+    assert devpibin.exists()
+    content = render(
+        tw, "windows-service.txt",
+        server_args=subprocess.list2cmdline(argv),
+        devpibin=devpibin)
+    writer("windows-service.txt", content)
+
+
 def genconfig(config, argv):
     tw = py.io.TerminalWriter()
     tw.cwd = py.path.local()
@@ -94,7 +104,14 @@ def genconfig(config, argv):
 
     new_argv = [x for x in argv if x != "--gen-config"]
     new_args = parseoptions(get_pluginmanager(), ["devpi-server"] + new_argv)
-    for cfg_type in ["supervisor", "nginx", "cron", "launchd", "systemd"]:
+    cfg_types = [
+        "cron",
+        "launchd",
+        "nginx",
+        "supervisor",
+        "systemd",
+        "windows_service"]
+    for cfg_type in cfg_types:
         def writer(basename, content):
             p = destdir.join(basename)
             p.write(content)
