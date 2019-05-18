@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+set -e
+
+if test "$VIRTUAL_ENV" == ""; then
+    echo No active virtualenv detected
+    exit 1
+fi
 
 for i in common client server web ; do
     pip uninstall -y devpi-$i
