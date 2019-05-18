@@ -9,7 +9,7 @@ fi
 for i in common client server web ; do
     pip uninstall -y devpi-$i
 done
-for i in common client server web ; do
+for i in web server client common ; do
     (cd $i ; pip install -U -e .)
 done
 
