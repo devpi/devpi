@@ -564,7 +564,7 @@ devpi command reference (server)
                             [False]
     
     deployment and data options:
-      --version             show devpi_version (4.7.0) [False]
+      --version             show devpi_version (4.8.1) [False]
       --role {master,replica,standalone,auto}
                             set role of this instance. The default 'auto' sets
                             'standalone' by default and 'replica' if the --master-

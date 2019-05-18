@@ -174,7 +174,7 @@ And has the list command show, the project is no longer there::
 
    $ devpi list pysober   
    GET http://localhost:3141/emilie/dev/pysober/
-   404 Not Found: no project u'pysober'
+   404 Not Found: no project 'pysober'
 
 .. _devpi_um_packages_fromdir_upload:
 
@@ -292,13 +292,13 @@ Finally let's take a look at the index to see if the ``pysober`` is present::
 
    $ devpi list pysober
    GET http://localhost:3141/sophie/dev/pysober/
-   404 Not Found: no project u'pysober'
+   404 Not Found: no project 'pysober'
 
 As expected, this package is not found. In order to access this package, Sophie 
 can modify her ``dev`` index to use ``/emilie/prod`` index as a base::
 
    $ devpi index /sophie/dev bases=/emilie/prod,/sophie/prod  
-   /sophie/dev changing bases: ['/emilie/prod', '/sophie/prod']
+   /sophie/dev bases=/emilie/prod,/sophie/prod
    http://localhost:3141/sophie/dev:
      type=stage
      bases=emilie/prod,sophie/prod
