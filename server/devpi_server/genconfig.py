@@ -100,6 +100,12 @@ def genconfig(config, argv):
     tw = py.io.TerminalWriter()
     tw.cwd = py.path.local()
 
+    if not config.args.configfile:
+        tw.line(
+            "It is highly recommended to use a configuration file for "
+            "devpi-server, see --configfile option.",
+            red=True)
+
     destdir = tw.cwd.ensure("gen-config", dir=1)
 
     new_argv = []
