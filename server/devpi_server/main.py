@@ -61,7 +61,7 @@ def set_state_version(config, version):
 
 
 def check_python_version():
-    if sys.version_info.major < 4:
+    if sys.version_info.major < 3:
         import warnings
         warnings.warn(
             "DEPRECATION: Python 2.7 will reach the end of its life on "
