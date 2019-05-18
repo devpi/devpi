@@ -105,7 +105,6 @@ example below, we create the **emilie/prod** production index::
      acl_upload=emilie
      acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=
-     pypi_whitelist=
    
 which leads to the following::
 
@@ -124,7 +123,6 @@ which leads to the following::
                    ],
                    "bases": [],
                    "mirror_whitelist": [],
-                   "pypi_whitelist": [],
                    "type": "stage",
                    "volatile": false
                }
@@ -153,7 +151,6 @@ specifying her ``prod`` index as follow::
      acl_upload=emilie
      acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=
-     pypi_whitelist=
    
 which has the following definition on the server side::
 
@@ -171,7 +168,6 @@ which has the following definition on the server side::
            ],
            "mirror_whitelist": [],
            "projects": [],
-           "pypi_whitelist": [],
            "type": "stage",
            "volatile": true
        },
@@ -244,11 +240,8 @@ A mirroring index can be created by using ``type=mirror`` and setting the
    $ devpi index -c pypi type=mirror mirror_url=https://pypi.org/simple/
    http://localhost:3141/emilie/pypi:
      type=mirror
-     bases=
      volatile=True
-     acl_upload=
      mirror_url=https://pypi.org/simple/
-     pypi_whitelist=
 
 Additionally you can set ``mirror_web_url_fmt`` if you want links to the
 original mirror in the web interface. For *root/pypi* the default
@@ -281,7 +274,6 @@ Assuming that Sophie has both index types as well::
      acl_upload=sophie
      acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=
-     pypi_whitelist=
    
 ::
 
@@ -293,7 +285,6 @@ Assuming that Sophie has both index types as well::
      acl_upload=sophie
      acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=
-     pypi_whitelist=
 
 Lets now assume that Sophie uploads her ``pysober`` package in her **dev** 
 index and Emilie wants to test the integration of this package with the 
@@ -319,7 +310,6 @@ bases::
      acl_upload=emilie
      acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=
-     pypi_whitelist=
    
 .. note:: It is important to specify all bases for that index, that is repeating
           **/emilie/prod** which can be obtained by doing::
@@ -338,7 +328,6 @@ When the work is done, this relationship can be revoked by doing::
      acl_upload=emilie
      acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=
-     pypi_whitelist=
 
 .. Adding a comment to work around a bug in regendoc where all lines are removed.     
      
@@ -352,7 +341,6 @@ which now has the ``/emilie/dev`` as a base only::
      acl_upload=emilie
      acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=
-     pypi_whitelist=
    
 Modifying the Access Control Lists
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -371,7 +359,6 @@ Emilie may allow sophie to upload to her dev index:
      acl_upload=emilie,sophie
      acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=
-     pypi_whitelist=
 
 If you have a plugin implementing an authentication method with group support,
 then you can use them in acls by prefixing the group name with a colon.
@@ -388,7 +375,6 @@ Suppose you want to allow all users in the "developers" group to upload packages
      acl_upload=emilie,:developers
      acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=
-     pypi_whitelist=
 
 It is also possible to allow anonymous uploads if you have a controlled environment.
 
@@ -403,7 +389,6 @@ It is also possible to allow anonymous uploads if you have a controlled environm
      acl_upload=:ANONYMOUS:
      acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=
-     pypi_whitelist=
 
 The ``acl_toxresult_upload`` option determines who can upload test results via ``devpi test``.
 By default anyone is allowed to do that.
@@ -425,7 +410,6 @@ To allow uploads on PyPI or another mirror to be visible on your index, you have
      acl_upload=emilie
      acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=mypkg
-     pypi_whitelist=
 
 You can also whitelist all packages on an index by setting mirror_whitelist to an asterisk.
 
@@ -439,7 +423,6 @@ You can also whitelist all packages on an index by setting mirror_whitelist to a
      acl_upload=emilie
      acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=*
-     pypi_whitelist=
 
 .. _index_description:
 
@@ -463,7 +446,6 @@ An index can have a title and description which is used in ``devpi-web``.
      acl_toxresult_upload=:ANONYMOUS:
      description=Used for pip wheels
      mirror_whitelist=*
-     pypi_whitelist=
      title=Wheel Index
 
 The description is included as is on the index overview page. You can't use any
@@ -528,7 +510,6 @@ In the example below, we create a "bad" index and delete it::
      acl_upload=emilie
      acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=
-     pypi_whitelist=
 
 here is the bad index::
 
@@ -546,7 +527,6 @@ here is the bad index::
            ],
            "mirror_whitelist": [],
            "projects": [],
-           "pypi_whitelist": [],
            "type": "stage",
            "volatile": true
        },

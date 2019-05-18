@@ -306,7 +306,6 @@ can modify her ``dev`` index to use ``/emilie/prod`` index as a base::
      acl_upload=sophie
      acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=
-     pypi_whitelist=
    
 The list command now gives her a different picture::
 

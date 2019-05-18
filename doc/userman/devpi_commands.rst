@@ -337,10 +337,10 @@ upload
 ::
 
     $ devpi upload -h
-    usage: devpi upload [-h] [--debug] [-y] [-v] [--clientdir DIR] [--no-vcs]
-                        [--setupdir-only] [--formats FORMATS] [--with-docs]
-                        [--only-docs] [--index INDEX] [--from-dir] [--only-latest]
-                        [--dry-run]
+    usage: devpi upload [-h] [--debug] [-y] [-v] [--clientdir DIR] [-p PYTHON_EXE]
+                        [--no-vcs] [--setupdir-only] [--formats FORMATS]
+                        [--with-docs] [--only-docs] [--index INDEX] [--from-dir]
+                        [--only-latest] [--dry-run]
                         [path [path ...]]
     
     (build and) upload packages to the current devpi-server index. You can
@@ -353,36 +353,39 @@ upload
     providing defaults for the respective command line options.
     
     optional arguments:
-      -h, --help         show this help message and exit
+      -h, --help            show this help message and exit
     
     generic options:
-      --debug            show debug messages including more info on server
-                         requests
-      -y                 assume 'yes' on confirmation questions
-      -v, --verbose      increase verbosity
-      --clientdir DIR    directory for storing login and other state
+      --debug               show debug messages including more info on server
+                            requests
+      -y                    assume 'yes' on confirmation questions
+      -v, --verbose         increase verbosity
+      --clientdir DIR       directory for storing login and other state
     
     build options:
-      --no-vcs           don't VCS-export to a fresh dir, just execute setup.py
-                         scripts directly using their dirname as current dir. By
-                         default git/hg/svn/bazaar are auto-detected and packaging
-                         is run from a fresh directory with all versioned files
-                         exported.
-      --setupdir-only    VCS-export only the directory containing setup.py
-      --formats FORMATS  comma separated list of build formats (passed to
-                         setup.py). Examples
-                         sdist.zip,bdist_egg,bdist_wheel,bdist_dumb.
-      --with-docs        build sphinx docs and upload them to index. this triggers
-                         'setup.py build_sphinx' for building
-      --only-docs        as --with-docs but don't build or upload release files
+      -p PYTHON_EXE, --python PYTHON_EXE
+                            Specify which Python interpreter to use.
+      --no-vcs              don't VCS-export to a fresh dir, just execute setup.py
+                            scripts directly using their dirname as current dir.
+                            By default git/hg/svn/bazaar are auto-detected and
+                            packaging is run from a fresh directory with all
+                            versioned files exported.
+      --setupdir-only       VCS-export only the directory containing setup.py
+      --formats FORMATS     comma separated list of build formats (passed to
+                            setup.py). Examples
+                            sdist.zip,bdist_egg,bdist_wheel,bdist_dumb.
+      --with-docs           build sphinx docs and upload them to index. this
+                            triggers 'setup.py build_sphinx' for building
+      --only-docs           as --with-docs but don't build or upload release files
     
     direct file upload options:
-      --index INDEX      index to upload to (defaults to current index)
-      --from-dir         recursively look for archive files in path if it is a dir
-      --only-latest      upload only latest version if multiple archives for a
-                         package are found (only effective with --from-dir)
-      --dry-run          don't perform any server-modifying actions
-      path               path to archive file to be inspected and uploaded.
+      --index INDEX         index to upload to (defaults to current index)
+      --from-dir            recursively look for archive files in path if it is a
+                            dir
+      --only-latest         upload only latest version if multiple archives for a
+                            package are found (only effective with --from-dir)
+      --dry-run             don't perform any server-modifying actions
+      path                  path to archive file to be inspected and uploaded.
 
 .. _cmdref_use:
 
@@ -543,10 +546,9 @@ devpi command reference (server)
                             After print profiling is restarted. By default no
                             profiling is performed. [0]
       --logger-cfg LOGGER_CFG
-                            path to .json or .yaml logger configuration file,
-                            requires at least python2.7. If you specify a yaml
-                            file you need to have the pyyaml package installed.
-                            [None]
+                            path to .json or .yaml logger configuration file. If
+                            you specify a yaml file you need to have the pyyaml
+                            package installed. [None]
       --theme THEME         folder with template and resource overwrites for the
                             web interface [None]
     
@@ -572,7 +574,7 @@ devpi command reference (server)
                             structure from inside +files. [None]
     
     deployment and data options:
-      --version             show devpi_version (4.9.0) [False]
+      --version             show devpi_version (5.0.0) [False]
       --role {master,replica,standalone,auto}
                             set role of this instance. The default 'auto' sets
                             'standalone' by default and 'replica' if the --master-
@@ -620,11 +622,10 @@ devpi command reference (server)
       --root-passwd-hash ROOT_PASSWD_HASH
                             initial password hash for the root user. This option
                             has no effect if the user 'root' already exist. [None]
-      --storage NAME        the storage backend to use. This choice will be stored
-                            in your '--serverdir' upon initialization. "pg8000":
-                            Postgresql backend, "sqlite": SQLite backend with
-                            files on the filesystem, "sqlite_db_files": SQLite
-                            backend with files in DB for testing only [None]
+      --storage NAME        the storage backend to use. "pg8000": Postgresql
+                            backend, "sqlite": SQLite backend with files on the
+                            filesystem, "sqlite_db_files": SQLite backend with
+                            files in DB for testing only [None]
     
     serverstate export / import options:
       --export PATH         export devpi-server database state into PATH. This
