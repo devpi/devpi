@@ -297,9 +297,10 @@ Let's also make sure we now switch (use) the appropriate index::
 
    $ devpi use /sophie/dev    
    current devpi index: http://localhost:3141/sophie/dev (logged in as sophie)
-   ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-   ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-   ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
+   supported features: server-keyvalue-parsing
+   /tmp/home/.pip/pip.conf: no config file exists
+   ~/.pydistutils.cfg     : no config file exists
+   ~/.buildout/default.cfg: no config file exists
    always-set-cfg: no
    
 Finally let's take a look at the index to see if the ``pysober`` is present::
@@ -368,9 +369,10 @@ version to her ``/sophie/dev`` index by first using the index::
 
    $ devpi use /emilie/prod   
    current devpi index: http://localhost:3141/emilie/prod (logged in as sophie)
-   ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-   ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-   ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
+   supported features: server-keyvalue-parsing
+   /tmp/home/.pip/pip.conf: no config file exists
+   ~/.pydistutils.cfg     : no config file exists
+   ~/.buildout/default.cfg: no config file exists
    always-set-cfg: no
 
 And then performing the :term:`push`::
@@ -383,9 +385,10 @@ Then switching back to her index::
 
    $ devpi use /sophie/dev
    current devpi index: http://localhost:3141/sophie/dev (logged in as sophie)
-   ~/.pydistutils.cfg     : http://localhost:4040/alice/dev/+simple/
-   ~/.pip/pip.conf        : http://localhost:4040/alice/dev/+simple/
-   ~/.buildout/default.cfg: http://localhost:4040/alice/dev/+simple/
+   supported features: server-keyvalue-parsing
+   /tmp/home/.pip/pip.conf: no config file exists
+   ~/.pydistutils.cfg     : no config file exists
+   ~/.buildout/default.cfg: no config file exists
    always-set-cfg: no
 
 Sophie would see the following::
