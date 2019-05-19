@@ -128,7 +128,7 @@ Let's verify that the project has been uploaded::
    
 Assuming that we create a new version::
 
-   $ sed -i 's/^\s*__version__.*/__version__ = "0.2.0"/g' pysober/pysober.py
+   $ echo '__version__ = "0.2.0"' > pysober/pysober.py
    
 We can now upload the new version::
 
@@ -337,7 +337,7 @@ While Sophie can install the package, she can not remove it::
    
 She can however, modify the package::
 
-   $ sed -i 's/^\s*__version__.*/__version__ = "0.2.1"/g' pysober/pysober.py
+   $ echo '__version__ = "0.2.1"' > pysober/pysober.py
    
 And upload a new version to her ``/sophie/dev`` index::
 
