@@ -89,9 +89,10 @@ For this we first add ``root/pypi`` to the bases of ``emilie/prod``::
 
 Then we install a package from PyPI::
 
-   $ devpi install jsontree
-   -->  /home/hpk/p/devpi/doc/userman$ /home/hpk/venv/0/bin/pip install -U -i http://localhost:3141/emilie/dev/+simple/ jsontree  [PIP_USE_WHEEL=1,PIP_PRE=1]
-   Requirement already up-to-date: jsontree in /home/hpk/venv/0/lib/python2.7/site-packages
+   $ devpi install lazy
+   -->  /home/hpk/p/devpi/doc/userman$ /home/hpk/venv/0/bin/pip install -U -i http://localhost:3141/emilie/dev/+simple/ lazy  [PIP_PRE=1,PIP_USE_WHEEL=1]
+   Looking in indexes: http://localhost:3141/emilie/dev/+simple/
+   Requirement already up-to-date: lazy in /home/hpk/venv/0/lib/python2.7/site-packages (1.4)
    
 From there::
 
