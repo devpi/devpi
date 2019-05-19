@@ -26,7 +26,7 @@ def user_create(hub, user, kvdict):
 def user_modify(hub, user, kvdict):
     url = hub.current.get_user_url(user)
     reply = hub.http_api("get", url, type="userconfig")
-    for name, val in kvdict.items():
+    for name, val in sorted(kvdict.items()):
         reply.result[name] = val
         if name == 'password':
             # hide password from log output
@@ -49,7 +49,7 @@ def user_delete(hub, user):
 
 def user_list(hub):
     r = hub.http_api("get", hub.current.rooturl)
-    for name in r.result or []:
+    for name in sorted(r.result or []):
         hub.line(name)
 
 

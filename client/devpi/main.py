@@ -316,7 +316,7 @@ class Hub:
             rel = str(args[0])
         if extraenv is not None:
             envadd = " [%s]" % ",".join(
-                ["%s=%s" % item for item in extraenv.items()])
+                ["%s=%s" % item for item in sorted(extraenv.items())])
         else:
             envadd = ""
         self.line("--> ", base + "$", rel, " ".join(args[1:]), envadd)

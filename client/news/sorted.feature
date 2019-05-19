@@ -1,0 +1,1 @@
+sort output of ``index -l``, ``use -l`` and ``user -l``.

@@ -555,10 +555,10 @@ The **devpi** :ref:`cmdref_index` command show the existing indexes for a
 given user::
 
    $ devpi index -l
-   emilie/someindex
    emilie/dev
    emilie/prod
    emilie/pypi
+   emilie/someindex
    emilie/wheelindex
    
 However, it is sometimes useful to see all indexes present on the server. This 
@@ -567,14 +567,14 @@ provides, not only the index names and their owner, but also index property
 information::
 
    $ devpi use -l
-   sophie/prod     bases=                volatile=False
-   sophie/dev      bases=sophie/prod     volatile=True
+   emilie/dev      bases=emilie/prod     volatile=True
+   emilie/prod     bases=                volatile=False
+   emilie/pypi     bases=                volatile=True
    emilie/someindex bases=                volatile=True
    emilie/wheelindex bases=                volatile=True
-   emilie/pypi     bases=                volatile=True
-   emilie/prod     bases=                volatile=False
-   emilie/dev      bases=emilie/prod     volatile=True
    root/pypi       bases=                volatile=False
+   sophie/dev      bases=sophie/prod     volatile=True
+   sophie/prod     bases=                volatile=False
 
 .. rubric:: Footnotes
 

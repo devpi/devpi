@@ -20,7 +20,7 @@ def index_modify(hub, url, keyvalues):
             kvdict = keyvalues.kvdict
         except ValueError as e:
             hub.fatal(e)
-        for name, val in kvdict.items():
+        for name, val in sorted(kvdict.items()):
             patch[name] = val
             hub.info("%s changing %s: %s" %(url.path, name, val))
 
@@ -38,7 +38,7 @@ def index_list(hub, indexname):
     url = hub.current.get_user_url()
     res = hub.http_api("get", url.url, None)
     name = res.result['username']
-    for index in res.result.get('indexes', {}):
+    for index in sorted(res.result.get('indexes', {})):
         hub.info("%s/%s" % (name, index))
 
 def index_show(hub, url):
