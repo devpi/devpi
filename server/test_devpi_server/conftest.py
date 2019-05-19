@@ -948,12 +948,18 @@ def master_serverdir(server_directory):
 
 
 @pytest.yield_fixture(scope="class")
-def master_host_port(request, call_devpi_in_dir, master_serverdir, storage_info):
+def master_host_port(request, call_devpi_in_dir, master_serverdir, server_directory, storage_info):
+    import base64
+    import os
+    secretfile = server_directory.join('testserver.secret')
+    if not secretfile.exists():
+        secretfile.write(base64.b64encode(os.urandom(32)))
     host = 'localhost'
     port = get_open_port(host)
     args = [
         "devpi-server",
         "--serverdir", master_serverdir.strpath,
+        "--secretfile", secretfile.strpath,
         "--role", "master",
         "--host", host,
         "--port", str(port),

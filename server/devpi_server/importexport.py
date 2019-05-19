@@ -111,7 +111,6 @@ class Exporter:
         self.export["dumpversion"] = self.DUMPVERSION
         self.export["pythonversion"] = list(sys.version_info)
         self.export["devpi_server"] = server_version
-        self.export["secret"] = self.config.secret
         self.export["uuid"] = self.xom.config.get_master_uuid()
         for user in self.xom.model.get_userlist():
             userdir = path.join(user.name)
@@ -296,8 +295,6 @@ class Importer:
             self.xom.config.set_uuid(uuid)
         self.import_users = self.import_data["users"]
         self.import_indexes = self.import_data["indexes"]
-        self.xom.config.secret = secret = self.import_data["secret"]
-        self.xom.config.secretfile.write(secret)
         self.display_import_header(path)
         self.check_names(json_path)
 

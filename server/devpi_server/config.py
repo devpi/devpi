@@ -2,7 +2,6 @@ from __future__ import unicode_literals
 import base64
 import os.path
 import argparse
-import stat
 import sys
 import uuid
 from operator import itemgetter
@@ -150,10 +149,9 @@ def addoptions(parser, pluginmanager):
     )
 
     deploy.addoption("--secretfile", type=str, metavar="path",
-            default="{serverdir}/.secret",
             help="file containing the server side secret used for user "
-                 "validation. If it does not exist, a random secret "
-                 "is generated on start up and used subsequently. ")
+                 "validation. If not specified, a random secret is "
+                 "generated on each start up. ")
 
     deploy.addoption("--requests-only", action="store_true",
             help="only start as a worker which handles read/write web requests "
@@ -422,13 +420,6 @@ class Config:
         self.pluginmanager = pluginmanager
         self.hook = pluginmanager.hook
         self.serverdir = py.path.local(os.path.expanduser(self.args.serverdir))
-
-        if args.secretfile == "{serverdir}/.secret":
-            self.secretfile = self.serverdir.join(".secret")
-        else:
-            self.secretfile = py.path.local(
-                    os.path.expanduser(args.secretfile))
-
         self.path_nodeinfo = self.serverdir.join(".nodeinfo")
 
     def init_nodeinfo(self):
@@ -585,11 +576,20 @@ class Config:
 
     @cached_property
     def secret(self):
-        if not self.secretfile.check():
-            self.secretfile.dirpath().ensure(dir=1)
-            self.secretfile.write(base64.b64encode(os.urandom(32)))
-            self.secretfile.chmod(stat.S_IRUSR|stat.S_IWUSR)
-        return self.secretfile.read()
+        from .main import fatal
+        if not self.args.secretfile:
+            log.warn(
+                "No secret file provided, creating a new random secret. "
+                "Login tokens issued before are invalidate. "
+                "Use --secretfile option to provide a persistent secret.")
+            return base64.b64encode(os.urandom(32))
+        secretfile = py.path.local(
+            os.path.expanduser(self.args.secretfile))
+        if not secretfile.check():
+            fatal("The given secret file doesn't exist.")
+        log.info("Using secret file '%s'.", secretfile)
+        return secretfile.read()
+
 
 def getpath(path):
     return py.path.local(os.path.expanduser(str(path)))

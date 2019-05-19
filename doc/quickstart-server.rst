@@ -55,6 +55,7 @@ For example:
 
     devpi-server:
       serverdir: /var/db/devpi-server
+      secretfile: /etc/devpi-server/secret
       host: localhost
       port: 8080
 

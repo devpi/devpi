@@ -261,7 +261,6 @@ class TestImportExport:
         indexlist = mapp2.getindexlist(api.user)
         assert stagename2 in indexlist
         assert indexlist[stagename2]["bases"] == [api.stagename]
-        assert mapp2.xom.config.secret == mapp1.xom.config.secret
 
     def test_indexes_custom_data(self, impexp):
         mapp1 = impexp.mapp1

@@ -51,28 +51,35 @@ class TestParser:
         assert isinstance(p, MyArgumentParser)
 
 class TestConfig:
-    def test_parse_secret(self, tmpdir):
+    def test_parse_secret(self, caplog, tmpdir):
+        # create a secret file
         p = tmpdir.join("secret")
         secret = "qwoieuqwelkj123"
         p.write(secret)
+        # and use it
+        caplog.clear()
         config = make_config(["devpi-server", "--secretfile=%s" % p])
-        assert config.secretfile == str(p)
+        assert config.args.secretfile == str(p)
         assert config.secret == secret
+        recs = caplog.getrecords(".*new random secret.*")
+        assert len(recs) == 0
+        # now check the default
+        caplog.clear()
         config = make_config(["devpi-server", "--serverdir", tmpdir.strpath])
-        assert config.secretfile == tmpdir.join(".secret")
-        config.secretfile.write(secret)
-        assert config.secret == config.secretfile.read()
-
-    def test_generated_secret_if_not_exists(self,
-                                            xom, tmpdir, monkeypatch):
-        config = xom.config
-        secfile = tmpdir.join("secret")
-        monkeypatch.setattr(config, "secretfile", secfile)
-        assert not secfile.check()
-        assert config.secret
-        assert config.secret == config.secretfile.read()
-        assert config.secretfile == secfile
-        #recs = caplog.getrecords()
+        assert config.args.secretfile is None
+        assert config.secret != secret
+        recs = caplog.getrecords(".*new random secret.*")
+        assert len(recs) == 1
+        # remember the secret
+        prev_secret = config.secret
+        # each startup without a secret file creates a new random secret
+        caplog.clear()
+        config = make_config(["devpi-server", "--serverdir", tmpdir.strpath])
+        assert config.args.secretfile is None
+        assert config.secret != secret
+        assert config.secret != prev_secret
+        recs = caplog.getrecords(".*new random secret.*")
+        assert len(recs) == 1
 
     def test_devpi_serverdir_env(self, tmpdir, monkeypatch):
         monkeypatch.setenv("DEVPI_SERVERDIR", tmpdir.strpath)

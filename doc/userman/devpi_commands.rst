@@ -590,9 +590,8 @@ devpi command reference (server)
                             nginx/supervisor/crontab/systemd, taking other passed
                             options into account (e.g. port, host, etc.) [False]
       --secretfile path     file containing the server side secret used for user
-                            validation. If it does not exist, a random secret is
-                            generated on start up and used subsequently.
-                            [{serverdir}/.secret]
+                            validation. If not specified, a random secret is
+                            generated on each start up. [None]
       --requests-only       only start as a worker which handles read/write web
                             requests but does not run an event processing or
                             replication thread. [False]
