@@ -74,7 +74,20 @@ Installing from PyPI
 --------------------
 
 While this topic has been mentioned in many parts of the documentation, we would like 
-to reiterate that the `devpi`_ server acts as a https://pypi.org cache::
+to reiterate that the `devpi`_ server acts as a https://pypi.org cache.
+For this we first add ``root/pypi`` to the bases of ``emilie/prod``::
+
+   $ devpi index emilie/prod bases+=root/pypi
+   /emilie/prod bases+=root/pypi
+   http://localhost:3141/emilie/prod:
+     type=stage
+     bases=root/pypi
+     volatile=False
+     acl_upload=emilie
+     acl_toxresult_upload=:ANONYMOUS:
+     mirror_whitelist=
+
+Then we install a package from PyPI::
 
    $ devpi install jsontree
    -->  /home/hpk/p/devpi/doc/userman$ /home/hpk/venv/0/bin/pip install -U -i http://localhost:3141/emilie/dev/+simple/ jsontree  [PIP_USE_WHEEL=1,PIP_PRE=1]
