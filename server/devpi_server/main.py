@@ -131,7 +131,9 @@ def _main(pluginmanager, argv=None):
         )
 
     xom = XOM(config)
-    if not xom.is_replica() and xom.keyfs.get_current_serial() == -1:
+    # we deliberately call get_current_serial first to establish a connection
+    # to the backend and in case of sqlite create the database
+    if xom.keyfs.get_current_serial() == -1 and not xom.is_replica():
         with xom.keyfs.transaction(write=True):
             set_default_indexes(xom.model)
 
