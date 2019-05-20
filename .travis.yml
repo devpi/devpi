@@ -7,7 +7,7 @@ python:
   - "3.7"
   - "nightly"
   - "pypy2.7-6.0"
-  - "pypy3.5-6.0"
+  - "pypy3.5-7.0"
 env:
   global:
     - DEVPI_INDEX="devpi-travis/${TRAVIS_REPO_SLUG/\//_}_${TRAVIS_BRANCH/\//_}"
@@ -103,7 +103,7 @@ jobs:
             - nginx
 
     - stage: test
-      python: "pypy3.5-6.0"
+      python: "pypy3.5-7.0"
       env: PROJECT=server
       addons:
         apt:
@@ -126,7 +126,7 @@ jobs:
         postgresql: "9.5"
 
     - stage: test
-      python: "pypy3.5-6.0"
+      python: "pypy3.5-7.0"
       env: PROJECT=postgresql
       addons:
         apt:
