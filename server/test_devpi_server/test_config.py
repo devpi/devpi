@@ -60,6 +60,7 @@ class TestConfig:
         caplog.clear()
         config = make_config(["devpi-server", "--secretfile=%s" % p])
         assert config.args.secretfile == str(p)
+        assert config.secretfile == str(p)
         assert config.secret == secret
         recs = caplog.getrecords(".*new random secret.*")
         assert len(recs) == 0
@@ -67,6 +68,7 @@ class TestConfig:
         caplog.clear()
         config = make_config(["devpi-server", "--serverdir", tmpdir.strpath])
         assert config.args.secretfile is None
+        assert config.secretfile is None
         assert config.secret != secret
         recs = caplog.getrecords(".*new random secret.*")
         assert len(recs) == 1
@@ -76,10 +78,30 @@ class TestConfig:
         caplog.clear()
         config = make_config(["devpi-server", "--serverdir", tmpdir.strpath])
         assert config.args.secretfile is None
+        assert config.secretfile is None
         assert config.secret != secret
         assert config.secret != prev_secret
         recs = caplog.getrecords(".*new random secret.*")
         assert len(recs) == 1
+
+    def test_bbb_default_secretfile_location(self, caplog, recwarn, tmpdir):
+        import warnings
+        warnings.simplefilter("always")
+        # setup secret file in old default location
+        p = tmpdir.join(".secret")
+        secret = "qwoieuqwelkj123"
+        p.write(secret)
+        caplog.clear()
+        config = make_config(["devpi-server", "--serverdir", tmpdir.strpath])
+        # the existing file should be used
+        assert config.args.secretfile is None
+        assert config.secretfile == str(p)
+        assert config.secret == secret
+        recs = caplog.getrecords(".*new random secret.*")
+        assert len(recs) == 0
+        assert len(recwarn) == 1
+        warning = recwarn.pop(Warning)
+        assert 'deprecated existing secret' in warning.message.args[0]
 
     def test_devpi_serverdir_env(self, tmpdir, monkeypatch):
         monkeypatch.setenv("DEVPI_SERVERDIR", tmpdir.strpath)

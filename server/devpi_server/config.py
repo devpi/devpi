@@ -575,20 +575,32 @@ class Config:
         )
 
     @cached_property
+    def secretfile(self):
+        import warnings
+        if not self.args.secretfile:
+            secretfile = self.serverdir.join('.secret')
+            if not secretfile.check(file=True):
+                return None
+            warnings.warn(
+                "Using deprecated existing secret file at '%s', use "
+                "--secretfile to explicitly provide the location." % secretfile)
+            return secretfile
+        return py.path.local(
+            os.path.expanduser(self.args.secretfile))
+
+    @cached_property
     def secret(self):
         from .main import fatal
-        if not self.args.secretfile:
+        if self.secretfile is None:
             log.warn(
                 "No secret file provided, creating a new random secret. "
                 "Login tokens issued before are invalidate. "
                 "Use --secretfile option to provide a persistent secret.")
             return base64.b64encode(os.urandom(32))
-        secretfile = py.path.local(
-            os.path.expanduser(self.args.secretfile))
-        if not secretfile.check():
+        if not self.secretfile.check(file=True):
             fatal("The given secret file doesn't exist.")
-        log.info("Using secret file '%s'.", secretfile)
-        return secretfile.read()
+        log.info("Using secret file '%s'.", self.secretfile)
+        return self.secretfile.read()
 
 
 def getpath(path):
