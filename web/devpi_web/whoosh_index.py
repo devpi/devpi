@@ -257,6 +257,7 @@ class Index(object):
         add_document = partial(self._add_document, writer)
         counter = itertools.count()
         count = next(counter)
+        proj_counter = itertools.count()
         main_keys = self.project_ix.schema.names()
         text_keys = (
             ('author', 0.5),
@@ -265,6 +266,9 @@ class Index(object):
             ('summary', 1.75),
             ('keywords', 1.75))
         for project in projects:
+            proj_count = next(proj_counter)
+            if proj_count % 1000 == 0:
+                log.info("Processed %s projects", proj_count)
             data = dict((u(x), get_mutable_deepcopy(project[x])) for x in main_keys if x in project)
             data['path'] = u"/{user}/{index}/{name}".format(**data)
             if not clear:
