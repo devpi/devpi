@@ -4,11 +4,13 @@ Requires=network-online.target
 After=network-online.target
 
 [Service]
-Type=simple
 Restart=on-success
+# ExecStart:
+# - shall point to existing devpi-server executable
+# - shall not use the deprecated `--start`. We want the devpi-server to start in foreground
 ExecStart={devpibin} {server_args}
+# set User according to user which is able to run the devpi-server
 User={user}
-SuccessExitStatus=SIGKILL
 
 [Install]
 WantedBy=multi-user.target
