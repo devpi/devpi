@@ -1,0 +1,1 @@
+the default logging configuration now outputs to stdout instead of stderr.

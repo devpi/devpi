@@ -3,6 +3,7 @@ import logging
 import logging.config
 import contextlib
 import json
+import sys
 
 
 threadlocal = threading.local()
@@ -17,8 +18,10 @@ def configure_logging(config_args):
         loglevel = logging.DEBUG
     else:
         loglevel = logging.INFO
-    logging.basicConfig(level=loglevel,
-         format='%(asctime)s %(levelname)-5.5s %(message)s')
+    logging.basicConfig(
+        level=loglevel,
+        format='%(asctime)s %(levelname)-5.5s %(message)s',
+        stream=sys.stdout)
     requests_log = logging.getLogger("requests.packages.urllib3")
     requests_log.setLevel(logging.ERROR)
 
