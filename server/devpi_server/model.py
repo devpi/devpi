@@ -164,6 +164,8 @@ def ensure_boolean(value):
 def ensure_list(data):
     if isinstance(data, (list, tuple, set)):
         return list(data)
+    if not hasattr(data, "split"):
+        raise InvalidIndexconfig("Unknown list value %r." % data)
     # split and remove empty
     return list(filter(None, (x.strip() for x in data.split(","))))
 

@@ -12,6 +12,7 @@ from devpi_server.config import hookimpl
 from devpi_server.model import InvalidIndexconfig
 from devpi_server.model import get_indexconfig
 from devpi_server.model import ensure_boolean
+from devpi_server.model import ensure_list
 from devpi_server.model import run_passwd
 from py.io import BytesIO
 
@@ -1048,6 +1049,18 @@ def test_ensure_boolean():
         ensure_boolean("foo")
         ensure_boolean([])
         ensure_boolean(["foo"])
+
+
+def test_ensure_list():
+    assert isinstance(ensure_list([]), list)
+    assert isinstance(ensure_list(set()), list)
+    assert isinstance(ensure_list(tuple()), list)
+    assert ensure_list("foo") == ["foo"]
+    assert ensure_list("foo,bar") == ["foo", "bar"]
+    assert ensure_list(" foo , bar ") == ["foo", "bar"]
+    with pytest.raises(InvalidIndexconfig):
+        assert isinstance(ensure_list(None), list)
+        assert isinstance(ensure_list(dict()), list)
 
 
 @pytest.mark.parametrize(["input", "expected"], [
