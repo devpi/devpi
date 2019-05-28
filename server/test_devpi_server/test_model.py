@@ -12,6 +12,7 @@ from devpi_server.config import hookimpl
 from devpi_server.model import InvalidIndexconfig
 from devpi_server.model import get_indexconfig
 from devpi_server.model import ensure_boolean
+from devpi_server.model import ensure_acl_list
 from devpi_server.model import ensure_list
 from devpi_server.model import run_passwd
 from py.io import BytesIO
@@ -1061,6 +1062,21 @@ def test_ensure_list():
     with pytest.raises(InvalidIndexconfig):
         assert isinstance(ensure_list(None), list)
         assert isinstance(ensure_list(dict()), list)
+
+
+def test_ensure_acl_list():
+    assert isinstance(ensure_acl_list([]), list)
+    assert isinstance(ensure_acl_list(set()), list)
+    assert isinstance(ensure_acl_list(tuple()), list)
+    assert ensure_acl_list("foo") == ["foo"]
+    assert ensure_acl_list("foo,bar") == ["foo", "bar"]
+    assert ensure_acl_list(" foo , bar ") == ["foo", "bar"]
+    assert ensure_acl_list(" foo , bar ") == ["foo", "bar"]
+    assert ensure_acl_list(" :anonymous: , FOO ") == [
+        ":ANONYMOUS:", "FOO"]
+    with pytest.raises(InvalidIndexconfig):
+        assert isinstance(ensure_acl_list(None), list)
+        assert isinstance(ensure_acl_list(dict()), list)
 
 
 @pytest.mark.parametrize(["input", "expected"], [

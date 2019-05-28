@@ -170,6 +170,14 @@ def ensure_list(data):
     return list(filter(None, (x.strip() for x in data.split(","))))
 
 
+def ensure_acl_list(data):
+    data = ensure_list(data)
+    for index, name in enumerate(data):
+        if name.upper() in (':ANONYMOUS:',):
+            data[index] = name.upper()
+    return data
+
+
 def normalize_whitelist_name(name):
     if name == '*':
         return name
@@ -193,17 +201,9 @@ def get_indexconfig(hooks, type, **kwargs):
             kwargs.pop(key, None)
     elif type == "stage":
         if "acl_upload" in kwargs:
-            acl_upload = ensure_list(kwargs.pop("acl_upload"))
-            for index, name in enumerate(acl_upload):
-                if name.upper() == ':ANONYMOUS:':
-                    acl_upload[index] = name.upper()
-            ixconfig["acl_upload"] = acl_upload
+            ixconfig["acl_upload"] = ensure_acl_list(kwargs.pop("acl_upload"))
         if "acl_toxresult_upload" in kwargs:
-            acl_toxresult_upload = ensure_list(kwargs.pop("acl_toxresult_upload"))
-            for index, name in enumerate(acl_toxresult_upload):
-                if name.upper() == ':ANONYMOUS:':
-                    acl_toxresult_upload[index] = name.upper()
-            ixconfig["acl_toxresult_upload"] = acl_toxresult_upload
+            ixconfig["acl_toxresult_upload"] = ensure_acl_list(kwargs.pop("acl_toxresult_upload"))
         if "bases" in kwargs:
             ixconfig["bases"] = ensure_list(kwargs.pop("bases"))
         if "mirror_whitelist" in kwargs:
