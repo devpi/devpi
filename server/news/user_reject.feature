@@ -1,0 +1,1 @@
+when credentials for the user are rejected, the error message now says so instead of claiming the user could not be found.

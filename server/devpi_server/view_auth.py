@@ -225,6 +225,8 @@ class DevpiAuthenticationPolicy(CallbackAuthenticationPolicy):
             request.log.debug("got auth status %r for user %r" % (status, auth_user))
             if status == "ok":
                 return [":%s" % g for g in groups]
+            elif status == "reject":
+                abort_authenticate(request, msg="credentials for user '%s' were rejected" % auth_user)
             elif status == "nouser":
                 abort_authenticate(request, msg="user '%s' does not exist" % auth_user)
             elif status == "expired":

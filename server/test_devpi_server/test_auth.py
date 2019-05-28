@@ -106,7 +106,7 @@ class TestAuthPlugin:
         plugin.results = [dict(status="reject")]
         username, password = "user", "world"
         model.create_user(username, password)
-        assert auth.get_auth_status((username, password)) == ['nouser', username, []]
+        assert auth.get_auth_status((username, password)) == ['reject', username, []]
         assert plugin.results == []  # all results used
 
     def test_auth_plugin_root_internal(self, auth, plugin):
@@ -130,7 +130,7 @@ class TestAuthPlugin:
     def test_auth_plugin_invalid_status(self, auth, plugin):
         plugin.results = [dict(status="siotheiasoehn")]
         username, password = "user", "world"
-        assert auth.get_auth_status((username, password)) == ['nouser', username, []]
+        assert auth.get_auth_status((username, password)) == ['reject', username, []]
         assert plugin.results == []  # all results used
 
 
@@ -175,13 +175,13 @@ class TestAuthPlugins:
         plugin2.results = [dict(status="reject")]
         username, password = "user", "world"
         # one failed authentication in any plugin is enough to stop
-        assert auth.get_auth_status((username, password)) == ['nouser', username, []]
+        assert auth.get_auth_status((username, password)) == ['reject', username, []]
         assert plugin1.results == []  # all results used
         assert plugin2.results == []  # all results used
         plugin1.results = [dict(status="reject")]
         plugin2.results = [dict(status="ok", groups=['group1', 'common'])]
         # one failed authentication in any plugin is enough to stop
-        assert auth.get_auth_status((username, password)) == ['nouser', username, []]
+        assert auth.get_auth_status((username, password)) == ['reject', username, []]
         assert plugin1.results == []  # all results used
         assert plugin2.results == []  # all results used
 

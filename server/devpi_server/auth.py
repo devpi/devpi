@@ -54,7 +54,7 @@ class Auth:
         if [x for x in results if x["status"] != "ok"]:
             # a plugin discovered invalid credentials or returned an invalid
             # status, so we abort
-            return dict(status="nouser")
+            return dict(status="reject")
         userinfo_list = [x for x in results if x is not False]
         if userinfo_list and not is_root:
             # one of the plugins returned valid userinfo
@@ -67,7 +67,7 @@ class Auth:
         # none of the plugins returned valid groups, check our own data
         if user.validate(authpassword):
             return dict(status="ok")
-        return dict(status="nouser")
+        return dict(status="reject")
 
     def _get_auth_status(self, authuser, authpassword):
         try:
