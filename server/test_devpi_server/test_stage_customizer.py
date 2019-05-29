@@ -166,3 +166,68 @@ def test_on_modified_http_exception(makemapp, maketestapp, makexom):
         '/user/dev', dict(type='mystage'), expect_errors=True)
     assert r.status_code == 500
     assert "request.apifatal instead" in r.json['message']
+
+
+def test_package_filters(makemapp, maketestapp, makexom):
+    class MyStageCustomizer(object):
+        def get_projects_filter_iter(self, projects):
+            for project in projects:
+                yield project != 'pkg'
+
+        def get_versions_filter_iter(self, project, versions):
+            for version in versions:
+                yield version != '1.0'
+
+        def get_simple_links_filter_iter(self, project, links):
+            for key, href, require_python in links:
+                yield '1.0' not in key
+
+    xom = makexom(plugins=[make_stage_plugin(MyStageCustomizer)])
+    testapp = maketestapp(xom)
+    mapp = makemapp(testapp)
+    user = 'user'
+    password = '123'
+    mapp.create_and_login_user(user, password=password)
+    api = mapp.create_index('user/foo')
+    mapp.upload_file_pypi("hello-1.0.tar.gz", b'hello10', "hello", "1.0")
+    mapp.upload_file_pypi("hello-1.1.tar.gz", b'hello11', "hello", "1.1")
+    mapp.upload_file_pypi("pkg-1.0.tar.gz", b'pkg10', "pkg", "1.0")
+    mapp.upload_file_pypi("pkg-1.2.tar.gz", b'pkg12', "pkg", "1.2")
+    assert len(mapp.getreleaseslist('hello')) == 2
+    assert len(mapp.getreleaseslist('pkg')) == 2
+    with xom.keyfs.transaction(write=False):
+        stage = xom.model.getstage('user/foo')
+        assert stage.get_latest_version_perstage('hello') == '1.1'
+        assert stage.get_latest_version_perstage('pkg') == '1.2'
+        assert stage.get_latest_version('hello') == '1.1'
+        assert stage.get_latest_version('pkg') == '1.2'
+        assert stage.has_project('hello')
+        assert stage.has_project('pkg')
+    r = mapp.testapp.get(api.simpleindex)
+    assert '>hello<' in r.text
+    assert '>pkg<' in r.text
+    r = mapp.get_simple('hello')
+    assert 'hello-1.0.tar.gz' in r.text
+    assert 'hello-1.1.tar.gz' in r.text
+    r = mapp.get_simple('pkg')
+    assert 'pkg-1.0.tar.gz' in r.text
+    assert 'pkg-1.2.tar.gz' in r.text
+    api = mapp.create_index('user/dev', indexconfig=dict(
+        type='mystage', bases='user/foo'))
+    assert len(mapp.getreleaseslist('hello')) == 1
+    assert mapp.getreleaseslist('pkg', code=404) is None
+    with xom.keyfs.transaction(write=False):
+        stage = xom.model.getstage('user/dev')
+        assert stage.get_latest_version_perstage('hello') is None
+        assert stage.get_latest_version_perstage('pkg') is None
+        assert stage.get_latest_version('hello') == '1.1'
+        assert stage.get_latest_version('pkg') is None
+        assert stage.has_project('hello')
+        assert not stage.has_project('pkg')
+    r = mapp.testapp.get(api.simpleindex)
+    assert '>hello<' in r.text
+    assert '>pkg<' not in r.text
+    r = mapp.get_simple('hello')
+    assert 'hello-1.0.tar.gz' not in r.text
+    assert 'hello-1.1.tar.gz' in r.text
+    mapp.get_simple('pkg', code=404)

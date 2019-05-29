@@ -565,7 +565,7 @@ class PyPIView:
         self.log.info("starting +simple")
         stage = self.context.stage
         try:
-            stage_results = list(stage.op_sro("list_projects_perstage"))
+            stage_results = list(stage.list_projects())
         except stage.UpstreamError as e:
             threadlog.error(e.msg)
             abort(self.request, 502, e.msg)
