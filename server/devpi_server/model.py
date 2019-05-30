@@ -1054,6 +1054,54 @@ class PrivateStage(BaseStage):
         if entry is not None:
             return entry.file_get_content()
 
+    def get_last_change_serial(self, at_serial=None):
+        tx = self.keyfs.tx
+        if at_serial is None:
+            at_serial = tx.at_serial
+        try:
+            (last_serial, projects) = tx.get_last_serial_and_value_at(
+                self.key_projects, at_serial)
+        except KeyError:
+            last_serial = -1
+            projects = ()
+        if last_serial >= at_serial:
+            return last_serial
+        for project in projects:
+            (versions_serial, versions) = tx.get_last_serial_and_value_at(
+                self.key_projversions(project), at_serial)
+            last_serial = max(last_serial, versions_serial)
+            if last_serial >= at_serial:
+                return last_serial
+            for version in versions:
+                (version_serial, version) = tx.get_last_serial_and_value_at(
+                    self.key_projversion(project, version), at_serial)
+                last_serial = max(last_serial, version_serial)
+                if last_serial >= at_serial:
+                    return last_serial
+        # no project uploaded yet
+        user_key = self.user.key
+        (user_serial, user_config) = tx.get_last_serial_and_value_at(
+            user_key, at_serial)
+        try:
+            current_index_config = user_config["indexes"][self.index]
+        except KeyError:
+            raise KeyError("The index '%s' was not commited yet." % self.index)
+        # if any project is newer than the user config, we are done
+        if last_serial >= user_serial:
+            return last_serial
+        relpath = user_key.relpath
+        for serial, user_config in tx.iter_serial_and_value_backwards(relpath, user_serial):
+            if user_serial < last_serial:
+                break
+            index_config = get_mutable_deepcopy(
+                user_config["indexes"].get(self.index, {}))
+            if current_index_config == index_config:
+                user_serial = serial
+                continue
+            last_serial = user_serial
+            break
+        return last_serial
+
 
 class StageCustomizer(BaseStageCustomizer):
     pass

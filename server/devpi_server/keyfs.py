@@ -398,30 +398,45 @@ class Transaction(object):
         self.closed = False
         self.doomed = False
 
-    def _get_value_at(self, typedkey, at_serial):
-        relpath = typedkey.relpath
-        keyname, last_serial = self.conn.db_read_typedkey(relpath)
+    def iter_serial_and_value_backwards(self, relpath, last_serial):
         while last_serial >= 0:
             tup = self.conn.get_changes(last_serial).get(relpath)
-            assert tup, "no transaction entry at %s" %(last_serial)
+            assert tup, "no transaction entry at %s" % (last_serial)
             keyname, back_serial, val = tup
-            if last_serial > at_serial:
-                last_serial = back_serial
-                continue
-            if val is not None:
-                return (last_serial, val)
-            raise KeyError(relpath)  # was deleted
+            yield (last_serial, val)
+            last_serial = back_serial
+
+        # we could not find any change below at_serial which means
+        # the key didn't exist at that point in time
+        return
+
+    def get_last_serial_and_value_at(self, typedkey, at_serial):
+        relpath = typedkey.relpath
+        (keyname, last_serial) = self.conn.db_read_typedkey(relpath)
+        serials_and_values = self.iter_serial_and_value_backwards(
+            relpath, last_serial)
+        try:
+            (last_serial, val) = next(serials_and_values)
+            while last_serial >= 0:
+                if last_serial > at_serial:
+                    (last_serial, val) = next(serials_and_values)
+                    continue
+                if val is not None:
+                    return (last_serial, val)
+                raise KeyError(relpath)  # was deleted
+        except StopIteration:
+            pass
 
         # we could not find any change below at_serial which means
         # the key didn't exist at that point in time
         raise KeyError(relpath)
 
     def get_value_at(self, typedkey, at_serial):
-        (last_serial, val) = self._get_value_at(typedkey, at_serial)
+        (last_serial, val) = self.get_last_serial_and_value_at(typedkey, at_serial)
         return val
 
     def last_serial(self, typedkey):
-        (last_serial, val) = self._get_value_at(typedkey, self.at_serial)
+        (last_serial, val) = self.get_last_serial_and_value_at(typedkey, self.at_serial)
         return last_serial
 
     def derive_key(self, relpath):

@@ -853,6 +853,102 @@ class TestStage:
         assert stage.get_versiondata("hello", "1.0")
         assert stage.get_versiondata("This", "1.0")
 
+    @pytest.mark.notransaction
+    def test_get_last_change_serial(self, xom):
+        current_serial = xom.keyfs.get_current_serial()
+        model = xom.model
+        with xom.keyfs.transaction(write=True):
+            user = model.create_user("hello", password="123")
+        assert current_serial == xom.keyfs.get_current_serial() - 1
+        current_serial = xom.keyfs.get_current_serial()
+        with xom.keyfs.transaction(write=True):
+            stage = user.create_stage(**udict(
+                index="world", bases=(), type="stage", volatile=True))
+            with pytest.raises(KeyError) as e:
+                stage.get_last_change_serial()
+            assert 'not commited yet' in str(e.value)
+        assert current_serial == xom.keyfs.get_current_serial() - 1
+        current_serial = xom.keyfs.get_current_serial()
+        with xom.keyfs.transaction(write=False):
+            assert stage.get_last_change_serial() == current_serial
+        actions = [
+            ('set_versiondata', udict(name="pkg", version="1.0")),
+            ('store_releasefile', "pkg", "1.0", "pkg-1.0.zip", b""),
+            ('store_doczip', "pkg", "1.0", b""),
+            ('set_versiondata', udict(name="hello", version="1.0")),
+            ('store_releasefile', "hello", "1.0", "hello-1.0.zip", b""),
+            ('store_releasefile', "pkg", "1.0", "pkg-1.0.tar.gz", b"")]
+        for action in actions:
+            with xom.keyfs.transaction(write=True):
+                getattr(stage, action[0])(*action[1:])
+                # inside the transaction there is no change yet
+                assert stage.get_last_change_serial() == current_serial
+            assert current_serial == xom.keyfs.get_current_serial() - 1
+            current_serial = xom.keyfs.get_current_serial()
+            with xom.keyfs.transaction(write=False):
+                assert stage.get_last_change_serial() == current_serial
+        # create a toxresult
+        with xom.keyfs.transaction(write=True):
+            (link,) = stage.get_releaselinks_perstage('hello')
+            stage.store_toxresult(link, {})
+        assert current_serial == xom.keyfs.get_current_serial() - 1
+        current_serial = xom.keyfs.get_current_serial()
+        with xom.keyfs.transaction(write=False):
+            assert stage.get_last_change_serial() == current_serial
+        # create another stage and run the same actions
+        serial_before_new_stage = xom.keyfs.get_current_serial()
+        with xom.keyfs.transaction(write=True):
+            stage2 = user.create_stage(**udict(
+                index="world2", bases=(), type="stage", volatile=True))
+        assert current_serial == xom.keyfs.get_current_serial() - 1
+        current_serial = xom.keyfs.get_current_serial()
+        for action in actions:
+            with xom.keyfs.transaction(write=True):
+                getattr(stage2, action[0])(*action[1:])
+                # inside the transaction there is no change yet
+                assert stage2.get_last_change_serial() == current_serial
+            assert current_serial == xom.keyfs.get_current_serial() - 1
+            current_serial = xom.keyfs.get_current_serial()
+            with xom.keyfs.transaction(write=False):
+                assert stage2.get_last_change_serial() == current_serial
+        # the other stage should not have changed
+        with xom.keyfs.transaction(write=False):
+            assert stage.get_last_change_serial() == serial_before_new_stage
+        # now we test deletions
+        with xom.keyfs.transaction(write=False):
+            (link,) = stage2.get_releaselinks_perstage('hello')
+            entry = link.entry
+        actions = [
+            ('del_entry', entry, False),
+            ('del_versiondata', 'hello', '1.0', False),
+            ('del_project', 'hello')]
+        for action in actions:
+            with xom.keyfs.transaction(write=True):
+                getattr(stage2, action[0])(*action[1:])
+                # inside the transaction there is no change yet
+                assert stage2.get_last_change_serial() == current_serial
+            assert current_serial == xom.keyfs.get_current_serial() - 1
+            current_serial = xom.keyfs.get_current_serial()
+            with xom.keyfs.transaction(write=False):
+                assert stage2.get_last_change_serial() == current_serial
+        # the other stage still should not have changed
+        with xom.keyfs.transaction(write=False):
+            assert stage.get_last_change_serial() == serial_before_new_stage
+        # modifying the stage also should not affect the other one
+        with xom.keyfs.transaction(write=True):
+            stage2.modify(volatile=False)
+        assert current_serial == xom.keyfs.get_current_serial() - 1
+        current_serial = xom.keyfs.get_current_serial()
+        with xom.keyfs.transaction(write=False):
+            assert stage.get_last_change_serial() == serial_before_new_stage
+        # deleting the stage should not affect the other one either
+        with xom.keyfs.transaction(write=True):
+            stage2.delete()
+            del stage2
+        assert current_serial == xom.keyfs.get_current_serial() - 1
+        with xom.keyfs.transaction(write=False):
+            assert stage.get_last_change_serial() == serial_before_new_stage
+
 
 class TestLinkStore:
     @pytest.fixture
