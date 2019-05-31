@@ -1109,7 +1109,10 @@ class PyPIView:
     def index_get(self):
         stage = self.context.stage
         result = dict(stage.ixconfig)
-        result['projects'] = sorted(stage.list_projects_perstage())
+        # double negation :(
+        add_projects = 'no_projects' not in self.request.GET
+        if add_projects:
+            result['projects'] = sorted(stage.list_projects_perstage())
         apireturn(200, type="indexconfig", result=result)
 
     #
