@@ -829,10 +829,9 @@ class PyPIView:
         route_name="/{user}/{index}/", request_method="POST")
     def submit(self):
         request = self.request
-        context = self.context
-        if context.username == "root" and context.index == "pypi":
-            abort_submit(request, 404, "cannot submit to pypi mirror")
         stage = self.context.stage
+        if not hasattr(stage, "store_releasefile"):
+            abort_submit(request, 404, "cannot submit to mirror index")
         if not request.has_permission("pypi_submit"):
             # if there is no authenticated user, then issue a basic auth challenge
             if not request.authenticated_userid:

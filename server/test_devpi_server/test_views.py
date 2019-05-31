@@ -1647,10 +1647,22 @@ def test_delete_version_fails_on_non_volatile(mapp):
     mapp.delete_project("pkg1/2.6", code=403)
 
 
-def test_upload_to_mirror_fails(mapp):
-    mapp.upload_file_pypi(
-            "pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=404,
-            indexname="root/pypi")
+@pytest.mark.nomocking
+def test_upload_to_mirror_fails(mapp, simpypi):
+    indexconfig = dict(
+        type="mirror",
+        mirror_url=simpypi.simpleurl,
+        mirror_cache_expiry=0,
+        volatile=True)
+    api = mapp.create_and_use(indexconfig=indexconfig)
+    name = "pkg1"
+    version = "2.6"
+    pkgver = "%s-%s.tgz" % (name, version)
+    simpypi.add_release(name, pkgver=pkgver)
+    r = mapp.upload_file_pypi(
+        pkgver, b"123", name, version, code=404,
+        indexname=api.stagename)
+    assert "cannot submit to" in r.text
 
 
 @pytest.mark.nomocking
