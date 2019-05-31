@@ -1,0 +1,1 @@
+fix #636: support ignore_bases argument for project listings.

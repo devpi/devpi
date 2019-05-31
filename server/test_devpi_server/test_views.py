@@ -347,7 +347,21 @@ def test_simple_refresh(mapp, model, pypistage, testapp):
         info = pypistage.key_projsimplelinks("hello").get()
     assert info["links"] == []
 
-def test_inheritance_versiondata(mapp, model):
+
+def test_inheritance_project_listing_ignore_bases(mapp):
+    api1 = mapp.create_and_use()
+    mapp.upload_file_pypi("package-1.0.tar.gz", b'123',
+                          "package", "1.0", indexname=api1.stagename)
+    api2 = mapp.create_and_use(indexconfig={"bases": (api1.stagename,)})
+    mapp.upload_file_pypi("package-2.0.tar.gz", b'456',
+                          "package", "2.0", indexname=api2.stagename)
+    r = mapp.getjson(api2.index + "/package")
+    assert sorted(r["result"]) == ["1.0", "2.0"]
+    r = mapp.getjson(api2.index + "/package?ignore_bases=")
+    assert sorted(r["result"]) == ["2.0"]
+
+
+def test_inheritance_versiondata(mapp):
     api1 = mapp.create_and_use()
     mapp.upload_file_pypi("package-1.0.tar.gz", b'123',
                           "package", "1.0", indexname=api1.stagename)

@@ -4,20 +4,25 @@ from devpi_common.types import cached_property, ensure_unicode, parse_hash_spec
 from requests.models import parse_url
 
 if sys.version_info >= (3, 0):
-    from urllib.parse import urlparse, urlunsplit, urljoin, unquote
+    from urllib.parse import parse_qs, parse_qsl
+    from urllib.parse import urlencode, urlparse, urlunsplit, urljoin, unquote
 else:
+    from urlparse import parse_qs, parse_qsl
     from urlparse import urlparse, urlunsplit, urljoin
-    from urllib import unquote
+    from urllib import urlencode, unquote
 
 
 def _joinpath(url, args, asdir=False):
+    url = URL(url)
+    query = url.query
+    url = url.replace(query="").url
     new = url
     for arg in args[:-1]:
         new = urljoin(new, arg.rstrip("/")) + "/"
     new = urljoin(new, args[-1])
     if asdir:
         new = new.rstrip("/") + "/"
-    return new
+    return URL(new).replace(query=query).url
 
 
 class URL:
@@ -72,7 +77,13 @@ class URL:
         _parsed = self._parsed
         url = []
         for field in ('scheme', 'netloc', 'path', 'query', 'fragment'):
-            url.append(kwargs.get(field, getattr(_parsed, field)))
+            value = kwargs.get(field, getattr(_parsed, field))
+            if field == 'query':
+                try:
+                    value = urlencode(value)
+                except TypeError:
+                    pass
+            url.append(value)
         return URL(urlunsplit(url))
 
     @property
@@ -122,6 +133,16 @@ class URL:
         return self._parsed.path
 
     @property
+    def query(self):
+        return self._parsed.query
+
+    def get_query_dict(self, *args, **kwargs):
+        return parse_qs(self.query, *args, **kwargs)
+
+    def get_query_items(self, *args, **kwargs):
+        return parse_qsl(self.query, *args, **kwargs)
+
+    @property
     def basename(self):
         return posixpath.basename(unquote(self._parsed.path))
 
@@ -152,8 +173,7 @@ class URL:
         return URL(newurl)
 
     def addpath(self, *args, **kwargs):
-        url = self.url.rstrip("/") + "/"
-        return URL(_joinpath(url, args, **kwargs))
+        return URL(_joinpath(self.asdir().url, args, **kwargs))
 
     def relpath(self, target):
         """ return a relative path which will point to the target resource."""
@@ -172,13 +192,13 @@ class URL:
         return "/".join(rest)
 
     def asdir(self):
-        if self.url[-1:] == "/":
+        if self.path[-1:] == "/":
             return self
-        return self.__class__(self.url + "/")
+        return self.replace(path=self.path + "/")
 
     def asfile(self):
-        if self.url[-1:] == "/":
-            return self.__class__(self.url.rstrip("/"))
+        if self.path[-1:] == "/":
+            return self.replace(path=self.path.rstrip("/"))
         return self
 
     def torelpath(self):
