@@ -162,9 +162,7 @@ def test_on_modified_http_exception(makemapp, maketestapp, makexom):
     user = 'user'
     password = '123'
     mapp.create_and_login_user(user, password=password)
-    api = mapp.create_index('user/dev', indexconfig=dict(type='mystage'))
-    r = testapp.patch_json(
-        api.index, ['bases+=user/dev'],
-        headers={'X-Fail': str('foo')}, expect_errors=True)
+    r = testapp.put_json(
+        '/user/dev', dict(type='mystage'), expect_errors=True)
     assert r.status_code == 500
     assert "request.apifatal instead" in r.json['message']

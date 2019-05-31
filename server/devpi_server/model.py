@@ -424,7 +424,7 @@ class BaseStageCustomizer(object):
         pass
 
     def on_modified(self, request, oldconfig):
-        """ Called after index was modified via a request.
+        """ Called after index was created or modified via a request.
 
             Can do further changes in the current transaction.
 

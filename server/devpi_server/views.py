@@ -636,6 +636,19 @@ class PyPIView:
             apireturn(400, "%s" % e)
         except InvalidIndexconfig as e:
             apireturn(400, message=", ".join(e.messages))
+        try:
+            stage.customizer.on_modified(self.request, {})
+        except InvalidIndexconfig as e:
+            self.request.apifatal(400, message=", ".join(e.messages))
+        except HTTPException:
+            if not self.request.registry["xom"].keyfs.tx.doomed:
+                self.request.apifatal(
+                    500,
+                    "An HTTPException was raised. In on_modified this is not "
+                    "allowed, as it breaks transaction handling. Use "
+                    "request.apifatal instead.")
+            else:
+                raise
         apireturn(200, type="indexconfig", result=ixconfig)
 
     @view_config(
