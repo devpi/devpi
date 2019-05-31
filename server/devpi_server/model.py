@@ -23,6 +23,12 @@ from .log import threadlog, thread_current_log
 from .readonly import get_mutable_deepcopy
 
 
+try:
+    string_types = (str, unicode)
+except NameError:
+    string_types = str
+
+
 def join_requires(links, requires_python):
     # build list of (key, href, require_python) tuples
     result = []
@@ -49,6 +55,10 @@ def run_passwd(root, username):
         log.error("no password set")
         return 1
     user.modify(password=pwd)
+
+
+class RemoveValue(object):
+    """ Marker object for index configuration keys to remove. """
 
 
 class ModelException(Exception):
@@ -340,6 +350,8 @@ class User:
 
 class InvalidIndexconfig(Exception):
     def __init__(self, messages):
+        if isinstance(messages, string_types):
+            messages = [messages]
         self.messages = messages
         Exception.__init__(self, messages)
 
@@ -490,6 +502,8 @@ class BaseStage(object):
                 % (index_type, ", ".join(sorted(conflicting))))
         # get default values from the stage class
         for key, value in self.get_default_config_items():
+            if kwargs.get(key) is RemoveValue:
+                raise InvalidIndexconfig("Default values can't be removed.")
             # if current ixconfig already has the value, use that
             value = self.ixconfig.get(key, value)
             kwargs.setdefault(key, value)
@@ -497,14 +511,18 @@ class BaseStage(object):
         for key in stage_keys:
             if key not in kwargs:
                 continue
-            value = self.normalize_indexconfig_value(key, kwargs.pop(key))
-            if value is None:
-                raise ValueError(
-                    "The key '%s' wasn't processed."
-                    % (key))
+            value = kwargs.pop(key)
+            if value is not RemoveValue:
+                value = self.normalize_indexconfig_value(key, value)
+                if value is None:
+                    raise ValueError(
+                        "The key '%s' wasn't processed."
+                        % (key))
             ixconfig[key] = value
         # next get defaults from the customizer class
         for key, value in self.customizer.get_default_config_items():
+            if kwargs.get(key) is RemoveValue:
+                raise InvalidIndexconfig("Default values can't be removed.")
             # if current ixconfig already has the value, use that
             value = self.ixconfig.get(key, value)
             kwargs.setdefault(key, value)
@@ -512,12 +530,13 @@ class BaseStage(object):
         for key in customizer_keys:
             if key not in kwargs:
                 continue
-            value = self.customizer.normalize_indexconfig_value(
-                key, kwargs.pop(key))
-            if value is None:
-                raise ValueError(
-                    "The key '%s' wasn't processed."
-                    % (key))
+            value = kwargs.pop(key)
+            if value is not RemoveValue:
+                value = self.customizer.normalize_indexconfig_value(key, value)
+                if value is None:
+                    raise ValueError(
+                        "The key '%s' wasn't processed."
+                        % (key))
             ixconfig[key] = value
         # lastly we get additional default from the hook
         hooks = self.xom.config.hook
@@ -534,6 +553,9 @@ class BaseStage(object):
         # on mirror indexes
         for key in ("bases", "acl_upload", "mirror_whitelist"):
             kwargs.pop(key, None)
+        for key, value in list(kwargs.items()):
+            if value is RemoveValue:
+                ixconfig[key] = kwargs.pop(key)
         if kwargs:
             raise InvalidIndexconfig(
                 ["indexconfig got unexpected keyword arguments: %s"
@@ -706,6 +728,10 @@ class BaseStage(object):
         with self.user.key.update() as userconfig:
             oldconfig = dict(self.ixconfig)
             newconfig = userconfig["indexes"].setdefault(self.index, {})
+            for key, value in list(ixconfig.items()):
+                if value is RemoveValue:
+                    newconfig.pop(key, None)
+                    ixconfig.pop(key)
             newconfig.update(ixconfig)
             self.customizer.validate_config(oldconfig, newconfig)
             self.ixconfig = newconfig

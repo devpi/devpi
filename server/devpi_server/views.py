@@ -28,6 +28,7 @@ from devpi_common.validation import normalize_name, is_valid_archive_name
 from .filestore import BadGateway
 from .model import InvalidIndex, InvalidIndexconfig, InvalidUser
 from .model import ReadonlyIndex
+from .model import RemoveValue
 from .model import UpstreamError
 from .readonly import get_mutable_deepcopy
 from .log import thread_push_log, thread_pop_log, threadlog
@@ -232,7 +233,10 @@ def get_actions(json):
             op = 'add'
             key = key[:-1]
         elif key.endswith('-'):
-            op = 'del'
+            if value == '':
+                op = 'drop'
+            else:
+                op = 'del'
             key = key[:-1]
         else:
             op = 'set'
@@ -676,6 +680,10 @@ class PyPIView:
                         ixconfig[key].append(value)
                 elif op == 'set':
                     ixconfig[key] = value
+                elif op == 'drop':
+                    ixconfig[key] = RemoveValue
+                else:
+                    raise ValueError("Unknown operator '%s'." % op)
             json = ixconfig
         oldconfig = dict(stage.ixconfig)
         try:
