@@ -442,11 +442,25 @@ def test_indexroot(testapp, model):
         user.create_stage("index", bases=("root/pypi",))
     r = testapp.get("/user/index")
     assert r.status_code == 200
+    r = testapp.get("/user/index", accept="application/json")
+    assert r.status_code == 200
+    assert "projects" in r.json["result"]
+    r = testapp.get("/user/index?no_projects", accept="application/json")
+    assert r.status_code == 200
+    assert "projects" not in r.json["result"]
+
 
 def test_indexroot_root_pypi(testapp, xom):
     r = testapp.get("/root/pypi")
     assert r.status_code == 200
     assert b"in-stage" not in r.body
+    r = testapp.get("/root/pypi", accept="application/json")
+    assert r.status_code == 200
+    assert "projects" in r.json["result"]
+    r = testapp.get("/root/pypi?no_projects=", accept="application/json")
+    assert r.status_code == 200
+    assert "projects" not in r.json["result"]
+
 
 @pytest.mark.parametrize("url", [
     '/root/pypi/{name}',

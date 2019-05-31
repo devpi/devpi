@@ -781,6 +781,9 @@ def index(parser):
         help="delete an index")
     group.add_argument("-l", "--list", action="store_true",
         help="list indexes for the logged in user")
+    group.add_argument(
+        "--no-projects", action="store_true",
+        help="when showing the index data, don't include projects")
     parser.add_argument("indexname", type=str, action="store", nargs="?",
         help="index name, specified as NAME or USER/NAME.  If no index "
              "is specified use the current index")

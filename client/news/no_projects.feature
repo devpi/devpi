@@ -1,0 +1,1 @@
+support ``--no-projects`` option when showing indexes and use it automatically when creating and modifying and index. Requires devpi-server >= 5.0.0 to work, older versions will still receive and show the projects.

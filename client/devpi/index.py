@@ -3,12 +3,14 @@ from devpi.use import get_keyvalues
 
 def index_create(hub, url, kvdict):
     hub.http_api("put", url, kvdict)
-    index_show(hub, url)
+    no_projects_url = url.replace(query=dict(no_projects=""))
+    index_show(hub, no_projects_url)
 
 
 def index_modify(hub, url, keyvalues):
     features = hub.current.features or set()
-    reply = hub.http_api("get", url, type="indexconfig")
+    no_projects_url = url.replace(query=dict(no_projects=""))
+    reply = hub.http_api("get", no_projects_url, type="indexconfig")
     if 'server-keyvalue-parsing' in features:
         # the server supports key value parsing
         patch = keyvalues
@@ -25,7 +27,8 @@ def index_modify(hub, url, keyvalues):
             hub.info("%s changing %s: %s" %(url.path, name, val))
 
     hub.http_api("patch", url, patch)
-    index_show(hub, url)
+    index_show(hub, no_projects_url)
+
 
 def index_delete(hub, url):
     hub.info("About to remove: %s" % url)
@@ -90,7 +93,10 @@ def main(hub, args):
     if keyvalues:
         return index_modify(hub, url, keyvalues)
     else:
+        if args.no_projects:
+            url = url.replace(query=dict(no_projects=""))
         return index_show(hub, url)
+
 
 def get_keyvalues_index(hub, keyvalues):
     try:
