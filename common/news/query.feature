@@ -1,0 +1,1 @@
+Added full query string support to URL object.
