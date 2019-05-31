@@ -1119,6 +1119,17 @@ class PyPIView:
             entry_data = get_mutable_deepcopy(entry.meta)
             apireturn(200, type="releasefilemeta", result=entry_data)
 
+        if entry.last_modified is None or not entry.file_exists():
+            # The file is in a mirror and either deleted or not yet downloaded.
+            # We check whether we should serve the file directly
+            # or redirect to the external URL
+            stage = self.xom.model.getstage(
+                entry.key.params['user'],
+                entry.key.params['index'])
+            if stage is not None and stage.use_external_url:
+                # redirect to external url
+                return HTTPFound(location=entry.url)
+
         try:
             if should_fetch_remote_file(entry, request.headers):
                 app_iter = iter_fetch_remote_file(self.xom, entry)

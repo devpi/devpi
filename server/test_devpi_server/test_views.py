@@ -1526,6 +1526,48 @@ def test_delete_volatile_fails(mapp):
     mapp.delete_project("pkg5", code=403)
 
 
+@pytest.mark.nomocking
+def test_mirror_use_external_urls(mapp, simpypi, testapp, xom):
+    indexconfig = dict(
+        type="mirror",
+        mirror_url=simpypi.simpleurl,
+        mirror_cache_expiry=0,
+        mirror_use_external_urls=True,
+        volatile=True)
+    api = mapp.create_and_use(indexconfig=indexconfig)
+    name = "pytest"
+    pkgver = "%s-2.6.zip" % name
+    simpypi.add_release(name, pkgver=pkgver)
+    simpypi.add_file('/%s/%s' % (name, pkgver), b'123')
+    r = testapp.get(api.index + '/+simple/%s' % name)
+    (link,) = sorted(
+        x.get('href').replace('../../', '/%s/' % api.stagename)
+        for x in getlinks(r.text))
+    path = link[1:]
+    assert '2.6' in path
+    # we should get a redirect to the original URL
+    r = testapp.xget(302, link, follow=False)
+    assert r.location == "%s/pytest/pytest-2.6.zip" % simpypi.baseurl
+    with testapp.xom.keyfs.transaction(write=False):
+        assert not getentry(testapp, path).file_exists()
+    # now turn external urls off
+    mapp.modify_index(api.stagename, indexconfig=["mirror_use_external_urls=False"])
+    # and fetch again
+    r = testapp.xget(200, link, follow=False)
+    with testapp.xom.keyfs.transaction(write=False):
+        # now the file was stored locally
+        assert getentry(testapp, path).file_exists()
+    # turn external urls on again
+    mapp.modify_index(api.stagename, indexconfig=["mirror_use_external_urls=True"])
+    # we still get the locally stored file
+    r = testapp.xget(200, link, follow=False)
+    # now remove the file, but keep metadata in place
+    with testapp.xom.keyfs.transaction(write=True):
+        getentry(testapp, path).file_delete()
+    # we should get a redirect to the original URL again
+    r = testapp.xget(302, link, follow=False)
+
+
 @pytest.mark.parametrize("volatile", [True, False])
 @pytest.mark.parametrize("restrict_modify", [None, "root"])
 def test_delete_with_acl_upload(mapp, restrict_modify, volatile, xom):

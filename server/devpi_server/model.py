@@ -883,7 +883,6 @@ class BaseStage(object):
 
 
 class PrivateStage(BaseStage):
-
     metadata_keys = (
         'name', 'version',
         # additional meta-data
@@ -904,6 +903,8 @@ class PrivateStage(BaseStage):
         'provides_dist', 'requires_dist', 'requires_external',
         'project_urls', 'supported_platform', 'setup_requires_dist',
         'provides_extra', 'extension')
+
+    use_external_url = False
 
     def __init__(self, xom, username, index, ixconfig, customizer_cls):
         super(PrivateStage, self).__init__(
