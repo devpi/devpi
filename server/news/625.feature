@@ -1,0 +1,1 @@
+fix #625: project registration is now optional. A file upload with twine or setuptools will automatically register the project.
