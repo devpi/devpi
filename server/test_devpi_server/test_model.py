@@ -1,5 +1,7 @@
 from __future__ import unicode_literals
 import getpass
+import inspect
+import itertools
 import py
 import pytest
 import json
@@ -8,8 +10,12 @@ from devpi_common.metadata import splitbasename
 from devpi_common.archive import Archive, zip_dict
 from devpi_server.config import hookimpl
 from devpi_server.model import InvalidIndexconfig
-from devpi_server.model import get_indexconfig
+from devpi_server.model import PrivateStage
+from devpi_server.model import ensure_boolean
+from devpi_server.model import ensure_acl_list
+from devpi_server.model import ensure_list
 from devpi_server.model import run_passwd
+from devpi_server.model import StageCustomizer
 from py.io import BytesIO
 
 pytestmark = [pytest.mark.writetransaction]
@@ -157,7 +163,7 @@ class TestStage:
 
     def test_indexconfig_set_throws_on_invalid_base_index(self, stage, user):
         with pytest.raises(InvalidIndexconfig) as excinfo:
-            user.create_stage(index="world", bases=("root/dev/123",),)
+            user.create_stage(index="world3", bases=("root/dev/123",),)
         messages = excinfo.value.messages
         assert len(messages) == 1
         assert "root/dev/123" in messages[0]
@@ -847,6 +853,102 @@ class TestStage:
         assert stage.get_versiondata("hello", "1.0")
         assert stage.get_versiondata("This", "1.0")
 
+    @pytest.mark.notransaction
+    def test_get_last_change_serial(self, xom):
+        current_serial = xom.keyfs.get_current_serial()
+        model = xom.model
+        with xom.keyfs.transaction(write=True):
+            user = model.create_user("hello", password="123")
+        assert current_serial == xom.keyfs.get_current_serial() - 1
+        current_serial = xom.keyfs.get_current_serial()
+        with xom.keyfs.transaction(write=True):
+            stage = user.create_stage(**udict(
+                index="world", bases=(), type="stage", volatile=True))
+            with pytest.raises(KeyError) as e:
+                stage.get_last_change_serial()
+            assert 'not commited yet' in str(e.value)
+        assert current_serial == xom.keyfs.get_current_serial() - 1
+        current_serial = xom.keyfs.get_current_serial()
+        with xom.keyfs.transaction(write=False):
+            assert stage.get_last_change_serial() == current_serial
+        actions = [
+            ('set_versiondata', udict(name="pkg", version="1.0")),
+            ('store_releasefile', "pkg", "1.0", "pkg-1.0.zip", b""),
+            ('store_doczip', "pkg", "1.0", b""),
+            ('set_versiondata', udict(name="hello", version="1.0")),
+            ('store_releasefile', "hello", "1.0", "hello-1.0.zip", b""),
+            ('store_releasefile', "pkg", "1.0", "pkg-1.0.tar.gz", b"")]
+        for action in actions:
+            with xom.keyfs.transaction(write=True):
+                getattr(stage, action[0])(*action[1:])
+                # inside the transaction there is no change yet
+                assert stage.get_last_change_serial() == current_serial
+            assert current_serial == xom.keyfs.get_current_serial() - 1
+            current_serial = xom.keyfs.get_current_serial()
+            with xom.keyfs.transaction(write=False):
+                assert stage.get_last_change_serial() == current_serial
+        # create a toxresult
+        with xom.keyfs.transaction(write=True):
+            (link,) = stage.get_releaselinks_perstage('hello')
+            stage.store_toxresult(link, {})
+        assert current_serial == xom.keyfs.get_current_serial() - 1
+        current_serial = xom.keyfs.get_current_serial()
+        with xom.keyfs.transaction(write=False):
+            assert stage.get_last_change_serial() == current_serial
+        # create another stage and run the same actions
+        serial_before_new_stage = xom.keyfs.get_current_serial()
+        with xom.keyfs.transaction(write=True):
+            stage2 = user.create_stage(**udict(
+                index="world2", bases=(), type="stage", volatile=True))
+        assert current_serial == xom.keyfs.get_current_serial() - 1
+        current_serial = xom.keyfs.get_current_serial()
+        for action in actions:
+            with xom.keyfs.transaction(write=True):
+                getattr(stage2, action[0])(*action[1:])
+                # inside the transaction there is no change yet
+                assert stage2.get_last_change_serial() == current_serial
+            assert current_serial == xom.keyfs.get_current_serial() - 1
+            current_serial = xom.keyfs.get_current_serial()
+            with xom.keyfs.transaction(write=False):
+                assert stage2.get_last_change_serial() == current_serial
+        # the other stage should not have changed
+        with xom.keyfs.transaction(write=False):
+            assert stage.get_last_change_serial() == serial_before_new_stage
+        # now we test deletions
+        with xom.keyfs.transaction(write=False):
+            (link,) = stage2.get_releaselinks_perstage('hello')
+            entry = link.entry
+        actions = [
+            ('del_entry', entry, False),
+            ('del_versiondata', 'hello', '1.0', False),
+            ('del_project', 'hello')]
+        for action in actions:
+            with xom.keyfs.transaction(write=True):
+                getattr(stage2, action[0])(*action[1:])
+                # inside the transaction there is no change yet
+                assert stage2.get_last_change_serial() == current_serial
+            assert current_serial == xom.keyfs.get_current_serial() - 1
+            current_serial = xom.keyfs.get_current_serial()
+            with xom.keyfs.transaction(write=False):
+                assert stage2.get_last_change_serial() == current_serial
+        # the other stage still should not have changed
+        with xom.keyfs.transaction(write=False):
+            assert stage.get_last_change_serial() == serial_before_new_stage
+        # modifying the stage also should not affect the other one
+        with xom.keyfs.transaction(write=True):
+            stage2.modify(volatile=False)
+        assert current_serial == xom.keyfs.get_current_serial() - 1
+        current_serial = xom.keyfs.get_current_serial()
+        with xom.keyfs.transaction(write=False):
+            assert stage.get_last_change_serial() == serial_before_new_stage
+        # deleting the stage should not affect the other one either
+        with xom.keyfs.transaction(write=True):
+            stage2.delete()
+            del stage2
+        assert current_serial == xom.keyfs.get_current_serial() - 1
+        with xom.keyfs.transaction(write=False):
+            assert stage.get_last_change_serial() == serial_before_new_stage
+
 
 class TestLinkStore:
     @pytest.fixture
@@ -1012,16 +1114,64 @@ def test_setdefault_indexes(xom, model):
             assert py.builtin._istext(key)
 
 
-@pytest.mark.parametrize("key", ("acl_upload", "bases", "mirror_whitelist"))
+@pytest.mark.parametrize("key", ("acl_upload", "acl_toxresult_upload", "mirror_whitelist"))
 @pytest.mark.parametrize("value, result", (
     ("", []), ("x,y", ["x", "y"]), ("x,,y", ["x", "y"])))
-def test_get_indexconfig_lists(key, value, result):
-    class hooks:
-        @hookimpl
-        def devpiserver_indexconfig_defaults(self, index_type):
-            return {}
-    kvdict = get_indexconfig(hooks(), type="stage", **{key: value})
+def test_get_indexconfig_lists(xom, key, value, result):
+    stage = PrivateStage(
+        xom, "user", "index", {"type": "stage"}, StageCustomizer)
+    kvdict = stage.get_indexconfig_from_kwargs(**{key: value})
     assert kvdict[key] == result
+
+
+def test_ensure_boolean():
+    def upper_lower_case_permutations(value):
+        return tuple(
+            "".join(x)
+            for x in itertools.product(*zip(value.lower(), value.upper())))
+    assert ensure_boolean(True) is True
+    for s in upper_lower_case_permutations("yes"):
+        assert ensure_boolean(s) is True
+    for s in upper_lower_case_permutations("true"):
+        assert ensure_boolean(s) is True
+    assert ensure_boolean(False) is False
+    for s in upper_lower_case_permutations("no"):
+        assert ensure_boolean(s) is False
+    for s in upper_lower_case_permutations("false"):
+        assert ensure_boolean(s) is False
+    with pytest.raises(InvalidIndexconfig):
+        ensure_boolean(None)
+        ensure_boolean("")
+        ensure_boolean("foo")
+        ensure_boolean([])
+        ensure_boolean(["foo"])
+
+
+def test_ensure_list():
+    assert isinstance(ensure_list([]), list)
+    assert isinstance(ensure_list(set()), list)
+    assert isinstance(ensure_list(tuple()), list)
+    assert ensure_list("foo") == ["foo"]
+    assert ensure_list("foo,bar") == ["foo", "bar"]
+    assert ensure_list(" foo , bar ") == ["foo", "bar"]
+    with pytest.raises(InvalidIndexconfig):
+        assert isinstance(ensure_list(None), list)
+        assert isinstance(ensure_list(dict()), list)
+
+
+def test_ensure_acl_list():
+    assert isinstance(ensure_acl_list([]), list)
+    assert isinstance(ensure_acl_list(set()), list)
+    assert isinstance(ensure_acl_list(tuple()), list)
+    assert ensure_acl_list("foo") == ["foo"]
+    assert ensure_acl_list("foo,bar") == ["foo", "bar"]
+    assert ensure_acl_list(" foo , bar ") == ["foo", "bar"]
+    assert ensure_acl_list(" foo , bar ") == ["foo", "bar"]
+    assert ensure_acl_list(" :anonymous: , FOO ,:AuTheNTicated: ") == [
+        ":ANONYMOUS:", "FOO", ":AUTHENTICATED:"]
+    with pytest.raises(InvalidIndexconfig):
+        assert isinstance(ensure_acl_list(None), list)
+        assert isinstance(ensure_acl_list(dict()), list)
 
 
 @pytest.mark.parametrize(["input", "expected"], [
@@ -1029,29 +1179,51 @@ def test_get_indexconfig_lists(key, value, result):
      dict(type="stage")),
 
     ({"volatile": "foo"},
+     InvalidIndexconfig),
+
+    ({"volatile": True},
      dict(type="stage", volatile=True)),
+
+    ({"volatile": "true"},
+     dict(type="stage", volatile=True)),
+
+    ({"volatile": "Yes"},
+     dict(type="stage", volatile=True)),
+
+    ({"volatile": False},
+     dict(type="stage", volatile=False)),
 
     ({"volatile": "False"},
      dict(type="stage", volatile=False)),
 
+    ({"volatile": "no"},
+     dict(type="stage", volatile=False)),
+
     ({"volatile": "False", "bases": "root/pypi"},
-     dict(type="stage", volatile=False, bases=["root/pypi"])),
+     dict(type="stage", volatile=False, bases=("root/pypi",))),
 
     ({"volatile": "False", "bases": ["root/pypi"]},
-     dict(type="stage", volatile=False, bases=["root/pypi"])),
+     dict(type="stage", volatile=False, bases=("root/pypi",))),
 
     ({"volatile": "False", "bases": ["root/pypi"], "acl_upload": ["hello"]},
-     dict(type="stage", volatile=False, bases=["root/pypi"],
+     dict(type="stage", volatile=False, bases=("root/pypi",),
           acl_upload=["hello"])),
 
      ({"volatile": "False", "bases": ["root/pypi"], "acl_toxresult_upload": ["hello"]},
-     dict(type="stage", volatile=False, bases=["root/pypi"],
+     dict(type="stage", volatile=False, bases=("root/pypi",),
           acl_toxresult_upload=["hello"])),
 ])
 def test_get_indexconfig_values(xom, input, expected):
-    class hooks:
-        @hookimpl
-        def devpiserver_indexconfig_defaults(self, index_type):
-            return {}
-    result = get_indexconfig(hooks(), type="stage", **input)
-    assert result == expected
+    stage = PrivateStage(
+        xom, "user", "index", {"type": "stage"}, StageCustomizer)
+    if inspect.isclass(expected) and issubclass(expected, Exception):
+        with pytest.raises(expected):
+            stage.get_indexconfig_from_kwargs(**input)
+    else:
+        expected.setdefault("acl_upload", ["user"])
+        expected.setdefault("acl_toxresult_upload", [":ANONYMOUS:"])
+        expected.setdefault("bases", ())
+        expected.setdefault("mirror_whitelist", [])
+        expected.setdefault("volatile", True)
+        result = stage.get_indexconfig_from_kwargs(**input)
+        assert result == expected

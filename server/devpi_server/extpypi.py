@@ -17,9 +17,11 @@ from devpi_common.metadata import BasenameMeta
 from devpi_common.metadata import is_archive_of_project
 from devpi_common.validation import normalize_name
 from functools import partial
+from .config import hookimpl
+from .model import BaseStageCustomizer
 from .model import BaseStage, make_key_and_href, SimplelinkMeta
+from .model import ensure_boolean
 from .model import join_requires
-from .model import InvalidIndexconfig, get_indexconfig
 from .readonly import ensure_deeply_readonly
 from .log import threadlog
 
@@ -87,22 +89,56 @@ def parse_index(disturl, html):
 
 
 class PyPIStage(BaseStage):
-    def __init__(self, xom, username, index, ixconfig):
-        super(PyPIStage, self).__init__(xom, username, index, ixconfig)
+    def __init__(self, xom, username, index, ixconfig, customizer_cls):
+        super(PyPIStage, self).__init__(
+            xom, username, index, ixconfig, customizer_cls)
         self.httpget = self.xom.httpget  # XXX is requests/httpget multi-thread safe?
-        self.cache_expiry = self.ixconfig.get(
-            'mirror_cache_expiry', xom.config.args.mirror_cache_expiry)
         self.xom = xom
         self.offline = self.xom.config.args.offline_mode
         self.timeout = xom.config.args.request_timeout
         # list of locally mirrored projects
         self.key_projects = self.keyfs.PROJNAMES(user=username, index=index)
-        if xom.is_replica():
-            url = xom.config.master_url
-            self.mirror_url = url.joinpath("%s/+simple/" % self.name).url
+
+    @property
+    def cache_expiry(self):
+        return self.ixconfig.get(
+            'mirror_cache_expiry', self.xom.config.args.mirror_cache_expiry)
+
+    @property
+    def mirror_url(self):
+        if self.xom.is_replica():
+            url = self.xom.config.master_url
+            return url.joinpath("%s/+simple/" % self.name).url
         else:
             url = URL(self.ixconfig['mirror_url'])
-            self.mirror_url = url.asdir().url
+            return url.asdir().url
+
+    def get_possible_indexconfig_keys(self):
+        return tuple(dict(self.get_default_config_items())) + (
+            "custom_data", "description",
+            "mirror_url", "mirror_cache_expiry",
+            "mirror_web_url_fmt", "title")
+
+    def get_default_config_items(self):
+        return [("volatile", True)]
+
+    def normalize_indexconfig_value(self, key, value):
+        if key == "volatile":
+            return ensure_boolean(value)
+        if key == "mirror_url":
+            if not value.startswith(("http://", "https://")):
+                raise self.InvalidIndexconfig([
+                    "'mirror_url' option must be a URL."])
+            return value
+        if key == "mirror_cache_expiry":
+            try:
+                value = int(value)
+            except (TypeError, ValueError):
+                raise self.InvalidIndexconfig([
+                    "'mirror_cache_expiry' option must be an integer"])
+            return value
+        if key in ("custom_data", "description", "mirror_web_url_fmt", "title"):
+            return value
 
     def delete(self):
         # delete all projects on this index
@@ -110,21 +146,6 @@ class PyPIStage(BaseStage):
             self.del_project(name)
         self.key_projects.delete()
         BaseStage.delete(self)
-
-    def modify(self, index=None, **kw):
-        if 'type' in kw and self.ixconfig["type"] != kw['type']:
-            raise InvalidIndexconfig(
-                ["the 'type' of an index can't be changed"])
-        kw.pop("type", None)
-        ixconfig = get_indexconfig(
-            self.xom.config.hook, type=self.ixconfig["type"], **kw)
-        # modify user/indexconfig
-        with self.user.key.update() as userconfig:
-            newconfig = userconfig["indexes"][self.index]
-            newconfig.update(ixconfig)
-            threadlog.info("modified index %s: %s", self.name, ixconfig)
-            self.ixconfig = newconfig
-            return newconfig
 
     def add_project_name(self, project):
         project = normalize_name(project)
@@ -484,6 +505,17 @@ class PyPIStage(BaseStage):
         if readonly:
             return ensure_deeply_readonly(verdata)
         return verdata
+
+
+class PyPICustomizer(BaseStageCustomizer):
+    pass
+
+
+@hookimpl
+def devpiserver_get_stage_customizer_classes():
+    # prevent plugins from installing their own under the reserved names
+    return [
+        ("mirror", PyPICustomizer)]
 
 
 class ProjectNamesCache:

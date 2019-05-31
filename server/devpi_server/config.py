@@ -225,6 +225,9 @@ def addoptions(parser, pluginmanager):
                  "using the same or an earlier devpi-server version. "
                  "Note that you can only import into a fresh server "
                  "state directory (positional argument to devpi-server).")
+    expimp.addoption("--skip-import-type", action="append", metavar="TYPE",
+            help="skip the given index type during import. "
+                 "Used when the corresponding plugin isn't installed anymore.")
 
     expimp.addoption("--no-events", action="store_false",
             default=True, dest="wait_for_events",
@@ -484,6 +487,13 @@ class Config:
     @master_url.setter
     def master_url(self, value):
         self._master_url = value
+
+    @property
+    def restrict_modify(self):
+        rm = self.args.restrict_modify
+        if rm is not None:
+            rm = set(x.strip() for x in rm.split(','))
+        return rm
 
     def _init_role(self):
         if self.master_url:

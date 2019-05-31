@@ -310,7 +310,7 @@ class TestImportExport:
             impexp.import_testdata('badusername')
         (record,) = caplog.getrecords('contains characters')
         assert 'root~foo.com' in record.message
-        (record,) = caplog.getrecords('You should edit')
+        (record,) = caplog.getrecords('You could also try to edit')
         assert 'dataindex.json' in record.message
 
     def test_bad_indexname(self, caplog, impexp):
@@ -318,7 +318,7 @@ class TestImportExport:
             impexp.import_testdata('badindexname')
         (record,) = caplog.getrecords('contains characters')
         assert 'root/pypi!Jo' in record.message
-        (record,) = caplog.getrecords('You should edit')
+        (record,) = caplog.getrecords('You could also try to edit')
         assert 'dataindex.json' in record.message
 
     def test_normalization(self, caplog, impexp):
@@ -347,6 +347,25 @@ class TestImportExport:
             assert link.entry.file_get_content() == b"content1"
             link = stage.get_link_from_entrypath(links[1].entrypath)
             assert link.entry.file_get_content() == b"content2"
+
+    def test_removed_index_plugin(self, caplog, impexp):
+        # when a plugin for an index type is removed, the name is unknown
+        # here we test that this throws an error
+        with pytest.raises(SystemExit) as e:
+            impexp.import_testdata('removedindexplugin')
+        assert e.value.args == (1,)
+        (record,) = [
+            x for x in caplog.get_records("call")
+            if 'Unknown index type' in x.message]
+        assert "--skip-import-type custom" in record.message
+        # now we test that we can skip the import
+        mapp = impexp.import_testdata(
+            'removedindexplugin', options=('--skip-import-type', 'custom'))
+        with mapp.xom.keyfs.transaction(write=False):
+            stage = mapp.xom.model.getstage('user/dev')
+            assert stage is None
+            userconfig = mapp.xom.model.get_user('user').get()
+            assert userconfig['indexes'] == {}
 
     def test_upload_releasefile_with_toxresult(self, impexp, tox_result_data):
         mapp1 = impexp.mapp1

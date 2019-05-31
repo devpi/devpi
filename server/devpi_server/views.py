@@ -18,6 +18,7 @@ from pyramid.httpexceptions import HTTPUnauthorized
 from pyramid.httpexceptions import exception_response
 from pyramid.response import Response
 from pyramid.security import forget
+from pyramid.view import exception_view_config
 from pyramid.view import view_config
 import itertools
 import json
@@ -26,8 +27,8 @@ from devpi_common.validation import normalize_name, is_valid_archive_name
 
 from .filestore import BadGateway
 from .model import InvalidIndex, InvalidIndexconfig, InvalidUser
+from .model import ReadonlyIndex
 from .model import UpstreamError
-from .model import get_ixconfigattrs
 from .readonly import get_mutable_deepcopy
 from .log import thread_push_log, thread_pop_log, threadlog
 
@@ -239,6 +240,13 @@ def get_actions(json):
     return result
 
 
+@exception_view_config(ReadonlyIndex)
+def readonly_index_view(exc, request):
+    response = Response("%s" % exc)
+    response.status = "405 %s" % exc
+    return response
+
+
 class StatusView:
     def __init__(self, request):
         self.request = request
@@ -388,7 +396,7 @@ class PyPIView:
                     "index": request.stage_url(stage),
                     "simpleindex": request.simpleindex_url(stage)
                 })
-                if stage.ixconfig["type"] == "stage":
+                if stage.ixconfig["type"] != "mirror":
                     api["pypisubmit"] = request.route_url(
                         "/{user}/{index}/", user=user, index=index)
         apireturn(200, type="apiconfig", result=api)
@@ -620,14 +628,27 @@ class PyPIView:
         if not self.request.has_permission("index_create"):
             apireturn(403, "no permission to create index %s/%s" % (
                 self.context.username, self.context.index))
-        kvdict = getkvdict_index(self.xom.config.hook, getjson(self.request))
+        json = getjson(self.request)
         try:
-            stage = self.context.user.create_stage(self.context.index, **kvdict)
+            stage = self.context.user.create_stage(self.context.index, **json)
             ixconfig = stage.ixconfig
         except InvalidIndex as e:
             apireturn(400, "%s" % e)
         except InvalidIndexconfig as e:
             apireturn(400, message=", ".join(e.messages))
+        try:
+            stage.customizer.on_modified(self.request, {})
+        except InvalidIndexconfig as e:
+            self.request.apifatal(400, message=", ".join(e.messages))
+        except HTTPException:
+            if not self.request.registry["xom"].keyfs.tx.doomed:
+                self.request.apifatal(
+                    500,
+                    "An HTTPException was raised. In on_modified this is not "
+                    "allowed, as it breaks transaction handling. Use "
+                    "request.apifatal instead.")
+            else:
+                raise
         apireturn(200, type="indexconfig", result=ixconfig)
 
     @view_config(
@@ -656,11 +677,24 @@ class PyPIView:
                 elif op == 'set':
                     ixconfig[key] = value
             json = ixconfig
-        kvdict = getkvdict_index(self.xom.config.hook, json)
+        oldconfig = dict(stage.ixconfig)
         try:
-            ixconfig = stage.modify(**kvdict)
+            ixconfig = stage.modify(**json)
         except InvalidIndexconfig as e:
             apireturn(400, message=", ".join(e.messages))
+        try:
+            stage.customizer.on_modified(self.request, oldconfig)
+        except InvalidIndexconfig as e:
+            self.request.apifatal(400, message=", ".join(e.messages))
+        except HTTPException:
+            if not self.request.registry["xom"].keyfs.tx.doomed:
+                self.request.apifatal(
+                    500,
+                    "An HTTPException was raised. In on_modified this is not "
+                    "allowed, as it breaks transaction handling. Use "
+                    "request.apifatal instead.")
+            else:
+                raise
         apireturn(200, type="indexconfig", result=ixconfig)
 
     @view_config(
@@ -1275,13 +1309,3 @@ def abort_if_invalid_project(request, project):
             project.encode("ascii")
     except (UnicodeEncodeError, UnicodeDecodeError):
         abort(request, 400, "unicode project names not allowed")
-
-
-def getkvdict_index(hook, req):
-    kvdict = {}
-    ixconfigattrs = get_ixconfigattrs(hook, req.get("type", "stage"))
-    for key in ixconfigattrs:
-        if key in req:
-            kvdict[key] = req[key]
-    return kvdict
-

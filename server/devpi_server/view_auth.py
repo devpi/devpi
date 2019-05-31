@@ -9,44 +9,12 @@ from pyramid.decorator import reify
 from pyramid.security import Allow, Deny, Everyone
 
 
-class StageACL(object):
-    def __init__(self, stage, restrict_modify):
-        self.restrict_modify = restrict_modify
-        self.stage = stage
-
-    def __acl__(self):
-        acl = []
-        for principal in self.stage.ixconfig.get("acl_upload", []):
-            if principal == ':ANONYMOUS:':
-                principal = Everyone
-            acl.append((Allow, principal, 'pypi_submit'))
-            acl.append((Allow, principal, 'del_verdata'))
-            acl.append((Allow, principal, 'del_entry'))
-            acl.append((Allow, principal, 'del_project'))
-        for principal in self.stage.ixconfig.get(
-                "acl_toxresult_upload", [':ANONYMOUS:']):
-            if principal == ':ANONYMOUS:':
-                principal = Everyone
-            acl.append((Allow, principal, 'toxresult_upload'))
-        if self.restrict_modify is None:
-            acl.extend([
-                (Allow, self.stage.username, 'index_modify'),
-                (Allow, self.stage.username, 'index_delete'),
-                (Allow, self.stage.username, 'del_verdata'),
-                (Allow, self.stage.username, 'del_entry'),
-                (Allow, self.stage.username, 'del_project')])
-        return acl
-
-
 class RootFactory(object):
     def __init__(self, request):
         self.request = request
         xom = request.registry['xom']
         self.model = xom.model
-        rm = xom.config.args.restrict_modify
-        if rm is not None:
-            rm = [x.strip() for x in rm.split(',')]
-        self.restrict_modify = rm
+        self.restrict_modify = xom.config.restrict_modify
 
     @reify
     def matchdict(self):
@@ -66,12 +34,7 @@ class RootFactory(object):
                 (Allow, Everyone, 'user_create'),
                 (Allow, 'root', 'user_delete'),
                 (Allow, 'root', 'user_modify'),
-                (Allow, 'root', 'index_create'),
-                (Allow, 'root', 'index_modify'),
-                (Allow, 'root', 'index_delete'),
-                (Allow, 'root', 'del_entry'),
-                (Allow, 'root', 'del_project'),
-                (Allow, 'root', 'del_verdata')])
+                (Allow, 'root', 'index_create')])
             if self.username == 'root':
                 acl.append((Deny, Everyone, 'user_delete'))
             if self.username:
@@ -85,17 +48,11 @@ class RootFactory(object):
                     (Allow, principal, 'user_create'),
                     (Allow, principal, 'user_delete'),
                     (Allow, principal, 'user_modify'),
-                    (Allow, principal, 'index_create'),
-                    (Allow, principal, 'index_modify'),
-                    (Allow, principal, 'index_delete'),
-                    (Allow, principal, 'del_verdata'),
-                    (Allow, principal, 'del_entry'),
-                    (Allow, principal, 'del_project')])
+                    (Allow, principal, 'index_create')])
         stage = None
         if self.username and self.index:
             stage = self.model.getstage(self.username, self.index)
         if stage:
-            stage.__acl__ = StageACL(stage, self.restrict_modify).__acl__
             acl.extend(stage.__acl__())
         return acl
 
@@ -104,7 +61,6 @@ class RootFactory(object):
         if not stage:
             abort(self.request, 404,
                   "The stage %s/%s could not be found." % (user, index))
-        stage.__acl__ = StageACL(stage, self.restrict_modify).__acl__
         return stage
 
     def get_versiondata(self, project=None, version=None, perstage=False):

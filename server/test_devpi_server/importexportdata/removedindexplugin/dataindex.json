@@ -1,0 +1,59 @@
+{
+  "users": {
+    "user": {
+      "pwhash": "$argon2i$v=19$m=102400,t=2,p=8$CkFoDYEQIqSU0lrLOYeQkg$6F1BbkudR/IJ2gEFwI1N0g",
+      "username": "user"
+    },
+    "root": {
+      "pwhash": "$argon2i$v=19$m=102400,t=2,p=8$pvTeW+v9HyMkJERorZWydg$xG0PZQd4gMQzwBc47Yw1Eg",
+      "username": "root"
+    }
+  },
+  "indexes": {
+    "user/+foo-dev": {
+      "indexconfig": {
+        "volatile": true,
+        "acl_upload": [
+          "user"
+        ],
+        "acl_toxresult_upload": [
+          ":ANONYMOUS:"
+        ],
+        "bases": [],
+        "mirror_whitelist": [],
+        "type": "custom"
+      },
+      "projects": {
+        "pkg": {
+          "1.0": {
+            "description": "", "license": "", "author": "", "download_url": "",
+            "summary": "", "author_email": "", "version": "1.0", "platform": [],
+            "home_page": "", "keywords": "", "classifiers": [],
+            "name": "pkg"
+          }
+        }
+      },
+      "files": [
+        {
+          "projectname": "pkg", "version": "1.0",
+          "entrymapping": {
+            "project": "pkg", "version": "1.0",
+            "last_modified": "Fri, 12 Sep 2014 13:18:55 GMT",
+            "hash_spec": "sha256=ed7002b439e9ac845f22357d822bac1444730fbdb6016d3ec9432297b9ec9f73"},
+          "type": "releasefile", "relpath": "user/dev/pkg/pkg-1.0.tar.gz"
+        }
+      ]
+    }
+  },
+  "dumpversion": "2",
+  "pythonversion": [
+    3,
+    6,
+    8,
+    "final",
+    0
+  ],
+  "devpi_server": "4.8.1.dev2",
+  "secret": "NWbGFtfzn9NeqM6Q5BEbbBUaJdVF6T4xcYy5frltt8c=",
+  "uuid": "cc17c34d744540d4b49b953ceee99a4f"
+}
