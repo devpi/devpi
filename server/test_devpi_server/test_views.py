@@ -844,13 +844,17 @@ class TestSubmitValidation:
 
     def test_upload_file(self, submit, mapp):
         metadata = {"name": "Pkg5", "version": "1.0", ":action": "submit"}
-        submit.metadata(metadata, code=200)
-        r = submit.file("pkg5-2.6.tgz", b"123", {"name": "pkg5some"}, code=400)
-        assert "no project" in r.status
-        submit.file("pkg5-2.6.tgz", b"123", {"name": "Pkg5"}, code=200)
-        r = submit.file("pkg5-2.6.qwe", b"123", {"name": "Pkg5"}, code=400)
+        r = submit.file("pkg5-1.0.qwe", b"123", metadata, code=400)
         assert "not a valid" in r.status
-        r = submit.file("pkg5-2.7.tgz", b"123", {"name": "pkg5"}, code=200)
+        data = mapp.getjson("/%s" % submit.stagename)["result"]
+        assert data["projects"] == []
+        r = submit.file("pkg5-2.7.tgz", b"123", metadata, code=400)
+        assert "does not contain version" in r.status
+        data = mapp.getjson("/%s" % submit.stagename)["result"]
+        assert data["projects"] == []
+        r = submit.file("pkg5-1.0.tgz", b"123", metadata, code=200)
+        data = mapp.getjson("/%s" % submit.stagename)["result"]
+        assert data["projects"] == ["pkg5"]
         mapp.get_release_paths("Pkg5")
 
     def test_upload_with_removed_base(self, mapp, testapp):

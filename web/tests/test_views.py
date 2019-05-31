@@ -395,8 +395,7 @@ def test_version_projectname(mapp, testapp):
         "pkg-hello-1.0.whl", b"123", "pkg-hello", "1.0",
         register=False, waithooks=True)
     r = testapp.xget(200, api.index + "/pkg-hello/1.0", headers=dict(accept="text/html"))
-    description, = r.html.select('#description')
-    assert '<p>foo</p>' == py.builtin._totext(description.renderContents().strip(), 'utf-8')
+    assert 'pkg-hello-1.0 metadata and description' in r.text
 
 
 @pytest.mark.with_notifier

@@ -851,20 +851,12 @@ class PyPIView:
                 content = request.POST["content"]
             except KeyError:
                 abort_submit(request, 400, "content file field not found")
-            name = ensure_unicode(request.POST.get("name"))
+            name = ensure_unicode(request.POST["name"])
             # version may be empty on plain doczip uploads
             version = ensure_unicode(request.POST.get("version") or "")
             project = normalize_name(name)
 
             if action == "file_upload":
-                if not stage.has_project(name):
-                    abort_submit(
-                        request, 400,
-                        "no project named %r was ever registered" % (name))
-
-                self.log.debug("metadata in form: %s",
-                               list(request.POST.items()))
-
                 # we only check for release files if version is
                 # contained in the filename because for doczip files
                 # we construct the filename ourselves anyway.
@@ -875,13 +867,7 @@ class PyPIView:
                             content.filename, version))
 
                 abort_if_invalid_filename(request, name, content.filename)
-                metadata = stage.get_versiondata_perstage(project, version)
-                if not metadata:
-                    self._set_versiondata_form(stage, request.POST)
-                    metadata = stage.get_versiondata(project, version)
-                    if not metadata:
-                        abort_submit(
-                            request, 400, "could not process form metadata")
+                self._set_versiondata_form(stage, request.POST)
                 file_content = content.file.read()
                 try:
                     link = stage.store_releasefile(
@@ -897,8 +883,6 @@ class PyPIView:
                         request, 409,
                         "%s already exists in non-volatile index" % (
                             content.filename,))
-                link.add_log(
-                    'upload', request.authenticated_userid, dst=stage.name)
                 try:
                     self.xom.config.hook.devpiserver_on_upload_sync(
                         log=request.log, application_url=request.application_url,
@@ -908,6 +892,8 @@ class PyPIView:
                         request, 200,
                         "OK, but a trigger plugin failed: %s" % e, level="warn")
             else:
+                if "version" in request.POST:
+                    self._set_versiondata_form(stage, request.POST)
                 doczip = content.file.read()
                 try:
                     link = stage.store_doczip(project, version, doczip)
@@ -915,10 +901,6 @@ class PyPIView:
                     abort_submit(
                         request, 400,
                         "%s" % e)
-                except stage.MissesRegistration:
-                    abort_submit(
-                        request, 400,
-                        "%s-%s is not registered" % (name, version))
                 except stage.NonVolatile as e:
                     if e.link.matches_checksum(doczip):
                         abort_submit(
@@ -929,8 +911,8 @@ class PyPIView:
                         request, 409,
                         "%s already exists in non-volatile index" % (
                             content.filename,))
-                link.add_log(
-                    'upload', request.authenticated_userid, dst=stage.name)
+            link.add_log(
+                'upload', request.authenticated_userid, dst=stage.name)
         else:
             abort_submit(request, 400, "action %r not supported" % action)
         return Response("")
