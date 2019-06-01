@@ -1,33 +1,25 @@
 =============================================================================
-devpi-server: pypi server for caching and private indexes
+devpi-server: server for private package indexes and PyPI caching
 =============================================================================
 
-* `issue tracker <https://github.com/devpi/devpi/issues>`_, `repo
-  <https://github.com/devpi/devpi>`_
 
-* IRC: #devpi on freenode, `mailing list
-  <https://mail.python.org/mm3/mailman3/lists/devpi-dev.python.org/>`_ 
-
-* compatibility: {win,unix}-py{27,34,35,36,py}
-
-consistent robust pypi-cache
-============================
+PyPI cache
+==========
 
 You can point ``pip or easy_install`` to the ``root/pypi/+simple/``
-index, serving as a self-updating transparent cache for pypi-hosted
-**and** external packages.  Cache-invalidation uses the latest and
-greatest PyPI protocols.  The cache index continues to serve when
-offline and will resume cache-updates once network is available.
+index, serving as a transparent cache for pypi-hosted packages.
 
-user specific indexes
+
+User specific indexes
 =====================
 
-Each user (which can represent a person or a project, team) can have
-multiple indexes and upload packages and docs via standard ``setup.py``
-invocations command.  Users and indexes can be manipulated through a
-RESTful HTTP API.
+Each user (which can represent a person, project or team) can have
+multiple indexes and upload packages and docs via standard ``twine`` or
+``setup.py`` invocations.  Users and indexes can be manipulated through
+`devpi-client`_ and a RESTful HTTP API.
 
-index inheritance
+
+Index inheritance
 =================
 
 Each index can be configured to merge in other indexes so that it serves
@@ -35,23 +27,28 @@ both its uploads and all releases from other index(es).  For example, an
 index using ``root/pypi`` as a parent is a good place to test out a
 release candidate before you push it to PyPI.
 
-good defaults and easy deployment
+
+Good defaults and easy deployment
 =================================
 
 Get started easily and create a permanent devpi-server deployment
-including pre-configured templates for ``nginx`` and cron. 
+including pre-configured templates for ``nginx`` and process managers.
 
-separate tool for Packaging/Testing activities
+
+Separate tool for Packaging/Testing activities
 ==============================================
 
-The complementary `devpi-client <https://pypi.org/project/devpi-client/>`_ tool
+The complementary `devpi-client`_ tool
 helps to manage users, indexes, logins and typical setup.py-based upload and
 installation workflows.
 
-See https://doc.devpi.net for getting started and documentation.
+See https://doc.devpi.net on how to get started and further documentation.
 
 
-support
+.. _devpi-client: https://pypi.org/project/devpi-client/
+
+
+Support
 =======
 
 If you find a bug, use the `issue tracker at Github`_.

@@ -6,6 +6,8 @@ This plugin adds a web interface with search for `devpi-server`_.
 
 .. _devpi-server: https://pypi.org/project/devpi-server/
 
+See https://doc.devpi.net for quickstart and more documentation.
+
 
 Installation
 ============
