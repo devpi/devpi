@@ -98,7 +98,7 @@ In order to create an index, use the :ref:`cmdref_index` sub-command. In the
 example below, we create the **emilie/prod** production index::
 
    $ devpi index -c prod volatile=False
-   http://localhost:3141/emilie/prod:
+   http://localhost:3141/emilie/prod?no_projects=:
      type=stage
      bases=
      volatile=False
@@ -144,7 +144,7 @@ Emilie can then create a development index (:term:`volatile index`) by
 specifying her ``prod`` index as follow::
 
    $ devpi index -c dev bases=/emilie/prod volatile=True
-   http://localhost:3141/emilie/dev:
+   http://localhost:3141/emilie/dev?no_projects=:
      type=stage
      bases=emilie/prod
      volatile=True
@@ -238,7 +238,7 @@ A mirroring index can be created by using ``type=mirror`` and setting the
 ``mirror_url`` option::
 
    $ devpi index -c pypi type=mirror mirror_url=https://test.pypi.org/simple/
-   http://localhost:3141/emilie/pypi:
+   http://localhost:3141/emilie/pypi?no_projects=:
      type=mirror
      volatile=True
      mirror_url=https://test.pypi.org/simple/
@@ -267,7 +267,7 @@ Assuming that Sophie has both index types as well::
 ::
 
    $ devpi index -c prod volatile=False
-   http://localhost:3141/sophie/prod:
+   http://localhost:3141/sophie/prod?no_projects=:
      type=stage
      bases=
      volatile=False
@@ -278,7 +278,7 @@ Assuming that Sophie has both index types as well::
 ::
 
    $ devpi index -c dev bases=/sophie/prod volatile=True
-   http://localhost:3141/sophie/dev:
+   http://localhost:3141/sophie/dev?no_projects=:
      type=stage
      bases=sophie/prod
      volatile=True
@@ -303,7 +303,7 @@ bases::
 
    $ devpi index /emilie/dev bases=/emilie/prod,/sophie/dev
    /emilie/dev bases=/emilie/prod,/sophie/dev
-   http://localhost:3141/emilie/dev:
+   http://localhost:3141/emilie/dev?no_projects=:
      type=stage
      bases=emilie/prod,sophie/dev
      volatile=True
@@ -321,7 +321,7 @@ When the work is done, this relationship can be revoked by doing::
    
    $ devpi index /emilie/dev bases=/emilie/prod
    /emilie/dev bases=/emilie/prod
-   http://localhost:3141/emilie/dev:
+   http://localhost:3141/emilie/dev?no_projects=:
      type=stage
      bases=emilie/prod
      volatile=True
@@ -352,7 +352,7 @@ Emilie may allow sophie to upload to her dev index:
 
    $ devpi index /emilie/dev acl_upload=emilie,sophie
    /emilie/dev acl_upload=emilie,sophie
-   http://localhost:3141/emilie/dev:
+   http://localhost:3141/emilie/dev?no_projects=:
      type=stage
      bases=emilie/prod
      volatile=True
@@ -368,7 +368,7 @@ Suppose you want to allow all users in the "developers" group to upload packages
 
    $ devpi index /emilie/dev acl_upload=emilie,:developers
    /emilie/dev acl_upload=emilie,:developers
-   http://localhost:3141/emilie/dev:
+   http://localhost:3141/emilie/dev?no_projects=:
      type=stage
      bases=emilie/prod
      volatile=True
@@ -382,7 +382,7 @@ It is also possible to allow anonymous uploads if you have a controlled environm
 
    $ devpi index /emilie/dev acl_upload=:ANONYMOUS:
    /emilie/dev acl_upload=:ANONYMOUS:
-   http://localhost:3141/emilie/dev:
+   http://localhost:3141/emilie/dev?no_projects=:
      type=stage
      bases=emilie/prod
      volatile=True
@@ -403,7 +403,7 @@ To allow uploads on PyPI or another mirror to be visible on your index, you have
 .. code-block:: console
 
    $ devpi index -c someindex mirror_whitelist=mypkg
-   http://localhost:3141/emilie/someindex:
+   http://localhost:3141/emilie/someindex?no_projects=:
      type=stage
      bases=
      volatile=True
@@ -416,7 +416,7 @@ You can also whitelist all packages on an index by setting mirror_whitelist to a
 .. code-block:: console
 
    $ devpi index -c wheelindex mirror_whitelist="*"
-   http://localhost:3141/emilie/wheelindex:
+   http://localhost:3141/emilie/wheelindex?no_projects=:
      type=stage
      bases=
      volatile=True
@@ -438,7 +438,7 @@ An index can have a title and description which is used in ``devpi-web``.
    $ devpi index wheelindex "title=Wheel Index" "description=Used for pip wheels"
    /emilie/wheelindex title=Wheel Index
    /emilie/wheelindex description=Used for pip wheels
-   http://localhost:3141/emilie/wheelindex:
+   http://localhost:3141/emilie/wheelindex?no_projects=:
      type=stage
      bases=
      volatile=True
@@ -503,7 +503,7 @@ Deleting an Index
 In the example below, we create a "bad" index and delete it::
 
    $ devpi index -c oups bases=/emilie/prod volatile=True
-   http://localhost:3141/emilie/oups:
+   http://localhost:3141/emilie/oups?no_projects=:
      type=stage
      bases=emilie/prod
      volatile=True

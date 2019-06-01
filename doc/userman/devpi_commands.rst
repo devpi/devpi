@@ -46,7 +46,7 @@ index
 
     $ devpi index -h
     usage: devpi index [-h] [--debug] [-y] [-v] [--clientdir DIR]
-                       [-c | --delete | -l]
+                       [-c | --delete | -l | --no-projects]
                        [indexname] [keyvalues [keyvalues ...]]
     
     create, delete and manage indexes. This is the central command to create and
@@ -68,6 +68,7 @@ index
       -c, --create     create an index
       --delete         delete an index
       -l, --list       list indexes for the logged in user
+      --no-projects    when showing the index data, don't include projects
     
     generic options:
       --debug          show debug messages including more info on server requests
@@ -119,7 +120,7 @@ list
 
     $ devpi list -h
     usage: devpi list [-h] [--debug] [-y] [-v] [--clientdir DIR] [-f] [--all] [-t]
-                      [--index INDEX]
+                      [--index INDEX] [--ignore-bases]
                       [spec]
     
     list project versions and files for the current index. Without a spec argument
@@ -139,6 +140,8 @@ list
       --all             show all versions instead of just the newest
       -t, --toxresults  show toxresults for the releases
       --index INDEX     index to look at (defaults to current index)
+      --ignore-bases    ignore releases from inherited bases. Requires devpi-
+                        server >= 5.0.0.
     
     generic options:
       --debug           show debug messages including more info on server requests
@@ -510,9 +513,9 @@ devpi command reference (server)
                         [--root-passwd ROOT_PASSWD]
                         [--root-passwd-hash ROOT_PASSWD_HASH] [--storage NAME]
                         [--export PATH] [--hard-links] [--import PATH]
-                        [--no-events] [--start] [--stop] [--status] [--log]
-                        [--theme THEME] [--recreate-search-index]
-                        [--indexer-backend NAME]
+                        [--skip-import-type TYPE] [--no-events] [--start] [--stop]
+                        [--status] [--log] [--theme THEME]
+                        [--recreate-search-index] [--indexer-backend NAME]
     
     Start a server which serves multiple users and indices. The special root/pypi
     index is a cached mirror of pypi.org and is created by default. All indices
@@ -640,6 +643,9 @@ devpi command reference (server)
                             devpi-server version. Note that you can only import
                             into a fresh server state directory (positional
                             argument to devpi-server). [None]
+      --skip-import-type TYPE
+                            skip the given index type during import. Used when the
+                            corresponding plugin isn't installed anymore. [None]
       --no-events           no events will be run during import, instead they
                             arepostponed to run on server start. This allows much
                             faster start of the server after import, when devpi-

@@ -79,7 +79,7 @@ For this we first add ``root/pypi`` to the bases of ``emilie/prod``::
 
    $ devpi index emilie/prod bases+=root/pypi
    /emilie/prod bases+=root/pypi
-   http://localhost:3141/emilie/prod:
+   http://localhost:3141/emilie/prod?no_projects=:
      type=stage
      bases=root/pypi
      volatile=False
@@ -314,7 +314,7 @@ can modify her ``dev`` index to use ``/emilie/prod`` index as a base::
 
    $ devpi index /sophie/dev bases=/emilie/prod,/sophie/prod  
    /sophie/dev bases=/emilie/prod,/sophie/prod
-   http://localhost:3141/sophie/dev:
+   http://localhost:3141/sophie/dev?no_projects=:
      type=stage
      bases=emilie/prod,sophie/prod
      volatile=True
@@ -325,7 +325,7 @@ can modify her ``dev`` index to use ``/emilie/prod`` index as a base::
 The list command now gives her a different picture::
 
    $ devpi list pysober
-   http://localhost:3141/emilie/prod/+f/543/f3fb8c829e697/pysober-0.2.0.tar.gz
+   http://localhost:3141/emilie/prod/+f/75c/b939383f78d42/pysober-0.2.0.tar.gz
    
 However, keep in mind that the :term:`release file` is not copied to Sophie's
 ``dev`` index but only made available through inheritance. Removing ``/emilie/prod``
@@ -362,7 +362,7 @@ fails unless Emilie added Sophie in the ``acl_upload`` list::
 
    $ devpi push pysober==0.2.1 emilie/prod
    PUSH http://localhost:3141/sophie/dev
-   401 Unauthorized: user u'sophie' cannot upload to u'emilie/prod'
+   401 Unauthorized: user 'sophie' cannot upload to 'emilie/prod'
    
 Sophie could however :term:`push` (from Emilie's ``prod`` index) the ``0.2.0`` 
 version to her ``/sophie/dev`` index by first using the index::
