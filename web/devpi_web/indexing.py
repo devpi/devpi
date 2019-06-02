@@ -36,8 +36,10 @@ def preprocess_project(project):
             result.update(verdata)
         links = stage.get_linkstore_perstage(name, version).get_links(rel="doczip")
         if links:
-            result['doc_version'] = version
-            result['+doczip'] = Docs(stage, name, version)
+            docs = Docs(stage, name, version)
+            if docs.exists():
+                result['doc_version'] = version
+                result['+doczip'] = docs
             break
         else:
             assert '+doczip' not in result

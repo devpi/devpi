@@ -188,6 +188,29 @@ class SearchUnavailableException(Exception):
     pass
 
 
+def update_schema(ix, schema):
+    if ix.schema == schema:
+        return
+    existing_names = set(ix.schema.names())
+    schema_names = set(schema.names())
+    removed_names = existing_names - schema_names
+    added_names = schema_names - existing_names
+    if not (removed_names or added_names):
+        return
+    writer = ix.writer()
+    for name in removed_names:
+        writer.remove_field(name)
+    for name in added_names:
+        writer.add_field(name, schema[name])
+    log.warn(
+        "The search index schema has changed. "
+        "The update can take a while depending on the size of your index.")
+    if removed_names:
+        writer.commit(optimize=True)
+    else:
+        writer.commit()
+
+
 class Index(object):
     SearchUnavailableException = SearchUnavailableException
 
@@ -208,6 +231,7 @@ class Index(object):
         if not exists_in(self.index_path, indexname=name):
             return create_in(self.index_path, schema, indexname=name)
         ix = open_dir(self.index_path, indexname=name)
+        update_schema(ix, schema)
         if ix.schema != schema:
             log.warn("\n".join([
                 "The search index schema on disk differs from the current code schema.",
@@ -233,6 +257,7 @@ class Index(object):
             name=fields.ID(stored=True),
             user=fields.ID(stored=True),
             index=fields.ID(stored=True),
+            serial=fields.NUMERIC(stored=True),
             classifiers=fields.KEYWORD(commas=True, scorable=True),
             keywords=fields.KEYWORD(stored=True, commas=False, scorable=True),
             version=fields.STORED(),
@@ -255,7 +280,7 @@ class Index(object):
         writer.commit()
         log.info("Finished committing %s deletions to search index." % count)
 
-    def _update_project(self, project, counter, main_keys, writer, clear=False):
+    def _update_project(self, project, serial, counter, main_keys, writer, clear=False):
         def add_document(**kw):
             try:
                 writer.add_document(**kw)
@@ -263,6 +288,7 @@ class Index(object):
                 log.exception("Exception while trying to add the following data to the search index:\n%r" % kw)
                 raise
 
+        searcher = self.project_ix.searcher()
         text_keys = (
             ('author', 0.5),
             ('author_email', 0.5),
@@ -271,10 +297,21 @@ class Index(object):
             ('keywords', 1.75))
         data = dict((u(x), get_mutable_deepcopy(project[x])) for x in main_keys if x in project)
         data['path'] = u"/{user}/{index}/{name}".format(**data)
+        existing = searcher.document(path=data['path'])
+        if existing is not None:
+            needs_reindex = False
+            if ('+doczip' in project) != ('doc_version' in existing):
+                needs_reindex = True
+            existing_serial = existing.get('serial', -1)
+            if existing_serial < serial:
+                needs_reindex = True
+            if not needs_reindex:
+                return
         if not clear:
             # because we use hierarchical documents, we have to delete
             # everything we got for this path and index it again
-            writer.delete_by_term('path', data['path'])
+            writer.delete_by_term('path', data['path'], searcher=searcher)
+        data['serial'] = serial
         data['type'] = "project"
         data['text'] = "%s %s" % (data['name'], project_name(data['name']))
         with writer.group():
@@ -323,8 +360,9 @@ class Index(object):
                 log.info("Processed %s projects", proj_count)
             if project.stage is None:
                 continue
-            project = preprocess_project(project)
-            self._update_project(project, counter, main_keys, writer, clear=clear)
+            serial = project.stage.keyfs.tx.at_serial
+            data = preprocess_project(project)
+            self._update_project(data, serial, counter, main_keys, writer, clear=clear)
         return count
 
     def update_projects(self, projects, clear=False):
