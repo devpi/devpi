@@ -22,12 +22,6 @@ print_ = py.builtin.print_
 pytest_plugins = "pytester"
 
 
-try:
-    string_types = (str, unicode)
-except NameError:
-    string_types = str
-
-
 def pytest_addoption(parser):
     parser.addoption("--fast", help="skip functional/slow tests", default=False,
                      action="store_true")
@@ -319,7 +313,7 @@ def create_files(base, filedefs):
     for key, value in filedefs.items():
         if isinstance(value, dict):
             create_files(base.ensure(key, dir=1), value)
-        elif isinstance(value, string_types):
+        elif isinstance(value, py.builtin._basestring):
             s = textwrap.dedent(value)
             base.join(key).write(s)
 
@@ -355,7 +349,7 @@ def initproj(tmpdir):
             filedefs = {}
         if not src_root:
             src_root = "."
-        if isinstance(nameversion, string_types):
+        if isinstance(nameversion, py.builtin._basestring):
             parts = nameversion.split(str("-"))
             if len(parts) == 1:
                 parts.append("0.1")

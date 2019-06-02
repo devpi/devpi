@@ -23,12 +23,6 @@ from .log import threadlog, thread_current_log
 from .readonly import get_mutable_deepcopy
 
 
-try:
-    string_types = (str, unicode)
-except NameError:
-    string_types = str
-
-
 def join_requires(links, requires_python):
     # build list of (key, href, require_python) tuples
     result = []
@@ -350,7 +344,7 @@ class User:
 
 class InvalidIndexconfig(Exception):
     def __init__(self, messages):
-        if isinstance(messages, string_types):
+        if isinstance(messages, py.builtin._basestring):
             messages = [messages]
         self.messages = messages
         Exception.__init__(self, messages)
