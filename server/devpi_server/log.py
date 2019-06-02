@@ -1,3 +1,4 @@
+from ruamel import yaml
 import threading
 import logging
 import logging.config
@@ -30,8 +31,7 @@ def configure_logging(config_args):
             if config_args.logger_cfg.endswith(".json"):
                 logger_cfg = json.loads(f.read())
             else:
-                import yaml
-                logger_cfg = yaml.load(f.read())
+                logger_cfg = yaml.safe_load(f.read())
         logging.config.dictConfig(logger_cfg)
 
 
