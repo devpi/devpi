@@ -59,7 +59,7 @@ def diff(prev, current):
     request_method="GET",
     renderer="templates/keyfs_changelog.pt")
 def keyfs_changelog_view(request):
-    pformat = partial(json.dumps, indent=4, default=sorted)
+    pformat = partial(json.dumps, indent=4, default=sorted, sort_keys=True)
     storage = request.registry['xom'].keyfs._storage
     serial = request.matchdict['serial']
     query = request.params.get('query')
@@ -72,7 +72,7 @@ def keyfs_changelog_view(request):
             if v[1] >= 0:
                 prev_data = conn.get_raw_changelog_entry(v[1])
                 prev_changes = loads(prev_data)[0]
-                for prev_k, prev_v in prev_changes.items():
+                for prev_k, prev_v in sorted(prev_changes.items()):
                     if prev_k == k and prev_v[0] == v[0]:
                         prev_formatted = pformat(prev_v[2])
             formatted = pformat(v[2])
