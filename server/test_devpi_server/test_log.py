@@ -119,7 +119,6 @@ class TestLoggerConfiguration:
 
     @pytest.mark.skipif("sys.version_info < (2,7)")
     def test_logger_cfg_yaml(self, tmpdir):
-        pytest.importorskip("yaml")
         logger_cfg = tmpdir.join("logging.yml")
         logger_cfg.write(textwrap.dedent("""
             version: 1
