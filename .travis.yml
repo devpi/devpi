@@ -6,7 +6,7 @@ python:
   - "3.4"
   - "3.7"
   - "nightly"
-  - "pypy2.7-6.0"
+  - "pypy2.7-7.1.1"
   - "pypy3.5-7.0"
 env:
   global:
@@ -95,7 +95,7 @@ jobs:
             - nginx
 
     - stage: test
-      python: "pypy2.7-6.0"
+      python: "pypy2.7-7.1.1"
       env: PROJECT=server
       addons:
         apt:
