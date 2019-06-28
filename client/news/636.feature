@@ -1,1 +1,0 @@
-fix #636: support ``--ignore-bases`` option for project listings. Requires devpi-server >= 5.0.0 to work, older versions will still include releases from bases.

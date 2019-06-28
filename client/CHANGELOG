@@ -2,6 +2,33 @@
 
 .. towncrier release notes start
 
+5.0.0 (2019-06-28)
+==================
+
+Deprecations and Removals
+-------------------------
+
+- removed deprecated "quickstart" command.
+
+
+Features
+--------
+
+- fix #636: support ``--ignore-bases`` option for project listings. Requires devpi-server >= 5.0.0 to work, older versions will still include releases from bases.
+
+- decoupled the functional tests from devpi-server and run devpi-server in a Python 3 virtualenv when testing with Python 2.7.
+
+- support ``--no-projects`` option when showing indexes and use it automatically when creating and modifying and index. Requires devpi-server >= 5.0.0 to work, older versions will still receive and show the projects.
+
+- sort output of ``index -l``, ``use -l`` and ``user -l``.
+
+
+Other Changes
+-------------
+
+- The selection of the Python interpreter used for ``devpi upload`` has changed. If used the new ``-p/--python`` option has priority, then a currently activated virtualenv, lastly the ``sys.executable`` under which devpi is running.
+
+
 4.4.0 (2019-04-26)
 ==================
 
