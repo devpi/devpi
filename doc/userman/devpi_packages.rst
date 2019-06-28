@@ -291,7 +291,7 @@ between indexes or users.
 Let's login as Sophie::
 
    $ devpi login sophie --password=1234
-   logged in 'sophie', credentials valid for 10.00 hours
+   logged in 'sophie' at 'http://localhost:3141/emilie/dev', credentials valid for 10.00 hours
 
 Let's also make sure we now switch (use) the appropriate index::
 

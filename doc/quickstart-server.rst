@@ -34,7 +34,7 @@ Install or upgrade ``devpi-server``::
 And let's check the version::
 
     $ devpi-server --version
-    4.7.0
+    5.0.0
 
 .. _genconfig:
 
@@ -103,11 +103,14 @@ share them with a
 Here is an example run::
 
     $ devpi-server --port 4040 --serverdir ~/mydevpiserver --gen-config
-    wrote gen-config/supervisor-devpi.conf
-    wrote gen-config/nginx-devpi.conf
+    It is highly recommended to use a configuration file for devpi-server, see --configfile option.
     wrote gen-config/crontab
     wrote gen-config/net.devpi.plist
+    wrote gen-config/launchd-macos.txt
+    wrote gen-config/nginx-devpi.conf
+    wrote gen-config/supervisor-devpi.conf
     wrote gen-config/devpi.service
+    wrote gen-config/windows-service.txt
 
 Below we look at the config files in a bit of detail.
 
@@ -202,7 +205,9 @@ a standard cron, a modified copy of your user crontab has been amended
 which you may inspect::
 
     $ cat gen-config/crontab
-    @reboot /home/devpi/devpi/bin/devpi-server --start --port 4040 --serverdir /tmp/home/mydevpiserver
+    # as an example you can use the @reboot special target to start the
+    # http://supervisord.org process manager to manage devpi-server:
+    # @reboot /usr/local/sbin/supervisord -c /home/fschulze/etc/supervisor-devpi.conf
 
 and install with::
 
@@ -370,19 +375,19 @@ and then login::
 Alice can now create her new ``dev`` index::
 
     $ devpi index -c dev bases=root/pypi
-    http://localhost:4040/alice/dev:
+    http://localhost:4040/alice/dev?no_projects=:
       type=stage
       bases=root/pypi
       volatile=True
       acl_upload=alice
       acl_toxresult_upload=:ANONYMOUS:
       mirror_whitelist=
-      pypi_whitelist=
 
 and use it ::
 
     $ devpi use alice/dev
     current devpi index: http://localhost:4040/alice/dev (logged in as alice)
+    supported features: server-keyvalue-parsing
     venv for install/set commands: /tmp/docenv
     only setting venv pip cfg, no global configuration changed
     /tmp/docenv/pip.conf   : no config file exists
@@ -400,6 +405,7 @@ cause ``pip`` and ``easy_install`` to use our in-use index server::
 
     $ devpi use --set-cfg alice/dev
     current devpi index: http://localhost:4040/alice/dev (logged in as alice)
+    supported features: server-keyvalue-parsing
     venv for install/set commands: /tmp/docenv
     only setting venv pip cfg, no global configuration changed
     /tmp/docenv/pip.conf   : http://localhost:4040/alice/dev/+simple/
@@ -413,6 +419,7 @@ this configuration modification::
 
     $ devpi use --always-set-cfg=yes
     current devpi index: http://localhost:4040/alice/dev (logged in as alice)
+    supported features: server-keyvalue-parsing
     venv for install/set commands: /tmp/docenv
     only setting venv pip cfg, no global configuration changed
     /tmp/docenv/pip.conf   : http://localhost:4040/alice/dev/+simple/

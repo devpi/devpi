@@ -92,7 +92,7 @@ Logging In
 ::
 
    $ devpi login emilie --password 1234
-   logged in 'emilie', credentials valid for 10.00 hours
+   logged in 'emilie' at 'http://localhost:3141/root/pypi', credentials valid for 10.00 hours
    
 Once authenticated, the session remains for a period of 10 hours. 
 
@@ -106,7 +106,7 @@ description.
 First login at the user or root::
 
    $ devpi login emilie --password 1234
-   logged in 'emilie', credentials valid for 10.00 hours
+   logged in 'emilie' at 'http://localhost:3141/root/pypi', credentials valid for 10.00 hours
    
 Then modify the desired property::
 
@@ -141,7 +141,7 @@ It is possible to delete it, provided the current logged in user as the appropri
 credentials::
 
    $ devpi login root --password=
-   logged in 'root', credentials valid for 10.00 hours
+   logged in 'root' at 'http://localhost:3141/root/pypi', credentials valid for 10.00 hours
    
 ::
 

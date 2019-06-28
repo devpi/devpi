@@ -262,7 +262,7 @@ Changing the Bases
 Assuming that Sophie has both index types as well::
 
    $ devpi login sophie --password=1234
-   logged in 'sophie', credentials valid for 10.00 hours
+   logged in 'sophie' at 'http://localhost:3141/emilie/prod', credentials valid for 10.00 hours
    
 ::
 
@@ -297,7 +297,7 @@ One easy way to achieve this is by modifying the ``/emilie/dev`` index's
 bases::
 
    $devpi login emilie --password=1234
-   logged in 'emilie', credentials valid for 10.00 hours
+   logged in 'emilie' at 'http://localhost:3141/emilie/prod', credentials valid for 10.00 hours
 
 ::
 

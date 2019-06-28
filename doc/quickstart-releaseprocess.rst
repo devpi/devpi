@@ -77,19 +77,19 @@ And create a "dev" index, telling it to use the ``root/pypi`` cache as a base
 so that all of pypi.org packages will appear on that index::
 
     $ devpi index -c dev bases=root/pypi
-    http://localhost:3141/testuser/dev:
+    http://localhost:3141/testuser/dev?no_projects=:
       type=stage
       bases=root/pypi
       volatile=True
       acl_upload=testuser
       acl_toxresult_upload=:ANONYMOUS:
       mirror_whitelist=
-      pypi_whitelist=
 
 Finally we use the new index::
 
     $ devpi use testuser/dev
     current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
+    supported features: server-keyvalue-parsing
     venv for install/set commands: /tmp/docenv
     only setting venv pip cfg, no global configuration changed
     /tmp/docenv/pip.conf   : no config file exists
@@ -151,6 +151,7 @@ Let's verify we are logged in to the correct index::
 
     $ devpi use
     current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
+    supported features: server-keyvalue-parsing
     venv for install/set commands: /tmp/docenv
     only setting venv pip cfg, no global configuration changed
     /tmp/docenv/pip.conf   : no config file exists
@@ -187,6 +188,7 @@ We can now install the freshly uploaded package::
 
     $ devpi install example
     -->  /home/devpi/devpi/doc$ /tmp/docenv/bin/pip install -U -i http://localhost:3141/testuser/dev/+simple/ example  [PIP_USE_WHEEL=1,PIP_PRE=1]
+    Looking in indexes: http://localhost:3141/testuser/dev/+simple/
     Collecting example
       Downloading http://localhost:3141/testuser/dev/+f/b63/6936b6b92f900/example-1.0.tar.gz
     Building wheels for collected packages: example
@@ -278,14 +280,13 @@ to another devpi-managed index or to an outside pypi index server.
 Let's create another ``staging`` index::
 
     $ devpi index -c staging volatile=False
-    http://localhost:3141/testuser/staging:
+    http://localhost:3141/testuser/staging?no_projects=:
       type=stage
       bases=
       volatile=False
       acl_upload=testuser
       acl_toxresult_upload=:ANONYMOUS:
       mirror_whitelist=
-      pypi_whitelist=
 
 We created a non-volatile index which means that one can not 
 overwrite or delete release files. See :ref:`non_volatile_indexes` for more info
@@ -310,6 +311,7 @@ Let's check again our current index::
 
     $ devpi use
     current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
+    supported features: server-keyvalue-parsing
     venv for install/set commands: /tmp/docenv
     only setting venv pip cfg, no global configuration changed
     /tmp/docenv/pip.conf   : no config file exists
@@ -319,6 +321,7 @@ Let's now use our ``testuser/staging`` index::
 
     $ devpi use testuser/staging
     current devpi index: http://localhost:3141/testuser/staging (logged in as testuser)
+    supported features: server-keyvalue-parsing
     venv for install/set commands: /tmp/docenv
     only setting venv pip cfg, no global configuration changed
     /tmp/docenv/pip.conf   : no config file exists
@@ -354,20 +357,20 @@ index, we can reconfigure the inheritance
 ``bases`` for ``testuser/dev``::
 
     $ devpi index testuser/dev bases=testuser/staging
-    /testuser/dev changing bases: ['testuser/staging']
-    http://localhost:3141/testuser/dev:
+    /testuser/dev bases=testuser/staging
+    http://localhost:3141/testuser/dev?no_projects=:
       type=stage
       bases=testuser/staging
       volatile=True
       acl_upload=testuser
       acl_toxresult_upload=:ANONYMOUS:
       mirror_whitelist=
-      pypi_whitelist=
 
 If we now switch back to using ``testuser/dev``::
 
     $ devpi use testuser/dev
     current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
+    supported features: server-keyvalue-parsing
     venv for install/set commands: /tmp/docenv
     only setting venv pip cfg, no global configuration changed
     /tmp/docenv/pip.conf   : no config file exists

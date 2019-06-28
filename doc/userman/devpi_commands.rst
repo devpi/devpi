@@ -549,9 +549,8 @@ devpi command reference (server)
                             After print profiling is restarted. By default no
                             profiling is performed. [0]
       --logger-cfg LOGGER_CFG
-                            path to .json or .yaml logger configuration file. If
-                            you specify a yaml file you need to have the pyyaml
-                            package installed. [None]
+                            path to .json or .yaml logger configuration file.
+                            [None]
       --theme THEME         folder with template and resource overwrites for the
                             web interface [None]
     
