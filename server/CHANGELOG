@@ -2,6 +2,57 @@
 
 .. towncrier release notes start
 
+5.0.0 (2019-06-28)
+==================
+
+Deprecations and Removals
+-------------------------
+
+- fix #518: There are no URLs on PyPI anymore that need to be scraped or crawled, so the code for that was removed.
+
+- removed support for long deprecated ``acl_upload`` and ``bases`` mirror index option. They were only kept for compatibility with devpi-client <= 2.4.1.
+
+- the ``--start``, ``--stop``, ``--status`` and ``--log`` options are deprecated. Use ``--gen-config`` to create example configuration files for various process managers.
+
+- removed long deprecated ``pypi_whitelist`` index option. It was only kept for compatibility with devpi-client <= 2.4.1.
+
+- deprecated Python 2.7 support. This is the last major version supporting Python 2.7. For upgrading to Python 3.x you have to export your data using your current setup with Python 2.7 and import it in a new installation with Python 3.x.
+
+
+Features
+--------
+
+- fix #249: unknown keys for index configuration now result in an error instead of being silently ignored.
+
+- fix #625: project registration is now optional. A file upload with twine or setuptools will automatically register the project.
+
+- fix #636: support ignore_bases argument for project listings.
+
+- support ``:AUTHENTICATED:`` for permissions. This resolves to any user which is logged in, regardless of username or groups.
+
+- added experimental support for stage customizers to let plugins add index types with customized behaviour. See ``BaseStageCustomizer`` in ``model.py`` for the API and ``devpiserver_get_stage_customizer_classes`` for the registration.
+
+- support no_projects argument for index json requests. The list of projects will not be added to the result.
+
+- when credentials for the user are rejected, the error message now says so instead of claiming the user could not be found.
+
+
+Other Changes
+-------------
+
+- boolean values can now only be set via the following values: 'false', 'no', 'true', 'yes' and actual booleans in the REST API. Before any string not matching 'false' and 'no' was converted into boolean true.
+
+- the default logging configuration now outputs to stdout instead of stderr.
+
+- major releases don't require an export/import cycle anymore except when explicitly announced. You should always make a backup though! When upgrading to devpi-server 5.0.0 you can keep the state as is and even downgrade to the last 4.9.x release if necessary. Don't forget to backup before upgrades!
+
+- the server secret isn't automatically persisted for new installations. A server restart invalidates login tokens. An existing installation will still use it's stored secret, but log a warning. Use ``--secretfile`` to explicitly specify a persistent secret file.
+
+- the ``--storage`` option is now required when a storage plugin like devpi-postgresql is in use. It's recommended to use a configuration file for devpi-server to have everything in one place (see ``--configfile``).
+
+- for the ``--logger-cfg`` yaml loading we now use ``safe_load`` of ``ruamel.yaml`` instead of ``load`` from ``pyyaml``.
+
+
 4.9.0 (2019-04-26)
 ==================
 

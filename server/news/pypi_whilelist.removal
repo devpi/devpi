@@ -1,1 +1,0 @@
-removed long deprecated ``pypi_whitelist`` index option. It was only kept for compatibility with devpi-client <= 2.4.1.

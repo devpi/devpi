@@ -1,1 +1,0 @@
-boolean values can now only be set via the following values: 'false', 'no', 'true', 'yes' and actual booleans in the REST API. Before any string not matching 'false' and 'no' was converted into boolean true.

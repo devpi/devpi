@@ -1,1 +1,0 @@
-major releases don't require an export/import cycle anymore except when explicitly announced. You should always make a backup though! When upgrading to devpi-server 5.0.0 you can keep the state as is and even downgrade to the last 4.9.x release if necessary. Don't forget to backup before upgrades!
