@@ -1,1 +1,0 @@
-fix #249: unknown keys for index configuration now result in an error instead of being silently ignored.

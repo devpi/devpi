@@ -1,1 +1,0 @@
-added experimental support for stage customizers to let plugins add index types with customized behaviour. See ``BaseStageCustomizer`` in ``model.py`` for the API and ``devpiserver_get_stage_customizer_classes`` for the registration.

@@ -1,1 +1,0 @@
-for the ``--logger-cfg`` yaml loading we now use ``safe_load`` of ``ruamel.yaml`` instead of ``load`` from ``pyyaml``.

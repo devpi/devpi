@@ -1,1 +1,0 @@
-the ``--start``, ``--stop``, ``--status`` and ``--log`` options are deprecated. Use ``--gen-config`` to create example configuration files for various process managers.
