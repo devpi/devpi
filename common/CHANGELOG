@@ -2,6 +2,15 @@
 
 .. towncrier release notes start
 
+3.4.0 (2019-06-28)
+==================
+
+Features
+--------
+
+- Added full query string support to URL object.
+
+
 3.3.2 (2019-04-04)
 ==================
 
