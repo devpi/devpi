@@ -2,6 +2,15 @@
 
 .. towncrier release notes start
 
+3.5.2 (2019-06-28)
+==================
+
+Bug Fixes
+---------
+
+- iterate over mirror projects instead of building full list for indexing.
+
+
 3.5.1 (2019-04-26)
 ==================
 
