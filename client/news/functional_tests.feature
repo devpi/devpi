@@ -1,1 +1,0 @@
-decoupled the functional tests from devpi-server and run devpi-server in a Python 3 virtualenv when testing with Python 2.7.
