@@ -143,7 +143,7 @@ def test_fatal_if_no_storage_and_no_sqlite_file(tmpdir):
             argv=["devpi-server", "--serverdir", str(tmpdir)],
             pluginmanager=pm
         )
-    assert "you first need to run with --init or --import" in str(excinfo)
+    assert "you first need to run with --init or --import" in str(excinfo.value)
 
 
 @wsgi_run_throws

@@ -169,7 +169,7 @@ class TestConfig:
                              "--serverdir", str(tmpdir)])
         with pytest.raises(Fatal) as excinfo:
             config.init_nodeinfo()
-        assert "need to specify --master-url" in str(excinfo)
+        assert "need to specify --master-url" in str(excinfo.value)
 
     def test_uuid(self, tmpdir):
         config = make_config(["devpi-server", "--serverdir", str(tmpdir)])
