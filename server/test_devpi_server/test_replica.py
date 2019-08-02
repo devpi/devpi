@@ -13,6 +13,7 @@ from devpi_server.replica import ImportFileReplica
 from devpi_server.replica import MasterChangelogRequest
 from devpi_server.replica import ReplicaThread
 from devpi_server.replica import tween_replica_proxy
+from devpi_server.views import iter_remote_file_replica
 from pyramid.httpexceptions import HTTPNotFound
 from pyramid.response import Response
 
@@ -592,7 +593,7 @@ class TestFileReplication:
         assert persisted_errors == replica_xom.errors.errors
         with replica_xom.keyfs.transaction():
             assert not r_entry.file_exists()
-            assert not replica_xom.filestore.storedir.join(r_entry.relpath).exists()
+            assert not replica_xom.config.serverdir.join(r_entry._storepath).exists()
 
         # then we try to return the correct thing
         with xom.keyfs.transaction(write=True):
@@ -635,7 +636,7 @@ class TestFileReplication:
         with xom.keyfs.transaction(write=True):
             entry.file_delete()
             entry.delete()
-        assert not xom.filestore.storedir.join(entry.relpath).exists()
+        assert not xom.config.serverdir.join(entry._storepath).exists()
 
         # and simulate what the master will respond
         xom.httpget.mockresponse(master_file_path, status_code=410)
@@ -685,6 +686,7 @@ class TestFileReplication:
 
     def test_cache_remote_file_fails(self, xom, replica_xom, gen,
                                      pypistage, monkeypatch, reqmock):
+        from devpi_server.filestore import BadGateway
         l = []
         monkeypatch.setattr(xom.keyfs, "wait_tx_serial",
                             lambda x: l.append(x))
@@ -697,8 +699,8 @@ class TestFileReplication:
             entry = replica_xom.filestore.get_file_entry(entry.relpath)
             url = replica_xom.config.master_url.joinpath(entry.relpath).url
             pypistage.httpget.mockresponse(url, status_code=500)
-            with pytest.raises(entry.BadGateway) as e:
-                for part in entry.iter_remote_file_replica():
+            with pytest.raises(BadGateway) as e:
+                for part in iter_remote_file_replica(replica_xom, entry):
                     pass
             e.match('received 500 from master')
             e.match('pypi.org/package/some/pytest-1.8.zip: received 404')
@@ -726,7 +728,7 @@ class TestFileReplication:
             pypistage.httpget.mockresponse(url, status_code=500)
             pypistage.httpget.mockresponse(
                 entry.url, headers=headers, content=b'123')
-            result = entry.iter_remote_file_replica()
+            result = iter_remote_file_replica(replica_xom, entry)
             headers = next(result)
             assert headers['content-length'] == '3'
             assert b''.join(result) == b'123'

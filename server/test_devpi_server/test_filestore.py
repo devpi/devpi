@@ -1,3 +1,4 @@
+from devpi_server.views import iter_cache_remote_file
 import hashlib
 import pytest
 import py
@@ -115,13 +116,13 @@ class TestFileStore:
         assert not entry2.file_exists()
 
     @pytest.mark.storage_with_filesystem
-    def test_file_exists_new_hash(self, filestore, gen):
+    def test_file_exists_new_hash(self, filestore, gen, xom):
         content1 = b'somedata'
         md5_1 = hashlib.md5(content1).hexdigest()
         link1 = gen.pypi_package_link("pytest-1.2.zip", md5=md5_1)
         entry1 = filestore.maplink(link1, "root", "pypi", "pytest")
         # write a wrong file outside the transaction
-        filepath = filestore.storedir.join(entry1.relpath)
+        filepath = xom.config.serverdir.join(entry1._storepath)
         py.path.local(filepath).dirpath().ensure(dir=1)
         with filepath.open("w") as f:
             f.write('othercontent')
@@ -163,7 +164,7 @@ class TestFileStore:
         entry.delete()
         assert not entry.file_exists()
 
-    def test_cache_remote_file(self, filestore, httpget, gen):
+    def test_cache_remote_file(self, filestore, httpget, gen, xom):
         link = gen.pypi_package_link("pytest-1.8.zip", md5=False)
         entry = filestore.maplink(link, "root", "pypi", "pytest")
         assert not entry.hash_spec and not entry.file_exists()
@@ -173,7 +174,7 @@ class TestFileStore:
         }
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw = BytesIO(b"123"))
-        for part in entry.iter_cache_remote_file():
+        for part in iter_cache_remote_file(xom, entry):
             pass
         rheaders = entry.gethttpheaders()
         assert rheaders["content-length"] == "3"
@@ -193,42 +194,42 @@ class TestFileStore:
 
     @pytest.mark.storage_with_filesystem
     @pytest.mark.parametrize("mode", ("commit", "rollback"))
-    def test_file_tx(self, filestore, gen, mode):
+    def test_file_tx(self, filestore, gen, mode, xom):
         assert filestore.keyfs.tx
         link = gen.pypi_package_link("pytest-1.8.zip", md5=False)
         entry = filestore.maplink(link, "root", "pypi", "pytest")
         assert not entry.file_exists()
         entry.file_set_content(b'123')
         assert entry.file_exists()
-        assert not filestore.storedir.join(entry.relpath).exists()
+        assert not xom.config.serverdir.join(entry._storepath).exists()
         assert entry.file_get_content() == b'123'
         if mode == "commit":
             filestore.keyfs.restart_as_write_transaction()
-            assert filestore.storedir.join(entry.relpath).exists()
+            assert xom.config.serverdir.join(entry._storepath).exists()
             entry.file_delete()
-            assert filestore.storedir.join(entry.relpath).exists()
+            assert xom.config.serverdir.join(entry._storepath).exists()
             assert not entry.file_exists()
             filestore.keyfs.commit_transaction_in_thread()
-            assert not filestore.storedir.join(entry.relpath).exists()
+            assert not xom.config.serverdir.join(entry._storepath).exists()
         elif mode == "rollback":
             filestore.keyfs.rollback_transaction_in_thread()
-            assert not filestore.storedir.join(entry.relpath).exists()
+            assert not xom.config.serverdir.join(entry._storepath).exists()
 
-    def test_iterfile_remote_no_headers(self, filestore, httpget, gen):
+    def test_iterfile_remote_no_headers(self, filestore, httpget, gen, xom):
         link = gen.pypi_package_link("pytest-1.8.zip", md5=False)
         entry = filestore.maplink(link, "root", "pypi", "pytest")
         assert not entry.hash_spec
         headers={}
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw = BytesIO(b"123"))
-        for part in entry.iter_cache_remote_file():
+        for part in iter_cache_remote_file(xom, entry):
             pass
         rheaders = entry.gethttpheaders()
         assert rheaders["content-length"] == "3"
         assert rheaders["content-type"] in zip_types
         assert entry.file_get_content() == b"123"
 
-    def test_iterfile_remote_error_size_mismatch(self, filestore, httpget, gen):
+    def test_iterfile_remote_error_size_mismatch(self, filestore, httpget, gen, xom):
         link = gen.pypi_package_link("pytest-3.0.zip", md5=False)
         entry = filestore.maplink(link, "root", "pypi", "pytest")
         assert not entry.hash_spec
@@ -238,10 +239,10 @@ class TestFileStore:
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw = BytesIO(b"1"))
         with pytest.raises(ValueError):
-            for part in entry.iter_cache_remote_file():
+            for part in iter_cache_remote_file(xom, entry):
                 pass
 
-    def test_iterfile_remote_nosize(self, filestore, httpget, gen):
+    def test_iterfile_remote_nosize(self, filestore, httpget, gen, xom):
         link = gen.pypi_package_link("pytest-3.0.zip", md5=False)
         entry = filestore.maplink(link, "root", "pypi", "pytest")
         assert not entry.hash_spec
@@ -250,7 +251,7 @@ class TestFileStore:
         assert entry.file_size() is None
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw=BytesIO(b"1"))
-        for part in entry.iter_cache_remote_file():
+        for part in iter_cache_remote_file(xom, entry):
             pass
         assert entry.file_get_content() == b"1"
         entry2 = filestore.get_file_entry(entry.relpath)
@@ -259,7 +260,7 @@ class TestFileStore:
         assert rheaders["last-modified"] == headers["last-modified"]
         assert rheaders["content-type"] in zip_types
 
-    def test_iterfile_remote_error_md5(self, filestore, httpget, gen):
+    def test_iterfile_remote_error_md5(self, filestore, httpget, gen, xom):
         link = gen.pypi_package_link("pytest-3.0.zip")
         entry = filestore.maplink(link, "root", "pypi", "pytest")
         assert entry.hash_spec and entry.hash_spec == link.hash_spec
@@ -269,7 +270,7 @@ class TestFileStore:
         httpget.url2response[link.url_nofrag] = dict(status_code=200,
                 headers=headers, raw=BytesIO(b"123"))
         with pytest.raises(ValueError) as excinfo:
-            for part in entry.iter_cache_remote_file():
+            for part in iter_cache_remote_file(xom, entry):
                 pass
         assert link.md5 in str(excinfo.value)
         assert not entry.file_exists()
