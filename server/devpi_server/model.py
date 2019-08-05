@@ -32,6 +32,12 @@ def join_requires(links, requires_python):
     return result
 
 
+def apply_filter_iter(items, filter_iter):
+    for item in items:
+        if next(filter_iter, True):
+            yield item
+
+
 def run_passwd(root, username):
     user = root.get_user(username)
     log = thread_current_log()
@@ -440,6 +446,27 @@ class BaseStageCustomizer(object):
             Other exceptions will be handled."""
         pass
 
+    def get_projects_filter_iter(self, projects):
+        """ Called when a list of projects is returned.
+
+            Returns None for no filtering, or an iterator returning
+            True for items to keep and False for items to remove."""
+        return None
+
+    def get_versions_filter_iter(self, project, versions):
+        """ Called when a list of versions is returned.
+
+            Returns None for no filtering, or an iterator returning
+            True for items to keep and False for items to remove."""
+        return None
+
+    def get_simple_links_filter_iter(self, project, links):
+        """ Called when a list of simple links is returned.
+
+            Returns None for no filtering, or an iterator returning
+            True for items to keep and False for items to remove."""
+        return None
+
 
 class UnknownCustomizer(BaseStageCustomizer):
     readonly = True
@@ -632,23 +659,37 @@ class BaseStage(object):
             l.append(json.loads(data))
         return l
 
+    def filter_versions(self, project, versions):
+        iterator = self.customizer.get_versions_filter_iter(project, versions)
+        if iterator is None:
+            return versions
+        return frozenset(apply_filter_iter(versions, iterator))
+
     def list_versions(self, project):
         assert py.builtin._istext(project), "project %r not text" % project
         versions = set()
         for stage, res in self.op_sro_check_mirror_whitelist(
                 "list_versions_perstage", project=project):
             versions.update(res)
-        return versions
+        return self.filter_versions(project, versions)
 
     def get_latest_version(self, name, stable=False):
-        return get_latest_version(self.list_versions(name), stable=stable)
+        return get_latest_version(
+            self.filter_versions(
+                name, self.list_versions(name)),
+            stable=stable)
 
     def get_latest_version_perstage(self, name, stable=False):
-        return get_latest_version(self.list_versions_perstage(name), stable=stable)
+        return get_latest_version(
+            self.filter_versions(
+                name, self.list_versions_perstage(name)),
+            stable=stable)
 
     def get_versiondata(self, project, version):
         assert py.builtin._istext(project), "project %r not text" % project
         result = {}
+        if not self.filter_versions(project, [version]):
+            return result
         for stage, res in self.op_sro_check_mirror_whitelist(
                 "get_versiondata_perstage",
                 project=project, version=version):
@@ -672,6 +713,9 @@ class BaseStage(object):
         try:
             for stage, res in self.op_sro_check_mirror_whitelist(
                     "get_simplelinks_perstage", project=project):
+                iterator = self.customizer.get_simple_links_filter_iter(project, res)
+                if iterator is not None:
+                    res = apply_filter_iter(res, iterator)
                 for key, href, require_python in res:
                     if key not in seen:
                         seen.add(key)
@@ -705,11 +749,27 @@ class BaseStage(object):
     def has_mirror_base(self, project):
         return self.get_mirror_whitelist_info(project)['has_mirror_base']
 
+    def filter_projects(self, projects):
+        iterator = self.customizer.get_projects_filter_iter(projects)
+        if iterator is None:
+            return projects
+        return frozenset(apply_filter_iter(projects, iterator))
+
     def has_project(self, project):
+        if not self.filter_projects([project]):
+            return False
         for stage, res in self.op_sro("has_project_perstage", project=project):
             if res:
                 return True
         return False
+
+    def list_projects(self):
+        result = []
+        for stage, projects in self.op_sro("list_projects_perstage"):
+            result.append((
+                stage,
+                self.filter_projects(projects)))
+        return result
 
     def _modify(self, **kw):
         if 'type' in kw and self.ixconfig["type"] != kw['type']:
@@ -740,11 +800,17 @@ class BaseStage(object):
             raise ReadonlyIndex("index is marked read only")
 
     def op_sro(self, opname, **kw):
+        if "project" in kw:
+            project = normalize_name(kw["project"])
+            if not self.filter_projects([project]):
+                return
         for stage in self.sro():
             yield stage, getattr(stage, opname)(**kw)
 
     def op_sro_check_mirror_whitelist(self, opname, **kw):
         project = normalize_name(kw["project"])
+        if not self.filter_projects([project]):
+            return
         whitelisted = private_hit = False
         for stage in self.sro():
             if stage.ixconfig["type"] == "mirror":

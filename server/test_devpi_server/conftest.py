@@ -476,7 +476,9 @@ class Mapp(MappMixin):
         if user is None:
             user = self.testapp.auth[0]
         r = self.testapp.get("/%s/%s" % (indexname, name), accept="application/json")
-        assert r.status_code == 200
+        assert r.status_code == code
+        if r.status_code >= 300:
+            return
         result = r.json["result"]
         links = set()
         for version in result.values():
