@@ -47,3 +47,19 @@ Every PR is automatically tested and the status will be visible on the PR once
 the tests ran.
 
 The Windows Tests are known to fail sometimes.
+
+
+Documetation
+------------
+Devpi's documentation uses the `Sphinx <https://www.sphinx-doc.org>`_
+documentation system, which in turn is based on `docutils <http://docutils.sourceforge.net/>`_.
+The basic idea is that lightly-formatted plain-text documentation is
+transformed into HTML, PDF, and any other output format.
+
+To build the documentation locally, perform the following steps from the
+``doc`` directory::
+
+$ pip install sphinx
+$ make html
+
+To get started contributing, you’ll want to read the `reStructuredText reference <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html#rst-index>`_.

@@ -87,6 +87,7 @@ Tutorials and Documentation
    status
    glossary
    announce/index
+   contributing
    changelog
 
 .. toctree::
